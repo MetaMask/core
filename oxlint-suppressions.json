@@ -1955,11 +1955,6 @@
       "count": 2
     }
   },
-  "packages/chomp-api-service/src/chomp-api-service.test.ts": {
-    "vitest/no-conditional-in-test": {
-      "count": 1
-    }
-  },
   "packages/chomp-api-service/src/chomp-api-service.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 12
@@ -6045,19 +6040,6 @@
       "count": 2
     }
   },
-  "packages/utils/src/fs.test.ts": {
-    "typescript/no-explicit-any": {
-      "count": 20
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 8
-    }
-  },
-  "packages/utils/src/fs.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
   "packages/utils/src/json.test.ts": {
     "no-throw-literal": {
       "count": 7
@@ -6096,11 +6078,6 @@
       "count": 2
     },
     "vitest/no-conditional-in-test": {
-      "count": 1
-    }
-  },
-  "packages/watch-only-account-service/jest.config.cjs": {
-    "import/unambiguous": {
       "count": 1
     }
   },
