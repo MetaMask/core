@@ -76,7 +76,6 @@ describe('formatCurrency', () => {
   it('re-throws non-RangeError errors from Intl.NumberFormat', () => {
     const original = Intl.NumberFormat;
     const typeError = new TypeError('unexpected');
-    // Vitest only constructs a mock with a `function` implementation.
     Intl.NumberFormat = vi.fn().mockImplementation(function () {
       throw typeError;
     }) as unknown as typeof Intl.NumberFormat;
