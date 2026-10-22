@@ -6757,6 +6757,7 @@ __metadata:
     "@yarnpkg/fslib": "npm:^3.1.5"
     "@yarnpkg/parsers": "npm:^3.0.3"
     "@yarnpkg/types": "npm:^4.0.0"
+    async-mutex: "npm:^0.5.0"
     bats: "npm:^1.13.0"
     comment-json: "npm:^4.6.2"
     eslint-plugin-n: "npm:^18.3.0"

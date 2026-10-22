@@ -98,6 +98,7 @@
     "@yarnpkg/fslib": "^3.1.5",
     "@yarnpkg/parsers": "^3.0.3",
     "@yarnpkg/types": "^4.0.0",
+    "async-mutex": "^0.5.0",
     "bats": "^1.13.0",
     "comment-json": "^4.6.2",
     "eslint-plugin-n": "^18.3.0",
