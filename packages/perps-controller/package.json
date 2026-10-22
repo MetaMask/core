@@ -33,6 +33,10 @@
       "types": "./dist/constants/*.d.ts",
       "default": "./dist/constants/*.js"
     },
+    "./providers/lighter": {
+      "types": "./dist/providers/LighterProvider.d.ts",
+      "default": "./dist/providers/LighterProvider.js"
+    },
     "./types": {
       "types": "./dist/types/index.d.ts",
       "default": "./dist/types/index.js"

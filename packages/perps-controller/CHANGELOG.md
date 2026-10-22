@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the `@metamask/perps-controller/providers/lighter` export and optional `LighterCredentials.loadProvider`, so a web client whose bundler cannot load the controller's own Lighter import (such as Next.js) passes `loadProvider: () => import('@metamask/perps-controller/providers/lighter')` and bundles Lighter itself
+  - Without `loadProvider` the controller keeps its bundler-ignored import, so clients that do not pass it, such as the extension, still bundle no Lighter code.
+
+### Changed
+
+- `switchProvider('lighter')` returns why the Lighter provider failed to load instead of only `Provider lighter not available`, and points to `providerCredentials.lighter.loadProvider` when the client passed none
+
+### Fixed
+
+- Treat a Lighter provider module that cannot be fetched (`Failed to fetch dynamically imported module` and its Firefox and Safari equivalents) or resolved (`ERR_MODULE_NOT_FOUND`) like `MODULE_NOT_FOUND`: debug-logged instead of reported through `logger.error`. Other Lighter load failures are still reported through `logger.error`.
+
 ## [21.0.0]
 
 ### Added
