@@ -5,6 +5,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock, { cleanAll, disableNetConnect, enableNetConnect } from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AnalyticsDataRegulationServiceMessenger } from './AnalyticsDataRegulationService.js';
 import { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService.js';
@@ -18,13 +19,13 @@ describe('AnalyticsDataRegulationService', () => {
   const segmentRegulationsEndpoint = 'https://proxy.example.com/v1beta';
 
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers();
     cleanAll();
     disableNetConnect();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
     cleanAll();
     enableNetConnect();
   });
@@ -357,9 +358,9 @@ describe('AnalyticsDataRegulationService', () => {
         },
       });
 
-      const onRetryListener = jest.fn();
+      const onRetryListener = vi.fn();
       service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
+        vi.advanceTimersToNextTimerAsync().catch(console.error);
         onRetryListener();
       });
 
@@ -383,10 +384,10 @@ describe('AnalyticsDataRegulationService', () => {
 
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
+        vi.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
-      const onBreakListener = jest.fn();
+      const onBreakListener = vi.fn();
       service.onBreak(onBreakListener);
 
       // Make 3 failed requests to trigger circuit breaker
@@ -418,7 +419,7 @@ describe('AnalyticsDataRegulationService', () => {
       nock(segmentRegulationsEndpoint)
         .post(`/regulations/sources/${segmentSourceId}`)
         .reply(200, () => {
-          jest.advanceTimersByTime(6000);
+          vi.advanceTimersByTime(6000);
           return {
             data: {
               data: {
@@ -429,7 +430,7 @@ describe('AnalyticsDataRegulationService', () => {
         });
 
       const { service, rootMessenger } = getService();
-      const onDegradedListener = jest.fn();
+      const onDegradedListener = vi.fn();
       service.onDegraded(onDegradedListener);
 
       await rootMessenger.call(
@@ -448,9 +449,9 @@ describe('AnalyticsDataRegulationService', () => {
 
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
+        vi.advanceTimersToNextTimerAsync().catch(console.error);
       });
-      const onDegradedListener = jest.fn();
+      const onDegradedListener = vi.fn();
       service.onDegraded(onDegradedListener);
 
       await expect(

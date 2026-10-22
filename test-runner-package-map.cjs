@@ -5,15 +5,9 @@ const { workspaces } = require('./package.json');
 
 // Do not add to this list: new packages are expected to use Vitest.
 const PACKAGES_ON_JEST = new Set([
-  '@metamask/advanced-chart-core',
-  '@metamask/analytics-controller',
-  '@metamask/analytics-data-regulation-controller',
-  '@metamask/app-metadata-controller',
   '@metamask/assets-controller',
   '@metamask/assets-controllers',
   '@metamask/chain-agnostic-permission',
-  '@metamask/client-controller',
-  '@metamask/compliance-controller',
   '@metamask/core-backend',
   '@metamask/eip-5792-middleware',
   '@metamask/eip-7702-internal-rpc-middleware',
@@ -21,8 +15,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/eth-block-tracker',
   '@metamask/eth-json-rpc-middleware',
   '@metamask/eth-json-rpc-provider',
-  '@metamask/foundryup',
-  '@metamask/geolocation-controller',
   '@metamask/json-rpc-engine',
   '@metamask/json-rpc-middleware-stream',
   '@metamask/multichain-api-middleware',
@@ -31,10 +23,7 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/permission-controller',
   '@metamask/permission-log-controller',
   '@metamask/perps-controller',
-  '@metamask/profile-metrics-controller',
-  '@metamask/remote-feature-flag-controller',
   '@metamask/selected-network-controller',
-  '@metamask/storage-service',
 ]);
 
 /**

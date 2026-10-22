@@ -225,11 +225,6 @@
       "count": 3
     }
   },
-  "packages/advanced-chart-core/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/advanced-chart-core/src/__tests__/index.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 2
@@ -238,6 +233,9 @@
   "packages/advanced-chart-core/src/core/__tests__/bootstrap.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 4
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/advanced-chart-core/src/core/__tests__/bridge.test.ts": {
@@ -277,7 +275,7 @@
   },
   "packages/advanced-chart-core/src/features/indicators/__tests__/subPane.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 3
+      "count": 1
     }
   },
   "packages/advanced-chart-core/src/features/indicators/index.ts": {
@@ -301,11 +299,6 @@
       "count": 3
     }
   },
-  "packages/advanced-chart-core/src/features/volume/__tests__/volume.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
   "packages/advanced-chart-core/src/features/volume/index.ts": {
     "unicorn/no-useless-undefined": {
       "count": 1
@@ -324,9 +317,9 @@
       "count": 1
     }
   },
-  "packages/advanced-chart-core/src/overlays/positionLines/__tests__/positionLines.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 4
+  "packages/advanced-chart-core/src/overlays/focusTime/__tests__/focusTime.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/advanced-chart-core/src/overlays/positionLines/__tests__/state.test.ts": {
@@ -347,6 +340,9 @@
   "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/animation.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/markerHitTest.test.ts": {
@@ -365,9 +361,6 @@
   "packages/advanced-chart-core/src/pagination/__tests__/priceApi.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 3
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
     }
   },
   "packages/advanced-chart-core/src/pagination/__tests__/rnBacked.test.ts": {
@@ -375,7 +368,7 @@
       "count": 13
     },
     "typescript/no-unsafe-member-access": {
-      "count": 22
+      "count": 17
     }
   },
   "packages/advanced-chart-core/src/platform/iframeHost.ts": {
@@ -388,17 +381,12 @@
       "count": 2
     }
   },
-  "packages/advanced-chart-core/src/widget/__tests__/chartType.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
   "packages/advanced-chart-core/src/widget/__tests__/datafeed.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 11
     },
     "typescript/no-unsafe-member-access": {
-      "count": 13
+      "count": 10
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/externalLinkBridge.test.ts": {
@@ -412,12 +400,6 @@
   "packages/advanced-chart-core/src/widget/__tests__/initChart.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 2
-    },
-    "typescript/no-unsafe-call": {
-      "count": 9
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 18
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/ohlcvIngestion.test.ts": {
@@ -432,20 +414,21 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 13
-    }
-  },
-  "packages/advanced-chart-core/src/widget/__tests__/scaleLayout.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 10
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 9
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/theme.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 11
+      "count": 7
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/tvDomHelpers.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -459,14 +442,9 @@
       "count": 5
     }
   },
-  "packages/analytics-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/analytics-controller/src/AnalyticsController.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 12
     }
   },
   "packages/analytics-controller/src/AnalyticsController.ts": {
@@ -477,11 +455,6 @@
       "count": 2
     }
   },
-  "packages/analytics-data-regulation-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/analytics-data-regulation-controller/src/AnalyticsDataRegulationController.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 1
@@ -490,11 +463,9 @@
   "packages/analytics-data-regulation-controller/src/AnalyticsDataRegulationService.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 5
-    }
-  },
-  "packages/app-metadata-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 5
     }
   },
   "packages/approval-controller/src/ApprovalController.test.ts": {
@@ -1974,11 +1945,6 @@
       "count": 2
     }
   },
-  "packages/client-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/client-utils/src/mappers/api-transaction-mapper.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 2
@@ -1992,11 +1958,6 @@
   "packages/client-utils/src/mappers/ramps-order-mapper.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 3
-    }
-  },
-  "packages/compliance-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
     }
   },
   "packages/controller-utils/src/create-service-policy.test.ts": {
@@ -2354,11 +2315,6 @@
       "count": 1
     }
   },
-  "packages/foundryup/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/foundryup/src/download.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -2390,15 +2346,6 @@
     },
     "typescript/explicit-function-return-type": {
       "count": 1
-    },
-    "typescript/no-unsafe-call": {
-      "count": 4
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 4
-    },
-    "typescript/no-unsafe-return": {
-      "count": 3
     }
   },
   "packages/foundryup/src/index.ts": {
@@ -2532,14 +2479,9 @@
       "count": 1
     }
   },
-  "packages/geolocation-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/geolocation-controller/src/geolocation-api-service/geolocation-api-service.test.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
+  "packages/geolocation-controller/src/GeolocationController.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 5
     }
   },
   "packages/java-tron-up/src/bin/java-tron-up.ts": {
@@ -4016,8 +3958,8 @@
       "count": 1
     }
   },
-  "packages/profile-metrics-controller/jest.config.cjs": {
-    "import/unambiguous": {
+  "packages/profile-metrics-controller/src/ProfileMetricsController.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -4494,14 +4436,14 @@
       "count": 1
     }
   },
-  "packages/remote-feature-flag-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
+    }
+  },
+  "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 10
     }
   },
   "packages/sample-controllers/src/sample-gas-prices-controller.test.ts": {
@@ -4884,14 +4826,14 @@
       "count": 5
     }
   },
-  "packages/storage-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/storage-service/src/InMemoryStorageAdapter.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
+    }
+  },
+  "packages/storage-service/src/StorageService.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/subscription-controller/src/SubscriptionController.test.ts": {
@@ -5952,14 +5894,6 @@
   },
   "scripts/lint-tsc.test.ts": {
     "no-shadow": {
-      "count": 1
-    }
-  },
-  "scripts/lint-tsconfigs/utils.ts": {
-    "n/no-unsupported-features/node-builtins": {
-      "count": 1
-    },
-    "no-useless-return": {
       "count": 1
     }
   },

@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import {
   _resetStateForTests,
   getActiveStudies,
@@ -18,27 +21,27 @@ import {
 } from '../index.js';
 
 type ChartMock = {
-  createStudy: jest.Mock;
-  removeEntity: jest.Mock;
-  getStudyById: jest.Mock;
-  getAllPanesHeight: jest.Mock;
-  setAllPanesHeight: jest.Mock;
-  exportData: jest.Mock;
+  createStudy: Mock;
+  removeEntity: Mock;
+  getStudyById: Mock;
+  getAllPanesHeight: Mock;
+  setAllPanesHeight: Mock;
+  exportData: Mock;
 };
 
 const makeChart = (
-  createStudyImpl?: jest.Mock,
+  createStudyImpl?: Mock,
 ): {
   chart: TVActiveChart;
   mock: ChartMock;
 } => {
   const mock: ChartMock = {
-    createStudy: createStudyImpl ?? jest.fn().mockResolvedValue('sid-default'),
-    removeEntity: jest.fn(),
-    getStudyById: jest.fn().mockReturnValue(null),
-    getAllPanesHeight: jest.fn().mockReturnValue([300, 100]),
-    setAllPanesHeight: jest.fn(),
-    exportData: jest.fn().mockResolvedValue({
+    createStudy: createStudyImpl ?? vi.fn().mockResolvedValue('sid-default'),
+    removeEntity: vi.fn(),
+    getStudyById: vi.fn().mockReturnValue(null),
+    getAllPanesHeight: vi.fn().mockReturnValue([300, 100]),
+    setAllPanesHeight: vi.fn(),
+    exportData: vi.fn().mockResolvedValue({
       schema: [],
       data: [],
     }),
@@ -46,8 +49,8 @@ const makeChart = (
   return { chart: mock as unknown as TVActiveChart, mock };
 };
 
-const installRNBridge = (): { postMessage: jest.Mock } => {
-  const bridge = { postMessage: jest.fn() };
+const installRNBridge = (): { postMessage: Mock } => {
+  const bridge = { postMessage: vi.fn() };
   window.ReactNativeWebView = bridge;
   return bridge;
 };
@@ -66,17 +69,17 @@ describe('handleAddIndicator', () => {
   beforeEach(() => {
     _resetStateForTests();
     installRNBridge();
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((callback: FrameRequestCallback) => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback: FrameRequestCallback) => {
         const frameTime = 0;
         callback(frameTime);
         return 0;
-      });
+      },
+    );
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('no-ops when no widget exists', () => {
@@ -100,7 +103,7 @@ describe('handleAddIndicator', () => {
   });
 
   it('registers + announces a successful add', async () => {
-    const createStudy = jest.fn().mockResolvedValue('sid-macd');
+    const createStudy = vi.fn().mockResolvedValue('sid-macd');
     const { chart, mock } = makeChart(createStudy);
     setupReadyWidget(chart);
     handleAddIndicator({ name: 'MACD' }, baseConfig);
@@ -145,17 +148,17 @@ describe('handleSetMAVisibility', () => {
   beforeEach(() => {
     _resetStateForTests();
     installRNBridge();
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((callback: FrameRequestCallback) => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback: FrameRequestCallback) => {
         const frameTime = 0;
         callback(frameTime);
         return 0;
-      });
+      },
+    );
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('removes MA variants that are no longer in the visible list', () => {
@@ -170,7 +173,7 @@ describe('handleSetMAVisibility', () => {
   });
 
   it('adds new MA variants via createStudy', async () => {
-    const createStudy = jest.fn().mockResolvedValue('sid-50');
+    const createStudy = vi.fn().mockResolvedValue('sid-50');
     const { chart, mock } = makeChart(createStudy);
     setupReadyWidget(chart);
     handleSetMAVisibility({ visible: ['MA50'] }, baseConfig);
