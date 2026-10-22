@@ -241,6 +241,20 @@ describe('parseRealtimeFeedItem', () => {
     expect(parseRealtimeFeedItem({ itemId: 'missing-fields' })).toBeUndefined();
   });
 
+  it('rejects incomplete normalized feed items', () => {
+    expect(
+      parseRealtimeFeedItem({
+        positionId: 'position-1',
+        tokenSymbol: 'TKN',
+        tokenName: 'Token',
+        tokenAddress: '0xtoken',
+        chain: 'base',
+        trades: [],
+        actor: {},
+      }),
+    ).toBeUndefined();
+  });
+
   it('normalizes a full position without optional comments or metrics', () => {
     const value = {
       ...fullHydratedPosition,

@@ -22,6 +22,7 @@ import type {
   FeedActorSummary,
   Trade,
 } from './social-types.js';
+import { FeedItemStruct } from './structs.js';
 
 const RawTradeStruct = assign(
   structType({
@@ -250,14 +251,7 @@ const toTrade = (trade: {
 });
 
 const isNormalizedRealtimeFeedItem = (value: unknown): value is FeedItem =>
-  isRecord(value) &&
-  typeof value.positionId === 'string' &&
-  typeof value.tokenSymbol === 'string' &&
-  typeof value.tokenName === 'string' &&
-  typeof value.tokenAddress === 'string' &&
-  typeof value.chain === 'string' &&
-  Array.isArray(value.trades) &&
-  isRecord(value.actor);
+  is(value, FeedItemStruct);
 
 export const normalizeRealtimeFeedItem = (
   value: unknown,
