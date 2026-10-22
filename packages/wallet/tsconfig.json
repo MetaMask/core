@@ -47,6 +47,9 @@
       "path": "../network-controller"
     },
     {
+      "path": "../network-enablement-controller"
+    },
+    {
       "path": "../passkey-controller"
     },
     {

@@ -998,6 +998,7 @@
 /packages/wallet/src/initialization/instances/keyring-controller/                @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/logging-controller/                @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/network-controller/                @MetaMask/core-platform @MetaMask/metamask-assets
+/packages/wallet/src/initialization/instances/network-enablement-controller/     @MetaMask/metamask-assets
 /packages/wallet/src/initialization/instances/passkey-controller/                @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/permission-controller/             @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/remote-feature-flag-controller/    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform

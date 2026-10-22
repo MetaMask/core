@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Import `@metamask/slip44` with a JSON import attribute so Node.js ESM consumers do not throw `ERR_IMPORT_ATTRIBUTE_MISSING` when importing `NetworkEnablementController` ([#10997](https://github.com/MetaMask/core/pull/10997))
 - Preserve existing network enablement when an auto-enabled network from the config registry is added ([#10763](https://github.com/MetaMask/core/pull/10763))
 
 ## [7.0.2]

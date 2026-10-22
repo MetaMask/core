@@ -18,6 +18,9 @@
       "path": "../messenger/tsconfig.build.json"
     },
     {
+      "path": "../multichain-network-controller/tsconfig.build.json"
+    },
+    {
       "path": "../remote-feature-flag-controller/tsconfig.build.json"
     },
     {

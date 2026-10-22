@@ -5,6 +5,8 @@ import type {
 } from '@metamask/analytics-controller';
 import { ConfigRegistryApiEnv } from '@metamask/config-registry-controller';
 import { Messenger } from '@metamask/messenger';
+import { getDefaultMultichainNetworkControllerState } from '@metamask/multichain-network-controller';
+import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import {
   ClientConfigApiService,
   ClientType,
@@ -188,6 +190,33 @@ function registerAnalyticsStubHandlers(messenger: Wallet['messenger']): void {
 }
 
 /**
+ * Register a handler for `MultichainNetworkController:getState`.
+ * `NetworkEnablementController.init()` reads that action while syncing enabled
+ * networks. The daemon does not run `MultichainNetworkController`, so the
+ * handler returns that controller's default state and keeps initialization
+ * from aborting.
+ *
+ * @param messenger - The wallet's root messenger.
+ */
+function registerMultichainNetworkStubHandlers(
+  messenger: Wallet['messenger'],
+): void {
+  const multichainMessenger = new Messenger<
+    'MultichainNetworkController',
+    MultichainNetworkControllerGetStateAction,
+    never,
+    RootMessenger<DefaultActions, DefaultEvents>
+  >({
+    namespace: 'MultichainNetworkController',
+    parent: messenger as RootMessenger<DefaultActions, DefaultEvents>,
+  });
+  multichainMessenger.registerActionHandler(
+    'MultichainNetworkController:getState',
+    getDefaultMultichainNetworkControllerState,
+  );
+}
+
+/**
  * Create a configured `Wallet` for daemon use, backed by a SQLite key-value
  * store for controller-state persistence.
  *
@@ -260,6 +289,7 @@ export async function createWallet({
       instanceOptions: buildInstanceOptions(infuraProjectId),
     });
     registerAnalyticsStubHandlers(wallet.messenger);
+    registerMultichainNetworkStubHandlers(wallet.messenger);
     persistenceUnsubscribe = subscribeToChanges(
       wallet.messenger,
       wallet.controllerMetadata,
@@ -383,6 +413,7 @@ async function loadPersistedState(
     instanceOptions: buildInstanceOptions(infuraProjectId),
   });
   registerAnalyticsStubHandlers(probe.messenger);
+  registerMultichainNetworkStubHandlers(probe.messenger);
   try {
     return loadState(store, probe.controllerMetadata);
   } finally {

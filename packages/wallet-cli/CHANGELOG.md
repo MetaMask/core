@@ -49,4 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `better-sqlite3` from `^12.9.0` to `^13.0.3` ([#10528](https://github.com/MetaMask/core/pull/10528), [#10598](https://github.com/MetaMask/core/pull/10598))
 - Bump `@metamask/rpc-errors` from `^7.0.2` to `^7.0.3` ([#10718](https://github.com/MetaMask/core/pull/10718))
 
+### Fixed
+
+- Register a `MultichainNetworkController:getState` handler on the daemon wallet so `NetworkEnablementController.init()` can finish. The daemon does not run `MultichainNetworkController` ([#10997](https://github.com/MetaMask/core/pull/10997))
+
 [Unreleased]: https://github.com/MetaMask/core/
