@@ -1095,6 +1095,20 @@ const transactions = {
     readable: 'Swapped USDT for',
     readableExtended: 'Swapped 1.2 USDT for',
   },
+  polygonSmartAccountBatchExecute: {
+    hash: '0xpolygonsmartaccountbatchexecute',
+    timestamp: '2026-05-01T13:39:47.000Z',
+    chainId: 137,
+    from: addresses.subjectAddress,
+    to: addresses.subjectAddress,
+    methodId: '0xe9ae5c53',
+    value: '0',
+    gasUsed: 543901,
+    effectiveGasPrice: '394959787987',
+    transactionCategory: 'WITHDRAW',
+    transactionType: 'GENERIC_CONTRACT_CALL',
+    valueTransfers: [],
+  },
 } as const satisfies Record<string, V1TransactionByHashResponse>;
 
 const mapArgs = {
@@ -1263,6 +1277,10 @@ const mapArgs = {
   mapsAnAcrossUsdtExchangeWithNativeFee: {
     subjectAddress: addresses.subjectAddress,
     transaction: transactions.mapsAnAcrossUsdtExchangeWithNativeFee,
+  },
+  polygonSmartAccountBatchExecute: {
+    subjectAddress: addresses.subjectAddress,
+    transaction: transactions.polygonSmartAccountBatchExecute,
   },
 } as const;
 
