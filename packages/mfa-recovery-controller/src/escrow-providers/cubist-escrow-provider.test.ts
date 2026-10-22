@@ -214,11 +214,12 @@ describe('CubistEscrowProvider', () => {
     it('invokes getSecret and returns the wrapped secret', async () => {
       const { provider, invoke } = createProvider({ stdout: secretResponse });
       expect(
-        await provider.getSecret(AUTHORIZATION, 'req-1', PK_E),
+        await provider.getSecret(TOKEN, AUTHORIZATION, 'req-1', PK_E),
       ).toStrictEqual(secretResponse);
       expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
         request: {
           cmd: 'getSecret',
+          authControllerToken: TOKEN,
           identifierAuthorization: AUTHORIZATION,
           requestId: 'req-1',
           pkE: PK_E,
@@ -239,7 +240,7 @@ describe('CubistEscrowProvider', () => {
     ])('rejects a secret response that is %s', async (_label, body) => {
       const { provider } = createProvider({ stdout: body });
       await expect(
-        provider.getSecret(AUTHORIZATION, 'req-1', PK_E),
+        provider.getSecret(TOKEN, AUTHORIZATION, 'req-1', PK_E),
       ).rejects.toMatchObject({ code: 'escrow_response_invalid' });
     });
   });

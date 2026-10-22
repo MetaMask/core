@@ -155,11 +155,21 @@ describe('MfaRecoveryController', () => {
 
   describe('register', () => {
     it('replicates the recovery secret to every escrow', async () => {
-      await withController(async ({ controller, escrowA, escrowB }) => {
+      await withController(async ({ controller, options }) => {
+        const [escrowA, escrowB] = options.escrows;
+        const authorize = vi.spyOn(
+          options.authProvider,
+          'authorizeRecoveryRequest',
+        );
         const verifyReceipt = vi.spyOn(escrowA, 'verifyReceipt');
         const applyA = vi.spyOn(escrowA, 'applyMutation');
         const applyB = vi.spyOn(escrowB, 'applyMutation');
         await controller.register(SECRET, IDENTIFIERS);
+        expect(authorize).toHaveBeenCalledExactlyOnceWith({
+          requestHash: applyA.mock.calls[0][0].requestHash,
+          audiences: [escrowA.authAudience, escrowB.authAudience],
+          requireTwoFactor: true,
+        });
         expect(controller.state.pendingOperation).toBeNull();
         expect(await controller.getPhase()).toBe('idle');
         expect(verifyReceipt.mock.calls[0][2]).toBe('escrow-a');
@@ -176,6 +186,24 @@ describe('MfaRecoveryController', () => {
 
         const recovered = await recover(controller, PASSKEY);
         expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
+      });
+    });
+
+    it('rejects an AAL1 approval before writing', async () => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
+        const approve =
+          authProvider.authorizeRecoveryRequest.bind(authProvider);
+        vi.spyOn(authProvider, 'authorizeRecoveryRequest').mockImplementation(
+          (params) => approve({ ...params, requireTwoFactor: false }),
+        );
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toMatchObject({
+          code: 'invalid_pending_operation',
+        });
+        expect(apply).not.toHaveBeenCalled();
       });
     });
 
@@ -316,40 +344,62 @@ describe('MfaRecoveryController', () => {
       });
     });
 
-    it('does not request another token when reading with a session', async () => {
+    it('reuses the identifier token but requests an approval for each read', async () => {
       await withController(async ({ controller, options }) => {
+        const [escrowA, escrowB] = options.escrows;
         await controller.register(SECRET, IDENTIFIERS);
+        const authorize = vi.spyOn(
+          options.authProvider,
+          'authorizeRecoveryRequest',
+        );
+        const read = vi.spyOn(escrowA, 'getSecret');
         const getToken = vi.spyOn(
           options.identifierAuthProvider,
           'getKeyBoundIdentifierToken',
         );
 
         const session = await controller.authenticateIdentifier(PASSKEY);
+        expect(await controller.getRecoverySecret(session)).toMatchObject({
+          epoch: REGISTERED_EPOCH,
+        });
+        expect(await controller.getRecoverySecret(session)).toMatchObject({
+          epoch: REGISTERED_EPOCH,
+        });
         expect(getToken).toHaveBeenCalledTimes(1);
-
-        await controller.getRecoverySecret(session);
-        expect(getToken).toHaveBeenCalledTimes(1);
-      });
-    });
-
-    it('allows a session to be reused for another read', async () => {
-      await withController(async ({ controller }) => {
-        await controller.register(SECRET, IDENTIFIERS);
-        const session = await controller.authenticateIdentifier(PASSKEY);
-
-        const first = await controller.getRecoverySecret(session);
-        expect(first).toStrictEqual(
-          expect.objectContaining({ epoch: REGISTERED_EPOCH }),
-        );
-        const second = await controller.getRecoverySecret(session);
-        expect(second).toStrictEqual(
-          expect.objectContaining({ epoch: REGISTERED_EPOCH }),
+        expect(authorize).toHaveBeenCalledTimes(2);
+        expect(authorize).toHaveBeenCalledWith({
+          requestHash: session.token.requestHash,
+          audiences: [escrowA.authAudience, escrowB.authAudience],
+          requireTwoFactor: true,
+        });
+        expect(read).toHaveBeenCalledTimes(2);
+        expect(read).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({ token: session.token }),
+          session.requestId,
+          session.pkE,
         );
       });
     });
   });
 
   describe('getRecoverySecret', () => {
+    it('does not read when approval fails', async () => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        vi.spyOn(
+          authProvider,
+          'authorizeRecoveryRequest',
+        ).mockRejectedValueOnce(new Error('MFA required'));
+        const read = vi.spyOn(escrowA, 'getSecret');
+
+        await expect(recover(controller, PASSKEY)).rejects.toThrow(
+          'MFA required',
+        );
+        expect(read).not.toHaveBeenCalled();
+      });
+    });
+
     it('reads the highest version while a mutation is writing', async () => {
       await withController(async ({ controller, escrowA }) => {
         await controller.register(SECRET, IDENTIFIERS);
@@ -827,6 +877,7 @@ describe('MfaRecoveryController', () => {
             sub: pending.mutation.profileId,
             exp: 0,
             requestHash: pending.mutation.requestHash,
+            aal: 2,
             identifiersHash: await hash(IDENTIFIERS),
           });
           const encoded = await passthroughEncryptor.encrypt(pending);
@@ -1251,6 +1302,7 @@ describe('MfaRecoveryController', () => {
             sub: 'profile-1',
             exp: unixNow() + 60,
             requestHash: mutation.requestHash,
+            aal: 2,
             identifiersHash: await hash(payload.identifiers),
           }),
           payload,
@@ -1311,6 +1363,7 @@ describe('MfaRecoveryController', () => {
             sub: 'profile-1',
             exp: unixNow() + 60,
             requestHash: mutation.requestHash,
+            aal: 2,
             identifiersHash: await hash(payload.identifiers),
           }),
           payload,

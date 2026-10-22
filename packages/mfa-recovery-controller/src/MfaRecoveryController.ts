@@ -388,6 +388,11 @@ export class MfaRecoveryController extends BaseController<
           'no_available_escrow',
         );
       }
+      const { approval } = await this.#authProvider.authorizeRecoveryRequest({
+        requestHash,
+        audiences: available.map((escrow) => escrow.authAudience),
+        requireTwoFactor: true,
+      });
       const authorizedEscrows = await authorizeEscrowsWithToken({
         escrows: available,
         credential: session,
@@ -395,6 +400,7 @@ export class MfaRecoveryController extends BaseController<
       const results = await Promise.allSettled(
         authorizedEscrows.map(async ({ escrow, authorization }) => {
           const response = await escrow.getSecret(
+            approval,
             authorization,
             requestId,
             pkE,
@@ -508,7 +514,7 @@ export class MfaRecoveryController extends BaseController<
     return await this.#authProvider.authorizeRecoveryRequest({
       requestHash: mutation.requestHash,
       audiences: this.#escrows.map((escrow) => escrow.authAudience),
-      ...(mutation.operation === 'register' ? {} : { requireTwoFactor: true }),
+      requireTwoFactor: true,
     });
   }
 

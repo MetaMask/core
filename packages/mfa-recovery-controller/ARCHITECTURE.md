@@ -107,10 +107,9 @@ Anything that fails is rejected rather than acted on:
   must match the mutation fields.
 - `register` has `expectedVersion` `0` and `identifier: null`; updates carry
   an identifier.
-- `writing` only: the AuthController token's `sub` is the mutation
-  `profileId`, its `ext.request_hash` is the mutation `requestHash`, updates
-  have `aal >= 2`, `register` / `updateIdentifiers` carry `identifiers_hash`,
-  and receipts are well-formed with at most one per escrow.
+- `writing` only: the approval binds `sub` to `profileId` and `ext.request_hash`
+  to `requestHash`, with `aal >= 2`. `register` / `updateIdentifiers` also bind
+  `identifiers_hash`; receipts must be well-formed with at most one per escrow.
 
 ## Mutation sequence (`register` / updates)
 
@@ -160,9 +159,9 @@ sequenceDiagram
 
 Auth approvals:
 
-- The provider receives the mutation `requestHash` and each escrow's
-  `authAudience`. Updates set `requireTwoFactor` for AAL2.
-- Approvals last five minutes. AAL2 requires MFA within the preceding five minutes.
+- The provider receives the operation's `requestHash` and each target escrow's
+  `authAudience`. All writes and reads set `requireTwoFactor` for AAL2.
+- The issuer controls approval lifetime. AAL2 requires recent MFA.
 - `register` and `updateIdentifiers` retry approval once with Auth's returned
   identifiers if they differ. The rebuilt request is persisted as `authorizing`;
   `writing` mutations are never rebuilt. Hashing sorts object keys, not arrays.
@@ -199,7 +198,7 @@ retries only escrows that do not already have a stored receipt. Updates
 re-run identifier auth (a new key-bound token and PoP) for those escrows on
 every attempt, so the identifier provider must be able to authenticate again.
 
-## Cubist store sequence
+## Cubist integration
 
 The controller does not call CubeSigner, the registration API, or
 `KeyringController`. A Cubist deploy injects one `CubistEscrowProvider`.
@@ -218,53 +217,7 @@ the mutation id, request hash, escrow id, `version === newVersion`,
 `receiptKeyId` (SHA-256 of the pinned receipt key), and the ECDSA signature
 locally.
 
-`register(recoverySecret, identifiers)` takes an identifier **array** of at
-least two distinct key-bound identifiers. One `siwe` identifier is rejected.
-`applyMutation` is the store: the controller wraps the secret to the escrow
-wrap key, and the Cubist C2F persists that payload.
-
-`authenticateIdentifier` asks the injected identifier provider for a key-bound
-token. A SIWE provider signs with `KeyringController.signPersonalMessage`.
-The controller does not. `getRecoverySecret` then challenges the escrow, signs
-the proof of possession locally, calls `getSecret`, and unwraps. `epoch` is
-the replica `version`.
-
-```mermaid
-sequenceDiagram
-  participant Caller as Caller
-  participant Auth as RecoveryAuthProvider
-  participant IdP as SIWE identifier provider
-  participant Ctrl as MfaRecoveryController
-  participant Escrow as Cubist escrow
-
-  Note over Caller,Escrow: proveOidcIdentity, ensure-user, createOidcSession, then new CubistEscrowProvider
-
-  Caller->>Ctrl: register(secret, identifiers)
-  Ctrl->>Escrow: isAvailable (ping)
-  Ctrl->>Auth: getAuthenticatedProfileId
-  Ctrl->>Ctrl: persist authorizing
-  Ctrl->>Auth: authorizeRecoveryRequest
-  Auth-->>Ctrl: Auth API approval
-  Ctrl->>Ctrl: wrap secret, persist writing
-  Ctrl->>Escrow: applyMutation
-  Escrow-->>Ctrl: receipt
-  Ctrl->>Ctrl: verify receipt, clear pending
-
-  Caller->>Ctrl: authenticateIdentifier(siwe)
-  Ctrl->>IdP: getKeyBoundIdentifierToken
-  Note over IdP: signPersonalMessage
-  IdP-->>Ctrl: token
-  Ctrl-->>Caller: identifierSession
-
-  Caller->>Ctrl: getRecoverySecret(identifierSession)
-  Ctrl->>Escrow: isAvailable (ping)
-  Ctrl->>Escrow: generateChallenge
-  Ctrl->>Ctrl: sign proof of possession
-  Ctrl->>Escrow: getSecret
-  Escrow-->>Ctrl: wrapped secret + version + wrapKeyId
-  Ctrl->>Ctrl: check wrapKeyId, unwrap
-  Ctrl-->>Caller: secret bytes + epoch
-```
+For a single-escrow walkthrough, see [Cubist test sequence](CUBIST_TEST_SEQUENCE.md).
 
 ## Read sequence (`getRecoverySecret`)
 
@@ -278,6 +231,7 @@ sequenceDiagram
   participant C as Client
   participant M as MfaRecoveryController
   participant I as IdentifierAuthProvider
+  participant A as RecoveryAuthProvider
   participant E as Available escrows
 
   C->>M: authenticateIdentifier(identifier)
@@ -291,9 +245,11 @@ sequenceDiagram
   alt none available
     M-->>C: no_available_escrow
   end
+  M->>A: authorizeRecoveryRequest (read hash, AAL2)
+  A-->>M: request-bound approval
   M->>E: generateChallenge + PoP (partial OK)
   par read
-    M->>E: getSecret
+    M->>E: getSecret(approval, authorization, requestId, pkE)
     M->>M: check wrapKeyId, unwrap with ephemeral key
   end
   M->>M: selectHighestConsistentVersion
@@ -336,22 +292,3 @@ On **mutation**, every remaining target escrow must authorize or the write
 does not start (`identifier_auth_failed`). On **read**, escrows whose
 challenge fails are skipped. `register` sends no identifier authorization
 (`null`).
-
-## Crash / repair
-
-```mermaid
-flowchart TD
-  Crash[crash or partial apply] --> Phase{pending phase?}
-  Phase -->|none| Idle[idle]
-  Phase -->|authorizing| AbortOrResume{client choice}
-  AbortOrResume -->|abort| Idle
-  AbortOrResume -->|resume| Auth[re-issue AuthController token]
-  Auth --> Write[replicate]
-  Phase -->|writing| ResumeOnly[resume only]
-  ResumeOnly --> Skip[skip escrows that already have verified receipts]
-  Skip --> Refresh[re-issue token only if expired]
-  Refresh --> Write
-  Write --> All{receipts for every configured escrow?}
-  All -->|yes| Clear[clear pending]
-  All -->|no| PendingErr[IncompleteMutationError]
-```

@@ -57,7 +57,7 @@ describe('AuthApiRecoveryAuthProvider', () => {
       expect(fetchMock.mock.contexts[0] === globalThis).toBe(true);
       expect(fetchMock.mock.calls).toStrictEqual([
         [
-          'https://auth.example/api/v2/recovery/approvals',
+          'https://auth.example/api/v2/mfa/approvals',
           {
             method: 'POST',
             headers: {

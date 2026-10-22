@@ -41,7 +41,7 @@ export class AuthApiRecoveryAuthProvider implements RecoveryAuthProvider {
 
   /**
    * @param params - Request hash, audiences, and MFA requirement.
-   * @returns The Auth-signed approval and current recovery identifiers.
+   * @returns The approval and current recovery identifiers.
    */
   async authorizeRecoveryRequest(
     params: Parameters<RecoveryAuthProvider['authorizeRecoveryRequest']>[0],
@@ -50,7 +50,7 @@ export class AuthApiRecoveryAuthProvider implements RecoveryAuthProvider {
       params.requireTwoFactor === true,
     );
     const response = await this.#fetch(
-      `${this.#options.baseUrl.replace(/\/$/u, '')}/api/v2/recovery/approvals`,
+      `${this.#options.baseUrl.replace(/\/$/u, '')}/api/v2/mfa/approvals`,
       {
         method: 'POST',
         headers: {

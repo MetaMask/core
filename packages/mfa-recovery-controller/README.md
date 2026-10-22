@@ -7,16 +7,16 @@ Pending mutations are encrypted in controller state. `resume()` completes them;
 
 ## Auth API Integration
 
-`AuthApiRecoveryAuthProvider` implements `RecoveryAuthProvider`. Supply the Auth
-API base URL, profile id, and a callback that provides a Hydra bearer with recent
-MFA when requested. The provider posts `{ request_hash, audiences }` to
-`/api/v2/recovery/approvals` and returns `{ approval, identifiers }`.
+Configure `AuthApiRecoveryAuthProvider` with the Auth API base URL, profile id,
+and a callback that supplies a Hydra bearer with recent MFA when requested.
+It posts `{ request_hash, audiences }` to `/api/v2/mfa/approvals` and returns
+`{ approval, identifiers }`. Writes and reads require a request-bound AAL2
+approval; updates and reads also require an identifier proof.
 
-Use Auth's latest `identifiers` for `register` and `updateIdentifiers`. If they
-differ from the approval response, the controller rebuilds and retries once
-before writing. A mutation already in `writing` is never rebuilt.
-Set `CubistEscrowProviderOptions.authAudience` to the escrow's
-`AUTH_CONTROLLER_AUDIENCE`.
+Use Auth's latest `identifiers` for `register` and `updateIdentifiers`. A mismatch
+with the approval response triggers one rebuild and retry before writing;
+`writing` mutations are never rebuilt. Set `CubistEscrowProviderOptions.authAudience`
+to the escrow's `AUTH_CONTROLLER_AUDIENCE`.
 
 ## Installation
 

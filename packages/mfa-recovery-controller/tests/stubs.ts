@@ -240,6 +240,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   }
 
   async getSecret(
+    authControllerToken: AuthControllerToken,
     authorization: IdentifierAuthorization,
     requestId: string,
     pkE: EcPublicJwk,
@@ -259,6 +260,15 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       authorization,
       requestHash,
     );
+    const claims = decodeAuthControllerToken(authControllerToken);
+    if (
+      claims?.sub !== profileId ||
+      claims.ext.requestHash !== requestHash ||
+      claims.ext.aal < 2 ||
+      claims.exp <= this.now()
+    ) {
+      throw new MfaRecoveryError('Invalid read approval', 'invalid_read_auth');
+    }
     const record = this.#records.get(profileId);
     if (record === undefined) {
       throw new MfaRecoveryError('No recovery record', 'not_registered');
@@ -380,8 +390,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       return await this.#signReceipt(mutation);
     }
 
-    const claims = decodeAuthControllerToken(authControllerToken);
-    if (record === undefined || (claims?.ext.aal ?? 0) < 2) {
+    if (record === undefined) {
       throw new MfaRecoveryError(
         'Update not authorized',
         'update_unauthorized',
@@ -536,6 +545,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       requestHash !== mutation.requestHash ||
       claims?.ext.requestHash !== mutation.requestHash ||
       claims.sub !== mutation.profileId ||
+      claims.ext.aal < 2 ||
       claims.exp <= this.now() ||
       !this.#hasExactAudiences(mutation.audiences)
     ) {

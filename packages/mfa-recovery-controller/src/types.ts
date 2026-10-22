@@ -283,6 +283,7 @@ export type RecoveryEscrowProvider = {
   isAvailable: () => Promise<boolean>;
   generateChallenge: () => Promise<PoPChallenge>;
   getSecret: (
+    authControllerToken: AuthControllerToken,
     authorization: IdentifierAuthorization,
     requestId: string,
     pkE: EcPublicJwk,

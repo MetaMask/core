@@ -107,12 +107,14 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   }
 
   /**
+   * @param authControllerToken - Request-bound approval for this read.
    * @param authorization - Identifier proof for this read.
    * @param requestId - Client request id bound into the read hash.
    * @param pkE - Ephemeral wrap public key for the response.
    * @returns The wrapped recovery secret and its version.
    */
   async getSecret(
+    authControllerToken: AuthControllerToken,
     authorization: IdentifierAuthorization,
     requestId: string,
     pkE: EcPublicJwk,
@@ -123,6 +125,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
         identifierAuthorization: authorization,
         requestId,
         pkE,
+        authControllerToken,
       },
       parseGetSecretResponse,
     );
