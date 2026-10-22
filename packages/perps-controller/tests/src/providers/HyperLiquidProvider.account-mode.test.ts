@@ -35,6 +35,7 @@ import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoCli
 import {
   createMockExchangeClient,
   createMockInfoClient,
+  createMockPosition,
 } from '../../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
@@ -174,6 +175,7 @@ describe('HyperLiquidProvider', () => {
   let mockClientService: jest.Mocked<HyperLiquidClientService>;
   let mockWalletService: jest.Mocked<HyperLiquidWalletService>;
   let mockSubscriptionService: jest.Mocked<HyperLiquidSubscriptionService>;
+  let mockInfoClient: ReturnType<typeof createMockInfoClient>;
 
   beforeEach(() => {
     // Reset all mocks
@@ -211,13 +213,14 @@ describe('HyperLiquidProvider', () => {
     };
 
     // Create mocked service instances using factory functions
+    mockInfoClient = createMockInfoClient();
     mockClientService = {
       initialize: jest.fn(),
       isInitialized: jest.fn().mockReturnValue(true),
       isTestnetMode: jest.fn().mockReturnValue(false),
       ensureInitialized: jest.fn(),
       getExchangeClient: jest.fn().mockReturnValue(createMockExchangeClient()),
-      getInfoClient: jest.fn().mockReturnValue(createMockInfoClient()),
+      getInfoClient: jest.fn().mockReturnValue(mockInfoClient),
       fetchHistoricalOrders: jest.fn().mockResolvedValue([]),
       disconnect: jest.fn().mockResolvedValue(undefined),
       toggleTestnet: jest.fn(),
@@ -337,6 +340,942 @@ describe('HyperLiquidProvider', () => {
       ],
     });
   });
+
+  describe('getAccountSupport', () => {
+    it('returns supported for a standard Hyperliquid account', async () => {
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+
+      const result = await provider.getAccountSupport();
+
+      expect(result).toEqual({ isSupported: true });
+    });
+
+    it('rejects a support result after the selected account changes', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+      mockInfoClient.userToMultiSigSigners.mockImplementation(async () => {
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+          switchedAddress,
+        );
+        return null;
+      });
+
+      await expect(provider.getAccountSupport()).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+    });
+
+    it('returns the multi-signature reason for an unsupported account', async () => {
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+        authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+        threshold: 1,
+      });
+
+      const result = await provider.getAccountSupport();
+
+      expect(result).toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+    });
+
+    it('fails open when Hyperliquid cannot report account support', async () => {
+      mockInfoClient.userToMultiSigSigners.mockRejectedValue(
+        new Error('Network unavailable'),
+      );
+
+      const result = await provider.getAccountSupport();
+
+      expect(result).toEqual({ isSupported: true });
+    });
+
+    it('coalesces and caches successful support checks', async () => {
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+
+      const results = await Promise.all([
+        provider.getAccountSupport(),
+        provider.getAccountSupport(),
+      ]);
+      const cachedResult = await provider.getAccountSupport();
+
+      expect(results).toEqual([{ isSupported: true }, { isSupported: true }]);
+      expect(cachedResult).toEqual({ isSupported: true });
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+    });
+
+    it('corrects cached support after an authoritative order rejection', async () => {
+      const exchangeClient = createMockExchangeClient({
+        order: jest
+          .fn()
+          .mockRejectedValue(new Error('ApiRequestError: Multi-sig required')),
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getReferral.mockReturnValue({ attempted: true, success: true });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getBuilderFee.mockReturnValue({ attempted: true, success: true });
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: true,
+      });
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+    });
+
+    it('corrects cached support after a status-based order rejection', async () => {
+      const exchangeClient = createMockExchangeClient({
+        order: jest.fn().mockResolvedValue({
+          status: 'ok',
+          response: {
+            data: { statuses: [{ error: 'Multi-sig required' }] },
+          },
+        }),
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getReferral.mockReturnValue({ attempted: true, success: true });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getBuilderFee.mockReturnValue({ attempted: true, success: true });
+
+      await provider.getAccountSupport();
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+    });
+
+    it('attributes a delayed rejection to the account that signed the write', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      let rejectOrder!: (reason: Error) => void;
+      let markOrderStarted!: () => void;
+      const orderStarted = new Promise<void>((resolve) => {
+        markOrderStarted = resolve;
+      });
+      const rejectedOrder = new Promise<never>((_resolve, reject) => {
+        rejectOrder = reject;
+      });
+      const exchangeClient = createMockExchangeClient({
+        order: jest.fn().mockImplementation(() => {
+          markOrderStarted();
+          return rejectedOrder;
+        }),
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getReferral.mockReturnValue({ attempted: true, success: true });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getBuilderFee.mockReturnValue({ attempted: true, success: true });
+
+      await provider.getAccountSupport();
+      const order = provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      });
+      await orderStarted;
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        switchedAddress,
+      );
+      rejectOrder(new Error('ApiRequestError: Multi-sig required'));
+
+      await expect(order).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: true,
+      });
+
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        '0x1234567890123456789012345678901234567890',
+      );
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(2);
+    });
+
+    it('corrects cached support after a status-based withdrawal rejection', async () => {
+      const exchangeClient = createMockExchangeClient({
+        withdraw3: jest.fn().mockResolvedValue({
+          status: 'err',
+          response: 'Multi-sig required',
+        }),
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getReferral.mockReturnValue({ attempted: true, success: true });
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: true,
+      });
+      const withdrawal = {
+        amount: '100',
+        destination: '0x1234567890123456789012345678901234567890' as Hex,
+        assetId:
+          'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+      };
+      await expect(provider.withdraw(withdrawal)).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      await expect(provider.withdraw(withdrawal)).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      expect(exchangeClient.withdraw3).toHaveBeenCalledTimes(1);
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+    });
+
+    it('corrects cached support after a status-based cancellation rejection', async () => {
+      const exchangeClient = createMockExchangeClient({
+        cancel: jest.fn().mockResolvedValue({
+          status: 'ok',
+          response: {
+            data: { statuses: [{ error: 'Multi-sig required' }] },
+          },
+        }),
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getReferral.mockReturnValue({ attempted: true, success: true });
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: true,
+      });
+      const cancellation = {
+        orderId: '123',
+        symbol: 'BTC',
+      };
+      await expect(provider.cancelOrder(cancellation)).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      await expect(provider.cancelOrder(cancellation)).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+    });
+
+    it('corrects cached support after batch cancellation status rejections', async () => {
+      const exchangeClient = createMockExchangeClient({
+        cancel: jest.fn().mockResolvedValue({
+          status: 'ok',
+          response: {
+            data: {
+              statuses: [
+                { error: 'Multi-sig required' },
+                { error: 'Multi-sig required' },
+              ],
+            },
+          },
+        }),
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+
+      const result = await provider.cancelOrders([
+        { orderId: '123', symbol: 'BTC' },
+        { orderId: '456', symbol: 'ETH' },
+      ]);
+
+      expect(result.success).toBe(false);
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+    });
+
+    it('retries support checks after a transient failure', async () => {
+      mockInfoClient.userToMultiSigSigners
+        .mockRejectedValueOnce(new Error('Network unavailable'))
+        .mockResolvedValueOnce({
+          authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+          threshold: 1,
+        });
+
+      const firstResult = await provider.getAccountSupport();
+      const secondResult = await provider.getAccountSupport();
+
+      expect(firstResult).toEqual({ isSupported: true });
+      expect(secondResult).toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries support checks after the info client becomes available', async () => {
+      const reconnectingProvider = createTestProvider({
+        hip3Enabled: true,
+        initialAssetMapping: [
+          ['BTC', 0],
+          ['ETH', 1],
+        ],
+      });
+      await reconnectingProvider.getAccountSupport();
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+      );
+      const recoveredInfoClient = createMockInfoClient({
+        userToMultiSigSigners: jest.fn().mockResolvedValue({
+          authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+          threshold: 1,
+        }),
+      });
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error(PERPS_ERROR_CODES.CLIENT_NOT_INITIALIZED);
+        })
+        .mockReturnValue(recoveredInfoClient);
+
+      const firstResult = await reconnectingProvider.getAccountSupport();
+      const secondResult = await reconnectingProvider.getAccountSupport();
+
+      expect(firstResult).toEqual({ isSupported: true });
+      expect(secondResult).toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      expect(recoveredInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+
+    it('blocks order signing for an unsupported account', async () => {
+      const exchangeClient = createMockExchangeClient();
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+        authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+        threshold: 1,
+      });
+
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('blocks withdrawal signing for an unsupported account', async () => {
+      const exchangeClient = createMockExchangeClient();
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+        authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+        threshold: 1,
+      });
+
+      await expect(
+        provider.withdraw({
+          amount: '100',
+          destination: '0x1234567890123456789012345678901234567890' as Hex,
+          assetId:
+            'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      expect(exchangeClient.withdraw3).not.toHaveBeenCalled();
+    });
+
+    it('blocks an action when the selected account changes during its support check', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const exchangeClient = createMockExchangeClient();
+      let resolveProbe!: (value: null) => void;
+      let markProbeStarted!: () => void;
+      const probeResult = new Promise<null>((resolve) => {
+        resolveProbe = resolve;
+      });
+      const probeStarted = new Promise<void>((resolve) => {
+        markProbeStarted = resolve;
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockImplementation(() => {
+        markProbeStarted();
+        return probeResult;
+      });
+
+      const withdrawal = provider.withdraw({
+        amount: '100',
+        destination: '0x1234567890123456789012345678901234567890' as Hex,
+        assetId:
+          'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+      });
+      await probeStarted;
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        switchedAddress,
+      );
+      resolveProbe(null);
+
+      await expect(withdrawal).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(exchangeClient.withdraw3).not.toHaveBeenCalled();
+    });
+
+    it('does not withdraw the switched account to the previous default destination', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const exchangeClient = createMockExchangeClient();
+      mockWalletService.requiresSignatureConfirmation.mockReturnValue(true);
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockImplementation(async () => {
+            mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+              switchedAddress,
+            );
+            return 'unifiedAccount';
+          }),
+          userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+        }),
+      );
+
+      const withdrawal = provider.withdraw({
+        amount: '100',
+        assetId:
+          'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+      });
+
+      await expect(withdrawal).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(exchangeClient.withdraw3).not.toHaveBeenCalled();
+    });
+
+    it('does not migrate the account selected after a delayed abstraction read', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const exchangeClient = createMockExchangeClient();
+      let resolveAbstraction!: (value: 'default') => void;
+      let markAbstractionReadStarted!: () => void;
+      const delayedAbstraction = new Promise<'default'>((resolve) => {
+        resolveAbstraction = resolve;
+      });
+      const abstractionReadStarted = new Promise<void>((resolve) => {
+        markAbstractionReadStarted = resolve;
+      });
+      const userAbstraction = jest
+        .fn()
+        // Browsing initialization observes the legacy mode and defers.
+        .mockResolvedValueOnce('default')
+        // Action-time setup is the read whose result must stay bound to A.
+        .mockImplementationOnce(() => {
+          markAbstractionReadStarted();
+          return delayedAbstraction;
+        });
+      mockWalletService.requiresSignatureConfirmation.mockReturnValue(true);
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction,
+          userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+        }),
+      );
+
+      const order = provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+      });
+      await abstractionReadStarted;
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        switchedAddress,
+      );
+      resolveAbstraction('default');
+
+      await expect(order).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(exchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('does not update leverage or place an order after a delayed account read switches accounts', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const exchangeClient = createMockExchangeClient();
+      let resolvePositions!: (
+        value: Awaited<ReturnType<typeof mockInfoClient.clearinghouseState>>,
+      ) => void;
+      let markPositionsReadStarted!: () => void;
+      const positionsReadStarted = new Promise<void>((resolve) => {
+        markPositionsReadStarted = resolve;
+      });
+      const delayedPositions = new Promise<
+        Awaited<ReturnType<typeof mockInfoClient.clearinghouseState>>
+      >((resolve) => {
+        resolvePositions = resolve;
+      });
+      const readyState = await mockInfoClient.clearinghouseState({
+        user: '0x1234567890123456789012345678901234567890',
+      });
+      const guardedInfoClient = createMockInfoClient({
+        userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+        userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+      });
+      guardedInfoClient.clearinghouseState
+        // Default-margin-mode resolution after trading readiness.
+        .mockImplementationOnce(() => {
+          markPositionsReadStarted();
+          return delayedPositions;
+        });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getReferral.mockReturnValue({ attempted: true, success: true });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getBuilderFee.mockReturnValue({ attempted: true, success: true });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockReturnValue(guardedInfoClient);
+
+      const order = provider.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        leverage: 5,
+        orderType: 'market',
+      });
+      await positionsReadStarted;
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+        switchedAddress,
+      );
+      resolvePositions(readyState);
+
+      await expect(order).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(exchangeClient.updateLeverage).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('does not close the switched account using the previous account position', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const exchangeClient = createMockExchangeClient();
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+      mockSubscriptionService.getCachedPositionsForDex.mockImplementation(
+        () => {
+          mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+            switchedAddress,
+          );
+          return [
+            createMockPosition({
+              symbol: 'BTC',
+              size: '1',
+              marginUsed: '100',
+              leverage: { type: 'isolated', value: 10 },
+            }),
+          ];
+        },
+      );
+
+      await expect(
+        provider.closePosition({
+          symbol: 'BTC',
+          size: '0.1',
+          currentPrice: 50000,
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('does not retry a minimum-value rejection with the switched account', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const exchangeClient = createMockExchangeClient();
+      exchangeClient.order = jest
+        .fn()
+        .mockImplementationOnce(async () => {
+          mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+            switchedAddress,
+          );
+          throw new Error('Order must have minimum value of $10');
+        })
+        .mockResolvedValueOnce({
+          status: 'ok',
+          response: { data: { statuses: [{ resting: { oid: 456 } }] } },
+        });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          currentPrice: 50000,
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+    });
+
+    it('blocks margin and DEX-transfer signing for an unsupported account', async () => {
+      const exchangeClient = createMockExchangeClient();
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue({
+        authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+        threshold: 1,
+      });
+
+      await expect(
+        provider.updateMargin({ symbol: 'BTC', amount: '-1' }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      await expect(
+        provider.transferBetweenDexs({
+          sourceDex: '',
+          destinationDex: 'xyz',
+          amount: '10',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      expect(exchangeClient.updateIsolatedMargin).not.toHaveBeenCalled();
+      expect(exchangeClient.sendAsset).not.toHaveBeenCalled();
+    });
+
+    it('blocks order signing when action-time setup detects multi-signature support', async () => {
+      mockWalletService.requiresSignatureConfirmation.mockReturnValue(true);
+      const exchangeClient = createMockExchangeClient();
+      const userToMultiSigSigners = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('Network unavailable'))
+        .mockResolvedValueOnce({
+          authorizedUsers: ['0x1234567890123456789012345678901234567890'],
+          threshold: 1,
+        });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('default'),
+          userToMultiSigSigners,
+        }),
+      );
+
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      expect(userToMultiSigSigners).toHaveBeenCalledTimes(2);
+      expect(exchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('stops the same action after referral setup reveals multi-signature support', async () => {
+      const exchangeClient = createMockExchangeClient({
+        setReferrer: jest
+          .fn()
+          .mockRejectedValue(new Error('ApiRequestError: Multi-sig required')),
+      });
+      const referral = jest.fn().mockResolvedValue({
+        referrerState: {
+          stage: 'ready',
+          data: { code: REFERRAL_CONFIG.MainnetCode },
+        },
+        referredBy: null,
+      });
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          referral,
+          userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+          userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+        }),
+      );
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+      (
+        TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>
+      ).getBuilderFee.mockReturnValue({ attempted: true, success: true });
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: true,
+      });
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      expect(exchangeClient.setReferrer).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
+    it('blocks withdrawal signing when action-time setup gets an authoritative multi-signature rejection', async () => {
+      mockWalletService.requiresSignatureConfirmation.mockReturnValue(true);
+      const exchangeClient = createMockExchangeClient({
+        agentSetAbstraction: jest
+          .fn()
+          .mockRejectedValue(new Error('ApiRequestError: Multi-sig required')),
+      });
+      const userToMultiSigSigners = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('Network unavailable'))
+        .mockResolvedValueOnce(null);
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('default'),
+          userToMultiSigSigners,
+        }),
+      );
+
+      await expect(
+        provider.withdraw({
+          amount: '100',
+          destination: '0x1234567890123456789012345678901234567890' as Hex,
+          assetId:
+            'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      expect(userToMultiSigSigners).toHaveBeenCalledTimes(2);
+      expect(exchangeClient.agentSetAbstraction).toHaveBeenCalledWith({
+        abstraction: 'u',
+      });
+      expect(exchangeClient.withdraw3).not.toHaveBeenCalled();
+      expect(
+        mockPlatformDependencies.metrics.trackPerpsEvent,
+      ).not.toHaveBeenCalledWith(
+        'Perp Account Setup',
+        expect.objectContaining({ status: 'failed' }),
+      );
+    });
+
+    it('does not re-probe a transient support failure when setup learns nothing new', async () => {
+      const exchangeClient = createMockExchangeClient();
+      const userToMultiSigSigners = jest
+        .fn()
+        .mockRejectedValue(new Error('Network unavailable'));
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+          userToMultiSigSigners,
+        }),
+      );
+
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({ success: true });
+
+      expect(userToMultiSigSigners).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.order).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('getUserNonFundingLedgerUpdates', () => {
     it('returns non-funding ledger updates', async () => {
       // Arrange
@@ -853,6 +1792,26 @@ describe('HyperLiquidProvider', () => {
           }),
         ).rejects.toThrow('Auto-transfer failed: Transfer failed');
       });
+
+      it('preserves a multi-signature rejection from the transfer', async () => {
+        jest.spyOn(testableProvider, 'getBalanceForDex').mockResolvedValue(100);
+        jest
+          .spyOn(testableProvider, 'findSourceDexWithBalance')
+          .mockResolvedValue({ sourceDex: '', available: 1000 });
+        jest.spyOn(testableProvider, 'transferBetweenDexs').mockResolvedValue({
+          success: false,
+          error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+        });
+
+        await expect(
+          testableProvider.autoTransferForHip3Order({
+            targetDex: 'xyz',
+            requiredMargin: 500,
+          }),
+        ).rejects.toMatchObject({
+          message: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+        });
+      });
     });
 
     describe('calculateHip3RequiredMargin', () => {
@@ -1163,7 +2122,9 @@ describe('HyperLiquidProvider', () => {
           release();
         };
       });
-      mockedCache.get.mockImplementation((network) => cache.get(network));
+      mockedCache.get.mockImplementation((network, _userAddress) =>
+        cache.get(network),
+      );
       mockedCache.set.mockImplementation((network, _user, result) => {
         cache.set(network, result);
       });
@@ -1531,6 +2492,82 @@ describe('HyperLiquidProvider', () => {
       );
     });
 
+    it('does not migrate or poison support when the account switches during init setup', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const mockExchangeClient = createMockExchangeClient();
+      mockExchangeClient.agentSetAbstraction = jest
+        .fn()
+        .mockRejectedValue(new Error('ApiRequestError: Multi-sig required'));
+      const userToMultiSigSigners = jest.fn().mockResolvedValue(null);
+      const userAbstraction = jest.fn().mockImplementation(async () => {
+        mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+          switchedAddress,
+        );
+        return 'default';
+      });
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction,
+          userToMultiSigSigners,
+        }),
+      );
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(mockExchangeClient);
+
+      await expect(provider.getMarketDataWithPrices()).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+
+      expect(userToMultiSigSigners).not.toHaveBeenCalled();
+      expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
+      expect(
+        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+          .set,
+      ).not.toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
+        attempted: true,
+        enabled: false,
+      });
+    });
+
+    it('blocks init migration dispatch when its signer account switches', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const dispatch = jest.fn();
+      const mockExchangeClient = createMockExchangeClient();
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockResolvedValue('default'),
+          userToMultiSigSigners: jest.fn().mockResolvedValue(null),
+        }),
+      );
+      mockClientService.getExchangeClient = jest.fn().mockImplementation(
+        (beforeDispatch?: () => Promise<void>) =>
+          ({
+            ...mockExchangeClient,
+            agentSetAbstraction: jest.fn().mockImplementation(async () => {
+              mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+                switchedAddress,
+              );
+              await beforeDispatch?.();
+              dispatch();
+            }),
+          }) as ReturnType<typeof createMockExchangeClient>,
+      );
+
+      await expect(provider.getMarketDataWithPrices()).rejects.toThrow(
+        PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      );
+
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(
+        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+          .set,
+      ).not.toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
+        attempted: true,
+        enabled: false,
+      });
+    });
+
     it('caches attempted-but-not-enabled readiness for Hyperliquid multi-sig accounts', async () => {
       // Arrange
       const mockCompleteInFlight = jest.fn();
@@ -1616,6 +2653,22 @@ describe('HyperLiquidProvider', () => {
         attempted: true,
         enabled: false,
       });
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      await expect(
+        provider.withdraw({
+          amount: '100',
+          destination: USER_ADDRESS as Hex,
+          assetId:
+            'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      expect(mockExchangeClient.withdraw3).not.toHaveBeenCalled();
     });
 
     it('still migrates single-signer accounts when the multi-sig probe fails', async () => {
@@ -1748,6 +2801,33 @@ describe('HyperLiquidProvider', () => {
         ).not.toHaveBeenCalled();
       },
     );
+
+    it('keeps account-switching hardware-wallet init non-signing', async () => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      mockWalletService.requiresSignatureConfirmation.mockReturnValue(true);
+      const mockExchangeClient = createMockExchangeClient();
+      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+        createMockInfoClient({
+          userAbstraction: jest.fn().mockImplementation(async () => {
+            mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+              switchedAddress,
+            );
+            return 'default';
+          }),
+        }),
+      );
+      mockClientService.getExchangeClient = jest
+        .fn()
+        .mockReturnValue(mockExchangeClient);
+
+      await expect(provider.getMarketDataWithPrices()).resolves.toBeDefined();
+
+      expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
+      expect(
+        (TradingReadinessCache as jest.Mocked<typeof TradingReadinessCache>)
+          .set,
+      ).not.toHaveBeenCalled();
+    });
 
     it('does NOT call setUserAbstractionMode when migration fails', async () => {
       const mockExchangeClient = createMockExchangeClient();
@@ -2169,6 +3249,7 @@ describe('HyperLiquidProvider', () => {
 
         await provider.getMarketDataWithPrices();
         await provider.disconnect();
+        await provider.initialize();
         await provider.getMarketDataWithPrices();
 
         expect(userAbstraction).toHaveBeenCalledTimes(2);
@@ -2206,6 +3287,7 @@ describe('HyperLiquidProvider', () => {
         await disconnecting;
         await loading;
 
+        await provider.initialize();
         await provider.getMarketDataWithPrices();
 
         expect(userAbstraction).toHaveBeenCalledTimes(2);

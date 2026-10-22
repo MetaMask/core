@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getAccountSupport` to the controller, messenger, and optional provider contract. Hyperliquid detects native multi-signature accounts, caches successful checks per account/network session, and blocks exchange mutations for unsupported accounts. Transient detection failures remain retryable, authoritative exchange rejections correct cached support, and actions reject stale account, network, or provider contexts before signing. ([#10693](https://github.com/MetaMask/core/pull/10693))
 - Accept an optional `environmentType` string on `TrackingData`, `TPSLTrackingData`, and `WithdrawParams` ([#10899](https://github.com/MetaMask/core/pull/10899)).
   - Trade, close, cancel, order, flip, and TP/SL events that already copy attribution include `environment_type` when the field is set.
   - An order edit includes only `environment_type` from `newOrder.trackingData`.
