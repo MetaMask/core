@@ -1037,7 +1037,8 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Begins enrollment of a passkey or email OTP credential.
+   * Begins enrollment of a passkey, email OTP or authenticator app (TOTP)
+   * credential.
    *
    * @param request - Credential, optional email address, and trace reason.
    * @returns A challenge for the client-owned ceremony.

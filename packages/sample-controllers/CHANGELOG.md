@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@tanstack/query-core` from `^5.62.16` to `^5.103.2` ([#9324](https://github.com/MetaMask/core/pull/9324), [#10511](https://github.com/MetaMask/core/pull/10511))
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))
-- Bump `@metamask/network-controller` from `^37.0.0` to `^37.1.0` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.1.1` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
 ## [6.0.0]

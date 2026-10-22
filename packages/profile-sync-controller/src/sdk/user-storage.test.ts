@@ -1,4 +1,5 @@
 import nock from 'nock';
+import { describe, expect, it, vi } from 'vitest';
 
 import { SHARED_SALT } from '../shared/encryption/constants.js';
 import encryption, { createSHA256Hash } from '../shared/encryption/index.js';
@@ -158,7 +159,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+    vi.spyOn(auth, 'getUserProfile').mockResolvedValue({
       profileId: 'alias-profile-id',
       canonicalProfileId: 'canonical-profile-id',
       identifierId: 'id-1',
@@ -187,7 +188,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+    vi.spyOn(auth, 'getUserProfile').mockResolvedValue({
       profileId: 'same-profile-id',
       canonicalProfileId: 'same-profile-id',
       identifierId: 'id-1',
@@ -216,7 +217,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+    vi.spyOn(auth, 'getUserProfile').mockResolvedValue({
       profileId: 'alias-profile-id',
       canonicalProfileId: 'canonical-profile-id',
       identifierId: 'id-1',
@@ -246,7 +247,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+    vi.spyOn(auth, 'getUserProfile').mockResolvedValue({
       profileId: 'alias-profile-id',
       canonicalProfileId: 'canonical-profile-id',
       identifierId: 'id-1',
@@ -276,7 +277,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+    vi.spyOn(auth, 'getUserProfile').mockResolvedValue({
       profileId: 'same-profile-id',
       canonicalProfileId: 'same-profile-id',
       identifierId: 'id-1',
@@ -306,7 +307,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+    vi.spyOn(auth, 'getUserProfile').mockResolvedValue({
       profileId: 'alias-profile-id',
       canonicalProfileId: 'canonical-profile-id',
       identifierId: 'id-1',
@@ -337,7 +338,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+    vi.spyOn(auth, 'getUserProfile').mockResolvedValue({
       profileId: 'alias-profile-id',
       canonicalProfileId: 'canonical-profile-id',
       identifierId: 'id-1',
@@ -366,7 +367,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+    vi.spyOn(auth, 'getUserProfile').mockResolvedValue({
       profileId: 'same-profile-id',
       canonicalProfileId: 'same-profile-id',
       identifierId: 'id-1',
@@ -395,7 +396,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+    vi.spyOn(auth, 'getUserProfile').mockResolvedValue({
       profileId: 'alias-profile-id',
       canonicalProfileId: 'canonical-profile-id',
       identifierId: 'id-1',
@@ -426,7 +427,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+    vi.spyOn(auth, 'getUserProfile').mockResolvedValue({
       profileId: 'alias-profile-id',
       canonicalProfileId: 'canonical-profile-id',
       identifierId: 'id-1',
@@ -825,7 +826,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage, mockGetStorageKey } = arrangeUserStorage(auth);
     mockGetStorageKey.mockResolvedValue(null);
-    const mockAuthSignMessage = jest
+    const mockAuthSignMessage = vi
       .spyOn(auth, 'signMessage')
       .mockResolvedValue(MOCK_STORAGE_KEY);
 
@@ -843,7 +844,7 @@ describe('User Storage', () => {
     const { userStorage, mockGetStorageKey } = arrangeUserStorage(auth);
     mockGetStorageKey.mockResolvedValue(MOCK_STORAGE_KEY);
 
-    const mockAuthSignMessage = jest
+    const mockAuthSignMessage = vi
       .spyOn(auth, 'signMessage')
       .mockResolvedValue(MOCK_STORAGE_KEY);
 

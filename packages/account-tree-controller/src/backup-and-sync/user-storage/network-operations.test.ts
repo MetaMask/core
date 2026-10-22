@@ -1,4 +1,6 @@
 import { SDK } from '@metamask/profile-sync-controller';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockedFunction } from 'vitest';
 
 import type { AccountGroupMultichainAccountObject } from '../../group.js';
 import type { AccountWalletEntropyObject } from '../../wallet.js';
@@ -30,30 +32,30 @@ import {
 } from './network-operations.js';
 import { executeWithRetry } from './network-utils.js';
 
-jest.mock('./format-utils');
-jest.mock('./network-utils');
+vi.mock('./format-utils');
+vi.mock('./network-utils');
 
 const mockFormatWalletForUserStorageUsage =
-  formatWalletForUserStorageUsage as jest.MockedFunction<
+  formatWalletForUserStorageUsage as MockedFunction<
     typeof formatWalletForUserStorageUsage
   >;
 const mockFormatGroupForUserStorageUsage =
-  formatGroupForUserStorageUsage as jest.MockedFunction<
+  formatGroupForUserStorageUsage as MockedFunction<
     typeof formatGroupForUserStorageUsage
   >;
 const mockParseWalletFromUserStorageResponse =
-  parseWalletFromUserStorageResponse as jest.MockedFunction<
+  parseWalletFromUserStorageResponse as MockedFunction<
     typeof parseWalletFromUserStorageResponse
   >;
 const mockParseGroupFromUserStorageResponse =
-  parseGroupFromUserStorageResponse as jest.MockedFunction<
+  parseGroupFromUserStorageResponse as MockedFunction<
     typeof parseGroupFromUserStorageResponse
   >;
 const mockParseLegacyAccountFromUserStorageResponse =
-  parseLegacyAccountFromUserStorageResponse as jest.MockedFunction<
+  parseLegacyAccountFromUserStorageResponse as MockedFunction<
     typeof parseLegacyAccountFromUserStorageResponse
   >;
-const mockExecuteWithRetry = executeWithRetry as jest.MockedFunction<
+const mockExecuteWithRetry = executeWithRetry as MockedFunction<
   typeof executeWithRetry
 >;
 
@@ -61,14 +63,14 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   let mockContext: BackupAndSyncContext;
   let mockWallet: AccountWalletEntropyObject;
   let mockGroup: AccountGroupMultichainAccountObject;
-  let mockSetRemoteWrite: jest.Mock;
+  let mockSetRemoteWrite: Mock;
 
   beforeEach(() => {
-    mockSetRemoteWrite = jest.fn();
+    mockSetRemoteWrite = vi.fn();
 
     mockContext = {
       messenger: {
-        call: jest.fn(),
+        call: vi.fn(),
       },
       mutationTracker: {
         setRemoteWrite: mockSetRemoteWrite,
@@ -90,7 +92,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getWalletFromUserStorage', () => {
@@ -100,10 +102,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         name: { value: 'Test Wallet' },
       } as unknown as UserStorageSyncedWallet;
 
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(walletData);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(walletData);
       mockParseWalletFromUserStorageResponse.mockReturnValue(parsedWallet);
 
       const result = await getWalletFromUserStorage(
@@ -123,10 +122,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('returns null when no wallet data found', async () => {
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(null);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(null);
 
       const result = await getWalletFromUserStorage(
         mockContext,
@@ -139,10 +135,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
 
     it('returns null when parsing fails', async () => {
       const walletData = 'invalid json';
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(walletData);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(walletData);
       mockParseWalletFromUserStorageResponse.mockImplementation(() => {
         throw new Error('Parse error');
       });
@@ -165,10 +158,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       mockExecuteWithRetry.mockImplementation(async (fn) => fn());
 
       // Set up messenger to return wallet data
-      jest
-        .spyOn(debugContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue('wallet-data');
+      vi.spyOn(debugContext.messenger, 'call').mockResolvedValue('wallet-data');
 
       // Mock the parser to throw a non-Error object
       /* eslint-disable @typescript-eslint/only-throw-error */
@@ -193,10 +183,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       } as unknown as UserStorageSyncedWallet;
 
       mockFormatWalletForUserStorageUsage.mockReturnValue(formattedWallet);
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(undefined);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(undefined);
 
       await pushWalletToUserStorage(mockContext, mockWallet);
 
@@ -222,10 +209,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         { groupIndex: 1 },
       ] as unknown as UserStorageSyncedWalletGroup[];
 
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(groupsData);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(groupsData);
       mockParseGroupFromUserStorageResponse
         .mockReturnValueOnce(parsedGroups[0])
         .mockReturnValueOnce(parsedGroups[1]);
@@ -244,10 +228,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('returns empty array when no group data found', async () => {
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(null);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(null);
 
       const result = await getAllGroupsFromUserStorage(
         mockContext,
@@ -268,10 +249,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         { groupIndex: 1 },
       ] as unknown as UserStorageSyncedWalletGroup[];
 
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(groupsData);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(groupsData);
       mockParseGroupFromUserStorageResponse
         .mockReturnValueOnce(validGroups[0])
         .mockImplementationOnce(() => {
@@ -297,10 +275,10 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       mockExecuteWithRetry.mockImplementation(async (fn) => fn());
 
       // Set up messenger to return groups data with one invalid entry
-      jest
-        .spyOn(debugContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(['valid-json', 'invalid-json']);
+      vi.spyOn(debugContext.messenger, 'call').mockResolvedValue([
+        'valid-json',
+        'invalid-json',
+      ]);
 
       // Mock the parser - first call succeeds, second throws non-Error
       /* eslint-disable @typescript-eslint/only-throw-error */
@@ -325,10 +303,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
       const groupData = '{"groupIndex":0}';
       const parsedGroup = { groupIndex: 0 };
 
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(groupData);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(groupData);
       mockParseGroupFromUserStorageResponse.mockReturnValue(parsedGroup);
 
       const result = await getGroupFromUserStorage(
@@ -346,10 +321,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('returns null when parsing fails', async () => {
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue('invalid json');
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue('invalid json');
       mockParseGroupFromUserStorageResponse.mockImplementation(() => {
         throw new Error('Parse error');
       });
@@ -364,10 +336,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('returns null when there is no group data', async () => {
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(null);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(null);
 
       const result = await getGroupFromUserStorage(
         mockContext,
@@ -379,10 +348,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('logs debug warning when parsing fails and debug logging is enabled', async () => {
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue('invalid json');
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue('invalid json');
       mockParseGroupFromUserStorageResponse.mockImplementation(() => {
         throw new Error('Parse error');
       });
@@ -397,10 +363,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('handles non-Error objects in debug logging', async () => {
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue('invalid json');
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue('invalid json');
       /* eslint-disable @typescript-eslint/only-throw-error */
       mockParseGroupFromUserStorageResponse.mockImplementation(() => {
         throw 'String error'; // Non-Error object
@@ -489,10 +452,9 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         { a: 'address2', n: 'name2', nlu: 456 },
       ];
 
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(rawAccountsData);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(
+        rawAccountsData,
+      );
       mockParseLegacyAccountFromUserStorageResponse
         .mockReturnValueOnce(expectedData[0])
         .mockReturnValueOnce(expectedData[1]);
@@ -511,10 +473,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     });
 
     it('returns empty array when no legacy data found', async () => {
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(null);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(null);
 
       const result = await getAllLegacyUserStorageAccounts(
         mockContext,
@@ -535,10 +494,9 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         { a: 'address2', n: 'name2', nlu: 456 },
       ];
 
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(rawAccountsData);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(
+        rawAccountsData,
+      );
 
       mockParseLegacyAccountFromUserStorageResponse
         .mockReturnValueOnce(expectedValidData[0])
@@ -562,10 +520,9 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
     it('handles non-Error objects thrown during parsing', async () => {
       const rawAccountsData = ['{"invalid":"data"}'];
 
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockImplementation()
-        .mockResolvedValue(rawAccountsData);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(
+        rawAccountsData,
+      );
 
       /* eslint-disable @typescript-eslint/only-throw-error */
       mockParseLegacyAccountFromUserStorageResponse.mockImplementationOnce(

@@ -2,6 +2,7 @@ import { BtcScope, SolScope, EthScope, XlmScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/keyring-api';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import { KnownCaipNamespace } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   isEvmCaipChainId,

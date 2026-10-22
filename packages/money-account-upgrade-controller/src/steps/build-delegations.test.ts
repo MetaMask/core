@@ -18,24 +18,26 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
 import { buildDelegationStep } from './build-delegations.js';
 import type { StepContext } from './step.js';
 
-jest.mock('@metamask/delegation-core', () => ({
+vi.mock('@metamask/delegation-core', () => ({
   ROOT_AUTHORITY:
     '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
-  createERC20TransferAmountTerms: jest.fn(),
-  createRedeemerTerms: jest.fn(),
-  createValueLteTerms: jest.fn(),
-  hashDelegation: jest.fn(),
+  createERC20TransferAmountTerms: vi.fn(),
+  createRedeemerTerms: vi.fn(),
+  createValueLteTerms: vi.fn(),
+  hashDelegation: vi.fn(),
 }));
 
-const mockCreateErc20Terms = jest.mocked(createERC20TransferAmountTerms);
-const mockCreateRedeemerTerms = jest.mocked(createRedeemerTerms);
-const mockCreateValueLteTerms = jest.mocked(createValueLteTerms);
-const mockHashDelegation = jest.mocked(hashDelegation);
+const mockCreateErc20Terms = vi.mocked(createERC20TransferAmountTerms);
+const mockCreateRedeemerTerms = vi.mocked(createRedeemerTerms);
+const mockCreateValueLteTerms = vi.mocked(createValueLteTerms);
+const mockHashDelegation = vi.mocked(hashDelegation);
 
 const MOCK_ADDRESS = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const MOCK_CHAIN_ID = '0xaa36a7' as Hex; // 11155111 (Sepolia)
@@ -126,20 +128,11 @@ type AllActions = MessengerActions<MoneyAccountUpgradeControllerMessenger>;
 type AllEvents = MessengerEvents<MoneyAccountUpgradeControllerMessenger>;
 
 type Mocks = {
-  listDelegations: jest.Mock;
-  signDelegation: jest.Mock<
-    ReturnType<DelegationControllerSignDelegationAction['handler']>,
-    Parameters<DelegationControllerSignDelegationAction['handler']>
-  >;
-  verifyDelegation: jest.Mock<
-    ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
-    Parameters<ChompApiServiceVerifyDelegationAction['handler']>
-  >;
-  createDelegation: jest.Mock<
-    ReturnType<
-      AuthenticatedUserStorageServiceCreateDelegationAction['handler']
-    >,
-    Parameters<AuthenticatedUserStorageServiceCreateDelegationAction['handler']>
+  listDelegations: Mock;
+  signDelegation: Mock<DelegationControllerSignDelegationAction['handler']>;
+  verifyDelegation: Mock<ChompApiServiceVerifyDelegationAction['handler']>;
+  createDelegation: Mock<
+    AuthenticatedUserStorageServiceCreateDelegationAction['handler']
   >;
 };
 
@@ -148,28 +141,15 @@ function setup(): {
   mocks: Mocks;
 } {
   const mocks: Mocks = {
-    listDelegations: jest.fn().mockResolvedValue([]),
-    signDelegation: jest
-      .fn<
-        ReturnType<DelegationControllerSignDelegationAction['handler']>,
-        Parameters<DelegationControllerSignDelegationAction['handler']>
-      >()
+    listDelegations: vi.fn().mockResolvedValue([]),
+    signDelegation: vi
+      .fn<DelegationControllerSignDelegationAction['handler']>()
       .mockResolvedValue(MOCK_SIGNATURE),
-    verifyDelegation: jest
-      .fn<
-        ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
-        Parameters<ChompApiServiceVerifyDelegationAction['handler']>
-      >()
+    verifyDelegation: vi
+      .fn<ChompApiServiceVerifyDelegationAction['handler']>()
       .mockResolvedValue({ valid: true }),
-    createDelegation: jest
-      .fn<
-        ReturnType<
-          AuthenticatedUserStorageServiceCreateDelegationAction['handler']
-        >,
-        Parameters<
-          AuthenticatedUserStorageServiceCreateDelegationAction['handler']
-        >
-      >()
+    createDelegation: vi
+      .fn<AuthenticatedUserStorageServiceCreateDelegationAction['handler']>()
       .mockResolvedValue(undefined),
   };
 
@@ -234,7 +214,7 @@ async function run(
 describe('buildDelegationStep', () => {
   beforeEach(() => {
     // The term creators are overloaded over output encoding; the runtime path
-    // picks the hex overload, but `jest.mocked()` picks the bytes overload, so
+    // picks the hex overload, but `vi.mocked()` picks the bytes overload, so
     // cast through `never` to satisfy both.
     mockCreateValueLteTerms.mockReturnValue(MOCK_VALUE_LTE_TERMS as never);
     mockCreateRedeemerTerms.mockReturnValue(MOCK_REDEEMER_TERMS as never);
@@ -257,7 +237,7 @@ describe('buildDelegationStep', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('is named "build-delegation"', () => {

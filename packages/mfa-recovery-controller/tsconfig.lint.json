@@ -4,5 +4,18 @@
     "outDir": "./.tsc-lint-cache",
     "tsBuildInfoFile": "./.tsc-lint-cache/tsconfig.tsbuildinfo"
   },
-  "references": []
+  "references": [
+    {
+      "path": "../messenger/tsconfig.lint.json"
+    },
+    {
+      "path": "../base-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../cryptography/tsconfig.lint.json"
+    },
+    {
+      "path": "../utils/tsconfig.lint.json"
+    }
+  ]
 }
