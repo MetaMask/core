@@ -6,9 +6,12 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction, MockInstance } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import { mockModuleExcept } from '../../../tests/mock-module-except.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -43,28 +46,22 @@ import { getRelayQuotes } from './relay-quotes.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type { RelayQuote, RelayTransactionStep } from './types.js';
 
-jest.mock('../../utils/token', () => ({
-  ...jest.createMockFromModule<typeof import('../../utils/token.js')>(
-    '../../utils/token',
-  ),
-  normalizeTokenAddress:
-    jest.requireActual<typeof import('../../utils/token.js')>(
-      '../../utils/token',
-    ).normalizeTokenAddress,
+vi.mock(import('../../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), ['normalizeTokenAddress']),
+);
+vi.mock(import('../../utils/gas.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  calculateGasCost: vi.fn(),
+  calculateGasFeeTokenCost: vi.fn(),
 }));
-jest.mock('../../utils/gas', () => ({
-  ...jest.requireActual('../../utils/gas'),
-  calculateGasCost: jest.fn(),
-  calculateGasFeeTokenCost: jest.fn(),
+vi.mock(import('../../utils/feature-flags.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  isEIP7702Chain: vi.fn(),
+  isRelayExecuteEnabled: vi.fn(),
+  getGasBuffer: vi.fn(),
+  getSlippage: vi.fn(),
 }));
-jest.mock('../../utils/feature-flags', () => ({
-  ...jest.requireActual('../../utils/feature-flags'),
-  isEIP7702Chain: jest.fn(),
-  isRelayExecuteEnabled: jest.fn(),
-  getGasBuffer: jest.fn(),
-  getSlippage: jest.fn(),
-}));
-jest.mock('./relay-validation');
+vi.mock(import('./relay-validation.js'));
 
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
 const TRANSACTION_META_MOCK = {
@@ -172,19 +169,19 @@ const TOKEN_TRANSFER_DATA_MOCK =
   '0xa9059cbb0000000000000000000000005678901234567890123456789012345678901234000000000000000000000000000000000000000000000000000000000000007b' as Hex;
 
 describe('Relay Quotes Utils', () => {
-  let successfulFetchMock: jest.SpyInstance;
-  const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
-  const calculateGasCostMock = jest.mocked(calculateGasCost);
-  const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
-  const getNativeTokenMock = jest.mocked(getNativeToken);
-  const getTokenBalanceMock = jest.mocked(getTokenBalance);
-  const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
-  const isRelayExecuteEnabledMock = jest.mocked(isRelayExecuteEnabled);
-  const getGasBufferMock = jest.mocked(getGasBuffer);
-  const getSlippageMock = jest.mocked(getSlippage);
-  const getAmountDataMock: jest.MockedFn<
+  let successfulFetchMock: MockInstance;
+  const getTokenFiatRateMock = vi.mocked(getTokenFiatRate);
+  const calculateGasCostMock = vi.mocked(calculateGasCost);
+  const calculateGasFeeTokenCostMock = vi.mocked(calculateGasFeeTokenCost);
+  const getNativeTokenMock = vi.mocked(getNativeToken);
+  const getTokenBalanceMock = vi.mocked(getTokenBalance);
+  const isEIP7702ChainMock = vi.mocked(isEIP7702Chain);
+  const isRelayExecuteEnabledMock = vi.mocked(isRelayExecuteEnabled);
+  const getGasBufferMock = vi.mocked(getGasBuffer);
+  const getSlippageMock = vi.mocked(getSlippage);
+  const getAmountDataMock: MockedFunction<
     TransactionPayControllerGetAmountDataAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
   const {
     messenger,
@@ -206,9 +203,9 @@ describe('Relay Quotes Utils', () => {
   );
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
-    successfulFetchMock = jest.spyOn(global, 'fetch');
+    successfulFetchMock = vi.spyOn(global, 'fetch');
 
     getKeyringControllerStateMock.mockReturnValue({
       isUnlocked: true,
@@ -3938,7 +3935,7 @@ describe('Relay Quotes Utils', () => {
         });
     }
 
-    const validateRelayQuotesMock = jest.mocked(validateRelayQuotes);
+    const validateRelayQuotesMock = vi.mocked(validateRelayQuotes);
 
     describe('subsidized max Money Account promotion', () => {
       beforeEach(() => {
@@ -3952,9 +3949,10 @@ describe('Relay Quotes Utils', () => {
             },
           },
         });
-        jest
-          .mocked(getTokenInfo)
-          .mockReturnValue({ decimals: 6, symbol: 'USDC' });
+        vi.mocked(getTokenInfo).mockReturnValue({
+          decimals: 6,
+          symbol: 'USDC',
+        });
         getAmountDataMock.mockResolvedValue({
           updates: [
             {
@@ -4167,15 +4165,13 @@ describe('Relay Quotes Utils', () => {
           sourceAmount,
           targetAmount,
         }) => {
-          jest
-            .mocked(getTokenInfo)
-            .mockImplementation((_messenger, address) => ({
-              decimals:
-                address === QUOTE_REQUEST_MOCK.sourceTokenAddress
-                  ? sourceDecimals
-                  : targetDecimals,
-              symbol: 'USDC',
-            }));
+          vi.mocked(getTokenInfo).mockImplementation((_messenger, address) => ({
+            decimals:
+              address === QUOTE_REQUEST_MOCK.sourceTokenAddress
+                ? sourceDecimals
+                : targetDecimals,
+            symbol: 'USDC',
+          }));
           mockRelayResponses(
             buildRelayQuote({
               amountIn: sourceAmount,
@@ -4243,14 +4239,12 @@ describe('Relay Quotes Utils', () => {
       it.each(['source', 'target'])(
         'rejects atomic max when %s token decimals are unavailable',
         async (missingToken) => {
-          jest
-            .mocked(getTokenInfo)
-            .mockImplementation((_messenger, address) =>
-              (address === QUOTE_REQUEST_MOCK.sourceTokenAddress) ===
-              (missingToken === 'source')
-                ? undefined
-                : { decimals: 6, symbol: 'USDC' },
-            );
+          vi.mocked(getTokenInfo).mockImplementation((_messenger, address) =>
+            (address === QUOTE_REQUEST_MOCK.sourceTokenAddress) ===
+            (missingToken === 'source')
+              ? undefined
+              : { decimals: 6, symbol: 'USDC' },
+          );
 
           await expect(
             getRelayQuotes({

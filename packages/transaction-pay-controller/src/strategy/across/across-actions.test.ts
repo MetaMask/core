@@ -1,6 +1,7 @@
 import { Interface } from '@ethersproject/abi';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import type { QuoteRequest } from '../../types.js';
 import {

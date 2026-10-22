@@ -97,6 +97,20 @@ setup_release_repo() {
   [ "$output" = "1.0.0" ]
 }
 
+@test "base version uses CHANGELOG_MERGE_BASE without needing the base branch" {
+  setup_release_repo
+  merge_base="$(git rev-parse HEAD)"
+  echo '{"name":"@metamask/foo","version":"1.1.0"}' >packages/foo/package.json
+  git add -A
+  git commit -qm "bump foo"
+  git branch -q -D main
+
+  cd packages/foo
+  run env CHANGELOG_MERGE_BASE="${merge_base}" bash -c "source '${SCRIPT}'; resolve_base_version"
+  [ "$status" -eq 0 ]
+  [ "$output" = "1.0.0" ]
+}
+
 @test "package that was not bumped on the branch is not a release candidate" {
   setup_release_repo
   # No bump on the release branch.

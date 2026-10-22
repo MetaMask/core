@@ -4,6 +4,7 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../../constants.js';
 import type {
@@ -18,14 +19,14 @@ import { submitAcrossQuotes } from './across-submit.js';
 import { AcrossStrategy } from './AcrossStrategy.js';
 import type { AcrossQuote } from './types.js';
 
-jest.mock('./across-quotes');
-jest.mock('./across-submit');
-jest.mock('../../utils/feature-flags');
+vi.mock(import('./across-quotes.js'));
+vi.mock(import('./across-submit.js'));
+vi.mock(import('../../utils/feature-flags.js'));
 
 describe('AcrossStrategy', () => {
-  const getPayStrategiesConfigMock = jest.mocked(getPayStrategiesConfig);
-  const getAcrossQuotesMock = jest.mocked(getAcrossQuotes);
-  const submitAcrossQuotesMock = jest.mocked(submitAcrossQuotes);
+  const getPayStrategiesConfigMock = vi.mocked(getPayStrategiesConfig);
+  const getAcrossQuotesMock = vi.mocked(getAcrossQuotes);
+  const submitAcrossQuotesMock = vi.mocked(submitAcrossQuotes);
 
   const messenger = {} as never;
 
@@ -77,7 +78,7 @@ describe('AcrossStrategy', () => {
   } as TransactionPayQuote<AcrossQuote>;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     getPayStrategiesConfigMock.mockReturnValue({
       across: {
         apiBase: 'https://across.test',
@@ -501,7 +502,7 @@ describe('AcrossStrategy', () => {
       messenger,
       quotes: [],
       transaction: TRANSACTION_META_MOCK,
-      isSmartTransaction: jest.fn(),
+      isSmartTransaction: vi.fn(),
     } as PayStrategyExecuteRequest<AcrossQuote>;
 
     submitAcrossQuotesMock.mockResolvedValue({ transactionHash: '0xhash' });
