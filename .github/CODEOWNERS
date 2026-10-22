@@ -1016,15 +1016,6 @@
 /packages/wallet/jest.config.*                                                   @MetaMask/core-platform
 /packages/wallet/vitest.config.*                                                 @MetaMask/core-platform
 
-### wallet-cli
-/packages/wallet-cli                    @MetaMask/core-platform
-/packages/wallet-cli/CHANGELOG.md       @MetaMask/core-platform
-/packages/wallet-cli/package.json       @MetaMask/core-platform
-/packages/wallet-cli/tsconfig.*         @MetaMask/core-platform
-/packages/wallet-cli/typedoc.json       @MetaMask/core-platform
-/packages/wallet-cli/jest.config.*      @MetaMask/core-platform
-/packages/wallet-cli/vitest.config.*    @MetaMask/core-platform
-
 ### wallet-framework-docs
 /packages/wallet-framework-docs                    @MetaMask/core-platform
 /packages/wallet-framework-docs/CHANGELOG.md       @MetaMask/core-platform

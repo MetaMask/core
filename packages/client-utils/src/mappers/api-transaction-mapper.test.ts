@@ -1,10 +1,12 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { apiTransactionFixtures } from '../../test/fixtures/api-transactions.js';
 import { mapApiTransaction } from './api-transaction-mapper.js';
 import { formatAddressToAssetId } from './helpers/caip.js';
 
 // Mock known-token lookup with the deterministic test table in `test/`.
-jest.mock('./helpers/token-metadata', () => ({
-  getKnownTokenMetadata: jest.requireActual('../../test/test-helpers')
+vi.mock(import('./helpers/token-metadata.js'), async () => ({
+  getKnownTokenMetadata: (await import('../../test/test-helpers.js'))
     .getKnownTokenMetadata,
 }));
 

@@ -8,6 +8,9 @@
       "path": "../address-book-controller"
     },
     {
+      "path": "../analytics-controller"
+    },
+    {
       "path": "../approval-controller"
     },
     {

@@ -1,5 +1,6 @@
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import * as tokenMetadata from './token-metadata.js';
 import {
@@ -28,7 +29,7 @@ const MANTLE_TRANSACTION: TransactionMeta = {
 
 describe('transaction helpers', () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('isNftStandard', () => {
@@ -318,7 +319,7 @@ describe('transaction helpers', () => {
 
   describe('getTokenMetadataFromKnownToken', () => {
     it('returns metadata without a symbol when it is missing', () => {
-      jest.spyOn(tokenMetadata, 'getKnownTokenMetadata').mockReturnValue({
+      vi.spyOn(tokenMetadata, 'getKnownTokenMetadata').mockReturnValue({
         decimals: 18,
         assetId: 'eip155:1/erc20:0x1111111111111111111111111111111111111111',
       });
@@ -338,7 +339,7 @@ describe('transaction helpers', () => {
     });
 
     it('returns partial metadata when some fields are missing', () => {
-      jest.spyOn(tokenMetadata, 'getKnownTokenMetadata').mockReturnValue({
+      vi.spyOn(tokenMetadata, 'getKnownTokenMetadata').mockReturnValue({
         symbol: 'TKN',
       });
 
