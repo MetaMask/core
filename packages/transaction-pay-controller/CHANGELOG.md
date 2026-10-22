@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A stale lowercase `assetsInfo` entry without price data previously shadowed the checksummed entry for lowercase token addresses, dropping the token from required tokens so no quote was requested.
   - Lowercase-only matches are no longer cached, so the checksummed entry is picked up once indexed.
 
+### Fixed
+
+- Refresh max-amount source balances and quotes at feature-flagged intervals ([#10911](https://github.com/MetaMask/core/pull/10911))
+
 ## [30.1.0]
 
 ### Added

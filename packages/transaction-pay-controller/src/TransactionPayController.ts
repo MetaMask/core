@@ -11,6 +11,7 @@ import {
   isTransactionPayStrategy,
   TransactionPayStrategy,
 } from './constants.js';
+import { MaxBalanceRefresher } from './helpers/MaxBalanceRefresher.js';
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import type {
   GetAmountDataCallback,
@@ -85,6 +86,8 @@ export class TransactionPayController extends BaseController<
     transaction: TransactionMeta,
   ) => TransactionPayStrategy[];
 
+  readonly #maxBalanceRefresher: MaxBalanceRefresher;
+
   readonly #polymarket?: PolymarketCallbacks;
 
   constructor({
@@ -114,6 +117,12 @@ export class TransactionPayController extends BaseController<
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
+    this.#maxBalanceRefresher = new MaxBalanceRefresher({
+      getBalance: this.#getBalance,
+      getStrategies: this.#getStrategiesWithFallback.bind(this),
+      messenger: this.messenger,
+      updateTransactionData: this.#updateTransactionData.bind(this),
+    });
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -316,6 +325,8 @@ export class TransactionPayController extends BaseController<
   }
 
   #removeTransactionData(transactionId: string): void {
+    this.#maxBalanceRefresher.stop(transactionId);
+
     this.update((state) => {
       delete state.transactionData[transactionId];
     });
@@ -409,6 +420,12 @@ export class TransactionPayController extends BaseController<
 
       if (isFiatAmountUpdated || isFiatPaymentMethodUpdated) {
         shouldUpdateQuotes = true;
+      }
+
+      if (current.isMaxAmount && this.#getBalance) {
+        this.#maxBalanceRefresher.start(transactionId);
+      } else {
+        this.#maxBalanceRefresher.stop(transactionId);
       }
     });
 

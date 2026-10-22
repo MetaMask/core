@@ -7,6 +7,7 @@ import { getMessengerMock } from '../tests/messenger-mock.js';
 import { updateFiatPayment } from './actions/update-fiat-payment.js';
 import { updatePaymentToken } from './actions/update-payment-token.js';
 import { PaymentOverride, TransactionPayStrategy } from './constants.js';
+import { MaxBalanceRefresher } from './helpers/MaxBalanceRefresher.js';
 import { TransactionPayController } from './index.js';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils.js';
 import type {
@@ -42,6 +43,7 @@ const PAYMENT_TOKEN_MOCK = {
   balanceRaw: '0',
   chainId: CHAIN_ID_MOCK,
 } as TransactionPaymentToken;
+
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
@@ -58,6 +60,8 @@ describe('TransactionPayController', () => {
   const getStrategyOrderMock = jest.mocked(getStrategyOrder);
   let messenger: TransactionPayControllerMessenger;
   let getKeyringControllerStateMock: jest.Mock;
+  let startSpy: jest.SpiedFunction<MaxBalanceRefresher['start']>;
+  let stopSpy: jest.SpiedFunction<MaxBalanceRefresher['stop']>;
 
   /**
    * Create a TransactionPayController.
@@ -77,6 +81,11 @@ describe('TransactionPayController', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+
+    startSpy = jest.spyOn(MaxBalanceRefresher.prototype, 'start');
+    stopSpy = jest.spyOn(MaxBalanceRefresher.prototype, 'stop');
+    startSpy.mockImplementation(() => undefined);
+    stopSpy.mockImplementation(() => undefined);
 
     const mocks = getMessengerMock({ skipRegister: true });
     messenger = mocks.messenger;
@@ -109,6 +118,26 @@ describe('TransactionPayController', () => {
 
       const getControllerState = subscribeAssetChangesMock.mock.calls[0][1];
       expect(getControllerState()).toBe(controller.state);
+    });
+
+    it('wires the max balance refresher with controller dependencies', () => {
+      const getBalance = jest.fn();
+      const controller = createController({ getBalance });
+
+      expect(startSpy).not.toHaveBeenCalled();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isMaxAmount = true;
+      });
+
+      expect(startSpy).toHaveBeenCalledWith(TRANSACTION_ID_MOCK);
+      expect(stopSpy).not.toHaveBeenCalled();
+    });
+
+    it('keeps max refresher stopped when the transaction is not max', () => {
+      createController({ getBalance: jest.fn() });
+
+      expect(stopSpy).not.toHaveBeenCalled();
     });
   });
 
