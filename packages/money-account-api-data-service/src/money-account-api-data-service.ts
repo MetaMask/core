@@ -33,6 +33,7 @@ import type {
   PositionResponse,
   RateHistoryResponse,
   VaultRateResponse,
+  VbaSiweChallengeResponse,
   VbaTransfersResponse,
 } from './response.types.js';
 import {
@@ -689,14 +690,15 @@ export class MoneyAccountApiDataService extends BaseDataService<
         staleTime: 0,
         queryFn: async () => {
           const token = await this.#getSiweToken(normalizedAddress);
-          const response = await this.#fetchVbaTransfers(token);
+          const response = await this.#fetchVbaTransfersWithToken(token);
           if (response.status !== 401) {
             return this.#parseVbaTransfersResponse(response);
           }
 
           this.#siweSessions.delete(normalizedAddress);
           const renewedToken = await this.#getSiweToken(normalizedAddress);
-          const retriedResponse = await this.#fetchVbaTransfers(renewedToken);
+          const retriedResponse =
+            await this.#fetchVbaTransfersWithToken(renewedToken);
           return this.#parseVbaTransfersResponse(retriedResponse);
         },
       });
@@ -708,9 +710,15 @@ export class MoneyAccountApiDataService extends BaseDataService<
     }
   }
 
-  async #fetchVbaTransfers(token: string): Promise<Response> {
+  /**
+   * Performs the HTTP GET for `/v1/vba/transfers` using a SIWE session token.
+   *
+   * @param siweToken - The SIWE session bearer token.
+   * @returns The raw transfers response.
+   */
+  async #fetchVbaTransfersWithToken(siweToken: string): Promise<Response> {
     return await fetch(new URL('/v1/vba/transfers', this.#baseUrl), {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${siweToken}` },
     });
   }
 
@@ -760,6 +768,32 @@ export class MoneyAccountApiDataService extends BaseDataService<
   }
 
   async #createSiweSession(normalizedAddress: string): Promise<string> {
+    const challenge = await this.#fetchSiweChallenge(normalizedAddress);
+    let signature: string;
+    try {
+      signature = await this.messenger.call(
+        'KeyringController:signPersonalMessage',
+        { data: challenge.message, from: normalizedAddress },
+      );
+    } catch (error) {
+      throw new SiweSigningError(error);
+    }
+    return await this.#verifySiweChallenge(
+      normalizedAddress,
+      challenge.message,
+      signature,
+    );
+  }
+
+  /**
+   * Fetches and validates a SIWE challenge for the given address.
+   *
+   * @param normalizedAddress - Lowercased account address to authenticate.
+   * @returns The validated challenge containing the message to sign.
+   */
+  async #fetchSiweChallenge(
+    normalizedAddress: string,
+  ): Promise<VbaSiweChallengeResponse> {
     const challengeResponse = await fetch(
       new URL('/v1/vba/auth/challenge', this.#baseUrl),
       {
@@ -786,21 +820,28 @@ export class MoneyAccountApiDataService extends BaseDataService<
       );
     }
 
-    let signature: string;
-    try {
-      signature = await this.messenger.call(
-        'KeyringController:signPersonalMessage',
-        { data: challenge.message, from: normalizedAddress },
-      );
-    } catch (error) {
-      throw new SiweSigningError(error);
-    }
+    return challenge;
+  }
+
+  /**
+   * Verifies a SIWE signature and caches the resulting session.
+   *
+   * @param normalizedAddress - Lowercased account address being authenticated.
+   * @param message - The signed SIWE message.
+   * @param signature - The signature produced for the message.
+   * @returns The session's access token.
+   */
+  async #verifySiweChallenge(
+    normalizedAddress: string,
+    message: string,
+    signature: string,
+  ): Promise<string> {
     const verifyResponse = await fetch(
       new URL('/v1/vba/auth/verify', this.#baseUrl),
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: challenge.message, signature }),
+        body: JSON.stringify({ message, signature }),
       },
     );
     if (!verifyResponse.ok) {
