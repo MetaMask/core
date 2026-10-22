@@ -52,6 +52,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^40.1.0",
     "@metamask/address-book-controller": "^8.0.0",
+    "@metamask/analytics-controller": "^4.0.0",
     "@metamask/approval-controller": "^10.0.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/browser-passworder": "^6.0.0",
