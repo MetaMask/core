@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/account-api` from `^2.1.0` to `^2.2.0` ([#10845](https://github.com/MetaMask/core/pull/10845))
+- Bump `@metamask/snaps-utils` from `^12.1.2` to `^12.6.1` ([#10845](https://github.com/MetaMask/core/pull/10845))
 
 ## [14.1.0]
 

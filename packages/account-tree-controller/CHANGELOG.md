@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/snaps-utils` from `^12.1.2` to `^12.6.1` ([#10845](https://github.com/MetaMask/core/pull/10845))
+
 ## [11.1.1]
 
 ### Changed

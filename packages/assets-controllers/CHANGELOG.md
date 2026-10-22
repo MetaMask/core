@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@metamask/snaps-utils` from `^12.1.2` to `^12.6.1` ([#10845](https://github.com/MetaMask/core/pull/10845))
 
 ## [112.1.3]
 
