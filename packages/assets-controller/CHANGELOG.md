@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Seed native and default tracked assets before refreshing price subscriptions when networks are enabled or the selected EVM network changes, so zero-balance assets the API omits (such as mUSD) are priced on that subscribe instead of waiting for the next poll
 - `syncAssetsPrices` returns without calling the Price API when basic functionality is off
 
 ## [19.1.0]

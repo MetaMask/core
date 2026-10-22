@@ -4033,18 +4033,21 @@ export class AssetsController extends BaseController<
     // Users may want to see historical balances even if the network is currently disabled.
     // The data will simply not be updated until the network is re-enabled.
 
+    // Seed before subscribe. The price poll snapshots balance state as soon
+    // as subscribe starts, and a balance refresh only prices assets on that
+    // response. Zero-balance natives and default tracked assets (mUSD) that
+    // the API omits would otherwise stay unpriced until the next poll.
+    const accounts = this.#getSelectedAccounts();
+    this.#ensureNativeBalancesDefaultZero();
+    if (addedChains.length > 0) {
+      this.#ensureDefaultTrackedAssetsSeeded(addedChains);
+    }
+
     // Refresh subscriptions for new chain set
     this.#subscribeAssets();
 
     // One-time fetch for newly enabled chains. v6 `full` replace is scoped to
     // those chains; existing balances on other chains are left untouched.
-    const accounts = this.#getSelectedAccounts();
-    this.#ensureNativeBalancesDefaultZero();
-    // Seed default tracked assets (mUSD) before the fetch so they are included
-    // in the same price pass.
-    if (addedChains.length > 0) {
-      this.#ensureDefaultTrackedAssetsSeeded(addedChains);
-    }
     if (addedChains.length > 0 && accounts.length > 0) {
       await this.getAssets(accounts, {
         chainIds: addedChains,
@@ -4148,8 +4151,12 @@ export class AssetsController extends BaseController<
     try {
       await this.#refreshActiveChainsOnNetworkSwitch();
 
-      this.#subscribeAssets();
+      // Seed before subscribe so the price poll snapshots the new native
+      // zeros. The balance refresh that follows only prices assets the API
+      // returns, so a native the API omits would stay unpriced until the
+      // next poll.
       this.#ensureNativeBalancesDefaultZero();
+      this.#subscribeAssets();
 
       await this.getAssets(accounts, {
         chainIds: [selectedChainId],

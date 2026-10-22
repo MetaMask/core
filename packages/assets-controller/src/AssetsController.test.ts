@@ -5192,6 +5192,57 @@ describe('AssetsController', () => {
       });
     });
 
+    it('prices a default tracked asset seeded when a chain is enabled', async () => {
+      const [lineaMusd] = getDefaultTrackedAssetsForChain('eip155:59144');
+
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
+
+        let musdPresentAtPriceFetch: boolean | undefined;
+        const fetchSpy = jest
+          .spyOn(PriceDataSource.prototype, 'fetch')
+          .mockImplementation(async () => {
+            musdPresentAtPriceFetch ??= Boolean(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[lineaMusd],
+            );
+            return {};
+          });
+
+        try {
+          (
+            messenger as unknown as {
+              publish: (
+                topic: string,
+                payload?: unknown,
+                patches?: unknown,
+              ) => void;
+            }
+          ).publish(
+            'NetworkEnablementController:stateChange',
+            {
+              enabledNetworkMap: {
+                eip155: { '1': true, '59144': true },
+              },
+              nativeAssetIdentifiers: {
+                'eip155:1': 'eip155:1/slip44:60',
+              },
+            },
+            [],
+          );
+
+          // The price poll snapshots state synchronously on an existing
+          // subscription, before this handler yields.
+          expect(fetchSpy).toHaveBeenCalled();
+          expect(musdPresentAtPriceFetch).toBe(true);
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[lineaMusd],
+          ).toStrictEqual({ amount: '0' });
+        } finally {
+          fetchSpy.mockRestore();
+        }
+      });
+    });
+
     it('seeds a zero native balance for a Solana account with no assets', async () => {
       // The Accounts API returns nothing at all for an account that holds no
       // assets — not even a zero native balance — so the controller has to
@@ -5475,6 +5526,156 @@ describe('AssetsController', () => {
         );
       } finally {
         getAssetsSpy.mockRestore();
+        await flushPromises();
+        controller.destroy();
+      }
+    });
+
+    it('prices a native seeded when the selected EVM network switches', async () => {
+      const sepoliaHex = '0xaa36a7';
+      const mainnetHex = '0x1';
+      let selectedNetworkClientId = 'sepolia';
+      const switchedAccountId = 'switched-account-id';
+      let selectedAccounts = [createMockInternalAccount()];
+
+      const getNetworkState = (): NetworkState => ({
+        networkConfigurationsByChainId: {},
+        networksMetadata: {},
+        selectedNetworkClientId,
+      });
+
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      registerKeyringUnlockMock(messenger);
+
+      messenger.registerActionHandler(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        () => selectedAccounts,
+      );
+      let isAccountTreeInitialized = false;
+      messenger.registerActionHandler(
+        'AccountTreeController:isInitialized',
+        () => isAccountTreeInitialized,
+      );
+      messenger.subscribe('AccountTreeController:initialized', () => {
+        isAccountTreeInitialized = true;
+      });
+      messenger.subscribe('AccountTreeController:uninitialized', () => {
+        isAccountTreeInitialized = false;
+      });
+      messenger.registerActionHandler(
+        'NetworkEnablementController:getState',
+        () => ({
+          enabledNetworkMap: { eip155: { '1': true, '11155111': true } },
+          nativeAssetIdentifiers: {
+            'eip155:1': 'eip155:1/slip44:60',
+            'eip155:11155111': 'eip155:11155111/slip44:60',
+          },
+        }),
+      );
+      messenger.registerActionHandler(
+        'NetworkController:getState',
+        getNetworkState,
+      );
+      (
+        messenger as {
+          registerActionHandler: (
+            actionName: string,
+            handler: (id: string) => unknown,
+          ) => void;
+        }
+      ).registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        (networkClientId: string) => ({
+          provider: {},
+          configuration: {
+            chainId: networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
+          },
+        }),
+      );
+      (
+        messenger as {
+          registerActionHandler: (
+            actionName: string,
+            handler: () => unknown,
+          ) => void;
+        }
+      ).registerActionHandler('ClientController:getState', () => ({
+        isUiOpen: true,
+      }));
+
+      const queryApiClient = {
+        ...createMockQueryApiClient(),
+        accounts: {
+          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fullSupport: [1, 11155111],
+            partialSupport: [],
+          }),
+          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+            balances: [],
+            unprocessedNetworks: [],
+          }),
+        },
+      } as unknown as ApiPlatformClient;
+
+      const controller = new AssetsController({
+        messenger: messenger as unknown as AssetsControllerMessenger,
+        queryApiClient,
+        subscribeToBasicFunctionalityChange: (): void => {
+          /* no-op */
+        },
+      });
+
+      let nativePresentAtPriceFetch: boolean | undefined;
+      const fetchSpy = jest
+        .spyOn(PriceDataSource.prototype, 'fetch')
+        .mockImplementation(async () => {
+          nativePresentAtPriceFetch ??= Boolean(
+            controller.state.assetsBalance[switchedAccountId]?.[
+              MOCK_NATIVE_ASSET_ID
+            ],
+          );
+          return {};
+        });
+
+      try {
+        (
+          messenger as unknown as {
+            publish: (topic: string, payload?: unknown) => void;
+          }
+        ).publish('ClientController:stateChanged', { isUiOpen: true });
+        messenger.publish('KeyringController:unlock');
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
+          'AccountTreeController:initialized',
+          {},
+        );
+        await flushPromises();
+
+        // A new account has no native row yet. The switch must seed it
+        // before the price subscription snapshots state.
+        fetchSpy.mockClear();
+        nativePresentAtPriceFetch = undefined;
+        selectedAccounts = [
+          createMockInternalAccount({ id: switchedAccountId }),
+        ];
+        selectedNetworkClientId = 'mainnet';
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
+          'NetworkController:networkDidChange',
+          getNetworkState(),
+        );
+        await flushPromises();
+
+        expect(fetchSpy).toHaveBeenCalled();
+        expect(nativePresentAtPriceFetch).toBe(true);
+        expect(
+          controller.state.assetsBalance[switchedAccountId]?.[
+            MOCK_NATIVE_ASSET_ID
+          ],
+        ).toStrictEqual({ amount: '0' });
+      } finally {
+        fetchSpy.mockRestore();
         await flushPromises();
         controller.destroy();
       }
