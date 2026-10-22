@@ -402,11 +402,11 @@ const config = {
     wallet: {
       teams: ['@MetaMask/core-platform'],
     },
-    'wallet-cli': {
-      teams: ['@MetaMask/core-platform'],
-    },
     'wallet-framework-docs': {
       teams: ['@MetaMask/core-platform'],
+    },
+    'watch-only-account-service': {
+      teams: ['@MetaMask/accounts-engineers'],
     },
   },
   overrides: [

@@ -44,8 +44,8 @@
     "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/utils",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/utils",
-    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
-    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
+    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
+    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "vitest",
     "test:clean": "vitest --clearCache",
@@ -55,6 +55,7 @@
   "dependencies": {
     "@ethereumjs/tx": "^5.4.0",
     "@metamask/error-utils": "^0.0.0",
+    "@metamask/node-utils": "^0.0.0",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/type-utils": "^0.0.0",
@@ -64,8 +65,7 @@
     "@types/lodash": "^4.17.26",
     "debug": "^4.4.3",
     "lodash": "^4.18.1",
-    "semver": "^7.8.5",
-    "uuid": "^11.1.1"
+    "semver": "^7.8.5"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
@@ -80,6 +80,6 @@
     "web3": "^4.16.0"
   },
   "engines": {
-    "node": "^22.14.0 || ^24"
+    "node": "^22.14.0 || ^24 || ^26"
   }
 }

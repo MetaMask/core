@@ -1,13 +1,15 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { executeWithRetry } from './network-utils.js';
 
 describe('BackupAndSync - UserStorage - NetworkUtils', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('executeWithRetry', () => {
     it('returns result on successful operation', async () => {
-      const mockOperation = jest.fn().mockResolvedValue('success');
+      const mockOperation = vi.fn().mockResolvedValue('success');
 
       const result = await executeWithRetry(mockOperation);
 
@@ -16,7 +18,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
     });
 
     it('retries on failure and eventually succeed', async () => {
-      const mockOperation = jest
+      const mockOperation = vi
         .fn()
         .mockRejectedValueOnce(new Error('First attempt failed'))
         .mockRejectedValueOnce(new Error('Second attempt failed'))
@@ -30,7 +32,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
 
     it('throws last error after max retries exceeded', async () => {
       const lastError = new Error('Final failure');
-      const mockOperation = jest
+      const mockOperation = vi
         .fn()
         .mockRejectedValueOnce(new Error('First failure'))
         .mockRejectedValueOnce(new Error('Second failure'))
@@ -43,14 +45,14 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
     });
 
     it('uses default parameters', async () => {
-      const mockOperation = jest
+      const mockOperation = vi
         .fn()
         .mockRejectedValueOnce(new Error('First failure'))
         .mockResolvedValueOnce('success on retry');
 
       // Mock setTimeout to avoid actual delays but verify default parameters are used
       const originalSetTimeout = setTimeout;
-      const mockSetTimeout = jest.fn().mockImplementation((callback) => {
+      const mockSetTimeout = vi.fn().mockImplementation((callback) => {
         callback(); // Execute immediately
         return 'timeout-id';
       });
@@ -70,7 +72,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
     });
 
     it('works with custom parameters', async () => {
-      const mockOperation = jest
+      const mockOperation = vi
         .fn()
         .mockRejectedValue(new Error('Always fails'));
 
@@ -81,7 +83,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
     });
 
     it('handles non-Error thrown objects', async () => {
-      const mockOperation = jest
+      const mockOperation = vi
         .fn()
         .mockRejectedValueOnce('string error')
         .mockRejectedValueOnce({ message: 'object error' })
@@ -94,7 +96,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
     });
 
     it('applies exponential backoff delay', async () => {
-      const mockOperation = jest
+      const mockOperation = vi
         .fn()
         .mockRejectedValueOnce(new Error('First failure'))
         .mockRejectedValueOnce(new Error('Second failure'))
@@ -110,7 +112,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
     });
 
     it('handles edge case where operation never succeeds with zero retries', async () => {
-      const mockOperation = jest
+      const mockOperation = vi
         .fn()
         .mockRejectedValue(new Error('Never succeeds'));
 
@@ -121,7 +123,7 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
     });
 
     it('handles immediate failure on first attempt with minimal retries', async () => {
-      const mockOperation = jest
+      const mockOperation = vi
         .fn()
         .mockRejectedValue(new Error('Immediate failure'));
 

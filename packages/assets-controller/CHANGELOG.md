@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `syncAssetsPrices(assetIds)`, exposed as the `AssetsController:syncAssetsPrices` messenger action. It force-fetches spot prices for an explicit CAIP-19 asset list through `PriceDataSource` and merges them into state. Prices are shared, so the method takes no account or chain scope
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
@@ -18,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A balance refresh skips tokens that already have a stored price. The price poll uses the freshness cache so a recent price is not requested again
 - Bump `@metamask/account-tree-controller` from `^11.0.1` to `^11.1.1` ([#10891](https://github.com/MetaMask/core/pull/10891), [#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/assets-controllers` from `^112.1.2` to `^112.1.3` ([#10925](https://github.com/MetaMask/core/pull/10925))
+- Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
 
 ### Fixed
 

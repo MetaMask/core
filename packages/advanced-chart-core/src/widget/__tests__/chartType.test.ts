@@ -1,3 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import {
   _resetStateForTests,
   getCurrentChartType,
@@ -9,16 +12,16 @@ import type { ChartTheme, TVChartingLibraryWidget } from '../../core/types.js';
 import { handleSetChartType } from '../chartType.js';
 
 type ChartMock = {
-  setChartType: jest.Mock;
-  getSeries: jest.Mock;
-  detachToRight: jest.Mock;
+  setChartType: Mock;
+  getSeries: Mock;
+  detachToRight: Mock;
 };
 
 type WidgetMock = {
   widget: TVChartingLibraryWidget;
   chart: ChartMock;
-  applyOverrides: jest.Mock;
-  subscribe: jest.Mock;
+  applyOverrides: Mock;
+  subscribe: Mock;
 };
 
 const baseTheme: ChartTheme = {
@@ -40,13 +43,13 @@ const baseTheme: ChartTheme = {
 
 const makeWidget = (chartImpl: Partial<ChartMock> = {}): WidgetMock => {
   const chart: ChartMock = {
-    setChartType: chartImpl.setChartType ?? jest.fn(),
-    detachToRight: chartImpl.detachToRight ?? jest.fn(),
-    getSeries: jest.fn(),
+    setChartType: chartImpl.setChartType ?? vi.fn(),
+    detachToRight: chartImpl.detachToRight ?? vi.fn(),
+    getSeries: vi.fn(),
   };
   chart.getSeries.mockReturnValue({ detachToRight: chart.detachToRight });
-  const applyOverrides = jest.fn();
-  const subscribe = jest.fn();
+  const applyOverrides = vi.fn();
+  const subscribe = vi.fn();
   const widget = {
     activeChart: () => chart as unknown,
     applyOverrides,
@@ -91,7 +94,7 @@ describe('handleSetChartType', () => {
   });
 
   it('re-applies the scale layout on the next animation frame', () => {
-    const rafSpy = jest
+    const rafSpy = vi
       .spyOn(window, 'requestAnimationFrame')
       .mockImplementation((onFrame: FrameRequestCallback) => {
         onFrame(0);
@@ -107,10 +110,10 @@ describe('handleSetChartType', () => {
   });
 
   it('forwards setChartType failures to the ERROR channel', () => {
-    const bridge = { postMessage: jest.fn() };
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
     const { widget } = makeWidget({
-      setChartType: jest.fn(() => {
+      setChartType: vi.fn(() => {
         throw new Error('boom');
       }),
     });

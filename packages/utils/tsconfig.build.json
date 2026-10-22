@@ -25,6 +25,9 @@
     },
     {
       "path": "../error-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../node-utils/tsconfig.build.json"
     }
   ]
 }

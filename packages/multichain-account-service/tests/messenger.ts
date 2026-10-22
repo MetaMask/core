@@ -4,6 +4,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { vi } from 'vitest';
 
 import type { MultichainAccountServiceMessenger } from '../src/types.js';
 
@@ -27,7 +28,7 @@ export type RootMessenger = Messenger<
 export function getRootMessenger(): RootMessenger {
   return new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
-    captureException: jest.fn(),
+    captureException: vi.fn(),
   });
 }
 

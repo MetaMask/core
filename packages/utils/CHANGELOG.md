@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
 - This package was migrated from `MetaMask/utils` to the `MetaMask/core` monorepo ([#10175](https://github.com/MetaMask/core/pull/10175))
@@ -14,9 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move `Json`, `Mutable`, `NonEmptyArray`, `PartialOrAbsent`, `RuntimeObject`, `getKnownPropertyNames`, `hasProperty`, `isNullOrUndefined`, `isObject`, and `isPlainObject` to `@metamask/type-utils` ([#10908](https://github.com/MetaMask/core/pull/10908))
   - These are still re-exported from `@metamask/utils`, so the public API is unchanged.
   - It's recommended to import these types and functions from `@metamask/type-utils` instead of `@metamask/utils` going forward.
+- Move `AssertionError`, `AssertionErrorConstructor`, `assert`, and `assertExhaustive` to `@metamask/type-utils` ([#10983](https://github.com/MetaMask/core/pull/10983))
+  - These are still re-exported from `@metamask/utils`, so the public API is unchanged.
+  - It's recommended to import these types and functions from `@metamask/type-utils` instead of `@metamask/utils` going forward.
 - Move `ensureError`, `getErrorMessage`, `isErrorWithCode`, `isErrorWithMessage`, `isErrorWithStack`, and `wrapError` to `@metamask/error-utils` ([#10917](https://github.com/MetaMask/core/pull/10917))
   - These are still re-exported from `@metamask/utils`, so the public API is unchanged.
   - It's recommended to import these functions from `@metamask/error-utils` instead of `@metamask/utils` going forward.
+- Move `FileSandbox`, `createSandbox`, `directoryExists`, `ensureDirectoryStructureExists`, `fileExists`, `forceRemove`, `readFile`, `readJsonFile`, `writeFile`, and `writeJsonFile` to `@metamask/node-utils` ([#10926](https://github.com/MetaMask/core/pull/10926))
+  - These are still re-exported from `@metamask/utils/node`, so the public API is unchanged.
+  - It's recommended to import these types and functions from `@metamask/node-utils` instead of `@metamask/utils/node` going forward.
 - Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
 - Bump `semver` from `^7.6.3` to `^7.8.5` ([#10443](https://github.com/MetaMask/core/pull/10443))
 - Bump `pony-cause` from `^2.1.10` to `^2.1.11` ([#10440](https://github.com/MetaMask/core/pull/10440))

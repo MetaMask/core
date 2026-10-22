@@ -1,6 +1,8 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
 import type {
   QuoteRequest,
@@ -14,8 +16,8 @@ import {
   isHyperLiquidAccountActivated,
 } from './hyperliquid-activation.js';
 
-jest.mock('../../utils/feature-flags', () => ({
-  getHyperliquidActivationFeeConfig: jest.fn(),
+vi.mock(import('../../utils/feature-flags.js'), () => ({
+  getHyperliquidActivationFeeConfig: vi.fn(),
 }));
 
 const ADDRESS_MOCK = '0xe09d44a3495dab36d37b787e6150e08b54e1ac2d' as Hex;
@@ -75,12 +77,12 @@ function outboundSend(): HyperLiquidLedgerUpdate {
 }
 
 describe('HyperLiquid Activation', () => {
-  let fetchMock: jest.SpyInstance;
-  const getConfigMock = jest.mocked(getHyperliquidActivationFeeConfig);
+  let fetchMock: MockInstance;
+  const getConfigMock = vi.mocked(getHyperliquidActivationFeeConfig);
 
   beforeEach(() => {
-    jest.resetAllMocks();
-    fetchMock = jest.spyOn(global, 'fetch');
+    vi.resetAllMocks();
+    fetchMock = vi.spyOn(global, 'fetch');
     getConfigMock.mockReturnValue({ enabled: true, amountUsd: 1 });
   });
 

@@ -1,6 +1,6 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`BridgeStatusController submitBatchSell rethrows addTransactionBatchFn error if there is no matching txMeta for the batch 2`] = `
+exports[`BridgeStatusController > submitBatchSell > rethrows addTransactionBatchFn error if there is no matching txMeta for the batch 2`] = `
 {
   "account": "0xaccount1",
   "actionId": undefined,
@@ -29,7 +29,7 @@ exports[`BridgeStatusController submitBatchSell rethrows addTransactionBatchFn e
 }
 `;
 
-exports[`BridgeStatusController submitBatchSell returns undefined if there is no matching txMeta for the batch 2`] = `
+exports[`BridgeStatusController > submitBatchSell > returns undefined if there is no matching txMeta for the batch 2`] = `
 {
   "account": "0xaccount1",
   "actionId": undefined,
@@ -58,7 +58,7 @@ exports[`BridgeStatusController submitBatchSell returns undefined if there is no
 }
 `;
 
-exports[`BridgeStatusController submitBatchSell silences addTransactionBatchFn error if there is a matching txMeta for the batch 2`] = `
+exports[`BridgeStatusController > submitBatchSell > silences addTransactionBatchFn error if there is a matching txMeta for the batch 2`] = `
 {
   "account": "0xaccount1",
   "actionId": undefined,

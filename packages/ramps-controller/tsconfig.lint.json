@@ -19,6 +19,9 @@
     },
     {
       "path": "../remote-feature-flag-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../utils/tsconfig.lint.json"
     }
   ]
 }

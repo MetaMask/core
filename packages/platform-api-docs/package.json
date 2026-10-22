@@ -33,9 +33,9 @@
     "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/platform-api-docs",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/platform-api-docs",
-    "cli": "node --import ../../scripts/resolver/register.ts --experimental-transform-types src/cli.ts",
-    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
-    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
+    "cli": "node --import ../../scripts/resolver/register.ts src/cli.ts",
+    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
+    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -50,7 +50,7 @@
     "@docusaurus/types": "^3.10.2",
     "@easyops-cn/docusaurus-search-local": "^0.55.3",
     "@mdx-js/react": "^3.1.1",
-    "@metamask/utils": "^12.0.0",
+    "@metamask/node-utils": "^0.0.0",
     "execa": "^10.0.1",
     "npm-which": "^3.0.1",
     "prism-react-renderer": "^2.4.1",
@@ -75,6 +75,6 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
-    "node": "^22.14.0 || ^24"
+    "node": "^22.14.0 || ^24 || ^26"
   }
 }

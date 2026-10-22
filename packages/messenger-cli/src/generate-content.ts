@@ -1,4 +1,5 @@
-import { assertExhaustive, getErrorMessage } from '@metamask/utils';
+import { getErrorMessage } from '@metamask/error-utils';
+import { assertExhaustive } from '@metamask/type-utils';
 import * as path from 'node:path';
 
 import type { SourceInfo } from './parse-source.js';

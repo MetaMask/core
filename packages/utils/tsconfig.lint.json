@@ -10,6 +10,9 @@
     },
     {
       "path": "../error-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../node-utils/tsconfig.lint.json"
     }
   ]
 }
