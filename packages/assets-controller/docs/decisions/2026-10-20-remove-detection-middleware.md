@@ -1,4 +1,4 @@
-# How the wallet picks token names and prices
+# How the wallet fetch and picks token metadata and prices
 
 - Date: 2026-10-20
 - Status: Accepted
@@ -19,15 +19,15 @@ after a balance has already been found.
 
 ## Words used below
 
-| Word          | Meaning                                                                                                          |
-| ------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Balance       | How much of a token an account holds.                                                                            |
-| Name and icon | Symbol, name, decimals, and image. Stored as metadata.                                                           |
-| Price         | The token's value in the user's currency, such as USD.                                                           |
-| Custom token  | A token the user added by hand. We keep it even if it looks unpopular.                                           |
-| Hidden token  | A token the user chose to hide. We do not fetch it.                                                              |
-| Native token  | The chain's own coin, such as ETH on Ethereum or BNB on BNB Chain.                                               |
-| Spam          | A token that showed up in the wallet without the user asking for it, often an airdrop. We try not to show those. |
+| Word           | Meaning                                                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Balance        | How much of a token an account holds.                                                                            |
+| Token metadata | Symbol, name, decimals, and image.                                                                               |
+| Price          | The token's value in the user's currency, such as USD.                                                           |
+| Custom token   | A token the user added by hand. We keep it even if it looks unpopular.                                           |
+| Hidden token   | A token the user chose to hide. We do not fetch it.                                                              |
+| Native token   | The chain's own coin, such as ETH on Ethereum or BNB on BNB Chain.                                               |
+| Spam           | A token that showed up in the wallet without the user asking for it, often an airdrop. We try not to show those. |
 
 ## What happens on a refresh
 
@@ -44,7 +44,7 @@ together.
 ```mermaid
 flowchart LR
   Bal["Fetch balances"] --> Det["Detection<br/>one list of new tokens"]
-  Det --> Names["Names and icons<br/>only tokens on that list"]
+  Det --> Names["Token metadata<br/>only tokens on that list"]
   Det --> Prices["Prices<br/>only tokens on that list<br/>that have no price yet"]
   Names --> Save["Save"]
   Prices --> Save
@@ -57,7 +57,7 @@ each one chooses its own tokens. Hidden tokens are skipped by both.
 
 ```mermaid
 flowchart LR
-  Bal["Fetch balances"] --> Names["Names and icons<br/>tokens that still need them"]
+  Bal["Fetch balances"] --> Names["Token metadata<br/>tokens that still need them"]
   Bal --> Prices["Prices<br/>only tokens that<br/>still have no price"]
   Names --> Save["Save"]
   Prices --> Save
@@ -100,7 +100,7 @@ Changing the display currency is the exception. Those prices are in the wrong
 currency, so the cache is cleared and every token the user holds is priced
 again.
 
-## Names and icons
+## Token metadata
 
 A name and icon are fetched when we do not already have an image for the token.
 That includes tokens the user already holds, and tokens that just arrived in
@@ -122,6 +122,27 @@ appeared for the first time is checked so spam does not land in the wallet:
 If the name-and-icon request fails, balances already fetched are left as they
 are.
 
+## Trade-offs
+
+What we gain:
+
+- A simpler pipeline. One step and one shared list are gone, so there are
+  fewer places for a token to be dropped by mistake.
+- The existing metadata-healing behavior is preserved. Tokens in balances
+  that have no image remain candidates for name and icon fetching, without
+  relying on a detection list.
+- Each step can be tested on its own, because it picks its own tokens from
+  state and the current balances.
+
+What it costs:
+
+- More calls to the token and price services. Held tokens that are missing a
+  name or a price are now asked for on every refresh. A token the service has
+  no image or price for is asked for again each time. The one-minute price
+  cache and the shared in-flight request limit this, but do not remove it.
+- The two steps each decide which accounts, chains, and hidden tokens count.
+  That logic now lives in two places and has to be kept in line.
+
 ## If you call this package
 
 | You used to                                           | Do this now                                                   |
@@ -137,5 +158,5 @@ are.
 | Refresh prices for a list of tokens | `AssetsController:syncAssetsPrices`                                   |
 | User changed currency               | `AssetsController.setSelectedCurrency`                                |
 | Which tokens get a price            | `PriceDataSource`                                                     |
-| Which tokens get a name and icon    | `TokenDataSource`                                                     |
+| Which tokens get token metadata     | `TokenDataSource`                                                     |
 | Order of a refresh                  | `buildFastFetchSources`, `buildUpdateSources`, `buildWsUpdateSources` |

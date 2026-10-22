@@ -428,13 +428,13 @@ describe('PriceDataSource', () => {
         jest.fn(),
       );
 
-      if (outcome === 'prices') {
-        expect(
-          apiClient.prices.fetchV3SpotPrices.mock.calls[0][0],
-        ).toStrictEqual([normalizeAssetId(assetId)]);
-      } else {
-        expect(apiClient.prices.fetchV3SpotPrices).not.toHaveBeenCalled();
-      }
+      const expectedCalls =
+        outcome === 'prices' ? [[normalizeAssetId(assetId)]] : [];
+      expect(
+        apiClient.prices.fetchV3SpotPrices.mock.calls.map(
+          ([assetIds]) => assetIds,
+        ),
+      ).toStrictEqual(expectedCalls);
 
       controller.destroy();
     },

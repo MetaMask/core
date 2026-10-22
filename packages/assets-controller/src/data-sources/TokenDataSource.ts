@@ -17,14 +17,11 @@ import type {
   AssetsControllerState,
   Middleware,
   FungibleAssetMetadata,
-  DataRequest,
   DataResponse,
 } from '../types.js';
+import { getAssetIdsForMetadataFetch } from '../utils/getAssetIdsForMetadataFetch.js';
 import { fetchWithTimeout } from '../utils/index.js';
-import {
-  isStakingContractAssetId,
-  reduceInBatchesSerially,
-} from './evm-rpc-services/index.js';
+import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 
 // ============================================================================
 // CONSTANTS
@@ -526,103 +523,6 @@ export class TokenDataSource {
   }
 
   /**
-   * Metadata to fetch for this request.
-   *
-   * State balances that have no metadata yet are heals: they are enriched and
-   * not spam-filtered. Response balances are included too; a response balance
-   * already present in state is a heal, and one that is new to state is
-   * spam-filtered. Hidden assets are excluded.
-   *
-   * @param request - Account and chain scope.
-   * @param response - Current pipeline response.
-   * @returns Asset IDs to fetch, and the subset that must skip spam filtering.
-   */
-  #collectMetadataAssetIds(
-    request: DataRequest,
-    response: DataResponse,
-  ): {
-    assetIdsNeedingMetadata: Set<string>;
-    balanceHealAssetIds: Set<string>;
-  } {
-    const state = this.#getAssetsState();
-    const stateMetadata = state.assetsInfo ?? {};
-    const accountIds = request.accountsWithSupportedChains.map(
-      ({ account }) => account.id,
-    );
-    const accountFilter =
-      accountIds.length > 0 ? new Set(accountIds) : undefined;
-    const chainFilter =
-      request.chainIds.length > 0 ? new Set(request.chainIds) : undefined;
-    const hiddenAssetIds = new Set(
-      Object.entries(state.assetPreferences ?? {})
-        .filter(([, preferences]) => preferences.hidden)
-        .map(([assetId]) => assetId.toLowerCase()),
-    );
-    const knownMetadataIds = new Set(
-      Object.keys(stateMetadata).map((assetId) => assetId.toLowerCase()),
-    );
-    const assetIdsNeedingMetadata = new Set<string>();
-    const balanceHealAssetIds = new Set<string>();
-    const stateBalanceIds = new Set<string>();
-
-    const needsMetadata = (assetId: string): boolean => {
-      if (hiddenAssetIds.has(assetId.toLowerCase())) {
-        return false;
-      }
-      if (response.assetsInfo?.[assetId as Caip19AssetId]?.image) {
-        return false;
-      }
-      if (stateMetadata[assetId as Caip19AssetId]?.image) {
-        return false;
-      }
-      return !isStakingContractAssetId(assetId);
-    };
-
-    const inRequestChains = (assetId: string): boolean => {
-      if (!chainFilter) {
-        return true;
-      }
-      try {
-        const { chainId } = parseCaipAssetType(assetId as Caip19AssetId);
-        return chainFilter.has(chainId);
-      } catch {
-        return false;
-      }
-    };
-
-    for (const [accountId, accountBalances] of Object.entries(
-      state.assetsBalance ?? {},
-    )) {
-      if (accountFilter && !accountFilter.has(accountId)) {
-        continue;
-      }
-      for (const assetId of Object.keys(accountBalances)) {
-        stateBalanceIds.add(assetId.toLowerCase());
-        if (!inRequestChains(assetId) || !needsMetadata(assetId)) {
-          continue;
-        }
-        assetIdsNeedingMetadata.add(assetId);
-        balanceHealAssetIds.add(assetId.toLowerCase());
-      }
-    }
-
-    for (const accountBalances of Object.values(response.assetsBalance ?? {})) {
-      for (const assetId of Object.keys(accountBalances)) {
-        if (!needsMetadata(assetId)) {
-          continue;
-        }
-        assetIdsNeedingMetadata.add(assetId);
-        const lowerId = assetId.toLowerCase();
-        if (stateBalanceIds.has(lowerId) || knownMetadataIds.has(lowerId)) {
-          balanceHealAssetIds.add(lowerId);
-        }
-      }
-    }
-
-    return { assetIdsNeedingMetadata, balanceHealAssetIds };
-  }
-
-  /**
    * Get the middleware for enriching responses with token metadata.
    *
    * This middleware:
@@ -638,9 +538,14 @@ export class TokenDataSource {
   get assetsMiddleware(): Middleware {
     return forDataTypes(['metadata'], async (ctx, next) => {
       const { request, response } = ctx;
-      const { customAssets } = this.#getAssetsState();
+      const assetsState = this.#getAssetsState();
+      const { customAssets } = assetsState;
       const { assetIdsNeedingMetadata, balanceHealAssetIds } =
-        this.#collectMetadataAssetIds(request, response);
+        getAssetIdsForMetadataFetch({
+          state: assetsState,
+          request,
+          response,
+        });
 
       // Custom assets are user-imported — exempt from spam filtering.
       // State stores asset IDs in their normalized (checksummed) form, but the

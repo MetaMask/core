@@ -17,7 +17,8 @@ import type {
   AssetsControllerState,
 } from '../types.js';
 import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher.js';
-import { fetchWithTimeout, safeNormalizeAssetId } from '../utils/index.js';
+import { getAssetIdsForPriceFetch } from '../utils/getAssetIdsForPriceFetch.js';
+import { fetchWithTimeout } from '../utils/index.js';
 import type { SubscriptionRequest } from './AbstractDataSource.js';
 import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 
@@ -241,7 +242,11 @@ export class PriceDataSource {
   get assetsMiddleware(): Middleware {
     return forDataTypes(['price'], async (ctx, next) => {
       const { response, request } = ctx;
-      const assetIds = this.#getAssetIdsForPriceFetch(request, response);
+      const assetIds = getAssetIdsForPriceFetch({
+        state: this.#getAssetsState(),
+        request,
+        response,
+      });
 
       if (assetIds.size === 0) {
         return next(ctx);
@@ -452,8 +457,10 @@ export class PriceDataSource {
   #getAssetIdsFromBalanceState(request: DataRequest): Caip19AssetId[] {
     try {
       return [
-        ...this.#getAssetIdsForPriceFetch(request, {
-          assetsBalance: {},
+        ...getAssetIdsForPriceFetch({
+          state: this.#getAssetsState(),
+          request,
+          response: { assetsBalance: {} },
         }),
       ];
     } catch (error) {
@@ -463,98 +470,9 @@ export class PriceDataSource {
   }
 
   /**
-   * Assets to price for this request: custom assets, balances, and metadata
-   * already in state, plus balances on the current response, excluding hidden
-   * assets. Scoped to the request's accounts and chains.
-   *
-   * @param request - Account and chain scope for the fetch.
-   * @param response - Current pipeline response.
-   * @returns Deduplicated, normalized CAIP-19 asset IDs.
-   */
-  #getAssetIdsForPriceFetch(
-    request: DataRequest,
-    response: Pick<DataResponse, 'assetsBalance'>,
-  ): Set<Caip19AssetId> {
-    const state = this.#getAssetsState();
-    const accountIds = request.accountsWithSupportedChains.map(
-      ({ account }) => account.id,
-    );
-    const accountFilter =
-      accountIds.length > 0 ? new Set(accountIds) : undefined;
-    const chainFilter =
-      request.chainIds.length > 0 ? new Set(request.chainIds) : undefined;
-    const hiddenAssetIds = new Set(
-      Object.entries(state.assetPreferences ?? {})
-        .filter(([, preferences]) => preferences.hidden)
-        .map(([assetId]) =>
-          safeNormalizeAssetId(assetId as Caip19AssetId).toLowerCase(),
-        ),
-    );
-    const assetIds = new Map<string, Caip19AssetId>();
-
-    const addAssetId = (assetId: string): void => {
-      try {
-        const normalizedAssetId = safeNormalizeAssetId(
-          assetId as Caip19AssetId,
-        );
-        const { chainId } = parseCaipAssetType(normalizedAssetId);
-        const key = normalizedAssetId.toLowerCase();
-        if (
-          (chainFilter && !chainFilter.has(chainId)) ||
-          hiddenAssetIds.has(key)
-        ) {
-          return;
-        }
-        assetIds.set(key, normalizedAssetId);
-      } catch (error) {
-        log('Skipping malformed asset ID for price fetch', { assetId, error });
-      }
-    };
-
-    const addBalances = (
-      balances: DataResponse['assetsBalance'] | undefined,
-      applyAccountFilter: boolean,
-    ): void => {
-      for (const [accountId, accountBalances] of Object.entries(
-        balances ?? {},
-      )) {
-        if (
-          applyAccountFilter &&
-          accountFilter &&
-          !accountFilter.has(accountId)
-        ) {
-          continue;
-        }
-
-        for (const assetId of Object.keys(accountBalances)) {
-          addAssetId(assetId);
-        }
-      }
-    };
-
-    addBalances(state.assetsBalance, true);
-    for (const [accountId, customAssetIds] of Object.entries(
-      state.customAssets ?? {},
-    )) {
-      if (accountFilter && !accountFilter.has(accountId)) {
-        continue;
-      }
-      for (const assetId of customAssetIds) {
-        addAssetId(assetId);
-      }
-    }
-    for (const assetId of Object.keys(state.assetsInfo ?? {})) {
-      addAssetId(assetId);
-    }
-    addBalances(response.assetsBalance, true);
-
-    return new Set(assetIds.values());
-  }
-
-  /**
    * Keep asset IDs that have no stored price.
    *
-   * Callers pass ids already normalized by `#getAssetIdsForPriceFetch`. A
+   * Callers pass ids already normalized by `getAssetIdsForPriceFetch`. A
    * lower-case id stored by the price API does not match that checksummed id.
    *
    * The price poll and `fetchAssetPrices` update prices that are already stored.
