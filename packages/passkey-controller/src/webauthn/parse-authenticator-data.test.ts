@@ -1,6 +1,7 @@
 import { encodeCBOR } from '@levischuck/tiny-cbor';
 import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 import { sha256 } from '@noble/hashes/sha2';
+import { describe, expect, it } from 'vitest';
 
 import { bytesToBase64URL } from '../utils/encoding.js';
 import { parseAuthenticatorData } from './parse-authenticator-data.js';

@@ -1,9 +1,59 @@
-/**
- * Example function that returns a greeting for the given name.
- *
- * @param name - The name to greet.
- * @returns The greeting.
- */
-export default function greeter(name: string): string {
-  return `Hello, ${name}!`;
-}
+export {
+  MfaRecoveryController,
+  getDefaultMfaRecoveryControllerState,
+} from './MfaRecoveryController.js';
+export type {
+  MfaRecoveryControllerActions,
+  MfaRecoveryControllerEvents,
+  MfaRecoveryControllerGetStateAction,
+  MfaRecoveryControllerMessenger,
+  MfaRecoveryControllerOptions,
+  MfaRecoveryControllerState,
+  MfaRecoveryControllerStateChangedEvent,
+} from './MfaRecoveryController.js';
+export type {
+  MfaRecoveryControllerAbortAction,
+  MfaRecoveryControllerAuthenticateIdentifierAction,
+  MfaRecoveryControllerGetPhaseAction,
+  MfaRecoveryControllerGetRecoverySecretAction,
+  MfaRecoveryControllerRegisterAction,
+  MfaRecoveryControllerResumeAction,
+  MfaRecoveryControllerUpdateIdentifiersAction,
+  MfaRecoveryControllerUpdateRecoverySecretAction,
+} from './MfaRecoveryController-method-action-types.js';
+export { CubistEscrowProvider } from './escrow-providers/cubist-escrow-provider.js';
+export type { CubistEscrowProviderOptions } from './escrow-providers/cubist-escrow-provider.js';
+export {
+  IncompleteMutationError,
+  MfaRecoveryError,
+  MutationRejectedError,
+} from './errors.js';
+export {
+  IDENTIFIER_AUTH_MODES,
+  MIN_IDENTIFIERS,
+  getIdentifierAuthMode,
+} from './identifier-auth.js';
+export type {
+  AuthControllerToken,
+  EncryptedPendingOperation,
+  Identifier,
+  IdentifierAuthorization,
+  IdentifierSession,
+  Mutation,
+  MutationPayload,
+  MutationReceipt,
+  PendingMutationPayload,
+  PendingOperation,
+  PendingOperationEncryptor,
+  PendingRecoverySecretHex,
+  PendingRegisterPayload,
+  PendingUpdateIdentifiersPayload,
+  PendingUpdateRecoverySecretPayload,
+  RecoveryAuthProvider,
+  RecoveryEscrowProvider,
+  RecoveryIdentifierAuthProvider,
+  RecoveryPhase,
+  RecoveredSecret,
+  WrappedSecret,
+  WrappedSecretOutput,
+} from './types.js';

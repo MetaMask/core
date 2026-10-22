@@ -1,4 +1,5 @@
 import type { DerivedIdentity } from '@metamask/chomp-api-service';
+import { describe, it, expect } from 'vitest';
 
 import { getMoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 

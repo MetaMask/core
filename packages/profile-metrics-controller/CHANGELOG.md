@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.4]
+
 ### Changed
 
-- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.1.0` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761), [#10905](https://github.com/MetaMask/core/pull/10905))
+- Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^35.0.0` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761), [#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
 - Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.1` ([#10772](https://github.com/MetaMask/core/pull/10772), [#10817](https://github.com/MetaMask/core/pull/10817))
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
@@ -293,7 +295,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.4...HEAD
+[5.1.4]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.3...@metamask/profile-metrics-controller@5.1.4
 [5.1.3]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.2...@metamask/profile-metrics-controller@5.1.3
 [5.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.1...@metamask/profile-metrics-controller@5.1.2
 [5.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@5.1.0...@metamask/profile-metrics-controller@5.1.1
