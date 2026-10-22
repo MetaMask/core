@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: run engagement packages on Vitest ([#10958](https://github.com/MetaMask/core/pull/10958))
+
 ## [30.0.1]
 
 ### Changed

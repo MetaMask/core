@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: note the unpublished test helpers in the changelogs ([#10928](https://github.com/MetaMask/core/pull/10928))
+
 ### Changed
 
 - Stop publishing the `api/test-utils` test helper, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))

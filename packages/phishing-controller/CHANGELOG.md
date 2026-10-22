@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: use TypeScript for Vitest configs ([#10921](https://github.com/MetaMask/core/pull/10921))
+- chore: note the unpublished test helpers in the changelogs ([#10928](https://github.com/MetaMask/core/pull/10928))
+- test: use typed Vitest module mock factories ([#10904](https://github.com/MetaMask/core/pull/10904))
+- test: run phishing-controller on Vitest ([#10554](https://github.com/MetaMask/core/pull/10554))
+- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
+
 ### Changed
 
 - Stop publishing the `tests/utils` test helper, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))
