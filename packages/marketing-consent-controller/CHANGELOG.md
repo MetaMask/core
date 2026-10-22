@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: use TypeScript for Vitest configs ([#10921](https://github.com/MetaMask/core/pull/10921))
-
 ## [1.0.2]
 
 ### Changed
