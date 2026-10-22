@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test: run social-ai packages on Vitest ([#10954](https://github.com/MetaMask/core/pull/10954))
-
 ## [3.10.0]
 
 ### Added
