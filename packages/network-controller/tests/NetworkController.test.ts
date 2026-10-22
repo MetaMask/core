@@ -71,14 +71,10 @@ import type { RootMessenger } from './helpers.js';
 
 vi.mock('../src/create-network-client.js');
 
-vi.mock('uuid', async () => {
-  const actual = await vi.importActual('uuid');
-
-  return {
-    ...actual,
-    v4: vi.fn(),
-  };
-});
+vi.mock(import('uuid'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  v4: vi.fn(),
+}));
 
 /**
  * A block header object that `eth_getBlockByNumber` can be mocked to return.
