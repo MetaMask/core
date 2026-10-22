@@ -11,6 +11,7 @@ import type { MockedFunction, MockInstance } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import { mockModuleExcept } from '../../../tests/mock-module-except.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -45,20 +46,9 @@ import { getRelayQuotes } from './relay-quotes.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type { RelayQuote, RelayTransactionStep } from './types.js';
 
-// Mocks every exported function except `normalizeTokenAddress`.
-vi.mock(import('../../utils/token.js'), async (importOriginal) => {
-  const actual = await importOriginal();
-
-  return {
-    ...Object.fromEntries(
-      Object.entries(actual).map(([key, value]) => [
-        key,
-        typeof value === 'function' ? vi.fn() : value,
-      ]),
-    ),
-    normalizeTokenAddress: actual.normalizeTokenAddress,
-  };
-});
+vi.mock(import('../../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), ['normalizeTokenAddress']),
+);
 vi.mock(import('../../utils/gas.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   calculateGasCost: vi.fn(),

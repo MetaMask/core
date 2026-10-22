@@ -14,7 +14,8 @@ const DECORATOR_PATTERN = /^\s*@[A-Za-z_$][\w$]*/mu;
  * place, and Node cannot run them. The messenger mock imports
  * `@metamask/assets-controller`, whose `AssetsController` uses one, so this
  * plugin compiles any TypeScript module that uses a decorator with TypeScript
- * first, the way ts-jest did.
+ * first, the way ts-jest did. Remove it once Oxc lowers standard decorators,
+ * see https://github.com/vitest-dev/vitest/issues/9876.
  *
  * @returns The Vite plugin.
  */

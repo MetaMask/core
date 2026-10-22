@@ -6,6 +6,7 @@ import { cloneDeep } from 'lodash-es';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
+import { mockModuleExcept } from '../../tests/mock-module-except.js';
 import { TransactionPayStrategy } from '../constants.js';
 import type {
   TransactionPaySourceAmount,
@@ -31,20 +32,9 @@ import { QuoteError } from './validation.js';
 vi.mock(import('./strategy.js'));
 vi.mock(import('./transaction.js'));
 vi.mock(import('./totals.js'));
-// Mocks every exported function except `computeTokenAmounts`.
-vi.mock(import('./token.js'), async (importOriginal) => {
-  const actual = await importOriginal();
-
-  return {
-    ...Object.fromEntries(
-      Object.entries(actual).map(([key, value]) => [
-        key,
-        typeof value === 'function' ? vi.fn() : value,
-      ]),
-    ),
-    computeTokenAmounts: actual.computeTokenAmounts,
-  };
-});
+vi.mock(import('./token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), ['computeTokenAmounts']),
+);
 
 vi.useFakeTimers();
 

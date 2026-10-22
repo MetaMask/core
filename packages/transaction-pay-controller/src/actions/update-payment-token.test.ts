@@ -2,6 +2,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { noop } from 'lodash-es';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { mockModuleExcept } from '../../tests/mock-module-except.js';
 import type { TransactionData, TransactionPaymentToken } from '../types.js';
 import {
   getTokenBalance,
@@ -11,20 +12,9 @@ import {
 import { getTransaction } from '../utils/transaction.js';
 import { updatePaymentToken } from './update-payment-token.js';
 
-// Mocks every exported function except `computeTokenAmounts`.
-vi.mock(import('../utils/token.js'), async (importOriginal) => {
-  const actual = await importOriginal();
-
-  return {
-    ...Object.fromEntries(
-      Object.entries(actual).map(([key, value]) => [
-        key,
-        typeof value === 'function' ? vi.fn() : value,
-      ]),
-    ),
-    computeTokenAmounts: actual.computeTokenAmounts,
-  };
-});
+vi.mock(import('../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), ['computeTokenAmounts']),
+);
 vi.mock(import('../utils/transaction.js'));
 
 const TOKEN_ADDRESS_MOCK = '0x123';

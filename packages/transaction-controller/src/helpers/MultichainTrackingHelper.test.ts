@@ -520,8 +520,6 @@ describe('MultichainTrackingHelper', () => {
       await firstReleaseLock();
       await advanceTime({ duration: 1 });
 
-      // Let the losing delay finish too, so it does not advance timers after
-      // the test has restored the real ones.
       const secondDelay = delay();
       secondReleaseLockIfAcquired = await Promise.race([
         secondReleaseLockPromise,
