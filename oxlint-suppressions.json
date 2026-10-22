@@ -3446,7 +3446,6 @@
       "count": 2
     }
   },
-  "packages/multichain-network-controller/src/MultichainNetworkController/MultichainNetworkController.test.ts": {},
   "packages/multichain-transactions-controller/src/MultichainTransactionsController.ts": {
     "typescript/explicit-function-return-type": {
       "count": 4
@@ -5881,19 +5880,6 @@
       "count": 8
     }
   },
-  "packages/utils/src/assert.test.ts": {
-    "no-throw-literal": {
-      "count": 1
-    }
-  },
-  "packages/utils/src/assert.ts": {
-    "typescript/no-explicit-any": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
   "packages/utils/src/bytes.ts": {
     "no-undef": {
       "count": 1
@@ -5930,19 +5916,6 @@
   "packages/utils/src/collections.ts": {
     "typescript/no-explicit-any": {
       "count": 2
-    }
-  },
-  "packages/utils/src/fs.test.ts": {
-    "typescript/no-explicit-any": {
-      "count": 20
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 8
-    }
-  },
-  "packages/utils/src/fs.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/utils/src/json.test.ts": {
@@ -5983,11 +5956,6 @@
       "count": 2
     },
     "vitest/no-conditional-in-test": {
-      "count": 1
-    }
-  },
-  "packages/watch-only-account-service/jest.config.cjs": {
-    "import/unambiguous": {
       "count": 1
     }
   },

@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move `Json`, `Mutable`, `NonEmptyArray`, `PartialOrAbsent`, `RuntimeObject`, `getKnownPropertyNames`, `hasProperty`, `isNullOrUndefined`, `isObject`, and `isPlainObject` to `@metamask/type-utils` ([#10908](https://github.com/MetaMask/core/pull/10908))
   - These are still re-exported from `@metamask/utils`, so the public API is unchanged.
   - It's recommended to import these types and functions from `@metamask/type-utils` instead of `@metamask/utils` going forward.
+- Move `AssertionError`, `AssertionErrorConstructor`, `assert`, and `assertExhaustive` to `@metamask/type-utils` ([#10983](https://github.com/MetaMask/core/pull/10983))
+  - These are still re-exported from `@metamask/utils`, so the public API is unchanged.
+  - It's recommended to import these types and functions from `@metamask/type-utils` instead of `@metamask/utils` going forward.
 - Move `ensureError`, `getErrorMessage`, `isErrorWithCode`, `isErrorWithMessage`, `isErrorWithStack`, and `wrapError` to `@metamask/error-utils` ([#10917](https://github.com/MetaMask/core/pull/10917))
   - These are still re-exported from `@metamask/utils`, so the public API is unchanged.
   - It's recommended to import these functions from `@metamask/error-utils` instead of `@metamask/utils` going forward.
