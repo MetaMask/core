@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **BREAKING:** Set `USDC_ARBITRUM_TESTNET_ADDRESS` and `HYPERLIQUID_ASSET_CONFIGS.usdc.testnet` to USDC2 (`0x1baAbB04529D43a73232B713C0FE471f7c7334d5`), the token the Arbitrum Sepolia bridge credits, so testnet deposit and withdrawal routes name the token that is deposited and paid out
+  - The exported literal type of `USDC_ARBITRUM_TESTNET_ADDRESS` changes to the USDC2 address. Code typed against `typeof USDC_ARBITRUM_TESTNET_ADDRESS` with the previous value no longer compiles.
+  - On testnet, `withdraw` rejects the previous asset ID (`0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`). Read `HYPERLIQUID_ASSET_CONFIGS.usdc.testnet` or `getWithdrawalRoutes()` instead of hardcoding it, and update test fixtures that pin the previous asset ID.
 - On a testnet session, `depositWithConfirmation` now prepares an Arbitrum Sepolia transfer to the Hyperliquid testnet bridge instead of an Arbitrum One transfer to the mainnet bridge; `DepositService.prepareTransaction` takes deposit routes for the provider's own network instead of forcing mainnet
-- Set `USDC_ARBITRUM_TESTNET_ADDRESS` and `HYPERLIQUID_ASSET_CONFIGS.usdc.testnet` to USDC2 (`0x1baAbB04529D43a73232B713C0FE471f7c7334d5`), the token the Arbitrum Sepolia bridge credits, so testnet deposit and withdrawal routes name the token that is deposited and paid out
-  - On testnet, `withdraw` rejects the previous asset ID (`0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`). Clients that hardcode it should read the constant or `getWithdrawalRoutes()` instead.
 
 ## [21.0.0]
 
