@@ -6036,14 +6036,6 @@
       "count": 1
     }
   },
-  "scripts/lint-tsconfigs/utils.ts": {
-    "n/no-unsupported-features/node-builtins": {
-      "count": 1
-    },
-    "no-useless-return": {
-      "count": 1
-    }
-  },
   "scripts/manage-codeowners/main.ts": {
     "n/no-unsupported-features/node-builtins": {
       "count": 1
