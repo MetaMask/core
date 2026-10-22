@@ -50,7 +50,7 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/account-api": "^2.1.0",
+    "@metamask/account-api": "^2.2.0",
     "@metamask/accounts-controller": "^40.1.0",
     "@metamask/eth-snap-keyring": "^24.1.1",
     "@metamask/keyring-api": "^24.3.0",
