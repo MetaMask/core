@@ -7,6 +7,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { hexToNumber } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ROOT_AUTHORITY } from './constants.js';
 import {
@@ -74,7 +75,7 @@ function createMessengerMock() {
     namespace: MOCK_ANY_NAMESPACE,
   });
 
-  const keyringControllerSignTypedMessageMock = jest.fn();
+  const keyringControllerSignTypedMessageMock = vi.fn();
 
   keyringControllerSignTypedMessageMock.mockResolvedValue(SIGNATURE_HASH_MOCK);
 
@@ -143,7 +144,7 @@ function createController(state?: DelegationControllerState) {
 
 describe(`${controllerName}`, () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('constructor', () => {

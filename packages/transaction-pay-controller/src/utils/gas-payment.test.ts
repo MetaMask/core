@@ -2,7 +2,7 @@ import type { GasFeeToken } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
-import { getMessengerMock } from '../tests/messenger-mock.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { GasPayment } from './gas-payment.js';
 import {
   shouldUseGasStation,
