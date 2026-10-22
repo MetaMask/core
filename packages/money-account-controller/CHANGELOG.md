@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for MPC-backed money accounts (MFA accounts) via `createMoneyAccount({ type: 'mpc' })` ([#10694](https://github.com/MetaMask/core/pull/10694))
 - Add `setDefaultMoneyAccount` and a persisted `defaultMoneyAccountId` state field ([#10694](https://github.com/MetaMask/core/pull/10694))
 - Add a dependency on `@metamask/eth-money-mpc-keyring` ([#10694](https://github.com/MetaMask/core/pull/10694))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 

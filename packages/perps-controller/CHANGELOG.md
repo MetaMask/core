@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - An order edit includes only `environment_type` from `newOrder.trackingData`.
   - The withdrawal `executed` and `failed` events emitted by `withdraw()` include `environment_type` the same way. Withdrawal events from `updateWithdrawalStatus` and `completeWithdrawalFromHistory` do not.
   - The key is omitted when `environmentType` is absent.
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Fixed
 
