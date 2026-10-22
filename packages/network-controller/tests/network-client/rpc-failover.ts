@@ -1,13 +1,12 @@
 import { ConstantBackoff } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
+import type { Constructable } from '@vitest/spy';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ignoreRejection } from '../../../../tests/vitest/helpers.js';
 import { buildRootMessenger } from '../helpers.js';
 import type { MockRequest, MockResponse, ProviderType } from './helpers.js';
 import { withMockedCommunications, withNetworkClient } from './helpers.js';
-
-type Constructable = new (...args: never[]) => unknown;
 
 /**
  * Tests for RPC failover behavior.

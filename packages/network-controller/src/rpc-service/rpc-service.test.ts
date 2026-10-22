@@ -4,6 +4,7 @@ import {
   HttpError,
 } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
+import type { Constructable } from '@vitest/spy';
 import { CircuitState } from 'cockatiel';
 import deepFreeze from 'deep-freeze-strict';
 import nock from 'nock';
@@ -15,8 +16,6 @@ import {
   DEFAULT_MAX_RETRIES,
   RpcService,
 } from './rpc-service.js';
-
-type Constructable = new (...args: never[]) => unknown;
 
 describe('RpcService', () => {
   beforeEach(() => {
