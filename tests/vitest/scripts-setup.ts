@@ -1,4 +1,6 @@
-import { afterEach } from '@jest/globals';
+import { afterEach } from 'vitest';
+
+/* oxlint-disable vitest/require-top-level-describe -- setup file, not a suite */
 
 // If the code-under-test sets `process.exitCode`, the test process can exit with that code without
 // any error messages.
@@ -9,6 +11,3 @@ afterEach(() => {
     throw new Error(`Non-zero exit code: ${String(process.exitCode)}`);
   }
 });
-
-// Signals that this is a module not a script
-export {};
