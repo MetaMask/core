@@ -65,7 +65,6 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
     "@types/jest": "^30.0.0",
-    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.3.1",
     "jest": "^30.5.2",
     "jest-environment-jsdom": "^30.5.2",
@@ -73,7 +72,7 @@
     "ts-jest": "^29.4.14",
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
-    "typescript": "npm:@typescript/typescript6@^6.0.2"
+    "typescript": "7.1.0-beta"
   },
   "engines": {
     "node": "^22.14.0 || ^24"

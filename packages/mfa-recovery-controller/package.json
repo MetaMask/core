@@ -63,12 +63,11 @@
   "devDependencies": {
     "@cubist-labs/cubesigner-sdk-fs-storage": "^0.4.284",
     "@metamask/auto-changelog": "^6.2.1",
-    "@typescript/native": "npm:typescript@^7.0.2",
     "rimraf": "^6.1.3",
     "tsx": "^4.20.5",
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
-    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript": "7.1.0-beta",
     "vitest": "^5.0.0"
   },
   "engines": {
