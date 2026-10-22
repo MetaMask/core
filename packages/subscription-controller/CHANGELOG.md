@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
 ### Changed
 
 - **BREAKING:** `getBenefits` returns an ineligible benefits response instead of throwing `UserNotSubscribed`. ([#10994](https://github.com/MetaMask/core/pull/10994))
@@ -668,7 +670,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.2...@metamask/subscription-controller@15.0.0
 [14.0.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.1...@metamask/subscription-controller@14.0.2
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.0...@metamask/subscription-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@13.0.0...@metamask/subscription-controller@14.0.0
