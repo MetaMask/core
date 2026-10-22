@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix `toWei` accepting fractional `wei` values and returning erroneous scaled values ([#10209](https://github.com/MetaMask/core/issues/10209))
+  - `wei` is the base unit with zero decimal places; inputs with fractional digits now throw an error as expected.
 - Narrow byte helper return types to `Uint8Array<ArrayBuffer>` ([#10617](https://github.com/MetaMask/core/pull/10617))
   - These functions already returned a `Uint8Array` backed by an `ArrayBuffer`, but were typed as returning `Uint8Array<ArrayBufferLike>`.
 

@@ -152,13 +152,31 @@ describe('getValueOfUnit', () => {
 describe('toWei', () => {
   it('should handle edge cases', () => {
     expect(toWei(0, 'wei').toString(10)).toBe('0');
-    expect(toWei('0.0', 'wei').toString(10)).toBe('0');
+    // wei has zero decimal places, so an explicit fractional digit (even a
+    // literal zero) is "too many decimal places", same as it would be for
+    // any other unit given more fractional digits than it supports.
+    expect(() => toWei('0.0', 'wei')).toThrow(Error);
     expect(toWei('.3', 'ether').toString(10)).toBe('300000000000000000');
     expect(() => toWei('.', 'wei')).toThrow(Error);
     expect(() => toWei('1.243842387924387924897423897423', 'ether')).toThrow(
       Error,
     );
     expect(() => toWei('8723.98234.98234', 'ether')).toThrow(Error);
+  });
+
+  it('should reject fractional wei (wei has zero decimal places)', () => {
+    // Regression test: unitLengths used to compute `value.length - 1 || 1`,
+    // so wei's baseLength was wrongly coerced from 0 to 1, letting a single
+    // fractional digit silently pass through as whole wei.
+    expect(() => toWei('0.5', 'wei')).toThrow('too many decimal places');
+    expect(() => toWei('0.9', 'wei')).toThrow('too many decimal places');
+
+    // Whole wei values are unaffected by the fix.
+    expect(toWei('5', 'wei')).toBe(BigInt(5));
+    expect(toWei('0', 'wei')).toBe(BigInt(0));
+
+    // Sanity-check another unit (baseLength 9) still works after the fix.
+    expect(toWei('1.5', 'gwei')).toBe(BigInt('1500000000'));
   });
 
   it('should handle BigInt inputs with fast path optimizations', () => {
