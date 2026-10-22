@@ -76,8 +76,7 @@
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^5.0.0",
-    "web3": "^4.16.0"
+    "vitest": "^5.0.0"
   },
   "engines": {
     "node": "^22.14.0 || ^24"

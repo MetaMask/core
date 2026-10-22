@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { utils as web3Utils } from 'web3';
 
 import {
   toWei,
@@ -9,65 +8,6 @@ import {
   getValueOfUnit,
   unitMap,
 } from './unitsConversion.js';
-
-// Import the internal function for testing (note: this would normally be exported for testing)
-// For now we'll test it indirectly through the public functions
-
-const totalTypes = Object.keys(unitMap).length;
-
-/**
- * Test random value conversion to Wei against web3 implementation.
- *
- * @param negative - Whether to test negative values.
- */
-function testRandomValueAgainstWeb3ToWei(negative: boolean): void {
-  const stringTestValue = `${negative ? '-' : ''}${String(
-    Math.floor(Math.random() * 100000000000000000 + 1),
-  )}`;
-  const randomunitsType = Object.keys(unitMap)[
-    Math.floor(Math.random() * (totalTypes - 1) + 1)
-  ] as keyof typeof unitMap;
-  const unitsValue = toWei(stringTestValue, randomunitsType);
-  const web3Value = BigInt(web3Utils.toWei(stringTestValue, randomunitsType));
-
-  expect(unitsValue).toStrictEqual(web3Value);
-}
-
-/**
- * Test random value conversion from Wei against web3 implementation.
- *
- * @param negative - Whether to test negative values.
- */
-function testRandomValueAgainstWeb3FromWei(negative: boolean): void {
-  const stringTestValue = `${negative ? '-' : ''}${String(
-    Math.floor(Math.random() * 100000000000000000 + 1),
-  )}`;
-  const randomunitsType = Object.keys(unitMap)[
-    Math.floor(Math.random() * (totalTypes - 1) + 1)
-  ] as keyof typeof unitMap;
-  const unitsValue = fromWei(stringTestValue, randomunitsType);
-  const web3Value = web3Utils.fromWei(stringTestValue, randomunitsType);
-
-  // Skip test cases where web3 has a formatting bug that makes the value unparseable
-  // Web3 formats negative decimals incorrectly as "0.000-123" instead of "-0.000123"
-  if (web3Value.includes('-') && !web3Value.startsWith('-')) {
-    // This is a known web3 bug, skip this test case
-    return;
-  }
-
-  // Handle formatting differences between our implementation and web3
-  // Our implementation: "-0.123" vs web3: "-.123"
-  // Use numerical comparison for accuracy while allowing for precision differences
-  const unitsValueAsNumber = parseFloat(unitsValue);
-  const web3ValueAsNumber = parseFloat(web3Value);
-
-  // Allow for small floating point precision differences (up to 10 decimal places)
-  const tolerance = 1e-10;
-  expect(Math.abs(unitsValueAsNumber - web3ValueAsNumber)).toBeLessThan(
-    tolerance,
-  );
-  // });
-}
 
 describe('getValueOfUnit', () => {
   it('should return correct values for all units', () => {
@@ -590,17 +530,131 @@ describe('numericToBigInt', () => {
 });
 
 describe('units', () => {
-  describe('normal functionality', () => {
-    it('should be the same as web3', () => {
-      for (let i = 0; i < 15000; i++) {
-        testRandomValueAgainstWeb3ToWei(false);
-        testRandomValueAgainstWeb3ToWei(true);
-        testRandomValueAgainstWeb3FromWei(false);
-        testRandomValueAgainstWeb3FromWei(true);
-      }
-      // Ensure we've run the test loop
-      expect(true).toBe(true);
+  describe('exact unit conversions', () => {
+    // These independent fixtures must not derive their scales from unitMap.
+    const unitVectors = [
+      { units: ['wei'], scale: '1', oneWei: '1', below: '0', above: '2' },
+      {
+        units: ['kwei', 'Kwei', 'babbage', 'femtoether'],
+        scale: '1000',
+        oneWei: '0.001',
+        below: '0.999',
+        above: '1.001',
+      },
+      {
+        units: ['mwei', 'Mwei', 'lovelace', 'picoether'],
+        scale: '1000000',
+        oneWei: '0.000001',
+        below: '0.999999',
+        above: '1.000001',
+      },
+      {
+        units: ['gwei', 'Gwei', 'shannon', 'nanoether', 'nano'],
+        scale: '1000000000',
+        oneWei: '0.000000001',
+        below: '0.999999999',
+        above: '1.000000001',
+      },
+      {
+        units: ['szabo', 'microether', 'micro'],
+        scale: '1000000000000',
+        oneWei: '0.000000000001',
+        below: '0.999999999999',
+        above: '1.000000000001',
+      },
+      {
+        units: ['finney', 'milliether', 'milli'],
+        scale: '1000000000000000',
+        oneWei: '0.000000000000001',
+        below: '0.999999999999999',
+        above: '1.000000000000001',
+      },
+      {
+        units: ['ether'],
+        scale: '1000000000000000000',
+        oneWei: '0.000000000000000001',
+        below: '0.999999999999999999',
+        above: '1.000000000000000001',
+      },
+      {
+        units: ['kether', 'grand'],
+        scale: '1000000000000000000000',
+        oneWei: '0.000000000000000000001',
+        below: '0.999999999999999999999',
+        above: '1.000000000000000000001',
+      },
+      {
+        units: ['mether'],
+        scale: '1000000000000000000000000',
+        oneWei: '0.000000000000000000000001',
+        below: '0.999999999999999999999999',
+        above: '1.000000000000000000000001',
+      },
+      {
+        units: ['gether'],
+        scale: '1000000000000000000000000000',
+        oneWei: '0.000000000000000000000000001',
+        below: '0.999999999999999999999999999',
+        above: '1.000000000000000000000000001',
+      },
+      {
+        units: ['tether'],
+        scale: '1000000000000000000000000000000',
+        oneWei: '0.000000000000000000000000000001',
+        below: '0.999999999999999999999999999999',
+        above: '1.000000000000000000000000000001',
+      },
+    ] as const;
+
+    const units = unitVectors.flatMap(({ units: aliases, ...vector }) =>
+      aliases.map((unit) => ({ unit, ...vector })),
+    );
+
+    it('covers every nonzero unit and alias', () => {
+      expect(units.map(({ unit }) => unit).sort()).toStrictEqual(
+        Object.keys(unitMap)
+          .filter((unit) => unit !== 'noether')
+          .sort(),
+      );
     });
+
+    describe.each(units)('$unit', ({ unit, scale, oneWei, below, above }) => {
+      const base = BigInt(scale);
+      const vectors = [
+        { amount: '0', wei: 0n },
+        { amount: oneWei, wei: 1n },
+        { amount: below, wei: base - 1n },
+        { amount: '1', wei: base },
+        { amount: above, wei: base + 1n },
+        { amount: '9007199254740993', wei: 9007199254740993n * base },
+      ].flatMap((vector) =>
+        vector.wei === 0n
+          ? [vector]
+          : [vector, { amount: `-${vector.amount}`, wei: -vector.wei }],
+      );
+
+      it.each(vectors)(
+        'converts $amount exactly in both directions',
+        ({ amount, wei }) => {
+          expect(toWei(amount, unit)).toBe(wei);
+          expect(fromWei(wei, unit)).toBe(amount);
+          expect(fromWei(toWei(amount, unit), unit)).toBe(amount);
+          expect(toWei(fromWei(wei, unit), unit)).toBe(wei);
+        },
+      );
+    });
+
+    it.each([
+      { amount: '0', wei: 0n, formatted: '0' },
+      { amount: '1', wei: 1n, formatted: '0' },
+      { amount: '-1', wei: -1n, formatted: '-0' },
+    ])(
+      'handles noether for $amount without a round trip',
+      ({ amount, wei, formatted }) => {
+        expect(toWei(amount, 'noether')).toBe(0n);
+        expect(fromWei(wei, 'noether')).toBe(formatted);
+      },
+    );
   });
 
   describe('performance optimizations', () => {
