@@ -3,11 +3,17 @@
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true,
-    "types": ["jest"]
+    "types": ["node", "jest"]
   },
   "references": [
     {
-      "path": "../utils"
+      "path": "../node-utils"
+    },
+    {
+      "path": "../type-utils"
+    },
+    {
+      "path": "../error-utils"
     }
   ],
   "include": ["../../types", "./src"]

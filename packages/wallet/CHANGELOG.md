@@ -9,12 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Add `AnalyticsController` to the default initialization configurations ([#10901](https://github.com/MetaMask/core/pull/10901))
+  - Requires `instanceOptions.analyticsController.platformAdapter` and `instanceOptions.analyticsController.analyticsId`.
+  - Accepts optional feature flags `isAnonymousEventsFeatureEnabled`, `isEventQueuePersistenceEnabled`, `isPreConsentQueueEnabled`, `isGeolocationEnabled`, and `isEventFragmentsEnabled`, each defaulting to `false`.
+  - Persisted `AnalyticsController` state overrides the supplied `analyticsId` when present.
+  - `AnalyticsController` delegates `ConfigRegistryController:getState` and `GeolocationController:getGeolocationData`, and subscribes to `ConfigRegistryController:stateChanged`.
+  - Hosts that already register `AnalyticsController` or no-op `AnalyticsController:*` handlers on the wallet root messenger must remove them before upgrading, or messenger registration will collide.
+  - When `isGeolocationEnabled` is `true`, hosts must register `GeolocationController` on the wallet root messenger.
 - **BREAKING:** Add `NetworkEnablementController` to the default initialization configurations ([#10997](https://github.com/MetaMask/core/pull/10997))
   - `Wallet.init()` calls `NetworkEnablementController.init()`, which reads `MultichainNetworkController:getState`. The wallet does not construct `MultichainNetworkController`. Clients must register that action on the wallet messenger before calling `wallet.init()`.
   - Export `networkEnablementController` so clients can pass it through `initializationConfigurations` before `assetsController`. Additional configurations initialize before defaults, and `AssetsController` reads `NetworkEnablementController:getState` during construction.
 
 ### Changed
 
+- Add `@metamask/analytics-controller` as a dependency ([#10901](https://github.com/MetaMask/core/pull/10901))
 - Add `@metamask/network-enablement-controller` as a dependency ([#10997](https://github.com/MetaMask/core/pull/10997))
 - Bump `@metamask/claims-controller` from `^1.0.3` to `^1.0.4` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/shield-controller` from `^7.0.4` to `^7.0.5` ([#10925](https://github.com/MetaMask/core/pull/10925))

@@ -1,8 +1,4 @@
-import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
-import type {
-  AnalyticsControllerGetStateAction,
-  AnalyticsControllerTrackEventAction,
-} from '@metamask/analytics-controller';
+import type { AnalyticsPlatformAdapter } from '@metamask/analytics-controller';
 import { ConfigRegistryApiEnv } from '@metamask/config-registry-controller';
 import { Messenger } from '@metamask/messenger';
 import { getDefaultMultichainNetworkControllerState } from '@metamask/multichain-network-controller';
@@ -33,6 +29,24 @@ import { loadState, subscribeToChanges } from '../persistence/persistence.js';
 import { subscribeToAutoApproval } from './auto-approval.js';
 import type { Password, Srp } from './secrets.js';
 import type { Logger } from './types.js';
+
+/**
+ * No-op analytics adapter for the headless daemon. Delivery is a no-op, and the
+ * controller starts opted out, so `NetworkController` RPC analytics calls that
+ * reach `trackEvent` do not emit.
+ */
+const NO_OP_ANALYTICS_PLATFORM_ADAPTER: AnalyticsPlatformAdapter = {
+  track: (): void => undefined,
+  identify: (): void => undefined,
+  view: (): void => undefined,
+  onSetupCompleted: (): void => undefined,
+};
+
+/**
+ * Fixed analytics ID for the daemon. Required by `AnalyticsController`; unused
+ * for delivery because the adapter is a no-op and consent defaults to opted out.
+ */
+const CLI_ANALYTICS_ID = '00000000-0000-4000-8000-000000000000';
 
 const IN_MEMORY_DATABASE_PATH = ':memory:';
 
@@ -65,6 +79,8 @@ export type CreateWalletResult = {
  * tear those instances down).
  *
  * Only the slots wired on `@metamask/wallet` today are populated:
+ * - `analyticsController` — a no-op platform adapter and a fixed analytics ID,
+ *   since the daemon does not report analytics.
  * - `storageService` — backed by an in-memory adapter. This is the wallet's
  *   large-blob store (snap source, caches), distinct from the SQLite
  *   `KeyValueStore` that persists controller state; no wired controller
@@ -97,6 +113,10 @@ function buildInstanceOptions(
   infuraProjectId: string,
 ): WalletOptions['instanceOptions'] {
   return {
+    analyticsController: {
+      platformAdapter: NO_OP_ANALYTICS_PLATFORM_ADAPTER,
+      analyticsId: CLI_ANALYTICS_ID,
+    },
     configRegistryApiService: {
       env: ConfigRegistryApiEnv.PRD,
     },
@@ -152,41 +172,6 @@ function buildInstanceOptions(
       hooks: {},
     },
   };
-}
-
-/**
- * Register handlers for the `AnalyticsController` actions that
- * `NetworkController` calls to emit RPC service analytics. The daemon does not
- * report analytics, so these do nothing: `getState` returns an empty analytics
- * ID, which stops the controller before it tracks anything, and `trackEvent` is
- * a no-op. Registering them keeps those messenger calls from throwing.
- *
- * @param messenger - The wallet's root messenger.
- */
-function registerAnalyticsStubHandlers(messenger: Wallet['messenger']): void {
-  // Register on an `AnalyticsController`-namespaced messenger, not the root: a
-  // messenger can only register handlers for its own namespace, and doing so
-  // delegates them up to the root, where `NetworkController` can reach them.
-  const analyticsMessenger = new Messenger<
-    'AnalyticsController',
-    AnalyticsControllerGetStateAction | AnalyticsControllerTrackEventAction,
-    never,
-    RootMessenger<DefaultActions, DefaultEvents>
-  >({
-    namespace: 'AnalyticsController',
-    parent: messenger as RootMessenger<DefaultActions, DefaultEvents>,
-  });
-  analyticsMessenger.registerActionHandler(
-    'AnalyticsController:getState',
-    () => ({
-      ...getDefaultAnalyticsControllerState(),
-      analyticsId: '',
-    }),
-  );
-  analyticsMessenger.registerActionHandler(
-    'AnalyticsController:trackEvent',
-    () => undefined,
-  );
 }
 
 /**
@@ -288,7 +273,6 @@ export async function createWallet({
       state,
       instanceOptions: buildInstanceOptions(infuraProjectId),
     });
-    registerAnalyticsStubHandlers(wallet.messenger);
     registerMultichainNetworkStubHandlers(wallet.messenger);
     persistenceUnsubscribe = subscribeToChanges(
       wallet.messenger,
@@ -412,7 +396,6 @@ async function loadPersistedState(
   const probe = new Wallet({
     instanceOptions: buildInstanceOptions(infuraProjectId),
   });
-  registerAnalyticsStubHandlers(probe.messenger);
   registerMultichainNetworkStubHandlers(probe.messenger);
   try {
     return loadState(store, probe.controllerMetadata);
