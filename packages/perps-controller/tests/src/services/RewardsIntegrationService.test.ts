@@ -317,7 +317,6 @@ describe('RewardsIntegrationService', () => {
           },
           perps: {
             builderFeeBips: null,
-            builderCode: null,
             // 5000 USD, reported in micro-USD as the controller does.
             remainingMicroUsd: 5_000_000_000,
             exhausted: false,

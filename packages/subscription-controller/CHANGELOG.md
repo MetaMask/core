@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Remove `builderCode` from `PerpsBenefitUsage` and from benefits-response validation. The Perps benefits payload no longer includes it, and requiring the field rejected otherwise valid responses.
+
 ## [14.0.2]
 
 ### Changed

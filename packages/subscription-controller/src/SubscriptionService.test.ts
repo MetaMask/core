@@ -85,7 +85,6 @@ const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
     },
     perps: {
       builderFeeBips: '0',
-      builderCode: '<builder-code>',
       capMicroUsd: 1_500_000_000,
       consumedMicroUsd: 500_000_000,
       remainingMicroUsd: 1_000_000_000,
@@ -112,7 +111,6 @@ const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
     },
     perps: {
       builderFeeBips: null,
-      builderCode: null,
       remainingMicroUsd: null,
       exhausted: false,
     },
@@ -444,6 +442,24 @@ describe('SubscriptionService', () => {
     it('accepts an eligible benefits response', () => {
       expect(
         create(MOCK_BENEFITS_RESPONSE, SubscriptionBenefitsResponseStruct),
+      ).toStrictEqual(MOCK_BENEFITS_RESPONSE);
+    });
+
+    it('ignores a legacy perps builderCode', () => {
+      expect(
+        create(
+          {
+            ...MOCK_BENEFITS_RESPONSE,
+            products: {
+              ...MOCK_BENEFITS_RESPONSE.products,
+              perps: {
+                ...MOCK_BENEFITS_RESPONSE.products.perps,
+                builderCode: 'legacy-builder-code',
+              },
+            },
+          },
+          SubscriptionBenefitsResponseStruct,
+        ),
       ).toStrictEqual(MOCK_BENEFITS_RESPONSE);
     });
 
