@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `accountHardwareType` to `SentinelMeta` for relay transaction metadata ([#10842](https://github.com/MetaMask/core/pull/10842))
+
 ## [2.1.0]
 
 ### Added
