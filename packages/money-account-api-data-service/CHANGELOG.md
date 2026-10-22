@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: run earn packages on Vitest ([#10962](https://github.com/MetaMask/core/pull/10962))
+- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
+
 ### Added
 
 - Add SIWE-authenticated `fetchVbaTransfers` and `MoneyAccountApiDataService:fetchVbaTransfers` to read current VBA transfers for a wallet, with wallet-scoped in-memory sessions ([#11012](https://github.com/MetaMask/core/pull/11012))
