@@ -593,16 +593,17 @@ export class TradingService {
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
-   * @param options.feeResolution - The resolved fee and attribution source.
+   * @param options.resolveFee - Resolves the fee after this operation acquires
+   * the fee context, so an expiring candidate cannot go stale in the queue.
    * @param options.operation - The operation value.
    * @returns The result of the operation.
    */
   async #withFeeDiscount<TResult>(options: {
     provider: PerpsProvider;
-    feeResolution?: PerpsFeeResolution;
+    resolveFee: () => Promise<PerpsFeeResolution | undefined>;
     operation: () => Promise<TResult>;
   }): Promise<TResult> {
-    const { provider, feeResolution, operation } = options;
+    const { provider, resolveFee, operation } = options;
     const previous = this.#feeContextTail;
     let release: () => void = () => undefined;
     this.#feeContextTail = new Promise<void>((resolve) => {
@@ -611,6 +612,7 @@ export class TradingService {
     await previous;
 
     try {
+      const feeResolution = await resolveFee();
       if (provider.setUserFeeResolution) {
         provider.setUserFeeResolution(feeResolution);
       } else if (provider.setUserFeeDiscount) {
@@ -732,17 +734,6 @@ export class TradingService {
         },
       });
 
-      // Calculate fee discount at execution time (fresh, secure)
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-        this.#resolveOrderNotionalUsd(params),
-      );
-
-      this.#deps.debugLogger.log('TradingService: Fee resolution calculated', {
-        feeDiscountBips: feeResolution?.discountBips,
-        feeSource: feeResolution?.source,
-        hasDiscount: feeResolution?.discountBips !== undefined,
-      });
-
       this.#deps.debugLogger.log(
         'TradingService: Submitting order to provider',
         {
@@ -802,7 +793,23 @@ export class TradingService {
       }, PERPS_CONSTANTS.PlaceOrderTimeoutMs);
       const result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: async () => {
+          const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+            this.#resolveOrderNotionalUsd(params),
+            provider,
+            context,
+            params.providerId,
+          );
+          this.#deps.debugLogger.log(
+            'TradingService: Fee resolution calculated',
+            {
+              feeDiscountBips: feeResolution?.discountBips,
+              feeSource: feeResolution?.source,
+              hasDiscount: feeResolution?.discountBips !== undefined,
+            },
+          );
+          return feeResolution;
+        },
         operation: () => provider.placeOrder(params),
       });
       if (orderSubmissionThresholdTimeoutId !== undefined) {
@@ -1574,11 +1581,17 @@ export class TradingService {
    * priced. This is what lets the subscription source resolve to a blended
    * rate: omitting it resolves every bounded allowance as a full waiver,
    * charging 0 bips on an order the preview quoted a blend for.
+   * @param provider - The actual provider receiving this submission.
+   * @param context - The submission context, including its network.
+   * @param providerId - Explicit route, when the caller supplied one.
    * @returns The resolved fee, or undefined when controller dependencies are
    * unavailable.
    */
   async #calculateFeeDiscountWithMeasurement(
-    orderNotionalUsd?: number,
+    orderNotionalUsd: number | undefined,
+    provider: PerpsProvider,
+    context: ServiceContext,
+    providerId?: PerpsProviderType,
   ): Promise<PerpsFeeResolution | undefined> {
     // Check if controller dependencies are available
     if (!this.#controllerDeps) {
@@ -1595,8 +1608,14 @@ export class TradingService {
     // The notional is what lets the subscription source resolve to a blended
     // rate. Submitting without it would resolve every bounded allowance as a
     // full waiver, charging 0 bips on an order the preview quoted a blend for.
-    const resolution =
-      await rewardsIntegrationService.resolveFee(orderNotionalUsd);
+    const resolution = await rewardsIntegrationService.resolveFee(
+      orderNotionalUsd,
+      {
+        providerId:
+          provider.getWriteProviderId?.(providerId) ?? provider.protocolId,
+        isTestnet: context.tracingContext.isTestnet,
+      },
+    );
 
     const orderExecutionFeeDiscountDuration =
       this.#deps.performance.now() - orderExecutionFeeDiscountStartTime;
@@ -1662,15 +1681,16 @@ export class TradingService {
         },
       });
 
-      // Calculate fee discount only if required dependencies are available
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-        this.#resolveOrderNotionalUsd(params.newOrder),
-      );
-
       // Execute order edit with fee discount management
       const result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            this.#resolveOrderNotionalUsd(params.newOrder),
+            provider,
+            context,
+            params.newOrder.providerId,
+          ),
         operation: () => provider.editOrder(params),
       });
 
@@ -2224,7 +2244,7 @@ export class TradingService {
       // only a symbol, so `params` alone prices it as undefined and the resolver
       // would quote a full waiver on an order the preview blended. The position
       // loaded above is the authoritative notional for exactly that case.
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
+      const closeNotionalUsd =
         this.#resolveOrderNotionalUsd({
           ...params,
           // A partial close names a size but often no price; the position's own
@@ -2233,15 +2253,20 @@ export class TradingService {
           currentPrice:
             params.currentPrice ?? this.#resolvePositionUnitPrice(position),
         }) ??
-          this.#resolveOrderNotionalUsd({
-            usdAmount: position?.positionValue,
-          }),
-      );
+        this.#resolveOrderNotionalUsd({
+          usdAmount: position?.positionValue,
+        });
 
       // Execute position close with fee discount management
       result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            closeNotionalUsd,
+            provider,
+            context,
+            params.providerId,
+          ),
         operation: () => provider.closePosition(params),
       });
 
@@ -2397,13 +2422,19 @@ export class TradingService {
       if (provider.closePositions) {
         // The batch submits under one builder context, so its notional is the
         // sum of the positions it will close, not any single one of them.
-        const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-          await this.#resolveBatchCloseNotionalUsd({ params, provider }),
-        );
+        const batchCloseNotionalUsd = await this.#resolveBatchCloseNotionalUsd({
+          params,
+          provider,
+        });
 
         operationResult = await this.#withFeeDiscount({
           provider,
-          feeResolution,
+          resolveFee: () =>
+            this.#calculateFeeDiscountWithMeasurement(
+              batchCloseNotionalUsd,
+              provider,
+              context,
+            ),
           operation: async () => {
             if (!provider.closePositions) {
               throw new Error('closePositions method not available');
@@ -2674,13 +2705,16 @@ export class TradingService {
         pricedTriggerNotionalsUsd.length === triggerNotionalsUsd.length
           ? Math.max(...pricedTriggerNotionalsUsd)
           : undefined;
-      const feeResolution =
-        await this.#calculateFeeDiscountWithMeasurement(tpslNotionalUsd);
-
       // Execute with fee discount management
       result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            tpslNotionalUsd,
+            provider,
+            context,
+            params.providerId,
+          ),
         operation: () => provider.updatePositionTPSL(params),
       });
 
@@ -2980,12 +3014,17 @@ export class TradingService {
       // Use 2x position size: 1x to close current position + 1x to open opposite position.
       // Do not pass the position entry price as currentPrice: the provider must fetch
       // live market data for validation and IOC pricing.
+      // Carry the position venue so aggregated placeOrder reaches the same
+      // provider the fee grant below is scoped to.
       const orderParams: OrderParams = {
         symbol: position.symbol,
         isBuy: oppositeDirection,
         size: flipSize.toString(),
         orderType: 'market',
         leverage: position.leverage?.value,
+        ...(position.providerId === undefined
+          ? {}
+          : { providerId: position.providerId }),
         // Lighter placeOrder otherwise logs order_management/place_order and
         // marks the result reported, which drops this flip from flip filters.
         // Close already suppresses that provider report. One Sentry event remains.
@@ -3012,13 +3051,16 @@ export class TradingService {
       const flipNotionalUsd = this.#resolveOrderNotionalUsd({
         usdAmount: position.positionValue,
       });
-      const feeResolution = await this.#calculateFeeDiscountWithMeasurement(
-        flipNotionalUsd === undefined ? undefined : flipNotionalUsd * 2,
-      );
       // Place flip order (HyperLiquid handles margin transfer automatically)
       const result = await this.#withFeeDiscount({
         provider,
-        feeResolution,
+        resolveFee: () =>
+          this.#calculateFeeDiscountWithMeasurement(
+            flipNotionalUsd === undefined ? undefined : flipNotionalUsd * 2,
+            provider,
+            context,
+            position.providerId,
+          ),
         operation: () => provider.placeOrder(orderParams),
       });
 

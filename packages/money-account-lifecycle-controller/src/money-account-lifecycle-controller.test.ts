@@ -19,6 +19,8 @@ import type {
 } from '@metamask/remote-feature-flag-controller';
 import { createDeferredPromise } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { describe, it, expect, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import { MoneyAccountLifecycleController } from './money-account-lifecycle-controller.js';
@@ -1169,7 +1171,7 @@ describe('MoneyAccountLifecycleController', () => {
 
   describe('MoneyAccountLifecycleController:init', () => {
     it('calls init on the controller', async () => {
-      const initSpy = jest.spyOn(
+      const initSpy = vi.spyOn(
         MoneyAccountLifecycleController.prototype,
         'init',
       );
@@ -1198,18 +1200,20 @@ type Gates = {
 };
 
 type Mocks = {
-  getDerivedIdentities: jest.Mock<Promise<DerivedIdentitiesResponse>, []>;
-  getIntentsByAddress: jest.Mock<Promise<IntentEntry[]>, [Hex]>;
-  createMfaAccount: jest.Mock<Promise<Hex>, []>;
-  getMoneyAccount: jest.Mock<MoneyAccount | undefined, []>;
-  getRegistrationStatus: jest.Mock<Promise<RegistrationStatus>, [string]>;
-  upgradeAccount: jest.Mock<Promise<void>, [Hex]>;
-  useMpcKeyring: jest.Mock<
-    Promise<void>,
-    [{ moneyAccountAddress: string; mpcAddress: string }]
+  getDerivedIdentities: Mock<() => Promise<DerivedIdentitiesResponse>>;
+  getIntentsByAddress: Mock<(address: Hex) => Promise<IntentEntry[]>>;
+  createMfaAccount: Mock<() => Promise<Hex>>;
+  getMoneyAccount: Mock<() => MoneyAccount | undefined>;
+  getRegistrationStatus: Mock<(address: string) => Promise<RegistrationStatus>>;
+  upgradeAccount: Mock<(address: Hex) => Promise<void>>;
+  useMpcKeyring: Mock<
+    (options: {
+      moneyAccountAddress: string;
+      mpcAddress: string;
+    }) => Promise<void>
   >;
-  isEnabled: jest.Mock<boolean, [FeatureFlags]>;
-  captureException: jest.Mock<void, [Error]>;
+  isEnabled: Mock<(remoteFeatureFlags: FeatureFlags) => boolean>;
+  captureException: Mock<(error: Error) => void>;
 };
 
 type WithControllerCallback<ReturnValue> = (payload: {
@@ -1326,38 +1330,40 @@ async function withController<ReturnValue>(
   };
 
   const mocks: Mocks = {
-    getDerivedIdentities: jest
-      .fn<Promise<DerivedIdentitiesResponse>, []>()
+    getDerivedIdentities: vi
+      .fn<() => Promise<DerivedIdentitiesResponse>>()
       .mockResolvedValue({ identities: [SFA_IDENTITY] }),
-    getIntentsByAddress: jest
-      .fn<Promise<IntentEntry[]>, [Hex]>()
+    getIntentsByAddress: vi
+      .fn<(address: Hex) => Promise<IntentEntry[]>>()
       .mockResolvedValue([]),
-    createMfaAccount: jest
-      .fn<Promise<Hex>, []>()
+    createMfaAccount: vi
+      .fn<() => Promise<Hex>>()
       .mockResolvedValue(MFA_ACCOUNT_ADDRESS),
-    getMoneyAccount: jest
-      .fn<MoneyAccount | undefined, []>()
+    getMoneyAccount: vi
+      .fn<() => MoneyAccount | undefined>()
       .mockImplementation(() =>
         gates.moneyAccountAddress === undefined
           ? undefined
           : ({ address: gates.moneyAccountAddress } as MoneyAccount),
       ),
-    getRegistrationStatus: jest
-      .fn<Promise<RegistrationStatus>, [string]>()
+    getRegistrationStatus: vi
+      .fn<(address: string) => Promise<RegistrationStatus>>()
       .mockResolvedValue({ isRegistered: true }),
-    upgradeAccount: jest
-      .fn<Promise<void>, [Hex]>()
+    upgradeAccount: vi
+      .fn<(address: Hex) => Promise<void>>()
       .mockResolvedValue(undefined),
-    useMpcKeyring: jest
+    useMpcKeyring: vi
       .fn<
-        Promise<void>,
-        [{ moneyAccountAddress: string; mpcAddress: string }]
+        (options: {
+          moneyAccountAddress: string;
+          mpcAddress: string;
+        }) => Promise<void>
       >()
       .mockResolvedValue(undefined),
-    isEnabled: jest
-      .fn<boolean, [FeatureFlags]>()
+    isEnabled: vi
+      .fn<(remoteFeatureFlags: FeatureFlags) => boolean>()
       .mockImplementation(() => gates.isEnabled),
-    captureException: jest.fn<void, [Error]>(),
+    captureException: vi.fn<(error: Error) => void>(),
   };
 
   const rootMessenger = getRootMessenger(mocks.captureException);

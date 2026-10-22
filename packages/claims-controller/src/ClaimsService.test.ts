@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { createMockClaimsServiceMessenger } from '../tests/mocks/messenger.js';
 import { ClaimsService } from './ClaimsService.js';
 import {
@@ -13,10 +15,10 @@ import type {
 } from './types.js';
 import { createSentryError } from './utils.js';
 
-const mockAuthenticationControllerGetBearerToken = jest.fn();
-const mockAuthenticationControllerGetSessionProfile = jest.fn();
-const mockFetchFunction = jest.fn();
-const mockCaptureException = jest.fn();
+const mockAuthenticationControllerGetBearerToken = vi.fn();
+const mockAuthenticationControllerGetSessionProfile = vi.fn();
+const mockFetchFunction = vi.fn();
+const mockCaptureException = vi.fn();
 
 const MOCK_SESSION_PROFILE = {
   identifierId: 'identifier-1',
@@ -82,14 +84,14 @@ describe('ClaimsService', () => {
 
     it('should create instance with valid config', () => {
       const { messenger } = createMockClaimsServiceMessenger(
-        jest.fn(),
-        jest.fn(),
-        jest.fn(),
+        vi.fn(),
+        vi.fn(),
+        vi.fn(),
       );
       const service = new ClaimsService({
         env: Env.DEV,
         messenger,
-        fetchFunction: jest.fn(),
+        fetchFunction: vi.fn(),
       });
 
       expect(service).toBeInstanceOf(ClaimsService);
@@ -100,16 +102,16 @@ describe('ClaimsService', () => {
         validSubmissionWindowDays: 21,
         networks: [1, 5, 11155111],
       };
-      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
-        json: jest.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
+        json: vi.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
       } as unknown as Response);
 
       try {
         const { messenger } = createMockClaimsServiceMessenger(
-          jest.fn().mockResolvedValue('test-token'),
-          jest.fn().mockResolvedValue(MOCK_SESSION_PROFILE),
-          jest.fn(),
+          vi.fn().mockResolvedValue('test-token'),
+          vi.fn().mockResolvedValue(MOCK_SESSION_PROFILE),
+          vi.fn(),
         );
         const service = new ClaimsService({
           env: Env.DEV,
@@ -135,7 +137,7 @@ describe('ClaimsService', () => {
     };
 
     beforeEach(() => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
 
       mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
         'test-token',
@@ -145,7 +147,7 @@ describe('ClaimsService', () => {
       );
       mockFetchFunction.mockResolvedValueOnce({
         ok: true,
-        json: jest.fn().mockResolvedValueOnce(MOCK_CONFIGURATIONS),
+        json: vi.fn().mockResolvedValueOnce(MOCK_CONFIGURATIONS),
       });
     });
 
@@ -177,7 +179,7 @@ describe('ClaimsService', () => {
 
       mockFetchFunction.mockResolvedValueOnce({
         ok: false,
-        json: jest.fn().mockResolvedValueOnce(null),
+        json: vi.fn().mockResolvedValueOnce(null),
       });
 
       const service = createMockClaimsService();
@@ -202,7 +204,7 @@ describe('ClaimsService', () => {
       };
       mockFetchFunction.mockResolvedValueOnce({
         ok: true,
-        json: jest.fn().mockResolvedValueOnce(responseWithExtraFields),
+        json: vi.fn().mockResolvedValueOnce(responseWithExtraFields),
       });
 
       const service = createMockClaimsService();
@@ -215,7 +217,7 @@ describe('ClaimsService', () => {
 
   describe('getClaims', () => {
     beforeEach(() => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
 
       mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
         'test-token',
@@ -225,7 +227,7 @@ describe('ClaimsService', () => {
       );
       mockFetchFunction.mockResolvedValueOnce({
         ok: true,
-        json: jest.fn().mockResolvedValueOnce([MOCK_CLAIM_1, MOCK_CLAIM_2]),
+        json: vi.fn().mockResolvedValueOnce([MOCK_CLAIM_1, MOCK_CLAIM_2]),
       });
     });
 
@@ -258,7 +260,7 @@ describe('ClaimsService', () => {
 
       mockFetchFunction.mockResolvedValueOnce({
         ok: false,
-        json: jest.fn().mockResolvedValueOnce(null),
+        json: vi.fn().mockResolvedValueOnce(null),
       });
 
       const service = createMockClaimsService();
@@ -291,7 +293,7 @@ describe('ClaimsService', () => {
       };
       mockFetchFunction.mockResolvedValueOnce({
         ok: true,
-        json: jest.fn().mockResolvedValueOnce([claimWithExtraFields]),
+        json: vi.fn().mockResolvedValueOnce([claimWithExtraFields]),
       });
 
       const service = createMockClaimsService();
@@ -302,7 +304,7 @@ describe('ClaimsService', () => {
 
   describe('getClaimById', () => {
     beforeEach(() => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
 
       mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
         'test-token',
@@ -312,7 +314,7 @@ describe('ClaimsService', () => {
       );
       mockFetchFunction.mockResolvedValueOnce({
         ok: true,
-        json: jest.fn().mockResolvedValueOnce(MOCK_CLAIM_1),
+        json: vi.fn().mockResolvedValueOnce(MOCK_CLAIM_1),
       });
     });
 
@@ -345,7 +347,7 @@ describe('ClaimsService', () => {
 
       mockFetchFunction.mockResolvedValueOnce({
         ok: false,
-        json: jest.fn().mockResolvedValueOnce(null),
+        json: vi.fn().mockResolvedValueOnce(null),
       });
 
       const service = createMockClaimsService();
@@ -370,7 +372,7 @@ describe('ClaimsService', () => {
       };
       mockFetchFunction.mockResolvedValueOnce({
         ok: true,
-        json: jest.fn().mockResolvedValueOnce(claimWithExtraFields),
+        json: vi.fn().mockResolvedValueOnce(claimWithExtraFields),
       });
 
       const service = createMockClaimsService();
@@ -407,7 +409,7 @@ describe('ClaimsService', () => {
     };
 
     beforeEach(() => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
 
       mockAuthenticationControllerGetBearerToken.mockResolvedValueOnce(
         'test-token',
@@ -417,7 +419,7 @@ describe('ClaimsService', () => {
       );
       mockFetchFunction.mockResolvedValueOnce({
         ok: true,
-        json: jest.fn().mockResolvedValueOnce({
+        json: vi.fn().mockResolvedValueOnce({
           message: 'test message',
           nonce: 'test nonce',
         }),
@@ -463,7 +465,7 @@ describe('ClaimsService', () => {
       mockFetchFunction.mockResolvedValueOnce({
         ok: false,
         status: 500,
-        json: jest.fn().mockResolvedValueOnce(null),
+        json: vi.fn().mockResolvedValueOnce(null),
       });
 
       const service = createMockClaimsService();
@@ -494,7 +496,7 @@ describe('ClaimsService', () => {
       };
       mockFetchFunction.mockResolvedValueOnce({
         ok: true,
-        json: jest.fn().mockResolvedValueOnce(responseWithExtraFields),
+        json: vi.fn().mockResolvedValueOnce(responseWithExtraFields),
       });
 
       const service = createMockClaimsService();
@@ -512,7 +514,7 @@ describe('ClaimsService', () => {
     };
 
     beforeEach(() => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
     });
 
     it('deduplicates cached GET requests', async () => {
@@ -524,7 +526,7 @@ describe('ClaimsService', () => {
       );
       mockFetchFunction.mockResolvedValue({
         ok: true,
-        json: jest.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
+        json: vi.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
       });
 
       const service = createMockClaimsService();
@@ -541,7 +543,7 @@ describe('ClaimsService', () => {
       );
       mockFetchFunction.mockResolvedValue({
         ok: true,
-        json: jest.fn().mockResolvedValue({
+        json: vi.fn().mockResolvedValue({
           message: 'test message',
           nonce: 'test nonce',
         }),
@@ -566,7 +568,7 @@ describe('ClaimsService', () => {
         });
         return {
           ok: true,
-          json: jest.fn().mockResolvedValue({
+          json: vi.fn().mockResolvedValue({
             message: `test message ${mockFetchFunction.mock.calls.length}`,
             nonce: `test nonce ${mockFetchFunction.mock.calls.length}`,
           }),
@@ -597,11 +599,11 @@ describe('ClaimsService', () => {
       mockFetchFunction
         .mockResolvedValueOnce({
           ok: true,
-          json: jest.fn().mockResolvedValue([MOCK_CLAIM_1]),
+          json: vi.fn().mockResolvedValue([MOCK_CLAIM_1]),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: jest.fn().mockResolvedValue([MOCK_CLAIM_2]),
+          json: vi.fn().mockResolvedValue([MOCK_CLAIM_2]),
         });
 
       const service = createMockClaimsService();
@@ -634,7 +636,7 @@ describe('ClaimsService', () => {
         });
         return {
           ok: true,
-          json: jest
+          json: vi
             .fn()
             .mockResolvedValue(index === 0 ? [MOCK_CLAIM_1] : [MOCK_CLAIM_2]),
         };
@@ -661,7 +663,7 @@ describe('ClaimsService', () => {
       );
       mockFetchFunction.mockResolvedValue({
         ok: true,
-        json: jest.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
+        json: vi.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
       });
 
       const service = createMockClaimsService();
@@ -681,7 +683,7 @@ describe('ClaimsService', () => {
       );
       mockFetchFunction.mockResolvedValue({
         ok: true,
-        json: jest.fn().mockResolvedValue([MOCK_CLAIM_1]),
+        json: vi.fn().mockResolvedValue([MOCK_CLAIM_1]),
       });
 
       const { messenger } = createMockClaimsServiceMessenger(
@@ -689,7 +691,7 @@ describe('ClaimsService', () => {
         mockAuthenticationControllerGetSessionProfile,
         mockCaptureException,
       );
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      const publishSpy = vi.spyOn(messenger, 'publish');
       const service = new ClaimsService({
         env: Env.DEV,
         messenger,
@@ -714,11 +716,11 @@ describe('ClaimsService', () => {
       mockFetchFunction
         .mockResolvedValueOnce({
           ok: true,
-          json: jest.fn().mockResolvedValue([MOCK_CLAIM_1]),
+          json: vi.fn().mockResolvedValue([MOCK_CLAIM_1]),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: jest.fn().mockResolvedValue([MOCK_CLAIM_1, MOCK_CLAIM_2]),
+          json: vi.fn().mockResolvedValue([MOCK_CLAIM_1, MOCK_CLAIM_2]),
         });
 
       const service = createMockClaimsService();
@@ -745,11 +747,11 @@ describe('ClaimsService', () => {
       mockFetchFunction
         .mockResolvedValueOnce({
           ok: true,
-          json: jest.fn().mockResolvedValue(MOCK_CLAIM_1),
+          json: vi.fn().mockResolvedValue(MOCK_CLAIM_1),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: jest.fn().mockResolvedValue(updatedClaim),
+          json: vi.fn().mockResolvedValue(updatedClaim),
         });
 
       const service = createMockClaimsService();
@@ -772,11 +774,11 @@ describe('ClaimsService', () => {
       mockFetchFunction
         .mockResolvedValueOnce({
           ok: true,
-          json: jest.fn().mockResolvedValue({ invalid: true }),
+          json: vi.fn().mockResolvedValue({ invalid: true }),
         })
         .mockResolvedValueOnce({
           ok: true,
-          json: jest.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
+          json: vi.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
         });
 
       const service = createMockClaimsService();
@@ -800,7 +802,7 @@ describe('ClaimsService', () => {
       );
       mockFetchFunction.mockResolvedValue({
         ok: true,
-        json: jest.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
+        json: vi.fn().mockResolvedValue(MOCK_CONFIGURATIONS),
       });
 
       const { messenger } = createMockClaimsServiceMessenger(
@@ -808,7 +810,7 @@ describe('ClaimsService', () => {
         mockAuthenticationControllerGetSessionProfile,
         mockCaptureException,
       );
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      const publishSpy = vi.spyOn(messenger, 'publish');
       const service = new ClaimsService({
         env: Env.DEV,
         messenger,
@@ -828,7 +830,7 @@ describe('ClaimsService', () => {
 
   describe('response validation', () => {
     beforeEach(() => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',
       );
@@ -840,7 +842,7 @@ describe('ClaimsService', () => {
     it('throws when configurations response is malformed', async () => {
       mockFetchFunction.mockResolvedValue({
         ok: true,
-        json: jest.fn().mockResolvedValue({ invalid: true }),
+        json: vi.fn().mockResolvedValue({ invalid: true }),
       });
 
       const service = createMockClaimsService();
@@ -853,7 +855,7 @@ describe('ClaimsService', () => {
     it('throws when claims response is malformed', async () => {
       mockFetchFunction.mockResolvedValue({
         ok: true,
-        json: jest.fn().mockResolvedValue([{ invalid: true }]),
+        json: vi.fn().mockResolvedValue([{ invalid: true }]),
       });
 
       const service = createMockClaimsService();
@@ -866,7 +868,7 @@ describe('ClaimsService', () => {
 
   describe('captureException', () => {
     it('falls back to messenger.captureException when config captureException is omitted', async () => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',
       );
@@ -899,7 +901,7 @@ describe('ClaimsService', () => {
     });
 
     it('ignores errors thrown by captureException', async () => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
       mockAuthenticationControllerGetBearerToken.mockResolvedValue(
         'test-token',
       );
@@ -911,7 +913,7 @@ describe('ClaimsService', () => {
       const { messenger } = createMockClaimsServiceMessenger(
         mockAuthenticationControllerGetBearerToken,
         mockAuthenticationControllerGetSessionProfile,
-        jest.fn(),
+        vi.fn(),
       );
       const service = new ClaimsService({
         env: Env.DEV,

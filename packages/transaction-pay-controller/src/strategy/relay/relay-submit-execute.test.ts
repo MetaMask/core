@@ -6,7 +6,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 
-import { getMessengerMock } from '../../tests/messenger-mock.js';
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import type { TransactionPayQuote } from '../../types.js';
 import type { FeatureFlags } from '../../utils/feature-flags.js';
 import {

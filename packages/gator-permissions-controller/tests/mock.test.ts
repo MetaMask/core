@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { mockGatorPermissionsStorageEntriesFactory } from './mocks.js';
 import type { MockGatorPermissionsStorageEntriesConfig } from './mocks.js';
 

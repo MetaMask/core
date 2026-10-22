@@ -116,6 +116,9 @@
       "path": "./packages/eip1193-permission-middleware/tsconfig.build.json"
     },
     {
+      "path": "./packages/error-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/eth-block-tracker/tsconfig.build.json"
     },
     {
@@ -176,9 +179,6 @@
       "path": "./packages/money-account-api-data-service/tsconfig.build.json"
     },
     {
-      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
-    },
-    {
       "path": "./packages/money-account-balance-service/tsconfig.build.json"
     },
     {
@@ -186,6 +186,8 @@
     },
     {
       "path": "./packages/money-account-lifecycle-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/money-account-mfa-whitelist/tsconfig.build.json"
     },
     {
@@ -217,6 +219,9 @@
     },
     {
       "path": "./packages/network-enablement-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/node-utils/tsconfig.build.json"
     },
     {
       "path": "./packages/notification-services-controller/tsconfig.build.json"
@@ -318,6 +323,9 @@
       "path": "./packages/transaction-pay-middleware/tsconfig.build.json"
     },
     {
+      "path": "./packages/type-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/user-operation-controller/tsconfig.build.json"
     },
     {
@@ -331,6 +339,9 @@
     },
     {
       "path": "./packages/wallet/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/watch-only-account-service/tsconfig.build.json"
     }
   ],
   "files": [],
