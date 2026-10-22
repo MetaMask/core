@@ -1142,6 +1142,22 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(reportedErrors()).toStrictEqual([]);
     });
 
+    it('preserves EXCHANGE_MULTI_SIG_REQUIRED when a HIP-3 collateral transfer is rejected', async () => {
+      const { transfer, order } = useHip3MarketOrder(REFUSED_ORDER);
+      transfer.mockRejectedValueOnce(
+        new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED),
+      );
+
+      const result = await provider.placeOrder(HIP3_MARKET_ORDER);
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      expect(transferRequests(transfer)).toStrictEqual([PRE_ORDER_TRANSFER]);
+      expect(order).not.toHaveBeenCalled();
+    });
+
     it.each([
       {
         transferError: PERPS_ERROR_CODES.KEYRING_LOCKED,
