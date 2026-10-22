@@ -12,7 +12,6 @@ import type {
 import { handleWhen, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { validate } from '@metamask/superstruct';
-import type { Json } from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import {
@@ -65,6 +64,7 @@ export const serviceName = 'MoneyAccountApiDataService';
 
 const log = createModuleLogger(projectLogger, serviceName);
 const traceLogger = createModuleLogger(projectLogger, 'trace');
+const VBA_TRANSFERS_UNAUTHORIZED_KEY = '__vbaTransfersUnauthorized';
 
 export const TRACES = {
   POSITIONS_API: 'Money Account API Fetch Positions',
@@ -354,7 +354,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
           );
         }
 
-        const json: Json = await response.json();
+        const json: unknown = await response.json();
 
         const [error, validated] = validate(json, PositionResponseStruct);
         if (error) {
@@ -420,7 +420,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
               );
             }
 
-            const json: Json = await response.json();
+            const json: unknown = await response.json();
 
             const [error, validated] = validate(json, InterestResponseStruct);
             if (error) {
@@ -505,7 +505,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
                 );
               }
 
-              const json: Json = await response.json();
+              const json: unknown = await response.json();
 
               const [error, validated] = validate(json, HistoryResponseStruct);
               if (error) {
@@ -575,7 +575,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
               );
             }
 
-            const json: Json = await response.json();
+            const json: unknown = await response.json();
 
             const [error, validated] = validate(
               json,
@@ -660,50 +660,80 @@ export class MoneyAccountApiDataService extends BaseDataService<
   /**
    * Fetches current VBA transfers for the wallet authenticated via SIWE.
    *
-   * @param options - The wallet address to authenticate.
+   * @param options - Fetch options, including the wallet address to authenticate.
    * @returns Current transfers belonging to the authenticated wallet.
    */
-  async fetchVbaTransfers({
-    address,
-  }: FetchVbaTransfersOptions): Promise<VbaTransfersResponse> {
-    const normalizedAddress = address.toLowerCase();
+  async fetchVbaTransfers(
+    options: FetchVbaTransfersOptions,
+  ): Promise<VbaTransfersResponse> {
+    const normalizedAddress = options.address.toLowerCase();
+    const queryKey = [
+      `${this.name}:fetchVbaTransfers`,
+      normalizedAddress,
+    ] as const;
 
-    return this.fetchQuery({
-      queryKey: [`${this.name}:fetchVbaTransfers`, normalizedAddress],
-      staleTime: 0,
-      queryFn: async () => {
-        let token = await this.#getSiweToken(normalizedAddress);
-        let response = await fetch(
-          new URL('/v1/vba/transfers', this.#baseUrl),
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
+    // Sign before entering the shared service policy, so a locked wallet or
+    // rejected signature cannot be retried or counted as an API failure.
+    const token = await this.#getSiweToken(normalizedAddress);
 
-        if (response.status === 401) {
-          this.#siweSessions.delete(normalizedAddress);
-          token = await this.#getSiweToken(normalizedAddress);
-          response = await fetch(new URL('/v1/vba/transfers', this.#baseUrl), {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+    try {
+      return await this.fetchQuery({
+        queryKey,
+        staleTime: 0,
+        queryFn: async () => {
+          const response = await this.#fetchVbaTransfers(token);
+          if (response.status === 401) {
+            return { [VBA_TRANSFERS_UNAUTHORIZED_KEY]: true };
+          }
+          return this.#parseVbaTransfersResponse(response);
+        },
+      }).then(async (result) => {
+        if (
+          typeof result !== 'object' ||
+          result === null ||
+          !(VBA_TRANSFERS_UNAUTHORIZED_KEY in result)
+        ) {
+          return result;
         }
 
-        if (!response.ok) {
-          throw await MoneyAccountApiHttpError.fromResponse(
-            response,
-            `Money Account API VBA transfers request failed with status '${response.status}'`,
-          );
-        }
+        this.#siweSessions.delete(normalizedAddress);
+        const renewedToken = await this.#getSiweToken(normalizedAddress);
+        const response = await this.#fetchVbaTransfers(renewedToken);
+        return this.#parseVbaTransfersResponse(response);
+      });
+    } catch (error) {
+      if (error instanceof HttpError && error.httpStatus === 401) {
+        this.#siweSessions.delete(normalizedAddress);
+      }
+      throw error;
+    }
+  }
 
-        const json: Json = await response.json();
-        const [error, validated] = validate(json, VbaTransfersResponseStruct);
-        if (error) {
-          throw new MoneyAccountApiResponseValidationError(
-            `Malformed response from VBA transfers endpoint: ${error.message}`,
-          );
-        }
-
-        return validated;
-      },
+  async #fetchVbaTransfers(token: string): Promise<Response> {
+    return await fetch(new URL('/v1/vba/transfers', this.#baseUrl), {
+      headers: { Authorization: `Bearer ${token}` },
     });
+  }
+
+  async #parseVbaTransfersResponse(
+    response: Response,
+  ): Promise<VbaTransfersResponse> {
+    if (!response.ok) {
+      throw await MoneyAccountApiHttpError.fromResponse(
+        response,
+        `Money Account API VBA transfers request failed with status '${response.status}'`,
+      );
+    }
+
+    const json: unknown = await response.json();
+    const [error, validated] = validate(json, VbaTransfersResponseStruct);
+    if (error) {
+      throw new MoneyAccountApiResponseValidationError(
+        `Malformed response from VBA transfers endpoint: ${error.message}`,
+      );
+    }
+
+    return validated;
   }
 
   async #getSiweToken(normalizedAddress: string): Promise<string> {
@@ -728,7 +758,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
       );
     }
 
-    const challengeJson: Json = await challengeResponse.json();
+    const challengeJson: unknown = await challengeResponse.json();
     const [challengeError, challenge] = validate(
       challengeJson,
       VbaSiweChallengeResponseStruct,
@@ -758,7 +788,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
       );
     }
 
-    const sessionJson: Json = await verifyResponse.json();
+    const sessionJson: unknown = await verifyResponse.json();
     const [sessionError, session] = validate(
       sessionJson,
       VbaSiweSessionResponseStruct,

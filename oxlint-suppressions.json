@@ -3084,11 +3084,6 @@
       "count": 1
     }
   },
-  "packages/money-account-api-data-service/src/money-account-api-data-service.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 4
-    }
-  },
   "packages/money-account-balance-service/src/money-account-balance-service.test.ts": {
     "id-length": {
       "count": 1

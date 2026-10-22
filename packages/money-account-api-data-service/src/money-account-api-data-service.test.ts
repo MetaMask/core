@@ -1541,7 +1541,7 @@ describe('MoneyAccountApiDataService', () => {
       address: string,
       token: string,
       signPersonalMessage: ReturnType<typeof vi.fn>,
-    ) {
+    ): string {
       const message = MOCK_SIWE_MESSAGE.replace(MOCK_ADDRESS, address);
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
         .post('/v1/vba/auth/challenge', { address })
@@ -1570,14 +1570,30 @@ describe('MoneyAccountApiDataService', () => {
         .get('/v1/vba/transfers')
         .reply(200, MOCK_VBA_TRANSFERS_RESPONSE);
 
-      await expect(
-        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
-      ).resolves.toStrictEqual(MOCK_VBA_TRANSFERS_RESPONSE);
+      expect(
+        await service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).toStrictEqual(MOCK_VBA_TRANSFERS_RESPONSE);
       expect(signPersonalMessage).toHaveBeenCalledWith({
         data: message,
         from: MOCK_ADDRESS,
       });
       transfersScope.done();
+      service.destroy();
+    });
+
+    it('does not retry a rejected SIWE signature through the service policy', async () => {
+      const signPersonalMessage = vi
+        .fn()
+        .mockRejectedValue(new Error('user rejected signature'));
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge')
+        .reply(200, MOCK_SIWE_CHALLENGE);
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toThrow('user rejected signature');
+      expect(signPersonalMessage).toHaveBeenCalledTimes(1);
       service.destroy();
     });
 
@@ -1621,9 +1637,9 @@ describe('MoneyAccountApiDataService', () => {
         .get('/v1/vba/transfers')
         .reply(200, { transfers: [] });
 
-      await expect(
-        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
-      ).resolves.toStrictEqual({ transfers: [] });
+      expect(
+        await service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).toStrictEqual({ transfers: [] });
       service.destroy();
     });
 
@@ -1692,9 +1708,9 @@ describe('MoneyAccountApiDataService', () => {
         .get('/v1/vba/transfers')
         .reply(200, { transfers: [] });
 
-      await expect(
-        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
-      ).resolves.toStrictEqual({ transfers: [] });
+      expect(
+        await service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).toStrictEqual({ transfers: [] });
       expect(signPersonalMessage).toHaveBeenCalledTimes(2);
       service.destroy();
     });
