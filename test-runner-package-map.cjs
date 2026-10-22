@@ -5,15 +5,11 @@ const { workspaces } = require('./package.json');
 
 // Do not add to this list: new packages are expected to use Vitest.
 const PACKAGES_ON_JEST = new Set([
-  '@metamask/analytics-controller',
-  '@metamask/analytics-data-regulation-controller',
-  '@metamask/app-metadata-controller',
   '@metamask/assets-controller',
   '@metamask/assets-controllers',
   '@metamask/base-data-service',
   '@metamask/build-utils',
   '@metamask/chain-agnostic-permission',
-  '@metamask/client-controller',
   '@metamask/compliance-controller',
   '@metamask/composable-controller',
   '@metamask/connectivity-controller',
@@ -25,8 +21,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/eth-block-tracker',
   '@metamask/eth-json-rpc-middleware',
   '@metamask/eth-json-rpc-provider',
-  '@metamask/foundryup',
-  '@metamask/geolocation-controller',
   '@metamask/json-rpc-engine',
   '@metamask/json-rpc-middleware-stream',
   '@metamask/messenger-cli',
@@ -39,12 +33,9 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/perps-controller',
   '@metamask/platform-api-docs',
   '@metamask/preferences-controller',
-  '@metamask/profile-metrics-controller',
   '@metamask/rate-limit-controller',
   '@metamask/react-data-query',
-  '@metamask/remote-feature-flag-controller',
   '@metamask/selected-network-controller',
-  '@metamask/storage-service',
   '@metamask/wallet',
   '@metamask/wallet-framework-docs',
 ]);
