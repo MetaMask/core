@@ -20,7 +20,6 @@ import {
   NATIVE_TOKEN_ADDRESS,
   PERPS_DEPOSIT_TYPES,
   USDC_DECIMALS,
-  PaymentOverride,
 } from '../../constants.js';
 import { TransactionPayStrategy } from '../../index.js';
 import { projectLogger } from '../../logger.js';
@@ -52,10 +51,11 @@ import {
   getPredictWithdrawFeeTokenAccount,
   getPredictWithdrawSafeAddress,
 } from '../../utils/polymarket/withdraw.js';
+import { processPostQuotePaymentOverride } from '../../utils/post-quote-payment-override.js';
 import { reservePostQuoteGas } from '../../utils/post-quote.js';
 import { estimateSourceGas } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
-import { resolveNonAtomicRecipient } from '../../utils/second-leg.js';
+import { resolveQuoteRecipient } from '../../utils/quote-recipient.js';
 import {
   getNativeToken,
   getTokenFiatRate,
@@ -255,16 +255,11 @@ async function getSingleQuote(
       isRelayExecuteEnabled(messenger) &&
       isEIP7702Chain(messenger, sourceChainId);
 
-    const nonAtomicRecipient = await resolveNonAtomicRecipient(
-      transaction,
-      request,
+    const recipient = await resolveQuoteRecipient({
       messenger,
-    );
-
-    const effectiveRequest = nonAtomicRecipient
-      ? { ...request, recipient: nonAtomicRecipient }
-      : request;
-
+      request,
+      transaction,
+    });
     const body: RelayQuoteRequestDraft = {
       destinationChainId: Number(targetChainId),
       destinationCurrency: targetTokenAddress,
@@ -276,12 +271,12 @@ async function getSingleQuote(
             metamask: { executeVersion: 2 },
           }
         : {}),
-      recipient: effectiveRequest.recipient ?? from,
+      recipient,
       slippageTolerance,
       user: from,
     };
 
-    if (effectiveRequest.isPolymarketDepositWallet) {
+    if (request.isPolymarketDepositWallet) {
       const overrides = await getPolymarketDepositWalletOverrides(
         from,
         messenger,
@@ -295,32 +290,36 @@ async function getSingleQuote(
       body.strict = true;
     }
 
-    const isAtomic = effectiveRequest.atomic !== false;
-
     const processedTransactions = await processTransactions(
       transaction,
-      effectiveRequest,
+      request,
       body,
       messenger,
     );
 
-    if (
-      !processedTransactions &&
-      isAtomic &&
-      effectiveRequest.isPostQuote &&
-      effectiveRequest.paymentOverride === PaymentOverride.MoneyAccount
-    ) {
-      await processMoneyAccountPostQuote(
-        transaction,
-        effectiveRequest,
-        body,
+    if (!processedTransactions) {
+      const override = await processPostQuotePaymentOverride({
         messenger,
-      );
-    } else if (!processedTransactions && effectiveRequest.refundTo) {
-      // For post-quote flows, honour the caller-specified refund address so that
-      // failed Relay transactions refund to the correct account (e.g. the Predict
-      // Safe proxy) rather than defaulting to the EOA.
-      body.refundTo = effectiveRequest.refundTo;
+        request,
+        transaction,
+      });
+
+      if (override) {
+        body.amount = override.amount;
+        body.authorizationList = normalizeAuthorizationList(
+          override.authorizationList,
+        );
+        body.txs = [
+          {
+            data: buildTokenTransferData(override.recipient, override.amount),
+            to: targetTokenAddress,
+            value: '0x0',
+          },
+          ...override.calls,
+        ];
+      } else if (request.refundTo) {
+        body.refundTo = request.refundTo;
+      }
     }
 
     const pricing = getQuotePricing({
@@ -344,7 +343,11 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    return await normalizeQuote(quote, effectiveRequest, fullRequest);
+    return await normalizeQuote(
+      quote,
+      { ...request, recipient: body.recipient },
+      fullRequest,
+    );
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;
@@ -466,57 +469,6 @@ async function processTransactions(
   ];
 
   return true;
-}
-
-async function processMoneyAccountPostQuote(
-  transaction: TransactionMeta,
-  request: QuoteRequest,
-  requestBody: RelayQuoteRequestDraft,
-  messenger: TransactionPayControllerMessenger,
-): Promise<void> {
-  const { transactionData: transactionDataList } = messenger.call(
-    'TransactionPayController:getState',
-  );
-
-  const transactionData = transactionDataList[transaction.id];
-  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
-
-  const {
-    calls: overrideCalls,
-    recipient,
-    authorizationList,
-  } = await messenger.call('TransactionPayController:getPaymentOverrideData', {
-    amount: amountHuman,
-    transaction,
-    transactionData,
-  });
-
-  if (!overrideCalls.length) {
-    log('No payment override calls for money account post-quote');
-    return;
-  }
-
-  const fundingRecipient = recipient ?? request.from;
-  const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
-
-  requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
-  requestBody.amount = rawAmount;
-  requestBody.txs = [
-    {
-      to: request.targetTokenAddress,
-      data: buildTokenTransferData(fundingRecipient, rawAmount),
-      value: '0x0',
-    },
-    ...overrideCalls.map((call) => ({
-      to: call.to as Hex,
-      data: call.data as Hex,
-      value: (call.value as Hex) ?? '0x0',
-    })),
-  ];
-
-  log('Added money account deposit calls to quote body', {
-    callCount: overrideCalls.length,
-  });
 }
 
 /**

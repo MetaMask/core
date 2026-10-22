@@ -5343,10 +5343,10 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.test.ts": {
     "typescript/no-unsafe-call": {
-      "count": 84
+      "count": 86
     },
     "typescript/no-unsafe-member-access": {
-      "count": 215
+      "count": 220
     },
     "vitest/no-conditional-in-test": {
       "count": 5
@@ -5397,14 +5397,11 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {
-    "typescript/no-unnecessary-type-assertion": {
-      "count": 1
-    },
     "typescript/no-unsafe-call": {
-      "count": 15
+      "count": 16
     },
     "typescript/no-unsafe-member-access": {
-      "count": 15
+      "count": 16
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.ts": {
@@ -5476,6 +5473,14 @@
       "count": 24
     }
   },
+  "packages/transaction-pay-controller/src/utils/post-quote-payment-override.test.ts": {
+    "typescript/no-unsafe-call": {
+      "count": 3
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 3
+    }
+  },
   "packages/transaction-pay-controller/src/utils/provider.test.ts": {
     "no-unused-vars": {
       "count": 1
@@ -5496,6 +5501,14 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 8
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/quote-recipient.test.ts": {
+    "typescript/no-unsafe-call": {
+      "count": 3
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 3
     }
   },
   "packages/transaction-pay-controller/src/utils/quotes.test.ts": {
@@ -5530,7 +5543,7 @@
   },
   "packages/transaction-pay-controller/src/utils/second-leg.test.ts": {
     "vitest/no-conditional-in-test": {
-      "count": 7
+      "count": 3
     }
   },
   "packages/transaction-pay-controller/src/utils/simulation.test.ts": {
