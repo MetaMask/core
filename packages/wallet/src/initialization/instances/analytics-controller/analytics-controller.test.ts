@@ -105,23 +105,61 @@ describe('analyticsController', () => {
     expect(instance.state.analyticsId).toBe(PERSISTED_ANALYTICS_ID);
   });
 
-  it('forwards feature flags to the controller', () => {
+  it('forwards isPreConsentQueueEnabled so undecided track events are queued', () => {
     const messenger = analyticsController.getMessenger(getRootMessenger());
-    const options = getAnalyticsOptions({
-      isAnonymousEventsFeatureEnabled: true,
-      isEventQueuePersistenceEnabled: true,
-      isPreConsentQueueEnabled: true,
-      isGeolocationEnabled: true,
-      isEventFragmentsEnabled: true,
-    });
+    const platformAdapter = createStubPlatformAdapter();
 
     const instance = analyticsController.init({
       state: undefined,
       messenger,
-      options,
+      options: getAnalyticsOptions({
+        platformAdapter,
+        isPreConsentQueueEnabled: true,
+      }),
     });
 
-    expect(instance).toBeInstanceOf(AnalyticsController);
+    const event: AnalyticsTrackingEvent = {
+      name: 'Queued Event',
+      properties: { foo: 'bar' },
+      sensitiveProperties: {},
+      saveDataRecording: true,
+      hasProperties: true,
+    };
+
+    instance.trackEvent(event);
+
+    expect(platformAdapter.track).not.toHaveBeenCalled();
+    const queuedEvents = Object.values(
+      instance.state.preConsentEventQueue ?? {},
+    );
+    expect(queuedEvents).toHaveLength(1);
+    expect(queuedEvents[0]).toMatchObject({
+      type: 'track',
+      eventName: 'Queued Event',
+      properties: { foo: 'bar' },
+    });
+  });
+
+  it('does not queue undecided track events when isPreConsentQueueEnabled is omitted', () => {
+    const messenger = analyticsController.getMessenger(getRootMessenger());
+    const platformAdapter = createStubPlatformAdapter();
+
+    const instance = analyticsController.init({
+      state: undefined,
+      messenger,
+      options: getAnalyticsOptions({ platformAdapter }),
+    });
+
+    instance.trackEvent({
+      name: 'Dropped Event',
+      properties: { foo: 'bar' },
+      sensitiveProperties: {},
+      saveDataRecording: true,
+      hasProperties: true,
+    });
+
+    expect(platformAdapter.track).not.toHaveBeenCalled();
+    expect(instance.state.preConsentEventQueue).toBeUndefined();
   });
 
   it('delegates ConfigRegistryController and GeolocationController actions', () => {
