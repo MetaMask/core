@@ -36,7 +36,6 @@ export type {
   AssetsControllerStateChangeEvent,
   AssetsControllerBalanceChangedEvent,
   AssetsControllerPriceChangedEvent,
-  AssetsControllerAssetsDetectedEvent,
   AssetsControllerEvents,
 } from './AssetsController.js';
 export type {
@@ -110,7 +109,6 @@ export type {
   BalanceChangeEvent,
   PriceChangeEvent,
   MetadataChangeEvent,
-  AssetsDetectedEvent,
 } from './types.js';
 
 // Data sources - base class and types

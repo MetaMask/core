@@ -384,8 +384,6 @@ export type DataResponse = {
   assetsBalance?: Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
   /** Errors encountered, keyed by chain ID (chain-axis fallback + telemetry) */
   errors?: Record<ChainId, string>;
-  /** Detected assets (assets that do not have metadata) */
-  detectedAssets?: Record<AccountId, Caip19AssetId[]>;
   /**
    * How to apply this response to state. See {@link AssetsUpdateMode}.
    * Defaults to `'merge'` if omitted.
@@ -664,12 +662,4 @@ export type PriceChangeEvent = {
 export type MetadataChangeEvent = {
   assetId: Caip19AssetId;
   changes: Partial<AssetMetadata>;
-};
-
-/**
- * Event emitted when assets without metadata are detected
- */
-export type AssetsDetectedEvent = {
-  accountId: AccountId;
-  assetIds: Caip19AssetId[];
 };

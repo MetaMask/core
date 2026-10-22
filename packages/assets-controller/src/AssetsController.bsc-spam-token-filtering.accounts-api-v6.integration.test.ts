@@ -174,7 +174,7 @@ describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE)', () 
 
     // Unlike the v5 suite, this is not `it.failing`!
     // On v6 the backend omits the Malicious row, so the token is
-    // never in `assetsBalance` or `detectedAssets` at any pipeline stage and
+    // never in `assetsBalance` at any pipeline stage and
     // no price is ever fetched for it.
     //
     // Note we still need the unlock cleanup (`cleanSpamAssets`) to

@@ -308,16 +308,10 @@ export type AssetsControllerPriceChangedEvent = {
   payload: [{ prices: Record<Caip19AssetId, AssetPrice> }];
 };
 
-export type AssetsControllerAssetsDetectedEvent = {
-  type: `${typeof CONTROLLER_NAME}:assetsDetected`;
-  payload: [{ accountId: AccountId; assetIds: Caip19AssetId[] }];
-};
-
 export type AssetsControllerEvents =
   | AssetsControllerStateChangeEvent
   | AssetsControllerBalanceChangedEvent
-  | AssetsControllerPriceChangedEvent
-  | AssetsControllerAssetsDetectedEvent;
+  | AssetsControllerPriceChangedEvent;
 
 type AllowedActions =
   // AssetsController
@@ -547,18 +541,6 @@ function normalizeResponse(response: DataResponse): DataResponse {
         const normalizedId = normalizeAssetId(assetId as Caip19AssetId);
         normalized.assetsBalance[accountId][normalizedId] = balance;
       }
-    }
-  }
-
-  // Preserve detectedAssets with normalized asset IDs
-  if (response.detectedAssets) {
-    normalized.detectedAssets = {};
-    for (const [accountId, assetIds] of Object.entries(
-      response.detectedAssets,
-    )) {
-      normalized.detectedAssets[accountId] = assetIds.map((assetId) =>
-        normalizeAssetId(assetId),
-      );
     }
   }
 
@@ -2987,9 +2969,6 @@ export class AssetsController extends BaseController<
     try {
       const previousState = this.state;
       const previousPrices = { ...this.state.assetsPrice };
-      // Use detectedAssets from response (assets without metadata)
-      const detectedAssets: Record<AccountId, Caip19AssetId[]> =
-        normalizedResponse.detectedAssets ?? {};
 
       // Track actual changes for logging
       const changedBalances: {
@@ -3275,13 +3254,6 @@ export class AssetsController extends BaseController<
             changedMetadata.length > 0 ? changedMetadata : undefined,
           changedPrices:
             changedPriceAssets.length > 0 ? changedPriceAssets : undefined,
-          newAssets:
-            Object.keys(detectedAssets).length > 0
-              ? Object.entries(detectedAssets).map(([accountId, assets]) => ({
-                  accountId,
-                  assets,
-                }))
-              : undefined,
         });
       }
 
@@ -3309,16 +3281,6 @@ export class AssetsController extends BaseController<
         this.messenger.publish('AssetsController:priceChanged', {
           prices: changedPrices,
         });
-      }
-
-      // Publish assets detected events
-      for (const [accountId, assetIds] of Object.entries(detectedAssets)) {
-        if (assetIds.length > 0) {
-          this.messenger.publish('AssetsController:assetsDetected', {
-            accountId,
-            assetIds,
-          });
-        }
       }
     } finally {
       releaseLock();

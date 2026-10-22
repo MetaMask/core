@@ -638,7 +638,7 @@ export class PriceDataSource {
     this.#deduper.invalidate();
   }
 
-  /**
+  /**Assets
    * Destroy the data source and clean up all subscriptions.
    */
   destroy(): void {

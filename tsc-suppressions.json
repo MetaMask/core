@@ -159,11 +159,6 @@
       "count": 2
     }
   },
-  "packages/assets-controller/src/data-sources/TokenDataSource.test.ts": {
-    "TS2322": {
-      "count": 1
-    }
-  },
   "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {
     "TS2554": {
       "count": 2

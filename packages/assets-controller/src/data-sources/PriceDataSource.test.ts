@@ -1004,27 +1004,12 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
-  it('middleware passes to next when no detected assets', async () => {
+  it('middleware passes to next when the response has no balances', async () => {
     const { controller } = setupController();
 
     const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {},
-    });
-
-    await controller.assetsMiddleware(context, next);
-
-    expect(next).toHaveBeenCalledWith(context);
-
-    controller.destroy();
-  });
-
-  it('middleware passes to next when detected assets is empty', async () => {
-    const { controller } = setupController();
-
-    const next = jest.fn().mockResolvedValue(undefined);
-    const context = createMiddlewareContext({
-      response: { detectedAssets: {} },
     });
 
     await controller.assetsMiddleware(context, next);

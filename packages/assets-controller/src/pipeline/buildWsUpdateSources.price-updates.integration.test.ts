@@ -2,7 +2,6 @@ import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
 
 import {
-  RESPONSE_DETECTED_ASSETS_SURFACE,
   RESPONSE_METADATA_SURFACE,
   RESPONSE_PRICES_SURFACE,
   responseBalancesSurface,
@@ -66,7 +65,6 @@ type UpdateLane = 'v5' | 'v6';
 const BALANCES = responseBalancesSurface(WS_ACCOUNT_ID);
 const METADATA = RESPONSE_METADATA_SURFACE;
 const PRICES = RESPONSE_PRICES_SURFACE;
-const DETECTED_ASSETS = RESPONSE_DETECTED_ASSETS_SURFACE;
 
 /** A completed websocket update pass. */
 type WsUpdatePassResult = {
@@ -343,12 +341,6 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       });
     });
 
-    it('does not re-detect the holding', () => {
-      expect(
-        DETECTED_ASSETS.lookUp(result.response, ETH_ASSET_ID),
-      ).toBeUndefined();
-    });
-
     it('prices the held-but-unpriced asset in the same pass', () => {
       expect(askedAbout(result.mocks.priceAPI.priceBatches)).toStrictEqual(
         new Set([ETH_ASSET_ID]),
@@ -375,12 +367,6 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
         state: buildUsdcHeldAndPricedState(),
         event: buildUsdcBalanceUpdatedEvent(),
       });
-    });
-
-    it('does not re-detect the token', () => {
-      expect(
-        DETECTED_ASSETS.lookUp(result.response, USDC_ASSET_ID_LOWERCASE),
-      ).toBeUndefined();
     });
 
     it('does not re-price the already-priced token', () => {

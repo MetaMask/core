@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^112.1.2` to `^112.1.3` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
 
+### Removed
+
+- **BREAKING:** Remove the `AssetsController:assetsDetected` event and the `AssetsControllerAssetsDetectedEvent` type. No client subscribed to it
+- **BREAKING:** Remove `detectedAssets` from `DataResponse` and the unused `AssetsDetectedEvent` type. Newly detected tokens still arrive as balances and metadata
+
 ### Fixed
 
 - `syncAssetsPrices` returns without calling the Price API when basic functionality is off

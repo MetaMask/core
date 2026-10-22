@@ -172,17 +172,6 @@ function cleanResponseSpam(
       }
     }
   }
-
-  // Correctly clean detectedAssets by its own Ids
-  if (response.detectedAssets) {
-    for (const [accountId, assetIds] of Object.entries(
-      response.detectedAssets,
-    )) {
-      response.detectedAssets[accountId] = assetIds.filter(
-        (id) => !spamLowerIds.has(id.toLowerCase()),
-      );
-    }
-  }
 }
 
 // ============================================================================

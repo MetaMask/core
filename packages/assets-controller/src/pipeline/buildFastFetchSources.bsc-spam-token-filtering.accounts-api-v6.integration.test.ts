@@ -2,7 +2,6 @@ import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
 
 import {
-  RESPONSE_DETECTED_ASSETS_SURFACE,
   RESPONSE_METADATA_SURFACE,
   RESPONSE_PRICES_SURFACE,
   responseBalancesSurface,
@@ -64,7 +63,6 @@ import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
 const BALANCES = responseBalancesSurface(BSC_SPAM_ACCOUNT_ID);
 const METADATA = RESPONSE_METADATA_SURFACE;
 const PRICES = RESPONSE_PRICES_SURFACE;
-const DETECTED_ASSETS = RESPONSE_DETECTED_ASSETS_SURFACE;
 
 async function runPipeline(
   state: AssetsControllerState,
@@ -239,7 +237,7 @@ describe('assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE)', () =
       response = await run();
     });
 
-    it.each([BALANCES, METADATA, DETECTED_ASSETS])(
+    it.each([BALANCES, METADATA])(
       '$surface - filter out the spam token',
       ({ lookUp }) => {
         expect(lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();

@@ -196,7 +196,8 @@ DataSource calls: messenger.call('AssetsController:assetsUpdate', response, sour
         │
         └── Publish events:
             ├── AssetsController:stateChange
-            └── AssetsController:assetsDetected (if assets without metadata)
+            ├── AssetsController:balanceChanged (when a balance changes)
+            └── AssetsController:priceChanged (when a price changes)
 ```
 
 #### 3.3 Chain Assignment Algorithm
@@ -615,27 +616,6 @@ messenger.subscribe('AssetsController:priceChanged', (event) => {
 
 ---
 
-#### `AssetsController:assetsDetected`
-
-Emitted when assets without metadata are detected for an account.
-
-```typescript
-messenger.subscribe('AssetsController:assetsDetected', (event) => {
-  console.log(`New assets detected for ${event.accountId}:`, event.assetIds);
-});
-```
-
-**Payload:**
-
-```typescript
-{
-  accountId: AccountId;
-  assetIds: Caip19AssetId[];
-}
-```
-
----
-
 ### Type Definitions
 
 #### Identifier Types
@@ -936,11 +916,6 @@ const state = messenger.call('AssetsController:getState');
 // Balance changes (real-time updates)
 messenger.subscribe('AssetsController:balanceChanged', (event) => {
   console.log(`${event.assetId}: ${event.previousAmount} → ${event.newAmount}`);
-});
-
-// New asset detection
-messenger.subscribe('AssetsController:assetsDetected', (event) => {
-  showNotification(`Found ${event.assetIds.length} new tokens!`);
 });
 
 // Price updates (includes full price data)
