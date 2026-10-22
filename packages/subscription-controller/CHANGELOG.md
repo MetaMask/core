@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Remove `builderCode` from `PerpsBenefitUsage` and from benefits-response validation. The Perps benefits payload no longer includes it, and requiring the field rejected otherwise valid responses.
+- **BREAKING:** Remove `builderCode` from `PerpsBenefitUsage` and from benefits-response validation. The Perps benefits payload no longer includes it, and requiring the field rejected otherwise valid responses. ([#10995](https://github.com/MetaMask/core/pull/10995))
 
 ## [14.0.2]
 
