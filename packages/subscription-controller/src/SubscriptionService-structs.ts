@@ -143,7 +143,6 @@ const SwapsBenefitUsageStruct = type({
 
 const PerpsBenefitUsageStruct = type({
   builderFeeBips: nullable(string()),
-  builderCode: nullable(string()),
   capMicroUsd: optional(number()),
   consumedMicroUsd: optional(number()),
   remainingMicroUsd: nullable(number()),

@@ -5,6 +5,7 @@ import type {
   LegacyGasPriceEstimate,
 } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
+import { describe, expect, it } from 'vitest';
 
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
