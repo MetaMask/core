@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `FileSandbox` type and `createSandbox`, `directoryExists`, `ensureDirectoryStructureExists`, `fileExists`, `forceRemove`, `readFile`, `readJsonFile`, `writeFile`, and `writeJsonFile` functions, moved from `@metamask/utils` ([#10926](https://github.com/MetaMask/core/pull/10926))
+
 [Unreleased]: https://github.com/MetaMask/core/

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { MockVariable } from '../sdk/__fixtures__/test-utils.js';
 import { getEnvUrls, Env, Platform, getOidcClientId } from './env.js';
 

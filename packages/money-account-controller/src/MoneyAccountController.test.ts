@@ -18,6 +18,8 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { MoneyAccount, MoneyAccountControllerMessenger } from './index.js';
 import {
@@ -325,17 +327,17 @@ function setup({
   mocks: {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     KeyringController: {
-      withController: jest.Mock;
-      withKeyringV2: jest.Mock;
-      addNewKeyring: jest.Mock;
+      withController: Mock;
+      withKeyringV2: Mock;
+      addNewKeyring: Mock;
     };
   };
 } {
   const mocks = {
     KeyringController: {
-      withController: jest.fn(),
-      withKeyringV2: jest.fn(),
-      addNewKeyring: jest.fn(),
+      withController: vi.fn(),
+      withKeyringV2: vi.fn(),
+      addNewKeyring: vi.fn(),
     },
   };
 
@@ -829,7 +831,7 @@ describe('MoneyAccountController', () => {
         });
         const keyringV2 = keyringEntries[1]
           .keyringV2 as unknown as MockMoneyKeyringV2;
-        jest.spyOn(keyringV2, 'createAccounts').mockResolvedValue([]);
+        vi.spyOn(keyringV2, 'createAccounts').mockResolvedValue([]);
 
         await expect(
           controller.createMoneyAccount({
@@ -1023,7 +1025,7 @@ describe('MoneyAccountController', () => {
         });
         const mpcKeyring = keyringEntries[1]
           .keyring as unknown as MockMpcKeyring;
-        jest
+        vi
           .spyOn(mpcKeyring, 'setup')
           .mockRejectedValue(new Error('MPC setup failure'));
 
@@ -1048,7 +1050,7 @@ describe('MoneyAccountController', () => {
         });
         const keyringV2 = keyringEntries[1]
           .keyringV2 as unknown as MockMpcKeyringV2;
-        jest.spyOn(keyringV2, 'createAccounts').mockResolvedValue([]);
+        vi.spyOn(keyringV2, 'createAccounts').mockResolvedValue([]);
 
         await expect(
           controller.createMoneyAccount({ type: 'mpc' }),
@@ -1074,7 +1076,7 @@ describe('MoneyAccountController', () => {
         const [account] = await keyringV2.createAccounts({
           type: 'custom',
         });
-        jest
+        vi
           .spyOn(keyringV2, 'createAccounts')
           .mockResolvedValue([{ ...account, options: {} }]);
 

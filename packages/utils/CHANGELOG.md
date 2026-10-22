@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move `ensureError`, `getErrorMessage`, `isErrorWithCode`, `isErrorWithMessage`, `isErrorWithStack`, and `wrapError` to `@metamask/error-utils` ([#10917](https://github.com/MetaMask/core/pull/10917))
   - These are still re-exported from `@metamask/utils`, so the public API is unchanged.
   - It's recommended to import these functions from `@metamask/error-utils` instead of `@metamask/utils` going forward.
+- Move `FileSandbox`, `createSandbox`, `directoryExists`, `ensureDirectoryStructureExists`, `fileExists`, `forceRemove`, `readFile`, `readJsonFile`, `writeFile`, and `writeJsonFile` to `@metamask/node-utils` ([#10926](https://github.com/MetaMask/core/pull/10926))
+  - These are still re-exported from `@metamask/utils/node`, so the public API is unchanged.
+  - It's recommended to import these types and functions from `@metamask/node-utils` instead of `@metamask/utils/node` going forward.
 - Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
 - Bump `semver` from `^7.6.3` to `^7.8.5` ([#10443](https://github.com/MetaMask/core/pull/10443))
 - Bump `pony-cause` from `^2.1.10` to `^2.1.11` ([#10440](https://github.com/MetaMask/core/pull/10440))

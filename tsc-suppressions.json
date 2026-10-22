@@ -881,7 +881,7 @@
     }
   },
   "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockMessenger.ts": {
-    "TS2345": {
+    "TS2741": {
       "count": 1
     }
   },
