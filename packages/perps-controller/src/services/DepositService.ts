@@ -65,8 +65,8 @@ export class DepositService {
     // Generate deposit request ID for tracking
     const currentDepositId = generateDepositId();
 
-    // Get deposit routes from provider
-    const depositRoutes = provider.getDepositRoutes({ isTestnet: false });
+    // Get deposit routes for the provider's own network (testnet or mainnet)
+    const depositRoutes = provider.getDepositRoutes();
     const route = depositRoutes[0];
     if (!route) {
       // Fail CLOSED with a routable message instead of a TypeError: some
