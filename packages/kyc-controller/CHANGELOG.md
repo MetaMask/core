@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Cache successful `KycService.fetchIdosEnclaveJwks` and `KycService.fetchIdosRelayJwks` responses in the service query cache for 24 hours ([#10894](https://github.com/MetaMask/core/pull/10894))
   - `KycService:invalidateQueries` drops the cached keys
+- Session creation and capability-authorization refresh throw a short, displayable error when fetching issuer signing keys fails or an encryption schema's `jwtChain` does not verify. The original error is preserved on `cause` ([#10834](https://github.com/MetaMask/core/pull/10834))
 
 ## [0.11.0]
 
