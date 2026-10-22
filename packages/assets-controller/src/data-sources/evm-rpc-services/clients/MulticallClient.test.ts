@@ -1011,6 +1011,87 @@ describe('encodeAggregate3', () => {
 
     expect(encodeAggregate3(calls)).toBe(expected);
   });
+
+  it('should throw for a target without a 0x prefix', () => {
+    const calls = [
+      {
+        target:
+          '1234567890123456789012345678901234567890' as unknown as Address,
+        allowFailure: true,
+        callData: '0x' as Hex,
+      },
+    ];
+
+    expect(() => encodeAggregate3(calls)).toThrow(
+      'invalid address value: 1234567890123456789012345678901234567890',
+    );
+  });
+
+  it('should throw for a non-hex target', () => {
+    const calls = [
+      {
+        target: '0xnothex' as unknown as Address,
+        allowFailure: true,
+        callData: '0x' as Hex,
+      },
+    ];
+
+    expect(() => encodeAggregate3(calls)).toThrow(
+      'invalid address value: 0xnothex',
+    );
+  });
+
+  it('should throw for an oversized target', () => {
+    const calls = [
+      {
+        target: `0x${'12'.repeat(33)}` as unknown as Address,
+        allowFailure: true,
+        callData: '0x' as Hex,
+      },
+    ];
+
+    expect(() => encodeAggregate3(calls)).toThrow(
+      `invalid address value: 0x${'12'.repeat(33)}`,
+    );
+  });
+
+  it('should throw for callData without a 0x prefix', () => {
+    const calls = [
+      {
+        target: TEST_ACCOUNT as Address,
+        allowFailure: true,
+        callData: '70a08231' as unknown as Hex,
+      },
+    ];
+
+    expect(() => encodeAggregate3(calls)).toThrow(
+      'invalid bytes value: 70a08231',
+    );
+  });
+
+  it('should throw for odd-length callData', () => {
+    const calls = [
+      {
+        target: TEST_ACCOUNT as Address,
+        allowFailure: true,
+        callData: '0xabc' as unknown as Hex,
+      },
+    ];
+
+    expect(() => encodeAggregate3(calls)).toThrow('invalid bytes value: 0xabc');
+  });
+
+  it('should throw for non-hex callData', () => {
+    const calls = [
+      {
+        target: TEST_ACCOUNT as Address,
+        allowFailure: true,
+        callData: '0xzz' as unknown as Hex,
+      },
+    ];
+
+    expect(() => encodeAggregate3(calls)).toThrow('invalid bytes value: 0xzz');
+  });
 });
 
 describe('decodeAggregate3Response', () => {
@@ -1050,5 +1131,50 @@ describe('decodeAggregate3Response', () => {
     expect(() => decodeAggregate3Response(mockResponse, 2)).toThrow(
       'Expected 2 results, got 1',
     );
+  });
+
+  it('should throw for data without a 0x prefix', () => {
+    const mockResponse = buildMockAggregate3Response([
+      { success: true, balance: '100' },
+    ]);
+
+    expect(() =>
+      decodeAggregate3Response(mockResponse.slice(2) as Hex, 1),
+    ).toThrow(`invalid response data value: ${mockResponse.slice(2)}`);
+  });
+
+  it('should throw for a response with non-hex words', () => {
+    const garbage = '0x' + 'z'.repeat(64);
+
+    expect(() => decodeAggregate3Response(garbage as Hex, 0)).toThrow(
+      'aggregate3 response contains a non-hex word',
+    );
+  });
+
+  it('should throw for a truncated response', () => {
+    const mockResponse = buildMockAggregate3Response([
+      { success: true, balance: '100' },
+    ]);
+    // Cut off the final byte of the last returnData word.
+    const truncated = mockResponse.slice(0, -2) as Hex;
+
+    expect(() => decodeAggregate3Response(truncated, 1)).toThrow(
+      'aggregate3 response data length out-of-bounds',
+    );
+  });
+
+  it('should return lowercased returnData for a mixed-case response', () => {
+    const mockResponse = buildMockAggregate3Response([
+      { success: true, balance: '100' },
+    ]);
+
+    const result = decodeAggregate3Response(
+      ('0x' + mockResponse.slice(2).toUpperCase()) as Hex,
+      1,
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].success).toBe(true);
+    expect(result[0].returnData).toMatch(/^0x[0-9a-f]*$/u);
   });
 });
