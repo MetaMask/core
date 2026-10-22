@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0]
+
 ### Uncategorized
 
 - test: run earn packages on Vitest ([#10962](https://github.com/MetaMask/core/pull/10962))
@@ -106,7 +108,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch cursor-paginated cash-flow history (`fetchHistory`)
   - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.3.0...HEAD
+[2.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.2.0...@metamask/money-account-api-data-service@2.3.0
 [2.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.1.0...@metamask/money-account-api-data-service@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.0.0...@metamask/money-account-api-data-service@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@1.0.0...@metamask/money-account-api-data-service@2.0.0

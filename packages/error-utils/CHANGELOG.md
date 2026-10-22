@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
-
 ### Added
 
 - Add `ensureError`, `getErrorMessage`, `isErrorWithCode`, `isErrorWithMessage`, `isErrorWithStack`, and `wrapError` functions, moved from `@metamask/utils` ([#10917](https://github.com/MetaMask/core/pull/10917))

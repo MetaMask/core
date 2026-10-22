@@ -7,17 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test: run social-ai packages on Vitest ([#10954](https://github.com/MetaMask/core/pull/10954))
-
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
-- Normalize full hydrated Social feed events into `FeedItem` data for direct client hydration. ([#10986](https://github.com/MetaMask/core/pull/10986))
+- Normalize full hydrated Social feed events into `FeedItem` data for direct client hydration ([#10986](https://github.com/MetaMask/core/pull/10986)).
 
 ## [3.10.0]
 
