@@ -5,6 +5,7 @@ import type {
   DefaultEvents,
   RootMessenger,
 } from './initialization/defaults.js';
+import type { AnalyticsControllerInstanceOptions } from './initialization/instances/analytics-controller/types.js';
 import type { ApprovalControllerInstanceOptions } from './initialization/instances/approval-controller/types.js';
 import type { ClaimsServiceInstanceOptions } from './initialization/instances/claims-service/types.js';
 import type { ConfigRegistryApiServiceInstanceOptions } from './initialization/instances/config-registry-api-service/types.js';
@@ -34,6 +35,7 @@ export type WalletOptions = {
 };
 
 export type InstanceSpecificOptions = {
+  analyticsController: AnalyticsControllerInstanceOptions;
   approvalController?: ApprovalControllerInstanceOptions;
   claimsService?: ClaimsServiceInstanceOptions;
   configRegistryApiService: ConfigRegistryApiServiceInstanceOptions;

@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `AnalyticsController` to the default initialization configurations ([#10901](https://github.com/MetaMask/core/pull/10901))
+  - Requires `instanceOptions.analyticsController.platformAdapter` and `instanceOptions.analyticsController.analyticsId`.
+  - Accepts optional feature flags `isAnonymousEventsFeatureEnabled`, `isEventQueuePersistenceEnabled`, `isPreConsentQueueEnabled`, `isGeolocationEnabled`, and `isEventFragmentsEnabled`, each defaulting to `false`.
+  - Persisted `AnalyticsController` state overrides the supplied `analyticsId` when present.
+  - `AnalyticsController` delegates `ConfigRegistryController:getState` and `GeolocationController:getGeolocationData`, and subscribes to `ConfigRegistryController:stateChanged`.
+  - Hosts that already register `AnalyticsController` or no-op `AnalyticsController:*` handlers on the wallet root messenger must remove them before upgrading, or messenger registration will collide.
+  - When `isGeolocationEnabled` is `true`, hosts must register `GeolocationController` on the wallet root messenger.
+
 ### Changed
 
+- Add `@metamask/analytics-controller` as a dependency ([#10901](https://github.com/MetaMask/core/pull/10901))
 - Bump `@metamask/claims-controller` from `^1.0.3` to `^1.0.4` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/shield-controller` from `^7.0.4` to `^7.0.5` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/subscription-controller` from `^14.0.1` to `^14.0.2` ([#10925](https://github.com/MetaMask/core/pull/10925))
