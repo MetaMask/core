@@ -470,8 +470,60 @@ function buildAggregate3BalanceCalls(
   });
 }
 
+/** Selector (sighash) of the Multicall3 `aggregate3` function, without `0x` prefix. */
+const AGGREGATE3_SELECTOR = '82ad56cb';
+
+// 32-byte words (64 hex chars, no `0x` prefix) of the fixed aggregate3
+// calldata layout. The `calls` argument is the only (dynamic) argument, so
+// its offset word is the constant 0x20; each (address, bool, bytes) tuple
+// has exactly three static words, so each tuple's callData offset word is
+// the constant 0x60.
+const WORD_ARRAY_OFFSET = `0${'0'.repeat(61)}20`;
+const WORD_CALLDATA_OFFSET = `0${'0'.repeat(61)}60`;
+const WORD_ZERO = '0'.repeat(64);
+const WORD_ONE = `0${'0'.repeat(62)}1`;
+
+/** Hex string body (lowercase, no `0x` prefix). */
+const LOWERCASE_HEX_RE = /^[0-9a-f]*$/u;
+
+// Fail fast at module load if the vendored ABI ever disagrees with the
+// selector this encoder hard-codes, instead of producing corrupt calldata.
+if (
+  multicall3Interface.getSighash(
+    multicall3Interface.getFunction('aggregate3'),
+  ) !== `0x${AGGREGATE3_SELECTOR}`
+) {
+  throw new Error(
+    'Multicall3 aggregate3 sighash changed; hand-rolled encoder is stale',
+  );
+}
+
 /**
  * Encode a Multicall3 aggregate3 call.
+ *
+ * Hand-rolled ABI encoding for the fixed `aggregate3` calldata layout
+ * (byte-identical to the generic @ethersproject/abi encoder for valid
+ * inputs, but far faster on Hermes, where the generic Writer path — with
+ * its per-value numeric conversions — dominates encode time):
+ *
+ * ```text
+ * selector                                   4 bytes
+ * offset to `calls` array data              32 bytes (constant 0x20)
+ * array length (call count)                 32 bytes
+ * offset to tuple 0                          32 bytes (\u2261 first tuple
+ *   … one offset word per call                 starts right after the array
+ *                                              head: 32 * n bytes)
+ * per call tuple body:
+ *   target                                    32 bytes (left-padded)
+ *   allowFailure                              32 bytes (0 or 1)
+ *   offset to callData within the tuple       32 bytes (constant 0x60)
+ *   callData length in bytes                  32 bytes
+ *   callData                                  right-padded to 32-byte words
+ * ```
+ *
+ * Because every tuple contains dynamic `bytes`, tuples are dynamic types, so
+ * the array head carries one offset word per call; tuple offsets are
+ * cumulative over the padded callData sizes of preceding calls.
  *
  * @param calls - Array of calls with target, allowFailure, and callData.
  * @returns The encoded aggregate3 call data.
@@ -479,18 +531,102 @@ function buildAggregate3BalanceCalls(
 export function encodeAggregate3(
   calls: readonly { target: Address; allowFailure: boolean; callData: Hex }[],
 ): Hex {
-  return encodeFunctionData(multicall3Interface, 'aggregate3', [
-    calls.map((call) => ({
-      target: call.target,
-      allowFailure: call.allowFailure,
-      callData: call.callData,
-    })),
-  ]);
+  const callCount = calls.length;
+
+  // Pass 1: validate + normalize each call, remember tuple bodies, and
+  // compute the cumulative array offsets while walking.
+  const headParts = new Array<string>(callCount);
+  const bodyParts = new Array<string>(callCount * 5);
+  let tupleOffset = 32 * callCount; // bytes; first tuple starts after the array head
+
+  for (let i = 0; i < callCount; i++) {
+    const { target, allowFailure, callData } = calls[i];
+
+    if (!target.startsWith('0x')) {
+      throw new Error(`invalid address value: ${target}`);
+    }
+    const targetHex = target.slice(2).toLowerCase();
+    if (!LOWERCASE_HEX_RE.test(targetHex) || targetHex.length > 64) {
+      throw new Error(`invalid address value: ${target}`);
+    }
+
+    if (!callData.startsWith('0x')) {
+      throw new Error(`invalid bytes value: ${callData}`);
+    }
+    const dataHex = callData.slice(2).toLowerCase();
+    if (dataHex.length % 2 !== 0 || !LOWERCASE_HEX_RE.test(dataHex)) {
+      throw new Error(`invalid bytes value: ${callData}`);
+    }
+
+    headParts[i] = tupleOffset.toString(16).padStart(64, '0');
+    tupleOffset +=
+      128 + dataHex.length / 2 + ((64 - (dataHex.length % 64)) % 64) / 2; // static + len + padded data
+
+    const j = i * 5;
+    bodyParts[j] = targetHex.padStart(64, '0');
+    bodyParts[j + 1] = allowFailure ? WORD_ONE : WORD_ZERO;
+    bodyParts[j + 2] = WORD_CALLDATA_OFFSET;
+    bodyParts[j + 3] = (dataHex.length / 2).toString(16).padStart(64, '0');
+    bodyParts[j + 4] = dataHex.padEnd(
+      dataHex.length + ((64 - (dataHex.length % 64)) % 64),
+      '0',
+    );
+  }
+
+  const parts: string[] = [
+    `0x${AGGREGATE3_SELECTOR}`,
+    WORD_ARRAY_OFFSET,
+    callCount.toString(16).padStart(64, '0'),
+  ];
+  for (let i = 0; i < callCount; i++) {
+    parts.push(headParts[i]);
+  }
+  for (let i = 0; i < callCount * 5; i++) {
+    parts.push(bodyParts[i]);
+  }
+
+  return parts.join('') as Hex;
+}
+
+/**
+ * Read one 32-byte word (64 hex chars) of a stripped response body at the
+ * given character index, as a number.
+ *
+ * @param body - The response body (lowercase hex, no `0x` prefix).
+ * @param charIndex - The character index at which the word starts.
+ * @returns The word's numeric value.
+ */
+function readResponseWord(body: string, charIndex: number): number {
+  if (charIndex < 0 || charIndex + 64 > body.length) {
+    throw new Error('aggregate3 response data length out-of-bounds');
+  }
+  const value = parseInt(body.slice(charIndex, charIndex + 64), 16);
+  if (!Number.isFinite(value)) {
+    throw new Error('aggregate3 response contains a non-hex word');
+  }
+  return value;
 }
 
 /**
  * Decode the response from aggregate3.
  * Returns array of (success, returnData) tuples.
+ *
+ * Hand-rolled decoder for the fixed aggregate3 response layout —
+ * byte-for-byte equivalent to the generic @ethersproject/abi Reader (which
+ * allocates Result objects, BigNumbers and byte arrays per element and
+ * dominates decode time on Hermes), but as direct substring parsing:
+ *
+ * ```text
+ * offset to results array data               32 bytes (0x20)
+ * array length (result count)               32 bytes
+ * offset to tuple 0                           32 bytes — one per result,
+ *   …                                          cumulative over returnData
+ * per result tuple body:
+ *   success                                    32 bytes (0 or nonzero)
+ *   offset to returnData within the tuple     32 bytes (0x40)
+ *   returnData length in bytes                32 bytes
+ *   returnData                                right-padded to 32-byte words
+ * ```
  *
  * @param data - The raw response data.
  * @param callCount - Number of calls made (used for validation).
@@ -500,22 +636,37 @@ export function decodeAggregate3Response(
   data: Hex,
   callCount: number,
 ): { success: boolean; returnData: Hex }[] {
-  const decoded = multicall3Interface.decodeFunctionResult('aggregate3', data);
+  if (!data.startsWith('0x')) {
+    throw new Error(`invalid response data value: ${data}`);
+  }
+  const body = data.slice(2);
 
-  // decoded[0] is the array of (success, returnData) tuples
-  const results = decoded[0] as readonly {
-    success: boolean;
-    returnData: string;
-  }[];
-
-  if (results.length !== callCount) {
-    throw new Error(`Expected ${callCount} results, got ${results.length}`);
+  const headStart = readResponseWord(body, 0) * 2 + 64;
+  const results = readResponseWord(body, headStart - 64);
+  if (results !== callCount) {
+    throw new Error(`Expected ${callCount} results, got ${results}`);
   }
 
-  return results.map((result) => ({
-    success: result.success,
-    returnData: result.returnData as Hex,
-  }));
+  const out = new Array(results);
+  for (let i = 0; i < results; i++) {
+    const tupleStart =
+      headStart + readResponseWord(body, headStart + i * 64) * 2;
+    const success = readResponseWord(body, tupleStart) !== 0;
+    const returnDataStart =
+      tupleStart + readResponseWord(body, tupleStart + 64) * 2;
+    const returnDataBytes = readResponseWord(body, returnDataStart);
+    const dataChars = returnDataStart + 64;
+    if (dataChars + returnDataBytes * 2 > body.length) {
+      throw new Error('aggregate3 response data length out-of-bounds');
+    }
+    out[i] = {
+      success,
+      returnData: `0x${body
+        .slice(dataChars, dataChars + returnDataBytes * 2)
+        .toLowerCase()}`,
+    };
+  }
+  return out;
 }
 
 /**
@@ -524,13 +675,14 @@ export function decodeAggregate3Response(
  * @param data - The hex return data.
  * @returns The decoded balance as a string.
  */
-function decodeUint256(data: Hex): string {
+export function decodeUint256(data: Hex): string {
   if (data === '0x' || data.length < 66) {
     // Empty or invalid data; treat as 0
     return '0';
   }
-  const decoded = erc20Interface.decodeFunctionResult('balanceOf', data);
-  return decoded[0].toString();
+  // Decode the first 32-byte word directly (matching the generic decoder,
+  // which reads one word and ignores any trailing data).
+  return BigInt(data.slice(0, 66)).toString();
 }
 
 // =============================================================================
@@ -539,6 +691,25 @@ function decodeUint256(data: Hex): string {
 
 /** Retries after the initial multicall attempt before returning failed responses. */
 const MULTICALL_MAX_RETRIES = 2;
+
+/**
+ * Pluggable codec for the aggregate3 hot path. The default is the
+ * hand-rolled implementation in this file. Alternative implementations
+ * (`viem`, `ethers`) live in `./aggregate3Codecs.js` and are exposed for
+ * on-device performance comparison; see the changelog for details.
+ */
+export type Aggregate3Codec = {
+  encodeAggregate3: typeof encodeAggregate3;
+  decodeAggregate3Response: typeof decodeAggregate3Response;
+  decodeUint256: typeof decodeUint256;
+};
+
+/** Default codec: the hand-rolled implementation in this file. */
+const DEFAULT_AGGREGATE3_CODEC: Aggregate3Codec = {
+  encodeAggregate3,
+  decodeAggregate3Response,
+  decodeUint256,
+};
 
 export type MulticallClientConfig = {
   maxCallsPerBatch?: number;
@@ -562,6 +733,12 @@ export type MulticallClientOptions = {
   getProvider: GetProviderFunction;
   getMulticall3AddressForChain: GetMulticall3AddressForChainFunction;
   config?: MulticallClientConfig;
+  /**
+   * Experimental: codec used for the aggregate3 hot path. Defaults to the
+   * hand-rolled implementation; alternatives are exposed for on-device
+   * performance comparison (see `./aggregate3Codecs.js`).
+   */
+  aggregate3Codec?: Aggregate3Codec;
 };
 
 /**
@@ -575,10 +752,13 @@ export class MulticallClient {
 
   readonly #getMulticall3AddressForChain: GetMulticall3AddressForChainFunction;
 
+  readonly #codec: Aggregate3Codec;
+
   constructor({
     getProvider,
     getMulticall3AddressForChain,
     config,
+    aggregate3Codec,
   }: MulticallClientOptions) {
     this.#getProvider = getProvider;
     // Use default values for invalid (non-positive) batch sizes to prevent
@@ -596,6 +776,7 @@ export class MulticallClient {
       timeoutMs,
     };
     this.#getMulticall3AddressForChain = getMulticall3AddressForChain;
+    this.#codec = aggregate3Codec ?? DEFAULT_AGGREGATE3_CODEC;
   }
 
   /**
@@ -668,14 +849,14 @@ export class MulticallClient {
             maxRetries: MULTICALL_MAX_RETRIES,
           }).execute(async () => {
             // Encode and send aggregate3 call
-            const callData = encodeAggregate3(calls);
+            const callData = this.#codec.encodeAggregate3(calls);
             const result = await provider.call({
               to: multicallAddress,
               data: callData,
             });
 
             // Decode response
-            const decoded = decodeAggregate3Response(
+            const decoded = this.#codec.decodeAggregate3Response(
               result as Hex,
               batch.length,
             );
@@ -690,7 +871,7 @@ export class MulticallClient {
                   tokenAddress,
                   accountAddress,
                   success: true,
-                  balance: decodeUint256(returnData),
+                  balance: this.#codec.decodeUint256(returnData),
                 });
               } else {
                 workingResult.push({

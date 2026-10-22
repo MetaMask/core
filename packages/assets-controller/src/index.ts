@@ -139,6 +139,20 @@ export type {
   ChainStatus,
 } from './data-sources/index.js';
 
+// Data sources - RPC MulticallClient codec selection
+// Experimental: exposed for on-device performance comparison of the
+// aggregate3 codec implementations; may be removed once the default is
+// settled.
+export {
+  getAggregate3Codec,
+  getActiveAggregate3Codec,
+  setAggregate3CodecVariant,
+} from './data-sources/index.js';
+export type {
+  Aggregate3Codec,
+  Aggregate3CodecVariant,
+} from './data-sources/index.js';
+
 // Data sources - Unified Snap Data Source (dynamically discovers keyring snaps)
 export {
   SnapDataSource,

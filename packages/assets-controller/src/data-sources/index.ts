@@ -32,6 +32,14 @@ export {
 } from './RpcDataSource.js';
 
 export {
+  getAggregate3Codec,
+  getActiveAggregate3Codec,
+  setAggregate3CodecVariant,
+  type Aggregate3Codec,
+  type Aggregate3CodecVariant,
+} from './evm-rpc-services/index.js';
+
+export {
   TokenDataSource,
   type TokenDataSourceOptions,
   type TokenDataSourceAllowedActions,

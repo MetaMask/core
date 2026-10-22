@@ -14,6 +14,11 @@ export type {
 export {
   MulticallClient,
   type MulticallClientConfig,
+  type Aggregate3Codec,
+  getAggregate3Codec,
+  getActiveAggregate3Codec,
+  setAggregate3CodecVariant,
+  type Aggregate3CodecVariant,
 } from './clients/index.js';
 export {
   BalanceFetcher,

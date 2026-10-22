@@ -9,6 +9,12 @@ import type {
   Provider,
 } from '../types/index.js';
 import {
+  getActiveAggregate3Codec,
+  getAggregate3Codec,
+  setAggregate3CodecVariant,
+} from './aggregate3Codecs.js';
+import type { Aggregate3CodecVariant } from './aggregate3Codecs.js';
+import {
   decodeAggregate3Response,
   encodeAggregate3,
   MulticallClient,
@@ -1011,6 +1017,87 @@ describe('encodeAggregate3', () => {
 
     expect(encodeAggregate3(calls)).toBe(expected);
   });
+
+  it('should throw for a target without a 0x prefix', () => {
+    const calls = [
+      {
+        target:
+          '1234567890123456789012345678901234567890' as unknown as Address,
+        allowFailure: true,
+        callData: '0x' as Hex,
+      },
+    ];
+
+    expect(() => encodeAggregate3(calls)).toThrow(
+      'invalid address value: 1234567890123456789012345678901234567890',
+    );
+  });
+
+  it('should throw for a non-hex target', () => {
+    const calls = [
+      {
+        target: '0xnothex' as unknown as Address,
+        allowFailure: true,
+        callData: '0x' as Hex,
+      },
+    ];
+
+    expect(() => encodeAggregate3(calls)).toThrow(
+      'invalid address value: 0xnothex',
+    );
+  });
+
+  it('should throw for an oversized target', () => {
+    const calls = [
+      {
+        target: `0x${'12'.repeat(33)}` as unknown as Address,
+        allowFailure: true,
+        callData: '0x' as Hex,
+      },
+    ];
+
+    expect(() => encodeAggregate3(calls)).toThrow(
+      `invalid address value: 0x${'12'.repeat(33)}`,
+    );
+  });
+
+  it('should throw for callData without a 0x prefix', () => {
+    const calls = [
+      {
+        target: TEST_ACCOUNT,
+        allowFailure: true,
+        callData: '70a08231' as string as Hex,
+      },
+    ];
+
+    expect(() => encodeAggregate3(calls)).toThrow(
+      'invalid bytes value: 70a08231',
+    );
+  });
+
+  it('should throw for odd-length callData', () => {
+    const calls = [
+      {
+        target: TEST_ACCOUNT,
+        allowFailure: true,
+        callData: '0xabc',
+      },
+    ];
+
+    expect(() => encodeAggregate3(calls)).toThrow('invalid bytes value: 0xabc');
+  });
+
+  it('should throw for non-hex callData', () => {
+    const calls = [
+      {
+        target: TEST_ACCOUNT,
+        allowFailure: true,
+        callData: '0xzz',
+      },
+    ];
+
+    expect(() => encodeAggregate3(calls)).toThrow('invalid bytes value: 0xzz');
+  });
 });
 
 describe('decodeAggregate3Response', () => {
@@ -1049,6 +1136,243 @@ describe('decodeAggregate3Response', () => {
 
     expect(() => decodeAggregate3Response(mockResponse, 2)).toThrow(
       'Expected 2 results, got 1',
+    );
+  });
+
+  it('should throw for data without a 0x prefix', () => {
+    const mockResponse = buildMockAggregate3Response([
+      { success: true, balance: '100' },
+    ]);
+
+    expect(() =>
+      decodeAggregate3Response(mockResponse.slice(2) as Hex, 1),
+    ).toThrow(`invalid response data value: ${mockResponse.slice(2)}`);
+  });
+
+  it('should throw for a response with non-hex words', () => {
+    const garbage = `0x${'z'.repeat(64)}`;
+
+    expect(() => decodeAggregate3Response(garbage as Hex, 0)).toThrow(
+      'aggregate3 response contains a non-hex word',
+    );
+  });
+
+  it('should throw for a truncated response', () => {
+    const mockResponse = buildMockAggregate3Response([
+      { success: true, balance: '100' },
+    ]);
+    // Cut off the final byte of the last returnData word.
+    const truncated = mockResponse.slice(0, -2) as Hex;
+
+    expect(() => decodeAggregate3Response(truncated, 1)).toThrow(
+      'aggregate3 response data length out-of-bounds',
+    );
+  });
+
+  it('should return lowercased returnData for a mixed-case response', () => {
+    const mockResponse = buildMockAggregate3Response([
+      { success: true, balance: '100' },
+    ]);
+
+    const result = decodeAggregate3Response(
+      `0x${mockResponse.slice(2).toUpperCase()}`,
+      1,
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].success).toBe(true);
+    expect(result[0].returnData).toMatch(/^0x[0-9a-f]*$/u);
+  });
+});
+
+describe('aggregate3 codec variants', () => {
+  const variants: Aggregate3CodecVariant[] = ['handrolled', 'viem', 'ethers'];
+
+  const referenceInterface = new Interface([
+    'function aggregate3((address target, bool allowFailure, bytes callData)[] calls) payable returns ((bool success, bytes returnData)[])',
+    'function balanceOf(address account) view returns (uint256)',
+  ]);
+
+  const sampleCalls = [
+    {
+      target: TEST_TOKEN_1,
+      allowFailure: false,
+      callData:
+        '0x70a082310000000000000000000000001234567890123456789012345678901234567890' as Hex,
+    },
+    {
+      target: TEST_TOKEN_2,
+      allowFailure: true,
+      callData: '0x' as Hex,
+    },
+    {
+      target: ZERO_ADDRESS,
+      allowFailure: false,
+      callData: '0x82ad56cb' as Hex,
+    },
+    {
+      target: '0x1111111111111111111111111111111111111111' as Address,
+      allowFailure: true,
+      callData: `0x${'ab'.repeat(33)}`,
+    },
+  ];
+
+  const edgeCallSets = [
+    [],
+    [{ target: ZERO_ADDRESS, allowFailure: true, callData: '0x' as Hex }],
+    [
+      {
+        target: '0x2222222222222222222222222222222222222222' as Address,
+        allowFailure: false,
+        callData: '0xab' as Hex,
+      },
+    ],
+  ];
+
+  it.each(variants)(
+    '%s: encodes byte-identically to the Ethers reference',
+    (variant) => {
+      const codec = getAggregate3Codec(variant);
+      const expected = referenceInterface.encodeFunctionData('aggregate3', [
+        sampleCalls,
+      ]);
+      expect(codec.encodeAggregate3(sampleCalls)).toBe(expected);
+    },
+  );
+
+  it.each(variants)(
+    '%s: encodes edge shapes byte-identically to the Ethers reference',
+    (variant) => {
+      const codec = getAggregate3Codec(variant);
+      for (const calls of edgeCallSets) {
+        const expected = referenceInterface.encodeFunctionData('aggregate3', [
+          calls,
+        ]);
+        expect(codec.encodeAggregate3(calls)).toBe(expected);
+      }
+    },
+  );
+
+  it.each(variants)(
+    '%s: decodes responses identically to the Ethers reference',
+    (variant: Aggregate3CodecVariant): void => {
+      const codec = getAggregate3Codec(variant);
+      const tuples: [boolean, string][] = [
+        [true, `0x${'ab'.repeat(32)}`],
+        [false, '0x'],
+        [true, `0x${'cd'.repeat(31)}`],
+        [true, `0x${'ef'.repeat(100)}`],
+        [true, `0x${'12'.repeat(64)}`],
+      ];
+      const response = defaultAbiCoder.encode(
+        ['(bool success, bytes returnData)[]'],
+        [tuples],
+      );
+
+      const decoded = codec.decodeAggregate3Response(response as Hex, 5);
+      const reference = referenceInterface.decodeFunctionResult(
+        'aggregate3',
+        response,
+      )[0] as { success: boolean; returnData: string }[];
+
+      expect(decoded).toHaveLength(reference.length);
+      for (let i = 0; i < decoded.length; i++) {
+        expect(decoded[i].success).toBe(reference[i].success);
+        expect(decoded[i].returnData.toLowerCase()).toBe(
+          reference[i].returnData.toLowerCase(),
+        );
+      }
+    },
+  );
+
+  it.each(variants)(
+    '%s: throws the count-mismatch error on wrong result count',
+    (variant) => {
+      const codec = getAggregate3Codec(variant);
+      const response = defaultAbiCoder.encode(
+        ['(bool success, bytes returnData)[]'],
+        [[[true, '0x']]],
+      );
+      expect(() => codec.decodeAggregate3Response(response as Hex, 2)).toThrow(
+        'Expected 2 results, got 1',
+      );
+    },
+  );
+
+  it.each(variants)(
+    '%s: decodes uint256 balances identically to the Ethers reference',
+    (variant: Aggregate3CodecVariant): void => {
+      const codec = getAggregate3Codec(variant);
+      const words = [
+        `0x${'0'.repeat(64)}`,
+        `0x${BigInt(123456789012345).toString(16).padStart(64, '0')}`,
+        `0x${'f'.repeat(64)}`,
+      ];
+      for (const word of words) {
+        const reference = (
+          referenceInterface.decodeFunctionResult('balanceOf', word)[0] as {
+            toString(): string;
+          }
+        ).toString();
+        expect(codec.decodeUint256(word as Hex)).toBe(reference);
+      }
+      // Empty and too-short inputs are treated as zero by every variant.
+      expect(codec.decodeUint256('0x')).toBe('0');
+      expect(codec.decodeUint256('0x1234')).toBe('0');
+    },
+  );
+
+  it('setAggregate3CodecVariant switches the active codec', () => {
+    const initial = getActiveAggregate3Codec();
+    setAggregate3CodecVariant('viem');
+    try {
+      expect(getActiveAggregate3Codec()).toBe(getAggregate3Codec('viem'));
+    } finally {
+      setAggregate3CodecVariant('handrolled');
+      expect(getActiveAggregate3Codec()).toBe(initial);
+    }
+  });
+
+  describe('MulticallClient codec injection', () => {
+    const buildRequests = (): BalanceOfRequest[] => [
+      { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
+      { tokenAddress: TEST_TOKEN_2, accountAddress: TEST_ACCOUNT },
+    ];
+
+    it.each(variants)(
+      'produces identical responses through the full client path with the %s codec',
+      async (variant: Aggregate3CodecVariant): Promise<void> => {
+        const codec = getAggregate3Codec(variant);
+
+        const mockResponse = buildMockAggregate3Response([
+          { success: true, balance: '1000000000' },
+          { success: true, balance: '2000000000' },
+        ]);
+
+        const provider = createMockProvider();
+        provider.call.mockResolvedValue(mockResponse);
+
+        const result = await new MulticallClient({
+          getProvider: (): Provider => provider,
+          getMulticall3AddressForChain: (): undefined => undefined,
+          aggregate3Codec: codec,
+        }).batchBalanceOf(MAINNET_CHAIN_ID, buildRequests());
+
+        expect(result).toStrictEqual([
+          {
+            tokenAddress: TEST_TOKEN_1,
+            accountAddress: TEST_ACCOUNT,
+            success: true,
+            balance: '1000000000',
+          },
+          {
+            tokenAddress: TEST_TOKEN_2,
+            accountAddress: TEST_ACCOUNT,
+            success: true,
+            balance: '2000000000',
+          },
+        ]);
+      },
     );
   });
 });

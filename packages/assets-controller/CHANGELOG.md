@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added an experimental aggregate3 codec selection API for `MulticallClient`: `setAggregate3CodecVariant`, `getAggregate3Codec`, and `getActiveAggregate3Codec` (exported from `@metamask/assets-controller`), plus an optional `aggregate3Codec` client option, allowing consumers to switch the Multicall3 batch codec between the hand-rolled default, viem, and stock Ethers implementations. Intended for on-device performance comparison; the default remains the hand-rolled codec ([#11010](https://github.com/MetaMask/core/pull/11010))
+
 ### Changed
 
+- Replaced the generic Ethers ABI encoding/decoding used by `MulticallClient` for Multicall3 `aggregate3` batches with hand-rolled fixed-layout codecs: `encodeAggregate3` and `decodeAggregate3Response` now build and parse calldata/responses with direct string operations (and `decodeUint256` with native `BigInt`), producing byte-identical output to Ethers with matching error behavior for malformed data and result-count mismatches, while making 300-call multicall batches roughly 44× faster to encode/decode on Hermes (React Native) runtimes ([#11010](https://github.com/MetaMask/core/pull/11010))
 - Bump `@metamask/account-tree-controller` from `^11.0.1` to `^11.1.1` ([#10891](https://github.com/MetaMask/core/pull/10891), [#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/assets-controllers` from `^112.1.2` to `^112.1.3` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))

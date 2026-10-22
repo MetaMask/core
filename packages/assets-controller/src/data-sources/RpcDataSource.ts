@@ -48,6 +48,7 @@ import type {
 } from './AbstractDataSource.js';
 import {
   BalanceFetcher,
+  getActiveAggregate3Codec,
   isStakingContractAssetId,
   MulticallClient,
   TokenDetector,
@@ -304,6 +305,7 @@ export class RpcDataSource extends AbstractDataSource<
             hexToNumber(hexChainId).toString(),
           ),
         )?.contracts?.multicall3,
+      aggregate3Codec: getActiveAggregate3Codec(),
     });
 
     // Initialize BalanceFetcher with polling interval
