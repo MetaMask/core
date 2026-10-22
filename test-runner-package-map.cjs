@@ -35,7 +35,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/network-connection-banner-controller',
   '@metamask/network-controller',
   '@metamask/network-enablement-controller',
-  '@metamask/notification-services-controller',
   '@metamask/permission-controller',
   '@metamask/permission-log-controller',
   '@metamask/perps-controller',

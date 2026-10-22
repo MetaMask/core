@@ -3689,19 +3689,6 @@
       "count": 1
     }
   },
-  "packages/notification-services-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/jest.environment.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "node/global-require": {
-      "count": 1
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
     "id-length": {
       "count": 1
@@ -3710,18 +3697,13 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 9
+      "count": 6
     },
     "typescript/no-unsafe-call": {
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
       "count": 3
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/processors/process-notifications.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
     }
   },
   "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.ts": {
@@ -3745,20 +3727,9 @@
       "count": 1
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesPushController/NotificationServicesPushController.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesPushController/web/push-utils.test.ts": {
-    "no-import-assign": {
-      "count": 3
-    },
     "no-undef": {
       "count": 3
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
     }
   },
   "packages/notification-services-controller/src/NotificationServicesPushController/web/push-utils.ts": {
