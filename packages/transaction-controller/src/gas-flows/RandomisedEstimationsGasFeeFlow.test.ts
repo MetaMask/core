@@ -1,6 +1,7 @@
 import { toHex } from '@metamask/controller-utils';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
@@ -21,12 +22,12 @@ import {
   randomiseDecimalGWEIAndConvertToHex,
 } from './RandomisedEstimationsGasFeeFlow.js';
 
-jest.mock('./DefaultGasFeeFlow');
-jest.mock('../utils/feature-flags');
+vi.mock('./DefaultGasFeeFlow');
+vi.mock('../utils/feature-flags');
 
 // Mock Math.random to return predictable values
 const originalRandom = global.Math.random;
-jest.spyOn(global.Math, 'random').mockReturnValue(0.5);
+vi.spyOn(global.Math, 'random').mockReturnValue(0.5);
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',
@@ -68,13 +69,12 @@ const DEFAULT_GAS_PRICE_RESPONSE: GasPriceGasFeeEstimates = {
 };
 
 describe('RandomisedEstimationsGasFeeFlow', () => {
-  const getGasFeeRandomisationMock = jest.mocked(getGasFeeRandomisation);
+  const getGasFeeRandomisationMock = vi.mocked(getGasFeeRandomisation);
 
   beforeEach(() => {
-    jest.resetAllMocks();
-    jest
-      .mocked(DefaultGasFeeFlow.prototype.getGasFees)
-      .mockImplementation(async (request) => {
+    vi.resetAllMocks();
+    vi.mocked(DefaultGasFeeFlow.prototype.getGasFees).mockImplementation(
+      async (request) => {
         const { gasFeeControllerData } = request;
         if (
           gasFeeControllerData.gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET
@@ -86,7 +86,8 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
           return { estimates: DEFAULT_LEGACY_RESPONSE };
         }
         return { estimates: DEFAULT_GAS_PRICE_RESPONSE };
-      });
+      },
+    );
 
     getGasFeeRandomisationMock.mockReturnValue({
       randomisedGasFeeDigits: {
@@ -218,13 +219,13 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
           [GasFeeEstimateLevel.High]: toHex(5e9),
         } as LegacyGasFeeEstimates;
 
-        jest
-          .mocked(DefaultGasFeeFlow.prototype.getGasFees)
-          .mockImplementationOnce(async () => {
-            return {
-              estimates: defaultLegacyEstimates,
-            };
-          });
+        vi.mocked(
+          DefaultGasFeeFlow.prototype.getGasFees,
+        ).mockImplementationOnce(async () => {
+          return {
+            estimates: defaultLegacyEstimates,
+          };
+        });
 
         const flow = new RandomisedEstimationsGasFeeFlow();
 
@@ -252,13 +253,13 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
         gasPrice: toHex(200000),
       } as GasPriceGasFeeEstimates;
 
-      jest
-        .mocked(DefaultGasFeeFlow.prototype.getGasFees)
-        .mockImplementationOnce(async () => {
+      vi.mocked(DefaultGasFeeFlow.prototype.getGasFees).mockImplementationOnce(
+        async () => {
           return {
             estimates: defaultGasPriceEstimates,
           };
-        });
+        },
+      );
 
       const flow = new RandomisedEstimationsGasFeeFlow();
 
@@ -283,7 +284,7 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       const flow = new RandomisedEstimationsGasFeeFlow();
 
       // Mock Math.random to throw an error
-      jest.spyOn(global.Math, 'random').mockImplementation(() => {
+      vi.spyOn(global.Math, 'random').mockImplementation(() => {
         throw new Error('Random error');
       });
 
@@ -334,7 +335,9 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
       };
 
       // Capture the error in a spy so we can verify default flow was called
-      const spy = jest.spyOn(console, 'error').mockImplementation();
+      const spy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       const result = await flow.getGasFees(request);
 
@@ -349,11 +352,11 @@ describe('RandomisedEstimationsGasFeeFlow', () => {
 
 describe('randomiseDecimalGWEIAndConvertToHex', () => {
   beforeEach(() => {
-    jest.spyOn(global.Math, 'random').mockReturnValue(0.5);
+    vi.spyOn(global.Math, 'random').mockReturnValue(0.5);
   });
 
   afterEach(() => {
-    jest.spyOn(global.Math, 'random').mockRestore();
+    vi.spyOn(global.Math, 'random').mockRestore();
   });
 
   it('randomizes the last digits while preserving the significant digits', () => {
@@ -373,7 +376,7 @@ describe('randomiseDecimalGWEIAndConvertToHex', () => {
 
   it('ensures randomized value is never below original value', () => {
     // Test with Math.random = 0 (lowest possible random value)
-    jest.spyOn(global.Math, 'random').mockReturnValue(0);
+    vi.spyOn(global.Math, 'random').mockReturnValue(0);
 
     // Test with a value that has non-zero ending digits
     const result = randomiseDecimalGWEIAndConvertToHex('5.000500123', 3, 2);
@@ -388,7 +391,7 @@ describe('randomiseDecimalGWEIAndConvertToHex', () => {
 
   it('randomizes up to but not exceeding the specified number of digits', () => {
     // Set Math.random to return almost 1
-    jest.spyOn(global.Math, 'random').mockReturnValue(0.999);
+    vi.spyOn(global.Math, 'random').mockReturnValue(0.999);
 
     const result = randomiseDecimalGWEIAndConvertToHex('5', 3, 2);
     const resultWei = parseInt(result.slice(2), 16);

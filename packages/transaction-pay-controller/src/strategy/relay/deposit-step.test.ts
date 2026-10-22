@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { getRelayDepositData, hasRelayDepositStep } from './deposit-step.js';
 import type { RelayQuote } from './types.js';
 

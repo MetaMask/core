@@ -5,7 +5,6 @@ const { workspaces } = require('./package.json');
 
 // Do not add to this list: new packages are expected to use Vitest.
 const PACKAGES_ON_JEST = new Set([
-  '@metamask/address-book-controller',
   '@metamask/advanced-chart-core',
   '@metamask/analytics-controller',
   '@metamask/analytics-data-regulation-controller',
@@ -27,16 +26,12 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/eth-json-rpc-middleware',
   '@metamask/eth-json-rpc-provider',
   '@metamask/foundryup',
-  '@metamask/gas-fee-controller',
   '@metamask/geolocation-controller',
   '@metamask/java-tron-up',
   '@metamask/json-rpc-engine',
   '@metamask/json-rpc-middleware-stream',
   '@metamask/local-node-utils',
-  '@metamask/logging-controller',
-  '@metamask/message-manager',
   '@metamask/multichain-api-middleware',
-  '@metamask/name-controller',
   '@metamask/network-controller',
   '@metamask/network-enablement-controller',
   '@metamask/notification-services-controller',
@@ -46,15 +41,9 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/profile-metrics-controller',
   '@metamask/remote-feature-flag-controller',
   '@metamask/selected-network-controller',
-  '@metamask/sentinel-api-service',
-  '@metamask/signature-controller',
-  '@metamask/smart-transactions-controller',
   '@metamask/solana-test-validator-up',
   '@metamask/stellar-quickstart-up',
   '@metamask/storage-service',
-  '@metamask/transaction-controller',
-  '@metamask/transaction-pay-controller',
-  '@metamask/transaction-pay-middleware',
   '@metamask/wallet-cli',
 ]);
 

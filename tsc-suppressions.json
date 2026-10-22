@@ -1062,9 +1062,6 @@
     }
   },
   "packages/transaction-controller/src/utils/batch.test.ts": {
-    "TS2322": {
-      "count": 1
-    },
     "TS2345": {
       "count": 2
     }
@@ -1210,9 +1207,6 @@
   "packages/transaction-pay-controller/src/strategy/relay/relay-validation.test.ts": {
     "TS2352": {
       "count": 4
-    },
-    "TS2835": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/ServerStrategy.test.ts": {

@@ -5,6 +5,8 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import type { TransactionPayQuote } from '../../types.js';
@@ -21,7 +23,7 @@ import {
 } from './relay-submit-execute.js';
 import type { RelayQuote } from './types.js';
 
-jest.mock('../../utils/feature-flags');
+vi.mock(import('../../utils/feature-flags.js'));
 
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const REQUEST_ID_MOCK = '0x1234567890abcdef';
@@ -100,9 +102,9 @@ const FEATURE_FLAGS_MOCK = {
 } as FeatureFlags;
 
 describe('Relay Submit Execute', () => {
-  const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
-  const getRelayPollingIntervalMock = jest.mocked(getRelayPollingInterval);
-  const getRelayPollingTimeoutMock = jest.mocked(getRelayPollingTimeout);
+  const getFeatureFlagsMock = vi.mocked(getFeatureFlags);
+  const getRelayPollingIntervalMock = vi.mocked(getRelayPollingInterval);
+  const getRelayPollingTimeoutMock = vi.mocked(getRelayPollingTimeout);
 
   const {
     getDelegationTransactionMock,
@@ -110,15 +112,15 @@ describe('Relay Submit Execute', () => {
     messenger,
   } = getMessengerMock();
 
-  let successfulFetchMock: jest.SpyInstance;
+  let successfulFetchMock: MockInstance;
   let quote: TransactionPayQuote<RelayQuote>;
   let transaction: TransactionMeta;
   let allParams: TransactionParams[];
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
-    successfulFetchMock = jest.spyOn(global, 'fetch');
+    successfulFetchMock = vi.spyOn(global, 'fetch');
 
     getRelayPollingIntervalMock.mockReturnValue(1);
     getRelayPollingTimeoutMock.mockReturnValue(undefined);
