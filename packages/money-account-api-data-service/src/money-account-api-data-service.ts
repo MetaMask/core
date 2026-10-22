@@ -34,6 +34,7 @@ import type {
   PositionResponse,
   RateHistoryResponse,
   VaultRateResponse,
+  VbaTransfersResponse,
 } from './response.types.js';
 import {
   HistoryResponseStruct,
@@ -41,6 +42,9 @@ import {
   PositionResponseStruct,
   RateHistoryResponseStruct,
   VaultRateResponseStruct,
+  VbaSiweChallengeResponseStruct,
+  VbaSiweSessionResponseStruct,
+  VbaTransfersResponseStruct,
 } from './structs.js';
 import type {
   HistoryOptions,
@@ -48,6 +52,7 @@ import type {
   RateHistoryOptions,
   FetchPositionsOptions,
   VaultRateOptions,
+  FetchVbaTransfersOptions,
 } from './types.js';
 
 // === GENERAL ===
@@ -93,6 +98,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchHistory',
   'fetchRateHistory',
   'fetchVaultRate',
+  'fetchVbaTransfers',
 ] as const;
 
 /**
@@ -116,7 +122,14 @@ type AuthenticationControllerGetBearerTokenAction = {
   handler: (entropySourceId?: string) => Promise<string>;
 };
 
-type AllowedActions = AuthenticationControllerGetBearerTokenAction;
+type KeyringControllerSignPersonalMessageAction = {
+  type: 'KeyringController:signPersonalMessage';
+  handler: (messageParams: { data: string; from: string }) => Promise<string>;
+};
+
+type AllowedActions =
+  | AuthenticationControllerGetBearerTokenAction
+  | KeyringControllerSignPersonalMessageAction;
 
 /**
  * Published when {@link MoneyAccountApiDataService}'s cache is updated.
@@ -177,6 +190,11 @@ export class MoneyAccountApiDataService extends BaseDataService<
 
   readonly #trace: MoneyAccountApiDataServiceTraceCallback;
 
+  readonly #siweSessions = new Map<
+    string,
+    { token: string; expiresAt: number }
+  >();
+
   /**
    * Constructs a new MoneyAccountApiDataService.
    *
@@ -203,7 +221,10 @@ export class MoneyAccountApiDataService extends BaseDataService<
         retryFilterPolicy: handleWhen(
           (error) =>
             !(error instanceof MoneyAccountApiResponseValidationError) &&
-            !(error instanceof HttpError && error.httpStatus === 403),
+            !(
+              error instanceof HttpError &&
+              [401, 403].includes(error.httpStatus)
+            ),
         ),
         ...policyOptions,
       },
@@ -634,6 +655,125 @@ export class MoneyAccountApiDataService extends BaseDataService<
         );
       },
     });
+  }
+
+  /**
+   * Fetches current VBA transfers for the wallet authenticated via SIWE.
+   *
+   * @param options - The wallet address to authenticate.
+   * @returns Current transfers belonging to the authenticated wallet.
+   */
+  async fetchVbaTransfers({
+    address,
+  }: FetchVbaTransfersOptions): Promise<VbaTransfersResponse> {
+    const normalizedAddress = address.toLowerCase();
+
+    return this.fetchQuery({
+      queryKey: [`${this.name}:fetchVbaTransfers`, normalizedAddress],
+      staleTime: 0,
+      queryFn: async () => {
+        let token = await this.#getSiweToken(normalizedAddress);
+        let response = await fetch(
+          new URL('/v1/vba/transfers', this.#baseUrl),
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+
+        if (response.status === 401) {
+          this.#siweSessions.delete(normalizedAddress);
+          token = await this.#getSiweToken(normalizedAddress);
+          response = await fetch(new URL('/v1/vba/transfers', this.#baseUrl), {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        }
+
+        if (!response.ok) {
+          throw await MoneyAccountApiHttpError.fromResponse(
+            response,
+            `Money Account API VBA transfers request failed with status '${response.status}'`,
+          );
+        }
+
+        const json: Json = await response.json();
+        const [error, validated] = validate(json, VbaTransfersResponseStruct);
+        if (error) {
+          throw new MoneyAccountApiResponseValidationError(
+            `Malformed response from VBA transfers endpoint: ${error.message}`,
+          );
+        }
+
+        return validated;
+      },
+    });
+  }
+
+  async #getSiweToken(normalizedAddress: string): Promise<string> {
+    const cachedSession = this.#siweSessions.get(normalizedAddress);
+    if (cachedSession && cachedSession.expiresAt > Date.now()) {
+      return cachedSession.token;
+    }
+    this.#siweSessions.delete(normalizedAddress);
+
+    const challengeResponse = await fetch(
+      new URL('/v1/vba/auth/challenge', this.#baseUrl),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: normalizedAddress }),
+      },
+    );
+    if (!challengeResponse.ok) {
+      throw await MoneyAccountApiHttpError.fromResponse(
+        challengeResponse,
+        `Money Account API VBA SIWE challenge failed with status '${challengeResponse.status}'`,
+      );
+    }
+
+    const challengeJson: Json = await challengeResponse.json();
+    const [challengeError, challenge] = validate(
+      challengeJson,
+      VbaSiweChallengeResponseStruct,
+    );
+    if (challengeError) {
+      throw new MoneyAccountApiResponseValidationError(
+        `Malformed response from VBA SIWE challenge endpoint: ${challengeError.message}`,
+      );
+    }
+
+    const signature = await this.messenger.call(
+      'KeyringController:signPersonalMessage',
+      { data: challenge.message, from: normalizedAddress },
+    );
+    const verifyResponse = await fetch(
+      new URL('/v1/vba/auth/verify', this.#baseUrl),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: challenge.message, signature }),
+      },
+    );
+    if (!verifyResponse.ok) {
+      throw await MoneyAccountApiHttpError.fromResponse(
+        verifyResponse,
+        `Money Account API VBA SIWE verification failed with status '${verifyResponse.status}'`,
+      );
+    }
+
+    const sessionJson: Json = await verifyResponse.json();
+    const [sessionError, session] = validate(
+      sessionJson,
+      VbaSiweSessionResponseStruct,
+    );
+    if (sessionError) {
+      throw new MoneyAccountApiResponseValidationError(
+        `Malformed response from VBA SIWE verification endpoint: ${sessionError.message}`,
+      );
+    }
+
+    this.#siweSessions.set(normalizedAddress, {
+      token: session.access_token,
+      expiresAt: Date.now() + session.expires_in * 1000,
+    });
+    return session.access_token;
   }
 
   /**

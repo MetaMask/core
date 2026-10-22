@@ -80,6 +80,17 @@ export type MoneyAccountApiDataServiceFetchVaultRateAction = {
 };
 
 /**
+ * Fetches current VBA transfers for the wallet authenticated via SIWE.
+ *
+ * @param options - The wallet address to authenticate.
+ * @returns Current transfers belonging to the authenticated wallet.
+ */
+export type MoneyAccountApiDataServiceFetchVbaTransfersAction = {
+  type: `MoneyAccountApiDataService:fetchVbaTransfers`;
+  handler: MoneyAccountApiDataService['fetchVbaTransfers'];
+};
+
+/**
  * Union of all MoneyAccountApiDataService action types.
  */
 export type MoneyAccountApiDataServiceMethodActions =
@@ -87,4 +98,5 @@ export type MoneyAccountApiDataServiceMethodActions =
   | MoneyAccountApiDataServiceFetchInterestAction
   | MoneyAccountApiDataServiceFetchHistoryAction
   | MoneyAccountApiDataServiceFetchRateHistoryAction
-  | MoneyAccountApiDataServiceFetchVaultRateAction;
+  | MoneyAccountApiDataServiceFetchVaultRateAction
+  | MoneyAccountApiDataServiceFetchVbaTransfersAction;

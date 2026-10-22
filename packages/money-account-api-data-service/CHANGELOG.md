@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add SIWE-authenticated `fetchVbaTransfers` and `MoneyAccountApiDataService:fetchVbaTransfers` to read current VBA transfers for a wallet, with wallet-scoped in-memory sessions ([MUSD-1483](https://consensyssoftware.atlassian.net/browse/MUSD-1483))
+
 ## [2.2.0]
 
 ### Added
