@@ -1,4 +1,4 @@
-import { assertExhaustive, getErrorMessage } from '@metamask/utils';
+import { getErrorMessage } from '@metamask/error-utils';
 import * as path from 'node:path';
 
 import type { SourceInfo } from './parse-source.js';
@@ -88,7 +88,7 @@ function getFormatter(
       return oxfmt;
 
     default:
-      return assertExhaustive(formatter);
+      throw new Error(`Unsupported formatter: "${String(formatter)}".`);
   }
 }
 
