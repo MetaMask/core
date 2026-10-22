@@ -1025,9 +1025,9 @@ describe('MoneyAccountController', () => {
         });
         const mpcKeyring = keyringEntries[1]
           .keyring as unknown as MockMpcKeyring;
-        vi
-          .spyOn(mpcKeyring, 'setup')
-          .mockRejectedValue(new Error('MPC setup failure'));
+        vi.spyOn(mpcKeyring, 'setup').mockRejectedValue(
+          new Error('MPC setup failure'),
+        );
 
         await expect(
           controller.createMoneyAccount({ type: 'mpc' }),
@@ -1076,9 +1076,9 @@ describe('MoneyAccountController', () => {
         const [account] = await keyringV2.createAccounts({
           type: 'custom',
         });
-        vi
-          .spyOn(keyringV2, 'createAccounts')
-          .mockResolvedValue([{ ...account, options: {} }]);
+        vi.spyOn(keyringV2, 'createAccounts').mockResolvedValue([
+          { ...account, options: {} },
+        ]);
 
         await expect(
           controller.createMoneyAccount({ type: 'mpc' }),
