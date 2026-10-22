@@ -383,9 +383,8 @@ describe('AccountService', () => {
       });
 
       const withdrawalCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock<
-          void,
-          [PerpsAnalyticsEvent, Record<string, unknown>]
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
         >
       ).mock.calls.filter(
         (call) => call[0] === PerpsAnalyticsEvent.WithdrawalTransaction,
