@@ -32,7 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Register the Money Account address through `MoneyAccountUpgradeController:upgradeAccount` when it is not registered with CHOMP and is either `notInIdentity` or a valid `sfa`, then refresh its registration status
     - A `migrating` Money Account is never registered, because CHOMP freezes it once it is linked to a successor
     - Failed registrations are reported through the messenger's `captureException` and retried on the next fetch
-  - Call `MoneyAccountController:useMpcKeyring` with the Money Account address and its successor `currentAddress` when the Money Account is a valid MFA, after each fetch and whenever the recorded lifecycle changes
+  - Call `MoneyAccountController:setDefaultMoneyAccount` with the MPC money account when the Money Account is a valid MFA, after each fetch and whenever `MoneyAccountController` state changes
+    - Only applies once the MPC money account exists and its address is the identity's successor `currentAddress`; the lifecycle controller never creates it
   - Add `AddressRegistration`, `MoneyAccountIdentity`, `MoneyAccountLifecycle`, `MoneyAccountLifecycleControllerActions`, `MoneyAccountLifecycleControllerEvents`, `MoneyAccountLifecycleControllerGetMoneyAccountIdentityAction`, `MoneyAccountLifecycleControllerGetStateAction`, `MoneyAccountLifecycleControllerHooks`, `MoneyAccountLifecycleControllerInitAction`, `MoneyAccountLifecycleControllerMessenger`, `MoneyAccountLifecycleControllerStartMigrationAction`, `MoneyAccountLifecycleControllerState`, and `MoneyAccountLifecycleControllerStateChangedEvent` types
 
 [Unreleased]: https://github.com/MetaMask/core/
