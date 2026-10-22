@@ -9,7 +9,12 @@ import {
   handleWhen,
 } from '@metamask/controller-utils';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
-import { Duration, getErrorMessage, hasProperty } from '@metamask/utils';
+import {
+  Duration,
+  createDeferredPromise,
+  getErrorMessage,
+  hasProperty,
+} from '@metamask/utils';
 import type {
   Json,
   JsonRpcParams,
@@ -63,6 +68,12 @@ export type RpcServiceOptions = {
    */
   fetchOptions?: FetchOptions;
   /**
+   * Maximum duration in milliseconds of each HTTP attempt, including reading
+   * its response body. Defaults to 5 seconds. Retries and backoff can make a
+   * complete RPC request take longer than this duration.
+   */
+  requestTimeout?: number;
+  /**
    * A `loglevel` logger.
    */
   logger?: Pick<Logger, 'warn'>;
@@ -81,6 +92,11 @@ export type RpcServiceOptions = {
    */
   isOffline: () => boolean;
 };
+
+/**
+ * The default timeout in milliseconds for each HTTP attempt.
+ */
+export const DEFAULT_REQUEST_TIMEOUT = 5_000;
 
 const log = createModuleLogger(projectLogger, 'RpcService');
 
@@ -361,6 +377,11 @@ export class RpcService {
   readonly #fetchOptions: FetchOptions;
 
   /**
+   * The maximum duration of each HTTP attempt, including reading its body.
+   */
+  readonly #requestTimeout: number;
+
+  /**
    * A `loglevel` logger.
    */
   readonly #logger: RpcServiceOptions['logger'];
@@ -382,10 +403,21 @@ export class RpcService {
       fetch: givenFetch,
       logger,
       fetchOptions = {},
+      requestTimeout = DEFAULT_REQUEST_TIMEOUT,
       policyOptions = {},
       isOffline,
     } = options;
 
+    if (
+      !Number.isFinite(requestTimeout) ||
+      requestTimeout <= 0 ||
+      requestTimeout > 2 ** 31 - 1
+    ) {
+      throw new RangeError(
+        'requestTimeout must be between 0 (exclusive) and 2147483647 milliseconds.',
+      );
+    }
+    this.#requestTimeout = requestTimeout;
     this.#fetch = givenFetch;
     const normalizedUrl = getNormalizedEndpointUrl(endpointUrl);
     this.#fetchOptions = this.#getDefaultFetchOptions(
@@ -627,9 +659,13 @@ export class RpcService {
     if (endpointUrl.username && endpointUrl.password) {
       const authString = `${endpointUrl.username}:${endpointUrl.password}`;
       const encodedCredentials = givenBtoa(authString);
-      return deepmerge(fetchOptions, {
-        headers: { Authorization: `Basic ${encodedCredentials}` },
-      });
+      return {
+        ...deepmerge(fetchOptions, {
+          headers: { Authorization: `Basic ${encodedCredentials}` },
+        }),
+        // AbortSignal must retain its identity rather than being deep-cloned.
+        signal: fetchOptions.signal,
+      };
     }
 
     return fetchOptions;
@@ -667,7 +703,15 @@ export class RpcService {
       params,
     });
 
-    return { ...mergedOptions, body };
+    return {
+      ...mergedOptions,
+      body,
+      // A request-level null signal explicitly clears the default signal.
+      signal:
+        fetchOptions.signal === undefined
+          ? this.#fetchOptions.signal
+          : fetchOptions.signal,
+    };
   }
 
   /**
@@ -687,7 +731,6 @@ export class RpcService {
     fetchOptions: FetchOptions,
     rpcMethodName: string,
   ): Promise<JsonRpcResponse<Result> | JsonRpcResponse<null>> {
-    let response: Response | undefined;
     try {
       log(
         `[${this.endpointUrl}] Circuit state`,
@@ -695,10 +738,28 @@ export class RpcService {
       );
       const jsonDecodedResponse = await this.#policy.execute(
         async (context) => {
-          // Reset response so that if this attempt throws before
-          // assigning a new response, the finally block does not read
-          // a stale response from a previous attempt.
-          response = undefined;
+          // Keep metadata local to this attempt so retries cannot reuse a
+          // previous response's trace ID.
+          const metadata: { traceId?: string | null } = {};
+          const { signal } = fetchOptions;
+          if (signal?.aborted) {
+            throw signal.reason;
+          }
+          const controller = new AbortController();
+          const cancellation = createDeferredPromise<never>();
+          const abortRequest = (): void => {
+            cancellation.reject(signal?.reason);
+            controller.abort(signal?.reason);
+          };
+          signal?.addEventListener('abort', abortRequest, { once: true });
+          const timeout = setTimeout(() => {
+            const error = Object.assign(new Error('RPC request timed out.'), {
+              code: 'ETIMEDOUT',
+            });
+            // Settle even if an injected fetch does not support cancellation.
+            cancellation.reject(error);
+            controller.abort(error);
+          }, this.#requestTimeout);
           try {
             log(
               'REQUEST INITIATED:',
@@ -709,17 +770,37 @@ export class RpcService {
               // ServicePolicy is just wrong.
               `(attempt ${context.attempt + 1})`,
             );
-            response = await this.#fetch(this.endpointUrl, fetchOptions);
-            if (!response.ok) {
-              throw new HttpError(response.status);
-            }
-            log(
-              'REQUEST SUCCESSFUL:',
-              this.endpointUrl.toString(),
-              response.status,
-            );
-            return await response.json();
+            return await Promise.race([
+              cancellation.promise,
+              (async (): Promise<
+                JsonRpcResponse<Result> | JsonRpcResponse<null>
+              > => {
+                const attemptResponse = await this.#fetch(this.endpointUrl, {
+                  ...fetchOptions,
+                  signal: controller.signal,
+                });
+                // A late response from an aborted attempt must not overwrite
+                // the response (and trace ID) of a subsequent retry.
+                if (controller.signal.aborted) {
+                  throw controller.signal.reason;
+                }
+                metadata.traceId = attemptResponse.headers.get('X-Trace-Id');
+                if (!attemptResponse.ok) {
+                  throw new HttpError(attemptResponse.status);
+                }
+                log(
+                  'REQUEST SUCCESSFUL:',
+                  this.endpointUrl.toString(),
+                  attemptResponse.status,
+                );
+                return (await attemptResponse.json()) as
+                  | JsonRpcResponse<Result>
+                  | JsonRpcResponse<null>;
+              })(),
+            ]);
           } finally {
+            clearTimeout(timeout);
+            signal?.removeEventListener('abort', abortRequest);
             // Track the RPC method and trace ID for the request that has just
             // taken place. We pass these properties to `onDegraded` event
             // listeners.
@@ -736,8 +817,7 @@ export class RpcService {
             // set before `onDegraded` gets called, no matter the outcome of
             // the request.
             this.#currentRpcMethodName = rpcMethodName;
-            this.#currentTraceId =
-              response?.headers.get('X-Trace-Id') ?? undefined;
+            this.#currentTraceId = metadata.traceId ?? undefined;
           }
         },
       );

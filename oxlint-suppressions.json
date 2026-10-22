@@ -3642,14 +3642,6 @@
       "count": 1
     }
   },
-  "packages/network-controller/src/rpc-service/rpc-service.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 2
-    }
-  },
   "packages/network-controller/tests/NetworkController.test.ts": {
     "jsdoc/require-returns": {
       "count": 1

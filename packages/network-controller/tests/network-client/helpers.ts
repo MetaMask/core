@@ -452,8 +452,10 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers<Type>(
 
   // `hasPromiseBeenFulfilled` is modified asynchronously.
   /* eslint-disable-next-line no-unmodified-loop-condition */
-  while (!hasPromiseBeenFulfilled && numTimesClockHasBeenAdvanced < 30) {
-    await jest.runAllTimersAsync();
+  while (!hasPromiseBeenFulfilled && numTimesClockHasBeenAdvanced < 300) {
+    // Give in-flight HTTP requests a chance to settle before their deadline,
+    // rather than draining request timeouts together with retry backoffs.
+    await jest.advanceTimersByTimeAsync(100);
     numTimesClockHasBeenAdvanced += 1;
   }
 

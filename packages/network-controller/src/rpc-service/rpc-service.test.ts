@@ -1096,6 +1096,7 @@ describe('RpcService', () => {
       const onDegradedListener = jest.fn();
       const service = new RpcService({
         fetch,
+        requestTimeout: 60_000,
         btoa,
         endpointUrl,
         isOffline: (): boolean => false,
@@ -1153,6 +1154,7 @@ describe('RpcService', () => {
       const onDegradedListener = jest.fn();
       const service = new RpcService({
         fetch,
+        requestTimeout: 60_000,
         btoa,
         endpointUrl,
         isOffline: (): boolean => false,
@@ -1221,6 +1223,7 @@ describe('RpcService', () => {
       const onDegradedListener = jest.fn();
       const service = new RpcService({
         fetch,
+        requestTimeout: 60_000,
         btoa,
         endpointUrl,
         isOffline: (): boolean => false,
@@ -1285,6 +1288,7 @@ describe('RpcService', () => {
       const onDegradedListener = jest.fn();
       const service = new RpcService({
         fetch,
+        requestTimeout: 60_000,
         btoa,
         endpointUrl,
         isOffline: (): boolean => false,
@@ -1378,6 +1382,7 @@ describe('RpcService', () => {
       const onAvailableListener = jest.fn();
       const service = new RpcService({
         fetch,
+        requestTimeout: 60_000,
         btoa,
         endpointUrl,
         isOffline: (): boolean => false,
