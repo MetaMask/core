@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "37.1.0",
+  "version": "37.1.1",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "Ethereum",
@@ -39,10 +39,10 @@
     "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/network-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-controller",
-    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
-    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
-    "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
-    "messenger-action-types:generate": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --generate",
+    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
+    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
+    "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
+    "messenger-action-types:generate": "node --import ../../scripts/resolver/register.ts ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "yarn test:unit && yarn test:types",
     "test:clean": "yarn test:unit:clean && yarn test:types",
@@ -61,7 +61,7 @@
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/eth-block-tracker": "^16.0.0",
     "@metamask/eth-json-rpc-infura": "^10.3.0",
-    "@metamask/eth-json-rpc-middleware": "^25.0.0",
+    "@metamask/eth-json-rpc-middleware": "^26.0.0",
     "@metamask/eth-json-rpc-provider": "^7.0.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/json-rpc-engine": "^11.0.0",
@@ -103,6 +103,6 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
-    "node": "^22.14.0 || ^24"
+    "node": "^22.14.0 || ^24 || ^26"
   }
 }

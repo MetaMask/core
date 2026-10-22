@@ -332,13 +332,13 @@
       "path": "./packages/utils/tsconfig.build.json"
     },
     {
-      "path": "./packages/wallet-cli/tsconfig.build.json"
-    },
-    {
       "path": "./packages/wallet-framework-docs/tsconfig.build.json"
     },
     {
       "path": "./packages/wallet/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/watch-only-account-service/tsconfig.build.json"
     }
   ],
   "files": [],

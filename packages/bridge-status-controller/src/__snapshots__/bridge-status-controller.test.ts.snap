@@ -1,210 +1,6 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`BridgeStatusController constructor rehydrates the tx history state 1`] = `
-{
-  "bridgeTxMetaId1": {
-    "account": "0xaccount1",
-    "actionId": undefined,
-    "approvalTxId": undefined,
-    "attempts": undefined,
-    "batchId": undefined,
-    "completionTime": undefined,
-    "estimatedProcessingTimeInSeconds": 15,
-    "featureId": undefined,
-    "hasApprovalTx": false,
-    "initialDestAssetBalance": undefined,
-    "isStxEnabled": false,
-    "location": "Main View",
-    "originalTransactionId": "bridgeTxMetaId1",
-    "pricingData": {
-      "amountSent": "1.234",
-      "amountSentInUsd": undefined,
-      "quotedGasAmount": "1.234",
-      "quotedGasInUsd": "2.5778",
-      "quotedReturnInUsd": undefined,
-    },
-    "quote": {
-      "bridgeId": "lifi",
-      "bridges": [
-        "across",
-      ],
-      "destAsset": {
-        "address": "0x0000000000000000000000000000000000000000",
-        "assetId": "eip155:10/slip44:60",
-        "chainId": 10,
-        "coinKey": "ETH",
-        "decimals": 18,
-        "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-        "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-        "name": "ETH",
-        "priceUSD": "2478.63",
-        "symbol": "ETH",
-      },
-      "destChainId": 10,
-      "destTokenAmount": "990654755978612",
-      "feeData": {
-        "metabridge": {
-          "amount": "8750000000000",
-          "asset": {
-            "address": "0x0000000000000000000000000000000000000000",
-            "assetId": "eip155:42161/slip44:60",
-            "chainId": 42161,
-            "coinKey": "ETH",
-            "decimals": 18,
-            "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-            "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-            "name": "ETH",
-            "priceUSD": "2478.7",
-            "symbol": "ETH",
-          },
-        },
-      },
-      "minDestTokenAmount": "941000000000000",
-      "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
-      "srcAsset": {
-        "address": "0x0000000000000000000000000000000000000000",
-        "assetId": "eip155:42161/slip44:60",
-        "chainId": 42161,
-        "coinKey": "ETH",
-        "decimals": 18,
-        "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-        "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-        "name": "ETH",
-        "priceUSD": "2478.7",
-        "symbol": "ETH",
-      },
-      "srcChainId": 42161,
-      "srcTokenAmount": "991250000000000",
-      "steps": [
-        {
-          "action": "bridge",
-          "destAmount": "990654755978612",
-          "destAsset": {
-            "address": "0x0000000000000000000000000000000000000000",
-            "assetId": "eip155:10/slip44:60",
-            "chainId": 10,
-            "coinKey": "ETH",
-            "decimals": 18,
-            "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-            "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-            "name": "ETH",
-            "priceUSD": "2478.63",
-            "symbol": "ETH",
-          },
-          "destChainId": 10,
-          "protocol": {
-            "displayName": "Across",
-            "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
-            "name": "across",
-          },
-          "srcAmount": "991250000000000",
-          "srcAsset": {
-            "address": "0x0000000000000000000000000000000000000000",
-            "assetId": "eip155:42161/slip44:60",
-            "chainId": 42161,
-            "coinKey": "ETH",
-            "decimals": 18,
-            "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-            "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-            "name": "ETH",
-            "priceUSD": "2478.7",
-            "symbol": "ETH",
-          },
-          "srcChainId": 42161,
-        },
-      ],
-    },
-    "quoteId": undefined,
-    "slippagePercentage": 0,
-    "startTime": 1729964825189,
-    "status": {
-      "destChain": {
-        "chainId": 10,
-        "token": {},
-      },
-      "srcChain": {
-        "amount": "991250000000000",
-        "chainId": 42161,
-        "token": {
-          "address": "0x0000000000000000000000000000000000000000",
-          "chainId": 42161,
-          "coinKey": "ETH",
-          "decimals": 18,
-          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
-          "name": "ETH",
-          "priceUSD": "2518.47",
-          "symbol": "ETH",
-        },
-        "txHash": "0xsrcTxHash1",
-      },
-      "status": "PENDING",
-    },
-    "targetContractAddress": "0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC",
-    "txMetaId": "bridgeTxMetaId1",
-  },
-}
-`;
-
-exports[`BridgeStatusController constructor when history has no tx hash, has txMeta and is older than 2 days: provider tx receipt calls 1`] = `
-[
-  {
-    "method": "eth_getTransactionReceipt",
-    "params": [
-      "0xsrcTxHash3",
-    ],
-  },
-]
-`;
-
-exports[`BridgeStatusController constructor when history has no tx hash, no txMeta and is older than 2 days: provider tx receipt calls 1`] = `[]`;
-
-exports[`BridgeStatusController constructor when history has no txHash, no txMeta, provider returns no receipt and is older than 2 days: provider tx receipt calls 1`] = `[]`;
-
-exports[`BridgeStatusController constructor when history has no txHash, no txMeta, provider returns receipt and is older than 2 days: provider tx receipt calls 1`] = `[]`;
-
-exports[`BridgeStatusController constructor when history has no txHash, no txMeta, provider throws error and is older than 2 days: provider tx receipt calls 1`] = `[]`;
-
-exports[`BridgeStatusController constructor when history has solana srcChainId, no tx hash, no txMeta and is older than 2 days: provider tx receipt calls 1`] = `[]`;
-
-exports[`BridgeStatusController constructor when history has tx hash, no provider and is older than 2 days: provider tx receipt calls 1`] = `[]`;
-
-exports[`BridgeStatusController constructor when history has tx hash, provider returns no receipt and is older than 2 days: provider tx receipt calls 1`] = `
-[
-  {
-    "method": "eth_getTransactionReceipt",
-    "params": [
-      "0xsrcTxHash2",
-    ],
-  },
-]
-`;
-
-exports[`BridgeStatusController constructor when history has tx hash, provider returns receipt and is older than 2 days: provider tx receipt calls 1`] = `
-[
-  {
-    "method": "eth_getTransactionReceipt",
-    "params": [
-      "0xsrcTxHash2",
-    ],
-  },
-]
-`;
-
-exports[`BridgeStatusController constructor when history has tx hash, provider returns receipt, status is complete and is older than 2 days: provider tx receipt calls 1`] = `[]`;
-
-exports[`BridgeStatusController constructor when history has tx hash, provider throws error and is older than 2 days: provider tx receipt calls 1`] = `
-[
-  {
-    "method": "eth_getTransactionReceipt",
-    "params": [
-      "0xsrcTxHash2",
-    ],
-  },
-]
-`;
-
-exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransactionFailed event when the status response is failed 1`] = `
+exports[`BridgeStatusController > startPollingForBridgeTxStatus > emits bridgeTransactionFailed event when the status response is failed 1`] = `
 [
   [
     "AuthenticationController:getBearerToken",
@@ -263,7 +59,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus emits bridgeTransa
 ]
 `;
 
-exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx history state 1`] = `
+exports[`BridgeStatusController > startPollingForBridgeTxStatus > sets the inital tx history state 1`] = `
 {
   "bridgeTxMetaId1": {
     "account": "0xaccount1",
@@ -391,7 +187,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx
 }
 `;
 
-exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 1`] = `
+exports[`BridgeStatusController > startPollingForBridgeTxStatus > stops polling when the status response is complete 1`] = `
 [
   [
     "TransactionController:getState",
@@ -452,14 +248,14 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when
 ]
 `;
 
-exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when the status response is complete 2`] = `
+exports[`BridgeStatusController > startPollingForBridgeTxStatus > stops polling when the status response is complete 2`] = `
 [
   "BridgeStatusController:destinationTransactionCompleted",
   "eip155:10/slip44:60",
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting base approval 1`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should delay after submitting base approval 1`] = `
 {
   "actionId": "1111111111.223",
   "chainId": "0xa4b1",
@@ -483,7 +279,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting base approval 2`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should delay after submitting base approval 2`] = `
 {
   "account": "0xaccount1",
   "actionId": "1111111111.223",
@@ -609,7 +405,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting base approval 3`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should delay after submitting base approval 3`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -754,7 +550,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting base approval 4`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should delay after submitting base approval 4`] = `
 [
   [
     {
@@ -787,7 +583,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 1`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should delay after submitting linea approval 1`] = `
 {
   "actionId": "1111111111.223",
   "chainId": "0xa4b1",
@@ -811,7 +607,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 2`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should delay after submitting linea approval 2`] = `
 {
   "account": "0xaccount1",
   "actionId": "1111111111.223",
@@ -937,7 +733,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 3`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should delay after submitting linea approval 3`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -1082,7 +878,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should delay after submitting linea approval 4`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should delay after submitting linea approval 4`] = `
 [
   [
     {
@@ -1115,7 +911,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 1`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should handle smart transactions and include quotesReceivedContext 1`] = `
 {
   "actionId": "1111111111.223",
   "batchId": "batchId1",
@@ -1140,7 +936,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 2`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should handle smart transactions and include quotesReceivedContext 2`] = `
 {
   "account": "0xaccount1",
   "actionId": "1111111111.223",
@@ -1266,7 +1062,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 3`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should handle smart transactions and include quotesReceivedContext 3`] = `
 [
   [
     {
@@ -1303,7 +1099,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should handle smart transactions and include quotesReceivedContext 4`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should handle smart transactions and include quotesReceivedContext 4`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -1428,7 +1224,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 1`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should not call handleMobileHardwareWalletDelay on extension 1`] = `
 {
   "actionId": "1111111111.223",
   "chainId": "0xa4b1",
@@ -1452,7 +1248,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 2`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should not call handleMobileHardwareWalletDelay on extension 2`] = `
 {
   "account": "0xaccount1",
   "actionId": "1111111111.223",
@@ -1578,7 +1374,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 3`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should not call handleMobileHardwareWalletDelay on extension 3`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -1723,7 +1519,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay on extension 4`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should not call handleMobileHardwareWalletDelay on extension 4`] = `
 [
   [
     {
@@ -1756,7 +1552,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 1`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 1`] = `
 {
   "actionId": "1111111111.223",
   "chainId": "0xa4b1",
@@ -1780,7 +1576,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 2`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 2`] = `
 {
   "account": "0xaccount1",
   "actionId": "1111111111.223",
@@ -1906,7 +1702,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 3`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 3`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -2051,7 +1847,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 4`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should not call handleMobileHardwareWalletDelay with true for non-hardware wallet on mobile 4`] = `
 [
   [
     {
@@ -2084,7 +1880,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 1`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should reset USDT allowance 1`] = `
 {
   "actionId": "1111111111.223",
   "chainId": "0xa4b1",
@@ -2108,7 +1904,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 2`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should reset USDT allowance 2`] = `
 {
   "account": "0xaccount1",
   "actionId": "1111111111.223",
@@ -2234,7 +2030,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance 3`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should reset USDT allowance 3`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -2424,7 +2220,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 1`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should successfully submit an EVM bridge transaction with approval 1`] = `
 {
   "actionId": "1111111111.223",
   "chainId": "0xa4b1",
@@ -2448,7 +2244,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 2`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should successfully submit an EVM bridge transaction with approval 2`] = `
 {
   "account": "0xaccount1",
   "actionId": "1111111111.223",
@@ -2574,7 +2370,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with approval 3`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should successfully submit an EVM bridge transaction with approval 3`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -2719,7 +2515,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 1`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should successfully submit an EVM bridge transaction with no approval 1`] = `
 {
   "actionId": "1111111111.223",
   "chainId": "0xa4b1",
@@ -2743,7 +2539,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 2`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should successfully submit an EVM bridge transaction with no approval 2`] = `
 {
   "account": "0xaccount1",
   "actionId": "1111111111.223",
@@ -2869,7 +2665,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should successfully submit an EVM bridge transaction with no approval 3`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should successfully submit an EVM bridge transaction with no approval 3`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -2969,7 +2765,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx fails (after adding tx) 1`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should throw an error if approval tx fails (after adding tx) 1`] = `
 [
   [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3051,7 +2847,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx fails (before adding tx) 1`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should throw an error if approval tx fails (before adding tx) 1`] = `
 [
   [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -3133,7 +2929,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge should throw an error if approval tx meta does not exist 1`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > should throw an error if approval tx meta does not exist 1`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -3285,7 +3081,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should throw an error if ap
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confirmation before swap for hardware wallet on mobile 1`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > waits for approval tx confirmation before swap for hardware wallet on mobile 1`] = `
 {
   "actionId": "1111111111.223",
   "chainId": "0xa4b1",
@@ -3309,7 +3105,7 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confirmation before swap for hardware wallet on mobile 2`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > waits for approval tx confirmation before swap for hardware wallet on mobile 2`] = `
 {
   "account": "0xaccount1",
   "actionId": "1111111111.223",
@@ -3435,7 +3231,7 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confirmation before swap for hardware wallet on mobile 3`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > waits for approval tx confirmation before swap for hardware wallet on mobile 3`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -3580,7 +3376,7 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confirmation before swap for hardware wallet on mobile 4`] = `
+exports[`BridgeStatusController > submitTx: EVM bridge > waits for approval tx confirmation before swap for hardware wallet on mobile 4`] = `
 [
   [
     {
@@ -3613,7 +3409,7 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should estimate gas when gasIncluded is false and STX is off 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should estimate gas when gasIncluded is false and STX is off 1`] = `
 {
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
@@ -3632,7 +3428,7 @@ exports[`BridgeStatusController submitTx: EVM swap should estimate gas when gasI
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAtomicBatchSupported failure 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should gracefully handle isAtomicBatchSupported failure 1`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -3777,7 +3573,7 @@ exports[`BridgeStatusController submitTx: EVM swap should gracefully handle isAt
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap transaction with approval 2`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should handle a gasless swap transaction with approval 2`] = `
 {
   "account": "0xaccount1",
   "actionId": undefined,
@@ -3918,7 +3714,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap transaction with fees paid in ERC20 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should handle a gasless swap transaction with fees paid in ERC20 1`] = `
 {
   "account": "0xaccount1",
   "actionId": undefined,
@@ -3953,7 +3749,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should handle smart transactions 1`] = `
 {
   "batchId": "batchId1",
   "chainId": "0xa4b1",
@@ -3973,7 +3769,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 2`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should handle smart transactions 2`] = `
 {
   "account": "0xaccount1",
   "actionId": undefined,
@@ -4099,7 +3895,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 3`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should handle smart transactions 3`] = `
 [
   [
     {
@@ -4149,7 +3945,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should handle smart transactions 4`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should handle smart transactions 4`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -4264,7 +4060,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should rethrow addTransactionBatchFn error if tx has not been added to state 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should rethrow addTransactionBatchFn error if tx has not been added to state 1`] = `
 {
   "account": "0xaccount1",
   "actionId": undefined,
@@ -4300,7 +4096,7 @@ exports[`BridgeStatusController submitTx: EVM swap should rethrow addTransaction
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should rethrow addTransactionBatchFn error if tx has not been added to state 2`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should rethrow addTransactionBatchFn error if tx has not been added to state 2`] = `
 [
   [
     {
@@ -4350,7 +4146,7 @@ exports[`BridgeStatusController submitTx: EVM swap should rethrow addTransaction
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should rethrow addTransactionBatchFn error if tx has not been added to state 3`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should rethrow addTransactionBatchFn error if tx has not been added to state 3`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -4497,7 +4293,7 @@ exports[`BridgeStatusController submitTx: EVM swap should rethrow addTransaction
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should silence updateTransaction error if tx has been added to state 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should silence updateTransaction error if tx has been added to state 1`] = `
 {
   "batchId": "batchId1",
   "chainId": "0xa4b1",
@@ -4517,7 +4313,7 @@ exports[`BridgeStatusController submitTx: EVM swap should silence updateTransact
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should silence updateTransaction error if tx has been added to state 2`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should silence updateTransaction error if tx has been added to state 2`] = `
 {
   "account": "0xaccount1",
   "actionId": undefined,
@@ -4545,7 +4341,7 @@ exports[`BridgeStatusController submitTx: EVM swap should silence updateTransact
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should silence updateTransaction error if tx has been added to state 3`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should silence updateTransaction error if tx has been added to state 3`] = `
 [
   [
     {
@@ -4595,7 +4391,7 @@ exports[`BridgeStatusController submitTx: EVM swap should silence updateTransact
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should silence updateTransaction error if tx has been added to state 4`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should silence updateTransaction error if tx has been added to state 4`] = `
 [
   [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -4632,7 +4428,7 @@ exports[`BridgeStatusController submitTx: EVM swap should silence updateTransact
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with approval 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should successfully submit an EVM swap transaction with approval 1`] = `
 {
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
@@ -4651,7 +4447,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with featureId=perps 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should successfully submit an EVM swap transaction with featureId=perps 1`] = `
 {
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
@@ -4670,7 +4466,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with featureId=perps 2`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should successfully submit an EVM swap transaction with featureId=perps 2`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -4783,7 +4579,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 2`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should successfully submit an EVM swap transaction with no approval 2`] = `
 {
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
@@ -4802,7 +4598,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 3`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should successfully submit an EVM swap transaction with no approval 3`] = `
 {
   "account": "0xaccount1",
   "actionId": "1234567891.456",
@@ -4928,7 +4724,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should successfully submit an EVM swap transaction with no approval 4`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should successfully submit an EVM swap transaction with no approval 4`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -5028,7 +4824,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
 ]
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should use batch path when account is delegated 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should use batch path when account is delegated 1`] = `
 {
   "batchId": "batchId1",
   "chainId": "0xa4b1",
@@ -5048,7 +4844,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use batch path when ac
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should use batch path when gasIncluded7702 is true regardless of STX setting (with approval) 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should use batch path when gasIncluded7702 is true regardless of STX setting (with approval) 1`] = `
 {
   "batchId": "batchId1",
   "chainId": "0xa4b1",
@@ -5068,7 +4864,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use batch path when ga
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should use batch path when gasIncluded7702 is true regardless of STX setting 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should use batch path when gasIncluded7702 is true regardless of STX setting 1`] = `
 {
   "batchId": "batchId1",
   "chainId": "0xa4b1",
@@ -5088,7 +4884,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use batch path when ga
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (Max native token swap) 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should use quote txFee when gasIncluded is true and STX is off (Max native token swap) 1`] = `
 {
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
@@ -5107,7 +4903,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (Max native token swap) 2`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should use quote txFee when gasIncluded is true and STX is off (Max native token swap) 2`] = `
 {
   "account": "0xaccount1",
   "actionId": "1234567891.456",
@@ -5252,7 +5048,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (null gasLimit) 1`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should use quote txFee when gasIncluded is true and STX is off (null gasLimit) 1`] = `
 {
   "chainId": "0xa4b1",
   "hash": "0xevmTxHash",
@@ -5271,7 +5067,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
 }
 `;
 
-exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when gasIncluded is true and STX is off (null gasLimit) 2`] = `
+exports[`BridgeStatusController > submitTx: EVM swap > should use quote txFee when gasIncluded is true and STX is off (null gasLimit) 2`] = `
 {
   "account": "0xaccount1",
   "actionId": "1234567891.456",
@@ -5417,7 +5213,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
 }
 `;
 
-exports[`BridgeStatusController submitTx: Solana bridge should handle snap controller errors 1`] = `
+exports[`BridgeStatusController > submitTx: Solana bridge > should handle snap controller errors 1`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -5520,7 +5316,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should handle snap contr
 ]
 `;
 
-exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 1`] = `
+exports[`BridgeStatusController > submitTx: Solana bridge > should successfully submit a transaction 1`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -5588,7 +5384,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
 ]
 `;
 
-exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 2`] = `
+exports[`BridgeStatusController > submitTx: Solana bridge > should successfully submit a transaction 2`] = `
 {
   "approvalTxId": undefined,
   "chainId": "0x416edef1601be",
@@ -5618,13 +5414,13 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
 }
 `;
 
-exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 3`] = `
+exports[`BridgeStatusController > submitTx: Solana bridge > should successfully submit a transaction 3`] = `
 {
   "bridgeTxMetaId": "signature",
 }
 `;
 
-exports[`BridgeStatusController submitTx: Solana bridge should successfully submit a transaction 4`] = `
+exports[`BridgeStatusController > submitTx: Solana bridge > should successfully submit a transaction 4`] = `
 {
   "account": "0x123...",
   "actionId": undefined,
@@ -5723,7 +5519,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
 }
 `;
 
-exports[`BridgeStatusController submitTx: Solana bridge should throw error when snap ID is missing 1`] = `
+exports[`BridgeStatusController > submitTx: Solana bridge > should throw error when snap ID is missing 1`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -5804,7 +5600,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should throw error when 
 ]
 `;
 
-exports[`BridgeStatusController submitTx: Solana swap should handle snap controller errors 1`] = `
+exports[`BridgeStatusController > submitTx: Solana swap > should handle snap controller errors 1`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -5907,7 +5703,7 @@ exports[`BridgeStatusController submitTx: Solana swap should handle snap control
 ]
 `;
 
-exports[`BridgeStatusController submitTx: Solana swap should successfully submit a transaction 1`] = `
+exports[`BridgeStatusController > submitTx: Solana swap > should successfully submit a transaction 1`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -6024,7 +5820,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
 ]
 `;
 
-exports[`BridgeStatusController submitTx: Solana swap should successfully submit a transaction 2`] = `
+exports[`BridgeStatusController > submitTx: Solana swap > should successfully submit a transaction 2`] = `
 {
   "approvalTxId": undefined,
   "chainId": "0x416edef1601be",
@@ -6054,7 +5850,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
 }
 `;
 
-exports[`BridgeStatusController submitTx: Solana swap should successfully submit a transaction 3`] = `
+exports[`BridgeStatusController > submitTx: Solana swap > should successfully submit a transaction 3`] = `
 {
   "account": "0x123...",
   "actionId": undefined,
@@ -6151,7 +5947,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
 }
 `;
 
-exports[`BridgeStatusController submitTx: Solana swap should throw error when account is missing 1`] = `
+exports[`BridgeStatusController > submitTx: Solana swap > should throw error when account is missing 1`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -6165,7 +5961,7 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when ac
 ]
 `;
 
-exports[`BridgeStatusController submitTx: Solana swap should throw error when snap ID is missing 1`] = `
+exports[`BridgeStatusController > submitTx: Solana swap > should throw error when snap ID is missing 1`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -6246,7 +6042,7 @@ exports[`BridgeStatusController submitTx: Solana swap should throw error when sn
 ]
 `;
 
-exports[`BridgeStatusController submitTx: Tron swap with approval should handle approval transaction errors 1`] = `
+exports[`BridgeStatusController > submitTx: Tron swap with approval > should handle approval transaction errors 1`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -6349,7 +6145,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should handle 
 ]
 `;
 
-exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 1`] = `
+exports[`BridgeStatusController > submitTx: Tron swap with approval > should successfully submit a Tron bridge with approval transaction 1`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -6441,7 +6237,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
 ]
 `;
 
-exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 2`] = `
+exports[`BridgeStatusController > submitTx: Tron swap with approval > should successfully submit a Tron bridge with approval transaction 2`] = `
 {
   "approvalTxId": undefined,
   "chainId": "0x2b6653dc",
@@ -6471,13 +6267,13 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
 }
 `;
 
-exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 3`] = `
+exports[`BridgeStatusController > submitTx: Tron swap with approval > should successfully submit a Tron bridge with approval transaction 3`] = `
 {
   "bridgeTxMetaId": "bridge-signature",
 }
 `;
 
-exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron bridge with approval transaction 4`] = `
+exports[`BridgeStatusController > submitTx: Tron swap with approval > should successfully submit a Tron bridge with approval transaction 4`] = `
 {
   "account": "TRX123...",
   "actionId": undefined,
@@ -6574,7 +6370,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
 }
 `;
 
-exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron swap with approval transaction 1`] = `
+exports[`BridgeStatusController > submitTx: Tron swap with approval > should successfully submit a Tron swap with approval transaction 1`] = `
 [
   [
     "BridgeController:stopPollingForQuotes",
@@ -6666,7 +6462,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
 ]
 `;
 
-exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron swap with approval transaction 2`] = `
+exports[`BridgeStatusController > submitTx: Tron swap with approval > should successfully submit a Tron swap with approval transaction 2`] = `
 {
   "approvalTxId": undefined,
   "chainId": "0x2b6653dc",
@@ -6696,7 +6492,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
 }
 `;
 
-exports[`BridgeStatusController submitTx: Tron swap with approval should successfully submit a Tron swap with approval transaction 3`] = `
+exports[`BridgeStatusController > submitTx: Tron swap with approval > should successfully submit a Tron swap with approval transaction 3`] = `
 {
   "account": "TRX123...",
   "actionId": undefined,
@@ -6793,11 +6589,11 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
 }
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should not start polling for bridge tx if tx is not in txHistory 1`] = `[]`;
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should not start polling for bridge tx if tx is not in txHistory 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should not track completed event for other transaction types 1`] = `[]`;
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should not track completed event for other transaction types 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for bridge tx if status response is invalid 1`] = `
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should start polling for bridge tx if status response is invalid 1`] = `
 [
   [
     "AuthenticationController:getBearerToken",
@@ -6847,7 +6643,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for bridge tx if status response is invalid 2`] = `
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should start polling for bridge tx if status response is invalid 2`] = `
 [
   [
     "Failed to fetch bridge tx status",
@@ -6860,7 +6656,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for completed bridge tx with featureId=perps 2`] = `
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should start polling for completed bridge tx with featureId=perps 2`] = `
 {
   "bridge": "across",
   "destChain": {
@@ -6901,7 +6697,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 }
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should start polling for failed bridge tx with featureId=perps 2`] = `
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should start polling for failed bridge tx with featureId=perps 2`] = `
 {
   "bridge": "debridge",
   "destChain": {
@@ -6928,7 +6724,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 }
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (confirmed) should track completed event for swap transaction 1`] = `
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (confirmed) > should track completed event for swap transaction 1`] = `
 [
   [
     "AccountsController:getAccountByAddress",
@@ -6983,7 +6779,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should find history by actionId when txMeta.id not in history (pre-submission failure) 1`] = `
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should find history by actionId when txMeta.id not in history (pre-submission failure) 1`] = `
 [
   "BridgeController:trackUnifiedSwapBridgeEvent",
   "Unified SwapBridge Failed",
@@ -7031,13 +6827,13 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should not track failed event for approved status 1`] = `[]`;
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should not track failed event for approved status 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should not track failed event for other transaction types 1`] = `[]`;
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should not track failed event for other transaction types 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should not track failed event for signed status 1`] = `[]`;
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should not track failed event for signed status 1`] = `[]`;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should track failed event for bridge transaction 1`] = `
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should track failed event for bridge transaction 1`] = `
 [
   "BridgeController:trackUnifiedSwapBridgeEvent",
   "Unified SwapBridge Failed",
@@ -7086,7 +6882,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should track failed event for bridge transaction if approval is dropped 1`] = `
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should track failed event for bridge transaction if approval is dropped 1`] = `
 [
   [
     "AccountsController:getAccountByAddress",
@@ -7143,7 +6939,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should track failed event for bridge transaction if not in txHistory 1`] = `
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should track failed event for bridge transaction if not in txHistory 1`] = `
 [
   [
     "BridgeController:trackUnifiedSwapBridgeEvent",
@@ -7190,7 +6986,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should track failed event for swap transaction 1`] = `
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should track failed event for swap transaction 1`] = `
 [
   [
     "AccountsController:getAccountByAddress",
@@ -7247,7 +7043,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController subscription handlers TransactionController:transactionStatusUpdated (failed) should track failed event for swap transaction if approval fails 1`] = `
+exports[`BridgeStatusController > subscription handlers > TransactionController:transactionStatusUpdated (failed) > should track failed event for swap transaction if approval fails 1`] = `
 [
   "BridgeController:trackUnifiedSwapBridgeEvent",
   "Unified SwapBridge Failed",
@@ -7295,7 +7091,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
 ]
 `;
 
-exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the given address 1`] = `
+exports[`BridgeStatusController > wipeBridgeStatus > wipes the bridge status for the given address 1`] = `
 [
   [
     "AuthenticationController:getBearerToken",
@@ -7332,5 +7128,209 @@ exports[`BridgeStatusController wipeBridgeStatus wipes the bridge status for the
     "NetworkController:getNetworkClientById",
     "networkClientId",
   ],
+]
+`;
+
+exports[`BridgeStatusController constructor > rehydrates the tx history state 1`] = `
+{
+  "bridgeTxMetaId1": {
+    "account": "0xaccount1",
+    "actionId": undefined,
+    "approvalTxId": undefined,
+    "attempts": undefined,
+    "batchId": undefined,
+    "completionTime": undefined,
+    "estimatedProcessingTimeInSeconds": 15,
+    "featureId": undefined,
+    "hasApprovalTx": false,
+    "initialDestAssetBalance": undefined,
+    "isStxEnabled": false,
+    "location": "Main View",
+    "originalTransactionId": "bridgeTxMetaId1",
+    "pricingData": {
+      "amountSent": "1.234",
+      "amountSentInUsd": undefined,
+      "quotedGasAmount": "1.234",
+      "quotedGasInUsd": "2.5778",
+      "quotedReturnInUsd": undefined,
+    },
+    "quote": {
+      "bridgeId": "lifi",
+      "bridges": [
+        "across",
+      ],
+      "destAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:10/slip44:60",
+        "chainId": 10,
+        "coinKey": "ETH",
+        "decimals": 18,
+        "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+        "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+        "name": "ETH",
+        "priceUSD": "2478.63",
+        "symbol": "ETH",
+      },
+      "destChainId": 10,
+      "destTokenAmount": "990654755978612",
+      "feeData": {
+        "metabridge": {
+          "amount": "8750000000000",
+          "asset": {
+            "address": "0x0000000000000000000000000000000000000000",
+            "assetId": "eip155:42161/slip44:60",
+            "chainId": 42161,
+            "coinKey": "ETH",
+            "decimals": 18,
+            "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+            "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+            "name": "ETH",
+            "priceUSD": "2478.7",
+            "symbol": "ETH",
+          },
+        },
+      },
+      "minDestTokenAmount": "941000000000000",
+      "requestId": "197c402f-cb96-4096-9f8c-54aed84ca776",
+      "srcAsset": {
+        "address": "0x0000000000000000000000000000000000000000",
+        "assetId": "eip155:42161/slip44:60",
+        "chainId": 42161,
+        "coinKey": "ETH",
+        "decimals": 18,
+        "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+        "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+        "name": "ETH",
+        "priceUSD": "2478.7",
+        "symbol": "ETH",
+      },
+      "srcChainId": 42161,
+      "srcTokenAmount": "991250000000000",
+      "steps": [
+        {
+          "action": "bridge",
+          "destAmount": "990654755978612",
+          "destAsset": {
+            "address": "0x0000000000000000000000000000000000000000",
+            "assetId": "eip155:10/slip44:60",
+            "chainId": 10,
+            "coinKey": "ETH",
+            "decimals": 18,
+            "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+            "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+            "name": "ETH",
+            "priceUSD": "2478.63",
+            "symbol": "ETH",
+          },
+          "destChainId": 10,
+          "protocol": {
+            "displayName": "Across",
+            "icon": "https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png",
+            "name": "across",
+          },
+          "srcAmount": "991250000000000",
+          "srcAsset": {
+            "address": "0x0000000000000000000000000000000000000000",
+            "assetId": "eip155:42161/slip44:60",
+            "chainId": 42161,
+            "coinKey": "ETH",
+            "decimals": 18,
+            "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+            "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+            "name": "ETH",
+            "priceUSD": "2478.7",
+            "symbol": "ETH",
+          },
+          "srcChainId": 42161,
+        },
+      ],
+    },
+    "quoteId": undefined,
+    "slippagePercentage": 0,
+    "startTime": 1729964825189,
+    "status": {
+      "destChain": {
+        "chainId": 10,
+        "token": {},
+      },
+      "srcChain": {
+        "amount": "991250000000000",
+        "chainId": 42161,
+        "token": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2518.47",
+          "symbol": "ETH",
+        },
+        "txHash": "0xsrcTxHash1",
+      },
+      "status": "PENDING",
+    },
+    "targetContractAddress": "0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC",
+    "txMetaId": "bridgeTxMetaId1",
+  },
+}
+`;
+
+exports[`BridgeStatusController constructor > when history has no tx hash, has txMeta and is older than 2 days > provider tx receipt calls 1`] = `
+[
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0xsrcTxHash3",
+    ],
+  },
+]
+`;
+
+exports[`BridgeStatusController constructor > when history has no tx hash, no txMeta and is older than 2 days > provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor > when history has no txHash, no txMeta, provider returns no receipt and is older than 2 days > provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor > when history has no txHash, no txMeta, provider returns receipt and is older than 2 days > provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor > when history has no txHash, no txMeta, provider throws error and is older than 2 days > provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor > when history has solana srcChainId, no tx hash, no txMeta and is older than 2 days > provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor > when history has tx hash, no provider and is older than 2 days > provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor > when history has tx hash, provider returns no receipt and is older than 2 days > provider tx receipt calls 1`] = `
+[
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0xsrcTxHash2",
+    ],
+  },
+]
+`;
+
+exports[`BridgeStatusController constructor > when history has tx hash, provider returns receipt and is older than 2 days > provider tx receipt calls 1`] = `
+[
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0xsrcTxHash2",
+    ],
+  },
+]
+`;
+
+exports[`BridgeStatusController constructor > when history has tx hash, provider returns receipt, status is complete and is older than 2 days > provider tx receipt calls 1`] = `[]`;
+
+exports[`BridgeStatusController constructor > when history has tx hash, provider throws error and is older than 2 days > provider tx receipt calls 1`] = `
+[
+  {
+    "method": "eth_getTransactionReceipt",
+    "params": [
+      "0xsrcTxHash2",
+    ],
+  },
 ]
 `;

@@ -3,6 +3,8 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
@@ -14,20 +16,20 @@ import { estimateGasLimit } from './gas.js';
 import { estimateQuoteGasLimits, estimateSourceGas } from './quote-gas.js';
 import type { QuoteGasTransaction } from './quote-gas.js';
 
-jest.mock('./feature-flags', () => ({
-  ...jest.requireActual('./feature-flags'),
-  getFeatureFlags: jest.fn(),
-  getGasBuffer: jest.fn(),
+vi.mock(import('./feature-flags.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getFeatureFlags: vi.fn(),
+  getGasBuffer: vi.fn(),
 }));
 
-jest.mock('./gas', () => ({
-  ...jest.requireActual('./gas'),
-  estimateGasLimit: jest.fn(),
+vi.mock(import('./gas.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  estimateGasLimit: vi.fn(),
 }));
 
 describe('quote gas estimation', () => {
-  const getGasBufferMock = jest.mocked(getGasBuffer);
-  const estimateGasLimitMock = jest.mocked(estimateGasLimit);
+  const getGasBufferMock = vi.mocked(getGasBuffer);
+  const estimateGasLimitMock = vi.mocked(estimateGasLimit);
 
   const { estimateGasBatchMock, messenger } = getMessengerMock();
 
@@ -50,7 +52,7 @@ describe('quote gas estimation', () => {
   ];
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getGasBufferMock.mockReturnValue(1);
   });
@@ -402,7 +404,7 @@ describe('quote gas estimation', () => {
 
     const { estimateGasBatchMock: batchMock, messenger: sourceMessenger } =
       getMessengerMock() as unknown as {
-        estimateGasBatchMock: jest.MockedFn<
+        estimateGasBatchMock: MockedFunction<
           TransactionControllerEstimateGasBatchAction['handler']
         >;
         messenger: TransactionPayControllerMessenger;
@@ -416,7 +418,7 @@ describe('quote gas estimation', () => {
     }
 
     beforeEach(() => {
-      jest.mocked(getFeatureFlags).mockReturnValue({
+      vi.mocked(getFeatureFlags).mockReturnValue({
         relayFallbackGas: FALLBACK_GAS_MOCK,
       } as ReturnType<typeof getFeatureFlags>);
     });

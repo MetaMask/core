@@ -8,6 +8,8 @@ import {
 } from '@metamask/keyring-api';
 import type { KeyringAccount } from '@metamask/keyring-api';
 import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
+import { vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   AccountProviderWrapper,
@@ -19,23 +21,23 @@ export type MockAccountProvider = {
   mockAccounts: KeyringAccount[];
   accounts: Set<KeyringAccount['id']>;
   capabilities: KeyringCapabilities;
-  constructor: jest.Mock;
-  alignAccounts: jest.Mock;
-  init: jest.Mock;
-  resyncAccounts: jest.Mock;
-  getAccount: jest.Mock;
-  getAccounts: jest.Mock;
-  createAccounts: jest.Mock;
-  deleteAccount: jest.Mock;
-  deleteAccounts: jest.Mock;
-  discoverAccounts: jest.Mock;
-  isAccountCompatible: jest.Mock;
-  isAligned: jest.Mock;
-  getName: jest.Mock;
-  ensureReady: jest.Mock;
+  constructor: Mock;
+  alignAccounts: Mock;
+  init: Mock;
+  resyncAccounts: Mock;
+  getAccount: Mock;
+  getAccounts: Mock;
+  createAccounts: Mock;
+  deleteAccount: Mock;
+  deleteAccounts: Mock;
+  discoverAccounts: Mock;
+  isAccountCompatible: Mock;
+  isAligned: Mock;
+  getName: Mock;
+  ensureReady: Mock;
   isEnabled: boolean;
-  isDisabled: jest.Mock;
-  setEnabled: jest.Mock;
+  isDisabled: Mock;
+  setEnabled: Mock;
 };
 
 export function makeMockAccountProvider(
@@ -55,22 +57,22 @@ export function makeMockAccountProvider(
       ],
       bip44: { deriveIndex: true },
     },
-    constructor: jest.fn(),
-    alignAccounts: jest.fn(),
-    init: jest.fn(),
-    resyncAccounts: jest.fn(),
-    getAccount: jest.fn(),
-    getAccounts: jest.fn(),
-    createAccounts: jest.fn(),
-    deleteAccount: jest.fn(),
-    deleteAccounts: jest.fn(),
-    discoverAccounts: jest.fn(),
-    isAccountCompatible: jest.fn(),
-    isAligned: jest.fn().mockReturnValue(false),
-    getName: jest.fn(),
-    ensureReady: jest.fn().mockResolvedValue(undefined),
-    isDisabled: jest.fn(),
-    setEnabled: jest.fn(),
+    constructor: vi.fn(),
+    alignAccounts: vi.fn(),
+    init: vi.fn(),
+    resyncAccounts: vi.fn(),
+    getAccount: vi.fn(),
+    getAccounts: vi.fn(),
+    createAccounts: vi.fn(),
+    deleteAccount: vi.fn(),
+    deleteAccounts: vi.fn(),
+    discoverAccounts: vi.fn(),
+    isAccountCompatible: vi.fn(),
+    isAligned: vi.fn().mockReturnValue(false),
+    getName: vi.fn(),
+    ensureReady: vi.fn().mockResolvedValue(undefined),
+    isDisabled: vi.fn(),
+    setEnabled: vi.fn(),
     isEnabled: true,
   };
 }

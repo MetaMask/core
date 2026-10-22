@@ -1,4 +1,5 @@
-import { assert } from './assert.js';
+import { assert } from '@metamask/type-utils';
+
 import type { Hex } from './hex.js';
 import { add0x, assertIsHexString } from './hex.js';
 

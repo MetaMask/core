@@ -4,6 +4,7 @@ import { RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 import { hexToBigInt } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
@@ -28,6 +29,12 @@ import {
 
 const TOKEN_ADDRESS_MOCK = '0x559B65722aD62AD6DAC4Fa5a1c6B23A2e8ce57Ec' as Hex;
 const TOKEN_ADDRESS_2_MOCK = '0x123456789abcdef1234567890abcdef12345678' as Hex;
+const DUPLICATE_TOKEN_ADDRESS_MOCK =
+  '0xacA92E438df0B2401fF60dA7E4337B687a2435DA' as Hex;
+const LOWERCASE_ONLY_TOKEN_ADDRESS_MOCK =
+  '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Hex;
+const DUPLICATE_PRICE_TOKEN_ADDRESS_MOCK =
+  '0x6B175474E89094C44Da98b954EedeAC495271d0F' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
 const DECIMALS_MOCK = 6;
 const FROM_MOCK = '0x456' as Hex;
@@ -38,7 +45,7 @@ const TICKER_MOCK = 'TST';
 const SYMBOL_MOCK = 'TEST';
 const ACCOUNT_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
 const ERC20_ADDRESS_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Hex;
-const PROVIDER_MOCK = { request: jest.fn() };
+const PROVIDER_MOCK = { request: vi.fn() };
 
 /**
  * Build a CAIP-19 asset ID for fixtures, mirroring how `AssetsController` keys
@@ -75,7 +82,7 @@ describe('Token Utils', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
@@ -220,6 +227,84 @@ describe('Token Utils', () => {
         decimals: DECIMALS_MOCK,
         symbol: SYMBOL_MOCK,
       });
+    });
+
+    it('prefers the checksummed asset over a lowercase duplicate for a lowercase address', () => {
+      const assetId = buildAssetId(CHAIN_ID_MOCK, DUPLICATE_TOKEN_ADDRESS_MOCK);
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId.toLowerCase()]: {
+            decimals: 18,
+            name: 'STUB',
+            symbol: 'STUB',
+            type: 'erc20',
+          },
+          [assetId]: {
+            decimals: DECIMALS_MOCK,
+            name: SYMBOL_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
+          },
+        },
+      });
+
+      const result = getTokenInfo(
+        messenger,
+        DUPLICATE_TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        CHAIN_ID_MOCK,
+      );
+
+      expect(result).toStrictEqual({
+        decimals: DECIMALS_MOCK,
+        symbol: SYMBOL_MOCK,
+      });
+    });
+
+    it('resolves a lowercase-only asset without caching it', () => {
+      const assetId = buildAssetId(
+        CHAIN_ID_MOCK,
+        LOWERCASE_ONLY_TOKEN_ADDRESS_MOCK,
+      );
+      const lowercaseAssetId = assetId.toLowerCase();
+      const lowercaseInfo = {
+        decimals: 18,
+        name: 'STUB',
+        symbol: 'STUB',
+        type: 'erc20',
+      };
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: { [lowercaseAssetId]: lowercaseInfo },
+      });
+
+      expect(
+        getTokenInfo(
+          messenger,
+          LOWERCASE_ONLY_TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+          CHAIN_ID_MOCK,
+        ),
+      ).toStrictEqual({ decimals: 18, symbol: 'STUB' });
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [lowercaseAssetId]: lowercaseInfo,
+          [assetId]: {
+            decimals: DECIMALS_MOCK,
+            name: SYMBOL_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
+          },
+        },
+      });
+
+      expect(
+        getTokenInfo(
+          messenger,
+          LOWERCASE_ONLY_TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+          CHAIN_ID_MOCK,
+        ),
+      ).toStrictEqual({ decimals: DECIMALS_MOCK, symbol: SYMBOL_MOCK });
     });
 
     it('returns normalized decimals', () => {
@@ -734,6 +819,47 @@ describe('Token Utils', () => {
       const result = getTokenFiatRate(
         messenger,
         TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
+        CHAIN_ID_MOCK,
+      );
+
+      expect(result).toStrictEqual({
+        fiatRate: '6',
+        usdRate: '8',
+      });
+    });
+
+    it('uses the checksummed asset price when a lowercase duplicate without price exists', () => {
+      const assetId = buildAssetId(
+        CHAIN_ID_MOCK,
+        DUPLICATE_PRICE_TOKEN_ADDRESS_MOCK,
+      );
+
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsInfo: {
+          [assetId.toLowerCase()]: {
+            decimals: DECIMALS_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
+          },
+          [assetId]: {
+            decimals: DECIMALS_MOCK,
+            symbol: SYMBOL_MOCK,
+            type: 'erc20',
+          },
+        },
+        assetsPrice: {
+          [assetId]: {
+            assetPriceType: 'fungible',
+            lastUpdated: 0,
+            price: 6,
+            usdPrice: 8,
+          },
+        },
+      });
+
+      const result = getTokenFiatRate(
+        messenger,
+        DUPLICATE_PRICE_TOKEN_ADDRESS_MOCK.toLowerCase() as Hex,
         CHAIN_ID_MOCK,
       );
 

@@ -9,8 +9,8 @@ import {
   StructError,
   union,
 } from '@metamask/superstruct';
+import { assert } from '@metamask/type-utils';
 
-import { assert } from './assert.js';
 import { bytesToHex, hexToBytes } from './bytes.js';
 import type { Hex } from './hex.js';
 import { StrictHexStruct } from './hex.js';

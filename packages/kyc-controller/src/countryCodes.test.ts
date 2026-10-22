@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { ALPHA2_TO_ALPHA3, alpha2ToAlpha3 } from './countryCodes.js';
 
 describe('countryCodes', () => {

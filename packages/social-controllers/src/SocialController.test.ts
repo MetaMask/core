@@ -4,6 +4,8 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { controllerName } from './social-constants.js';
 import type { SocialControllerState } from './social-types.js';
@@ -89,7 +91,7 @@ function createController(
 function mockServiceAction(
   rootMessenger: RootMessenger,
   action: string,
-  implementation: jest.Mock,
+  implementation: Mock,
 ): void {
   rootMessenger.registerActionHandler(action as never, implementation as never);
 }
@@ -146,7 +148,7 @@ describe('SocialController', () => {
   describe('updateLeaderboard', () => {
     it('fetches leaderboard via messenger and persists entries to state', async () => {
       const rootMessenger = getRootMessenger();
-      const fetchLeaderboard = jest.fn().mockResolvedValue({
+      const fetchLeaderboard = vi.fn().mockResolvedValue({
         traders: [mockLeaderboardEntry],
       });
       mockServiceAction(
@@ -167,7 +169,7 @@ describe('SocialController', () => {
 
     it('passes options to the service', async () => {
       const rootMessenger = getRootMessenger();
-      const fetchLeaderboard = jest.fn().mockResolvedValue({
+      const fetchLeaderboard = vi.fn().mockResolvedValue({
         traders: [mockLeaderboardEntry],
       });
       mockServiceAction(
@@ -188,7 +190,7 @@ describe('SocialController', () => {
     it('overwrites previous leaderboard entries', async () => {
       const rootMessenger = getRootMessenger();
       const secondEntry = { ...mockLeaderboardEntry, rank: 2, name: 'Bob' };
-      const fetchLeaderboard = jest
+      const fetchLeaderboard = vi
         .fn()
         .mockResolvedValueOnce({ traders: [mockLeaderboardEntry] })
         .mockResolvedValueOnce({ traders: [secondEntry] });
@@ -214,7 +216,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:fetchLeaderboard',
-        jest.fn().mockResolvedValue({ traders: [mockLeaderboardEntry] }),
+        vi.fn().mockResolvedValue({ traders: [mockLeaderboardEntry] }),
       );
 
       const { messenger } = createController({ rootMessenger });
@@ -231,7 +233,7 @@ describe('SocialController', () => {
   describe('followTrader', () => {
     it('calls service via messenger and appends new addresses and profile IDs to state', async () => {
       const rootMessenger = getRootMessenger();
-      const follow = jest
+      const follow = vi
         .fn()
         .mockResolvedValue({ followed: [mockProfileSummary] });
       mockServiceAction(rootMessenger, 'SocialService:follow', follow);
@@ -259,7 +261,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:follow',
-        jest.fn().mockResolvedValue({
+        vi.fn().mockResolvedValue({
           followed: [mockProfileSummary, mockProfileSummaryB],
         }),
       );
@@ -288,7 +290,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:follow',
-        jest.fn().mockResolvedValue({
+        vi.fn().mockResolvedValue({
           followed: [mockProfileSummary, mockProfileSummary],
         }),
       );
@@ -312,7 +314,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:follow',
-        jest.fn().mockResolvedValue({ followed: [mockProfileSummary] }),
+        vi.fn().mockResolvedValue({ followed: [mockProfileSummary] }),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -337,7 +339,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:follow',
-        jest.fn().mockResolvedValue({ followed: [mockProfileSummary] }),
+        vi.fn().mockResolvedValue({ followed: [mockProfileSummary] }),
       );
 
       const { messenger } = createController({ rootMessenger });
@@ -353,7 +355,7 @@ describe('SocialController', () => {
   describe('unfollowTrader', () => {
     it('calls service via messenger and removes addresses and profile IDs from state', async () => {
       const rootMessenger = getRootMessenger();
-      const unfollow = jest
+      const unfollow = vi
         .fn()
         .mockResolvedValue({ unfollowed: [mockProfileSummary] });
       mockServiceAction(rootMessenger, 'SocialService:unfollow', unfollow);
@@ -393,7 +395,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:unfollow',
-        jest.fn().mockResolvedValue({ unfollowed: [mockProfileSummary] }),
+        vi.fn().mockResolvedValue({ unfollowed: [mockProfileSummary] }),
       );
 
       const { controller } = createController({
@@ -414,7 +416,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:unfollow',
-        jest.fn().mockResolvedValue({ unfollowed: [mockProfileSummary] }),
+        vi.fn().mockResolvedValue({ unfollowed: [mockProfileSummary] }),
       );
 
       const { messenger } = createController({ rootMessenger });
@@ -430,7 +432,7 @@ describe('SocialController', () => {
   describe('updateFollowing', () => {
     it('calls service via messenger and replaces followingAddresses and followingProfileIds in state', async () => {
       const rootMessenger = getRootMessenger();
-      const fetchFollowing = jest.fn().mockResolvedValue({
+      const fetchFollowing = vi.fn().mockResolvedValue({
         following: [mockProfileSummary],
         count: 1,
       });
@@ -465,7 +467,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:fetchFollowing',
-        jest.fn().mockResolvedValue({ following: [], count: 0 }),
+        vi.fn().mockResolvedValue({ following: [], count: 0 }),
       );
 
       const { controller } = createController({
@@ -487,7 +489,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:fetchFollowing',
-        jest.fn().mockResolvedValue({
+        vi.fn().mockResolvedValue({
           following: [mockProfileSummary],
           count: 1,
         }),
@@ -504,7 +506,7 @@ describe('SocialController', () => {
   describe('optOutOfLeaderboard', () => {
     it('delegates to the service via messenger and resolves to void', async () => {
       const rootMessenger = getRootMessenger();
-      const optOut = jest.fn().mockResolvedValue(undefined);
+      const optOut = vi.fn().mockResolvedValue(undefined);
       mockServiceAction(
         rootMessenger,
         'SocialService:optOutOfLeaderboard',
@@ -524,7 +526,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:optOutOfLeaderboard',
-        jest.fn().mockResolvedValue(undefined),
+        vi.fn().mockResolvedValue(undefined),
       );
 
       const { messenger } = createController({ rootMessenger });
@@ -539,7 +541,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:optOutOfLeaderboard',
-        jest.fn().mockRejectedValue(new Error('opt-out failed')),
+        vi.fn().mockRejectedValue(new Error('opt-out failed')),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -553,7 +555,7 @@ describe('SocialController', () => {
   describe('optInToLeaderboard', () => {
     it('delegates to the service via messenger and resolves to void', async () => {
       const rootMessenger = getRootMessenger();
-      const optIn = jest.fn().mockResolvedValue(undefined);
+      const optIn = vi.fn().mockResolvedValue(undefined);
       mockServiceAction(
         rootMessenger,
         'SocialService:optInToLeaderboard',
@@ -573,7 +575,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:optInToLeaderboard',
-        jest.fn().mockResolvedValue(undefined),
+        vi.fn().mockResolvedValue(undefined),
       );
 
       const { messenger } = createController({ rootMessenger });
@@ -588,7 +590,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:optInToLeaderboard',
-        jest.fn().mockRejectedValue(new Error('opt-in failed')),
+        vi.fn().mockRejectedValue(new Error('opt-in failed')),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -605,7 +607,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:fetchLeaderboard',
-        jest.fn().mockRejectedValue(new Error('network error')),
+        vi.fn().mockRejectedValue(new Error('network error')),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -621,7 +623,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:follow',
-        jest.fn().mockRejectedValue(new Error('follow failed')),
+        vi.fn().mockRejectedValue(new Error('follow failed')),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -639,7 +641,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:unfollow',
-        jest.fn().mockRejectedValue(new Error('unfollow failed')),
+        vi.fn().mockRejectedValue(new Error('unfollow failed')),
       );
 
       const { controller } = createController({
@@ -660,7 +662,7 @@ describe('SocialController', () => {
       mockServiceAction(
         rootMessenger,
         'SocialService:fetchFollowing',
-        jest.fn().mockRejectedValue(new Error('fetch following failed')),
+        vi.fn().mockRejectedValue(new Error('fetch following failed')),
       );
 
       const { controller } = createController({

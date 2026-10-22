@@ -1,4 +1,6 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
 
 import type {
   SetNameRequest,
@@ -24,10 +26,10 @@ const CHAIN_ID_MOCK = '0x1';
 const TIME_MOCK = 123;
 
 const MESSENGER_MOCK = {
-  registerActionHandler: jest.fn(),
-  registerMethodActionHandlers: jest.fn(),
-  registerInitialEventPayload: jest.fn(),
-  publish: jest.fn(),
+  registerActionHandler: vi.fn(),
+  registerMethodActionHandlers: vi.fn(),
+  registerInitialEventPayload: vi.fn(),
+  publish: vi.fn(),
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
@@ -48,9 +50,9 @@ const CONTROLLER_ARGS_MOCK = {
 function createMockProvider(
   index: number,
   { updateDelay }: { updateDelay?: number } = {},
-): jest.Mocked<NameProvider> {
+): Mocked<NameProvider> {
   return {
-    getMetadata: jest.fn().mockReturnValue({
+    getMetadata: vi.fn().mockReturnValue({
       sourceIds: {
         [NameType.ETHEREUM_ADDRESS]: [SOURCE_ID_MOCK + String(index)],
       },
@@ -58,7 +60,7 @@ function createMockProvider(
         [SOURCE_ID_MOCK + String(index)]: SOURCE_LABEL_MOCK + String(index),
       },
     }),
-    getProposedNames: jest.fn().mockResolvedValue({
+    getProposedNames: vi.fn().mockResolvedValue({
       results: {
         [SOURCE_ID_MOCK + String(index)]: {
           proposedNames: [
@@ -74,11 +76,11 @@ function createMockProvider(
 
 describe('NameController', () => {
   beforeEach(() => {
-    jest.spyOn(console, 'error').mockImplementation(() => {
+    vi.spyOn(console, 'error').mockImplementation(() => {
       // do nothing
     });
 
-    jest.spyOn(Date, 'now').mockReturnValue(TIME_MOCK * 1000);
+    vi.spyOn(Date, 'now').mockReturnValue(TIME_MOCK * 1000);
   });
 
   describe('setName', () => {

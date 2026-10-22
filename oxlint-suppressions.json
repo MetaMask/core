@@ -14,16 +14,6 @@
       "count": 1
     }
   },
-  "jest.config.scripts.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/account-tree-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/AccountTreeController.test.ts": {
     "id-length": {
       "count": 2
@@ -42,6 +32,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 4
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/account-tree-controller/src/AccountTreeController.ts": {
@@ -78,13 +71,18 @@
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/syncing/group.test.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 15
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/syncing/metadata.ts": {
     "id-length": {
       "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/syncing/wallet.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/types.ts": {
@@ -114,6 +112,11 @@
   },
   "packages/account-tree-controller/src/backup-and-sync/user-storage/network-utils.ts": {
     "id-length": {
+      "count": 1
+    }
+  },
+  "packages/account-tree-controller/src/backup-and-sync/user-storage/validation.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -150,6 +153,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 5
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/account-tree-controller/src/state/import.test.ts": {
@@ -176,6 +182,11 @@
       "count": 7
     }
   },
+  "packages/account-tree-controller/src/state/utils.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
+    }
+  },
   "packages/account-tree-controller/src/state/utils.ts": {
     "jsdoc/check-tag-names": {
       "count": 1
@@ -196,11 +207,6 @@
       "count": 1
     }
   },
-  "packages/address-book-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/address-book-controller/src/AddressBookController.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -214,11 +220,6 @@
       "count": 3
     }
   },
-  "packages/advanced-chart-core/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/advanced-chart-core/src/__tests__/index.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 2
@@ -227,6 +228,9 @@
   "packages/advanced-chart-core/src/core/__tests__/bootstrap.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 4
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/advanced-chart-core/src/core/__tests__/bridge.test.ts": {
@@ -266,7 +270,7 @@
   },
   "packages/advanced-chart-core/src/features/indicators/__tests__/subPane.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 3
+      "count": 1
     }
   },
   "packages/advanced-chart-core/src/features/indicators/index.ts": {
@@ -290,11 +294,6 @@
       "count": 3
     }
   },
-  "packages/advanced-chart-core/src/features/volume/__tests__/volume.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
   "packages/advanced-chart-core/src/features/volume/index.ts": {
     "unicorn/no-useless-undefined": {
       "count": 1
@@ -313,9 +312,9 @@
       "count": 1
     }
   },
-  "packages/advanced-chart-core/src/overlays/positionLines/__tests__/positionLines.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 4
+  "packages/advanced-chart-core/src/overlays/focusTime/__tests__/focusTime.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/advanced-chart-core/src/overlays/positionLines/__tests__/state.test.ts": {
@@ -336,6 +335,9 @@
   "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/animation.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/markerHitTest.test.ts": {
@@ -354,9 +356,6 @@
   "packages/advanced-chart-core/src/pagination/__tests__/priceApi.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 3
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
     }
   },
   "packages/advanced-chart-core/src/pagination/__tests__/rnBacked.test.ts": {
@@ -364,7 +363,7 @@
       "count": 13
     },
     "typescript/no-unsafe-member-access": {
-      "count": 22
+      "count": 17
     }
   },
   "packages/advanced-chart-core/src/platform/iframeHost.ts": {
@@ -377,17 +376,12 @@
       "count": 2
     }
   },
-  "packages/advanced-chart-core/src/widget/__tests__/chartType.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
   "packages/advanced-chart-core/src/widget/__tests__/datafeed.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 11
     },
     "typescript/no-unsafe-member-access": {
-      "count": 13
+      "count": 10
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/externalLinkBridge.test.ts": {
@@ -401,12 +395,6 @@
   "packages/advanced-chart-core/src/widget/__tests__/initChart.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 2
-    },
-    "typescript/no-unsafe-call": {
-      "count": 9
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 18
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/ohlcvIngestion.test.ts": {
@@ -421,20 +409,21 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 13
-    }
-  },
-  "packages/advanced-chart-core/src/widget/__tests__/scaleLayout.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 10
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 9
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/theme.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 11
+      "count": 7
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/tvDomHelpers.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -448,19 +437,9 @@
       "count": 5
     }
   },
-  "packages/ai-controllers/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/analytics-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/analytics-controller/src/AnalyticsController.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 12
     }
   },
   "packages/analytics-controller/src/AnalyticsController.ts": {
@@ -471,11 +450,6 @@
       "count": 2
     }
   },
-  "packages/analytics-data-regulation-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/analytics-data-regulation-controller/src/AnalyticsDataRegulationController.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 1
@@ -484,16 +458,9 @@
   "packages/analytics-data-regulation-controller/src/AnalyticsDataRegulationService.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 5
-    }
-  },
-  "packages/announcement-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/app-metadata-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 5
     }
   },
   "packages/approval-controller/src/ApprovalController.test.ts": {
@@ -1378,11 +1345,6 @@
       "count": 1
     }
   },
-  "packages/authenticated-user-storage/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/authenticated-user-storage/src/authenticated-user-storage.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 5
@@ -1419,11 +1381,6 @@
       "count": 4
     }
   },
-  "packages/bitcoin-regtest-up/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts": {
     "typescript/no-unsafe-argument": {
       "count": 2
@@ -1450,6 +1407,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/bitcoin-regtest-up/src/install.ts": {
@@ -1464,11 +1424,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 5
-    }
-  },
-  "packages/bridge-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
     }
   },
   "packages/bridge-controller/src/bridge-controller.sse.batch.test.ts": {
@@ -1486,11 +1441,11 @@
     "typescript/no-unsafe-call": {
       "count": 1
     },
-    "typescript/no-unsafe-member-access": {
+    "typescript/no-unsafe-return": {
       "count": 2
     },
-    "typescript/no-unsafe-return": {
-      "count": 4
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/bridge-controller/src/bridge-controller.test.ts": {
@@ -1501,10 +1456,13 @@
       "count": 4
     },
     "typescript/no-unsafe-member-access": {
-      "count": 5
+      "count": 4
     },
     "typescript/no-unsafe-return": {
-      "count": 2
+      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 38
     }
   },
   "packages/bridge-controller/src/bridge-controller.ts": {
@@ -1529,6 +1487,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 5
     }
   },
   "packages/bridge-controller/src/selectors.ts": {
@@ -1546,11 +1507,6 @@
   },
   "packages/bridge-controller/src/utils/assets.ts": {
     "typescript/explicit-function-return-type": {
-      "count": 2
-    }
-  },
-  "packages/bridge-controller/src/utils/balance.test.ts": {
-    "typescript/no-unsafe-return": {
       "count": 2
     }
   },
@@ -1606,7 +1562,7 @@
   },
   "packages/bridge-controller/src/utils/fetch.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 4
+      "count": 3
     },
     "typescript/no-unsafe-return": {
       "count": 5
@@ -1645,6 +1601,11 @@
     },
     "typescript/prefer-nullish-coalescing": {
       "count": 2
+    }
+  },
+  "packages/bridge-controller/src/utils/quote-metadata/calculators.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/bridge-controller/src/utils/quote-metadata/merge.ts": {
@@ -1690,13 +1651,13 @@
       "count": 1
     }
   },
-  "packages/bridge-controller/tests/mock-sse.ts": {
-    "no-shadow": {
+  "packages/bridge-controller/src/validators/validators.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
-  "packages/bridge-status-controller/jest.config.cjs": {
-    "import/unambiguous": {
+  "packages/bridge-controller/tests/mock-sse.ts": {
+    "no-shadow": {
       "count": 1
     }
   },
@@ -1704,11 +1665,11 @@
     "typescript/no-unsafe-call": {
       "count": 1
     },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    },
     "typescript/no-unsafe-return": {
-      "count": 3
+      "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 27
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
@@ -1720,6 +1681,9 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 29
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 19
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent.test.ts": {
@@ -1733,10 +1697,13 @@
       "count": 6
     },
     "typescript/no-unsafe-member-access": {
-      "count": 29
+      "count": 28
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent.ts": {
@@ -1752,10 +1719,13 @@
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 13
+      "count": 6
     },
     "typescript/no-unsafe-return": {
-      "count": 5
+      "count": 3
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 19
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.ts": {
@@ -1768,7 +1738,7 @@
   },
   "packages/bridge-status-controller/src/quote-status-manager/quote-status-api-service.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 19
+      "count": 11
     },
     "typescript/no-unsafe-return": {
       "count": 3
@@ -1784,7 +1754,7 @@
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 15
+      "count": 11
     },
     "typescript/no-unsafe-return": {
       "count": 4
@@ -1805,11 +1775,6 @@
       "count": 2
     }
   },
-  "packages/bridge-status-controller/src/utils/bridge-status.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 2
-    }
-  },
   "packages/bridge-status-controller/src/utils/intent-api.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 4
@@ -1824,6 +1789,11 @@
   "packages/bridge-status-controller/src/utils/metrics.test.ts": {
     "no-unused-vars": {
       "count": 1
+    }
+  },
+  "packages/bridge-status-controller/src/utils/snaps.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {
@@ -1949,8 +1919,8 @@
       "count": 2
     }
   },
-  "packages/chomp-api-service/jest.config.cjs": {
-    "import/unambiguous": {
+  "packages/chomp-api-service/src/chomp-api-service.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -1962,9 +1932,9 @@
       "count": 9
     }
   },
-  "packages/claims-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+  "packages/claims-controller/src/ClaimsService.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/claims-controller/src/ClaimsService.ts": {
@@ -1980,29 +1950,19 @@
       "count": 2
     }
   },
-  "packages/client-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/client-utils/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/client-utils/src/mappers/api-transaction-mapper.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/client-utils/src/mappers/local-transaction-mapper.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 19
     }
   },
-  "packages/compliance-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+  "packages/client-utils/src/mappers/ramps-order-mapper.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/composable-controller/jest.config.cjs": {
@@ -2013,11 +1973,6 @@
   "packages/composable-controller/src/ComposableController.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 2
-    }
-  },
-  "packages/config-registry-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
     }
   },
   "packages/connectivity-controller/jest.config.cjs": {
@@ -2161,11 +2116,6 @@
       "count": 1
     }
   },
-  "packages/delegation-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/delegation-controller/src/DelegationController.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 3
@@ -2176,20 +2126,12 @@
       "count": 1
     }
   },
-  "packages/earn-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/earn-controller/src/EarnController.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 7
     },
-    "typescript/no-unsafe-call": {
-      "count": 10
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 12
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/earn-controller/src/EarnController.ts": {
@@ -2398,11 +2340,6 @@
       "count": 1
     }
   },
-  "packages/foundryup/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/foundryup/src/download.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -2434,15 +2371,6 @@
     },
     "typescript/explicit-function-return-type": {
       "count": 1
-    },
-    "typescript/no-unsafe-call": {
-      "count": 4
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 4
-    },
-    "typescript/no-unsafe-return": {
-      "count": 3
     }
   },
   "packages/foundryup/src/index.ts": {
@@ -2493,11 +2421,6 @@
       "count": 1
     }
   },
-  "packages/gas-fee-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/gas-fee-controller/src/GasFeeController.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 7
@@ -2541,11 +2464,6 @@
       "count": 19
     }
   },
-  "packages/gator-permissions-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/gator-permissions-controller/src/GatorPermissionsController.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 10
@@ -2556,7 +2474,7 @@
     "typescript/no-unsafe-member-access": {
       "count": 3
     },
-    "typescript/no-unsafe-return": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -2568,29 +2486,27 @@
       "count": 2
     }
   },
+  "packages/gator-permissions-controller/src/decodePermission/utils.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    }
+  },
   "packages/gator-permissions-controller/src/permissionOnChainStatus.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 13
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 8
     }
   },
   "packages/gator-permissions-controller/src/utils.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 2
-    }
-  },
-  "packages/geolocation-controller/jest.config.cjs": {
-    "import/unambiguous": {
       "count": 1
     }
   },
-  "packages/geolocation-controller/src/geolocation-api-service/geolocation-api-service.test.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/java-tron-up/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+  "packages/geolocation-controller/src/GeolocationController.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 5
     }
   },
   "packages/java-tron-up/src/bin/java-tron-up.ts": {
@@ -2619,6 +2535,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/java-tron-up/src/install.ts": {
@@ -2790,11 +2709,6 @@
       "count": 3
     }
   },
-  "packages/kyc-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/kyc-controller/scripts/mint-ukyc-test-token.ts": {
     "n/prefer-global/process": {
       "count": 1
@@ -2806,14 +2720,14 @@
   "packages/kyc-controller/src/KycController.test.ts": {
     "no-unused-vars": {
       "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 2
     }
   },
   "packages/kyc-controller/src/KycService.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 10
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 14
     }
   },
   "packages/kyc-controller/src/ukyc/localUserSecret.test.ts": {
@@ -2823,11 +2737,6 @@
   },
   "packages/kyc-controller/src/ukyc/testToken.test.ts": {
     "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/local-node-utils/jest.config.cjs": {
-    "import/unambiguous": {
       "count": 1
     }
   },
@@ -2991,16 +2900,8 @@
       "count": 1
     }
   },
-  "packages/logging-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/logging-controller/src/LoggingController.test.ts": {
     "typescript/explicit-function-return-type": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
       "count": 1
     }
   },
@@ -3009,14 +2910,12 @@
       "count": 2
     }
   },
-  "packages/message-manager/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/message-manager/src/AbstractMessageManager.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 4
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 7
     }
   },
   "packages/message-manager/src/AbstractMessageManager.ts": {
@@ -3027,9 +2926,19 @@
       "count": 19
     }
   },
+  "packages/message-manager/src/DecryptMessageManager.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
+    }
+  },
   "packages/message-manager/src/DecryptMessageManager.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
+    }
+  },
+  "packages/message-manager/src/EncryptionPublicKeyManager.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 5
     }
   },
   "packages/message-manager/src/utils.test.ts": {
@@ -3112,19 +3021,9 @@
       "count": 1
     }
   },
-  "packages/money-account-api-data-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/money-account-api-data-service/src/money-account-api-data-service.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 4
-    }
-  },
-  "packages/money-account-balance-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
     }
   },
   "packages/money-account-balance-service/src/money-account-balance-service.test.ts": {
@@ -3136,6 +3035,9 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/money-account-balance-service/src/money-account-balance-service.ts": {
@@ -3155,40 +3057,24 @@
       "count": 8
     }
   },
-  "packages/money-account-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/money-account-controller/src/MoneyAccountController.test.ts": {
     "n/no-callback-literal": {
-      "count": 6
-    },
-    "typescript/no-unsafe-call": {
-      "count": 6
-    },
-    "typescript/no-unsafe-return": {
-      "count": 6
-    }
-  },
-  "packages/money-account-controller/src/MoneyAccountController.ts": {
-    "no-unused-vars": {
       "count": 1
     }
   },
-  "packages/money-account-mfa-whitelist/jest.config.cjs": {
-    "import/unambiguous": {
+  "packages/money-account-mfa-whitelist/src/get-mfa-requirement.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
-  "packages/money-account-upgrade-controller/jest.config.cjs": {
-    "import/unambiguous": {
+  "packages/money-account-upgrade-controller/src/MoneyAccountUpgradeController.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
-  "packages/money-account-utils/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+  "packages/money-account-upgrade-controller/src/steps/eip-7702-authorization.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/money-account-utils/src/transactions.test.ts": {
@@ -3216,11 +3102,6 @@
       "count": 2
     }
   },
-  "packages/multichain-account-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/multichain-account-service/src/MultichainAccountGroup.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 1
@@ -3228,7 +3109,7 @@
   },
   "packages/multichain-account-service/src/MultichainAccountService.test.ts": {
     "typescript/no-unsafe-return": {
-      "count": 5
+      "count": 1
     }
   },
   "packages/multichain-account-service/src/MultichainAccountService.ts": {
@@ -3240,8 +3121,14 @@
     "id-length": {
       "count": 2
     },
+    "typescript/no-misused-promises": {
+      "count": 1
+    },
     "typescript/no-unsafe-member-access": {
       "count": 4
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/multichain-account-service/src/MultichainAccountWallet.ts": {
@@ -3261,9 +3148,15 @@
     },
     "typescript/no-unsafe-return": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/multichain-account-service/src/providers/EvmAccountProvider.test.ts": {
+    "typescript/no-misused-promises": {
+      "count": 2
+    },
     "typescript/no-unsafe-call": {
       "count": 4
     },
@@ -3271,6 +3164,9 @@
       "count": 4
     },
     "typescript/no-unsafe-return": {
+      "count": 4
+    },
+    "vitest/no-conditional-in-test": {
       "count": 4
     }
   },
@@ -3288,7 +3184,10 @@
       "count": 2
     },
     "typescript/no-unsafe-return": {
-      "count": 9
+      "count": 8
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/multichain-account-service/src/providers/SolAccountProvider.test.ts": {
@@ -3302,6 +3201,9 @@
       "count": 3
     },
     "typescript/no-unsafe-return": {
+      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -3317,6 +3219,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/multichain-account-service/src/providers/XlmAccountProvider.test.ts": {
@@ -3464,16 +3369,6 @@
       "count": 2
     }
   },
-  "packages/multichain-network-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/multichain-transactions-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/multichain-transactions-controller/src/MultichainTransactionsController.ts": {
     "typescript/explicit-function-return-type": {
       "count": 4
@@ -3486,11 +3381,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 2
-    }
-  },
-  "packages/name-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
     }
   },
   "packages/name-controller/src/NameController.test.ts": {
@@ -3722,19 +3612,6 @@
       "count": 1
     }
   },
-  "packages/notification-services-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/jest.environment.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "node/global-require": {
-      "count": 1
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
     "id-length": {
       "count": 1
@@ -3743,18 +3620,13 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 9
+      "count": 6
     },
     "typescript/no-unsafe-call": {
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
       "count": 3
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/processors/process-notifications.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
     }
   },
   "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.ts": {
@@ -3778,20 +3650,9 @@
       "count": 1
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesPushController/NotificationServicesPushController.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesPushController/web/push-utils.test.ts": {
-    "no-import-assign": {
-      "count": 3
-    },
     "no-undef": {
       "count": 3
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
     }
   },
   "packages/notification-services-controller/src/NotificationServicesPushController/web/push-utils.ts": {
@@ -3807,17 +3668,17 @@
       "count": 1
     }
   },
-  "packages/passkey-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/passkey-controller/src/PasskeyController.test.ts": {
     "no-throw-literal": {
       "count": 2
     },
-    "typescript/no-unsafe-return": {
-      "count": 2
+    "vitest/no-conditional-in-test": {
+      "count": 4
+    }
+  },
+  "packages/passkey-controller/src/ceremony-manager.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/passkey-controller/src/constants.ts": {
@@ -3828,11 +3689,22 @@
   "packages/passkey-controller/src/webauthn/parse-authenticator-data.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 3
+    }
+  },
+  "packages/passkey-controller/src/webauthn/verify-authentication-response.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/passkey-controller/src/webauthn/verify-registration-response.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/permission-controller/jest.config.cjs": {
@@ -4152,13 +4024,8 @@
       "count": 1
     }
   },
-  "packages/profile-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/profile-metrics-controller/jest.config.cjs": {
-    "import/unambiguous": {
+  "packages/profile-metrics-controller/src/ProfileMetricsController.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -4178,37 +4045,21 @@
       "count": 1
     }
   },
-  "packages/profile-sync-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/profile-sync-controller/jest.environment.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "node/global-require": {
-      "count": 1
-    }
-  },
   "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.test.ts": {
     "id-length": {
       "count": 4
     },
-    "jest/no-conditional-expect": {
-      "count": 3
-    },
     "no-new": {
-      "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 15
-    },
-    "typescript/no-unsafe-member-access": {
       "count": 1
     },
     "typescript/no-unsafe-return": {
       "count": 5
+    },
+    "vitest/no-conditional-expect": {
+      "count": 3
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 15
     }
   },
   "packages/profile-sync-controller/src/controllers/authentication/AuthenticationController.ts": {
@@ -4232,9 +4083,6 @@
   "packages/profile-sync-controller/src/controllers/user-storage/UserStorageController.test.ts": {
     "typescript/explicit-function-return-type": {
       "count": 24
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 13
     }
   },
   "packages/profile-sync-controller/src/controllers/user-storage/UserStorageController.ts": {
@@ -4248,9 +4096,6 @@
   "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockMessenger.ts": {
     "id-length": {
       "count": 1
-    },
-    "no-undef": {
-      "count": 8
     },
     "typescript/explicit-function-return-type": {
       "count": 3
@@ -4276,9 +4121,6 @@
     }
   },
   "packages/profile-sync-controller/src/controllers/user-storage/contact-syncing/__fixtures__/test-utils.ts": {
-    "no-undef": {
-      "count": 6
-    },
     "no-useless-return": {
       "count": 1
     },
@@ -4353,9 +4195,6 @@
     }
   },
   "packages/profile-sync-controller/src/sdk/__fixtures__/test-utils.ts": {
-    "no-undef": {
-      "count": 2
-    },
     "typescript/explicit-function-return-type": {
       "count": 4
     }
@@ -4376,6 +4215,11 @@
     },
     "typescript/explicit-function-return-type": {
       "count": 2
+    }
+  },
+  "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/mfa/schemas.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/profile-sync-controller/src/sdk/authentication-jwt-bearer/mfa/services.test.ts": {
@@ -4399,7 +4243,7 @@
       "count": 4
     },
     "typescript/no-unsafe-member-access": {
-      "count": 22
+      "count": 19
     },
     "typescript/no-unsafe-return": {
       "count": 11
@@ -4457,6 +4301,9 @@
     },
     "typescript/no-unsafe-argument": {
       "count": 5
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/profile-sync-controller/src/sdk/user-storage.ts": {
@@ -4515,9 +4362,6 @@
     }
   },
   "packages/profile-sync-controller/src/shared/encryption/encryption.test.ts": {
-    "jest/valid-expect-in-promise": {
-      "count": 1
-    },
     "typescript/explicit-function-return-type": {
       "count": 1
     }
@@ -4578,19 +4422,17 @@
       "count": 2
     }
   },
-  "packages/ramps-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/ramps-controller/src/NeoBankService.test.ts": {
     "no-unused-vars": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 14
     }
   },
   "packages/ramps-controller/src/RampsController.order-syncing.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/ramps-controller/src/RampsController.test.ts": {
@@ -4602,12 +4444,12 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 6
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 7
     }
   },
   "packages/ramps-controller/src/TransakService.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 8
-    },
     "typescript/no-unsafe-call": {
       "count": 1
     },
@@ -4616,6 +4458,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 40
     }
   },
   "packages/ramps-controller/src/order-syncing/controller-integration.test.ts": {
@@ -4623,10 +4468,28 @@
       "count": 5
     },
     "typescript/no-unsafe-member-access": {
-      "count": 6
+      "count": 4
     },
     "typescript/no-unsafe-return": {
       "count": 13
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 10
+    }
+  },
+  "packages/ramps-controller/src/order-syncing/sync-utils.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 2
+    }
+  },
+  "packages/ramps-controller/src/wallet-registration-machine.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    }
+  },
+  "packages/ramps-controller/src/wallet-registration-service.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/rate-limit-controller/jest.config.cjs": {
@@ -4644,14 +4507,14 @@
       "count": 1
     }
   },
-  "packages/remote-feature-flag-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
+    }
+  },
+  "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 10
     }
   },
   "packages/sample-controllers/src/sample-gas-prices-controller.test.ts": {
@@ -4672,11 +4535,6 @@
       "count": 1
     }
   },
-  "packages/seedless-onboarding-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/seedless-onboarding-controller/src/SecretMetadata.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -4688,6 +4546,9 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 17
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 5
     }
   },
   "packages/seedless-onboarding-controller/src/SeedlessOnboardingController.ts": {
@@ -4740,14 +4601,12 @@
       "count": 2
     }
   },
-  "packages/sentinel-api-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/sentinel-api-service/src/sentinel-api-service.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 12
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/sentinel-api-service/src/sentinel-api-service.ts": {
@@ -4755,14 +4614,14 @@
       "count": 2
     }
   },
-  "packages/shield-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+  "packages/shield-controller/src/polling-with-policy.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
-  "packages/signature-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+  "packages/shield-controller/src/shield-api-service.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/signature-controller/src/SignatureController.test.ts": {
@@ -4776,7 +4635,7 @@
       "count": 1
     },
     "typescript/no-unsafe-return": {
-      "count": 8
+      "count": 7
     }
   },
   "packages/signature-controller/src/SignatureController.ts": {
@@ -4863,11 +4722,6 @@
       "count": 4
     },
     "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "packages/smart-transactions-controller/jest.config.cjs": {
-    "import/unambiguous": {
       "count": 1
     }
   },
@@ -4960,17 +4814,6 @@
   "packages/smart-transactions-controller/tests/helpers.ts": {
     "typescript/explicit-function-return-type": {
       "count": 2
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "packages/snap-account-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
     }
   },
   "packages/snap-account-service/src/SnapAccountService.test.ts": {
@@ -4998,19 +4841,9 @@
       "count": 1
     }
   },
-  "packages/social-controllers/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/social-controllers/src/SocialService.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 8
-    }
-  },
-  "packages/solana-test-validator-up/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+  "packages/social-controllers/src/SocialRealtimeService.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 54
     }
   },
   "packages/solana-test-validator-up/src/bin/solana-test-validator-up.ts": {
@@ -5042,6 +4875,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/solana-test-validator-up/src/install.ts": {
@@ -5061,19 +4897,14 @@
       "count": 5
     }
   },
-  "packages/stellar-quickstart-up/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/storage-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/storage-service/src/InMemoryStorageAdapter.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
+    }
+  },
+  "packages/storage-service/src/StorageService.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/subscription-controller/src/SubscriptionController.test.ts": {
@@ -5112,26 +4943,24 @@
       "count": 2
     }
   },
-  "packages/transaction-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/transaction-controller/src/TransactionController.test.ts": {
     "no-useless-return": {
       "count": 4
     },
     "typescript/no-unsafe-argument": {
-      "count": 7
+      "count": 8
     },
     "typescript/no-unsafe-call": {
-      "count": 10
-    },
-    "typescript/no-unsafe-member-access": {
       "count": 9
     },
+    "typescript/no-unsafe-member-access": {
+      "count": 4
+    },
     "typescript/no-unsafe-return": {
-      "count": 5
+      "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 9
     }
   },
   "packages/transaction-controller/src/TransactionController.ts": {
@@ -5153,16 +4982,6 @@
     "typescript/no-unsafe-member-access": {
       "count": 7
     },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/transaction-controller/src/api/accounts-api.test.ts": {
     "typescript/no-unsafe-return": {
       "count": 1
     }
@@ -5191,11 +5010,6 @@
       "count": 2
     }
   },
-  "packages/transaction-controller/src/gas-flows/OptimismLayer1GasFeeFlow.test.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
   "packages/transaction-controller/src/gas-flows/OptimismLayer1GasFeeFlow.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
@@ -5203,11 +5017,6 @@
   },
   "packages/transaction-controller/src/gas-flows/OracleLayer1GasFeeFlow.ts": {
     "no-undef": {
-      "count": 1
-    }
-  },
-  "packages/transaction-controller/src/helpers/MethodDataHelper.test.ts": {
-    "typescript/no-unsafe-return": {
       "count": 1
     }
   },
@@ -5224,7 +5033,7 @@
       "count": 9
     },
     "typescript/no-unsafe-return": {
-      "count": 6
+      "count": 5
     }
   },
   "packages/transaction-controller/src/helpers/PendingTransactionTracker.ts": {
@@ -5233,14 +5042,6 @@
     },
     "typescript/no-unsafe-assignment": {
       "count": 3
-    }
-  },
-  "packages/transaction-controller/src/helpers/ResimulateHelper.test.ts": {
-    "typescript/no-unsafe-call": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
     }
   },
   "packages/transaction-controller/src/hooks/SequentialPublishBatchHook.test.ts": {
@@ -5284,7 +5085,10 @@
       "count": 1
     },
     "typescript/no-unsafe-return": {
-      "count": 3
+      "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/transaction-controller/src/utils/batch.ts": {
@@ -5295,14 +5099,11 @@
   "packages/transaction-controller/src/utils/first-time-interaction.test.ts": {
     "typescript/no-unsafe-call": {
       "count": 3
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 3
     }
   },
   "packages/transaction-controller/src/utils/gas.test.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 2
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/transaction-controller/src/utils/gas.ts": {
@@ -5316,11 +5117,6 @@
       "count": 2
     }
   },
-  "packages/transaction-controller/src/utils/layer1-gas-fee-flow.test.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
   "packages/transaction-controller/src/utils/nonce.test.ts": {
     "no-unused-vars": {
       "count": 1
@@ -5329,16 +5125,6 @@
   "packages/transaction-controller/src/utils/recipient.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 3
-    }
-  },
-  "packages/transaction-controller/src/utils/revert-reason.test.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/transaction-controller/src/utils/signature.test.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/transaction-controller/src/utils/swaps.test.ts": {
@@ -5411,11 +5197,6 @@
       "count": 1
     }
   },
-  "packages/transaction-pay-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/transaction-pay-controller/src/TransactionPayController.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 2
@@ -5424,16 +5205,10 @@
   "packages/transaction-pay-controller/src/actions/update-fiat-payment.test.ts": {
     "typescript/no-unsafe-call": {
       "count": 4
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 4
     }
   },
   "packages/transaction-pay-controller/src/actions/update-payment-token.test.ts": {
     "typescript/no-unsafe-call": {
-      "count": 3
-    },
-    "typescript/no-unsafe-member-access": {
       "count": 3
     }
   },
@@ -5468,8 +5243,8 @@
     "typescript/no-unsafe-member-access": {
       "count": 42
     },
-    "typescript/no-unsafe-return": {
-      "count": 3
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/across/across-submit.test.ts": {
@@ -5481,9 +5256,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 28
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/across/transactions.test.ts": {
@@ -5504,10 +5276,13 @@
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 2
+      "count": 1
     },
     "typescript/no-unsafe-return": {
-      "count": 2
+      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 13
     }
   },
   "packages/transaction-pay-controller/src/strategy/fiat/fiat-quotes.ts": {
@@ -5516,16 +5291,13 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/fiat/fiat-submit.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 45
     }
   },
   "packages/transaction-pay-controller/src/strategy/fiat/fiat-test-funding.test.ts": {
     "typescript/no-unsafe-return": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/fiat/utils.test.ts": {
@@ -5555,10 +5327,7 @@
       "count": 2
     },
     "typescript/no-unsafe-member-access": {
-      "count": 17
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
+      "count": 15
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {
@@ -5582,10 +5351,10 @@
       "count": 84
     },
     "typescript/no-unsafe-member-access": {
-      "count": 216
+      "count": 215
     },
-    "typescript/no-unsafe-return": {
-      "count": 2
+    "vitest/no-conditional-in-test": {
+      "count": 5
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.ts": {
@@ -5607,7 +5376,7 @@
       "count": 6
     },
     "typescript/no-unsafe-member-access": {
-      "count": 16
+      "count": 10
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit.test.ts": {
@@ -5618,18 +5387,18 @@
       "count": 17
     },
     "typescript/no-unsafe-member-access": {
-      "count": 26
+      "count": 24
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-validation.test.ts": {
     "typescript/no-unsafe-call": {
-      "count": 13
+      "count": 6
     },
     "typescript/no-unsafe-member-access": {
-      "count": 18
-    },
-    "typescript/no-unsafe-return": {
-      "count": 2
+      "count": 6
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {
@@ -5641,9 +5410,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 15
-    },
-    "typescript/no-unsafe-return": {
-      "count": 2
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.ts": {
@@ -5663,9 +5429,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 31
-    },
-    "typescript/no-unsafe-return": {
-      "count": 3
     }
   },
   "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
@@ -5693,7 +5456,7 @@
       "count": 16
     },
     "typescript/no-unsafe-return": {
-      "count": 3
+      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/utils/gas.test.ts": {
@@ -5705,9 +5468,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 15
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/utils/polymarket/withdraw.test.ts": {
@@ -5741,9 +5501,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 8
-    },
-    "typescript/no-unsafe-return": {
-      "count": 2
     }
   },
   "packages/transaction-pay-controller/src/utils/quotes.test.ts": {
@@ -5757,10 +5514,13 @@
       "count": 27
     },
     "typescript/no-unsafe-member-access": {
-      "count": 27
+      "count": 8
     },
     "typescript/no-unsafe-return": {
       "count": 18
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 24
     }
   },
   "packages/transaction-pay-controller/src/utils/quotes.ts": {
@@ -5768,14 +5528,14 @@
       "count": 1
     }
   },
-  "packages/transaction-pay-controller/src/utils/required-tokens.test.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
   "packages/transaction-pay-controller/src/utils/required-tokens.ts": {
     "typescript/no-unsafe-argument": {
       "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/second-leg.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 7
     }
   },
   "packages/transaction-pay-controller/src/utils/simulation.test.ts": {
@@ -5803,9 +5563,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 4
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/utils/strategy.ts": {
@@ -5821,13 +5578,13 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 56
+      "count": 60
     },
     "typescript/no-unsafe-call": {
-      "count": 55
+      "count": 59
     },
     "typescript/no-unsafe-member-access": {
-      "count": 55
+      "count": 59
     }
   },
   "packages/transaction-pay-controller/src/utils/token.ts": {
@@ -5846,7 +5603,10 @@
       "count": 41
     },
     "typescript/no-unsafe-member-access": {
-      "count": 19
+      "count": 17
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 5
     }
   },
   "packages/transaction-pay-controller/src/utils/transaction.ts": {
@@ -5863,9 +5623,6 @@
   "packages/transaction-pay-controller/src/utils/validation.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 22
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/utils/validation.ts": {
@@ -5876,11 +5633,6 @@
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "packages/transaction-pay-middleware/jest.config.cjs": {
-    "import/unambiguous": {
       "count": 1
     }
   },
@@ -6022,19 +5774,6 @@
       "count": 8
     }
   },
-  "packages/utils/src/assert.test.ts": {
-    "no-throw-literal": {
-      "count": 1
-    }
-  },
-  "packages/utils/src/assert.ts": {
-    "typescript/no-explicit-any": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
   "packages/utils/src/bytes.ts": {
     "no-undef": {
       "count": 1
@@ -6071,19 +5810,6 @@
   "packages/utils/src/collections.ts": {
     "typescript/no-explicit-any": {
       "count": 2
-    }
-  },
-  "packages/utils/src/fs.test.ts": {
-    "typescript/no-explicit-any": {
-      "count": 20
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 8
-    }
-  },
-  "packages/utils/src/fs.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/utils/src/json.test.ts": {
@@ -6127,138 +5853,6 @@
       "count": 1
     }
   },
-  "packages/wallet-cli/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/jest.config.e2e.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/jest.environment.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "node/global-require": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/call.test.ts": {
-    "prefer-promise-reject-errors": {
-      "count": 1
-    },
-    "typescript/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/list.test.ts": {
-    "prefer-promise-reject-errors": {
-      "count": 1
-    },
-    "typescript/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/status.test.ts": {
-    "prefer-promise-reject-errors": {
-      "count": 1
-    },
-    "typescript/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/commands/wallet/unlock.test.ts": {
-    "prefer-promise-reject-errors": {
-      "count": 1
-    },
-    "typescript/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/daemon/daemon-client.test.ts": {
-    "prefer-promise-reject-errors": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    },
-    "typescript/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/daemon/daemon-entry.test.ts": {
-    "no-useless-return": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/daemon/rpc-socket-server.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 2
-    }
-  },
-  "packages/wallet-cli/src/daemon/rpc-socket-server.ts": {
-    "no-useless-return": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/daemon/send-transaction.test.ts": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/daemon/socket-line.test.ts": {
-    "id-length": {
-      "count": 2
-    }
-  },
-  "packages/wallet-cli/src/daemon/wallet-factory.test.ts": {
-    "no-useless-return": {
-      "count": 2
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/persistence/KeyValueStore.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/persistence/persistence.test.ts": {
-    "typescript/no-unsafe-call": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/tests/lifecycle.e2e.test.ts": {
-    "typescript/no-unsafe-call": {
-      "count": 2
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/tests/wallet-send.e2e.test.ts": {
-    "typescript/no-unsafe-call": {
-      "count": 5
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 5
-    }
-  },
   "packages/wallet-framework-docs/content/data-services/writing-data-services/02-read-only-requests/orders-service.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
@@ -6299,25 +5893,12 @@
     }
   },
   "scripts/create-package/cli.test.ts": {
-    "no-shadow": {
-      "count": 1
-    },
     "typescript/no-unsafe-argument": {
       "count": 2
     }
   },
-  "scripts/create-package/commands.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
-  "scripts/create-package/index.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
   "scripts/create-package/utils.test.ts": {
-    "no-shadow": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -6327,8 +5908,8 @@
     }
   },
   "scripts/lib/changelog-conflicts.test.ts": {
-    "no-shadow": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 31
     }
   },
   "scripts/lib/changelog-conflicts.ts": {
@@ -6339,13 +5920,8 @@
       "count": 2
     }
   },
-  "scripts/lib/lint-tsc.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
   "scripts/lib/tsc-suppressions.test.ts": {
-    "no-shadow": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -6374,26 +5950,8 @@
       "count": 2
     }
   },
-  "scripts/lint-tsc.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
-  "scripts/lint-tsconfigs/utils.ts": {
-    "n/no-unsupported-features/node-builtins": {
-      "count": 1
-    },
-    "no-useless-return": {
-      "count": 1
-    }
-  },
   "scripts/manage-codeowners/main.ts": {
     "n/no-unsupported-features/node-builtins": {
-      "count": 1
-    }
-  },
-  "scripts/merge-changelog-conflicts.test.ts": {
-    "no-shadow": {
       "count": 1
     }
   },
