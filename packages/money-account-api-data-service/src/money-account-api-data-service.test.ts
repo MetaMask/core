@@ -1747,23 +1747,29 @@ describe('MoneyAccountApiDataService', () => {
       service.destroy();
     });
 
-    it('renews the session after the prior in-flight request settles', async () => {
+    it('settles the in-flight SIWE request before reusing the session', async () => {
       const signPersonalMessage = vi.fn().mockResolvedValue('0xsignature');
       const { service } = createService(Env.DEV, { signPersonalMessage });
-      mockSiweAuthentication(MOCK_ADDRESS, 'first-token', signPersonalMessage);
-      mockSiweAuthentication(MOCK_ADDRESS, 'second-token', signPersonalMessage);
-      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+      const message = mockSiweAuthentication(
+        MOCK_ADDRESS,
+        'first-token',
+        signPersonalMessage,
+      );
+      const transfersScope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
         reqheaders: { authorization: 'Bearer first-token' },
       })
         .get('/v1/vba/transfers')
         .reply(200, { transfers: [] });
-      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
-        reqheaders: { authorization: 'Bearer second-token' },
-      })
-        .get('/v1/vba/transfers')
-        .reply(200, { transfers: [] });
 
-      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      const result = await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+
+      expect(result).toStrictEqual({ transfers: [] });
+      expect(signPersonalMessage).toHaveBeenCalledWith({
+        data: message,
+        from: MOCK_ADDRESS,
+      });
+      transfersScope.done();
+      expect(nock.pendingMocks()).toHaveLength(0);
       service.destroy();
     });
 
@@ -1883,7 +1889,11 @@ describe('MoneyAccountApiDataService', () => {
     it('reuses an unexpired in-flight SIWE session for concurrent reads', async () => {
       const signPersonalMessage = vi.fn().mockResolvedValue('0xsignature');
       const { service } = createService(Env.DEV, { signPersonalMessage });
-      mockSiweAuthentication(MOCK_ADDRESS, 'concurrent-token', signPersonalMessage);
+      mockSiweAuthentication(
+        MOCK_ADDRESS,
+        'concurrent-token',
+        signPersonalMessage,
+      );
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
         reqheaders: { authorization: 'Bearer concurrent-token' },
       })
