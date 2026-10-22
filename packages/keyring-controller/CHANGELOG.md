@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: use TypeScript for Vitest configs ([#10921](https://github.com/MetaMask/core/pull/10921))
+- test: use typed Vitest module mock factories ([#10904](https://github.com/MetaMask/core/pull/10904))
+- test: run keyring-controller on Vitest ([#10552](https://github.com/MetaMask/core/pull/10552))
+- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))

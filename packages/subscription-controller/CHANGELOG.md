@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: use TypeScript for Vitest configs ([#10921](https://github.com/MetaMask/core/pull/10921))
+
 ### Changed
 
 - **BREAKING:** `getBenefits` returns an ineligible benefits response instead of throwing `UserNotSubscribed`. ([#10994](https://github.com/MetaMask/core/pull/10994))
