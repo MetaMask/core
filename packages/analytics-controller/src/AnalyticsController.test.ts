@@ -44,7 +44,8 @@ type AnalyticsControllerTestActions =
   | ConfigRegistryControllerGetStateAction;
 
 type SetupControllerOptions = {
-  state: AnalyticsControllerState;
+  state: Partial<AnalyticsControllerState> &
+    Pick<AnalyticsControllerState, 'analyticsId'>;
   platformAdapter?: AnalyticsPlatformAdapter;
   isAnonymousEventsFeatureEnabled?: boolean;
   isEventQueuePersistenceEnabled?: boolean;
@@ -634,6 +635,18 @@ describe('AnalyticsController', () => {
 
       expect(controller.state.optedIn).toBe(false);
       expect(controller.state.analyticsId).toBe(analyticsId);
+    });
+
+    it('applies default opt-in preferences when only analyticsId is provided', async () => {
+      const analyticsId = '6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d';
+      const { controller } = await setupController({
+        state: { analyticsId },
+      });
+
+      expect(controller.state).toStrictEqual({
+        ...getDefaultAnalyticsControllerState(),
+        analyticsId,
+      });
     });
 
     it('preserves provided analyticsId (does not generate new one)', async () => {

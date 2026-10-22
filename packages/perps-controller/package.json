@@ -91,7 +91,7 @@
     "@metamask/network-controller": "^37.1.1",
     "@metamask/profile-sync-controller": "^35.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
-    "@metamask/subscription-controller": "^14.0.2",
+    "@metamask/subscription-controller": "^15.0.0",
     "@metamask/transaction-controller": "^72.2.1",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
