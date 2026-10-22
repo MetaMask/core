@@ -7867,7 +7867,9 @@ __metadata:
   dependencies:
     "@jest/globals": "npm:^30.5.2"
     "@metamask/auto-changelog": "npm:^6.2.1"
-    "@metamask/utils": "npm:^12.0.0"
+    "@metamask/error-utils": "npm:^0.0.0"
+    "@metamask/node-utils": "npm:^0.0.0"
+    "@metamask/type-utils": "npm:^0.0.0"
     "@types/jest": "npm:^30.0.0"
     "@types/yargs": "npm:^17.0.35"
     "@typescript/native": "npm:typescript@^7.0.2"
