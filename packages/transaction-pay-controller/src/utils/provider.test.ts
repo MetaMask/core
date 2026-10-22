@@ -3,6 +3,7 @@ import { NetworkClientType } from '@metamask/network-controller';
 import { RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { getNetworkClientId, rpcRequest } from './provider.js';
@@ -10,7 +11,7 @@ import { getNetworkClientId, rpcRequest } from './provider.js';
 const CHAIN_ID_MOCK = '0x1' as Hex;
 const DEFAULT_NETWORK_CLIENT_ID_MOCK = 'default-client-id';
 const INFURA_NETWORK_CLIENT_ID_MOCK = 'mainnet';
-const PROVIDER_MOCK = { request: jest.fn() } as unknown as Provider;
+const PROVIDER_MOCK = { request: vi.fn() } as unknown as Provider;
 
 function buildNetworkClient(
   provider: Provider,
@@ -46,7 +47,7 @@ describe('provider utils', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     findNetworkClientIdByChainIdMock.mockReturnValue(
       DEFAULT_NETWORK_CLIENT_ID_MOCK,
@@ -139,7 +140,7 @@ describe('provider utils', () => {
 
   describe('rpcRequest', () => {
     it('calls provider.request with method and params', async () => {
-      const requestMock = jest.fn().mockResolvedValue('0xabc');
+      const requestMock = vi.fn().mockResolvedValue('0xabc');
       getNetworkClientByIdMock.mockReturnValue({
         configuration: {
           chainId: CHAIN_ID_MOCK,
@@ -169,7 +170,7 @@ describe('provider utils', () => {
     });
 
     it('calls provider.request without params when omitted', async () => {
-      const requestMock = jest.fn().mockResolvedValue('0x10');
+      const requestMock = vi.fn().mockResolvedValue('0x10');
       getNetworkClientByIdMock.mockReturnValue({
         configuration: {
           chainId: CHAIN_ID_MOCK,
@@ -198,7 +199,7 @@ describe('provider utils', () => {
 
     it('prefixes provider errors with custom endpoint context', async () => {
       const error = new Error('RPC failed');
-      const requestMock = jest.fn().mockRejectedValue(error);
+      const requestMock = vi.fn().mockRejectedValue(error);
       getNetworkClientByIdMock.mockReturnValue({
         configuration: {
           chainId: CHAIN_ID_MOCK,
@@ -234,7 +235,7 @@ describe('provider utils', () => {
       });
 
       const error = new Error('Unauthorized.');
-      const requestMock = jest.fn().mockRejectedValue(error);
+      const requestMock = vi.fn().mockRejectedValue(error);
       getNetworkClientByIdMock.mockReturnValue({
         configuration: {
           chainId: CHAIN_ID_MOCK,
@@ -266,7 +267,7 @@ describe('provider utils', () => {
       const error = Object.assign(new Error('Outer message'), {
         data: { message: 'Nested rpc error message' },
       });
-      const requestMock = jest.fn().mockRejectedValue(error);
+      const requestMock = vi.fn().mockRejectedValue(error);
       getNetworkClientByIdMock.mockReturnValue({
         configuration: {
           chainId: CHAIN_ID_MOCK,
@@ -303,7 +304,7 @@ describe('provider utils', () => {
         ],
       });
 
-      const requestMock = jest.fn().mockResolvedValue('0x1');
+      const requestMock = vi.fn().mockResolvedValue('0x1');
       getNetworkClientByIdMock.mockReturnValue({
         configuration: {
           chainId: CHAIN_ID_MOCK,

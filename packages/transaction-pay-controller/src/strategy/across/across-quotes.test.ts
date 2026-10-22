@@ -6,6 +6,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
@@ -29,22 +30,22 @@ import { ACROSS_HYPERCORE_USDC_PERPS_ADDRESS } from './perps.js';
 import * as acrossTransactions from './transactions.js';
 import type { AcrossSwapApprovalResponse } from './types.js';
 
-jest.mock('../../utils/token');
-jest.mock('../../utils/gas', () => ({
-  ...jest.requireActual('../../utils/gas'),
-  calculateGasCost: jest.fn(),
-  calculateGasFeeTokenCost: jest.fn(),
+vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/gas.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  calculateGasCost: vi.fn(),
+  calculateGasFeeTokenCost: vi.fn(),
 }));
-jest.mock('../../utils/feature-flags', () => ({
-  ...jest.requireActual('../../utils/feature-flags'),
-  getGasBuffer: jest.fn(),
-  isEIP7702Chain: jest.fn(),
-  getSlippage: jest.fn(),
+vi.mock(import('../../utils/feature-flags.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getGasBuffer: vi.fn(),
+  isEIP7702Chain: vi.fn(),
+  getSlippage: vi.fn(),
 }));
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  successfulFetch: jest.fn(),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  successfulFetch: vi.fn(),
 }));
 
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
@@ -163,7 +164,7 @@ function buildExecTransactionData(): Hex {
 }
 
 function getRequestBody(): { actions: unknown[] } {
-  const [, options] = jest.mocked(successfulFetch).mock.calls[0];
+  const [, options] = vi.mocked(successfulFetch).mock.calls[0];
 
   return JSON.parse((options?.body as string) ?? '{}') as {
     actions: unknown[];
@@ -171,14 +172,14 @@ function getRequestBody(): { actions: unknown[] } {
 }
 
 describe('Across Quotes', () => {
-  const successfulFetchMock = jest.mocked(successfulFetch);
-  const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
-  const getGasBufferMock = jest.mocked(getGasBuffer);
-  const getSlippageMock = jest.mocked(getSlippage);
-  const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
-  const calculateGasCostMock = jest.mocked(calculateGasCost);
-  const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
-  const getTokenBalanceMock = jest.mocked(getTokenBalance);
+  const successfulFetchMock = vi.mocked(successfulFetch);
+  const getTokenFiatRateMock = vi.mocked(getTokenFiatRate);
+  const getGasBufferMock = vi.mocked(getGasBuffer);
+  const getSlippageMock = vi.mocked(getSlippage);
+  const isEIP7702ChainMock = vi.mocked(isEIP7702Chain);
+  const calculateGasCostMock = vi.mocked(calculateGasCost);
+  const calculateGasFeeTokenCostMock = vi.mocked(calculateGasFeeTokenCost);
+  const getTokenBalanceMock = vi.mocked(getTokenBalance);
 
   const {
     messenger,
@@ -203,7 +204,7 @@ describe('Across Quotes', () => {
   };
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
@@ -2593,7 +2594,7 @@ describe('Across Quotes', () => {
     });
 
     it('throws when the shared gas estimator marks a quote as 7702 without a combined gas limit', async () => {
-      const estimateQuoteGasLimitsSpy = jest.spyOn(
+      const estimateQuoteGasLimitsSpy = vi.spyOn(
         quoteGasUtils,
         'estimateQuoteGasLimits',
       );
@@ -2728,11 +2729,11 @@ describe('Across Quotes', () => {
     });
 
     it('falls back to the swap chain id when an approval transaction chain id is missing during cost calculation', async () => {
-      const estimateQuoteGasLimitsSpy = jest.spyOn(
+      const estimateQuoteGasLimitsSpy = vi.spyOn(
         quoteGasUtils,
         'estimateQuoteGasLimits',
       );
-      const orderedTransactionsSpy = jest.spyOn(
+      const orderedTransactionsSpy = vi.spyOn(
         acrossTransactions,
         'getAcrossOrderedTransactions',
       );
