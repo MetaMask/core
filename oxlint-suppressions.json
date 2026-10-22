@@ -14,11 +14,6 @@
       "count": 1
     }
   },
-  "jest.config.scripts.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/AccountTreeController.test.ts": {
     "id-length": {
       "count": 2
@@ -5817,25 +5812,12 @@
     }
   },
   "scripts/create-package/cli.test.ts": {
-    "no-shadow": {
-      "count": 1
-    },
     "typescript/no-unsafe-argument": {
       "count": 2
     }
   },
-  "scripts/create-package/commands.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
-  "scripts/create-package/index.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
   "scripts/create-package/utils.test.ts": {
-    "no-shadow": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -5845,8 +5827,8 @@
     }
   },
   "scripts/lib/changelog-conflicts.test.ts": {
-    "no-shadow": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 31
     }
   },
   "scripts/lib/changelog-conflicts.ts": {
@@ -5857,13 +5839,8 @@
       "count": 2
     }
   },
-  "scripts/lib/lint-tsc.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
   "scripts/lib/tsc-suppressions.test.ts": {
-    "no-shadow": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -5892,18 +5869,8 @@
       "count": 2
     }
   },
-  "scripts/lint-tsc.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
   "scripts/manage-codeowners/main.ts": {
     "n/no-unsupported-features/node-builtins": {
-      "count": 1
-    }
-  },
-  "scripts/merge-changelog-conflicts.test.ts": {
-    "no-shadow": {
       "count": 1
     }
   },

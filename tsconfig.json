@@ -356,6 +356,7 @@
     "./codeowners.ts",
     "./knip.config.mts",
     "./vitest.config.packages.ts",
+    "./vitest.config.scripts.ts",
     "./packages/*/vitest.config.ts",
     "./packages/*/vitest.config.mts"
   ]

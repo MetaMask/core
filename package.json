@@ -59,10 +59,10 @@
     "setup": "yarn install",
     "skills": "metamask-skills sync",
     "skills:postinstall": "metamask-skills postinstall",
-    "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:scripts:shell && yarn test:packages",
+    "test": "yarn test:scripts --coverage.enabled=false --silent && yarn test:scripts:shell && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
     "test:packages": "yarn test:verbose --silent --coverage=false",
-    "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.cjs --silent",
+    "test:scripts": "vitest --config ./vitest.config.scripts.ts",
     "test:scripts:shell": "node_modules/bats/bin/bats scripts/*.bats",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
@@ -117,7 +117,6 @@
     "rimraf": "^6.1.3",
     "semver": "^7.8.5",
     "simple-git-hooks": "^2.14.0",
-    "ts-jest": "^29.4.14",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "uuid": "^11.1.1",
     "vite": "^8.0.8",
@@ -132,7 +131,7 @@
     "pre-push": "yarn lint"
   },
   "engines": {
-    "node": "^22.14.0 || ^24"
+    "node": "^22.14.0 || ^24 || ^26"
   },
   "packageManager": "yarn@4.17.1+sha256.471ffb15e0523663865bbf46a69e7d157ecf532412eb436c48dfab6e3f2abe88",
   "lavamoat": {
