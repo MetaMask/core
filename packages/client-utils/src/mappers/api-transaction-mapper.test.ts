@@ -800,6 +800,35 @@ describe('mapApiTransaction', () => {
     expect(token).toBeUndefined();
   });
 
+  it('maps a Polygon smart-account batch execute to a contractInteraction with fees', () => {
+    const item = mapApiTransaction(
+      apiTransactionFixtures.mapArgs.polygonSmartAccountBatchExecute,
+    );
+
+    expect(item).toMatchObject({
+      type: 'contractInteraction',
+      chainId: 'eip155:137',
+      status: 'success',
+      hash: '0xpolygonsmartaccountbatchexecute',
+      data: {
+        from: subjectAddress,
+        to: subjectAddress,
+        methodId: '0xe9ae5c53',
+        transactionCategory: 'WITHDRAW',
+        fees: [
+          {
+            type: 'base',
+            amount: '214819023645917287',
+            decimals: 18,
+            assetType: 'native',
+            symbol: 'POL',
+            assetId: 'eip155:137/slip44:966',
+          },
+        ],
+      },
+    });
+  });
+
   it('maps the reported generic contract call to a contract interaction with its token amount', () => {
     const item = mapApiTransaction(
       apiTransactionFixtures.mapArgs.mapsTheReportedGenericContractCall,
