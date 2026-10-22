@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { generateCodeownersFileContent } from './generate.ts';
 import type { CodeownersConfig } from './types.ts';
 

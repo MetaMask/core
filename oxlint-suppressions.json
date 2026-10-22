@@ -14,11 +14,6 @@
       "count": 1
     }
   },
-  "jest.config.scripts.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/AccountTreeController.test.ts": {
     "id-length": {
       "count": 2
@@ -225,11 +220,6 @@
       "count": 3
     }
   },
-  "packages/advanced-chart-core/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/advanced-chart-core/src/__tests__/index.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 2
@@ -238,6 +228,9 @@
   "packages/advanced-chart-core/src/core/__tests__/bootstrap.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 4
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/advanced-chart-core/src/core/__tests__/bridge.test.ts": {
@@ -277,7 +270,7 @@
   },
   "packages/advanced-chart-core/src/features/indicators/__tests__/subPane.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 3
+      "count": 1
     }
   },
   "packages/advanced-chart-core/src/features/indicators/index.ts": {
@@ -301,11 +294,6 @@
       "count": 3
     }
   },
-  "packages/advanced-chart-core/src/features/volume/__tests__/volume.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
   "packages/advanced-chart-core/src/features/volume/index.ts": {
     "unicorn/no-useless-undefined": {
       "count": 1
@@ -324,9 +312,9 @@
       "count": 1
     }
   },
-  "packages/advanced-chart-core/src/overlays/positionLines/__tests__/positionLines.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 4
+  "packages/advanced-chart-core/src/overlays/focusTime/__tests__/focusTime.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/advanced-chart-core/src/overlays/positionLines/__tests__/state.test.ts": {
@@ -347,6 +335,9 @@
   "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/animation.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 3
     }
   },
   "packages/advanced-chart-core/src/overlays/tradeMarkers/__tests__/markerHitTest.test.ts": {
@@ -365,9 +356,6 @@
   "packages/advanced-chart-core/src/pagination/__tests__/priceApi.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 3
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
     }
   },
   "packages/advanced-chart-core/src/pagination/__tests__/rnBacked.test.ts": {
@@ -375,7 +363,7 @@
       "count": 13
     },
     "typescript/no-unsafe-member-access": {
-      "count": 22
+      "count": 17
     }
   },
   "packages/advanced-chart-core/src/platform/iframeHost.ts": {
@@ -388,17 +376,12 @@
       "count": 2
     }
   },
-  "packages/advanced-chart-core/src/widget/__tests__/chartType.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
   "packages/advanced-chart-core/src/widget/__tests__/datafeed.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 11
     },
     "typescript/no-unsafe-member-access": {
-      "count": 13
+      "count": 10
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/externalLinkBridge.test.ts": {
@@ -412,12 +395,6 @@
   "packages/advanced-chart-core/src/widget/__tests__/initChart.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
       "count": 2
-    },
-    "typescript/no-unsafe-call": {
-      "count": 9
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 18
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/ohlcvIngestion.test.ts": {
@@ -432,20 +409,21 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 13
-    }
-  },
-  "packages/advanced-chart-core/src/widget/__tests__/scaleLayout.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 10
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 9
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/theme.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 11
+      "count": 7
     }
   },
   "packages/advanced-chart-core/src/widget/__tests__/tvDomHelpers.test.ts": {
     "typescript/no-unnecessary-type-assertion": {
+      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -459,14 +437,9 @@
       "count": 5
     }
   },
-  "packages/analytics-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/analytics-controller/src/AnalyticsController.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 12
     }
   },
   "packages/analytics-controller/src/AnalyticsController.ts": {
@@ -477,11 +450,6 @@
       "count": 2
     }
   },
-  "packages/analytics-data-regulation-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/analytics-data-regulation-controller/src/AnalyticsDataRegulationController.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 1
@@ -490,11 +458,9 @@
   "packages/analytics-data-regulation-controller/src/AnalyticsDataRegulationService.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 5
-    }
-  },
-  "packages/app-metadata-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 5
     }
   },
   "packages/approval-controller/src/ApprovalController.test.ts": {
@@ -1415,11 +1381,6 @@
       "count": 4
     }
   },
-  "packages/bitcoin-regtest-up/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts": {
     "typescript/no-unsafe-argument": {
       "count": 2
@@ -1445,6 +1406,9 @@
       "count": 55
     },
     "typescript/no-unsafe-return": {
+      "count": 2
+    },
+    "vitest/no-conditional-in-test": {
       "count": 2
     }
   },
@@ -1986,11 +1950,6 @@
       "count": 2
     }
   },
-  "packages/client-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/client-utils/src/mappers/api-transaction-mapper.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 2
@@ -2006,11 +1965,6 @@
       "count": 3
     }
   },
-  "packages/compliance-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/composable-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -2019,11 +1973,6 @@
   "packages/composable-controller/src/ComposableController.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 2
-    }
-  },
-  "packages/config-registry-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
     }
   },
   "packages/connectivity-controller/jest.config.cjs": {
@@ -2391,11 +2340,6 @@
       "count": 1
     }
   },
-  "packages/foundryup/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/foundryup/src/download.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -2427,15 +2371,6 @@
     },
     "typescript/explicit-function-return-type": {
       "count": 1
-    },
-    "typescript/no-unsafe-call": {
-      "count": 4
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 4
-    },
-    "typescript/no-unsafe-return": {
-      "count": 3
     }
   },
   "packages/foundryup/src/index.ts": {
@@ -2569,19 +2504,9 @@
       "count": 1
     }
   },
-  "packages/geolocation-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/geolocation-controller/src/geolocation-api-service/geolocation-api-service.test.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/java-tron-up/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
+  "packages/geolocation-controller/src/GeolocationController.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 5
     }
   },
   "packages/java-tron-up/src/bin/java-tron-up.ts": {
@@ -2610,6 +2535,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/java-tron-up/src/install.ts": {
@@ -2809,11 +2737,6 @@
   },
   "packages/kyc-controller/src/ukyc/testToken.test.ts": {
     "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/local-node-utils/jest.config.cjs": {
-    "import/unambiguous": {
       "count": 1
     }
   },
@@ -3098,11 +3021,6 @@
       "count": 1
     }
   },
-  "packages/money-account-api-data-service/src/money-account-api-data-service.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 4
-    }
-  },
   "packages/money-account-balance-service/src/money-account-balance-service.test.ts": {
     "id-length": {
       "count": 1
@@ -3136,20 +3054,6 @@
   },
   "packages/money-account-controller/src/MoneyAccountController.test.ts": {
     "n/no-callback-literal": {
-      "count": 6
-    },
-    "typescript/no-unsafe-call": {
-      "count": 6
-    },
-    "typescript/no-unsafe-return": {
-      "count": 6
-    },
-    "vitest/no-conditional-in-test": {
-      "count": 1
-    }
-  },
-  "packages/money-account-controller/src/MoneyAccountController.ts": {
-    "no-unused-vars": {
       "count": 1
     }
   },
@@ -3460,7 +3364,6 @@
       "count": 2
     }
   },
-  "packages/multichain-network-controller/src/MultichainNetworkController/MultichainNetworkController.test.ts": {},
   "packages/multichain-transactions-controller/src/MultichainTransactionsController.ts": {
     "typescript/explicit-function-return-type": {
       "count": 4
@@ -3704,19 +3607,6 @@
       "count": 1
     }
   },
-  "packages/notification-services-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/notification-services-controller/jest.environment.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "node/global-require": {
-      "count": 1
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
     "id-length": {
       "count": 1
@@ -3725,18 +3615,13 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 9
+      "count": 6
     },
     "typescript/no-unsafe-call": {
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
       "count": 3
-    }
-  },
-  "packages/notification-services-controller/src/NotificationServicesController/processors/process-notifications.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
     }
   },
   "packages/notification-services-controller/src/NotificationServicesController/services/feature-announcements.ts": {
@@ -3760,20 +3645,9 @@
       "count": 1
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesPushController/NotificationServicesPushController.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 2
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesPushController/web/push-utils.test.ts": {
-    "no-import-assign": {
-      "count": 3
-    },
     "no-undef": {
       "count": 3
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
     }
   },
   "packages/notification-services-controller/src/NotificationServicesPushController/web/push-utils.ts": {
@@ -4145,8 +4019,8 @@
       "count": 1
     }
   },
-  "packages/profile-metrics-controller/jest.config.cjs": {
-    "import/unambiguous": {
+  "packages/profile-metrics-controller/src/ProfileMetricsController.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -4628,14 +4502,14 @@
       "count": 1
     }
   },
-  "packages/remote-feature-flag-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 1
+    }
+  },
+  "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 10
     }
   },
   "packages/sample-controllers/src/sample-gas-prices-controller.test.ts": {
@@ -4967,11 +4841,6 @@
       "count": 54
     }
   },
-  "packages/solana-test-validator-up/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/solana-test-validator-up/src/bin/solana-test-validator-up.ts": {
     "no-undef": {
       "count": 3
@@ -5001,6 +4870,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/solana-test-validator-up/src/install.ts": {
@@ -5020,19 +4892,14 @@
       "count": 5
     }
   },
-  "packages/stellar-quickstart-up/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/storage-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/storage-service/src/InMemoryStorageAdapter.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
+    }
+  },
+  "packages/storage-service/src/StorageService.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/subscription-controller/src/SubscriptionController.test.ts": {
@@ -5902,19 +5769,6 @@
       "count": 8
     }
   },
-  "packages/utils/src/assert.test.ts": {
-    "no-throw-literal": {
-      "count": 1
-    }
-  },
-  "packages/utils/src/assert.ts": {
-    "typescript/no-explicit-any": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
   "packages/utils/src/bytes.ts": {
     "no-undef": {
       "count": 1
@@ -5951,19 +5805,6 @@
   "packages/utils/src/collections.ts": {
     "typescript/no-explicit-any": {
       "count": 2
-    }
-  },
-  "packages/utils/src/fs.test.ts": {
-    "typescript/no-explicit-any": {
-      "count": 20
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 8
-    }
-  },
-  "packages/utils/src/fs.ts": {
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/utils/src/json.test.ts": {
@@ -6007,143 +5848,6 @@
       "count": 1
     }
   },
-  "packages/watch-only-account-service/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/jest.config.e2e.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/jest.environment.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "node/global-require": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/call.test.ts": {
-    "prefer-promise-reject-errors": {
-      "count": 1
-    },
-    "typescript/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/list.test.ts": {
-    "prefer-promise-reject-errors": {
-      "count": 1
-    },
-    "typescript/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/status.test.ts": {
-    "prefer-promise-reject-errors": {
-      "count": 1
-    },
-    "typescript/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/commands/wallet/unlock.test.ts": {
-    "prefer-promise-reject-errors": {
-      "count": 1
-    },
-    "typescript/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/daemon/daemon-client.test.ts": {
-    "prefer-promise-reject-errors": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    },
-    "typescript/prefer-promise-reject-errors": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/daemon/daemon-entry.test.ts": {
-    "no-useless-return": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/daemon/rpc-socket-server.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 2
-    }
-  },
-  "packages/wallet-cli/src/daemon/rpc-socket-server.ts": {
-    "no-useless-return": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/daemon/send-transaction.test.ts": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/daemon/socket-line.test.ts": {
-    "id-length": {
-      "count": 2
-    }
-  },
-  "packages/wallet-cli/src/daemon/wallet-factory.test.ts": {
-    "no-useless-return": {
-      "count": 2
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/persistence/KeyValueStore.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/persistence/persistence.test.ts": {
-    "typescript/no-unsafe-call": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/tests/lifecycle.e2e.test.ts": {
-    "typescript/no-unsafe-call": {
-      "count": 2
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/tests/wallet-send.e2e.test.ts": {
-    "typescript/no-unsafe-call": {
-      "count": 5
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 5
-    }
-  },
   "packages/wallet-framework-docs/content/data-services/writing-data-services/02-read-only-requests/orders-service.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 2
@@ -6184,25 +5888,12 @@
     }
   },
   "scripts/create-package/cli.test.ts": {
-    "no-shadow": {
-      "count": 1
-    },
     "typescript/no-unsafe-argument": {
       "count": 2
     }
   },
-  "scripts/create-package/commands.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
-  "scripts/create-package/index.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
   "scripts/create-package/utils.test.ts": {
-    "no-shadow": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -6212,8 +5903,8 @@
     }
   },
   "scripts/lib/changelog-conflicts.test.ts": {
-    "no-shadow": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 31
     }
   },
   "scripts/lib/changelog-conflicts.ts": {
@@ -6224,13 +5915,8 @@
       "count": 2
     }
   },
-  "scripts/lib/lint-tsc.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
   "scripts/lib/tsc-suppressions.test.ts": {
-    "no-shadow": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -6259,26 +5945,8 @@
       "count": 2
     }
   },
-  "scripts/lint-tsc.test.ts": {
-    "no-shadow": {
-      "count": 1
-    }
-  },
-  "scripts/lint-tsconfigs/utils.ts": {
-    "n/no-unsupported-features/node-builtins": {
-      "count": 1
-    },
-    "no-useless-return": {
-      "count": 1
-    }
-  },
   "scripts/manage-codeowners/main.ts": {
     "n/no-unsupported-features/node-builtins": {
-      "count": 1
-    }
-  },
-  "scripts/merge-changelog-conflicts.test.ts": {
-    "no-shadow": {
       "count": 1
     }
   },

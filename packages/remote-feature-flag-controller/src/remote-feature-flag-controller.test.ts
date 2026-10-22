@@ -5,8 +5,9 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service.js';
 import { ThresholdVersion } from './remote-feature-flag-controller-types.js';
 import type { FeatureFlags } from './remote-feature-flag-controller-types.js';
@@ -309,7 +310,7 @@ describe('RemoteFeatureFlagController', () => {
         } = opts;
 
         // Arrange - setup controller
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         const { controller, messenger } = createController({
           clientConfigApiService,
           clientVersion,
@@ -374,12 +375,13 @@ describe('RemoteFeatureFlagController', () => {
       });
 
       // Mock different response
-      jest
-        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
-        .mockImplementation(async () => ({
-          remoteFeatureFlags: MOCK_FLAGS_TWO,
-          cacheTimestamp: Date.now(),
-        }));
+      vi.spyOn(
+        clientConfigApiService,
+        'fetchRemoteFeatureFlags',
+      ).mockImplementation(async () => ({
+        remoteFeatureFlags: MOCK_FLAGS_TWO,
+        cacheTimestamp: Date.now(),
+      }));
 
       await messenger.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
@@ -401,13 +403,14 @@ describe('RemoteFeatureFlagController', () => {
       });
 
       // Mock different response
-      jest
-        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
-        .mockImplementation(() =>
-          buildClientConfigApiService({
-            remoteFeatureFlags: { differentFlag: true },
-          }).fetchRemoteFeatureFlags(),
-        );
+      vi.spyOn(
+        clientConfigApiService,
+        'fetchRemoteFeatureFlags',
+      ).mockImplementation(() =>
+        buildClientConfigApiService({
+          remoteFeatureFlags: { differentFlag: true },
+        }).fetchRemoteFeatureFlags(),
+      );
 
       await messenger.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
@@ -435,9 +438,9 @@ describe('RemoteFeatureFlagController', () => {
     });
 
     it('creates a new fetch, and correctly updates state, when called sequentially with awaiting and sufficient delay', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const initialTime = Date.now();
-      const fetchSpy = jest
+      const fetchSpy = vi
         .fn()
         .mockResolvedValueOnce({
           remoteFeatureFlags: MOCK_FLAGS,
@@ -468,7 +471,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
 
       // Advance time past cache duration
-      jest.setSystemTime(initialTime + 2 * DEFAULT_CACHE_DURATION);
+      vi.setSystemTime(initialTime + 2 * DEFAULT_CACHE_DURATION);
 
       // Second call - should fetch new data again
       await messenger.call(
@@ -1347,7 +1350,7 @@ describe('RemoteFeatureFlagController', () => {
         },
       };
 
-      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+      vi.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
         remoteFeatureFlags: mockFlags,
         cacheTimestamp: Date.now(),
       });
@@ -1377,7 +1380,7 @@ describe('RemoteFeatureFlagController', () => {
         },
       };
 
-      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+      vi.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
         remoteFeatureFlags: mockFlags,
         cacheTimestamp: Date.now(),
       });
@@ -1409,7 +1412,7 @@ describe('RemoteFeatureFlagController', () => {
         regularFeature: true,
       };
 
-      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+      vi.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
         remoteFeatureFlags: mockFlags,
         cacheTimestamp: Date.now(),
       });
@@ -1442,7 +1445,7 @@ describe('RemoteFeatureFlagController', () => {
         regularFeature: true,
       };
 
-      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+      vi.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
         remoteFeatureFlags: mockFlags,
         cacheTimestamp: Date.now(),
       });
@@ -1477,7 +1480,7 @@ describe('RemoteFeatureFlagController', () => {
         simpleFeature: true,
       };
 
-      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+      vi.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
         remoteFeatureFlags: mockFlags,
         cacheTimestamp: Date.now(),
       });
@@ -1516,7 +1519,7 @@ describe('RemoteFeatureFlagController', () => {
         regularFeature: true,
       };
 
-      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+      vi.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
         remoteFeatureFlags: mockFlags,
         cacheTimestamp: Date.now(),
       });
@@ -1586,7 +1589,7 @@ describe('RemoteFeatureFlagController', () => {
         regularFlag: true,
       };
 
-      jest.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
+      vi.spyOn(mockApiService, 'fetchRemoteFeatureFlags').mockResolvedValue({
         remoteFeatureFlags: mockFlags,
         cacheTimestamp: Date.now(),
       });
@@ -2223,7 +2226,7 @@ describe('RemoteFeatureFlagController', () => {
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
       const { cacheTimestamp, rawRemoteFeatureFlags } = controller.state;
-      jest.mocked(clientConfigApiService.fetchRemoteFeatureFlags).mockClear();
+      vi.mocked(clientConfigApiService.fetchRemoteFeatureFlags).mockClear();
 
       await controller.init();
 
@@ -2259,7 +2262,7 @@ describe('RemoteFeatureFlagController', () => {
 
   describe('threshold cache cleanup', () => {
     it('removes stale threshold cache entries when flags are removed from server', async () => {
-      jest.useRealTimers();
+      vi.useRealTimers();
       // Arrange
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: {
@@ -2293,24 +2296,25 @@ describe('RemoteFeatureFlagController', () => {
       expect(Object.keys(cacheAfterFirst ?? {})).toHaveLength(2);
 
       // Update server to remove flagA
-      jest
-        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
-        .mockResolvedValue({
-          remoteFeatureFlags: {
-            flagB: [
-              {
-                name: 'groupB',
-                scope: { type: 'threshold', value: 1.0 },
-                value: false,
-              },
-            ],
-          },
-          cacheTimestamp: Date.now(),
-        });
+      vi.spyOn(
+        clientConfigApiService,
+        'fetchRemoteFeatureFlags',
+      ).mockResolvedValue({
+        remoteFeatureFlags: {
+          flagB: [
+            {
+              name: 'groupB',
+              scope: { type: 'threshold', value: 1.0 },
+              value: false,
+            },
+          ],
+        },
+        cacheTimestamp: Date.now(),
+      });
 
       // Force cache expiration
-      jest.useFakeTimers();
-      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
 
       // Second update: flagA removed from server
       await messenger.call(
@@ -2324,11 +2328,11 @@ describe('RemoteFeatureFlagController', () => {
       expect(cacheAfterSecond[`${MOCK_METRICS_ID}:flagB`]).toBeDefined();
       expect(cacheAfterSecond[`${MOCK_METRICS_ID}:flagA`]).toBeUndefined();
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('removes stale featureFlagThresholdGroups entries when flags are removed from server', async () => {
-      jest.useRealTimers();
+      vi.useRealTimers();
       const clientConfigApiService = buildClientConfigApiService({
         remoteFeatureFlags: {
           flagA: [
@@ -2362,26 +2366,27 @@ describe('RemoteFeatureFlagController', () => {
         flagB: 'groupB',
       });
 
-      jest
-        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
-        .mockResolvedValue({
-          remoteFeatureFlags: {
-            flagB: [
-              {
-                name: 'groupB',
-                thresholdVersion: ThresholdVersion.DirectValue,
-                scope: { type: 'threshold', value: 1.0 },
-                value: false,
-              },
-            ],
-          },
-          cacheTimestamp: Date.now(),
-        });
+      vi.spyOn(
+        clientConfigApiService,
+        'fetchRemoteFeatureFlags',
+      ).mockResolvedValue({
+        remoteFeatureFlags: {
+          flagB: [
+            {
+              name: 'groupB',
+              thresholdVersion: ThresholdVersion.DirectValue,
+              scope: { type: 'threshold', value: 1.0 },
+              value: false,
+            },
+          ],
+        },
+        cacheTimestamp: Date.now(),
+      });
 
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       try {
-        jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+        vi.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
 
         await messenger.call(
           'RemoteFeatureFlagController:updateRemoteFeatureFlags',
@@ -2392,7 +2397,7 @@ describe('RemoteFeatureFlagController', () => {
           flagB: 'groupB',
         });
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -2423,8 +2428,8 @@ describe('RemoteFeatureFlagController', () => {
       const initialThreshold =
         controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:persistentFlag`];
 
-      jest.useFakeTimers();
-      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
       await messenger.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
@@ -2437,7 +2442,7 @@ describe('RemoteFeatureFlagController', () => {
         1,
       );
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('does not remove cache entries for different metaMetricsId', async () => {
@@ -2538,23 +2543,24 @@ describe('RemoteFeatureFlagController', () => {
       );
 
       // Act - Replace oldFlag with newFlag
-      jest
-        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
-        .mockResolvedValue({
-          remoteFeatureFlags: {
-            newFlag: [
-              {
-                name: 'group',
-                scope: { type: 'threshold', value: 1.0 },
-                value: false,
-              },
-            ],
-          },
-          cacheTimestamp: Date.now(),
-        });
+      vi.spyOn(
+        clientConfigApiService,
+        'fetchRemoteFeatureFlags',
+      ).mockResolvedValue({
+        remoteFeatureFlags: {
+          newFlag: [
+            {
+              name: 'group',
+              scope: { type: 'threshold', value: 1.0 },
+              value: false,
+            },
+          ],
+        },
+        cacheTimestamp: Date.now(),
+      });
 
-      jest.useFakeTimers();
-      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
       await messenger.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
@@ -2565,7 +2571,7 @@ describe('RemoteFeatureFlagController', () => {
       expect(cache[`${MOCK_METRICS_ID}:newFlag`]).toBeDefined();
       expect(Object.keys(cache)).toHaveLength(1);
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('preserves threshold arrays when metaMetricsId is empty', async () => {
@@ -2635,8 +2641,8 @@ describe('RemoteFeatureFlagController', () => {
       expect(Object.keys(cache)).toHaveLength(1);
 
       // Update with flag still present - should not be cleaned up
-      jest.useFakeTimers();
-      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
       await messenger.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
@@ -2644,7 +2650,7 @@ describe('RemoteFeatureFlagController', () => {
       const cacheAfterUpdate = controller.state.thresholdCache ?? {};
       expect(cacheAfterUpdate[`${MOCK_METRICS_ID}:feature:v2`]).toBeDefined();
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('removes all stale entries when all flags are removed from server', async () => {
@@ -2682,15 +2688,16 @@ describe('RemoteFeatureFlagController', () => {
       );
 
       // Server returns empty flags
-      jest
-        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
-        .mockResolvedValue({
-          remoteFeatureFlags: {},
-          cacheTimestamp: Date.now(),
-        });
+      vi.spyOn(
+        clientConfigApiService,
+        'fetchRemoteFeatureFlags',
+      ).mockResolvedValue({
+        remoteFeatureFlags: {},
+        cacheTimestamp: Date.now(),
+      });
 
-      jest.useFakeTimers();
-      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
       await messenger.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
@@ -2700,7 +2707,7 @@ describe('RemoteFeatureFlagController', () => {
         0,
       );
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
   });
 
@@ -2882,7 +2889,7 @@ function buildClientConfigApiService({
   error?: Error;
 } = {}): AbstractClientConfigApiService {
   return {
-    fetchRemoteFeatureFlags: jest.fn().mockImplementation(() => {
+    fetchRemoteFeatureFlags: vi.fn().mockImplementation(() => {
       if (error) {
         return Promise.reject(error);
       }

@@ -1,6 +1,6 @@
+import { assert } from '@metamask/type-utils';
 import { base64 } from '@scure/base';
 
-import { assert } from './assert.js';
 import type { Hex } from './hex.js';
 import { add0x, assertIsHexString, remove0x } from './hex.js';
 

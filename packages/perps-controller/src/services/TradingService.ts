@@ -52,6 +52,7 @@ import {
   isLimitExecutionOrderType,
   SCALE_ORDER_COUNT,
 } from '../utils/orderTypes.js';
+import { environmentTypeProperty } from './environmentTypeProperty.js';
 import type { RewardsIntegrationService } from './RewardsIntegrationService.js';
 import type { ServiceContext } from './ServiceContext.js';
 
@@ -64,13 +65,17 @@ export type TradingServiceControllerDeps = {
 };
 
 /**
- * Subset of tracking data carrying discovery attribution + hl_fee_rate that is
- * shared across trade/close/cancel/risk events. Both
+ * Subset of tracking data carrying discovery attribution, hl_fee_rate, and the
+ * optional UI surface shared across trade/close/cancel/risk events. Both
  * {@link TrackingData} and {@link TPSLTrackingData} satisfy this shape.
  */
 type AttributionTrackingData = Pick<
   TrackingData,
-  'entryPoint' | 'discoverySource' | 'perpDiscoverySource' | 'hlFeeRate'
+  | 'entryPoint'
+  | 'discoverySource'
+  | 'perpDiscoverySource'
+  | 'hlFeeRate'
+  | 'environmentType'
 >;
 
 /**
@@ -208,6 +213,10 @@ export class TradingService {
     if (trackingData?.hlFeeRate !== undefined) {
       properties[PERPS_EVENT_PROPERTY.HL_FEE_RATE] = trackingData.hlFeeRate;
     }
+    Object.assign(
+      properties,
+      environmentTypeProperty(trackingData?.environmentType),
+    );
     return properties;
   }
 
@@ -1715,6 +1724,9 @@ export class TradingService {
           [PERPS_EVENT_PROPERTY.LEVERAGE]: params.newOrder.leverage ?? 1,
           [PERPS_EVENT_PROPERTY.ORDER_SIZE]: params.newOrder.size,
           [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+          ...environmentTypeProperty(
+            params.newOrder.trackingData?.environmentType,
+          ),
         };
         if (params.newOrder.price) {
           editExecutedProps[PERPS_EVENT_PROPERTY.LIMIT_PRICE] = parseFloat(
@@ -1743,6 +1755,9 @@ export class TradingService {
             [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
             [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
               result.error ?? 'Unknown error',
+            ...environmentTypeProperty(
+              params.newOrder.trackingData?.environmentType,
+            ),
           },
         );
 
@@ -1766,6 +1781,9 @@ export class TradingService {
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
           error instanceof Error ? error.message : 'Unknown error',
+        ...environmentTypeProperty(
+          params.newOrder.trackingData?.environmentType,
+        ),
       });
 
       this.#deps.logger.error(

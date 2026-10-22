@@ -22,21 +22,11 @@ const CLI_PATH = path.join(
  * @returns The execa result.
  */
 async function runCLI(args: string[]): Promise<Result> {
-  return await execa(
-    'node',
-    [
-      '--import',
-      RESOLVER_PATH,
-      '--experimental-transform-types',
-      CLI_PATH,
-      ...args,
-    ],
-    {
-      cwd: ROOT_DIR,
-      reject: false,
-      all: true,
-    },
-  );
+  return await execa('node', ['--import', RESOLVER_PATH, CLI_PATH, ...args], {
+    cwd: ROOT_DIR,
+    reject: false,
+    all: true,
+  });
 }
 
 const { withinSandbox } = createSandbox('platform-api-docs/cli');

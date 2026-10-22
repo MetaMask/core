@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Accept an optional `environmentType` string on `TrackingData`, `TPSLTrackingData`, and `WithdrawParams` ([#10899](https://github.com/MetaMask/core/pull/10899)).
+  - Trade, close, cancel, order, flip, and TP/SL events that already copy attribution include `environment_type` when the field is set.
+  - An order edit includes only `environment_type` from `newOrder.trackingData`.
+  - The withdrawal `executed` and `failed` events emitted by `withdraw()` include `environment_type` the same way. Withdrawal events from `updateWithdrawalStatus` and `completeWithdrawalFromHistory` do not.
+  - The key is omitted when `environmentType` is absent.
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 - Add the `@metamask/perps-controller/providers/lighter` export and optional `LighterCredentials.loadProvider`, so a web client whose bundler cannot load the controller's own Lighter import (such as Next.js) passes `loadProvider: () => import('@metamask/perps-controller/providers/lighter')` and bundles Lighter itself ([#10996](https://github.com/MetaMask/core/pull/10996))
   - Without `loadProvider` the controller keeps its bundler-ignored import, so clients that do not pass it, such as the extension, still bundle no Lighter code.
 

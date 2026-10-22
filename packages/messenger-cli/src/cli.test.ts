@@ -1,5 +1,5 @@
 import { jest } from '@jest/globals';
-import { createSandbox } from '@metamask/utils/node';
+import { createSandbox } from '@metamask/node-utils';
 import { execa } from 'execa';
 import type { Result } from 'execa';
 import * as fs from 'node:fs';
@@ -22,21 +22,11 @@ const CLI_PATH = path.join(
  * @returns The execa result.
  */
 async function runCLI(args: string[]): Promise<Result> {
-  return await execa(
-    'node',
-    [
-      '--import',
-      RESOLVER_PATH,
-      '--experimental-transform-types',
-      CLI_PATH,
-      ...args,
-    ],
-    {
-      cwd: ROOT_DIR,
-      reject: false,
-      all: true,
-    },
-  );
+  return await execa('node', ['--import', RESOLVER_PATH, CLI_PATH, ...args], {
+    cwd: ROOT_DIR,
+    reject: false,
+    all: true,
+  });
 }
 
 /**

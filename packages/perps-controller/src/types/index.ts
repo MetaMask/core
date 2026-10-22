@@ -202,6 +202,9 @@ export type TrackingData = {
   discoverySource?: string;
   perpDiscoverySource?: string;
 
+  // UI surface that started the action. Omitted from the event when unset.
+  environmentType?: string;
+
   // HyperLiquid protocol fee rate. Emitted as hl_fee_rate on trade +
   // close events when present; omitted entirely when unavailable.
   hlFeeRate?: number;
@@ -243,6 +246,9 @@ export type TPSLTrackingData = {
   entryPoint?: string;
   discoverySource?: string;
   perpDiscoverySource?: string;
+
+  // UI surface that started the action. Omitted from the event when unset.
+  environmentType?: string;
 };
 
 /** Collateral mode requested for a new order. */
@@ -1358,6 +1364,7 @@ export type WithdrawParams = {
   destination?: Hex; // Destination address (optional, defaults to current account)
   assetId?: CaipAssetId; // Asset to withdraw (defaults to USDC)
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
+  environmentType?: string; // UI surface. Omitted from events when unset.
 };
 
 export type WithdrawResult = {
