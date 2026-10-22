@@ -817,7 +817,7 @@ describe('SubscriptionController', () => {
       );
     });
 
-    it('should clear benefits state before throwing UserNotSubscribed for an ineligible response', async () => {
+    it('should clear benefits state and return an ineligible response', async () => {
       await withController(
         {
           state: {
@@ -830,12 +830,11 @@ describe('SubscriptionController', () => {
             MOCK_INELIGIBLE_BENEFITS_RESPONSE,
           );
 
-          await expect(
-            rootMessenger.call('SubscriptionController:getBenefits'),
-          ).rejects.toThrow(
-            SubscriptionControllerErrorMessage.UserNotSubscribed,
+          const result = await rootMessenger.call(
+            'SubscriptionController:getBenefits',
           );
 
+          expect(result).toStrictEqual(MOCK_INELIGIBLE_BENEFITS_RESPONSE);
           expect(controller.state.benefits).toBeUndefined();
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);
         },
