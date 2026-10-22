@@ -110,7 +110,9 @@ export type TransactionConfig = {
    * Whether `accountOverride` only receives the output of a post-quote
    * transaction. When true, quotes are requested and submitted from the
    * transaction's own `from`, so the override account never signs. Use this
-   * when the override account cannot sign, such as a hardware wallet.
+   * when the override account cannot sign, such as a hardware wallet. The
+   * `from` account must be able to submit the source transactions, for
+   * example through a Relay execute quote.
    */
   isAccountOverrideRecipientOnly?: boolean;
 
