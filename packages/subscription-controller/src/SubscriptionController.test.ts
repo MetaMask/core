@@ -252,7 +252,6 @@ const MOCK_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
     },
     perps: {
       builderFeeBips: '0',
-      builderCode: '<builder-code>',
       capMicroUsd: 1_500_000_000,
       consumedMicroUsd: 500_000_000,
       remainingMicroUsd: 1_000_000_000,
@@ -279,7 +278,6 @@ const MOCK_INELIGIBLE_BENEFITS_RESPONSE: SubscriptionBenefitsResponse = {
     },
     perps: {
       builderFeeBips: null,
-      builderCode: null,
       remainingMicroUsd: null,
       exhausted: false,
     },
