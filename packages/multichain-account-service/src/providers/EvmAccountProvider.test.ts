@@ -15,6 +15,8 @@ import type {
   CustomNetworkClientConfiguration,
 } from '@metamask/network-controller';
 import { add0x, bytesToHex } from '@metamask/utils';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   asKeyringAccount,
@@ -109,9 +111,9 @@ class MockHdKeyringV2 implements Keyring {
     return mockHdRoot;
   }
 
-  getAccounts = jest.fn().mockImplementation(() => this.accounts);
+  getAccounts = vi.fn().mockImplementation(() => this.accounts);
 
-  getAccount = jest.fn().mockImplementation((accountId: string) => {
+  getAccount = vi.fn().mockImplementation((accountId: string) => {
     const account = this.accounts.find((a) => a.id === accountId);
     if (!account) {
       throw new Error(`Account not found: ${accountId}`);
@@ -119,7 +121,7 @@ class MockHdKeyringV2 implements Keyring {
     return account;
   });
 
-  createAccounts = jest
+  createAccounts = vi
     .fn()
     .mockImplementation((options: CreateAccountOptions) => {
       const newAccounts: KeyringAccount[] = [];
@@ -140,18 +142,18 @@ class MockHdKeyringV2 implements Keyring {
       return newAccounts;
     });
 
-  deleteAccount = jest.fn().mockImplementation((accountId: string) => {
+  deleteAccount = vi.fn().mockImplementation((accountId: string) => {
     const index = this.accounts.findIndex((a) => a.id === accountId);
     if (index >= 0) {
       this.accounts.splice(index, 1);
     }
   });
 
-  serialize = jest.fn().mockResolvedValue({});
+  serialize = vi.fn().mockResolvedValue({});
 
-  deserialize = jest.fn().mockResolvedValue(undefined);
+  deserialize = vi.fn().mockResolvedValue(undefined);
 
-  submitRequest = jest.fn();
+  submitRequest = vi.fn();
 }
 
 /**
@@ -182,8 +184,8 @@ function setup({
   messenger: RootMessenger;
   keyring: MockHdKeyringV2;
   mocks: {
-    mockProviderRequest: jest.Mock;
-    mockGetAccount: jest.Mock;
+    mockProviderRequest: Mock;
+    mockGetAccount: Mock;
   };
 } {
   const keyring = new MockHdKeyringV2(accounts);
@@ -194,7 +196,7 @@ function setup({
       keyring.accounts.filter((account) => accountIds.includes(account.id)),
   );
 
-  const mockGetAccount = jest.fn().mockImplementation((id) => {
+  const mockGetAccount = vi.fn().mockImplementation((id) => {
     return keyring.accounts.find((account) => account.id === id);
   });
 
@@ -203,7 +205,7 @@ function setup({
     mockGetAccount,
   );
 
-  const mockProviderRequest = jest.fn().mockImplementation(({ method }) => {
+  const mockProviderRequest = vi.fn().mockImplementation(({ method }) => {
     if (method === 'eth_getTransactionCount') {
       return discovery?.transactionCount ?? '0x2';
     }
@@ -595,7 +597,9 @@ describe('EvmAccountProvider', () => {
       },
     });
 
-    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+    const consoleSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
 
     expect(
       await provider.discoverAccounts({
@@ -707,7 +711,7 @@ describe('EvmAccountProvider', () => {
   });
 
   it('calls trace callback during account discovery', async () => {
-    const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+    const mockTrace = vi.fn().mockImplementation(async (request, fn) => {
       expect(request.name).toBe(TraceName.EvmDiscoverAccounts);
       expect(request.data).toStrictEqual({
         provider: EVM_ACCOUNT_PROVIDER_NAME,
@@ -765,7 +769,7 @@ describe('EvmAccountProvider', () => {
   });
 
   it('trace callback is called even when discovery returns empty results', async () => {
-    const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+    const mockTrace = vi.fn().mockImplementation(async (request, fn) => {
       expect(request.name).toBe(TraceName.EvmDiscoverAccounts);
       expect(request.data).toStrictEqual({
         provider: EVM_ACCOUNT_PROVIDER_NAME,
@@ -834,7 +838,7 @@ describe('EvmAccountProvider', () => {
       const { provider, keyring, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1, MOCK_HD_ACCOUNT_2],
       });
-      const withKeyringV2Spy = jest.fn(async (_, operation) =>
+      const withKeyringV2Spy = vi.fn(async (_, operation) =>
         operation({ keyring, metadata: keyring.metadata }),
       );
       messenger.unregisterActionHandler('KeyringController:withKeyringV2');
@@ -842,7 +846,7 @@ describe('EvmAccountProvider', () => {
         'KeyringController:withKeyringV2',
         withKeyringV2Spy,
       );
-      const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
+      const deleteAccountSpy = vi.spyOn(keyring, 'deleteAccount');
 
       await provider.deleteAccount(MOCK_HD_ACCOUNT_1.id);
 
@@ -878,7 +882,7 @@ describe('EvmAccountProvider', () => {
           .get(),
       );
       const { provider, keyring, messenger } = setup({ accounts });
-      const withKeyringV2Spy = jest.fn(async (_, operation) =>
+      const withKeyringV2Spy = vi.fn(async (_, operation) =>
         operation({ keyring, metadata: keyring.metadata }),
       );
       messenger.unregisterActionHandler('KeyringController:withKeyringV2');
@@ -886,7 +890,7 @@ describe('EvmAccountProvider', () => {
         'KeyringController:withKeyringV2',
         withKeyringV2Spy,
       );
-      const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
+      const deleteAccountSpy = vi.spyOn(keyring, 'deleteAccount');
 
       expect(
         await provider.deleteAccounts(accounts.map((account) => account.id)),
@@ -909,7 +913,7 @@ describe('EvmAccountProvider', () => {
       const { provider, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
       });
-      const withKeyringV2Spy = jest.fn();
+      const withKeyringV2Spy = vi.fn();
       messenger.unregisterActionHandler('KeyringController:withKeyringV2');
       messenger.registerActionHandler(
         'KeyringController:withKeyringV2',
@@ -932,7 +936,7 @@ describe('EvmAccountProvider', () => {
           .get(),
       );
       const { provider, keyring, messenger, mocks } = setup({ accounts });
-      const getAccountsSpy = jest.fn((accountIds: string[]) =>
+      const getAccountsSpy = vi.fn((accountIds: string[]) =>
         keyring.accounts.filter((account) => accountIds.includes(account.id)),
       );
       messenger.unregisterActionHandler('AccountsController:getAccounts');
@@ -956,7 +960,7 @@ describe('EvmAccountProvider', () => {
       const { provider, keyring } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
       });
-      const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
+      const deleteAccountSpy = vi.spyOn(keyring, 'deleteAccount');
 
       expect(
         await provider.deleteAccounts([
@@ -983,7 +987,7 @@ describe('EvmAccountProvider', () => {
           .get(),
       );
       const { provider, keyring } = setup({ accounts });
-      const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
+      const deleteAccountSpy = vi.spyOn(keyring, 'deleteAccount');
 
       await expect(
         provider.deleteAccounts(accounts.map((account) => account.id)),
@@ -999,7 +1003,7 @@ describe('EvmAccountProvider', () => {
       const { provider, messenger } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
       });
-      const withKeyringV2Spy = jest.fn();
+      const withKeyringV2Spy = vi.fn();
       messenger.unregisterActionHandler('KeyringController:withKeyringV2');
       messenger.registerActionHandler(
         'KeyringController:withKeyringV2',
@@ -1026,7 +1030,7 @@ describe('EvmAccountProvider', () => {
       const { provider, keyring } = setup({
         accounts: [MOCK_HD_ACCOUNT_1],
       });
-      const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
+      const deleteAccountSpy = vi.spyOn(keyring, 'deleteAccount');
 
       expect(
         await provider.deleteAccounts(['unknown-id', MOCK_HD_ACCOUNT_1.id]),
@@ -1056,7 +1060,7 @@ describe('EvmAccountProvider', () => {
           .get(),
       );
       const { provider, keyring } = setup({ accounts });
-      const deleteAccountSpy = jest.spyOn(keyring, 'deleteAccount');
+      const deleteAccountSpy = vi.spyOn(keyring, 'deleteAccount');
       deleteAccountSpy.mockImplementation(async (accountId: string) => {
         if (accountId === 'mock-evm-id-1') {
           throw new Error('cannot delete last');
@@ -1171,13 +1175,13 @@ describe('EvmAccountProvider', () => {
           .get(),
       );
       const { provider, keyring, messenger } = setup({ accounts });
-      jest
-        .spyOn(keyring, 'deleteAccount')
-        .mockImplementation(async (accountId: string) => {
+      vi.spyOn(keyring, 'deleteAccount').mockImplementation(
+        async (accountId: string) => {
           if (accountId === 'mock-evm-id-0') {
             throw new Error('cannot delete last');
           }
-        });
+        },
+      );
       messenger.unregisterActionHandler('KeyringController:withKeyringV2');
       messenger.registerActionHandler(
         'KeyringController:withKeyringV2',

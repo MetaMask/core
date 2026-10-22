@@ -15,6 +15,7 @@ import {
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { createDeferredPromise } from '@metamask/utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { MockAccountProvider, RootMessenger } from '../tests/index.js';
 import {
@@ -38,6 +39,7 @@ import { MultichainAccountWallet } from './MultichainAccountWallet.js';
 import type { RemoveMultichainAccountWalletFailureContext } from './MultichainAccountWallet.js';
 import { TimeoutError } from './providers/index.js';
 import type { MultichainAccountServiceMessenger } from './types.js';
+import { createSentryError } from './utils.js';
 import type { SentryError } from './utils.js';
 
 function setup({
@@ -120,9 +122,9 @@ async function waitForOtherProvidersToHaveBeenCalled(
 
 describe('MultichainAccountWallet', () => {
   afterEach(() => {
-    jest.clearAllTimers();
-    jest.useRealTimers();
-    jest.restoreAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   describe('constructor', () => {
@@ -181,7 +183,7 @@ describe('MultichainAccountWallet', () => {
 
     it('reports non-EVM failures and still resolves', async () => {
       const { wallet, providers, messenger } = setup();
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       const error = new Error('snap is unavailable');
       providers[1].deleteAccount.mockRejectedValueOnce(error);
 
@@ -288,7 +290,7 @@ describe('MultichainAccountWallet', () => {
           [MOCK_WALLET_1_SOL_ACCOUNT, group1Sol],
         ],
       });
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       const error = new Error('cannot delete group 0');
       providers[0].deleteAccounts.mockResolvedValueOnce({
         ok: false,
@@ -468,13 +470,19 @@ describe('MultichainAccountWallet', () => {
       const [provider] = providers;
       const providerError = new Error('Unable to create accounts');
       provider.createAccounts.mockRejectedValueOnce(providerError);
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       await expect(
         wallet.createMultichainAccountGroup(groupIndex),
       ).rejects.toThrow('Unable to create accounts');
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error(
+        createSentryError(
           'Unable to create some accounts with provider "Mocked Provider 0"',
+          providerError,
+          {
+            isBatching: false,
+            provider: 'Mocked Provider 0',
+            range: { from: 1, to: 1 },
+          },
         ),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
@@ -492,9 +500,13 @@ describe('MultichainAccountWallet', () => {
       provider.createAccounts.mockRejectedValueOnce(
         new TimeoutError('Timed out after: 500ms'),
       );
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       await expect(
         wallet.createMultichainAccountGroup(groupIndex),
       ).rejects.toThrow('Timed out after: 500ms');
@@ -579,8 +591,8 @@ describe('MultichainAccountWallet', () => {
         mockAccountProvider.getAccount.mockReturnValueOnce(mockNextAccount);
       }
 
-      const alignAccountsOfSpy = jest.spyOn(wallet, 'alignAccountsOf');
-      const alignAccountsSpy = jest.spyOn(wallet, 'alignAccounts');
+      const alignAccountsOfSpy = vi.spyOn(wallet, 'alignAccountsOf');
+      const alignAccountsSpy = vi.spyOn(wallet, 'alignAccounts');
 
       await wallet.createNextMultichainAccountGroup();
 
@@ -723,9 +735,9 @@ describe('MultichainAccountWallet', () => {
         promise: mockSolCreateAccountsPromise,
         resolve: mockSolCreateAccountsResolve,
       } = createDeferredPromise();
-      jest
-        .spyOn(solProvider, 'createAccounts')
-        .mockImplementationOnce(() => mockSolCreateAccountsPromise);
+      vi.spyOn(solProvider, 'createAccounts').mockImplementationOnce(
+        () => mockSolCreateAccountsPromise,
+      );
 
       // With wait=false (default), only EVM accounts are created immediately.
       const groups = await wallet.createMultichainAccountGroups({ to: 2 });
@@ -792,15 +804,21 @@ describe('MultichainAccountWallet', () => {
       const providerError = new Error('EVM provider failed');
       evmProvider.createAccounts.mockRejectedValueOnce(providerError);
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
 
       await expect(
         wallet.createMultichainAccountGroups({ to: 2 }),
       ).rejects.toThrow('EVM provider failed');
 
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error(
+        createSentryError(
           'Unable to create some accounts (batch) with provider "Mocked Provider 0"',
+          providerError,
+          {
+            isBatching: true,
+            provider: 'Mocked Provider 0',
+            range: { from: 0, to: 2 },
+          },
         ),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
@@ -819,9 +837,13 @@ describe('MultichainAccountWallet', () => {
         new TimeoutError('Timed out after: 500ms'),
       );
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       await expect(
         wallet.createMultichainAccountGroups({ to: 2 }),
@@ -855,7 +877,7 @@ describe('MultichainAccountWallet', () => {
         .get();
       solProvider.createAccounts.mockResolvedValueOnce([solAccount]);
 
-      const alignAccountsSpy = jest.spyOn(wallet, 'alignAccounts');
+      const alignAccountsSpy = vi.spyOn(wallet, 'alignAccounts');
 
       const groups = await wallet.createMultichainAccountGroups(
         { to: 0 },
@@ -1049,7 +1071,7 @@ describe('MultichainAccountWallet', () => {
       // `#alignAccountsForRange` — outside `Promise.allSettled`. A throw here
       // escapes `#alignAccountsForRange` and `#withLock`, triggering the .catch()
       // on the fire-and-forget `alignOtherAccounts()` call.
-      jest.spyOn(messenger, 'publish').mockImplementation((event, ..._args) => {
+      vi.spyOn(messenger, 'publish').mockImplementation((event, ..._args) => {
         if (
           event === 'MultichainAccountService:multichainAccountGroupUpdated'
         ) {
@@ -1057,7 +1079,7 @@ describe('MultichainAccountWallet', () => {
         }
       });
 
-      const consoleErrorSpy = jest
+      const consoleErrorSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
 
@@ -1093,7 +1115,7 @@ describe('MultichainAccountWallet', () => {
         accounts: [[mockEvmAccount1, mockEvmAccount2], [mockSolAccount]],
       });
 
-      const mockWalletStatusChange = jest
+      const mockWalletStatusChange = vi
         .fn()
         // 1. Triggered when group alignment begins.
         .mockImplementationOnce((walletId, status) => {
@@ -1234,7 +1256,7 @@ describe('MultichainAccountWallet', () => {
         accounts: [[mockEvmAccount], []], // EVM + SOL
       });
 
-      const consoleWarnSpy = jest
+      const consoleWarnSpy = vi
         .spyOn(console, 'warn')
         .mockImplementation(() => undefined);
 
@@ -1275,7 +1297,7 @@ describe('MultichainAccountWallet', () => {
         accounts: [[mockEvmAccount], [mockSolAccount]],
       });
 
-      const mockWalletStatusChange = jest
+      const mockWalletStatusChange = vi
         .fn()
         // 1. Triggered when group alignment begins.
         .mockImplementationOnce((walletId, status) => {
@@ -1370,7 +1392,7 @@ describe('MultichainAccountWallet', () => {
         .mockImplementationOnce(async () => [MOCK_SOL_ACCOUNT_1])
         .mockImplementationOnce(async () => []);
 
-      const mockWalletStatusChange = jest
+      const mockWalletStatusChange = vi
         .fn()
         // 1. Triggered when group alignment begins.
         .mockImplementationOnce((walletId, status) => {
@@ -1416,13 +1438,13 @@ describe('MultichainAccountWallet', () => {
         )
         .mockImplementationOnce(() => Promise.resolve([]));
 
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const discovery = wallet.discoverAccounts();
       // Allow fast provider microtasks to run and advance maxGroupIndex first
       await Promise.resolve(); // Mutex lock.
       await Promise.resolve();
       await Promise.resolve();
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
       await discovery;
 
       // Assert call order per provider shows skipping ahead
@@ -1469,7 +1491,9 @@ describe('MultichainAccountWallet', () => {
       providers[0].getName.mockImplementation(() => 'EVM');
       providers[1].getName.mockImplementation(() => 'Solana');
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       // First provider throws on its first step
       providers[0].discoverAccounts.mockImplementationOnce(() =>
@@ -1502,13 +1526,15 @@ describe('MultichainAccountWallet', () => {
       });
       const providerError = new Error('Unable to discover accounts');
       providers[0].discoverAccounts.mockRejectedValueOnce(providerError);
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       // Ensure the other provider stops immediately to finish the Promise.all
       providers[1].discoverAccounts.mockResolvedValueOnce([]);
       await wallet.discoverAccounts();
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error(
+        createSentryError(
           'Unable to discover accounts with provider "Mocked Provider 0"',
+          providerError,
+          { groupIndex: 0, provider: 'Mocked Provider 0' },
         ),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
@@ -1524,9 +1550,13 @@ describe('MultichainAccountWallet', () => {
       providers[0].discoverAccounts.mockRejectedValueOnce(
         new TimeoutError('Timed out after: 500ms'),
       );
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       providers[1].discoverAccounts.mockResolvedValueOnce([]);
       await wallet.discoverAccounts();
       expect(captureExceptionSpy).not.toHaveBeenCalled();

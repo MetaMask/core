@@ -8,7 +8,7 @@
   },
   "references": [
     {
-      "path": "../utils/tsconfig.build.json"
+      "path": "../node-utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

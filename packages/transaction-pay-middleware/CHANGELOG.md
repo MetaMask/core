@@ -15,4 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Gate each type per site with the `confirmations_pay_rpc` remote feature flag.
   - Add the `TransactionPayMiddlewareMessenger`, `WalletPayHooks`, `WalletPayJsonRpcRequest` and `WalletPayResult` types.
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@metamask/perps-controller` from `^20.1.0` to `^21.0.0` ([#10988](https://github.com/MetaMask/core/pull/10988))
+
 [Unreleased]: https://github.com/MetaMask/core/

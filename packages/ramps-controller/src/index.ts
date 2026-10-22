@@ -300,10 +300,13 @@ export {
 } from './autorampAccount.js';
 export { buildOwnershipMessage } from './ownership-message.js';
 export type {
+  AutorampDepositInstructions,
   AutorampDepositRailsSummary,
   AutorampRemoteSnapshot,
   AutorampTransactionSummary,
   PixDepositInstructions,
+  UsBankDepositInstructions,
+  UsBankDepositRail,
 } from './autoramp-types.js';
 export type {
   NeoBankServiceActions,
@@ -319,6 +322,7 @@ export type {
   NeoBankServiceGetAutorampAction,
   NeoBankServiceGetAutorampsAction,
   NeoBankServiceGetPixDepositInstructionsAction,
+  NeoBankServiceGetDepositInstructionsAction,
   NeoBankServiceListAutorampTransactionsAction,
   NeoBankServiceRegisterPixAddressAction,
   NeoBankServiceGetAutorampQuoteAction,
@@ -335,6 +339,7 @@ export {
   serviceName as neoBankServiceName,
   mapNeoBankAutorampToRemoteSnapshot,
   extractPixDepositInstructions,
+  extractUsBankDepositInstructions,
 } from './NeoBankService.js';
 export type {
   Blockchain,

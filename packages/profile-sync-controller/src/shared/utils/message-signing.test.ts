@@ -1,5 +1,6 @@
 import { bytesToHex } from '@metamask/utils';
 import { hmac as nobleHmac } from '@noble/hashes/hmac';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   deriveMessageSigningPrivateKey,
@@ -9,18 +10,17 @@ import {
   signMessageWithMessageSigningKey,
 } from './message-signing.js';
 
-jest.mock('@noble/hashes/hmac', () => {
-  const actual: typeof import('@noble/hashes/hmac') =
-    jest.requireActual('@noble/hashes/hmac');
+vi.mock(import('@noble/hashes/hmac'), async (importOriginal) => {
+  const actual = await importOriginal();
   return {
-    hmac: jest.fn(actual.hmac),
+    hmac: vi.fn(actual.hmac),
   };
 });
 
-const actualNobleHmac =
-  jest.requireActual<typeof import('@noble/hashes/hmac')>(
+const { hmac: actualNobleHmac } =
+  await vi.importActual<typeof import('@noble/hashes/hmac')>(
     '@noble/hashes/hmac',
-  ).hmac;
+  );
 
 /**
  * Makes any call to noble's `hmac` throw, proving that SIP-6 derivation goes
@@ -30,7 +30,7 @@ const actualNobleHmac =
  * @returns void.
  */
 const forbidNobleHmac = (): void =>
-  jest.mocked(nobleHmac).mockImplementation(() => {
+  vi.mocked(nobleHmac).mockImplementation(() => {
     throw new Error('noble HMAC must not be used');
   });
 
@@ -40,7 +40,7 @@ const forbidNobleHmac = (): void =>
  * @returns void.
  */
 const allowNobleHmac = (): void =>
-  jest.mocked(nobleHmac).mockImplementation(actualNobleHmac);
+  vi.mocked(nobleHmac).mockImplementation(actualNobleHmac);
 
 // Same seed as `@metamask/snaps-utils` TEST_SECRET_RECOVERY_PHRASE_SEED_BYTES
 // (`test test test test test test test test test test test ball`).

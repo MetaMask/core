@@ -2,6 +2,7 @@ import {
   KeyringControllerError,
   KeyringControllerErrorMessage,
 } from '@metamask/keyring-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   TimeoutError,
@@ -13,7 +14,7 @@ import {
 
 describe('utils', () => {
   it('retries RPC request up to 3 times if it fails and throws the last error', async () => {
-    const mockNetworkCall = jest
+    const mockNetworkCall = vi
       .fn()
       .mockImplementationOnce(() => {
         throw new Error('RPC request failed 1');

@@ -5,6 +5,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { EncryptionSchema, KycServiceMessenger } from './KycService.js';
 import { KycService } from './KycService.js';
@@ -223,7 +224,7 @@ describe('KycService', () => {
       const response = {
         keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'pub', kid: 'k1' }],
       };
-      const now = jest.spyOn(Date, 'now');
+      const now = vi.spyOn(Date, 'now');
       try {
         now.mockReturnValue(1_000);
         nock(MOCK_IDOS_ENCLAVE_URL)
@@ -326,7 +327,7 @@ describe('KycService', () => {
       const response = {
         keys: [{ kty: 'OKP', crv: 'Ed25519', x: 'relay-pub', kid: 'r1' }],
       };
-      const now = jest.spyOn(Date, 'now');
+      const now = vi.spyOn(Date, 'now');
       try {
         now.mockReturnValue(5_000);
         nock(MOCK_IDOS_RELAY_URL)

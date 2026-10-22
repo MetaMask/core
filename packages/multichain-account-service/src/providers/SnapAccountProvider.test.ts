@@ -20,6 +20,8 @@ import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
 import deepmerge from 'deepmerge';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import type { DeepPartial, RootMessenger } from '../../tests/index.js';
 import {
@@ -32,6 +34,7 @@ import {
 } from '../../tests/index.js';
 import { traceFallback } from '../analytics/index.js';
 import type { MultichainAccountServiceMessenger } from '../types.js';
+import { createSentryError } from '../utils.js';
 import { BtcAccountProvider } from './BtcAccountProvider.js';
 import type { SnapAccountProviderConfig } from './SnapAccountProvider.js';
 import {
@@ -42,13 +45,10 @@ import { SolAccountProvider } from './SolAccountProvider.js';
 import { TrxAccountProvider } from './TrxAccountProvider.js';
 import { TimeoutError } from './utils.js';
 
-jest.mock('../analytics', () => {
-  const actual = jest.requireActual('../analytics');
-  return {
-    ...actual,
-    traceFallback: jest.fn(),
-  };
-});
+vi.mock(import('../analytics/index.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  traceFallback: vi.fn(),
+}));
 
 const THROTTLED_OPERATION_DELAY_MS = 10;
 const TEST_SNAP_ID = 'npm:@metamask/test-snap' as SnapId;
@@ -167,25 +167,25 @@ const setup = ({
 } = {}) => {
   const mocks = {
     AccountsController: {
-      listMultichainAccounts: jest.fn(),
+      listMultichainAccounts: vi.fn(),
     },
     ErrorReportingService: {
-      captureException: jest.fn(),
+      captureException: vi.fn(),
     },
     KeyringController: {
-      withKeyringV2: jest.fn(),
+      withKeyringV2: vi.fn(),
     },
     SnapController: {
       handleKeyringRequest: {
-        getAccount: jest.fn(),
-        listAccounts: jest.fn(),
-        deleteAccount: jest.fn(),
+        getAccount: vi.fn(),
+        listAccounts: vi.fn(),
+        deleteAccount: vi.fn(),
       },
-      handleRequest: jest.fn(),
+      handleRequest: vi.fn(),
     },
     SnapAccountService: {
-      ensureReady: jest.fn(),
-      getCapabilities: jest.fn(),
+      ensureReady: vi.fn(),
+      getCapabilities: vi.fn(),
     },
   };
 
@@ -242,9 +242,9 @@ const setup = ({
   const keyring = {
     type: keyringOverrides.type ?? 'snap',
     snapId: keyringOverrides.snapId ?? TEST_SNAP_ID,
-    createAccounts: jest.fn(),
-    deleteAccount: jest.fn().mockResolvedValue(undefined),
-    lookupByAddress: jest
+    createAccounts: vi.fn(),
+    deleteAccount: vi.fn().mockResolvedValue(undefined),
+    lookupByAddress: vi
       .fn()
       .mockImplementation((address: string) =>
         accounts.map(asKeyringAccount).find((a) => a.address === address),
@@ -311,7 +311,7 @@ describe('SnapAccountProvider', () => {
     it('creates SolAccountProvider with custom trace using 3 parameters', () => {
       const { messenger } = setup();
 
-      const customTrace = jest.fn();
+      const customTrace = vi.fn();
       const provider = new SolAccountProvider(
         getMultichainAccountServiceMessenger(messenger),
         undefined,
@@ -357,7 +357,7 @@ describe('SnapAccountProvider', () => {
     it('creates TrxAccountProvider with custom trace', () => {
       const { messenger } = setup();
 
-      const customTrace = jest.fn();
+      const customTrace = vi.fn();
 
       // Explicitly test with all three parameters
       const trxProvider = new TrxAccountProvider(
@@ -397,7 +397,7 @@ describe('SnapAccountProvider', () => {
       const provider1 = new SolAccountProvider(...args);
 
       args.push(undefined);
-      args.push(jest.fn());
+      args.push(vi.fn<TraceCallback>() as MockedFunction<TraceCallback>);
       const provider2 = new SolAccountProvider(...args);
 
       expect(provider1).toBeDefined();
@@ -443,12 +443,12 @@ describe('SnapAccountProvider', () => {
   });
 
   describe('trace functionality', () => {
-    const traceFallbackMock = traceFallback as jest.MockedFunction<
+    const traceFallbackMock = traceFallback as MockedFunction<
       typeof traceFallback
     >;
 
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       traceFallbackMock.mockClear();
     });
 
@@ -474,7 +474,7 @@ describe('SnapAccountProvider', () => {
         defaultConfig,
       );
       const request = { name: 'Test Request', data: {} };
-      const fn = jest.fn().mockResolvedValue('defaultResult');
+      const fn = vi.fn().mockResolvedValue('defaultResult');
 
       await testProvider.trace(request, fn);
 
@@ -489,7 +489,7 @@ describe('SnapAccountProvider', () => {
     it('uses custom trace when explicitly provided with all parameters', async () => {
       const { messenger } = setup();
 
-      const customTrace = jest.fn().mockImplementation(async (_request, fn) => {
+      const customTrace = vi.fn().mockImplementation(async (_request, fn) => {
         return await fn();
       });
 
@@ -510,7 +510,7 @@ describe('SnapAccountProvider', () => {
         customTrace,
       );
       const request = { name: 'Test Request', data: {} };
-      const fn = jest.fn().mockResolvedValue('customResult');
+      const fn = vi.fn().mockResolvedValue('customResult');
 
       const result = await testProvider.trace(request, fn);
 
@@ -523,7 +523,7 @@ describe('SnapAccountProvider', () => {
     it('calls trace callback with the correct arguments', async () => {
       const { messenger } = setup();
 
-      const mockTrace = jest.fn().mockImplementation(async (request, fn) => {
+      const mockTrace = vi.fn().mockImplementation(async (request, fn) => {
         expect(request).toStrictEqual({
           name: 'Test Request',
           data: { test: 'data' },
@@ -548,7 +548,7 @@ describe('SnapAccountProvider', () => {
         mockTrace,
       );
       const request = { name: 'Test Request', data: { test: 'data' } };
-      const fn = jest.fn().mockResolvedValue('testResult');
+      const fn = vi.fn().mockResolvedValue('testResult');
 
       const result = await testProvider.trace(request, fn);
 
@@ -561,7 +561,7 @@ describe('SnapAccountProvider', () => {
       const { messenger } = setup();
 
       const mockError = new Error('Test error');
-      const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
+      const mockTrace = vi.fn().mockImplementation(async (_request, fn) => {
         return await fn();
       });
 
@@ -582,7 +582,7 @@ describe('SnapAccountProvider', () => {
         mockTrace,
       );
       const request = { name: 'Test Request', data: {} };
-      const fn = jest.fn().mockRejectedValue(mockError);
+      const fn = vi.fn().mockRejectedValue(mockError);
 
       await expect(testProvider.trace(request, fn)).rejects.toThrow(mockError);
 
@@ -593,7 +593,7 @@ describe('SnapAccountProvider', () => {
     it('handles trace callback returning undefined', async () => {
       const { messenger } = setup();
 
-      const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
+      const mockTrace = vi.fn().mockImplementation(async (_request, fn) => {
         return await fn();
       });
 
@@ -614,7 +614,7 @@ describe('SnapAccountProvider', () => {
         mockTrace,
       );
       const request = { name: 'Test Request', data: {} };
-      const fn = jest.fn().mockResolvedValue(undefined);
+      const fn = vi.fn().mockResolvedValue(undefined);
 
       const result = await testProvider.trace(request, fn);
 
@@ -626,8 +626,8 @@ describe('SnapAccountProvider', () => {
 
   describe('withMaxConcurrency', () => {
     afterEach(() => {
-      jest.clearAllTimers();
-      jest.useRealTimers();
+      vi.clearAllTimers();
+      vi.useRealTimers();
     });
 
     it('throttles createAccounts when maxConcurrency is finite', async () => {
@@ -752,7 +752,7 @@ describe('SnapAccountProvider', () => {
     it('does not create any accounts if already in-sync', async () => {
       const { provider } = setup({ accounts: mockAccounts });
 
-      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+      const createAccountsSpy = vi.spyOn(provider, 'createAccounts');
 
       await provider.resyncAccounts(mockAccounts);
 
@@ -764,7 +764,7 @@ describe('SnapAccountProvider', () => {
         accounts: [mockAccounts[0]],
       });
 
-      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+      const createAccountsSpy = vi.spyOn(provider, 'createAccounts');
 
       await provider.resyncAccounts(mockAccounts);
 
@@ -800,7 +800,7 @@ describe('SnapAccountProvider', () => {
         config: { resyncAccounts: { autoRemoveExtraSnapAccounts: true } },
       });
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       const deleteError = new Error('Failed to delete account');
       mocks.SnapController.handleKeyringRequest.deleteAccount.mockRejectedValue(
         deleteError,
@@ -829,9 +829,13 @@ describe('SnapAccountProvider', () => {
         config: { resyncAccounts: { autoRemoveExtraSnapAccounts: true } },
       });
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       mocks.SnapController.handleKeyringRequest.deleteAccount.mockRejectedValue(
         new TimeoutError('Timed out after: 500ms'),
       );
@@ -878,7 +882,7 @@ describe('SnapAccountProvider', () => {
         config: { resyncAccounts: { autoRemoveExtraSnapAccounts: true } },
       });
 
-      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+      const createAccountsSpy = vi.spyOn(provider, 'createAccounts');
 
       await provider.resyncAccounts(mockAccounts);
 
@@ -935,8 +939,8 @@ describe('SnapAccountProvider', () => {
     it('does not throw errors if any provider is not able to re-sync', async () => {
       const { provider, messenger } = setup({ accounts: [mockAccounts[0]] });
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
+      const createAccountsSpy = vi.spyOn(provider, 'createAccounts');
 
       const providerError = new Error('Unable to create accounts');
       createAccountsSpy.mockRejectedValue(providerError);
@@ -946,7 +950,10 @@ describe('SnapAccountProvider', () => {
       expect(createAccountsSpy).toHaveBeenCalled();
 
       expect(captureExceptionSpy).toHaveBeenCalledWith(
-        new Error('Unable to re-sync accounts'),
+        createSentryError('Unable to re-sync accounts', providerError, {
+          groupIndex: 0,
+          provider: 'Test Provider',
+        }),
       );
       expect(captureExceptionSpy.mock.lastCall[0]).toHaveProperty(
         'cause',
@@ -957,10 +964,14 @@ describe('SnapAccountProvider', () => {
     it('does not capture exception when re-sync times out', async () => {
       const { provider, messenger } = setup({ accounts: [mockAccounts[0]] });
 
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-      const createAccountsSpy = jest.spyOn(provider, 'createAccounts');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      const createAccountsSpy = vi.spyOn(provider, 'createAccounts');
       createAccountsSpy.mockRejectedValue(
         new TimeoutError('Timed out after: 500ms'),
       );

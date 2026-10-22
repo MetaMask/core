@@ -14,16 +14,18 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
 import { registerIntentsStep } from './register-intents.js';
 import type { StepContext } from './step.js';
 
-jest.mock('@metamask/delegation-core', () => ({
-  createRedeemerTerms: jest.fn(),
+vi.mock('@metamask/delegation-core', () => ({
+  createRedeemerTerms: vi.fn(),
 }));
 
-const mockCreateRedeemerTerms = jest.mocked(createRedeemerTerms);
+const mockCreateRedeemerTerms = vi.mocked(createRedeemerTerms);
 
 const MOCK_ADDRESS = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const MOCK_CHAIN_ID = '0xaa36a7' as Hex; // 11155111 (Sepolia)
@@ -147,12 +149,9 @@ type AllActions = MessengerActions<MoneyAccountUpgradeControllerMessenger>;
 type AllEvents = MessengerEvents<MoneyAccountUpgradeControllerMessenger>;
 
 type Mocks = {
-  listDelegations: jest.Mock;
-  getIntentsByAddress: jest.Mock;
-  createIntents: jest.Mock<
-    ReturnType<ChompApiServiceCreateIntentsAction['handler']>,
-    Parameters<ChompApiServiceCreateIntentsAction['handler']>
-  >;
+  listDelegations: Mock;
+  getIntentsByAddress: Mock;
+  createIntents: Mock<ChompApiServiceCreateIntentsAction['handler']>;
 };
 
 function setup(): {
@@ -160,15 +159,12 @@ function setup(): {
   mocks: Mocks;
 } {
   const mocks: Mocks = {
-    listDelegations: jest
+    listDelegations: vi
       .fn()
       .mockResolvedValue([depositDelegation(), withdrawalDelegation()]),
-    getIntentsByAddress: jest.fn().mockResolvedValue([]),
-    createIntents: jest
-      .fn<
-        ReturnType<ChompApiServiceCreateIntentsAction['handler']>,
-        Parameters<ChompApiServiceCreateIntentsAction['handler']>
-      >()
+    getIntentsByAddress: vi.fn().mockResolvedValue([]),
+    createIntents: vi
+      .fn<ChompApiServiceCreateIntentsAction['handler']>()
       .mockResolvedValue([]),
   };
 
@@ -228,13 +224,13 @@ async function run(
 describe('registerIntentsStep', () => {
   beforeEach(() => {
     // The terms factory is overloaded over output encoding; the runtime path
-    // picks the hex overload, but `jest.mocked()` picks the bytes overload, so
+    // picks the hex overload, but `vi.mocked()` picks the bytes overload, so
     // cast through `never` to satisfy both.
     mockCreateRedeemerTerms.mockReturnValue(MOCK_REDEEMER_TERMS as never);
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('is named "register-intents"', () => {
