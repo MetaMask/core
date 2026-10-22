@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export an `assetsController` initialization configuration for `AssetsController`, along with the `AssetsControllerInstanceOptions` type ([#10885](https://github.com/MetaMask/core/pull/10885))
+  - It is not part of the default initialization configurations, because the Wallet does not yet initialize several of its dependencies (e.g. `NetworkEnablementController`, `AccountTreeController`, `SnapController`). Pass it through `initializationConfigurations` after configurations that register `NetworkEnablementController:getState`.
+  - Configure it through the new optional `instanceOptions.assetsController`, which requires a `queryApiClient`.
+
 ### Changed
 
+- Add `@metamask/assets-controller` as a dependency ([#10885](https://github.com/MetaMask/core/pull/10885))
 - Bump `@metamask/claims-controller` from `^1.0.3` to `^1.0.4` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/shield-controller` from `^7.0.4` to `^7.0.5` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/subscription-controller` from `^14.0.1` to `^14.0.2` ([#10925](https://github.com/MetaMask/core/pull/10925))

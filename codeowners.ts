@@ -44,6 +44,7 @@ const config = {
     },
     'assets-controller': {
       teams: ['@MetaMask/metamask-assets'],
+      initializationPath: 'assets-controller',
     },
     'assets-controllers': {
       teams: ['@MetaMask/metamask-assets'],
