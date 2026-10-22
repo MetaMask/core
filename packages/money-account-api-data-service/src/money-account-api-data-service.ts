@@ -64,7 +64,13 @@ export const serviceName = 'MoneyAccountApiDataService';
 
 const log = createModuleLogger(projectLogger, serviceName);
 const traceLogger = createModuleLogger(projectLogger, 'trace');
-const VBA_TRANSFERS_UNAUTHORIZED_KEY = '__vbaTransfersUnauthorized';
+
+class SiweSigningError extends Error {
+  constructor(cause: unknown) {
+    super('Failed to sign the SIWE message', { cause });
+    this.name = 'SiweSigningError';
+  }
+}
 
 export const TRACES = {
   POSITIONS_API: 'Money Account API Fetch Positions',
@@ -195,6 +201,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
     { token: string; expiresAt: number }
   >();
 
+  readonly #siweSessionRequests = new Map<string, Promise<string>>();
+
   /**
    * Constructs a new MoneyAccountApiDataService.
    *
@@ -221,6 +229,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
         retryFilterPolicy: handleWhen(
           (error) =>
             !(error instanceof MoneyAccountApiResponseValidationError) &&
+            !(error instanceof SiweSigningError) &&
             !(
               error instanceof HttpError &&
               [401, 403].includes(error.httpStatus)
@@ -672,34 +681,24 @@ export class MoneyAccountApiDataService extends BaseDataService<
       normalizedAddress,
     ] as const;
 
-    // Sign before entering the shared service policy, so a locked wallet or
-    // rejected signature cannot be retried or counted as an API failure.
-    const token = await this.#getSiweToken(normalizedAddress);
-
+    // Session signing is not retried by the service policy, while parallel
+    // calls for this wallet share the in-flight SIWE exchange below.
     try {
       return await this.fetchQuery({
         queryKey,
         staleTime: 0,
         queryFn: async () => {
+          const token = await this.#getSiweToken(normalizedAddress);
           const response = await this.#fetchVbaTransfers(token);
-          if (response.status === 401) {
-            return { [VBA_TRANSFERS_UNAUTHORIZED_KEY]: true };
+          if (response.status !== 401) {
+            return this.#parseVbaTransfersResponse(response);
           }
-          return this.#parseVbaTransfersResponse(response);
-        },
-      }).then(async (result) => {
-        if (
-          typeof result !== 'object' ||
-          result === null ||
-          !(VBA_TRANSFERS_UNAUTHORIZED_KEY in result)
-        ) {
-          return result;
-        }
 
-        this.#siweSessions.delete(normalizedAddress);
-        const renewedToken = await this.#getSiweToken(normalizedAddress);
-        const response = await this.#fetchVbaTransfers(renewedToken);
-        return this.#parseVbaTransfersResponse(response);
+          this.#siweSessions.delete(normalizedAddress);
+          const renewedToken = await this.#getSiweToken(normalizedAddress);
+          const retriedResponse = await this.#fetchVbaTransfers(renewedToken);
+          return this.#parseVbaTransfersResponse(retriedResponse);
+        },
       });
     } catch (error) {
       if (error instanceof HttpError && error.httpStatus === 401) {
@@ -743,6 +742,24 @@ export class MoneyAccountApiDataService extends BaseDataService<
     }
     this.#siweSessions.delete(normalizedAddress);
 
+    const requests = this.#siweSessionRequests;
+    const request = requests.get(normalizedAddress);
+    if (request !== undefined) {
+      return await request;
+    }
+
+    const newRequest = this.#createSiweSession(normalizedAddress);
+    requests.set(normalizedAddress, newRequest);
+    try {
+      return await newRequest;
+    } finally {
+      if (requests.get(normalizedAddress) === newRequest) {
+        requests.delete(normalizedAddress);
+      }
+    }
+  }
+
+  async #createSiweSession(normalizedAddress: string): Promise<string> {
     const challengeResponse = await fetch(
       new URL('/v1/vba/auth/challenge', this.#baseUrl),
       {
@@ -769,10 +786,15 @@ export class MoneyAccountApiDataService extends BaseDataService<
       );
     }
 
-    const signature = await this.messenger.call(
-      'KeyringController:signPersonalMessage',
-      { data: challenge.message, from: normalizedAddress },
-    );
+    let signature: string;
+    try {
+      signature = await this.messenger.call(
+        'KeyringController:signPersonalMessage',
+        { data: challenge.message, from: normalizedAddress },
+      );
+    } catch (error) {
+      throw new SiweSigningError(error);
+    }
     const verifyResponse = await fetch(
       new URL('/v1/vba/auth/verify', this.#baseUrl),
       {

@@ -1592,7 +1592,10 @@ describe('MoneyAccountApiDataService', () => {
 
       await expect(
         service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
-      ).rejects.toThrow('user rejected signature');
+      ).rejects.toMatchObject({
+        name: 'SiweSigningError',
+        cause: new Error('user rejected signature'),
+      });
       expect(signPersonalMessage).toHaveBeenCalledTimes(1);
       service.destroy();
     });
@@ -1661,6 +1664,34 @@ describe('MoneyAccountApiDataService', () => {
       service.destroy();
     });
 
+    it('renews an expired SIWE session', async () => {
+      let now = Date.now();
+      const dateNowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now);
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(MOCK_ADDRESS, 'first-token', signPersonalMessage);
+      mockSiweAuthentication(MOCK_ADDRESS, 'second-token', signPersonalMessage);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer first-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer second-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      now += MOCK_SIWE_SESSION.expires_in * 1000 + 1;
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+
+      expect(signPersonalMessage).toHaveBeenCalledTimes(2);
+      expect(nock.pendingMocks()).toHaveLength(0);
+      dateNowSpy.mockRestore();
+      service.destroy();
+    });
+
     it('keeps sessions scoped to each wallet', async () => {
       const otherAddress = '0x2222222222222222222222222222222222222222';
       const signPersonalMessage = vi.fn();
@@ -1681,6 +1712,77 @@ describe('MoneyAccountApiDataService', () => {
       await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
       await service.fetchVbaTransfers({ address: otherAddress });
       expect(signPersonalMessage).toHaveBeenCalledTimes(2);
+      service.destroy();
+    });
+
+    it('shares an in-flight SIWE challenge and signature for the same wallet', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge')
+        .delay(10)
+        .reply(200, MOCK_SIWE_CHALLENGE);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/verify')
+        .reply(200, MOCK_SIWE_SESSION);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer siwe-session-token' },
+      })
+        .get('/v1/vba/transfers')
+        .twice()
+        .reply(200, { transfers: [] });
+      signPersonalMessage.mockImplementation(async () => {
+        await Promise.resolve();
+        return '0xsignature';
+      });
+
+      const first = service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      const second = service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      await vi.waitFor(() => {
+        expect(signPersonalMessage).toHaveBeenCalledTimes(1);
+      });
+      const results = await Promise.all([first, second]);
+      expect(results).toHaveLength(2);
+      expect(signPersonalMessage).toHaveBeenCalledTimes(1);
+      service.destroy();
+    });
+
+    it('renews the session after the prior in-flight request settles', async () => {
+      const signPersonalMessage = vi.fn().mockResolvedValue('0xsignature');
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(MOCK_ADDRESS, 'first-token', signPersonalMessage);
+      mockSiweAuthentication(MOCK_ADDRESS, 'second-token', signPersonalMessage);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer first-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer second-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      service.destroy();
+    });
+
+    it('uses the cached session when another call starts after authentication completes', async () => {
+      const signPersonalMessage = vi.fn().mockResolvedValue('0xsignature');
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(MOCK_ADDRESS, 'cached-token', signPersonalMessage);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer cached-token' },
+      })
+        .get('/v1/vba/transfers')
+        .thrice()
+        .reply(200, { transfers: [] });
+
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      expect(signPersonalMessage).toHaveBeenCalledTimes(1);
+      await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
+      expect(nock.pendingMocks()).toHaveLength(0);
       service.destroy();
     });
 
@@ -1775,6 +1877,25 @@ describe('MoneyAccountApiDataService', () => {
       await expect(
         service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
       ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+      service.destroy();
+    });
+
+    it('reuses an unexpired in-flight SIWE session for concurrent reads', async () => {
+      const signPersonalMessage = vi.fn().mockResolvedValue('0xsignature');
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(MOCK_ADDRESS, 'concurrent-token', signPersonalMessage);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer concurrent-token' },
+      })
+        .get('/v1/vba/transfers')
+        .twice()
+        .reply(200, { transfers: [] });
+
+      await Promise.all([
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ]);
+      expect(signPersonalMessage).toHaveBeenCalledTimes(1);
       service.destroy();
     });
 
