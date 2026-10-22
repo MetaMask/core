@@ -1415,11 +1415,6 @@
       "count": 4
     }
   },
-  "packages/bitcoin-regtest-up/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts": {
     "typescript/no-unsafe-argument": {
       "count": 2
@@ -1445,6 +1440,9 @@
       "count": 55
     },
     "typescript/no-unsafe-return": {
+      "count": 2
+    },
+    "vitest/no-conditional-in-test": {
       "count": 2
     }
   },
@@ -2021,11 +2019,6 @@
       "count": 2
     }
   },
-  "packages/config-registry-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/connectivity-controller/jest.config.cjs": {
     "import/unambiguous": {
       "count": 1
@@ -2579,11 +2572,6 @@
       "count": 1
     }
   },
-  "packages/java-tron-up/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/java-tron-up/src/bin/java-tron-up.ts": {
     "typescript/no-unsafe-argument": {
       "count": 2
@@ -2610,6 +2598,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/java-tron-up/src/install.ts": {
@@ -2809,11 +2800,6 @@
   },
   "packages/kyc-controller/src/ukyc/testToken.test.ts": {
     "typescript/no-unsafe-return": {
-      "count": 1
-    }
-  },
-  "packages/local-node-utils/jest.config.cjs": {
-    "import/unambiguous": {
       "count": 1
     }
   },
@@ -4967,11 +4953,6 @@
       "count": 54
     }
   },
-  "packages/solana-test-validator-up/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/solana-test-validator-up/src/bin/solana-test-validator-up.ts": {
     "no-undef": {
       "count": 3
@@ -5001,6 +4982,9 @@
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/solana-test-validator-up/src/install.ts": {
@@ -5018,11 +5002,6 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 5
-    }
-  },
-  "packages/stellar-quickstart-up/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
     }
   },
   "packages/storage-service/jest.config.cjs": {
