@@ -988,12 +988,13 @@ function isValidTradingFeeGrant(
  * Whether a benefits rejection definitively means "this profile is not
  * entitled", as opposed to "the read failed".
  *
- * `SubscriptionController.getBenefits` throws `UserNotSubscribed` when the
- * subscription is inactive or the response reports ineligibility, and clears
- * its own benefits state on that path. Treating it as a transport failure would
- * keep serving a cached waiver for the rest of the staleness window — up to ten
- * minutes of free trading after entitlement ended — so it is converted to a
- * real `null` answer instead.
+ * `SubscriptionController.getBenefits` throws `UserNotSubscribed` when there
+ * is no active subscription, and clears its own benefits state on that path.
+ * An ineligible response is returned with `eligible: false` and does not reach
+ * this check. Treating the inactive-subscription rejection as a transport
+ * failure would keep serving a cached waiver for the rest of the staleness
+ * window — up to ten minutes of free trading after entitlement ended — so it
+ * is converted to a real `null` answer instead.
  *
  * Matched on the message because the controller throws a plain `Error`; any
  * other failure stays a failure and preserves the cached snapshot.

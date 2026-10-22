@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `getBenefits` returns an ineligible benefits response instead of throwing `UserNotSubscribed`.
+
 ## [14.0.2]
 
 ### Changed
