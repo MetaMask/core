@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable jest/no-restricted-matchers */
+/* eslint-disable vitest/no-restricted-matchers */
 import {
   BridgeClientId,
   UnifiedSwapBridgeEventName,
@@ -17,6 +17,8 @@ import {
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { BridgeStatusController } from './bridge-status-controller.js';
 import { MAX_ATTEMPTS } from './constants.js';
@@ -26,10 +28,11 @@ import * as historyUtils from './utils/history.js';
 import * as intentApi from './utils/intent-api.js';
 import { IntentOrderStatus } from './utils/validators.js';
 
-jest.spyOn(intentApi, 'postSubmitOrder').mockImplementation(jest.fn());
-jest
-  .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
-  .mockImplementation(jest.fn());
+vi.spyOn(intentApi, 'postSubmitOrder').mockImplementation(vi.fn());
+vi.spyOn(
+  intentApi.IntentApiImpl.prototype,
+  'getOrderStatus',
+).mockImplementation(vi.fn());
 
 const minimalIntentQuoteResponse = (
   overrides?: Partial<QuoteResponseV1>,
@@ -195,12 +198,12 @@ const createMessengerHarness = (
   const transactions: TransactionMeta[] = [];
 
   const messenger = {
-    registerActionHandler: jest.fn(),
-    registerMethodActionHandlers: jest.fn(),
-    registerInitialEventPayload: jest.fn(), // REQUIRED by BaseController
-    subscribe: jest.fn(),
-    publish: jest.fn(),
-    call: jest.fn((method: string, ...args: any[]) => {
+    registerActionHandler: vi.fn(),
+    registerMethodActionHandlers: vi.fn(),
+    registerInitialEventPayload: vi.fn(), // REQUIRED by BaseController
+    subscribe: vi.fn(),
+    publish: vi.fn(),
+    call: vi.fn((method: string, ...args: any[]) => {
       switch (method) {
         case 'AccountsController:getAccountByAddress': {
           const addr = (args[0] as string) ?? '';
@@ -303,13 +306,13 @@ const setup = (options?: {
     options?.approvalStatus,
   );
 
-  const mockFetchFn = jest.fn();
+  const mockFetchFn = vi.fn();
   const controller = new BridgeStatusController({
     messenger,
     state: {
       txHistory: options?.mockTxHistory ?? {},
     },
-    addTransactionBatchFn: jest.fn(),
+    addTransactionBatchFn: vi.fn(),
     clientId: options?.clientId ?? BridgeClientId.EXTENSION,
     fetchFn: (...args: any[]) => mockFetchFn(...args),
     config: { customBridgeApiBaseUrl: 'http://localhost' },
@@ -318,11 +321,11 @@ const setup = (options?: {
     onQuoteStatusManagerError: options?.onQuoteStatusManagerError,
   });
 
-  const startPollingSpy = jest
+  const startPollingSpy = vi
     .spyOn(controller, 'startPolling')
     .mockReturnValue('poll-token-1');
 
-  const stopPollingSpy = jest.spyOn(controller, 'stopPollingByPollingToken');
+  const stopPollingSpy = vi.spyOn(controller, 'stopPollingByPollingToken');
 
   return {
     mockFetchFn,
@@ -337,8 +340,8 @@ const setup = (options?: {
 
 describe('BridgeStatusController (intent swaps)', () => {
   beforeEach(() => {
-    jest.restoreAllMocks();
-    jest.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it('submitIntent: throws if approval confirmation fails (does not write history or start polling)', async () => {
@@ -354,7 +357,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       txHash: undefined,
       metadata: { txHashes: [] },
     };
-    const submitIntentSpy = jest
+    const submitIntentSpy = vi
       .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
@@ -376,7 +379,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       accountAddress,
     });
     await expect(promise).rejects.toThrowErrorMatchingInlineSnapshot(
-      `"Approval transaction did not confirm"`,
+      `[Error: Approval transaction did not confirm]`,
     );
 
     // Since we throw before intent order submission succeeds, we should not create the history item
@@ -391,7 +394,7 @@ describe('BridgeStatusController (intent swaps)', () => {
   });
 
   it('submitIntent: completes when approval tx confirms', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(1773879217428);
+    vi.spyOn(Date, 'now').mockReturnValue(1773879217428);
     const { controller, accountAddress } = setup({
       approvalStatus: TransactionStatus.confirmed,
     });
@@ -402,7 +405,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       txHash: undefined,
       metadata: { txHashes: [] },
     };
-    const submitIntentSpy = jest
+    const submitIntentSpy = vi
       .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
@@ -460,7 +463,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       txHash: undefined,
       metadata: { txHashes: [] },
     };
-    const submitIntentSpy = jest
+    const submitIntentSpy = vi
       .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
@@ -480,7 +483,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       accountAddress,
     });
     await expect(promise).rejects.toThrowErrorMatchingInlineSnapshot(
-      `"Approval transaction did not confirm"`,
+      `[Error: Approval transaction did not confirm]`,
     );
 
     expect(submitIntentSpy).not.toHaveBeenCalled();
@@ -497,16 +500,16 @@ describe('BridgeStatusController (intent swaps)', () => {
       txHash: undefined,
       metadata: { txHashes: [] },
     };
-    jest
-      .spyOn(intentApi, 'postSubmitOrder')
-      .mockResolvedValue(intentStatusResponse);
+    vi.spyOn(intentApi, 'postSubmitOrder').mockResolvedValue(
+      intentStatusResponse,
+    );
 
-    jest.spyOn(historyUtils, 'getInitialHistoryItem').mockImplementation(() => {
+    vi.spyOn(historyUtils, 'getInitialHistoryItem').mockImplementation(() => {
       throw new Error('boom');
     });
 
     const quoteResponse = minimalIntentQuoteResponse();
-    const consoleSpy = jest
+    const consoleSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
 
@@ -537,7 +540,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       txHash: undefined,
       metadata: { txHashes: [] },
     };
-    const submitIntentSpy = jest
+    const submitIntentSpy = vi
       .spyOn(intentApi, 'postSubmitOrder')
       .mockResolvedValue(intentStatusResponse);
 
@@ -549,10 +552,8 @@ describe('BridgeStatusController (intent swaps)', () => {
       message: {},
     };
 
-    const originalCallImpl = (
-      messenger.call as jest.Mock
-    ).getMockImplementation();
-    (messenger.call as jest.Mock).mockImplementation(
+    const originalCallImpl = (messenger.call as Mock).getMockImplementation();
+    (messenger.call as Mock).mockImplementation(
       (method: string, ...args: any[]) => {
         if (method === 'KeyringController:signTypedMessage') {
           return '0xautosigned';
@@ -566,7 +567,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       accountAddress,
     });
 
-    expect((messenger.call as jest.Mock).mock.calls).toStrictEqual(
+    expect((messenger.call as Mock).mock.calls).toStrictEqual(
       expect.arrayContaining([
         [
           'KeyringController:signTypedMessage',
@@ -618,9 +619,9 @@ describe('BridgeStatusController (intent swaps)', () => {
       txHash: undefined,
       metadata: { txHashes: [] },
     };
-    jest
-      .spyOn(intentApi, 'postSubmitOrder')
-      .mockResolvedValue(intentStatusResponse);
+    vi.spyOn(intentApi, 'postSubmitOrder').mockResolvedValue(
+      intentStatusResponse,
+    );
 
     const quoteResponse = minimalIntentQuoteResponse();
 
@@ -637,9 +638,10 @@ describe('BridgeStatusController (intent swaps)', () => {
       txHash: '0xnewhash',
       metadata: { txHashes: ['0xold1', '0xnewhash'] },
     };
-    jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
-      .mockResolvedValue(intentStatusResponseCompleted);
+    vi.spyOn(
+      intentApi.IntentApiImpl.prototype,
+      'getOrderStatus',
+    ).mockResolvedValue(intentStatusResponseCompleted);
 
     await controller._executePoll({ bridgeTxMetaId: historyKey });
 
@@ -648,7 +650,7 @@ describe('BridgeStatusController (intent swaps)', () => {
     expect(updated.status.srcChain.txHash).toBe('0xnewhash');
 
     expect(stopPollingSpy).toHaveBeenCalledWith('poll-token-1');
-    const completedEventCall = (messenger.call as jest.Mock).mock.calls.find(
+    const completedEventCall = (messenger.call as Mock).mock.calls.find(
       ([, eventName]) => eventName === UnifiedSwapBridgeEventName.Completed,
     );
     expect(completedEventCall?.[2]).toStrictEqual(
@@ -670,9 +672,9 @@ describe('BridgeStatusController (intent swaps)', () => {
       txHash: undefined,
       metadata: { txHashes: [] },
     };
-    jest
-      .spyOn(intentApi, 'postSubmitOrder')
-      .mockResolvedValue(intentStatusResponse);
+    vi.spyOn(intentApi, 'postSubmitOrder').mockResolvedValue(
+      intentStatusResponse,
+    );
 
     const quoteResponse = minimalIntentQuoteResponse();
 
@@ -692,9 +694,10 @@ describe('BridgeStatusController (intent swaps)', () => {
       txHash: '0xonlyhash',
       metadata: { txHashes: [] }, // forces fallback to txHash
     };
-    jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
-      .mockResolvedValue(intentStatusResponsePending);
+    vi.spyOn(
+      intentApi.IntentApiImpl.prototype,
+      'getOrderStatus',
+    ).mockResolvedValue(intentStatusResponsePending);
 
     await controller._executePoll({ bridgeTxMetaId: historyKey });
 
@@ -717,9 +720,9 @@ describe('BridgeStatusController (intent swaps)', () => {
       txHash: undefined,
       metadata: { txHashes: [] },
     };
-    jest
-      .spyOn(intentApi, 'postSubmitOrder')
-      .mockResolvedValue(intentStatusResponse);
+    vi.spyOn(intentApi, 'postSubmitOrder').mockResolvedValue(
+      intentStatusResponse,
+    );
 
     const quoteResponse = minimalIntentQuoteResponse();
 
@@ -733,14 +736,15 @@ describe('BridgeStatusController (intent swaps)', () => {
     // Remove TC tx so update branch logs "transaction not found"
     transactions.splice(0, transactions.length);
 
-    jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
-      .mockResolvedValue({
-        id: orderUid,
-        status: IntentOrderStatus.EXPIRED,
-        txHash: '0xonlyhash',
-        metadata: { txHashes: [] }, // forces fallback to txHash
-      });
+    vi.spyOn(
+      intentApi.IntentApiImpl.prototype,
+      'getOrderStatus',
+    ).mockResolvedValue({
+      id: orderUid,
+      status: IntentOrderStatus.EXPIRED,
+      txHash: '0xonlyhash',
+      metadata: { txHashes: [] }, // forces fallback to txHash
+    });
 
     await controller._executePoll({ bridgeTxMetaId: historyKey });
 
@@ -757,7 +761,7 @@ describe('BridgeStatusController (intent swaps)', () => {
   ])(
     'intent polling: does not report any quote status when the order reaches $description',
     async ({ orderStatus }) => {
-      const onQuoteStatusManagerError = jest.fn();
+      const onQuoteStatusManagerError = vi.fn();
       const orderUid = 'order-uid-quote-status-1';
       const { controller } = setup({
         isQuoteStatusManagerEnabled: () => true,
@@ -778,14 +782,15 @@ describe('BridgeStatusController (intent swaps)', () => {
         },
       });
 
-      jest
-        .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
-        .mockResolvedValue({
-          id: orderUid,
-          status: orderStatus,
-          txHash: '0xsettlementhash',
-          metadata: { txHashes: ['0xsettlementhash'] },
-        });
+      vi.spyOn(
+        intentApi.IntentApiImpl.prototype,
+        'getOrderStatus',
+      ).mockResolvedValue({
+        id: orderUid,
+        status: orderStatus,
+        txHash: '0xsettlementhash',
+        metadata: { txHashes: ['0xsettlementhash'] },
+      });
 
       await controller._executePoll({ bridgeTxMetaId: orderUid });
 
@@ -823,7 +828,7 @@ describe('BridgeStatusController (intent swaps)', () => {
       },
     });
 
-    jest.spyOn(intentApi, 'postSubmitOrder').mockResolvedValue({
+    vi.spyOn(intentApi, 'postSubmitOrder').mockResolvedValue({
       id: orderUid,
       status: IntentOrderStatus.SUBMITTED,
       txHash: undefined,
@@ -832,9 +837,10 @@ describe('BridgeStatusController (intent swaps)', () => {
 
     const historyKey = orderUid;
 
-    jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
-      .mockRejectedValue(new Error('boom'));
+    vi.spyOn(
+      intentApi.IntentApiImpl.prototype,
+      'getOrderStatus',
+    ).mockRejectedValue(new Error('boom'));
 
     await controller._executePoll({ bridgeTxMetaId: historyKey });
 
@@ -847,9 +853,9 @@ describe('BridgeStatusController (intent swaps)', () => {
 
 describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () => {
   beforeEach(() => {
-    jest.restoreAllMocks();
-    jest.resetModules();
-    jest.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   it('restartPollingForFailedAttempts: throws when identifier missing, and when no match found', async () => {
@@ -901,7 +907,7 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
       expect.objectContaining({ counter: 7 }),
     );
 
-    const startPollingSpy = jest.spyOn(controller, 'startPolling');
+    const startPollingSpy = vi.spyOn(controller, 'startPolling');
 
     controller.stopAllPolling();
     controller.restartPollingForFailedAttempts({ txHash: '0xhash-find-me' });
@@ -974,17 +980,17 @@ describe('BridgeStatusController (subscriptions + bridge polling + wiping)', () 
 
 describe('BridgeStatusController (target uncovered branches)', () => {
   beforeEach(() => {
-    jest.restoreAllMocks();
-    jest.resetModules();
-    jest.resetAllMocks();
-    jest.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.resetModules();
+    vi.resetAllMocks();
+    vi.clearAllMocks();
   });
 
   it('constructor restartPolling: skips items when shouldSkipFetchDueToFetchFailures returns true', () => {
     const accountAddress = '0xAccount1';
     const { messenger } = createMessengerHarness(accountAddress);
 
-    const startPollingProtoSpy = jest
+    const startPollingProtoSpy = vi
       .spyOn(BridgeStatusController.prototype, 'startPolling')
       .mockReturnValue('tok');
 
@@ -1011,8 +1017,8 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       messenger,
       state,
       clientId: BridgeClientId.EXTENSION,
-      fetchFn: jest.fn(),
-      addTransactionBatchFn: jest.fn(),
+      fetchFn: vi.fn(),
+      addTransactionBatchFn: vi.fn(),
       config: { customBridgeApiBaseUrl: 'http://localhost' },
       traceFn: (_r: any, fn?: any): any => fn?.(),
     });
@@ -1123,7 +1129,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       },
       validationFailures: [],
     };
-    const fetchBridgeTxStatusSpy = jest
+    const fetchBridgeTxStatusSpy = vi
       .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
       .mockResolvedValue(statusResponse);
 
@@ -1240,7 +1246,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     });
 
     // should skip due to featureId
-    expect((messenger.call as jest.Mock).mock.calls).not.toStrictEqual(
+    expect((messenger.call as Mock).mock.calls).not.toStrictEqual(
       expect.arrayContaining([
         expect.arrayContaining([
           'BridgeController:trackUnifiedSwapBridgeEvent',
@@ -1267,16 +1273,17 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       mockTxHistory,
     });
 
-    jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
-      .mockImplementation(
-        jest.fn().mockResolvedValue({
-          id: 'order-1',
-          status: IntentOrderStatus.PENDING,
-          txHash: undefined,
-          metadata: { txHashes: [] },
-        }),
-      );
+    vi.spyOn(
+      intentApi.IntentApiImpl.prototype,
+      'getOrderStatus',
+    ).mockImplementation(
+      vi.fn().mockResolvedValue({
+        id: 'order-1',
+        status: IntentOrderStatus.PENDING,
+        txHash: undefined,
+        metadata: { txHashes: [] },
+      }),
+    );
 
     controller.startPolling({
       bridgeTxMetaId: 'order-1',
@@ -1295,10 +1302,10 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       txHash: undefined,
       metadata: { txHashes: [] },
     };
-    const getOrderStatusSpy = jest
+    const getOrderStatusSpy = vi
       .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
       .mockImplementation(
-        jest.fn().mockResolvedValueOnce(orderStatusResponseSubmitted),
+        vi.fn().mockResolvedValueOnce(orderStatusResponseSubmitted),
       );
 
     const { controller } = setup({
@@ -1321,9 +1328,10 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       txHash: undefined,
       metadata: { txHashes: [] },
     };
-    jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
-      .mockImplementation(jest.fn().mockResolvedValue(orderStatusResponse));
+    vi.spyOn(
+      intentApi.IntentApiImpl.prototype,
+      'getOrderStatus',
+    ).mockImplementation(vi.fn().mockResolvedValue(orderStatusResponse));
 
     await controller._executePoll({ bridgeTxMetaId: 'order-1' });
 
@@ -1355,16 +1363,17 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       },
     });
 
-    jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
-      .mockImplementation(
-        jest.fn().mockResolvedValue({
-          id: 'order-1',
-          status: 'SOME_NEW_STATUS' as any, // force UNKNOWN branch
-          txHash: undefined,
-          metadata: { txHashes: [] },
-        }),
-      );
+    vi.spyOn(
+      intentApi.IntentApiImpl.prototype,
+      'getOrderStatus',
+    ).mockImplementation(
+      vi.fn().mockResolvedValue({
+        id: 'order-1',
+        status: 'SOME_NEW_STATUS' as any, // force UNKNOWN branch
+        txHash: undefined,
+        metadata: { txHashes: [] },
+      }),
+    );
 
     await controller._executePoll({ bridgeTxMetaId: 'order-1' });
 
@@ -1391,9 +1400,10 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       },
     });
 
-    jest
-      .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
-      .mockImplementation(jest.fn().mockRejectedValue('non-Error rejection'));
+    vi.spyOn(
+      intentApi.IntentApiImpl.prototype,
+      'getOrderStatus',
+    ).mockImplementation(vi.fn().mockRejectedValue('non-Error rejection'));
 
     await controller._executePoll({ bridgeTxMetaId: 'order-1' });
 
@@ -1406,7 +1416,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
 
   it('bridge polling: returns early when history item is missing', async () => {
     const { controller } = setup();
-    const fetchBridgeTxStatusSpy = jest.spyOn(
+    const fetchBridgeTxStatusSpy = vi.spyOn(
       bridgeStatusUtils,
       'fetchBridgeTxStatus',
     );
