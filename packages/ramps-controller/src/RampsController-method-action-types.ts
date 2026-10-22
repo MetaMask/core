@@ -529,6 +529,23 @@ export type RampsControllerRefreshAutorampsAction = {
 };
 
 /**
+ * Fetches the newest page of transactions for one autoramp and publishes
+ * `autorampTransactionStatusChanged` for each new id or status change.
+ *
+ * The updated record is written before any event is published. A failed
+ * fetch leaves the record untouched. Concurrent calls for the same autoramp
+ * share one request. The first successful fetch seeds the record and
+ * publishes nothing.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ * @returns Transaction summaries from the newest page.
+ */
+export type RampsControllerRefreshAutorampTransactionsAction = {
+  type: `RampsController:refreshAutorampTransactions`;
+  handler: RampsController['refreshAutorampTransactions'];
+};
+
+/**
  * Starts polling all pending V2 orders at a fixed interval.
  * Each poll cycle iterates orders with non-terminal statuses,
  * respects pollingSecondsMinimum and backoff from error count.
@@ -968,6 +985,7 @@ export type RampsControllerMethodActions =
   | RampsControllerApplyAutorampStatusFromPushAction
   | RampsControllerRefreshAutorampAction
   | RampsControllerRefreshAutorampsAction
+  | RampsControllerRefreshAutorampTransactionsAction
   | RampsControllerStartOrderPollingAction
   | RampsControllerStopOrderPollingAction
   | RampsControllerGetBuyWidgetDataAction

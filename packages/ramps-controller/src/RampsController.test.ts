@@ -147,6 +147,7 @@ describe('RampsController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           {
+            "autorampTransactionRecords": {},
             "autoramps": [],
             "countries": {
               "data": [],
@@ -226,6 +227,7 @@ describe('RampsController', () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           {
+            "autorampTransactionRecords": {},
             "autoramps": [],
             "countries": {
               "data": [],
@@ -2600,6 +2602,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autorampTransactionRecords": {},
             "autoramps": [],
             "countries": {
               "data": [],
@@ -2669,6 +2672,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autorampTransactionRecords": {},
             "autoramps": [],
             "countries": {
               "data": [],
@@ -2713,6 +2717,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autorampTransactionRecords": {},
             "autoramps": [],
             "moneyAccountWalletRegistrations": [],
             "orders": [],
@@ -10557,6 +10562,155 @@ describe('RampsController', () => {
     });
   });
 
+  describe('refreshAutorampTransactions', () => {
+    const fetchedTransaction = (
+      id: string,
+      status: string,
+    ): {
+      id: string;
+      autorampId: string;
+      status: string;
+      sourceAmount: string;
+      destinationAmount: string;
+      createdAt: string;
+    } => ({
+      id,
+      autorampId: 'ar-1',
+      status,
+      sourceAmount: '100.00',
+      destinationAmount: '18.00',
+      createdAt: '2026-06-01T00:00:00.000Z',
+    });
+
+    it('writes the record before publishing a status change', async () => {
+      await withController(async ({ controller, rootMessenger, messenger }) => {
+        const list = vi
+          .fn()
+          .mockResolvedValueOnce([
+            fetchedTransaction('tx-1', 'FundsReviewInProgress'),
+          ])
+          .mockResolvedValueOnce([fetchedTransaction('tx-1', 'Completed')]);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:listAutorampTransactions',
+          list,
+        );
+        const recordAtPublish: unknown[] = [];
+        messenger.subscribe(
+          'RampsController:autorampTransactionStatusChanged',
+          () => {
+            recordAtPublish.push(
+              controller.state.autorampTransactionRecords['ar-1'],
+            );
+          },
+        );
+
+        await controller.refreshAutorampTransactions('ar-1');
+        expect(recordAtPublish).toHaveLength(0);
+        expect(
+          controller.state.autorampTransactionRecords['ar-1'],
+        ).toMatchObject({
+          statuses: { 'tx-1': 'FundsReviewInProgress' },
+        });
+
+        await controller.refreshAutorampTransactions('ar-1');
+
+        expect(recordAtPublish).toStrictEqual([
+          {
+            syncedAt: expect.any(Number),
+            statuses: { 'tx-1': 'Completed' },
+          },
+        ]);
+        expect(list).toHaveBeenCalledWith('ar-1', { pageSize: 50 });
+      });
+    });
+
+    it('leaves the record untouched when the fetch fails', async () => {
+      await withController(async ({ controller, rootMessenger, messenger }) => {
+        const list = vi
+          .fn()
+          .mockResolvedValueOnce([fetchedTransaction('tx-1', 'Completed')])
+          .mockRejectedValueOnce(new Error('transactions unavailable'));
+        rootMessenger.registerActionHandler(
+          'NeoBankService:listAutorampTransactions',
+          list,
+        );
+        const events: unknown[] = [];
+        messenger.subscribe(
+          'RampsController:autorampTransactionStatusChanged',
+          (payload) => {
+            events.push(payload);
+          },
+        );
+
+        await controller.refreshAutorampTransactions('ar-1');
+        const seeded = controller.state.autorampTransactionRecords['ar-1'];
+
+        await expect(
+          controller.refreshAutorampTransactions('ar-1'),
+        ).rejects.toThrow('transactions unavailable');
+
+        expect(controller.state.autorampTransactionRecords['ar-1']).toBe(
+          seeded,
+        );
+        expect(events).toHaveLength(0);
+      });
+    });
+
+    it('shares one request across concurrent refreshes for the same autoramp', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let resolveList: (
+          transactions: ReturnType<typeof fetchedTransaction>[],
+        ) => void = () => undefined;
+        const pending = new Promise<ReturnType<typeof fetchedTransaction>[]>(
+          (resolve) => {
+            resolveList = resolve;
+          },
+        );
+        const list = vi.fn(() => pending);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:listAutorampTransactions',
+          list,
+        );
+
+        const first = controller.refreshAutorampTransactions('ar-1');
+        const second = controller.refreshAutorampTransactions('ar-1');
+        const other = controller.refreshAutorampTransactions('ar-2');
+        const page = [fetchedTransaction('tx-1', 'Completed')];
+
+        expect(list).toHaveBeenCalledTimes(2);
+        resolveList(page);
+        expect(await Promise.all([first, second, other])).toStrictEqual([
+          page,
+          page,
+          page,
+        ]);
+        expect(list).toHaveBeenCalledTimes(2);
+        expect(list).toHaveBeenNthCalledWith(1, 'ar-1', { pageSize: 50 });
+        expect(list).toHaveBeenNthCalledWith(2, 'ar-2', { pageSize: 50 });
+      });
+    });
+
+    it('clears the record when that autoramp is removed', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'NeoBankService:listAutorampTransactions',
+          async () => [fetchedTransaction('tx-1', 'Completed')],
+        );
+
+        await controller.refreshAutorampTransactions('ar-1');
+        await controller.refreshAutorampTransactions('ar-2');
+        controller.removeAutoramp('ar-1');
+
+        expect(
+          controller.state.autorampTransactionRecords['ar-1'],
+        ).toBeUndefined();
+        expect(
+          controller.state.autorampTransactionRecords['ar-2']?.statuses,
+        ).toStrictEqual({ 'tx-1': 'Completed' });
+      });
+    });
+  });
+
   describe('hydrateVbaOnboarding', () => {
     // A session's externalUserId is the canonical profile id that created it;
     // hydration only reuses a persisted session when it matches the signed-in
@@ -10943,6 +11097,12 @@ describe('RampsController', () => {
               moneyAccountWalletRegistrations: [
                 { walletAddress: '0xabc', status: 'active', updatedAt: 1 },
               ],
+              autorampTransactionRecords: {
+                'autoramp-previous': {
+                  syncedAt: 1,
+                  statuses: { 'tx-1': 'Completed' },
+                },
+              },
               vbaAutorampListFetchedAt: 2,
             },
           },
@@ -10975,6 +11135,7 @@ describe('RampsController', () => {
             controller.state.moneyAccountWalletRegistrations,
           ).toStrictEqual([]);
           expect(controller.state.autoramps).toStrictEqual([]);
+          expect(controller.state.autorampTransactionRecords).toStrictEqual({});
           expect(controller.state.vbaAutorampListFetchedAt).toBeNull();
         },
       );
@@ -11273,41 +11434,64 @@ describe('RampsController', () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2026-10-08T12:00:00.000Z'));
       try {
-        await withController(async ({ controller, rootMessenger }) => {
-          const handlers = registerKycHandlers(rootMessenger);
-          handlers.getAutoramps.mockResolvedValue([
-            {
-              id: 'autoramp-1',
-              customerId: 'customer-1',
-              walletAddress: '0xAbC',
-              status: AutorampStatus.Approved,
+        await withController(
+          {
+            options: {
+              state: {
+                autorampTransactionRecords: {
+                  'stale-autoramp': {
+                    syncedAt: 1,
+                    statuses: { 'tx-stale': 'Failed' },
+                  },
+                  'autoramp-1': {
+                    syncedAt: 5,
+                    statuses: { 'tx-kept': 'Completed' },
+                  },
+                },
+              },
             },
-          ]);
-          const createAutoramp = vi.spyOn(controller, 'createAutoramp');
+          },
+          async ({ controller, rootMessenger }) => {
+            const handlers = registerKycHandlers(rootMessenger);
+            handlers.getAutoramps.mockResolvedValue([
+              {
+                id: 'autoramp-1',
+                customerId: 'customer-1',
+                walletAddress: '0xAbC',
+                status: AutorampStatus.Approved,
+              },
+            ]);
+            const createAutoramp = vi.spyOn(controller, 'createAutoramp');
 
-          expect(
-            await controller.hydrateVbaOnboarding({
-              walletAddress: '0xabc',
-              refreshAutoramps: true,
-            }),
-          ).toStrictEqual(
-            factsSnapshot({
-              kycStatus: 'approved',
-              autorampStatus: 'ready',
-            }),
-          );
+            expect(
+              await controller.hydrateVbaOnboarding({
+                walletAddress: '0xabc',
+                refreshAutoramps: true,
+              }),
+            ).toStrictEqual(
+              factsSnapshot({
+                kycStatus: 'approved',
+                autorampStatus: 'ready',
+              }),
+            );
 
-          expect(handlers.getAutoramps).toHaveBeenCalledTimes(1);
-          expect(createAutoramp).not.toHaveBeenCalled();
-          expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
-          expect(controller.state.vbaAutorampListFetchedAt).toBe(
-            new Date('2026-10-08T12:00:00.000Z').getTime(),
-          );
-          expect(
-            controller.state.autoramps.map(
-              ({ updatedAt: _updatedAt, ...account }) => account,
-            ),
-          ).toMatchInlineSnapshot(`
+            expect(handlers.getAutoramps).toHaveBeenCalledTimes(1);
+            expect(createAutoramp).not.toHaveBeenCalled();
+            expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+            expect(controller.state.vbaAutorampListFetchedAt).toBe(
+              new Date('2026-10-08T12:00:00.000Z').getTime(),
+            );
+            expect(controller.state.autorampTransactionRecords).toStrictEqual({
+              'autoramp-1': {
+                syncedAt: 5,
+                statuses: { 'tx-kept': 'Completed' },
+              },
+            });
+            expect(
+              controller.state.autoramps.map(
+                ({ updatedAt: _updatedAt, ...account }) => account,
+              ),
+            ).toMatchInlineSnapshot(`
             [
               {
                 "customerId": "customer-1",
@@ -11319,7 +11503,8 @@ describe('RampsController', () => {
               },
             ]
           `);
-        });
+          },
+        );
       } finally {
         vi.useRealTimers();
       }

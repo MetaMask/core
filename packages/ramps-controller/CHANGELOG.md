@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add persisted `autorampTransactionRecords` on `RampsController`. Each autoramp stores `syncedAt` and the last seen status string per transaction id. The first successful fetch seeds the record and emits nothing ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `diffAutorampTransactions`, which reports a transaction id that is new or whose status string changed. A transaction missing from the fetch stays in the record ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `refreshAutorampTransactions`, which loads the newest autoramp transaction page (`page_size` 50) and publishes `RampsController:autorampTransactionStatusChanged` after the record is written. Overlapping calls for one autoramp share one request. A failed fetch writes nothing. Removing an autoramp, replacing the autoramp cursor, or discarding a foreign VBA session clears the matching records ([#0000](https://github.com/MetaMask/core/pull/0000))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- **BREAKING:** `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS` now includes `NeoBankService:listAutorampTransactions`. Hosts must delegate that action to `RampsController` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- `NeoBankService.listAutorampTransactions` accepts an optional `pageSize`, sent as `page_size`. Omitting it keeps the previous query ([#0000](https://github.com/MetaMask/core/pull/0000))
 
 ## [27.1.0]
 
