@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: run web3auth packages on Vitest ([#10957](https://github.com/MetaMask/core/pull/10957))
+
 ## [7.0.5]
 
 ### Changed
