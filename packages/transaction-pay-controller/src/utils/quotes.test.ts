@@ -7,6 +7,7 @@ import { cloneDeep } from 'lodash-es';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { TransactionPayStrategy } from '../constants.js';
 import type {
+  PayStrategyGetQuotesRequest,
   TransactionPaySourceAmount,
   TransactionData,
   TransactionPayQuote,
@@ -2021,6 +2022,73 @@ describe('Quotes Utils', () => {
           ],
         }),
       );
+    });
+
+    it('quotes from the transaction account and sends output to accountOverride when isAccountOverrideRecipientOnly is set', async () => {
+      const accountOverride =
+        '0xrecipient0000000000000000000000000000001' as Hex;
+
+      await run({
+        transactionData: {
+          ...POST_QUOTE_TRANSACTION_DATA,
+          accountOverride,
+          isAccountOverrideRecipientOnly: true,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          accountSupports7702: true,
+          from: TRANSACTION_META_MOCK.txParams.from,
+          requests: [
+            expect.objectContaining({
+              from: TRANSACTION_META_MOCK.txParams.from,
+              isPostQuote: true,
+              recipient: accountOverride,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('refreshes the payment token balance of accountOverride when isAccountOverrideRecipientOnly is set', async () => {
+      const accountOverride =
+        '0xrecipient0000000000000000000000000000001' as Hex;
+
+      await run({
+        transactionData: {
+          ...POST_QUOTE_TRANSACTION_DATA,
+          accountOverride,
+          isAccountOverrideRecipientOnly: true,
+        },
+      });
+
+      expect(getLiveTokenBalanceMock).toHaveBeenCalledWith(
+        messenger,
+        accountOverride,
+        DESTINATION_TOKEN_MOCK.chainId,
+        DESTINATION_TOKEN_MOCK.address,
+      );
+    });
+
+    it('ignores isAccountOverrideRecipientOnly for non-post-quote flow', async () => {
+      const accountOverride =
+        '0xdelegator0000000000000000000000000000001' as Hex;
+
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          accountOverride,
+          isAccountOverrideRecipientOnly: true,
+        },
+      });
+
+      const [[{ from, requests }]] = getQuotesMock.mock.calls as [
+        [PayStrategyGetQuotesRequest],
+      ];
+
+      expect(from).toBe(accountOverride);
+      expect(requests[0].recipient).toBeUndefined();
     });
 
     it('passes isHyperliquidSource through to post-quote request', async () => {

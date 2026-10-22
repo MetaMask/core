@@ -157,6 +157,8 @@ export class TransactionPayController extends BaseController<
       const config: TransactionConfig = {
         accountOverride: transactionData.accountOverride,
         atomic: transactionData.atomic,
+        isAccountOverrideRecipientOnly:
+          transactionData.isAccountOverrideRecipientOnly,
         isHyperliquidSource: transactionData.isHyperliquidSource,
         isMaxAmount: transactionData.isMaxAmount,
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,
@@ -335,6 +337,8 @@ export class TransactionPayController extends BaseController<
       const originalIsMaxAmount = current?.isMaxAmount;
       const originalIsPostQuote = current?.isPostQuote;
       const originalAccountOverride = current?.accountOverride;
+      const originalIsAccountOverrideRecipientOnly =
+        current?.isAccountOverrideRecipientOnly;
       const originalFiatPaymentAmount = current?.fiatPayment?.amountFiat;
       const originalFiatPaymentMethodId =
         current?.fiatPayment?.selectedPaymentMethodId;
@@ -363,7 +367,9 @@ export class TransactionPayController extends BaseController<
       const isIsMaxUpdated = current.isMaxAmount !== originalIsMaxAmount;
       const isPostQuoteUpdated = current.isPostQuote !== originalIsPostQuote;
       const isAccountOverrideUpdated =
-        current.accountOverride !== originalAccountOverride;
+        current.accountOverride !== originalAccountOverride ||
+        current.isAccountOverrideRecipientOnly !==
+          originalIsAccountOverrideRecipientOnly;
       const isFiatAmountUpdated =
         current.fiatPayment?.amountFiat !== originalFiatPaymentAmount;
       const isFiatPaymentMethodUpdated =

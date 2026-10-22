@@ -268,6 +268,37 @@ describe('TransactionPayController', () => {
       expect(updateQuotesMock).toHaveBeenCalledTimes(1);
     });
 
+    it('updates isAccountOverrideRecipientOnly in state', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isAccountOverrideRecipientOnly = true;
+      });
+
+      expect(
+        controller.state.transactionData[TRANSACTION_ID_MOCK]
+          .isAccountOverrideRecipientOnly,
+      ).toBe(true);
+    });
+
+    it('triggers source amounts and quotes update when isAccountOverrideRecipientOnly changes', () => {
+      const controller = createController();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, () => {
+        // no-op, just initializes
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      controller.setTransactionConfig(TRANSACTION_ID_MOCK, (config) => {
+        config.isAccountOverrideRecipientOnly = true;
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
     it('updates refundTo in state', () => {
       const controller = createController();
       const refundTo = '0xdeadbeef00000000000000000000000000000001' as Hex;
