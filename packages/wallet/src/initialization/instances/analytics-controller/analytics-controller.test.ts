@@ -127,7 +127,9 @@ describe('analyticsController', () => {
     instance.trackEvent(event);
 
     expect(platformAdapter.track).not.toHaveBeenCalled();
-    const queuedEvents = Object.values(instance.state.preConsentEventQueue ?? {});
+    const queuedEvents = Object.values(
+      instance.state.preConsentEventQueue ?? {},
+    );
     expect(queuedEvents).toHaveLength(1);
     expect(queuedEvents[0]).toMatchObject({
       type: 'track',
