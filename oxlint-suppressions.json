@@ -5801,6 +5801,11 @@
       "count": 1
     }
   },
+  "packages/wallet/src/initialization/instances/analytics-controller/analytics-controller.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    }
+  },
   "packages/wallet/src/initialization/instances/shield-api-service/shield-api-service.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 2
