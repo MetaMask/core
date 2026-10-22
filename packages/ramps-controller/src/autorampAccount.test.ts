@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type {
   ApplyAutorampRemoteStatusResult,
   AutorampAccount,
@@ -202,6 +204,35 @@ describe('autorampAccount', () => {
 
       expect(result.statusChanged).toBe(true);
       expect(result.shouldNotify).toBe(false);
+    });
+
+    it('keeps a stored deposit currency when a later snapshot omits it', () => {
+      const local = {
+        ...baseLocal,
+        depositRailsSummary: { ready: true, currency: 'BRL' },
+      };
+
+      const kept = applyAutorampRemoteStatus(local, {
+        id: 'ar-1',
+        customerId: 'cust-1',
+        status: AutorampStatus.Approved,
+        depositRailsSummary: { ready: true },
+      });
+      expect(kept.account.depositRailsSummary).toStrictEqual({
+        ready: true,
+        currency: 'BRL',
+      });
+
+      const replaced = applyAutorampRemoteStatus(local, {
+        id: 'ar-1',
+        customerId: 'cust-1',
+        status: AutorampStatus.Approved,
+        depositRailsSummary: { ready: true, currency: 'USD' },
+      });
+      expect(replaced.account.depositRailsSummary).toStrictEqual({
+        ready: true,
+        currency: 'USD',
+      });
     });
 
     it('keeps local identity when remote omits or blanks customerId and walletAddress', () => {

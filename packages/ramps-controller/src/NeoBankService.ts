@@ -12,10 +12,13 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 
 import packageJson from '../package.json';
 import type {
+  AutorampDepositInstructions,
   AutorampDepositRailsSummary,
   AutorampRemoteSnapshot,
   AutorampTransactionSummary,
   PixDepositInstructions,
+  UsBankDepositInstructions,
+  UsBankDepositRail,
 } from './autoramp-types.js';
 import type { NeoBankServiceMethodActions } from './NeoBankService-method-action-types.js';
 import { RAMPS_SDK_VERSION, RampsEnvironment } from './RampsService.js';
@@ -132,6 +135,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getWalletRegistrationStatus',
   'registerSelfHostedWallet',
   'getPixDepositInstructions',
+  'getDepositInstructions',
   'listAutorampTransactions',
 ] as const;
 
@@ -210,10 +214,12 @@ export function mapNeoBankAutorampToRemoteSnapshot(
   const depositRails = response.deposit_rails;
   const hasDepositRails =
     Array.isArray(depositRails) && depositRails.length > 0;
+  const currency = readDepositRailCurrency(depositRails);
   const depositRailsSummary: AutorampDepositRailsSummary | undefined =
     hasDepositRails || response.status === 'Approved'
       ? {
           ready: response.status === 'Approved' && hasDepositRails,
+          ...(currency ? { currency } : {}),
         }
       : undefined;
 
@@ -296,7 +302,8 @@ export function extractPixDepositInstructions(
     if (
       typeof record.br_code !== 'string' ||
       record.br_code.length === 0 ||
-      typeof record.instruction !== 'string'
+      typeof record.instruction !== 'string' ||
+      record.instruction.length === 0
     ) {
       continue;
     }
@@ -311,6 +318,124 @@ export function extractPixDepositInstructions(
       instructions.expiresAt = record.expires_at;
     }
     return instructions;
+  }
+  return null;
+}
+
+/**
+ * US rails in the order to prefer when an autoramp lists more than one.
+ */
+const US_BANK_DEPOSIT_RAILS: readonly UsBankDepositRail[] = [
+  'ACH',
+  'Wire',
+  'RTP',
+  'FedNow',
+];
+
+/**
+ * Fiat code implied by each MoonPay `deposit_rails` type that the app reads.
+ */
+const DEPOSIT_RAIL_CURRENCIES: Readonly<Record<string, string>> = {
+  Pix: 'BRL',
+  SEPA: 'EUR',
+  ACH: 'USD',
+  Wire: 'USD',
+  RTP: 'USD',
+  FedNow: 'USD',
+};
+
+/**
+ * Reads a non-empty string field from a deposit rail.
+ *
+ * @param record - Deposit rail object.
+ * @param key - MoonPay field name.
+ * @returns The value, or undefined when missing or empty.
+ */
+function readRailString(
+  record: Record<string, unknown>,
+  key: string,
+): string | undefined {
+  const value = record[key];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/**
+ * Lists the object entries of a MoonPay `deposit_rails` value.
+ *
+ * @param depositRails - MoonPay `deposit_rails` value.
+ * @returns Rail objects, skipping anything that is not an object.
+ */
+function readDepositRails(depositRails: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(depositRails)) {
+    return [];
+  }
+  return depositRails.filter(
+    (rail): rail is Record<string, unknown> =>
+      rail !== null && typeof rail === 'object',
+  );
+}
+
+/**
+ * Fiat of the rail {@link NeoBankService.getDepositInstructions} would return.
+ * Incomplete rails do not count, so a stub PIX entry cannot label an ACH account
+ * as BRL. SEPA is included when it has an IBAN, which is the EUR equivalent.
+ *
+ * @param depositRails - MoonPay `deposit_rails` value.
+ * @returns Uppercase fiat code, or undefined when no rail is complete.
+ */
+function readDepositRailCurrency(depositRails: unknown): string | undefined {
+  if (extractPixDepositInstructions(depositRails)) {
+    return DEPOSIT_RAIL_CURRENCIES.Pix;
+  }
+  if (extractUsBankDepositInstructions(depositRails)) {
+    return DEPOSIT_RAIL_CURRENCIES.ACH;
+  }
+  const sepa = readDepositRails(depositRails).find(
+    (rail) => rail.type === 'SEPA' && readRailString(rail, 'iban'),
+  );
+  return sepa ? DEPOSIT_RAIL_CURRENCIES.SEPA : undefined;
+}
+
+/**
+ * Pulls US bank transfer details out of an autoramp `deposit_rails` array.
+ * ACH is preferred, then Wire, RTP, and FedNow.
+ *
+ * @param depositRails - MoonPay `deposit_rails` value.
+ * @returns US bank details, or null when no complete US rail is present.
+ */
+export function extractUsBankDepositInstructions(
+  depositRails: unknown,
+): UsBankDepositInstructions | null {
+  const rails = readDepositRails(depositRails);
+  for (const railType of US_BANK_DEPOSIT_RAILS) {
+    for (const record of rails) {
+      if (record.type !== railType) {
+        continue;
+      }
+      const accountHolder = readRailString(record, 'recipient_name');
+      const routingNumber = readRailString(record, 'routing_number');
+      const accountNumber = readRailString(record, 'account_number');
+      const bankName = readRailString(record, 'bank_name');
+      if (!accountHolder || !routingNumber || !accountNumber || !bankName) {
+        continue;
+      }
+      const instructions: UsBankDepositInstructions = {
+        rail: railType,
+        accountHolder,
+        routingNumber,
+        accountNumber,
+        bankName,
+      };
+      const bankAddress = readRailString(record, 'bank_address');
+      if (bankAddress) {
+        instructions.bankAddress = bankAddress;
+      }
+      const accountHolderAddress = readRailString(record, 'recipient_address');
+      if (accountHolderAddress) {
+        instructions.accountHolderAddress = accountHolderAddress;
+      }
+      return instructions;
+    }
   }
   return null;
 }
@@ -600,6 +725,34 @@ export class NeoBankService {
       throw new Error('Malformed response received from neo-bank autoramp API');
     }
     return extractPixDepositInstructions(response.deposit_rails);
+  }
+
+  /**
+   * Loads deposit details for an autoramp, whichever rail it has.
+   *
+   * Calls `GET /neobank/autoramps/{id}` and reads the PIX rail, or else a US
+   * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`). Returns null until MoonPay
+   * has attached a supported rail. MoonPay only verifies the rail at
+   * `Approved`, so callers should not show these details before then.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @returns Deposit details discriminated by `type`, or null.
+   */
+  async getDepositInstructions(
+    autorampId: string,
+  ): Promise<AutorampDepositInstructions | null> {
+    const response = await this.#getJson<NeoBankAutorampResponse>(
+      `autoramps/${encodeURIComponent(autorampId)}`,
+    );
+    if (!response || typeof response !== 'object') {
+      throw new Error('Malformed response received from neo-bank autoramp API');
+    }
+    const pix = extractPixDepositInstructions(response.deposit_rails);
+    if (pix) {
+      return { type: 'Pix', ...pix };
+    }
+    const usBank = extractUsBankDepositInstructions(response.deposit_rails);
+    return usBank ? { type: 'UsBank', ...usBank } : null;
   }
 
   /**

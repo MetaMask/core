@@ -1,8 +1,10 @@
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { AiDigestControllerErrorMessage } from './ai-digest-constants.js';
 import { AiDigestService } from './index.js';
 
 describe('AiDigestService', () => {
-  const mockFetch = jest.fn();
+  const mockFetch = vi.fn();
   const originalFetch = global.fetch;
 
   beforeEach(() => {

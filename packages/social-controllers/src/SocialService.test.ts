@@ -4,6 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SocialServiceErrorMessage, serviceName } from './social-constants.js';
 import type { SocialServiceMessenger } from './SocialService.js';
@@ -128,7 +129,7 @@ function createService(
 }
 
 describe('SocialService', () => {
-  const mockFetch = jest.fn();
+  const mockFetch = vi.fn();
   const originalFetch = global.fetch;
 
   beforeEach(() => {
@@ -1355,6 +1356,22 @@ describe('SocialService', () => {
       });
     });
 
+    it('fetches the shared trending scope', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'trending' });
+
+      expect(result).toStrictEqual(mockFeedResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/feed?scope=trending`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
     it('validates a perp feed item', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -2322,6 +2339,45 @@ describe('SocialService', () => {
         body: JSON.stringify({
           commentText: 'this is alpha',
           source: 'metamask-mobile',
+          tradeInFlight,
+        }),
+      });
+    });
+
+    it('sends a Hyperliquid orderId when the fill hash does not exist yet', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: () =>
+          Promise.resolve({
+            ...mockSwapCommentResponse,
+            transactionHash: '',
+            chain: 'hyperliquid',
+            tokenAddress: 'BTC',
+          }),
+      });
+
+      const service = createService();
+      const tradeInFlight = {
+        orderId: '112233445566',
+        chain: 'hyperliquid' as const,
+        tokenAddress: 'BTC',
+      };
+
+      const result = await service.createSwapComment({
+        commentText: 'this is alpha',
+        tradeInFlight,
+      });
+
+      expect(result.transactionHash).toBe('');
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/swap-comments`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${MOCK_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          commentText: 'this is alpha',
           tradeInFlight,
         }),
       });

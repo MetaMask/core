@@ -7,9 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.0]
+
+### Added
+
+- Add optional `change5m`, `changePercent5m`, `change1h`, and `changePercent1h` on `PerpsMarketData`, mapped from the v4 Terminal global snapshot. A null wire pair is `--` and `--%`, which means that window is unavailable. Disk hydration replaces a stored rolling change with those same placeholders, as it already does for the 24h change. ([#10855](https://github.com/MetaMask/core/pull/10855))
+- Add the optional route-aware `PerpsPlatformDependencies.rewards.getPerpsTradingFeeGrant(scope)` integration and exported `PerpsTradingFeeGrant` type for independent, expiring fee candidates. Candidates carry `providerId` and `isTestnet`; Core accepts only an exact match for the routed resolver scope. The corresponding Mobile integration supplies Hyperliquid mainnet candidates, while Core remains provider-agnostic for future routes such as Lighter. ([#10664](https://github.com/MetaMask/core/pull/10664))
+- Add optional `FeeCalculationResult.feeSource`, reporting the winning source (`default`, `rewards`, `grant`, or `subscription`) from the same operation that repriced a fee preview. It is absent when no resolution applies or the placement carries no MetaMask builder fee; submission resolves again against its actual provider route. ([#10664](https://github.com/MetaMask/core/pull/10664))
+
 ### Changed
 
+- **BREAKING:** `TerminalMarketService.fetchGlobalSnapshot` requires Terminal global snapshot schema version 4 and rejects schema version 3 ([#10855](https://github.com/MetaMask/core/pull/10855))
+  - Point `terminalApi.globalSnapshotUrl` at `GET /v4/perpetuals` before upgrading. A v3 URL fails validation on every request and falls back to the provider path.
+- **BREAKING:** `PerpsGlobalSnapshotResult.marketInfos` is required ([#10855](https://github.com/MetaMask/core/pull/10855))
+  - `fetchGlobalSnapshot` must return `marketInfos` with `markets`, in the same order. `getMarkets` reads that trading-rule list from the snapshot.
+- Ignore unknown fields on the Terminal global snapshot envelope and on each market instead of rejecting the snapshot ([#10855](https://github.com/MetaMask/core/pull/10855))
+- When `terminalApi.globalSnapshotUrl` is set, `getMarkets` builds its list from the same global snapshot fetch and cache as `getMarketDataWithPrices` and does not call `GET /v1/perpetuals`. `useTerminalApi` does not gate that list. A rejected or unavailable snapshot falls back to the provider. Without a snapshot URL, `getMarkets` still uses the legacy Terminal `/v1` path ([#10855](https://github.com/MetaMask/core/pull/10855))
+  - Snapshot list rows omit `marginMode`, `onlyIsolated`, and `isDelisted`, and set `marginTableId` to `0`. The v4 market payload has no margin table.
+  - `skipFilters: true` uses provider discovery to include markets on DEXes outside the snapshot's configured set.
+- **BREAKING:** Add `'grant'` to `PerpsFeeSource`; exhaustive consumers must handle the new winner. Keep `getPerpsDiscountForAccount` as `Promise<number | null>` for VIP/season and retrieve grants independently through optional `getPerpsTradingFeeGrant`. ([#10664](https://github.com/MetaMask/core/pull/10664))
+  - Clients that expose grants return the requested `providerId` and `isTestnet` with an absolute `feeBips` and Unix-millisecond `expiresAt`. Core retrieves both rewards candidates concurrently, validates fee, expiry, and exact route scope after they settle, selects the lowest valid fee after venue quantization, and does not cache grants.
+- Restrict grant retrieval to explicitly scoped previews and submissions. Calls without provider scope retain VIP/season, subscription, and default resolution without invoking the optional grant dependency; scoped calls are provider-agnostic and reject mismatched candidates. ([#10664](https://github.com/MetaMask/core/pull/10664))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/subscription-controller` from `^14.0.0` to `^14.0.1` ([#10896](https://github.com/MetaMask/core/pull/10896))
+
+### Fixed
+
+- Resolve submission fees only after acquiring the serialized provider fee context, preventing a grant from expiring while its order waits behind another submission and then being applied stale. ([#10664](https://github.com/MetaMask/core/pull/10664))
+- Route `flipPosition` through `position.providerId` so the fee grant and the flip `placeOrder` use the same venue. Aggregated providers otherwise resolve the grant for the position's venue and submit the order to the default provider.
 
 ## [20.1.0]
 
@@ -1235,7 +1260,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.1.0...@metamask/perps-controller@21.0.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.0.0...@metamask/perps-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@19.0.0...@metamask/perps-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...@metamask/perps-controller@19.0.0

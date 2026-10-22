@@ -1,5 +1,8 @@
 import { Messenger } from '@metamask/messenger';
 import { Mutex } from 'async-mutex';
+import { setImmediate as realSetImmediate } from 'node:timers';
+import type { Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockPasskeyControllerMessenger } from '../tests/mocks/passkey-controller-messenger.js';
 import {
@@ -41,20 +44,27 @@ function prfResults(first: string, enabled?: boolean): ExtOutputsWithPrf {
 // Mocks
 // ---------------------------------------------------------------------------
 
-const mockVerifyRegistrationResponse = jest.fn();
-const mockVerifyAuthenticationResponse = jest.fn();
+const { mockVerifyRegistrationResponse, mockVerifyAuthenticationResponse } =
+  vi.hoisted(() => ({
+    mockVerifyRegistrationResponse: vi.fn(),
+    mockVerifyAuthenticationResponse: vi.fn(),
+  }));
 
-jest.mock('./webauthn/verify-registration-response', () => ({
-  ...jest.requireActual('./webauthn/verify-registration-response'),
-  verifyRegistrationResponse: (...args: unknown[]): unknown =>
-    mockVerifyRegistrationResponse(...args),
-}));
+vi.mock(
+  import('./webauthn/verify-registration-response.js'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    verifyRegistrationResponse: mockVerifyRegistrationResponse,
+  }),
+);
 
-jest.mock('./webauthn/verify-authentication-response', () => ({
-  ...jest.requireActual('./webauthn/verify-authentication-response'),
-  verifyAuthenticationResponse: (...args: unknown[]): unknown =>
-    mockVerifyAuthenticationResponse(...args),
-}));
+vi.mock(
+  import('./webauthn/verify-authentication-response.js'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    verifyAuthenticationResponse: mockVerifyAuthenticationResponse,
+  }),
+);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -96,7 +106,7 @@ const DEFAULT_TEST_VAULT_KEY = 'test-vault-key';
 
 type CreateControllerOptions = Partial<PasskeyControllerOptions> & {
   vaultKey?: string;
-  exportEncryptionKey?: jest.Mock;
+  exportEncryptionKey?: Mock;
 };
 
 function createController(
@@ -113,7 +123,7 @@ function createController(
     messenger ??
     createMockPasskeyControllerMessenger({
       exportEncryptionKey:
-        exportEncryptionKey ?? jest.fn().mockResolvedValue(vaultKey),
+        exportEncryptionKey ?? vi.fn().mockResolvedValue(vaultKey),
     }).messenger;
 
   return new PasskeyController({
@@ -122,7 +132,7 @@ function createController(
     rpId: TEST_RP_ID,
     rpName: TEST_RP_NAME,
     expectedOrigin: TEST_ORIGIN,
-    getIsOnboardingCompleted: jest.fn().mockReturnValue(false),
+    getIsOnboardingCompleted: vi.fn().mockReturnValue(false),
     ...rest,
   });
 }
@@ -376,7 +386,7 @@ async function enrollWithPostRegistrationAuth(
 
 describe('PasskeyController', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getDefaultPasskeyControllerState', () => {
@@ -396,7 +406,7 @@ describe('PasskeyController', () => {
             expectedRPID: [],
             rpName: TEST_RP_NAME,
             expectedOrigin: TEST_ORIGIN,
-            getIsOnboardingCompleted: jest.fn().mockReturnValue(false),
+            getIsOnboardingCompleted: vi.fn().mockReturnValue(false),
           }),
       ).not.toThrow();
     });
@@ -426,12 +436,12 @@ describe('PasskeyController', () => {
   describe('messenger', () => {
     it('delegates allowed KeyringController actions from the restricted messenger', async () => {
       const { messenger, mocks } = createMockPasskeyControllerMessenger({
-        verifyPassword: jest.fn().mockResolvedValue(undefined),
-        exportEncryptionKey: jest.fn().mockResolvedValue('test-vault-key'),
-        submitEncryptionKey: jest.fn().mockResolvedValue(undefined),
-        changePassword: jest.fn().mockResolvedValue(undefined),
-        exportSeedPhrase: jest.fn().mockResolvedValue(new Uint8Array([1, 2])),
-        exportAccount: jest.fn().mockResolvedValue('0xdeadbeef'),
+        verifyPassword: vi.fn().mockResolvedValue(undefined),
+        exportEncryptionKey: vi.fn().mockResolvedValue('test-vault-key'),
+        submitEncryptionKey: vi.fn().mockResolvedValue(undefined),
+        changePassword: vi.fn().mockResolvedValue(undefined),
+        exportSeedPhrase: vi.fn().mockResolvedValue(new Uint8Array([1, 2])),
+        exportAccount: vi.fn().mockResolvedValue('0xdeadbeef'),
       });
 
       createController({ messenger });
@@ -729,7 +739,7 @@ describe('PasskeyController', () => {
     });
 
     it('verifies password when onboarding is complete', async () => {
-      const verifyPassword = jest.fn().mockResolvedValue(undefined);
+      const verifyPassword = vi.fn().mockResolvedValue(undefined);
       const { messenger } = createMockPasskeyControllerMessenger({
         verifyPassword,
       });
@@ -752,7 +762,7 @@ describe('PasskeyController', () => {
     it('fetches vault encryption key from KeyringController during enrollment', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
-      const exportEncryptionKey = jest
+      const exportEncryptionKey = vi
         .fn()
         .mockResolvedValue('keyring-vault-key');
       const { messenger } = createMockPasskeyControllerMessenger({
@@ -787,10 +797,10 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
       const callOrder: string[] = [];
-      const verifyPassword = jest.fn().mockImplementation(async () => {
+      const verifyPassword = vi.fn().mockImplementation(async () => {
         callOrder.push('verifyPassword');
       });
-      const exportEncryptionKey = jest.fn().mockImplementation(async () => {
+      const exportEncryptionKey = vi.fn().mockImplementation(async () => {
         callOrder.push('exportEncryptionKey');
         return 'k';
       });
@@ -1282,8 +1292,8 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
       let onboardingComplete = false;
-      const verifyPassword = jest.fn();
-      const isUnlocked = jest.fn().mockReturnValue(true);
+      const verifyPassword = vi.fn();
+      const isUnlocked = vi.fn().mockReturnValue(true);
       const { messenger } = createMockPasskeyControllerMessenger({
         isUnlocked,
         verifyPassword,
@@ -1384,7 +1394,7 @@ describe('PasskeyController', () => {
     it('preserves the old record when exporting the vault key fails', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
-      const exportEncryptionKey = jest
+      const exportEncryptionKey = vi
         .fn()
         .mockResolvedValueOnce('old-vault-key')
         .mockRejectedValueOnce(new Error('export failed'))
@@ -1422,7 +1432,7 @@ describe('PasskeyController', () => {
       setupAuthenticationMocks();
       const controller = createController();
       const migration = await prepareUserHandleMigration(controller);
-      const encryptSpy = jest
+      const encryptSpy = vi
         .spyOn(passkeyCrypto, 'encryptWithKey')
         .mockImplementation(() => {
           throw new Error('encrypt failed');
@@ -1611,14 +1621,14 @@ describe('PasskeyController', () => {
     });
 
     it('preserves the old record when the replacement ceremony expires', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       try {
-        jest.setSystemTime(1_000_000);
+        vi.setSystemTime(1_000_000);
         setupRegistrationMocks();
         setupAuthenticationMocks();
         const controller = createController();
         const migration = await prepareUserHandleMigration(controller);
-        jest.setSystemTime(1_000_000 + CEREMONY_MAX_AGE_MS + 1);
+        vi.setSystemTime(1_000_000 + CEREMONY_MAX_AGE_MS + 1);
 
         await expect(
           controller.completePasskeyReplacement({
@@ -1633,7 +1643,7 @@ describe('PasskeyController', () => {
         );
         await expectUserHandlePasskeyUsable(controller, migration.userHandle);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -1642,7 +1652,7 @@ describe('PasskeyController', () => {
       setupAuthenticationMocks();
       const controller = createController();
       const migration = await prepareUserHandleMigration(controller);
-      const runExclusiveSpy = jest.spyOn(Mutex.prototype, 'runExclusive');
+      const runExclusiveSpy = vi.spyOn(Mutex.prototype, 'runExclusive');
       runExclusiveSpy.mockClear();
 
       await controller.completePasskeyReplacement({
@@ -1892,7 +1902,7 @@ describe('PasskeyController', () => {
         authClientExtensionResults: prfResults(prfFirst),
       });
 
-      const decryptSpy = jest
+      const decryptSpy = vi
         .spyOn(passkeyCrypto, 'decryptWithKey')
         .mockImplementation(() => {
           // eslint-disable-next-line @typescript-eslint/only-throw-error -- exercise non-Error rejection normalization
@@ -1938,8 +1948,11 @@ describe('PasskeyController', () => {
         authClientExtensionResults: prfResults(prfFirst),
       });
 
-      const updateSpy = jest.spyOn(controller, 'update' as never);
-      (updateSpy as unknown as jest.Mock).mockImplementation(
+      const updateSpy = vi.spyOn(
+        controller,
+        'update' as never,
+      ) as unknown as Mock;
+      updateSpy.mockImplementation(
         (updater: (state: PasskeyControllerState) => void) => {
           updater({
             ...getDefaultPasskeyControllerState(),
@@ -2016,9 +2029,9 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
       const vaultKey = 'unlock-vault-key';
-      const submitEncryptionKey = jest.fn().mockResolvedValue(undefined);
+      const submitEncryptionKey = vi.fn().mockResolvedValue(undefined);
       const { messenger } = createMockPasskeyControllerMessenger({
-        exportEncryptionKey: jest.fn().mockResolvedValue(vaultKey),
+        exportEncryptionKey: vi.fn().mockResolvedValue(vaultKey),
         submitEncryptionKey,
       });
       const controller = createController({ messenger, vaultKey });
@@ -2060,9 +2073,9 @@ describe('PasskeyController', () => {
       setupAuthenticationMocks();
       const vaultKey = 'export-seed-vault-key';
       const seedPhrase = new Uint8Array([1, 2, 3]);
-      const exportSeedPhrase = jest.fn().mockResolvedValue(seedPhrase);
+      const exportSeedPhrase = vi.fn().mockResolvedValue(seedPhrase);
       const { messenger } = createMockPasskeyControllerMessenger({
-        exportEncryptionKey: jest.fn().mockResolvedValue(vaultKey),
+        exportEncryptionKey: vi.fn().mockResolvedValue(vaultKey),
         exportSeedPhrase,
       });
       const controller = createController({ messenger, vaultKey });
@@ -2109,12 +2122,12 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
       const vaultKey = 'export-account-vault-key';
-      const exportAccount = jest
+      const exportAccount = vi
         .fn()
         .mockResolvedValueOnce('0xprivate1')
         .mockResolvedValueOnce('0xprivate2');
       const { messenger } = createMockPasskeyControllerMessenger({
-        exportEncryptionKey: jest.fn().mockResolvedValue(vaultKey),
+        exportEncryptionKey: vi.fn().mockResolvedValue(vaultKey),
         exportAccount,
       });
       const controller = createController({ messenger, vaultKey });
@@ -2465,7 +2478,7 @@ describe('PasskeyController', () => {
         authClientExtensionResults: prfResults(prfFirst),
       });
 
-      const decryptSpy = jest
+      const decryptSpy = vi
         .spyOn(passkeyCrypto, 'decryptWithKey')
         .mockImplementation(() => {
           throw new Error('decrypt failed');
@@ -2509,7 +2522,7 @@ describe('PasskeyController', () => {
         authClientExtensionResults: prfResults(prfFirst),
       });
 
-      const decryptSpy = jest
+      const decryptSpy = vi
         .spyOn(passkeyCrypto, 'decryptWithKey')
         .mockImplementation(() => {
           // eslint-disable-next-line @typescript-eslint/only-throw-error -- exercise non-Error rejection normalization
@@ -2555,8 +2568,11 @@ describe('PasskeyController', () => {
         authClientExtensionResults: prfResults(prfFirst),
       });
 
-      const updateSpy = jest.spyOn(controller, 'update' as never);
-      (updateSpy as unknown as jest.Mock).mockImplementation(
+      const updateSpy = vi.spyOn(
+        controller,
+        'update' as never,
+      ) as unknown as Mock;
+      updateSpy.mockImplementation(
         (updater: (state: PasskeyControllerState) => void) => {
           updater({
             ...getDefaultPasskeyControllerState(),
@@ -2712,8 +2728,8 @@ describe('PasskeyController', () => {
       setupAuthenticationMocks();
       const beforeKey = 'vault-before-password';
       const afterKey = 'vault-after-password';
-      const changePassword = jest.fn().mockResolvedValue(undefined);
-      const exportEncryptionKey = jest
+      const changePassword = vi.fn().mockResolvedValue(undefined);
+      const exportEncryptionKey = vi
         .fn()
         .mockResolvedValueOnce(beforeKey)
         .mockResolvedValueOnce(beforeKey)
@@ -2760,10 +2776,10 @@ describe('PasskeyController', () => {
     it('removes passkey when renewVaultKeyProtection is false', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
-      const exportEncryptionKey = jest
+      const exportEncryptionKey = vi
         .fn()
         .mockResolvedValue(DEFAULT_TEST_VAULT_KEY);
-      const changePassword = jest.fn().mockResolvedValue(undefined);
+      const changePassword = vi.fn().mockResolvedValue(undefined);
       const { messenger } = createMockPasskeyControllerMessenger({
         changePassword,
         exportEncryptionKey,
@@ -2798,8 +2814,8 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
       const beforeKey = 'vault-before-password';
-      const changePassword = jest.fn().mockResolvedValue(undefined);
-      const exportEncryptionKey = jest
+      const changePassword = vi.fn().mockResolvedValue(undefined);
+      const exportEncryptionKey = vi
         .fn()
         .mockResolvedValueOnce(beforeKey)
         .mockResolvedValueOnce('wrong-before-key')
@@ -2842,8 +2858,8 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
       const beforeKey = 'vault-before-password';
-      const changePassword = jest.fn().mockResolvedValue(undefined);
-      const exportEncryptionKey = jest
+      const changePassword = vi.fn().mockResolvedValue(undefined);
+      const exportEncryptionKey = vi
         .fn()
         .mockResolvedValueOnce(beforeKey)
         .mockResolvedValueOnce(beforeKey)
@@ -2862,7 +2878,7 @@ describe('PasskeyController', () => {
         userHandle: regOpts.user.id,
       });
 
-      const encryptSpy = jest
+      const encryptSpy = vi
         .spyOn(passkeyCrypto, 'encryptWithKey')
         .mockImplementationOnce(() => {
           throw new Error('renew-error');
@@ -2891,8 +2907,8 @@ describe('PasskeyController', () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
       const beforeKey = 'vault-before-password';
-      const changePassword = jest.fn().mockResolvedValue(undefined);
-      const exportEncryptionKey = jest
+      const changePassword = vi.fn().mockResolvedValue(undefined);
+      const exportEncryptionKey = vi
         .fn()
         .mockResolvedValueOnce(beforeKey)
         .mockResolvedValueOnce(beforeKey)
@@ -3007,7 +3023,7 @@ describe('PasskeyController', () => {
     it('verifies password and removes the passkey', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();
-      const verifyPassword = jest.fn().mockResolvedValue(undefined);
+      const verifyPassword = vi.fn().mockResolvedValue(undefined);
       const { messenger } = createMockPasskeyControllerMessenger({
         verifyPassword,
       });
@@ -3287,13 +3303,13 @@ describe('PasskeyController', () => {
       const exportBeforeHold = new Promise<void>((resolve) => {
         releaseExportBefore = resolve;
       });
-      const changePassword = jest.fn().mockImplementation(async () => {
+      const changePassword = vi.fn().mockImplementation(async () => {
         callOrder.push('changePassword');
       });
-      const submitEncryptionKey = jest.fn().mockImplementation(async () => {
+      const submitEncryptionKey = vi.fn().mockImplementation(async () => {
         callOrder.push('submitEncryptionKey');
       });
-      const exportEncryptionKey = jest.fn().mockImplementation(async () => {
+      const exportEncryptionKey = vi.fn().mockImplementation(async () => {
         const callCount = exportEncryptionKey.mock.calls.length;
         if (callCount === 2) {
           callOrder.push('export:before-await');
@@ -3344,7 +3360,7 @@ describe('PasskeyController', () => {
             resolve();
             return;
           }
-          setImmediate(waitForExportBlock);
+          realSetImmediate(waitForExportBlock);
         };
         waitForExportBlock();
       });
@@ -3363,7 +3379,7 @@ describe('PasskeyController', () => {
     });
 
     it('acquires the operation mutex for orchestrated methods', async () => {
-      const runExclusiveSpy = jest.spyOn(Mutex.prototype, 'runExclusive');
+      const runExclusiveSpy = vi.spyOn(Mutex.prototype, 'runExclusive');
       setupRegistrationMocks();
       setupAuthenticationMocks();
       const controller = createController();
@@ -3549,13 +3565,13 @@ describe('PasskeyController', () => {
 
   describe('ceremony TTL', () => {
     it('drops expired registration ceremonies before protectVaultKeyWithPasskey', async () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(1_000_000);
+      vi.useFakeTimers();
+      vi.setSystemTime(1_000_000);
       setupRegistrationMocks();
       const controller = createController();
       const regOpts = controller.generateRegistrationOptions();
 
-      jest.setSystemTime(1_000_000 + CEREMONY_MAX_AGE_MS + 1);
+      vi.setSystemTime(1_000_000 + CEREMONY_MAX_AGE_MS + 1);
 
       await expect(
         controller.protectVaultKeyWithPasskey({
@@ -3569,7 +3585,7 @@ describe('PasskeyController', () => {
         }),
       ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('removes authentication ceremony entry when verification fails', async () => {

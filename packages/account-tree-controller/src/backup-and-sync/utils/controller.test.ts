@@ -1,4 +1,6 @@
 import { AccountWalletType, AccountGroupType } from '@metamask/account-api';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { AccountTreeController } from '../../AccountTreeController.js';
 import type {
@@ -18,10 +20,10 @@ import type { StateSnapshot } from './controller.js';
 describe('BackupAndSyncUtils - Controller', () => {
   let mockContext: BackupAndSyncContext;
   let mockController: AccountTreeController;
-  let mockControllerStateUpdateFn: jest.Mock;
+  let mockControllerStateUpdateFn: Mock;
 
   beforeEach(() => {
-    mockControllerStateUpdateFn = jest.fn();
+    mockControllerStateUpdateFn = vi.fn();
 
     mockController = {
       state: {
@@ -32,16 +34,16 @@ describe('BackupAndSyncUtils - Controller', () => {
         accountGroupsMetadata: {},
         accountWalletsMetadata: {},
       },
-      init: jest.fn(),
+      init: vi.fn(),
     } as unknown as AccountTreeController;
 
     mockContext = {
       controller: mockController,
       controllerStateUpdateFn: mockControllerStateUpdateFn,
       messenger: {} as unknown as BackupAndSyncContext['messenger'],
-      traceFn: jest.fn(),
+      traceFn: vi.fn(),
       groupIdToWalletId: new Map(),
-      emitAnalyticsEventFn: jest.fn(),
+      emitAnalyticsEventFn: vi.fn(),
     };
 
     // Set up the mock implementation for controllerStateUpdateFn
@@ -51,7 +53,7 @@ describe('BackupAndSyncUtils - Controller', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('getLocalEntropyWallets', () => {
@@ -364,7 +366,7 @@ describe('BackupAndSyncUtils - Controller', () => {
         updateFn(mockController.state);
       });
 
-      (mockController.init as jest.Mock).mockImplementation(() => {
+      (mockController.init as Mock).mockImplementation(() => {
         callOrder.push('init');
       });
 

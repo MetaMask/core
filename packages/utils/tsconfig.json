@@ -5,7 +5,19 @@
     "forceConsistentCasingInFileNames": true,
     "noErrorTruncation": true,
     "noUncheckedIndexedAccess": true,
-    "types": ["jest"]
+    // Web3 declarations conflict with exactOptionalPropertyTypes.
+    "skipLibCheck": true
   },
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "references": [
+    {
+      "path": "../type-utils"
+    },
+    {
+      "path": "../error-utils"
+    },
+    {
+      "path": "../node-utils"
+    }
+  ]
 }

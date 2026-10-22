@@ -76,6 +76,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/eip-5792-middleware`](packages/eip-5792-middleware)
 - [`@metamask/eip-7702-internal-rpc-middleware`](packages/eip-7702-internal-rpc-middleware)
 - [`@metamask/eip1193-permission-middleware`](packages/eip1193-permission-middleware)
+- [`@metamask/error-utils`](packages/error-utils)
 - [`@metamask/eth-block-tracker`](packages/eth-block-tracker)
 - [`@metamask/eth-json-rpc-middleware`](packages/eth-json-rpc-middleware)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
@@ -90,6 +91,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/kyc-controller`](packages/kyc-controller)
 - [`@metamask/local-node-utils`](packages/local-node-utils)
 - [`@metamask/logging-controller`](packages/logging-controller)
+- [`@metamask/marketing-consent-controller`](packages/marketing-consent-controller)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
 - [`@metamask/messenger-cli`](packages/messenger-cli)
@@ -108,6 +110,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/network-connection-banner-controller`](packages/network-connection-banner-controller)
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/network-enablement-controller`](packages/network-enablement-controller)
+- [`@metamask/node-utils`](packages/node-utils)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
 - [`@metamask/passkey-controller`](packages/passkey-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
@@ -140,10 +143,12 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/transaction-pay-controller`](packages/transaction-pay-controller)
 - [`@metamask/transaction-pay-middleware`](packages/transaction-pay-middleware)
+- [`@metamask/type-utils`](packages/type-utils)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
 - [`@metamask/utils`](packages/utils)
 - [`@metamask/wallet`](packages/wallet)
 - [`@metamask/wallet-cli`](packages/wallet-cli)
+- [`@metamask/watch-only-account-service`](packages/watch-only-account-service)
 
 <!-- end package list -->
 

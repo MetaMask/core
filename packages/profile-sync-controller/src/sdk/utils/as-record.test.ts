@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { asRecord } from './as-record.js';
 
 describe('asRecord()', () => {

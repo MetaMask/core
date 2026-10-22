@@ -73,7 +73,7 @@ export default createConfig({
         'oxlint.config.ts',
         'jest.config.packages.cjs',
         'jest.config.scripts.cjs',
-        'vitest.config.packages.js',
+        'vitest.config.packages.ts',
         // These import their globals explicitly.
         'tests/helpers.ts',
         'tests/matchers.ts',
@@ -106,9 +106,11 @@ export default createConfig({
         ...jestTestFiles,
       ],
       extends: [nodejs, jest],
+      plugins: ['typescript'],
       rules: {
         'node/no-sync': 'off',
         'node/no-process-env': 'off',
+        'typescript/no-unsafe-assignment': 'off',
       },
     },
 
@@ -120,17 +122,19 @@ export default createConfig({
     {
       files: [
         'tests/vitest/**',
-        'vitest.config.packages.js',
-        'packages/*/vitest.config.js',
+        'vitest.config.packages.ts',
+        'packages/*/vitest.config.ts',
         'packages/*/**/*.test.ts',
         'packages/*/**/test/**',
         'packages/*/**/tests/**',
       ],
       excludeFiles: jestTestFiles,
       extends: [nodejs, vitest],
+      plugins: ['typescript'],
       rules: {
         'node/no-sync': 'off',
         'node/no-process-env': 'off',
+        'typescript/no-unsafe-assignment': 'off',
       },
     },
 

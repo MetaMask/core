@@ -16,6 +16,8 @@ import type { MoneyAccountVaultConfig } from '@metamask/money-account-utils';
 import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { describe, it, expect, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type {
   MoneyAccountUpgradeControllerMessenger,
@@ -255,28 +257,25 @@ const flushPromises = async (): Promise<void> => {
 };
 
 type Mocks = {
-  getServiceDetails: jest.Mock;
-  signPersonalMessage: jest.Mock;
-  associateAddress: jest.Mock;
-  getAssociatedAddresses: jest.Mock;
-  createUpgrade: jest.Mock;
-  signEip7702Authorization: jest.Mock;
-  findNetworkClientIdByChainId: jest.Mock;
-  getNetworkClientById: jest.Mock;
-  providerRequest: jest.Mock;
-  listDelegations: jest.Mock;
-  createDelegation: jest.Mock;
-  signDelegation: jest.Mock;
-  verifyDelegation: jest.Mock<
-    ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
-    Parameters<ChompApiServiceVerifyDelegationAction['handler']>
-  >;
-  getIntentsByAddress: jest.Mock;
-  createIntents: jest.Mock;
-  isEnabled: jest.Mock;
-  isEligible: jest.Mock;
-  ensureChainConfigured: jest.Mock;
-  onBootstrapError: jest.Mock;
+  getServiceDetails: Mock;
+  signPersonalMessage: Mock;
+  associateAddress: Mock;
+  getAssociatedAddresses: Mock;
+  createUpgrade: Mock;
+  signEip7702Authorization: Mock;
+  findNetworkClientIdByChainId: Mock;
+  getNetworkClientById: Mock;
+  providerRequest: Mock;
+  listDelegations: Mock;
+  createDelegation: Mock;
+  signDelegation: Mock;
+  verifyDelegation: Mock<ChompApiServiceVerifyDelegationAction['handler']>;
+  getIntentsByAddress: Mock;
+  createIntents: Mock;
+  isEnabled: Mock;
+  isEligible: Mock;
+  ensureChainConfigured: Mock;
+  onBootstrapError: Mock;
 };
 
 /**
@@ -333,7 +332,7 @@ function setup({
   const signature = `0x${'1'.repeat(64)}${'2'.repeat(64)}1c`;
 
   // Default provider responses: account is a plain EOA with nonce 0.
-  const providerRequest = jest
+  const providerRequest = vi
     .fn()
     .mockImplementation(async ({ method }: { method: string }) => {
       if (method === 'eth_getCode') {
@@ -346,17 +345,15 @@ function setup({
     });
 
   const mocks: Mocks = {
-    getServiceDetails: jest
-      .fn()
-      .mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE),
-    signPersonalMessage: jest.fn().mockResolvedValue('0xdeadbeef'),
-    associateAddress: jest.fn().mockResolvedValue({
+    getServiceDetails: vi.fn().mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE),
+    signPersonalMessage: vi.fn().mockResolvedValue('0xdeadbeef'),
+    associateAddress: vi.fn().mockResolvedValue({
       profileId: 'profile-1',
       address: MOCK_ACCOUNT_ADDRESS,
       status: 'created',
     }),
-    getAssociatedAddresses: jest.fn().mockResolvedValue([]),
-    createUpgrade: jest.fn().mockResolvedValue({
+    getAssociatedAddresses: vi.fn().mockResolvedValue([]),
+    createUpgrade: vi.fn().mockResolvedValue({
       signerAddress: MOCK_ACCOUNT_ADDRESS,
       address: MAINNET_CONTRACTS.EIP7702StatelessDeleGatorImpl,
       chainId: MOCK_CHAIN_ID,
@@ -364,29 +361,24 @@ function setup({
       status: 'pending',
       createdAt: '2026-04-21T12:00:00.000Z',
     }),
-    signEip7702Authorization: jest.fn().mockResolvedValue(signature),
-    findNetworkClientIdByChainId: jest
-      .fn()
-      .mockReturnValue('network-client-id'),
-    getNetworkClientById: jest.fn().mockReturnValue({
+    signEip7702Authorization: vi.fn().mockResolvedValue(signature),
+    findNetworkClientIdByChainId: vi.fn().mockReturnValue('network-client-id'),
+    getNetworkClientById: vi.fn().mockReturnValue({
       provider: { request: providerRequest },
     }),
     providerRequest,
-    listDelegations: jest.fn().mockResolvedValue([]),
-    createDelegation: jest.fn().mockResolvedValue(undefined),
-    signDelegation: jest.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
-    verifyDelegation: jest
-      .fn<
-        ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
-        Parameters<ChompApiServiceVerifyDelegationAction['handler']>
-      >()
+    listDelegations: vi.fn().mockResolvedValue([]),
+    createDelegation: vi.fn().mockResolvedValue(undefined),
+    signDelegation: vi.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
+    verifyDelegation: vi
+      .fn<ChompApiServiceVerifyDelegationAction['handler']>()
       .mockResolvedValue({ valid: true }),
-    getIntentsByAddress: jest.fn().mockResolvedValue([]),
-    createIntents: jest.fn().mockResolvedValue([]),
-    isEnabled: jest.fn().mockImplementation(() => config.isEnabled),
-    isEligible: jest.fn().mockImplementation(async () => config.isEligible),
-    ensureChainConfigured: jest.fn().mockResolvedValue(undefined),
-    onBootstrapError: jest.fn(),
+    getIntentsByAddress: vi.fn().mockResolvedValue([]),
+    createIntents: vi.fn().mockResolvedValue([]),
+    isEnabled: vi.fn().mockImplementation(() => config.isEnabled),
+    isEligible: vi.fn().mockImplementation(async () => config.isEligible),
+    ensureChainConfigured: vi.fn().mockResolvedValue(undefined),
+    onBootstrapError: vi.fn(),
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
