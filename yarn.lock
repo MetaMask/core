@@ -6074,6 +6074,7 @@ __metadata:
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    viem: "npm:^2.56.8"
   languageName: unknown
   linkType: soft
 

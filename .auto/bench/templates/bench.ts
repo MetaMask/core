@@ -39,7 +39,10 @@ function hexOf(len: number): string {
   return s;
 }
 
-const BATCH_N = 300;
+// Scalable knobs (injected by bundle.mjs from env) — used to verify the
+// codec is size-general, not tuned to one batch shape.
+const BATCH_N: number = (globalThis as any).BENCH_BATCH_N ?? 300;
+const RET_BYTES: number = (globalThis as any).BENCH_RET_BYTES ?? 32;
 const MULTICALL3_ADDRESS = '0xca11bde05977b3631167028862be2a173976ca11';
 const TOKEN_POOL = [
   '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
@@ -92,7 +95,7 @@ const mainTuples: [boolean, string][] = requests.map((_, i) => {
     '0x' +
       BigInt(i * 999983 + 1)
         .toString(16)
-        .padStart(64, '0'),
+        .padStart(RET_BYTES * 2, '0'),
   ];
 });
 const respMain = buildResponse(mainTuples);

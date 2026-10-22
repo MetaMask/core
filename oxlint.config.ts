@@ -28,6 +28,8 @@ export default createConfig({
     '.skills-cache/**',
     '.yarn/**',
     'merged-packages/**',
+    // Temporary autoresearch playground; removed before merge.
+    '.auto/**',
     'packages/wallet-framework-docs/site/build/**',
   ],
 

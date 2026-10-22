@@ -54,5 +54,31 @@ run 8 — micro-optimizations no longer clear the 2% keep threshold.
 
 ## Verdicts
 
+### viem instead of Ethers / hand-rolled codec (run 9 — measured, not adopted)
+
+Measured on Hermes (`-O`, 300-call batch, median of 3, parity vs stock
+ethers, SELF_CHECK=OK): a viem-based MulticallClient codec
+(`encodeFunctionData`/`decodeFunctionResult`/module-level `parseAbi`,
+pruned ABI closure = what a tree-shaken mobile bundle keeps, ~127 KB JS,
+45 files):
+
+- viem full pipeline: **11.853 ms** (encode 2.9 / decode 7.353 / uint256 1.6)
+- stock Ethers baseline: 49.707 ms → viem is **~4.2x faster than Ethers**
+- hand-rolled codec (current PR): **1.125 ms** → viem is **~10.5x SLOWER**
+
+Verdict: viem is a legitimate Ethers replacement if maintainers reject
+hand-rolled encoders (already in the monorepo via perps-controller, faithful
+ABI semantics incl. address checksum validation), but it is NOT competitive
+with the hand-rolled codec on the hot path. Keep the hand-rolled codec in
+the PR; keep viem as a fallback option. Notes: needs a `node:crypto` stub
+(noble hashes' old-Node adapter; the keccak/sha3 path itself is pure JS),
+and it would be a NEW runtime dependency for assets-controller consumers.
+
 See `.auto/log.jsonl` (dashboard-compatible). Keep = committed, discard =
 reverted, all decided by `.auto/run-exp.sh` against the working tree.
+
+## Run 10 — over-fit check (scaling sweep)
+
+- **Conclusion: NOT over-fit.** Correctness is generic (bounds-checked offset-following decoder, byte-parity vs Ethers for arbitrary inputs, error paths preserved). Performance is linear and flat per call across n=30→3000 (~3.3–3.8 µs/call) and nearly independent of returnData size (0.325 ms at 500 B/call vs 0.275 ms at 32 B/call). viem scales linearly in both n and bytes (n=3000 → 116 ms; 500 B → 20 ms decode).
+- One honest caveat: bench addresses were all-lowercase, so Ethers/viem baselines skipped EIP-55 checksum keccak validation; with mixed-case (real-world) addresses the library baselines get *slower*, i.e. the reported 44× is a conservative lower bound.
+- On-device A/B in the real mobile app closes the loop (see PR body harness instructions).

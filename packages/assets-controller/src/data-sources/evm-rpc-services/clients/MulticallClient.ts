@@ -478,10 +478,10 @@ const AGGREGATE3_SELECTOR = '82ad56cb';
 // its offset word is the constant 0x20; each (address, bool, bytes) tuple
 // has exactly three static words, so each tuple's callData offset word is
 // the constant 0x60.
-const WORD_ARRAY_OFFSET = '0'.repeat(62) + '20';
-const WORD_CALLDATA_OFFSET = '0'.repeat(62) + '60';
+const WORD_ARRAY_OFFSET = `0${'0'.repeat(61)}20`;
+const WORD_CALLDATA_OFFSET = `0${'0'.repeat(61)}60`;
 const WORD_ZERO = '0'.repeat(64);
-const WORD_ONE = '0'.repeat(63) + '1';
+const WORD_ONE = `0${'0'.repeat(62)}1`;
 
 /** Hex string body (lowercase, no `0x` prefix). */
 const LOWERCASE_HEX_RE = /^[0-9a-f]*$/u;
@@ -531,15 +531,15 @@ if (
 export function encodeAggregate3(
   calls: readonly { target: Address; allowFailure: boolean; callData: Hex }[],
 ): Hex {
-  const n = calls.length;
+  const callCount = calls.length;
 
   // Pass 1: validate + normalize each call, remember tuple bodies, and
   // compute the cumulative array offsets while walking.
-  const headParts: string[] = new Array(n);
-  const bodyParts: string[] = new Array(n * 5);
-  let tupleOffset = 32 * n; // bytes; first tuple starts after the array head
+  const headParts = new Array<string>(callCount);
+  const bodyParts = new Array<string>(callCount * 5);
+  let tupleOffset = 32 * callCount; // bytes; first tuple starts after the array head
 
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < callCount; i++) {
     const { target, allowFailure, callData } = calls[i];
 
     if (!target.startsWith('0x')) {
@@ -559,8 +559,8 @@ export function encodeAggregate3(
     }
 
     headParts[i] = tupleOffset.toString(16).padStart(64, '0');
-    tupleOffset += 128 + dataHex.length / 2 +
-      ((64 - (dataHex.length % 64)) % 64) / 2; // static + len + padded data
+    tupleOffset +=
+      128 + dataHex.length / 2 + ((64 - (dataHex.length % 64)) % 64) / 2; // static + len + padded data
 
     const j = i * 5;
     bodyParts[j] = targetHex.padStart(64, '0');
@@ -576,12 +576,12 @@ export function encodeAggregate3(
   const parts: string[] = [
     `0x${AGGREGATE3_SELECTOR}`,
     WORD_ARRAY_OFFSET,
-    n.toString(16).padStart(64, '0'),
+    callCount.toString(16).padStart(64, '0'),
   ];
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < callCount; i++) {
     parts.push(headParts[i]);
   }
-  for (let i = 0; i < n * 5; i++) {
+  for (let i = 0; i < callCount * 5; i++) {
     parts.push(bodyParts[i]);
   }
 
@@ -590,7 +590,11 @@ export function encodeAggregate3(
 
 /**
  * Read one 32-byte word (64 hex chars) of a stripped response body at the
- * given character index, as a number. Bounded and validated.
+ * given character index, as a number.
+ *
+ * @param body - The response body (lowercase hex, no `0x` prefix).
+ * @param charIndex - The character index at which the word starts.
+ * @returns The word's numeric value.
  */
 function readResponseWord(body: string, charIndex: number): number {
   if (charIndex < 0 || charIndex + 64 > body.length) {
@@ -657,10 +661,9 @@ export function decodeAggregate3Response(
     }
     out[i] = {
       success,
-      returnData: ('0x' +
-        body
-          .slice(dataChars, dataChars + returnDataBytes * 2)
-          .toLowerCase()) as Hex,
+      returnData: `0x${body
+        .slice(dataChars, dataChars + returnDataBytes * 2)
+        .toLowerCase()}`,
     };
   }
   return out;
@@ -672,7 +675,7 @@ export function decodeAggregate3Response(
  * @param data - The hex return data.
  * @returns The decoded balance as a string.
  */
-function decodeUint256(data: Hex): string {
+export function decodeUint256(data: Hex): string {
   if (data === '0x' || data.length < 66) {
     // Empty or invalid data; treat as 0
     return '0';
@@ -688,6 +691,25 @@ function decodeUint256(data: Hex): string {
 
 /** Retries after the initial multicall attempt before returning failed responses. */
 const MULTICALL_MAX_RETRIES = 2;
+
+/**
+ * Pluggable codec for the aggregate3 hot path. The default is the
+ * hand-rolled implementation in this file. Alternative implementations
+ * (`viem`, `ethers`) live in `./aggregate3Codecs.js` and are exposed for
+ * on-device performance comparison; see the changelog for details.
+ */
+export type Aggregate3Codec = {
+  encodeAggregate3: typeof encodeAggregate3;
+  decodeAggregate3Response: typeof decodeAggregate3Response;
+  decodeUint256: typeof decodeUint256;
+};
+
+/** Default codec: the hand-rolled implementation in this file. */
+const DEFAULT_AGGREGATE3_CODEC: Aggregate3Codec = {
+  encodeAggregate3,
+  decodeAggregate3Response,
+  decodeUint256,
+};
 
 export type MulticallClientConfig = {
   maxCallsPerBatch?: number;
@@ -711,6 +733,12 @@ export type MulticallClientOptions = {
   getProvider: GetProviderFunction;
   getMulticall3AddressForChain: GetMulticall3AddressForChainFunction;
   config?: MulticallClientConfig;
+  /**
+   * Experimental: codec used for the aggregate3 hot path. Defaults to the
+   * hand-rolled implementation; alternatives are exposed for on-device
+   * performance comparison (see `./aggregate3Codecs.js`).
+   */
+  aggregate3Codec?: Aggregate3Codec;
 };
 
 /**
@@ -724,10 +752,13 @@ export class MulticallClient {
 
   readonly #getMulticall3AddressForChain: GetMulticall3AddressForChainFunction;
 
+  readonly #codec: Aggregate3Codec;
+
   constructor({
     getProvider,
     getMulticall3AddressForChain,
     config,
+    aggregate3Codec,
   }: MulticallClientOptions) {
     this.#getProvider = getProvider;
     // Use default values for invalid (non-positive) batch sizes to prevent
@@ -745,6 +776,7 @@ export class MulticallClient {
       timeoutMs,
     };
     this.#getMulticall3AddressForChain = getMulticall3AddressForChain;
+    this.#codec = aggregate3Codec ?? DEFAULT_AGGREGATE3_CODEC;
   }
 
   /**
@@ -817,14 +849,14 @@ export class MulticallClient {
             maxRetries: MULTICALL_MAX_RETRIES,
           }).execute(async () => {
             // Encode and send aggregate3 call
-            const callData = encodeAggregate3(calls);
+            const callData = this.#codec.encodeAggregate3(calls);
             const result = await provider.call({
               to: multicallAddress,
               data: callData,
             });
 
             // Decode response
-            const decoded = decodeAggregate3Response(
+            const decoded = this.#codec.decodeAggregate3Response(
               result as Hex,
               batch.length,
             );
@@ -839,7 +871,7 @@ export class MulticallClient {
                   tokenAddress,
                   accountAddress,
                   success: true,
-                  balance: decodeUint256(returnData),
+                  balance: this.#codec.decodeUint256(returnData),
                 });
               } else {
                 workingResult.push({

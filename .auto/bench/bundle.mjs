@@ -7,24 +7,39 @@ import path from 'node:path';
 
 const ROOT = path.resolve(process.argv[2] ?? process.cwd());
 const DIST = path.join(ROOT, '.auto/bench/tmp/dist');
-const OUT = path.join(ROOT, '.auto/bench/bundle.js');
+const VENDOR = path.join(ROOT, '.auto/bench/tmp/vendor');
+const ENTRY = process.env.BENCH_ENTRY ?? 'app/bench.js';
+const ENTRY_BASE = path.basename(ENTRY, '.js'); // e.g. 'bench', 'bench-viem'
+const OUT = path.join(ROOT, `.auto/bench/${ENTRY_BASE === 'bench' ? 'bundle.js' : `bundle-${ENTRY_BASE}.js`}`);
 
 const modules = new Map(); // relative posix path (no ext) -> source
 
-function walk(dir, rel) {
+function walk(dir, rel, stripPrefix = '') {
+  if (!fs.existsSync(dir)) {
+    return;
+  }
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const relPath = rel ? `${rel}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      walk(path.join(dir, entry.name), relPath);
+      walk(path.join(dir, entry.name), relPath, stripPrefix);
     } else if (entry.name.endsWith('.js')) {
-      modules.set(relPath, fs.readFileSync(path.join(dir, entry.name), 'utf8'));
+      // vendor files are pre-compiled JS; register verbatim with their
+      // vendor-relative key (viem/noble internal requires resolve against
+      // those keys).
+      const key = stripPrefix
+        ? relPath.startsWith(stripPrefix)
+          ? relPath.slice(stripPrefix.length)
+          : relPath
+        : relPath;
+      modules.set(key, fs.readFileSync(path.join(dir, entry.name), 'utf8'));
     }
   }
 }
 walk(DIST, '');
+walk(VENDOR, 'vendor', 'vendor/');
 
-if (!modules.has('app/bench.js')) {
-  throw new Error('dist/app/bench.js missing — tsc emit failed?');
+if (!modules.has(ENTRY)) {
+  throw new Error(`${ENTRY} missing — tsc emit failed?`);
 }
 
 const parts = [];
@@ -119,7 +134,11 @@ var Buffer = {
 };
 `;
 
-const entry = `__requireFactory('app')('app/bench.js');\n`;
+const entry = `${
+  process.env.BENCH_BATCH_N ? `globalThis.BENCH_BATCH_N=${process.env.BENCH_BATCH_N};\n` : ''
+}${
+  process.env.BENCH_RET_BYTES ? `globalThis.BENCH_RET_BYTES=${process.env.BENCH_RET_BYTES};\n` : ''
+}__requireFactory('app')('${ENTRY}');\n`;
 
 fs.writeFileSync(OUT, prelude + entry);
 console.log(`bundle: ${modules.size} modules -> ${OUT}`);
