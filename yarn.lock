@@ -20760,15 +20760,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jest-when@npm:^4.0.3":
-  version: 4.0.3
-  resolution: "jest-when@npm:4.0.3"
-  peerDependencies:
-    jest: ">= 27"
-  checksum: 10/71b35080b6d9cadf0828da440e3d3799d50aaa806ef8a1ad36fe89be5a93b2340c987b12a253cab66f7937a515252a5e3cbd839e88785f9d6d926452377c08eb
-  languageName: node
-  linkType: hard
-
 "jest-worker@npm:30.5.1":
   version: 30.5.1
   resolution: "jest-worker@npm:30.5.1"

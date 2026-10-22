@@ -3387,6 +3387,9 @@
   "packages/network-controller/src/rpc-service/rpc-service-chain.test.ts": {
     "typescript/no-unsafe-return": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/network-controller/src/rpc-service/rpc-service.test.ts": {
@@ -3397,6 +3400,9 @@
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
+      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -3414,16 +3420,25 @@
     },
     "typescript/no-unsafe-argument": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 161
     }
   },
   "packages/network-controller/tests/network-client/block-hash-in-response.ts": {
     "typescript/no-unsafe-return": {
       "count": 19
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/network-controller/tests/network-client/block-param.ts": {
     "typescript/no-unsafe-return": {
       "count": 21
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/network-controller/tests/network-client/helpers.ts": {
@@ -3440,11 +3455,17 @@
   "packages/network-controller/tests/network-client/no-block-param.ts": {
     "typescript/no-unsafe-return": {
       "count": 20
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/network-controller/tests/network-client/rpc-failover.ts": {
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 8
     }
   },
   "packages/network-enablement-controller/src/NetworkEnablementController.test.ts": {

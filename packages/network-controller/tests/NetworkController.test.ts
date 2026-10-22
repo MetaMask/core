@@ -147,8 +147,6 @@ const GENERIC_JSON_RPC_ERROR = rpcErrors.internal(
  */
 const FAKE_DATE_NOW_MS = 1732114339518;
 
-/* eslint-disable vitest/no-conditional-in-test */
-
 describe('NetworkController', () => {
   let uuidCounter = 0;
 

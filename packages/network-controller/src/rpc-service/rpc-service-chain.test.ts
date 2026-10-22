@@ -575,7 +575,6 @@ describe('RpcServiceChain', () => {
         expect(onServiceRetryListener).toHaveBeenNthCalledWith(attempt + 1, {
           primaryEndpointUrl: `${primaryEndpointUrl}/`,
           endpointUrl:
-            // eslint-disable-next-line vitest/no-conditional-in-test
             attempt >= 12
               ? `${secondaryEndpointUrl}/`
               : `${primaryEndpointUrl}/`,

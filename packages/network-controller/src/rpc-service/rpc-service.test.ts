@@ -16,10 +16,6 @@ import {
   RpcService,
 } from './rpc-service.js';
 
-/**
- * An error class, as `toThrow` accepts one. Stands in for `jest.Constructable`,
- * which Vitest does not re-export.
- */
 type Constructable = new (...args: never[]) => unknown;
 
 describe('RpcService', () => {
@@ -1781,7 +1777,6 @@ function testsForRetriableFetchErrors({
     let invocationIndex = -1;
     const mockFetch = vi.fn(async () => {
       invocationIndex += 1;
-      // eslint-disable-next-line vitest/no-conditional-in-test
       if (invocationIndex === DEFAULT_MAX_RETRIES + 1) {
         // Only used for testing.
         // eslint-disable-next-line no-restricted-globals

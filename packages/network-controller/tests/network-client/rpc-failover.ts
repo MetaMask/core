@@ -7,10 +7,6 @@ import { buildRootMessenger } from '../helpers.js';
 import type { MockRequest, MockResponse, ProviderType } from './helpers.js';
 import { withMockedCommunications, withNetworkClient } from './helpers.js';
 
-/**
- * An error class, as `toThrow` accepts one. Stands in for `jest.Constructable`,
- * which Vitest does not re-export.
- */
 type Constructable = new (...args: never[]) => unknown;
 
 /**
@@ -66,7 +62,6 @@ export function testsForRpcFailoverBehavior({
             const request = requestToCall;
             const requestToMock = getRequestToMock(request, blockNumber);
             const additionalMockRpcCallOptions =
-              // eslint-disable-next-line vitest/no-conditional-in-test
               failure instanceof Error || typeof failure === 'string'
                 ? { error: failure }
                 : { response: failure };
@@ -135,7 +130,6 @@ export function testsForRpcFailoverBehavior({
     it('allows RPC service options to be customized', async () => {
       const customMaxConsecutiveFailures = 6;
       const customMaxRetries = 2;
-      // eslint-disable-next-line vitest/no-conditional-in-test
       const customNumRequestsToMake = isRetriableFailure
         ? customMaxConsecutiveFailures / (customMaxRetries + 1)
         : customMaxConsecutiveFailures;
@@ -160,7 +154,6 @@ export function testsForRpcFailoverBehavior({
               const request = requestToCall;
               const requestToMock = getRequestToMock(request, blockNumber);
               const additionalMockRpcCallOptions =
-                // eslint-disable-next-line vitest/no-conditional-in-test
                 failure instanceof Error || typeof failure === 'string'
                   ? { error: failure }
                   : { response: failure };
@@ -197,7 +190,6 @@ export function testsForRpcFailoverBehavior({
                       btoa,
                       isOffline: (): boolean => false,
                     };
-                    // eslint-disable-next-line vitest/no-conditional-in-test
                     if (rpcEndpointUrl === 'https://failover.endpoint') {
                       const headers: HeadersInit = {
                         'X-Baz': 'Qux',
@@ -259,7 +251,6 @@ export function testsForRpcFailoverBehavior({
         const request = requestToCall;
         const requestToMock = getRequestToMock(request, blockNumber);
         const additionalMockRpcCallOptions =
-          // eslint-disable-next-line vitest/no-conditional-in-test
           failure instanceof Error || typeof failure === 'string'
             ? { error: failure }
             : { response: failure };
