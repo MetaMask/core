@@ -445,22 +445,24 @@ describe('SubscriptionService', () => {
       ).toStrictEqual(MOCK_BENEFITS_RESPONSE);
     });
 
-    it('ignores a legacy perps builderCode', () => {
+    it('accepts a legacy perps builderCode', () => {
+      const responseWithLegacyBuilderCode = {
+        ...MOCK_BENEFITS_RESPONSE,
+        products: {
+          ...MOCK_BENEFITS_RESPONSE.products,
+          perps: {
+            ...MOCK_BENEFITS_RESPONSE.products.perps,
+            builderCode: 'legacy-builder-code',
+          },
+        },
+      };
+
       expect(
         create(
-          {
-            ...MOCK_BENEFITS_RESPONSE,
-            products: {
-              ...MOCK_BENEFITS_RESPONSE.products,
-              perps: {
-                ...MOCK_BENEFITS_RESPONSE.products.perps,
-                builderCode: 'legacy-builder-code',
-              },
-            },
-          },
+          responseWithLegacyBuilderCode,
           SubscriptionBenefitsResponseStruct,
         ),
-      ).toStrictEqual(MOCK_BENEFITS_RESPONSE);
+      ).toStrictEqual(responseWithLegacyBuilderCode);
     });
 
     it('accepts an ineligible benefits response', () => {
