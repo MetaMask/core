@@ -430,8 +430,9 @@ export type AnalyticsControllerMessenger = Messenger<
  * `analyticsId` is required. All other fields are optional and filled from
  * {@link getDefaultAnalyticsControllerState} when omitted.
  */
-export type AnalyticsControllerInitialState = Partial<AnalyticsControllerState> &
-  Pick<AnalyticsControllerState, 'analyticsId'>;
+export type AnalyticsControllerInitialState =
+  Partial<AnalyticsControllerState> &
+    Pick<AnalyticsControllerState, 'analyticsId'>;
 
 /**
  * The options that AnalyticsController takes.
