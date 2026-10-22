@@ -10,7 +10,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/base-data-service',
   '@metamask/build-utils',
   '@metamask/chain-agnostic-permission',
-  '@metamask/compliance-controller',
   '@metamask/composable-controller',
   '@metamask/connectivity-controller',
   '@metamask/core-backend',
