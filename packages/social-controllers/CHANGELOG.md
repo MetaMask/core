@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
 ### Changed
 
-- Normalize full hydrated Social feed events into `FeedItem` data for direct client hydration ([#10986](https://github.com/MetaMask/core/pull/10986)).
+- **BREAKING:** Rename the exported `SocialRealtimeFeedItem` type to `RealtimeFeedEventData` and change `SocialFeedEvent.data` to use normalized `FeedItem` data. Compact legacy realtime payloads are no longer accepted; consumers must provide fully hydrated feed items ([#10986](https://github.com/MetaMask/core/pull/10986)).
 
 ## [3.10.0]
 
@@ -307,7 +309,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.10.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.10.0...@metamask/social-controllers@4.0.0
 [3.10.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.9.0...@metamask/social-controllers@3.10.0
 [3.9.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.8.0...@metamask/social-controllers@3.9.0
 [3.8.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.7.0...@metamask/social-controllers@3.8.0
