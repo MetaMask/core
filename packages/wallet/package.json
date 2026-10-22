@@ -1,6 +1,6 @@
 {
   "name": "@metamask/wallet",
-  "version": "19.0.0",
+  "version": "20.0.0",
   "description": "Provides a shared framework for building MetaMask wallets",
   "keywords": [
     "Ethereum",
@@ -52,7 +52,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^40.1.0",
     "@metamask/address-book-controller": "^8.0.0",
-    "@metamask/analytics-controller": "^4.0.0",
+    "@metamask/analytics-controller": "^4.0.1",
     "@metamask/approval-controller": "^10.0.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/browser-passworder": "^6.0.0",

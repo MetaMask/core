@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/1354.0.0 ([#11000](https://github.com/MetaMask/core/pull/11000))
-
 ### Fixed
 
 - **BREAKING:** Set `USDC_ARBITRUM_TESTNET_ADDRESS` and `HYPERLIQUID_ASSET_CONFIGS.usdc.testnet` to USDC2 (`0x1baAbB04529D43a73232B713C0FE471f7c7334d5`), the token the Arbitrum Sepolia bridge credits, so testnet deposit and withdrawal routes name the token that is deposited and paid out ([#10991](https://github.com/MetaMask/core/pull/10991))

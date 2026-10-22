@@ -54,7 +54,7 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/analytics-controller": "^4.0.0",
+    "@metamask/analytics-controller": "^4.0.1",
     "@metamask/auth-network-utils": "^0.3.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/browser-passworder": "^6.0.0",
