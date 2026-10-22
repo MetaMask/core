@@ -92,6 +92,31 @@ async function advanceTime({
   } while (value > 0);
 }
 
+/**
+ * Keeps advancing the fake timers until the given promise settles. A fixed
+ * advance can finish before nock's reply lands on a slow runner, which leaves
+ * the promise waiting on a timer that nothing advances any more.
+ *
+ * @param promise - The promise to wait for.
+ * @returns The value the promise resolves to.
+ */
+async function advanceTimeUntilSettled<Value>(
+  promise: Promise<Value>,
+): Promise<Value> {
+  const status = { settled: false };
+  promise
+    .finally(() => {
+      status.settled = true;
+    })
+    .catch(() => undefined);
+
+  while (!status.settled) {
+    await advanceTime({ duration: 1 });
+  }
+
+  return await promise;
+}
+
 vi.mock(import('uuid'), async (importOriginal) => {
   const actual = await importOriginal();
 
@@ -1305,7 +1330,7 @@ describe('TransactionController Integration', () => {
           );
           await advanceTime({ duration: 1 });
 
-          const nonceLock = await nonceLockPromise;
+          const nonceLock = await advanceTimeUntilSettled(nonceLockPromise);
 
           expect(nonceLock.nextNonce).toBe(10);
         }),
@@ -1351,7 +1376,7 @@ describe('TransactionController Integration', () => {
       );
       await advanceTime({ duration: 1 });
 
-      const nonceLock = await nonceLockPromise;
+      const nonceLock = await advanceTimeUntilSettled(nonceLockPromise);
 
       expect(nonceLock.nextNonce).toBe(11);
 
@@ -1386,7 +1411,9 @@ describe('TransactionController Integration', () => {
           );
           await advanceTime({ duration: 1 });
 
-          const firstNonceLock = await firstNonceLockPromise;
+          const firstNonceLock = await advanceTimeUntilSettled(
+            firstNonceLockPromise,
+          );
 
           expect(firstNonceLock.nextNonce).toBe(10);
 
@@ -1479,7 +1506,9 @@ describe('TransactionController Integration', () => {
       );
       await advanceTime({ duration: 1 });
 
-      const firstNonceLock = await firstNonceLockPromise;
+      const firstNonceLock = await advanceTimeUntilSettled(
+        firstNonceLockPromise,
+      );
 
       expect(firstNonceLock.nextNonce).toBe(10);
 
@@ -1544,7 +1573,9 @@ describe('TransactionController Integration', () => {
       );
       await advanceTime({ duration: 1 });
 
-      const firstNonceLock = await firstNonceLockPromise;
+      const firstNonceLock = await advanceTimeUntilSettled(
+        firstNonceLockPromise,
+      );
 
       expect(firstNonceLock.nextNonce).toBe(10);
 
@@ -1554,7 +1585,9 @@ describe('TransactionController Integration', () => {
       );
       await advanceTime({ duration: 1 });
 
-      const secondNonceLock = await secondNonceLockPromise;
+      const secondNonceLock = await advanceTimeUntilSettled(
+        secondNonceLockPromise,
+      );
 
       expect(secondNonceLock.nextNonce).toBe(15);
 
@@ -1593,7 +1626,9 @@ describe('TransactionController Integration', () => {
           );
           await advanceTime({ duration: 1 });
 
-          const firstNonceLock = await firstNonceLockPromise;
+          const firstNonceLock = await advanceTimeUntilSettled(
+            firstNonceLockPromise,
+          );
 
           expect(firstNonceLock.nextNonce).toBe(10);
 
@@ -1603,7 +1638,9 @@ describe('TransactionController Integration', () => {
           );
           await advanceTime({ duration: 1 });
 
-          const secondNonceLock = await secondNonceLockPromise;
+          const secondNonceLock = await advanceTimeUntilSettled(
+            secondNonceLockPromise,
+          );
 
           expect(secondNonceLock.nextNonce).toBe(15);
         }),
