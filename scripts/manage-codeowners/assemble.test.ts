@@ -60,6 +60,22 @@ describe('assembleCodeownersSections', () => {
                   '@MetaMask/core-platform',
                 ],
               },
+              {
+                pattern: '/packages/alpha/jest.config.*',
+                owners: [
+                  '@MetaMask/a-team',
+                  '@MetaMask/b-team',
+                  '@MetaMask/core-platform',
+                ],
+              },
+              {
+                pattern: '/packages/alpha/vitest.config.*',
+                owners: [
+                  '@MetaMask/a-team',
+                  '@MetaMask/b-team',
+                  '@MetaMask/core-platform',
+                ],
+              },
             ],
           },
           {
@@ -83,6 +99,14 @@ describe('assembleCodeownersSections', () => {
               },
               {
                 pattern: '/packages/zebra/typedoc.json',
+                owners: ['@MetaMask/core-platform', '@MetaMask/z-team'],
+              },
+              {
+                pattern: '/packages/zebra/jest.config.*',
+                owners: ['@MetaMask/core-platform', '@MetaMask/z-team'],
+              },
+              {
+                pattern: '/packages/zebra/vitest.config.*',
                 owners: ['@MetaMask/core-platform', '@MetaMask/z-team'],
               },
             ],
@@ -127,6 +151,14 @@ describe('assembleCodeownersSections', () => {
         },
         {
           pattern: '/packages/platform-package/typedoc.json',
+          owners: ['@MetaMask/core-platform'],
+        },
+        {
+          pattern: '/packages/platform-package/jest.config.*',
+          owners: ['@MetaMask/core-platform'],
+        },
+        {
+          pattern: '/packages/platform-package/vitest.config.*',
           owners: ['@MetaMask/core-platform'],
         },
       ],
@@ -211,6 +243,20 @@ describe('assembleCodeownersSections', () => {
                   '@MetaMask/core-platform',
                 ],
               },
+              {
+                pattern: '/packages/accounts-controller/jest.config.*',
+                owners: [
+                  '@MetaMask/accounts-engineers',
+                  '@MetaMask/core-platform',
+                ],
+              },
+              {
+                pattern: '/packages/accounts-controller/vitest.config.*',
+                owners: [
+                  '@MetaMask/accounts-engineers',
+                  '@MetaMask/core-platform',
+                ],
+              },
             ],
           },
           {
@@ -239,6 +285,14 @@ describe('assembleCodeownersSections', () => {
               },
               {
                 pattern: '/packages/wallet/typedoc.json',
+                owners: ['@MetaMask/core-platform'],
+              },
+              {
+                pattern: '/packages/wallet/jest.config.*',
+                owners: ['@MetaMask/core-platform'],
+              },
+              {
+                pattern: '/packages/wallet/vitest.config.*',
                 owners: ['@MetaMask/core-platform'],
               },
             ],

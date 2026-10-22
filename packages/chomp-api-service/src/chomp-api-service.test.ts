@@ -6,6 +6,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
+import { describe, it, expect, vi } from 'vitest';
 
 import type { ChompApiServiceMessenger } from './chomp-api-service.js';
 import { ChompApiError, ChompApiService } from './chomp-api-service.js';
@@ -337,7 +338,7 @@ describe('ChompApiService', () => {
     it('does not leak the bearer token through cache update events', async () => {
       nock(BASE_URL).get('/v1/auth/address').reply(200, [addressEntry]);
       const { service, messenger } = createService();
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      const publishSpy = vi.spyOn(messenger, 'publish');
 
       await service.getAssociatedAddresses();
 
@@ -348,7 +349,7 @@ describe('ChompApiService', () => {
     it('evicts the result from the cache once the call settles', async () => {
       nock(BASE_URL).get('/v1/auth/address').reply(200, [addressEntry]);
       const { service, messenger } = createService();
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      const publishSpy = vi.spyOn(messenger, 'publish');
 
       await service.getAssociatedAddresses();
       // Eviction (`cacheTime: 0`) is scheduled on a macrotask; let it run.

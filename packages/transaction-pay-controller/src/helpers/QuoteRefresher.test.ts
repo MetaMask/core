@@ -3,8 +3,8 @@
 import { createDeferredPromise } from '@metamask/utils';
 
 import { flushPromises } from '../../../../tests/helpers.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { TransactionPayStrategy } from '../constants.js';
-import { getMessengerMock } from '../tests/messenger-mock.js';
 import type {
   TransactionData,
   TransactionPayControllerMessenger,

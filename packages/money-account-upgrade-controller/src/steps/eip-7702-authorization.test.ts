@@ -5,6 +5,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
+import { describe, it, expect, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
 import { eip7702AuthorizationStep } from './eip-7702-authorization.js';
@@ -49,14 +51,11 @@ type ProviderRequest = (args: {
 }) => Promise<unknown>;
 
 type Mocks = {
-  createUpgrade: jest.Mock;
-  signEip7702Authorization: jest.Mock;
-  findNetworkClientIdByChainId: jest.Mock;
-  getNetworkClientById: jest.Mock;
-  providerRequest: jest.Mock<
-    ReturnType<ProviderRequest>,
-    [Parameters<ProviderRequest>[0]]
-  >;
+  createUpgrade: Mock;
+  signEip7702Authorization: Mock;
+  findNetworkClientIdByChainId: Mock;
+  getNetworkClientById: Mock;
+  providerRequest: Mock<ProviderRequest>;
 };
 
 /**
@@ -82,10 +81,10 @@ function setup(): {
   messenger: MoneyAccountUpgradeControllerMessenger;
   mocks: Mocks;
 } {
-  const providerRequest = jest.fn() as Mocks['providerRequest'];
+  const providerRequest = vi.fn() as Mocks['providerRequest'];
 
   const mocks: Mocks = {
-    createUpgrade: jest.fn().mockResolvedValue({
+    createUpgrade: vi.fn().mockResolvedValue({
       signerAddress: MOCK_ADDRESS,
       address: MOCK_DELEGATOR_IMPL,
       chainId: MOCK_CHAIN_ID,
@@ -93,11 +92,11 @@ function setup(): {
       status: 'pending',
       createdAt: '2026-04-21T12:00:00.000Z',
     }),
-    signEip7702Authorization: jest.fn().mockResolvedValue(MOCK_SIGNATURE),
-    findNetworkClientIdByChainId: jest
+    signEip7702Authorization: vi.fn().mockResolvedValue(MOCK_SIGNATURE),
+    findNetworkClientIdByChainId: vi
       .fn()
       .mockReturnValue(MOCK_NETWORK_CLIENT_ID),
-    getNetworkClientById: jest.fn().mockReturnValue({
+    getNetworkClientById: vi.fn().mockReturnValue({
       provider: { request: providerRequest },
     }),
     providerRequest,

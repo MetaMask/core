@@ -10,10 +10,8 @@ import type { Mocked } from 'vitest';
 import type { UpdateGasFeesRequest } from './gas-fees.js';
 import { updateGasFees } from './gas-fees.js';
 
-vi.mock('@metamask/controller-utils', async () => ({
-  ...(await vi.importActual<typeof import('@metamask/controller-utils')>(
-    '@metamask/controller-utils',
-  )),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
   query: vi.fn(),
 }));
 
