@@ -46,10 +46,10 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
   return {
     analyticsController: {
       platformAdapter: {
-        track: jest.fn(),
-        identify: jest.fn(),
-        view: jest.fn(),
-        onSetupCompleted: jest.fn(),
+        track: vi.fn(),
+        identify: vi.fn(),
+        view: vi.fn(),
+        onSetupCompleted: vi.fn(),
       },
       analyticsId: TEST_ANALYTICS_ID,
     },
