@@ -48,7 +48,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/selected-network-controller',
   '@metamask/storage-service',
   '@metamask/wallet',
-  '@metamask/wallet-cli',
   '@metamask/wallet-framework-docs',
 ]);
 

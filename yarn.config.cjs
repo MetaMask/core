@@ -54,7 +54,6 @@ const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 const TOOLS = [
   '@metamask/foundryup',
   '@metamask/messenger-cli',
-  '@metamask/wallet-cli',
   '@metamask/wallet-framework-docs',
   '@metamask/platform-api-docs',
 ];
@@ -66,12 +65,8 @@ const DOCSITE_PACKAGES = ['@metamask/wallet-framework-docs'];
 
 /**
  * We don't check that test scripts are defined for these packages.
- *
- * Here we exclude `@metamask/wallet-cli`: it prepends a `better-sqlite3`
- * prebuild fetch to its "test" script, as the native addon isn't built
- * during `yarn install` (Yarn runs with `enableScripts: false`).
  */
-const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = ['@metamask/wallet-cli'];
+const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = [];
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
