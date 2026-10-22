@@ -33,8 +33,9 @@ import type {
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import assert from 'assert';
 import { v4 as uuidV4 } from 'uuid';
+import type { Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { jestAdvanceTime } from '../../../tests/helpers.js';
 import {
   buildAddNetworkFields,
   buildCustomNetworkClientConfiguration,
@@ -61,12 +62,42 @@ import { TransactionController } from './TransactionController.js';
 import type { InternalAccount } from './types.js';
 import { TransactionStatus, TransactionType } from './types.js';
 
-jest.mock('uuid', () => {
-  const actual = jest.requireActual('uuid');
+// Keep a handle on the real `setTimeout` before fake timers replace it.
+const realSetTimeout = globalThis.setTimeout;
+
+/**
+ * Advances the fake timers like `advanceTime` from `tests/vitest/helpers`,
+ * but also yields a real macrotask after each step. nock replies on the real
+ * event loop, and Jest yielded through the real `setTimeout` between fake
+ * timers (its environment has no `setImmediate`), so replies landed in time.
+ * Vitest yields through `setImmediate`, which is not always long enough.
+ *
+ * @param options - The options object.
+ * @param options.duration - The total time to advance by, in milliseconds.
+ * @param options.stepSize - The size of each step, in milliseconds. Defaults to
+ * a quarter of the duration.
+ */
+async function advanceTime({
+  duration,
+  stepSize = duration / 4,
+}: {
+  duration: number;
+  stepSize?: number;
+}): Promise<void> {
+  let value = duration;
+  do {
+    await vi.advanceTimersByTimeAsync(stepSize);
+    await new Promise((resolve) => realSetTimeout(resolve, 0));
+    value -= stepSize;
+  } while (value > 0);
+}
+
+vi.mock(import('uuid'), async (importOriginal) => {
+  const actual = await importOriginal();
 
   return {
     ...actual,
-    v4: jest.fn(),
+    v4: vi.fn(),
   };
 });
 
@@ -95,7 +126,7 @@ type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 // `v4` is overloaded; naming the signature used here avoids resolving to the
 // last overload, which returns a `Uint8Array`.
-const uuidV4Mock = jest.mocked<() => string>(uuidV4);
+const uuidV4Mock = vi.mocked<() => string>(uuidV4);
 
 const createMockInternalAccount = ({
   id = uuidV4(),
@@ -168,7 +199,7 @@ const setupController = async (
 ): Promise<{
   approvalController: ApprovalController;
   messenger: Messenger<MockAnyNamespace, AllActions, AllEvents>;
-  mockGetSelectedAccount: jest.Mock;
+  mockGetSelectedAccount: Mock;
   networkController: NetworkController;
   transactionController: TransactionController;
 }> => {
@@ -264,7 +295,7 @@ const setupController = async (
   });
   const approvalController = new ApprovalController({
     messenger: approvalControllerMessenger,
-    showApprovalRequest: jest.fn(),
+    showApprovalRequest: vi.fn(),
     typesExcludedFromRateLimiting: [ApprovalType.Transaction],
   });
 
@@ -295,7 +326,7 @@ const setupController = async (
     events: ['NetworkController:stateChange'],
   });
 
-  const mockGetSelectedAccount = jest
+  const mockGetSelectedAccount = vi
     .fn()
     .mockReturnValue(mockData.selectedAccount);
 
@@ -339,7 +370,7 @@ const setupController = async (
 
   const transactionController = new TransactionController(options);
 
-  await jestAdvanceTime({ duration: 10 });
+  await advanceTime({ duration: 10 });
 
   return {
     transactionController,
@@ -354,7 +385,7 @@ describe('TransactionController Integration', () => {
   let uuidCounter = 0;
 
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers();
 
     uuidV4Mock.mockImplementation(() => {
       const uuid = `UUID-${uuidCounter}`;
@@ -364,7 +395,7 @@ describe('TransactionController Integration', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -476,8 +507,8 @@ describe('TransactionController Integration', () => {
         },
       });
 
-      await jestAdvanceTime({ duration: 1 });
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
 
       expect(transactionController.state.transactions).toMatchObject([
         expect.objectContaining({
@@ -560,7 +591,7 @@ describe('TransactionController Integration', () => {
           );
 
         await approvalController.acceptRequest(transactionMeta.id);
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         await result;
 
@@ -606,13 +637,13 @@ describe('TransactionController Integration', () => {
           );
 
         await approvalController.acceptRequest(transactionMeta.id);
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         await result;
         // blocktracker polling is 20s
-        await jestAdvanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
-        await jestAdvanceTime({ duration: 1 });
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
+        await advanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         expect(transactionController.state.transactions).toHaveLength(1);
         expect(transactionController.state.transactions[0].status).toBe(
@@ -689,15 +720,15 @@ describe('TransactionController Integration', () => {
             secondTransaction.transactionMeta.id,
           ),
         ]);
-        await jestAdvanceTime({ duration: 1 });
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         await Promise.all([firstTransaction.result, secondTransaction.result]);
 
         // blocktracker polling is 20s
-        await jestAdvanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
-        await jestAdvanceTime({ duration: 1 });
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
+        await advanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         expect(transactionController.state.transactions).toHaveLength(2);
         expect(transactionController.state.transactions[0].status).toBe(
@@ -756,7 +787,7 @@ describe('TransactionController Integration', () => {
           );
 
         await approvalController.acceptRequest(transactionMeta.id);
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         await result;
 
@@ -822,19 +853,19 @@ describe('TransactionController Integration', () => {
           );
 
         await approvalController.acceptRequest(transactionMeta.id);
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         await result;
 
         await transactionController.stopTransaction(transactionMeta.id);
 
         // blocktracker polling is 20s
-        await jestAdvanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
-        await jestAdvanceTime({ duration: 1 });
-        await jestAdvanceTime({ duration: 1 });
-        await jestAdvanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
-        await jestAdvanceTime({ duration: 1 });
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
+        await advanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
+        await advanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
+        await advanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         expect(transactionController.state.transactions).toHaveLength(2);
         expect(transactionController.state.transactions[0].status).toBe(
@@ -900,19 +931,19 @@ describe('TransactionController Integration', () => {
           );
 
         await approvalController.acceptRequest(transactionMeta.id);
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         await result;
 
         await transactionController.speedUpTransaction(transactionMeta.id);
 
         // blocktracker polling is 20s
-        await jestAdvanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
-        await jestAdvanceTime({ duration: 1 });
-        await jestAdvanceTime({ duration: 1 });
-        await jestAdvanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
-        await jestAdvanceTime({ duration: 1 });
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
+        await advanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
+        await advanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
+        await advanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         expect(transactionController.state.transactions).toHaveLength(2);
         expect(transactionController.state.transactions[0].status).toBe(
@@ -1047,8 +1078,8 @@ describe('TransactionController Integration', () => {
           approvalController.acceptRequest(addTx1.transactionMeta.id),
           approvalController.acceptRequest(addTx2.transactionMeta.id),
         ]);
-        await jestAdvanceTime({ duration: 1 });
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
 
@@ -1108,7 +1139,7 @@ describe('TransactionController Integration', () => {
           { networkClientId: 'sepolia' },
         );
 
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         const addTx2 = await transactionController.addTransaction(
           {
@@ -1120,15 +1151,15 @@ describe('TransactionController Integration', () => {
           },
         );
 
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         await Promise.all([
           approvalController.acceptRequest(addTx1.transactionMeta.id),
           approvalController.acceptRequest(addTx2.transactionMeta.id),
         ]);
 
-        await jestAdvanceTime({ duration: 1 });
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
 
@@ -1272,7 +1303,7 @@ describe('TransactionController Integration', () => {
             ACCOUNT_MOCK,
             networkClientId,
           );
-          await jestAdvanceTime({ duration: 1 });
+          await advanceTime({ duration: 1 });
 
           const nonceLock = await nonceLockPromise;
 
@@ -1318,7 +1349,7 @@ describe('TransactionController Integration', () => {
         ACCOUNT_MOCK,
         networkClientId,
       );
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
 
       const nonceLock = await nonceLockPromise;
 
@@ -1353,7 +1384,7 @@ describe('TransactionController Integration', () => {
             ACCOUNT_MOCK,
             networkClientId,
           );
-          await jestAdvanceTime({ duration: 1 });
+          await advanceTime({ duration: 1 });
 
           const firstNonceLock = await firstNonceLockPromise;
 
@@ -1367,7 +1398,7 @@ describe('TransactionController Integration', () => {
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
             // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
             new Promise<null>(async (resolve) => {
-              await jestAdvanceTime({ duration: 100 });
+              await advanceTime({ duration: 100 });
               resolve(null);
             });
 
@@ -1380,7 +1411,7 @@ describe('TransactionController Integration', () => {
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
           // eslint-disable-next-line @typescript-eslint/await-thenable
           await firstNonceLock.releaseLock();
-          await jestAdvanceTime({ duration: 1 });
+          await advanceTime({ duration: 1 });
 
           secondNonceLockIfAcquired = await Promise.race([
             secondNonceLockPromise,
@@ -1446,7 +1477,7 @@ describe('TransactionController Integration', () => {
         ACCOUNT_MOCK,
         'sepolia',
       );
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
 
       const firstNonceLock = await firstNonceLockPromise;
 
@@ -1460,7 +1491,7 @@ describe('TransactionController Integration', () => {
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
         new Promise<null>(async (resolve) => {
-          await jestAdvanceTime({ duration: 100 });
+          await advanceTime({ duration: 100 });
           resolve(null);
         });
 
@@ -1473,7 +1504,7 @@ describe('TransactionController Integration', () => {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/await-thenable
       await firstNonceLock.releaseLock();
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
 
       secondNonceLockIfAcquired = await Promise.race([
         secondNonceLockPromise,
@@ -1511,7 +1542,7 @@ describe('TransactionController Integration', () => {
         ACCOUNT_MOCK,
         'linea-sepolia',
       );
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
 
       const firstNonceLock = await firstNonceLockPromise;
 
@@ -1521,7 +1552,7 @@ describe('TransactionController Integration', () => {
         ACCOUNT_MOCK,
         'sepolia',
       );
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
 
       const secondNonceLock = await secondNonceLockPromise;
 
@@ -1560,7 +1591,7 @@ describe('TransactionController Integration', () => {
             ACCOUNT_MOCK,
             networkClientId,
           );
-          await jestAdvanceTime({ duration: 1 });
+          await advanceTime({ duration: 1 });
 
           const firstNonceLock = await firstNonceLockPromise;
 
@@ -1570,7 +1601,7 @@ describe('TransactionController Integration', () => {
             ACCOUNT_2_MOCK,
             networkClientId,
           );
-          await jestAdvanceTime({ duration: 1 });
+          await advanceTime({ duration: 1 });
 
           const secondNonceLock = await secondNonceLockPromise;
 

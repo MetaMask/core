@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { hasNetworkFee } from './network-fee-unavailable.js';
 
 const quote = {
