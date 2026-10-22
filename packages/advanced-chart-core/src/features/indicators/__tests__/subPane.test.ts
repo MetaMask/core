@@ -1,6 +1,3 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import {
   _resetStateForTests,
   getSubPaneHeightRatio,
@@ -23,13 +20,13 @@ const makeChart = (
   studyPaneMap: Record<string, number> = {},
 ): {
   chart: TVActiveChart;
-  setAll: Mock;
+  setAll: jest.Mock;
 } => {
-  const setAll = vi.fn();
+  const setAll = jest.fn();
   const chart = {
     getAllPanesHeight: () => heights,
     setAllPanesHeight: setAll,
-    getStudyById: vi.fn().mockImplementation((id: string) => {
+    getStudyById: jest.fn().mockImplementation((id: string) => {
       const paneIdx = studyPaneMap[id];
       if (paneIdx !== undefined) {
         return { paneIndex: (): number => paneIdx };

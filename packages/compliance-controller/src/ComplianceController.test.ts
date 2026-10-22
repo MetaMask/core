@@ -6,7 +6,6 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ComplianceController } from './ComplianceController.js';
 import type { ComplianceControllerMessenger } from './ComplianceController.js';
@@ -190,11 +189,11 @@ describe('ComplianceController', () => {
 
   describe('ComplianceController:checkWalletCompliance', () => {
     beforeEach(() => {
-      vi.useFakeTimers().setSystemTime(new Date('2026-02-01'));
+      jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
     });
 
     afterEach(() => {
-      vi.useRealTimers();
+      jest.useRealTimers();
     });
 
     it('calls the service, persists the result to state, and returns the status', async () => {
@@ -313,11 +312,11 @@ describe('ComplianceController', () => {
 
   describe('checkWalletCompliance', () => {
     beforeEach(() => {
-      vi.useFakeTimers().setSystemTime(new Date('2026-02-01'));
+      jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
     });
 
     afterEach(() => {
-      vi.useRealTimers();
+      jest.useRealTimers();
     });
 
     it('does the same thing as the messenger action', async () => {
@@ -343,11 +342,11 @@ describe('ComplianceController', () => {
 
   describe('ComplianceController:checkWalletsCompliance', () => {
     beforeEach(() => {
-      vi.useFakeTimers().setSystemTime(new Date('2026-02-01'));
+      jest.useFakeTimers().setSystemTime(new Date('2026-02-01'));
     });
 
     afterEach(() => {
-      vi.useRealTimers();
+      jest.useRealTimers();
     });
 
     it('calls the service, persists all results to state, and returns statuses', async () => {
@@ -654,7 +653,7 @@ type WithControllerOptions = {
 function getRootMessenger(): RootMessenger {
   return new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
-    captureException: vi.fn(),
+    captureException: jest.fn(),
   });
 }
 

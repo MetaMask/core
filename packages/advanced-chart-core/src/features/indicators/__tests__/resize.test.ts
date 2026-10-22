@@ -1,5 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
 import { _resetStateForTests, setWidget } from '../../../core/state.js';
 import type { TVChartingLibraryWidget } from '../../../core/types.js';
 import { scheduleChartWidgetResize } from '../resize.js';
@@ -7,27 +5,27 @@ import { scheduleChartWidgetResize } from '../resize.js';
 describe('features/indicators/resize', () => {
   beforeEach(() => {
     _resetStateForTests();
-    vi.useFakeTimers();
+    jest.useFakeTimers();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it('calls widget.resize() via double-rAF', () => {
-    const resize = vi.fn();
+    const resize = jest.fn();
     setWidget({ resize } as unknown as TVChartingLibraryWidget);
 
     scheduleChartWidgetResize();
 
-    vi.runAllTimers();
+    jest.runAllTimers();
     expect(resize).toHaveBeenCalled();
   });
 
   it('does not throw when widget is null', () => {
     expect(() => {
       scheduleChartWidgetResize();
-      vi.runAllTimers();
+      jest.runAllTimers();
     }).not.toThrow();
   });
 
@@ -40,12 +38,12 @@ describe('features/indicators/resize', () => {
 
     expect(() => {
       scheduleChartWidgetResize();
-      vi.runAllTimers();
+      jest.runAllTimers();
     }).not.toThrow();
   });
 
   it('falls back to setTimeout when requestAnimationFrame throws', () => {
-    const resize = vi.fn();
+    const resize = jest.fn();
     setWidget({ resize } as unknown as TVChartingLibraryWidget);
 
     const originalRAF = globalThis.requestAnimationFrame;
@@ -55,7 +53,7 @@ describe('features/indicators/resize', () => {
 
     try {
       scheduleChartWidgetResize();
-      vi.runAllTimers();
+      jest.runAllTimers();
       expect(resize).toHaveBeenCalled();
     } finally {
       globalThis.requestAnimationFrame = originalRAF;

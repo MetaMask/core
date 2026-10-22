@@ -6,7 +6,6 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ComplianceServiceMessenger } from './ComplianceService.js';
 import { ComplianceService } from './ComplianceService.js';
@@ -17,11 +16,11 @@ const MOCK_CONFIGURED_API_URL = 'https://configured-compliance.example.com';
 
 describe('ComplianceService', () => {
   beforeEach(() => {
-    vi.useFakeTimers({ toNotFake: ['nextTick', 'queueMicrotask'] });
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   describe('ComplianceService:checkWalletCompliance', () => {
@@ -91,7 +90,7 @@ describe('ComplianceService', () => {
       nock(MOCK_API_URL).get('/v1/wallet/0xABC123').times(4).reply(404);
       const { service } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
       await expect(service.checkWalletCompliance('0xABC123')).rejects.toThrow(
@@ -103,11 +102,11 @@ describe('ComplianceService', () => {
       nock(MOCK_API_URL)
         .get('/v1/wallet/0xABC123')
         .reply(200, () => {
-          vi.advanceTimersByTime(6000);
+          jest.advanceTimersByTime(6000);
           return { address: '0xABC123', blocked: false };
         });
       const { service, rootMessenger } = getService();
-      const onDegradedListener = vi.fn();
+      const onDegradedListener = jest.fn();
       service.onDegraded(onDegradedListener);
 
       await rootMessenger.call(
@@ -122,7 +121,7 @@ describe('ComplianceService', () => {
       nock(MOCK_API_URL).get('/v1/wallet/0xABC123').times(4).reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
       await expect(
@@ -137,9 +136,9 @@ describe('ComplianceService', () => {
       nock(MOCK_API_URL).get('/v1/wallet/0xABC123').times(12).reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
-      const onBreakListener = vi.fn();
+      const onBreakListener = jest.fn();
       service.onBreak(onBreakListener);
 
       // Each call attempts 4 requests before failing
@@ -308,7 +307,7 @@ describe('ComplianceService', () => {
       nock(MOCK_API_URL).post('/v1/wallet/batch').times(4).reply(500);
       const { service } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
+        jest.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
       await expect(service.checkWalletsCompliance(['0xABC'])).rejects.toThrow(

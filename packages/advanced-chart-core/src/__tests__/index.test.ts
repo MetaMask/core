@@ -1,6 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import { _resetStateForTests } from '../core/state.js';
 import type { ChartConfig, ChartTheme } from '../core/types.js';
 import { _resetHandlersForTests } from '../messages/handler.js';
@@ -30,7 +27,7 @@ const baseConfig: ChartConfig = {
 };
 
 type MockBridge = {
-  postMessage: Mock<(...args: [string]) => void>;
+  postMessage: jest.Mock<void, [string]>;
 };
 
 describe('src/index.ts entry point', () => {
@@ -41,25 +38,27 @@ describe('src/index.ts entry point', () => {
     _resetHandlersForTests();
     _resetThemeForTests();
     _resetOhlcvIngestionForTests();
-    bridge = { postMessage: vi.fn() };
+    bridge = { postMessage: jest.fn() };
     window.ReactNativeWebView = bridge;
     window.CONFIG = baseConfig;
 
-    vi.spyOn(document, 'createElement').mockImplementation(((tag: string) =>
-      tag === 'script'
-        ? ({} as unknown as HTMLScriptElement)
-        : ({} as HTMLElement)) as never);
-    vi.spyOn(document.head, 'appendChild').mockImplementation(
-      ((node: Node) => node) as never,
-    );
-    vi.spyOn(window, 'addEventListener').mockImplementation(() => undefined);
-    vi.spyOn(document, 'addEventListener').mockImplementation(() => undefined);
+    jest
+      .spyOn(document, 'createElement')
+      .mockImplementation(((tag: string) =>
+        tag === 'script'
+          ? ({} as unknown as HTMLScriptElement)
+          : ({} as HTMLElement)) as never);
+    jest
+      .spyOn(document.head, 'appendChild')
+      .mockImplementation(((node: Node) => node) as never);
+    jest.spyOn(window, 'addEventListener').mockImplementation();
+    jest.spyOn(document, 'addEventListener').mockImplementation();
 
-    vi.resetModules();
+    jest.resetModules();
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
     delete window.CONFIG;
     delete window.ReactNativeWebView;
   });

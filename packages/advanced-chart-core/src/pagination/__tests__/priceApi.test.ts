@@ -1,6 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import {
   _resetStateForTests,
   bumpOhlcvGeneration,
@@ -10,17 +7,17 @@ import {
 import { fetchOlderBarsFromPriceApi, OHLCV_BASE_URL } from '../priceApi.js';
 
 type MockBridge = {
-  postMessage: Mock<(...args: [string]) => void>;
+  postMessage: jest.Mock<void, [string]>;
 };
 
 const installRNBridge = (): MockBridge => {
-  const bridge: MockBridge = { postMessage: vi.fn() };
+  const bridge: MockBridge = { postMessage: jest.fn() };
   window.ReactNativeWebView = bridge;
   return bridge;
 };
 
-const mockFetchOk = (body: unknown): Mock =>
-  vi.fn().mockResolvedValue({
+const mockFetchOk = (body: unknown): jest.Mock =>
+  jest.fn().mockResolvedValue({
     ok: true,
     json: () => Promise.resolve(body),
   } as Response);
@@ -70,7 +67,7 @@ describe('pagination/priceApi', () => {
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
     expect(
-      (globalThis as unknown as { fetch?: Mock }).fetch,
+      (globalThis as unknown as { fetch?: jest.Mock }).fetch,
     ).toHaveBeenCalledWith(
       `${OHLCV_BASE_URL}/eip155:1/slip44:60?nextCursor=abc%3D&vsCurrency=usd`,
     );
@@ -86,7 +83,7 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: 'usd',
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = vi
+    (globalThis as { fetch?: typeof fetch }).fetch = jest
       .fn()
       .mockImplementation(() => {
         bumpOhlcvGeneration();
@@ -109,7 +106,7 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: null,
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = vi
+    (globalThis as { fetch?: typeof fetch }).fetch = jest
       .fn()
       .mockRejectedValue(new Error('offline')) as unknown as typeof fetch;
 
@@ -149,11 +146,13 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: 'usd',
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 429,
-      json: () => Promise.resolve({}),
-    } as unknown as Response) as unknown as typeof fetch;
+    (globalThis as { fetch?: typeof fetch }).fetch = jest
+      .fn()
+      .mockResolvedValue({
+        ok: false,
+        status: 429,
+        json: () => Promise.resolve({}),
+      } as unknown as Response) as unknown as typeof fetch;
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
@@ -171,7 +170,7 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: 'usd',
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = vi
+    (globalThis as { fetch?: typeof fetch }).fetch = jest
       .fn()
       .mockImplementation(() => {
         bumpOhlcvGeneration();
@@ -197,10 +196,12 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: 'usd',
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.reject(new Error('Unexpected token')),
-    } as unknown as Response) as unknown as typeof fetch;
+    (globalThis as { fetch?: typeof fetch }).fetch = jest
+      .fn()
+      .mockResolvedValue({
+        ok: true,
+        json: () => Promise.reject(new Error('Unexpected token')),
+      } as unknown as Response) as unknown as typeof fetch;
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
@@ -250,7 +251,7 @@ describe('pagination/priceApi', () => {
     await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
     const calledUrl = (
-      (globalThis as unknown as { fetch?: Mock }).fetch as Mock
+      (globalThis as unknown as { fetch?: jest.Mock }).fetch as jest.Mock
     ).mock.calls[0][0] as string;
     expect(calledUrl).toBe(
       `${OHLCV_BASE_URL}/eip155:1/slip44:60?nextCursor=abc`,

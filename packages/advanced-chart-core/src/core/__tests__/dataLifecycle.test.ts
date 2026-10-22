@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
 import {
   onDataLifecycle,
   notifyDataLifecycle,
@@ -13,15 +11,15 @@ describe('core/dataLifecycle', () => {
   });
 
   it('notifies listeners when an event fires', () => {
-    const listener = vi.fn();
+    const listener = jest.fn();
     onDataLifecycle('ohlcvReset', listener);
     notifyDataLifecycle('ohlcvReset');
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
   it('supports multiple listeners on the same event', () => {
-    const a = vi.fn();
-    const b = vi.fn();
+    const a = jest.fn();
+    const b = jest.fn();
     onDataLifecycle('ohlcvPrepended', a);
     onDataLifecycle('ohlcvPrepended', b);
     notifyDataLifecycle('ohlcvPrepended');
@@ -30,14 +28,14 @@ describe('core/dataLifecycle', () => {
   });
 
   it('does not cross-fire between events', () => {
-    const listener = vi.fn();
+    const listener = jest.fn();
     onDataLifecycle('ohlcvReset', listener);
     notifyDataLifecycle('ohlcvPrepended');
     expect(listener).not.toHaveBeenCalled();
   });
 
   it('unsubscribe removes the listener', () => {
-    const listener = vi.fn();
+    const listener = jest.fn();
     const unsub = onDataLifecycle('visibleRangeChanged', listener);
     unsub();
     notifyDataLifecycle('visibleRangeChanged');
@@ -45,13 +43,13 @@ describe('core/dataLifecycle', () => {
   });
 
   it('reports listener errors to RN without stopping other listeners', () => {
-    const bridge = { postMessage: vi.fn() };
+    const bridge = { postMessage: jest.fn() };
     window.ReactNativeWebView = bridge;
 
-    const bad = vi.fn(() => {
+    const bad = jest.fn(() => {
       throw new Error('boom');
     });
-    const good = vi.fn();
+    const good = jest.fn();
     onDataLifecycle('ohlcvReset', bad);
     onDataLifecycle('ohlcvReset', good);
 
@@ -64,7 +62,7 @@ describe('core/dataLifecycle', () => {
   });
 
   it('_resetDataLifecycleForTests clears all listeners', () => {
-    const listener = vi.fn();
+    const listener = jest.fn();
     onDataLifecycle('ohlcvReset', listener);
     onDataLifecycle('ohlcvPrepended', listener);
     onDataLifecycle('visibleRangeChanged', listener);

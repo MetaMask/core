@@ -1,6 +1,3 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import {
   _resetStateForTests,
   setChartReady,
@@ -32,7 +29,7 @@ const sampleBars: OHLCVBar[] = [
 ];
 
 type MockBridge = {
-  postMessage: Mock<(...args: [string]) => void>;
+  postMessage: jest.Mock<void, [string]>;
 };
 
 // Test-shim hooks attached to the mocked TradingView widget/globals. These
@@ -65,7 +62,7 @@ type MockPane = {
 };
 
 function installBridge(): MockBridge {
-  const bridge: MockBridge = { postMessage: vi.fn() };
+  const bridge: MockBridge = { postMessage: jest.fn() };
   window.ReactNativeWebView = bridge;
   return bridge;
 }

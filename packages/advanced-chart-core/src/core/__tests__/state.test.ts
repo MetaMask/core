@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-
 import {
   _resetStateForTests,
   getCurrentResolution,

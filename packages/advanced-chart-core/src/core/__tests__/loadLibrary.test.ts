@@ -1,6 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MockInstance } from 'vitest';
-
 import {
   loadTradingViewLibrary,
   _resetLoadLibraryForTests,
@@ -16,7 +13,7 @@ type ScriptStub = {
 
 describe('core/loadLibrary', () => {
   let script: ScriptStub;
-  let appendSpy: MockInstance;
+  let appendSpy: jest.SpyInstance;
 
   beforeEach(() => {
     _resetStateForTests();
@@ -29,16 +26,16 @@ describe('core/loadLibrary', () => {
       }
       return {} as HTMLElement;
     };
-    vi.spyOn(document, 'createElement').mockImplementation(
-      createElementImpl as never,
-    );
-    appendSpy = vi
+    jest
+      .spyOn(document, 'createElement')
+      .mockImplementation(createElementImpl as never);
+    appendSpy = jest
       .spyOn(document.head, 'appendChild')
       .mockImplementation(((node: Node) => node) as never);
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
   });
 
   it('appends the charting_library.js script with the correct URL', async () => {

@@ -1,5 +1,3 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-
 import {
   _resetHostTransportForTests,
   getHostTransport,
@@ -8,9 +6,9 @@ import {
 import type { ChartHostTransport } from '../host.js';
 
 const fakeHost = (): ChartHostTransport => ({
-  postMessage: vi.fn(),
-  subscribe: vi.fn(() => () => undefined),
-  getConfig: vi.fn(() => undefined),
+  postMessage: jest.fn(),
+  subscribe: jest.fn(() => () => undefined),
+  getConfig: jest.fn(() => undefined),
 });
 
 describe('core/host', () => {
@@ -21,7 +19,7 @@ describe('core/host', () => {
   });
 
   it('defaults to the React Native adapter when none is injected', () => {
-    const bridge = { postMessage: vi.fn() };
+    const bridge = { postMessage: jest.fn() };
     window.ReactNativeWebView = bridge;
     getHostTransport().postMessage('payload');
     expect(bridge.postMessage).toHaveBeenCalledWith('payload');

@@ -1,6 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import { _resetStateForTests, setOhlcvData } from '../../core/state.js';
 import type {
   TVActiveChart,
@@ -15,11 +12,11 @@ import {
 } from '../crosshair.js';
 
 type MockBridge = {
-  postMessage: Mock<(...args: [string]) => void>;
+  postMessage: jest.Mock<void, [string]>;
 };
 
 const installRNBridge = (): MockBridge => {
-  const bridge: MockBridge = { postMessage: vi.fn() };
+  const bridge: MockBridge = { postMessage: jest.fn() };
   window.ReactNativeWebView = bridge;
   return bridge;
 };
@@ -119,11 +116,11 @@ describe('attachTapDismiss', () => {
     _resetStateForTests();
     _resetCrosshairForTests();
     delete window.ReactNativeWebView;
-    vi.useFakeTimers();
+    jest.useFakeTimers();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it('does nothing when no crosshair has been shown', () => {
@@ -132,7 +129,7 @@ describe('attachTapDismiss', () => {
     attachTapDismiss(widget);
     fire('mouse_down');
     fire('mouse_up');
-    vi.runAllTimers();
+    jest.runAllTimers();
     expect(bridge.postMessage).not.toHaveBeenCalled();
   });
 
@@ -149,13 +146,13 @@ describe('attachTapDismiss', () => {
     bridge.postMessage.mockClear();
 
     // Wait past the synthetic-click guard.
-    vi.advanceTimersByTime(600);
+    jest.advanceTimersByTime(600);
 
     // Short tap.
     fire('mouse_down');
-    vi.advanceTimersByTime(50);
+    jest.advanceTimersByTime(50);
     fire('mouse_up');
-    vi.advanceTimersByTime(60);
+    jest.advanceTimersByTime(60);
 
     expect(bridge.postMessage).toHaveBeenCalledWith(
       expect.stringContaining('"data":null'),
@@ -172,12 +169,12 @@ describe('attachTapDismiss', () => {
 
     emit({ time: 0, price: 1 });
     bridge.postMessage.mockClear();
-    vi.advanceTimersByTime(600);
+    jest.advanceTimersByTime(600);
 
     fire('mouse_down');
-    vi.advanceTimersByTime(500); // long press
+    jest.advanceTimersByTime(500); // long press
     fire('mouse_up');
-    vi.advanceTimersByTime(100);
+    jest.advanceTimersByTime(100);
 
     expect(bridge.postMessage).not.toHaveBeenCalledWith(
       expect.stringContaining('"data":null'),
@@ -194,10 +191,10 @@ describe('attachTapDismiss', () => {
 
     // Show + tap-dismiss.
     emit({ time: 0, price: 1 });
-    vi.advanceTimersByTime(600);
+    jest.advanceTimersByTime(600);
     fire('mouse_down');
     fire('mouse_up');
-    vi.advanceTimersByTime(60);
+    jest.advanceTimersByTime(60);
     bridge.postMessage.mockClear();
 
     // Any crosshair-move during the dismiss window emits data:null.

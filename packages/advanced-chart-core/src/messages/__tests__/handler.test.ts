@@ -1,6 +1,3 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import {
   _resetHandlersForTests,
   dispatchInboundMessage,
@@ -8,11 +5,11 @@ import {
 } from '../handler.js';
 
 type MockBridge = {
-  postMessage: Mock<(...args: [string]) => void>;
+  postMessage: jest.Mock<void, [string]>;
 };
 
 const installRNBridge = (): MockBridge => {
-  const bridge: MockBridge = { postMessage: vi.fn() };
+  const bridge: MockBridge = { postMessage: jest.fn() };
   window.ReactNativeWebView = bridge;
   return bridge;
 };
@@ -24,7 +21,7 @@ describe('messages/handler', () => {
   });
 
   it('routes a typed message to the registered handler', () => {
-    const handler = vi.fn();
+    const handler = jest.fn();
     registerHandler('SET_THEME_COLORS', handler);
 
     dispatchInboundMessage({
@@ -64,8 +61,8 @@ describe('messages/handler', () => {
   });
 
   it('replacing a handler keeps the latest one only', () => {
-    const first = vi.fn();
-    const second = vi.fn();
+    const first = jest.fn();
+    const second = jest.fn();
     registerHandler('SET_THEME_COLORS', first);
     registerHandler('SET_THEME_COLORS', second);
 

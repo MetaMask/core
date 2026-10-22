@@ -1,6 +1,3 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import {
   _resetStateForTests,
   setChartReady,
@@ -33,23 +30,23 @@ const baseTheme: ChartTheme = {
 };
 
 type ChartMock = {
-  getSeries: Mock;
-  detachToRight: Mock;
+  getSeries: jest.Mock;
+  detachToRight: jest.Mock;
 };
 
 type WidgetMock = {
   widget: TVChartingLibraryWidget;
   chart: ChartMock;
-  applyOverrides: Mock;
+  applyOverrides: jest.Mock;
 };
 
 const makeWidget = (chartImpl: Partial<ChartMock> = {}): WidgetMock => {
   const chart: ChartMock = {
-    detachToRight: chartImpl.detachToRight ?? vi.fn(),
-    getSeries: vi.fn(),
+    detachToRight: chartImpl.detachToRight ?? jest.fn(),
+    getSeries: jest.fn(),
   };
   chart.getSeries.mockReturnValue({ detachToRight: chart.detachToRight });
-  const applyOverrides = vi.fn();
+  const applyOverrides = jest.fn();
   const widget = {
     activeChart: () => chart as unknown,
     applyOverrides,
@@ -276,7 +273,7 @@ describe('applyScaleLayout', () => {
   // -- error path: applyOverrides throws ------------------------------------
 
   it('reports applyOverrides errors to RN and skips detachToRight', () => {
-    const bridge = { postMessage: vi.fn() };
+    const bridge = { postMessage: jest.fn() };
     window.ReactNativeWebView = bridge;
     initThemeFromConfig(baseTheme);
     const { widget, chart } = makeWidget();
@@ -298,7 +295,7 @@ describe('applyScaleLayout', () => {
   it('swallows detachToRight failures silently', () => {
     initThemeFromConfig(baseTheme);
     const { widget } = makeWidget({
-      detachToRight: vi.fn(() => {
+      detachToRight: jest.fn(() => {
         throw new Error('teardown');
       }),
     });

@@ -1,5 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
 import {
   eachChartDocument,
   findOuterChartMarkupTable,
@@ -28,7 +26,7 @@ describe('findOuterChartMarkupTable', () => {
       mockEl('chart-markup-table'),
     ];
     const doc = {
-      querySelectorAll: vi.fn().mockReturnValue(list),
+      querySelectorAll: jest.fn().mockReturnValue(list),
     } as unknown as Document;
     expect(findOuterChartMarkupTable(doc)).toBe(list[3]);
   });
@@ -36,14 +34,14 @@ describe('findOuterChartMarkupTable', () => {
   it('falls back to the first element when only pane/axis exist', () => {
     const list = [mockEl('chart-markup-table pane')];
     const doc = {
-      querySelectorAll: vi.fn().mockReturnValue(list),
+      querySelectorAll: jest.fn().mockReturnValue(list),
     } as unknown as Document;
     expect(findOuterChartMarkupTable(doc)).toBe(list[0]);
   });
 
   it('returns null when the document has zero matches', () => {
     const doc = {
-      querySelectorAll: vi.fn().mockReturnValue([]),
+      querySelectorAll: jest.fn().mockReturnValue([]),
     } as unknown as Document;
     expect(findOuterChartMarkupTable(doc)).toBeNull();
   });
@@ -54,18 +52,20 @@ describe('eachChartDocument', () => {
 
   beforeEach(() => {
     mockContainer = null;
-    vi.spyOn(document, 'getElementById').mockImplementation(((id: string) =>
-      id === 'tv_chart_container'
-        ? mockContainer
-        : null) as typeof document.getElementById);
+    jest
+      .spyOn(document, 'getElementById')
+      .mockImplementation(((id: string) =>
+        id === 'tv_chart_container'
+          ? mockContainer
+          : null) as typeof document.getElementById);
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
   });
 
   it('calls fn(document) at minimum', () => {
-    const fn = vi.fn();
+    const fn = jest.fn();
     eachChartDocument(fn);
     expect(fn).toHaveBeenCalledWith(document);
   });
@@ -73,9 +73,9 @@ describe('eachChartDocument', () => {
   it('calls fn(iframe.contentDocument) when present', () => {
     const iframeDoc = {} as Document;
     mockContainer = {
-      querySelector: vi.fn().mockReturnValue({ contentDocument: iframeDoc }),
+      querySelector: jest.fn().mockReturnValue({ contentDocument: iframeDoc }),
     } as unknown as HTMLElement;
-    const fn = vi.fn();
+    const fn = jest.fn();
     eachChartDocument(fn);
     expect(fn).toHaveBeenCalledWith(document);
     expect(fn).toHaveBeenCalledWith(iframeDoc);

@@ -1,6 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import {
   _resetStateForTests,
   getRealtimeCallbacks,
@@ -15,19 +12,18 @@ import type {
   TVResolution,
 } from '../../core/types.js';
 import { fetchOlderBarsFromPriceApi } from '../../pagination/priceApi.js';
-import * as rnBackedModule from '../../pagination/rnBacked.js';
 import {
   customDatafeed,
   filterBarsForRange,
   forwardRealtimeTick,
 } from '../datafeed.js';
 
-vi.mock('../../pagination/priceApi', () => ({
-  fetchOlderBarsFromPriceApi: vi.fn(),
+jest.mock('../../pagination/priceApi', () => ({
+  fetchOlderBarsFromPriceApi: jest.fn(),
   OHLCV_BASE_URL: 'https://price.api.cx.metamask.io/v3/ohlcv-chart',
 }));
-vi.mock('../../pagination/rnBacked', () => ({
-  requestOlderBarsFromRN: vi.fn(),
+jest.mock('../../pagination/rnBacked', () => ({
+  requestOlderBarsFromRN: jest.fn(),
 }));
 
 const stubSymbolInfo = { name: 'X' } as unknown as SymbolInfo;
@@ -71,18 +67,18 @@ describe('filterBarsForRange', () => {
 describe('customDatafeed', () => {
   beforeEach(() => {
     _resetStateForTests();
-    vi.useFakeTimers();
+    jest.useFakeTimers();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
     delete window.CONFIG;
   });
 
   it('onReady reports supported resolutions and flags', () => {
-    const callback = vi.fn();
+    const callback = jest.fn();
     customDatafeed.onReady(callback);
-    vi.runAllTimers();
+    jest.runAllTimers();
     const config = callback.mock.calls[0][0];
     expect(config.supported_resolutions).toContain('1');
     expect(config.supported_resolutions).toContain('1D');
@@ -90,9 +86,9 @@ describe('customDatafeed', () => {
   });
 
   it('resolveSymbol echoes the symbol name with crypto defaults', () => {
-    const onResolve = vi.fn();
-    customDatafeed.resolveSymbol('BTC/USD', onResolve, vi.fn());
-    vi.runAllTimers();
+    const onResolve = jest.fn();
+    customDatafeed.resolveSymbol('BTC/USD', onResolve, jest.fn());
+    jest.runAllTimers();
     const info = onResolve.mock.calls[0][0];
     expect(info.name).toBe('BTC/USD');
     expect(info.type).toBe('crypto');
@@ -105,9 +101,9 @@ describe('customDatafeed', () => {
     window.CONFIG = {
       priceDecimals: 4,
     } as ChartConfig;
-    const onResolve = vi.fn();
-    customDatafeed.resolveSymbol('LIT/USD', onResolve, vi.fn());
-    vi.runAllTimers();
+    const onResolve = jest.fn();
+    customDatafeed.resolveSymbol('LIT/USD', onResolve, jest.fn());
+    jest.runAllTimers();
     const info = onResolve.mock.calls[0][0];
 
     expect(info.pricescale).toBe(10000000000);
@@ -118,13 +114,13 @@ describe('customDatafeed', () => {
     setOhlcvData([
       { time: 100_000, open: 1, high: 1, low: 1, close: 1, volume: 0 },
     ]);
-    const onResult = vi.fn();
+    const onResult = jest.fn();
     customDatafeed.getBars(
       stubSymbolInfo,
       '5' as TVResolution,
       periodParams({ from: 90, to: 200 }),
       onResult,
-      vi.fn(),
+      jest.fn(),
     );
     expect(onResult).toHaveBeenCalledWith(
       [expect.objectContaining({ time: 100_000 })],
@@ -133,13 +129,13 @@ describe('customDatafeed', () => {
   });
 
   it('getBars returns noData on firstDataRequest with empty data', () => {
-    const onResult = vi.fn();
+    const onResult = jest.fn();
     customDatafeed.getBars(
       stubSymbolInfo,
       '5' as TVResolution,
       periodParams({ firstDataRequest: true }),
       onResult,
-      vi.fn(),
+      jest.fn(),
     );
     expect(onResult).toHaveBeenCalledWith([], { noData: true });
   });
@@ -152,19 +148,19 @@ describe('customDatafeed', () => {
       assetId: 'a',
       vsCurrency: 'usd',
     });
-    const mocked = vi.mocked(fetchOlderBarsFromPriceApi);
+    const mocked = jest.mocked(fetchOlderBarsFromPriceApi);
     mocked.mockResolvedValue({
       olderBars: [{ time: 50, open: 1, high: 1, low: 1, close: 1 }],
       noData: false,
     });
 
-    const onResult = vi.fn();
+    const onResult = jest.fn();
     customDatafeed.getBars(
       stubSymbolInfo,
       '5' as TVResolution,
       periodParams({ from: 0, to: 100, firstDataRequest: false }),
       onResult,
-      vi.fn(),
+      jest.fn(),
     );
     // allow the promise chain to flush
     await Promise.resolve();
@@ -177,20 +173,19 @@ describe('customDatafeed', () => {
   });
 
   it('getBars delegates to RN-backed pagination when enabled', () => {
-    const { requestOlderBarsFromRN } = rnBackedModule as unknown as Record<
-      string,
-      Mock
-    >;
+    const { requestOlderBarsFromRN } = jest.requireMock(
+      '../../pagination/rnBacked',
+    );
     setOhlcvData([{ time: 200_000, open: 1, high: 1, low: 1, close: 1 }]);
     setRnBackedPagination({ enabled: true });
 
-    const onResult = vi.fn();
+    const onResult = jest.fn();
     customDatafeed.getBars(
       stubSymbolInfo,
       '5' as TVResolution,
       periodParams({ from: 0, to: 100, firstDataRequest: false }),
       onResult,
-      vi.fn(),
+      jest.fn(),
     );
     expect(requestOlderBarsFromRN).toHaveBeenCalledWith(
       expect.objectContaining({ resolution: '5' }),
@@ -199,20 +194,20 @@ describe('customDatafeed', () => {
 
   it('getBars returns noData when neither pagination source is available', () => {
     setOhlcvData([{ time: 200_000, open: 1, high: 1, low: 1, close: 1 }]);
-    const onResult = vi.fn();
+    const onResult = jest.fn();
     customDatafeed.getBars(
       stubSymbolInfo,
       '5' as TVResolution,
       periodParams({ from: 0, to: 100, firstDataRequest: false }),
       onResult,
-      vi.fn(),
+      jest.fn(),
     );
     expect(onResult).toHaveBeenCalledWith([], { noData: true });
   });
 
   it('getBars calls onError when an exception is thrown', () => {
     setOhlcvData([{ time: 200_000, open: 1, high: 1, low: 1, close: 1 }]);
-    vi.mocked(fetchOlderBarsFromPriceApi).mockImplementation(() => {
+    jest.mocked(fetchOlderBarsFromPriceApi).mockImplementation(() => {
       throw new Error('fetch exploded');
     });
     setOhlcvPagination({
@@ -222,8 +217,8 @@ describe('customDatafeed', () => {
       vsCurrency: 'usd',
     });
 
-    const onResult = vi.fn();
-    const onError = vi.fn();
+    const onResult = jest.fn();
+    const onError = jest.fn();
     customDatafeed.getBars(
       stubSymbolInfo,
       '5' as TVResolution,
@@ -235,13 +230,13 @@ describe('customDatafeed', () => {
   });
 
   it('searchSymbols returns empty array', () => {
-    const onResult = vi.fn();
+    const onResult = jest.fn();
     customDatafeed.searchSymbols('test', '', 'crypto', onResult);
     expect(onResult).toHaveBeenCalledWith([]);
   });
 
   it('subscribeBars / unsubscribeBars manage the realtime callback map', () => {
-    const onTick = vi.fn();
+    const onTick = jest.fn();
     customDatafeed.subscribeBars(
       stubSymbolInfo,
       '5' as TVResolution,
@@ -258,12 +253,12 @@ describe('forwardRealtimeTick', () => {
   beforeEach(() => _resetStateForTests());
 
   it('reports errors from listeners to RN without stopping others', () => {
-    const bridge = { postMessage: vi.fn() };
+    const bridge = { postMessage: jest.fn() };
     window.ReactNativeWebView = bridge;
-    const bad = vi.fn(() => {
+    const bad = jest.fn(() => {
       throw new Error('tick fail');
     });
-    const good = vi.fn();
+    const good = jest.fn();
     customDatafeed.subscribeBars(
       stubSymbolInfo,
       '5' as TVResolution,
@@ -284,8 +279,8 @@ describe('forwardRealtimeTick', () => {
   });
 
   it('invokes every registered listener with the tick', () => {
-    const a = vi.fn();
-    const b = vi.fn();
+    const a = jest.fn();
+    const b = jest.fn();
     customDatafeed.subscribeBars(stubSymbolInfo, '5' as TVResolution, a, 'g1');
     customDatafeed.subscribeBars(stubSymbolInfo, '5' as TVResolution, b, 'g2');
     forwardRealtimeTick({ time: 1, open: 1, high: 1, low: 1, close: 1 });

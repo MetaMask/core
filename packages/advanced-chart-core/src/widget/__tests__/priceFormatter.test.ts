@@ -1,5 +1,3 @@
-import { afterEach, describe, expect, it } from 'vitest';
-
 import type { ChartConfig } from '../../core/types.js';
 import {
   advancedChartPriceFormatterFactory,

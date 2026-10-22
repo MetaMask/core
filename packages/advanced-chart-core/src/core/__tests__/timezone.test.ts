@@ -1,5 +1,3 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-
 import {
   CANONICAL_TO_TV,
   resolveUserTimezone,
@@ -7,7 +5,7 @@ import {
 } from '../timezone.js';
 
 const stubIntlTimezone = (zone: string | undefined): void => {
-  vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(
+  jest.spyOn(Intl, 'DateTimeFormat').mockImplementation(
     () =>
       ({
         resolvedOptions: () => ({ timeZone: zone }) as ResolvedOptions,
@@ -21,7 +19,7 @@ type ResolvedOptions = {
 
 describe('resolveUserTimezone', () => {
   afterEach(() => {
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
   });
 
   it('returns a TV-supported zone when Intl reports one directly', () => {
@@ -42,7 +40,7 @@ describe('resolveUserTimezone', () => {
   });
 
   it('falls back to Etc/UTC when Intl throws', () => {
-    vi.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => {
+    jest.spyOn(Intl, 'DateTimeFormat').mockImplementation(() => {
       throw new Error('Intl broken');
     });
     expect(resolveUserTimezone()).toBe('Etc/UTC');

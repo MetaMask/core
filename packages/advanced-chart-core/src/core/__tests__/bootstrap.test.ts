@@ -1,6 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import {
   _resetHandlersForTests,
   dispatchInboundMessage,
@@ -39,7 +36,7 @@ const baseConfig: ChartConfig = {
 };
 
 type MockBridge = {
-  postMessage: Mock<(...args: [string]) => void>;
+  postMessage: jest.Mock<void, [string]>;
 };
 
 describe('core/bootstrap', () => {
@@ -51,7 +48,7 @@ describe('core/bootstrap', () => {
     _resetThemeForTests();
     _resetOhlcvIngestionForTests();
     _resetLoadLibraryForTests();
-    bridge = { postMessage: vi.fn() };
+    bridge = { postMessage: jest.fn() };
     window.ReactNativeWebView = bridge;
     window.CONFIG = baseConfig;
 
@@ -62,18 +59,18 @@ describe('core/bootstrap', () => {
       }
       return {} as HTMLElement;
     };
-    vi.spyOn(document, 'createElement').mockImplementation(
-      createElementImpl as never,
-    );
-    vi.spyOn(document.head, 'appendChild').mockImplementation(
-      ((node: Node) => node) as never,
-    );
-    vi.spyOn(window, 'addEventListener').mockImplementation(() => undefined);
-    vi.spyOn(document, 'addEventListener').mockImplementation(() => undefined);
+    jest
+      .spyOn(document, 'createElement')
+      .mockImplementation(createElementImpl as never);
+    jest
+      .spyOn(document.head, 'appendChild')
+      .mockImplementation(((node: Node) => node) as never);
+    jest.spyOn(window, 'addEventListener').mockImplementation();
+    jest.spyOn(document, 'addEventListener').mockImplementation();
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
     delete window.CONFIG;
     delete window.ReactNativeWebView;
   });
@@ -384,13 +381,15 @@ describe('core/bootstrap', () => {
   it('reports error to RN when loadTradingViewLibrary rejects', async () => {
     // Override the createElement mock to simulate a script load error
     const mockScript: Record<string, unknown> = {};
-    vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
+    jest.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
       if (tag === 'script') {
         return mockScript as unknown as HTMLScriptElement;
       }
       return {} as HTMLElement;
     }) as never);
-    vi.spyOn(document.head, 'appendChild').mockImplementation(((node: Node) => {
+    jest.spyOn(document.head, 'appendChild').mockImplementation(((
+      node: Node,
+    ) => {
       // Trigger the onerror handler asynchronously to simulate load failure
       if (mockScript.onerror) {
         setTimeout(() => (mockScript.onerror as () => void)(), 0);

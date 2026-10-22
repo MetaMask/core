@@ -1,7 +1,8 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "lib": ["ES2020", "DOM", "ES2022.Array"]
+    "lib": ["ES2020", "DOM", "ES2022.Array"],
+    "types": ["jest"]
   },
   "references": [],
   "include": ["../../types", "./src"]

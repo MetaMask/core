@@ -1,5 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
 import {
   _resetStateForTests,
   setChartReady,
@@ -48,17 +46,17 @@ describe('handlePulseTradeMarker', () => {
   beforeEach(() => {
     _resetStateForTests();
     _resetTradeMarkerStateForTests();
-    vi.useFakeTimers();
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
-      (callback: FrameRequestCallback) => {
+    jest.useFakeTimers();
+    jest
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
         setTimeout(() => callback(Date.now()), 16);
         return 0;
-      },
-    );
+      });
   });
   afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
+    jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   it('no-ops when widget is not ready', () => {
@@ -85,7 +83,7 @@ describe('handlePulseTradeMarker', () => {
 
     handlePulseTradeMarker({ id: 'a' });
     // Advance beyond the ~1.1s pulse to run every step.
-    vi.advanceTimersByTime(1500);
+    jest.advanceTimersByTime(1500);
 
     // At least one setProperties call each on fill and ring — the pulse
     // envelope varies size across frames.
@@ -112,7 +110,7 @@ describe('handlePulseTradeMarker', () => {
     handlePulseTradeMarker({ id: 'a' });
     const countAfterFirst = fillRec.properties.length;
     handlePulseTradeMarker({ id: 'a' }); // supersedes
-    vi.advanceTimersByTime(1500);
+    jest.advanceTimersByTime(1500);
     // Property calls continued after the second pulse — first's loop was cancelled.
     expect(fillRec.properties.length).toBeGreaterThan(countAfterFirst);
   });
@@ -146,7 +144,7 @@ describe('handlePulseTradeMarker', () => {
   });
 
   it('reports error when widget.activeChart() throws', () => {
-    const bridge = { postMessage: vi.fn() };
+    const bridge = { postMessage: jest.fn() };
     window.ReactNativeWebView = bridge;
     const widget = {
       activeChart: () => {
@@ -170,22 +168,22 @@ describe('handlePulseTradeMarker', () => {
     setChartReady(true);
     getShapesByMarkerId().set('a', { fill: 'fill-a', ring: null });
 
-    vi.restoreAllMocks();
-    vi.useFakeTimers();
+    jest.restoreAllMocks();
+    jest.useFakeTimers();
     let count = 0;
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
-      (callback: FrameRequestCallback) => {
+    jest
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
         count += 1;
         if (count > 2) {
           throw new Error('rAF unavailable');
         }
         setTimeout(() => callback(Date.now()), 16);
         return 0;
-      },
-    );
+      });
 
     handlePulseTradeMarker({ id: 'a' });
-    vi.advanceTimersByTime(1500);
+    jest.advanceTimersByTime(1500);
     expect(fillRec.properties.length).toBeGreaterThan(0);
   });
 
@@ -196,9 +194,9 @@ describe('handlePulseTradeMarker', () => {
     setChartReady(true);
     getShapesByMarkerId().set('a', { fill: 'fill-a', ring: null });
 
-    vi.restoreAllMocks();
-    vi.useFakeTimers();
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => {
+    jest.restoreAllMocks();
+    jest.useFakeTimers();
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation(() => {
       throw new Error('rAF unavailable');
     });
 

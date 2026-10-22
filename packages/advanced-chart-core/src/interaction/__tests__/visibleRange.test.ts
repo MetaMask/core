@@ -1,6 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import {
   _resetStateForTests,
   setChartReady,
@@ -16,11 +13,11 @@ import {
 } from '../visibleRange.js';
 
 type MockBridge = {
-  postMessage: Mock<(...args: [string]) => void>;
+  postMessage: jest.Mock<void, [string]>;
 };
 
 const installRNBridge = (): MockBridge => {
-  const bridge: MockBridge = { postMessage: vi.fn() };
+  const bridge: MockBridge = { postMessage: jest.fn() };
   window.ReactNativeWebView = bridge;
   return bridge;
 };
@@ -66,11 +63,11 @@ describe('attachVisibleRangeListeners', () => {
     delete window.ReactNativeWebView;
     setWidget({} as unknown as TVChartingLibraryWidget);
     setChartReady(true);
-    vi.useFakeTimers();
+    jest.useFakeTimers();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it('debounces zoom and emits CHART_INTERACTED with type=zoom', () => {
@@ -81,7 +78,7 @@ describe('attachVisibleRangeListeners', () => {
     emitZoom();
     emitZoom();
     expect(bridge.postMessage).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(450);
+    jest.advanceTimersByTime(450);
     expect(bridge.postMessage).toHaveBeenCalledTimes(1);
     const last = bridge.postMessage.mock.calls[0][0];
     expect(last).toContain('"interaction_type":"zoom"');
@@ -92,7 +89,7 @@ describe('attachVisibleRangeListeners', () => {
     const { chart, emitPan } = makeChart();
     attachVisibleRangeListeners(chart);
     emitPan();
-    vi.advanceTimersByTime(450);
+    jest.advanceTimersByTime(450);
     const last = bridge.postMessage.mock.calls[0][0];
     expect(last).toContain('"interaction_type":"pan"');
   });
@@ -103,7 +100,7 @@ describe('attachVisibleRangeListeners', () => {
     const { chart, emitZoom } = makeChart();
     attachVisibleRangeListeners(chart);
     emitZoom();
-    vi.advanceTimersByTime(450);
+    jest.advanceTimersByTime(450);
     expect(bridge.postMessage).not.toHaveBeenCalled();
   });
 
@@ -113,7 +110,7 @@ describe('attachVisibleRangeListeners', () => {
     const { chart, emitPan } = makeChart();
     attachVisibleRangeListeners(chart);
     emitPan();
-    vi.advanceTimersByTime(450);
+    jest.advanceTimersByTime(450);
     expect(bridge.postMessage).not.toHaveBeenCalled();
   });
 
@@ -128,7 +125,7 @@ describe('attachVisibleRangeListeners', () => {
         }),
       }),
       onVisibleRangeChanged: () => ({
-        subscribe: vi.fn(),
+        subscribe: jest.fn(),
       }),
     } as unknown as TVActiveChart;
 
@@ -143,8 +140,8 @@ describe('attachVisibleRangeListeners', () => {
     const bridge = installRNBridge();
     const chart = {
       getTimeScale: () => ({
-        barSpacingChanged: (): { subscribe: Mock } => ({
-          subscribe: vi.fn(),
+        barSpacingChanged: (): { subscribe: jest.Mock } => ({
+          subscribe: jest.fn(),
         }),
       }),
       onVisibleRangeChanged: () => ({
@@ -166,10 +163,10 @@ describe('attachVisibleRangeListeners', () => {
     const { chart, emitZoom, emitPan } = makeChart();
     attachVisibleRangeListeners(chart);
     emitZoom();
-    vi.advanceTimersByTime(450); // zoom fires
+    jest.advanceTimersByTime(450); // zoom fires
     bridge.postMessage.mockClear();
     emitPan();
-    vi.advanceTimersByTime(450);
+    jest.advanceTimersByTime(450);
     expect(bridge.postMessage).not.toHaveBeenCalled();
   });
 });

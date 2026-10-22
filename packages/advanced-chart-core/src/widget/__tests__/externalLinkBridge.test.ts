@@ -1,6 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import {
   _resetExternalLinkBridgeForTests,
   installTradingViewExternalOpenBridge,
@@ -9,7 +6,7 @@ import {
 } from '../externalLinkBridge.js';
 
 type MockBridge = {
-  postMessage: Mock<(...args: [string]) => void>;
+  postMessage: jest.Mock<void, [string]>;
 };
 
 // Markers the bridge writes onto the real `window`/`document`. Their names are
@@ -27,7 +24,7 @@ type DocumentWithCaptureFlag = {
 } & Document;
 
 const installRNBridge = (): MockBridge => {
-  const bridge: MockBridge = { postMessage: vi.fn() };
+  const bridge: MockBridge = { postMessage: jest.fn() };
   window.ReactNativeWebView = bridge;
   return bridge;
 };
@@ -69,19 +66,19 @@ describe('installTradingViewExternalOpenBridge', () => {
   beforeEach(() => {
     _resetExternalLinkBridgeForTests();
     delete (window as WindowWithOpenPatch).__mmTvOpenPatched;
-    vi.useFakeTimers();
+    jest.useFakeTimers();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
+    jest.useRealTimers();
+    jest.restoreAllMocks();
     delete window.ReactNativeWebView;
   });
 
   it('patches window.open to redirect TradingView URLs to RN', () => {
     const bridge = installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
-    const originalOpen = vi.fn();
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
+    const originalOpen = jest.fn();
     window.open = originalOpen;
 
     installTradingViewExternalOpenBridge();
@@ -99,8 +96,8 @@ describe('installTradingViewExternalOpenBridge', () => {
 
   it('passes through non-TradingView URLs to the original window.open', () => {
     installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
-    const originalOpen = vi.fn().mockReturnValue(null);
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
+    const originalOpen = jest.fn().mockReturnValue(null);
     window.open = originalOpen;
 
     installTradingViewExternalOpenBridge();
@@ -111,10 +108,8 @@ describe('installTradingViewExternalOpenBridge', () => {
 
   it('debounces repeated TradingView opens within 600ms', () => {
     const bridge = installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
-    // Vitest routes the bridge's `window.open` assignment into the spy, so
-    // it must not override the implementation.
-    vi.spyOn(window, 'open');
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
+    jest.spyOn(window, 'open').mockImplementation();
 
     installTradingViewExternalOpenBridge();
 
@@ -126,8 +121,8 @@ describe('installTradingViewExternalOpenBridge', () => {
 
   it('passes through when window.open is called with undefined URL', () => {
     installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
-    const originalOpen = vi.fn().mockReturnValue(null);
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
+    const originalOpen = jest.fn().mockReturnValue(null);
     window.open = originalOpen;
 
     installTradingViewExternalOpenBridge();
@@ -138,8 +133,8 @@ describe('installTradingViewExternalOpenBridge', () => {
 
   it('passes through when window.open is called with empty string URL', () => {
     installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
-    const originalOpen = vi.fn().mockReturnValue(null);
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
+    const originalOpen = jest.fn().mockReturnValue(null);
     window.open = originalOpen;
 
     installTradingViewExternalOpenBridge();
@@ -150,8 +145,8 @@ describe('installTradingViewExternalOpenBridge', () => {
 
   it('schedules deferred reapplication at 200, 800, and 2000ms', () => {
     installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
-    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
+    const setTimeoutSpy = jest.spyOn(globalThis, 'setTimeout');
 
     installTradingViewExternalOpenBridge();
 
@@ -165,16 +160,14 @@ describe('installTradingViewExternalOpenBridge', () => {
 
   it('reapplies patches when deferred timeouts fire', () => {
     const bridge = installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
-    // Vitest routes the bridge's `window.open` assignment into the spy, so
-    // it must not override the implementation.
-    vi.spyOn(window, 'open');
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
+    jest.spyOn(window, 'open').mockImplementation();
 
     installTradingViewExternalOpenBridge();
 
     // After the first call, window.open is already patched.
     // Advance through all deferred timeouts — they should not break anything.
-    vi.advanceTimersByTime(2100);
+    jest.advanceTimersByTime(2100);
 
     // The patch should still work correctly after reapplication.
     window.open('https://tradingview.com/chart');
@@ -189,13 +182,13 @@ describe('installTradingViewExternalOpenBridge', () => {
   it('attaches a load listener to the iframe inside tv_chart_container', () => {
     installRNBridge();
     const mockIframe = document.createElement('iframe');
-    const addListenerSpy = vi.spyOn(mockIframe, 'addEventListener');
+    const addListenerSpy = jest.spyOn(mockIframe, 'addEventListener');
 
     const container = document.createElement('div');
     container.id = 'tv_chart_container';
     container.appendChild(mockIframe);
 
-    vi.spyOn(document, 'getElementById').mockReturnValue(container);
+    jest.spyOn(document, 'getElementById').mockReturnValue(container);
 
     installTradingViewExternalOpenBridge();
 
@@ -204,8 +197,8 @@ describe('installTradingViewExternalOpenBridge', () => {
 
   it('does not double-install window.open patch when called twice', () => {
     installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
-    const originalOpen = vi.fn();
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
+    const originalOpen = jest.fn();
     window.open = originalOpen;
 
     installTradingViewExternalOpenBridge();
@@ -222,18 +215,18 @@ describe('handleTradingViewLinkCapture (click handler)', () => {
     _resetExternalLinkBridgeForTests();
     delete (window as WindowWithOpenPatch).__mmTvOpenPatched;
     delete (document as DocumentWithCaptureFlag).__mmTvLinkCaptureInstalled;
-    vi.useFakeTimers();
+    jest.useFakeTimers();
   });
 
   afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
+    jest.useRealTimers();
+    jest.restoreAllMocks();
     delete window.ReactNativeWebView;
   });
 
   it('posts CHART_TRADINGVIEW_CLICKED when a TradingView anchor is clicked', () => {
     const bridge = installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
 
     installTradingViewExternalOpenBridge();
 
@@ -256,7 +249,7 @@ describe('handleTradingViewLinkCapture (click handler)', () => {
 
   it('calls preventDefault and stopPropagation on the click event', () => {
     installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
 
     installTradingViewExternalOpenBridge();
 
@@ -264,8 +257,8 @@ describe('handleTradingViewLinkCapture (click handler)', () => {
     anchor.href = 'https://tradingview.com/chart/abc';
     document.body.appendChild(anchor);
 
-    const preventDefaultSpy = vi.fn();
-    const stopPropagationSpy = vi.fn();
+    const preventDefaultSpy = jest.fn();
+    const stopPropagationSpy = jest.fn();
 
     try {
       const event = new MouseEvent('click', { bubbles: true });
@@ -286,7 +279,7 @@ describe('handleTradingViewLinkCapture (click handler)', () => {
 
   it('ignores clicks on elements that are not inside an anchor', () => {
     const bridge = installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
 
     installTradingViewExternalOpenBridge();
 
@@ -303,7 +296,7 @@ describe('handleTradingViewLinkCapture (click handler)', () => {
 
   it('ignores clicks on anchors with non-TradingView hrefs', () => {
     const bridge = installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
 
     installTradingViewExternalOpenBridge();
 
@@ -321,7 +314,7 @@ describe('handleTradingViewLinkCapture (click handler)', () => {
 
   it('ignores clicks on anchors with empty href', () => {
     const bridge = installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
 
     installTradingViewExternalOpenBridge();
 
@@ -339,7 +332,7 @@ describe('handleTradingViewLinkCapture (click handler)', () => {
 
   it('debounces repeated anchor clicks within 600ms', () => {
     const bridge = installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
 
     installTradingViewExternalOpenBridge();
 
@@ -360,7 +353,7 @@ describe('handleTradingViewLinkCapture (click handler)', () => {
 
   it('allows another click after the 600ms debounce window expires', () => {
     const bridge = installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
 
     installTradingViewExternalOpenBridge();
 
@@ -373,8 +366,8 @@ describe('handleTradingViewLinkCapture (click handler)', () => {
       expect(bridge.postMessage).toHaveBeenCalledTimes(1);
 
       // Advance past the debounce window.
-      vi.advanceTimersByTime(601);
-      vi.setSystemTime(Date.now() + 601);
+      jest.advanceTimersByTime(601);
+      jest.setSystemTime(Date.now() + 601);
 
       anchor.click();
       expect(bridge.postMessage).toHaveBeenCalledTimes(2);
@@ -385,7 +378,7 @@ describe('handleTradingViewLinkCapture (click handler)', () => {
 
   it('captures clicks on child elements inside a TradingView anchor', () => {
     const bridge = installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
 
     installTradingViewExternalOpenBridge();
 
@@ -411,8 +404,8 @@ describe('handleTradingViewLinkCapture (click handler)', () => {
 
   it('does not install duplicate click listeners on the same document', () => {
     installRNBridge();
-    vi.spyOn(document, 'getElementById').mockReturnValue(null);
-    const addListenerSpy = vi.spyOn(document, 'addEventListener');
+    jest.spyOn(document, 'getElementById').mockReturnValue(null);
+    const addListenerSpy = jest.spyOn(document, 'addEventListener');
 
     installTradingViewExternalOpenBridge();
     const clickListenerCount1 = addListenerSpy.mock.calls.filter(

@@ -1,15 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import type { InboundMessage } from '../../messages/contract.js';
 import { onFromRN, postToRN, reportErrorToRN } from '../bridge.js';
 
 type MockBridge = {
-  postMessage: Mock<(...args: [string]) => void>;
+  postMessage: jest.Mock<void, [string]>;
 };
 
 const installRNBridge = (): MockBridge => {
-  const bridge: MockBridge = { postMessage: vi.fn() };
+  const bridge: MockBridge = { postMessage: jest.fn() };
   window.ReactNativeWebView = bridge;
   return bridge;
 };
@@ -69,30 +66,30 @@ describe('core/bridge', () => {
 
     beforeEach(() => {
       listeners = { window: [], document: [] };
-      vi.spyOn(window, 'addEventListener').mockImplementation(
-        (type: string, listener: EventListenerOrEventListenerObject) => {
-          if (type === 'message') {
-            listeners.window.push(listener as EventListener);
-          }
-        },
-      );
-      vi.spyOn(document, 'addEventListener').mockImplementation(
-        (type: string, listener: EventListenerOrEventListenerObject) => {
-          if (type === 'message') {
-            listeners.document.push(listener as EventListener);
-          }
-        },
-      );
-      vi.spyOn(window, 'removeEventListener').mockImplementation(
-        () => undefined,
-      );
-      vi.spyOn(document, 'removeEventListener').mockImplementation(
-        () => undefined,
-      );
+      jest
+        .spyOn(window, 'addEventListener')
+        .mockImplementation(
+          (type: string, listener: EventListenerOrEventListenerObject) => {
+            if (type === 'message') {
+              listeners.window.push(listener as EventListener);
+            }
+          },
+        );
+      jest
+        .spyOn(document, 'addEventListener')
+        .mockImplementation(
+          (type: string, listener: EventListenerOrEventListenerObject) => {
+            if (type === 'message') {
+              listeners.document.push(listener as EventListener);
+            }
+          },
+        );
+      jest.spyOn(window, 'removeEventListener').mockImplementation();
+      jest.spyOn(document, 'removeEventListener').mockImplementation();
     });
 
     afterEach(() => {
-      vi.restoreAllMocks();
+      jest.restoreAllMocks();
     });
 
     it('subscribes to both window and document message events', () => {
@@ -102,7 +99,7 @@ describe('core/bridge', () => {
     });
 
     it('parses JSON string payloads and forwards typed messages', () => {
-      const handler = vi.fn();
+      const handler = jest.fn();
       onFromRN(handler);
       const evt = {
         data: JSON.stringify({
@@ -127,7 +124,7 @@ describe('core/bridge', () => {
     });
 
     it('drops messages missing a string `type` field', () => {
-      const handler = vi.fn();
+      const handler = jest.fn();
       onFromRN(handler);
       listeners.window[0]({
         data: JSON.stringify({ noType: true }),
@@ -138,7 +135,7 @@ describe('core/bridge', () => {
     });
 
     it('rejects messages from real web origins', () => {
-      const handler = vi.fn();
+      const handler = jest.fn();
       onFromRN(handler);
       listeners.window[0]({
         origin: 'https://evil.com',
