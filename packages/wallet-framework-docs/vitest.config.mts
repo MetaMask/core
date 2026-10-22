@@ -8,7 +8,6 @@ export default mergeConfig(
     test: {
       name: 'wallet-framework-docs',
 
-      // The example code and its tests live in `content/`, next to the docs.
       include: ['content/**/*.test.ts'],
 
       coverage: {
