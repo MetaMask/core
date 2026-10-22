@@ -89,11 +89,6 @@
       "count": 2
     }
   },
-  "packages/analytics-controller/src/AnalyticsController.test.ts": {
-    "TS2741": {
-      "count": 6
-    }
-  },
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "TS6307": {
       "count": 1
