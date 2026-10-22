@@ -36,6 +36,7 @@ import { v4 as uuidV4 } from 'uuid';
 import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { advanceTimeUntilSettled } from '../../../tests/vitest/helpers.js';
 import {
   buildAddNetworkFields,
   buildCustomNetworkClientConfiguration,
@@ -90,31 +91,6 @@ async function advanceTime({
     await new Promise((resolve) => realSetTimeout(resolve, 0));
     value -= stepSize;
   } while (value > 0);
-}
-
-/**
- * Keeps advancing the fake timers until the given promise settles. A fixed
- * advance can finish before nock's reply lands on a slow runner, which leaves
- * the promise waiting on a timer that nothing advances any more.
- *
- * @param promise - The promise to wait for.
- * @returns The value the promise resolves to.
- */
-async function advanceTimeUntilSettled<Value>(
-  promise: Promise<Value>,
-): Promise<Value> {
-  const status = { settled: false };
-  promise
-    .finally(() => {
-      status.settled = true;
-    })
-    .catch(() => undefined);
-
-  while (!status.settled) {
-    await advanceTime({ duration: 1 });
-  }
-
-  return await promise;
 }
 
 vi.mock(import('uuid'), async (importOriginal) => {
