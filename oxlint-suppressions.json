@@ -679,11 +679,6 @@
       "count": 1
     }
   },
-  "packages/assets-controller/src/pipeline/buildWsUpdateSources.price-updates.integration.test.ts": {
-    "vitest/no-conditional-in-test": {
-      "count": 3
-    }
-  },
   "packages/assets-controller/src/pipeline/executeAssetsPipeline.ts": {
     "no-unused-vars": {
       "count": 1

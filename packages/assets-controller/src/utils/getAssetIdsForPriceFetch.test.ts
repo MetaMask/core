@@ -1,4 +1,5 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { describe, expect, it, vi } from 'vitest';
 
 import type {
   AssetBalance,
@@ -294,7 +295,7 @@ describe('getAssetIdsForPriceFetch', () => {
   });
 
   it('skips hidden response balances', async () => {
-    const getSupportedNetworks = jest.fn(async () => new Set([CHAIN_MAINNET]));
+    const getSupportedNetworks = vi.fn(async () => new Set([CHAIN_MAINNET]));
 
     const result = await getUnpricedResponseAssetIds({
       state: {
@@ -316,7 +317,7 @@ describe('getAssetIdsForPriceFetch', () => {
   });
 
   it('does not load supported networks when nothing priceable remains', async () => {
-    const getSupportedNetworks = jest.fn();
+    const getSupportedNetworks = vi.fn();
 
     const result = await getUnpricedResponseAssetIds({
       state: { ...emptyState(), assetsPrice: {} },
