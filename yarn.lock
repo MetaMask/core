@@ -8582,7 +8582,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/perps-controller@npm:^21.0.0, @metamask/perps-controller@workspace:packages/perps-controller":
+"@metamask/perps-controller@npm:^22.0.0, @metamask/perps-controller@workspace:packages/perps-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/perps-controller@workspace:packages/perps-controller"
   dependencies:
@@ -9569,7 +9569,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.1.1"
-    "@metamask/perps-controller": "npm:^21.0.0"
+    "@metamask/perps-controller": "npm:^22.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/superstruct": "npm:^3.4.1"
