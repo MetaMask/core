@@ -6393,11 +6393,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/byte-utils@workspace:packages/byte-utils":
+"@metamask/byte-utils@npm:^0.0.0, @metamask/byte-utils@workspace:packages/byte-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/byte-utils@workspace:packages/byte-utils"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
+    "@metamask/type-utils": "npm:^0.0.0"
+    "@scure/base": "npm:^1.2.6"
     "@typescript/native": "npm:typescript@^7.0.2"
     rimraf: "npm:^6.1.3"
     typedoc: "npm:^0.28.20"
@@ -9673,13 +9675,13 @@ __metadata:
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
+    "@metamask/byte-utils": "npm:^0.0.0"
     "@metamask/error-utils": "npm:^0.0.0"
     "@metamask/node-utils": "npm:^0.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/type-utils": "npm:^0.0.0"
     "@noble/hashes": "npm:^1.8.0"
-    "@scure/base": "npm:^1.2.6"
     "@types/debug": "npm:^4.1.7"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash": "npm:^4.17.26"
