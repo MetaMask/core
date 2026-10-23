@@ -1335,6 +1335,18 @@ function expectScriptConfigs(workspace) {
 
   expectWorkspaceField(
     workspace,
+    'scriptsConfig.messenger-action-types:check',
+    'lavamoat/scripts.lint.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.messenger-action-types:generate',
+    'lavamoat/scripts.lint.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
     'scriptsConfig.test',
     'lavamoat/scripts.test.json',
   );

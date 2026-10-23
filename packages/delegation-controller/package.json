@@ -78,6 +78,8 @@
     "changelog:validate": "lavamoat/scripts.lint.json",
     "lint:tsconfigs": "lavamoat/scripts.lint-worker.json",
     "lint:tsconfigs:fix": "lavamoat/scripts.lint-worker.json",
+    "messenger-action-types:check": "lavamoat/scripts.lint.json",
+    "messenger-action-types:generate": "lavamoat/scripts.lint.json",
     "test": "lavamoat/scripts.test.json",
     "test:clean": "lavamoat/scripts.test.json",
     "test:verbose": "lavamoat/scripts.test.json",
