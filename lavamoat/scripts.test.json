@@ -1,0 +1,18 @@
+{
+  "extends": "./scripts.base.json",
+  "nodeOptions": {
+    "--allow-fs-read": [
+      "/"
+    ],
+    "--allow-fs-write": [
+      "$PROJECT_CWD"
+    ],
+    "--allow-child-process": true,
+    "--allow-net": false,
+    "--allow-worker": false,
+    "--allow-addons": true,
+    "--allow-wasi": false,
+    "--allow-inspector": false,
+    "--allow-ffi": false
+  }
+}
