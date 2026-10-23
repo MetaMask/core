@@ -1,46 +1,11 @@
 import { basename, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
 import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
-import type { Plugin, ViteUserConfig } from 'vitest/config';
+import type { ViteUserConfig } from 'vitest/config';
 
-import baseConfig from '../../vitest.config.packages.js';
+import baseConfig, { lowerDecorators } from '../../vitest.config.packages.js';
 
 const name = basename(dirname(fileURLToPath(import.meta.url)));
-
-// A line that starts with a decorator, e.g. `@trackAssetsLoading`.
-const DECORATOR_PATTERN = /^\s*@[A-Za-z_$][\w$]*/mu;
-
-/**
- * Oxc, which Vitest uses to strip types, leaves standard (TC39) decorators in
- * place, and Node cannot run them. `AssetsController` uses one, so compile any
- * module that has a decorator with TypeScript first, the way ts-jest did.
- *
- * @returns The Vite plugin.
- */
-function lowerDecorators(): Plugin {
-  return {
-    name: 'lower-decorators',
-    enforce: 'pre',
-    transform(code, id) {
-      const [fileName = id] = id.split('?');
-      if (!fileName.endsWith('.ts') || !DECORATOR_PATTERN.test(code)) {
-        return null;
-      }
-
-      const { outputText, sourceMapText } = ts.transpileModule(code, {
-        fileName,
-        compilerOptions: {
-          module: ts.ModuleKind.ESNext,
-          sourceMap: true,
-          target: ts.ScriptTarget.ES2022,
-        },
-      });
-
-      return { code: outputText, map: sourceMapText ?? null };
-    },
-  };
-}
 
 /**
  * The suites selected with `--mode`. `yarn test` runs both the unit and the
