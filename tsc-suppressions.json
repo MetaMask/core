@@ -98,11 +98,8 @@
     "TS2322": {
       "count": 12
     },
-    "TS2339": {
-      "count": 3
-    },
     "TS2345": {
-      "count": 2
+      "count": 1
     },
     "TS2352": {
       "count": 2
@@ -259,11 +256,6 @@
     },
     "TS2353": {
       "count": 1
-    }
-  },
-  "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.test.ts": {
-    "TS7031": {
-      "count": 2
     }
   },
   "packages/assets-controllers/src/selectors/token-selectors.test.ts": {
@@ -737,7 +729,7 @@
     }
   },
   "packages/perps-controller/tests/src/providers/HyperLiquidProvider.account-mode.test.ts": {
-    "TS2345": {
+    "TS2322": {
       "count": 1
     }
   },
@@ -747,7 +739,7 @@
     }
   },
   "packages/perps-controller/tests/src/providers/HyperLiquidProvider.builder-fees.test.ts": {
-    "TS2345": {
+    "TS2740": {
       "count": 1
     }
   },
@@ -770,13 +762,13 @@
       "count": 1
     },
     "TS2322": {
-      "count": 35
+      "count": 36
     },
     "TS2339": {
       "count": 1
     },
     "TS2345": {
-      "count": 3
+      "count": 2
     },
     "TS7006": {
       "count": 2
@@ -1286,9 +1278,6 @@
       "count": 1
     },
     "TS2741": {
-      "count": 1
-    },
-    "TS2769": {
       "count": 1
     }
   },

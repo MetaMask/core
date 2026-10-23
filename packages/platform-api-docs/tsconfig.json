@@ -2,8 +2,7 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "allowImportingTsExtensions": true,
-    "rewriteRelativeImportExtensions": true,
-    "types": ["jest"]
+    "rewriteRelativeImportExtensions": true
   },
   "references": [
     {

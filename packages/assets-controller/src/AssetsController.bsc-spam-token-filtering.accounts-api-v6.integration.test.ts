@@ -1,5 +1,6 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import { cleanAll } from 'nock';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   STATE_METADATA_SURFACE,
@@ -187,7 +188,7 @@ describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE)', () 
   it('generates snapshot (source of truth)', async () => {
     const { state } = await fetchWallet();
 
-    // eslint-disable-next-line jest/no-restricted-matchers
+    // eslint-disable-next-line vitest/no-restricted-matchers
     expect(withZeroedTimestamps(state)).toMatchSnapshot();
   });
 });

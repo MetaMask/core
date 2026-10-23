@@ -72,6 +72,9 @@
       "path": "./packages/build-utils"
     },
     {
+      "path": "./packages/byte-utils"
+    },
+    {
       "path": "./packages/chain-agnostic-permission"
     },
     {
@@ -357,6 +360,7 @@
     "./knip.config.mts",
     "./vitest.config.packages.ts",
     "./vitest.config.scripts.ts",
-    "./packages/*/vitest.config.ts"
+    "./packages/*/vitest.config.ts",
+    "./packages/*/vitest.config.mts"
   ]
 }

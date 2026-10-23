@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0]
+
 ### Added
 
 - Add optional `partnerIdentityToken` to `CreateUkycSessionParams`; `KycService.createUkycSession` sends it on `POST /sessions` when provided ([#10872](https://github.com/MetaMask/core/pull/10872))
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Cache successful `KycService.fetchIdosEnclaveJwks` and `KycService.fetchIdosRelayJwks` responses in the service query cache for 24 hours ([#10894](https://github.com/MetaMask/core/pull/10894))
   - `KycService:invalidateQueries` drops the cached keys
+- Session creation and capability-authorization refresh throw a short, displayable error when fetching issuer signing keys fails or an encryption schema's `jwtChain` does not verify. The original error is preserved on `cause` ([#10834](https://github.com/MetaMask/core/pull/10834))
 
 ## [0.11.0]
 
@@ -191,7 +194,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.11.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.0...HEAD
+[0.12.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.11.0...@metamask/kyc-controller@0.12.0
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.10.0...@metamask/kyc-controller@0.11.0
 [0.10.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.9.0...@metamask/kyc-controller@0.10.0
 [0.9.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.8.0...@metamask/kyc-controller@0.9.0

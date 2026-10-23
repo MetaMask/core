@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { MarketDataFormatters } from '../../../src/types/index.js';
 import type {
   LighterApiOrder,
@@ -17,7 +19,7 @@ import {
   adaptPositionFromLighter,
 } from '../../../src/utils/lighterAdapter.js';
 
-// Built per-test (jest resetMocks wipes module-scope jest.fn implementations).
+// Built per-test (jest resetMocks wipes module-scope vi.fn implementations).
 const buildFormatters = (): MarketDataFormatters => ({
   formatPerpsFiat: (value: number) => `$${value.toFixed(2)}`,
   formatVolume: (value: number) => `$${value}`,

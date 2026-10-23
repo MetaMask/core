@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { PerpsControllerError } from '../../../src/errors.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import {

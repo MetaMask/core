@@ -1,3 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import {
   LighterApiError,
   LighterClientService,
@@ -57,7 +60,7 @@ const VALID_TRADE_WIRE = {
 };
 
 describe('LighterClientService', () => {
-  let fetchMock: jest.Mock;
+  let fetchMock: Mock;
 
   const buildService = (isTestnet = true): LighterClientService =>
     new LighterClientService(createMockInfrastructure(), { isTestnet });
@@ -66,14 +69,14 @@ describe('LighterClientService', () => {
     payload: unknown,
     ok = true,
     status = 200,
-  ): { ok: boolean; status: number; json: jest.Mock } => ({
+  ): { ok: boolean; status: number; json: Mock } => ({
     ok,
     status,
-    json: jest.fn().mockResolvedValue(payload),
+    json: vi.fn().mockResolvedValue(payload),
   });
 
   beforeEach(() => {
-    fetchMock = jest.fn();
+    fetchMock = vi.fn();
     global.fetch = fetchMock;
   });
 
@@ -84,7 +87,7 @@ describe('LighterClientService', () => {
       fetchMock.mockResolvedValue({
         ok: true,
         status: 200,
-        text: jest.fn().mockResolvedValue(raw),
+        text: vi.fn().mockResolvedValue(raw),
       });
       const result = await buildService().getEditableOrders(28, 'auth');
       expect(result.orders[0].orderIndex).toBe('288230376151711745');
@@ -97,7 +100,7 @@ describe('LighterClientService', () => {
       fetchMock.mockResolvedValue({
         ok: true,
         status: 200,
-        text: jest.fn().mockResolvedValue(raw),
+        text: vi.fn().mockResolvedValue(raw),
       });
       await buildService().getEditableOrders(28, 'auth', ['1']);
       expect(fetchMock).toHaveBeenCalledWith(
@@ -115,7 +118,7 @@ describe('LighterClientService', () => {
       fetchMock.mockResolvedValue({
         ok: true,
         status: 200,
-        text: jest
+        text: vi
           .fn()
           .mockResolvedValue(
             raw.replace(
@@ -134,7 +137,7 @@ describe('LighterClientService', () => {
         fetchMock.mockResolvedValue({
           ok: true,
           status: 200,
-          text: jest
+          text: vi
             .fn()
             .mockResolvedValue(raw.replace('288230376151711745', id)),
         });
