@@ -2,7 +2,6 @@ import type { Caip19AssetId } from '../types.js';
 import {
   clearNormalizeAssetIdCacheForTesting,
   normalizeAssetId,
-  tryNormalizeAssetId,
 } from './normalizeAssetId.js';
 
 describe('normalizeAssetId', () => {
@@ -24,12 +23,6 @@ describe('normalizeAssetId', () => {
       'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as Caip19AssetId;
 
     expect(normalizeAssetId(solanaId)).toBe(solanaId);
-  });
-
-  it('returns undefined when checksumming throws', () => {
-    expect(
-      tryNormalizeAssetId('not-a-valid-caip19' as Caip19AssetId),
-    ).toBeUndefined();
   });
 
   it('memoizes results for the same asset ID', () => {

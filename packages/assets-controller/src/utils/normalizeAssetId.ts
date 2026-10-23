@@ -44,9 +44,6 @@ export const normalizeAssetId: ((assetId: Caip19AssetId) => Caip19AssetId) &
  * make {@link normalizeAssetId} throw; callers processing untrusted input
  * use this so one bad ID cannot abort a whole batch.
  *
- * Callers that must not store a lowercase id should use
- * {@link tryNormalizeAssetId} and skip `undefined`.
- *
  * @param assetId - The CAIP-19 asset ID to normalize.
  * @returns The normalized ID, or the original on failure.
  */
@@ -55,23 +52,6 @@ export function safeNormalizeAssetId(assetId: Caip19AssetId): Caip19AssetId {
     return normalizeAssetId(assetId);
   } catch {
     return assetId;
-  }
-}
-
-/**
- * Checksum a CAIP-19 asset ID. Returns `undefined` when checksumming throws,
- * so the caller can skip that id instead of keeping a lowercase original.
- *
- * @param assetId - The CAIP-19 asset ID to normalize.
- * @returns The checksummed ID, or `undefined` when it cannot be checksummed.
- */
-export function tryNormalizeAssetId(
-  assetId: Caip19AssetId,
-): Caip19AssetId | undefined {
-  try {
-    return normalizeAssetId(assetId);
-  } catch {
-    return undefined;
   }
 }
 

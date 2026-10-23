@@ -7,7 +7,7 @@ import type {
   DataRequest,
   DataResponse,
 } from '../types.js';
-import { tryNormalizeAssetId } from './normalizeAssetId.js';
+import { normalizeAssetId } from './normalizeAssetId.js';
 
 const log = createModuleLogger(projectLogger, 'getAssetIdsForPriceFetch');
 
@@ -97,12 +97,7 @@ export function getResponseAssetIdsForPriceFetch({
   const assetIds = new Set<Caip19AssetId>();
   for (const accountBalances of Object.values(response.assetsBalance ?? {})) {
     for (const assetId of Object.keys(accountBalances)) {
-      const id = tryNormalizeAssetId(assetId as Caip19AssetId);
-      if (id === undefined) {
-        log('Skipping malformed asset ID for price fetch', { assetId });
-        continue;
-      }
-      assetIds.add(id);
+      assetIds.add(normalizeAssetId(assetId as Caip19AssetId));
     }
   }
   return assetIds;
@@ -235,17 +230,14 @@ function collectHiddenAssetIdKeys(
   return new Set(
     Object.entries(assetPreferences ?? {})
       .filter(([, preferences]) => preferences.hidden)
-      .flatMap(([assetId]) => {
-        const id = tryNormalizeAssetId(assetId as Caip19AssetId);
-        return id === undefined ? [] : [id];
-      }),
+      .map(([assetId]) => normalizeAssetId(assetId as Caip19AssetId)),
   );
 }
 
 /**
  * Checksum `assetId`, then keep it when it is in chain scope and not hidden.
- * An id that fails checksumming is skipped. {@link tryNormalizeAssetId} uses
- * the memoized checksum, so an id that is already checksummed is cheap.
+ * An id that fails checksumming is skipped. {@link normalizeAssetId} is
+ * memoized, so an id that is already checksummed is cheap.
  *
  * @param assetId - Candidate CAIP-19 asset ID.
  * @param assetIds - Collected ids.
@@ -258,15 +250,11 @@ function addStoredAssetId(
   chainFilter: Set<string> | undefined,
   hiddenAssetIds: Set<Caip19AssetId>,
 ): void {
-  const id = tryNormalizeAssetId(assetId as Caip19AssetId);
-  if (id === undefined) {
-    log('Skipping malformed asset ID for price fetch', { assetId });
-    return;
-  }
-  if (hiddenAssetIds.has(id)) {
-    return;
-  }
   try {
+    const id = normalizeAssetId(assetId as Caip19AssetId);
+    if (hiddenAssetIds.has(id)) {
+      return;
+    }
     const { chainId } = parseCaipAssetType(id);
     if (chainFilter && !chainFilter.has(chainId)) {
       return;

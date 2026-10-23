@@ -75,46 +75,82 @@ flowchart LR
 
 ## Prices
 
-A balance refresh fetches a price only for tokens on that response that the
-wallet does not have a price for yet, on the accounts and chains this refresh
-asked about.
+A balance refresh and the price poll retrieve different tokens.
 
-A token that already has a price is left alone. The price poll updates those,
-and it also prices held tokens, custom tokens, and tokens we already have
-metadata for when this response did not include them. A caller that names
-specific tokens uses `syncAssetsPrices`, which fetches them again even when a
-price is already stored.
+**On a balance refresh**, prices come only from tokens on this response. A
+token is retrieved when all of these are true:
 
-Hidden tokens are skipped. So are tokens that cannot have a market price, such
-as staking placeholders and Tron bandwidth or energy. Tokens on a chain the
-price service does not support are skipped too. If that service cannot be
-reached, we still ask for the tokens we had, rather than pricing nothing.
+- It is on this response's balances. The balance step already limited that
+  list to the accounts and chains this refresh asked about.
+- The user has not hidden it.
+- It can have a market price. A staking placeholder (a `slip44` id with a
+  suffix after the coin type) and Tron bandwidth or energy are skipped.
+- Its chain is one the price service supports. If that service cannot be
+  reached, this check is skipped and the remaining tokens are still asked for.
+- The wallet does not already have a price stored for it.
 
-A price the poll fetched in the last minute is not fetched again. Two polls
-that need the same price share one request.
+A token that already has a stored price is left alone on a refresh.
 
-Changing the display currency is the exception. Those prices are in the wrong
-currency, so the cache is cleared and every token the user holds is priced
-again.
+**On the price poll**, the list is built from saved state, not from the
+response. It includes every one of these, then drops the same hidden,
+non-priceable, and unsupported-chain tokens as a refresh:
+
+- Every token in saved balances, on the accounts and chains this poll asked
+  about.
+- Every custom token on those accounts.
+- Every token we already have saved metadata for, on those chains.
+
+An empty account list means every account. An empty chain list means every
+chain. Tokens that already have a price stay on this list, so the poll can
+refresh them.
+
+A price fetched in the last minute is not fetched again. Two requests that
+need the same price share one request. A request that forces an update clears
+that one-minute cache for the tokens it is about to ask for.
+
+A caller that names specific tokens uses `syncAssetsPrices`, which fetches
+them again even when a price is already stored.
+
+Changing the display currency is separate from both of the lists above. Those
+prices are in the wrong currency, so the cache is cleared and every token the
+user holds is priced again.
 
 ## Token metadata
 
-A name and icon are fetched when we do not already have an image for the token.
-That includes tokens the user already holds, and tokens that just arrived in
-this refresh. Hidden tokens and staking placeholders are skipped. The chain's
-own coin is always included, even when this refresh did not mention it.
+A name and icon are fetched for a token that does not already have an image.
+The list is built from two places.
 
-A token the user already holds is filled in and kept. A token that just
-appeared for the first time is checked so spam does not land in the wallet:
+**From saved balances.** Every token an account holds in state, limited to the
+accounts and chains this refresh asked about. An empty account list means
+every account. An empty chain list means every chain. Each of these is a heal:
+the missing name or icon is filled in, and the token is not spam-filtered.
 
-| Token                          | What we do                                                                                                       |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| The chain's own coin           | Always keep it                                                                                                   |
-| A token the user added         | Always keep it                                                                                                   |
-| mUSD                           | Always keep it                                                                                                   |
-| A token the user already holds | Keep it, and fill in the missing name or icon                                                                    |
-| A new Ethereum-style token     | Keep it only if enough other sources list it. The usual bar is 3. Unknown tokens are treated as spam and dropped |
-| A new token on another chain   | Ask Blockaid, and drop it if that scan says it is malicious                                                      |
+**From this refresh's balances.** Every token on the response. The balance
+step already limited that response to this refresh. A response token is a heal
+when it is already in saved balances, or when we already have any saved
+metadata for it. A response token that is in neither is new.
+
+A token is left off both lists when any of these is true:
+
+- The user hid it.
+- This response already includes an image for it.
+- Saved metadata already includes an image for it.
+- It is a staking-contract placeholder.
+
+Of what remains, only chains the token service supports are asked for. If none
+of the tokens are on a supported chain, nothing is fetched.
+
+After the token service answers, each returned token is kept or dropped:
+
+| Token                                                          | What we do                                                                                                                                |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| The chain's own coin                                           | Always keep it                                                                                                                            |
+| A token the user added                                         | Always keep it                                                                                                                            |
+| mUSD                                                           | Always keep it                                                                                                                            |
+| A heal (a saved balance, or a response token we already track) | Keep it, and fill in the missing name or icon                                                                                             |
+| A new Ethereum-style token                                     | Keep it only if enough other sources list it. The bar is that chain's suggested floor, usually 3. No count is treated as zero and dropped |
+| A new token on another chain                                   | Ask Blockaid, and drop it if that scan says it is malicious                                                                               |
+| Any other token the service returned                           | Keep it                                                                                                                                   |
 
 If the name-and-icon request fails, balances already fetched are left as they
 are.
@@ -155,6 +191,8 @@ What it costs:
 | ----------------------------------- | --------------------------------------------------------------------- |
 | Refresh prices for a list of tokens | `AssetsController:syncAssetsPrices`                                   |
 | User changed currency               | `AssetsController.setSelectedCurrency`                                |
-| Which tokens get a price            | `PriceDataSource`                                                     |
-| Which tokens get token metadata     | `TokenDataSource`                                                     |
+| Which tokens a refresh prices       | `getUnpricedResponseAssetIds`                                         |
+| Which tokens the price poll prices  | `getAssetIdsForPriceFetch`                                            |
+| Which tokens get token metadata     | `getAssetIdsForMetadataFetch`                                         |
+| How those lists are fetched         | `PriceDataSource`, `TokenDataSource`                                  |
 | Order of a refresh                  | `buildFastFetchSources`, `buildUpdateSources`, `buildWsUpdateSources` |

@@ -3,7 +3,6 @@ export { normalizeAmountString } from './normalizeAmountString.js';
 export {
   normalizeAssetId,
   safeNormalizeAssetId,
-  tryNormalizeAssetId,
   clearNormalizeAssetIdCacheForTesting,
 } from './normalizeAssetId.js';
 export {

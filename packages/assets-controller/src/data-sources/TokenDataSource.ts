@@ -529,6 +529,7 @@ export class TokenDataSource {
       const { request, response } = ctx;
       const assetsState = this.#getAssetsState();
       const { customAssets } = assetsState;
+      const nativeAssetIdsList = this.#getNativeAssetIds();
       const { assetIdsNeedingMetadata, balanceHealAssetIds } =
         getAssetIdsForMetadataFetch({
           state: assetsState,
@@ -546,14 +547,10 @@ export class TokenDataSource {
           .map((id) => id.toLowerCase()),
       );
 
-      // Always include native asset IDs from NetworkEnablementController
-      const nativeAssetIdsList = this.#getNativeAssetIds();
+      // Natives in the metadata response are kept even at zero occurrences.
       const nativeAssetIds = new Set(
         nativeAssetIdsList.map((id) => id.toLowerCase()),
       );
-      for (const nativeAssetId of nativeAssetIdsList) {
-        assetIdsNeedingMetadata.add(nativeAssetId);
-      }
 
       if (assetIdsNeedingMetadata.size === 0) {
         return next(ctx);
