@@ -1,6 +1,4 @@
 import type { CaipAssetType } from '@metamask/utils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mocked } from 'vitest';
 
 import { getDefaultTrackedAssetsForChain } from '../../../defaults.js';
 import type { MulticallClient } from '../clients/index.js';
@@ -61,10 +59,10 @@ const TOKEN_2_ENTRY_WITH_DECIMALS: AssetFetchEntry = {
 // MOCK HELPERS
 // =============================================================================
 
-const createMockMulticallClient = (): Mocked<MulticallClient> =>
+const createMockMulticallClient = (): jest.Mocked<MulticallClient> =>
   ({
-    batchBalanceOf: vi.fn(),
-  }) as unknown as Mocked<MulticallClient>;
+    batchBalanceOf: jest.fn(),
+  }) as unknown as jest.Mocked<MulticallClient>;
 
 function createMockAssetsBalanceState(
   accountId: string,
@@ -112,7 +110,7 @@ type WithControllerOptions = {
 
 type WithControllerCallback<ReturnValue> = (params: {
   controller: BalanceFetcher;
-  mockMulticallClient: Mocked<MulticallClient>;
+  mockMulticallClient: jest.Mocked<MulticallClient>;
 }) => Promise<ReturnValue> | ReturnValue;
 
 async function withController<ReturnValue>(
@@ -158,12 +156,12 @@ async function withController<ReturnValue>(
 
 describe('BalanceFetcher', () => {
   beforeEach(() => {
-    vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
+    jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
-    vi.restoreAllMocks();
+    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('constructor', () => {
@@ -224,7 +222,7 @@ describe('BalanceFetcher', () => {
           },
         },
         async ({ controller, mockMulticallClient }) => {
-          const mockCallback = vi.fn();
+          const mockCallback = jest.fn();
           controller.setOnBalanceUpdate(mockCallback);
 
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
@@ -280,7 +278,7 @@ describe('BalanceFetcher', () => {
           },
         },
         async ({ controller, mockMulticallClient }) => {
-          const mockCallback = vi.fn();
+          const mockCallback = jest.fn();
           controller.setOnBalanceUpdate(mockCallback);
 
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
@@ -348,7 +346,7 @@ describe('BalanceFetcher', () => {
           },
         },
         async ({ controller, mockMulticallClient }) => {
-          controller.setOnBalanceUpdate(vi.fn());
+          controller.setOnBalanceUpdate(jest.fn());
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
               ZERO_ADDRESS,
@@ -404,7 +402,7 @@ describe('BalanceFetcher', () => {
           },
         },
         async ({ controller, mockMulticallClient }) => {
-          controller.setOnBalanceUpdate(vi.fn());
+          controller.setOnBalanceUpdate(jest.fn());
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
               ZERO_ADDRESS,
@@ -458,7 +456,7 @@ describe('BalanceFetcher', () => {
           },
         },
         async ({ controller, mockMulticallClient }) => {
-          controller.setOnBalanceUpdate(vi.fn());
+          controller.setOnBalanceUpdate(jest.fn());
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
               ZERO_ADDRESS,
@@ -514,7 +512,7 @@ describe('BalanceFetcher', () => {
           },
         },
         async ({ controller, mockMulticallClient }) => {
-          controller.setOnBalanceUpdate(vi.fn());
+          controller.setOnBalanceUpdate(jest.fn());
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
             createMockBalanceResponse(
               TEST_TOKEN_1.toLowerCase() as Address,
@@ -549,7 +547,7 @@ describe('BalanceFetcher', () => {
 
     it('does not call callback when balances are empty', async () => {
       await withController(async ({ controller, mockMulticallClient }) => {
-        const mockCallback = vi.fn();
+        const mockCallback = jest.fn();
         controller.setOnBalanceUpdate(mockCallback);
 
         mockMulticallClient.batchBalanceOf.mockResolvedValue([]);

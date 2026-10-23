@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest';
-
 import type { Caip19AssetId, ChainId } from '../types.js';
 import { pickRpcCustomAssetsSupplement } from './customAssetsRpcSupplement.js';
 

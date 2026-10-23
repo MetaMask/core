@@ -1,6 +1,5 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import { cleanAll } from 'nock';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   STATE_METADATA_SURFACE,
@@ -162,7 +161,7 @@ describe('AssetsController: BNB Chain spam token (CDOGE)', () => {
     // Unlock cleanup eventually strips them; this flags the hole. (The v6
     // suite does not share this gap: the backend omits Malicious rows before
     // they can reach the price lane.)
-    it.fails('keeps the spam token out of prices', () => {
+    it.failing('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
   });
@@ -221,7 +220,7 @@ describe("AssetsController (Accounts API v5): 'merge' update operation - stale t
     //
     // A spam token that got into state is therefore never removed by the v5 lane.
     // Accounts API v6 suite performs a `updateMode: 'full'` operation which wipes the same seed via its full snapshot.
-    it.fails('wipes the stale balance', () => {
+    it.failing('wipes the stale balance', () => {
       expect(BALANCES.lookUp(state, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
 

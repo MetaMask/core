@@ -1,3 +1,4 @@
+/* eslint-disable jest/unbound-method */
 import type { Balance } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -6,8 +7,6 @@ import type {
   PermissionConstraint,
   SubjectPermissions,
 } from '@metamask/permission-controller';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
 
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
 import type { AssetsControllerMessenger } from '../AssetsController.js';
@@ -77,18 +76,19 @@ type SnapHandleRequestArgument = {
   };
 };
 
-type SnapHandleRequestMock = Mock<
-  (...args: [SnapHandleRequestArgument]) => Promise<unknown>
+type SnapHandleRequestMock = jest.Mock<
+  Promise<unknown>,
+  [SnapHandleRequestArgument]
 >;
 
 type SetupResult = {
   controller: SnapDataSource;
   messenger: RootMessenger;
-  mockGetRunnableSnaps: Mock;
+  mockGetRunnableSnaps: jest.Mock;
   mockHandleRequest: SnapHandleRequestMock;
-  mockGetPermissions: Mock;
-  assetsUpdateHandler: Mock;
-  activeChainsUpdateHandler: Mock;
+  mockGetPermissions: jest.Mock;
+  assetsUpdateHandler: jest.Mock;
+  activeChainsUpdateHandler: jest.Mock;
   triggerBalancesUpdated: (payload: AccountBalancesUpdatedEventPayload) => void;
   cleanup: () => void;
 };
@@ -217,7 +217,7 @@ function createMockHandleRequest(
   accountAssets: string[] = [],
   balances: Record<string, Balance> = {},
 ): SnapHandleRequestMock {
-  return vi.fn((params: SnapHandleRequestArgument) => {
+  return jest.fn((params: SnapHandleRequestArgument) => {
     const { request } = params;
     if (request?.method === 'keyring_listAccountAssets') {
       return Promise.resolve(accountAssets);
@@ -286,8 +286,8 @@ function setupController(
     events: ['AccountsController:accountBalancesUpdated'],
   });
 
-  const assetsUpdateHandler = vi.fn().mockResolvedValue(undefined);
-  const activeChainsUpdateHandler = vi.fn();
+  const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
+  const activeChainsUpdateHandler = jest.fn();
 
   // Build snaps array for SnapController:getRunnableSnaps
   // getRunnableSnaps returns only enabled, non-blocked snaps
@@ -301,7 +301,7 @@ function setupController(
   );
 
   // Register SnapController action handlers
-  const mockGetRunnableSnaps = vi
+  const mockGetRunnableSnaps = jest
     .fn()
     .mockReturnValue(snapsForGetRunnableSnaps);
   rootMessenger.registerActionHandler(
@@ -317,7 +317,7 @@ function setupController(
 
   // Register PermissionController:getPermissions handler
   // Returns permissions with chainIds caveat based on installed snaps config
-  const mockGetPermissions = vi.fn().mockImplementation((snapId: string) => {
+  const mockGetPermissions = jest.fn().mockImplementation((snapId: string) => {
     const snapConfig = installedSnaps[snapId];
     if (snapConfig?.chainIds) {
       return createMockPermissions(snapConfig.chainIds);
@@ -434,7 +434,7 @@ describe('SnapDataSource helper functions', () => {
 
 describe('SnapDataSource', () => {
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   it('initializes with correct name', async () => {
@@ -603,7 +603,7 @@ describe('SnapDataSource', () => {
   });
 
   it('requests the union of snap holdings, visible assets, and balance-state tokens', async () => {
-    const getAssetVisibility = vi.fn().mockReturnValue({
+    const getAssetVisibility = jest.fn().mockReturnValue({
       visibleAssetIds: [MOCK_SOL_PIN],
       hiddenAssetIds: [],
     });
@@ -1222,7 +1222,7 @@ describe('SnapDataSource', () => {
     });
     await new Promise(process.nextTick);
 
-    const subscriptionOnAssetsUpdate = vi.fn();
+    const subscriptionOnAssetsUpdate = jest.fn();
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest(),
@@ -1248,7 +1248,7 @@ describe('SnapDataSource', () => {
     await new Promise(process.nextTick);
     assetsUpdateHandler.mockClear();
 
-    const subscriptionOnAssetsUpdate = vi.fn();
+    const subscriptionOnAssetsUpdate = jest.fn();
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest(),
@@ -1290,7 +1290,7 @@ describe('SnapDataSource', () => {
     });
     await new Promise(process.nextTick);
 
-    const subscriptionOnAssetsUpdate = vi.fn();
+    const subscriptionOnAssetsUpdate = jest.fn();
     await controller.subscribe({
       subscriptionId: 'sub-1',
       request: createDataRequest(),
@@ -1325,7 +1325,7 @@ describe('SnapDataSource', () => {
     });
     await new Promise(process.nextTick);
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest({ chainIds: [CHAIN_MAINNET] }),
     });
@@ -1349,7 +1349,7 @@ describe('SnapDataSource', () => {
     });
     await new Promise(process.nextTick);
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext();
 
     await controller.assetsMiddleware(context, next);
@@ -1379,7 +1379,9 @@ describe('SnapDataSource', () => {
     });
     await new Promise(process.nextTick);
 
-    const next = vi.fn(async (middlewareContext: Context) => middlewareContext);
+    const next = jest.fn(
+      async (middlewareContext: Context) => middlewareContext,
+    );
     const context = createMiddlewareContext();
 
     await controller.assetsMiddleware(context, next);
@@ -1403,7 +1405,7 @@ describe('SnapDataSource', () => {
     });
     await new Promise(process.nextTick);
 
-    const next = vi.fn((middlewareContext: Context) =>
+    const next = jest.fn((middlewareContext: Context) =>
       Promise.resolve(middlewareContext),
     );
     const context = createMiddlewareContext({
@@ -1428,7 +1430,7 @@ describe('SnapDataSource', () => {
     });
     await new Promise(process.nextTick);
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest({
         chainIds: [SOLANA_MAINNET, CHAIN_MAINNET],
@@ -1459,7 +1461,7 @@ describe('SnapDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
-      onAssetsUpdate: vi.fn(),
+      onAssetsUpdate: jest.fn(),
     });
 
     cleanup();
@@ -1498,21 +1500,21 @@ describe('SnapDataSource', () => {
     });
     rootMessenger.registerActionHandler(
       'SnapController:getRunnableSnaps',
-      vi.fn().mockReturnValue([]),
+      jest.fn().mockReturnValue([]),
     );
     rootMessenger.registerActionHandler(
       'SnapController:handleRequest',
-      vi.fn(),
+      jest.fn(),
     );
     rootMessenger.registerActionHandler(
       'PermissionController:getPermissions',
-      vi.fn().mockReturnValue(undefined),
+      jest.fn().mockReturnValue(undefined),
     );
 
     const instance = createSnapDataSource({
       messenger: controllerMessenger as unknown as AssetsControllerMessenger,
-      onActiveChainsUpdated: vi.fn(),
-      onAssetsUpdate: vi.fn(),
+      onActiveChainsUpdated: jest.fn(),
+      onAssetsUpdate: jest.fn(),
       isBalanceV6Enabled: () => false,
       getAssetVisibility: () => ({
         visibleAssetIds: [],

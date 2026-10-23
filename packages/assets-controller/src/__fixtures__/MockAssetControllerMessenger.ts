@@ -13,8 +13,6 @@ import {
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkState } from '@metamask/network-controller';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
-import { vi } from 'vitest';
-import type { MockInstance } from 'vitest';
 
 import {
   AssetsControllerMessenger,
@@ -240,7 +238,7 @@ export function registerRpcDataSourceActions(
     'NetworkController:getNetworkClientById',
     () =>
       ({
-        provider: { request: vi.fn().mockResolvedValue('0x0') },
+        provider: { request: jest.fn().mockResolvedValue('0x0') },
         configuration: { chainId: MAINNET_CHAIN_ID_HEX },
       }) as TestMockType,
   );
@@ -266,10 +264,10 @@ export function createMockWeb3Provider(
     sharesWei: '1000000000000000000',
     assetsWei: '1500000000000000000',
   },
-): MockInstance<typeof ProviderModule.Web3Provider> {
-  const mockProvider = vi.spyOn(ProviderModule, 'Web3Provider');
+): jest.SpyInstance<ProviderModule.Web3Provider> {
+  const mockProvider = jest.spyOn(ProviderModule, 'Web3Provider');
 
-  const mockCalls = vi.fn().mockImplementation((callData) => {
+  const mockCalls = jest.fn().mockImplementation((callData) => {
     // Will decode and return mock shares or throw
     try {
       STAKING_INTERFACE.decodeFunctionData('getShares', callData.data);
@@ -289,9 +287,9 @@ export function createMockWeb3Provider(
     throw new Error('MOCK FAILURE: Invalid function data');
   });
 
-  mockProvider.mockImplementation(function () {
-    return { call: mockCalls } as unknown as ProviderModule.Web3Provider;
-  });
+  mockProvider.mockReturnValue({
+    call: mockCalls,
+  } as unknown as ProviderModule.Web3Provider);
 
   return mockProvider;
 }
@@ -487,7 +485,7 @@ export function registerAssetsControllerActions(
     'NetworkController:getNetworkClientById',
     () =>
       ({
-        provider: { request: vi.fn().mockResolvedValue('0x0') },
+        provider: { request: jest.fn().mockResolvedValue('0x0') },
         configuration: { chainId: MAINNET_CHAIN_ID_HEX },
       }) as TestMockType,
   );

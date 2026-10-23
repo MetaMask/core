@@ -1,7 +1,5 @@
 import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
 
 import type {
   ChainId,
@@ -14,7 +12,7 @@ import { normalizeAssetId } from '../utils/index.js';
 import type { PriceDataSourceOptions } from './PriceDataSource.js';
 import { PriceDataSource } from './PriceDataSource.js';
 
-vi.useFakeTimers();
+jest.useFakeTimers();
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
 const CHAIN_POLYGON = 'eip155:137' as ChainId;
@@ -25,8 +23,8 @@ const MOCK_NATIVE_ASSET = 'eip155:1/slip44:60' as Caip19AssetId;
 
 type MockApiClient = {
   prices: {
-    fetchV3SpotPrices: Mock;
-    fetchPriceV2SupportedNetworks: Mock;
+    fetchV3SpotPrices: jest.Mock;
+    fetchPriceV2SupportedNetworks: jest.Mock;
   };
 };
 
@@ -34,7 +32,7 @@ type SetupResult = {
   controller: PriceDataSource;
   apiClient: MockApiClient;
   getAssetsState: () => AssetsControllerState;
-  assetsUpdateHandler: Mock;
+  assetsUpdateHandler: jest.Mock;
 };
 
 function createMockAccount(
@@ -89,8 +87,8 @@ function createMockApiClient(
 ): MockApiClient {
   return {
     prices: {
-      fetchV3SpotPrices: vi.fn().mockResolvedValue(priceResponse),
-      fetchPriceV2SupportedNetworks: vi.fn().mockResolvedValue({
+      fetchV3SpotPrices: jest.fn().mockResolvedValue(priceResponse),
+      fetchPriceV2SupportedNetworks: jest.fn().mockResolvedValue({
         fullSupport: supportedNetworks,
         partialSupport: {
           spotPricesV2: [],
@@ -162,7 +160,7 @@ function setupController(
 
   const controller = new PriceDataSource(controllerOptions);
 
-  const assetsUpdateHandler = vi.fn().mockResolvedValue(undefined);
+  const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
 
   return {
     controller,
@@ -174,11 +172,11 @@ function setupController(
 
 describe('PriceDataSource', () => {
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   afterAll(() => {
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 
   it('initializes with correct name', () => {
@@ -614,12 +612,12 @@ describe('PriceDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
-      onAssetsUpdate: vi.fn(),
+      onAssetsUpdate: jest.fn(),
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(5000);
+    await jest.advanceTimersByTimeAsync(5000);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
 
     controller.destroy();
@@ -642,7 +640,7 @@ describe('PriceDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest({ updateInterval: 10000 }),
       isUpdate: false,
-      onAssetsUpdate: vi.fn(),
+      onAssetsUpdate: jest.fn(),
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
@@ -650,7 +648,7 @@ describe('PriceDataSource', () => {
     // Advance one tick at a time, flushing microtasks between each so the
     // async pollFn completes and inflight promises settle before the next tick.
     for (let i = 2; i <= 7; i++) {
-      await vi.advanceTimersByTimeAsync(10000);
+      await jest.advanceTimersByTimeAsync(10000);
       expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(i);
     }
 
@@ -675,7 +673,7 @@ describe('PriceDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
-      onAssetsUpdate: vi.fn(),
+      onAssetsUpdate: jest.fn(),
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
@@ -685,7 +683,7 @@ describe('PriceDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest({ chainIds: [CHAIN_POLYGON] }),
       isUpdate: true,
-      onAssetsUpdate: vi.fn(),
+      onAssetsUpdate: jest.fn(),
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
@@ -695,7 +693,7 @@ describe('PriceDataSource', () => {
 
   it('subscribe update fetches newly held assets that have no price yet', async () => {
     let balanceState: Record<string, Record<string, { amount: string }>> = {};
-    const getAssetsState = vi.fn(() => ({
+    const getAssetsState = jest.fn(() => ({
       assetsBalance: balanceState,
       assetsPrice: {},
       assetsInfo: {},
@@ -752,7 +750,7 @@ describe('PriceDataSource', () => {
 
   it('subscribe update swallows onAssetsUpdate errors without throwing', async () => {
     let balanceState: Record<string, Record<string, { amount: string }>> = {};
-    const getAssetsState = vi.fn(() => ({
+    const getAssetsState = jest.fn(() => ({
       assetsBalance: balanceState,
       assetsPrice: {},
       assetsInfo: {},
@@ -771,7 +769,7 @@ describe('PriceDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
-      onAssetsUpdate: vi.fn(),
+      onAssetsUpdate: jest.fn(),
     });
 
     balanceState = {
@@ -785,7 +783,9 @@ describe('PriceDataSource', () => {
         subscriptionId: 'sub-1',
         request: createDataRequest(),
         isUpdate: true,
-        onAssetsUpdate: vi.fn().mockRejectedValue(new Error('handler failed')),
+        onAssetsUpdate: jest
+          .fn()
+          .mockRejectedValue(new Error('handler failed')),
       }),
     ).toBeUndefined();
 
@@ -827,14 +827,14 @@ describe('PriceDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
-      onAssetsUpdate: vi.fn(),
+      onAssetsUpdate: jest.fn(),
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
     await controller.unsubscribe('sub-1');
 
-    await vi.advanceTimersByTimeAsync(10000);
+    await jest.advanceTimersByTimeAsync(10000);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
@@ -844,7 +844,7 @@ describe('PriceDataSource', () => {
   it('middleware passes to next when no detected assets', async () => {
     const { controller } = setupController();
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {},
     });
@@ -859,7 +859,7 @@ describe('PriceDataSource', () => {
   it('middleware passes to next when detected assets is empty', async () => {
     const { controller } = setupController();
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: { detectedAssets: {} },
     });
@@ -874,7 +874,7 @@ describe('PriceDataSource', () => {
   it('middleware passes to next when assetsForPriceUpdate is empty and no detected assets', async () => {
     const { controller, apiClient } = setupController();
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest({ assetsForPriceUpdate: [] }),
       response: {},
@@ -895,7 +895,7 @@ describe('PriceDataSource', () => {
       },
     });
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest({ assetsForPriceUpdate: [MOCK_TOKEN_ASSET] }),
       response: {},
@@ -928,7 +928,7 @@ describe('PriceDataSource', () => {
       },
     });
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -965,7 +965,7 @@ describe('PriceDataSource', () => {
       priceResponse: {},
     });
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -989,7 +989,7 @@ describe('PriceDataSource', () => {
       new Error('API Error'),
     );
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -1015,7 +1015,7 @@ describe('PriceDataSource', () => {
       },
     });
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         assetsPrice: {
@@ -1080,7 +1080,7 @@ describe('PriceDataSource', () => {
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
     // Advance past the TTL (pollInterval = 10s is used as freshness TTL)
-    await vi.advanceTimersByTimeAsync(11_000);
+    await jest.advanceTimersByTimeAsync(11_000);
 
     await controller.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
@@ -1097,7 +1097,7 @@ describe('PriceDataSource', () => {
     // be skipped, making the subscription re-fetch only every other poll.
     const fetchLatencyMs = 500;
 
-    vi.setSystemTime(fetchLatencyMs);
+    jest.setSystemTime(fetchLatencyMs);
 
     const { controller, apiClient } = setupController({
       pollInterval,
@@ -1117,7 +1117,7 @@ describe('PriceDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
-      onAssetsUpdate: vi.fn(),
+      onAssetsUpdate: jest.fn(),
     });
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
@@ -1125,7 +1125,7 @@ describe('PriceDataSource', () => {
     // now - fetchedAt = pollInterval - fetchLatencyMs = 9500ms. That is below
     // the poll interval but above the capped TTL (9000ms), so the asset is
     // stale and must be re-fetched rather than skipped.
-    vi.setSystemTime(pollInterval);
+    jest.setSystemTime(pollInterval);
     await controller.fetch(createDataRequest());
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
 
@@ -1139,7 +1139,7 @@ describe('PriceDataSource', () => {
       },
     });
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
 
     // First call — populates freshness cache
     const context1 = createMiddlewareContext({
@@ -1184,7 +1184,7 @@ describe('PriceDataSource', () => {
     // Make the API call hang until we resolve manually
     apiClient.prices.fetchV3SpotPrices.mockReturnValue(apiPromise);
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
 
     // Fire two parallel middleware calls for the same asset
     const context1 = createMiddlewareContext({
@@ -1200,7 +1200,7 @@ describe('PriceDataSource', () => {
     const promise2 = controller.assetsMiddleware(context2, next);
 
     // Only ONE API call should have been made (second call joins inflight)
-    await vi.advanceTimersByTimeAsync(10000);
+    await jest.advanceTimersByTimeAsync(10000);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
     // Resolve the API
@@ -1242,7 +1242,7 @@ describe('PriceDataSource', () => {
     );
 
     // Now middleware requests MOCK_TOKEN_ASSET (not yet fetched) and MOCK_NATIVE_ASSET (fresh)
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest({
         assetsForPriceUpdate: [MOCK_TOKEN_ASSET, MOCK_NATIVE_ASSET],
@@ -1323,21 +1323,21 @@ describe('PriceDataSource', () => {
       subscriptionId: 'sub-1',
       request: createDataRequest(),
       isUpdate: false,
-      onAssetsUpdate: vi.fn(),
+      onAssetsUpdate: jest.fn(),
     });
 
     await controller.subscribe({
       subscriptionId: 'sub-2',
       request: createDataRequest({ chainIds: [CHAIN_POLYGON] }),
       isUpdate: false,
-      onAssetsUpdate: vi.fn(),
+      onAssetsUpdate: jest.fn(),
     });
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
 
     controller.destroy();
 
-    await vi.advanceTimersByTimeAsync(10000);
+    await jest.advanceTimersByTimeAsync(10000);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
   });
@@ -1424,7 +1424,7 @@ describe('PriceDataSource', () => {
       return {
         controller: result.controller,
         apiClient: result.apiClient,
-        act: () => result.controller.assetsMiddleware(context, vi.fn()),
+        act: () => result.controller.assetsMiddleware(context, jest.fn()),
         context,
       };
     };

@@ -1,6 +1,4 @@
 import { numberToHex } from '@metamask/utils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock, Mocked } from 'vitest';
 
 import type { MulticallClient } from '../clients/index.js';
 import type {
@@ -32,10 +30,10 @@ const POLYGON_CHAIN_ID: ChainId = '0x89';
 // MOCK HELPERS
 // =============================================================================
 
-const createMockMulticallClient = (): Mocked<MulticallClient> =>
+const createMockMulticallClient = (): jest.Mocked<MulticallClient> =>
   ({
-    batchBalanceOf: vi.fn(),
-  }) as unknown as Mocked<MulticallClient>;
+    batchBalanceOf: jest.fn(),
+  }) as unknown as jest.Mocked<MulticallClient>;
 
 function createMockTokenList(
   tokens: {
@@ -53,21 +51,21 @@ function createMockTokenList(
 function createMockTokenApi(
   tokenListByChain: Record<ChainId, TokenListEntry[]> = {},
 ): {
-  fetchV2SupportedNetworks: Mock;
-  fetchV1SuggestedOccurrenceFloors: Mock;
-  fetchTokenList: Mock;
+  fetchV2SupportedNetworks: jest.Mock;
+  fetchV1SuggestedOccurrenceFloors: jest.Mock;
+  fetchTokenList: jest.Mock;
 } {
   return {
-    fetchV2SupportedNetworks: vi.fn(() =>
+    fetchV2SupportedNetworks: jest.fn(() =>
       Promise.resolve({
         fullSupport: ['eip155:1', 'eip155:137'],
         partialSupport: [],
       }),
     ),
-    fetchV1SuggestedOccurrenceFloors: vi.fn(() =>
+    fetchV1SuggestedOccurrenceFloors: jest.fn(() =>
       Promise.resolve({ '1': 3, '137': 3 }),
     ),
-    fetchTokenList: vi.fn((chainId: number) => {
+    fetchTokenList: jest.fn((chainId: number) => {
       return Promise.resolve(tokenListByChain[numberToHex(chainId)] ?? []);
     }),
   };
@@ -93,7 +91,7 @@ type WithControllerOptions = {
 
 type WithControllerCallback<ReturnValue> = (params: {
   controller: TokenDetector;
-  mockMulticallClient: Mocked<MulticallClient>;
+  mockMulticallClient: jest.Mocked<MulticallClient>;
   mockTokenApi: ReturnType<typeof createMockTokenApi>;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -133,12 +131,12 @@ async function withController<ReturnValue>(
 
 describe('TokenDetector', () => {
   beforeEach(() => {
-    vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
+    jest.spyOn(Date, 'now').mockReturnValue(1700000000000);
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
-    vi.restoreAllMocks();
+    jest.clearAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('constructor', () => {
@@ -201,7 +199,7 @@ describe('TokenDetector', () => {
           tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList },
         },
         async ({ controller, mockMulticallClient }) => {
-          const mockCallback = vi.fn();
+          const mockCallback = jest.fn();
           controller.setOnDetectionUpdate(mockCallback);
 
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
@@ -249,7 +247,7 @@ describe('TokenDetector', () => {
           tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList },
         },
         async ({ controller, mockMulticallClient }) => {
-          const mockCallback = vi.fn();
+          const mockCallback = jest.fn();
           controller.setOnDetectionUpdate(mockCallback);
 
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
@@ -926,7 +924,7 @@ describe('TokenDetector', () => {
           tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList },
         },
         async ({ controller, mockMulticallClient }) => {
-          const mockCallback = vi.fn();
+          const mockCallback = jest.fn();
           controller.setOnDetectionUpdate(mockCallback);
 
           mockMulticallClient.batchBalanceOf.mockResolvedValue([
@@ -1075,7 +1073,7 @@ describe('TokenDetector', () => {
           tokenListByChain: { [MAINNET_CHAIN_ID]: tokenList },
         },
         async ({ controller, mockMulticallClient }) => {
-          const mockCallback = vi.fn();
+          const mockCallback = jest.fn();
           controller.setOnDetectionUpdate(mockCallback);
 
           mockMulticallClient.batchBalanceOf.mockResolvedValue([

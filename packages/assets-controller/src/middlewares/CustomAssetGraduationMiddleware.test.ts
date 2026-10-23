@@ -1,6 +1,4 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
 
 import type {
   AssetsControllerState,
@@ -80,11 +78,11 @@ function setup(
 ): {
   middleware: CustomAssetGraduationMiddleware;
   context: Context;
-  removeCustomAsset: Mock;
-  getSelectedAccountId: Mock;
+  removeCustomAsset: jest.Mock;
+  getSelectedAccountId: jest.Mock;
 } {
-  const removeCustomAsset = vi.fn();
-  const getSelectedAccountId = vi.fn().mockReturnValue(selectedAccountId);
+  const removeCustomAsset = jest.fn();
+  const getSelectedAccountId = jest.fn().mockReturnValue(selectedAccountId);
   const middleware = new CustomAssetGraduationMiddleware({
     getSelectedAccountId,
     removeCustomAsset,
@@ -97,7 +95,7 @@ function setup(
 
 describe('CustomAssetGraduationMiddleware', () => {
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   it('initializes with correct name', () => {
@@ -122,7 +120,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -145,7 +143,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -170,7 +168,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -190,7 +188,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -211,7 +209,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -236,7 +234,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -258,7 +256,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -276,7 +274,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -294,7 +292,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -313,7 +311,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -329,7 +327,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -343,7 +341,7 @@ describe('CustomAssetGraduationMiddleware', () => {
     context.response = {
       assetsBalance: {},
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -355,7 +353,7 @@ describe('CustomAssetGraduationMiddleware', () => {
       [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET],
     });
     context.response = {};
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -373,7 +371,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -391,7 +389,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -415,7 +413,7 @@ describe('CustomAssetGraduationMiddleware', () => {
       },
       { [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET] },
     );
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -442,7 +440,7 @@ describe('CustomAssetGraduationMiddleware', () => {
         },
       },
     };
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -465,7 +463,7 @@ describe('CustomAssetGraduationMiddleware', () => {
     // No balance from upstream sources — AccountsApi did not return it.
     context.response = { assetsBalance: { [MOCK_ACCOUNT_ID]: {} } };
     // The downstream middleware (RPC fallback) populates the asset balance.
-    const next = vi.fn().mockImplementation(async (ctx) => {
+    const next = jest.fn().mockImplementation(async (ctx) => {
       ctx.response = {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: {
@@ -498,7 +496,7 @@ describe('CustomAssetGraduationMiddleware', () => {
       },
       { [MOCK_ACCOUNT_ID]: [EVM_CUSTOM_ASSET] },
     );
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 

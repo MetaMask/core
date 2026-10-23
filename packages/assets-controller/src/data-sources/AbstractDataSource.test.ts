@@ -1,6 +1,3 @@
-import { describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
-
 import type { ChainId } from '../types.js';
 import type {
   ActiveSubscription,
@@ -62,7 +59,7 @@ class TestDataSource extends AbstractDataSource<'TestDataSource'> {
 type MockSubscription = {
   id: string;
   chains: ChainId[];
-  cleanup: Mock;
+  cleanup: jest.Mock;
 };
 
 type WithDataSourceOptions = {
@@ -72,7 +69,7 @@ type WithDataSourceOptions = {
 
 type WithDataSourceParams = {
   dataSource: TestDataSource;
-  publishEvent: Mock;
+  publishEvent: jest.Mock;
 };
 
 function setupDataSource(
@@ -81,13 +78,13 @@ function setupDataSource(
   const { initialChains = [], subscriptions = [] } = options;
 
   const dataSource = new TestDataSource({ activeChains: initialChains });
-  const publishEvent = vi.fn();
+  const publishEvent = jest.fn();
 
   for (const sub of subscriptions) {
     dataSource.addTestSubscription(sub.id, {
       cleanup: sub.cleanup,
       chains: sub.chains,
-      onAssetsUpdate: vi.fn(),
+      onAssetsUpdate: jest.fn(),
     });
   }
 
@@ -98,7 +95,7 @@ function createMockSubscription(
   id: string,
   chains: ChainId[] = [CHAIN_MAINNET],
 ): MockSubscription {
-  return { id, chains, cleanup: vi.fn() };
+  return { id, chains, cleanup: jest.fn() };
 }
 
 describe('AbstractDataSource', () => {

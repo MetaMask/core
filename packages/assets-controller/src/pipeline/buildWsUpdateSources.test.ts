@@ -1,5 +1,3 @@
-import { describe, expect, it, vi } from 'vitest';
-
 import type { AssetsDataSource } from '../types.js';
 import { buildWsUpdateSources } from './buildWsUpdateSources.js';
 import type { WsUpdateSources } from './buildWsUpdateSources.js';
@@ -81,7 +79,7 @@ describe('buildWsUpdateSources', () => {
 
   it('derives the occurrence filter from the token data source', () => {
     const tokenDataSource = stubTokenSource('TokenDataSource');
-    const middlewareSpy = vi.fn(tokenDataSource.occurrenceFilterMiddleware);
+    const middlewareSpy = jest.fn(tokenDataSource.occurrenceFilterMiddleware);
     tokenDataSource.occurrenceFilterMiddleware = middlewareSpy;
 
     const sources = buildWsUpdateSources(

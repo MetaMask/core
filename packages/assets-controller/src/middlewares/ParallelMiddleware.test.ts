@@ -1,5 +1,3 @@
-import { describe, expect, it, vi } from 'vitest';
-
 import type { AssetsDataSource, ChainId } from '../types.js';
 import type { Context, DataResponse } from '../types.js';
 import {
@@ -112,7 +110,7 @@ describe('createParallelMiddleware', () => {
     it('calls next with same context when sources array is empty', async () => {
       const middleware = createParallelMiddleware([]);
       const context = createMockContext();
-      const next = vi.fn().mockResolvedValue(context);
+      const next = jest.fn().mockResolvedValue(context);
 
       await middleware.assetsMiddleware(context, next);
 
@@ -165,7 +163,7 @@ describe('createParallelMiddleware', () => {
 
       const middleware = createParallelMiddleware([tokenSource, priceSource]);
       const context = createMockContext();
-      const next = vi.fn().mockImplementation((ctx: Context) => {
+      const next = jest.fn().mockImplementation((ctx: Context) => {
         return Promise.resolve(ctx);
       });
 
@@ -198,7 +196,7 @@ describe('createParallelMiddleware', () => {
           },
         },
       });
-      const next = vi
+      const next = jest
         .fn()
         .mockImplementation((ctx: Context) => Promise.resolve(ctx));
 
@@ -231,7 +229,7 @@ describe('createParallelMiddleware', () => {
       });
       const middleware = createParallelMiddleware([tokenSource, priceSource]);
       const context = createMockContext();
-      const next = vi
+      const next = jest
         .fn()
         .mockImplementation((ctx: Context) => Promise.resolve(ctx));
 

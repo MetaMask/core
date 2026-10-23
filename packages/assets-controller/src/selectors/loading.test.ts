@@ -1,5 +1,4 @@
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
-import { describe, expect, it } from 'vitest';
 
 import type { AssetsControllerState } from '../AssetsController.js';
 import type { AccountId } from '../types.js';

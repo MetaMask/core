@@ -1,8 +1,6 @@
 import { defaultAbiCoder, Interface } from '@ethersproject/abi';
 import * as controllerUtils from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock, Mocked } from 'vitest';
 
 import type {
   Address,
@@ -20,9 +18,9 @@ import {
 // MOCK PROVIDER
 // =============================================================================
 
-const createMockProvider = (): Mocked<Provider> => ({
-  call: vi.fn(),
-  getBalance: vi.fn(),
+const createMockProvider = (): jest.Mocked<Provider> => ({
+  call: jest.fn(),
+  getBalance: jest.fn(),
 });
 
 // =============================================================================
@@ -78,14 +76,14 @@ function buildMockAggregate3Response(
 // =============================================================================
 
 describe('MulticallClient', () => {
-  let mockProvider: Mocked<Provider>;
-  let getProviderMock: Mock;
-  const getMulticall3AddressForChainMock = vi.fn().mockReturnValue(undefined);
+  let mockProvider: jest.Mocked<Provider>;
+  let getProviderMock: jest.Mock;
+  const getMulticall3AddressForChainMock = jest.fn().mockReturnValue(undefined);
   let client: MulticallClient;
 
   beforeEach(() => {
     mockProvider = createMockProvider();
-    getProviderMock = vi.fn().mockReturnValue(mockProvider);
+    getProviderMock = jest.fn().mockReturnValue(mockProvider);
     client = new MulticallClient({
       getProvider: getProviderMock,
       getMulticall3AddressForChain: getMulticall3AddressForChainMock,
@@ -93,7 +91,7 @@ describe('MulticallClient', () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('constructor', () => {
@@ -266,7 +264,7 @@ describe('MulticallClient', () => {
       });
 
       it('encodes balance call data once per account address in a batch', async () => {
-        const encodeSpy = vi.spyOn(controllerUtils, 'encodeFunctionData');
+        const encodeSpy = jest.spyOn(controllerUtils, 'encodeFunctionData');
         const countBalanceOf = (): number =>
           encodeSpy.mock.calls.filter(([, method]) => method === 'balanceOf')
             .length;

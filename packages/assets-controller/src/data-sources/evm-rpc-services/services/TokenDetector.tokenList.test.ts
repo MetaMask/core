@@ -1,7 +1,5 @@
 import { TokenApiClient } from '@metamask/core-backend';
 import type { ApiPlatformClientOptions } from '@metamask/core-backend';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Mocked, MockedFunction } from 'vitest';
 
 import { waitFor } from '../../../__fixtures__/test-utils.js';
 import type { MulticallClient } from '../clients/index.js';
@@ -81,12 +79,12 @@ function createMockResponse(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   data: any,
   status = 200,
-): Mocked<Response> {
+): jest.Mocked<Response> {
   return {
     ok: status >= 200 && status < 300,
     status,
-    json: vi.fn().mockResolvedValue(data),
-  } as unknown as Mocked<Response>;
+    json: jest.fn().mockResolvedValue(data),
+  } as unknown as jest.Mocked<Response>;
 }
 
 /**
@@ -103,7 +101,7 @@ function createMockResponse(
  * @returns A Jest mock of the global `fetch` function.
  */
 function createMockFetch(
-  tokenListResponse: Mocked<Response>,
+  tokenListResponse: jest.Mocked<Response>,
   supportedNetworks: {
     fullSupport?: string[];
     partialSupport?: string[];
@@ -112,8 +110,8 @@ function createMockFetch(
     string,
     number
   > = DEFAULT_SUGGESTED_OCCURRENCE_FLOORS,
-): MockedFunction<typeof globalThis.fetch> {
-  return vi.fn((url: string | URL) => {
+): jest.MockedFunction<typeof globalThis.fetch> {
+  return jest.fn((url: string | URL) => {
     const urlString = url.toString();
     if (urlString.includes('/v2/supportedNetworks')) {
       return Promise.resolve(createMockResponse(supportedNetworks));
@@ -122,7 +120,7 @@ function createMockFetch(
       return Promise.resolve(createMockResponse(suggestedOccurrenceFloors));
     }
     return Promise.resolve(tokenListResponse);
-  }) as unknown as MockedFunction<typeof globalThis.fetch>;
+  }) as unknown as jest.MockedFunction<typeof globalThis.fetch>;
 }
 
 /**
@@ -133,7 +131,7 @@ function createMockFetch(
  * @returns The token-list URL string.
  */
 function getTokenListUrl(
-  mockFetch: MockedFunction<typeof globalThis.fetch>,
+  mockFetch: jest.MockedFunction<typeof globalThis.fetch>,
 ): string {
   const call = (mockFetch.mock.calls as [string][]).find(([url]) =>
     /\/tokens\/\d+/u.test(url),
@@ -148,7 +146,7 @@ const TEST_ACCOUNT: Address = '0x1234567890123456789012345678901234567890';
 
 function createMulticallClient(): MulticallClient {
   return {
-    batchBalanceOf: vi.fn(
+    batchBalanceOf: jest.fn(
       async (_chainId: ChainId, requests: BalanceOfRequest[]) =>
         requests.map((request) => ({
           success: true,
@@ -164,7 +162,7 @@ function buildClient(config?: TestClientConfig): {
   fetchTokenList: (chainId: ChainId) => Promise<TokenListEntry[]>;
 } {
   if (config?.fetch) {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(config.fetch);
+    jest.spyOn(globalThis, 'fetch').mockImplementation(config.fetch);
   }
   const tokenApi = new TokenApiClient({
     clientProduct: 'assets-controller',
@@ -183,7 +181,7 @@ function buildClient(config?: TestClientConfig): {
 
 describe('TokenDetector token list', () => {
   afterEach(() => {
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
   });
 
   describe('constructor', () => {
@@ -192,7 +190,7 @@ describe('TokenDetector token list', () => {
       // The supported-networks call gets [] which produces an empty supported-
       // chain set → mainnet is treated as unsupported → token-list fetch is
       // skipped. Total: exactly 1 call (to the supported-networks endpoint).
-      const globalFetchSpy = vi
+      const globalFetchSpy = jest
         .spyOn(globalThis, 'fetch')
         .mockResolvedValue(createMockResponse([]));
 
@@ -303,7 +301,7 @@ describe('TokenDetector token list', () => {
       });
 
       it('falls back to occurrenceFloor=3 when suggested floors fetch fails', async () => {
-        const mockFetch = vi.fn((url: string | URL) => {
+        const mockFetch = jest.fn((url: string | URL) => {
           const urlString = url.toString();
           if (urlString.includes('/v2/supportedNetworks')) {
             return Promise.resolve(
@@ -314,7 +312,7 @@ describe('TokenDetector token list', () => {
             return Promise.reject(new Error('floors unavailable'));
           }
           return Promise.resolve(createMockResponse([]));
-        }) as unknown as MockedFunction<typeof globalThis.fetch>;
+        }) as unknown as jest.MockedFunction<typeof globalThis.fetch>;
         const client = buildClient({ fetch: mockFetch });
 
         await client.fetchTokenList(MAINNET_CHAIN_ID);
@@ -621,7 +619,7 @@ describe('TokenDetector token list', () => {
         // The supported-networks call throws → .catch(() => false) in
         // fetchTokenList treats the chain as unsupported → returns [].
         const networkError = new Error('Network failure');
-        const mockFetch = vi.fn().mockRejectedValue(networkError);
+        const mockFetch = jest.fn().mockRejectedValue(networkError);
         const client = buildClient({
           fetch: mockFetch as unknown as typeof globalThis.fetch,
         });
@@ -709,12 +707,12 @@ describe('TokenDetector token list', () => {
       });
 
       it('returns empty array when the supported-networks endpoint returns non-2xx', async () => {
-        const mockFetch = vi.fn((url: string | URL) => {
+        const mockFetch = jest.fn((url: string | URL) => {
           if (url.toString().includes('/v2/supportedNetworks')) {
             return Promise.resolve(createMockResponse({}, 503));
           }
           return Promise.resolve(createMockResponse([]));
-        }) as unknown as MockedFunction<typeof globalThis.fetch>;
+        }) as unknown as jest.MockedFunction<typeof globalThis.fetch>;
         const client = buildClient({ fetch: mockFetch });
 
         const result = await client.fetchTokenList(MAINNET_CHAIN_ID);
@@ -723,12 +721,12 @@ describe('TokenDetector token list', () => {
       });
 
       it('returns empty array when the supported-networks endpoint throws', async () => {
-        const mockFetch = vi.fn((url: string | URL) => {
+        const mockFetch = jest.fn((url: string | URL) => {
           if (url.toString().includes('/v2/supportedNetworks')) {
             return Promise.reject(new Error('Network error'));
           }
           return Promise.resolve(createMockResponse([]));
-        }) as unknown as MockedFunction<typeof globalThis.fetch>;
+        }) as unknown as jest.MockedFunction<typeof globalThis.fetch>;
         const client = buildClient({ fetch: mockFetch });
 
         const result = await client.fetchTokenList(MAINNET_CHAIN_ID);
@@ -756,14 +754,14 @@ describe('TokenDetector token list', () => {
         // in-flight /v2/supportedNetworks request.
         let resolveSupportedNetworks: ((value: Response) => void) | undefined;
 
-        const mockFetch = vi.fn((url: string | URL) => {
+        const mockFetch = jest.fn((url: string | URL) => {
           if (url.toString().includes('/v2/supportedNetworks')) {
             return new Promise<Response>((resolve) => {
               resolveSupportedNetworks = resolve;
             });
           }
           return Promise.resolve(createMockResponse([]));
-        }) as unknown as MockedFunction<typeof globalThis.fetch>;
+        }) as unknown as jest.MockedFunction<typeof globalThis.fetch>;
 
         const client = buildClient({ fetch: mockFetch });
 
@@ -851,7 +849,7 @@ describe('TokenDetector token list', () => {
         // The supported-networks + floors calls resolve immediately; the
         // token-list response is held pending so we can assert deduplication.
         let resolveTokenList: ((value: Response) => void) | undefined;
-        const mockFetch = vi.fn((url: string | URL) => {
+        const mockFetch = jest.fn((url: string | URL) => {
           const urlString = url.toString();
           if (urlString.includes('/v2/supportedNetworks')) {
             return Promise.resolve(
@@ -866,7 +864,7 @@ describe('TokenDetector token list', () => {
           return new Promise<Response>((resolve) => {
             resolveTokenList = resolve;
           });
-        }) as unknown as MockedFunction<typeof globalThis.fetch>;
+        }) as unknown as jest.MockedFunction<typeof globalThis.fetch>;
 
         const queryClient = buildFakeQueryClient();
         const client = buildClient({ fetch: mockFetch, queryClient });

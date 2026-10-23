@@ -1,7 +1,5 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import type { Web3Provider } from '@ethersproject/providers';
-import { describe, expect, it, vi } from 'vitest';
-import type { Mock, Mocked } from 'vitest';
 
 import type {
   StakedBalanceFetcherConfig,
@@ -31,11 +29,11 @@ const INPUT: StakedBalancePollingInput = {
 function createMockProvider(options: {
   sharesWei?: string;
   assetsWei?: string;
-}): Mocked<Web3Provider> {
+}): jest.Mocked<Web3Provider> {
   const { sharesWei = '0', assetsWei = '0' } = options;
   let callCount = 0;
 
-  const mockCall = vi.fn().mockImplementation(async () => {
+  const mockCall = jest.fn().mockImplementation(async () => {
     callCount += 1;
     if (callCount === 1) {
       return defaultAbiCoder.encode(['uint256'], [sharesWei]);
@@ -45,7 +43,7 @@ function createMockProvider(options: {
 
   return {
     call: mockCall,
-  } as unknown as Mocked<Web3Provider>;
+  } as unknown as jest.Mocked<Web3Provider>;
 }
 
 function createFetcher(
@@ -156,7 +154,9 @@ describe('StakedBalanceFetcher', () => {
         sharesWei: '1000000000000000000',
         assetsWei: '1500000000000000000',
       });
-      (provider.call as Mock).mockRejectedValueOnce(new Error('RPC error'));
+      (provider.call as jest.Mock).mockRejectedValueOnce(
+        new Error('RPC error'),
+      );
 
       const fetcher = createFetcher({
         getNetworkProvider: () => provider,
@@ -223,7 +223,7 @@ describe('StakedBalanceFetcher', () => {
       const fetcher = createFetcher({
         getNetworkProvider: () => provider,
       });
-      const fetchSpy = vi.spyOn(fetcher, 'fetchStakedBalance');
+      const fetchSpy = jest.spyOn(fetcher, 'fetchStakedBalance');
 
       await fetcher._executePoll(INPUT);
 
@@ -234,7 +234,7 @@ describe('StakedBalanceFetcher', () => {
       const fetcher = createFetcher({
         getNetworkProvider: () => undefined,
       });
-      const callback = vi.fn();
+      const callback = jest.fn();
       fetcher.setOnStakedBalanceUpdate(callback);
 
       await fetcher._executePoll(INPUT);

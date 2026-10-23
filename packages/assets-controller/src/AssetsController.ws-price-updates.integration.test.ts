@@ -1,7 +1,6 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 import { cleanAll } from 'nock';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   STATE_METADATA_SURFACE,
@@ -261,7 +260,7 @@ describe('AssetsController: websocket price updates', () => {
       event: buildEthAndUsdcBalanceUpdatedEvent(),
     });
 
-    // eslint-disable-next-line vitest/no-restricted-matchers
+    // eslint-disable-next-line jest/no-restricted-matchers
     expect(withZeroedTimestamps(state)).toMatchSnapshot();
   });
 

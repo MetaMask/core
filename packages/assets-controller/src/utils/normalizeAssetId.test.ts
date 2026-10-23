@@ -1,5 +1,3 @@
-import { afterEach, describe, expect, it } from 'vitest';
-
 import type { Caip19AssetId } from '../types.js';
 import {
   clearNormalizeAssetIdCacheForTesting,

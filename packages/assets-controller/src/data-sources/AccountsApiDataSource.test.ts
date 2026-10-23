@@ -1,17 +1,8 @@
+/* eslint-disable jest/unbound-method */
 import type { V5BalanceItem, V6BalanceItem } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
-import type { Mock } from 'vitest';
 
 import { getDefaultTrackedAssetsForChain } from '../defaults.js';
 import type {
@@ -63,9 +54,9 @@ function isBalanceV6EnabledFromFlags(
 
 type MockApiClient = {
   accounts: {
-    fetchV2SupportedNetworks: Mock;
-    fetchV5MultiAccountBalances: Mock;
-    fetchV6MultiAccountBalances: Mock;
+    fetchV2SupportedNetworks: jest.Mock;
+    fetchV5MultiAccountBalances: jest.Mock;
+    fetchV6MultiAccountBalances: jest.Mock;
   };
 };
 
@@ -99,15 +90,15 @@ function createMockApiClient(
 ): MockApiClient {
   return {
     accounts: {
-      fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
+      fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
         fullSupport: supportedChains,
         partialSupport,
       }),
-      fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
+      fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
         balances,
         unprocessedNetworks,
       }),
-      fetchV6MultiAccountBalances: vi.fn().mockResolvedValue({
+      fetchV6MultiAccountBalances: jest.fn().mockResolvedValue({
         balances: v6Balances,
         unprocessedNetworks,
         unprocessedIncludeAssetIds,
@@ -191,8 +182,8 @@ type SetupResult = {
   controller: AccountsApiDataSource;
   messenger: RootMessenger;
   apiClient: MockApiClient;
-  assetsUpdateHandler: Mock;
-  activeChainsUpdateHandler: Mock;
+  assetsUpdateHandler: jest.Mock;
+  activeChainsUpdateHandler: jest.Mock;
 };
 
 async function setupController(
@@ -252,8 +243,8 @@ async function setupController(
     events: ['RemoteFeatureFlagController:stateChange'],
   });
 
-  const assetsUpdateHandler = vi.fn().mockResolvedValue(undefined);
-  const activeChainsUpdateHandler = vi.fn();
+  const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
+  const activeChainsUpdateHandler = jest.fn();
 
   const apiClient = createMockApiClient(
     supportedChains,
@@ -326,7 +317,7 @@ describe('AccountsApiDataSource', () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   it('initializes with correct name', async () => {
@@ -1725,7 +1716,7 @@ describe('AccountsApiDataSource', () => {
   it('middleware passes to next when no chains requested', async () => {
     const { controller } = await setupController();
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest({ chainIds: [] }),
     });
@@ -1750,7 +1741,7 @@ describe('AccountsApiDataSource', () => {
       balances,
     });
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext();
 
     await controller.assetsMiddleware(context, next);
@@ -1767,7 +1758,7 @@ describe('AccountsApiDataSource', () => {
       unprocessedNetworks: ['eip155:1'],
     });
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: { errors: { [CHAIN_POLYGON]: 'existing' } },
     });
@@ -1791,7 +1782,7 @@ describe('AccountsApiDataSource', () => {
       () => new Promise(() => undefined),
     );
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext();
 
     await controller.assetsMiddleware(context, next);
@@ -1806,7 +1797,7 @@ describe('AccountsApiDataSource', () => {
       remoteFeatureFlags: { assetsAccountsApiV6: true },
     });
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext();
 
     await controller.assetsMiddleware(context, next);
@@ -1829,7 +1820,7 @@ describe('AccountsApiDataSource', () => {
 
     apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest({ dataTypes: ['price'] }),
     });
@@ -1847,7 +1838,7 @@ describe('AccountsApiDataSource', () => {
   it('middleware keeps every requested chain for later lane stages', async () => {
     const { controller } = await setupController({ supportedChains: [1] });
 
-    const next = vi.fn().mockResolvedValue(undefined);
+    const next = jest.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
     });
@@ -1948,7 +1939,7 @@ describe('AccountsApiDataSource', () => {
     });
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
 
-    const fetchSpy = vi.spyOn(controller, 'fetch');
+    const fetchSpy = jest.spyOn(controller, 'fetch');
 
     // Simulate a chain handoff (e.g. websocket coverage dropped for Polygon).
     await controller.subscribe({
@@ -2043,8 +2034,8 @@ describe('AccountsApiDataSource', () => {
         events: [],
       });
 
-      const assetsUpdateHandler = vi.fn().mockResolvedValue(undefined);
-      const activeChainsUpdateHandler = vi.fn();
+      const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
+      const activeChainsUpdateHandler = jest.fn();
 
       const apiClient = createMockApiClient(
         supportedChains,
@@ -2230,7 +2221,7 @@ describe('AccountsApiDataSource', () => {
 
       const middleware = controller.assetsMiddleware;
       const context = createMiddlewareContext();
-      const nextFn = vi.fn();
+      const nextFn = jest.fn();
 
       await middleware(context, nextFn);
 
@@ -2259,7 +2250,7 @@ describe('AccountsApiDataSource', () => {
         getAssetsState: () => createAssetsState(),
       });
 
-      const nextFn = vi.fn().mockResolvedValue(undefined);
+      const nextFn = jest.fn().mockResolvedValue(undefined);
       const context = createMiddlewareContext({
         request: createDataRequest({
           chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
@@ -2330,7 +2321,7 @@ describe('AccountsApiDataSource', () => {
         getAssetsState: () => createAssetsState(),
       });
 
-      const nextFn = vi.fn().mockResolvedValue(undefined);
+      const nextFn = jest.fn().mockResolvedValue(undefined);
       const context = createMiddlewareContext({
         request: createDataRequest({
           chainIds: [CHAIN_MAINNET],

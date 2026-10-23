@@ -1,5 +1,3 @@
-import { afterEach, describe, expect, it } from 'vitest';
-
 import type { AssetMetadata, FungibleAssetPrice } from '../types.js';
 import {
   clearFormatExchangeRatesForBridgeCacheForTesting,

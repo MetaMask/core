@@ -1,6 +1,5 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger } from '@metamask/messenger';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   Context,
@@ -108,7 +107,7 @@ function setupController(
 
 describe('DetectionMiddleware', () => {
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   it('initializes with correct name', () => {
@@ -128,7 +127,7 @@ describe('DetectionMiddleware', () => {
     const context = createMiddlewareContext({
       response: {},
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -148,7 +147,7 @@ describe('DetectionMiddleware', () => {
         },
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -174,7 +173,7 @@ describe('DetectionMiddleware', () => {
         },
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -196,7 +195,7 @@ describe('DetectionMiddleware', () => {
         },
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -223,7 +222,7 @@ describe('DetectionMiddleware', () => {
         },
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -250,7 +249,7 @@ describe('DetectionMiddleware', () => {
         },
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -274,7 +273,7 @@ describe('DetectionMiddleware', () => {
         },
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -294,7 +293,7 @@ describe('DetectionMiddleware', () => {
         },
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -311,7 +310,7 @@ describe('DetectionMiddleware', () => {
         assetsBalance: {},
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -328,7 +327,7 @@ describe('DetectionMiddleware', () => {
         },
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -348,7 +347,7 @@ describe('DetectionMiddleware', () => {
         },
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -372,7 +371,7 @@ describe('DetectionMiddleware', () => {
         },
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -395,7 +394,7 @@ describe('DetectionMiddleware', () => {
         },
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middleware.assetsMiddleware(context, next);
 
@@ -419,7 +418,7 @@ describe('DetectionMiddleware', () => {
         },
       },
     });
-    const next = vi.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
 
     await middlewareFn(context, next);
 

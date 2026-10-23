@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest';
-
 import type { AssetsDataSource } from '../types.js';
 import { buildFastFetchSources } from './buildFastFetchSources.js';
 import type { FastFetchSources } from './buildFastFetchSources.js';

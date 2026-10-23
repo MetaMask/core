@@ -1,6 +1,5 @@
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { describe, expect, it, vi } from 'vitest';
 
 import type { AssetsControllerState } from '../AssetsController.js';
 import type { Caip19AssetId, FungibleAssetPrice } from '../types.js';
@@ -764,7 +763,7 @@ describe('wallet-balance selectors', () => {
 
     it('emits AggregatedBalanceSelector as a subspan under AggregatedBalance', () => {
       const parentSpan = { id: 'aggregated-balance' };
-      const trace = vi
+      const trace = jest
         .fn()
         .mockImplementation(
           async (
