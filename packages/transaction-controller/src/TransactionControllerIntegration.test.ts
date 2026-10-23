@@ -36,6 +36,7 @@ import { v4 as uuidV4 } from 'uuid';
 import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { advanceTimeUntilSettled } from '../../../tests/vitest/helpers.js';
 import {
   buildAddNetworkFields,
   buildCustomNetworkClientConfiguration,
@@ -1305,7 +1306,7 @@ describe('TransactionController Integration', () => {
           );
           await advanceTime({ duration: 1 });
 
-          const nonceLock = await nonceLockPromise;
+          const nonceLock = await advanceTimeUntilSettled(nonceLockPromise);
 
           expect(nonceLock.nextNonce).toBe(10);
         }),
@@ -1351,7 +1352,7 @@ describe('TransactionController Integration', () => {
       );
       await advanceTime({ duration: 1 });
 
-      const nonceLock = await nonceLockPromise;
+      const nonceLock = await advanceTimeUntilSettled(nonceLockPromise);
 
       expect(nonceLock.nextNonce).toBe(11);
 
@@ -1386,7 +1387,9 @@ describe('TransactionController Integration', () => {
           );
           await advanceTime({ duration: 1 });
 
-          const firstNonceLock = await firstNonceLockPromise;
+          const firstNonceLock = await advanceTimeUntilSettled(
+            firstNonceLockPromise,
+          );
 
           expect(firstNonceLock.nextNonce).toBe(10);
 
@@ -1479,7 +1482,9 @@ describe('TransactionController Integration', () => {
       );
       await advanceTime({ duration: 1 });
 
-      const firstNonceLock = await firstNonceLockPromise;
+      const firstNonceLock = await advanceTimeUntilSettled(
+        firstNonceLockPromise,
+      );
 
       expect(firstNonceLock.nextNonce).toBe(10);
 
@@ -1544,7 +1549,9 @@ describe('TransactionController Integration', () => {
       );
       await advanceTime({ duration: 1 });
 
-      const firstNonceLock = await firstNonceLockPromise;
+      const firstNonceLock = await advanceTimeUntilSettled(
+        firstNonceLockPromise,
+      );
 
       expect(firstNonceLock.nextNonce).toBe(10);
 
@@ -1554,7 +1561,9 @@ describe('TransactionController Integration', () => {
       );
       await advanceTime({ duration: 1 });
 
-      const secondNonceLock = await secondNonceLockPromise;
+      const secondNonceLock = await advanceTimeUntilSettled(
+        secondNonceLockPromise,
+      );
 
       expect(secondNonceLock.nextNonce).toBe(15);
 
@@ -1593,7 +1602,9 @@ describe('TransactionController Integration', () => {
           );
           await advanceTime({ duration: 1 });
 
-          const firstNonceLock = await firstNonceLockPromise;
+          const firstNonceLock = await advanceTimeUntilSettled(
+            firstNonceLockPromise,
+          );
 
           expect(firstNonceLock.nextNonce).toBe(10);
 
@@ -1603,7 +1614,9 @@ describe('TransactionController Integration', () => {
           );
           await advanceTime({ duration: 1 });
 
-          const secondNonceLock = await secondNonceLockPromise;
+          const secondNonceLock = await advanceTimeUntilSettled(
+            secondNonceLockPromise,
+          );
 
           expect(secondNonceLock.nextNonce).toBe(15);
         }),
