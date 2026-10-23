@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `bignumber.js` from `^9.1.2` to `^9.3.1` ([#10529](https://github.com/MetaMask/core/pull/10529))
 
 ## [27.1.1]
 
