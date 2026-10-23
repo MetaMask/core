@@ -65,6 +65,11 @@ import {
   areVendorDisclaimersCompleted,
   recordVendorDisclaimerAcceptance,
 } from './vendorDisclaimers.js';
+import type {
+  KycDerivedStatus,
+  KycVerificationStatusChangedPayload,
+} from './verificationStatus.js';
+import { deriveKycStatus } from './verificationStatus.js';
 
 // === GENERAL ===
 
@@ -298,7 +303,21 @@ export type KycControllerStateChangeEvent = ControllerStateChangeEvent<
   KycControllerState
 >;
 
-export type KycControllerEvents = KycControllerStateChangeEvent;
+/**
+ * Published after the state write that produced a verification outcome. Intended
+ * for analytics: it fires only for a SumSub launch outcome (`submitted`,
+ * `abandoned`, `failed`) or when the derived KYC status becomes `approved`
+ * (`succeeded`) or `rejected`. Loading an already-decided session does not
+ * publish it.
+ */
+export type KycControllerVerificationStatusChangedEvent = {
+  type: `${typeof controllerName}:verificationStatusChanged`;
+  payload: [KycVerificationStatusChangedPayload];
+};
+
+export type KycControllerEvents =
+  | KycControllerStateChangeEvent
+  | KycControllerVerificationStatusChangedEvent;
 
 type AllowedEvents = never;
 
@@ -510,9 +529,7 @@ export class KycController extends BaseController<
       { sessionId: this.state.sessionStatus.id },
     );
 
-    this.update((state) => {
-      state.sessionStatus = sessionStatus;
-    });
+    this.#updateSessionStatus(sessionStatus);
     // TODO: Should we resume polling here?
     return this.#refreshAuthorizationsIfNeeded();
   }
@@ -613,9 +630,7 @@ export class KycController extends BaseController<
       'KycService:getSessionStatus',
       { sessionId },
     );
-    this.update((state) => {
-      state.sessionStatus = sessionStatus;
-    });
+    this.#updateSessionStatus(sessionStatus);
     return sessionStatus;
   }
 
@@ -685,9 +700,7 @@ export class KycController extends BaseController<
         JSON.stringify(this.state.sessionStatus) !==
         JSON.stringify(sessionStatus)
       ) {
-        this.update((state) => {
-          state.sessionStatus = sessionStatus;
-        });
+        this.#updateSessionStatus(sessionStatus);
       }
 
       if (FINAL_STATUSES_TO_STOP_POLLING.has(sessionStatus.finalStatus)) {
@@ -698,6 +711,82 @@ export class KycController extends BaseController<
     } catch {
       return this.#sessionStatusPollToken !== token;
     }
+  }
+
+  /**
+   * Derives the current KYC status from state.
+   *
+   * @returns The derived KYC status.
+   */
+  #getKycStatus(): KycDerivedStatus {
+    return deriveKycStatus(
+      this.state.sessionStatus,
+      this.state.providerFlowStatus,
+    );
+  }
+
+  /**
+   * Publishes `KycController:verificationStatusChanged` for the current state.
+   *
+   * @param status - The verification outcome.
+   * @param previousKycStatus - Derived KYC status before the causing write.
+   */
+  #publishVerificationStatus(
+    status: KycVerificationStatusChangedPayload['status'],
+    previousKycStatus: KycDerivedStatus,
+  ): void {
+    this.messenger.publish('KycController:verificationStatusChanged', {
+      status,
+      previousKycStatus,
+      kycStatus: this.#getKycStatus(),
+      providerFlowStatus: this.state.providerFlowStatus,
+      vendor: this.state.vendor,
+    });
+  }
+
+  /**
+   * Replaces the stored session status, then publishes `succeeded` or
+   * `rejected` when the derived KYC status newly became `approved` or
+   * `rejected`. State is written before the event is published.
+   *
+   * Writes that load a session into an empty slot must not use this helper, so
+   * an already-decided session found on a fresh install does not emit.
+   *
+   * @param sessionStatus - The session status to store.
+   */
+  #updateSessionStatus(sessionStatus: KycSessionStatus): void {
+    const previousKycStatus = this.#getKycStatus();
+    this.update((state) => {
+      state.sessionStatus = sessionStatus;
+    });
+    const kycStatus = this.#getKycStatus();
+    if (kycStatus === previousKycStatus) {
+      return;
+    }
+    if (kycStatus === 'approved') {
+      this.#publishVerificationStatus('succeeded', previousKycStatus);
+    } else if (kycStatus === 'rejected') {
+      this.#publishVerificationStatus('rejected', previousKycStatus);
+    }
+  }
+
+  /**
+   * Records the outcome of one SumSub launch attempt and publishes it. Every
+   * attempt publishes, including a repeat of the previous outcome. Pass no
+   * `update` for failures that must not write state.
+   *
+   * @param status - The launch outcome.
+   * @param update - Optional state write applied before publishing.
+   */
+  #recordLaunchOutcome(
+    status: 'submitted' | 'abandoned' | 'failed',
+    update?: (state: KycControllerState) => void,
+  ): void {
+    const previousKycStatus = this.#getKycStatus();
+    if (update) {
+      this.update(update);
+    }
+    this.#publishVerificationStatus(status, previousKycStatus);
   }
 
   /**
@@ -817,9 +906,7 @@ export class KycController extends BaseController<
       },
     );
 
-    this.update((state) => {
-      state.sessionStatus = sessionStatus;
-    });
+    this.#updateSessionStatus(sessionStatus);
 
     return sessionStatus;
   }
@@ -1139,7 +1226,7 @@ export class KycController extends BaseController<
   }): Promise<KycProviderFlowStatus> {
     const sessionId = this.state.sessionStatus?.id;
     if (!this.#sumsubLauncher.isAvailable() || !sessionId) {
-      this.update((state) => {
+      this.#recordLaunchOutcome('failed', (state) => {
         state.providerFlowStatus = 'failed';
       });
       return 'failed';
@@ -1187,11 +1274,12 @@ export class KycController extends BaseController<
 
       const currentSessionStatus = this.state.sessionStatus;
       if (currentSessionStatus?.id !== sessionId) {
+        this.#recordLaunchOutcome('failed');
         return 'failed';
       }
 
       if (sdkFailed) {
-        this.update((state) => {
+        this.#recordLaunchOutcome('failed', (state) => {
           state.providerFlowStatus = 'failed';
         });
         return 'failed';
@@ -1200,7 +1288,7 @@ export class KycController extends BaseController<
       if (reachedCompletion) {
         // Once the SDK completes, the authoritative verification decision comes
         // from the UKYC backend, not the SDK result.
-        this.update((state) => {
+        this.#recordLaunchOutcome('submitted', (state) => {
           state.sessionStatus = {
             ...currentSessionStatus,
             finalStatus: 'pending',
@@ -1211,15 +1299,17 @@ export class KycController extends BaseController<
         return 'submitted';
       }
 
-      this.update((state) => {
+      this.#recordLaunchOutcome('abandoned', (state) => {
         state.providerFlowStatus = 'abandoned';
       });
       return 'abandoned';
     } catch {
       if (this.state.sessionStatus?.id === sessionId) {
-        this.update((state) => {
+        this.#recordLaunchOutcome('failed', (state) => {
           state.providerFlowStatus = 'failed';
         });
+      } else {
+        this.#recordLaunchOutcome('failed');
       }
       return 'failed';
     }

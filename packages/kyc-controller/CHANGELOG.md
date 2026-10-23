@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KycController:verificationStatusChanged` event for verification analytics ([#PR](https://github.com/MetaMask/core/pull/PR))
+  - Published after the state write for each SumSub launch outcome (`submitted`, `abandoned`, `failed`), and when the derived KYC status newly becomes `approved` (`succeeded`) or `rejected`
+  - Payload carries `status`, `previousKycStatus`, `kycStatus`, `providerFlowStatus` and `vendor` only
+  - Loading an already-decided session into empty state does not publish
+- Export `deriveKycStatus`, `KYC_DERIVED_STATUSES` and the `KycDerivedStatus`, `KycVerificationEventStatus` and `KycVerificationStatusChangedPayload` types
+
 ## [0.12.0]
 
 ### Added
