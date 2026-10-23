@@ -51,3 +51,9 @@ export type RateHistoryOptions = {
 export type VaultRateOptions = {
   chainId?: number;
 };
+
+/** Options for the SIWE-authenticated current VBA transfer read. */
+export type FetchVbaTransfersOptions = {
+  /** Address whose SIWE session is used to authorize the request. */
+  address: string;
+};

@@ -1,4 +1,5 @@
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { getServerDepositData, hasServerDepositStep } from './deposit-step.js';
 import type { ServerQuote, ServerTransactionStep } from './types.js';

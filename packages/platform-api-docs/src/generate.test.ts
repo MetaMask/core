@@ -1,14 +1,14 @@
-import { jest } from '@jest/globals';
 import { createSandbox } from '@metamask/node-utils';
 import { execa } from 'execa';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 
 import { generate, resolveRepoUrl } from './generate.js';
 
 const { withinSandbox } = createSandbox('platform-api-docs/generate');
 
-jest.setTimeout(30_000);
+vi.setConfig({ testTimeout: 30_000 });
 
 /**
  * Initialize a git repository in the given directory with an `origin` remote
@@ -1188,7 +1188,7 @@ export type GlobalEvents = never;
 `,
       );
 
-      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {
         // Silence the warnings while asserting on them.
       });
 
@@ -1247,7 +1247,7 @@ export type GlobalEvents = never;
 `,
       );
 
-      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {
         // Silence the warnings while asserting on them.
       });
 
@@ -1298,7 +1298,7 @@ export type GlobalEvents = never;
 `,
       );
 
-      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {
         // Silence the warnings; this test is about the throw.
       });
 

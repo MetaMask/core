@@ -7,6 +7,7 @@ import {
   abiFiatTokenV2,
 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type { TransactionMeta } from '../types.js';
@@ -19,8 +20,8 @@ import {
   hasTransactionType,
 } from './transaction-type.js';
 
-jest.mock('./provider', () => ({
-  rpcRequest: jest.fn(),
+vi.mock('./provider', () => ({
+  rpcRequest: vi.fn(),
 }));
 
 const ERC20Interface = new Interface(abiERC20);
@@ -39,11 +40,11 @@ describe('determineTransactionType', () => {
   };
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   it('returns a token transfer type when the recipient is a contract, there is no value passed, and data is for the respective method call', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xab');
+    vi.mocked(rpcRequest).mockResolvedValue('0xab');
 
     const result = await determineTransactionType(
       {
@@ -64,7 +65,7 @@ describe('determineTransactionType', () => {
     'does NOT return a token transfer type and instead returns contract interaction' +
       ' when the recipient is a contract, the data matches the respective method call, but there is a value passed',
     async () => {
-      jest.mocked(rpcRequest).mockResolvedValue('0xab');
+      vi.mocked(rpcRequest).mockResolvedValue('0xab');
 
       const resultWithEmptyValue = await determineTransactionType(txParams, {
         messenger: messengerMock,
@@ -103,7 +104,7 @@ describe('determineTransactionType', () => {
   );
 
   it('does NOT return a token transfer type when the recipient is not a contract but the data matches the respective method call', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0x');
+    vi.mocked(rpcRequest).mockResolvedValue('0x');
 
     const result = await determineTransactionType(txParams, {
       messenger: messengerMock,
@@ -116,9 +117,9 @@ describe('determineTransactionType', () => {
   });
 
   it('does not identify contract codes with DELEGATION_PREFIX as contract addresses', async () => {
-    jest
-      .mocked(rpcRequest)
-      .mockResolvedValue(`${DELEGATION_PREFIX}1234567890abcdef`);
+    vi.mocked(rpcRequest).mockResolvedValue(
+      `${DELEGATION_PREFIX}1234567890abcdef`,
+    );
 
     const result = await determineTransactionType(
       {
@@ -136,7 +137,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a token approve type when the recipient is a contract and data is for the respective method call', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xab');
+    vi.mocked(rpcRequest).mockResolvedValue('0xab');
 
     const result = await determineTransactionType(
       {
@@ -152,7 +153,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a token approve type when data is uppercase', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xab');
+    vi.mocked(rpcRequest).mockResolvedValue('0xab');
 
     const result = await determineTransactionType(
       {
@@ -183,7 +184,7 @@ describe('determineTransactionType', () => {
   });
 
   it('does NOT classify as deployContract when "to" is falsy but data is "0x" (empty bytecode)', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0x');
+    vi.mocked(rpcRequest).mockResolvedValue('0x');
 
     const result = await determineTransactionType(
       {
@@ -197,7 +198,7 @@ describe('determineTransactionType', () => {
   });
 
   it('does NOT classify as deployContract when "to" is undefined but data is "0x"', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0x');
+    vi.mocked(rpcRequest).mockResolvedValue('0x');
 
     const result = await determineTransactionType(
       {
@@ -211,7 +212,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a simple send type with a 0x getCodeResponse when there is data, but the "to" address is not a contract address', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0x');
+    vi.mocked(rpcRequest).mockResolvedValue('0x');
 
     const result = await determineTransactionType(
       {
@@ -227,7 +228,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a simple send type with a null getCodeResponse when "to" is truthy and there is data, but getCode returns an error', async () => {
-    jest.mocked(rpcRequest).mockRejectedValue(new Error('Some error'));
+    vi.mocked(rpcRequest).mockRejectedValue(new Error('Some error'));
 
     const result = await determineTransactionType(
       {
@@ -243,7 +244,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a contract interaction type with the correct getCodeResponse when "to" is truthy and there is data, and it is not a token transaction', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xa');
+    vi.mocked(rpcRequest).mockResolvedValue('0xa');
 
     const result = await determineTransactionType(
       {
@@ -259,7 +260,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns a contract interaction type with the correct getCodeResponse when "to" is a contract address and data is falsy', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xa');
+    vi.mocked(rpcRequest).mockResolvedValue('0xa');
 
     const result = await determineTransactionType(
       {
@@ -275,7 +276,7 @@ describe('determineTransactionType', () => {
   });
 
   it('returns contractInteraction for send with approve', async () => {
-    jest.mocked(rpcRequest).mockResolvedValue('0xa');
+    vi.mocked(rpcRequest).mockResolvedValue('0xa');
 
     const result = await determineTransactionType(
       {

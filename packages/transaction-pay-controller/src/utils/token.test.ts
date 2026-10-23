@@ -4,6 +4,7 @@ import { RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 import { hexToBigInt } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
@@ -44,7 +45,7 @@ const TICKER_MOCK = 'TST';
 const SYMBOL_MOCK = 'TEST';
 const ACCOUNT_MOCK = '0x1234567890abcdef1234567890abcdef12345678' as Hex;
 const ERC20_ADDRESS_MOCK = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Hex;
-const PROVIDER_MOCK = { request: jest.fn() };
+const PROVIDER_MOCK = { request: vi.fn() };
 
 /**
  * Build a CAIP-19 asset ID for fixtures, mirroring how `AssetsController` keys
@@ -81,7 +82,7 @@ describe('Token Utils', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
