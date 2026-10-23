@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
+### Changed
+
+- Bump `@noble/hashes` from `^1.8.0` to `^2.4.0` ([#10594](https://github.com/MetaMask/core/pull/10594))
+
 ## [0.1.0]
 
 ### Added
