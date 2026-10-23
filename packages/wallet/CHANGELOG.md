@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [19.0.1]
+## [19.1.0]
 
 ### Added
 
@@ -409,8 +409,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.1...HEAD
-[19.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.0...@metamask/wallet@19.0.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.1.0...HEAD
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.0...@metamask/wallet@19.1.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.1...@metamask/wallet@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.0...@metamask/wallet@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.1.0...@metamask/wallet@18.0.0
