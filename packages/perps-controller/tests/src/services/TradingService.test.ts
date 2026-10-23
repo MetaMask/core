@@ -5137,7 +5137,7 @@ describe('TradingService', () => {
 
     describe('order_type on batch close', () => {
       const closeEventOrderTypes = (): unknown[] =>
-        jest
+        vi
           .mocked(mockDeps.metrics.trackPerpsEvent)
           .mock.calls.filter(
             ([event]) => event === PerpsAnalyticsEvent.PositionCloseTransaction,
@@ -5145,7 +5145,7 @@ describe('TradingService', () => {
           .map(([, props]) => props.order_type);
 
       it('tags the batch close summary event as a market close', async () => {
-        mockProvider.closePositions = jest.fn().mockResolvedValue({
+        mockProvider.closePositions = vi.fn().mockResolvedValue({
           success: true,
           successCount: 1,
           failureCount: 0,
@@ -5173,7 +5173,7 @@ describe('TradingService', () => {
       });
 
       it('tags the summary event as a market close when the batch close throws', async () => {
-        mockProvider.closePositions = jest
+        mockProvider.closePositions = vi
           .fn()
           .mockRejectedValue(new Error('Network error'));
 

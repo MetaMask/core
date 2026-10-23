@@ -1027,7 +1027,7 @@ describe('PerpsController', () => {
     function createLighterController(
       lighter: LighterCredentials,
       messenger = createMockMessenger({
-        call: jest
+        call: vi
           .fn()
           .mockImplementation((action: string) =>
             action === 'RemoteFeatureFlagController:getState'
@@ -1045,7 +1045,7 @@ describe('PerpsController', () => {
     }
 
     it('registers Lighter from the client loadProvider and switches to it', async () => {
-      const loadProvider = jest.fn().mockResolvedValue({ LighterProvider });
+      const loadProvider = vi.fn().mockResolvedValue({ LighterProvider });
       controller = createLighterController({ enabled: true, loadProvider });
 
       await controller.init();
@@ -1135,7 +1135,7 @@ describe('PerpsController', () => {
     });
 
     it('logs a Lighter provider that fails to construct as an error', async () => {
-      jest.mocked(LighterProvider).mockImplementationOnce(() => {
+      vi.mocked(LighterProvider).mockImplementationOnce(function () {
         throw new Error('Invalid auth config');
       });
       controller = createLighterController({
@@ -1161,10 +1161,10 @@ describe('PerpsController', () => {
 
     it('drops a previous load failure once Lighter is no longer enabled', async () => {
       let isLighterFlagEnabled = true;
-      jest
-        .mocked(mockInfrastructure.featureFlags.validateVersionGated)
-        .mockImplementation(() => isLighterFlagEnabled);
-      const call = jest.fn().mockImplementation((action: string) =>
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockImplementation(() => isLighterFlagEnabled);
+      const call = vi.fn().mockImplementation((action: string) =>
         action === 'RemoteFeatureFlagController:getState'
           ? {
               remoteFeatureFlags: {
@@ -1178,7 +1178,7 @@ describe('PerpsController', () => {
       );
       controller = createLighterController(
         {
-          signerBridge: { createClient: jest.fn(), execute: jest.fn() },
+          signerBridge: { createClient: vi.fn(), execute: vi.fn() },
           loadProvider: async () =>
             Promise.reject(new TypeError(FETCH_FAILURE)),
         },
