@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: run local-nodes packages on Vitest ([#10955](https://github.com/MetaMask/core/pull/10955))
+- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
+- chore(deps): update dependency typedoc-plugin-missing-exports to v4 ([#10762](https://github.com/MetaMask/core/pull/10762))
+- chore(deps): update dependency typedoc-plugin-missing-exports to ^2.3.0 ([#10710](https://github.com/MetaMask/core/pull/10710))
+- chore(deps): update dependency typedoc to ^0.28.20 ([#10731](https://github.com/MetaMask/core/pull/10731))
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
