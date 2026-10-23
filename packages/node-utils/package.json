@@ -52,7 +52,7 @@
   "dependencies": {
     "@metamask/error-utils": "^0.0.0",
     "@metamask/type-utils": "^0.0.0",
-    "uuid": "^11.1.1"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",

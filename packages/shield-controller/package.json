@@ -72,7 +72,7 @@
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "uuid": "^11.1.1",
+    "uuid": "^14.0.0",
     "vitest": "^5.0.0"
   },
   "engines": {
