@@ -6,6 +6,9 @@ import type {
   PositionResponseStruct,
   RateHistoryResponseStruct,
   VaultRateResponseStruct,
+  VbaSiweChallengeResponseStruct,
+  VbaSiweSessionResponseStruct,
+  VbaTransfersResponseStruct,
 } from './structs.js';
 
 // All types in this file mirror the external Money Account API's snake_case
@@ -160,3 +163,17 @@ export type RateHistoryResponse = Infer<typeof RateHistoryResponseStruct>;
  * (assets per share). `timestamp` is when that rate was indexed.
  */
 export type VaultRateResponse = Infer<typeof VaultRateResponseStruct>;
+
+/** Response from the SIWE challenge endpoint. */
+export type VbaSiweChallengeResponse = Infer<
+  typeof VbaSiweChallengeResponseStruct
+>;
+
+/** Response from the SIWE session verification endpoint. */
+export type VbaSiweSessionResponse = Infer<typeof VbaSiweSessionResponseStruct>;
+
+/** One current VBA transfer returned for the authenticated wallet. */
+export type VbaTransfer = VbaTransfersResponse['transfers'][number];
+
+/** Response from `GET /v1/vba/transfers`. */
+export type VbaTransfersResponse = Infer<typeof VbaTransfersResponseStruct>;

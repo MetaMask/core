@@ -61,6 +61,7 @@ import type {
   AccountState,
   GetAvailableDexsParams,
   HyperLiquidCredentials,
+  LighterCredentials,
   PerpsProvider,
   PerpsPlatformDependencies,
   PerpsMarketData,
@@ -989,24 +990,162 @@ describe('PerpsController', () => {
       ]);
     });
 
-    it('handleLighterImportError logs debug for MODULE_NOT_FOUND errors', () => {
-      const moduleError = Object.assign(
-        new Error('Cannot find module ./providers/LighterProvider'),
-        { code: 'MODULE_NOT_FOUND' },
+    it.each(['MODULE_NOT_FOUND', 'ERR_MODULE_NOT_FOUND'])(
+      'handleLighterImportError logs debug for %s errors',
+      (code) => {
+        const moduleError = Object.assign(
+          new Error('Cannot find module ./providers/LighterProvider'),
+          { code },
+        );
+
+        controller.testHandleLighterImportError(moduleError);
+
+        expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+          'PerpsController: Lighter provider module not available, skipping registration',
+          {
+            error:
+              'Lighter provider failed to load (Cannot find module ./providers/LighterProvider). Pass providerCredentials.lighter.loadProvider to load it from @metamask/perps-controller/providers/lighter.',
+          },
+        );
+        expect(mockInfrastructure.logger.error).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  describe('Lighter provider loading', () => {
+    const FETCH_FAILURE =
+      'Failed to fetch dynamically imported module: http://localhost:3000/_next/static/chunks/providers/LighterProvider';
+
+    /**
+     * Build a controller with Lighter enabled through the given credentials.
+     *
+     * @param lighter - The Lighter credentials.
+     * @param messenger - The controller messenger. Defaults to one that
+     * answers the remote feature flags, so nothing else reaches logger.error.
+     * @returns The controller.
+     */
+    function createLighterController(
+      lighter: LighterCredentials,
+      messenger = createMockMessenger({
+        call: jest
+          .fn()
+          .mockImplementation((action: string) =>
+            action === 'RemoteFeatureFlagController:getState'
+              ? { remoteFeatureFlags: {} }
+              : undefined,
+          ),
+      }),
+    ): TestablePerpsController {
+      return new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        clientConfig: { providerCredentials: { lighter } },
+        infrastructure: mockInfrastructure,
+      });
+    }
+
+    it('registers Lighter from the client loadProvider and switches to it', async () => {
+      const loadProvider = jest.fn().mockResolvedValue({ LighterProvider });
+      controller = createLighterController({ enabled: true, loadProvider });
+
+      await controller.init();
+      const result = await controller.switchProvider('lighter');
+
+      expect(loadProvider).toHaveBeenCalled();
+      expect(controller.testGetProviders().get('lighter')).toBeInstanceOf(
+        LighterProvider,
       );
+      expect(result).toStrictEqual({ success: true, providerId: 'lighter' });
+      expect(controller.state.activeProvider).toBe('lighter');
+    });
 
-      controller.testHandleLighterImportError(moduleError);
+    it.each([
+      [
+        'rejects',
+        async (): Promise<never> =>
+          Promise.reject(new TypeError(FETCH_FAILURE)),
+      ],
+      [
+        'throws',
+        (): never => {
+          throw new TypeError(FETCH_FAILURE);
+        },
+      ],
+    ])(
+      'reports a Lighter load that %s from switchProvider without logging an error',
+      async (_, loadProvider) => {
+        controller = createLighterController({ enabled: true, loadProvider });
 
-      expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
-        'PerpsController: Lighter provider module not available, skipping registration',
+        await controller.init();
+        const result = await controller.switchProvider('lighter');
+
+        expect(controller.state.initializationState).toBe(
+          InitializationState.Initialized,
+        );
+        expect(result).toStrictEqual({
+          success: false,
+          providerId: 'hyperliquid',
+          error: `Provider lighter not available: Lighter provider failed to load (${FETCH_FAILURE}).`,
+        });
+        expect(mockInfrastructure.debugLogger.log).toHaveBeenCalledWith(
+          'PerpsController: Lighter provider module not available, skipping registration',
+          { error: `Lighter provider failed to load (${FETCH_FAILURE}).` },
+        );
+        expect(mockInfrastructure.logger.error).not.toHaveBeenCalled();
+      },
+    );
+
+    it('registers Lighter through its own import when the client passes no loader', async () => {
+      controller = createLighterController({ enabled: true });
+
+      await controller.init();
+      const result = await controller.switchProvider('lighter');
+
+      expect(controller.testGetProviders().get('lighter')).toBeInstanceOf(
+        LighterProvider,
+      );
+      expect(result).toStrictEqual({ success: true, providerId: 'lighter' });
+    });
+
+    it('reports a Lighter load that fails for another reason through logError', async () => {
+      const chunkError = Object.assign(new Error('Loading chunk 273 failed.'), {
+        name: 'ChunkLoadError',
+      });
+      controller = createLighterController({
+        enabled: true,
+        loadProvider: async () => Promise.reject(chunkError),
+      });
+
+      await controller.init();
+      const result = await controller.switchProvider('lighter');
+
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+        chunkError,
+        expect.objectContaining({
+          context: expect.objectContaining({
+            data: expect.objectContaining({
+              method: 'createProviders.lighter',
+            }),
+          }),
+        }),
+      );
+      expect(result.error).toBe(
+        'Provider lighter not available: Lighter provider failed to load (Loading chunk 273 failed.).',
       );
     });
 
-    it('handleLighterImportError routes runtime errors to logError', () => {
-      // Act — error without MODULE_NOT_FOUND code goes to Sentry
-      controller.testHandleLighterImportError(new Error('Invalid auth config'));
+    it('logs a Lighter provider that fails to construct as an error', async () => {
+      jest.mocked(LighterProvider).mockImplementationOnce(() => {
+        throw new Error('Invalid auth config');
+      });
+      controller = createLighterController({
+        enabled: true,
+        loadProvider: async () => ({ LighterProvider }),
+      });
 
-      // Assert
+      await controller.init();
+      const result = await controller.switchProvider('lighter');
+
       expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'Invalid auth config' }),
         expect.objectContaining({
@@ -1017,6 +1156,41 @@ describe('PerpsController', () => {
           }),
         }),
       );
+      expect(result.error).toBe('Provider lighter not available');
+    });
+
+    it('drops a previous load failure once Lighter is no longer enabled', async () => {
+      let isLighterFlagEnabled = true;
+      jest
+        .mocked(mockInfrastructure.featureFlags.validateVersionGated)
+        .mockImplementation(() => isLighterFlagEnabled);
+      const call = jest.fn().mockImplementation((action: string) =>
+        action === 'RemoteFeatureFlagController:getState'
+          ? {
+              remoteFeatureFlags: {
+                perpsLighterProviderEnabled: {
+                  enabled: true,
+                  minimumVersion: '0.0.0',
+                },
+              },
+            }
+          : undefined,
+      );
+      controller = createLighterController(
+        {
+          signerBridge: { createClient: jest.fn(), execute: jest.fn() },
+          loadProvider: async () =>
+            Promise.reject(new TypeError(FETCH_FAILURE)),
+        },
+        createMockMessenger({ call }),
+      );
+      await controller.init();
+
+      isLighterFlagEnabled = false;
+      await controller.switchProvider('aggregated');
+      const result = await controller.switchProvider('lighter');
+
+      expect(result.error).toBe('Provider lighter not available');
     });
   });
 

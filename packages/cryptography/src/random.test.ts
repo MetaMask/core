@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { getRandomBytes } from './random.js';
 
 describe('getRandomBytes', () => {
@@ -9,7 +11,7 @@ describe('getRandomBytes', () => {
   });
 
   it('fills the array using `crypto.getRandomValues`', () => {
-    const spy = jest
+    const spy = vi
       .spyOn(globalThis.crypto, 'getRandomValues')
       .mockImplementation((array) => {
         (array as Uint8Array).fill(0xab);

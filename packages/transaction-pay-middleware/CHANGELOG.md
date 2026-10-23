@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/perps-controller` from `^21.0.0` to `^22.0.0` ([#11029](https://github.com/MetaMask/core/pull/11029))
+
 ## [1.0.0]
 
 ### Added

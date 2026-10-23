@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
 - Replace `@metamask/utils` dependency with `@metamask/error-utils`, `@metamask/node-utils`, and `@metamask/type-utils` ([#10998](https://github.com/MetaMask/core/pull/10998))

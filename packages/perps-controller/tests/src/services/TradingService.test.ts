@@ -5135,6 +5135,92 @@ describe('TradingService', () => {
       });
     });
 
+    describe('order_type on batch close', () => {
+      const closeEventOrderTypes = (): unknown[] =>
+        jest
+          .mocked(mockDeps.metrics.trackPerpsEvent)
+          .mock.calls.filter(
+            ([event]) => event === PerpsAnalyticsEvent.PositionCloseTransaction,
+          )
+          .map(([, props]) => props.order_type);
+
+      it('tags the batch close summary event as a market close', async () => {
+        mockProvider.closePositions = jest.fn().mockResolvedValue({
+          success: true,
+          successCount: 1,
+          failureCount: 0,
+          results: [{ success: true, orderId: 'close-1', symbol: 'BTC' }],
+        });
+
+        await tradingService.closePositions({
+          provider: mockProvider,
+          params: { closeAll: true },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        expect(
+          findCall(
+            PerpsAnalyticsEvent.PositionCloseTransaction,
+            'executed',
+          )?.[1],
+        ).toStrictEqual(
+          expect.objectContaining({
+            order_type: 'market',
+            number_positions_closed: 1,
+          }),
+        );
+        expect(closeEventOrderTypes()).toStrictEqual(['market']);
+      });
+
+      it('tags the summary event as a market close when the batch close throws', async () => {
+        mockProvider.closePositions = jest
+          .fn()
+          .mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          tradingService.closePositions({
+            provider: mockProvider,
+            params: { symbols: ['BTC'] },
+            context: { ...mockContext, getPositions: mockGetPositions },
+          }),
+        ).rejects.toThrow('Network error');
+
+        expect(
+          findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'failed')?.[1],
+        ).toStrictEqual(
+          expect.objectContaining({
+            order_type: 'market',
+            error_message: 'Network error',
+          }),
+        );
+        expect(closeEventOrderTypes()).toStrictEqual(['market']);
+      });
+
+      it('tags every per-item and summary event as a market close in the fallback path', async () => {
+        delete mockProvider.closePositions;
+        mockGetPositions.mockResolvedValue([mockClosePosition]);
+        mockProvider.closePosition.mockResolvedValue({
+          success: true,
+          orderId: 'close-1',
+          filledSize: '0.5',
+          averagePrice: '55000',
+        });
+
+        await tradingService.closePositions({
+          provider: mockProvider,
+          params: { closeAll: true },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        // Per-item submitted and executed, then the batch summary.
+        expect(closeEventOrderTypes()).toStrictEqual([
+          'market',
+          'market',
+          'market',
+        ]);
+      });
+    });
+
     describe('bulk_action_id on batch close/cancel', () => {
       it('attaches bulk_action_id to the batch close summary event', async () => {
         mockGetPositions.mockResolvedValue([mockClosePosition]);

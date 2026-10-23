@@ -59,7 +59,7 @@ The monorepo uses a hierarchical configuration approach for different tools. For
 #### Jest
 
 - `jest.config.packages.js` defines shared Jest settings for all directories in `packages/`.
-- `jest.config.scripts.js` defines shared Jest settings for all directories in `scripts/`.
+- `vitest.config.scripts.ts` defines Vitest settings for the tests in `scripts/`.
 - `packages/**/jest.config.js` (and `scripts/create-package/package-template/jest.config.js`) customizes Jest settings for each package.
 
 #### Oxlint
