@@ -19,20 +19,10 @@ export type KycDerivedStatus = (typeof KYC_DERIVED_STATUSES)[number];
 const KYC_DERIVED_STATUS_SET = new Set<string>(KYC_DERIVED_STATUSES);
 
 /**
- * Verification outcomes the controller reports through
- * `KycController:verificationStatusChanged`.
- *
- * - `submitted`, `abandoned` and `failed` mirror the provider-flow outcome of a
- * single SumSub launch attempt.
- * - `succeeded` and `rejected` report the derived KYC status becoming
- * `approved` or `rejected`.
+ * SumSub launch outcomes the controller reports through
+ * `KycController:verificationStatusChanged`, one per launch attempt.
  */
-export type KycVerificationEventStatus =
-  | 'submitted'
-  | 'abandoned'
-  | 'failed'
-  | 'succeeded'
-  | 'rejected';
+export type KycVerificationEventStatus = 'submitted' | 'abandoned' | 'failed';
 
 /**
  * Payload of `KycController:verificationStatusChanged`.
@@ -41,9 +31,24 @@ export type KycVerificationEventStatus =
  */
 export type KycVerificationStatusChangedPayload = {
   status: KycVerificationEventStatus;
-  /** Derived KYC status before the write that caused this event. */
-  previousKycStatus: KycDerivedStatus;
-  /** Derived KYC status after the write that caused this event. */
+  /** Derived KYC status after the launch outcome was recorded. */
+  kycStatus: KycDerivedStatus;
+  providerFlowStatus: KycProviderFlowStatus;
+  vendor: string | null;
+};
+
+/**
+ * Payload of `KycController:kycStatusChanged`.
+ *
+ * Carries no session id, email, disclaimer or token data.
+ */
+export type KycStatusChangedPayload = {
+  /**
+   * Derived KYC status before the change. Absent when no status was stored
+   * before (the session was just created).
+   */
+  previousKycStatus?: KycDerivedStatus;
+  /** Derived KYC status after the change. */
   kycStatus: KycDerivedStatus;
   providerFlowStatus: KycProviderFlowStatus;
   vendor: string | null;

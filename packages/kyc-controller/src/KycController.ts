@@ -67,6 +67,7 @@ import {
 } from './vendorDisclaimers.js';
 import type {
   KycDerivedStatus,
+  KycStatusChangedPayload,
   KycVerificationStatusChangedPayload,
 } from './verificationStatus.js';
 import { deriveKycStatus } from './verificationStatus.js';
@@ -304,20 +305,31 @@ export type KycControllerStateChangeEvent = ControllerStateChangeEvent<
 >;
 
 /**
- * Published after the state write that produced a verification outcome. Intended
- * for analytics: it fires only for a SumSub launch outcome (`submitted`,
- * `abandoned`, `failed`) or when the derived KYC status becomes `approved`
- * (`succeeded`) or `rejected`. Loading an already-decided session does not
- * publish it.
+ * Published after the state write that records a SumSub launch attempt
+ * (`submitted`, `abandoned` or `failed`). Intended for analytics. It fires once
+ * per attempt, including a repeat of the previous outcome, and for the two
+ * failures that leave state unchanged.
  */
 export type KycControllerVerificationStatusChangedEvent = {
   type: `${typeof controllerName}:verificationStatusChanged`;
   payload: [KycVerificationStatusChangedPayload];
 };
 
+/**
+ * Published after a state write that changes the derived KYC status (for
+ * example `new` to `pending`, `pending` to `approved`, or `pending` to
+ * `retry`). Intended for analytics. Loading a session into an empty slot
+ * (for example after a reinstall) does not publish it.
+ */
+export type KycControllerKycStatusChangedEvent = {
+  type: `${typeof controllerName}:kycStatusChanged`;
+  payload: [KycStatusChangedPayload];
+};
+
 export type KycControllerEvents =
   | KycControllerStateChangeEvent
-  | KycControllerVerificationStatusChangedEvent;
+  | KycControllerVerificationStatusChangedEvent
+  | KycControllerKycStatusChangedEvent;
 
 type AllowedEvents = never;
 
@@ -728,16 +740,13 @@ export class KycController extends BaseController<
   /**
    * Publishes `KycController:verificationStatusChanged` for the current state.
    *
-   * @param status - The verification outcome.
-   * @param previousKycStatus - Derived KYC status before the causing write.
+   * @param status - The launch outcome.
    */
   #publishVerificationStatus(
     status: KycVerificationStatusChangedPayload['status'],
-    previousKycStatus: KycDerivedStatus,
   ): void {
     this.messenger.publish('KycController:verificationStatusChanged', {
       status,
-      previousKycStatus,
       kycStatus: this.#getKycStatus(),
       providerFlowStatus: this.state.providerFlowStatus,
       vendor: this.state.vendor,
@@ -745,9 +754,28 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Replaces the stored session status, then publishes `succeeded` or
-   * `rejected` when the derived KYC status newly became `approved` or
-   * `rejected`. State is written before the event is published.
+   * Publishes `KycController:kycStatusChanged` when the derived KYC status
+   * differs from the one before the causing write.
+   *
+   * @param previousKycStatus - Derived KYC status before the causing write.
+   */
+  #publishKycStatusIfChanged(previousKycStatus: KycDerivedStatus): void {
+    const kycStatus = this.#getKycStatus();
+    if (kycStatus === previousKycStatus) {
+      return;
+    }
+    this.messenger.publish('KycController:kycStatusChanged', {
+      ...(previousKycStatus === 'none' ? {} : { previousKycStatus }),
+      kycStatus,
+      providerFlowStatus: this.state.providerFlowStatus,
+      vendor: this.state.vendor,
+    });
+  }
+
+  /**
+   * Replaces the stored session status, then publishes
+   * `KycController:kycStatusChanged` when the derived KYC status changed. State
+   * is written before the event is published.
    *
    * Writes that load a session into an empty slot must not use this helper, so
    * an already-decided session found on a fresh install does not emit.
@@ -759,21 +787,15 @@ export class KycController extends BaseController<
     this.update((state) => {
       state.sessionStatus = sessionStatus;
     });
-    const kycStatus = this.#getKycStatus();
-    if (kycStatus === previousKycStatus) {
-      return;
-    }
-    if (kycStatus === 'approved') {
-      this.#publishVerificationStatus('succeeded', previousKycStatus);
-    } else if (kycStatus === 'rejected') {
-      this.#publishVerificationStatus('rejected', previousKycStatus);
-    }
+    this.#publishKycStatusIfChanged(previousKycStatus);
   }
 
   /**
-   * Records the outcome of one SumSub launch attempt and publishes it. Every
-   * attempt publishes, including a repeat of the previous outcome. Pass no
-   * `update` for failures that must not write state.
+   * Records the outcome of one SumSub launch attempt and publishes it, then
+   * publishes a KYC status change if the write caused one (a submitted launch
+   * moves the derived status to `pending`). Every attempt publishes, including
+   * a repeat of the previous outcome. Pass no `update` for failures that must
+   * not write state.
    *
    * @param status - The launch outcome.
    * @param update - Optional state write applied before publishing.
@@ -786,7 +808,8 @@ export class KycController extends BaseController<
     if (update) {
       this.update(update);
     }
-    this.#publishVerificationStatus(status, previousKycStatus);
+    this.#publishVerificationStatus(status);
+    this.#publishKycStatusIfChanged(previousKycStatus);
   }
 
   /**

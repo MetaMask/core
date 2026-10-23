@@ -14,6 +14,7 @@ export type {
   KycControllerOptions,
   KycControllerState,
   KycControllerStateChangeEvent,
+  KycControllerKycStatusChangedEvent,
   KycControllerVerificationStatusChangedEvent,
   FetchSessionDisclaimersParams,
   KycProviderFlowStatus,
@@ -40,6 +41,7 @@ export type {
 export { KYC_DERIVED_STATUSES, deriveKycStatus } from './verificationStatus.js';
 export type {
   KycDerivedStatus,
+  KycStatusChangedPayload,
   KycVerificationEventStatus,
   KycVerificationStatusChangedPayload,
 } from './verificationStatus.js';

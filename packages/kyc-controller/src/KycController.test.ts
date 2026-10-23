@@ -21,7 +21,10 @@ import {
   verifyJwtChain,
 } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
-import type { KycVerificationStatusChangedPayload } from './verificationStatus.js';
+import type {
+  KycStatusChangedPayload,
+  KycVerificationStatusChangedPayload,
+} from './verificationStatus.js';
 import { deriveKycStatus } from './verificationStatus.js';
 
 vi.mock(import('./ukyc/jwtChain.js'), async (importOriginal) => ({
@@ -1616,7 +1619,7 @@ describe('KycController', () => {
     });
   });
 
-  describe('verification status events', () => {
+  describe('verification and KYC status events', () => {
     afterEach(() => {
       vi.useRealTimers();
     });
@@ -1627,7 +1630,7 @@ describe('KycController', () => {
      * @param rootMessenger - The root messenger of the test controller.
      * @returns The array that payloads are pushed to.
      */
-    function collectEvents(
+    function collectVerificationEvents(
       rootMessenger: RootMessenger,
     ): KycVerificationStatusChangedPayload[] {
       const events: KycVerificationStatusChangedPayload[] = [];
@@ -1640,7 +1643,23 @@ describe('KycController', () => {
       return events;
     }
 
-    it('publishes submitted with the previous derived status after the SDK completes', async () => {
+    /**
+     * Collects every `KycController:kycStatusChanged` payload.
+     *
+     * @param rootMessenger - The root messenger of the test controller.
+     * @returns The array that payloads are pushed to.
+     */
+    function collectStatusEvents(
+      rootMessenger: RootMessenger,
+    ): KycStatusChangedPayload[] {
+      const events: KycStatusChangedPayload[] = [];
+      rootMessenger.subscribe('KycController:kycStatusChanged', (payload) => {
+        events.push(payload);
+      });
+      return events;
+    }
+
+    it('publishes submitted and the move to pending after the SDK completes', async () => {
       await withController(
         {
           options: {
@@ -1648,15 +1667,23 @@ describe('KycController', () => {
           },
         },
         async ({ controller, rootMessenger, handlers, launcher }) => {
-          const events = collectEvents(rootMessenger);
+          const verification = collectVerificationEvents(rootMessenger);
+          const status = collectStatusEvents(rootMessenger);
           launcher.launch.mockResolvedValue({ status: 'Completed' });
           handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
 
           await controller.launchProviderFlow({});
 
-          expect(events).toStrictEqual([
+          expect(verification).toStrictEqual([
             {
               status: 'submitted',
+              kycStatus: 'pending',
+              providerFlowStatus: 'submitted',
+              vendor: 'iron',
+            },
+          ]);
+          expect(status).toStrictEqual([
+            {
               previousKycStatus: 'new',
               kycStatus: 'pending',
               providerFlowStatus: 'submitted',
@@ -1667,24 +1694,25 @@ describe('KycController', () => {
       );
     });
 
-    it('publishes abandoned when the SDK closes before submission', async () => {
+    it('publishes abandoned without a KYC status change', async () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('new') } } },
         async ({ controller, rootMessenger, launcher }) => {
-          const events = collectEvents(rootMessenger);
+          const verification = collectVerificationEvents(rootMessenger);
+          const status = collectStatusEvents(rootMessenger);
           launcher.launch.mockResolvedValue({ status: 'Incomplete' });
 
           await controller.launchProviderFlow({});
 
-          expect(events).toStrictEqual([
+          expect(verification).toStrictEqual([
             {
               status: 'abandoned',
-              previousKycStatus: 'new',
               kycStatus: 'new',
               providerFlowStatus: 'abandoned',
               vendor: null,
             },
           ]);
+          expect(status).toStrictEqual([]);
         },
       );
     });
@@ -1693,7 +1721,8 @@ describe('KycController', () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('new') } } },
         async ({ controller, rootMessenger, launcher }) => {
-          const events = collectEvents(rootMessenger);
+          const verification = collectVerificationEvents(rootMessenger);
+          const status = collectStatusEvents(rootMessenger);
 
           launcher.launch.mockResolvedValueOnce({ status: 'Failed' });
           await controller.launchProviderFlow({});
@@ -1702,11 +1731,12 @@ describe('KycController', () => {
           launcher.isAvailable.mockReturnValueOnce(false);
           await controller.launchProviderFlow({});
 
-          expect(events.map(({ status }) => status)).toStrictEqual([
+          expect(verification.map((event) => event.status)).toStrictEqual([
             'failed',
             'failed',
             'failed',
           ]);
+          expect(status).toStrictEqual([]);
         },
       );
     });
@@ -1715,13 +1745,13 @@ describe('KycController', () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('new') } } },
         async ({ controller, rootMessenger, launcher }) => {
-          const events = collectEvents(rootMessenger);
+          const verification = collectVerificationEvents(rootMessenger);
           launcher.launch.mockResolvedValue({ status: 'Incomplete' });
 
           await controller.launchProviderFlow({});
           await controller.launchProviderFlow({});
 
-          expect(events.map(({ status }) => status)).toStrictEqual([
+          expect(verification.map(({ status }) => status)).toStrictEqual([
             'abandoned',
             'abandoned',
           ]);
@@ -1733,7 +1763,8 @@ describe('KycController', () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('new') } } },
         async ({ controller, rootMessenger, launcher }) => {
-          const events = collectEvents(rootMessenger);
+          const verification = collectVerificationEvents(rootMessenger);
+          const status = collectStatusEvents(rootMessenger);
           launcher.launch.mockImplementation(async () => {
             await controller.reset();
             return { status: 'Completed' };
@@ -1742,15 +1773,15 @@ describe('KycController', () => {
           await controller.launchProviderFlow({});
 
           expect(controller.state.providerFlowStatus).toBe('not_started');
-          expect(events).toStrictEqual([
+          expect(verification).toStrictEqual([
             {
               status: 'failed',
-              previousKycStatus: 'none',
               kycStatus: 'none',
               providerFlowStatus: 'not_started',
               vendor: null,
             },
           ]);
+          expect(status).toStrictEqual([]);
         },
       );
     });
@@ -1759,7 +1790,7 @@ describe('KycController', () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('new') } } },
         async ({ controller, rootMessenger, launcher }) => {
-          const events = collectEvents(rootMessenger);
+          const verification = collectVerificationEvents(rootMessenger);
           launcher.launch.mockImplementation(async () => {
             controller.clearState();
             throw new Error('launcher unavailable');
@@ -1767,17 +1798,20 @@ describe('KycController', () => {
 
           await controller.launchProviderFlow({});
 
-          expect(events.map(({ status }) => status)).toStrictEqual(['failed']);
+          expect(verification.map(({ status }) => status)).toStrictEqual([
+            'failed',
+          ]);
         },
       );
     });
 
-    it('publishes succeeded once when a poll newly approves the session', async () => {
+    it('publishes one KYC status change when a poll newly approves the session', async () => {
       vi.useFakeTimers();
       await withController(
         { options: { state: { sessionStatus: sessionStatus('pending') } } },
         async ({ controller, rootMessenger, handlers }) => {
-          const events = collectEvents(rootMessenger);
+          const status = collectStatusEvents(rootMessenger);
+          const verification = collectVerificationEvents(rootMessenger);
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('approved'),
           );
@@ -1785,38 +1819,45 @@ describe('KycController', () => {
           controller.startSessionStatusPolling();
           await vi.advanceTimersByTimeAsync(60_000);
 
-          expect(events).toStrictEqual([
+          expect(status).toStrictEqual([
             {
-              status: 'succeeded',
               previousKycStatus: 'pending',
               kycStatus: 'approved',
               providerFlowStatus: 'not_started',
               vendor: null,
             },
           ]);
+          expect(verification).toStrictEqual([]);
         },
       );
     });
 
-    it('publishes rejected when fetchSessionStatusOnce newly rejects the session', async () => {
-      await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
-        async ({ controller, rootMessenger, handlers }) => {
-          const events = collectEvents(rootMessenger);
-          handlers.getSessionStatus.mockResolvedValue(
-            sessionStatus('rejected'),
-          );
+    it.each([
+      ['rejected', 'rejected'],
+      ['retry', 'retry'],
+    ] as const)(
+      'publishes a KYC status change when fetchSessionStatusOnce moves the session to %s',
+      async (finalStatus, kycStatus) => {
+        await withController(
+          { options: { state: { sessionStatus: sessionStatus('pending') } } },
+          async ({ controller, rootMessenger, handlers }) => {
+            const status = collectStatusEvents(rootMessenger);
+            handlers.getSessionStatus.mockResolvedValue(
+              sessionStatus(finalStatus),
+            );
 
-          await controller.fetchSessionStatusOnce('sid');
+            await controller.fetchSessionStatusOnce('sid');
 
-          expect(events.map(({ status }) => status)).toStrictEqual([
-            'rejected',
-          ]);
-        },
-      );
-    });
+            expect(status.map((event) => event.kycStatus)).toStrictEqual([
+              kycStatus,
+            ]);
+            expect(status[0].previousKycStatus).toBe('pending');
+          },
+        );
+      },
+    );
 
-    it('publishes succeeded when startSession refetches an existing session that is now approved', async () => {
+    it('publishes a KYC status change when startSession refetches an existing session that is now approved', async () => {
       await withController(
         {
           options: {
@@ -1827,23 +1868,44 @@ describe('KycController', () => {
           },
         },
         async ({ controller, rootMessenger, handlers }) => {
-          const events = collectEvents(rootMessenger);
+          const status = collectStatusEvents(rootMessenger);
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('approved'),
           );
 
           await controller.startSession({ vendor: 'iron' });
 
-          expect(events.map(({ status }) => status)).toStrictEqual([
-            'succeeded',
+          expect(status.map((event) => event.kycStatus)).toStrictEqual([
+            'approved',
           ]);
         },
       );
     });
 
+    it('publishes a KYC status change without a previous status when the session is first created', async () => {
+      await withController(async ({ controller, rootMessenger, handlers }) => {
+        const status = collectStatusEvents(rootMessenger);
+        handlers.setAuthorizations.mockResolvedValue(sessionStatus('new'));
+
+        await controller.startSession({
+          vendor: 'iron',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(status).toStrictEqual([
+          {
+            kycStatus: 'new',
+            providerFlowStatus: 'not_started',
+            vendor: 'iron',
+          },
+        ]);
+      });
+    });
+
     it('does not publish when an already-approved session is loaded into empty state', async () => {
       await withController(async ({ controller, rootMessenger, handlers }) => {
-        const events = collectEvents(rootMessenger);
+        const status = collectStatusEvents(rootMessenger);
+        const verification = collectVerificationEvents(rootMessenger);
         handlers.getSessionStatusForVendor.mockResolvedValue(
           sessionStatus('approved'),
         );
@@ -1851,7 +1913,8 @@ describe('KycController', () => {
         await controller.startSession({ vendor: 'iron' });
 
         expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
-        expect(events).toStrictEqual([]);
+        expect(status).toStrictEqual([]);
+        expect(verification).toStrictEqual([]);
       });
     });
 
@@ -1859,28 +1922,14 @@ describe('KycController', () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('approved') } } },
         async ({ controller, rootMessenger, handlers }) => {
-          const events = collectEvents(rootMessenger);
+          const status = collectStatusEvents(rootMessenger);
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('approved', { vendorStatus: 'still-approved' }),
           );
 
           await controller.fetchSessionStatusOnce('sid');
 
-          expect(events).toStrictEqual([]);
-        },
-      );
-    });
-
-    it('does not publish when the session moves to retry', async () => {
-      await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
-        async ({ controller, rootMessenger, handlers }) => {
-          const events = collectEvents(rootMessenger);
-          handlers.getSessionStatus.mockResolvedValue(sessionStatus('retry'));
-
-          await controller.fetchSessionStatusOnce('sid');
-
-          expect(events).toStrictEqual([]);
+          expect(status).toStrictEqual([]);
         },
       );
     });
@@ -1890,12 +1939,9 @@ describe('KycController', () => {
         { options: { state: { sessionStatus: sessionStatus('pending') } } },
         async ({ controller, rootMessenger, handlers }) => {
           const statusAtPublish: (string | undefined)[] = [];
-          rootMessenger.subscribe(
-            'KycController:verificationStatusChanged',
-            () => {
-              statusAtPublish.push(controller.state.sessionStatus?.finalStatus);
-            },
-          );
+          rootMessenger.subscribe('KycController:kycStatusChanged', () => {
+            statusAtPublish.push(controller.state.sessionStatus?.finalStatus);
+          });
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('approved'),
           );
