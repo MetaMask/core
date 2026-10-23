@@ -33,6 +33,10 @@
       "types": "./dist/constants/*.d.ts",
       "default": "./dist/constants/*.js"
     },
+    "./providers/lighter": {
+      "types": "./dist/providers/LighterProvider.d.ts",
+      "default": "./dist/providers/LighterProvider.js"
+    },
     "./types": {
       "types": "./dist/types/index.d.ts",
       "default": "./dist/types/index.js"
@@ -59,10 +63,10 @@
     "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/perps-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/perps-controller",
-    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
-    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
-    "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
-    "messenger-action-types:generate": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --generate",
+    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
+    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
+    "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
+    "messenger-action-types:generate": "node --import ../../scripts/resolver/register.ts ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -91,7 +95,7 @@
     "@metamask/network-controller": "^37.1.1",
     "@metamask/profile-sync-controller": "^35.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
-    "@metamask/subscription-controller": "^14.0.2",
+    "@metamask/subscription-controller": "^15.0.0",
     "@metamask/transaction-controller": "^72.2.1",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
@@ -105,6 +109,6 @@
     "viem": "^2.56.8"
   },
   "engines": {
-    "node": "^22.14.0 || ^24"
+    "node": "^22.14.0 || ^24 || ^26"
   }
 }

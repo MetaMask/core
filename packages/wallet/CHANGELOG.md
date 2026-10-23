@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Add `NetworkEnablementController` to the default initialization configurations ([#10997](https://github.com/MetaMask/core/pull/10997))
+  - `Wallet.init()` calls `NetworkEnablementController.init()`, which reads `MultichainNetworkController:getState`. The wallet does not construct `MultichainNetworkController`. Clients must register that action on the wallet messenger before calling `wallet.init()`.
+  - Export `networkEnablementController` so clients can pass it through `initializationConfigurations` before `assetsController`. Additional configurations initialize before defaults, and `AssetsController` reads `NetworkEnablementController:getState` during construction.
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Add `@metamask/network-enablement-controller` as a dependency ([#10997](https://github.com/MetaMask/core/pull/10997))
+
+## [19.0.0]
+
+### Added
+
 - **BREAKING:** Add `AnalyticsController` to the default initialization configurations ([#10901](https://github.com/MetaMask/core/pull/10901))
   - Requires `instanceOptions.analyticsController.platformAdapter` and `instanceOptions.analyticsController.analyticsId`.
   - Accepts optional feature flags `isAnonymousEventsFeatureEnabled`, `isEventQueuePersistenceEnabled`, `isPreConsentQueueEnabled`, `isGeolocationEnabled`, and `isEventFragmentsEnabled`, each defaulting to `false`.
@@ -16,17 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `AnalyticsController` delegates `ConfigRegistryController:getState` and `GeolocationController:getGeolocationData`, and subscribes to `ConfigRegistryController:stateChanged`.
   - Hosts that already register `AnalyticsController` or no-op `AnalyticsController:*` handlers on the wallet root messenger must remove them before upgrading, or messenger registration will collide.
   - When `isGeolocationEnabled` is `true`, hosts must register `GeolocationController` on the wallet root messenger.
-- **BREAKING:** Add `NetworkEnablementController` to the default initialization configurations ([#10997](https://github.com/MetaMask/core/pull/10997))
-  - `Wallet.init()` calls `NetworkEnablementController.init()`, which reads `MultichainNetworkController:getState`. The wallet does not construct `MultichainNetworkController`. Clients must register that action on the wallet messenger before calling `wallet.init()`.
-  - Export `networkEnablementController` so clients can pass it through `initializationConfigurations` before `assetsController`. Additional configurations initialize before defaults, and `AssetsController` reads `NetworkEnablementController:getState` during construction.
 
 ### Changed
 
+- Bump `@metamask/subscription-controller` from `^14.0.1` to `^15.0.0` ([#11000](https://github.com/MetaMask/core/pull/11000))
 - Add `@metamask/analytics-controller` as a dependency ([#10901](https://github.com/MetaMask/core/pull/10901))
-- Add `@metamask/network-enablement-controller` as a dependency ([#10997](https://github.com/MetaMask/core/pull/10997))
 - Bump `@metamask/claims-controller` from `^1.0.3` to `^1.0.4` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/shield-controller` from `^7.0.4` to `^7.0.5` ([#10925](https://github.com/MetaMask/core/pull/10925))
-- Bump `@metamask/subscription-controller` from `^14.0.1` to `^14.0.2` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
 
 ## [18.0.1]
@@ -401,7 +410,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.1...@metamask/wallet@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.0...@metamask/wallet@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.1.0...@metamask/wallet@18.0.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.0.0...@metamask/wallet@17.1.0

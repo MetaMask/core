@@ -11,6 +11,7 @@ import type { PerpsMaxSlippageSource } from '../constants/eventNames.js';
 import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
 import type { PerpsErrorDetails } from '../errors.js';
 import type { PerpsErrorCode } from '../perpsErrorCodes.js';
+import type { LighterProvider } from '../providers/LighterProvider.js';
 import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
@@ -201,6 +202,9 @@ export type TrackingData = {
   discoverySource?: string;
   perpDiscoverySource?: string;
 
+  // UI surface that started the action. Omitted from the event when unset.
+  environmentType?: string;
+
   // HyperLiquid protocol fee rate. Emitted as hl_fee_rate on trade +
   // close events when present; omitted entirely when unavailable.
   hlFeeRate?: number;
@@ -242,6 +246,9 @@ export type TPSLTrackingData = {
   entryPoint?: string;
   discoverySource?: string;
   perpDiscoverySource?: string;
+
+  // UI surface that started the action. Omitted from the event when unset.
+  environmentType?: string;
 };
 
 /** Collateral mode requested for a new order. */
@@ -1357,6 +1364,7 @@ export type WithdrawParams = {
   destination?: Hex; // Destination address (optional, defaults to current account)
   assetId?: CaipAssetId; // Asset to withdraw (defaults to USDC)
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
+  environmentType?: string; // UI surface. Omitted from events when unset.
 };
 
 export type WithdrawResult = {
@@ -1509,6 +1517,14 @@ export type LighterCredentials = {
    * platform surface stays venue-agnostic.
    */
   signerBridge?: LighterSignerBridge;
+  /**
+   * Loads the Lighter provider module. Clients whose bundler cannot load the
+   * controller's own bundler-ignored import (for example Next.js) pass
+   * `() => import('@metamask/perps-controller/providers/lighter')`, so only
+   * clients that import that path bundle Lighter. Without it the controller
+   * imports the module itself.
+   */
+  loadProvider?: () => Promise<{ LighterProvider: typeof LighterProvider }>;
 };
 
 export type PerpsProviderCredentials = {

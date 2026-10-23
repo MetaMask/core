@@ -342,9 +342,6 @@
       "path": "./packages/wallet"
     },
     {
-      "path": "./packages/wallet-cli"
-    },
-    {
       "path": "./packages/wallet-framework-docs"
     },
     {
@@ -359,6 +356,7 @@
     "./codeowners.ts",
     "./knip.config.mts",
     "./vitest.config.packages.ts",
+    "./vitest.config.scripts.ts",
     "./packages/*/vitest.config.ts"
   ]
 }
