@@ -25,6 +25,16 @@ const STAKING_MAINNET =
 
 const ZERO_BALANCE: AssetBalance = { amount: '0' };
 
+const COMPLETE_METADATA: FungibleAssetMetadata = {
+  type: 'erc20',
+  symbol: 'TOK',
+  name: 'Token',
+  decimals: 18,
+  image: 'https://example.com/token.png',
+  aggregators: ['metamask'],
+  occurrences: 5,
+};
+
 const METADATA_WITH_IMAGE: FungibleAssetMetadata = {
   type: 'erc20',
   symbol: 'TOK',
@@ -178,13 +188,13 @@ describe('getAssetIdsForMetadataFetch', () => {
     ]);
   });
 
-  it('excludes assets that already have an image in state metadata', () => {
+  it('excludes assets whose state metadata has every client-used field', () => {
     const result = getAssetIdsForMetadataFetch({
       state: emptyState({
         assetsBalance: {
           [ACCOUNT_A]: { [TOKEN_MAINNET]: ZERO_BALANCE },
         },
-        assetsInfo: { [TOKEN_MAINNET]: METADATA_WITH_IMAGE },
+        assetsInfo: { [TOKEN_MAINNET]: COMPLETE_METADATA },
       }),
       request: createRequest(),
       response: {},
@@ -194,7 +204,7 @@ describe('getAssetIdsForMetadataFetch', () => {
     expect(sortedIds(result.balanceHealAssetIds)).toStrictEqual([]);
   });
 
-  it('excludes assets that already have an image in response metadata', () => {
+  it('excludes assets whose response metadata has every client-used field', () => {
     const result = getAssetIdsForMetadataFetch({
       state: emptyState(),
       request: createRequest(),
@@ -202,13 +212,45 @@ describe('getAssetIdsForMetadataFetch', () => {
         assetsBalance: {
           [ACCOUNT_A]: { [TOKEN_MAINNET]: ZERO_BALANCE },
         },
-        assetsInfo: { [TOKEN_MAINNET]: METADATA_WITH_IMAGE },
+        assetsInfo: { [TOKEN_MAINNET]: COMPLETE_METADATA },
       },
     });
 
     expect(sortedIds(result.assetIdsNeedingMetadata)).toStrictEqual([]);
     expect(sortedIds(result.balanceHealAssetIds)).toStrictEqual([]);
   });
+
+  it.each([
+    ['image', METADATA_WITH_IMAGE],
+    ['aggregators', { ...COMPLETE_METADATA, aggregators: undefined }],
+    ['occurrences', { ...COMPLETE_METADATA, occurrences: undefined }],
+    ['symbol', { ...COMPLETE_METADATA, symbol: '' }],
+    ['name', { ...COMPLETE_METADATA, name: '' }],
+    ['decimals', { ...COMPLETE_METADATA, decimals: Number.NaN }],
+  ] as const)(
+    'includes assets whose metadata is missing %s',
+    (_missingField, metadata) => {
+      const result = getAssetIdsForMetadataFetch({
+        state: emptyState({
+          assetsBalance: {
+            [ACCOUNT_A]: { [TOKEN_MAINNET]: ZERO_BALANCE },
+          },
+          assetsInfo: {
+            [TOKEN_MAINNET]: metadata as unknown as FungibleAssetMetadata,
+          },
+        }),
+        request: createRequest(),
+        response: {},
+      });
+
+      expect(sortedIds(result.assetIdsNeedingMetadata)).toStrictEqual([
+        TOKEN_MAINNET,
+      ]);
+      expect(sortedIds(result.balanceHealAssetIds)).toStrictEqual([
+        TOKEN_MAINNET.toLowerCase(),
+      ]);
+    },
+  );
 
   it('excludes hidden assets', () => {
     const result = getAssetIdsForMetadataFetch({

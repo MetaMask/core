@@ -19,11 +19,11 @@ after a balance has already been found.
 
 ## Words used below
 
-| Word           | Meaning                                                                                                          |
-| -------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Balance        | How much of a token an account holds.                                                                            |
-| Token metadata | Symbol, name, decimals, and image.                                                                               |
-| Price          | The token's value in the user's currency, such as USD.                                                           |
+| Word           | Meaning                                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Balance        | How much of a token an account holds.                                                                                                            |
+| Token metadata | Symbol, name, decimals, image, aggregator list, and occurrence count. The controller does not ask the token service for `type`.                 |
+| Price          | The token's value in the user's currency, such as USD.                                                                                          |
 | Custom token   | A token the user added by hand. We keep it even if it looks unpopular.                                           |
 | Hidden token   | A token the user chose to hide. We do not fetch it.                                                              |
 | Native token   | The chain's own coin, such as ETH on Ethereum or BNB on BNB Chain.                                               |
@@ -96,9 +96,10 @@ response. It includes every one of these, then drops the same hidden,
 non-priceable, and unsupported-chain tokens as a refresh:
 
 - Every token in saved balances, on the accounts and chains this poll asked
-  about.
-- Every custom token on those accounts.
-- Every token we already have saved metadata for, on those chains.
+  about. A balance fetch leaves this as the visible set: holdings, plus
+  native, pins, and default tracked assets at zero.
+- Every custom token on those accounts, including one not yet written as a
+  balance row.
 
 An empty account list means every account. An empty chain list means every
 chain. Tokens that already have a price stay on this list, so the poll can
@@ -117,28 +118,35 @@ user holds is priced again.
 
 ## Token metadata
 
-A name and icon are fetched for a token that does not already have an image.
-The list is built from two places.
+This step runs after balances, and only when the refresh asked for metadata.
+It asks the token service for tokens whose details are still incomplete, writes
+the answer onto this refresh, and drops a new token that fails the spam check.
+Then the rest of the refresh continues.
 
-**From saved balances.** Every token an account holds in state, limited to the
-accounts and chains this refresh asked about. An empty account list means
-every account. An empty chain list means every chain. Each of these is a heal:
-the missing name or icon is filled in, and the token is not spam-filtered.
+A record is complete when it has a symbol, a name, decimals, an image, an
+aggregator list, and an occurrence count.
 
-**From this refresh's balances.** Every token on the response. The balance
-step already limited that response to this refresh. A response token is a heal
-when it is already in saved balances, or when we already have any saved
-metadata for it. A response token that is in neither is new.
+The tokens to fetch from the Tokens API come from two places.
+
+**Saved balances.** `state.assetsBalance` entries whose metadata is incomplete,
+limited to the accounts and chains this refresh asked about. An empty account
+or chain list means all of them. These are heals: the missing fields are
+filled in, and they are not spam-filtered.
+
+**The response.** Every token in the response's `assetsBalance`. One is a heal
+when it is already a saved balance or already has any saved metadata.
+Otherwise it is new, and the spam check below can drop it.
 
 A token is left off both lists when any of these is true:
 
 - The user hid it.
-- This response already includes an image for it.
-- Saved metadata already includes an image for it.
+- This response already has a complete record for it.
+- Saved metadata already has a complete record for it.
 - It is a staking-contract placeholder.
 
-Of what remains, only chains the token service supports are asked for. If none
-of the tokens are on a supported chain, nothing is fetched.
+Of what remains, only chains the Tokens API lists in `fullSupport` or
+`partialSupport` are fetched. If that list cannot be loaded, or none of the
+tokens are on it, nothing is fetched.
 
 After the token service answers, each returned token is kept or dropped:
 
@@ -147,12 +155,12 @@ After the token service answers, each returned token is kept or dropped:
 | The chain's own coin                                           | Always keep it                                                                                                                            |
 | A token the user added                                         | Always keep it                                                                                                                            |
 | mUSD                                                           | Always keep it                                                                                                                            |
-| A heal (a saved balance, or a response token we already track) | Keep it, and fill in the missing name or icon                                                                                             |
+| A heal (a saved balance, or a response token we already track) | Keep it, and write the fields the service returned                                                                                        |
 | A new Ethereum-style token                                     | Keep it only if enough other sources list it. The bar is that chain's suggested floor, usually 3. No count is treated as zero and dropped |
 | A new token on another chain                                   | Ask Blockaid, and drop it if that scan says it is malicious                                                                               |
 | Any other token the service returned                           | Keep it                                                                                                                                   |
 
-If the name-and-icon request fails, balances already fetched are left as they
+If the token-service request fails, balances already fetched are left as they
 are.
 
 ## Trade-offs
@@ -162,18 +170,19 @@ What we gain:
 - A simpler pipeline. One step and one shared list are gone, so there are
   fewer places for a token to be dropped by mistake.
 - The existing metadata-healing behavior is preserved. Tokens in balances
-  that have no image remain candidates for name and icon fetching, without
-  relying on a detection list.
+  that are missing one of the fields above remain candidates, without relying
+  on a detection list.
 - Each step can be tested on its own, because it picks its own tokens from
   state and the current balances.
 
 What it costs:
 
-- More calls to the token service. Held tokens that are missing a name or icon
-  are asked for on every refresh. A token the service has no image for is asked
-  for again each time. Prices are fetched only for tokens on this response that
-  have no price yet. The one-minute price cache and the shared in-flight
-  request limit repeat price calls, but do not remove them.
+- More calls to the token service. Held tokens that are missing one of those
+  fields are asked for on every refresh. A token the service still does not
+  return a complete record for is asked for again each time. Prices are
+  fetched only for tokens on this response that have no price yet. The
+  one-minute price cache and the shared in-flight request limit repeat price
+  calls, but do not remove them.
 - The two steps each decide which accounts, chains, and hidden tokens count.
   That logic now lives in two places and has to be kept in line.
 

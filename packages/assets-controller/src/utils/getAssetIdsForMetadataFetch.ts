@@ -2,6 +2,7 @@ import { parseCaipAssetType } from '@metamask/utils';
 
 import { isStakingContractAssetId } from '../data-sources/evm-rpc-services/index.js';
 import type {
+  AssetMetadata,
   AssetsControllerState,
   Caip19AssetId,
   DataRequest,
@@ -33,8 +34,10 @@ export type GetAssetIdsForMetadataFetchResult = {
 /**
  * Metadata to fetch for this request.
  *
- * State balances that have no metadata yet are heals: they are enriched and
- * not spam-filtered. Response balances are included too; a response balance
+ * State balances whose metadata is missing a field that controller logic or a
+ * client reads are heals: they are enriched and not spam-filtered. Those
+ * fields are `symbol`, `name`, `decimals`, `image`, `aggregators`, and
+ * `occurrences`. Response balances are included too; a response balance
  * already present in state is a heal, and one that is new to state is
  * spam-filtered. Hidden assets are excluded.
  *
@@ -64,10 +67,12 @@ export function getAssetIdsForMetadataFetch({
     if (hiddenAssetIds.has(assetId.toLowerCase())) {
       return false;
     }
-    if (response.assetsInfo?.[assetId as Caip19AssetId]?.image) {
+    if (
+      hasMetadataUsedByClients(response.assetsInfo?.[assetId as Caip19AssetId])
+    ) {
       return false;
     }
-    if (stateMetadata[assetId as Caip19AssetId]?.image) {
+    if (hasMetadataUsedByClients(stateMetadata[assetId as Caip19AssetId])) {
       return false;
     }
     return !isStakingContractAssetId(assetId);
@@ -115,6 +120,50 @@ export function getAssetIdsForMetadataFetch({
   }
 
   return { assetIdsNeedingMetadata, balanceHealAssetIds };
+}
+
+/**
+ * True when metadata already has every field that controller logic or a
+ * client reads from `assetsInfo`.
+ *
+ * @param metadata - Stored or in-flight asset metadata.
+ * @returns Whether another metadata fetch can be skipped.
+ */
+function hasMetadataUsedByClients(
+  metadata: AssetMetadata | undefined,
+): boolean {
+  if (
+    !metadata ||
+    !('aggregators' in metadata) ||
+    !('occurrences' in metadata)
+  ) {
+    return false;
+  }
+
+  return (
+    hasText(metadata.symbol) &&
+    hasText(metadata.name) &&
+    isFiniteNonNegative(metadata.decimals) &&
+    hasText(metadata.image) &&
+    Array.isArray(metadata.aggregators) &&
+    isFiniteNonNegative(metadata.occurrences)
+  );
+}
+
+/**
+ * @param value - Candidate string field.
+ * @returns Whether the field is a non-empty string.
+ */
+function hasText(value: string | undefined): boolean {
+  return typeof value === 'string' && value.length > 0;
+}
+
+/**
+ * @param value - Candidate numeric field.
+ * @returns Whether the field is a finite number greater than or equal to zero.
+ */
+function isFiniteNonNegative(value: unknown): boolean {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 
 /**

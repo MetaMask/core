@@ -479,8 +479,8 @@ export class PriceDataSource {
   // ============================================================================
 
   /**
-   * Fetch prices for assets held by the accounts and chains in the request.
-   * Reads asset IDs from balance state via the constructor `getAssetsState`.
+   * Fetch prices for visible assets on the accounts and chains in the request:
+   * saved balances and custom assets. Metadata with no balance is skipped.
    * Unlike the middleware, this includes assets that already have a stored
    * price so the poll can refresh them. The freshness cache skips recent ones.
    *

@@ -115,14 +115,7 @@ describe('getAssetIdsForPriceFetch', () => {
       expected: [normalizeAssetId(CUSTOM_MAINNET)],
     },
     {
-      name: 'assetsInfo metadata in chain scope',
-      state: emptyState({
-        assetsInfo: { [METADATA_MAINNET]: TOKEN_METADATA },
-      }),
-      expected: [normalizeAssetId(METADATA_MAINNET)],
-    },
-    {
-      name: 'union of state balance, custom, and metadata',
+      name: 'union of state balance and custom assets',
       state: emptyState({
         assetsBalance: {
           [ACCOUNT_A]: { [NATIVE_MAINNET]: ZERO_BALANCE },
@@ -130,11 +123,7 @@ describe('getAssetIdsForPriceFetch', () => {
         customAssets: { [ACCOUNT_A]: [CUSTOM_MAINNET] },
         assetsInfo: { [METADATA_MAINNET]: TOKEN_METADATA },
       }),
-      expected: [
-        NATIVE_MAINNET,
-        normalizeAssetId(CUSTOM_MAINNET),
-        normalizeAssetId(METADATA_MAINNET),
-      ].sort(),
+      expected: [NATIVE_MAINNET, normalizeAssetId(CUSTOM_MAINNET)].sort(),
     },
   ])('includes $name', ({ state, expected }) => {
     const result = getAssetIdsForPriceFetch({
@@ -168,10 +157,9 @@ describe('getAssetIdsForPriceFetch', () => {
       expected: [],
     },
     {
-      name: 'hidden metadata asset',
+      name: 'metadata with no balance',
       state: emptyState({
         assetsInfo: { [METADATA_MAINNET]: TOKEN_METADATA },
-        assetPreferences: { [METADATA_MAINNET]: { hidden: true } },
       }),
       expected: [],
     },
@@ -225,15 +213,11 @@ describe('getAssetIdsForPriceFetch', () => {
     });
 
     expect(sortedIds(result)).toStrictEqual(
-      [
-        NATIVE_MAINNET,
-        normalizeAssetId(CUSTOM_MAINNET),
-        normalizeAssetId(METADATA_MAINNET),
-      ].sort(),
+      [NATIVE_MAINNET, normalizeAssetId(CUSTOM_MAINNET)].sort(),
     );
   });
 
-  it('deduplicates the same asset across state balance, custom, and metadata', () => {
+  it('deduplicates the same asset across a state balance and a custom asset', () => {
     const result = getAssetIdsForPriceFetch({
       state: emptyState({
         assetsBalance: {

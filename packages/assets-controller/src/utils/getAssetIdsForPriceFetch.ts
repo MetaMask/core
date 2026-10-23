@@ -38,16 +38,17 @@ export type GetAssetIdsForPriceFetchParams = {
   /** Current AssetsController state slices used for candidate collection. */
   state: Pick<
     AssetsControllerState,
-    'assetsBalance' | 'customAssets' | 'assetsInfo' | 'assetPreferences'
+    'assetsBalance' | 'customAssets' | 'assetPreferences'
   >;
   /** Account and chain scope for the fetch. */
   request: Pick<DataRequest, 'accountsWithSupportedChains' | 'chainIds'>;
 };
 
 /**
- * Assets the price poll should price: custom assets, balances, and metadata
- * already in state, excluding hidden assets. Scoped to the request's accounts
- * and chains.
+ * Assets the price poll should price: saved balances and custom assets,
+ * excluding hidden assets. Scoped to the request's accounts and chains.
+ * Balance rows are what a fetch leaves visible (holdings, plus native, pins,
+ * and default tracked assets at zero). Metadata with no balance is not priced.
  *
  * The balance-refresh middleware does not use this. It prices response
  * balances through {@link getUnpricedResponseAssetIds}.
@@ -71,9 +72,6 @@ export function getAssetIdsForPriceFetch({
 
   addBalancesFromAccounts(state.assetsBalance, accountFilter, addAssetId);
   addCustomAssets(state.customAssets, accountFilter, addAssetId);
-  for (const assetId of Object.keys(state.assetsInfo ?? {})) {
-    addAssetId(assetId);
-  }
 
   return assetIds;
 }
@@ -97,7 +95,11 @@ export function getResponseAssetIdsForPriceFetch({
   const assetIds = new Set<Caip19AssetId>();
   for (const accountBalances of Object.values(response.assetsBalance ?? {})) {
     for (const assetId of Object.keys(accountBalances)) {
-      assetIds.add(normalizeAssetId(assetId as Caip19AssetId));
+      try {
+        assetIds.add(normalizeAssetId(assetId as Caip19AssetId));
+      } catch (error) {
+        log('Skipping malformed asset ID for price fetch', { assetId, error });
+      }
     }
   }
   return assetIds;

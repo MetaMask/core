@@ -4033,10 +4033,6 @@ export class AssetsController extends BaseController<
     // Users may want to see historical balances even if the network is currently disabled.
     // The data will simply not be updated until the network is re-enabled.
 
-    // Seed before subscribe. The price poll snapshots balance state as soon
-    // as subscribe starts, and a balance refresh only prices assets on that
-    // response. Zero-balance natives and default tracked assets (mUSD) that
-    // the API omits would otherwise stay unpriced until the next poll.
     const accounts = this.#getSelectedAccounts();
     this.#ensureNativeBalancesDefaultZero();
     if (addedChains.length > 0) {
@@ -4151,10 +4147,6 @@ export class AssetsController extends BaseController<
     try {
       await this.#refreshActiveChainsOnNetworkSwitch();
 
-      // Seed before subscribe so the price poll snapshots the new native
-      // zeros. The balance refresh that follows only prices assets the API
-      // returns, so a native the API omits would stay unpriced until the
-      // next poll.
       this.#ensureNativeBalancesDefaultZero();
       this.#subscribeAssets();
 
