@@ -373,9 +373,9 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       expect(result.mocks.priceAPI.priceBatches).toStrictEqual([]);
     });
 
-    it('does not refetch metadata for the enriched token, only the native asset', () => {
+    it('does not refetch metadata for the enriched token', () => {
       expect(askedAbout(result.mocks.tokenAPI.assetBatches)).toStrictEqual(
-        new Set([ETH_ASSET_ID]),
+        new Set(),
       );
     });
 

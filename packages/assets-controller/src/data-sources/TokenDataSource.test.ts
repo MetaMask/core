@@ -391,7 +391,7 @@ describe('TokenDataSource', () => {
     ).toBeUndefined();
   });
 
-  it('middleware skips assets with existing metadata containing image in response', async () => {
+  it('middleware skips a response token whose metadata is already complete', async () => {
     const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
@@ -412,6 +412,8 @@ describe('TokenDataSource', () => {
             symbol: 'EXT',
             decimals: 18,
             image: 'https://existing.com/icon.png',
+            aggregators: ['metamask'],
+            occurrences: 5,
           },
         },
       },
@@ -423,7 +425,7 @@ describe('TokenDataSource', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('middleware skips assets with existing metadata containing image in state', async () => {
+  it('middleware skips a state token whose metadata is already complete', async () => {
     const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
@@ -435,6 +437,8 @@ describe('TokenDataSource', () => {
             symbol: 'STT',
             decimals: 18,
             image: 'https://state.com/icon.png',
+            aggregators: ['metamask'],
+            occurrences: 5,
           },
         },
       }),
@@ -1584,7 +1588,7 @@ describe('TokenDataSource', () => {
     );
   });
 
-  it('middleware skips a native balance that already has an image', async () => {
+  it('middleware skips a native balance whose metadata is already complete', async () => {
     const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
@@ -1597,6 +1601,8 @@ describe('TokenDataSource', () => {
             name: 'Ethereum',
             decimals: 18,
             image: 'https://example.com/eth.png',
+            aggregators: [],
+            occurrences: 1,
           },
         },
         assetsBalance: {

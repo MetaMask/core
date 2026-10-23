@@ -210,7 +210,7 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
     cleanAll();
   });
 
-  describe.each(WALLET_PASSES)('$pass', ({ run }) => {
+  describe.each(WALLET_PASSES)('$pass', ({ pass, run }) => {
     let response: DataResponse;
 
     beforeAll(async () => {
@@ -224,12 +224,22 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
       },
     );
 
-    it.each([BALANCES, METADATA])(
-      '$surface - keeps the native BNB asset despite low occurrences',
-      ({ lookUp }) => {
-        expect(lookUp(response, BNB_ASSET_ID)).toBeDefined();
-      },
-    );
+    if (pass.startsWith('second')) {
+      it('balances - keeps the stored native BNB balance', () => {
+        expect(BALANCES.lookUp(response, BNB_ASSET_ID)).toBeDefined();
+      });
+
+      it('metadata - does not refetch the stored native BNB record', () => {
+        expect(METADATA.lookUp(response, BNB_ASSET_ID)).toBeUndefined();
+      });
+    } else {
+      it.each([BALANCES, METADATA])(
+        '$surface - keeps the native BNB asset despite low occurrences',
+        ({ lookUp }) => {
+          expect(lookUp(response, BNB_ASSET_ID)).toBeDefined();
+        },
+      );
+    }
 
     // Legitimate failing test, our middleware stack does not filter out spam
     // asset prices! This does eventually get cleaned up during unlock cleanup,

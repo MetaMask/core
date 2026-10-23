@@ -19,15 +19,15 @@ after a balance has already been found.
 
 ## Words used below
 
-| Word           | Meaning                                                                                                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Balance        | How much of a token an account holds.                                                                                                            |
-| Token metadata | Symbol, name, decimals, image, aggregator list, and occurrence count. The controller does not ask the token service for `type`.                 |
-| Price          | The token's value in the user's currency, such as USD.                                                                                          |
-| Custom token   | A token the user added by hand. We keep it even if it looks unpopular.                                           |
-| Hidden token   | A token the user chose to hide. We do not fetch it.                                                              |
-| Native token   | The chain's own coin, such as ETH on Ethereum or BNB on BNB Chain.                                               |
-| Spam           | A token that showed up in the wallet without the user asking for it, often an airdrop. We try not to show those. |
+| Word           | Meaning                                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Balance        | How much of a token an account holds.                                                                                           |
+| Token metadata | Symbol, name, decimals, image, aggregator list, and occurrence count. The controller does not ask the token service for `type`. |
+| Price          | The token's value in the user's currency, such as USD.                                                                          |
+| Custom token   | A token the user added by hand. We keep it even if it looks unpopular.                                                          |
+| Hidden token   | A token the user chose to hide. We do not fetch it.                                                                             |
+| Native token   | The chain's own coin, such as ETH on Ethereum or BNB on BNB Chain.                                                              |
+| Spam           | A token that showed up in the wallet without the user asking for it, often an airdrop. We try not to show those.                |
 
 ## What happens on a refresh
 
