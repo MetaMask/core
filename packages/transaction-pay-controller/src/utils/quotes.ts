@@ -87,6 +87,7 @@ export async function updateQuotes(
     accountOverride,
     atomic,
     fiatPayment,
+    isAccountOverrideRecipientOnly,
     isHyperliquidSource,
     isMaxAmount,
     isPolymarketDepositWallet,
@@ -100,6 +101,11 @@ export async function updateQuotes(
   } = transactionData;
 
   const from = accountOverride ?? (transaction.txParams.from as Hex);
+
+  const recipient =
+    isPostQuote && isAccountOverrideRecipientOnly ? accountOverride : undefined;
+
+  const quoteFrom = recipient ? (transaction.txParams.from as Hex) : from;
 
   const controller = abortPreviousAndCreateController(transactionId);
   const { signal } = controller;
@@ -134,24 +140,25 @@ export async function updateQuotes(
 
     const requests = buildQuoteRequests({
       atomic,
-      from,
+      from: quoteFrom,
       isHyperliquidSource,
       isMaxAmount: isMaxAmount ?? false,
       isPolymarketDepositWallet,
       isPostQuote,
       paymentOverride,
       paymentToken,
+      recipient,
       refundTo,
       sourceAmounts: latestSourceAmounts,
       tokens,
       transactionId,
     });
 
-    const supports7702 = accountSupports7702(messenger, from);
+    const supports7702 = accountSupports7702(messenger, quoteFrom);
 
     const { batchTransactions, error, quotes } = await getQuotes(
       transaction,
-      from,
+      quoteFrom,
       requests,
       paymentToken,
       isQuoteRequired ?? false,
@@ -411,6 +418,7 @@ function getSourceAmounts(
  * @param request.isPostQuote - Whether this is a post-quote flow.
  * @param request.paymentOverride - Optional payment override type for the transaction.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
+ * @param request.recipient - Optional address that receives the post-quote output.
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction.
  * @param request.tokens - Required tokens for the transaction.
@@ -426,6 +434,7 @@ function buildQuoteRequests({
   isPostQuote,
   paymentOverride,
   paymentToken,
+  recipient,
   refundTo,
   sourceAmounts,
   tokens,
@@ -439,6 +448,7 @@ function buildQuoteRequests({
   isPostQuote?: boolean;
   paymentOverride?: PaymentOverride;
   paymentToken: TransactionPaymentToken | undefined;
+  recipient?: Hex;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   tokens: TransactionPayRequiredToken[];
@@ -457,6 +467,7 @@ function buildQuoteRequests({
       isMaxAmount,
       isPolymarketDepositWallet,
       paymentOverride,
+      recipient,
       refundTo,
       sourceAmounts,
       transactionId,
@@ -505,6 +516,7 @@ function buildQuoteRequests({
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
  * @param request.isPolymarketDepositWallet - Whether the source of funds is a Polymarket deposit wallet.
  * @param request.paymentOverride - Optional payment override type for the transaction.
+ * @param request.recipient - Optional address that receives the output.
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
  * @param request.sourceAmounts - Source amounts for the transaction (includes source token info).
  * @param request.transactionId - ID of the transaction.
@@ -518,6 +530,7 @@ function buildPostQuoteRequests({
   isMaxAmount,
   isPolymarketDepositWallet,
   paymentOverride,
+  recipient,
   refundTo,
   sourceAmounts,
   transactionId,
@@ -529,6 +542,7 @@ function buildPostQuoteRequests({
   isMaxAmount: boolean;
   isPolymarketDepositWallet?: boolean;
   paymentOverride?: PaymentOverride;
+  recipient?: Hex;
   refundTo?: Hex;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   transactionId: string;
@@ -560,6 +574,7 @@ function buildPostQuoteRequests({
     isPolymarketDepositWallet,
     isPostQuote: true,
     paymentOverride,
+    ...(recipient ? { recipient } : {}),
     refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceChainId: sourceAmount.sourceChainId,
