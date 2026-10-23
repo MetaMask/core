@@ -1,5 +1,6 @@
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MessengerActions, MockAnyNamespace } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
 import type { PerpsControllerMessenger } from '../../../src/PerpsController.js';
 import { isMissingActionHandlerError } from '../../../src/services/missingActionHandler.js';

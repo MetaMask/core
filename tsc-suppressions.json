@@ -739,7 +739,7 @@
     }
   },
   "packages/perps-controller/tests/src/providers/HyperLiquidProvider.account-mode.test.ts": {
-    "TS2345": {
+    "TS2322": {
       "count": 1
     }
   },
@@ -749,7 +749,7 @@
     }
   },
   "packages/perps-controller/tests/src/providers/HyperLiquidProvider.builder-fees.test.ts": {
-    "TS2345": {
+    "TS2740": {
       "count": 1
     }
   },
@@ -772,13 +772,13 @@
       "count": 1
     },
     "TS2322": {
-      "count": 35
+      "count": 36
     },
     "TS2339": {
       "count": 1
     },
     "TS2345": {
-      "count": 3
+      "count": 2
     },
     "TS7006": {
       "count": 2

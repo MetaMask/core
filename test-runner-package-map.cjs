@@ -18,7 +18,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/network-controller',
   '@metamask/permission-controller',
   '@metamask/permission-log-controller',
-  '@metamask/perps-controller',
   '@metamask/selected-network-controller',
 ]);
 
