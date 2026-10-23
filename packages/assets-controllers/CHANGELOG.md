@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@ethereumjs/util` from `^9.1.0` to `^10.1.3` ([#10519](https://github.com/MetaMask/core/pull/10519))
 
 ## [112.1.3]
 
