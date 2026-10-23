@@ -32,6 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "audit-script": "node ../../scripts/audit-script.ts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -89,5 +90,22 @@
   },
   "engines": {
     "node": "^22.14.0 || ^24 || ^26"
+  },
+  "scriptsConfig": {
+    "#default": "lavamoat/scripts.strict.json",
+    "audit-script": "lavamoat/scripts.yarn.json",
+    "build": "lavamoat/scripts.build.json",
+    "build:all": "lavamoat/scripts.build.json",
+    "build:clean": "lavamoat/scripts.yarn.json",
+    "changelog:update": "lavamoat/scripts.lint.json",
+    "changelog:validate": "lavamoat/scripts.lint.json",
+    "lint:tsconfigs": "lavamoat/scripts.lint-worker.json",
+    "lint:tsconfigs:fix": "lavamoat/scripts.lint-worker.json",
+    "messenger-action-types:check": "lavamoat/scripts.lint.json",
+    "messenger-action-types:generate": "lavamoat/scripts.lint.json",
+    "test": "lavamoat/scripts.test.json",
+    "test:clean": "lavamoat/scripts.test.json",
+    "test:verbose": "lavamoat/scripts.test.json",
+    "test:watch": "lavamoat/scripts.test.json"
   }
 }

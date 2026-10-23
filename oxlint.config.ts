@@ -27,6 +27,7 @@ export default createConfig({
     '.platform-api-docs/**',
     '.skills-cache/**',
     '.yarn/**',
+    'lavamoat/**',
     'merged-packages/**',
     'packages/wallet-framework-docs/site/build/**',
   ],
