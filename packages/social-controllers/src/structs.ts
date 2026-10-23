@@ -1,4 +1,3 @@
-import type { Infer } from '@metamask/superstruct';
 import {
   array,
   assign,
@@ -12,7 +11,6 @@ import {
   record,
   string,
   type as structType,
-  unknown as unknownStruct,
   union,
 } from '@metamask/superstruct';
 
@@ -183,38 +181,11 @@ export const parseFeedResponse = (
   };
 };
 
-const RealtimeFeedTradeStruct = structType({
-  intent: enums(['enter', 'exit']),
-  comments: array(record(string(), unknownStruct())),
-});
-
-const RealtimeFeedItemStruct = structType({
-  itemId: string(),
-  timestamp: number(),
-  cardLatestTradeAt: number(),
-  actor: structType({
-    type: literal('user'),
-    address: string(),
-    name: string(),
-    images: record(string(), unknownStruct()),
-    profile: structType({
-      id: string(),
-      metadata: record(string(), unknownStruct()),
-    }),
-  }),
-  metadata: structType({
-    tokenChain: string(),
-    tokenAddress: string(),
-    trades: array(RealtimeFeedTradeStruct),
-  }),
-});
-
-export type SocialRealtimeFeedItem = Infer<typeof RealtimeFeedItemStruct>;
-
-export const parseSocialRealtimeFeedItem = (
-  value: unknown,
-): SocialRealtimeFeedItem | undefined =>
-  is(value, RealtimeFeedItemStruct) ? value : undefined;
+export {
+  normalizeRealtimeFeedItem,
+  parseRealtimeFeedItem,
+} from './realtime-feed-item.js';
+export type { RealtimeFeedEventData } from './realtime-feed-item.js';
 
 export const TraderProfileStruct = structType({
   profileId: string(),

@@ -2,6 +2,8 @@ import type { Quote as RampsQuote } from '@metamask/ramps-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { TransactionPayStrategy } from '../../constants.js';
 import type {
@@ -18,8 +20,8 @@ import {
   isDirectMusdMoneyAccountQuote,
 } from './fiat-direct-musd.js';
 
-jest.mock('../../utils/token');
-jest.mock('../../utils/transaction');
+vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/transaction.js'));
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const MONEY_ACCOUNT_ADDRESS_MOCK =
@@ -75,10 +77,10 @@ function getQuotesMessenger({
   quoteError?: Error;
   returnsQuote?: boolean;
 } = {}): {
-  callMock: jest.Mock;
+  callMock: Mock;
   messenger: PayStrategyGetQuotesRequest['messenger'];
 } {
-  const callMock = jest.fn(
+  const callMock = vi.fn(
     (action: string, request?: Record<string, unknown>) => {
       // `getRampsQuote` calls `RampsController:getQuoteWithFees`, which returns
       // the single best quote with fees already reconciled to the resolved
@@ -115,12 +117,12 @@ function getQuotesMessenger({
 }
 
 describe('fiat-direct-musd', () => {
-  const buildCaipAssetTypeMock = jest.mocked(buildCaipAssetType);
-  const getTokenInfoMock = jest.mocked(getTokenInfo);
-  const getTransactionMock = jest.mocked(getTransaction);
+  const buildCaipAssetTypeMock = vi.mocked(buildCaipAssetType);
+  const getTokenInfoMock = vi.mocked(getTokenInfo);
+  const getTransactionMock = vi.mocked(getTransaction);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     buildCaipAssetTypeMock.mockReturnValue(MUSD_CAIP_ASSET_ID_MOCK);
     getTokenInfoMock.mockReturnValue({ decimals: 6 } as never);

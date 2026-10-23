@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Submits the signed challenge message to associate the address.
 - Add `ChompApiError`, thrown for non-2xx responses, which exposes the CHOMP error code from the response body as `code` ([#10687](https://github.com/MetaMask/core/pull/10687))
 - Add `AssociationPurpose`, `CreateAddressChallengeParams`, `CreateAddressChallengeResponse`, `AssociateAddressV2Params`, `ChompApiServiceCreateAddressChallengeAction`, and `ChompApiServiceAssociateAddressV2Action` types ([#10687](https://github.com/MetaMask/core/pull/10687))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 

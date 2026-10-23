@@ -3,6 +3,7 @@ import {
   getDefaultAddressBookControllerState,
 } from '@metamask/address-book-controller';
 import { Messenger } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {

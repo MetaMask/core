@@ -125,14 +125,12 @@ describe('DepositService', () => {
       expect(generateDepositId).toHaveBeenCalledTimes(1);
     });
 
-    it('retrieves deposit routes from provider', async () => {
+    it('retrieves deposit routes for the provider network', async () => {
       await service.prepareTransaction({
         provider: mockProvider,
       });
 
-      expect(mockProvider.getDepositRoutes).toHaveBeenCalledWith({
-        isTestnet: false,
-      });
+      expect(mockProvider.getDepositRoutes).toHaveBeenCalledWith();
     });
 
     it('uses first deposit route from provider', async () => {

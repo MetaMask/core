@@ -1,4 +1,5 @@
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type { TransactionPayQuote } from '../types.js';
@@ -14,11 +15,11 @@ import {
 } from './validation.js';
 import type { QuoteSimulation } from './validation.js';
 
-jest.mock('./simulation', () => ({
-  ...jest.requireActual('./simulation'),
-  simulateQuoteTransactions: jest.fn(),
+vi.mock(import('./simulation.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  simulateQuoteTransactions: vi.fn(),
 }));
-jest.mock('./token');
+vi.mock(import('./token.js'));
 
 const CHAIN_ID_MOCK = '0x38' as Hex;
 const FROM_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -68,16 +69,16 @@ function buildSimulation(
 
 describe('validateQuoteExecution', () => {
   let messengerMock: ReturnType<typeof getMessengerMock>;
-  const simulateQuoteTransactionsMock = jest.mocked(simulateQuoteTransactions);
-  const getLiveTokenBalanceMock = jest.mocked(tokenModule.getLiveTokenBalance);
-  const getNativeTokenMock = jest.mocked(tokenModule.getNativeToken);
-  const getTokenInfoMock = jest.mocked(tokenModule.getTokenInfo);
-  const normalizeTokenAddressMock = jest.mocked(
+  const simulateQuoteTransactionsMock = vi.mocked(simulateQuoteTransactions);
+  const getLiveTokenBalanceMock = vi.mocked(tokenModule.getLiveTokenBalance);
+  const getNativeTokenMock = vi.mocked(tokenModule.getNativeToken);
+  const getTokenInfoMock = vi.mocked(tokenModule.getTokenInfo);
+  const normalizeTokenAddressMock = vi.mocked(
     tokenModule.normalizeTokenAddress,
   );
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     messengerMock = getMessengerMock();
 
     // Default: balance is sufficient

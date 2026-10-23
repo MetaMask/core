@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import { QuoteStatusState } from './constants.js';
 import { QuoteStatusEntryStore } from './quote-status-entry-store.js';
 import { QuoteStatusStateFsm } from './quote-status-state-fsm.js';
@@ -63,9 +66,9 @@ function createStore({
   entryTtlMs?: number;
 } = {}): {
   store: QuoteStatusEntryStore;
-  onPersistUpdates: jest.Mock;
+  onPersistUpdates: Mock;
 } {
-  const onPersistUpdates = jest.fn();
+  const onPersistUpdates = vi.fn();
   const store = new QuoteStatusEntryStore({
     onPersistUpdates,
     entryTtlMs,
@@ -76,11 +79,11 @@ function createStore({
 
 describe('QuoteStatusEntryStore', () => {
   beforeEach(() => {
-    jest.spyOn(Date, 'now').mockReturnValue(NOW);
+    vi.spyOn(Date, 'now').mockReturnValue(NOW);
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('hash', () => {
@@ -157,7 +160,7 @@ describe('QuoteStatusEntryStore', () => {
       store.put('quote-1:0xabc', createPutValue());
       onPersistUpdates.mockClear();
 
-      jest.spyOn(Date, 'now').mockReturnValue(NOW + 500);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + 500);
       store.put('quote-1:0xabc', createPutValue());
 
       expect(store.get('quote-1:0xabc')?.createdAt).toBe(NOW);
@@ -208,7 +211,7 @@ describe('QuoteStatusEntryStore', () => {
       const { store, onPersistUpdates } = createStore();
       store.put('quote-1:0xabc', createPutValue());
       onPersistUpdates.mockClear();
-      jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
       expect(store.get('quote-1:0xabc')?.status.state).toBe(
         QuoteStatusState.Expired,
@@ -250,7 +253,7 @@ describe('QuoteStatusEntryStore', () => {
     it('transitions stale matches to Expired before returning them', () => {
       const { store } = createStore();
       store.put('quote-1:0xabc', createPutValue());
-      jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
       const matches = store.getByQuoteId('quote-1');
 
@@ -277,7 +280,7 @@ describe('QuoteStatusEntryStore', () => {
     it('transitions a stale matching entry to Expired but keeps it', () => {
       const { store } = createStore();
       store.put('quote-1:0xabc', createPutValue({ txMetaId: 'tx-1' }));
-      jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
       expect(store.getByTxMetaId('tx-1')?.status.state).toBe(
         QuoteStatusState.Expired,
@@ -334,7 +337,7 @@ describe('QuoteStatusEntryStore', () => {
           txMetaId: 'tx-1',
         }),
       );
-      jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
       const matches = store.getAllByTxMetaId('tx-1');
 
@@ -381,7 +384,7 @@ describe('QuoteStatusEntryStore', () => {
         'quote-2:0xdef',
         createPutValue({ quoteId: 'quote-2', srcTxHash: '0xdef' }),
       );
-      jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
       const entries = [...store.values()];
 
@@ -409,7 +412,7 @@ describe('QuoteStatusEntryStore', () => {
     it('returns false within the TTL window', () => {
       const { store } = createStore();
       store.put('quote-1:0xabc', createPutValue());
-      jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS);
 
       const entry = store.get('quote-1:0xabc') as QuoteStatusRuntimeEntry;
       expect(store.entryHasExpired(entry)).toBe(false);
@@ -419,7 +422,7 @@ describe('QuoteStatusEntryStore', () => {
       const { store } = createStore();
       store.put('quote-1:0xabc', createPutValue());
       const entry = store.get('quote-1:0xabc') as QuoteStatusRuntimeEntry;
-      jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
       expect(store.entryHasExpired(entry)).toBe(true);
     });
@@ -431,7 +434,7 @@ describe('QuoteStatusEntryStore', () => {
       store.put('quote-1:0xabc', createPutValue());
       const entry = store.get('quote-1:0xabc') as QuoteStatusRuntimeEntry;
       onPersistUpdates.mockClear();
-      jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
       expect(store.expireEntryIfStale(entry)).toBe(true);
       expect(store.size).toBe(1);
@@ -456,13 +459,13 @@ describe('QuoteStatusEntryStore', () => {
     it('transitions only stale entries to Expired and keeps all entries', () => {
       const { store, onPersistUpdates } = createStore();
       store.put('quote-1:0xabc', createPutValue());
-      jest.spyOn(Date, 'now').mockReturnValue(NOW + 900);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + 900);
       store.put(
         'quote-2:0xdef',
         createPutValue({ quoteId: 'quote-2', srcTxHash: '0xdef' }),
       );
       onPersistUpdates.mockClear();
-      jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
+      vi.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
 
       store.expireStaleEntries();
 

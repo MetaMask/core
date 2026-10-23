@@ -1,13 +1,15 @@
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { CHAIN_ID_MONAD, MUSD_MONAD_ADDRESS } from '../constants.js';
 import type { TransactionPayControllerMessenger } from '../types.js';
 import { findRecentChompVaultDeposit, withChompRecovery } from './chomp.js';
 import { rpcRequest } from './provider.js';
 
-jest.mock('./provider');
+vi.mock(import('./provider.js'));
 
 const MONEY_ACCOUNT_ADDRESS =
   '0x1111111111111111111111111111111111111111' as Hex;
@@ -79,10 +81,10 @@ function buildMessenger(): TransactionPayControllerMessenger {
 }
 
 describe('chomp', () => {
-  const rpcRequestMock = jest.mocked(rpcRequest);
+  const rpcRequestMock = vi.mocked(rpcRequest);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('findRecentChompVaultDeposit', () => {
@@ -217,7 +219,7 @@ describe('chomp', () => {
   });
 
   describe('withChompRecovery', () => {
-    let submitMock: jest.Mock<Promise<{ transactionHash?: Hex }>>;
+    let submitMock: Mock<() => Promise<{ transactionHash?: Hex }>>;
 
     function run(
       options: { fromBlock?: Hex; transaction?: TransactionMeta } = {},
@@ -240,8 +242,8 @@ describe('chomp', () => {
     }
 
     beforeEach(() => {
-      submitMock = jest
-        .fn<Promise<{ transactionHash?: Hex }>, []>()
+      submitMock = vi
+        .fn<() => Promise<{ transactionHash?: Hex }>>()
         .mockResolvedValue({ transactionHash: SUBMITTED_HASH });
 
       rpcRequestMock.mockResolvedValue([]);
