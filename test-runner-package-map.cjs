@@ -4,9 +4,7 @@ const path = require('node:path');
 const { workspaces } = require('./package.json');
 
 // Do not add to this list: new packages are expected to use Vitest.
-const PACKAGES_ON_JEST = new Set([
-  '@metamask/network-controller',
-]);
+const PACKAGES_ON_JEST = new Set(['@metamask/network-controller']);
 
 /**
  * Finds the locations of the workspaces still on Jest.
