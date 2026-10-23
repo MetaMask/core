@@ -223,6 +223,40 @@ describe('PendingTransactionTracker', () => {
       );
     });
 
+    it('does not poll externally published transactions as EVM transactions', () => {
+      pendingTransactionTracker = new PendingTransactionTracker(options);
+      options.getTransactions.mockReturnValue(
+        freeze(
+          [{ ...TRANSACTION_SUBMITTED_MOCK, isExternalPublish: true }],
+          true,
+        ),
+      );
+
+      pendingTransactionTracker.startIfPendingTransactions();
+
+      expect(transactionPoller.start).not.toHaveBeenCalled();
+    });
+
+    it('polls an externally published transaction once its intent is complete', () => {
+      pendingTransactionTracker = new PendingTransactionTracker(options);
+      options.getTransactions.mockReturnValue(
+        freeze(
+          [
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              isExternalPublish: true,
+              isIntentComplete: true,
+            },
+          ],
+          true,
+        ),
+      );
+
+      pendingTransactionTracker.startIfPendingTransactions();
+
+      expect(transactionPoller.start).toHaveBeenCalledTimes(1);
+    });
+
     it('does nothing if listener already added', () => {
       pendingTransactionTracker = new PendingTransactionTracker(options);
 

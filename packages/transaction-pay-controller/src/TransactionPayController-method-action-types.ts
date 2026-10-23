@@ -93,6 +93,17 @@ export type TransactionPayControllerGetFiatOptionsAction = {
   handler: TransactionPayController['getFiatOptions'];
 };
 
+/**
+ * Returns the Infura project ID used to resolve `{infuraProjectId}`
+ * placeholders in RPC URLs.
+ *
+ * @returns The Infura project ID, if configured.
+ */
+export type TransactionPayControllerGetInfuraProjectIdAction = {
+  type: `TransactionPayController:getInfuraProjectId`;
+  handler: TransactionPayController['getInfuraProjectId'];
+};
+
 export type TransactionPayControllerGetPaymentOverrideDataAction = {
   type: `TransactionPayController:getPaymentOverrideData`;
   handler: TransactionPayController['getPaymentOverrideData'];
@@ -138,6 +149,40 @@ export type TransactionPayControllerPolymarketSubmitDepositWalletBatchAction = {
 };
 
 /**
+ * Observes a Solana Pay execution through Relay status and finalizes the
+ * externally published target transaction once the outcome is terminal.
+ * While Relay has not observed the source transaction, its on-chain status
+ * is read once from the Solana RPC to detect a failed or expired source.
+ * Once Relay delivered the funds of a Money Account deposit, the non-atomic
+ * second leg runs once, guarded by the follow-up checkpoint.
+ *
+ * This method never signs or broadcasts the Solana source transaction, and
+ * never notifies Relay.
+ *
+ * @param transactionId - Target transaction ID.
+ * @returns The latest observed status.
+ */
+export type TransactionPayControllerReconcileSolanaPayAction = {
+  type: `TransactionPayController:reconcileSolanaPay`;
+  handler: TransactionPayController['reconcileSolanaPay'];
+};
+
+/**
+ * Observes every persisted Solana Pay execution that is not terminal once,
+ * independently of each other. Clients call it again on foreground or
+ * startup to keep observing.
+ *
+ * This method never signs, broadcasts, or notifies Relay.
+ *
+ * @returns Latest statuses keyed by target transaction ID, omitting
+ * executions whose observation failed.
+ */
+export type TransactionPayControllerRecoverSolanaPayStatusAction = {
+  type: `TransactionPayController:recoverSolanaPayStatus`;
+  handler: TransactionPayController['recoverSolanaPayStatus'];
+};
+
+/**
  * Union of all TransactionPayController action types.
  */
 export type TransactionPayControllerMethodActions =
@@ -147,7 +192,10 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerGetDelegationTransactionAction
   | TransactionPayControllerGetAmountDataAction
   | TransactionPayControllerGetFiatOptionsAction
+  | TransactionPayControllerGetInfuraProjectIdAction
   | TransactionPayControllerGetPaymentOverrideDataAction
   | TransactionPayControllerGetStrategyAction
   | TransactionPayControllerPolymarketGetDepositWalletAddressAction
-  | TransactionPayControllerPolymarketSubmitDepositWalletBatchAction;
+  | TransactionPayControllerPolymarketSubmitDepositWalletBatchAction
+  | TransactionPayControllerReconcileSolanaPayAction
+  | TransactionPayControllerRecoverSolanaPayStatusAction;

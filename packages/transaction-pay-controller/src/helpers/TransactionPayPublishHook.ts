@@ -2,17 +2,19 @@ import type { PublishHook } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { PublishHookResult } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import { createModuleLogger, isCaipChainId } from '@metamask/utils';
 
 import { TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type {
+  NonEvmTransactionPayQuote,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types.js';
 import { accountSupports7702 } from '../utils/7702.js';
 import { prefixError } from '../utils/error-prefix.js';
 import { getStrategyByName } from '../utils/strategy.js';
+import { isNonEvmPaymentToken } from '../utils/token.js';
 import { updateTransaction } from '../utils/transaction.js';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
@@ -65,19 +67,49 @@ export class TransactionPayPublishHook {
     );
 
     const transactionData = controllerState.transactionData?.[transactionId];
-
     // No-op quotes mark direct routes and cannot be executed by any strategy.
-    const quotes = (
-      (transactionData?.quotes as TransactionPayQuote<unknown>[]) ?? []
+    const allQuotes = (
+      (transactionData?.quotes as (
+        | TransactionPayQuote<unknown>
+        | NonEvmTransactionPayQuote<unknown>
+      )[]) ?? []
     ).filter((quote) => quote.strategy !== TransactionPayStrategy.None);
+
+    // Quotes for a non-EVM payment token are executed by the strategy outside
+    // the EVM publish path.
+    const isNonEvm = Boolean(
+      transactionData?.paymentToken &&
+      isNonEvmPaymentToken(transactionData.paymentToken),
+    );
+    // Quotes are only replaced once new quotes load, so stale quotes for a
+    // previous payment token must never reach the wrong execution path.
+    if (
+      allQuotes.some(
+        (quote) => isCaipChainId(quote.request.sourceChainId) !== isNonEvm,
+      )
+    ) {
+      throw new Error('Quote does not match payment token');
+    }
+
+    const nonEvmQuotes = isNonEvm
+      ? (allQuotes as NonEvmTransactionPayQuote<unknown>[])
+      : [];
+    const quotes = isNonEvm
+      ? []
+      : (allQuotes as TransactionPayQuote<unknown>[]);
 
     const isFiatSelected = Boolean(
       transactionData?.fiatPayment?.selectedPaymentMethodId,
     );
 
-    if (!quotes.length) {
+    if (!quotes.length && !nonEvmQuotes.length) {
       if (isFiatSelected) {
         throw new Error('Fiat: Missing quote');
+      }
+
+      // A non-EVM payment token must never fall back to EVM publication.
+      if (isNonEvm) {
+        throw new Error('Missing non-EVM quote');
       }
 
       log('Skipping as no executable quotes found', { transactionId });
@@ -96,12 +128,13 @@ export class TransactionPayPublishHook {
       },
     );
 
-    const strategy = getStrategyByName(quotes[0].strategy);
+    const strategy = getStrategyByName(allQuotes[0].strategy);
     const from = transactionMeta.txParams.from as Hex;
 
     return await strategy.execute({
       accountSupports7702: accountSupports7702(this.#messenger, from),
       isSmartTransaction: this.#isSmartTransaction,
+      ...(nonEvmQuotes.length > 0 && { nonEvmQuotes }),
       quotes,
       messenger: this.#messenger,
       transaction: transactionMeta,

@@ -82,7 +82,7 @@ export type RelaySubmitCalls = { calls: TransactionParams[] };
  * @returns An object containing the transaction hash if available.
  */
 export async function submitRelayQuotes(
-  request: PayStrategyExecuteRequest<RelayQuote>,
+  request: PayStrategyExecuteRequest<RelayQuote, unknown>,
 ): Promise<{ transactionHash?: Hex }> {
   try {
     return await submitRelayQuotesInternal(request);
@@ -109,7 +109,7 @@ export async function getRelaySubmitCalls({
 }
 
 async function submitRelayQuotesInternal(
-  request: PayStrategyExecuteRequest<RelayQuote>,
+  request: PayStrategyExecuteRequest<RelayQuote, unknown>,
 ): Promise<{ transactionHash?: Hex }> {
   log('Executing quotes', request);
 
@@ -402,15 +402,32 @@ function setRelaySourceHash(
   );
 }
 
-async function waitForRelayCompletion(
-  quote: RelayQuote,
+/**
+ * Polls Relay status for a submitted request until it settles.
+ *
+ * @param quote - Relay quote details and steps carrying the request ID.
+ * @param messenger - Controller messenger.
+ * @param options - Polling options.
+ * @param options.isSourceFailed - Callback invoked after each poll until Relay
+ * indexes the source transaction. Polling stops with a `source-failed` outcome
+ * once it resolves to true.
+ * @param options.onSourceHash - Callback invoked once with the indexed source hash.
+ * @param options.tolerateFailure - Whether failure statuses and timeouts are
+ * returned instead of thrown.
+ * @returns The completion outcome.
+ */
+export async function waitForRelayCompletion(
+  quote: Pick<RelayQuote, 'details'> & {
+    steps: Pick<RelayTransactionStep, 'id' | 'requestId'>[];
+  },
   messenger: TransactionPayControllerMessenger,
   options: {
+    isSourceFailed?: () => Promise<boolean>;
     onSourceHash?: (hash: Hex) => void;
     tolerateFailure?: boolean;
   },
 ): Promise<RelayCompletionOutcome> {
-  const { onSourceHash, tolerateFailure } = options;
+  const { isSourceFailed, onSourceHash, tolerateFailure } = options;
 
   const isSameChain =
     quote.details.currencyIn.currency.chainId ===
@@ -470,6 +487,11 @@ async function waitForRelayCompletion(
         }
         throw new Error(`Unrecognized status: ${status.status}`);
       }
+    }
+
+    if (isSourceFailed && !sourceHashEmitted && (await isSourceFailed())) {
+      log('Source transaction failed before Relay indexed it');
+      return { status: 'source-failed' };
     }
 
     if (hasTimeout && Date.now() - startTime >= pollingTimeout) {

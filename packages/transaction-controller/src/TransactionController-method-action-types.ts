@@ -191,6 +191,17 @@ export type TransactionControllerWipeTransactionsAction = {
 };
 
 /**
+ * Marks an existing externally handled transaction as confirmed and emits
+ * the standard lifecycle events.
+ *
+ * @param transactionId - Existing transaction ID.
+ */
+export type TransactionControllerConfirmTransactionAction = {
+  type: `TransactionController:confirmTransaction`;
+  handler: TransactionController['confirmTransaction'];
+};
+
+/**
  * Adds external provided transaction to state as confirmed transaction.
  *
  * @param transactionMeta - TransactionMeta to add transactions.
@@ -459,6 +470,7 @@ export type TransactionControllerMethodActions =
   | TransactionControllerFailTransactionAction
   | TransactionControllerUpdateSecurityAlertResponseAction
   | TransactionControllerWipeTransactionsAction
+  | TransactionControllerConfirmTransactionAction
   | TransactionControllerConfirmExternalTransactionAction
   | TransactionControllerUpdateTransactionGasFeesAction
   | TransactionControllerUpdatePreviousGasParamsAction

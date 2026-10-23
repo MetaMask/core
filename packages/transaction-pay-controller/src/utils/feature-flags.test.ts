@@ -36,6 +36,7 @@ import {
   isEIP7702Chain,
   getEIP7702UpgradeContractAddress,
   isRelayExecuteEnabled,
+  isRelaySolanaEnabled,
   isAtomicMaxEnabled,
   isRelayValidationEnabled,
   getFeatureFlags,
@@ -996,6 +997,29 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getRelayPollingInterval(messenger)).toBe(5000);
+    });
+  });
+
+  describe('isRelaySolanaEnabled', () => {
+    it('fails closed when no feature flags are set', () => {
+      expect(isRelaySolanaEnabled(messenger)).toBe(false);
+    });
+
+    it.each([
+      [true, true],
+      [false, false],
+      ['true', false],
+    ])('returns %s as %s', (enabled, expected) => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: { relay: { solana: { enabled } } },
+          },
+        },
+      });
+
+      expect(isRelaySolanaEnabled(messenger)).toBe(expected);
     });
   });
 

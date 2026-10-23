@@ -4,12 +4,17 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
+import {
+  DEFAULT_QUOTE_REFRESH_INTERVAL,
+  PaymentOverride,
+  TransactionPayStrategy,
+} from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type {
   EvmPaymentToken,
   NonEvmPaymentToken,
   NonEvmQuoteRequest,
+  NonEvmTransactionPayQuote,
   QuoteRequest,
   QuoteErrorInfo,
   TransactionData,
@@ -40,8 +45,6 @@ import {
 import { calculateTotals } from './totals.js';
 import { getTransaction, updateTransaction } from './transaction.js';
 import { isQuoteError } from './validation.js';
-
-const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 
 const log = createModuleLogger(projectLogger, 'quotes');
 
@@ -297,8 +300,10 @@ function syncTransaction({
 
       // The source projection is rewritten on every sync, so selecting an EVM
       // payment token clears a previous non-EVM source. Once a durable
-      // non-EVM execution checkpoint exists, the source must no longer be
-      // rewritten.
+      // non-EVM execution checkpoint exists, the source is kept as executed.
+      const executedSource = tx.metamaskPay?.solanaExecution
+        ? tx.metamaskPay.source
+        : undefined;
       const nonEvmPaymentToken =
         paymentToken && isNonEvmPaymentToken(paymentToken)
           ? paymentToken
@@ -317,6 +322,10 @@ function syncTransaction({
             sourceAccountId: nonEvmPaymentToken.accountId,
             sourceAssetId: nonEvmPaymentToken.assetId,
           },
+        }),
+        ...(executedSource && { source: executedSource }),
+        ...(tx.metamaskPay?.solanaExecution && {
+          solanaExecution: tx.metamaskPay.solanaExecution,
         }),
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         strategy,
@@ -366,7 +375,7 @@ export async function refreshQuotes(
       (await strategy.getRefreshInterval?.({
         chainId: quotes[0].request.sourceChainId,
         messenger,
-      })) ?? DEFAULT_REFRESH_INTERVAL;
+      })) ?? DEFAULT_QUOTE_REFRESH_INTERVAL;
 
     const isExpired = Date.now() - (quotesLastUpdated ?? 0) > refreshInterval;
 
@@ -841,7 +850,7 @@ async function getQuotes(
 ): Promise<{
   batchTransactions: BatchTransaction[];
   error?: QuoteErrorInfo;
-  quotes: TransactionPayQuote<Json>[];
+  quotes: (TransactionPayQuote<Json> | NonEvmTransactionPayQuote<Json>)[];
 }> {
   const { id: transactionId } = transaction;
   const strategies = getStrategiesByName(
@@ -900,18 +909,28 @@ async function getQuotes(
         continue;
       }
 
-      const quotes = (await strategy.getQuotes(
-        request,
-      )) as TransactionPayQuote<Json>[];
+      const quotes = (await strategy.getQuotes(request)) as (
+        | TransactionPayQuote<Json>
+        | NonEvmTransactionPayQuote<Json>
+      )[];
 
       if (!quotes.length) {
         log('Strategy returned no quotes', { strategy: name, transactionId });
         continue;
       }
 
+      // Non-EVM quotes are signed outside the EVM batch, so the EVM-only
+      // post-quote support check and batch transactions do not apply.
+      if (nonEvmRequests.length) {
+        log('Updated non-EVM quotes', { transactionId, quotes });
+        return { batchTransactions: [], quotes };
+      }
+
+      const evmQuotes = quotes as TransactionPayQuote<Json>[];
+
       const isQuoteSupported = await checkStrategyQuoteSupport(strategy, {
         messenger,
-        quotes,
+        quotes: evmQuotes,
         signal,
         transaction,
       });
@@ -929,7 +948,7 @@ async function getQuotes(
       const batchTransactions = strategy.getBatchTransactions
         ? await strategy.getBatchTransactions({
             messenger,
-            quotes,
+            quotes: evmQuotes,
             signal,
           })
         : [];
@@ -961,7 +980,10 @@ async function getQuotes(
         return {
           batchTransactions: [],
           error: caughtError.info,
-          quotes: caughtError.quotes as TransactionPayQuote<Json>[],
+          quotes: caughtError.quotes as (
+            | TransactionPayQuote<Json>
+            | NonEvmTransactionPayQuote<Json>
+          )[],
         };
       }
 

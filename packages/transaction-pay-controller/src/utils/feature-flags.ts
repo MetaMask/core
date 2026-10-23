@@ -188,6 +188,9 @@ export type PayStrategiesConfigRaw = {
     originGasOverhead?: string;
     pollingInterval?: number;
     pollingTimeout?: number;
+    solana?: {
+      enabled?: unknown;
+    };
   };
 };
 
@@ -660,6 +663,26 @@ export function getPayStrategiesConfig(
     server,
     relay,
   };
+}
+
+/**
+ * Whether new Solana-source Relay quotes may be admitted.
+ *
+ * This capability is fail-closed. It only gates new quotes and never stops
+ * submission, observation, or recovery of an already admitted execution.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True only when `payStrategies.relay.solana.enabled` is `true`.
+ */
+export function isRelaySolanaEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags = state.remoteFeatureFlags?.confirmations_pay as
+    | FeatureFlagsRaw
+    | undefined;
+
+  return featureFlags?.payStrategies?.relay?.solana?.enabled === true;
 }
 
 /**

@@ -85,6 +85,7 @@ import type {
   GasFeeEstimates,
   SimulationData,
   GetSimulationConfig,
+  MetamaskPaySolanaExecution,
 } from './types.js';
 import {
   GasFeeEstimateLevel,
@@ -1268,6 +1269,92 @@ describe('TransactionController', () => {
       expect(incompleteTransaction?.error?.message).toBe(
         'Transaction incomplete at startup',
       );
+    });
+
+    describe('with an external Solana execution checkpoint', () => {
+      const solanaExecutionMock: MetamaskPaySolanaExecution = {
+        atomicProductActionIncluded: false,
+        atomicProductActionRequired: false,
+        followUpStatus: 'not-required',
+        notificationStatus: 'pending',
+        phase: 'submitted',
+        relayStatus: 'not-observed',
+        requestId: 'request-id',
+        requiresNonAtomicFollowUp: false,
+        sourceAmountRaw: '1000',
+        sourceChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+        sourceStatus: 'pending',
+        sourceTransactionId: 'signature',
+        sourceWalletAccountId: 'account-id',
+        targetChainId: '0xa4b1',
+        targetTokenAddress: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+      };
+
+      function setupWithCheckpoint(
+        solanaExecution: MetamaskPaySolanaExecution,
+      ): ReturnType<typeof setupController> {
+        return setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  ...TRANSACTION_META_MOCK,
+                  isExternalSign: true,
+                  metamaskPay: { solanaExecution },
+                  status: TransactionStatus.approved,
+                },
+              ],
+            },
+          },
+        });
+      }
+
+      it.each(['attempting', 'submitted', 'unknown'] as const)(
+        'moves approved transaction with %s checkpoint to externally published submitted',
+        async (phase) => {
+          const { controller } = setupWithCheckpoint({
+            ...solanaExecutionMock,
+            phase,
+          });
+
+          await flushPromises();
+
+          const [transaction] = controller.state.transactions;
+
+          expect(transaction.status).toBe(TransactionStatus.submitted);
+          expect(transaction.isExternalPublish).toBe(true);
+          expect(transaction.submittedTime).toStrictEqual(expect.any(Number));
+          expect(transaction.error).toBeUndefined();
+        },
+      );
+
+      it('lets recovery confirm the transaction after a restart with a submitted checkpoint', async () => {
+        const { controller } = setupWithCheckpoint(solanaExecutionMock);
+
+        await flushPromises();
+
+        controller.confirmTransaction(TRANSACTION_META_MOCK.id);
+
+        expect(controller.state.transactions[0].status).toBe(
+          TransactionStatus.confirmed,
+        );
+      });
+
+      it('fails approved transaction with ready checkpoint', async () => {
+        const { controller } = setupWithCheckpoint({
+          ...solanaExecutionMock,
+          phase: 'ready',
+        });
+
+        await flushPromises();
+
+        const [transaction] = controller.state.transactions;
+
+        expect(transaction.status).toBe(TransactionStatus.failed);
+        expect(transaction.error?.message).toBe(
+          'Transaction incomplete at startup',
+        );
+      });
     });
 
     it('fails signed transactions even when isSimulationEnabled throws', async () => {
@@ -6376,8 +6463,6 @@ describe('TransactionController', () => {
       const { controller } = setupController({
         options: {
           hooks: {
-            // @ts-expect-error We are intentionally having this hook return no
-            // transaction hash
             publish: async () => ({}),
           },
         },
@@ -6402,6 +6487,116 @@ describe('TransactionController', () => {
         ([request]) => request.method === 'eth_sendRawTransaction',
       );
       expect(sendRawTransactionCalls).toHaveLength(1);
+    });
+
+    it.each(['submitted', 'ambiguous'] as const)(
+      'marks an externally handled %s publication submitted without EVM fallback',
+      async (outcome) => {
+        const { controller } = setupController({
+          options: {
+            hooks: {
+              publish: async () => ({ externallyHandled: true, outcome }),
+            },
+          },
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(paramsMock, {
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        });
+
+        await result;
+
+        expect(controller.state.transactions[0]).toMatchObject({
+          hash: undefined,
+          isExternalPublish: true,
+          status: TransactionStatus.submitted,
+        });
+        expect(
+          rpcRequestMock.mock.calls.filter(
+            ([request]) => request.method === 'eth_sendRawTransaction',
+          ),
+        ).toHaveLength(0);
+      },
+    );
+
+    it('emits rejection lifecycle for an externally handled user rejection', async () => {
+      const { controller, messenger } = setupController({
+        options: {
+          hooks: {
+            publish: async () => ({
+              externallyHandled: true,
+              outcome: 'user-rejected',
+            }),
+          },
+        },
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
+      });
+      const listener = jest.fn();
+      messenger.subscribe(
+        'TransactionController:transactionRejected',
+        listener,
+      );
+
+      const { result } = await controller.addTransaction(paramsMock, {
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
+      await result.catch(() => undefined);
+
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionMeta: expect.objectContaining({
+            status: TransactionStatus.rejected,
+          }),
+        }),
+      );
+      expect(controller.state.transactions).toHaveLength(0);
+    });
+
+    it('emits failure lifecycle for guaranteed external non-submission', async () => {
+      const { controller, messenger } = setupController({
+        options: {
+          hooks: {
+            publish: async () => ({
+              error: 'Snap preparation failed',
+              externallyHandled: true,
+              outcome: 'not-submitted',
+            }),
+          },
+        },
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
+      });
+      const listener = jest.fn();
+      messenger.subscribe('TransactionController:transactionFailed', listener);
+
+      const { result } = await controller.addTransaction(paramsMock, {
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
+      await expect(result).rejects.toThrow('Snap preparation failed');
+
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: 'Snap preparation failed',
+          transactionMeta: expect.objectContaining({
+            status: TransactionStatus.failed,
+          }),
+        }),
+      );
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.failed,
+      );
     });
 
     it('submits to publish hook with final transaction meta', async () => {
@@ -6544,6 +6739,68 @@ describe('TransactionController', () => {
         controller.failTransaction('missing-id', new Error('Test failure')),
       ).toThrow('No transaction found with id missing-id');
     });
+  });
+
+  describe('confirmTransaction', () => {
+    const submittedTransactionMock = {
+      ...TRANSACTION_META_MOCK,
+      isExternalPublish: true,
+      status: TransactionStatus.submitted as const,
+    } as unknown as TransactionMeta;
+
+    it('marks an externally handled transaction confirmed and publishes lifecycle events', () => {
+      const confirmedListener = jest.fn();
+      const statusUpdatedListener = jest.fn();
+      const finishedListener = jest.fn();
+      const { controller, messenger } = setupController({
+        options: {
+          state: { transactions: [submittedTransactionMock] },
+        },
+      });
+      messenger.subscribe(
+        'TransactionController:transactionConfirmed',
+        confirmedListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionStatusUpdated',
+        statusUpdatedListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionFinished',
+        finishedListener,
+      );
+
+      controller.confirmTransaction(submittedTransactionMock.id);
+
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.confirmed,
+      );
+      expect(confirmedListener).toHaveBeenCalledTimes(1);
+      expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(finishedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      [TransactionStatus.submitted, false],
+      [TransactionStatus.confirmed, true],
+      [TransactionStatus.failed, true],
+    ])(
+      'rejects status %s with external publication %s',
+      (status, isExternalPublish) => {
+        const transaction = {
+          ...submittedTransactionMock,
+          isExternalPublish,
+          status,
+        };
+        const { controller } = setupController({
+          options: { state: { transactions: [transaction] } },
+        });
+
+        expect(() => controller.confirmTransaction(transaction.id)).toThrow(
+          'Only submitted externally published transactions can be confirmed',
+        );
+      },
+    );
   });
 
   describe('updateSecurityAlertResponse', () => {

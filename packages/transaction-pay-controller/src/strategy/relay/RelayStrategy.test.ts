@@ -8,17 +8,23 @@ import type {
 } from '../../types.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import { getRelayQuotes } from './relay-quotes.js';
+import { getRelaySolanaQuotes } from './relay-solana-quotes.js';
+import { submitRelayNonEvmQuote } from './relay-submit-non-evm.js';
 import { submitRelayQuotes } from './relay-submit.js';
 import { RelayStrategy } from './RelayStrategy.js';
-import type { RelayQuote } from './types.js';
+import type { RelayQuote, RelaySolanaPayQuote } from './types.js';
 
 jest.mock('./relay-quotes');
+jest.mock('./relay-solana-quotes');
+jest.mock('./relay-submit-non-evm');
 jest.mock('./relay-submit');
 jest.mock('../../utils/feature-flags');
 
 describe('RelayStrategy', () => {
   const getRelayQuotesMock = jest.mocked(getRelayQuotes);
   const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
+  const getRelaySolanaQuotesMock = jest.mocked(getRelaySolanaQuotes);
+  const submitRelayNonEvmQuoteMock = jest.mocked(submitRelayNonEvmQuote);
   const getPayStrategiesConfigMock = jest.mocked(getPayStrategiesConfig);
 
   const messenger = {} as never;
@@ -97,6 +103,77 @@ describe('RelayStrategy', () => {
     const strategy = new RelayStrategy();
     expect(await strategy.getQuotes(request)).toStrictEqual([quote]);
     expect(getRelayQuotesMock).toHaveBeenCalledWith(request);
+  });
+
+  it('routes non-EVM requests to the Solana quote path only', async () => {
+    const nonEvmRequest = {
+      ...request,
+      nonEvmRequests: [{ sourceChainId: 'solana:mainnet' }],
+      requests: [],
+    } as unknown as PayStrategyGetQuotesRequest;
+    getRelaySolanaQuotesMock.mockResolvedValue([]);
+
+    const strategy = new RelayStrategy();
+    await strategy.getQuotes(nonEvmRequest);
+
+    expect(getRelaySolanaQuotesMock).toHaveBeenCalledWith(nonEvmRequest);
+    expect(getRelayQuotesMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps EVM requests on the existing /quote path', async () => {
+    getRelayQuotesMock.mockResolvedValue([]);
+
+    const strategy = new RelayStrategy();
+    await strategy.getQuotes({ ...request, nonEvmRequests: [] });
+
+    expect(getRelayQuotesMock).toHaveBeenCalledTimes(1);
+    expect(getRelaySolanaQuotesMock).not.toHaveBeenCalled();
+  });
+
+  it('executes a non-EVM quote through the non-EVM submit branch only', async () => {
+    const nonEvmQuote = { strategy: TransactionPayStrategy.Relay };
+    const executeRequest = {
+      messenger,
+      nonEvmQuotes: [nonEvmQuote],
+      quotes: [],
+      transaction: request.transaction,
+      isSmartTransaction: jest.fn(),
+    } as unknown as PayStrategyExecuteRequest<RelayQuote, RelaySolanaPayQuote>;
+
+    submitRelayNonEvmQuoteMock.mockResolvedValue({
+      externallyHandled: true,
+      outcome: 'submitted',
+    });
+
+    const strategy = new RelayStrategy();
+
+    expect(await strategy.execute(executeRequest)).toStrictEqual({
+      externallyHandled: true,
+      outcome: 'submitted',
+    });
+    expect(submitRelayNonEvmQuoteMock).toHaveBeenCalledWith({
+      messenger,
+      quote: nonEvmQuote,
+      transaction: request.transaction,
+    });
+    expect(submitRelayQuotesMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects multiple non-EVM quotes', async () => {
+    const executeRequest = {
+      messenger,
+      nonEvmQuotes: [{}, {}],
+      quotes: [],
+      transaction: request.transaction,
+      isSmartTransaction: jest.fn(),
+    } as unknown as PayStrategyExecuteRequest<RelayQuote, RelaySolanaPayQuote>;
+
+    const strategy = new RelayStrategy();
+
+    await expect(strategy.execute(executeRequest)).rejects.toThrow(
+      'Relay: Multiple non-EVM quotes are not supported',
+    );
+    expect(submitRelayNonEvmQuoteMock).not.toHaveBeenCalled();
   });
 
   it('delegates execute', async () => {
