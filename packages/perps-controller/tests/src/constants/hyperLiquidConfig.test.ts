@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   getSupportedAssets,
   HIP3_ASSET_MARKET_TYPES,

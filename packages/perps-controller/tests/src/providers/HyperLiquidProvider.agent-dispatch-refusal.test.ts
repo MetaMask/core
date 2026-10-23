@@ -1,5 +1,7 @@
 import type { Hex } from '@metamask/utils';
 import { HttpTransport, WebSocketTransport } from '@nktkas/hyperliquid';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type {
@@ -26,17 +28,15 @@ import {
 
 // Keep SDK signing, dispatch guards and reporting real; only its network
 // transports and the provider's unrelated reads/subscriptions are mocked.
-jest.mock('@nktkas/hyperliquid', () => ({
-  ...jest.requireActual<typeof import('@nktkas/hyperliquid')>(
-    '@nktkas/hyperliquid',
-  ),
-  HttpTransport: jest.fn(),
-  WebSocketTransport: jest.fn(),
+vi.mock(import('@nktkas/hyperliquid'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  HttpTransport: vi.fn(),
+  WebSocketTransport: vi.fn(),
 }));
-jest.mock('../../../src/services/HyperLiquidClientService');
-jest.mock('../../../src/services/HyperLiquidSubscriptionService');
+vi.mock('../../../src/services/HyperLiquidClientService');
+vi.mock('../../../src/services/HyperLiquidSubscriptionService');
 
-const { HyperLiquidClientService: RealClientService } = jest.requireActual<
+const { HyperLiquidClientService: RealClientService } = await vi.importActual<
   typeof import('../../../src/services/HyperLiquidClientService.js')
 >('../../../src/services/HyperLiquidClientService.js');
 
@@ -45,12 +45,11 @@ const CANCEL = { cancels: [{ a: 0, o: 123 }] };
 type TrackedSdkFixture = ReturnType<typeof createAccountSignerProvider> & {
   realService: HyperLiquidClientService;
   registry: Map<string, unknown>;
-  request: jest.Mock;
-  getAgentSigner: jest.Mock;
-  onAgentRejected: jest.Mock;
-  onExchangeRequest: jest.Mock<
-    void,
-    [unknown, unknown, HyperLiquidWalletParams?]
+  request: Mock;
+  getAgentSigner: Mock;
+  onAgentRejected: Mock;
+  onExchangeRequest: Mock<
+    (...args: [unknown, unknown, HyperLiquidWalletParams?]) => void
   >;
 };
 
@@ -70,7 +69,7 @@ function observeSignatureRegistry(): {
     key: object,
     value: unknown,
   ) => WeakMap<object, unknown>;
-  const observer = jest
+  const observer = vi
     .spyOn(WeakMap.prototype, 'set')
     .mockImplementation(function (
       this: WeakMap<object, unknown>,
@@ -102,14 +101,14 @@ describe('HyperLiquidProvider agent signatures after dispatch refusal', () => {
   let service: HyperLiquidClientService | undefined;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     setUpAccountSignerSuite();
   });
 
   afterEach(async () => {
     await service?.disconnect();
     service = undefined;
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   /**
@@ -120,13 +119,13 @@ describe('HyperLiquidProvider agent signatures after dispatch refusal', () => {
    */
   async function createTrackedSdkFixture(): Promise<TrackedSdkFixture> {
     const observer = observeSignatureRegistry();
-    const getAgentSigner = jest.fn();
-    const onAgentRejected = jest.fn();
+    const getAgentSigner = vi.fn();
+    const onAgentRejected = vi.fn();
     const built = createAccountSignerProvider({
       abstraction: 'unifiedAccount',
       getAgentSigner,
       onAgentRejected,
-      info: { extraAgents: jest.fn().mockResolvedValue([]) },
+      info: { extraAgents: vi.fn().mockResolvedValue([]) },
     });
     getAgentSigner.mockResolvedValue(built.agentSigner);
     await built.accountSignerProvider.prepareTradingWallet();
@@ -139,22 +138,19 @@ describe('HyperLiquidProvider agent signatures after dispatch refusal', () => {
         return `0x${signatureNumber.toString(16).padStart(64, '0')}${'11'.repeat(32)}1b`;
       },
     );
-    const request = jest.fn();
-    jest
-      .mocked(HttpTransport)
-      .mockImplementation(
-        () => ({ isTestnet: false, request }) as unknown as HttpTransport,
-      );
-    jest.mocked(WebSocketTransport).mockImplementation(
-      () =>
-        ({
-          isTestnet: false,
-          ready: jest.fn().mockResolvedValue(undefined),
-          close: jest.fn(),
-          socket: { addEventListener: jest.fn() },
-        }) as unknown as WebSocketTransport,
-    );
-    const onExchangeRequest = jest.fn(built.reportExchangeRequest);
+    const request = vi.fn();
+    vi.mocked(HttpTransport).mockImplementation(function () {
+      return { isTestnet: false, request } as unknown as HttpTransport;
+    });
+    vi.mocked(WebSocketTransport).mockImplementation(function () {
+      return {
+        isTestnet: false,
+        ready: vi.fn().mockResolvedValue(undefined),
+        close: vi.fn(),
+        socket: { addEventListener: vi.fn() },
+      } as unknown as WebSocketTransport;
+    });
+    const onExchangeRequest = vi.fn(built.reportExchangeRequest);
     const realService = new RealClientService(createMockInfrastructure(), {
       onExchangeRequest,
     });
@@ -176,7 +172,7 @@ describe('HyperLiquidProvider agent signatures after dispatch refusal', () => {
     async (message) => {
       const built = await createTrackedSdkFixture();
       const refusal = new Error(message);
-      const guard = jest.fn().mockRejectedValue(refusal);
+      const guard = vi.fn().mockRejectedValue(refusal);
       const guarded = built.realService.getExchangeClient(guard);
 
       for (let attempt = 0; attempt < 5; attempt += 1) {
