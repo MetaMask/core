@@ -51,7 +51,9 @@ export async function fetchRelayQuote(
 }
 
 /**
- * Fetch an executable Solana quote from Relay /quote/v2.
+ * Fetch an executable Solana quote through the Relay quote URL. Solana quotes
+ * use the same MetaMask Relay proxy as EVM quotes, which passes the Solana
+ * instructions and lookup tables through.
  *
  * @param messenger - Controller messenger.
  * @param body - Solana quote request.
@@ -63,8 +65,8 @@ export async function fetchRelaySolanaQuote(
   body: RelaySolanaQuoteRequest,
   signal?: AbortSignal,
 ): Promise<RelaySolanaQuote> {
-  const { relaySolanaQuoteUrl } = getFeatureFlags(messenger);
-  const response = await relayFetch(relaySolanaQuoteUrl, {
+  const { relayQuoteUrl } = getFeatureFlags(messenger);
+  const response = await relayFetch(relayQuoteUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

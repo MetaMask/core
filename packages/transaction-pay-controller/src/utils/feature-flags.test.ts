@@ -15,7 +15,6 @@ import {
   DEFAULT_SERVER_BASE_URL,
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
-  DEFAULT_RELAY_SOLANA_QUOTE_URL,
   DEFAULT_SLIPPAGE,
   getFallbackGas,
   getFiatAssetPerTransactionType,
@@ -54,7 +53,6 @@ import * as featureFlagsModule from './feature-flags.js';
 const GAS_FALLBACK_ESTIMATE_MOCK = 123;
 const GAS_FALLBACK_MAX_MOCK = 456;
 const RELAY_QUOTE_URL_MOCK = 'https://test.com/test';
-const RELAY_SOLANA_QUOTE_URL_MOCK = 'https://test.com/solana';
 const RELAY_GAS_STATION_DISABLED_CHAINS_MOCK = ['0x1', '0x2'];
 const SLIPPAGE_MOCK = 0.01;
 const GAS_BUFFER_DEFAULT_MOCK = 1.5;
@@ -107,7 +105,6 @@ describe('Feature Flags Utils', () => {
           max: DEFAULT_FALLBACK_GAS_MAX,
         },
         relayQuoteUrl: DEFAULT_RELAY_QUOTE_URL,
-        relaySolanaQuoteUrl: DEFAULT_RELAY_SOLANA_QUOTE_URL,
         slippage: DEFAULT_SLIPPAGE,
       });
     });
@@ -124,7 +121,6 @@ describe('Feature Flags Utils', () => {
               max: GAS_FALLBACK_MAX_MOCK,
             },
             relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
-            relaySolanaQuoteUrl: RELAY_SOLANA_QUOTE_URL_MOCK,
             slippage: SLIPPAGE_MOCK,
           },
         },
@@ -140,7 +136,6 @@ describe('Feature Flags Utils', () => {
           max: GAS_FALLBACK_MAX_MOCK,
         },
         relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
-        relaySolanaQuoteUrl: RELAY_SOLANA_QUOTE_URL_MOCK,
         slippage: SLIPPAGE_MOCK,
       });
     });

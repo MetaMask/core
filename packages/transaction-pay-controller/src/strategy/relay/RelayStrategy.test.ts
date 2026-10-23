@@ -105,7 +105,7 @@ describe('RelayStrategy', () => {
     expect(getRelayQuotesMock).toHaveBeenCalledWith(request);
   });
 
-  it('routes non-EVM requests to the Solana /quote/v2 path only', async () => {
+  it('routes non-EVM requests to the Solana quote path only', async () => {
     const nonEvmRequest = {
       ...request,
       nonEvmRequests: [{ sourceChainId: 'solana:mainnet' }],

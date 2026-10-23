@@ -59,7 +59,7 @@ const TERMINAL_OUTCOMES: SolanaPayOutcome[] = [
 ];
 
 /**
- * Builds the Relay /quote/v2 request for a non-EVM quote request.
+ * Builds the Relay quote request for a non-EVM quote request.
  *
  * @param request - Non-EVM quote request.
  * @param transaction - Parent product transaction.
@@ -234,7 +234,7 @@ export function getSolanaSourceAddress(request: NonEvmQuoteRequest): string {
  * prevents EVM transaction items or malformed instruction keys from reaching
  * the Core transaction compiler.
  *
- * @param quote - Relay /quote/v2 response.
+ * @param quote - Relay Solana quote response.
  * @returns Instructions and lookup-table addresses to compile.
  */
 export function getRelaySolanaTransaction(

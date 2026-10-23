@@ -329,7 +329,7 @@ export type RelaySolanaQuoteMetamask = {
   transaction: string;
 };
 
-/** Relay /quote/v2 Solana quote with Core-owned execution data. */
+/** Relay Solana quote with Core-owned execution data. */
 export type RelaySolanaPayQuote = RelaySolanaQuote & {
   metamask: RelaySolanaQuoteMetamask;
 };

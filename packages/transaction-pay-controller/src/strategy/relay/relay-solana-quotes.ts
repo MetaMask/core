@@ -254,7 +254,7 @@ function getMaxNativeAmountRaw(
 }
 
 /**
- * Fetches a /quote/v2 Solana quote, retrying once with a shorter route when
+ * Fetches a Relay Solana quote, retrying once with a shorter route when
  * Relay rejects the transaction as too large.
  *
  * @param messenger - Controller messenger.

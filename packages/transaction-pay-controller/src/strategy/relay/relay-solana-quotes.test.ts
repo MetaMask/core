@@ -302,7 +302,7 @@ describe('getRelaySolanaQuotes', () => {
     });
   });
 
-  it('sends Solana requests to /quote/v2 and never to the EVM /quote endpoint', async () => {
+  it('fetches Solana quotes with the Solana request builder only', async () => {
     await getRelaySolanaQuotes(getFullRequest([getRequest()]));
 
     expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledTimes(1);

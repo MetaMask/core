@@ -53,7 +53,7 @@ The resulting transaction deposits the necessary funds (on the source network), 
 
 When the payment token is non-EVM, `RelayStrategy` receives `nonEvmRequests` instead of `requests` and uses a separate branch modelled on the `BridgeStatusController` non-EVM submit handler. EVM sources keep using the Relay `/quote` endpoint unchanged.
 
-- **Quote.** New quotes are only admitted when `payStrategies.relay.solana.enabled` is `true`. Core builds the request and fetches it from Relay `/quote/v2` (`relaySolanaQuoteUrl`). If Relay rejects the transaction as `SOLANA_TX_TOO_LARGE`, Core retries once with `maxRouteLength: 4`. Relay returns instructions and address lookup tables rather than a serialized transaction, so Core compiles the unsigned v0 transaction itself:
+- **Quote.** New quotes are only admitted when `payStrategies.relay.solana.enabled` is `true`. Core builds the request and fetches it from the Relay quote URL (`relayQuoteUrl`, the MetaMask Relay proxy), which passes the Solana instructions and lookup tables through. If Relay rejects the transaction as `SOLANA_TX_TOO_LARGE`, Core retries once with `maxRouteLength: 4`. Relay returns instructions and address lookup tables rather than a serialized transaction, so Core compiles the unsigned v0 transaction itself:
   - the fee payer is the user;
   - the blockhash and lookup tables come from Solana JSON-RPC at the `ConfigRegistryController` RPC URL (with `{infuraProjectId}` replaced by the `infuraProjectId` constructor option), and unresolved lookup tables are skipped;
   - compilation uses `@solana/kit` sub-packages.
