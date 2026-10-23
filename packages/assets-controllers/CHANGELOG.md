@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: run assets-controllers on Vitest ([#10979](https://github.com/MetaMask/core/pull/10979))
+- feat(money-account-controller)!: add MPC keyring support ([#10694](https://github.com/MetaMask/core/pull/10694))
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
