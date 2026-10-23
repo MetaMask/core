@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use shared recipient resolution for Relay and Server quotes ([#10887](https://github.com/MetaMask/core/pull/10887))
 
+### Fixed
+
+- Fix Hyperliquid perps deposits and withdrawals in `ServerStrategy` ([#10887](https://github.com/MetaMask/core/pull/10887))
+  - Detect perps deposits made as an ERC-20 transfer to the Hyperliquid bridge, rather than only calls whose `to` is the bridge.
+  - Convert perps withdrawal amounts from 6 to 8 decimals, instead of 8 to 6.
+
 ## [30.2.0]
 
 ### Added
