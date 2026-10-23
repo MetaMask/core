@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Fall back to `options.analyticsId` when persisted `analyticsId` is null, undefined, or empty ([#11025](https://github.com/MetaMask/core/pull/11025))
-
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Fixed
+
+- Fall back to `options.analyticsId` when persisted `analyticsId` is null, undefined, or empty ([#11025](https://github.com/MetaMask/core/pull/11025))
 
 ## [19.0.0]
 
