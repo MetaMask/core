@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "forceConsistentCasingInFileNames": true,
-    "target": "es2017"
+    "types": ["jest"]
   },
   "references": [
     {

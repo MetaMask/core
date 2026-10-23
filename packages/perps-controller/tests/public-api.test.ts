@@ -32,6 +32,9 @@ import type {
   PerpsControllerReconcileChaseOrderCancellationAction,
   PerpsControllerPrepareTradingWalletAction,
   PerpsControllerSetAgentSignerAction,
+  PerpsFeeResolverScope,
+  PerpsPlatformDependencies,
+  PerpsTradingFeeGrant,
   PerpsTypedDataPayload,
 } from '../src/index.js';
 import { createGuardedHyperLiquidClient } from '../src/utils/guardedHyperLiquidClient.js';
@@ -213,5 +216,30 @@ describe('@metamask/perps-controller public API', () => {
       'PerpsController:clearAgentSigners',
       'PerpsController:prepareTradingWallet',
     ]);
+  });
+
+  it('exports the optional trading fee grant dependency contract', async () => {
+    const scope: PerpsFeeResolverScope = {
+      providerId: 'hyperliquid',
+      isTestnet: false,
+    };
+    const grant: PerpsTradingFeeGrant = {
+      ...scope,
+      feeBips: 2,
+      expiresAt: Date.now() + 60_000,
+    };
+    const rewardsWithGrant: PerpsPlatformDependencies['rewards'] = {
+      getPerpsDiscountForAccount: async () => null,
+      getPerpsTradingFeeGrant: async (requestedScope) =>
+        requestedScope.providerId === scope.providerId ? grant : null,
+    };
+    const legacyRewards: PerpsPlatformDependencies['rewards'] = {
+      getPerpsDiscountForAccount: async () => 6500,
+    };
+
+    expect(
+      await rewardsWithGrant.getPerpsTradingFeeGrant?.(scope),
+    ).toStrictEqual(grant);
+    expect(legacyRewards.getPerpsTradingFeeGrant).toBeUndefined();
   });
 });

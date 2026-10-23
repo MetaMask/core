@@ -1,6 +1,7 @@
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { TransactionController } from '@metamask/transaction-controller';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { WalletOptions } from '../../../types.js';
 import { Wallet } from '../../../Wallet.js';
@@ -105,7 +106,7 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
     rootMessenger,
     'NetworkController',
     'NetworkController:getNetworkClientRegistry',
-    jest.fn().mockReturnValue({}),
+    vi.fn().mockReturnValue({}),
   );
 
   return rootMessenger;
@@ -113,6 +114,15 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
 
 function getInstanceOptions(): WalletOptions['instanceOptions'] {
   return {
+    analyticsController: {
+      platformAdapter: {
+        track: vi.fn(),
+        identify: vi.fn(),
+        view: vi.fn(),
+        onSetupCompleted: vi.fn(),
+      },
+      analyticsId: '11111111-1111-4111-8111-111111111111',
+    },
     connectivityController: {
       connectivityAdapter: new AlwaysOnlineAdapter(),
     },
@@ -121,6 +131,9 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
     },
     networkController: {
       infuraProjectId: 'test-infura-project-id',
+    },
+    selectedNetworkController: {
+      domainProxyMap: new Map(),
     },
     storageService: {
       storage: new InMemoryStorageAdapter(),

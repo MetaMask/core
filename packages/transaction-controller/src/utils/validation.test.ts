@@ -1,9 +1,11 @@
-import { rpcErrors } from '@metamask/rpc-errors';
+import { JsonRpcError, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { TransactionEnvelopeType, TransactionType } from '../types.js';
 import type { TransactionParams } from '../types.js';
 import {
+  ErrorCode,
   validateBatchRequest,
   validateParamTo,
   validateTransactionOrigin,
@@ -743,9 +745,7 @@ describe('validation', () => {
           txParams: {} as TransactionParams,
         }),
       ).rejects.toThrow(
-        rpcErrors.invalidParams(
-          'The requested account and/or method has not been authorized by the user.',
-        ),
+        providerErrors.unauthorized({ data: { origin: ORIGIN_MOCK } }),
       );
     });
 
@@ -955,7 +955,12 @@ describe('validation', () => {
           ...VALIDATE_BATCH_REQUEST_MOCK,
           sizeLimit: 1,
         }),
-      ).toThrow(rpcErrors.invalidParams('Batch size cannot exceed 1. got: 2'));
+      ).toThrow(
+        new JsonRpcError(
+          ErrorCode.BundleTooLarge,
+          'Batch size cannot exceed 1. got: 2',
+        ),
+      );
     });
 
     it('does not throw if internal and transaction count is greater than limit', () => {

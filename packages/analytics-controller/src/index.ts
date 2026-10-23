@@ -5,7 +5,10 @@ export {
   EVENT_FRAGMENT_MAX_AGE,
   getDefaultAnalyticsControllerState,
 } from './AnalyticsController.js';
-export type { AnalyticsControllerOptions } from './AnalyticsController.js';
+export type {
+  AnalyticsControllerInitialState,
+  AnalyticsControllerOptions,
+} from './AnalyticsController.js';
 
 // Export errors
 export { AnalyticsPlatformAdapterSetupError } from './AnalyticsPlatformAdapterSetupError.js';

@@ -6,9 +6,11 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
+    "types": ["jest"],
     "paths": {
-      "@metamask/utils/node": ["./packages/utils/src/node.ts"],
-      "@metamask/utils": ["./packages/utils/src/index.ts"]
+      "@metamask/error-utils": ["./packages/error-utils/src/index.ts"],
+      "@metamask/node-utils": ["./packages/node-utils/src/index.ts"],
+      "@metamask/type-utils": ["./packages/type-utils/src/index.ts"]
     }
   },
   "references": [
@@ -70,6 +72,9 @@
       "path": "./packages/build-utils"
     },
     {
+      "path": "./packages/byte-utils"
+    },
+    {
       "path": "./packages/chain-agnostic-permission"
     },
     {
@@ -121,6 +126,9 @@
       "path": "./packages/eip1193-permission-middleware"
     },
     {
+      "path": "./packages/error-utils"
+    },
+    {
       "path": "./packages/eth-block-tracker"
     },
     {
@@ -163,6 +171,9 @@
       "path": "./packages/logging-controller"
     },
     {
+      "path": "./packages/marketing-consent-controller"
+    },
+    {
       "path": "./packages/message-manager"
     },
     {
@@ -170,6 +181,9 @@
     },
     {
       "path": "./packages/messenger-cli"
+    },
+    {
+      "path": "./packages/mfa-recovery-controller"
     },
     {
       "path": "./packages/money-account-api-data-service"
@@ -182,6 +196,9 @@
     },
     {
       "path": "./packages/money-account-controller"
+    },
+    {
+      "path": "./packages/money-account-mfa-whitelist"
     },
     {
       "path": "./packages/money-account-upgrade-controller"
@@ -212,6 +229,9 @@
     },
     {
       "path": "./packages/network-enablement-controller"
+    },
+    {
+      "path": "./packages/node-utils"
     },
     {
       "path": "./packages/notification-services-controller"
@@ -310,6 +330,12 @@
       "path": "./packages/transaction-pay-controller"
     },
     {
+      "path": "./packages/transaction-pay-middleware"
+    },
+    {
+      "path": "./packages/type-utils"
+    },
+    {
       "path": "./packages/user-operation-controller"
     },
     {
@@ -319,10 +345,10 @@
       "path": "./packages/wallet"
     },
     {
-      "path": "./packages/wallet-cli"
+      "path": "./packages/wallet-framework-docs"
     },
     {
-      "path": "./packages/wallet-framework-docs"
+      "path": "./packages/watch-only-account-service"
     }
   ],
   "files": [],
@@ -331,6 +357,10 @@
     "./types",
     "./scripts",
     "./codeowners.ts",
-    "./knip.config.mts"
+    "./knip.config.mts",
+    "./vitest.config.packages.ts",
+    "./vitest.config.scripts.ts",
+    "./packages/*/vitest.config.ts",
+    "./packages/*/vitest.config.mts"
   ]
 }

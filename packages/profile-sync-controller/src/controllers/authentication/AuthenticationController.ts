@@ -212,6 +212,7 @@ type ControllerConfig = {
 
 const MESSENGER_EXPOSED_METHODS = [
   'performSignIn',
+  'exchangeSocialAccessToken',
   'performSignOut',
   'getBearerToken',
   'getSessionProfile',
@@ -311,6 +312,14 @@ export class AuthenticationController extends BaseController<
    * exist.
    */
   readonly #verificationSessions = new Map<string, VerificationSession>();
+
+  /**
+   * Verification tokens that authorized an enrollment's begin, by flow ID.
+   * The server asks for the same AAL2 proof when it is completed, which can
+   * be minutes later (for example, while the user finds an email code), past
+   * the default session age.
+   */
+  readonly #enrollmentAccessTokens = new Map<string, string>();
 
   /**
    * Sequence number of the most recently started credentials refresh. Only
@@ -743,6 +752,42 @@ export class AuthenticationController extends BaseController<
     }
   }
 
+  /**
+   * Exchanges the social access token SeedlessOnboarding holds for the
+   * wallet's Google/Apple/Telegram login (`POST /api/v2/social/login`) for an
+   * access token and the canonical profile it is paired to. Shows no UI and
+   * stores nothing: SRP sessions remain the source of truth for
+   * `getBearerToken`.
+   *
+   * Throws when the wallet has no social vault or no social token, and
+   * `SocialIdentifierNotPairedError` when the identifier was never paired to
+   * a profile.
+   *
+   * @returns The access token and canonical profile.
+   */
+  public async exchangeSocialAccessToken(): Promise<LoginResponse> {
+    const identifierType = this.#identifierTypeFromSeedlessState(
+      this.messenger.call('SeedlessOnboardingController:getState'),
+    );
+    if (identifierType === 'SRP') {
+      throw new Error(
+        'exchangeSocialAccessToken - the wallet has no social login',
+      );
+    }
+
+    const socialJwt = await this.messenger.call(
+      'SeedlessOnboardingController:getAccessToken',
+    );
+    if (!socialJwt) {
+      throw new Error('exchangeSocialAccessToken - no social access token');
+    }
+
+    return await this.#auth.exchangeSocialAccessToken({
+      identifierType,
+      socialJwt,
+    });
+  }
+
   #clearNeedsSocialPairing(): void {
     if (this.state.needsSocialPairing !== false) {
       this.update((state) => {
@@ -992,7 +1037,8 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Begins enrollment of a passkey or email OTP credential.
+   * Begins enrollment of a passkey, email OTP or authenticator app (TOTP)
+   * credential.
    *
    * @param request - Credential, optional email address, and trace reason.
    * @returns A challenge for the client-owned ceremony.
@@ -1023,11 +1069,17 @@ export class AuthenticationController extends BaseController<
         }),
     );
     this.#assertAuthSessionEpoch(sessionEpoch, 'beginCredentialEnrollment');
+    if (accessToken) {
+      this.#enrollmentAccessTokens.set(challenge.flowId, accessToken);
+    }
     return challenge;
   }
 
   /**
    * Completes credential enrollment and refreshes the credential cache.
+   *
+   * It is sent with the verification token that began the enrollment, if
+   * any: once a factor is enrolled, the server requires AAL2 for both steps.
    *
    * The server returns an assertion for the new credential, which opens a
    * verification session like `completeCredentialVerification`, replacing
@@ -1063,8 +1115,12 @@ export class AuthenticationController extends BaseController<
           request.flowId,
           request.proof,
           primaryEntropySourceId,
+          this.#enrollmentAccessTokens.get(request.flowId),
         ),
     );
+    // Only after success: a failed attempt can be retried on this flow, and
+    // needs the same token.
+    this.#enrollmentAccessTokens.delete(request.flowId);
 
     try {
       await this.#openVerificationSessionFromAssertion(assertion, {
@@ -1297,13 +1353,15 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Clears every in-memory verification session and its expiration timer.
+   * Clears every in-memory verification session and its expiration timer,
+   * and the tokens kept for enrollments in progress.
    */
   public clearVerificationSession(): void {
     for (const { timer } of this.#verificationSessions.values()) {
       clearTimeout(timer);
     }
     this.#verificationSessions.clear();
+    this.#enrollmentAccessTokens.clear();
   }
 
   /**

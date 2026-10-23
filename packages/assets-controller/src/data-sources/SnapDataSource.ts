@@ -605,6 +605,13 @@ export class SnapDataSource extends AbstractDataSource<
           supportedChainIds,
           hiddenAssetIds,
         );
+        // TEMPORARY: delete this call with `#includeSnapRollbackBalanceStateTokens` after Snaps Migration.
+        this.#includeSnapRollbackBalanceStateTokens(
+          accountId,
+          assetsToFetch,
+          supportedChainIds,
+          hiddenAssetIds,
+        );
 
         // Step 2: Get balances for those specific assets. An empty map is a
         // failed fetch (or nothing to ask for), not a zero snapshot. Leave
@@ -732,6 +739,80 @@ export class SnapDataSource extends AbstractDataSource<
     }
 
     return Array.from(assetsToFetch.values());
+  }
+
+  // ============================================================================
+  // TEMPORARY: balance-state tokens while a chain can roll back to Snaps
+  //
+  // Delete this whole section, and the call marked TEMPORARY in `#fetchV6`,
+  // once balance reads fully move to Accounts API.
+  //
+  // The v6 request is the union of the snap's listed holdings, visible assets,
+  // and every token already in balance state for the chain. Accounts API and
+  // the websocket already return more tokens than the snap lists, so a rollback
+  // to the snap still refreshes that wider set. This section adds the
+  // balance-state part. Hidden assets stay out. Visible assets stay in the
+  // request even when they have no balance entry yet.
+  // ============================================================================
+
+  /**
+   * Append balance-state tokens for these chains onto the v6 request.
+   * Tokens already selected, hidden, or on another chain are left out.
+   *
+   * @param accountId - Account whose balances are being fetched.
+   * @param assetsToFetch - Asset IDs already chosen, mutated in place.
+   * @param supportedChainIds - Chains this snap was asked about.
+   * @param hiddenAssetIds - Asset IDs the user hid in this scope.
+   */
+  #includeSnapRollbackBalanceStateTokens(
+    accountId: string,
+    assetsToFetch: CaipAssetType[],
+    supportedChainIds: ChainId[],
+    hiddenAssetIds: Caip19AssetId[],
+  ): void {
+    const supportedChains = new Set(supportedChainIds);
+    const hidden = new Set(
+      hiddenAssetIds.map((assetId) => assetId.toLowerCase()),
+    );
+    const present = new Set(
+      assetsToFetch.map((assetId) => assetId.toLowerCase()),
+    );
+    const balanceAssetIds = Object.keys(
+      this.#getAssetsState().assetsBalance[accountId] ?? {},
+    );
+
+    for (const assetId of balanceAssetIds) {
+      const normalizedAssetId = assetId.toLowerCase();
+      if (present.has(normalizedAssetId) || hidden.has(normalizedAssetId)) {
+        continue;
+      }
+
+      if (!this.#isSnapRollbackAssetOnChains(assetId, supportedChains)) {
+        continue;
+      }
+
+      present.add(normalizedAssetId);
+      assetsToFetch.push(assetId as CaipAssetType);
+    }
+  }
+
+  /**
+   * Whether an asset ID belongs to one of the chains in this request.
+   * Unparseable IDs are treated as out of scope.
+   *
+   * @param assetId - CAIP-19 asset ID.
+   * @param supportedChains - Chains this snap was asked about.
+   * @returns True when the asset's chain is in scope.
+   */
+  #isSnapRollbackAssetOnChains(
+    assetId: string,
+    supportedChains: Set<ChainId>,
+  ): boolean {
+    try {
+      return supportedChains.has(extractChainFromAssetId(assetId));
+    } catch {
+      return false;
+    }
   }
 
   // ============================================================================

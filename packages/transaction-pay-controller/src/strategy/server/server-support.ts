@@ -30,9 +30,6 @@ export enum ServerUnsupportedReason {
 
   /** Two-phase max-amount gas station probing is not implemented. */
   MaxAmount = 'maxAmount',
-
-  /** Polymarket deposit-wallet routing is not implemented. */
-  PolymarketDepositWallet = 'polymarketDepositWallet',
 }
 
 /**
@@ -101,10 +98,6 @@ function getRequestUnsupportedReason(
 
   if (request.isMaxAmount === true) {
     return ServerUnsupportedReason.MaxAmount;
-  }
-
-  if (request.isPolymarketDepositWallet === true) {
-    return ServerUnsupportedReason.PolymarketDepositWallet;
   }
 
   return undefined;

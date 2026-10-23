@@ -1,7 +1,8 @@
 import type { Eip1193Provider } from 'ethers';
+import { describe, expect, it, vi } from 'vitest';
 
 import { Env, Platform } from '../shared/env.js';
-import { arrangeAuthAPIs } from './__fixtures__/auth.js';
+import { arrangeAuthAPIs, handleMockSocialLogin } from './__fixtures__/auth.js';
 import type { MockVariable } from './__fixtures__/test-utils.js';
 import { arrangeAuth, arrangeMockProvider } from './__fixtures__/test-utils.js';
 import * as AuthServices from './authentication-jwt-bearer/services.js';
@@ -12,12 +13,15 @@ import {
   PairConflictError,
   PairError,
   SignInError,
+  SocialIdentifierNotPairedError,
   UnsupportedAuthTypeError,
   ValidationError,
 } from './errors.js';
 import {
   MOCK_ACCESS_JWT,
   MOCK_MFA_ASSERTION_JWT,
+  MOCK_OIDC_TOKEN_RESPONSE,
+  MOCK_SOCIAL_LOGIN_RESPONSE,
   MOCK_SRP_LOGIN_RESPONSE,
 } from './mocks/auth.js';
 import * as Eip6963MetamaskProvider from './utils/eip-6963-metamask-provider.js';
@@ -218,9 +222,9 @@ describe('Authentication - SRP Flow - getAccessToken(), getUserProfile() & getUs
     arrangeAuthAPIs();
 
     // Spy on the service methods to count how many times they're called
-    const getNonceSpy = jest.spyOn(AuthServices, 'getNonce');
-    const authenticateSpy = jest.spyOn(AuthServices, 'authenticate');
-    const authorizeOIDCSpy = jest.spyOn(AuthServices, 'authorizeOIDC');
+    const getNonceSpy = vi.spyOn(AuthServices, 'getNonce');
+    const authenticateSpy = vi.spyOn(AuthServices, 'authenticate');
+    const authorizeOIDCSpy = vi.spyOn(AuthServices, 'authorizeOIDC');
 
     // Make three concurrent login attempts
     const loginPromise1 = auth.getAccessToken();
@@ -600,7 +604,7 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
 
 describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', () => {
   const arrangeProvider = () => {
-    const mockRequest = jest.fn().mockImplementation((arg) => {
+    const mockRequest = vi.fn().mockImplementation((arg) => {
       if (arg.params.request.method === 'getPublicKey') {
         return MOCK_SRP;
       }
@@ -612,7 +616,7 @@ describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', 
       throw new Error('MOCK - unsupported mock implementation');
     });
 
-    const mockGetProvider = jest
+    const mockGetProvider = vi
       .spyOn(Eip6963MetamaskProvider, 'getMetaMaskProviderEIP6963')
       .mockResolvedValue({
         request: mockRequest,
@@ -710,6 +714,68 @@ describe('Authentication - pairSocialIdentifier()', () => {
         { identifierType: 'APPLE', socialJwt: 'social-jwt' },
         'primary-srp-token',
       ),
+    ).rejects.toThrow(UnsupportedAuthTypeError);
+  });
+});
+
+describe('Authentication - exchangeSocialAccessToken()', () => {
+  it('exchanges the social token for an access token and the canonical profile', async () => {
+    const { auth, mockSetLoginResponse } = arrangeAuth('SRP', MOCK_SRP);
+    const requests: { body: unknown; authorization: string }[] = [];
+    const mockSocialLoginUrl = handleMockSocialLogin(undefined, (request) =>
+      requests.push(request),
+    );
+    const { mockOAuth2TokenUrl } = arrangeAuthAPIs();
+
+    const result = await auth.exchangeSocialAccessToken({
+      identifierType: 'GOOGLE',
+      socialJwt: 'social-jwt',
+    });
+
+    expect(mockSocialLoginUrl.isDone()).toBe(true);
+    expect(mockOAuth2TokenUrl.isDone()).toBe(true);
+    expect(requests).toStrictEqual([
+      {
+        body: { identifier_type: 'GOOGLE' },
+        authorization: 'Bearer social-jwt',
+      },
+    ]);
+    expect(result.token.accessToken).toBe(
+      MOCK_OIDC_TOKEN_RESPONSE.access_token,
+    );
+    expect(result.profile).toStrictEqual({
+      identifierId: MOCK_SOCIAL_LOGIN_RESPONSE.profile.identifier_id,
+      metaMetricsId: MOCK_SOCIAL_LOGIN_RESPONSE.profile.metametrics_id,
+      profileId: MOCK_SOCIAL_LOGIN_RESPONSE.profile.profile_id,
+      canonicalProfileId: MOCK_SOCIAL_LOGIN_RESPONSE.profile.profile_id,
+      pairedIdentifierIds: undefined,
+    });
+    expect(mockSetLoginResponse).not.toHaveBeenCalled();
+  });
+
+  it('throws SocialIdentifierNotPairedError when the identifier is not paired', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    handleMockSocialLogin({
+      status: 404,
+      body: { message: 'social identifier is not paired to any profile' },
+    });
+
+    await expect(
+      auth.exchangeSocialAccessToken({
+        identifierType: 'APPLE',
+        socialJwt: 'social-jwt',
+      }),
+    ).rejects.toThrow(SocialIdentifierNotPairedError);
+  });
+
+  it('rejects when called from the SIWE flow', async () => {
+    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
+
+    await expect(
+      auth.exchangeSocialAccessToken({
+        identifierType: 'APPLE',
+        socialJwt: 'social-jwt',
+      }),
     ).rejects.toThrow(UnsupportedAuthTypeError);
   });
 });

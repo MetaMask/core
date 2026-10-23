@@ -89,11 +89,6 @@
       "count": 2
     }
   },
-  "packages/analytics-controller/src/AnalyticsController.test.ts": {
-    "TS2741": {
-      "count": 6
-    }
-  },
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "TS6307": {
       "count": 1
@@ -312,7 +307,7 @@
       "count": 1
     },
     "TS2345": {
-      "count": 1
+      "count": 2
     },
     "TS2769": {
       "count": 1
@@ -337,7 +332,7 @@
       "count": 1
     },
     "TS2345": {
-      "count": 1
+      "count": 2
     },
     "TS6305": {
       "count": 1
@@ -372,8 +367,8 @@
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.batch-sell.test.ts": {
-    "TS2345": {
-      "count": 1
+    "TS2322": {
+      "count": 5
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.intent-manager.test.ts": {
@@ -403,11 +398,6 @@
     },
     "TS2353": {
       "count": 2
-    }
-  },
-  "packages/bridge-status-controller/test/mock-batch-sell-erc20-erc20.ts": {
-    "TS2315": {
-      "count": 1
     }
   },
   "packages/chain-agnostic-permission/src/operators/caip-permission-operator-session-scopes.test.ts": {
@@ -886,7 +876,7 @@
     }
   },
   "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockMessenger.ts": {
-    "TS2345": {
+    "TS2741": {
       "count": 1
     }
   },
@@ -1067,9 +1057,6 @@
     }
   },
   "packages/transaction-controller/src/utils/batch.test.ts": {
-    "TS2322": {
-      "count": 1
-    },
     "TS2345": {
       "count": 2
     }
@@ -1215,9 +1202,6 @@
   "packages/transaction-pay-controller/src/strategy/relay/relay-validation.test.ts": {
     "TS2352": {
       "count": 4
-    },
-    "TS2835": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/ServerStrategy.test.ts": {
@@ -1233,7 +1217,7 @@
       "count": 7
     },
     "TS2741": {
-      "count": 56
+      "count": 55
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-submit.test.ts": {
@@ -1268,64 +1252,6 @@
       "count": 1
     },
     "TS2739": {
-      "count": 1
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/call.test.ts": {
-    "TS2345": {
-      "count": 12
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/list.test.ts": {
-    "TS2345": {
-      "count": 14
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/purge.test.ts": {
-    "TS2345": {
-      "count": 7
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/start.test.ts": {
-    "TS2345": {
-      "count": 4
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/status.test.ts": {
-    "TS2345": {
-      "count": 10
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/stop.test.ts": {
-    "TS2345": {
-      "count": 5
-    }
-  },
-  "packages/wallet-cli/src/commands/wallet/send.test.ts": {
-    "TS2345": {
-      "count": 18
-    }
-  },
-  "packages/wallet-cli/src/commands/wallet/unlock.test.ts": {
-    "TS2345": {
-      "count": 20
-    }
-  },
-  "packages/wallet-cli/src/daemon/daemon-client.test.ts": {
-    "TS2339": {
-      "count": 2
-    }
-  },
-  "packages/wallet-cli/src/daemon/rpc-socket-server.test.ts": {
-    "TS2322": {
-      "count": 2
-    }
-  },
-  "packages/wallet-cli/src/persistence/persistence.test.ts": {
-    "TS2314": {
-      "count": 1
-    },
-    "TS2578": {
       "count": 1
     }
   },
@@ -1370,9 +1296,6 @@
       "count": 1
     },
     "TS2741": {
-      "count": 1
-    },
-    "TS2769": {
       "count": 1
     }
   },

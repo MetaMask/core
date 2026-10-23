@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import * as packageExports from './index.js';
 
 describe('@metamask/kyc-controller', () => {
@@ -17,8 +19,6 @@ describe('@metamask/kyc-controller', () => {
       alpha2ToAlpha3: expect.any(Function),
       generateKeyPair: expect.any(Function),
       decryptCredentials: expect.any(Function),
-      MoonPayFrameHandler: expect.any(Function),
-      clearMoonPaySession: expect.any(Function),
       controllerName: 'KycController',
       serviceName: 'KycService',
     });

@@ -4,7 +4,23 @@
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
     "noErrorTruncation": true,
-    "noUncheckedIndexedAccess": true
+    "noUncheckedIndexedAccess": true,
+    // Web3 declarations conflict with exactOptionalPropertyTypes.
+    "skipLibCheck": true
   },
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "references": [
+    {
+      "path": "../type-utils"
+    },
+    {
+      "path": "../error-utils"
+    },
+    {
+      "path": "../node-utils"
+    },
+    {
+      "path": "../byte-utils"
+    }
+  ]
 }

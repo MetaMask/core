@@ -9,10 +9,13 @@ Manually creating a new monorepo package can be a tedious, even frustrating proc
    - Use the `--help` flag for usage information.
    - Once this is done, you can find a package with your chosen name in `/packages`.
 2. Make sure your license is correct.
-   - By default, `create-package` gives your package an MIT license.
-   - If your desired license is _not_ MIT, then you must update your `LICENSE` file and the `license` field of `package.json`.
+   - By default, `create-package` gives your package a combined MIT license and Apache 2.0 license.
+   - If your desired license is _not_ MIT and Apache 2.0, then you must update your `LICENSE` file and the `license` field of `package.json`.
 3. Update `.github/CODEOWNERS` and `teams.json` to assign a team as the owner of the new package.
-4. Add your dependencies.
+4. Open a new Pull Request to merge your new package scaffolding into the monorepo.
+   - It should contain no functional changes beyond the addition of the new package structure.
+   - See [Why two PRs are recommended](#why-two-prs-are-recommended).
+5. Add the remaining code and dependencies for your new package.
    - Do this as normal using `yarn`.
    - Remember, if you are adding other monorepo packages as dependents, don't forget to add them to the `references` array in your package's `tsconfig.json` and `tsconfig.build.json`.
 
@@ -27,3 +30,12 @@ The `create-package` directory contains a [template package](../../scripts/creat
 - If you need to add or modify any files or folders, just go ahead and make your changes in [`/scripts/create-package/package-template`](../../scripts/create-package/package-template/). The CLI will read whatever's in that directory and write it to disk.
 - If you need to add or modify any placeholders, make sure that your desired values are added to both the relevant file(s) and [`/scripts/create-package/constants.ts`](../../scripts/create-package/constants.ts). Then, update the implementation of the CLI accordingly.
 - As with placeholders, updating the monorepo files that the CLI interacts with begins by updating [`/scripts/create-package/constants.ts`](../../scripts/create-package/constants.ts).
+
+### Why two PRs are recommended
+
+When adding a new package to the monorepo, it is recommended to open two separate Pull Requests:
+
+1. The first PR should contain only the scaffolding for the new package, including its initial structure, configuration files, and any necessary updates to monorepo-wide files like `.github/CODEOWNERS` and `teams.json`.
+2. The second PR should contain the functional changes, such as adding dependencies and implementing the package's features.
+
+This approach helps reviewers from the Core Platform team focus on the structural changes separately from the functional changes which can be a large volume of code, making the review process more manageable and efficient, reducing the risk of introducing errors.

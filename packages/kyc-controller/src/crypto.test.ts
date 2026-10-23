@@ -4,6 +4,7 @@ import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
 import { base64 } from '@scure/base';
+import { describe, expect, it } from 'vitest';
 
 import type { EncryptedCredentialsEnvelope } from './crypto.js';
 import { decryptCredentials, generateKeyPair } from './crypto.js';
@@ -163,6 +164,13 @@ describe('crypto', () => {
       expect(() => decryptCredentials(bad, keypair.privateKey)).toThrow(
         /opaque string/u,
       );
+    });
+
+    it('throws when a non-JSON string fails base64 decoding', () => {
+      const keypair = generateKeyPair();
+      expect(() =>
+        decryptCredentials('not-decryptable', keypair.privateKey),
+      ).toThrow(/opaque string/u);
     });
 
     it('throws for an object missing required fields', () => {

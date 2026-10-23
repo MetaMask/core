@@ -1,4 +1,5 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { describe, expect, it } from 'vitest';
 
 import {
   ARBITRUM_USDC_ADDRESS,

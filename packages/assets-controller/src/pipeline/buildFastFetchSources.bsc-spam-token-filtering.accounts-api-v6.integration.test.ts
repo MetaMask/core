@@ -27,7 +27,6 @@ import { withZeroedTimestamps } from '../__fixtures__/test-utils.js';
 import { AccountsApiDataSource } from '../data-sources/AccountsApiDataSource.js';
 import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { RpcDataSource } from '../data-sources/RpcDataSource.js';
-import { StakedBalanceDataSource } from '../data-sources/StakedBalanceDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
 import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
 import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
@@ -115,11 +114,6 @@ async function runPipeline(
     isBalanceV6Enabled: (): boolean => true,
   });
 
-  const stakedBalanceDataSource = new StakedBalanceDataSource({
-    messenger: assetsControllerMessenger,
-    onActiveChainsUpdated: jest.fn(),
-  });
-
   const rpcDataSource = new RpcDataSource({
     messenger: assetsControllerMessenger,
     queryApiClient,
@@ -174,7 +168,6 @@ async function runPipeline(
   const sources = buildFastFetchSources(
     {
       accountsApiDataSource,
-      stakedBalanceDataSource,
       customAssetGraduationMiddleware: new CustomAssetGraduationMiddleware({
         getSelectedAccountId: (): AccountId => BSC_SPAM_ACCOUNT_ID,
         removeCustomAsset: (): void => {
@@ -207,7 +200,6 @@ async function runPipeline(
   });
 
   accountsApiDataSource.destroy();
-  stakedBalanceDataSource.destroy();
   rpcDataSource.destroy();
   queryApiClient.clear();
 

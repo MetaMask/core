@@ -1,6 +1,6 @@
 {
   "name": "@metamask/chain-agnostic-permission",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Defines a CAIP-25 based endowment permission and helpers for interfacing with it",
   "keywords": [
     "Ethereum",
@@ -39,8 +39,8 @@
     "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/chain-agnostic-permission",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/chain-agnostic-permission",
-    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
-    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
+    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
+    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -57,7 +57,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
-    "@metamask/keyring-internal-api": "^12.1.1",
+    "@metamask/keyring-internal-api": "^12.1.2",
     "@types/jest": "^30.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.3.1",
@@ -69,6 +69,6 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
-    "node": "^22.14.0 || ^24"
+    "node": "^22.14.0 || ^24 || ^26"
   }
 }

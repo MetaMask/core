@@ -48,6 +48,7 @@ export type {
   SocialServiceOptInToLeaderboardAction,
   SocialServiceOptOutOfLeaderboardAction,
   SocialServiceReactToCommentAction,
+  SocialServiceCreateCopyTradeIntentAction,
   SocialServiceCreateSwapCommentAction,
   SocialServiceRefreshNotificationPreferencesCacheAction,
   SocialServiceRemoveCommentReactionAction,
@@ -56,7 +57,7 @@ export type {
 
 export { TRADER_RANKING_TAGS, TradeStruct } from './social-types.js';
 export {
-  SOCIAL_FEED_CHANNEL,
+  SOCIAL_FEED_CHANNELS,
   SOCIAL_FEED_CHANNEL_TYPE,
   SocialRealtimeService,
 } from './SocialRealtimeService.js';
@@ -64,8 +65,10 @@ export type {
   SocialFeedEvent,
   SocialFeedEventListener,
   SocialFeedReconnectListener,
+  SocialFeedRealtimeScope,
   SocialRealtimeServiceOptions,
 } from './SocialRealtimeService.js';
+export type { RealtimeFeedEventData } from './realtime-feed-item.js';
 export type {
   AuthorComment,
   BlockedContent,
@@ -77,13 +80,20 @@ export type {
   CommentEngagement,
   CommentReaction,
   CommentReactionProfile,
+  CopyTradeAccount,
+  CopyTradeExecution,
+  CopyTradeIntentResponse,
+  CopyTradeOrigin,
+  CopyTradePayoutEligibility,
   CopytradedAllTime,
+  CreateCopyTradeIntentOptions,
   CreateSwapCommentOptions,
   FetchBlockedListOptions,
   FeedActorSummary,
   FeedItem,
   FeedPagination,
   FeedResponse,
+  FeedScope,
   FetchFeedOptions,
   FetchFollowersOptions,
   FetchTraderFollowingOptions,

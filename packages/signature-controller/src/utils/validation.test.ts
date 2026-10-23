@@ -2,6 +2,7 @@ import { ORIGIN_METAMASK } from '@metamask/approval-controller';
 import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import type {
   MessageParams,

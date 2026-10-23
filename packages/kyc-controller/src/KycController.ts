@@ -1,15 +1,20 @@
 import type {
+  AuthenticatedUserStorageServicePutIdentitySharingConsentAction,
+  IdentitySharingAudience,
+} from '@metamask/authenticated-user-storage';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationControllerGetPartnerIdentityTokenAction } from '@metamask/profile-sync-controller/auth';
 import type {
   UserStorageControllerPerformGetStorageAction,
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
-import { stringToBytes } from '@metamask/utils';
+import { stringToBytes, wrapError } from '@metamask/utils';
 import { x25519 } from '@noble/curves/ed25519';
 
 import { toBase64Url } from './encoding.js';
@@ -19,6 +24,10 @@ import type {
   CapabilityAuthorization,
   EncryptionSchema,
 } from './KycService.js';
+import {
+  getEmailFromPartnerIdentityToken,
+  isEmailRequiredError,
+} from './partnerIdentityToken.js';
 import {
   isSumSubFlowCompleted,
   isSumSubFlowFailed,
@@ -42,6 +51,7 @@ import type {
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
+import type { Jwk } from './ukyc/jwtChain.js';
 import {
   getOrCreateLocalUserSecret,
   UkycLocalUserSecretStore,
@@ -279,7 +289,9 @@ export type KycControllerActions =
 type AllowedActions =
   | KycServiceMethodActions
   | UserStorageControllerPerformGetStorageAction
-  | UserStorageControllerPerformSetStorageAction;
+  | UserStorageControllerPerformSetStorageAction
+  | AuthenticationControllerGetPartnerIdentityTokenAction
+  | AuthenticatedUserStorageServicePutIdentitySharingConsentAction;
 
 export type KycControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -362,12 +374,53 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Starts a KYC session for the given vendor and email. Reuses a latest
-   * vendor session when one exists; otherwise creates a UKYC session.
+   * Records identity-sharing consent for the vendor's audience, then mints a
+   * partner identity token and reads the verified email claim from JWT `ext`.
+   *
+   * @param vendor - Identity vendor whose partner audience to request.
+   * @returns The minted token and its verified email, or `null` when the
+   * profile has no verified email (HTTP 422 / `EmailRequiredError`).
+   */
+  async #getPartnerIdentityForVendor(vendor: KycVendor): Promise<{
+    partnerIdentityToken: string;
+    email: string;
+  } | null> {
+    // TODO: Fix this typing. Safe for now as only Iron is used
+    const audience = vendor as IdentitySharingAudience;
+    await this.messenger.call(
+      'AuthenticatedUserStorageService:putIdentitySharingConsent',
+      { audience, granted: true },
+    );
+    let partnerIdentityToken: string;
+    try {
+      partnerIdentityToken = await this.messenger.call(
+        'AuthenticationController:getPartnerIdentityToken',
+        ['email'],
+        audience,
+      );
+    } catch (error) {
+      if (isEmailRequiredError(error)) {
+        return null;
+      }
+      throw error;
+    }
+    return {
+      partnerIdentityToken,
+      email: getEmailFromPartnerIdentityToken(partnerIdentityToken),
+    };
+  }
+
+  /**
+   * Starts a KYC session for the given vendor. Reuses a latest vendor session
+   * when one exists; otherwise creates a UKYC session.
+   *
+   * The verified email stored on controller state comes from the partner
+   * identity token. When that request returns HTTP 422, a stored email is
+   * kept for an existing session. Creating a vendor customer and UKYC session
+   * requires the token, which both requests send as `partnerIdentityToken`.
    *
    * @param params - The session parameters.
    * @param params.vendor - Identity vendor for the session.
-   * @param params.email - Account email associated with the session.
    * @param params.aal2Token - AAL2 authentication token. Required only when a
    * UKYC session must be created, where it is sent as the Authorization bearer
    * value. Omit it when reusing an existing session.
@@ -375,10 +428,16 @@ export class KycController extends BaseController<
    */
   async startSession(params: {
     vendor: KycVendor;
-    email: string; // TODO: This will be removed once partnerIdentityTokens are fully ready
     aal2Token?: string;
   }): Promise<KycSessionStatus> {
-    if (this.state.email !== null && this.state.email !== params.email) {
+    const partnerIdentity = await this.#getPartnerIdentityForVendor(
+      params.vendor,
+    );
+    const email = partnerIdentity?.email ?? this.state.email;
+    if (!email) {
+      throw new Error('KycController missing verified email for vendor');
+    }
+    if (this.state.email !== null && this.state.email !== email) {
       throw new Error(
         'KycController already initialized with a different email',
       );
@@ -400,7 +459,7 @@ export class KycController extends BaseController<
     }
 
     this.update((state) => {
-      state.email = params.email;
+      state.email = email;
       state.vendor = params.vendor;
       state.geoCountry = geoCountry;
       if (state.sessionStatus === null) {
@@ -428,15 +487,22 @@ export class KycController extends BaseController<
         );
       }
 
+      if (!partnerIdentity) {
+        throw new Error(
+          'KycController missing partner identity token for vendor',
+        );
+      }
+
       await this.messenger.call('KycService:createVendorCustomer', {
         vendor: params.vendor,
-        email: params.email,
+        partnerIdentityToken: partnerIdentity.partnerIdentityToken,
       });
 
       return this.#createUkycSession({
         vendor: params.vendor,
         geoCountry,
         aal2Token: params.aal2Token,
+        partnerIdentityToken: partnerIdentity.partnerIdentityToken,
       });
     }
     const sessionStatus = await this.messenger.call(
@@ -652,17 +718,20 @@ export class KycController extends BaseController<
    * kyc-api returns the existing session if one with the same vendor and
    * canonicalUserId already exists.
    *
-   * @param params - Vendor, country, and AAL2 token used to create the session.
+   * @param params - Vendor, country, and tokens used to create the session.
    * @param params.vendor - Identity vendor for the UKYC session.
    * @param params.geoCountry - ISO 3166-1 alpha-3 country of residence.
    * @param params.aal2Token - AAL2 authentication token sent as the
    * Authorization bearer value for session creation.
+   * @param params.partnerIdentityToken - Partner identity token minted for
+   * the vendor's audience.
    * @returns The created or refreshed session status.
    */
   async #createUkycSession(params: {
     vendor: KycVendor;
     geoCountry: string;
     aal2Token: string;
+    partnerIdentityToken: string;
   }): Promise<KycSessionStatus> {
     // Establish a per-session X25519 keypair used to seal both secrets. The
     // private half stays on the device; the public half is registered on the
@@ -684,6 +753,7 @@ export class KycController extends BaseController<
       residenceCountry: params.geoCountry,
       vendor: params.vendor,
       aal2Token: params.aal2Token,
+      partnerIdentityToken: params.partnerIdentityToken,
     });
 
     return this.#setAuthorizations({
@@ -1162,20 +1232,41 @@ export class KycController extends BaseController<
    * `encryptionDataKey` is attested by the idOS enclave; `ukycCapabilityToken`
    * by the idOS relay.
    *
+   * Fetch and verification failures are rethrown as a short message suitable
+   * for display. The original error is preserved on `cause`.
+   *
    * @param encryptionDataKey - Encryption schema for the data encryption key.
    * @param capabilityTokenSchema - Encryption schema for the capability token.
+   * @throws When the issuer signing keys cannot be fetched, or a schema's
+   * `jwtChain` does not verify.
    */
   async #verifyWrappingKeys(
     encryptionDataKey: EncryptionSchema,
     capabilityTokenSchema: EncryptionSchema,
   ): Promise<void> {
-    const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] =
-      await Promise.all([
+    let idosEnclaveKeys: Jwk[];
+    let idosRelayKeys: Jwk[];
+    try {
+      [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] = await Promise.all([
         this.messenger.call('KycService:fetchIdosEnclaveJwks'),
         this.messenger.call('KycService:fetchIdosRelayJwks'),
       ]);
-    assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
-    assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    } catch (error) {
+      throw wrapError(
+        error,
+        'KycController.#verifyWrappingKeys: Unable to fetch JWKS needed to verify wrapping keys.',
+      );
+    }
+
+    try {
+      assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
+      assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    } catch (error) {
+      throw wrapError(
+        error,
+        'KycController.#verifyWrappingKeys: Failed to verify the wrapping keys.',
+      );
+    }
   }
 
   /**

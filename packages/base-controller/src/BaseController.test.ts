@@ -1,8 +1,9 @@
-/* eslint-disable jest/no-export */
 import type { MockAnyNamespace } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import { number, object, string, Struct } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
 import type { Draft, Patch } from 'immer';
+import { describe, expect, it, vi } from 'vitest';
 
 import type {
   ControllerActions,
@@ -12,7 +13,11 @@ import type {
   ControllerStateChangedEvent,
   StatePropertyMetadata,
 } from './BaseController.js';
-import { BaseController, deriveStateFromMetadata } from './BaseController.js';
+import {
+  BaseController,
+  deriveStateFromMetadata,
+  validateControllerState,
+} from './BaseController.js';
 
 export const countControllerName = 'CountController';
 
@@ -301,7 +306,7 @@ describe('BaseController', () => {
 
   it('should not call publish if the state has not been modified', () => {
     const messenger = getCountMessenger();
-    const publishSpy = jest.spyOn(messenger, 'publish');
+    const publishSpy = vi.spyOn(messenger, 'publish');
 
     const controller = new CountController({
       messenger,
@@ -390,7 +395,7 @@ describe('BaseController', () => {
         state: { count: 0 },
         metadata: countControllerStateMetadata,
       });
-      const listener1 = jest.fn();
+      const listener1 = vi.fn();
 
       messenger.subscribe(eventName, listener1);
       const { inversePatches } = controller.update(() => {
@@ -419,8 +424,8 @@ describe('BaseController', () => {
         state: { count: 0 },
         metadata: countControllerStateMetadata,
       });
-      const listener1 = jest.fn();
-      const listener2 = jest.fn();
+      const listener1 = vi.fn();
+      const listener2 = vi.fn();
 
       messenger.subscribe(eventName, listener1);
       messenger.subscribe(eventName, listener2);
@@ -448,7 +453,7 @@ describe('BaseController', () => {
         state: { count: 0 },
         metadata: countControllerStateMetadata,
       });
-      const listener = jest.fn();
+      const listener = vi.fn();
       messenger.subscribe(
         eventName,
         listener,
@@ -474,7 +479,7 @@ describe('BaseController', () => {
         state: { count: 0 },
         metadata: countControllerStateMetadata,
       });
-      const listener = jest.fn();
+      const listener = vi.fn();
       messenger.subscribe(
         eventName,
         listener,
@@ -500,7 +505,7 @@ describe('BaseController', () => {
         state: { count: 0 },
         metadata: countControllerStateMetadata,
       });
-      const listener1 = jest.fn();
+      const listener1 = vi.fn();
 
       messenger.subscribe(eventName, listener1);
       messenger.subscribe(eventName, listener1);
@@ -524,7 +529,7 @@ describe('BaseController', () => {
         state: { count: 0 },
         metadata: countControllerStateMetadata,
       });
-      const listener1 = jest.fn();
+      const listener1 = vi.fn();
 
       messenger.subscribe(eventName, listener1);
       messenger.unsubscribe(eventName, listener1);
@@ -543,7 +548,7 @@ describe('BaseController', () => {
         state: { count: 0 },
         metadata: countControllerStateMetadata,
       });
-      const listener1 = jest.fn();
+      const listener1 = vi.fn();
 
       messenger.subscribe(eventName, listener1);
       messenger.subscribe(eventName, listener1);
@@ -563,8 +568,8 @@ describe('BaseController', () => {
         state: { count: 0 },
         metadata: countControllerStateMetadata,
       });
-      const listener1 = jest.fn();
-      const listener2 = jest.fn();
+      const listener1 = vi.fn();
+      const listener2 = vi.fn();
 
       messenger.subscribe(eventName, listener1);
       messenger.subscribe(eventName, listener2);
@@ -588,7 +593,7 @@ describe('BaseController', () => {
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
-    const listener1 = jest.fn();
+    const listener1 = vi.fn();
 
     expect(() => {
       messenger.unsubscribe('CountController:stateChanged', listener1);
@@ -1015,7 +1020,7 @@ describe('deriveStateFromMetadata', () => {
     }
 
     it('reports thrown error when deriving state', () => {
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const derivedState = deriveStateFromMetadata(
         {
           extraState: 'extraState',
@@ -1054,7 +1059,7 @@ describe('deriveStateFromMetadata', () => {
     });
 
     it('reports thrown non-error when deriving state, wrapping it in an error', () => {
-      const captureException = jest.fn();
+      const captureException = vi.fn();
       const testException = 'Non-Error exception';
       const derivedState = deriveStateFromMetadata(
         {
@@ -1102,12 +1107,12 @@ describe('deriveStateFromMetadata', () => {
     });
 
     it('logs thrown error and captureException error to console if captureException throws', () => {
-      const consoleError = jest.fn();
+      const consoleError = vi.fn();
       const testError = new Error('Test error');
-      const captureException = jest.fn().mockImplementation(() => {
+      const captureException = vi.fn().mockImplementation(() => {
         throw testError;
       });
-      jest.spyOn(console, 'error').mockImplementation(consoleError);
+      vi.spyOn(console, 'error').mockImplementation(consoleError);
       const derivedState = deriveStateFromMetadata(
         {
           extraState: 'extraState',
@@ -1152,8 +1157,8 @@ describe('deriveStateFromMetadata', () => {
     });
 
     it('logs thrown error to console when deriving state if no captureException function is given', () => {
-      const consoleError = jest.fn();
-      jest.spyOn(console, 'error').mockImplementation(consoleError);
+      const consoleError = vi.fn();
+      vi.spyOn(console, 'error').mockImplementation(consoleError);
       const derivedState = deriveStateFromMetadata(
         {
           extraState: 'extraState',
@@ -1189,5 +1194,70 @@ describe('deriveStateFromMetadata', () => {
         new Error(`No metadata found for 'extraState'`),
       );
     });
+  });
+});
+
+describe('validateControllerState', () => {
+  type FooControllerState = {
+    foo: string;
+    bar: number;
+  };
+
+  const FooControllerStateStruct = object({
+    foo: string(),
+    bar: number(),
+  });
+
+  class FooController extends BaseController<
+    'FooController',
+    FooControllerState,
+    never
+  > {
+    static readonly struct: Struct<FooControllerState> =
+      FooControllerStateStruct;
+  }
+
+  it('returns the validated state', () => {
+    const state = { foo: 'foo', bar: 1 };
+    expect(
+      validateControllerState('FooController', FooController, state, 'strict'),
+    ).toStrictEqual(state);
+
+    expect(
+      validateControllerState('FooController', FooController, state, 'lenient'),
+    ).toStrictEqual(state);
+  });
+
+  it('captures warning and returns in lenient mode', () => {
+    const captureException = vi.fn();
+    const state = { foo: 'foo', bar: 'bar' };
+
+    expect(
+      validateControllerState(
+        'FooController',
+        FooController,
+        state,
+        'lenient',
+        captureException,
+      ),
+    ).toStrictEqual(state);
+
+    expect(captureException).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message:
+          'Validation of "FooController" state failed. Not throwing because strict mode is not enabled. The reported error is: At path: bar -- Expected a number, but received: "bar"',
+      }),
+    );
+  });
+
+  it('throws for invalid state in strict mode', () => {
+    expect(() =>
+      validateControllerState(
+        'FooController',
+        FooController,
+        { foo: 'foo', bar: 'bar' },
+        'strict',
+      ),
+    ).toThrow('At path: bar -- Expected a number, but received: "bar"');
   });
 });

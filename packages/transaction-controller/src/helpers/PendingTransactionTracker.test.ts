@@ -1,6 +1,8 @@
 import type { BlockTracker } from '@metamask/network-controller';
 import { Json } from '@metamask/utils';
 import { freeze } from 'immer';
+import type { Mock, Mocked } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type { TransactionMeta } from '../types.js';
@@ -42,11 +44,11 @@ const BLOCK_MOCK = {
   timestamp: 123456,
 };
 
-jest.mock('./TransactionPoller');
+vi.mock('./TransactionPoller');
 
-jest.mock('../utils/provider', () => ({
-  ...jest.requireActual('../utils/provider'),
-  rpcRequest: jest.fn(),
+vi.mock(import('../utils/provider.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  rpcRequest: vi.fn(),
 }));
 
 /**
@@ -54,11 +56,11 @@ jest.mock('../utils/provider', () => ({
  *
  * @returns The mock block tracker instance.
  */
-function createBlockTrackerMock(): jest.Mocked<BlockTracker> {
+function createBlockTrackerMock(): Mocked<BlockTracker> {
   return {
-    on: jest.fn(),
-    removeListener: jest.fn(),
-  } as unknown as jest.Mocked<BlockTracker>;
+    on: vi.fn(),
+    removeListener: vi.fn(),
+  } as unknown as Mocked<BlockTracker>;
 }
 
 /**
@@ -66,12 +68,12 @@ function createBlockTrackerMock(): jest.Mocked<BlockTracker> {
  *
  * @returns The mock transaction poller instance.
  */
-function createTransactionPollerMock(): jest.Mocked<TransactionPoller> {
+function createTransactionPollerMock(): Mocked<TransactionPoller> {
   return {
-    start: jest.fn(),
-    stop: jest.fn(),
-    setPendingTransactions: jest.fn(),
-  } as unknown as jest.Mocked<TransactionPoller>;
+    start: vi.fn(),
+    stop: vi.fn(),
+    setPendingTransactions: vi.fn(),
+  } as unknown as Mocked<TransactionPoller>;
 }
 
 /**
@@ -79,9 +81,9 @@ function createTransactionPollerMock(): jest.Mocked<TransactionPoller> {
  *
  * @returns The mock messenger instance.
  */
-function createMessengerMock(): jest.Mocked<TransactionControllerMessenger> {
+function createMessengerMock(): Mocked<TransactionControllerMessenger> {
   return {
-    call: jest.fn().mockImplementation((method: string) => {
+    call: vi.fn().mockImplementation((method: string) => {
       if (method === 'NetworkController:getNetworkClientById') {
         return {
           configuration: { chainId: CHAIN_ID_MOCK },
@@ -96,7 +98,7 @@ function createMessengerMock(): jest.Mocked<TransactionControllerMessenger> {
 
       return;
     }),
-  } as unknown as jest.Mocked<TransactionControllerMessenger>;
+  } as unknown as Mocked<TransactionControllerMessenger>;
 }
 
 /**
@@ -106,10 +108,10 @@ function createMessengerMock(): jest.Mocked<TransactionControllerMessenger> {
  * @param featureFlags - Feature flags to mock.
  */
 function mockFeatureFlags(
-  messenger: jest.Mocked<TransactionControllerMessenger>,
+  messenger: Mocked<TransactionControllerMessenger>,
   featureFlags: Json,
 ): void {
-  (messenger.call as jest.Mock).mockImplementation((method: string) => {
+  (messenger.call as Mock).mockImplementation((method: string) => {
     if (method === 'NetworkController:getNetworkClientById') {
       return {
         configuration: { chainId: CHAIN_ID_MOCK },
@@ -127,18 +129,18 @@ function mockFeatureFlags(
 }
 
 describe('PendingTransactionTracker', () => {
-  const getTransactionReceiptMock = jest.fn();
-  const getTransactionByHashMock = jest.fn();
-  const getTransactionCountMock = jest.fn();
-  const getBlockByHashMock = jest.fn();
-  const estimateGasMock = jest.fn();
+  const getTransactionReceiptMock = vi.fn();
+  const getTransactionByHashMock = vi.fn();
+  const getTransactionCountMock = vi.fn();
+  const getBlockByHashMock = vi.fn();
+  const estimateGasMock = vi.fn();
 
-  let blockTracker: jest.Mocked<BlockTracker>;
+  let blockTracker: Mocked<BlockTracker>;
   let pendingTransactionTracker: PendingTransactionTracker;
-  let transactionPoller: jest.Mocked<TransactionPoller>;
-  let messenger: jest.Mocked<TransactionControllerMessenger>;
+  let transactionPoller: Mocked<TransactionPoller>;
+  let messenger: Mocked<TransactionControllerMessenger>;
 
-  let options: jest.Mocked<
+  let options: Mocked<
     ConstructorParameters<typeof PendingTransactionTracker>[0]
   >;
 
@@ -172,9 +174,11 @@ describe('PendingTransactionTracker', () => {
     transactionPoller = createTransactionPollerMock();
     messenger = createMessengerMock();
 
-    jest.mocked(TransactionPoller).mockImplementation(() => transactionPoller);
+    vi.mocked(TransactionPoller).mockImplementation(function () {
+      return transactionPoller;
+    });
 
-    jest.mocked(rpcRequest).mockImplementation(async ({ method, params }) => {
+    vi.mocked(rpcRequest).mockImplementation(async ({ method, params }) => {
       const args = Array.isArray(params) ? params : [];
 
       switch (method) {
@@ -198,11 +202,11 @@ describe('PendingTransactionTracker', () => {
 
     options = {
       blockTracker,
-      getTransactions: jest.fn(),
-      getGlobalLock: jest.fn(() => Promise.resolve(jest.fn())),
-      isTimeoutEnabled: jest.fn((_transactionMeta: TransactionMeta) => true),
+      getTransactions: vi.fn(),
+      getGlobalLock: vi.fn(() => Promise.resolve(vi.fn())),
+      isTimeoutEnabled: vi.fn((_transactionMeta: TransactionMeta) => true),
       networkClientId: NETWORK_CLIENT_ID_MOCK,
-      publishTransaction: jest.fn(),
+      publishTransaction: vi.fn(),
       messenger,
     };
   });
@@ -282,7 +286,7 @@ describe('PendingTransactionTracker', () => {
     describe('checks status', () => {
       describe('does nothing', () => {
         it('if no pending transactions', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           pendingTransactionTracker = new PendingTransactionTracker(options);
 
@@ -330,7 +334,7 @@ describe('PendingTransactionTracker', () => {
         });
 
         it('if no receipt', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
@@ -360,7 +364,7 @@ describe('PendingTransactionTracker', () => {
         });
 
         it('if receipt has no status', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
@@ -393,7 +397,7 @@ describe('PendingTransactionTracker', () => {
         });
 
         it('if receipt has invalid status', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
@@ -428,7 +432,7 @@ describe('PendingTransactionTracker', () => {
 
       describe('fires failed event', () => {
         it('if no hash', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           const transactionMetaMock = {
             ...TRANSACTION_SUBMITTED_MOCK,
@@ -451,14 +455,16 @@ describe('PendingTransactionTracker', () => {
           expect(listener).toHaveBeenCalledTimes(1);
           expect(listener).toHaveBeenCalledWith(
             transactionMetaMock,
-            new Error(
-              'We had an error while submitting this transaction, please try again.',
-            ),
+            expect.objectContaining({
+              name: 'NoTxHashError',
+              message:
+                'We had an error while submitting this transaction, please try again.',
+            }),
           );
         });
 
         it('if no hash because beforeCheckPendingTransaction hook returns false', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           const transactionMetaMock = {
             ...TRANSACTION_SUBMITTED_MOCK,
@@ -486,7 +492,7 @@ describe('PendingTransactionTracker', () => {
         });
 
         it('if receipt has error status', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
@@ -515,7 +521,7 @@ describe('PendingTransactionTracker', () => {
         });
 
         it('with decoded revert reason when receipt has error status', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           const transactionMetaWithCall = {
             ...TRANSACTION_SUBMITTED_MOCK,
@@ -565,7 +571,7 @@ describe('PendingTransactionTracker', () => {
 
       describe('fires dropped event', () => {
         it('if duplicate nonce', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           const confirmedTransactionMetaMock = {
             ...TRANSACTION_SUBMITTED_MOCK,
@@ -598,7 +604,7 @@ describe('PendingTransactionTracker', () => {
         });
 
         it('if nonce exceeded for 3 subsequent blocks', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
@@ -625,7 +631,7 @@ describe('PendingTransactionTracker', () => {
         });
 
         it('unless duplicate nonce on different chain', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           const confirmedTransactionMetaMock = {
             ...TRANSACTION_SUBMITTED_MOCK,
@@ -657,7 +663,7 @@ describe('PendingTransactionTracker', () => {
         });
 
         it('unless no nonce', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           const confirmedTransactionMetaMock = {
             ...TRANSACTION_SUBMITTED_MOCK,
@@ -696,7 +702,7 @@ describe('PendingTransactionTracker', () => {
         });
 
         it('unless incoming transaction', async () => {
-          const listener = jest.fn();
+          const listener = vi.fn();
 
           const confirmedTransactionMetaMock = {
             ...TRANSACTION_SUBMITTED_MOCK,
@@ -731,7 +737,7 @@ describe('PendingTransactionTracker', () => {
       describe('fires confirmed event', () => {
         it('if receipt has success status', async () => {
           const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
-          const getTransactions = jest
+          const getTransactions = vi
             .fn()
             .mockReturnValue(freeze([transaction], true));
 
@@ -740,7 +746,7 @@ describe('PendingTransactionTracker', () => {
             getTransactions,
           });
 
-          const listener = jest.fn();
+          const listener = vi.fn();
           pendingTransactionTracker.hub.addListener(
             'transaction-confirmed',
             listener,
@@ -773,7 +779,7 @@ describe('PendingTransactionTracker', () => {
             isIntentComplete: true,
           };
 
-          const getTransactions = jest
+          const getTransactions = vi
             .fn()
             .mockReturnValue(freeze([transaction], true));
 
@@ -782,7 +788,7 @@ describe('PendingTransactionTracker', () => {
             getTransactions,
           });
 
-          const listener = jest.fn();
+          const listener = vi.fn();
           pendingTransactionTracker.hub.addListener(
             'transaction-confirmed',
             listener,
@@ -806,7 +812,7 @@ describe('PendingTransactionTracker', () => {
       describe('fires updated event', () => {
         it('if receipt has success status', async () => {
           const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
-          const getTransactions = jest
+          const getTransactions = vi
             .fn()
             .mockReturnValue(freeze([transaction], true));
 
@@ -815,7 +821,7 @@ describe('PendingTransactionTracker', () => {
             getTransactions,
           });
 
-          const listener = jest.fn();
+          const listener = vi.fn();
           pendingTransactionTracker.hub.addListener(
             'transaction-updated',
             listener,
@@ -845,7 +851,7 @@ describe('PendingTransactionTracker', () => {
 
         it('if getTransactionReceipt fails', async () => {
           const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
-          const getTransactions = jest
+          const getTransactions = vi
             .fn()
             .mockReturnValue(freeze([transaction], true));
 
@@ -854,7 +860,7 @@ describe('PendingTransactionTracker', () => {
             getTransactions,
           });
 
-          const listener = jest.fn();
+          const listener = vi.fn();
           pendingTransactionTracker.hub.addListener(
             'transaction-updated',
             listener,
@@ -911,7 +917,7 @@ describe('PendingTransactionTracker', () => {
       getBlockByHashMock.mockResolvedValueOnce(BLOCK_MOCK);
       options.getTransactions.mockReturnValue([]);
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       tracker.hub.addListener('transaction-updated', listener);
 
       await tracker.forceCheckTransaction(transactionMeta);
@@ -934,7 +940,7 @@ describe('PendingTransactionTracker', () => {
       getTransactionReceiptMock.mockResolvedValueOnce(receiptMock);
       options.getTransactions.mockReturnValue([]);
 
-      const listener = jest.fn();
+      const listener = vi.fn();
       tracker.hub.addListener('transaction-failed', listener);
 
       await tracker.forceCheckTransaction(transactionMeta);
@@ -975,7 +981,7 @@ describe('PendingTransactionTracker', () => {
     describe('emits confirm event and clean transactionToForcePoll', () => {
       it('if receipt has success status', async () => {
         const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
-        const getTransactions = jest
+        const getTransactions = vi
           .fn()
           .mockReturnValue(freeze([transaction], true));
 
@@ -988,7 +994,7 @@ describe('PendingTransactionTracker', () => {
           TRANSACTION_SUBMITTED_MOCK,
         );
 
-        const listener = jest.fn();
+        const listener = vi.fn();
         pendingTransactionTracker.hub.addListener(
           'transaction-confirmed',
           listener,
@@ -1009,8 +1015,8 @@ describe('PendingTransactionTracker', () => {
 
   describe('timeout', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
-      jest.setSystemTime(0);
+      vi.useFakeTimers();
+      vi.setSystemTime(0);
 
       mockFeatureFlags(messenger, {
         confirmations_transactions: {
@@ -1029,13 +1035,13 @@ describe('PendingTransactionTracker', () => {
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     describe('does not timeout', () => {
       it('if isTimeoutEnabled returns false', async () => {
-        const listener = jest.fn();
-        const isTimeoutEnabled = jest.fn().mockReturnValue(false);
+        const listener = vi.fn();
+        const isTimeoutEnabled = vi.fn().mockReturnValue(false);
         const submittedTime = Date.now();
 
         pendingTransactionTracker = new PendingTransactionTracker({
@@ -1054,7 +1060,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionCountMock.mockResolvedValueOnce('0x3');
         getTransactionByHashMock.mockResolvedValueOnce(null);
 
-        jest.advanceTimersByTime(20000); // Advance past blockTime
+        vi.advanceTimersByTime(20000); // Advance past blockTime
 
         await onPoll();
 
@@ -1065,7 +1071,7 @@ describe('PendingTransactionTracker', () => {
       });
 
       it('if timeout threshold is undefined', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         const submittedTime = Date.now();
 
         mockFeatureFlags(messenger, {});
@@ -1085,7 +1091,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionCountMock.mockResolvedValueOnce('0x3');
         getTransactionByHashMock.mockResolvedValueOnce(null);
 
-        jest.advanceTimersByTime(20000); // Advance past blockTime
+        vi.advanceTimersByTime(20000); // Advance past blockTime
 
         await onPoll();
 
@@ -1093,7 +1099,7 @@ describe('PendingTransactionTracker', () => {
       });
 
       it('if timeout threshold is zero', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         const submittedTime = Date.now();
 
         mockFeatureFlags(messenger, {
@@ -1119,7 +1125,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionCountMock.mockResolvedValueOnce('0x3');
         getTransactionByHashMock.mockResolvedValueOnce(null);
 
-        jest.advanceTimersByTime(20000); // Advance past blockTime
+        vi.advanceTimersByTime(20000); // Advance past blockTime
 
         await onPoll();
 
@@ -1127,7 +1133,7 @@ describe('PendingTransactionTracker', () => {
       });
 
       it('if transaction nonce is greater than next nonce', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         const submittedTime = Date.now();
 
         pendingTransactionTracker = new PendingTransactionTracker({
@@ -1145,7 +1151,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionCountMock.mockResolvedValueOnce('0x1');
         getTransactionByHashMock.mockResolvedValueOnce(null);
 
-        jest.advanceTimersByTime(20000); // Advance past blockTime
+        vi.advanceTimersByTime(20000); // Advance past blockTime
 
         await onPoll();
 
@@ -1153,7 +1159,7 @@ describe('PendingTransactionTracker', () => {
       });
 
       it('if transaction has no hash', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         const submittedTime = Date.now();
         const transactionWithoutHash = {
           ...TRANSACTION_SUBMITTED_MOCK,
@@ -1179,7 +1185,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionReceiptMock.mockResolvedValueOnce(undefined);
         getTransactionCountMock.mockResolvedValueOnce('0x3');
 
-        jest.advanceTimersByTime(20000); // Advance past blockTime
+        vi.advanceTimersByTime(20000); // Advance past blockTime
 
         await onPoll();
 
@@ -1187,7 +1193,7 @@ describe('PendingTransactionTracker', () => {
       });
 
       it('if transaction has no nonce', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         const submittedTime = Date.now();
         const transactionWithoutNonce = {
           ...TRANSACTION_SUBMITTED_MOCK,
@@ -1212,7 +1218,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionReceiptMock.mockResolvedValueOnce(undefined);
         getTransactionCountMock.mockResolvedValueOnce('0x3');
 
-        jest.advanceTimersByTime(50000); // Advance past blockTime * threshold
+        vi.advanceTimersByTime(50000); // Advance past blockTime * threshold
 
         await onPoll();
 
@@ -1220,7 +1226,7 @@ describe('PendingTransactionTracker', () => {
       });
 
       it('if transaction has no submittedTime', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         const transactionWithoutSubmittedTime = {
           ...TRANSACTION_SUBMITTED_MOCK,
           submittedTime: undefined,
@@ -1241,7 +1247,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionCountMock.mockResolvedValueOnce('0x3');
         getTransactionByHashMock.mockResolvedValueOnce(null);
 
-        jest.advanceTimersByTime(50000); // Advance past blockTime * threshold
+        vi.advanceTimersByTime(50000); // Advance past blockTime * threshold
 
         await onPoll();
 
@@ -1251,7 +1257,7 @@ describe('PendingTransactionTracker', () => {
 
     describe('resets timeout counter', () => {
       it('when transaction is found on network', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         const submittedTime = Date.now();
 
         pendingTransactionTracker = new PendingTransactionTracker({
@@ -1270,7 +1276,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionCountMock.mockResolvedValueOnce('0x3');
         getTransactionByHashMock.mockResolvedValueOnce(null);
 
-        jest.advanceTimersByTime(10000); // Advance 10 seconds
+        vi.advanceTimersByTime(10000); // Advance 10 seconds
 
         await onPoll();
 
@@ -1281,7 +1287,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionCountMock.mockResolvedValueOnce('0x3');
         getTransactionByHashMock.mockResolvedValueOnce({ hash: '0x1' });
 
-        jest.advanceTimersByTime(10000); // Advance another 10 seconds
+        vi.advanceTimersByTime(10000); // Advance another 10 seconds
 
         await onPoll();
 
@@ -1295,7 +1301,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionCountMock.mockResolvedValueOnce('0x3');
         getTransactionByHashMock.mockResolvedValueOnce(null);
 
-        jest.advanceTimersByTime(10000); // Advance another 10 seconds
+        vi.advanceTimersByTime(10000); // Advance another 10 seconds
 
         await onPoll();
 
@@ -1306,7 +1312,7 @@ describe('PendingTransactionTracker', () => {
 
     describe('fails transaction', () => {
       it('when timeout threshold is reached', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         const submittedTime = Date.now();
 
         pendingTransactionTracker = new PendingTransactionTracker({
@@ -1325,7 +1331,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionCountMock.mockResolvedValueOnce('0x3');
         getTransactionByHashMock.mockResolvedValueOnce(null);
 
-        jest.advanceTimersByTime(10000); // Advance 10 seconds
+        vi.advanceTimersByTime(10000); // Advance 10 seconds
 
         await onPoll();
         expect(listener).toHaveBeenCalledTimes(0);
@@ -1335,7 +1341,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionCountMock.mockResolvedValueOnce('0x3');
         getTransactionByHashMock.mockResolvedValueOnce(null);
 
-        jest.advanceTimersByTime(20000); // Advance 20 more seconds (total: 30 seconds)
+        vi.advanceTimersByTime(20000); // Advance 20 more seconds (total: 30 seconds)
 
         await onPoll();
         expect(listener).toHaveBeenCalledTimes(0);
@@ -1345,7 +1351,7 @@ describe('PendingTransactionTracker', () => {
         getTransactionCountMock.mockResolvedValueOnce('0x3');
         getTransactionByHashMock.mockResolvedValueOnce(null);
 
-        jest.advanceTimersByTime(10000); // Advance 10 more seconds (total: 40 seconds > 36 seconds)
+        vi.advanceTimersByTime(10000); // Advance 10 more seconds (total: 40 seconds > 36 seconds)
 
         await onPoll();
 
@@ -1359,7 +1365,7 @@ describe('PendingTransactionTracker', () => {
 
     describe('error handling', () => {
       it('does not fail transaction if getTransactionByHash throws error', async () => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         const submittedTime = Date.now();
 
         pendingTransactionTracker = new PendingTransactionTracker({
@@ -1379,7 +1385,7 @@ describe('PendingTransactionTracker', () => {
           new Error('Network error'),
         );
 
-        jest.advanceTimersByTime(50000); // Advance past timeout threshold
+        vi.advanceTimersByTime(50000); // Advance past timeout threshold
 
         await onPoll();
 
