@@ -17,6 +17,7 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { APPROVAL_DELAY_MS } from '../constants.js';
 import type {
@@ -41,7 +42,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
   describe('waitForTxConfirmation', () => {
     it('resolves when confirmed', async () => {
       const messenger = {
-        call: jest.fn(() => ({
+        call: vi.fn(() => ({
           transactions: [
             {
               id: 'tx1',
@@ -62,7 +63,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
     it('throws when rejected', async () => {
       const messenger = {
-        call: jest.fn(() => ({
+        call: vi.fn(() => ({
           transactions: [
             {
               id: 'tx1',
@@ -84,9 +85,9 @@ describe('Bridge Status Controller Transaction Utils', () => {
     });
 
     it('times out when status never changes', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const messenger = {
-        call: jest.fn(() => ({
+        call: vi.fn(() => ({
           transactions: [
             {
               id: 'tx1',
@@ -95,7 +96,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           ],
         })),
       } as unknown as BridgeStatusControllerMessenger;
-      const nowSpy = jest.spyOn(Date, 'now');
+      const nowSpy = vi.spyOn(Date, 'now');
       let now = 0;
       nowSpy.mockImplementation(() => now);
 
@@ -105,7 +106,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       });
 
       now = 10;
-      jest.advanceTimersByTime(1);
+      vi.advanceTimersByTime(1);
       await Promise.resolve();
 
       expect(await promise.catch((error) => error)).toStrictEqual(
@@ -115,7 +116,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       );
 
       nowSpy.mockRestore();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
   });
 
@@ -1346,12 +1347,12 @@ describe('Bridge Status Controller Transaction Utils', () => {
 
   describe('handleApprovalDelay', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
-      jest.clearAllMocks();
+      vi.useFakeTimers();
+      vi.clearAllMocks();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should delay when source chain is Linea', async () => {
@@ -1382,16 +1383,16 @@ describe('Bridge Status Controller Transaction Utils', () => {
       );
 
       // Verify that the timer was set with the correct delay
-      expect(jest.getTimerCount()).toBe(1);
+      expect(vi.getTimerCount()).toBe(1);
 
       // Fast-forward the timer
-      jest.advanceTimersByTime(APPROVAL_DELAY_MS);
+      vi.advanceTimersByTime(APPROVAL_DELAY_MS);
 
       // Wait for the promise to resolve
       await delayPromise;
 
       // Verify that the timer was cleared
-      expect(jest.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
     });
 
     it('should delay when source chain is Base', async () => {
@@ -1422,16 +1423,16 @@ describe('Bridge Status Controller Transaction Utils', () => {
       );
 
       // Verify that the timer was set with the correct delay
-      expect(jest.getTimerCount()).toBe(1);
+      expect(vi.getTimerCount()).toBe(1);
 
       // Fast-forward the timer
-      jest.advanceTimersByTime(APPROVAL_DELAY_MS);
+      vi.advanceTimersByTime(APPROVAL_DELAY_MS);
 
       // Wait for the promise to resolve
       await delayPromise;
 
       // Verify that the timer was cleared
-      expect(jest.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
     });
 
     it('should not delay when source chain is not Linea or Base', async () => {
@@ -1462,24 +1463,24 @@ describe('Bridge Status Controller Transaction Utils', () => {
       );
 
       // Verify that no timer was set
-      expect(jest.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
 
       // Wait for the promise to resolve
       await delayPromise;
 
       // Verify that no timer was set
-      expect(jest.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 
   describe('handleMobileHardwareWalletDelay', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
-      jest.clearAllMocks();
+      vi.useFakeTimers();
+      vi.clearAllMocks();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should delay when requireApproval is true', async () => {
@@ -1487,16 +1488,16 @@ describe('Bridge Status Controller Transaction Utils', () => {
       const delayPromise = handleMobileHardwareWalletDelay(true);
 
       // Verify that the timer was set with the correct delay (1000ms)
-      expect(jest.getTimerCount()).toBe(1);
+      expect(vi.getTimerCount()).toBe(1);
 
       // Fast-forward the timer by 1000ms
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
       // Wait for the promise to resolve
       await delayPromise;
 
       // Verify that the timer was cleared
-      expect(jest.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
     });
 
     it('should not delay when requireApproval is false', async () => {
@@ -1504,13 +1505,13 @@ describe('Bridge Status Controller Transaction Utils', () => {
       const delayPromise = handleMobileHardwareWalletDelay(false);
 
       // Verify that no timer was set
-      expect(jest.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
 
       // Wait for the promise to resolve
       await delayPromise;
 
       // Verify that no timer was set
-      expect(jest.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 
@@ -2028,7 +2029,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       estimateGasFeeOverrides: Record<string, unknown> = { estimates: {} },
     ) =>
       ({
-        call: jest.fn().mockImplementation((method: string) => {
+        call: vi.fn().mockImplementation((method: string) => {
           if (method === 'AccountsController:getAccountByAddress') {
             return mockAccount;
           }
@@ -2046,7 +2047,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       }) as unknown as BridgeStatusControllerMessenger;
 
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       mockMessagingSystem = createMockMessagingSystem();
     });
 
@@ -2391,7 +2392,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
           },
         },
       });
-      const callSpy = jest.spyOn(mockMessenger, 'call');
+      const callSpy = vi.spyOn(mockMessenger, 'call');
 
       const tradeData = toQuoteAndTxMetadata({
         quoteResponse: mockQuoteResponse,
@@ -2457,7 +2458,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         gasIncluded7702: true,
       });
 
-      const callSpy = jest.spyOn(mockMessagingSystem, 'call');
+      const callSpy = vi.spyOn(mockMessagingSystem, 'call');
 
       const tradeData = toQuoteAndTxMetadata({
         quoteResponse: mockQuoteResponse,
@@ -2559,7 +2560,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       txs: ReturnType<typeof createMockTransaction>[],
     ) => {
       return {
-        call: jest.fn((method: string, ..._args: unknown[]) => {
+        call: vi.fn((method: string, ..._args: unknown[]) => {
           if (method === 'TransactionController:getState') {
             return { transactions: txs };
           }
@@ -2574,7 +2575,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
     };
 
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should update transaction types for 7702 swap transactions', () => {
@@ -2591,7 +2592,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
         }),
       ];
       const mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
-      const callSpy = jest.spyOn(mockMessagingSystem, 'call');
+      const callSpy = vi.spyOn(mockMessagingSystem, 'call');
 
       const tradeData = [
         {
@@ -2658,7 +2659,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       ];
 
       const mockMessenger = createMockMessagingSystemWithTxs(txs);
-      const callSpy = jest.spyOn(mockMessenger, 'call');
+      const callSpy = vi.spyOn(mockMessenger, 'call');
       const tradeData = [
         {
           tx: { data: '0xswapData' },
@@ -2704,7 +2705,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       ];
 
       const mockMessenger = createMockMessagingSystemWithTxs(txs);
-      const callSpy = jest.spyOn(mockMessenger, 'call');
+      const callSpy = vi.spyOn(mockMessenger, 'call');
 
       const tradeData = [
         {
@@ -2757,7 +2758,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       ];
 
       const mockMessenger = createMockMessagingSystemWithTxs(txs);
-      const callSpy = jest.spyOn(mockMessenger, 'call');
+      const callSpy = vi.spyOn(mockMessenger, 'call');
       const tradeData = [
         {
           tx: { data: '0xswapData' },
@@ -2820,7 +2821,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       ];
 
       const mockMessagingSystem = createMockMessagingSystemWithTxs(txs);
-      const callSpy = jest.spyOn(mockMessagingSystem, 'call');
+      const callSpy = vi.spyOn(mockMessagingSystem, 'call');
       const tradeData = [
         {
           tx: { data: '0xswapData' },

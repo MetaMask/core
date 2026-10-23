@@ -8,13 +8,16 @@ import type {
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { TransactionControllerAddTransactionAction } from '@metamask/transaction-controller';
 import type { Json } from '@metamask/utils';
+import { vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { TransactionPayMiddlewareMessenger } from '../types.js';
 
 type AllActions = MessengerActions<TransactionPayMiddlewareMessenger>;
 
-type Handler<Action extends { handler: (...args: never[]) => unknown }> =
-  jest.Mock<ReturnType<Action['handler']>, Parameters<Action['handler']>>;
+type Handler<Action extends { handler: (...args: never[]) => unknown }> = Mock<
+  Action['handler']
+>;
 
 export type MessengerMocks = {
   messenger: TransactionPayMiddlewareMessenger;
@@ -47,24 +50,24 @@ export function createMessenger({
   const states = [...eligibility];
 
   const getRemoteFeatureFlagState: MessengerMocks['getRemoteFeatureFlagState'] =
-    jest.fn(
+    vi.fn(
       () =>
         ({ remoteFeatureFlags }) as ReturnType<
           RemoteFeatureFlagControllerGetStateAction['handler']
         >,
     );
-  const getPerpsState: MessengerMocks['getPerpsState'] = jest.fn(
+  const getPerpsState: MessengerMocks['getPerpsState'] = vi.fn(
     () =>
       ({
         isEligible: states.length > 1 ? states.shift() : states[0],
       }) as ReturnType<PerpsControllerGetStateAction['handler']>,
   );
-  const refreshEligibility: MessengerMocks['refreshEligibility'] = jest.fn(
+  const refreshEligibility: MessengerMocks['refreshEligibility'] = vi.fn(
     async () => undefined,
   );
   const findNetworkClientIdByChainId: MessengerMocks['findNetworkClientIdByChainId'] =
-    jest.fn((_chainId) => 'arbitrum-mainnet');
-  const addTransaction: MessengerMocks['addTransaction'] = jest.fn(
+    vi.fn((_chainId) => 'arbitrum-mainnet');
+  const addTransaction: MessengerMocks['addTransaction'] = vi.fn(
     async (_transactionParams, _options) =>
       ({ result: Promise.resolve(hash) }) as Awaited<
         ReturnType<TransactionControllerAddTransactionAction['handler']>

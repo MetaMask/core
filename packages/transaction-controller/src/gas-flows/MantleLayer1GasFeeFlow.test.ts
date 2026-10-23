@@ -5,6 +5,8 @@ import type { Provider } from '@metamask/network-controller';
 import { add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
+import type { Mocked, MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CHAIN_IDS } from '../constants.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
@@ -14,7 +16,7 @@ import { rpcRequest } from '../utils/provider.js';
 import { bnFromHex, padHexToEvenLength } from '../utils/utils.js';
 import { MantleLayer1GasFeeFlow } from './MantleLayer1GasFeeFlow.js';
 
-jest.mock('../utils/provider');
+vi.mock('../utils/provider');
 
 const ORACLE_INTERFACE = new Interface([
   'function getL1Fee(bytes _data)',
@@ -65,22 +67,22 @@ const OPERATOR_FEE_MOCK = '0x2386f26fc10000'; // 0.01 ETH in wei
  */
 function createMockTypedTransaction(
   serializedBuffer: Buffer,
-): jest.Mocked<TypedTransaction> {
+): Mocked<TypedTransaction> {
   const instance = {
     serialize: (): Buffer => serializedBuffer,
-    sign: jest.fn(),
+    sign: vi.fn(),
   };
 
-  jest.spyOn(instance, 'sign').mockReturnValue(instance);
+  vi.spyOn(instance, 'sign').mockReturnValue(instance);
 
-  return instance as unknown as jest.Mocked<TypedTransaction>;
+  return instance as unknown as Mocked<TypedTransaction>;
 }
 
 describe('MantleLayer1GasFeeFlow', () => {
-  const rpcRequestMock = jest.mocked(rpcRequest);
-  const getL1FeeMock: jest.MockedFn<() => Promise<unknown>> = jest.fn();
-  const getOperatorFeeMock: jest.MockedFn<() => Promise<unknown>> = jest.fn();
-  const tokenRatioMock: jest.MockedFn<() => Promise<unknown>> = jest.fn();
+  const rpcRequestMock = vi.mocked(rpcRequest);
+  const getL1FeeMock: MockedFunction<() => Promise<unknown>> = vi.fn();
+  const getOperatorFeeMock: MockedFunction<() => Promise<unknown>> = vi.fn();
+  const tokenRatioMock: MockedFunction<() => Promise<unknown>> = vi.fn();
 
   let request: Layer1GasFeeFlowRequest;
 
@@ -168,13 +170,11 @@ describe('MantleLayer1GasFeeFlow', () => {
 
       getOperatorFeeMock.mockResolvedValueOnce(OPERATOR_FEE_MOCK);
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
       const response = await flow.getLayer1Fee(request);
@@ -194,13 +194,11 @@ describe('MantleLayer1GasFeeFlow', () => {
     it('falls back to txParams.gas for operator fee when gasUsed is missing', async () => {
       getOperatorFeeMock.mockResolvedValueOnce(OPERATOR_FEE_MOCK);
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
       const response = await flow.getLayer1Fee(request);
@@ -244,13 +242,11 @@ describe('MantleLayer1GasFeeFlow', () => {
 
       getOperatorFeeMock.mockResolvedValueOnce(OPERATOR_FEE_MOCK);
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
       const response = await flow.getLayer1Fee(request);
@@ -288,13 +284,11 @@ describe('MantleLayer1GasFeeFlow', () => {
         },
       };
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
       const response = await flow.getLayer1Fee(request);
@@ -319,13 +313,11 @@ describe('MantleLayer1GasFeeFlow', () => {
 
       getOperatorFeeMock.mockRejectedValueOnce(new Error('revert'));
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
       const response = await flow.getLayer1Fee(request);
@@ -340,13 +332,11 @@ describe('MantleLayer1GasFeeFlow', () => {
     it('throws if tokenRatio call fails', async () => {
       tokenRatioMock.mockRejectedValue(new Error('error'));
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
 
@@ -358,13 +348,11 @@ describe('MantleLayer1GasFeeFlow', () => {
     it('throws if tokenRatio call returns empty result', async () => {
       tokenRatioMock.mockResolvedValue('0x');
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
 
@@ -411,13 +399,11 @@ describe('MantleLayer1GasFeeFlow', () => {
 
       getOperatorFeeMock.mockResolvedValueOnce(OPERATOR_FEE_MOCK);
 
-      jest
-        .spyOn(TransactionFactory, 'fromTxData')
-        .mockReturnValueOnce(
-          createMockTypedTransaction(
-            Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
-          ),
-        );
+      vi.spyOn(TransactionFactory, 'fromTxData').mockReturnValueOnce(
+        createMockTypedTransaction(
+          Buffer.from(SERIALIZED_TRANSACTION_MOCK, 'hex'),
+        ),
+      );
 
       const flow = new MantleLayer1GasFeeFlow();
       const response = await flow.getLayer1Fee(request);

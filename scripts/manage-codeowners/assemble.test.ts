@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { assembleCodeownersSections } from './assemble.ts';
 import type { CodeownersConfig } from './types.ts';
 

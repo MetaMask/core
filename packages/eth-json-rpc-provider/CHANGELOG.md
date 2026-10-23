@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
 - Bump `@types/lodash` from `^4.14.191` to `^4.17.26` ([#10169](https://github.com/MetaMask/core/pull/10169), [#10435](https://github.com/MetaMask/core/pull/10435), [#10832](https://github.com/MetaMask/core/pull/10832))

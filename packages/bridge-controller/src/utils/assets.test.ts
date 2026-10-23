@@ -1,26 +1,28 @@
 import type { CaipAssetType } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { getAssetIdsForToken, toExchangeRates } from './assets.js';
 import { getNativeAssetForChainId } from './bridge.js';
 import { formatAddressToAssetId } from './caip-formatters.js';
 
 // Mock the imported functions
-jest.mock('./bridge', () => ({
-  getNativeAssetForChainId: jest.fn(),
+vi.mock('./bridge', () => ({
+  getNativeAssetForChainId: vi.fn(),
 }));
 
-jest.mock('./caip-formatters', () => ({
-  formatAddressToAssetId: jest.fn(),
+vi.mock('./caip-formatters', () => ({
+  formatAddressToAssetId: vi.fn(),
 }));
 
 describe('assets utils', () => {
   describe('getAssetIdsForToken', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should return empty array when formatAddressToAssetId returns null', () => {
-      (formatAddressToAssetId as jest.Mock).mockReturnValue(null);
+      (formatAddressToAssetId as Mock).mockReturnValue(null);
 
       const result = getAssetIdsForToken('0x123', '1');
 
@@ -30,10 +32,8 @@ describe('assets utils', () => {
     });
 
     it('should return token asset ID when native asset has no assetId', () => {
-      (formatAddressToAssetId as jest.Mock).mockReturnValue(
-        'eip155:1/erc20:0x123',
-      );
-      (getNativeAssetForChainId as jest.Mock).mockReturnValue({
+      (formatAddressToAssetId as Mock).mockReturnValue('eip155:1/erc20:0x123');
+      (getNativeAssetForChainId as Mock).mockReturnValue({
         address: '0x0',
         symbol: 'ETH',
         // no assetId
@@ -47,10 +47,8 @@ describe('assets utils', () => {
     });
 
     it('should return both token and native asset IDs when both exist', () => {
-      (formatAddressToAssetId as jest.Mock).mockReturnValue(
-        'eip155:1/erc20:0x123',
-      );
-      (getNativeAssetForChainId as jest.Mock).mockReturnValue({
+      (formatAddressToAssetId as Mock).mockReturnValue('eip155:1/erc20:0x123');
+      (getNativeAssetForChainId as Mock).mockReturnValue({
         address: '0x0',
         symbol: 'ETH',
         assetId: 'eip155:1/slip44:60',

@@ -1,4 +1,5 @@
 import { bytesToHex, hexToBytes } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { decrypt, encrypt } from './aes-gcm.js';
 
@@ -56,7 +57,7 @@ describe('encrypt', () => {
   });
 
   it('generates a random 12-byte IV when none is provided', async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(globalThis.crypto, 'getRandomValues')
       .mockImplementation((array) => {
         (array as Uint8Array).set(nistIv15);
@@ -135,7 +136,7 @@ describe('encrypt', () => {
   });
 
   it('does not pass additionalData to WebCrypto when none is provided', async () => {
-    const spy = jest.spyOn(globalThis.crypto.subtle, 'encrypt');
+    const spy = vi.spyOn(globalThis.crypto.subtle, 'encrypt');
 
     await encrypt(nistKey2, nistPlaintext2, { unsafeIv: nistIv2 });
 
@@ -227,7 +228,7 @@ describe('decrypt', () => {
   });
 
   it('does not pass additionalData to WebCrypto when none is provided', async () => {
-    const spy = jest.spyOn(globalThis.crypto.subtle, 'decrypt');
+    const spy = vi.spyOn(globalThis.crypto.subtle, 'decrypt');
 
     await decrypt(nistKey2, nistIv2, nistCiphertext2);
 

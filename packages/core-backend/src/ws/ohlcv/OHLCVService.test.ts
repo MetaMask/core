@@ -4,8 +4,10 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { flushPromises } from '../../../../../tests/helpers.js';
+import { flushPromises } from '../../../../../tests/vitest/helpers.js';
 import type { ServerNotificationMessage } from '../BackendWebSocketService.js';
 import { WebSocketState } from '../BackendWebSocketService.js';
 import { OHLCVService } from './OHLCVService.js';
@@ -45,15 +47,15 @@ const getMessenger = (): {
   rootMessenger: RootMessenger;
   messenger: OHLCVServiceMessenger;
   mocks: {
-    connect: jest.Mock;
-    subscribe: jest.Mock;
-    channelHasSubscription: jest.Mock;
-    getSubscriptionsByChannel: jest.Mock;
-    findSubscriptionsByChannelPrefix: jest.Mock;
-    forceReconnection: jest.Mock;
-    addChannelCallback: jest.Mock;
-    removeChannelCallback: jest.Mock;
-    getConnectionInfo: jest.Mock;
+    connect: Mock;
+    subscribe: Mock;
+    channelHasSubscription: Mock;
+    getSubscriptionsByChannel: Mock;
+    findSubscriptionsByChannelPrefix: Mock;
+    forceReconnection: Mock;
+    addChannelCallback: Mock;
+    removeChannelCallback: Mock;
+    getConnectionInfo: Mock;
   };
 } => {
   const rootMessenger = getRootMessenger();
@@ -83,15 +85,15 @@ const getMessenger = (): {
     messenger,
   });
 
-  const mockConnect = jest.fn();
-  const mockForceReconnection = jest.fn().mockResolvedValue(undefined);
-  const mockSubscribe = jest.fn();
-  const mockChannelHasSubscription = jest.fn().mockReturnValue(false);
-  const mockGetSubscriptionsByChannel = jest.fn().mockReturnValue([]);
-  const mockFindSubscriptionsByChannelPrefix = jest.fn().mockReturnValue([]);
-  const mockAddChannelCallback = jest.fn();
-  const mockRemoveChannelCallback = jest.fn();
-  const mockGetConnectionInfo = jest.fn();
+  const mockConnect = vi.fn();
+  const mockForceReconnection = vi.fn().mockResolvedValue(undefined);
+  const mockSubscribe = vi.fn();
+  const mockChannelHasSubscription = vi.fn().mockReturnValue(false);
+  const mockGetSubscriptionsByChannel = vi.fn().mockReturnValue([]);
+  const mockFindSubscriptionsByChannelPrefix = vi.fn().mockReturnValue([]);
+  const mockAddChannelCallback = vi.fn();
+  const mockRemoveChannelCallback = vi.fn();
+  const mockGetConnectionInfo = vi.fn();
 
   rootMessenger.registerActionHandler(
     'BackendWebSocketService:connect',
@@ -174,7 +176,7 @@ async function withService<R>(fn: WithServiceCallback<R>): Promise<R> {
 }
 
 const getSystemNotificationCallback = (mocks: {
-  addChannelCallback: jest.Mock;
+  addChannelCallback: Mock;
 }): ((notification: ServerNotificationMessage) => void) => {
   const call = mocks.addChannelCallback.mock.calls.find(
     (c: unknown[]) =>
@@ -220,11 +222,11 @@ const BASE_CONNECTION_INFO = {
 
 describe('OHLCVService', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   // ===========================================================================
@@ -293,7 +295,7 @@ describe('OHLCVService', () => {
       await withService(async ({ service, mocks, messenger }) => {
         mocks.connect.mockRejectedValueOnce(new Error('connection failed'));
 
-        const errorListener = jest.fn();
+        const errorListener = vi.fn();
         messenger.subscribe('OHLCVService:subscriptionError', errorListener);
 
         await service.subscribe(SUB_OPTS);
@@ -309,8 +311,7 @@ describe('OHLCVService', () => {
 
     it('should publish barUpdated events when WebSocket delivers data', async () => {
       await withService(async ({ service, mocks, messenger }) => {
-        let capturedCallback: (n: ServerNotificationMessage) => void =
-          jest.fn();
+        let capturedCallback: (n: ServerNotificationMessage) => void = vi.fn();
 
         mocks.subscribe.mockImplementation((opts) => {
           capturedCallback = opts.callback;
@@ -319,7 +320,7 @@ describe('OHLCVService', () => {
 
         await service.subscribe(SUB_OPTS);
 
-        const barListener = jest.fn();
+        const barListener = vi.fn();
         messenger.subscribe('OHLCVService:barUpdated', barListener);
 
         capturedCallback({
@@ -373,7 +374,7 @@ describe('OHLCVService', () => {
         await service.unsubscribe(SUB_OPTS);
 
         // No timer should have been started, no WS unsubscribe
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
         await completeAsyncOperations();
         expect(mocks.getSubscriptionsByChannel).not.toHaveBeenCalled();
       });
@@ -381,7 +382,7 @@ describe('OHLCVService', () => {
 
     it('should start a grace-period timer and unsubscribe after expiry', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = jest.fn();
+        const mockUnsub = vi.fn();
         mocks.getSubscriptionsByChannel.mockReturnValue([
           { unsubscribe: mockUnsub },
         ]);
@@ -392,7 +393,7 @@ describe('OHLCVService', () => {
         // Before grace period expires — still subscribed
         expect(mockUnsub).not.toHaveBeenCalled();
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
@@ -410,7 +411,7 @@ describe('OHLCVService', () => {
   describe('grace period', () => {
     it('should cancel grace-period timer if re-subscribed before expiry', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = jest.fn();
+        const mockUnsub = vi.fn();
         mocks.getSubscriptionsByChannel.mockReturnValue([
           { unsubscribe: mockUnsub },
         ]);
@@ -422,7 +423,7 @@ describe('OHLCVService', () => {
         mocks.channelHasSubscription.mockReturnValue(true);
 
         // Re-subscribe during grace period
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         mocks.subscribe.mockClear();
         mocks.connect.mockClear();
         await service.subscribe(SUB_OPTS);
@@ -432,7 +433,7 @@ describe('OHLCVService', () => {
         expect(mocks.subscribe).not.toHaveBeenCalled();
 
         // Advance past original grace period — should NOT unsubscribe
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
         await completeAsyncOperations();
         expect(mockUnsub).not.toHaveBeenCalled();
       });
@@ -447,8 +448,8 @@ describe('OHLCVService', () => {
         'market-data.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
 
       await withService(async ({ service, mocks }) => {
-        const mockUnsub1m = jest.fn().mockResolvedValue(undefined);
-        const mockUnsub1h = jest.fn().mockResolvedValue(undefined);
+        const mockUnsub1m = vi.fn().mockResolvedValue(undefined);
+        const mockUnsub1h = vi.fn().mockResolvedValue(undefined);
 
         mocks.getSubscriptionsByChannel.mockImplementation(
           (channel: string) => {
@@ -494,7 +495,7 @@ describe('OHLCVService', () => {
         'market-data.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
 
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = jest.fn().mockResolvedValue(undefined);
+        const mockUnsub = vi.fn().mockResolvedValue(undefined);
         mocks.getSubscriptionsByChannel.mockReturnValue([
           { unsubscribe: mockUnsub },
         ]);
@@ -513,7 +514,7 @@ describe('OHLCVService', () => {
           }),
         );
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         expect(mockUnsub).toHaveBeenCalledTimes(1);
@@ -526,7 +527,7 @@ describe('OHLCVService', () => {
       };
 
       await withService(async ({ service, mocks, messenger }) => {
-        const errorListener = jest.fn();
+        const errorListener = vi.fn();
         messenger.subscribe('OHLCVService:subscriptionError', errorListener);
 
         mocks.getSubscriptionsByChannel.mockImplementation(
@@ -534,7 +535,7 @@ describe('OHLCVService', () => {
             if (channel === EXPECTED_CHANNEL) {
               throw new Error('flush unsub failed');
             }
-            return [{ unsubscribe: jest.fn().mockResolvedValue(undefined) }];
+            return [{ unsubscribe: vi.fn().mockResolvedValue(undefined) }];
           },
         );
 
@@ -548,7 +549,7 @@ describe('OHLCVService', () => {
           operation: 'unsubscribe',
         });
 
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await completeAsyncOperations();
 
         expect(
@@ -560,7 +561,7 @@ describe('OHLCVService', () => {
 
     it('should skip grace-period unsubscribe when a new subscriber arrives first', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = jest.fn().mockResolvedValue(undefined);
+        const mockUnsub = vi.fn().mockResolvedValue(undefined);
         mocks.getSubscriptionsByChannel.mockReturnValue([
           { unsubscribe: mockUnsub },
         ]);
@@ -579,7 +580,7 @@ describe('OHLCVService', () => {
 
         const subscribePromise = service.subscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await flushPromises();
 
         releaseConnect();
@@ -599,7 +600,7 @@ describe('OHLCVService', () => {
   describe('unsubscribe retry', () => {
     it('should succeed on a later retry without forcing reconnection', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = jest
+        const mockUnsub = vi
           .fn()
           .mockRejectedValueOnce(new Error('transient'))
           .mockResolvedValue(undefined);
@@ -611,10 +612,10 @@ describe('OHLCVService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await completeAsyncOperations();
 
         expect(mockUnsub).toHaveBeenCalledTimes(2);
@@ -637,14 +638,14 @@ describe('OHLCVService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await flushPromises();
 
         service.destroy();
         releaseUnsub(new Error('ws gone'));
         await completeAsyncOperations();
 
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await completeAsyncOperations();
 
         expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(1);
@@ -664,13 +665,13 @@ describe('OHLCVService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await completeAsyncOperations();
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         await completeAsyncOperations();
-        jest.advanceTimersByTime(4000);
+        vi.advanceTimersByTime(4000);
         await completeAsyncOperations();
 
         expect(mocks.forceReconnection).toHaveBeenCalledTimes(1);
@@ -686,12 +687,12 @@ describe('OHLCVService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         service.destroy();
 
-        jest.advanceTimersByTime(10000);
+        vi.advanceTimersByTime(10000);
         await completeAsyncOperations();
 
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
@@ -708,7 +709,7 @@ describe('OHLCVService', () => {
         await service.unsubscribe(SUB_OPTS);
 
         // Grace timer fires: #performUnsubscribe starts and parks on the mutex.
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
 
         // destroy() runs while #performUnsubscribe is still awaiting the mutex,
         // clearing the channel map before the retry is scheduled.
@@ -717,11 +718,11 @@ describe('OHLCVService', () => {
 
         // Drive every backoff step. A resurrected retry loop would exhaust its
         // backoff and force a reconnection on the shared WebSocket.
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await completeAsyncOperations();
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         await completeAsyncOperations();
-        jest.advanceTimersByTime(4000);
+        vi.advanceTimersByTime(4000);
         await completeAsyncOperations();
 
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
@@ -747,7 +748,7 @@ describe('OHLCVService', () => {
         await service.unsubscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
         await completeAsyncOperations();
 
         // Still has one consumer — no WS unsubscribe
@@ -757,7 +758,7 @@ describe('OHLCVService', () => {
 
     it('should unsubscribe from WS when all consumers leave and grace expires', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = jest.fn();
+        const mockUnsub = vi.fn();
         mocks.getSubscriptionsByChannel.mockReturnValue([
           { unsubscribe: mockUnsub },
         ]);
@@ -768,7 +769,7 @@ describe('OHLCVService', () => {
         await service.unsubscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         expect(mockUnsub).toHaveBeenCalledTimes(1);
@@ -805,20 +806,20 @@ describe('OHLCVService', () => {
 
         expect(mocks.subscribe).toHaveBeenCalledTimes(1);
 
-        const mockUnsub = jest.fn();
+        const mockUnsub = vi.fn();
         mocks.getSubscriptionsByChannel.mockReturnValue([
           { unsubscribe: mockUnsub },
         ]);
 
         // refCount must be 2 — first unsubscribe drops it to 1, no grace timer
         await service.unsubscribe(SUB_OPTS);
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
         await completeAsyncOperations();
         expect(mockUnsub).not.toHaveBeenCalled();
 
         // Second unsubscribe drops refCount to 0 → grace timer → WS unsubscribe
         await service.unsubscribe(SUB_OPTS);
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
         expect(mockUnsub).toHaveBeenCalledTimes(1);
       });
@@ -845,12 +846,12 @@ describe('OHLCVService', () => {
 
         // After subscribe then unsubscribe, refCount is 0 → grace timer starts
         // Advance past grace period
-        const mockUnsub = jest.fn();
+        const mockUnsub = vi.fn();
         mocks.getSubscriptionsByChannel.mockReturnValue([
           { unsubscribe: mockUnsub },
         ]);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         expect(mockUnsub).toHaveBeenCalledTimes(1);
@@ -860,7 +861,7 @@ describe('OHLCVService', () => {
     it('should create a fresh WS subscription when subscribe races with grace-period unsubscribe', async () => {
       await withService(async ({ service, mocks }) => {
         let unsubResolve!: () => void;
-        const mockUnsub = jest.fn(
+        const mockUnsub = vi.fn(
           () =>
             new Promise<void>((resolve) => {
               unsubResolve = resolve;
@@ -873,7 +874,7 @@ describe('OHLCVService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await flushPromises();
 
         const subscribePromise = service.subscribe(SUB_OPTS);
@@ -1016,7 +1017,7 @@ describe('OHLCVService', () => {
 
           // 6. Verify bar updates are delivered through the new subscription.
           const capturedCallback = mocks.subscribe.mock.calls[0][0].callback;
-          const barListener = jest.fn();
+          const barListener = vi.fn();
           messenger.subscribe('OHLCVService:barUpdated', barListener);
 
           capturedCallback({
@@ -1065,7 +1066,7 @@ describe('OHLCVService', () => {
           await completeAsyncOperations();
 
           const resubscribeCallback = mocks.subscribe.mock.calls[0][0].callback;
-          const barListener = jest.fn();
+          const barListener = vi.fn();
           messenger.subscribe('OHLCVService:barUpdated', barListener);
 
           resubscribeCallback({
@@ -1097,7 +1098,7 @@ describe('OHLCVService', () => {
 
     it('should publish chainStatusChanged down on DISCONNECTED', async () => {
       await withService(async ({ mocks, messenger, rootMessenger }) => {
-        const statusListener = jest.fn();
+        const statusListener = vi.fn();
         messenger.subscribe('OHLCVService:chainStatusChanged', statusListener);
 
         // Simulate a system notification marking a chain as up
@@ -1133,7 +1134,7 @@ describe('OHLCVService', () => {
 
     it('should not publish chainStatusChanged down when no chains are tracked', async () => {
       await withService(async ({ messenger, rootMessenger }) => {
-        const statusListener = jest.fn();
+        const statusListener = vi.fn();
         messenger.subscribe('OHLCVService:chainStatusChanged', statusListener);
 
         rootMessenger.publish(
@@ -1179,7 +1180,7 @@ describe('OHLCVService', () => {
   describe('system notifications', () => {
     it('should forward chain-down notifications via chainStatusChanged event', async () => {
       await withService(async ({ mocks, messenger }) => {
-        const statusListener = jest.fn();
+        const statusListener = vi.fn();
         messenger.subscribe('OHLCVService:chainStatusChanged', statusListener);
 
         const systemCallback = getSystemNotificationCallback(mocks);
@@ -1200,7 +1201,7 @@ describe('OHLCVService', () => {
 
     it('should forward chain-up notifications', async () => {
       await withService(async ({ mocks, messenger }) => {
-        const statusListener = jest.fn();
+        const statusListener = vi.fn();
         messenger.subscribe('OHLCVService:chainStatusChanged', statusListener);
 
         const systemCallback = getSystemNotificationCallback(mocks);
@@ -1246,13 +1247,13 @@ describe('OHLCVService', () => {
           throw new Error('ws gone');
         });
 
-        const errorListener = jest.fn();
+        const errorListener = vi.fn();
         messenger.subscribe('OHLCVService:subscriptionError', errorListener);
 
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         expect(errorListener).toHaveBeenCalledWith({
@@ -1262,15 +1263,15 @@ describe('OHLCVService', () => {
         });
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
 
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await completeAsyncOperations();
         expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(2);
 
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         await completeAsyncOperations();
         expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(3);
 
-        jest.advanceTimersByTime(4000);
+        vi.advanceTimersByTime(4000);
         await completeAsyncOperations();
         expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(4);
         expect(mocks.forceReconnection).toHaveBeenCalledTimes(1);
@@ -1287,7 +1288,7 @@ describe('OHLCVService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         mocks.subscribe.mockClear();
@@ -1297,7 +1298,7 @@ describe('OHLCVService', () => {
         expect(mocks.connect).not.toHaveBeenCalled();
         expect(mocks.subscribe).not.toHaveBeenCalled();
 
-        jest.advanceTimersByTime(7000);
+        vi.advanceTimersByTime(7000);
         await completeAsyncOperations();
         expect(mocks.forceReconnection).not.toHaveBeenCalled();
       });
@@ -1312,7 +1313,7 @@ describe('OHLCVService', () => {
         'market-data.v1.eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913.1h.usd';
 
       await withService(async ({ service, mocks }) => {
-        const mockUnsub1h = jest.fn().mockResolvedValue(undefined);
+        const mockUnsub1h = vi.fn().mockResolvedValue(undefined);
 
         mocks.getSubscriptionsByChannel.mockImplementation(() => {
           throw new Error('ws gone');
@@ -1321,7 +1322,7 @@ describe('OHLCVService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         mocks.getSubscriptionsByChannel.mockImplementation(
@@ -1360,12 +1361,12 @@ describe('OHLCVService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         mocks.channelHasSubscription.mockReturnValue(false);
         mocks.getSubscriptionsByChannel.mockReturnValue([
-          { unsubscribe: jest.fn().mockResolvedValue(undefined) },
+          { unsubscribe: vi.fn().mockResolvedValue(undefined) },
         ]);
         mocks.subscribe.mockClear();
         mocks.connect.mockClear();
@@ -1386,7 +1387,7 @@ describe('OHLCVService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         mocks.subscribe.mockClear();
@@ -1423,7 +1424,7 @@ describe('OHLCVService', () => {
         mocks.subscribe.mockClear();
         mocks.connect.mockClear();
 
-        const errorListener = jest.fn();
+        const errorListener = vi.fn();
         messenger.subscribe('OHLCVService:subscriptionError', errorListener);
 
         await service.subscribe(SUB_OPTS);
@@ -1520,12 +1521,12 @@ describe('OHLCVService', () => {
 
         // refCount was 1 at reconnect time; after resubscribe completes
         // the queued unsubscribe drops it to 0 and starts the grace timer.
-        const mockUnsub = jest.fn();
+        const mockUnsub = vi.fn();
         mocks.getSubscriptionsByChannel.mockReturnValue([
           { unsubscribe: mockUnsub },
         ]);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         // The grace-period unsubscribe fires cleanly — no orphaned subscription.
@@ -1541,7 +1542,7 @@ describe('OHLCVService', () => {
   describe('destroy', () => {
     it('should clear grace-period and retry timers and remove channel callback', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = jest.fn();
+        const mockUnsub = vi.fn();
         mocks.getSubscriptionsByChannel.mockReturnValue([
           { unsubscribe: mockUnsub },
         ]);
@@ -1551,7 +1552,7 @@ describe('OHLCVService', () => {
 
         service.destroy();
 
-        jest.advanceTimersByTime(10000);
+        vi.advanceTimersByTime(10000);
         await completeAsyncOperations();
 
         expect(mockUnsub).not.toHaveBeenCalled();

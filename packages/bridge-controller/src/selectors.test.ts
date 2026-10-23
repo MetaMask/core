@@ -9,6 +9,7 @@ import {
 } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { merge } from 'lodash-es';
+import { describe, expect, it } from 'vitest';
 
 import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20.js';
 import {
@@ -779,7 +780,7 @@ describe('Bridge Selectors', () => {
       );
 
       expect(result.sortedQuotes[0].cost?.valueInCurrency).toBe('1758.014454');
-      // eslint-disable-next-line jest/no-restricted-matchers
+      // eslint-disable-next-line vitest/no-restricted-matchers
       expect(result.recommendedQuote).toMatchSnapshot();
     });
 
@@ -847,7 +848,7 @@ describe('Bridge Selectors', () => {
         nativeExchangeRate: { exchangeRate: '1980', usdExchangeRate: '10' },
       });
 
-      // eslint-disable-next-line jest/no-restricted-matchers
+      // eslint-disable-next-line vitest/no-restricted-matchers
       expect(result.sortedQuotes[0]).toMatchSnapshot();
       expect(result.recommendedQuote).toMatchObject(expectedQuoteMetadata);
       expect(result.recommendedQuote).not.toMatchObject(
@@ -911,7 +912,7 @@ describe('Bridge Selectors', () => {
           { ...mockClientParams, migrationPhase },
         );
 
-      // eslint-disable-next-line jest/no-restricted-matchers
+      // eslint-disable-next-line vitest/no-restricted-matchers
       expect(result.recommendedQuote).toMatchSnapshot();
     });
 

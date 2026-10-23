@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
 - **BREAKING:** The `MoneyAccountUpgradeControllerMessenger` must now allow the `ChompApiService:createAddressChallenge` and `ChompApiService:associateAddressV2` actions, and no longer uses `ChompApiService:associateAddress` ([#10687](https://github.com/MetaMask/core/pull/10687))

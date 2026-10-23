@@ -1,4 +1,5 @@
 import nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createMockNetworkConfig } from '../../tests/helpers.js';
 import {
@@ -16,7 +17,7 @@ import type {
 
 function createMockServiceMessenger(): ConfigRegistryApiServiceMessenger {
   return {
-    registerMethodActionHandlers: jest.fn(),
+    registerMethodActionHandlers: vi.fn(),
   } as unknown as ConfigRegistryApiServiceMessenger;
 }
 
@@ -279,7 +280,7 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('handles network errors', async () => {
-      const customFetch = jest
+      const customFetch = vi
         .fn()
         .mockRejectedValue(new Error('Network connection failed'));
 
@@ -313,7 +314,7 @@ describe('ConfigRegistryApiService', () => {
   describe('onRetry', () => {
     it('registers and returns a disposable', () => {
       const service = createService();
-      const listener = jest.fn();
+      const listener = vi.fn();
       const disposable = service.onRetry(listener);
       expect(disposable).toHaveProperty('dispose');
       expect(typeof disposable.dispose).toBe('function');
@@ -322,11 +323,11 @@ describe('ConfigRegistryApiService', () => {
 
   describe('onBreak', () => {
     beforeEach(() => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('registers and calls onBreak handler', async () => {
@@ -337,7 +338,7 @@ describe('ConfigRegistryApiService', () => {
         nock(UAT_ORIGIN).get(CONFIG_PATH).replyWithError('Network error');
       }
 
-      const onBreakHandler = jest.fn();
+      const onBreakHandler = vi.fn();
       const service = createService({
         policyOptions: {
           maxRetries: retries,
@@ -348,7 +349,7 @@ describe('ConfigRegistryApiService', () => {
 
       service.onBreak(onBreakHandler);
       service.onRetry(() => {
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
       });
 
       for (let i = 0; i < maximumConsecutiveFailures; i++) {
@@ -363,11 +364,11 @@ describe('ConfigRegistryApiService', () => {
 
   describe('onDegraded', () => {
     beforeEach(() => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('calls onDegraded handler when service becomes degraded', async () => {
@@ -375,14 +376,14 @@ describe('ConfigRegistryApiService', () => {
       nock(UAT_ORIGIN)
         .get(CONFIG_PATH)
         .reply(200, () => {
-          jest.advanceTimersByTime(degradedThreshold + 100);
+          vi.advanceTimersByTime(degradedThreshold + 100);
           return MOCK_API_RESPONSE;
         });
 
       const service = createService({
         policyOptions: { degradedThreshold, maxRetries: 0 },
       });
-      const onDegradedHandler = jest.fn();
+      const onDegradedHandler = vi.fn();
       service.onDegraded(onDegradedHandler);
 
       await service.fetchConfig();
@@ -393,7 +394,7 @@ describe('ConfigRegistryApiService', () => {
 
   describe('custom fetch function', () => {
     it('uses custom fetch function when provided', async () => {
-      const customFetch = jest.fn().mockResolvedValue(
+      const customFetch = vi.fn().mockResolvedValue(
         // eslint-disable-next-line no-restricted-globals
         new Response(JSON.stringify(MOCK_API_RESPONSE), {
           status: 200,
