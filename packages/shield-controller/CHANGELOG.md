@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
+### Changed
+
+- Bump `@tanstack/query-core` from `^5.103.2` to `^5.104.5` ([#10740](https://github.com/MetaMask/core/pull/10740))
+
 ## [7.0.5]
 
 ### Changed
