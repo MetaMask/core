@@ -8,6 +8,8 @@ import type {
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type {
   AbstractTokenPricesService,
@@ -30,8 +32,8 @@ import type {
   FoundTokenDisplayData,
 } from './types.js';
 
-jest.mock('../token-service', () => {
-  const mockFetchTokenMetadata = jest.fn();
+vi.mock('../token-service', () => {
+  const mockFetchTokenMetadata = vi.fn();
   return {
     fetchTokenMetadata: mockFetchTokenMetadata,
     TOKEN_METADATA_NO_SUPPORT_ERROR: 'Token metadata not supported',
@@ -254,7 +256,7 @@ async function withController<ReturnValue>(
 
 describe('TokenSearchDiscoveryDataController', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('constructor', () => {
@@ -296,7 +298,7 @@ describe('TokenSearchDiscoveryDataController', () => {
         name: 'Test Token',
       };
 
-      (fetchTokenMetadata as jest.Mock).mockImplementation(() =>
+      (fetchTokenMetadata as Mock).mockImplementation(() =>
         Promise.resolve(tokenMetadata),
       );
 
@@ -325,7 +327,7 @@ describe('TokenSearchDiscoveryDataController', () => {
       };
 
       const mockTokenPricesService = {
-        fetchTokenPrices: jest.fn().mockResolvedValue([mockPriceData]),
+        fetchTokenPrices: vi.fn().mockResolvedValue([mockPriceData]),
       };
 
       await withController(
@@ -355,7 +357,7 @@ describe('TokenSearchDiscoveryDataController', () => {
       const tokenAddress = '0x0000000000000000000000000000000000000010';
       const tokenChainId = ChainId.mainnet;
 
-      (fetchTokenMetadata as jest.Mock).mockImplementation(() =>
+      (fetchTokenMetadata as Mock).mockImplementation(() =>
         Promise.reject(new Error('Token metadata not supported')),
       );
 
@@ -386,7 +388,7 @@ describe('TokenSearchDiscoveryDataController', () => {
 
       const newTokenAddress = '0xabcdef1234567890abcdef1234567890abcdef12';
 
-      (fetchTokenMetadata as jest.Mock).mockResolvedValue({
+      (fetchTokenMetadata as Mock).mockResolvedValue({
         decimals: 18,
         symbol: 'NEW',
         name: 'New Token',
@@ -422,7 +424,7 @@ describe('TokenSearchDiscoveryDataController', () => {
       const tokenAddress = '0x0000000000000000000000000000000000000010';
       const tokenChainId = ChainId.mainnet;
 
-      (fetchTokenMetadata as jest.Mock).mockResolvedValue({
+      (fetchTokenMetadata as Mock).mockResolvedValue({
         name: 'Test Token',
         symbol: 'TEST',
         decimals: 18,
@@ -502,7 +504,7 @@ describe('TokenSearchDiscoveryDataController', () => {
       const tokenAddress = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
       const tokenChainId = ChainId.mainnet;
 
-      (fetchTokenMetadata as jest.Mock).mockResolvedValue({
+      (fetchTokenMetadata as Mock).mockResolvedValue({
         name: 'Test Token',
         symbol: 'TEST',
         decimals: 18,
@@ -532,7 +534,7 @@ describe('TokenSearchDiscoveryDataController', () => {
         totalVolume: 500000,
       };
 
-      const mockFetchTokenPrices = jest
+      const mockFetchTokenPrices = vi
         .fn()
         .mockImplementation(({ currency }: { currency: string }) => {
           if (currency === 'USD') {
@@ -575,24 +577,22 @@ describe('TokenSearchDiscoveryDataController', () => {
       const tokenAddress1 = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
       const tokenAddress2 = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 
-      (fetchTokenMetadata as jest.Mock).mockImplementation(
-        (_chainId, address) => {
-          if (address === tokenAddress1) {
-            return Promise.resolve({
-              decimals: 18,
-              symbol: 'DAI',
-              name: 'Dai Stablecoin',
-            });
-          } else if (address === tokenAddress2) {
-            return Promise.resolve({
-              decimals: 6,
-              symbol: 'USDC',
-              name: 'USD Coin',
-            });
-          }
-          return Promise.reject(new Error('Unknown token'));
-        },
-      );
+      (fetchTokenMetadata as Mock).mockImplementation((_chainId, address) => {
+        if (address === tokenAddress1) {
+          return Promise.resolve({
+            decimals: 18,
+            symbol: 'DAI',
+            name: 'Dai Stablecoin',
+          });
+        } else if (address === tokenAddress2) {
+          return Promise.resolve({
+            decimals: 6,
+            symbol: 'USDC',
+            name: 'USD Coin',
+          });
+        }
+        return Promise.reject(new Error('Unknown token'));
+      });
 
       const initialTokenDisplayData = [
         buildFoundTokenDisplayData({
@@ -666,12 +666,7 @@ describe('TokenSearchDiscoveryDataController', () => {
       const customError = new Error('Custom error');
       Object.defineProperty(customError, 'name', { value: 'CustomError' });
 
-      (fetchTokenMetadata as jest.Mock).mockRejectedValue(customError);
-
-      jest.mock('../token-service', () => ({
-        ...jest.requireActual('../token-service'),
-        TOKEN_METADATA_NO_SUPPORT_ERROR: 'different error message',
-      }));
+      (fetchTokenMetadata as Mock).mockRejectedValue(customError);
 
       await withController(
         {
