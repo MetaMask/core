@@ -1,4 +1,5 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { describe, expect, it } from 'vitest';
 
 import { createMockInternalAccount } from '../__fixtures__/MockAssetControllerMessenger.js';
 import type { Caip19AssetId } from '../types.js';
