@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
+### Changed
+
+- Bump `@metamask/delegation-deployments` from `^1.4.0` to `^2.1.0`
+
 ## [15.0.0]
 
 ### Changed

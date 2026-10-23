@@ -58,7 +58,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/delegation-controller": "^4.0.0",
-    "@metamask/delegation-deployments": "^1.4.0",
+    "@metamask/delegation-deployments": "^2.1.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/money-account-utils": "^2.1.0",
     "@metamask/transaction-controller": "^72.2.1",
