@@ -1,6 +1,3 @@
-// `getActiveChainsSync` is part of the data source's public API; asserting on
-// it is intentional and not a filesystem-style sync call.
-/* eslint-disable n/no-sync */
 import type { BalanceUpdate } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
@@ -9,6 +6,10 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+// `getActiveChainsSync` is part of the data source's public API; asserting on
+// it is intentional and not a filesystem-style sync call.
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { waitFor } from '../__fixtures__/test-utils.js';
 import type { AssetsControllerMessenger } from '../AssetsController.js';
@@ -97,16 +98,16 @@ function createBalanceUpdate(overrides?: {
 type SetupOptions = {
   groupAccounts?: InternalAccount[];
   selectedAccount?: InternalAccount | null;
-  onAssetsUpdate?: jest.Mock;
-  onActiveChainsUpdated?: jest.Mock;
+  onAssetsUpdate?: Mock;
+  onActiveChainsUpdated?: Mock;
   state?: { activeChains?: ChainId[] };
 };
 
 type SetupResult = {
   dataSource: AccountActivityDataSource;
   rootMessenger: RootMessenger;
-  onAssetsUpdate: jest.Mock;
-  onActiveChainsUpdated: jest.Mock;
+  onAssetsUpdate: Mock;
+  onActiveChainsUpdated: Mock;
   triggerBalanceUpdated: (payload: {
     address: string;
     chain: string;
@@ -130,8 +131,8 @@ function setup(options: SetupOptions = {}): SetupResult {
   const {
     groupAccounts = [createMockAccount()],
     selectedAccount = null,
-    onAssetsUpdate = jest.fn().mockResolvedValue(undefined),
-    onActiveChainsUpdated = jest.fn(),
+    onAssetsUpdate = vi.fn().mockResolvedValue(undefined),
+    onActiveChainsUpdated = vi.fn(),
     state,
   } = options;
 
@@ -281,7 +282,7 @@ describe('AccountActivityDataSource', () => {
       // `processAccountActivityBalanceUpdates` builds null-prototype objects
       // (`Object.create(null)`), so `toStrictEqual` (which checks prototypes)
       // does not match a plain object literal here.
-      // eslint-disable-next-line jest/prefer-strict-equal
+      // eslint-disable-next-line vitest/prefer-strict-equal
       expect(response).toEqual({
         updateMode: 'merge',
         assetsBalance: {
@@ -601,7 +602,7 @@ describe('AccountActivityDataSource', () => {
     });
 
     it('swallows rejections from onAssetsUpdate', async () => {
-      const onAssetsUpdate = jest
+      const onAssetsUpdate = vi
         .fn()
         .mockRejectedValue(new Error('report failed'));
       const { triggerBalanceUpdated, cleanup } = setup({ onAssetsUpdate });
@@ -731,7 +732,7 @@ describe('AccountActivityDataSource', () => {
     });
 
     it('swallows errors thrown while handling the event', () => {
-      const onActiveChainsUpdated = jest.fn().mockImplementation(() => {
+      const onActiveChainsUpdated = vi.fn().mockImplementation(() => {
         throw new Error('listener boom');
       });
       const { triggerStatusChanged, cleanup } = setup({
@@ -825,8 +826,8 @@ describe('AccountActivityDataSource', () => {
 
       const dataSource = createAccountActivityDataSource({
         messenger: assetsControllerMessenger,
-        onActiveChainsUpdated: jest.fn(),
-        onAssetsUpdate: jest.fn(),
+        onActiveChainsUpdated: vi.fn(),
+        onAssetsUpdate: vi.fn(),
       });
 
       expect(dataSource).toBeInstanceOf(AccountActivityDataSource);

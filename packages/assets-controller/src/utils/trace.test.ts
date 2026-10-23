@@ -1,4 +1,5 @@
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { emitTrace, withTrace } from './trace.js';
 
@@ -13,7 +14,7 @@ describe('emitTrace', () => {
   });
 
   it('invokes trace with duration tags and backdated startTime', () => {
-    const trace = jest.fn().mockResolvedValue(undefined);
+    const trace = vi.fn().mockResolvedValue(undefined);
 
     emitTrace({
       name: 'TestSpan',
@@ -39,7 +40,7 @@ describe('emitTrace', () => {
   });
 
   it('swallows rejected trace promises', () => {
-    const trace = jest.fn().mockRejectedValue(new Error('telemetry failed'));
+    const trace = vi.fn().mockRejectedValue(new Error('telemetry failed'));
 
     expect(() =>
       emitTrace({
@@ -67,7 +68,7 @@ describe('withTrace', () => {
 
   it('passes parent context from trace into fn', async () => {
     const parentSpan = { id: 'parent' };
-    const trace = jest
+    const trace = vi
       .fn()
       .mockImplementation(
         async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
@@ -88,7 +89,7 @@ describe('withTrace', () => {
   });
 
   it('does not fail when trace rejects after work completes', async () => {
-    const trace = jest
+    const trace = vi
       .fn()
       .mockImplementation(
         async (_request: TraceRequest, fn?: (context?: unknown) => unknown) => {
@@ -108,7 +109,7 @@ describe('withTrace', () => {
   });
 
   it('still runs work when trace rejects before invoking fn', async () => {
-    const trace = jest.fn().mockRejectedValue(new Error('telemetry failed'));
+    const trace = vi.fn().mockRejectedValue(new Error('telemetry failed'));
 
     expect(
       await withTrace({
@@ -121,7 +122,7 @@ describe('withTrace', () => {
   });
 
   it('propagates errors thrown by fn', async () => {
-    const trace = jest
+    const trace = vi
       .fn()
       .mockImplementation(
         async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
