@@ -1986,37 +1986,32 @@
       "count": 5
     }
   },
-  "packages/core-backend/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/core-backend/src/api/ApiPlatformClient.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 4
+      "count": 1
     }
   },
   "packages/core-backend/src/api/accounts/client.test.ts": {
     "typescript/no-unsafe-call": {
       "count": 2
     },
-    "typescript/no-unsafe-member-access": {
-      "count": 11
+    "vitest/no-conditional-in-test": {
+      "count": 8
     }
   },
   "packages/core-backend/src/api/base-client.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 3
+      "count": 1
     }
   },
   "packages/core-backend/src/api/prices/client.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 8
+    "vitest/no-conditional-in-test": {
+      "count": 6
     }
   },
-  "packages/core-backend/src/api/token/client.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 2
+  "packages/core-backend/src/api/tokens/client.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
     }
   },
   "packages/core-backend/src/ws/AccountActivityService.test.ts": {
@@ -2024,7 +2019,7 @@
       "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/core-backend/src/ws/AccountActivityService.ts": {
@@ -2068,6 +2063,9 @@
       "count": 2
     },
     "typescript/no-unsafe-member-access": {
+      "count": 3
+    },
+    "vitest/no-conditional-in-test": {
       "count": 4
     }
   },
@@ -3474,17 +3472,15 @@
       "count": 2
     }
   },
-  "packages/network-enablement-controller/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/network-enablement-controller/src/NetworkEnablementController.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 2
     },
     "typescript/no-unsafe-return": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 16
     }
   },
   "packages/network-enablement-controller/src/selectors.ts": {
@@ -4332,11 +4328,6 @@
       "count": 10
     }
   },
-  "packages/react-data-query/src/createUIQueryClient.test.ts": {
-    "vitest/no-conditional-in-test": {
-      "count": 25
-    }
-  },
   "packages/ramps-controller/src/order-syncing/sync-utils.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 2
@@ -4350,6 +4341,11 @@
   "packages/ramps-controller/src/wallet-registration-service.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 3
+    }
+  },
+  "packages/react-data-query/src/createUIQueryClient.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 25
     }
   },
   "packages/react-data-query/src/createUIQueryClient.ts": {
@@ -5620,23 +5616,6 @@
     },
     "typescript/explicit-function-return-type": {
       "count": 8
-    }
-  },
-  "packages/utils/src/bytes.ts": {
-    "no-undef": {
-      "count": 1
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    },
-    "typescript/no-unsafe-call": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
     }
   },
   "packages/utils/src/caip-types.test.ts": {

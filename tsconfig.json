@@ -72,6 +72,9 @@
       "path": "./packages/build-utils"
     },
     {
+      "path": "./packages/byte-utils"
+    },
+    {
       "path": "./packages/chain-agnostic-permission"
     },
     {

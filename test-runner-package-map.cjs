@@ -7,9 +7,7 @@ const { workspaces } = require('./package.json');
 const PACKAGES_ON_JEST = new Set([
   '@metamask/assets-controller',
   '@metamask/assets-controllers',
-  '@metamask/core-backend',
   '@metamask/network-controller',
-  '@metamask/network-enablement-controller',
   '@metamask/perps-controller',
 ]);
 
