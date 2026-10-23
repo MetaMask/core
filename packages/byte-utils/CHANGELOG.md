@@ -12,4 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 - Add `Bytes`, `Hex`, `HEX_REGEX`, `STRICT_HEX_REGEX`, `add0x`, `areUint8ArraysEqual`, `assertIsBytes`, `assertIsHexString`, `assertIsStrictHexString`, `base64ToBytes`, `bigIntToBytes`, `bigIntToHex`, `bytesToBase64`, `bytesToBigInt`, `bytesToHex`, `bytesToNumber`, `bytesToSignedBigInt`, `bytesToString`, `concatBytes`, `createDataView`, `hexToBigInt`, `hexToBytes`, `hexToNumber`, `isBytes`, `isHexString`, `isStrictHexString`, `numberToBytes`, `numberToHex`, `remove0x`, `signedBigIntToBytes`, `stringToBytes`, and `valueToBytes`, moved from `@metamask/utils` ([#11037](https://github.com/MetaMask/core/pull/11037))
 
+### Changed
+
+- Bump `@scure/base` from `^1.2.6` to `^2.4.0` ([#10596](https://github.com/MetaMask/core/pull/10596))
+
 [Unreleased]: https://github.com/MetaMask/core/
