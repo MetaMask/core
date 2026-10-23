@@ -1,6 +1,7 @@
+/* eslint-disable n/callback-return */ // next() is not a Node.js callback.
+
 import type { Json, JsonRpcId } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
-/* eslint-disable n/callback-return */ // next() is not a Node.js callback.
 import { describe, expect, it, vi } from 'vitest';
 
 import {
