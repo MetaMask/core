@@ -193,7 +193,7 @@ describe('createRetryOnEmptyMiddleware', () => {
 
         describe('if the block number in the request params is higher than the latest block number reported by the block tracker', () => {
           // Using custom expect helper
-          // eslint-disable-next-line jest/expect-expect
+          // eslint-disable-next-line vitest/expect-expect
           it('does not make a direct request through the provider', async () => {
             const engine = createEngine(
               createRetryOnEmptyMiddleware({
@@ -250,7 +250,7 @@ describe('createRetryOnEmptyMiddleware', () => {
           'if the block parameter is not a 0x-prefixed hex number such as %o',
           (blockParam) => {
             // Using custom expect helper
-            // eslint-disable-next-line jest/expect-expect
+            // eslint-disable-next-line vitest/expect-expect
             it('does not make a direct request through the provider', async () => {
               const engine = createEngine(
                 createRetryOnEmptyMiddleware({
@@ -308,7 +308,7 @@ describe('createRetryOnEmptyMiddleware', () => {
           'if the block parameter is %o',
           (blockParam) => {
             // Using custom expect helper
-            // eslint-disable-next-line jest/expect-expect
+            // eslint-disable-next-line vitest/expect-expect
             it('does not make a direct request through the provider', async () => {
               const engine = createEngine(
                 createRetryOnEmptyMiddleware({
@@ -366,7 +366,7 @@ describe('createRetryOnEmptyMiddleware', () => {
 
         describe('if no block parameter is given', () => {
           // Using custom expect helper
-          // eslint-disable-next-line jest/expect-expect
+          // eslint-disable-next-line vitest/expect-expect
           it('does not make a direct request through the provider', async () => {
             const engine = createEngine(
               createRetryOnEmptyMiddleware({
@@ -416,7 +416,7 @@ describe('createRetryOnEmptyMiddleware', () => {
 
   describe('a method that does not take a block parameter', () => {
     // Using custom expect helper
-    // eslint-disable-next-line jest/expect-expect
+    // eslint-disable-next-line vitest/expect-expect
     it('does not make a direct request through the provider', async () => {
       const engine = createEngine(
         createRetryOnEmptyMiddleware({

@@ -14,7 +14,7 @@ const DECORATOR_PATTERN = /^\s*@[A-Za-z_$][\w$]*/mu;
  * place, and Node cannot run them. `AssetsController` in
  * `@metamask/assets-controller` uses one, so packages that load its source add
  * this plugin, which compiles any TypeScript module that uses a decorator with
- * TypeScript first, the way ts-jest did. Remove it once Oxc lowers standard
+ * TypeScript first. Remove it once Oxc lowers standard
  * decorators, see https://github.com/vitest-dev/vitest/issues/9876.
  *
  * @returns The Vite plugin.

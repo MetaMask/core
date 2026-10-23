@@ -1,6 +1,5 @@
 import base, { createConfig } from '@metamask/oxlint-config';
 import commonjs from '@metamask/oxlint-config-commonjs';
-import jest from '@metamask/oxlint-config-jest';
 import nodejs from '@metamask/oxlint-config-nodejs';
 import typescript from '@metamask/oxlint-config-typescript';
 import vitest from '@metamask/oxlint-config-vitest';
@@ -60,36 +59,15 @@ export default createConfig({
         'packages/platform-api-docs/**',
         '**/scripts/**',
         'oxlint.config.ts',
-        'jest.config.packages.cjs',
         'vitest.config.packages.ts',
         'vitest.config.scripts.ts',
-        // These import their globals explicitly.
-        'tests/helpers.ts',
         'tests/matchers.ts',
-        'tests/setupAfterEnv/**',
         'tests/vitest/**',
       ],
       extends: [nodejs],
       rules: {
         'node/no-sync': 'off',
         'node/no-process-env': 'off',
-      },
-    },
-
-    {
-      files: [
-        'packages/*/jest.config.cjs',
-        'packages/*/jest.config.e2e.cjs',
-        'packages/*/jest.environment.cjs',
-        'packages/*/jest.config.integration.cjs',
-        'packages/*/jest.config.unit.cjs',
-      ],
-      extends: [nodejs, jest],
-      plugins: ['typescript'],
-      rules: {
-        'node/no-sync': 'off',
-        'node/no-process-env': 'off',
-        'typescript/no-unsafe-assignment': 'off',
       },
     },
 

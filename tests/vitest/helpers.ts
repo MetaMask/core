@@ -33,7 +33,7 @@ export async function advanceTime({
  * Resolve all pending promises.
  *
  * This method is used for async tests that use fake timers.
- * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
+ * See https://stackoverflow.com/a/58716087.
  *
  * `setImmediate` comes from `node:timers` so that it is the real one even while
  * fake timers are installed.

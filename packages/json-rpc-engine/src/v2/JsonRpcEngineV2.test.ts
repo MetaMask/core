@@ -56,7 +56,7 @@ describe('JsonRpcEngineV2', () => {
     });
 
     // Keeping this here for documentation purposes.
-    // eslint-disable-next-line jest/no-disabled-tests
+    // eslint-disable-next-line vitest/no-disabled-tests
     it.skip('type errors if passed middleware with incompatible request types', async () => {
       const middleware1: JsonRpcMiddleware<JsonRpcNotification> = ({ next }) =>
         next();

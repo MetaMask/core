@@ -9,11 +9,6 @@
       "count": 1
     }
   },
-  "jest.config.packages.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/AccountTreeController.test.ts": {
     "id-length": {
       "count": 2
@@ -5960,14 +5955,6 @@
     }
   },
   "types/ethjs-query.d.ts": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "types/jest.d.ts": {
-    "id-length": {
-      "count": 1
-    },
     "import/unambiguous": {
       "count": 1
     }
