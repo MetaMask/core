@@ -183,6 +183,20 @@ export type TransactionPayControllerRecoverSolanaPayStatusAction = {
 };
 
 /**
+ * Returns the privacy-safe support diagnostics of a Solana Pay execution.
+ *
+ * The diagnostics only carry categorical values and identifier-presence
+ * flags, never accounts, assets, amounts, identifiers or failure text.
+ *
+ * @param transactionId - Target transaction ID.
+ * @returns Categorical diagnostics of the persisted execution checkpoint.
+ */
+export type TransactionPayControllerGetSolanaPaySupportDiagnosticsAction = {
+  type: `TransactionPayController:getSolanaPaySupportDiagnostics`;
+  handler: TransactionPayController['getSolanaPaySupportDiagnostics'];
+};
+
+/**
  * Union of all TransactionPayController action types.
  */
 export type TransactionPayControllerMethodActions =
@@ -198,4 +212,5 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerPolymarketGetDepositWalletAddressAction
   | TransactionPayControllerPolymarketSubmitDepositWalletBatchAction
   | TransactionPayControllerReconcileSolanaPayAction
-  | TransactionPayControllerRecoverSolanaPayStatusAction;
+  | TransactionPayControllerRecoverSolanaPayStatusAction
+  | TransactionPayControllerGetSolanaPaySupportDiagnosticsAction;
