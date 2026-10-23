@@ -1,3 +1,9 @@
+/**
+ * Analytics-only types and helpers for `KycController`. Nothing here is used
+ * by the KYC business logic; it describes the payloads of the
+ * `KycController:analytics*` events and the status they report.
+ */
+
 import type { KycProviderFlowStatus } from './KycController.js';
 import type { KycSessionStatus } from './types.js';
 

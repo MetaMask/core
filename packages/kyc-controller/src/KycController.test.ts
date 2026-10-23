@@ -1619,7 +1619,7 @@ describe('KycController', () => {
     });
   });
 
-  describe('verification and KYC status events', () => {
+  describe('analytics events', () => {
     afterEach(() => {
       vi.useRealTimers();
     });
