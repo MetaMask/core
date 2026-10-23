@@ -449,13 +449,17 @@ export async function simulateGasBatch({
   transactions: TransactionBatchSingleRequest[];
 }): Promise<{ totalGasLimit: Hex; gasLimits: Hex[] }> {
   try {
-    const response = await simulateTransactions(messenger, chainId, {
-      getSimulationConfig,
-      transactions: transactions.map((transaction) => ({
-        ...transaction.params,
-        from,
-      })),
-    });
+    const response = await simulateTransactions(
+      messenger,
+      chainId,
+      {
+        transactions: transactions.map((transaction) => ({
+          ...transaction.params,
+          from,
+        })),
+      },
+      { getSimulationConfig },
+    );
 
     if (response?.transactions?.length !== transactions.length) {
       throw new Error('Simulation response does not match transaction count');
@@ -686,24 +690,28 @@ async function simulateGas({
   messenger: TransactionControllerMessenger;
   transaction: TransactionParams;
 }): Promise<Hex> {
-  const response = await simulateTransactions(messenger, chainId, {
-    getSimulationConfig,
-    transactions: [
-      {
-        to: transaction.to as Hex,
-        from: transaction.from as Hex,
-        data: transaction.data as Hex,
-        value: transaction.value as Hex,
-      },
-    ],
-    overrides: {
-      [transaction.from]: {
-        code:
-          delegationAddress &&
-          ((DELEGATION_PREFIX + remove0x(delegationAddress)) as Hex),
+  const response = await simulateTransactions(
+    messenger,
+    chainId,
+    {
+      transactions: [
+        {
+          to: transaction.to as Hex,
+          from: transaction.from as Hex,
+          data: transaction.data as Hex,
+          value: transaction.value as Hex,
+        },
+      ],
+      overrides: {
+        [transaction.from]: {
+          code:
+            delegationAddress &&
+            ((DELEGATION_PREFIX + remove0x(delegationAddress)) as Hex),
+        },
       },
     },
-  });
+    { getSimulationConfig },
+  );
 
   const gasLimit = response?.transactions?.[0].gasLimit;
 

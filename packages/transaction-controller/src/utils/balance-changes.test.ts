@@ -1302,6 +1302,7 @@ describe('Balance Change Utils', () => {
             withDefaultBlockOverrides: true,
             withGas: true,
           },
+          { getSimulationConfig: undefined },
         );
         expect(result).toStrictEqual({
           simulationData: {
@@ -1875,6 +1876,7 @@ describe('Balance Change Utils', () => {
             }),
           ],
         }),
+        { getSimulationConfig: undefined },
       );
     });
 
@@ -1901,6 +1903,7 @@ describe('Balance Change Utils', () => {
               },
             },
           }),
+          { getSimulationConfig: undefined },
         );
       });
 
@@ -1929,6 +1932,7 @@ describe('Balance Change Utils', () => {
               },
             },
           }),
+          { getSimulationConfig: undefined },
         );
       });
 
@@ -1955,6 +1959,7 @@ describe('Balance Change Utils', () => {
               },
             },
           }),
+          { getSimulationConfig: undefined },
         );
       });
 
@@ -1989,6 +1994,7 @@ describe('Balance Change Utils', () => {
               },
             },
           }),
+          { getSimulationConfig: undefined },
         );
       });
     });
@@ -2001,6 +2007,7 @@ describe('Balance Change Utils', () => {
         MESSENGER_MOCK,
         expect.any(String),
         expect.any(Object),
+        { getSimulationConfig: undefined },
       );
     });
   });

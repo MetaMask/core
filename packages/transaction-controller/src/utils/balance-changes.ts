@@ -6,6 +6,7 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   SentinelSimulationCallTrace,
   SentinelSimulationLog,
+  SentinelSimulationRequest,
   SentinelSimulationResponse,
   SentinelSimulationResponseTransaction,
   SentinelSimulationTransaction,
@@ -15,7 +16,6 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { simulateTransactions } from '../api/simulation-api.js';
-import type { SimulationRequest } from '../api/simulation-api.js';
 import {
   ABI_SIMULATION_ERC20_WRAPPED,
   ABI_SIMULATION_ERC721_LEGACY,
@@ -885,7 +885,7 @@ async function baseRequest({
   after = [],
 }: {
   request: GetBalanceChangesRequest;
-  params?: Partial<SimulationRequest>;
+  params?: Partial<SentinelSimulationRequest>;
   before?: SentinelSimulationTransaction[];
   after?: SentinelSimulationTransaction[];
 }): Promise<SentinelSimulationResponse> {
@@ -935,28 +935,32 @@ async function baseRequest({
 
   const isInsufficientBalance = currentBalanceBN.lt(requiredBalanceBN);
 
-  return await simulateTransactions(messenger, chainId, {
-    ...params,
-    getSimulationConfig,
-    transactions,
-    withGas: true,
-    withDefaultBlockOverrides: true,
-    ...(blockTime && {
-      blockOverrides: {
-        ...params?.blockOverrides,
-        time: toHex(blockTime),
-      },
-    }),
-    ...(isInsufficientBalance && {
-      overrides: {
-        ...params?.overrides,
-        [from]: {
-          ...params?.overrides?.[from],
-          balance: requiredBalanceHex,
+  return await simulateTransactions(
+    messenger,
+    chainId,
+    {
+      ...params,
+      transactions,
+      withGas: true,
+      withDefaultBlockOverrides: true,
+      ...(blockTime && {
+        blockOverrides: {
+          ...params?.blockOverrides,
+          time: toHex(blockTime),
         },
-      },
-    }),
-  });
+      }),
+      ...(isInsufficientBalance && {
+        overrides: {
+          ...params?.overrides,
+          [from]: {
+            ...params?.overrides?.[from],
+            balance: requiredBalanceHex,
+          },
+        },
+      }),
+    },
+    { getSimulationConfig },
+  );
 }
 
 /**

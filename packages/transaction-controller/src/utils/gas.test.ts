@@ -1193,6 +1193,7 @@ describe('gas', () => {
               },
             },
           },
+          { getSimulationConfig: undefined },
         );
       });
 
@@ -1649,6 +1650,7 @@ describe('gas', () => {
             },
           ],
         },
+        { getSimulationConfig: undefined },
       );
     });
 
@@ -1814,6 +1816,7 @@ describe('gas', () => {
             },
           ],
         },
+        { getSimulationConfig: undefined },
       );
     });
 
@@ -1898,6 +1901,7 @@ describe('gas', () => {
         {
           transactions: [],
         },
+        { getSimulationConfig: undefined },
       );
     });
 
