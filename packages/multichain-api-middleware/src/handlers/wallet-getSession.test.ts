@@ -1,12 +1,8 @@
 import * as chainAgnosticPermissionModule from '@metamask/chain-agnostic-permission';
 import type { JsonRpcRequest } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { walletGetSessionHandler } from './wallet-getSession.js';
-
-jest.mock('@metamask/chain-agnostic-permission', () => ({
-  ...jest.requireActual('@metamask/chain-agnostic-permission'),
-  __esModule: true,
-}));
 
 const { Caip25CaveatType, Caip25EndowmentPermissionName } =
   chainAgnosticPermissionModule;
@@ -20,12 +16,12 @@ const baseRequest: JsonRpcRequest & { origin: string } = {
 };
 
 const createMockedHandler = () => {
-  const next = jest.fn();
-  const end = jest.fn();
-  const getNonEvmSupportedMethods = jest.fn();
-  const sortAccountIdsByLastSelected = jest.fn((accounts) => accounts);
-  const getCapabilities = jest.fn().mockResolvedValue({});
-  const getCaveatForOrigin = jest.fn().mockReturnValue({
+  const next = vi.fn();
+  const end = vi.fn();
+  const getNonEvmSupportedMethods = vi.fn();
+  const sortAccountIdsByLastSelected = vi.fn((accounts) => accounts);
+  const getCapabilities = vi.fn().mockResolvedValue({});
+  const getCaveatForOrigin = vi.fn().mockReturnValue({
     value: {
       requiredScopes: {
         'eip155:1': {
@@ -75,12 +71,13 @@ const createMockedHandler = () => {
 
 describe('wallet_getSession', () => {
   beforeEach(() => {
-    jest
-      .spyOn(chainAgnosticPermissionModule, 'getSessionScopes')
-      .mockReturnValue({});
-    jest
-      .spyOn(chainAgnosticPermissionModule, 'getSessionProperties')
-      .mockResolvedValue({});
+    vi.spyOn(chainAgnosticPermissionModule, 'getSessionScopes').mockReturnValue(
+      {},
+    );
+    vi.spyOn(
+      chainAgnosticPermissionModule,
+      'getSessionProperties',
+    ).mockResolvedValue({});
   });
 
   it('gets the authorized scopes from the CAIP-25 endowment permission', async () => {
@@ -171,9 +168,8 @@ describe('wallet_getSession', () => {
   it('returns the session scopes and session properties', async () => {
     const { handler, response } = createMockedHandler();
 
-    jest
-      .spyOn(chainAgnosticPermissionModule, 'getSessionScopes')
-      .mockReturnValue({
+    vi.spyOn(chainAgnosticPermissionModule, 'getSessionScopes').mockReturnValue(
+      {
         'eip155:1': {
           methods: ['eth_call', 'net_version'],
           notifications: ['chainChanged'],
@@ -189,14 +185,16 @@ describe('wallet_getSession', () => {
           notifications: [],
           accounts: [],
         },
-      });
-    jest
-      .spyOn(chainAgnosticPermissionModule, 'getSessionProperties')
-      .mockResolvedValue({
-        eip155Capabilities: {
-          '0x1': { '0x1': { atomic: { status: 'supported' } } },
-        },
-      });
+      },
+    );
+    vi.spyOn(
+      chainAgnosticPermissionModule,
+      'getSessionProperties',
+    ).mockResolvedValue({
+      eip155Capabilities: {
+        '0x1': { '0x1': { atomic: { status: 'supported' } } },
+      },
+    });
 
     await handler(baseRequest);
     expect(response.result).toStrictEqual({

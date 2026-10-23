@@ -4,22 +4,7 @@ const path = require('node:path');
 const { workspaces } = require('./package.json');
 
 // Do not add to this list: new packages are expected to use Vitest.
-const PACKAGES_ON_JEST = new Set([
-  '@metamask/chain-agnostic-permission',
-  '@metamask/eip-5792-middleware',
-  '@metamask/eip-7702-internal-rpc-middleware',
-  '@metamask/eip1193-permission-middleware',
-  '@metamask/eth-block-tracker',
-  '@metamask/eth-json-rpc-middleware',
-  '@metamask/eth-json-rpc-provider',
-  '@metamask/json-rpc-engine',
-  '@metamask/json-rpc-middleware-stream',
-  '@metamask/multichain-api-middleware',
-  '@metamask/network-controller',
-  '@metamask/permission-controller',
-  '@metamask/permission-log-controller',
-  '@metamask/selected-network-controller',
-]);
+const PACKAGES_ON_JEST = new Set(['@metamask/network-controller']);
 
 /**
  * Finds the locations of the workspaces still on Jest.

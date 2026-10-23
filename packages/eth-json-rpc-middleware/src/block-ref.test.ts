@@ -1,4 +1,5 @@
 import { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   createMockParamsWithBlockParamAt,

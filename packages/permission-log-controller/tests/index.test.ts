@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import * as allExports from '../src/index.js';
 
 describe('Package exports', () => {

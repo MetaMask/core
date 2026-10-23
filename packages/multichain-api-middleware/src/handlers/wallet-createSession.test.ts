@@ -17,26 +17,30 @@ import type {
   JsonRpcRequest,
   JsonRpcSuccess,
 } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { walletCreateSessionHandler } from './wallet-createSession.js';
 
-jest.mock('@metamask/rpc-errors', () => ({
-  ...jest.requireActual('@metamask/rpc-errors'),
+vi.mock('@metamask/rpc-errors', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@metamask/rpc-errors')>()),
   rpcErrors: {
-    invalidParams: jest.fn(),
-    internal: jest.fn(),
+    invalidParams: vi.fn(),
+    internal: vi.fn(),
   },
 }));
 
-jest.mock('@metamask/chain-agnostic-permission', () => ({
-  ...jest.requireActual('@metamask/chain-agnostic-permission'),
-  validateAndNormalizeScopes: jest.fn(),
-  bucketScopes: jest.fn(),
-  getSessionScopes: jest.fn(),
-  getSessionProperties: jest.fn(),
-  getSupportedScopeObjects: jest.fn(),
-}));
-const MockChainAgnosticPermission = jest.mocked(ChainAgnosticPermission);
+vi.mock(
+  import('@metamask/chain-agnostic-permission'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    validateAndNormalizeScopes: vi.fn(),
+    bucketScopes: vi.fn(),
+    getSessionScopes: vi.fn(),
+    getSessionProperties: vi.fn(),
+    getSupportedScopeObjects: vi.fn(),
+  }),
+);
+const MockChainAgnosticPermission = vi.mocked(ChainAgnosticPermission);
 
 const baseRequest = {
   jsonrpc: '2.0' as const,
@@ -65,9 +69,9 @@ const baseRequest = {
 };
 
 const createMockedHandler = (trackSessionEvents: boolean = true) => {
-  const next = jest.fn();
-  const end = jest.fn();
-  const requestPermissionsForOrigin = jest.fn().mockResolvedValue([
+  const next = vi.fn();
+  const end = vi.fn();
+  const requestPermissionsForOrigin = vi.fn().mockResolvedValue([
     {
       [Caip25EndowmentPermissionName]: {
         caveats: [
@@ -92,13 +96,11 @@ const createMockedHandler = (trackSessionEvents: boolean = true) => {
       },
     },
   ]);
-  const findNetworkClientIdByChainId = jest.fn().mockReturnValue('mainnet');
-  const trackSessionCreatedEvent = trackSessionEvents
-    ? jest.fn().mockImplementation(undefined)
-    : null;
-  const listAccounts = jest.fn().mockReturnValue([]);
-  const getNonEvmSupportedMethods = jest.fn().mockReturnValue([]);
-  const isNonEvmScopeSupported = jest.fn().mockReturnValue(false);
+  const findNetworkClientIdByChainId = vi.fn().mockReturnValue('mainnet');
+  const trackSessionCreatedEvent = trackSessionEvents ? vi.fn() : null;
+  const listAccounts = vi.fn().mockReturnValue([]);
+  const getNonEvmSupportedMethods = vi.fn().mockReturnValue([]);
+  const isNonEvmScopeSupported = vi.fn().mockReturnValue(false);
   const response = {
     jsonrpc: '2.0' as const,
     id: 0,
@@ -106,9 +108,9 @@ const createMockedHandler = (trackSessionEvents: boolean = true) => {
     sessionScopes: NormalizedScopesObject;
     sessionProperties?: Record<string, Json>;
   }>;
-  const getNonEvmAccountAddresses = jest.fn().mockReturnValue([]);
-  const sortAccountIdsByLastSelected = jest.fn((accounts) => accounts);
-  const getCapabilities = jest.fn().mockResolvedValue({});
+  const getNonEvmAccountAddresses = vi.fn().mockReturnValue([]);
+  const sortAccountIdsByLastSelected = vi.fn((accounts) => accounts);
+  const getCapabilities = vi.fn().mockResolvedValue({});
   const handler = (
     request: JsonRpcRequest<Caip25Authorization> & { origin: string },
   ) =>
@@ -166,7 +168,7 @@ describe('wallet_createSession', () => {
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   it('throws an error if params is not a plain object', async () => {

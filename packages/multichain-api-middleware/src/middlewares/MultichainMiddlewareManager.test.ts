@@ -1,4 +1,5 @@
 import { rpcErrors } from '@metamask/rpc-errors';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager.js';
 import { MultichainMiddlewareManager } from './MultichainMiddlewareManager.js';
@@ -10,7 +11,7 @@ const tabId = 123;
 describe('MultichainMiddlewareManager', () => {
   it('should add middleware and get called for the scope, origin, and tabId if request is "eth_subscribe', () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
-    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    const middlewareSpy = vi.fn() as unknown as ExtendedJsonRpcMiddleware;
     multichainMiddlewareManager.addMiddleware({
       scope,
       origin,
@@ -24,8 +25,8 @@ describe('MultichainMiddlewareManager', () => {
         123,
       );
 
-    const nextSpy = jest.fn();
-    const endSpy = jest.fn();
+    const nextSpy = vi.fn();
+    const endSpy = vi.fn();
 
     middleware(
       { jsonrpc: '2.0' as const, id: 0, method: 'eth_subscribe', scope },
@@ -45,7 +46,7 @@ describe('MultichainMiddlewareManager', () => {
 
   it('should add middleware and get called for the scope, origin, and tabId if request is "eth_unsubscribe', () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
-    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    const middlewareSpy = vi.fn() as unknown as ExtendedJsonRpcMiddleware;
     multichainMiddlewareManager.addMiddleware({
       scope,
       origin,
@@ -59,8 +60,8 @@ describe('MultichainMiddlewareManager', () => {
         123,
       );
 
-    const nextSpy = jest.fn();
-    const endSpy = jest.fn();
+    const nextSpy = vi.fn();
+    const endSpy = vi.fn();
 
     middleware(
       { jsonrpc: '2.0' as const, id: 0, method: 'eth_unsubscribe', scope },
@@ -80,7 +81,7 @@ describe('MultichainMiddlewareManager', () => {
 
   it('should add middleware and call next if called for the scope, origin, and tabId but request is not "eth_subscribe" or "eth_unsubscribe"', () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
-    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    const middlewareSpy = vi.fn() as unknown as ExtendedJsonRpcMiddleware;
     multichainMiddlewareManager.addMiddleware({
       scope,
       origin,
@@ -94,8 +95,8 @@ describe('MultichainMiddlewareManager', () => {
         123,
       );
 
-    const nextSpy = jest.fn();
-    const endSpy = jest.fn();
+    const nextSpy = vi.fn();
+    const endSpy = vi.fn();
 
     middleware(
       { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
@@ -116,8 +117,8 @@ describe('MultichainMiddlewareManager', () => {
         123,
       );
 
-    const nextSpy = jest.fn();
-    const endSpy = jest.fn();
+    const nextSpy = vi.fn();
+    const endSpy = vi.fn();
 
     middleware(
       { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
@@ -137,8 +138,8 @@ describe('MultichainMiddlewareManager', () => {
         123,
       );
 
-    const nextSpy = jest.fn();
-    const endSpy = jest.fn();
+    const nextSpy = vi.fn();
+    const endSpy = vi.fn();
 
     middleware(
       { jsonrpc: '2.0' as const, id: 0, method: 'eth_subscribe', scope },
@@ -158,8 +159,8 @@ describe('MultichainMiddlewareManager', () => {
         123,
       );
 
-    const nextSpy = jest.fn();
-    const endSpy = jest.fn();
+    const nextSpy = vi.fn();
+    const endSpy = vi.fn();
 
     middleware(
       { jsonrpc: '2.0' as const, id: 0, method: 'eth_unsubscribe', scope },
@@ -173,7 +174,7 @@ describe('MultichainMiddlewareManager', () => {
 
   it('should remove middleware by origin and tabId when the multiplexing middleware is destroyed and the middleware has no destroy function', async () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
-    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    const middlewareSpy = vi.fn() as unknown as ExtendedJsonRpcMiddleware;
     multichainMiddlewareManager.addMiddleware({
       scope,
       origin,
@@ -189,8 +190,8 @@ describe('MultichainMiddlewareManager', () => {
 
     await middleware.destroy?.();
 
-    const nextSpy = jest.fn();
-    const endSpy = jest.fn();
+    const nextSpy = vi.fn();
+    const endSpy = vi.fn();
 
     middleware(
       { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
@@ -205,9 +206,9 @@ describe('MultichainMiddlewareManager', () => {
 
   it('should remove middleware by origin and tabId when the multiplexing middleware is destroyed and the middleware destroy function resolves', async () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
-    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    const middlewareSpy = vi.fn() as unknown as ExtendedJsonRpcMiddleware;
     // eslint-disable-next-line jest/prefer-spy-on
-    middlewareSpy.destroy = jest.fn().mockResolvedValue(undefined);
+    middlewareSpy.destroy = vi.fn().mockResolvedValue(undefined);
     multichainMiddlewareManager.addMiddleware({
       scope,
       origin,
@@ -225,8 +226,8 @@ describe('MultichainMiddlewareManager', () => {
 
     expect(middlewareSpy.destroy).toHaveBeenCalled();
 
-    const nextSpy = jest.fn();
-    const endSpy = jest.fn();
+    const nextSpy = vi.fn();
+    const endSpy = vi.fn();
 
     middleware(
       { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
@@ -241,9 +242,9 @@ describe('MultichainMiddlewareManager', () => {
 
   it('should remove middleware by origin and tabId when the multiplexing middleware is destroyed and the middleware destroy function rejects', async () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
-    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    const middlewareSpy = vi.fn() as unknown as ExtendedJsonRpcMiddleware;
     // eslint-disable-next-line jest/prefer-spy-on
-    middlewareSpy.destroy = jest
+    middlewareSpy.destroy = vi
       .fn()
       .mockRejectedValue(
         new Error('failed to destroy the actual underlying middleware'),
@@ -265,8 +266,8 @@ describe('MultichainMiddlewareManager', () => {
 
     expect(middlewareSpy.destroy).toHaveBeenCalled();
 
-    const nextSpy = jest.fn();
-    const endSpy = jest.fn();
+    const nextSpy = vi.fn();
+    const endSpy = vi.fn();
 
     middleware(
       { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
@@ -281,7 +282,7 @@ describe('MultichainMiddlewareManager', () => {
 
   it('should remove middleware by scope', () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
-    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    const middlewareSpy = vi.fn() as unknown as ExtendedJsonRpcMiddleware;
     multichainMiddlewareManager.addMiddleware({
       scope,
       origin,
@@ -297,8 +298,8 @@ describe('MultichainMiddlewareManager', () => {
         123,
       );
 
-    const nextSpy = jest.fn();
-    const endSpy = jest.fn();
+    const nextSpy = vi.fn();
+    const endSpy = vi.fn();
 
     middleware(
       { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
@@ -313,7 +314,7 @@ describe('MultichainMiddlewareManager', () => {
 
   it('should remove middleware by scope and origin', () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
-    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    const middlewareSpy = vi.fn() as unknown as ExtendedJsonRpcMiddleware;
     multichainMiddlewareManager.addMiddleware({
       scope,
       origin,
@@ -329,8 +330,8 @@ describe('MultichainMiddlewareManager', () => {
         123,
       );
 
-    const nextSpy = jest.fn();
-    const endSpy = jest.fn();
+    const nextSpy = vi.fn();
+    const endSpy = vi.fn();
 
     middleware(
       { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },
@@ -345,7 +346,7 @@ describe('MultichainMiddlewareManager', () => {
 
   it('should remove middleware by origin and tabId', () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
-    const middlewareSpy = jest.fn() as unknown as ExtendedJsonRpcMiddleware;
+    const middlewareSpy = vi.fn() as unknown as ExtendedJsonRpcMiddleware;
     multichainMiddlewareManager.addMiddleware({
       scope,
       origin,
@@ -361,8 +362,8 @@ describe('MultichainMiddlewareManager', () => {
         123,
       );
 
-    const nextSpy = jest.fn();
-    const endSpy = jest.fn();
+    const nextSpy = vi.fn();
+    const endSpy = vi.fn();
 
     middleware(
       { jsonrpc: '2.0' as const, id: 0, method: 'method', scope },

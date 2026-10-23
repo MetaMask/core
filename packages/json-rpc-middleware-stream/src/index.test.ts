@@ -1,6 +1,7 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import PortStream from 'extension-port-stream';
 import type { Duplex } from 'stream';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { Runtime } from 'webextension-polyfill-ts';
 
 import { createStreamMiddleware, createEngineStream } from './index.js';
