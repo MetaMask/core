@@ -8,7 +8,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/assets-controller',
   '@metamask/assets-controllers',
   '@metamask/chain-agnostic-permission',
-  '@metamask/core-backend',
   '@metamask/eip-5792-middleware',
   '@metamask/eip-7702-internal-rpc-middleware',
   '@metamask/eip1193-permission-middleware',
