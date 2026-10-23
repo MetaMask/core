@@ -9,14 +9,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types.js';
 import { getPermissionsHandler } from './wallet-getPermissions.js';
 
-vi.mock(
-  import('@metamask/chain-agnostic-permission'),
-  async (importOriginal) => ({
-    ...(await importOriginal()),
-    __esModule: true,
-  }),
-);
-
 const { Caip25CaveatType, Caip25EndowmentPermissionName } =
   chainAgnosticPermissionModule;
 

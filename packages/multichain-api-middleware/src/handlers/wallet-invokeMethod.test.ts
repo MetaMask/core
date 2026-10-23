@@ -5,15 +5,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WalletInvokeMethodRequest } from './wallet-invokeMethod.js';
 import { walletInvokeMethodHandler } from './wallet-invokeMethod.js';
 
-// Allow individual modules to be mocked
-vi.mock(
-  import('@metamask/chain-agnostic-permission'),
-  async (importOriginal) => ({
-    ...(await importOriginal()),
-    __esModule: true,
-  }),
-);
-
 const { Caip25CaveatType, Caip25EndowmentPermissionName } =
   chainAgnosticPermissionModule;
 
