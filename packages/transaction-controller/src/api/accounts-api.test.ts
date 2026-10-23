@@ -1,12 +1,14 @@
 import { successfulFetch } from '@metamask/controller-utils';
+import type { MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FirstTimeInteractionError } from '../errors.js';
 import type { GetAccountAddressRelationshipRequest } from './accounts-api.js';
 import { getAccountAddressRelationship } from './accounts-api.js';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  successfulFetch: jest.fn(),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  successfulFetch: vi.fn(),
 }));
 
 const CHAIN_ID_SUPPORTED = 1;
@@ -30,15 +32,15 @@ describe('Accounts API', () => {
   function mockFetch(
     responseJson: Record<string, unknown>,
     status = 200,
-  ): jest.MockedFunction<typeof successfulFetch> {
-    return jest.mocked(successfulFetch).mockResolvedValueOnce({
+  ): MockedFunction<typeof successfulFetch> {
+    return vi.mocked(successfulFetch).mockResolvedValueOnce({
       status,
       json: async () => responseJson,
     } as Response);
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('getAccountAddressRelationship', () => {

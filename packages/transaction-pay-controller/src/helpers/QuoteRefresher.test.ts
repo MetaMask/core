@@ -1,8 +1,9 @@
 /* eslint-disable no-new */
 
 import { createDeferredPromise } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flushPromises } from '../../../../tests/helpers.js';
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { TransactionPayStrategy } from '../constants.js';
 import type {
@@ -12,12 +13,12 @@ import type {
 import { refreshQuotes } from '../utils/quotes.js';
 import { QuoteRefresher } from './QuoteRefresher.js';
 
-jest.mock('../utils/quotes');
+vi.mock(import('../utils/quotes.js'));
 
-jest.useFakeTimers();
+vi.useFakeTimers();
 
 describe('QuoteRefresher', () => {
-  const refreshQuotesMock = jest.mocked(refreshQuotes);
+  const refreshQuotesMock = vi.mocked(refreshQuotes);
   let messenger: TransactionPayControllerMessenger;
   let publish: ReturnType<typeof getMessengerMock>['publish'];
 
@@ -42,8 +43,8 @@ describe('QuoteRefresher', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
-    jest.clearAllTimers();
+    vi.resetAllMocks();
+    vi.clearAllTimers();
 
     ({ messenger, publish } = getMessengerMock());
 
@@ -52,14 +53,14 @@ describe('QuoteRefresher', () => {
 
   it('polls if quotes detected in state', async () => {
     new QuoteRefresher({
-      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
+      getStrategies: vi.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
-      updateTransactionData: jest.fn(),
+      updateTransactionData: vi.fn(),
     });
 
     publishStateChange({ hasQuotes: true });
 
-    jest.runAllTimers();
+    vi.runAllTimers();
     await flushPromises();
 
     expect(refreshQuotesMock).toHaveBeenCalledTimes(1);
@@ -67,14 +68,14 @@ describe('QuoteRefresher', () => {
 
   it('does not poll if no quotes in state', async () => {
     new QuoteRefresher({
-      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
+      getStrategies: vi.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
-      updateTransactionData: jest.fn(),
+      updateTransactionData: vi.fn(),
     });
 
     publishStateChange({ hasQuotes: false });
 
-    jest.runAllTimers();
+    vi.runAllTimers();
     await flushPromises();
 
     expect(refreshQuotesMock).not.toHaveBeenCalled();
@@ -82,9 +83,9 @@ describe('QuoteRefresher', () => {
 
   it('does not poll if only no-op quotes in state', async () => {
     new QuoteRefresher({
-      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
+      getStrategies: vi.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
-      updateTransactionData: jest.fn(),
+      updateTransactionData: vi.fn(),
     });
 
     publish(
@@ -99,7 +100,7 @@ describe('QuoteRefresher', () => {
       [],
     );
 
-    jest.runAllTimers();
+    vi.runAllTimers();
     await flushPromises();
 
     expect(refreshQuotesMock).not.toHaveBeenCalled();
@@ -107,17 +108,17 @@ describe('QuoteRefresher', () => {
 
   it('polls again after interval', async () => {
     new QuoteRefresher({
-      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
+      getStrategies: vi.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
-      updateTransactionData: jest.fn(),
+      updateTransactionData: vi.fn(),
     });
 
     publishStateChange({ hasQuotes: true });
 
-    jest.runAllTimers();
+    vi.runAllTimers();
     await flushPromises();
 
-    jest.runAllTimers();
+    vi.runAllTimers();
     await flushPromises();
 
     expect(refreshQuotesMock).toHaveBeenCalledTimes(2);
@@ -125,25 +126,25 @@ describe('QuoteRefresher', () => {
 
   it('stops polling if quotes removed', async () => {
     new QuoteRefresher({
-      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
+      getStrategies: vi.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
-      updateTransactionData: jest.fn(),
+      updateTransactionData: vi.fn(),
     });
 
     publishStateChange({ hasQuotes: true });
     publishStateChange({ hasQuotes: false });
 
-    jest.runAllTimers();
+    vi.runAllTimers();
     await flushPromises();
 
     expect(refreshQuotesMock).toHaveBeenCalledTimes(0);
   });
 
   it('does not throw if refresh fails', async () => {
-    const updateTransactionData = jest.fn();
+    const updateTransactionData = vi.fn();
 
     new QuoteRefresher({
-      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
+      getStrategies: vi.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData,
     });
@@ -152,20 +153,20 @@ describe('QuoteRefresher', () => {
 
     refreshQuotesMock.mockRejectedValueOnce(new Error('Test error'));
 
-    jest.runAllTimers();
+    vi.runAllTimers();
     await flushPromises();
 
-    jest.runAllTimers();
+    vi.runAllTimers();
     await flushPromises();
 
     expect(refreshQuotesMock).toHaveBeenCalledTimes(2);
   });
 
   it('does not update multiple times concurrently', async () => {
-    const updateTransactionData = jest.fn();
+    const updateTransactionData = vi.fn();
 
     new QuoteRefresher({
-      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
+      getStrategies: vi.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData,
     });
@@ -175,23 +176,23 @@ describe('QuoteRefresher', () => {
     const promise = createDeferredPromise();
     refreshQuotesMock.mockReturnValue(promise.promise);
 
-    jest.runAllTimers();
+    vi.runAllTimers();
     await flushPromises();
 
     publishStateChange({ hasQuotes: false });
     publishStateChange({ hasQuotes: true });
 
-    jest.runAllTimers();
+    vi.runAllTimers();
     await flushPromises();
 
     expect(refreshQuotesMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not queue if stopped while polling', async () => {
-    const updateTransactionData = jest.fn();
+    const updateTransactionData = vi.fn();
 
     new QuoteRefresher({
-      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
+      getStrategies: vi.fn().mockReturnValue([TransactionPayStrategy.Relay]),
       messenger,
       updateTransactionData,
     });
@@ -201,7 +202,7 @@ describe('QuoteRefresher', () => {
     const promise = createDeferredPromise();
     refreshQuotesMock.mockReturnValue(promise.promise);
 
-    jest.runAllTimers();
+    vi.runAllTimers();
     await flushPromises();
 
     publishStateChange({ hasQuotes: false });

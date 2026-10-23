@@ -7,6 +7,7 @@ import type {
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 import nock, { cleanAll as nockCleanAll } from 'nock';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   BASE_URL_TEMPLATE,
@@ -279,7 +280,7 @@ describe('SentinelApiService', () => {
     });
 
     it('accepts a custom fetch implementation', async () => {
-      const customFetch = jest.fn().mockResolvedValue({
+      const customFetch = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
         json: async () => MOCK_NETWORKS,
@@ -444,7 +445,7 @@ describe('SentinelApiService', () => {
     it('refetches the registry once the cache is stale', async () => {
       const { service } = createService();
       const now = Date.now();
-      const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
       const scope = mockNetworks(2);
 
       await service.getNetworks();
@@ -506,7 +507,7 @@ describe('SentinelApiService', () => {
     it('refetches the network configuration once the cache is stale', async () => {
       const { service } = createService();
       const now = Date.now();
-      const dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      const dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
       mockNetworks(2);
       const scope = nock(OPTIMISM_URL)
         .get('/network')
@@ -628,7 +629,7 @@ describe('SentinelApiService', () => {
           result: MOCK_SIMULATION_RESPONSE,
         });
 
-      const getUrl = jest.fn().mockReturnValue(proxyUrl);
+      const getUrl = vi.fn().mockReturnValue(proxyUrl);
       const result = await service.simulateTransactions(
         CHAIN_ID_MAINNET,
         MOCK_SIMULATION_REQUEST,

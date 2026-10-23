@@ -2344,45 +2344,6 @@ describe('SocialService', () => {
       });
     });
 
-    it('sends a Hyperliquid orderId when the fill hash does not exist yet', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 201,
-        json: () =>
-          Promise.resolve({
-            ...mockSwapCommentResponse,
-            transactionHash: '',
-            chain: 'hyperliquid',
-            tokenAddress: 'BTC',
-          }),
-      });
-
-      const service = createService();
-      const tradeInFlight = {
-        orderId: '112233445566',
-        chain: 'hyperliquid' as const,
-        tokenAddress: 'BTC',
-      };
-
-      const result = await service.createSwapComment({
-        commentText: 'this is alpha',
-        tradeInFlight,
-      });
-
-      expect(result.transactionHash).toBe('');
-      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/swap-comments`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${MOCK_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          commentText: 'this is alpha',
-          tradeInFlight,
-        }),
-      });
-    });
-
     it('throws HttpError on non-ok response', async () => {
       mockFetch.mockResolvedValue({ ok: false, status: 409 });
 

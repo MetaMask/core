@@ -1,4 +1,5 @@
 import { verifyMessage } from '@ethersproject/wallet';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   MAX_CACHE_SIZE,
@@ -6,12 +7,12 @@ import {
   isValidSignature,
 } from './signature.js';
 
-jest.mock('@ethersproject/wallet', () => ({
-  ...jest.requireActual('@ethersproject/wallet'),
-  verifyMessage: jest.fn(),
+vi.mock(import('@ethersproject/wallet'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  verifyMessage: vi.fn(),
 }));
 
-const { verifyMessage: actualVerifyMessage } = jest.requireActual<
+const { verifyMessage: actualVerifyMessage } = await vi.importActual<
   typeof import('@ethersproject/wallet')
 >('@ethersproject/wallet');
 
@@ -28,7 +29,7 @@ const SIGNATURE_MULTIPLE_MOCK =
   '0x777b4f4461009b937de6a5ea7b0640c783433ad2cb50b0d0822a9ce9cadea12c5614b47927ddffc2e855b6932adb6a6e0a558667fd188eaf120a153c6b693dcb1b';
 
 describe('Signature Utils', () => {
-  const verifyMessageMock = jest.mocked(verifyMessage);
+  const verifyMessageMock = vi.mocked(verifyMessage);
 
   beforeEach(() => {
     // `resetMocks` clears the implementation between tests.

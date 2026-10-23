@@ -72,6 +72,9 @@
       "path": "./packages/build-utils"
     },
     {
+      "path": "./packages/byte-utils"
+    },
+    {
       "path": "./packages/chain-agnostic-permission"
     },
     {
@@ -342,9 +345,6 @@
       "path": "./packages/wallet"
     },
     {
-      "path": "./packages/wallet-cli"
-    },
-    {
       "path": "./packages/wallet-framework-docs"
     },
     {
@@ -359,6 +359,8 @@
     "./codeowners.ts",
     "./knip.config.mts",
     "./vitest.config.packages.ts",
-    "./packages/*/vitest.config.ts"
+    "./vitest.config.scripts.ts",
+    "./packages/*/vitest.config.ts",
+    "./packages/*/vitest.config.mts"
   ]
 }

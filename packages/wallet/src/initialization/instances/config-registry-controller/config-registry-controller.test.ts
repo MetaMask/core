@@ -1,5 +1,6 @@
 import { ConfigRegistryController } from '@metamask/config-registry-controller';
 import { Messenger } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {

@@ -1,5 +1,6 @@
 import { Messenger } from '@metamask/messenger';
 import { SubscriptionDelegationService } from '@metamask/subscription-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {
@@ -40,7 +41,7 @@ describe('subscriptionDelegationService', () => {
 
   it('delegates the actions the service calls on other messengers', () => {
     const parent = getRootMessenger();
-    const delegateSpy = jest.spyOn(parent, 'delegate');
+    const delegateSpy = vi.spyOn(parent, 'delegate');
 
     const messenger = subscriptionDelegationService.getMessenger(parent);
 

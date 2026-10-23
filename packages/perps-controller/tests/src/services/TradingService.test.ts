@@ -821,6 +821,95 @@ describe('TradingService', () => {
       );
     });
 
+    it('includes environment_type when trackingData.environmentType is set', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        leverage: 10,
+        trackingData: {
+          totalFee: 5,
+          marketPrice: 50000,
+          environmentType: 'sidepanel',
+        },
+      };
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-123',
+        filledSize: '0.1',
+        averagePrice: '50000',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      const tradeCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock<
+          void,
+          [PerpsAnalyticsEvent, Record<string, unknown>]
+        >
+      ).mock.calls.filter(
+        (call) => call[0] === PerpsAnalyticsEvent.TradeTransaction,
+      );
+      expect(tradeCalls.length).toBeGreaterThan(0);
+      for (const call of tradeCalls) {
+        expect(call[1]).toEqual(
+          expect.objectContaining({ environment_type: 'sidepanel' }),
+        );
+      }
+    });
+
+    it('omits environment_type when trackingData has no environmentType', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        leverage: 10,
+        trackingData: {
+          totalFee: 5,
+          marketPrice: 50000,
+        },
+      };
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-123',
+        filledSize: '0.1',
+        averagePrice: '50000',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      const tradeCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock<
+          void,
+          [PerpsAnalyticsEvent, Record<string, unknown>]
+        >
+      ).mock.calls.filter(
+        (call) => call[0] === PerpsAnalyticsEvent.TradeTransaction,
+      );
+      expect(tradeCalls.length).toBeGreaterThan(0);
+      for (const call of tradeCalls) {
+        expect(call[1]).not.toHaveProperty('environment_type');
+      }
+    });
+
     it('tracks accepted Scale size and weighted limit price separately from execution price', async () => {
       const orderParams: OrderParams = {
         symbol: 'ETH',
@@ -1536,6 +1625,198 @@ describe('TradingService', () => {
         expect.objectContaining({
           status: 'failed',
           reduce_only: false,
+        }),
+      );
+    });
+
+    it('includes environment_type when an edit sets newOrder.trackingData.environmentType', async () => {
+      const editParams: EditOrderParams = {
+        orderId: 'order-123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.2',
+          orderType: 'limit',
+          price: '51000',
+          trackingData: {
+            totalFee: 5,
+            marketPrice: 50000,
+            environmentType: 'sidepanel',
+            entryPoint: 'trending',
+            discoverySource: 'home',
+            perpDiscoverySource: 'search',
+            hlFeeRate: 0.00045,
+          },
+        },
+      };
+      mockProvider.editOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-123',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.editOrder({
+        provider: mockProvider,
+        params: editParams,
+        context: mockContext,
+      });
+
+      const tradeCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock<
+          void,
+          [PerpsAnalyticsEvent, Record<string, unknown>]
+        >
+      ).mock.calls.filter(
+        (call) => call[0] === PerpsAnalyticsEvent.TradeTransaction,
+      );
+      expect(tradeCalls).toHaveLength(1);
+      expect(tradeCalls[0][1]).toEqual(
+        expect.objectContaining({
+          status: 'executed',
+          environment_type: 'sidepanel',
+        }),
+      );
+      expect(tradeCalls[0][1]).not.toHaveProperty('entry_point');
+      expect(tradeCalls[0][1]).not.toHaveProperty('discovery_source');
+      expect(tradeCalls[0][1]).not.toHaveProperty('perp_discovery_source');
+      expect(tradeCalls[0][1]).not.toHaveProperty('hl_fee_rate');
+    });
+
+    it('omits environment_type when an edit has no environmentType', async () => {
+      const editParams: EditOrderParams = {
+        orderId: 'order-123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: false,
+          size: '0.2',
+          orderType: 'limit',
+          price: '51000',
+          trackingData: {
+            totalFee: 5,
+            marketPrice: 50000,
+            entryPoint: 'trending',
+            hlFeeRate: 0.00045,
+          },
+        },
+      };
+      mockProvider.editOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-123',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.editOrder({
+        provider: mockProvider,
+        params: editParams,
+        context: mockContext,
+      });
+
+      const tradeCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock<
+          void,
+          [PerpsAnalyticsEvent, Record<string, unknown>]
+        >
+      ).mock.calls.filter(
+        (call) => call[0] === PerpsAnalyticsEvent.TradeTransaction,
+      );
+      expect(tradeCalls).toHaveLength(1);
+      expect(tradeCalls[0][1]).not.toHaveProperty('environment_type');
+      expect(tradeCalls[0][1]).not.toHaveProperty('entry_point');
+      expect(tradeCalls[0][1]).not.toHaveProperty('hl_fee_rate');
+    });
+
+    it('includes environment_type when a failed edit result carries it', async () => {
+      const editParams: EditOrderParams = {
+        orderId: 'order-123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.2',
+          orderType: 'limit',
+          price: '51000',
+          trackingData: {
+            totalFee: 5,
+            marketPrice: 50000,
+            environmentType: 'popup',
+          },
+        },
+      };
+      mockProvider.editOrder.mockResolvedValue({
+        success: false,
+        error: 'Order not found',
+      });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.editOrder({
+        provider: mockProvider,
+        params: editParams,
+        context: mockContext,
+      });
+
+      const tradeCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock<
+          void,
+          [PerpsAnalyticsEvent, Record<string, unknown>]
+        >
+      ).mock.calls.filter(
+        (call) => call[0] === PerpsAnalyticsEvent.TradeTransaction,
+      );
+      expect(tradeCalls).toHaveLength(1);
+      expect(tradeCalls[0][1]).toEqual(
+        expect.objectContaining({
+          status: 'failed',
+          environment_type: 'popup',
+        }),
+      );
+    });
+
+    it('includes environment_type when an edit throws', async () => {
+      const editParams: EditOrderParams = {
+        orderId: 'order-123',
+        newOrder: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.2',
+          orderType: 'market',
+          trackingData: {
+            totalFee: 5,
+            marketPrice: 50000,
+            environmentType: 'notification',
+          },
+        },
+      };
+      mockProvider.editOrder.mockRejectedValue(new Error('Edit failed'));
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await expect(
+        tradingService.editOrder({
+          provider: mockProvider,
+          params: editParams,
+          context: mockContext,
+        }),
+      ).rejects.toThrow('Edit failed');
+
+      const tradeCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock<
+          void,
+          [PerpsAnalyticsEvent, Record<string, unknown>]
+        >
+      ).mock.calls.filter(
+        (call) => call[0] === PerpsAnalyticsEvent.TradeTransaction,
+      );
+      expect(tradeCalls).toHaveLength(1);
+      expect(tradeCalls[0][1]).toEqual(
+        expect.objectContaining({
+          status: 'failed',
+          environment_type: 'notification',
         }),
       );
     });
@@ -3390,6 +3671,81 @@ describe('TradingService', () => {
       );
     });
 
+    it('includes environment_type when TP/SL trackingData sets it', async () => {
+      const params: UpdatePositionTPSLParams = {
+        symbol: 'BTC',
+        stopLossPrice: '45000',
+        trackingData: {
+          direction: 'long',
+          positionSize: 0.5,
+          source: 'tp_sl_view',
+          environmentType: 'fullscreen',
+        },
+      };
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.updatePositionTPSL.mockResolvedValue({ success: true });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.updatePositionTPSL({
+        provider: mockProvider,
+        params,
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      const riskCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock<
+          void,
+          [PerpsAnalyticsEvent, Record<string, unknown>]
+        >
+      ).mock.calls.filter(
+        (call) => call[0] === PerpsAnalyticsEvent.RiskManagement,
+      );
+      expect(riskCalls.length).toBeGreaterThan(0);
+      for (const call of riskCalls) {
+        expect(call[1]).toEqual(
+          expect.objectContaining({ environment_type: 'fullscreen' }),
+        );
+      }
+    });
+
+    it('omits environment_type when TP/SL trackingData omits it', async () => {
+      const params: UpdatePositionTPSLParams = {
+        symbol: 'BTC',
+        stopLossPrice: '45000',
+        trackingData: {
+          direction: 'long',
+          positionSize: 0.5,
+          source: 'tp_sl_view',
+        },
+      };
+      mockGetPositions.mockResolvedValue([mockPosition]);
+      mockProvider.updatePositionTPSL.mockResolvedValue({ success: true });
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.updatePositionTPSL({
+        provider: mockProvider,
+        params,
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      const riskCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock<
+          void,
+          [PerpsAnalyticsEvent, Record<string, unknown>]
+        >
+      ).mock.calls.filter(
+        (call) => call[0] === PerpsAnalyticsEvent.RiskManagement,
+      );
+      expect(riskCalls.length).toBeGreaterThan(0);
+      for (const call of riskCalls) {
+        expect(call[1]).not.toHaveProperty('environment_type');
+      }
+    });
+
     it('clears fee discount when update throws exception', async () => {
       const params: UpdatePositionTPSLParams = {
         symbol: 'BTC',
@@ -4785,6 +5141,92 @@ describe('TradingService', () => {
             'executed',
           )?.[1],
         ).not.toHaveProperty('number_positions_closed');
+      });
+    });
+
+    describe('order_type on batch close', () => {
+      const closeEventOrderTypes = (): unknown[] =>
+        jest
+          .mocked(mockDeps.metrics.trackPerpsEvent)
+          .mock.calls.filter(
+            ([event]) => event === PerpsAnalyticsEvent.PositionCloseTransaction,
+          )
+          .map(([, props]) => props.order_type);
+
+      it('tags the batch close summary event as a market close', async () => {
+        mockProvider.closePositions = jest.fn().mockResolvedValue({
+          success: true,
+          successCount: 1,
+          failureCount: 0,
+          results: [{ success: true, orderId: 'close-1', symbol: 'BTC' }],
+        });
+
+        await tradingService.closePositions({
+          provider: mockProvider,
+          params: { closeAll: true },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        expect(
+          findCall(
+            PerpsAnalyticsEvent.PositionCloseTransaction,
+            'executed',
+          )?.[1],
+        ).toStrictEqual(
+          expect.objectContaining({
+            order_type: 'market',
+            number_positions_closed: 1,
+          }),
+        );
+        expect(closeEventOrderTypes()).toStrictEqual(['market']);
+      });
+
+      it('tags the summary event as a market close when the batch close throws', async () => {
+        mockProvider.closePositions = jest
+          .fn()
+          .mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          tradingService.closePositions({
+            provider: mockProvider,
+            params: { symbols: ['BTC'] },
+            context: { ...mockContext, getPositions: mockGetPositions },
+          }),
+        ).rejects.toThrow('Network error');
+
+        expect(
+          findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'failed')?.[1],
+        ).toStrictEqual(
+          expect.objectContaining({
+            order_type: 'market',
+            error_message: 'Network error',
+          }),
+        );
+        expect(closeEventOrderTypes()).toStrictEqual(['market']);
+      });
+
+      it('tags every per-item and summary event as a market close in the fallback path', async () => {
+        delete mockProvider.closePositions;
+        mockGetPositions.mockResolvedValue([mockClosePosition]);
+        mockProvider.closePosition.mockResolvedValue({
+          success: true,
+          orderId: 'close-1',
+          filledSize: '0.5',
+          averagePrice: '55000',
+        });
+
+        await tradingService.closePositions({
+          provider: mockProvider,
+          params: { closeAll: true },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        // Per-item submitted and executed, then the batch summary.
+        expect(closeEventOrderTypes()).toStrictEqual([
+          'market',
+          'market',
+          'market',
+        ]);
       });
     });
 

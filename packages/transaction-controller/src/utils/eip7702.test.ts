@@ -7,6 +7,8 @@ import type {
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
+import type { MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   KeyringControllerGetStateAction,
@@ -35,10 +37,10 @@ import {
 } from './feature-flags.js';
 import { rpcRequest } from './provider.js';
 
-jest.mock('../utils/feature-flags');
+vi.mock('../utils/feature-flags');
 
-jest.mock('./provider', () => ({
-  rpcRequest: jest.fn(),
+vi.mock('./provider', () => ({
+  rpcRequest: vi.fn(),
 }));
 
 const CHAIN_ID_MOCK = '0xab12';
@@ -94,34 +96,34 @@ describe('EIP-7702 Utils', () => {
     MessengerEvents<TransactionControllerMessenger>
   >;
 
-  const rpcRequestMock = jest.mocked(rpcRequest);
+  const rpcRequestMock = vi.mocked(rpcRequest);
   let controllerMessenger: TransactionControllerMessenger;
 
-  const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
+  const getEIP7702SupportedChainsMock = vi.mocked(getEIP7702SupportedChains);
 
-  const getEIP7702ContractAddressesMock = jest.mocked(
+  const getEIP7702ContractAddressesMock = vi.mocked(
     getEIP7702ContractAddresses,
   );
 
-  let getKeyringStateMock: jest.MockedFn<
+  let getKeyringStateMock: MockedFunction<
     KeyringControllerGetStateAction['handler']
   >;
 
-  let signAuthorizationMock: jest.MockedFn<
+  let signAuthorizationMock: MockedFunction<
     KeyringControllerSignEip7702AuthorizationAction['handler']
   >;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     rootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 
-    getKeyringStateMock = jest.fn().mockReturnValue({
+    getKeyringStateMock = vi.fn().mockReturnValue({
       isUnlocked: true,
       keyrings: [],
     });
 
-    signAuthorizationMock = jest
+    signAuthorizationMock = vi
       .fn()
       .mockResolvedValue(AUTHORIZATION_SIGNATURE_MOCK);
 

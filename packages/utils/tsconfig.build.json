@@ -28,6 +28,9 @@
     },
     {
       "path": "../node-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../byte-utils/tsconfig.build.json"
     }
   ]
 }
