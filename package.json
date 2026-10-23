@@ -73,7 +73,6 @@
     "@jest/globals": "^30.5.2",
     "@lavamoat/allow-scripts": "^5.1.0",
     "@lavamoat/preinstall-always-fail": "^3.0.0",
-    "@metamask/action-utils": "^2.0.0",
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/create-release-branch": "^4.2.2",
     "@metamask/error-utils": "^0.0.0",

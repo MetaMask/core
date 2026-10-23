@@ -100,7 +100,6 @@ module.exports = {
       // so in that case use their published versions
       '<rootDir>/../../node_modules/@metamask/$1',
     ],
-    '^uuid$': require.resolve('uuid'),
     // The sources import `lodash-es`, because `lodash` is CommonJS and its
     // named exports cannot be imported from an ES module. The tests compile to
     // CommonJS, where the reverse is true, so they are pointed back at

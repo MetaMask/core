@@ -6671,7 +6671,6 @@ __metadata:
     "@jest/globals": "npm:^30.5.2"
     "@lavamoat/allow-scripts": "npm:^5.1.0"
     "@lavamoat/preinstall-always-fail": "npm:^3.0.0"
-    "@metamask/action-utils": "npm:^2.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/create-release-branch": "npm:^4.2.2"
     "@metamask/error-utils": "npm:^0.0.0"
