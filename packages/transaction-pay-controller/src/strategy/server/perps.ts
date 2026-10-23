@@ -10,6 +10,7 @@ import {
   USDC_DECIMALS,
 } from '../../constants.js';
 import type { QuoteRequest } from '../../types.js';
+import { extractErc20TransferRecipient } from '../../utils/polymarket/calldata.js';
 
 /**
  * Shared 20-byte sentinel address emitted by the server strategy to flag a
@@ -23,14 +24,12 @@ export const SERVER_HYPERCORE_USDC_PERPS_ADDRESS =
 const HYPERLIQUID_BRIDGE_ADDRESS_LOWER =
   '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7';
 
-const HYPERLIQUID_BRIDGE_CALLDATA_FRAGMENT =
-  HYPERLIQUID_BRIDGE_ADDRESS_LOWER.slice(2);
-
 /**
  * Detect whether a quote request represents a Hyperliquid perps deposit by
- * sniffing the parent transaction calldata for a reference to the Hyperliquid
- * bridge contract. Transaction type is intentionally NOT consulted so that any
- * caller funnelling a bridge deposit through Pay is supported.
+ * inspecting the parent transaction (and any nested transactions) for a call
+ * to the Hyperliquid bridge or an ERC-20 transfer to it. Transaction type is
+ * intentionally NOT consulted so that any caller funnelling a bridge deposit
+ * through Pay is supported.
  *
  * @param request - Quote request from the transaction-pay controller.
  * @param transaction - Parent transaction whose calldata is inspected.
@@ -67,7 +66,7 @@ export function isServerPerpsDepositRequest(
  *
  * Also handles the perps-withdraw direction: when `request.isHyperliquidSource`
  * is set the source is rewritten to the HyperCore sentinel and the amount is
- * shifted from 8 to 6 decimals.
+ * shifted from 6 to 8 decimals.
  *
  * @param request - Quote request from the transaction-pay controller.
  * @param transaction - Parent transaction whose calldata is inspected.
@@ -101,7 +100,7 @@ function normalizePerpsWithdrawRequest(request: QuoteRequest): QuoteRequest {
     sourceChainId: CHAIN_ID_HYPERCORE,
     sourceTokenAddress: SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
     sourceTokenAmount: new BigNumber(request.sourceTokenAmount)
-      .shiftedBy(USDC_DECIMALS - HYPERCORE_USDC_DECIMALS)
+      .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
       .toFixed(0),
   };
 }
@@ -109,14 +108,30 @@ function normalizePerpsWithdrawRequest(request: QuoteRequest): QuoteRequest {
 function transactionDataReferencesBridge(
   transaction: Pick<TransactionMeta, 'txParams' | 'nestedTransactions'>,
 ): boolean {
-  const fragments: (string | undefined)[] = [
-    transaction.txParams?.to,
-    ...(transaction.nestedTransactions ?? []).map((tx) => tx.to),
+  const calls = [
+    transaction.txParams,
+    ...(transaction.nestedTransactions ?? []),
   ];
 
-  return fragments.some(
-    (value) =>
-      typeof value === 'string' &&
-      value.toLowerCase().includes(HYPERLIQUID_BRIDGE_CALLDATA_FRAGMENT),
+  return calls.some(
+    (call) =>
+      isBridgeAddress(call?.to) ||
+      isBridgeAddress(getTransferRecipient(call?.data)),
   );
+}
+
+function getTransferRecipient(data: string | undefined): Hex | undefined {
+  if (!data) {
+    return undefined;
+  }
+
+  try {
+    return extractErc20TransferRecipient(data as Hex);
+  } catch {
+    return undefined;
+  }
+}
+
+function isBridgeAddress(address: string | undefined): boolean {
+  return address?.toLowerCase() === HYPERLIQUID_BRIDGE_ADDRESS_LOWER;
 }

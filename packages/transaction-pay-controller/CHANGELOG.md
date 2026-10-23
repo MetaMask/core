@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Stop copying the outer EIP-7702 gas limit into the `gas` of each nested transaction when submitting a Server quote as an EIP-7702 batch, as nested gas is not supported in EIP-7702 batches ([#10790](https://github.com/MetaMask/core/pull/10790))
 
+### Fixed
+
+- Fix Hyperliquid perps deposits and withdrawals in `ServerStrategy` ([#10887](https://github.com/MetaMask/core/pull/10887))
+  - Detect perps deposits made as an ERC-20 transfer to the Hyperliquid bridge, rather than only calls whose `to` is the bridge.
+  - Convert perps withdrawal amounts from 6 to 8 decimals, instead of 8 to 6.
+
 ## [30.2.0]
 
 ### Added
