@@ -110,9 +110,8 @@ describe('analyticsController', () => {
 
       const instance = analyticsController.init({
         state: {
-          // Fixture / first-run state often stores null rather than omitting
-          // the key. That must not overwrite the client-supplied id.
-          analyticsId: persistedAnalyticsId as never,
+          // @ts-expect-error: Intentionally using invalid values.
+          analyticsId: persistedAnalyticsId,
           optedIn: false,
         },
         messenger,
