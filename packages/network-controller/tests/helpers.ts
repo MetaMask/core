@@ -1,5 +1,4 @@
 import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
-import type { AnalyticsControllerTrackEventAction } from '@metamask/analytics-controller';
 import { RegistryNetworkConfig } from '@metamask/config-registry-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import type { ConnectivityStatus } from '@metamask/connectivity-controller';
@@ -22,6 +21,8 @@ import type {
 import { getKnownPropertyNames } from '@metamask/utils';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
+import type { Mock } from 'vitest';
+import { vi } from 'vitest';
 
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
 import { NetworkController } from '../src/index.js';
@@ -141,9 +142,8 @@ export const TESTNET = {
  * @param options.analyticsId - The analytics ID that `AnalyticsController:getState`
  * returns by default. Defaults to a fixed valid UUIDv4.
  * @param options.trackEvent - The handler registered for
- * `AnalyticsController:trackEvent`. Defaults to a no-op.
- * @param options.captureException - The error handler passed to the messenger.
- * Defaults to a no-op.
+ * `AnalyticsController:trackEvent`. Defaults to a Vitest mock so tests can assert
+ * on it.
  * @param options.configRegistryNetworkConfigs - The network config that
  * `ConfigRegistryController:getNetworkConfigByCaip2ChainId` returns by default. Defaults to
  * a mock network config for the chain ID `eip155:9999`.
@@ -153,22 +153,20 @@ export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
   rpcFailoverMode = 'disabled',
   analyticsId = '11111111-1111-4111-8111-111111111111',
-  trackEvent = () => undefined,
-  captureException = () => undefined,
+  trackEvent = vi.fn(),
   configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
 }: {
   connectivityStatus?: ConnectivityStatus;
   rpcFailoverMode?: RpcFailoverMode;
   analyticsId?: string;
-  trackEvent?: AnalyticsControllerTrackEventAction['handler'];
-  captureException?: (error: Error) => void;
+  trackEvent?: Mock;
   configRegistryNetworkConfigs?: RegistryNetworkConfig[];
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
     MessengerActions<NetworkControllerMessenger>,
     MessengerEvents<NetworkControllerMessenger>
-  >({ namespace: MOCK_ANY_NAMESPACE, captureException });
+  >({ namespace: MOCK_ANY_NAMESPACE, captureException: vi.fn() });
 
   rootMessenger.registerActionHandler(
     'ConnectivityController:getState',
@@ -784,7 +782,6 @@ type WithControllerCallback<ReturnValue> = ({
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<NetworkControllerOptions> & {
-  captureException?: (error: Error) => void;
   rpcFailoverMode?: RpcFailoverMode;
   configRegistryNetworkConfigs?: RegistryNetworkConfig[];
   initializeController?: boolean;
@@ -809,14 +806,12 @@ export async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const {
-    captureException,
     rpcFailoverMode,
     initializeController = true,
     configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
     ...controllerOptions
   } = rest;
   const messenger = buildRootMessenger({
-    captureException,
     rpcFailoverMode,
     configRegistryNetworkConfigs,
   });

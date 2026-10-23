@@ -65,7 +65,6 @@ function buildController({
 } {
   const trackEvent = vi.fn();
   const rootMessenger = buildRootMessenger({
-    captureException: vi.fn(),
     trackEvent,
     ...(analyticsId === undefined ? {} : { analyticsId }),
   });

@@ -1182,10 +1182,7 @@ describe('NetworkController', () => {
         }),
       ];
       await withController(
-        {
-          configRegistryNetworkConfigs: networkConfigs,
-          captureException: vi.fn(),
-        },
+        { configRegistryNetworkConfigs: networkConfigs },
         async ({ controller, messenger, networkControllerMessenger }) => {
           messenger.publish(
             'ConfigRegistryController:stateChanged',
