@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets ([#11030](https://github.com/MetaMask/core/pull/11030))
+  - Snapshots without these fields, or with `null` values, still validate. An unrecognized `marginMode` rejects the snapshot, so snapshot-backed reads fall back to the provider.
+
 ## [22.0.0]
 
 ### Added
@@ -19,8 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 - Add the `@metamask/perps-controller/providers/lighter` export and optional `LighterCredentials.loadProvider`, so a web client whose bundler cannot load the controller's own Lighter import (such as Next.js) passes `loadProvider: () => import('@metamask/perps-controller/providers/lighter')` and bundles Lighter itself ([#10996](https://github.com/MetaMask/core/pull/10996))
   - Without `loadProvider` the controller keeps its bundler-ignored import, so clients that do not pass it, such as the extension, still bundle no Lighter code.
-- Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets
-  - Snapshots without these fields, or with `null` values, still validate. An unrecognized `marginMode` rejects the snapshot, so snapshot-backed reads fall back to the provider.
 
 ### Changed
 
