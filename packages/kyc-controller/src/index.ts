@@ -14,6 +14,8 @@ export type {
   KycControllerOptions,
   KycControllerState,
   KycControllerStateChangeEvent,
+  KycControllerAnalyticsStatusChangedEvent,
+  KycControllerAnalyticsVerificationOutcomeEvent,
   FetchSessionDisclaimersParams,
   KycProviderFlowStatus,
 } from './KycController.js';
@@ -35,6 +37,14 @@ export type {
   KycControllerStartSessionAction,
   KycControllerStartSessionStatusPollingAction,
 } from './KycController-method-action-types.js';
+
+export { KYC_ANALYTICS_STATUSES, getKycAnalyticsStatus } from './analytics.js';
+export type {
+  KycAnalyticsStatus,
+  KycAnalyticsStatusChangedPayload,
+  KycAnalyticsVerificationOutcome,
+  KycAnalyticsVerificationOutcomePayload,
+} from './analytics.js';
 
 export { KycService, serviceName } from './KycService.js';
 export type {

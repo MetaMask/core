@@ -17,6 +17,12 @@ import type {
 import { stringToBytes, wrapError } from '@metamask/utils';
 import { x25519 } from '@noble/curves/ed25519';
 
+import type {
+  KycAnalyticsStatus,
+  KycAnalyticsStatusChangedPayload,
+  KycAnalyticsVerificationOutcomePayload,
+} from './analytics.js';
+import { getKycAnalyticsStatus } from './analytics.js';
 import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
@@ -298,7 +304,32 @@ export type KycControllerStateChangeEvent = ControllerStateChangeEvent<
   KycControllerState
 >;
 
-export type KycControllerEvents = KycControllerStateChangeEvent;
+/**
+ * Published after the state write that records a SumSub launch attempt
+ * (`submitted`, `abandoned` or `failed`). Intended for analytics. It fires once
+ * per attempt, including a repeat of the previous outcome, and for the two
+ * failures that leave state unchanged.
+ */
+export type KycControllerAnalyticsVerificationOutcomeEvent = {
+  type: `${typeof controllerName}:analyticsVerificationOutcome`;
+  payload: [KycAnalyticsVerificationOutcomePayload];
+};
+
+/**
+ * Published after a state write that changes the analytics KYC status (for
+ * example `new` to `pending`, `pending` to `approved`, or `pending` to
+ * `retry`). Intended for analytics. Loading a session into an empty slot
+ * (for example after a reinstall) does not publish it.
+ */
+export type KycControllerAnalyticsStatusChangedEvent = {
+  type: `${typeof controllerName}:analyticsStatusChanged`;
+  payload: [KycAnalyticsStatusChangedPayload];
+};
+
+export type KycControllerEvents =
+  | KycControllerStateChangeEvent
+  | KycControllerAnalyticsVerificationOutcomeEvent
+  | KycControllerAnalyticsStatusChangedEvent;
 
 type AllowedEvents = never;
 
@@ -510,9 +541,7 @@ export class KycController extends BaseController<
       { sessionId: this.state.sessionStatus.id },
     );
 
-    this.update((state) => {
-      state.sessionStatus = sessionStatus;
-    });
+    this.#updateSessionStatusAndPublishAnalytics(sessionStatus);
     // TODO: Should we resume polling here?
     return this.#refreshAuthorizationsIfNeeded();
   }
@@ -613,9 +642,7 @@ export class KycController extends BaseController<
       'KycService:getSessionStatus',
       { sessionId },
     );
-    this.update((state) => {
-      state.sessionStatus = sessionStatus;
-    });
+    this.#updateSessionStatusAndPublishAnalytics(sessionStatus);
     return sessionStatus;
   }
 
@@ -685,9 +712,7 @@ export class KycController extends BaseController<
         JSON.stringify(this.state.sessionStatus) !==
         JSON.stringify(sessionStatus)
       ) {
-        this.update((state) => {
-          state.sessionStatus = sessionStatus;
-        });
+        this.#updateSessionStatusAndPublishAnalytics(sessionStatus);
       }
 
       if (FINAL_STATUSES_TO_STOP_POLLING.has(sessionStatus.finalStatus)) {
@@ -698,6 +723,105 @@ export class KycController extends BaseController<
     } catch {
       return this.#sessionStatusPollToken !== token;
     }
+  }
+
+  // === ANALYTICS ===
+  //
+  // The private methods from here to `#stopSessionStatusPolling` only compute
+  // and publish the analytics events. Business methods call the
+  // `...AndPublishAnalytics` wrappers in place of a plain `this.update`, so the
+  // state write itself is unchanged and the analytics step is named at each
+  // call site.
+
+  /**
+   * Computes the analytics KYC status from the current state.
+   *
+   * @returns The analytics KYC status.
+   */
+  #getKycAnalyticsStatus(): KycAnalyticsStatus {
+    return getKycAnalyticsStatus(this.state.sessionStatus);
+  }
+
+  /**
+   * Publishes `KycController:analyticsVerificationOutcome` for the current state.
+   *
+   * @param status - The launch outcome.
+   */
+  #publishAnalyticsVerificationOutcome(
+    status: KycAnalyticsVerificationOutcomePayload['status'],
+  ): void {
+    this.messenger.publish('KycController:analyticsVerificationOutcome', {
+      status,
+      kycStatus: this.#getKycAnalyticsStatus(),
+      providerFlowStatus: this.state.providerFlowStatus,
+      vendor: this.state.vendor,
+    });
+  }
+
+  /**
+   * Publishes `KycController:analyticsStatusChanged` when the analytics KYC status
+   * differs from the one before the causing write.
+   *
+   * @param previousAnalyticsStatus - Analytics KYC status before the causing write.
+   */
+  #publishAnalyticsStatusIfChanged(
+    previousAnalyticsStatus: KycAnalyticsStatus,
+  ): void {
+    const kycStatus = this.#getKycAnalyticsStatus();
+    if (kycStatus === previousAnalyticsStatus) {
+      return;
+    }
+    this.messenger.publish('KycController:analyticsStatusChanged', {
+      ...(previousAnalyticsStatus === 'none'
+        ? {}
+        : { previousKycStatus: previousAnalyticsStatus }),
+      kycStatus,
+      providerFlowStatus: this.state.providerFlowStatus,
+      vendor: this.state.vendor,
+    });
+  }
+
+  /**
+   * Replaces the stored session status, then publishes
+   * `KycController:analyticsStatusChanged` when the analytics KYC status
+   * changed. State is written before the event is published.
+   *
+   * Writes that load a session into an empty slot must not use this helper, so
+   * an already-decided session found on a fresh install does not emit.
+   *
+   * @param sessionStatus - The session status to store.
+   */
+  #updateSessionStatusAndPublishAnalytics(
+    sessionStatus: KycSessionStatus,
+  ): void {
+    const previousAnalyticsStatus = this.#getKycAnalyticsStatus();
+    this.update((state) => {
+      state.sessionStatus = sessionStatus;
+    });
+    this.#publishAnalyticsStatusIfChanged(previousAnalyticsStatus);
+  }
+
+  /**
+   * Applies the state write for one SumSub launch attempt, then publishes
+   * `KycController:analyticsVerificationOutcome` and, if the write changed the
+   * analytics KYC status (a submitted launch moves it to `pending`),
+   * `KycController:analyticsStatusChanged`. Every attempt publishes, including
+   * a repeat of the previous outcome. Pass no `update` for failures that must
+   * not write state.
+   *
+   * @param status - The launch outcome.
+   * @param update - Optional state write applied before publishing.
+   */
+  #recordLaunchOutcomeAndPublishAnalytics(
+    status: 'submitted' | 'abandoned' | 'failed',
+    update?: (state: KycControllerState) => void,
+  ): void {
+    const previousAnalyticsStatus = this.#getKycAnalyticsStatus();
+    if (update) {
+      this.update(update);
+    }
+    this.#publishAnalyticsVerificationOutcome(status);
+    this.#publishAnalyticsStatusIfChanged(previousAnalyticsStatus);
   }
 
   /**
@@ -817,9 +941,7 @@ export class KycController extends BaseController<
       },
     );
 
-    this.update((state) => {
-      state.sessionStatus = sessionStatus;
-    });
+    this.#updateSessionStatusAndPublishAnalytics(sessionStatus);
 
     return sessionStatus;
   }
@@ -1139,7 +1261,7 @@ export class KycController extends BaseController<
   }): Promise<KycProviderFlowStatus> {
     const sessionId = this.state.sessionStatus?.id;
     if (!this.#sumsubLauncher.isAvailable() || !sessionId) {
-      this.update((state) => {
+      this.#recordLaunchOutcomeAndPublishAnalytics('failed', (state) => {
         state.providerFlowStatus = 'failed';
       });
       return 'failed';
@@ -1187,11 +1309,12 @@ export class KycController extends BaseController<
 
       const currentSessionStatus = this.state.sessionStatus;
       if (currentSessionStatus?.id !== sessionId) {
+        this.#recordLaunchOutcomeAndPublishAnalytics('failed');
         return 'failed';
       }
 
       if (sdkFailed) {
-        this.update((state) => {
+        this.#recordLaunchOutcomeAndPublishAnalytics('failed', (state) => {
           state.providerFlowStatus = 'failed';
         });
         return 'failed';
@@ -1200,7 +1323,7 @@ export class KycController extends BaseController<
       if (reachedCompletion) {
         // Once the SDK completes, the authoritative verification decision comes
         // from the UKYC backend, not the SDK result.
-        this.update((state) => {
+        this.#recordLaunchOutcomeAndPublishAnalytics('submitted', (state) => {
           state.sessionStatus = {
             ...currentSessionStatus,
             finalStatus: 'pending',
@@ -1211,15 +1334,17 @@ export class KycController extends BaseController<
         return 'submitted';
       }
 
-      this.update((state) => {
+      this.#recordLaunchOutcomeAndPublishAnalytics('abandoned', (state) => {
         state.providerFlowStatus = 'abandoned';
       });
       return 'abandoned';
     } catch {
       if (this.state.sessionStatus?.id === sessionId) {
-        this.update((state) => {
+        this.#recordLaunchOutcomeAndPublishAnalytics('failed', (state) => {
           state.providerFlowStatus = 'failed';
         });
+      } else {
+        this.#recordLaunchOutcomeAndPublishAnalytics('failed');
       }
       return 'failed';
     }
