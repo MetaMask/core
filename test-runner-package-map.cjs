@@ -19,7 +19,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/json-rpc-middleware-stream',
   '@metamask/multichain-api-middleware',
   '@metamask/network-controller',
-  '@metamask/network-enablement-controller',
   '@metamask/permission-controller',
   '@metamask/permission-log-controller',
   '@metamask/perps-controller',
