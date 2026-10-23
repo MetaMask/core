@@ -159,6 +159,8 @@
     "#default": "lavamoat/scripts.strict.json",
     "audit-script": "lavamoat/scripts.yarn.json",
     "build": "lavamoat/scripts.build.json",
+    "changelog:update": "lavamoat/scripts.yarn.json",
+    "changelog:validate": "lavamoat/scripts.yarn.json",
     "docs:platform-api:build": "lavamoat/scripts.yarn.json",
     "docs:platform-api:dev": "lavamoat/scripts.yarn.json",
     "docs:platform-api:serve": "lavamoat/scripts.yarn.json",

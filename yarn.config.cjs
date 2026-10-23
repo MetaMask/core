@@ -242,19 +242,7 @@ module.exports = defineConfig({
           'node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
         );
 
-        // All non-root packages must have a script that audits the
-        // permissions needed by another script in this package, so that
-        // `yarn workspace <name> run audit-script <script>` works.
-        expectWorkspaceField(
-          workspace,
-          'scripts.audit-script',
-          'node ../../scripts/audit-script.ts',
-        );
-        expectWorkspaceField(
-          workspace,
-          'scriptsConfig.audit-script',
-          'lavamoat/scripts.yarn.json',
-        );
+        expectScriptConfigs(workspace);
       }
 
       if (isChildWorkspace) {
@@ -1282,4 +1270,90 @@ function expectYarnPackageManager(workspace) {
       `Expected packageManager to include a sha256 hash, but got "${packageManager}".`,
     );
   }
+}
+
+function expectScriptConfigs(workspace) {
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.#default',
+    'lavamoat/scripts.strict.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scripts.audit-script',
+    'node ../../scripts/audit-script.ts',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.audit-script',
+    'lavamoat/scripts.yarn.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.build',
+    'lavamoat/scripts.build.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.build:all',
+    'lavamoat/scripts.build.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.build:clean',
+    'lavamoat/scripts.yarn.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.changelog:update',
+    'lavamoat/scripts.lint.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.changelog:validate',
+    'lavamoat/scripts.lint.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.lint:tsconfigs',
+    'lavamoat/scripts.lint-worker.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.lint:tsconfigs:fix',
+    'lavamoat/scripts.lint-worker.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.test',
+    'lavamoat/scripts.test.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.test:clean',
+    'lavamoat/scripts.test.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.test:verbose',
+    'lavamoat/scripts.test.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
+    'scriptsConfig.test:watch',
+    'lavamoat/scripts.test.json',
+  );
 }
