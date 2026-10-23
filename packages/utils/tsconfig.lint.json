@@ -13,6 +13,9 @@
     },
     {
       "path": "../node-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../byte-utils/tsconfig.lint.json"
     }
   ]
 }

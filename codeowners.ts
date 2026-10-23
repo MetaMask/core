@@ -74,6 +74,9 @@ const config = {
     'build-utils': {
       teams: ['@MetaMask/core-platform'],
     },
+    'byte-utils': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'chain-agnostic-permission': {
       teams: ['@MetaMask/core-platform'],
     },

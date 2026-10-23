@@ -12,11 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `NetworkEnablementController` to the default initialization configurations ([#10997](https://github.com/MetaMask/core/pull/10997))
   - `Wallet.init()` calls `NetworkEnablementController.init()`, which reads `MultichainNetworkController:getState`. The wallet does not construct `MultichainNetworkController`. Clients must register that action on the wallet messenger before calling `wallet.init()`.
   - Export `networkEnablementController` so clients can pass it through `initializationConfigurations` before `assetsController`. Additional configurations initialize before defaults, and `AssetsController` reads `NetworkEnablementController:getState` during construction.
-- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
 - Add `@metamask/network-enablement-controller` as a dependency ([#10997](https://github.com/MetaMask/core/pull/10997))
+
+## [19.1.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Fixed
+
+- Fall back to `options.analyticsId` when persisted `analyticsId` is null, undefined, or empty ([#11025](https://github.com/MetaMask/core/pull/11025))
 
 ## [19.0.0]
 
@@ -410,7 +419,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.1.0...HEAD
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.0...@metamask/wallet@19.1.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.1...@metamask/wallet@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.0...@metamask/wallet@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.1.0...@metamask/wallet@18.0.0
