@@ -134,7 +134,7 @@
   "devEngines": {
     "packageManager": {
       "name": "yarn",
-      "version": ">=4.16.0+sha256.ba05224324578801b9cc98170d64aa50b9a36733b440fb0942306da3fbbdc7d1",
+      "version": "4.17.1+sha256.471ffb15e0523663865bbf46a69e7d157ecf532412eb436c48dfab6e3f2abe88",
       "onFail": "error"
     }
   },
