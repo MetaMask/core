@@ -5805,7 +5805,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/accounts-controller@npm:^40.0.0, @metamask/accounts-controller@npm:^40.1.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
+"@metamask/accounts-controller@npm:^40.1.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
@@ -6221,7 +6221,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/base-controller@npm:^10.0.0, @metamask/base-controller@npm:^10.1.0, @metamask/base-controller@workspace:packages/base-controller":
+"@metamask/base-controller@npm:^10.1.0, @metamask/base-controller@workspace:packages/base-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
@@ -7095,7 +7095,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-money-keyring@npm:^4.0.0, @metamask/eth-money-keyring@npm:^4.0.2":
+"@metamask/eth-money-keyring@npm:^4.0.2":
   version: 4.0.2
   resolution: "@metamask/eth-money-keyring@npm:4.0.2"
   dependencies:
@@ -7528,7 +7528,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-controller@npm:^28.0.0, @metamask/keyring-controller@npm:^28.2.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
+"@metamask/keyring-controller@npm:^28.2.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
@@ -7967,22 +7967,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/money-account-controller@npm:^2.0.0":
-  version: 2.0.0
-  resolution: "@metamask/money-account-controller@npm:2.0.0"
-  dependencies:
-    "@metamask/accounts-controller": "npm:^40.0.0"
-    "@metamask/base-controller": "npm:^10.0.0"
-    "@metamask/eth-money-keyring": "npm:^4.0.0"
-    "@metamask/keyring-api": "npm:^24.0.0"
-    "@metamask/keyring-controller": "npm:^28.0.0"
-    "@metamask/messenger": "npm:^3.0.0"
-    async-mutex: "npm:^0.5.0"
-  checksum: 10/79ef066bf107eb7a9f0ec45621d05b1e0cdb10c3237578ca51fff58cfea37826004d84865ba9874d3e8d81e8fe0e6bb86cd744047f71635fe99f88cf6712db30
-  languageName: node
-  linkType: hard
-
-"@metamask/money-account-controller@workspace:packages/money-account-controller":
+"@metamask/money-account-controller@npm:^3.0.0, @metamask/money-account-controller@workspace:packages/money-account-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-controller@workspace:packages/money-account-controller"
   dependencies:
@@ -8014,7 +7999,7 @@ __metadata:
     "@metamask/chomp-api-service": "npm:^6.0.1"
     "@metamask/keyring-controller": "npm:^28.2.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/money-account-controller": "npm:^2.0.0"
+    "@metamask/money-account-controller": "npm:^3.0.0"
     "@metamask/money-account-upgrade-controller": "npm:^5.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/utils": "npm:^12.0.0"
