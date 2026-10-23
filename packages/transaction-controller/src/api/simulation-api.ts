@@ -19,27 +19,6 @@ import type { GetSimulationConfig } from '../types.js';
 const log = createModuleLogger(projectLogger, 'simulation-api');
 
 /**
- * Request to simulate transactions, extended with the transaction-controller-only
- * `getSimulationConfig` hook for URL rewriting.
- */
-export type SimulationRequest = SentinelSimulationRequest & {
-  /**
-   * Optional callback to rewrite the simulation request URL.
-   * Transaction-controller-only field; not forwarded to the Sentinel API.
-   */
-  getSimulationConfig?: GetSimulationConfig;
-
-  /** Whether to include available token fees. */
-  suggestFees?: SentinelSimulationRequest['suggestFees'] & {
-    /**
-     * Whether to include a RedeemerEnforcer caveat, restricting redemption to
-     * the relay signers, in the delegation used for the EIP-7702 estimate.
-     */
-    withRedeemerEnforcer?: boolean;
-  };
-};
-
-/**
  * Simulate transactions via the `SentinelApiService:simulateTransactions`
  * messenger action.
  *
@@ -52,16 +31,22 @@ export type SimulationRequest = SentinelSimulationRequest & {
  * `SentinelApiService:simulateTransactions`.
  * @param chainId - The chain ID to simulate transactions on.
  * @param request - The request to simulate transactions.
+ * @param options - Additional options.
+ * @param options.getSimulationConfig - Optional callback to rewrite the
+ * simulation request URL.
  * @returns The response from the simulation API.
  */
 export async function simulateTransactions(
   messenger: TransactionControllerMessenger,
   chainId: Hex,
-  request: SimulationRequest,
+  request: SentinelSimulationRequest,
+  {
+    getSimulationConfig,
+  }: {
+    getSimulationConfig?: GetSimulationConfig;
+  } = {},
 ): Promise<SentinelSimulationResponse> {
   const finalizedRequest = finalizeRequest(request);
-
-  const { getSimulationConfig, ...sentinelRequest } = finalizedRequest;
 
   const getUrl = getSimulationConfig
     ? async (defaultUrl: string): Promise<string> => {
@@ -70,7 +55,7 @@ export async function simulateTransactions(
       }
     : undefined;
 
-  log('Sending request', chainId, sentinelRequest);
+  log('Sending request', chainId, finalizedRequest);
 
   let response: SentinelSimulationResponse;
 
@@ -78,7 +63,7 @@ export async function simulateTransactions(
     response = await messenger.call(
       'SentinelApiService:simulateTransactions',
       chainId,
-      sentinelRequest,
+      finalizedRequest,
       getUrl ? { getUrl } : {},
     );
   } catch (error) {
@@ -103,7 +88,9 @@ export async function simulateTransactions(
  * @param request - The simulation request to finalize.
  * @returns The finalized simulation request.
  */
-function finalizeRequest(request: SimulationRequest): SimulationRequest {
+function finalizeRequest(
+  request: SentinelSimulationRequest,
+): SentinelSimulationRequest {
   const newRequest = cloneDeep(request);
 
   for (const transaction of newRequest.transactions) {

@@ -1262,6 +1262,7 @@ describe('gas', () => {
               },
             ],
           },
+          { getSimulationConfig: undefined },
         );
 
         expectEstimateGasNotCalled();
@@ -1285,6 +1286,7 @@ describe('gas', () => {
             {
               transactions: [expect.objectContaining({ data })],
             },
+            { getSimulationConfig: undefined },
           );
           expectEstimateGasNotCalled();
         },
@@ -1308,6 +1310,7 @@ describe('gas', () => {
                 expect.objectContaining({ to: TO_MOCK, value: expectedValue }),
               ],
             },
+            { getSimulationConfig: undefined },
           );
         },
       );
@@ -1678,6 +1681,7 @@ describe('gas', () => {
             },
           ],
         },
+        { getSimulationConfig: undefined },
       );
 
       expectEstimateGasNotCalled();
@@ -1925,6 +1929,7 @@ describe('gas', () => {
             },
           ],
         },
+        { getSimulationConfig: undefined },
       );
     });
 
@@ -2091,6 +2096,7 @@ describe('gas', () => {
             },
           ],
         },
+        { getSimulationConfig: undefined },
       );
     });
 
@@ -2175,6 +2181,7 @@ describe('gas', () => {
         {
           transactions: [],
         },
+        { getSimulationConfig: undefined },
       );
     });
 

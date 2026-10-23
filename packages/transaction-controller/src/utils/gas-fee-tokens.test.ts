@@ -382,6 +382,7 @@ describe('Gas Fee Tokens Utils', () => {
         MESSENGER_MOCK,
         CHAIN_ID_MOCK,
         expect.anything(),
+        { getSimulationConfig: undefined },
       );
       expect(
         simulateTransactionsMock.mock.calls[0][2].suggestFees,
@@ -412,6 +413,7 @@ describe('Gas Fee Tokens Utils', () => {
         MESSENGER_MOCK,
         CHAIN_ID_MOCK,
         expect.anything(),
+        { getSimulationConfig: undefined },
       );
       expect(
         simulateTransactionsMock.mock.calls[0][2].suggestFees,
@@ -453,6 +455,7 @@ describe('Gas Fee Tokens Utils', () => {
             }),
           ],
         }),
+        { getSimulationConfig: undefined },
       );
     });
 
@@ -494,6 +497,7 @@ describe('Gas Fee Tokens Utils', () => {
             }),
           ],
         }),
+        { getSimulationConfig: undefined },
       );
     });
 
@@ -505,6 +509,7 @@ describe('Gas Fee Tokens Utils', () => {
         MESSENGER_MOCK,
         expect.any(String),
         expect.any(Object),
+        { getSimulationConfig: undefined },
       );
     });
   });

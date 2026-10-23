@@ -1,5 +1,8 @@
 import { SentinelChainNotSupportedError } from '@metamask/sentinel-api-service';
-import type { SentinelSimulationResponse } from '@metamask/sentinel-api-service';
+import type {
+  SentinelSimulationRequest,
+  SentinelSimulationResponse,
+} from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 import type { Mock } from 'vitest';
@@ -11,12 +14,11 @@ import {
 } from '../constants.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import { SimulationErrorCode } from '../types.js';
-import type { SimulationRequest } from './simulation-api.js';
 import { simulateTransactions } from './simulation-api.js';
 
 const CHAIN_ID_MOCK = '0x1';
 
-const REQUEST_MOCK: SimulationRequest = {
+const REQUEST_MOCK: SentinelSimulationRequest = {
   transactions: [{ from: '0x1', to: '0x2', value: '0x1' }],
   overrides: {
     '0x1': {
@@ -61,7 +63,7 @@ type SimulateTransactionsCallMock = Mock<
   (
     action: string,
     chainId: Hex,
-    request: SimulationRequest,
+    request: SentinelSimulationRequest,
     options: { getUrl?: (defaultUrl: string) => Promise<string> },
   ) => Promise<SentinelSimulationResponse>
 >;
@@ -113,26 +115,11 @@ describe('Simulation API Utils', () => {
       );
     });
 
-    it('does not forward getSimulationConfig to the Sentinel simulation action', async () => {
-      const getSimulationConfig = vi.fn().mockResolvedValue({});
-
-      await simulateTransactions(messenger, CHAIN_ID_MOCK, {
-        ...REQUEST_MOCK,
-        getSimulationConfig,
-      });
-
-      const forwardedRequest = callMock.mock.calls[0][2];
-
-      expect(forwardedRequest).not.toHaveProperty('getSimulationConfig');
-      expect(forwardedRequest).toStrictEqual(REQUEST_MOCK);
-    });
-
     it('passes a getUrl option that resolves to newUrl when getSimulationConfig returns one', async () => {
       const newUrl = 'https://shield.example.com/simulate';
       const getSimulationConfig = vi.fn().mockResolvedValue({ newUrl });
 
-      await simulateTransactions(messenger, CHAIN_ID_MOCK, {
-        ...REQUEST_MOCK,
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, REQUEST_MOCK, {
         getSimulationConfig,
       });
 
@@ -151,8 +138,7 @@ describe('Simulation API Utils', () => {
       const getSimulationConfig = vi.fn().mockResolvedValue({});
       const defaultUrl = 'https://default.example.com';
 
-      await simulateTransactions(messenger, CHAIN_ID_MOCK, {
-        ...REQUEST_MOCK,
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, REQUEST_MOCK, {
         getSimulationConfig,
       });
 
@@ -165,8 +151,7 @@ describe('Simulation API Utils', () => {
       const getSimulationConfig = vi.fn().mockResolvedValue(undefined);
       const defaultUrl = 'https://default.example.com';
 
-      await simulateTransactions(messenger, CHAIN_ID_MOCK, {
-        ...REQUEST_MOCK,
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, REQUEST_MOCK, {
         getSimulationConfig,
       });
 
@@ -232,7 +217,7 @@ describe('Simulation API Utils', () => {
     });
 
     it('initializes overrides when overriding DelegationManager code with no existing overrides', async () => {
-      const request: SimulationRequest = {
+      const request: SentinelSimulationRequest = {
         transactions: [
           {
             from: '0x1',

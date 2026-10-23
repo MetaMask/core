@@ -518,13 +518,17 @@ export async function simulateGasBatch({
   transactions: TransactionBatchSingleRequest[];
 }): Promise<{ totalGasLimit: Hex; gasLimits: Hex[] }> {
   try {
-    const response = await simulateTransactions(messenger, chainId, {
-      getSimulationConfig,
-      transactions: transactions.map((transaction) => ({
-        ...transaction.params,
-        from,
-      })),
-    });
+    const response = await simulateTransactions(
+      messenger,
+      chainId,
+      {
+        transactions: transactions.map((transaction) => ({
+          ...transaction.params,
+          from,
+        })),
+      },
+      { getSimulationConfig },
+    );
 
     if (response?.transactions?.length !== transactions.length) {
       throw new Error('Simulation response does not match transaction count');
@@ -846,18 +850,22 @@ async function simulateGas({
   messenger: TransactionControllerMessenger;
   transaction: TransactionParams;
 }): Promise<Hex> {
-  const response = await simulateTransactions(messenger, chainId, {
-    getSimulationConfig,
-    transactions: [
-      {
-        ...(authorizationList ? { authorizationList } : {}),
-        to: transaction.to as Hex,
-        from: transaction.from as Hex,
-        data: transaction.data as Hex,
-        value: transaction.value as Hex,
-      },
-    ],
-  });
+  const response = await simulateTransactions(
+    messenger,
+    chainId,
+    {
+      transactions: [
+        {
+          ...(authorizationList ? { authorizationList } : {}),
+          to: transaction.to as Hex,
+          from: transaction.from as Hex,
+          data: transaction.data as Hex,
+          value: transaction.value as Hex,
+        },
+      ],
+    },
+    { getSimulationConfig },
+  );
 
   const simulatedTransaction = response?.transactions?.[0];
   const gasLimit = simulatedTransaction?.gasLimit;
