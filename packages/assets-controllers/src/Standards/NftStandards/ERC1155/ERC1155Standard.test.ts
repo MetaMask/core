@@ -1,6 +1,7 @@
 import { Web3Provider } from '@ethersproject/providers';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import nock from 'nock';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ERC1155Standard } from './ERC1155Standard.js';
 
@@ -334,13 +335,12 @@ describe('ERC1155Standard', () => {
   describe('getDetails optional parameters', () => {
     it('should return details without tokenURI when no tokenId is provided', async () => {
       // Mock successful ERC1155 interface check
-      jest
-        .spyOn(erc1155Standard, 'contractSupportsBase1155Interface')
-        .mockResolvedValue(true);
-      jest.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
-      jest
-        .spyOn(erc1155Standard, 'getAssetName')
-        .mockResolvedValue('Test Token');
+      vi.spyOn(
+        erc1155Standard,
+        'contractSupportsBase1155Interface',
+      ).mockResolvedValue(true);
+      vi.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
+      vi.spyOn(erc1155Standard, 'getAssetName').mockResolvedValue('Test Token');
 
       const ipfsGateway = 'https://ipfs.gateway.com';
       const details = await erc1155Standard.getDetails(
@@ -355,24 +355,21 @@ describe('ERC1155Standard', () => {
       expect(details.name).toBe('Test Token');
 
       // Restore original methods
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('should convert IPFS URIs to gateway URLs', async () => {
       // Mock successful ERC1155 interface check
-      jest
-        .spyOn(erc1155Standard, 'contractSupportsBase1155Interface')
-        .mockResolvedValue(true);
-      jest.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
-      jest
-        .spyOn(erc1155Standard, 'getAssetName')
-        .mockResolvedValue('Test Token');
+      vi.spyOn(
+        erc1155Standard,
+        'contractSupportsBase1155Interface',
+      ).mockResolvedValue(true);
+      vi.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
+      vi.spyOn(erc1155Standard, 'getAssetName').mockResolvedValue('Test Token');
       // Mock getTokenURI to return IPFS URI
-      jest
-        .spyOn(erc1155Standard, 'getTokenURI')
-        .mockResolvedValue(
-          'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
-        );
+      vi.spyOn(erc1155Standard, 'getTokenURI').mockResolvedValue(
+        'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
+      );
 
       const ipfsGateway = 'https://ipfs.gateway.com';
       const details = await erc1155Standard.getDetails(
@@ -385,21 +382,20 @@ describe('ERC1155Standard', () => {
       expect(details.tokenURI).toContain('ipfs.gateway.com'); // Should be converted from IPFS URI
 
       // Restore original methods
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('should handle metadata fetching with network errors', async () => {
       // Mock successful ERC1155 interface check
-      jest
-        .spyOn(erc1155Standard, 'contractSupportsBase1155Interface')
-        .mockResolvedValue(true);
-      jest.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
-      jest
-        .spyOn(erc1155Standard, 'getAssetName')
-        .mockResolvedValue('Test Token');
-      jest
-        .spyOn(erc1155Standard, 'getTokenURI')
-        .mockResolvedValue('https://example.com/metadata.json');
+      vi.spyOn(
+        erc1155Standard,
+        'contractSupportsBase1155Interface',
+      ).mockResolvedValue(true);
+      vi.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
+      vi.spyOn(erc1155Standard, 'getAssetName').mockResolvedValue('Test Token');
+      vi.spyOn(erc1155Standard, 'getTokenURI').mockResolvedValue(
+        'https://example.com/metadata.json',
+      );
 
       // Mock fetch to fail - this tests the catch block in getDetails
       nock('https://example.com')
@@ -418,7 +414,7 @@ describe('ERC1155Standard', () => {
       expect(details.image).toBeUndefined(); // Should be undefined due to fetch error
 
       // Restore original methods
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
   });
 });

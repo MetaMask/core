@@ -268,11 +268,6 @@
       "count": 1
     }
   },
-  "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.test.ts": {
-    "TS7031": {
-      "count": 2
-    }
-  },
   "packages/assets-controllers/src/selectors/token-selectors.test.ts": {
     "TS2353": {
       "count": 2

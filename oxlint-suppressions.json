@@ -715,28 +715,6 @@
       "count": 1
     }
   },
-  "packages/assets-controllers/jest.config.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    }
-  },
-  "packages/assets-controllers/jest.environment.cjs": {
-    "import/unambiguous": {
-      "count": 1
-    },
-    "n/prefer-global/text-decoder": {
-      "count": 1
-    },
-    "n/prefer-global/text-encoder": {
-      "count": 1
-    },
-    "no-shadow": {
-      "count": 2
-    },
-    "node/global-require": {
-      "count": 1
-    }
-  },
   "packages/assets-controllers/src/AccountTrackerController.test.ts": {
     "no-unused-vars": {
       "count": 1
@@ -746,9 +724,6 @@
     },
     "typescript/explicit-function-return-type": {
       "count": 3
-    },
-    "typescript/no-unsafe-return": {
-      "count": 2
     }
   },
   "packages/assets-controllers/src/AccountTrackerController.ts": {
@@ -798,6 +773,11 @@
       "count": 8
     }
   },
+  "packages/assets-controllers/src/CurrencyRateController.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 7
+    }
+  },
   "packages/assets-controllers/src/CurrencyRateController.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -816,11 +796,6 @@
       "count": 2
     }
   },
-  "packages/assets-controllers/src/DeFiPositionsController/DeFiPositionsControllerV2.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    }
-  },
   "packages/assets-controllers/src/DeFiPositionsController/fetch-positions.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 1
@@ -837,6 +812,9 @@
   "packages/assets-controllers/src/MultichainAssetsController/MultichainAssetsController.test.ts": {
     "typescript/no-unsafe-member-access": {
       "count": 2
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/assets-controllers/src/MultichainAssetsRatesController/MultichainAssetsRatesController.test.ts": {
@@ -866,8 +844,8 @@
     "typescript/explicit-function-return-type": {
       "count": 4
     },
-    "typescript/no-unsafe-return": {
-      "count": 3
+    "vitest/no-conditional-in-test": {
+      "count": 8
     }
   },
   "packages/assets-controllers/src/NftController.ts": {
@@ -921,9 +899,6 @@
     }
   },
   "packages/assets-controllers/src/Standards/ERC20Standard.test.ts": {
-    "jest/no-commented-out-tests": {
-      "count": 1
-    },
     "typescript/explicit-function-return-type": {
       "count": 3
     },
@@ -931,6 +906,9 @@
       "count": 4
     },
     "typescript/no-unsafe-call": {
+      "count": 1
+    },
+    "vitest/no-commented-out-tests": {
       "count": 1
     }
   },
@@ -1016,15 +994,6 @@
   "packages/assets-controllers/src/TokenBalancesController.test.ts": {
     "no-useless-return": {
       "count": 3
-    },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 3
-    },
-    "typescript/no-unsafe-return": {
-      "count": 1
     }
   },
   "packages/assets-controllers/src/TokenBalancesController.ts": {
@@ -1035,16 +1004,21 @@
       "count": 1
     }
   },
-  "packages/assets-controllers/src/TokenDetectionController.test.ts": {
-    "typescript/no-unsafe-member-access": {
-      "count": 4
-    }
-  },
   "packages/assets-controllers/src/TokenDetectionController.ts": {
     "id-length": {
       "count": 1
     },
     "typescript/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "packages/assets-controllers/src/TokenListController.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 9
+    }
+  },
+  "packages/assets-controllers/src/TokenListService.test.ts": {
+    "vitest/no-conditional-in-test": {
       "count": 1
     }
   },
@@ -1071,8 +1045,8 @@
     "n/no-callback-literal": {
       "count": 1
     },
-    "typescript/no-unsafe-return": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 4
     }
   },
   "packages/assets-controllers/src/TokenSearchDiscoveryDataController/TokenSearchDiscoveryDataController.ts": {
@@ -1090,8 +1064,8 @@
     "typescript/no-unsafe-member-access": {
       "count": 10
     },
-    "typescript/no-unsafe-return": {
-      "count": 1
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/assets-controllers/src/TokensController.ts": {
@@ -1137,6 +1111,9 @@
     },
     "typescript/explicit-function-return-type": {
       "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/assets-controllers/src/assetsUtil.ts": {
@@ -1194,10 +1171,10 @@
       "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 83
+      "count": 13
     },
     "typescript/no-unsafe-member-access": {
-      "count": 99
+      "count": 14
     },
     "typescript/no-unsafe-return": {
       "count": 2
@@ -1213,9 +1190,6 @@
   },
   "packages/assets-controllers/src/multi-chain-accounts-service/multi-chain-accounts.test.ts": {
     "typescript/explicit-function-return-type": {
-      "count": 3
-    },
-    "typescript/no-unsafe-argument": {
       "count": 3
     }
   },
@@ -1263,15 +1237,6 @@
       "count": 17
     },
     "no-useless-return": {
-      "count": 1
-    },
-    "typescript/no-unsafe-call": {
-      "count": 13
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 21
-    },
-    "typescript/no-unsafe-return": {
       "count": 1
     }
   },

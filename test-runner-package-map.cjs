@@ -5,7 +5,6 @@ const { workspaces } = require('./package.json');
 
 // Do not add to this list: new packages are expected to use Vitest.
 const PACKAGES_ON_JEST = new Set([
-  '@metamask/assets-controllers',
   '@metamask/chain-agnostic-permission',
   '@metamask/eip-5792-middleware',
   '@metamask/eip-7702-internal-rpc-middleware',
