@@ -59,6 +59,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/bridge-controller`](packages/bridge-controller)
 - [`@metamask/bridge-status-controller`](packages/bridge-status-controller)
 - [`@metamask/build-utils`](packages/build-utils)
+- [`@metamask/byte-utils`](packages/byte-utils)
 - [`@metamask/chain-agnostic-permission`](packages/chain-agnostic-permission)
 - [`@metamask/chomp-api-service`](packages/chomp-api-service)
 - [`@metamask/claims-controller`](packages/claims-controller)
