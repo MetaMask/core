@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `immer` from `^11.1.18` to `^11.2.3` ([#10723](https://github.com/MetaMask/core/pull/10723))
 
 ## [112.1.3]
 
