@@ -12,20 +12,29 @@ export const analyticsController: InitializationConfiguration<
 > = {
   name: 'AnalyticsController',
   reference: AnalyticsController,
-  init: ({ state, messenger, options }) =>
-    new AnalyticsController({
+  init: ({ state, messenger, options }) => {
+    // Prefer a non-empty persisted id; otherwise use options.analyticsId.
+    const persistedAnalyticsId = state?.analyticsId;
+    const analyticsId =
+      typeof persistedAnalyticsId === 'string' &&
+      persistedAnalyticsId.length > 0
+        ? persistedAnalyticsId
+        : options.analyticsId;
+
+    return new AnalyticsController({
       messenger,
       platformAdapter: options.platformAdapter,
       state: {
-        analyticsId: options.analyticsId,
         ...state,
+        analyticsId,
       },
       isAnonymousEventsFeatureEnabled: options.isAnonymousEventsFeatureEnabled,
       isEventQueuePersistenceEnabled: options.isEventQueuePersistenceEnabled,
       isPreConsentQueueEnabled: options.isPreConsentQueueEnabled,
       isGeolocationEnabled: options.isGeolocationEnabled,
       isEventFragmentsEnabled: options.isEventFragmentsEnabled,
-    }),
+    });
+  },
   getMessenger: (parent) => {
     const messenger: AnalyticsControllerMessenger = new Messenger({
       namespace: 'AnalyticsController',

@@ -1,5 +1,5 @@
 /**
- * Custom matcher implementations. `tests/setupAfterEnv/matchers.ts` registers
+ * Custom matcher implementations. `tests/vitest/setup-after-env.ts` registers
  * them.
  */
 

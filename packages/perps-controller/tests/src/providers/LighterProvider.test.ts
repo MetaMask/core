@@ -1,4 +1,6 @@
 import { webcrypto } from 'crypto';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockedClass, MockedFunction } from 'vitest';
 
 import {
   LIGHTER_TX_TYPE_CREATE_ORDER,
@@ -61,20 +63,21 @@ import {
   keyringCalls,
 } from '../../helpers/serviceMocks.js';
 
-jest.mock('../../../src/services/LighterClientService', () => ({
-  ...jest.requireActual<
-    typeof import('../../../src/services/LighterClientService')
-  >('../../../src/services/LighterClientService'),
-  // Only the service class is doubled; convertKeysToCamelCase stays real so
-  // the WebSocket message router operates on faithfully camelized payloads.
-  LighterClientService: jest.fn(),
-}));
-jest.mock('../../../src/services/LighterWalletService');
+vi.mock(
+  import('../../../src/services/LighterClientService'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    // Only the service class is doubled; convertKeysToCamelCase stays real so
+    // the WebSocket message router operates on faithfully camelized payloads.
+    LighterClientService: vi.fn(),
+  }),
+);
+vi.mock('../../../src/services/LighterWalletService');
 
-const MockedClientService = LighterClientService as jest.MockedClass<
+const MockedClientService = LighterClientService as MockedClass<
   typeof LighterClientService
 >;
-const MockedWalletService = LighterWalletService as jest.MockedClass<
+const MockedWalletService = LighterWalletService as MockedClass<
   typeof LighterWalletService
 >;
 
@@ -88,10 +91,10 @@ type MockInfrastructure = ReturnType<typeof createMockInfrastructure>;
  */
 const getLoggerErrorMock = (
   dependencies: MockInfrastructure,
-): jest.MockedFunction<MockInfrastructure['logger']['error']> =>
+): MockedFunction<MockInfrastructure['logger']['error']> =>
   // The infrastructure logger methods are deliberately Jest mocks.
   // eslint-disable-next-line @typescript-eslint/unbound-method
-  dependencies.logger.error as jest.MockedFunction<
+  dependencies.logger.error as MockedFunction<
     MockInfrastructure['logger']['error']
   >;
 
@@ -205,7 +208,7 @@ type MockBridgeBundle = {
   calls: LighterWasmCall[];
   fireReset: () => void;
   resetListenerCount: () => number;
-  resetUnsubscribe: jest.Mock;
+  resetUnsubscribe: Mock;
 };
 
 /**
@@ -216,10 +219,10 @@ type MockBridgeBundle = {
 function createMockBridge(): MockBridgeBundle {
   const calls: LighterWasmCall[] = [];
   const resetListeners = new Set<() => void>();
-  const resetUnsubscribe = jest.fn();
+  const resetUnsubscribe = vi.fn();
   let signSequence = 0;
   const bridge: LighterSignerBridge = {
-    createClient: jest.fn(async (params) =>
+    createClient: vi.fn<LighterSignerBridge['createClient']>(async (params) =>
       bridge.execute({
         function: '_createClient',
         params: [
@@ -237,7 +240,7 @@ function createMockBridge(): MockBridgeBundle {
         resetListeners.delete(listener);
       };
     },
-    execute: jest.fn(
+    execute: vi.fn(
       async <Operation extends LighterSignerOperation>(
         call: LighterWasmCall<Operation>,
       ): Promise<LighterSignerResult<Operation>> => {
@@ -390,26 +393,26 @@ function createMockBridge(): MockBridgeBundle {
 }
 
 type MockClientInstance = {
-  getEditableOrders: jest.Mock;
+  getEditableOrders: Mock;
   network: string;
-  getCandles: jest.Mock;
-  getOrderBookOrders: jest.Mock;
-  getOrderBooks: jest.Mock;
-  getOrderBookDetails: jest.Mock;
-  getAccountsByL1Address: jest.Mock;
-  getAccountByIndex: jest.Mock;
-  getApiKeys: jest.Mock;
-  getNextNonce: jest.Mock;
-  getActiveOrders: jest.Mock;
-  getOrdersByClientIds: jest.Mock;
-  getInactiveOrders: jest.Mock;
-  getTx: jest.Mock;
-  getDepositHistory: jest.Mock;
-  getWithdrawHistory: jest.Mock;
-  getTransferHistory: jest.Mock;
-  getPositionFundings: jest.Mock;
-  getTrades: jest.Mock;
-  sendTx: jest.Mock;
+  getCandles: Mock;
+  getOrderBookOrders: Mock;
+  getOrderBooks: Mock;
+  getOrderBookDetails: Mock;
+  getAccountsByL1Address: Mock;
+  getAccountByIndex: Mock;
+  getApiKeys: Mock;
+  getNextNonce: Mock;
+  getActiveOrders: Mock;
+  getOrdersByClientIds: Mock;
+  getInactiveOrders: Mock;
+  getTx: Mock;
+  getDepositHistory: Mock;
+  getWithdrawHistory: Mock;
+  getTransferHistory: Mock;
+  getPositionFundings: Mock;
+  getTrades: Mock;
+  sendTx: Mock;
 };
 
 type BuiltProvider = {
@@ -417,10 +420,10 @@ type BuiltProvider = {
   clientInstance: MockClientInstance;
   bridge: LighterSignerBridge;
   calls: LighterWasmCall[];
-  getUserAddressMock: jest.Mock;
+  getUserAddressMock: Mock;
   fireReset: () => void;
   resetListenerCount: () => number;
-  resetUnsubscribe: jest.Mock;
+  resetUnsubscribe: Mock;
 };
 
 /**
@@ -469,13 +472,11 @@ function buildProvider(
     sharedBridge,
   } = options;
   const clientInstance = {
-    getEditableOrders: jest.fn().mockResolvedValue({ code: 200, orders: [] }),
-    getOrdersByClientIds: jest
-      .fn()
-      .mockResolvedValue({ code: 200, orders: [] }),
+    getEditableOrders: vi.fn().mockResolvedValue({ code: 200, orders: [] }),
+    getOrdersByClientIds: vi.fn().mockResolvedValue({ code: 200, orders: [] }),
     network: 'testnet',
-    getCandles: jest.fn().mockResolvedValue({ code: 200, c: [] }),
-    getOrderBookOrders: jest.fn().mockResolvedValue({
+    getCandles: vi.fn().mockResolvedValue({ code: 200, c: [] }),
+    getOrderBookOrders: vi.fn().mockResolvedValue({
       code: 200,
       totalBids: 1,
       totalAsks: 1,
@@ -504,8 +505,8 @@ function buildProvider(
         },
       ],
     }),
-    getOrderBooks: jest.fn().mockResolvedValue([BTC_MARKET]),
-    getOrderBookDetails: jest.fn().mockResolvedValue({
+    getOrderBooks: vi.fn().mockResolvedValue([BTC_MARKET]),
+    getOrderBookDetails: vi.fn().mockResolvedValue({
       code: 200,
       orderBookDetails: [
         {
@@ -526,15 +527,15 @@ function buildProvider(
         },
       ],
     }),
-    getAccountsByL1Address: jest.fn().mockResolvedValue({
+    getAccountsByL1Address: vi.fn().mockResolvedValue({
       code: 200,
       l1Address: ACCOUNT.l1Address,
       subAccounts: [ACCOUNT],
     }),
-    getAccountByIndex: jest
+    getAccountByIndex: vi
       .fn()
       .mockResolvedValue({ code: 200, accounts: [ACCOUNT] }),
-    getApiKeys: jest.fn().mockResolvedValue({
+    getApiKeys: vi.fn().mockResolvedValue({
       code: 200,
       apiKeys: registeredKey
         ? [
@@ -547,8 +548,8 @@ function buildProvider(
           ]
         : [],
     }),
-    getNextNonce: jest.fn().mockResolvedValue({ code: 200, nonce: 42 }),
-    getActiveOrders: jest.fn().mockResolvedValue({
+    getNextNonce: vi.fn().mockResolvedValue({ code: 200, nonce: 42 }),
+    getActiveOrders: vi.fn().mockResolvedValue({
       code: 200,
       orders: [
         {
@@ -572,8 +573,8 @@ function buildProvider(
     // Default: no transaction is known to the venue. The service contract
     // resolves venue-confirmed not-found (code 21500) to null and
     // RETHROWS transport/other API errors.
-    getTx: jest.fn().mockResolvedValue(null),
-    getInactiveOrders: jest.fn().mockResolvedValue({
+    getTx: vi.fn().mockResolvedValue(null),
+    getInactiveOrders: vi.fn().mockResolvedValue({
       code: 200,
       orders: [
         {
@@ -594,7 +595,7 @@ function buildProvider(
         },
       ],
     }),
-    getDepositHistory: jest.fn().mockResolvedValue({
+    getDepositHistory: vi.fn().mockResolvedValue({
       code: 200,
       deposits: [
         {
@@ -607,7 +608,7 @@ function buildProvider(
         },
       ],
     }),
-    getWithdrawHistory: jest.fn().mockResolvedValue({
+    getWithdrawHistory: vi.fn().mockResolvedValue({
       code: 200,
       withdraws: [
         {
@@ -621,7 +622,7 @@ function buildProvider(
         },
       ],
     }),
-    getTransferHistory: jest.fn().mockResolvedValue({
+    getTransferHistory: vi.fn().mockResolvedValue({
       code: 200,
       transfers: [
         {
@@ -639,29 +640,26 @@ function buildProvider(
         },
       ],
     }),
-    getPositionFundings: jest.fn().mockResolvedValue({
+    getPositionFundings: vi.fn().mockResolvedValue({
       code: 200,
       positionFundings: [],
     }),
-    getTrades: jest.fn().mockResolvedValue({ code: 200, trades: [] }),
-    sendTx: jest.fn().mockResolvedValue({ code: 200, txHash: '0xsent' }),
+    getTrades: vi.fn().mockResolvedValue({ code: 200, trades: [] }),
+    sendTx: vi.fn().mockResolvedValue({ code: 200, txHash: '0xsent' }),
   };
-  MockedClientService.mockImplementation(
-    () => clientInstance as unknown as LighterClientService,
-  );
-  const getUserAddressMock = jest
+  MockedClientService.mockImplementation(function () {
+    return clientInstance as unknown as LighterClientService;
+  });
+  const getUserAddressMock = vi
     .fn()
     .mockReturnValue('0x8D7f03FdE1A626223364E592740a233b72395235');
-  MockedWalletService.mockImplementation(
-    () =>
-      ({
-        getUserAddress: getUserAddressMock,
-        signPersonalMessage: jest
-          .fn()
-          .mockResolvedValue(`0x${'cd'.repeat(65)}`),
-        network: 'testnet',
-      }) as unknown as LighterWalletService,
-  );
+  MockedWalletService.mockImplementation(function () {
+    return {
+      getUserAddress: getUserAddressMock,
+      signPersonalMessage: vi.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
+      network: 'testnet',
+    } as unknown as LighterWalletService;
+  });
 
   const bridgeBundle = sharedBridge ?? createMockBridge();
   const { bridge, calls, fireReset, resetListenerCount, resetUnsubscribe } =
@@ -844,8 +842,8 @@ describe('LighterProvider', () => {
     const journalKey = `lighterNativeEdit:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, edit.orderId])}`;
 
     describe('bounded native edit settlement polling', () => {
-      beforeEach(() => jest.useFakeTimers());
-      afterEach(() => jest.useRealTimers());
+      beforeEach(() => vi.useFakeTimers());
+      afterEach(() => vi.useRealTimers());
 
       function setup(): BuiltProvider & {
         deps: ReturnType<typeof createMockInfrastructure>;
@@ -881,7 +879,7 @@ describe('LighterProvider', () => {
           .mockResolvedValue(executed);
 
         const pending = built.provider.editOrder(edit);
-        await jest.advanceTimersByTimeAsync(3000);
+        await vi.advanceTimersByTimeAsync(3000);
         const result = await pending;
 
         expect(result).toMatchObject({
@@ -917,7 +915,7 @@ describe('LighterProvider', () => {
           });
 
         const pending = built.provider.editOrder(edit);
-        await jest.advanceTimersByTimeAsync(3000);
+        await vi.advanceTimersByTimeAsync(3000);
 
         expect(await pending).toMatchObject({
           success: true,
@@ -939,7 +937,7 @@ describe('LighterProvider', () => {
           });
 
           const pending = built.provider.editOrder(edit);
-          await jest.advanceTimersByTimeAsync(3000);
+          await vi.advanceTimersByTimeAsync(3000);
 
           expect(await pending).toMatchObject({
             success: false,
@@ -974,7 +972,7 @@ describe('LighterProvider', () => {
           .mockResolvedValue(executed);
 
         const pending = built.provider.editOrder(edit);
-        await jest.advanceTimersByTimeAsync(3000);
+        await vi.advanceTimersByTimeAsync(3000);
 
         expect(await pending).toMatchObject({
           success: false,
@@ -998,7 +996,7 @@ describe('LighterProvider', () => {
             .mockResolvedValue({ ...executed, ...changed });
 
           const pending = built.provider.editOrder(edit);
-          await jest.advanceTimersByTimeAsync(3000);
+          await vi.advanceTimersByTimeAsync(3000);
 
           expect(await pending).toMatchObject({
             success: false,
@@ -1023,7 +1021,7 @@ describe('LighterProvider', () => {
           });
 
         const pending = built.provider.editOrder(edit);
-        await jest.advanceTimersByTimeAsync(3000);
+        await vi.advanceTimersByTimeAsync(3000);
 
         expect(await pending).toMatchObject({
           success: false,
@@ -1046,7 +1044,7 @@ describe('LighterProvider', () => {
             completed = true;
             return result;
           });
-          await jest.advanceTimersByTimeAsync(0);
+          await vi.advanceTimersByTimeAsync(0);
           expect(completed).toBe(false);
           expect(built.clientInstance.getTx).toHaveBeenCalledTimes(1);
           const retained = await built.deps.diskCache.getItem(journalKey);
@@ -1056,7 +1054,7 @@ describe('LighterProvider', () => {
           } else {
             await built.provider.disconnect();
           }
-          await jest.advanceTimersByTimeAsync(3000);
+          await vi.advanceTimersByTimeAsync(3000);
 
           expect(await pending).toMatchObject({
             success: false,
@@ -1194,7 +1192,7 @@ describe('LighterProvider', () => {
       const stored = JSON.parse(
         (await deps.diskCache.getItem(journalKey)) ?? '',
       ) as { expiresAt: number };
-      const clock = jest
+      const clock = vi
         .spyOn(Date, 'now')
         .mockReturnValue(stored.expiresAt + 31_000);
       try {
@@ -1240,7 +1238,7 @@ describe('LighterProvider', () => {
       const stored = JSON.parse(
         (await deps.diskCache.getItem(journalKey)) ?? '',
       ) as { expiresAt: number };
-      const clock = jest
+      const clock = vi
         .spyOn(Date, 'now')
         .mockReturnValue(stored.expiresAt + 31_000);
       try {
@@ -1258,12 +1256,11 @@ describe('LighterProvider', () => {
       'refuses dispatch when durable %s persistence fails',
       async (phase) => {
         const deps = createMockInfrastructure();
-        const persist = jest
+        const persist = vi
           .mocked(deps.diskCache)
           .setItem.getMockImplementation();
-        jest
-          .mocked(deps.diskCache)
-          .setItem.mockImplementation(async (key: string, raw: string) => {
+        vi.mocked(deps.diskCache).setItem.mockImplementation(
+          async (key: string, raw: string) => {
             if (
               key === journalKey &&
               (JSON.parse(raw) as { phase: string }).phase === phase
@@ -1271,7 +1268,8 @@ describe('LighterProvider', () => {
               throw new Error('private disk path');
             }
             await persist?.(key, raw);
-          });
+          },
+        );
         const built = buildProvider({
           registeredKey: '9c'.repeat(40),
           platformDependencies: deps,
@@ -1289,12 +1287,9 @@ describe('LighterProvider', () => {
 
     it('preserves durable attempted state when saving acceptance fails', async () => {
       const deps = createMockInfrastructure();
-      const persist = jest
-        .mocked(deps.diskCache)
-        .setItem.getMockImplementation();
-      jest
-        .mocked(deps.diskCache)
-        .setItem.mockImplementation(async (key: string, raw: string) => {
+      const persist = vi.mocked(deps.diskCache).setItem.getMockImplementation();
+      vi.mocked(deps.diskCache).setItem.mockImplementation(
+        async (key: string, raw: string) => {
           if (
             key === journalKey &&
             (JSON.parse(raw) as { phase: string }).phase === 'accepted'
@@ -1302,7 +1297,8 @@ describe('LighterProvider', () => {
             throw new Error('private disk error');
           }
           await persist?.(key, raw);
-        });
+        },
+      );
       const first = buildProvider({
         registeredKey: '9c'.repeat(40),
         platformDependencies: deps,
@@ -1319,7 +1315,7 @@ describe('LighterProvider', () => {
         (await deps.diskCache.getItem(journalKey)) ?? '',
       ) as { expiresAt: number; phase: string };
       expect(stored.phase).toBe('attempted');
-      const clock = jest
+      const clock = vi
         .spyOn(Date, 'now')
         .mockReturnValue(stored.expiresAt + 31_000);
       try {
@@ -1351,7 +1347,7 @@ describe('LighterProvider', () => {
       expect(await built.provider.editOrder(edit)).toMatchObject({
         success: false,
       });
-      expect(jest.mocked(built.bridge).createClient.mock.calls).toHaveLength(0);
+      expect(vi.mocked(built.bridge).createClient.mock.calls).toHaveLength(0);
       expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
       expect(await deps.diskCache.getItem(journalKey)).toBe('{"version":1}');
     });
@@ -1397,11 +1393,9 @@ describe('LighterProvider', () => {
           code: 200,
           orders: [target()],
         });
-        const execute = jest
-          .mocked(built.bridge)
-          .execute.getMockImplementation();
+        const execute = vi.mocked(built.bridge).execute.getMockImplementation();
         if (during === 'signing') {
-          jest.mocked(built.bridge).execute.mockImplementation(async (call) => {
+          vi.mocked(built.bridge).execute.mockImplementation(async (call) => {
             const result = await execute?.(call);
             if (call.function === '_signModifyOrder') {
               built.getUserAddressMock.mockReturnValue(`0x${'11'.repeat(20)}`);
@@ -1431,8 +1425,8 @@ describe('LighterProvider', () => {
         code: 200,
         orders: [row],
       }));
-      const execute = jest.mocked(built.bridge).execute.getMockImplementation();
-      jest.mocked(built.bridge).execute.mockImplementation(async (call) => {
+      const execute = vi.mocked(built.bridge).execute.getMockImplementation();
+      vi.mocked(built.bridge).execute.mockImplementation(async (call) => {
         const result = await execute?.(call);
         if (call.function === '_signModifyOrder') {
           row = {
@@ -1449,7 +1443,7 @@ describe('LighterProvider', () => {
       });
       expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
       row = target();
-      jest.mocked(built.bridge).execute.mockImplementation(
+      vi.mocked(built.bridge).execute.mockImplementation(
         execute ??
           (async (): Promise<never> => {
             throw new Error('missing bridge');
@@ -1600,7 +1594,7 @@ describe('LighterProvider', () => {
             { assertCurrent: () => undefined },
           ),
         ).toBe(strategy === 'chase');
-        const before = jest.mocked(deps.diskCache).setItem.mock.calls.length;
+        const before = vi.mocked(deps.diskCache).setItem.mock.calls.length;
         const built = buildProvider({
           registeredKey: '9c'.repeat(40),
           platformDependencies: deps,
@@ -1613,7 +1607,7 @@ describe('LighterProvider', () => {
           success: false,
         });
         expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
-        expect(jest.mocked(deps.diskCache).setItem.mock.calls).toHaveLength(
+        expect(vi.mocked(deps.diskCache).setItem.mock.calls).toHaveLength(
           before,
         );
       },
@@ -1800,8 +1794,8 @@ describe('LighterProvider', () => {
         code: 200,
         orders: [target()],
       });
-      const execute = jest.mocked(built.bridge).execute.getMockImplementation();
-      jest.mocked(built.bridge).execute.mockImplementation(async (call) => {
+      const execute = vi.mocked(built.bridge).execute.getMockImplementation();
+      vi.mocked(built.bridge).execute.mockImplementation(async (call) => {
         const result = await execute?.(call);
         if (
           call.function === '_signModifyOrder' &&
@@ -1866,7 +1860,7 @@ describe('LighterProvider', () => {
           timestamp: 1700000000,
         };
         Object.assign(built.clientInstance, {
-          getEditableOrders: jest
+          getEditableOrders: vi
             .fn()
             .mockImplementation(async () => ({ code: 200, orders: [row] })),
         });
@@ -2255,8 +2249,8 @@ describe('LighterProvider', () => {
     }
 
     describe('bounded Scale settlement', () => {
-      beforeEach(() => jest.useFakeTimers());
-      afterEach(() => jest.useRealTimers());
+      beforeEach(() => vi.useFakeTimers());
+      afterEach(() => vi.useRealTimers());
 
       it('waits beyond the TP/SL window for exact delayed children without replay', async () => {
         const built = buildProvider({ registeredKey: '9c'.repeat(40) });
@@ -2269,7 +2263,7 @@ describe('LighterProvider', () => {
           ),
         }));
         const placing = built.provider.placeOrder(intent);
-        await jest.advanceTimersByTimeAsync(5000);
+        await vi.advanceTimersByTimeAsync(5000);
         const result = await placing;
         expect(result).toMatchObject({
           success: true,
@@ -2323,7 +2317,7 @@ describe('LighterProvider', () => {
           orderId: String(placed.orderId),
           orderType: 'scale',
         });
-        await jest.advanceTimersByTimeAsync(5000);
+        await vi.advanceTimersByTimeAsync(5000);
         expect(await canceling).toMatchObject({ success: true });
         expect(
           built.calls.filter((call) => call.function === '_signCancelOrder'),
@@ -2347,9 +2341,9 @@ describe('LighterProvider', () => {
           finished = true;
           return result;
         });
-        await jest.advanceTimersByTimeAsync(9999);
+        await vi.advanceTimersByTimeAsync(9999);
         expect(finished).toBe(false);
-        await jest.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(1);
         expect(await placing).toMatchObject({ success: false });
         expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
         built.clientInstance.getActiveOrders.mockResolvedValue({
@@ -2391,10 +2385,10 @@ describe('LighterProvider', () => {
                 orderType: 'scale',
               })
             : built.provider.placeOrder(intent);
-          await jest.advanceTimersByTimeAsync(2000);
+          await vi.advanceTimersByTimeAsync(2000);
           built.fireReset();
           const reads = built.clientInstance.getActiveOrders.mock.calls.length;
-          await jest.advanceTimersByTimeAsync(250);
+          await vi.advanceTimersByTimeAsync(250);
           expect(await pending).toMatchObject({
             success: false,
             error: expect.stringMatching(/session|reset/u) as string,
@@ -2437,7 +2431,7 @@ describe('LighterProvider', () => {
             orderType: 'scale' as const,
           };
           const first = built.provider.cancelOrder(params);
-          await jest.advanceTimersByTimeAsync(10000);
+          await vi.advanceTimersByTimeAsync(10000);
           expect(await first).toMatchObject({
             success: false,
             error: 'Lighter Scale cancellation remains unresolved',
@@ -2461,7 +2455,7 @@ describe('LighterProvider', () => {
             });
           }
           const repeated = current.provider.cancelOrder(params);
-          await jest.advanceTimersByTimeAsync(10000);
+          await vi.advanceTimersByTimeAsync(10000);
           expect(await repeated).toMatchObject({
             success: false,
             error: 'Lighter Scale cancellation remains unresolved',
@@ -2551,7 +2545,7 @@ describe('LighterProvider', () => {
         });
         restarted.clientInstance.getTx.mockResolvedValue(null);
         const repeated = restarted.provider.cancelOrder(params);
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect(await repeated).toMatchObject({ success: false });
         expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(3);
         expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
@@ -2573,7 +2567,7 @@ describe('LighterProvider', () => {
         scaleVenue(built);
         const placed = await built.provider.placeOrder(intent);
         const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
-        const writeSpy = jest.spyOn(infra.diskCache, 'setItem');
+        const writeSpy = vi.spyOn(infra.diskCache, 'setItem');
         const write = writeSpy.getMockImplementation();
         writeSpy.mockImplementation(async (cacheKey: string, value: string) => {
           if (
@@ -2645,7 +2639,7 @@ describe('LighterProvider', () => {
             throw new Error('Missing cancellation identity');
           }
           expect(attempt.acknowledged).toBe(false);
-          await jest.advanceTimersByTimeAsync(
+          await vi.advanceTimersByTimeAsync(
             attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS - Date.now() + 1,
           );
           const current = restart
@@ -2727,7 +2721,7 @@ describe('LighterProvider', () => {
             txHash: 'accepted',
           });
           const canceling = built.provider.cancelOrder(params);
-          await jest.advanceTimersByTimeAsync(10000);
+          await vi.advanceTimersByTimeAsync(10000);
           expect(await canceling).toMatchObject({ success: false });
           const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
           const [group] = parseLighterScaleGroups(
@@ -2751,7 +2745,7 @@ describe('LighterProvider', () => {
           }
           await infra.diskCache.setItem(key, JSON.stringify([raw]));
           if (condition !== 'unexpired') {
-            await jest.advanceTimersByTimeAsync(
+            await vi.advanceTimersByTimeAsync(
               attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS - Date.now() + 1,
             );
           }
@@ -2792,7 +2786,7 @@ describe('LighterProvider', () => {
             });
           }
           const repeated = restarted.provider.cancelOrder(params);
-          await jest.advanceTimersByTimeAsync(10000);
+          await vi.advanceTimersByTimeAsync(10000);
           expect(await repeated).toMatchObject({ success: false });
           expect(restarted.clientInstance.sendTx).not.toHaveBeenCalled();
           expect(
@@ -2827,7 +2821,7 @@ describe('LighterProvider', () => {
           }
           venue.history.push({ ...second, status: 'canceled' });
           const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
-          const spy = jest.spyOn(infra.diskCache, 'setItem');
+          const spy = vi.spyOn(infra.diskCache, 'setItem');
           const write = spy.getMockImplementation();
           let switched = false;
           spy.mockImplementation(async (cacheKey: string, value: string) => {
@@ -2870,7 +2864,7 @@ describe('LighterProvider', () => {
           if (!attempt) {
             throw new Error('Missing interrupted attempt');
           }
-          await jest.advanceTimersByTimeAsync(
+          await vi.advanceTimersByTimeAsync(
             attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS - Date.now() + 1,
           );
           const restarted = buildProvider({
@@ -2929,7 +2923,7 @@ describe('LighterProvider', () => {
             orderId: String(placed.orderId),
             orderType: 'scale',
           });
-          await jest.advanceTimersByTimeAsync(10000);
+          await vi.advanceTimersByTimeAsync(10000);
           expect(await canceling).toMatchObject({ success: false });
           const key = `lighterScaleOrders:testnet:${ACCOUNT.l1Address.toLowerCase()}:28`;
           const [group] = parseLighterScaleGroups(
@@ -3032,7 +3026,7 @@ describe('LighterProvider', () => {
         const unknown = parseLighterScaleGroups(
           await infra.diskCache.getItem(key),
         )[0].rungs[0].cancelAttempt;
-        await jest.advanceTimersByTimeAsync(
+        await vi.advanceTimersByTimeAsync(
           attempt.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS - Date.now() + 1,
         );
         built.clientInstance.getTx.mockResolvedValue(null);
@@ -3042,7 +3036,7 @@ describe('LighterProvider', () => {
         });
         await built.provider.reviewScaleOrderGroups();
         const repeated = built.provider.cancelOrder(params);
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect(await repeated).toMatchObject({ success: false });
 
         const expected = { ...attempt };
@@ -3073,44 +3067,39 @@ describe('LighterProvider', () => {
           const venue = scaleVenue(built);
           const placed = await built.provider.placeOrder(intent);
           const activeBefore = [...venue.active];
-          const execute = jest
+          const execute = vi
             .mocked(built.bridge)
             .execute.getMockImplementation();
           if (!execute) {
             throw new Error('Missing signer implementation');
           }
-          jest
-            .mocked(built.bridge)
-            .execute.mockImplementation(
-              async <Operation extends LighterSignerOperation>(
-                call: LighterWasmCall<Operation>,
-              ): Promise<LighterSignerResult<Operation>> => {
-                const result = await execute(call);
-                if (
-                  call.function !== '_signCancelOrder' ||
-                  !('txInfo' in result) ||
-                  typeof result.txInfo !== 'string'
-                ) {
-                  return result;
-                }
-                const wire = JSON.parse(result.txInfo) as Record<
-                  string,
-                  unknown
-                >;
-                if (field === 'expiry') {
-                  wire.ExpiredAt = 0;
-                }
-                if (field === 'nonce') {
-                  delete wire.Nonce;
-                }
-                return {
-                  ...result,
-                  ...(field === 'hash' ? { txHash: 'invalid' } : {}),
-                  txInfo: JSON.stringify(wire),
-                } as LighterSignerResult<Operation>;
-              },
-            );
-          const writes = jest.spyOn(infra.diskCache, 'setItem');
+          vi.mocked(built.bridge).execute.mockImplementation(
+            async <Operation extends LighterSignerOperation>(
+              call: LighterWasmCall<Operation>,
+            ): Promise<LighterSignerResult<Operation>> => {
+              const result = await execute(call);
+              if (
+                call.function !== '_signCancelOrder' ||
+                !('txInfo' in result) ||
+                typeof result.txInfo !== 'string'
+              ) {
+                return result;
+              }
+              const wire = JSON.parse(result.txInfo) as Record<string, unknown>;
+              if (field === 'expiry') {
+                wire.ExpiredAt = 0;
+              }
+              if (field === 'nonce') {
+                delete wire.Nonce;
+              }
+              return {
+                ...result,
+                ...(field === 'hash' ? { txHash: 'invalid' } : {}),
+                txInfo: JSON.stringify(wire),
+              } as LighterSignerResult<Operation>;
+            },
+          );
+          const writes = vi.spyOn(infra.diskCache, 'setItem');
           expect(
             await built.provider.cancelOrder({
               symbol: 'BTC',
@@ -3180,7 +3169,7 @@ describe('LighterProvider', () => {
             orderId: String(placed.orderId),
             orderType: 'scale',
           });
-          await jest.advanceTimersByTimeAsync(10000);
+          await vi.advanceTimersByTimeAsync(10000);
           expect(await cancellation).toMatchObject({
             success: false,
             error: `Lighter Scale acknowledgement ${field === 'owner' ? 'ownership' : 'attempt'} mismatch`,
@@ -3231,7 +3220,7 @@ describe('LighterProvider', () => {
           orderType: 'scale' as const,
         };
         const first = built.provider.cancelOrder(params);
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect(await first).toMatchObject({ success: false });
         const [group] = parseLighterScaleGroups(
           await infra.diskCache.getItem(key),
@@ -3280,7 +3269,7 @@ describe('LighterProvider', () => {
           },
         );
         const retrying = built.provider.cancelOrder(params);
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect(await retrying).toMatchObject({ success: false });
         expect(
           built.calls
@@ -3328,9 +3317,9 @@ describe('LighterProvider', () => {
             finished = true;
             return result;
           });
-        await jest.advanceTimersByTimeAsync(9999);
+        await vi.advanceTimersByTimeAsync(9999);
         expect(finished).toBe(false);
-        await jest.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(1);
         expect(finished).toBe(true);
         expect(await canceling).toMatchObject({
           success: false,
@@ -3412,7 +3401,7 @@ describe('LighterProvider', () => {
             },
           );
         } else if (boundary === 'signer' || boundary === 'leverage-signer') {
-          const execute = jest.spyOn(built.bridge, 'execute');
+          const execute = vi.spyOn(built.bridge, 'execute');
           const sign = execute.getMockImplementation();
           if (!sign) {
             throw new Error('Missing signer fixture');
@@ -3536,7 +3525,7 @@ describe('LighterProvider', () => {
         provider: built.provider,
         params,
         context: createMockServiceContext(),
-        reportOrderToDataLake: jest.fn().mockResolvedValue({ success: true }),
+        reportOrderToDataLake: vi.fn().mockResolvedValue({ success: true }),
       });
       delete params.expectedScaleLadder;
       built.clientInstance.getOrderBooks.mockResolvedValue([
@@ -3777,7 +3766,7 @@ describe('LighterProvider', () => {
       expect(accepted.rungs[0].state).toBe('accepted');
       expect(accepted.rungs[0].orderId).toBeUndefined();
       built.clientInstance.getTx.mockResolvedValue(null);
-      const clock = jest
+      const clock = vi
         .spyOn(Date, 'now')
         .mockReturnValue(Number(rung.expiresAt) + 31_000);
       try {
@@ -3879,7 +3868,7 @@ describe('LighterProvider', () => {
         );
         expect(pending.rungs[0].state).toBe('resting');
         expect(pending.rungs[1].state).toBe('unknown');
-        const clock = jest
+        const clock = vi
           .spyOn(Date, 'now')
           .mockReturnValue(Number(pending.rungs[1].expiresAt) + 31_000);
         try {
@@ -4000,7 +3989,7 @@ describe('LighterProvider', () => {
           getStoredKeyIndices: async () => (authority === 'missing' ? [] : [7]),
           getRecoverableKeyIndices: async () => [7],
         });
-        const createClient = jest.spyOn(restarted.bridge, 'createClient');
+        const createClient = vi.spyOn(restarted.bridge, 'createClient');
         const createClientImplementation = createClient.getMockImplementation();
         createClient.mockImplementation(async (params) => {
           const result = await createClientImplementation?.(params);
@@ -4104,7 +4093,7 @@ describe('LighterProvider', () => {
           await infra.diskCache.getItem(key),
         );
         const rung = group.rungs[0];
-        const clock = jest
+        const clock = vi
           .spyOn(Date, 'now')
           .mockReturnValue(Number(rung.expiresAt) + 31_000);
         if (proof === 'failed') {
@@ -4136,7 +4125,7 @@ describe('LighterProvider', () => {
     );
 
     it('retires an acknowledged invisible child after restart and expiry without financial setup', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       try {
         const infra = createMockInfrastructure();
         const first = buildProvider({
@@ -4152,7 +4141,7 @@ describe('LighterProvider', () => {
           orders: [],
         });
         const placing = first.provider.placeOrder(intent);
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         const result = await placing;
         expect(result).toMatchObject({
           success: false,
@@ -4168,7 +4157,7 @@ describe('LighterProvider', () => {
           platformDependencies: infra,
         });
         scaleVenue(restarted);
-        const clock = jest
+        const clock = vi
           .spyOn(Date, 'now')
           .mockReturnValue(Number(group.rungs[0].expiresAt) + 31_000);
         try {
@@ -4189,7 +4178,7 @@ describe('LighterProvider', () => {
           clock.mockRestore();
         }
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -4316,13 +4305,13 @@ describe('LighterProvider', () => {
             return { code: 200, txHash: '0xsent' };
           },
         );
-        const track = jest.spyOn(infra.metrics, 'trackPerpsEvent');
+        const track = vi.spyOn(infra.metrics, 'trackPerpsEvent');
         const service = new TradingService(infra);
         const result = await service.placeOrder({
           provider: built.provider,
           params: intent,
           context: createMockServiceContext(),
-          reportOrderToDataLake: jest.fn().mockResolvedValue({ success: true }),
+          reportOrderToDataLake: vi.fn().mockResolvedValue({ success: true }),
         });
         expect(result.success).toBe(true);
         expect(result.filledSize).toBe(fill === '0.0001' ? '0.0002' : fill);
@@ -4384,7 +4373,7 @@ describe('LighterProvider', () => {
     it('uses fresh terminal history when a prior reduce-only child filled', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       const venue = scaleVenue(built);
-      const spy = jest.spyOn(built.bridge, 'execute');
+      const spy = vi.spyOn(built.bridge, 'execute');
       const execute = spy.getMockImplementation();
       spy.mockImplementation(async (call) => {
         if (call.function === '_signCreateOrder' && venue.active.length === 1) {
@@ -4460,7 +4449,7 @@ describe('LighterProvider', () => {
     });
 
     it('waits for lagged cancellation without signing duplicate cancels', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       try {
         const built = buildProvider({ registeredKey: '9c'.repeat(40) });
         const venue = scaleVenue(built);
@@ -4489,7 +4478,7 @@ describe('LighterProvider', () => {
           orderId: String(result.orderId),
           orderType: 'scale',
         });
-        await jest.advanceTimersByTimeAsync(750);
+        await vi.advanceTimersByTimeAsync(750);
         expect(await canceling).toMatchObject({ success: true });
         expect(snapshots).toContainEqual([801]);
         expect(venue.history.map((row) => row.orderIndex)).toStrictEqual([
@@ -4510,7 +4499,7 @@ describe('LighterProvider', () => {
         );
         expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(4);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -4768,7 +4757,7 @@ describe('LighterProvider', () => {
     ] as const)(
       'does not abandon acknowledged absence with %s',
       async (control) => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         try {
           const infra = createMockInfrastructure();
           const built = buildProvider({
@@ -4784,9 +4773,9 @@ describe('LighterProvider', () => {
             orders: [],
           });
           const placing = built.provider.placeOrder(intent);
-          await jest.advanceTimersByTimeAsync(9999);
+          await vi.advanceTimersByTimeAsync(9999);
           expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
-          await jest.advanceTimersByTimeAsync(1);
+          await vi.advanceTimersByTimeAsync(1);
           const placed = await placing;
           expect(placed).toMatchObject({
             success: false,
@@ -4796,7 +4785,7 @@ describe('LighterProvider', () => {
           const [group] = parseLighterScaleGroups(
             await infra.diskCache.getItem(key),
           );
-          const clock = jest
+          const clock = vi
             .spyOn(Date, 'now')
             .mockReturnValue(
               control === 'unexpired'
@@ -4865,7 +4854,7 @@ describe('LighterProvider', () => {
             clock.mockRestore();
           }
         } finally {
-          jest.useRealTimers();
+          vi.useRealTimers();
         }
       },
     );
@@ -4899,7 +4888,7 @@ describe('LighterProvider', () => {
         code: 200,
         nonce: 1000,
       });
-      const setter = jest.spyOn(infra.diskCache, 'setItem');
+      const setter = vi.spyOn(infra.diskCache, 'setItem');
       const write = setter.getMockImplementation();
       let failed = false;
       setter.mockImplementation(async (key, value) => {
@@ -4946,7 +4935,7 @@ describe('LighterProvider', () => {
       const venue = scaleVenue(built);
       const params = { ...intent, isBuy: false, reduceOnly: true };
       expect((await built.provider.validateOrder(params)).isValid).toBe(true);
-      const spy = jest.spyOn(built.bridge, 'execute');
+      const spy = vi.spyOn(built.bridge, 'execute');
       const execute = spy.getMockImplementation();
       spy.mockImplementation(async (call) => {
         const signed = await execute?.(call);
@@ -5001,7 +4990,7 @@ describe('LighterProvider', () => {
         apiKeyIndex: 7,
         status: 0,
       });
-      const setter = jest.spyOn(infra.diskCache, 'setItem');
+      const setter = vi.spyOn(infra.diskCache, 'setItem');
       const write = setter.getMockImplementation();
       let failed = false;
       setter.mockImplementation(async (keyName, value) => {
@@ -5135,7 +5124,7 @@ describe('LighterProvider', () => {
           platformDependencies: infra,
         });
         const venue = scaleVenue(built);
-        const setter = jest.spyOn(infra.diskCache, 'setItem');
+        const setter = vi.spyOn(infra.diskCache, 'setItem');
         const write = setter.getMockImplementation();
         let failed = false;
         setter.mockImplementation(async (key, value) => {
@@ -5186,7 +5175,7 @@ describe('LighterProvider', () => {
         platformDependencies: infra,
       });
       scaleVenue(built);
-      const setter = jest.spyOn(infra.diskCache, 'setItem');
+      const setter = vi.spyOn(infra.diskCache, 'setItem');
       const write = setter.getMockImplementation();
       let unavailable = false;
       setter.mockImplementation(async (key, value) => {
@@ -5416,7 +5405,7 @@ describe('LighterProvider', () => {
         const rung = group.rungs[0];
         const clock =
           outcome === 'expired'
-            ? jest
+            ? vi
                 .spyOn(Date, 'now')
                 .mockReturnValue(Number(rung.expiresAt) + 31_000)
             : undefined;
@@ -5488,7 +5477,7 @@ describe('LighterProvider', () => {
 
     it('fails closed when the source account changes while signing a child', async () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
-      const spy = jest.spyOn(built.bridge, 'execute');
+      const spy = vi.spyOn(built.bridge, 'execute');
       const execute = spy.getMockImplementation();
       spy.mockImplementation(async (call) => {
         const signed = await execute?.(call);
@@ -5537,7 +5526,7 @@ describe('LighterProvider', () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       scaleVenue(built);
       const result = await built.provider.placeOrder(intent);
-      const spy = jest.spyOn(built.bridge, 'execute');
+      const spy = vi.spyOn(built.bridge, 'execute');
       const execute = spy.getMockImplementation();
       spy.mockImplementation(async (call) => {
         const signed = await execute?.(call);
@@ -5597,7 +5586,7 @@ describe('LighterProvider', () => {
     });
 
     it('stops after an acknowledged child without authoritative acceptance', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       try {
         const built = buildProvider({ registeredKey: '9c'.repeat(40) });
         built.clientInstance.getActiveOrders.mockResolvedValue({
@@ -5613,10 +5602,10 @@ describe('LighterProvider', () => {
           finished = true;
           return result;
         });
-        await jest.advanceTimersByTimeAsync(9999);
+        await vi.advanceTimersByTimeAsync(9999);
         expect(finished).toBe(false);
         expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
-        await jest.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(1);
         const result = await placing;
         expect(result.success).toBe(false);
         expect(result.acceptedSize).toBeUndefined();
@@ -5625,7 +5614,7 @@ describe('LighterProvider', () => {
           built.calls.filter((call) => call.function === '_signCreateOrder'),
         ).toHaveLength(1);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -5676,7 +5665,7 @@ describe('LighterProvider', () => {
   });
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('native attached placement', () => {
@@ -5695,19 +5684,19 @@ describe('LighterProvider', () => {
     } => {
       const disk = new Map<string, string>();
       const infrastructure = createMockInfrastructure();
-      jest
-        .mocked(infrastructure.diskCache)
-        .getItem.mockImplementation(async (key) => disk.get(key) ?? null);
-      jest
-        .mocked(infrastructure.diskCache)
-        .setItem.mockImplementation(async (key, value) => {
+      vi.mocked(infrastructure.diskCache).getItem.mockImplementation(
+        async (key) => disk.get(key) ?? null,
+      );
+      vi.mocked(infrastructure.diskCache).setItem.mockImplementation(
+        async (key, value) => {
           disk.set(key, value);
-        });
-      jest
-        .mocked(infrastructure.diskCache)
-        .removeItem.mockImplementation(async (key) => {
+        },
+      );
+      vi.mocked(infrastructure.diskCache).removeItem.mockImplementation(
+        async (key) => {
           disk.delete(key);
-        });
+        },
+      );
       return { disk, infrastructure };
     };
     const attachedVenue = (
@@ -5832,9 +5821,8 @@ describe('LighterProvider', () => {
           (await built.provider.reviewAttachedOrderGroups())[0].submission,
         ).toBe('canceled');
         let failed = false;
-        jest
-          .mocked(infrastructure.diskCache)
-          .setItem.mockImplementation(async (key, value) => {
+        vi.mocked(infrastructure.diskCache).setItem.mockImplementation(
+          async (key, value) => {
             if (
               failRetirement &&
               !failed &&
@@ -5845,7 +5833,8 @@ describe('LighterProvider', () => {
               throw new Error('ledger write failed');
             }
             disk.set(key, value);
-          });
+          },
+        );
         const restarted = buildProvider({
           platformDependencies: infrastructure,
           registeredKey: '9c'.repeat(40),
@@ -5976,16 +5965,15 @@ describe('LighterProvider', () => {
           code: 200,
           nonce: Number(group.nonce) + 1,
         });
-        const clock = jest
+        const clock = vi
           .spyOn(Date, 'now')
           .mockReturnValue(Number(group.expiresAt) + 31_000);
         try {
           let retirementError: unknown;
           if (failRetirement) {
             let failed = false;
-            jest
-              .mocked(infrastructure.diskCache)
-              .setItem.mockImplementation(async (key, value) => {
+            vi.mocked(infrastructure.diskCache).setItem.mockImplementation(
+              async (key, value) => {
                 if (
                   !failed &&
                   key === 'lighterNonceLedger:testnet:28:7' &&
@@ -5995,7 +5983,8 @@ describe('LighterProvider', () => {
                   throw new Error('acceptance ledger write failed');
                 }
                 disk.set(key, value);
-              });
+              },
+            );
             retirementError = await restarted.provider
               .reviewAttachedOrderGroups()
               .then(
@@ -6074,7 +6063,7 @@ describe('LighterProvider', () => {
         const {
           groups: [group],
         } = storedAttached(disk);
-        const clock = jest
+        const clock = vi
           .spyOn(Date, 'now')
           .mockReturnValue(Number(group.preparedAt) + 1000);
         try {
@@ -6272,7 +6261,7 @@ describe('LighterProvider', () => {
         groups: [group],
       } = storedAttached(disk);
       const [parent] = venue.active.splice(0);
-      const clock = jest
+      const clock = vi
         .spyOn(Date, 'now')
         .mockReturnValue(Number(group.expiresAt) + 31_000);
       try {
@@ -6350,7 +6339,7 @@ describe('LighterProvider', () => {
           nonce:
             Number(group.nonce) + (control === 'nonce-not-advanced' ? 0 : 1),
         });
-        const clock = jest
+        const clock = vi
           .spyOn(Date, 'now')
           .mockReturnValue(Number(group.expiresAt) + 31_000);
         try {
@@ -6482,7 +6471,7 @@ describe('LighterProvider', () => {
           };
         },
       );
-      const clock = jest
+      const clock = vi
         .spyOn(Date, 'now')
         .mockReturnValue(Number(group.expiresAt) + 31_000);
       try {
@@ -6550,7 +6539,7 @@ describe('LighterProvider', () => {
       const {
         groups: [group],
       } = storedAttached(disk);
-      const clock = jest
+      const clock = vi
         .spyOn(Date, 'now')
         .mockReturnValue(Number(group.expiresAt) + 31_000);
       try {
@@ -6598,9 +6587,7 @@ describe('LighterProvider', () => {
       if (group.nonce === null || group.expiresAt === null) {
         throw new Error('Missing identity');
       }
-      const clock = jest
-        .spyOn(Date, 'now')
-        .mockReturnValue(group.expiresAt - 1);
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(group.expiresAt - 1);
       try {
         built.clientInstance.getTx.mockResolvedValue(null);
         built.clientInstance.getNextNonce.mockResolvedValue({
@@ -6667,7 +6654,7 @@ describe('LighterProvider', () => {
         if (group.nonce === null || group.expiresAt === null) {
           throw new Error('Missing identity');
         }
-        const clock = jest
+        const clock = vi
           .spyOn(Date, 'now')
           .mockReturnValue(group.expiresAt + 700000);
         try {
@@ -6771,7 +6758,7 @@ describe('LighterProvider', () => {
       await built.provider.reconcileRecoveredDispatches();
       expect(storedAttached(disk).groups[0].nonAcceptance).toBe('failed');
       built.clientInstance.getTx.mockResolvedValue(null);
-      const clock = jest
+      const clock = vi
         .spyOn(Date, 'now')
         .mockReturnValue(group.expiresAt + 700000);
       try {
@@ -6820,7 +6807,7 @@ describe('LighterProvider', () => {
         throw new Error('Missing identity');
       }
       venue.active.splice(0);
-      const clock = jest
+      const clock = vi
         .spyOn(Date, 'now')
         .mockReturnValue(group.expiresAt + 700000);
       try {
@@ -6874,7 +6861,7 @@ describe('LighterProvider', () => {
       if (group.nonce === null || group.expiresAt === null) {
         throw new Error('Missing identity');
       }
-      const clock = jest
+      const clock = vi
         .spyOn(Date, 'now')
         .mockReturnValue(group.expiresAt + 700000);
       try {
@@ -7044,7 +7031,7 @@ describe('LighterProvider', () => {
         if (group.expiresAt === null || group.nonce === null) {
           throw new Error('Missing dispatch identity');
         }
-        const clock = jest
+        const clock = vi
           .spyOn(Date, 'now')
           .mockReturnValue(group.expiresAt + 700000);
         try {
@@ -7173,14 +7160,14 @@ describe('LighterProvider', () => {
       expect(storedAttached(disk).groups[0].submission).toBe('completed');
       built.clientInstance.getActiveOrders.mockClear();
       built.clientInstance.getInactiveOrders.mockClear();
-      jest.mocked(infrastructure.diskCache).setItem.mockClear();
+      vi.mocked(infrastructure.diskCache).setItem.mockClear();
       expect(
         (await built.provider.reviewAttachedOrderGroups())[0].submission,
       ).toBe('completed');
       expect(built.clientInstance.getActiveOrders).not.toHaveBeenCalled();
       expect(built.clientInstance.getInactiveOrders).not.toHaveBeenCalled();
       expect(
-        jest.mocked(infrastructure.diskCache).setItem.mock.calls,
+        vi.mocked(infrastructure.diskCache).setItem.mock.calls,
       ).toStrictEqual([]);
     });
 
@@ -7362,10 +7349,10 @@ describe('LighterProvider', () => {
       attachedVenue(built);
       await built.provider.placeOrder(attachedIntent);
       await built.provider.reviewAttachedOrderGroups();
-      jest.mocked(infrastructure.diskCache).setItem.mockClear();
+      vi.mocked(infrastructure.diskCache).setItem.mockClear();
       await built.provider.reviewAttachedOrderGroups();
       expect(
-        jest
+        vi
           .mocked(infrastructure.diskCache)
           .setItem.mock.calls.filter(([key]) =>
             key.startsWith('lighterAttachedOrders:'),
@@ -7450,18 +7437,18 @@ describe('LighterProvider', () => {
         code: 200,
         nonce: group.nonce + 1,
       });
-      jest
-        .mocked(infrastructure.diskCache)
-        .setItem.mockImplementation(async (storageKey, value) => {
+      vi.mocked(infrastructure.diskCache).setItem.mockImplementation(
+        async (storageKey, value) => {
           if (storageKey === key) {
             throw new Error('disk full');
           }
           disk.set(storageKey, value);
-        });
+        },
+      );
       if (group.expiresAt === null) {
         throw new Error('Missing expiry');
       }
-      const clock = jest
+      const clock = vi
         .spyOn(Date, 'now')
         .mockReturnValue(group.expiresAt + 700000);
       try {
@@ -7543,9 +7530,7 @@ describe('LighterProvider', () => {
           code: 200,
           nonce: nonce + (proof === 'nonce-consumed' ? 1 : 0),
         });
-        const clock = jest
-          .spyOn(Date, 'now')
-          .mockReturnValue(expiresAt + 700000);
+        const clock = vi.spyOn(Date, 'now').mockReturnValue(expiresAt + 700000);
         try {
           const result = await built.provider.reconcileRecoveredDispatches();
           expect(result).toHaveLength(1);
@@ -7564,7 +7549,7 @@ describe('LighterProvider', () => {
         platformDependencies: infrastructure,
         registeredKey: '9c'.repeat(40),
       });
-      const execute = jest.mocked(first.bridge).execute.getMockImplementation();
+      const execute = vi.mocked(first.bridge).execute.getMockImplementation();
       if (!execute) {
         throw new Error('Missing mock signer');
       }
@@ -7573,7 +7558,7 @@ describe('LighterProvider', () => {
         txHash: null;
         orders: unknown[][];
       }[] = [];
-      jest.mocked(first.bridge).execute.mockImplementation(async (call) => {
+      vi.mocked(first.bridge).execute.mockImplementation(async (call) => {
         if (call.function === '_signCreateGroupedOrders') {
           const stored = [...disk.entries()].find(([key]) =>
             key.startsWith('lighterAttachedOrders:'),
@@ -7644,19 +7629,19 @@ describe('LighterProvider', () => {
         });
         const held = createDeferred<void>();
         const entered = createDeferred<void>();
-        const execute = jest
+        const execute = vi
           .mocked(bundle.bridge)
           .execute.getMockImplementation();
         if (!execute) {
           throw new Error('Missing mock signer');
         }
-        const write = jest
+        const write = vi
           .mocked(infrastructure.diskCache)
           .setItem.getMockImplementation();
         if (!write) {
           throw new Error('Missing mock storage');
         }
-        jest.mocked(bundle.bridge).execute.mockImplementation(async (call) => {
+        vi.mocked(bundle.bridge).execute.mockImplementation(async (call) => {
           const result = await execute(call);
           if (
             boundary === 'signing' &&
@@ -7667,9 +7652,8 @@ describe('LighterProvider', () => {
           }
           return result;
         });
-        jest
-          .mocked(infrastructure.diskCache)
-          .setItem.mockImplementation(async (key, value) => {
+        vi.mocked(infrastructure.diskCache).setItem.mockImplementation(
+          async (key, value) => {
             await write(key, value);
             if (
               key.startsWith('lighterAttachedOrders:') &&
@@ -7681,7 +7665,8 @@ describe('LighterProvider', () => {
               entered.resolve();
               await held.promise;
             }
-          });
+          },
+        );
         const pending = bundle.provider.placeOrder(attachedIntent);
         await entered.promise;
         bundle.getUserAddressMock.mockReturnValue(
@@ -7706,20 +7691,20 @@ describe('LighterProvider', () => {
         platformDependencies: infrastructure,
         registeredKey: '9c'.repeat(40),
       });
-      const write = jest
+      const write = vi
         .mocked(infrastructure.diskCache)
         .setItem.getMockImplementation();
       if (!write) {
         throw new Error('Missing mock storage');
       }
-      jest
-        .mocked(infrastructure.diskCache)
-        .setItem.mockImplementation(async (key, value) => {
+      vi.mocked(infrastructure.diskCache).setItem.mockImplementation(
+        async (key, value) => {
           if (key.startsWith('lighterAttachedOrders:')) {
             throw new Error('disk full');
           }
           await write(key, value);
-        });
+        },
+      );
       const result = await bundle.provider.placeOrder(attachedIntent);
       expect(result.error).toContain('disk full');
       expect(
@@ -7845,11 +7830,11 @@ describe('LighterProvider', () => {
         platformDependencies: infrastructure,
         registeredKey: '9c'.repeat(40),
       });
-      const execute = jest.mocked(first.bridge).execute.getMockImplementation();
+      const execute = vi.mocked(first.bridge).execute.getMockImplementation();
       if (!execute) {
         throw new Error('Missing signer');
       }
-      jest.mocked(first.bridge).execute.mockImplementation(async (call) => {
+      vi.mocked(first.bridge).execute.mockImplementation(async (call) => {
         if (call.function === '_signCreateGroupedOrders') {
           throw new Error('signer interrupted');
         }
@@ -7953,15 +7938,14 @@ describe('LighterProvider', () => {
           platformDependencies: infrastructure,
           registeredKey: '9c'.repeat(40),
         });
-        const write = jest
+        const write = vi
           .mocked(infrastructure.diskCache)
           .setItem.getMockImplementation();
         if (!write) {
           throw new Error('Missing storage');
         }
-        jest
-          .mocked(infrastructure.diskCache)
-          .setItem.mockImplementation(async (key, value) => {
+        vi.mocked(infrastructure.diskCache).setItem.mockImplementation(
+          async (key, value) => {
             if (
               key.startsWith('lighterAttachedOrders:') &&
               value.includes('"submission":"accepted"')
@@ -7969,7 +7953,8 @@ describe('LighterProvider', () => {
               throw new Error('accepted write failed');
             }
             await write(key, value);
-          });
+          },
+        );
         await built.provider.placeOrder(attachedIntent);
         const {
           groups: [group],
@@ -8010,15 +7995,14 @@ describe('LighterProvider', () => {
         platformDependencies: infrastructure,
         registeredKey: '9c'.repeat(40),
       });
-      const write = jest
+      const write = vi
         .mocked(infrastructure.diskCache)
         .setItem.getMockImplementation();
       if (!write) {
         throw new Error('Missing storage');
       }
-      jest
-        .mocked(infrastructure.diskCache)
-        .setItem.mockImplementation(async (key, value) => {
+      vi.mocked(infrastructure.diskCache).setItem.mockImplementation(
+        async (key, value) => {
           if (
             key.startsWith('lighterAttachedOrders:') &&
             value.includes('"submission":"accepted"')
@@ -8026,7 +8010,8 @@ describe('LighterProvider', () => {
             throw new Error('post-send disk failure');
           }
           await write(key, value);
-        });
+        },
+      );
       const placed = await bundle.provider.placeOrder(attachedIntent);
       expect(placed.success).toBe(false);
       expect(placed.attachedOrderGroup?.submission).toBe('accepted');
@@ -8054,15 +8039,14 @@ describe('LighterProvider', () => {
         registeredKey: '9c'.repeat(40),
       });
       const venue = attachedVenue(bundle);
-      const write = jest
+      const write = vi
         .mocked(infrastructure.diskCache)
         .setItem.getMockImplementation();
       if (!write) {
         throw new Error('Missing storage');
       }
-      jest
-        .mocked(infrastructure.diskCache)
-        .setItem.mockImplementation(async (key, value) => {
+      vi.mocked(infrastructure.diskCache).setItem.mockImplementation(
+        async (key, value) => {
           if (
             key.startsWith('lighterAttachedOrders:') &&
             value.includes('"submission":"accepted"')
@@ -8070,10 +8054,11 @@ describe('LighterProvider', () => {
             throw new Error('post-send disk failure');
           }
           await write(key, value);
-        });
+        },
+      );
       const placed = await bundle.provider.placeOrder(attachedIntent);
       const now = Date.now();
-      const clock = jest.spyOn(Date, 'now').mockReturnValue(now + 700000);
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(now + 700000);
       try {
         const result = await bundle.provider.cancelOrder({
           symbol: 'BTC',
@@ -8107,13 +8092,13 @@ describe('LighterProvider', () => {
           registeredKey: '9c'.repeat(40),
         });
         if (submission === 'prepared') {
-          const execute = jest
+          const execute = vi
             .mocked(first.bridge)
             .execute.getMockImplementation();
           if (!execute) {
             throw new Error('Missing mock signer');
           }
-          jest.mocked(first.bridge).execute.mockImplementation(async (call) => {
+          vi.mocked(first.bridge).execute.mockImplementation(async (call) => {
             if (call.function === '_signCreateGroupedOrders') {
               throw new Error('signer interrupted');
             }
@@ -8169,9 +8154,9 @@ describe('LighterProvider', () => {
           );
         } else if (failure === 'storage') {
           message = 'attached storage failed';
-          jest
-            .mocked(infrastructure.diskCache)
-            .getItem.mockRejectedValue(new Error(message));
+          vi.mocked(infrastructure.diskCache).getItem.mockRejectedValue(
+            new Error(message),
+          );
         } else {
           message =
             failure === 'wrong-wallet'
@@ -8370,7 +8355,7 @@ describe('LighterProvider', () => {
         })
         .mockResolvedValue({ code: 200, accounts: [ACCOUNT] });
 
-      provider.subscribeToAccount({ callback: jest.fn() });
+      provider.subscribeToAccount({ callback: vi.fn() });
       await accountLookupStarted;
       await provider.disconnect();
       expect(resetListenerCount()).toBe(0);
@@ -8388,16 +8373,16 @@ describe('LighterProvider', () => {
       const { provider, bridge, calls, resetListenerCount } = buildProvider({
         registeredKey: '9c'.repeat(40),
       });
-      const realExecute = (
-        bridge.execute as jest.Mock
-      ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
+      const realExecute = (bridge.execute as Mock).getMockImplementation() as (
+        call: LighterWasmCall,
+      ) => Promise<unknown>;
       let releaseAuth: () => void = () => undefined;
       let signalAuthMint: () => void = () => undefined;
       const authMintStarted = new Promise<void>((resolve) => {
         signalAuthMint = resolve;
       });
       let authPaused = false;
-      (bridge.execute as jest.Mock).mockImplementation(
+      (bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_createAuthToken' && !authPaused) {
             authPaused = true;
@@ -8410,7 +8395,7 @@ describe('LighterProvider', () => {
         },
       );
 
-      provider.subscribeToOrders({ callback: jest.fn() });
+      provider.subscribeToOrders({ callback: vi.fn() });
       await authMintStarted;
       expect(
         calls.filter((call) => call.function === '_createClient'),
@@ -8431,7 +8416,7 @@ describe('LighterProvider', () => {
       const { provider, calls, resetListenerCount } = buildProvider({
         webSocketCtor: fakeStreamCtor,
       });
-      const callback = jest.fn();
+      const callback = vi.fn();
       provider.subscribeToPrices({ symbols: [], callback });
       const socket = StreamFakeWebSocket.instances[0];
       await provider.disconnect();
@@ -8547,7 +8532,7 @@ describe('LighterProvider', () => {
           });
         })
         .mockResolvedValue({ code: 200, c: [] });
-      const callback = jest.fn();
+      const callback = vi.fn();
       provider.subscribeToCandles({
         symbol: 'BTC',
         interval: '1h',
@@ -8565,7 +8550,7 @@ describe('LighterProvider', () => {
 
       expect(callback).not.toHaveBeenCalled();
       expect(StreamFakeWebSocket.instances).toHaveLength(0);
-      const lateCallback = jest.fn();
+      const lateCallback = vi.fn();
       provider.subscribeToCandles({
         symbol: 'BTC',
         interval: '1h',
@@ -8592,8 +8577,8 @@ describe('LighterProvider', () => {
           rejectMarkets = reject;
         });
       });
-      const callback = jest.fn();
-      const onError = jest.fn();
+      const callback = vi.fn();
+      const onError = vi.fn();
       provider.subscribeToOrderBook({ symbol: 'BTC', callback, onError });
       await marketReadStarted;
       await provider.disconnect();
@@ -8622,7 +8607,7 @@ describe('LighterProvider', () => {
           resolvePrices = resolve;
         });
       });
-      const callback = jest.fn();
+      const callback = vi.fn();
       provider.subscribeToPrices({ symbols: [], callback });
       await priceReadStarted;
       await provider.disconnect();
@@ -8635,7 +8620,7 @@ describe('LighterProvider', () => {
       await new Promise((resolveTick) => setImmediate(resolveTick));
 
       expect(callback).not.toHaveBeenCalled();
-      const lateCallback = jest.fn();
+      const lateCallback = vi.fn();
       provider.subscribeToPrices({ symbols: [], callback: lateCallback });
       expect(lateCallback).not.toHaveBeenCalled();
       expect(provider.getWebSocketConnectionState()).toBe('disconnected');
@@ -9235,7 +9220,7 @@ describe('LighterProvider', () => {
 
     it('reports unavailable when the account read fails', async () => {
       const infra = createMockInfrastructure();
-      const logSpy = jest.spyOn(infra.debugLogger, 'log');
+      const logSpy = vi.spyOn(infra.debugLogger, 'log');
       const { provider, clientInstance } = buildProvider({
         platformDependencies: infra,
       });
@@ -9899,7 +9884,7 @@ describe('LighterProvider', () => {
     it('fences capabilities when disconnect occurs after metadata resolves', async () => {
       const { provider } = buildProvider();
       const initialize = provider.initialize.bind(provider);
-      jest.spyOn(provider, 'initialize').mockImplementation(async () => {
+      vi.spyOn(provider, 'initialize').mockImplementation(async () => {
         const result = await initialize();
         // Queue teardown between #ensureMarkets resolution and its caller.
         queueMicrotask(() => {
@@ -10489,7 +10474,7 @@ describe('LighterProvider', () => {
             status: 2,
           };
         });
-        const execute = jest.spyOn(built.bridge, 'execute');
+        const execute = vi.spyOn(built.bridge, 'execute');
         const sign = execute.getMockImplementation();
         if (!sign) {
           throw new Error('Missing signer fixture');
@@ -10581,9 +10566,9 @@ describe('LighterProvider', () => {
         ],
       });
       const realImplementation = (
-        bridge.execute as jest.Mock
+        bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (bridge.execute as jest.Mock).mockImplementation(
+      (bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_signUpdateLeverage') {
             return {
@@ -10607,12 +10592,13 @@ describe('LighterProvider', () => {
       });
       expect(result.success).toBe(true);
       const leverageCall = (
-        bridge.execute as jest.Mock<
-          Promise<LighterSignerResult<LighterSignerOperation>>,
-          [LighterWasmCall]
+        bridge.execute as Mock<
+          (
+            ...args: [LighterWasmCall]
+          ) => Promise<LighterSignerResult<LighterSignerOperation>>
         >
       ).mock.calls.find(
-        ([call]: [LighterWasmCall]) => call.function === '_signUpdateLeverage',
+        ([call]: LighterWasmCall[]) => call.function === '_signUpdateLeverage',
       )?.[0] as LighterWasmCall;
       expect(leverageCall).toBeDefined();
       // marginMode param: 1 = isolated on a flat market.
@@ -10704,7 +10690,9 @@ describe('LighterProvider', () => {
       async ({ slippage, priceAtCalculation }) => {
         let clock = Date.now();
         let reference = 90000;
-        const now = jest.spyOn(Date, 'now').mockImplementation(() => clock);
+        const now = vi.spyOn(Date, 'now').mockImplementation(function () {
+          return clock;
+        });
         const { provider, calls, clientInstance } = buildProvider({
           nativeTwapTestnetProbe: true,
           registeredKey: '9c'.repeat(40),
@@ -10785,14 +10773,14 @@ describe('LighterProvider', () => {
     it('retains schedule ownership across disconnect and reads it after restart without financial replay', async () => {
       const disk = new Map<string, string>();
       const dependencies = createMockInfrastructure();
-      jest
-        .spyOn(dependencies.diskCache, 'getItem')
-        .mockImplementation(async (key: string) => disk.get(key) ?? null);
-      jest
-        .spyOn(dependencies.diskCache, 'setItem')
-        .mockImplementation(async (key: string, value: string) => {
+      vi.spyOn(dependencies.diskCache, 'getItem').mockImplementation(
+        async (key: string) => disk.get(key) ?? null,
+      );
+      vi.spyOn(dependencies.diskCache, 'setItem').mockImplementation(
+        async (key: string, value: string) => {
           disk.set(key, value);
-        });
+        },
+      );
       const first = buildProvider({
         nativeTwapTestnetProbe: true,
         platformDependencies: dependencies,
@@ -10888,14 +10876,14 @@ describe('LighterProvider', () => {
     it('persists the exact schedule before native type6 send and retains unresolved parent visibility', async () => {
       const disk = new Map<string, string>();
       const dependencies = createMockInfrastructure();
-      jest
-        .spyOn(dependencies.diskCache, 'getItem')
-        .mockImplementation(async (key: string) => disk.get(key) ?? null);
-      jest
-        .spyOn(dependencies.diskCache, 'setItem')
-        .mockImplementation(async (key: string, value: string) => {
+      vi.spyOn(dependencies.diskCache, 'getItem').mockImplementation(
+        async (key: string) => disk.get(key) ?? null,
+      );
+      vi.spyOn(dependencies.diskCache, 'setItem').mockImplementation(
+        async (key: string, value: string) => {
           disk.set(key, value);
-        });
+        },
+      );
       const { provider, calls, clientInstance } = buildProvider({
         nativeTwapTestnetProbe: true,
         platformDependencies: dependencies,
@@ -11070,9 +11058,9 @@ describe('LighterProvider', () => {
           );
         }
         if (trailingFailure) {
-          jest
-            .spyOn(provider, 'getNativeTwapObservations')
-            .mockRejectedValueOnce(new Error('after cancel read failed'));
+          vi.spyOn(provider, 'getNativeTwapObservations').mockRejectedValueOnce(
+            new Error('after cancel read failed'),
+          );
         }
         const cancellation = await provider.cancelOrder({
           symbol: 'BTC',
@@ -11261,7 +11249,7 @@ describe('LighterProvider', () => {
 
     it('subscribes to market_stats/all and dispatches snapshot + updates', async () => {
       const { provider } = buildProvider({ webSocketCtor: fakeCtor });
-      const callback = jest.fn();
+      const callback = vi.fn();
       const unsubscribe = provider.subscribeToPrices({
         symbols: [],
         callback,
@@ -11309,7 +11297,7 @@ describe('LighterProvider', () => {
       });
       const unsubscribe = provider.subscribeToPrices({
         symbols: [],
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
       const socket = FakeWebSocket.instances[0];
       socket.open();
@@ -11334,7 +11322,7 @@ describe('LighterProvider', () => {
       const { provider } = buildProvider({ webSocketCtor: fakeCtor });
       const unsubscribeFirst = provider.subscribeToPrices({
         symbols: [],
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
       const socket = FakeWebSocket.instances[0];
       socket.open();
@@ -11348,7 +11336,7 @@ describe('LighterProvider', () => {
         market_stats: { '2': wsStat('SOL', 2, '75.1') },
       });
 
-      const late = jest.fn();
+      const late = vi.fn();
       const unsubscribeLate = provider.subscribeToPrices({
         symbols: ['BTC'],
         callback: late,
@@ -11385,8 +11373,8 @@ describe('LighterProvider', () => {
           },
         ],
       });
-      const accountCallback = jest.fn();
-      const positionsCallback = jest.fn();
+      const accountCallback = vi.fn();
+      const positionsCallback = vi.fn();
       const unsubscribeAccount = provider.subscribeToAccount({
         callback: accountCallback,
       });
@@ -11482,7 +11470,7 @@ describe('LighterProvider', () => {
           },
         ],
       });
-      const callback = jest.fn();
+      const callback = vi.fn();
       const unsubscribe = provider.subscribeToPositions({ callback });
       await new Promise((resolveTick) => setImmediate(resolveTick));
       await new Promise((resolveTick) => setImmediate(resolveTick));
@@ -11535,7 +11523,7 @@ describe('LighterProvider', () => {
         expect.objectContaining({ symbol: 'SOL', size: '1' }),
       ]);
 
-      const late = jest.fn();
+      const late = vi.fn();
       const unsubscribeLate = provider.subscribeToPositions({ callback: late });
       expect(late).toHaveBeenCalledWith([
         expect.objectContaining({ symbol: 'BTC', size: '0.5' }),
@@ -11570,8 +11558,8 @@ describe('LighterProvider', () => {
           }),
         ],
       ]);
-      const getItem = jest.spyOn(infra.diskCache, 'getItem');
-      const removeItem = jest.spyOn(infra.diskCache, 'removeItem');
+      const getItem = vi.spyOn(infra.diskCache, 'getItem');
+      const removeItem = vi.spyOn(infra.diskCache, 'removeItem');
       getItem.mockImplementation(async (key) => storage.get(key) ?? null);
       const { provider } = buildProvider({
         platformDependencies: infra,
@@ -11611,7 +11599,7 @@ describe('LighterProvider', () => {
         webSocketCtor: fakeCtor,
         registeredKey: '9c'.repeat(40),
       });
-      const unsubscribe = provider.subscribeToOrders({ callback: jest.fn() });
+      const unsubscribe = provider.subscribeToOrders({ callback: vi.fn() });
       await new Promise((resolveTick) => setImmediate(resolveTick));
       await new Promise((resolveTick) => setImmediate(resolveTick));
       const socket = FakeWebSocket.instances[0];
@@ -11621,7 +11609,7 @@ describe('LighterProvider', () => {
         channel: 'account_all_orders:28',
         orders: {},
       });
-      const late = jest.fn();
+      const late = vi.fn();
 
       const unsubscribeLate = provider.subscribeToOrders({ callback: late });
 
@@ -11640,14 +11628,14 @@ describe('LighterProvider', () => {
         });
         // Positions initialize the shared authenticated trade channel without a fill subscriber.
         const unsubscribe = provider.subscribeToPositions({
-          callback: jest.fn(),
+          callback: vi.fn(),
         });
         await new Promise((resolveTick) => setImmediate(resolveTick));
         await new Promise((resolveTick) => setImmediate(resolveTick));
         const socket = FakeWebSocket.instances[0];
         socket.open();
         socket.receive({ type: 'subscribed/account_all_trades', trades });
-        const late = jest.fn();
+        const late = vi.fn();
         const unsubscribeLate = provider.subscribeToOrderFills({
           callback: late,
         });
@@ -11667,7 +11655,7 @@ describe('LighterProvider', () => {
           registeredKey: '9c'.repeat(40),
         });
         const unsubscribe = provider.subscribeToOrderFills({
-          callback: jest.fn(),
+          callback: vi.fn(),
         });
         await new Promise((resolveTick) => setImmediate(resolveTick));
         await new Promise((resolveTick) => setImmediate(resolveTick));
@@ -11694,7 +11682,7 @@ describe('LighterProvider', () => {
           type: 'update/account_all_trades',
           trades: { '1': [null] },
         });
-        const late = jest.fn();
+        const late = vi.fn();
         const stop = provider.subscribeToOrderFills({ callback: late });
         await new Promise((resolveTick) => setImmediate(resolveTick));
         expect(late).not.toHaveBeenCalled();
@@ -11716,7 +11704,7 @@ describe('LighterProvider', () => {
           webSocketCtor: fakeCtor,
           registeredKey: '9c'.repeat(40),
         });
-        const callback = jest.fn();
+        const callback = vi.fn();
         const unsubscribe = provider.subscribeToOrders({ callback });
         await new Promise((resolveTick) => setImmediate(resolveTick));
         await new Promise((resolveTick) => setImmediate(resolveTick));
@@ -11729,12 +11717,12 @@ describe('LighterProvider', () => {
           orders: { '1': [{ status }] },
         });
         expect(callback).not.toHaveBeenCalled();
-        const late = jest.fn();
+        const late = vi.fn();
         const stop = provider.subscribeToOrders({ callback: late });
         expect(late).not.toHaveBeenCalled();
         socket.receive({ type: 'subscribed/account_all_orders', orders: {} });
         expect(late).toHaveBeenCalledWith([]);
-        const restored = jest.fn();
+        const restored = vi.fn();
         const stopRestored = provider.subscribeToOrders({ callback: restored });
         expect(restored).toHaveBeenCalledWith([]);
         stopRestored();
@@ -11751,7 +11739,7 @@ describe('LighterProvider', () => {
           webSocketCtor: fakeCtor,
           registeredKey: '9c'.repeat(40),
         });
-        const callback = jest.fn<void, [Order[]]>();
+        const callback = vi.fn<(...args: [Order[]]) => void>();
         const unsubscribe = provider.subscribeToOrders({ callback });
         await new Promise((resolveTick) => setImmediate(resolveTick));
         await new Promise((resolveTick) => setImmediate(resolveTick));
@@ -11790,7 +11778,7 @@ describe('LighterProvider', () => {
         socket.receive({ type: 'subscribed/account_all_orders' });
         socket.receive({ type: 'update/account_all_orders' });
         expect(callback).not.toHaveBeenCalled();
-        const late = jest.fn();
+        const late = vi.fn();
         const stop = provider.subscribeToOrders({ callback: late });
         expect(late.mock.calls).toStrictEqual(previousCalls);
         stop();
@@ -11806,13 +11794,13 @@ describe('LighterProvider', () => {
           webSocketCtor: fakeCtor,
           registeredKey: '9c'.repeat(40),
         });
-        const unsubscribe = provider.subscribeToOrders({ callback: jest.fn() });
+        const unsubscribe = provider.subscribeToOrders({ callback: vi.fn() });
         await new Promise((resolveTick) => setImmediate(resolveTick));
         await new Promise((resolveTick) => setImmediate(resolveTick));
         const socket = FakeWebSocket.instances[0];
         socket.open();
         socket.receive({ type: 'subscribed/account_all_orders', orders });
-        const late = jest.fn();
+        const late = vi.fn();
         const stop = provider.subscribeToOrders({ callback: late });
         expect(late).not.toHaveBeenCalled();
         stop();
@@ -11839,21 +11827,21 @@ describe('LighterProvider', () => {
           );
         }
         const stopFirst = built.provider.subscribeToOrders({
-          callback: jest.fn(),
+          callback: vi.fn(),
           onError: () => {
             throw new Error('listener failed');
           },
         });
-        const sibling = jest.fn();
+        const sibling = vi.fn();
         const stopSibling = built.provider.subscribeToOrderFills({
-          callback: jest.fn(),
+          callback: vi.fn(),
           onError: sibling,
         });
         await new Promise((resolveTick) => setImmediate(resolveTick));
         await new Promise((resolveTick) => setImmediate(resolveTick));
         expect(sibling).toHaveBeenCalled();
         sibling.mockClear();
-        const retry = built.provider.subscribeToOrders({ callback: jest.fn() });
+        const retry = built.provider.subscribeToOrders({ callback: vi.fn() });
         await new Promise((resolveTick) => setImmediate(resolveTick));
         await new Promise((resolveTick) => setImmediate(resolveTick));
         expect(sibling).toHaveBeenCalled();
@@ -11870,7 +11858,7 @@ describe('LighterProvider', () => {
         registeredKey: '9c'.repeat(40),
       });
       const unsubscribe = provider.subscribeToOrderFills({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
       await new Promise((resolveTick) => setImmediate(resolveTick));
       await new Promise((resolveTick) => setImmediate(resolveTick));
@@ -11902,7 +11890,7 @@ describe('LighterProvider', () => {
           ],
         },
       });
-      const late = jest.fn<void, [OrderFill[], boolean?]>();
+      const late = vi.fn<(...args: [OrderFill[], boolean?]) => void>();
       const unsubscribeLate = provider.subscribeToOrderFills({
         callback: late,
       });
@@ -11923,8 +11911,8 @@ describe('LighterProvider', () => {
         webSocketCtor: fakeCtor,
         registeredKey: '9c'.repeat(40),
       });
-      const callback = jest.fn();
-      const onError = jest.fn();
+      const callback = vi.fn();
+      const onError = vi.fn();
       const unsubscribe = provider.subscribeToOrderFills({ callback, onError });
       await new Promise((resolveTick) => setImmediate(resolveTick));
       await new Promise((resolveTick) => setImmediate(resolveTick));
@@ -11950,7 +11938,7 @@ describe('LighterProvider', () => {
         type: 'update/account_all_trades',
         trades: { '1': [trade] },
       });
-      const late = jest.fn<void, [OrderFill[], boolean?]>();
+      const late = vi.fn<(...args: [OrderFill[], boolean?]) => void>();
       const unsubscribeLate = provider.subscribeToOrderFills({
         callback: late,
       });
@@ -11978,7 +11966,7 @@ describe('LighterProvider', () => {
           webSocketCtor: fakeCtor,
           registeredKey: '9c'.repeat(40),
         });
-        const callback = jest.fn();
+        const callback = vi.fn();
         const unsubscribe = provider.subscribeToOrderFills({ callback });
         await new Promise((resolveTick) => setImmediate(resolveTick));
         await new Promise((resolveTick) => setImmediate(resolveTick));
@@ -12017,7 +12005,7 @@ describe('LighterProvider', () => {
           [expect.objectContaining({ fillId: '2' })],
           false,
         );
-        const late = jest.fn();
+        const late = vi.fn();
         const unsubscribeLate = provider.subscribeToOrderFills({
           callback: late,
         });
@@ -12025,7 +12013,7 @@ describe('LighterProvider', () => {
         expect(late).not.toHaveBeenCalled();
         // Only a new validated complete snapshot can restore replay authority.
         socket.receive({ type: 'subscribed/account_all_trades', trades: {} });
-        const restored = jest.fn();
+        const restored = vi.fn();
         const unsubscribeRestored = provider.subscribeToOrderFills({
           callback: restored,
         });
@@ -12044,7 +12032,7 @@ describe('LighterProvider', () => {
         registeredKey: '9c'.repeat(40),
       });
       const unsubscribe = provider.subscribeToOrderFills({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
       await new Promise((resolveTick) => setImmediate(resolveTick));
       await new Promise((resolveTick) => setImmediate(resolveTick));
@@ -12070,7 +12058,7 @@ describe('LighterProvider', () => {
           ],
         },
       });
-      const late = jest.fn();
+      const late = vi.fn();
       const unsubscribeLate = provider.subscribeToOrderFills({
         callback: late,
       });
@@ -12087,7 +12075,7 @@ describe('LighterProvider', () => {
         registeredKey: '9c'.repeat(40),
       });
       const unsubscribe = provider.subscribeToOrderFills({
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
       await new Promise((resolveTick) => setImmediate(resolveTick));
       await new Promise((resolveTick) => setImmediate(resolveTick));
@@ -12096,7 +12084,7 @@ describe('LighterProvider', () => {
       socket.receive({ type: 'subscribed/account_all_trades', trades: {} });
       getUserAddressMock.mockReturnValue('0xbbbb');
       await provider.getAccountState().catch(() => undefined);
-      const late = jest.fn();
+      const late = vi.fn();
       const unsubscribeLate = provider.subscribeToOrderFills({
         callback: late,
       });
@@ -12114,10 +12102,10 @@ describe('LighterProvider', () => {
       });
       const failure = new Error('Account discovery transport unavailable');
       clientInstance.getAccountsByL1Address.mockRejectedValue(failure);
-      const onOrderError = jest.fn();
-      const onFillError = jest.fn();
-      const orders = jest.fn();
-      const fills = jest.fn();
+      const onOrderError = vi.fn();
+      const onFillError = vi.fn();
+      const orders = vi.fn();
+      const fills = vi.fn();
       const unsubscribeOrders = provider.subscribeToOrders({
         callback: orders,
         onError: onOrderError,
@@ -12154,14 +12142,14 @@ describe('LighterProvider', () => {
           failLookup = reject;
         });
       });
-      const onOrderError = jest.fn();
-      const onFillError = jest.fn();
+      const onOrderError = vi.fn();
+      const onFillError = vi.fn();
       const unsubscribeOrders = provider.subscribeToOrders({
-        callback: jest.fn(),
+        callback: vi.fn(),
         onError: onOrderError,
       });
       const unsubscribeFills = provider.subscribeToOrderFills({
-        callback: jest.fn(),
+        callback: vi.fn(),
         onError: onFillError,
       });
       await started;
@@ -12188,7 +12176,7 @@ describe('LighterProvider', () => {
           webSocketCtor: fakeCtor,
           registeredKey: '9c'.repeat(40),
         });
-        const callback = jest.fn();
+        const callback = vi.fn();
         const unsubscribe = provider.subscribeToOrderFills({ callback });
         await new Promise((resolveTick) => setImmediate(resolveTick));
         await new Promise((resolveTick) => setImmediate(resolveTick));
@@ -12221,7 +12209,7 @@ describe('LighterProvider', () => {
             channel: 'account_all_trades:28',
           });
           expect(callback).not.toHaveBeenCalled();
-          const late = jest.fn();
+          const late = vi.fn();
           unsubscribeLate = provider.subscribeToOrderFills({ callback: late });
           await new Promise((resolveTick) => setImmediate(resolveTick));
           const firstFill: unknown = expect.objectContaining({ fillId: '1' });
@@ -12255,7 +12243,7 @@ describe('LighterProvider', () => {
         webSocketCtor: fakeCtor,
         registeredKey: '9c'.repeat(40),
       });
-      const unsubscribe = provider.subscribeToOrders({ callback: jest.fn() });
+      const unsubscribe = provider.subscribeToOrders({ callback: vi.fn() });
       await new Promise((resolveTick) => setImmediate(resolveTick));
       await new Promise((resolveTick) => setImmediate(resolveTick));
       const socket = FakeWebSocket.instances[0];
@@ -12265,7 +12253,7 @@ describe('LighterProvider', () => {
         channel: 'account_all_trades:28',
         trades: {},
       });
-      const late = jest.fn();
+      const late = vi.fn();
 
       const unsubscribeLate = provider.subscribeToOrderFills({
         callback: late,
@@ -12283,7 +12271,7 @@ describe('LighterProvider', () => {
         webSocketCtor: fakeCtor,
         registeredKey: 'a'.repeat(80),
       });
-      const callback = jest.fn();
+      const callback = vi.fn();
       const unsubscribe = provider.subscribeToOrders({ callback });
       await new Promise((resolveTick) => setImmediate(resolveTick));
       await new Promise((resolveTick) => setImmediate(resolveTick));
@@ -12324,7 +12312,7 @@ describe('LighterProvider', () => {
       });
       expect(callback).not.toHaveBeenCalled();
 
-      const late = jest.fn();
+      const late = vi.fn();
       const unsubscribeLate = provider.subscribeToOrders({ callback: late });
       expect(late).toHaveBeenCalledWith([
         expect.objectContaining({ orderId: '555' }),
@@ -12341,7 +12329,7 @@ describe('LighterProvider', () => {
         registeredKey: 'a'.repeat(80),
         platformDependencies: infra,
       });
-      const accountCallback = jest.fn();
+      const accountCallback = vi.fn();
       const unsubscribe = provider.subscribeToAccount({
         callback: accountCallback,
       });
@@ -12388,9 +12376,9 @@ describe('LighterProvider', () => {
       clientInstance.getAccountsByL1Address.mockRejectedValue(
         new Error('Invalid Lighter venue data: malformed account discovery'),
       );
-      const accountCallback = jest.fn();
-      const positionsCallback = jest.fn();
-      const ordersCallback = jest.fn();
+      const accountCallback = vi.fn();
+      const positionsCallback = vi.fn();
+      const ordersCallback = vi.fn();
       const unsubscribeAccount = provider.subscribeToAccount({
         callback: accountCallback,
       });
@@ -12420,9 +12408,9 @@ describe('LighterProvider', () => {
       clientInstance.getAccountsByL1Address.mockRejectedValue(
         new LighterApiError('account not found', 21100),
       );
-      const accountCallback = jest.fn();
-      const positionsCallback = jest.fn();
-      const ordersCallback = jest.fn();
+      const accountCallback = vi.fn();
+      const positionsCallback = vi.fn();
+      const ordersCallback = vi.fn();
       const unsubscribeAccount = provider.subscribeToAccount({
         callback: accountCallback,
       });
@@ -12461,8 +12449,8 @@ describe('LighterProvider', () => {
         l1Address: ACCOUNT.l1Address,
         subAccounts: [],
       });
-      const positionsCallback = jest.fn();
-      const ordersCallback = jest.fn();
+      const positionsCallback = vi.fn();
+      const ordersCallback = vi.fn();
       const unsubscribePositions = provider.subscribeToPositions({
         callback: positionsCallback,
       });
@@ -12483,15 +12471,15 @@ describe('LighterProvider', () => {
     it('reports a same-wallet signer creation failure to orders and fills subscribers', async () => {
       const { provider, bridge } = buildProvider({ webSocketCtor: fakeCtor });
       const failure = new Error('Lighter signer setup failed');
-      (bridge.createClient as jest.Mock).mockRejectedValue(failure);
-      const onOrderError = jest.fn();
-      const onFillError = jest.fn();
+      (bridge.createClient as Mock).mockRejectedValue(failure);
+      const onOrderError = vi.fn();
+      const onFillError = vi.fn();
       const unsubscribeOrders = provider.subscribeToOrders({
-        callback: jest.fn(),
+        callback: vi.fn(),
         onError: onOrderError,
       });
       const unsubscribeFills = provider.subscribeToOrderFills({
-        callback: jest.fn(),
+        callback: vi.fn(),
         onError: onFillError,
       });
 
@@ -12511,7 +12499,7 @@ describe('LighterProvider', () => {
         webSocketCtor: fakeCtor,
         registeredKey: '9c'.repeat(40),
       });
-      const mockedExecute = jest.spyOn(bridge, 'execute');
+      const mockedExecute = vi.spyOn(bridge, 'execute');
       const realExecute = mockedExecute.getMockImplementation()?.bind(bridge);
       if (!realExecute) {
         throw new Error('Missing bridge mock implementation');
@@ -12524,8 +12512,8 @@ describe('LighterProvider', () => {
         }
         return await realExecute(call);
       });
-      const ordersCallback = jest.fn();
-      const onError = jest.fn();
+      const ordersCallback = vi.fn();
+      const onError = vi.fn();
       const unsubscribe = provider.subscribeToOrders({
         callback: ordersCallback,
         onError,
@@ -12549,7 +12537,7 @@ describe('LighterProvider', () => {
       const { provider } = buildProvider({ webSocketCtor: fakeCtor });
       const unsubscribe = provider.subscribeToPrices({
         symbols: [],
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
       const socket = FakeWebSocket.instances[0];
       socket.open();
@@ -12568,7 +12556,7 @@ describe('LighterProvider', () => {
 
       const unsubscribe = provider.subscribeToPrices({
         symbols: [],
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
       FakeWebSocket.instances[0].open();
       expect(transitions).toStrictEqual([
@@ -12597,13 +12585,13 @@ describe('LighterProvider', () => {
     });
 
     it('falls back to REST polling when no WebSocket implementation exists', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       try {
         const { provider, clientInstance } = buildProvider({
           webSocketCtor: null,
         });
         expect(provider.getWebSocketConnectionState()).toBe('disconnected');
-        const callback = jest.fn();
+        const callback = vi.fn();
         const unsubscribe = provider.subscribeToPrices({
           symbols: [],
           callback,
@@ -12615,7 +12603,7 @@ describe('LighterProvider', () => {
           expect.objectContaining({ symbol: 'BTC', price: '100000' }),
         ]);
 
-        await jest.advanceTimersByTimeAsync(10_500);
+        await vi.advanceTimersByTimeAsync(10_500);
         expect(
           clientInstance.getOrderBookDetails.mock.calls.length,
         ).toBeGreaterThanOrEqual(3);
@@ -12623,14 +12611,14 @@ describe('LighterProvider', () => {
         unsubscribe();
         expect(provider.getWebSocketConnectionState()).toBe('disconnected');
         const callsAfter = clientInstance.getOrderBookDetails.mock.calls.length;
-        await jest.advanceTimersByTimeAsync(20_000);
+        await vi.advanceTimersByTimeAsync(20_000);
         expect(clientInstance.getOrderBookDetails.mock.calls).toHaveLength(
           callsAfter,
         );
         await provider.disconnect();
         expect(provider.getWebSocketConnectionState()).toBe('disconnected');
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
   });
@@ -12724,7 +12712,7 @@ describe('LighterProvider', () => {
       await readUnderA;
 
       const accountReads = clientInstance.getAccountByIndex.mock.calls.map(
-        (call: [number]) => call[0],
+        (call: unknown[]) => call[0],
       );
       expect(accountReads).not.toContain(28);
       expect(accountReads).toContain(900);
@@ -12749,12 +12737,12 @@ describe('LighterProvider', () => {
           ),
       );
       StreamFakeWebSocket.instances = [];
-      const accountCallback = jest.fn();
-      const positionsCallback = jest.fn();
-      const ordersCallback = jest.fn();
+      const accountCallback = vi.fn();
+      const positionsCallback = vi.fn();
+      const ordersCallback = vi.fn();
       const unsubscribePrices = provider.subscribeToPrices({
         symbols: [],
-        callback: jest.fn(),
+        callback: vi.fn(),
       });
       const unsubscribeAccount = provider.subscribeToAccount({
         callback: accountCallback,
@@ -12865,7 +12853,7 @@ describe('LighterProvider', () => {
       // Capture the ORIGINAL implementation, not the mock reference —
       // delegating to the mock itself would recurse forever.
       const realImplementation = (
-        bridge.execute as jest.Mock
+        bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
       let releaseCreateA: () => void = () => undefined;
       let createARequested: () => void = () => undefined;
@@ -12873,7 +12861,7 @@ describe('LighterProvider', () => {
         createARequested = resolve;
       });
       let stalledOnce = false;
-      (bridge.execute as jest.Mock).mockImplementation(
+      (bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_createClient' && !stalledOnce) {
             stalledOnce = true;
@@ -12900,8 +12888,8 @@ describe('LighterProvider', () => {
       expect(setupBSettled).toBe(false);
       // The recorded `calls` list only captures delegated (completed)
       // executions; count issued creates on the wrapper itself.
-      const issuedCreates = (bridge.execute as jest.Mock).mock.calls.filter(
-        ([call]: [LighterWasmCall]) => call.function === '_createClient',
+      const issuedCreates = (bridge.execute as Mock).mock.calls.filter(
+        ([call]: LighterWasmCall[]) => call.function === '_createClient',
       );
       expect(issuedCreates).toHaveLength(1);
 
@@ -12992,7 +12980,7 @@ describe('LighterProvider', () => {
         webSocketCtor: fakeStreamCtor,
       });
       StreamFakeWebSocket.instances = [];
-      const callback = jest.fn();
+      const callback = vi.fn();
       const unsubscribe = provider.subscribeToPrices({
         symbols: [],
         callback,
@@ -13218,9 +13206,9 @@ describe('LighterProvider', () => {
       // placement.
       const { provider, bridge } = buildProvider();
       const realImplementation = (
-        bridge.execute as jest.Mock
+        bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (bridge.execute as jest.Mock).mockImplementation(
+      (bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_signUpdateLeverage') {
             return {
@@ -13244,12 +13232,13 @@ describe('LighterProvider', () => {
       });
       expect(result.success).toBe(true);
       const leverageCall = (
-        bridge.execute as jest.Mock<
-          Promise<LighterSignerResult<LighterSignerOperation>>,
-          [LighterWasmCall]
+        bridge.execute as Mock<
+          (
+            ...args: [LighterWasmCall]
+          ) => Promise<LighterSignerResult<LighterSignerOperation>>
         >
       ).mock.calls.find(
-        ([call]: [LighterWasmCall]) => call.function === '_signUpdateLeverage',
+        ([call]: LighterWasmCall[]) => call.function === '_signUpdateLeverage',
       )?.[0] as LighterWasmCall;
       expect(leverageCall).toBeDefined();
       expect(leverageCall.params).toHaveLength(5);
@@ -13745,9 +13734,9 @@ describe('LighterProvider', () => {
       return gateEntered;
     };
     const realImplementation = (
-      bridge.execute as jest.Mock
+      bridge.execute as Mock
     ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-    (bridge.execute as jest.Mock).mockImplementation(
+    (bridge.execute as Mock).mockImplementation(
       async (call: LighterWasmCall) => {
         const wireParams = call.params as (string | number)[];
         if (
@@ -13980,7 +13969,7 @@ describe('LighterProvider', () => {
           throw new Error('Missing initial protection');
         }
         const signed = JSON.parse(signedCall[1]) as { OrderExpiry: number };
-        const clock = jest
+        const clock = vi
           .spyOn(Date, 'now')
           .mockReturnValue(signed.OrderExpiry + 30_001);
         try {
@@ -14056,7 +14045,7 @@ describe('LighterProvider', () => {
         const built = buildProvider({ platformDependencies: infra });
         const venue = setupTriggerVenue(built.clientInstance, built.bridge);
         const now = Date.now();
-        const clock = jest.spyOn(Date, 'now').mockReturnValue(now);
+        const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
         const key = `lighterManagedTpsl:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:BTC`;
         const expiryOffset = {
           future: 600_000,
@@ -14096,7 +14085,7 @@ describe('LighterProvider', () => {
           expect(result.success).toBe(false);
           expect(result.error).toContain('ownership is full');
           expect(
-            built.clientInstance.sendTx.mock.calls.filter(([type]: [number]) =>
+            built.clientInstance.sendTx.mock.calls.filter(([type]: number[]) =>
               [14, 15, 28].includes(type),
             ),
           ).toHaveLength(0);
@@ -14136,7 +14125,7 @@ describe('LighterProvider', () => {
           'Invalid Lighter managed TP/SL ownership',
         );
         expect(
-          built.clientInstance.sendTx.mock.calls.filter(([type]: [number]) =>
+          built.clientInstance.sendTx.mock.calls.filter(([type]: number[]) =>
             [14, 15, 28].includes(type),
           ),
         ).toHaveLength(0);
@@ -14157,7 +14146,7 @@ describe('LighterProvider', () => {
         const built = buildProvider({ platformDependencies: infra });
         const venue = setupTriggerVenue(built.clientInstance, built.bridge);
         venue.seedTrigger('stop-loss', '90000');
-        const execute = jest.spyOn(built.bridge, 'execute');
+        const execute = vi.spyOn(built.bridge, 'execute');
         const sign = execute.getMockImplementation() as
           | ((
               call: LighterWasmCall,
@@ -14200,7 +14189,7 @@ describe('LighterProvider', () => {
         expect(result.error).toContain('no usable order expiry identity');
         expect(venue.rawTriggers).toHaveLength(1);
         expect(
-          built.clientInstance.sendTx.mock.calls.filter(([type]: [number]) =>
+          built.clientInstance.sendTx.mock.calls.filter(([type]: number[]) =>
             [14, 15, 28].includes(type),
           ),
         ).toHaveLength(0);
@@ -14306,7 +14295,7 @@ describe('LighterProvider', () => {
 
     it('permits retry after journal persistence and pre-dispatch ownership rollback both fail', async () => {
       const infra = createMockInfrastructure();
-      const disk = jest.mocked(infra.diskCache);
+      const disk = vi.mocked(infra.diskCache);
       const write = disk.setItem.getMockImplementation();
       let payloadFailed = false;
       let ownershipWrites = 0;
@@ -14528,7 +14517,7 @@ describe('LighterProvider', () => {
 
     it('retries immediately after an ownership write fails once, without a never-sent journal', async () => {
       const infra = createMockInfrastructure();
-      const disk = jest.mocked(infra.diskCache);
+      const disk = vi.mocked(infra.diskCache);
       const write = disk.setItem.getMockImplementation();
       let failed = false;
       disk.setItem.mockImplementation(async (key: string, value: string) => {
@@ -14563,7 +14552,7 @@ describe('LighterProvider', () => {
       'rolls back pre-dispatch ownership on a %s write failure and permits retry',
       async (prefix) => {
         const infra = createMockInfrastructure();
-        const disk = jest.mocked(infra.diskCache);
+        const disk = vi.mocked(infra.diskCache);
         const write = disk.setItem.getMockImplementation();
         let failed = false;
         disk.setItem.mockImplementation(async (key: string, value: string) => {
@@ -14619,7 +14608,7 @@ describe('LighterProvider', () => {
         ).success,
       ).toBe(false);
       const later = Date.now() + 700_000;
-      const clock = jest.spyOn(Date, 'now').mockReturnValue(later);
+      const clock = vi.spyOn(Date, 'now').mockReturnValue(later);
       try {
         const retry = await provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -14645,7 +14634,7 @@ describe('LighterProvider', () => {
       'fails closed on managed ownership %s failure before protection mutation',
       async (failure) => {
         const infra = createMockInfrastructure();
-        const diskMocks = jest.mocked(infra.diskCache);
+        const diskMocks = vi.mocked(infra.diskCache);
         const originalGet = diskMocks.getItem.getMockImplementation();
         if (!originalGet) {
           throw new Error('Missing test disk reader');
@@ -14681,7 +14670,7 @@ describe('LighterProvider', () => {
         });
         expect(result.success).toBe(false);
         expect(
-          clientInstance.sendTx.mock.calls.filter(([type]: [number]) =>
+          clientInstance.sendTx.mock.calls.filter(([type]: number[]) =>
             [14, 15, 28].includes(type),
           ),
         ).toHaveLength(0);
@@ -15708,7 +15697,7 @@ describe('LighterProvider', () => {
             };
             const started = createDeferred<void>();
             const release = createDeferred<void>();
-            const execute = jest.spyOn(bridge, 'execute');
+            const execute = vi.spyOn(bridge, 'execute');
             const original = execute.getMockImplementation();
             if (!original) {
               throw new Error('Expected configured Lighter bridge');
@@ -15903,7 +15892,7 @@ describe('LighterProvider', () => {
             ? { position: '0.2' }
             : { avgEntryPrice: '100001' }),
         };
-        const execute = jest.spyOn(original.bridge, 'execute');
+        const execute = vi.spyOn(original.bridge, 'execute');
         const implementation = execute.getMockImplementation();
         if (!implementation) {
           throw new Error('Expected configured Lighter signer bridge');
@@ -16075,7 +16064,7 @@ describe('LighterProvider', () => {
       'never resumes guarded removal after refused-phase storage failure, signed expiry and %s recovery',
       async (recoveryMode) => {
         const infra = createMockInfrastructure();
-        const write = jest.spyOn(infra.diskCache, 'setItem');
+        const write = vi.spyOn(infra.diskCache, 'setItem');
         const originalWrite = write.getMockImplementation();
         if (!originalWrite) {
           throw new Error('Expected disk fixture');
@@ -16122,7 +16111,7 @@ describe('LighterProvider', () => {
           }),
         );
         const livePosition = { ...ACCOUNT.positions[0], position: '0.2' };
-        const execute = jest.spyOn(original.bridge, 'execute');
+        const execute = vi.spyOn(original.bridge, 'execute');
         const implementation = execute.getMockImplementation();
         if (!implementation) {
           throw new Error('Expected configured Lighter signer bridge');
@@ -16184,9 +16173,9 @@ describe('LighterProvider', () => {
         ]);
 
         const originalNow = Date.now.bind(Date);
-        const clock = jest
-          .spyOn(Date, 'now')
-          .mockImplementation(() => originalNow() + 700_000);
+        const clock = vi.spyOn(Date, 'now').mockImplementation(function () {
+          return originalNow() + 700_000;
+        });
         try {
           let recovering = original;
           let recoveryVenue = venue;
@@ -16324,7 +16313,7 @@ describe('LighterProvider', () => {
         const ownership = await infra.diskCache.getItem(managedKey);
         const started = createDeferred<void>();
         const release = createDeferred<void>();
-        const execute = jest.spyOn(bridge, 'execute');
+        const execute = vi.spyOn(bridge, 'execute');
         const original = execute.getMockImplementation();
         if (!original) {
           throw new Error('Expected configured Lighter bridge implementation');
@@ -16400,11 +16389,11 @@ describe('LighterProvider', () => {
           releaseSigning = resolve;
         });
         const originalExecute = (
-          bridge.execute as jest.Mock
+          bridge.execute as Mock
         ).getMockImplementation() as (
           call: LighterWasmCall,
         ) => Promise<unknown>;
-        (bridge.execute as jest.Mock).mockImplementation(
+        (bridge.execute as Mock).mockImplementation(
           async (call: LighterWasmCall) => {
             const signed = await originalExecute(call);
             if (call.function === '_signCreateOrder') {
@@ -16514,7 +16503,7 @@ describe('LighterProvider', () => {
 
     it('retains protection and journal when inactive receipt identities conflict', async () => {
       const infra = createMockInfrastructure();
-      const removeItem = jest.spyOn(infra.diskCache, 'removeItem');
+      const removeItem = vi.spyOn(infra.diskCache, 'removeItem');
       const { provider, clientInstance, bridge } = buildProvider({
         platformDependencies: infra,
       });
@@ -16616,7 +16605,7 @@ describe('LighterProvider', () => {
         if (!read) {
           throw new Error('missing venue reader');
         }
-        const removeItem = jest.spyOn(infra.diskCache, 'removeItem');
+        const removeItem = vi.spyOn(infra.diskCache, 'removeItem');
         let receiptReads = 0;
         clientInstance.getActiveOrders.mockImplementation(
           async (...args: unknown[]) => {
@@ -16742,10 +16731,10 @@ describe('LighterProvider', () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       const venue = setupTriggerVenue(built.clientInstance, built.bridge);
       const execute = (
-        built.bridge.execute as jest.Mock
+        built.bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
       let fail = true;
-      (built.bridge.execute as jest.Mock).mockImplementation(
+      (built.bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (fail && call.function === '_signCreateOrder') {
             throw new Error('signing interrupted before send');
@@ -16800,11 +16789,11 @@ describe('LighterProvider', () => {
         ).toBe(true);
         const before = venue.rawTriggers.map((row) => ({ ...row }));
         const execute = (
-          built.bridge.execute as jest.Mock
+          built.bridge.execute as Mock
         ).getMockImplementation() as (
           call: LighterWasmCall,
         ) => Promise<unknown>;
-        (built.bridge.execute as jest.Mock).mockImplementation(
+        (built.bridge.execute as Mock).mockImplementation(
           async (call: LighterWasmCall) => {
             if (
               call.function === '_signCancelOrder' &&
@@ -16847,7 +16836,7 @@ describe('LighterProvider', () => {
         expect(await built.provider.getPendingManualRecoveries()).toStrictEqual(
           [],
         );
-        (built.bridge.execute as jest.Mock).mockImplementation(execute);
+        (built.bridge.execute as Mock).mockImplementation(execute);
         expect(
           (
             await built.provider.updatePositionTPSL({
@@ -17022,11 +17011,11 @@ describe('LighterProvider', () => {
           };
         } else {
           const execute = (
-            built.bridge.execute as jest.Mock
+            built.bridge.execute as Mock
           ).getMockImplementation() as (
             call: LighterWasmCall,
           ) => Promise<unknown>;
-          (built.bridge.execute as jest.Mock).mockImplementation(
+          (built.bridge.execute as Mock).mockImplementation(
             async (call: LighterWasmCall) => {
               const result = await execute(call);
               if (call.function === '_signCancelOrder') {
@@ -17154,9 +17143,9 @@ describe('LighterProvider', () => {
       });
       setupTriggerVenue(built.clientInstance, built.bridge);
       const execute = (
-        built.bridge.execute as jest.Mock
+        built.bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (built.bridge.execute as jest.Mock).mockImplementation(
+      (built.bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_signCreateOrder') {
             built.clientInstance.getActiveOrders.mockRejectedValue(
@@ -17204,11 +17193,11 @@ describe('LighterProvider', () => {
         const entered = createDeferred<void>();
         const release = createDeferred<void>();
         const execute = (
-          built.bridge.execute as jest.Mock
+          built.bridge.execute as Mock
         ).getMockImplementation() as (
           call: LighterWasmCall,
         ) => Promise<unknown>;
-        (built.bridge.execute as jest.Mock).mockImplementation(
+        (built.bridge.execute as Mock).mockImplementation(
           async (call: LighterWasmCall) => {
             const signed = await execute(call);
             if (
@@ -17276,11 +17265,11 @@ describe('LighterProvider', () => {
         ).toBe(true);
         const priorProtection = JSON.stringify(venue.rawTriggers);
         const execute = (
-          built.bridge.execute as jest.Mock
+          built.bridge.execute as Mock
         ).getMockImplementation() as (
           call: LighterWasmCall,
         ) => Promise<unknown>;
-        (built.bridge.execute as jest.Mock).mockImplementation(
+        (built.bridge.execute as Mock).mockImplementation(
           async (call: LighterWasmCall) => {
             const signed = await execute(call);
             if (call.function === '_signCancelOrder') {
@@ -17317,7 +17306,7 @@ describe('LighterProvider', () => {
         expect(JSON.stringify(venue.rawTriggers)).toBe(priorProtection);
         const rows = await built.provider.getPendingManualRecoveries();
         expect(rows).toHaveLength(cleanupFails ? 1 : 0);
-        const writes = (infra.diskCache.setItem as jest.Mock).mock.calls as [
+        const writes = (infra.diskCache.setItem as Mock).mock.calls as [
           string,
           string,
         ][];
@@ -17358,9 +17347,9 @@ describe('LighterProvider', () => {
       });
       setupTriggerVenue(built.clientInstance, built.bridge);
       const execute = (
-        built.bridge.execute as jest.Mock
+        built.bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (built.bridge.execute as jest.Mock).mockImplementation(
+      (built.bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_signCreateOrder') {
             throw new Error('original signing failure');
@@ -17616,12 +17605,12 @@ describe('LighterProvider', () => {
         const built = buildProvider();
         const venue = setupTriggerVenue(built.clientInstance, built.bridge);
         const execute = (
-          built.bridge.execute as jest.Mock
+          built.bridge.execute as Mock
         ).getMockImplementation() as (
           call: LighterWasmCall,
         ) => Promise<unknown>;
         let creates = 0;
-        (built.bridge.execute as jest.Mock).mockImplementation(
+        (built.bridge.execute as Mock).mockImplementation(
           async (call: LighterWasmCall) => {
             if (call.function === '_signCreateOrder') {
               creates += 1;
@@ -17670,12 +17659,12 @@ describe('LighterProvider', () => {
         const built = buildProvider();
         const venue = setupTriggerVenue(built.clientInstance, built.bridge);
         const execute = (
-          built.bridge.execute as jest.Mock
+          built.bridge.execute as Mock
         ).getMockImplementation() as (
           call: LighterWasmCall,
         ) => Promise<unknown>;
         let creates = 0;
-        (built.bridge.execute as jest.Mock).mockImplementation(
+        (built.bridge.execute as Mock).mockImplementation(
           async (call: LighterWasmCall) => {
             if (call.function === '_signCreateOrder') {
               creates += 1;
@@ -17807,10 +17796,10 @@ describe('LighterProvider', () => {
       const built = buildProvider({ registeredKey: '9c'.repeat(40) });
       const venue = setupTriggerVenue(built.clientInstance, built.bridge);
       const execute = (
-        built.bridge.execute as jest.Mock
+        built.bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
       let creates = 0;
-      (built.bridge.execute as jest.Mock).mockImplementation(
+      (built.bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           const result = await execute(call);
           if (call.function === '_signCreateOrder' && (creates += 1) === 2) {
@@ -18014,11 +18003,11 @@ describe('LighterProvider', () => {
           ).success,
         ).toBe(true);
         const execute = (
-          first.bridge.execute as jest.Mock
+          first.bridge.execute as Mock
         ).getMockImplementation() as (
           call: LighterWasmCall,
         ) => Promise<unknown>;
-        (first.bridge.execute as jest.Mock).mockImplementation(
+        (first.bridge.execute as Mock).mockImplementation(
           async (call: LighterWasmCall) => {
             if (call.function === '_signCreateOrder') {
               throw new Error('process interrupted before partial signing');
@@ -18156,11 +18145,11 @@ describe('LighterProvider', () => {
         });
         setupTriggerVenue(built.clientInstance, built.bridge);
         const execute = (
-          built.bridge.execute as jest.Mock
+          built.bridge.execute as Mock
         ).getMockImplementation() as (
           call: LighterWasmCall,
         ) => Promise<unknown>;
-        (built.bridge.execute as jest.Mock).mockImplementation(
+        (built.bridge.execute as Mock).mockImplementation(
           async (call: LighterWasmCall) => {
             if (call.function === '_signCreateOrder') {
               throw new Error('interrupted');
@@ -18184,7 +18173,7 @@ describe('LighterProvider', () => {
         const key = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
         // Restore the exact durable pre-signing snapshot to model process death,
         // including a restart before the live error cleanup could run.
-        const writes = (infra.diskCache.setItem as jest.Mock).mock.calls as [
+        const writes = (infra.diskCache.setItem as Mock).mock.calls as [
           string,
           string,
         ][];
@@ -18349,11 +18338,11 @@ describe('LighterProvider', () => {
         });
         setupTriggerVenue(built.clientInstance, built.bridge);
         const execute = (
-          built.bridge.execute as jest.Mock
+          built.bridge.execute as Mock
         ).getMockImplementation() as (
           call: LighterWasmCall,
         ) => Promise<unknown>;
-        (built.bridge.execute as jest.Mock).mockImplementation(
+        (built.bridge.execute as Mock).mockImplementation(
           async (call: LighterWasmCall) => {
             if (call.function === '_signCreateOrder') {
               throw new Error('interrupted');
@@ -18377,7 +18366,7 @@ describe('LighterProvider', () => {
         const key = `${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
         // Restore the exact durable pre-signing snapshot to model process death,
         // including a restart before the live error cleanup could run.
-        const writes = (infra.diskCache.setItem as jest.Mock).mock.calls as [
+        const writes = (infra.diskCache.setItem as Mock).mock.calls as [
           string,
           string,
         ][];
@@ -18705,7 +18694,7 @@ describe('LighterProvider', () => {
     it('refreshes the authoritative margin cache after TTL and fails closed on removed/failed metadata', async () => {
       const { provider, clientInstance } = buildProvider();
       const baseNow = Date.now();
-      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(baseNow);
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(baseNow);
       try {
         const request = {
           symbol: 'BTC',
@@ -18776,13 +18765,13 @@ describe('LighterProvider', () => {
       bridge: LighterSignerBridge;
     }): void => {
       for (const mockFn of Object.values(built.clientInstance)) {
-        if (jest.isMockFunction(mockFn)) {
+        if (vi.isMockFunction(mockFn)) {
           mockFn.mockImplementation(async () => {
             throw new Error('process died');
           });
         }
       }
-      (built.bridge.execute as jest.Mock).mockImplementation(async () => {
+      (built.bridge.execute as Mock).mockImplementation(async () => {
         throw new Error('process died');
       });
     };
@@ -18794,7 +18783,7 @@ describe('LighterProvider', () => {
         const first = buildProvider({ platformDependencies: infra });
         const venueA = setupTriggerVenue(first.clientInstance, first.bridge);
         venueA.seedTrigger('stop-loss', '80000');
-        const execute = jest.spyOn(first.bridge, 'execute');
+        const execute = vi.spyOn(first.bridge, 'execute');
         const sign = execute.getMockImplementation();
         execute.mockImplementation(async (call: LighterWasmCall) => {
           if (call.function === '_signCancelOrder') {
@@ -18850,7 +18839,7 @@ describe('LighterProvider', () => {
           venueB.landedTxs.set(hash, landed);
         }
         const storedAttempts: Record<string, unknown>[][] = [];
-        const disk = jest.mocked(infra.diskCache);
+        const disk = vi.mocked(infra.diskCache);
         const write = disk.setItem.getMockImplementation();
         disk.setItem.mockImplementation(async (key: string, value: string) => {
           if (key.startsWith('lighterTpslJournalOp:')) {
@@ -18908,15 +18897,15 @@ describe('LighterProvider', () => {
     it('preserves original-slot journals while their unresolved dispatch blocks another slot', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -19007,9 +18996,9 @@ describe('LighterProvider', () => {
       // still accept), never discard-and-duplicate — the old design
       // cleared here and duplicated once the commit landed.
       const realNow = Date.now();
-      const nowSpy = jest
-        .spyOn(Date, 'now')
-        .mockImplementation(() => realNow + 13_000);
+      const nowSpy = vi.spyOn(Date, 'now').mockImplementation(function () {
+        return realNow + 13_000;
+      });
       try {
         const blocked = await provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -19057,9 +19046,9 @@ describe('LighterProvider', () => {
       // Beyond signed ExpiredAt (+slack): the sequencer can no longer
       // accept the payload — authoritatively never landed; retry runs.
       const realNow = Date.now();
-      const nowSpy = jest
-        .spyOn(Date, 'now')
-        .mockImplementation(() => realNow + 700_000);
+      const nowSpy = vi.spyOn(Date, 'now').mockImplementation(function () {
+        return realNow + 700_000;
+      });
       try {
         const retry = await provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -19086,9 +19075,9 @@ describe('LighterProvider', () => {
       expect(first.success).toBe(false);
       clientInstance.getTx.mockRejectedValue(new Error('tx endpoint down'));
       const realNow = Date.now();
-      const nowSpy = jest
-        .spyOn(Date, 'now')
-        .mockImplementation(() => realNow + 700_000);
+      const nowSpy = vi.spyOn(Date, 'now').mockImplementation(function () {
+        return realNow + 700_000;
+      });
       try {
         const blocked = await provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -19192,16 +19181,16 @@ describe('LighterProvider', () => {
     it('a failed journal disk-remove keeps the obligation coherent for a later retry', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
       let removeFails = true;
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           if (removeFails && key.startsWith('lighterTpslJournal:')) {
             throw new Error('disk remove refused');
@@ -19236,15 +19225,15 @@ describe('LighterProvider', () => {
     it('startup recovery completes an interrupted replacement WITHOUT a new mutation call', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -19256,9 +19245,9 @@ describe('LighterProvider', () => {
       // journal holds only the accepted create, and old + new triggers are
       // both live — no ambiguous in-flight cancel exists.
       const realBridge = (
-        first.bridge.execute as jest.Mock
+        first.bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (first.bridge.execute as jest.Mock).mockImplementation(
+      (first.bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_signCancelOrder') {
             throw new Error('process died');
@@ -19500,11 +19489,11 @@ describe('LighterProvider', () => {
     it('a persistence failure AFTER an accepted attempt preserves the prior durable obligation', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
       let journalWrites = 0;
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           if (key.startsWith('lighterTpslJournalOp:')) {
             journalWrites += 1;
@@ -19518,7 +19507,7 @@ describe('LighterProvider', () => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -19548,9 +19537,9 @@ describe('LighterProvider', () => {
       // With disk healthy again — and past the never-submitted cancel's
       // signed expiry — the retry reconciles and completes.
       const realNow = Date.now();
-      const nowSpy = jest
-        .spyOn(Date, 'now')
-        .mockImplementation(() => realNow + 700_000);
+      const nowSpy = vi.spyOn(Date, 'now').mockImplementation(function () {
+        return realNow + 700_000;
+      });
       try {
         const retry = await built.provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -19568,15 +19557,15 @@ describe('LighterProvider', () => {
     it('restart recovery after a crash mid-rollback keeps the OLD protection, not the failed replacement survivor', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -19588,9 +19577,9 @@ describe('LighterProvider', () => {
       // the crash hits BEFORE the live rollback can cancel the survivor.
       venueA.setCreateTerminal('oco-split');
       const realBridge = (
-        first.bridge.execute as jest.Mock
+        first.bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (first.bridge.execute as jest.Mock).mockImplementation(
+      (first.bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_signCancelOrder') {
             throw new Error('process died');
@@ -19636,15 +19625,15 @@ describe('LighterProvider', () => {
     it('restart recovery after old cancels + a later terminal failure RESTORES the previous protection', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -19722,15 +19711,15 @@ describe('LighterProvider', () => {
     it('recovery detects a replacement failing DURING its old-protection cancels and finishes the swap when the replacement stays active', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -19741,9 +19730,9 @@ describe('LighterProvider', () => {
       // Crash at the FIRST stale-cancel signing: the replacement is live,
       // the old protection untouched, journal phase still 'creating'.
       const realBridge = (
-        first.bridge.execute as jest.Mock
+        first.bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (first.bridge.execute as jest.Mock).mockImplementation(
+      (first.bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_signCancelOrder') {
             throw new Error('process died');
@@ -19797,15 +19786,15 @@ describe('LighterProvider', () => {
     it('a failed replacement after old cancels parks durable manual recovery across restarts: the obligation is retried until protection exists', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -19873,15 +19862,15 @@ describe('LighterProvider', () => {
     it('an unresolved startup recovery is retried by a later non-mutating read in the SAME session', async () => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -19890,9 +19879,9 @@ describe('LighterProvider', () => {
       const venueA = setupTriggerVenue(first.clientInstance, first.bridge);
       venueA.seedTrigger('stop-loss', '80000');
       const realBridge = (
-        first.bridge.execute as jest.Mock
+        first.bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (first.bridge.execute as jest.Mock).mockImplementation(
+      (first.bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_signCancelOrder') {
             throw new Error('process died');
@@ -19954,7 +19943,7 @@ describe('LighterProvider', () => {
       const indexGate = new Promise<void>((resolve) => {
         releaseIndexRead = resolve;
       });
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => {
           if (key.startsWith('lighterTpslJournalIndex:')) {
             indexReads += 1;
@@ -19966,7 +19955,7 @@ describe('LighterProvider', () => {
           return disk.get(key) ?? null;
         },
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
@@ -20033,9 +20022,9 @@ describe('LighterProvider', () => {
       const venue = setupTriggerVenue(clientInstance, bridge);
       venue.seedTrigger('stop-loss', '80000');
       const realImplementation = (
-        bridge.execute as jest.Mock
+        bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (bridge.execute as jest.Mock).mockImplementation(
+      (bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           const result = (await realImplementation(call)) as Record<
             string,
@@ -20075,15 +20064,15 @@ describe('LighterProvider', () => {
     } => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -20109,13 +20098,13 @@ describe('LighterProvider', () => {
       bridge: LighterSignerBridge;
     }): void => {
       for (const mockFn of Object.values(built.clientInstance)) {
-        if (jest.isMockFunction(mockFn)) {
+        if (vi.isMockFunction(mockFn)) {
           mockFn.mockImplementation(async () => {
             throw new Error('process died');
           });
         }
       }
-      (built.bridge.execute as jest.Mock).mockImplementation(async () => {
+      (built.bridge.execute as Mock).mockImplementation(async () => {
         throw new Error('process died');
       });
     };
@@ -20128,10 +20117,10 @@ describe('LighterProvider', () => {
       venueA.seedTrigger('stop-loss', '80000');
       // First cancel lands; the process dies signing the second.
       const realBridge = (
-        first.bridge.execute as jest.Mock
+        first.bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
       let cancelSignings = 0;
-      (first.bridge.execute as jest.Mock).mockImplementation(
+      (first.bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_signCancelOrder') {
             cancelSignings += 1;
@@ -20262,7 +20251,7 @@ describe('LighterProvider', () => {
       // Zero venue mutation from an uninterpretable obligation.
       expect(
         built.clientInstance.sendTx.mock.calls.filter(
-          ([txType]: [number]) =>
+          ([txType]: number[]) =>
             txType === 14 || txType === 28 || txType === 15,
         ),
       ).toHaveLength(0);
@@ -20383,7 +20372,7 @@ describe('LighterProvider', () => {
       expect(result.error).toContain('faithfully restored');
       expect(
         clientInstance.sendTx.mock.calls.filter(
-          ([txType]: [number]) =>
+          ([txType]: number[]) =>
             txType === 14 || txType === 28 || txType === 15,
         ),
       ).toHaveLength(0);
@@ -20481,7 +20470,7 @@ describe('LighterProvider', () => {
       expect(result.error).toContain('too many');
       expect(
         built.clientInstance.sendTx.mock.calls.filter(
-          ([txType]: [number]) =>
+          ([txType]: number[]) =>
             txType === 14 || txType === 28 || txType === 15,
         ),
       ).toHaveLength(0);
@@ -20588,15 +20577,15 @@ describe('LighterProvider', () => {
     } => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -20622,13 +20611,13 @@ describe('LighterProvider', () => {
       bridge: LighterSignerBridge;
     }): void => {
       for (const mockFn of Object.values(built.clientInstance)) {
-        if (jest.isMockFunction(mockFn)) {
+        if (vi.isMockFunction(mockFn)) {
           mockFn.mockImplementation(async () => {
             throw new Error('process died');
           });
         }
       }
-      (built.bridge.execute as jest.Mock).mockImplementation(async () => {
+      (built.bridge.execute as Mock).mockImplementation(async () => {
         throw new Error('process died');
       });
     };
@@ -20663,9 +20652,9 @@ describe('LighterProvider', () => {
       // Journal A: replacement (85000) accepted+active, crash BEFORE the
       // stale cancel — resolvable by finishing the swap.
       const realBridge = (
-        first.bridge.execute as jest.Mock
+        first.bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (first.bridge.execute as jest.Mock).mockImplementation(
+      (first.bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_signCancelOrder') {
             throw new Error('process died');
@@ -20696,7 +20685,7 @@ describe('LighterProvider', () => {
       const staleGate = new Promise<void>((resolve) => {
         releaseStaleGate = resolve;
       });
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => {
           const value = disk.get(key) ?? null;
           if (key === journalKey && staleGateArmed) {
@@ -20876,7 +20865,7 @@ describe('LighterProvider', () => {
       expect(result.error).toContain('faithfully restored');
       expect(
         clientInstance.sendTx.mock.calls.filter(
-          ([txType]: [number]) =>
+          ([txType]: number[]) =>
             txType === 14 || txType === 28 || txType === 15,
         ),
       ).toHaveLength(0);
@@ -20898,7 +20887,7 @@ describe('LighterProvider', () => {
       expect(result.error).toContain('faithfully restored');
       expect(
         clientInstance.sendTx.mock.calls.filter(
-          ([txType]: [number]) =>
+          ([txType]: number[]) =>
             txType === 14 || txType === 28 || txType === 15,
         ),
       ).toHaveLength(0);
@@ -21078,15 +21067,15 @@ describe('LighterProvider', () => {
     } => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -21112,13 +21101,13 @@ describe('LighterProvider', () => {
       bridge: LighterSignerBridge;
     }): void => {
       for (const mockFn of Object.values(built.clientInstance)) {
-        if (jest.isMockFunction(mockFn)) {
+        if (vi.isMockFunction(mockFn)) {
           mockFn.mockImplementation(async () => {
             throw new Error('process died');
           });
         }
       }
-      (built.bridge.execute as jest.Mock).mockImplementation(async () => {
+      (built.bridge.execute as Mock).mockImplementation(async () => {
         throw new Error('process died');
       });
     };
@@ -21176,10 +21165,12 @@ describe('LighterProvider', () => {
       // REST lags at the consumed nonce; the ONLY consumption proof is
       // the exact RESULT hash recorded at dispatch — txInfo never
       // carried it (pinned WASM contract).
-      second.clientInstance.getNextNonce.mockImplementation(async () => ({
-        code: 200,
-        nonce: consumedNonce,
-      }));
+      second.clientInstance.getNextNonce.mockImplementation(async function () {
+        return {
+          code: 200,
+          nonce: consumedNonce,
+        };
+      });
       // The retry resolves the JOURNAL-OWNED dispatch through the
       // settlement machine: the exact RESULT hash (recorded at dispatch;
       // txInfo never carried it) proves consumption, the floor advances,
@@ -21350,7 +21341,7 @@ describe('LighterProvider', () => {
       // The durable append fails ONCE: nothing may be dispatched and the
       // floor must not advance.
       let failLedgerWrite = true;
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           if (key.startsWith('lighterNonceLedger:') && failLedgerWrite) {
             failLedgerWrite = false;
@@ -21369,7 +21360,7 @@ describe('LighterProvider', () => {
       expect(failed.success).toBe(false);
       expect(
         built.clientInstance.sendTx.mock.calls.filter(
-          ([txType]: [number]) => txType === 14,
+          ([txType]: number[]) => txType === 14,
         ),
       ).toHaveLength(0);
       // Storage healed: the next write signs the nonce the venue still
@@ -21543,9 +21534,9 @@ describe('LighterProvider', () => {
       venue.seedTrigger('stop-loss', '80000');
       // Journal A: replacement accepted+active, crash before cancels.
       const realBridge = (
-        first.bridge.execute as jest.Mock
+        first.bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (first.bridge.execute as jest.Mock).mockImplementation(
+      (first.bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_signCancelOrder') {
             throw new Error('process died');
@@ -21558,7 +21549,7 @@ describe('LighterProvider', () => {
         stopLossPrice: '85000',
       });
       expect(crashed.success).toBe(false);
-      (first.bridge.execute as jest.Mock).mockImplementation(realBridge);
+      (first.bridge.execute as Mock).mockImplementation(realBridge);
       await new Promise((resolve) => setTimeout(resolve, 150));
       // A SECOND LIVE provider shares the same venue and disk — its lock
       // is instance-local, so it interleaves with the first for real.
@@ -21579,8 +21570,8 @@ describe('LighterProvider', () => {
           first.clientInstance[method].getMockImplementation() as never,
         );
       }
-      (second.bridge.execute as jest.Mock).mockImplementation(
-        (first.bridge.execute as jest.Mock).getMockImplementation() as never,
+      (second.bridge.execute as Mock).mockImplementation(
+        (first.bridge.execute as Mock).getMockImplementation() as never,
       );
       // Stale seam on the FIRST provider's recovery read of the journal
       // pointer: it captures the current value, then yields until the
@@ -21594,7 +21585,7 @@ describe('LighterProvider', () => {
         releaseStaleGate = resolve;
       });
       const journalPointerKey = baseJournalKey ?? journalKeysOf(disk)[0];
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => {
           const value = disk.get(key) ?? null;
           if (key === journalPointerKey && staleGateArmed) {
@@ -21708,7 +21699,7 @@ describe('LighterProvider', () => {
         triggerPrice: '80000',
       });
       const journalSizes: number[] = [];
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           if (
             key.startsWith('lighterTpslJournalOp:') ||
@@ -21874,7 +21865,7 @@ describe('LighterProvider', () => {
       expect(result.error).toContain('venue linkage');
       expect(
         clientInstance.sendTx.mock.calls.filter(
-          ([txType]: [number]) =>
+          ([txType]: number[]) =>
             txType === 14 || txType === 28 || txType === 15,
         ),
       ).toHaveLength(0);
@@ -21888,7 +21879,7 @@ describe('LighterProvider', () => {
       // and pointer are removed, rather than counting earlier safety reads.
       const journalKey = `lighterTpslJournal:testnet:${ACCOUNT.l1Address.toLowerCase()}:28:7:BTC`;
       let failIndexReads = false;
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => {
           if (
             key.startsWith('lighterTpslJournalIndex:') &&
@@ -21901,12 +21892,12 @@ describe('LighterProvider', () => {
           return disk.get(key) ?? null;
         },
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -21977,15 +21968,15 @@ describe('LighterProvider', () => {
     } => {
       const disk = new Map<string, string>();
       const infra = createMockInfrastructure();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           disk.delete(key);
         },
@@ -22008,8 +21999,8 @@ describe('LighterProvider', () => {
           from.clientInstance[method].getMockImplementation() as never,
         );
       }
-      (to.bridge.execute as jest.Mock).mockImplementation(
-        (from.bridge.execute as jest.Mock).getMockImplementation() as never,
+      (to.bridge.execute as Mock).mockImplementation(
+        (from.bridge.execute as Mock).getMockImplementation() as never,
       );
     };
 
@@ -22130,7 +22121,7 @@ describe('LighterProvider', () => {
       const { disk, infra } = makeDurableDisk();
       // Interleave-friendly disk: every operation yields, maximizing the
       // read-modify-write race window without the mutex.
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => {
           await new Promise((resolve) => setTimeout(resolve, 1));
           return disk.get(key) ?? null;
@@ -22160,9 +22151,9 @@ describe('LighterProvider', () => {
       const venue = setupTriggerVenue(clientInstance, bridge);
       venue.seedTrigger('stop-loss', '80000');
       const realImplementation = (
-        bridge.execute as jest.Mock
+        bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (bridge.execute as jest.Mock).mockImplementation(
+      (bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           const result = (await realImplementation(call)) as Record<
             string,
@@ -22179,7 +22170,7 @@ describe('LighterProvider', () => {
       expect(result.error).toContain('txHash');
       expect(
         clientInstance.sendTx.mock.calls.filter(
-          ([txType]: [number]) => txType === 15,
+          ([txType]: number[]) => txType === 15,
         ),
       ).toHaveLength(0);
       expect(venue.rawTriggers).toHaveLength(1);
@@ -22324,7 +22315,7 @@ describe('LighterProvider', () => {
     it('overlapping stale margin refreshes share ONE authoritative request', async () => {
       const { provider, clientInstance } = buildProvider();
       const baseNow = Date.now();
-      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(baseNow);
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(baseNow);
       try {
         const request = {
           symbol: 'BTC',
@@ -22379,7 +22370,7 @@ describe('LighterProvider', () => {
     it('a failed shared margin refresh fails closed for all waiters and clears for retry', async () => {
       const { provider, clientInstance } = buildProvider();
       const baseNow = Date.now();
-      const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(baseNow);
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(baseNow);
       try {
         const request = {
           symbol: 'BTC',
@@ -22440,7 +22431,7 @@ describe('LighterProvider', () => {
       expect(first.success).toBe(false);
       expect(first.error).toContain('settlement is not yet visible');
       const mutationsAfterFirst = (functionName: string): number =>
-        (bridge.execute as jest.Mock).mock.calls.filter(
+        (bridge.execute as Mock).mock.calls.filter(
           ([call]) => (call as LighterWasmCall).function === functionName,
         ).length;
       const createsBefore = mutationsAfterFirst('_signCreateOrder');
@@ -22497,9 +22488,9 @@ describe('LighterProvider', () => {
       // never-landed cancel is discarded and the retry reconciles the
       // accepted create, then completes the replacement serially.
       const realNow = Date.now();
-      const nowSpy = jest
-        .spyOn(Date, 'now')
-        .mockImplementation(() => realNow + 700_000);
+      const nowSpy = vi.spyOn(Date, 'now').mockImplementation(function () {
+        return realNow + 700_000;
+      });
       try {
         const second = await provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -22639,9 +22630,9 @@ describe('LighterProvider', () => {
       // Aged + stable unconsumed nonce: concluded never-landed; retry runs
       // and commits ONLY 86000 — never the dropped stale 85000 payload.
       const realNow = Date.now();
-      const nowSpy = jest
-        .spyOn(Date, 'now')
-        .mockImplementation(() => realNow + 700_000);
+      const nowSpy = vi.spyOn(Date, 'now').mockImplementation(function () {
+        return realNow + 700_000;
+      });
       try {
         const retry = await provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -22663,19 +22654,19 @@ describe('LighterProvider', () => {
       // Shared durable disk across two provider "lifetimes".
       const disk = new Map<string, string>();
       const sharedInfrastructure = createMockInfrastructure();
-      (sharedInfrastructure.diskCache.getItem as jest.Mock).mockImplementation(
+      (sharedInfrastructure.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => disk.get(key) ?? null,
       );
-      (sharedInfrastructure.diskCache.setItem as jest.Mock).mockImplementation(
+      (sharedInfrastructure.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           disk.set(key, value);
         },
       );
-      (
-        sharedInfrastructure.diskCache.removeItem as jest.Mock
-      ).mockImplementation(async (key: string) => {
-        disk.delete(key);
-      });
+      (sharedInfrastructure.diskCache.removeItem as Mock).mockImplementation(
+        async (key: string) => {
+          disk.delete(key);
+        },
+      );
       const first = buildProvider({
         platformDependencies: sharedInfrastructure,
       });
@@ -22841,7 +22832,7 @@ describe('LighterProvider', () => {
     it('journal disk failures and corrupt entries block with zero venue mutation', async () => {
       // getItem rejection.
       const infraReadFail = createMockInfrastructure();
-      (infraReadFail.diskCache.getItem as jest.Mock).mockRejectedValue(
+      (infraReadFail.diskCache.getItem as Mock).mockRejectedValue(
         new Error('disk unavailable'),
       );
       const readFailBuilt = buildProvider({
@@ -22863,7 +22854,7 @@ describe('LighterProvider', () => {
       // (Key-scoped: only the journal is corrupt, other durable state is
       // absent.)
       const infraCorrupt = createMockInfrastructure();
-      (infraCorrupt.diskCache.getItem as jest.Mock).mockImplementation(
+      (infraCorrupt.diskCache.getItem as Mock).mockImplementation(
         async (key: string) =>
           key.startsWith('lighterTpslJournal:') && !key.includes('Index')
             ? '{not json'
@@ -22889,15 +22880,15 @@ describe('LighterProvider', () => {
       // permanent opaque block, never silently reinterpreted).
       const v1Disk = new Map<string, string>();
       const infraV1 = createMockInfrastructure();
-      (infraV1.diskCache.getItem as jest.Mock).mockImplementation(
+      (infraV1.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => v1Disk.get(key) ?? null,
       );
-      (infraV1.diskCache.setItem as jest.Mock).mockImplementation(
+      (infraV1.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           v1Disk.set(key, value);
         },
       );
-      (infraV1.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infraV1.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           v1Disk.delete(key);
         },
@@ -22928,7 +22919,7 @@ describe('LighterProvider', () => {
       );
       // Malformed-but-JSON entry (empty attempts): blocked.
       const infraMalformed = createMockInfrastructure();
-      (infraMalformed.diskCache.getItem as jest.Mock).mockImplementation(
+      (infraMalformed.diskCache.getItem as Mock).mockImplementation(
         async (key: string) =>
           key.startsWith('lighterTpslJournal:') && !key.includes('Index')
             ? JSON.stringify({
@@ -22964,7 +22955,7 @@ describe('LighterProvider', () => {
       expect(malformedVenue.rawTriggers).toHaveLength(0);
       // Pre-send setItem failure: the mutation aborts BEFORE submission.
       const infraWriteFail = createMockInfrastructure();
-      (infraWriteFail.diskCache.setItem as jest.Mock).mockRejectedValue(
+      (infraWriteFail.diskCache.setItem as Mock).mockRejectedValue(
         new Error('disk write refused'),
       );
       const writeFailBuilt = buildProvider({
@@ -23008,9 +22999,9 @@ describe('LighterProvider', () => {
         return { code: 200, nonce: venue.getVenueNonce() + bump };
       });
       const realNow = Date.now();
-      const nowSpy = jest
-        .spyOn(Date, 'now')
-        .mockImplementation(() => realNow + 13_000);
+      const nowSpy = vi.spyOn(Date, 'now').mockImplementation(function () {
+        return realNow + 13_000;
+      });
       try {
         // The venue moved past the nonce while OUR exact hash is absent:
         // another writer consumed it — the LEDGER treats it retry-safe
@@ -23042,15 +23033,15 @@ describe('LighterProvider', () => {
       // Real disk backing: the CAS-guarded clear only issues a remove
       // when a journal actually exists on disk.
       const switchDisk = new Map<string, string>();
-      (infra.diskCache.getItem as jest.Mock).mockImplementation(
+      (infra.diskCache.getItem as Mock).mockImplementation(
         async (key: string) => switchDisk.get(key) ?? null,
       );
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           switchDisk.set(key, value);
         },
       );
-      (infra.diskCache.removeItem as jest.Mock).mockImplementation(
+      (infra.diskCache.removeItem as Mock).mockImplementation(
         async (key: string) => {
           signalRemoveEntered();
           await removeGate;
@@ -23139,10 +23130,10 @@ describe('LighterProvider', () => {
       // where the invalidated signer re-setup queued a nested write lock
       // behind the outer section awaiting it: a hang.
       const realImplementation = (
-        bridge.execute as jest.Mock
+        bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
       let resetFired = false;
-      (bridge.execute as jest.Mock).mockImplementation(
+      (bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_createAuthToken' && !resetFired) {
             resetFired = true;
@@ -23396,9 +23387,11 @@ describe('LighterProvider', () => {
       await built.provider.getOpenOrders();
       for (let attempt = 0; attempt < 40; attempt += 1) {
         const recoveryFailure = (
-          infra.debugLogger.log as jest.Mock
+          infra.debugLogger.log as Mock<
+            (message: string, context: { error?: string }) => void
+          >
         ).mock.calls.some(
-          ([message, context]: [string, { error?: string }]) =>
+          ([message, context]) =>
             message.includes('journal entry recovery failed') &&
             context.error?.includes('manual-recovery index is full'),
         );
@@ -23442,7 +23435,7 @@ describe('LighterProvider', () => {
       // exhaustion must land BEFORE signer setup and cancels. Ids draw
       // from WebCrypto now — degenerate CRYPTO output is the seam.
       const cryptoObj = ensureWebCrypto();
-      const randomSpy = jest
+      const randomSpy = vi
         .spyOn(cryptoObj, 'getRandomValues')
         .mockImplementation(
           <TView extends ArrayBufferView | null>(array: TView): TView => {
@@ -23663,9 +23656,9 @@ describe('LighterProvider', () => {
         ],
       });
       const realImplementation = (
-        bridge.execute as jest.Mock
+        bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
-      (bridge.execute as jest.Mock).mockImplementation(
+      (bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_signCreateOrder') {
             return { error: 'venue rejected replacement trigger' };
@@ -23689,7 +23682,7 @@ describe('LighterProvider', () => {
       const { provider, calls, clientInstance, bridge } = buildProvider();
       setupTriggerVenue(clientInstance, bridge);
       const cryptoObj = ensureWebCrypto();
-      const randomSpy = jest.spyOn(cryptoObj, 'getRandomValues');
+      const randomSpy = vi.spyOn(cryptoObj, 'getRandomValues');
       try {
         const result = await provider.updatePositionTPSL({
           symbol: 'BTC',
@@ -23985,8 +23978,8 @@ describe('LighterProvider', () => {
 
     describe('isolated margin settlement', () => {
       describe('bounded exact margin execution polling', () => {
-        beforeEach(() => jest.useFakeTimers());
-        afterEach(() => jest.useRealTimers());
+        beforeEach(() => vi.useFakeTimers());
+        afterEach(() => vi.useRealTimers());
 
         function setup(): BuiltProvider & {
           exact: (hash: string, status: number) => Record<string, unknown>;
@@ -24034,7 +24027,7 @@ describe('LighterProvider', () => {
             symbol: 'BTC',
             amount: '5',
           });
-          await jest.advanceTimersByTimeAsync(3000);
+          await vi.advanceTimersByTimeAsync(3000);
           expect(await pending).toStrictEqual({ success: true });
           expect(built.clientInstance.getTx).toHaveBeenCalledTimes(2);
           expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
@@ -24054,7 +24047,7 @@ describe('LighterProvider', () => {
             symbol: 'BTC',
             amount: '5',
           });
-          await jest.advanceTimersByTimeAsync(3000);
+          await vi.advanceTimersByTimeAsync(3000);
           expect(await pending).toMatchObject({
             success: false,
             error: expect.stringContaining(
@@ -24082,7 +24075,7 @@ describe('LighterProvider', () => {
               symbol: 'BTC',
               amount: '5',
             });
-            await jest.advanceTimersByTimeAsync(3000);
+            await vi.advanceTimersByTimeAsync(3000);
             expect(await pending).toMatchObject({
               success: false,
               error: expect.stringContaining('remains unresolved') as string,
@@ -24107,7 +24100,7 @@ describe('LighterProvider', () => {
             symbol: 'BTC',
             amount: '5',
           });
-          await jest.advanceTimersByTimeAsync(3000);
+          await vi.advanceTimersByTimeAsync(3000);
           expect(await pending).toMatchObject({ success: false });
           expect(built.clientInstance.getTx).toHaveBeenCalledTimes(1);
           expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
@@ -24302,7 +24295,7 @@ describe('LighterProvider', () => {
           amount: '5',
         });
         expect(first.success).toBe(false);
-        const clock = jest
+        const clock = vi
           .spyOn(Date, 'now')
           .mockReturnValue(Date.now() + 1_000_000);
         try {
@@ -24350,7 +24343,7 @@ describe('LighterProvider', () => {
           code: 200,
           accounts: [account],
         });
-        const execute = jest.spyOn(built.bridge, 'execute');
+        const execute = vi.spyOn(built.bridge, 'execute');
         const sign = execute.getMockImplementation();
         if (!sign) {
           throw new Error('Missing signer fixture');
@@ -24704,7 +24697,7 @@ describe('LighterProvider', () => {
           }
           return array;
         };
-      const randomSpy = jest
+      const randomSpy = vi
         .spyOn(cryptoObj, 'getRandomValues')
         .mockImplementation(fillWith(0));
       try {
@@ -24801,7 +24794,7 @@ describe('LighterProvider', () => {
       const cryptoObj = ensureWebCrypto();
       const realRandom = cryptoObj.getRandomValues.bind(cryptoObj);
       const queue: number[] = [0x80, 0x80, 0x40];
-      const randomSpy = jest
+      const randomSpy = vi
         .spyOn(cryptoObj, 'getRandomValues')
         .mockImplementation(
           <TView extends ArrayBufferView | null>(array: TView): TView => {
@@ -24850,7 +24843,7 @@ describe('LighterProvider', () => {
       const { provider, calls } = buildProvider();
       const cryptoObj = ensureWebCrypto();
       const zeroQueue: number[] = [0x00, 0xc0];
-      const randomSpy = jest
+      const randomSpy = vi
         .spyOn(cryptoObj, 'getRandomValues')
         .mockImplementation(
           <TView extends ArrayBufferView | null>(array: TView): TView => {
@@ -25260,8 +25253,8 @@ describe('LighterProvider', () => {
       });
       getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
       StreamFakeWebSocket.instances = [];
-      const accountCallback = jest.fn();
-      const ordersCallback = jest.fn();
+      const accountCallback = vi.fn();
+      const ordersCallback = vi.fn();
       const unsubscribeAccount = provider.subscribeToAccount({
         callback: accountCallback,
       });
@@ -25283,7 +25276,7 @@ describe('LighterProvider', () => {
       // NaN Y-coordinates and crashed the native SVG path parser
       // (RNSVGPathParser InvalidNumber).
       const { provider } = buildProvider({ webSocketCtor: fakeStreamCtor });
-      const bookCallback = jest.fn<void, [OrderBookData]>();
+      const bookCallback = vi.fn<(...args: [OrderBookData]) => void>();
       const unsubscribe = provider.subscribeToOrderBook({
         symbol: 'BTC',
         levels: 5,
@@ -25349,7 +25342,7 @@ describe('LighterProvider', () => {
 
     it('rejects a malformed order book frame without emitting or poisoning its cached nonce', async () => {
       const { provider } = buildProvider({ webSocketCtor: fakeStreamCtor });
-      const bookCallback = jest.fn<void, [OrderBookData]>();
+      const bookCallback = vi.fn<(...args: [OrderBookData]) => void>();
       const unsubscribe = provider.subscribeToOrderBook({
         symbol: 'BTC',
         callback: bookCallback,
@@ -25409,7 +25402,7 @@ describe('LighterProvider', () => {
 
     it('discards an order book after a nonce gap and requests a fresh snapshot', async () => {
       const { provider } = buildProvider({ webSocketCtor: fakeStreamCtor });
-      const callback = jest.fn();
+      const callback = vi.fn();
       const unsubscribe = provider.subscribeToOrderBook({
         symbol: 'BTC',
         callback,
@@ -25461,34 +25454,31 @@ describe('LighterProvider', () => {
       const { provider, clientInstance } = buildProvider({
         webSocketCtor: fakeStreamCtor,
       });
-      jest
-        .spyOn(clientInstance, 'getCandles')
-        .mockImplementation()
-        .mockResolvedValue({
-          code: 200,
-          c: [
-            { t: 1000, o: 1, h: 2, l: 0.5, c: 1.5, v: 10 },
-            { t: 1500, o: 1, h: 2, l: 0.5, v: 10 }, // missing close
-            {
-              t: 1600,
-              o: null as unknown as number,
-              h: 2,
-              l: 0.5,
-              c: 1.5,
-              v: 10,
-            },
-            { t: 1700, o: '', h: 2, l: 0.5, c: 1.5, v: 10 },
-            {
-              t: 1800,
-              o: false as unknown as number,
-              h: 2,
-              l: 0.5,
-              c: 1.5,
-              v: 10,
-            },
-          ],
-        });
-      const candleCallback = jest.fn<void, [CandleData]>();
+      vi.spyOn(clientInstance, 'getCandles').mockResolvedValue({
+        code: 200,
+        c: [
+          { t: 1000, o: 1, h: 2, l: 0.5, c: 1.5, v: 10 },
+          { t: 1500, o: 1, h: 2, l: 0.5, v: 10 }, // missing close
+          {
+            t: 1600,
+            o: null as unknown as number,
+            h: 2,
+            l: 0.5,
+            c: 1.5,
+            v: 10,
+          },
+          { t: 1700, o: '', h: 2, l: 0.5, c: 1.5, v: 10 },
+          {
+            t: 1800,
+            o: false as unknown as number,
+            h: 2,
+            l: 0.5,
+            c: 1.5,
+            v: 10,
+          },
+        ],
+      });
+      const candleCallback = vi.fn<(...args: [CandleData]) => void>();
       const unsubscribe = provider.subscribeToCandles({
         symbol: 'BTC',
         interval: '1h',
@@ -25548,7 +25538,7 @@ describe('LighterProvider', () => {
       });
       getUserAddressMock.mockReturnValue(ACCOUNT.l1Address);
       StreamFakeWebSocket.instances = [];
-      const fillsCallback = jest.fn();
+      const fillsCallback = vi.fn();
       const unsubscribe = provider.subscribeToOrderFills({
         callback: fillsCallback,
       });
@@ -25622,7 +25612,7 @@ describe('LighterProvider', () => {
         subAccounts: [ACCOUNT],
       });
       StreamFakeWebSocket.instances = [];
-      const callback = jest.fn();
+      const callback = vi.fn();
       const unsubscribe = provider.subscribeToOrderFills({ callback });
       await provider.getAccountState();
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -25733,11 +25723,11 @@ describe('LighterProvider', () => {
       await provider.getAccountState(); // bind under A
       // Stall the auth-token mint (the step between index and token use).
       const realImplementation = (
-        bridge.execute as jest.Mock
+        bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
       let releaseToken: () => void = () => undefined;
       let stallOnce = true;
-      (bridge.execute as jest.Mock).mockImplementation(
+      (bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_createAuthToken' && stallOnce) {
             stallOnce = false;
@@ -25870,7 +25860,7 @@ describe('LighterProvider', () => {
         throw new Error('NO_ACCOUNT_SELECTED');
       });
       StreamFakeWebSocket.instances = [];
-      const unsubscribe = provider.subscribeToAccount({ callback: jest.fn() });
+      const unsubscribe = provider.subscribeToAccount({ callback: vi.fn() });
       await new Promise((resolve) => setTimeout(resolve, 0));
       const socket = StreamFakeWebSocket.instances[0];
       socket?.open();
@@ -25922,14 +25912,14 @@ describe('LighterProvider', () => {
         perAddressLookup(),
       );
       StreamFakeWebSocket.instances = [];
-      const ordersCallback = jest.fn();
+      const ordersCallback = vi.fn();
       // Stall then FAIL account A's auth-token mint.
       const realImplementation = (
-        bridge.execute as jest.Mock
+        bridge.execute as Mock
       ).getMockImplementation() as (call: LighterWasmCall) => Promise<unknown>;
       let failAuthA: () => void = () => undefined;
       let stallOnce = true;
-      (bridge.execute as jest.Mock).mockImplementation(
+      (bridge.execute as Mock).mockImplementation(
         async (call: LighterWasmCall) => {
           if (call.function === '_createAuthToken' && stallOnce) {
             stallOnce = false;
@@ -25969,7 +25959,7 @@ describe('LighterProvider', () => {
         perAddressLookup(),
       );
       StreamFakeWebSocket.instances = [];
-      const accountCallback = jest.fn();
+      const accountCallback = vi.fn();
       const unsubscribe = provider.subscribeToAccount({
         callback: accountCallback,
       });
@@ -26015,7 +26005,7 @@ describe('LighterProvider', () => {
       );
       StreamFakeWebSocket.instances = [];
       // Orders subscription wants the authenticated channel.
-      const unsubscribe = provider.subscribeToOrders({ callback: jest.fn() });
+      const unsubscribe = provider.subscribeToOrders({ callback: vi.fn() });
       await new Promise((resolve) => setTimeout(resolve, 0));
       await new Promise((resolve) => setTimeout(resolve, 0));
       const socketA =
@@ -26024,12 +26014,12 @@ describe('LighterProvider', () => {
       // A's onopen genuinely enters the deferred re-mint branch.
       // Restored in the finally below so a failed assertion cannot poison
       // later tests with a frozen clock.
-      const nowSpy = jest
+      const nowSpy = vi
         .spyOn(Date, 'now')
         .mockReturnValue(Date.now() + 700_000);
       try {
         const realImplementation = (
-          bridge.execute as jest.Mock
+          bridge.execute as Mock
         ).getMockImplementation() as (
           call: LighterWasmCall,
         ) => Promise<unknown>;
@@ -26039,7 +26029,7 @@ describe('LighterProvider', () => {
         const refreshEntered = new Promise<void>((resolve) => {
           stallEntered = resolve;
         });
-        (bridge.execute as jest.Mock).mockImplementation(
+        (bridge.execute as Mock).mockImplementation(
           async (call: LighterWasmCall) => {
             if (call.function === '_createAuthToken' && stallNext) {
               stallNext = false;
@@ -26646,7 +26636,7 @@ describe('LighterProvider', () => {
 
     it('returns immediate empty snapshots from subscriptions', async () => {
       const { provider } = buildProvider();
-      const callback = jest.fn();
+      const callback = vi.fn();
       // No `as never` here: force-casting subscription params is exactly
       // what hid the missing required `symbol` on subscribeToOrderBook and
       // the bare-level order book payload defect.
@@ -27171,9 +27161,9 @@ describe('LighterProvider', () => {
       // EXPIRE A's cached token, then force a fresh mint via a read that
       // needs auth: the mint must re-create A's client under the lease.
       const realNow = Date.now();
-      const nowSpy = jest
-        .spyOn(Date, 'now')
-        .mockImplementation(() => realNow + 700_000);
+      const nowSpy = vi.spyOn(Date, 'now').mockImplementation(function () {
+        return realNow + 700_000;
+      });
       try {
         await first.provider.getOpenOrders();
       } finally {
@@ -27233,14 +27223,14 @@ describe('LighterProvider', () => {
       // before the ack's (now stale) write lands. All ledger RMW must
       // serialize on ONE mutex so this window cannot exist.
       const realSet = (
-        infra.diskCache.setItem as jest.Mock
+        infra.diskCache.setItem as Mock
       ).getMockImplementation() as (
         key: string,
         value: string,
       ) => Promise<void>;
       let releaseGate: () => void = () => undefined;
       const gate = { armed: true };
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           if (gate.armed && key.startsWith('lighterNonceLedger:')) {
             gate.armed = false;
@@ -27418,12 +27408,10 @@ describe('LighterProvider', () => {
             }),
           );
         }
-        const getItem = jest.spyOn(infra.diskCache, 'getItem');
-        const eviction = jest.spyOn(Map.prototype, 'delete');
-        const originalDelete = eviction.getMockImplementation();
-        if (!originalDelete) {
-          throw new Error('Missing real mutex eviction implementation');
-        }
+        const getItem = vi.spyOn(infra.diskCache, 'getItem');
+        // Vitest's spy has no implementation to read back, so keep the real one.
+        const originalDelete = Map.prototype.delete;
+        const eviction = vi.spyOn(Map.prototype, 'delete');
         let retired = false;
         let rebound: Promise<unknown> | undefined;
         // The real venue mutex evicts its tail after its critical section
@@ -27564,7 +27552,7 @@ describe('LighterProvider', () => {
         migratedVenue.primeLag([], 100);
         expect((await migrated.provider.isReadyToTrade()).ready).toBe(true);
         expect(
-          jest.mocked(migrated.bridge).createClient.mock.lastCall,
+          vi.mocked(migrated.bridge).createClient.mock.lastCall,
         ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 7 })]);
         expect(await migrated.provider.getRecoveredDispatches()).toStrictEqual(
           [],
@@ -27618,7 +27606,7 @@ describe('LighterProvider', () => {
         });
         expect(removed).toMatchObject({ success: true });
         expect(
-          jest.mocked(restored.bridge).createClient.mock.lastCall,
+          vi.mocked(restored.bridge).createClient.mock.lastCall,
         ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 19 })]);
         expect(restoredVenue.rawTriggers).toStrictEqual([]);
         expect(restored.clientInstance.sendTx).toHaveBeenCalledTimes(1);
@@ -27736,7 +27724,7 @@ describe('LighterProvider', () => {
         migratedVenue.primeLag([], 100);
         expect((await migrated.provider.isReadyToTrade()).ready).toBe(true);
         expect(
-          jest.mocked(migrated.bridge).createClient.mock.lastCall,
+          vi.mocked(migrated.bridge).createClient.mock.lastCall,
         ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 7 })]);
         expect(await migrated.provider.getRecoveredDispatches()).toStrictEqual(
           [],
@@ -27759,7 +27747,7 @@ describe('LighterProvider', () => {
         expect(migratedVenue.rawTriggers).toStrictEqual(
           originalVenue.rawTriggers,
         );
-        const clientCreationsAtReady = jest.mocked(migrated.bridge).createClient
+        const clientCreationsAtReady = vi.mocked(migrated.bridge).createClient
           .mock.calls.length;
         // Slot 19 stays foreign permanently. Only its own exact hash/nonce
         // identity may discharge the old obligation; the selected key signs
@@ -27887,7 +27875,7 @@ describe('LighterProvider', () => {
           (replacement ? 2 : 1) + (hasPrior ? 1 : 0),
         );
         expect(
-          jest
+          vi
             .mocked(migrated.bridge)
             .createClient.mock.calls.slice(clientCreationsAtReady)
             .every(([call]) => call.apiKeyIndex === 7),
@@ -27919,7 +27907,7 @@ describe('LighterProvider', () => {
         restartedVenue.setVenueNonce(migratedVenue.getVenueNonce());
         expect((await restarted.provider.isReadyToTrade()).ready).toBe(true);
         expect(
-          jest.mocked(restarted.bridge).createClient.mock.lastCall,
+          vi.mocked(restarted.bridge).createClient.mock.lastCall,
         ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 7 })]);
         expect(
           await restarted.provider.getPendingManualRecoveries(),
@@ -28079,7 +28067,7 @@ describe('LighterProvider', () => {
         await infra.diskCache.setItem(indexKey, JSON.stringify([key]));
         await infra.diskCache.setItem(docKey, validBytes);
         let cleanup = false;
-        const getItem = jest
+        const getItem = vi
           .spyOn(infra.diskCache, 'getItem')
           .getMockImplementation();
         if (!getItem) {
@@ -28109,15 +28097,14 @@ describe('LighterProvider', () => {
           }
           return read();
         });
-        const removeItem = jest
+        const removeItem = vi
           .spyOn(infra.diskCache, 'removeItem')
           .getMockImplementation();
         if (!removeItem) {
           throw new Error('Missing storage remover');
         }
-        jest
-          .spyOn(infra.diskCache, 'removeItem')
-          .mockImplementation(async (storageKey) => {
+        vi.spyOn(infra.diskCache, 'removeItem').mockImplementation(
+          async (storageKey) => {
             if (failure === 'storage' && storageKey === docKey) {
               throw new Error('Cleanup storage unavailable');
             }
@@ -28131,7 +28118,8 @@ describe('LighterProvider', () => {
                 await infra.diskCache.setItem(docKey, bytes);
               }
             }
-          });
+          },
+        );
         const result = await built.provider.updatePositionTPSL({
           symbol: 'BTC',
           stopLossPrice: replacement ? '85000' : undefined,
@@ -28228,16 +28216,15 @@ describe('LighterProvider', () => {
           recordedAt: 5,
         }),
       );
-      const setItem = jest
+      const setItem = vi
         .spyOn(infra.diskCache, 'setItem')
         .getMockImplementation();
       if (!setItem) {
         throw new Error('Missing storage writer');
       }
       let interrupted = false;
-      jest
-        .spyOn(infra.diskCache, 'setItem')
-        .mockImplementation(async (storageKey, value) => {
+      vi.spyOn(infra.diskCache, 'setItem').mockImplementation(
+        async (storageKey, value) => {
           if (
             !interrupted &&
             storageKey === indexKey &&
@@ -28247,7 +28234,8 @@ describe('LighterProvider', () => {
             throw new Error('Interrupted index pruning');
           }
           return setItem(storageKey, value);
-        });
+        },
+      );
       const first = buildProvider({
         platformDependencies: infra,
         registeredKey: '9c'.repeat(40),
@@ -28286,7 +28274,7 @@ describe('LighterProvider', () => {
         restarted.calls.filter((call) => call.function.startsWith('_sign')),
       ).toStrictEqual([]);
       expect(
-        jest.mocked(restarted.bridge).createClient.mock.lastCall,
+        vi.mocked(restarted.bridge).createClient.mock.lastCall,
       ).toStrictEqual([expect.objectContaining({ apiKeyIndex: 7 })]);
       await restarted.provider.disconnect();
     });
@@ -28345,22 +28333,21 @@ describe('LighterProvider', () => {
             },
           ],
         });
-        const getItem = jest
+        const getItem = vi
           .spyOn(infra.diskCache, 'getItem')
           .getMockImplementation();
         if (!getItem) {
           throw new Error('Missing storage reader');
         }
         let settled = false;
-        const removeItem = jest
+        const removeItem = vi
           .spyOn(infra.diskCache, 'removeItem')
           .getMockImplementation();
         if (!removeItem) {
           throw new Error('Missing storage remover');
         }
-        jest
-          .spyOn(infra.diskCache, 'removeItem')
-          .mockImplementation(async (storageKey) => {
+        vi.spyOn(infra.diskCache, 'removeItem').mockImplementation(
+          async (storageKey) => {
             await removeItem(storageKey);
             if (
               storageKey ===
@@ -28368,11 +28355,11 @@ describe('LighterProvider', () => {
             ) {
               settled = true;
             }
-          });
+          },
+        );
         let reads = 0;
-        jest
-          .spyOn(infra.diskCache, 'getItem')
-          .mockImplementation(async (storageKey) => {
+        vi.spyOn(infra.diskCache, 'getItem').mockImplementation(
+          async (storageKey) => {
             if (settled && storageKey === docKey) {
               reads += 1;
               if (reads === 2) {
@@ -28389,7 +28376,8 @@ describe('LighterProvider', () => {
               }
             }
             return getItem(storageKey);
-          });
+          },
+        );
         const result = await built.provider.updatePositionTPSL({
           symbol: 'BTC',
         });
@@ -28403,7 +28391,7 @@ describe('LighterProvider', () => {
         expect(await getItem(payloadKey)).toBe(
           change === 'journal' ? payload : null,
         );
-        expect(jest.spyOn(infra.debugLogger, 'log')).not.toHaveBeenCalledWith(
+        expect(vi.spyOn(infra.debugLogger, 'log')).not.toHaveBeenCalledWith(
           '[LighterProvider] Previous-slot warning cleanup remains pending',
           expect.anything(),
         );
@@ -28546,7 +28534,7 @@ describe('LighterProvider', () => {
         expect(await infra.diskCache.getItem(journalKey)).toBe(
           change === 'new-journal' ? pointer : null,
         );
-        expect(jest.spyOn(infra.debugLogger, 'log')).not.toHaveBeenCalledWith(
+        expect(vi.spyOn(infra.debugLogger, 'log')).not.toHaveBeenCalledWith(
           '[LighterProvider] Previous-slot warning cleanup remains pending',
           expect.anything(),
         );
@@ -28991,9 +28979,9 @@ describe('LighterProvider', () => {
           code: 200,
           subAccounts: [],
         });
-        jest
-          .spyOn(infra.diskCache, 'getItem')
-          .mockRejectedValue(new Error('recovery storage unavailable'));
+        vi.spyOn(infra.diskCache, 'getItem').mockRejectedValue(
+          new Error('recovery storage unavailable'),
+        );
         await expect(built.provider[method]()).rejects.toThrow(
           'recovery storage unavailable',
         );
@@ -29650,11 +29638,11 @@ describe('LighterProvider', () => {
         }
         await built.provider.acknowledgeRecoveredDispatch(resolved.recoveryId);
         built.clientInstance.sendTx.mockClear();
-        (built.bridge.execute as jest.Mock).mockClear();
+        (built.bridge.execute as Mock).mockClear();
         expect((await built.provider.withdraw({ amount: '1' })).success).toBe(
           true,
         );
-        expect((built.bridge.execute as jest.Mock).mock.calls).toContainEqual([
+        expect((built.bridge.execute as Mock).mock.calls).toContainEqual([
           expect.objectContaining({ function: '_signWithdraw' }),
         ]);
         expect(built.clientInstance.sendTx).toHaveBeenCalledTimes(1);
@@ -29906,14 +29894,13 @@ describe('LighterProvider', () => {
         };
         if (boundary === 'append') {
           const realSet = (
-            infra.diskCache.setItem as jest.Mock
+            infra.diskCache.setItem as Mock
           ).getMockImplementation() as (
             key: string,
             value: string,
           ) => Promise<void>;
-          jest
-            .spyOn(infra.diskCache, 'setItem')
-            .mockImplementation(async (key, value) => {
+          vi.spyOn(infra.diskCache, 'setItem').mockImplementation(
+            async (key, value) => {
               await realSet(key, value);
               if (
                 key === 'lighterNonceLedger:testnet:28:19' &&
@@ -29924,7 +29911,8 @@ describe('LighterProvider', () => {
                 switchAccount();
                 await built.provider.getAccountState().catch(() => undefined);
               }
-            });
+            },
+          );
         } else {
           const realSend =
             built.clientInstance.sendTx.getMockImplementation() as (
@@ -29982,13 +29970,13 @@ describe('LighterProvider', () => {
         txInfo: string,
       ) => Promise<unknown>;
       const realSet = (
-        infra.diskCache.setItem as jest.Mock
+        infra.diskCache.setItem as Mock
       ).getMockImplementation() as (
         key: string,
         value: string,
       ) => Promise<void>;
       let failNextLedgerWrite = false;
-      (infra.diskCache.setItem as jest.Mock).mockImplementation(
+      (infra.diskCache.setItem as Mock).mockImplementation(
         async (key: string, value: string) => {
           if (failNextLedgerWrite && key.startsWith('lighterNonceLedger:')) {
             failNextLedgerWrite = false;
@@ -30318,9 +30306,9 @@ describe('LighterProvider', () => {
         }
         const before = await built.infra.diskCache.getItem(ledgerKey);
         if (failure === 'write-error') {
-          jest
-            .spyOn(built.infra.diskCache, 'setItem')
-            .mockRejectedValueOnce(new Error('disk failed'));
+          vi.spyOn(built.infra.diskCache, 'setItem').mockRejectedValueOnce(
+            new Error('disk failed'),
+          );
         }
         if (failure === 'nonce-error') {
           built.clientInstance.getNextNonce.mockRejectedValueOnce(
@@ -30328,9 +30316,9 @@ describe('LighterProvider', () => {
           );
         }
         if (failure === 'read-error') {
-          jest
-            .spyOn(built.infra.diskCache, 'getItem')
-            .mockRejectedValueOnce(new Error('disk read failed'));
+          vi.spyOn(built.infra.diskCache, 'getItem').mockRejectedValueOnce(
+            new Error('disk read failed'),
+          );
         }
         await expect(
           built.provider.reconcileRecoveredDispatches(),
@@ -30368,28 +30356,27 @@ describe('LighterProvider', () => {
         );
       }
       if (boundary === 'read') {
-        const get = jest
+        const get = vi
           .spyOn(built.infra.diskCache, 'getItem')
           .getMockImplementation() as (key: string) => Promise<string | null>;
-        jest
-          .spyOn(built.infra.diskCache, 'getItem')
-          .mockImplementation(async (key) =>
+        vi.spyOn(built.infra.diskCache, 'getItem').mockImplementation(
+          async (key) =>
             key === ledgerKey ? switchAfter(await get(key)) : get(key),
-          );
+        );
       }
       if (boundary === 'write') {
-        const set = jest
+        const set = vi
           .spyOn(built.infra.diskCache, 'setItem')
           .getMockImplementation() as (
           key: string,
           value: string,
         ) => Promise<void>;
-        jest
-          .spyOn(built.infra.diskCache, 'setItem')
-          .mockImplementation(async (key, value) => {
+        vi.spyOn(built.infra.diskCache, 'setItem').mockImplementation(
+          async (key, value) => {
             await switchAfter(undefined);
             await set(key, value);
-          });
+          },
+        );
       }
       const pending = built.provider
         .reconcileRecoveredDispatches()
@@ -30587,19 +30574,18 @@ describe('LighterProvider', () => {
       expect(failure).toBeInstanceOf(Error);
       expect((failure as Error).message).toMatch(/switch|session|account/u);
       expect(built.clientInstance.getNextNonce).not.toHaveBeenCalled();
-      expect(jest.spyOn(infra.diskCache, 'setItem')).not.toHaveBeenCalled();
+      expect(vi.spyOn(infra.diskCache, 'setItem')).not.toHaveBeenCalled();
       expect(built.calls).toStrictEqual([]);
     });
 
     it('rejects a wallet deselection during the final local listing', async () => {
       const built = await fixture();
-      const get = jest
+      const get = vi
         .spyOn(built.infra.diskCache, 'getItem')
         .getMockImplementation() as (key: string) => Promise<string | null>;
       let ledgerReads = 0;
-      jest
-        .spyOn(built.infra.diskCache, 'getItem')
-        .mockImplementation(async (key) => {
+      vi.spyOn(built.infra.diskCache, 'getItem').mockImplementation(
+        async (key) => {
           const value = await get(key);
           if (key === ledgerKey) {
             ledgerReads += 1;
@@ -30610,7 +30596,8 @@ describe('LighterProvider', () => {
             });
           }
           return value;
-        });
+        },
+      );
       await expect(
         built.provider.reconcileRecoveredDispatches(),
       ).rejects.toThrow(/session|account|wallet/u);
@@ -30650,7 +30637,7 @@ describe('LighterProvider', () => {
 
     it('works after failed signer setup without another bridge attempt', async () => {
       const built = await fixture();
-      const execute = jest
+      const execute = vi
         .spyOn(built.bridge, 'execute')
         .mockRejectedValue(new Error('signer unavailable'));
       expect(await built.provider.getOpenOrders()).toStrictEqual([]);
@@ -30681,9 +30668,9 @@ describe('LighterProvider', () => {
         }),
       );
       built.clientInstance.getTx.mockResolvedValue(terminal);
-      jest
-        .spyOn(infra.diskCache, 'setItem')
-        .mockRejectedValueOnce(new Error('disk failed'));
+      vi.spyOn(infra.diskCache, 'setItem').mockRejectedValueOnce(
+        new Error('disk failed'),
+      );
       await expect(
         built.provider.reconcileRecoveredDispatches(),
       ).rejects.toThrow('disk failed');
@@ -30768,25 +30755,23 @@ describe('LighterProvider', () => {
         const entered = createDeferred<void>();
         const release = createDeferred<void>();
         if (boundary === 'auth') {
-          const execute = jest
+          const execute = vi
             .spyOn(built.bridge, 'execute')
             .getMockImplementation();
           if (!execute) {
             throw new Error('Missing signer implementation');
           }
-          jest
-            .spyOn(built.bridge, 'execute')
-            .mockImplementation(async (call) => {
-              if (call.function === '_createAuthToken') {
-                entered.resolve();
-                await release.promise;
-              }
-              const result = await execute?.(call);
-              if (!result) {
-                throw new Error('Missing fixture signer');
-              }
-              return result;
-            });
+          vi.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+            if (call.function === '_createAuthToken') {
+              entered.resolve();
+              await release.promise;
+            }
+            const result = await execute?.(call);
+            if (!result) {
+              throw new Error('Missing fixture signer');
+            }
+            return result;
+          });
         } else if (boundary === 'orders') {
           built.clientInstance.getActiveOrders.mockImplementationOnce(
             async () => {
@@ -30889,9 +30874,9 @@ describe('LighterProvider', () => {
           );
         }
         if (boundary === 'auth') {
-          jest
-            .spyOn(built.bridge, 'execute')
-            .mockRejectedValue(new Error('review auth failure'));
+          vi.spyOn(built.bridge, 'execute').mockRejectedValue(
+            new Error('review auth failure'),
+          );
         }
         await expect(built.provider.reviewRecoveryVenue()).rejects.toThrow(
           /review.*failure/u,
@@ -30953,7 +30938,7 @@ describe('LighterProvider', () => {
             recordedAt: 1,
           }),
         );
-        const remove = jest.spyOn(infra.diskCache, 'removeItem');
+        const remove = vi.spyOn(infra.diskCache, 'removeItem');
         const realRemove = remove.getMockImplementation();
         if (!realRemove) {
           throw new Error('Missing storage implementation');
@@ -31446,13 +31431,11 @@ describe('LighterProvider', () => {
       setupTriggerVenue(second.clientInstance, second.bridge);
       const entered = createDeferred<void>();
       const release = createDeferred<void>();
-      const execute = jest
-        .spyOn(first.bridge, 'execute')
-        .getMockImplementation();
+      const execute = vi.spyOn(first.bridge, 'execute').getMockImplementation();
       if (!execute) {
         throw new Error('Missing bridge implementation');
       }
-      jest.spyOn(first.bridge, 'execute').mockImplementation(async (call) => {
+      vi.spyOn(first.bridge, 'execute').mockImplementation(async (call) => {
         if (call.function === '_signCreateOrder') {
           entered.resolve();
           await release.promise;
@@ -31511,13 +31494,11 @@ describe('LighterProvider', () => {
         registeredKey: '9c'.repeat(40),
       });
       setupTriggerVenue(built.clientInstance, built.bridge);
-      const execute = jest
-        .spyOn(built.bridge, 'execute')
-        .getMockImplementation();
+      const execute = vi.spyOn(built.bridge, 'execute').getMockImplementation();
       if (!execute) {
         throw new Error('Missing bridge implementation');
       }
-      jest.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+      vi.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
         const signed = await execute(call);
         if (call.function === '_signCreateOrder') {
           built.getUserAddressMock.mockReturnValue(
@@ -31870,7 +31851,7 @@ describe('LighterProvider', () => {
             evidence === 'retained-clear-crash' ||
             evidence === 'retained-pointer-crash'
           ) {
-            const remove = jest.spyOn(infra.diskCache, 'removeItem');
+            const remove = vi.spyOn(infra.diskCache, 'removeItem');
             const realRemove = remove.getMockImplementation();
             if (!realRemove) {
               throw new Error('Missing storage removal');
@@ -31892,7 +31873,7 @@ describe('LighterProvider', () => {
             });
           }
           if (evidence === 'retained-index-crash') {
-            const write = jest.spyOn(infra.diskCache, 'setItem');
+            const write = vi.spyOn(infra.diskCache, 'setItem');
             const realWrite = write.getMockImplementation();
             if (!realWrite) {
               throw new Error('Missing storage write');
@@ -32241,16 +32222,15 @@ describe('LighterProvider', () => {
         'lighterTpslManualIndex:testnet',
         JSON.stringify([settlementKey]),
       );
-      const realSet = jest
+      const realSet = vi
         .spyOn(infra.diskCache, 'setItem')
         .getMockImplementation();
       if (!realSet) {
         throw new Error('Missing storage implementation');
       }
       const newer = JSON.stringify({ ...source, operationId: 'newer' });
-      jest
-        .spyOn(infra.diskCache, 'setItem')
-        .mockImplementation(async (key, value) => {
+      vi.spyOn(infra.diskCache, 'setItem').mockImplementation(
+        async (key, value) => {
           await realSet(key, value);
           if (
             key.startsWith('lighterTpslSuccessor:') &&
@@ -32258,7 +32238,8 @@ describe('LighterProvider', () => {
           ) {
             await realSet(sourceKey, newer);
           }
-        });
+        },
+      );
       const recoveryId = `lighter-protection:${JSON.stringify(['testnet', ACCOUNT.l1Address.toLowerCase(), 28, 19, 'BTC', 'original'])}`;
       const result = await built.provider.resolveRecoveryProtection({
         recoveryId,
@@ -32449,7 +32430,7 @@ describe('Lighter post-only placement', () => {
   );
   it('refuses a delayed or failed book before signer setup', async () => {
     const built = buildProvider();
-    const now = jest.spyOn(Date, 'now');
+    const now = vi.spyOn(Date, 'now');
     const started = Date.now();
     built.clientInstance.getOrderBookOrders.mockImplementation(async () => {
       now.mockReturnValue(started + 6000);
@@ -32518,13 +32499,11 @@ describe('Lighter post-only placement', () => {
     'fences %s during ALO signing before send',
     async (change) => {
       const built = buildProvider();
-      const execute = jest
-        .spyOn(built.bridge, 'execute')
-        .getMockImplementation();
+      const execute = vi.spyOn(built.bridge, 'execute').getMockImplementation();
       if (!execute) {
         throw new Error('Missing bridge implementation');
       }
-      jest.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+      vi.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
         const result = await execute(call);
         if (call.function === '_signCreateOrder') {
           if (change === 'disconnect') {
@@ -32574,14 +32553,14 @@ describe('Lighter post-only placement', () => {
   it('preserves the exact client handle and quarantines response loss across restart', async () => {
     const deps = createMockInfrastructure();
     const disk = new Map<string, string>();
-    jest
-      .spyOn(deps.diskCache, 'getItem')
-      .mockImplementation(async (key: string) => disk.get(key) ?? null);
-    jest
-      .spyOn(deps.diskCache, 'setItem')
-      .mockImplementation(async (key: string, value: string) => {
+    vi.spyOn(deps.diskCache, 'getItem').mockImplementation(
+      async (key: string) => disk.get(key) ?? null,
+    );
+    vi.spyOn(deps.diskCache, 'setItem').mockImplementation(
+      async (key: string, value: string) => {
         disk.set(key, value);
-      });
+      },
+    );
     const built = buildProvider({ platformDependencies: deps });
     built.clientInstance.sendTx.mockImplementation(async (kind: number) => {
       if (kind === LIGHTER_TX_TYPE_CREATE_ORDER) {
@@ -32748,7 +32727,7 @@ describe('Lighter bounded Chase provider probe', () => {
   it.each(['chase', 'twap'] as const)(
     'excludes a second native probe across strategies after %s dispatch',
     async (first) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const built = setup();
       built.clientInstance.getOrderBookDetails.mockResolvedValue({
         code: 200,
@@ -32786,7 +32765,7 @@ describe('Lighter bounded Chase provider probe', () => {
         ).toHaveLength(creates);
       } finally {
         await built.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
@@ -32809,7 +32788,7 @@ describe('Lighter bounded Chase provider probe', () => {
     },
   );
   it('floors the Mobile Chase size while retaining its explicit USD budget', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const built = setup();
     try {
       const result = await built.provider.placeOrder({
@@ -32822,7 +32801,7 @@ describe('Lighter bounded Chase provider probe', () => {
       expect(result.submittedSize).toBe('0.0002');
     } finally {
       await built.provider.disconnect();
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
   it('leaves Chase unadvertised without the probe or an injected signer', async () => {
@@ -32836,7 +32815,7 @@ describe('Lighter bounded Chase provider probe', () => {
     ).toMatchObject({ supportedStrategies: ['scale'] });
   });
   it('accepts the Mobile Chase USD request and advertises the enabled testnet probe', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const built = setup();
     try {
       const result = await built.provider.placeOrder({
@@ -32852,7 +32831,7 @@ describe('Lighter bounded Chase provider probe', () => {
       ).toMatchObject({ supportedStrategies: ['scale', 'chase'] });
     } finally {
       await built.provider.disconnect();
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
   it('advertises only the enabled testnet Chase probe and rejects mainnet probe construction', async () => {
@@ -32894,7 +32873,7 @@ describe('Lighter bounded Chase provider probe', () => {
     expect(built.calls).toHaveLength(0);
   });
   it('serializes one native cancel/reprice and then terminates at its count bound', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const built = setup();
     try {
       built.clientInstance.getOrdersByClientIds.mockImplementation(
@@ -32974,7 +32953,7 @@ describe('Lighter bounded Chase provider probe', () => {
           },
         ],
       });
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect(
         built.calls
           .filter((call) =>
@@ -32987,7 +32966,7 @@ describe('Lighter bounded Chase provider probe', () => {
         '_signCreateOrder',
       ]);
       expect((await built.provider.getChaseOrders())[0].repricings).toBe(1);
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect((await built.provider.getChaseOrders())[0].status).toBe(
         'canceled',
       );
@@ -32996,7 +32975,7 @@ describe('Lighter bounded Chase provider probe', () => {
       );
     } finally {
       await built.provider.disconnect();
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
   it('places an exact owned native ALO child and exposes its public management handle', async () => {
@@ -33045,14 +33024,14 @@ describe('Lighter bounded Chase provider probe', () => {
   const diskDependencies = (): ReturnType<typeof createMockInfrastructure> => {
     const deps = createMockInfrastructure();
     const disk = new Map<string, string>();
-    jest
-      .spyOn(deps.diskCache, 'getItem')
-      .mockImplementation(async (key: string) => disk.get(key) ?? null);
-    jest
-      .spyOn(deps.diskCache, 'setItem')
-      .mockImplementation(async (key: string, value: string) => {
+    vi.spyOn(deps.diskCache, 'getItem').mockImplementation(
+      async (key: string) => disk.get(key) ?? null,
+    );
+    vi.spyOn(deps.diskCache, 'setItem').mockImplementation(
+      async (key: string, value: string) => {
         disk.set(key, value);
-      });
+      },
+    );
     return deps;
   };
   describe('public Chase ownership', () => {
@@ -33085,17 +33064,17 @@ describe('Lighter bounded Chase provider probe', () => {
     ): BoundarySnapshot => ({
       wasm: [...built.calls],
       bridge: Object.values(built.bridge)
-        .filter((value) => jest.isMockFunction(value))
+        .filter((value) => vi.isMockFunction(value))
         .map((mock) => mock.mock.calls.length),
       client: Object.values(built.clientInstance)
-        .filter((value) => jest.isMockFunction(value))
+        .filter((value) => vi.isMockFunction(value))
         .map((mock) => mock.mock.calls.length),
-      writes: jest.spyOn(deps.diskCache, 'setItem').mock.calls.length,
-      removes: jest.spyOn(deps.diskCache, 'removeItem').mock.calls.length,
-      timers: jest.getTimerCount(),
+      writes: vi.spyOn(deps.diskCache, 'setItem').mock.calls.length,
+      removes: vi.spyOn(deps.diskCache, 'removeItem').mock.calls.length,
+      timers: vi.getTimerCount(),
     });
-    beforeEach(() => jest.useFakeTimers());
-    afterEach(() => jest.useRealTimers());
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
 
     it('retains every exact child after multiple reprices and current-child replacement through the public messenger', async () => {
       const deps = diskDependencies();
@@ -33122,7 +33101,7 @@ describe('Lighter bounded Chase provider probe', () => {
             ...book,
             bids: [{ ...book.bids[0], price }],
           });
-          await jest.advanceTimersByTimeAsync(1000);
+          await vi.advanceTimersByTimeAsync(1000);
         }
         const journal = await stored(deps);
         expect(journal.records[0].children).toHaveLength(3);
@@ -33228,7 +33207,7 @@ describe('Lighter bounded Chase provider probe', () => {
         expect(boundaries(restarted, deps)).toStrictEqual(before);
         expect(keyringCalls(host.call)).toStrictEqual([]);
         expect(await stored(deps)).toStrictEqual(journal);
-        await jest.advanceTimersByTimeAsync(60000);
+        await vi.advanceTimersByTimeAsync(60000);
         expect(boundaries(restarted, deps)).toStrictEqual({
           ...before,
           timers: 0,
@@ -33404,17 +33383,15 @@ describe('Lighter bounded Chase provider probe', () => {
         const placed = await original.provider.placeOrder(intent);
         await original.provider.disconnect();
         if (condition === 'missing journal') {
-          const read = jest
+          const read = vi
             .spyOn(deps.diskCache, 'getItem')
             .getMockImplementation();
           if (!read) {
             throw new Error('Missing test read');
           }
-          jest
-            .spyOn(deps.diskCache, 'getItem')
-            .mockImplementation(async (key) =>
-              key === journalKey ? null : await read(key),
-            );
+          vi.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) =>
+            key === journalKey ? null : await read(key),
+          );
         } else if (condition === 'empty journal') {
           await deps.diskCache.setItem(
             journalKey,
@@ -33524,7 +33501,7 @@ describe('Lighter bounded Chase provider probe', () => {
           withBridge: false,
         });
         const { controller, host } = ownershipController(built.provider);
-        const inspect = jest.spyOn(built.provider, 'getChaseOrderOwnership');
+        const inspect = vi.spyOn(built.provider, 'getChaseOrderOwnership');
         const before = boundaries(built, deps);
         const result = controller.getChaseOrderOwnership(
           route('opaque-handle'),
@@ -33558,7 +33535,7 @@ describe('Lighter bounded Chase provider probe', () => {
       });
       const { controller } = ownershipController(built.provider);
       const before = boundaries(built, deps);
-      const reads = jest.spyOn(deps.diskCache, 'getItem').mock.calls.length;
+      const reads = vi.spyOn(deps.diskCache, 'getItem').mock.calls.length;
       try {
         await expect(
           controller.getChaseOrderOwnership({
@@ -33572,7 +33549,7 @@ describe('Lighter bounded Chase provider probe', () => {
             providerId: 'hyperliquid',
           }),
         ).rejects.toThrow('matching provider');
-        expect(jest.spyOn(deps.diskCache, 'getItem').mock.calls).toHaveLength(
+        expect(vi.spyOn(deps.diskCache, 'getItem').mock.calls).toHaveLength(
           reads,
         );
         expect(boundaries(built, deps)).toStrictEqual(before);
@@ -33600,21 +33577,19 @@ describe('Lighter bounded Chase provider probe', () => {
         const { controller, host } = ownershipController(restarted.provider);
         const entered = createDeferred<void>();
         const pending = createDeferred<void>();
-        const read = jest
+        const read = vi
           .spyOn(deps.diskCache, 'getItem')
           .getMockImplementation();
         if (!read) {
           throw new Error('Missing storage read');
         }
-        jest
-          .spyOn(deps.diskCache, 'getItem')
-          .mockImplementation(async (key) => {
-            if (key === journalKey) {
-              entered.resolve();
-              await pending.promise;
-            }
-            return await read(key);
-          });
+        vi.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) => {
+          if (key === journalKey) {
+            entered.resolve();
+            await pending.promise;
+          }
+          return await read(key);
+        });
         const before = boundaries(restarted, deps);
         const result = controller.getChaseOrderOwnership(
           route(placed.orderId as string),
@@ -33685,13 +33660,11 @@ describe('Lighter bounded Chase provider probe', () => {
       const { controller } = ownershipController(aggregate, 'aggregated');
       const entered = createDeferred<void>();
       const pending = createDeferred<void>();
-      const read = jest
-        .spyOn(deps.diskCache, 'getItem')
-        .getMockImplementation();
+      const read = vi.spyOn(deps.diskCache, 'getItem').getMockImplementation();
       if (!read) {
         throw new Error('Missing test read');
       }
-      jest.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) => {
+      vi.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) => {
         if (key === journalKey) {
           entered.resolve();
           await pending.promise;
@@ -33708,7 +33681,7 @@ describe('Lighter bounded Chase provider probe', () => {
       );
       await entered.promise;
       const replacement = buildProvider({ withBridge: false });
-      const replacementRead = jest.spyOn(
+      const replacementRead = vi.spyOn(
         replacement.provider,
         'getChaseOrderOwnership',
       );
@@ -33736,7 +33709,7 @@ describe('Lighter bounded Chase provider probe', () => {
         isTestnet: true,
         messenger: createKeyringlessMessenger().messenger,
       });
-      const legacyRead = jest.spyOn(hyperliquid, 'getChaseOrders');
+      const legacyRead = vi.spyOn(hyperliquid, 'getChaseOrders');
       const aggregate = new AggregatedPerpsProvider({
         providers: new Map<PerpsProviderType, PerpsProvider>([
           ['lighter', built.provider],
@@ -33781,8 +33754,8 @@ describe('Lighter bounded Chase provider probe', () => {
     providerId: 'lighter';
   } => ({ symbol: 'BTC', orderId, orderType: 'chase', providerId: 'lighter' });
   describe('bounded Chase provider settlement', () => {
-    beforeEach(() => jest.useFakeTimers());
-    afterEach(() => jest.useRealTimers());
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
 
     it.each(['live', 'missing'] as const)(
       'reports success after delayed exact %s cancellation visibility',
@@ -33828,7 +33801,7 @@ describe('Lighter bounded Chase provider probe', () => {
           const canceling = built.provider.cancelOrder(
             cancelParams(String(placed.orderId)),
           );
-          await jest.advanceTimersByTimeAsync(2500);
+          await vi.advanceTimersByTimeAsync(2500);
           expect(await canceling).toMatchObject({ success: true });
           const record = (await built.provider.getNativeChaseRecords())[0];
           expect(record).toMatchObject({
@@ -33884,7 +33857,7 @@ describe('Lighter bounded Chase provider probe', () => {
         });
         const reads =
           built.clientInstance.getOrdersByClientIds.mock.calls.length;
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect(built.clientInstance.getOrdersByClientIds).toHaveBeenCalledTimes(
           reads,
         );
@@ -33913,14 +33886,14 @@ describe('Lighter bounded Chase provider probe', () => {
       });
     };
     it('places and cancels one exact child after cumulative slow preparation with a fresh final quote', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const deps = diskDependencies();
       const built = setup({ platformDependencies: deps });
       const start = Date.now();
       let preparing = false;
       let reads = 0;
       const advance = (ms: number): void => {
-        jest.setSystemTime(Date.now() + ms);
+        vi.setSystemTime(Date.now() + ms);
       };
       const book = (await built.clientInstance.getOrderBookOrders(1)) as Book;
       built.clientInstance.getOrderBookOrders.mockImplementation(async () => {
@@ -33951,15 +33924,9 @@ describe('Lighter bounded Chase provider probe', () => {
       const active =
         built.clientInstance.getActiveOrders.getMockImplementation();
       const nonce = built.clientInstance.getNextNonce.getMockImplementation();
-      const read = jest
-        .spyOn(deps.diskCache, 'getItem')
-        .getMockImplementation();
-      const write = jest
-        .spyOn(deps.diskCache, 'setItem')
-        .getMockImplementation();
-      const execute = jest
-        .spyOn(built.bridge, 'execute')
-        .getMockImplementation();
+      const read = vi.spyOn(deps.diskCache, 'getItem').getMockImplementation();
+      const write = vi.spyOn(deps.diskCache, 'setItem').getMockImplementation();
+      const execute = vi.spyOn(built.bridge, 'execute').getMockImplementation();
       if (
         !markets ||
         !account ||
@@ -33981,21 +33948,21 @@ describe('Lighter bounded Chase provider probe', () => {
         delayed(active, 400),
       );
       built.clientInstance.getNextNonce.mockImplementation(delayed(nonce, 200));
-      jest.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) => {
+      vi.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) => {
         if (preparing && key.startsWith('lighterNonceLedger:')) {
           advance(5);
         }
         return await read(key);
       });
-      jest
-        .spyOn(deps.diskCache, 'setItem')
-        .mockImplementation(async (key, value) => {
+      vi.spyOn(deps.diskCache, 'setItem').mockImplementation(
+        async (key, value) => {
           if (preparing) {
             advance(key.startsWith('lighterNonceLedger:') ? 200 : 100);
           }
           return await write(key, value);
-        });
-      jest.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+        },
+      );
+      vi.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
         if (call.function === '_signCreateOrder') {
           advance(400);
         }
@@ -34054,11 +34021,11 @@ describe('Lighter bounded Chase provider probe', () => {
         ).toHaveLength(1);
       } finally {
         await built.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
     it('signs and persists the genuine final price rather than relabeling the early quote', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const built = setup();
       await finalBook(built, (book) => ({
         ...book,
@@ -34081,13 +34048,13 @@ describe('Lighter bounded Chase provider probe', () => {
         ).toHaveLength(1);
       } finally {
         await built.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
     it.each(['distance', 'notional', 'incomplete same-side book'] as const)(
       'refuses a final quote violating %s before signing or transport',
       async (condition) => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         const built = setup();
         await finalBook(built, (book) =>
           condition === 'incomplete same-side book'
@@ -34117,20 +34084,18 @@ describe('Lighter bounded Chase provider probe', () => {
           expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
         } finally {
           await built.provider.disconnect();
-          jest.useRealTimers();
+          vi.useRealTimers();
         }
       },
     );
     it.each(['missing', 'malformed', 'crossed', 'stale', 'backwards'] as const)(
       'refuses a %s final book before signing or transport',
       async (condition) => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         const built = setup();
         await finalBook(built, (book) => {
           if (condition === 'stale' || condition === 'backwards') {
-            jest.setSystemTime(
-              Date.now() + (condition === 'stale' ? 5001 : -1),
-            );
+            vi.setSystemTime(Date.now() + (condition === 'stale' ? 5001 : -1));
             return book;
           }
           if (condition === 'missing') {
@@ -34153,14 +34118,14 @@ describe('Lighter bounded Chase provider probe', () => {
           expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
         } finally {
           await built.provider.disconnect();
-          jest.useRealTimers();
+          vi.useRealTimers();
         }
       },
     );
     it.each(['account', 'signer reset'] as const)(
       'refuses %s changes during final quote acquisition',
       async (condition) => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         const built = setup();
         await finalBook(built, (book) => {
           if (condition === 'account') {
@@ -34178,22 +34143,22 @@ describe('Lighter bounded Chase provider probe', () => {
           expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
         } finally {
           await built.provider.disconnect();
-          jest.useRealTimers();
+          vi.useRealTimers();
         }
       },
     );
     it.each(['final exposure', 'nonce append', 'attempted journal'] as const)(
       'retains stale-quote refusal after slow %s and retires only the proven-unsent nonce',
       async (condition) => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         const deps = diskDependencies();
         const built = setup({ platformDependencies: deps });
         let signed = false;
         let delayed = false;
-        const execute = jest
+        const execute = vi
           .spyOn(built.bridge, 'execute')
           .getMockImplementation();
-        const write = jest
+        const write = vi
           .spyOn(deps.diskCache, 'setItem')
           .getMockImplementation();
         const account =
@@ -34203,7 +34168,7 @@ describe('Lighter bounded Chase provider probe', () => {
         if (!execute || !write || !account) {
           throw new Error('Missing dispatch collaborators');
         }
-        jest.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+        vi.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
           const result = await execute(call);
           if (call.function === '_signCreateOrder') {
             signed = true;
@@ -34216,14 +34181,13 @@ describe('Lighter bounded Chase provider probe', () => {
           ) => {
             if (signed && !delayed && condition === 'final exposure') {
               delayed = true;
-              jest.setSystemTime(Date.now() + 5001);
+              vi.setSystemTime(Date.now() + 5001);
             }
             return await account(...args);
           },
         );
-        jest
-          .spyOn(deps.diskCache, 'setItem')
-          .mockImplementation(async (key, value) => {
+        vi.spyOn(deps.diskCache, 'setItem').mockImplementation(
+          async (key, value) => {
             if (
               signed &&
               !delayed &&
@@ -34235,10 +34199,11 @@ describe('Lighter bounded Chase provider probe', () => {
                   value.includes('"phase":"attempted"')))
             ) {
               delayed = true;
-              jest.setSystemTime(Date.now() + 5001);
+              vi.setSystemTime(Date.now() + 5001);
             }
             return await write(key, value);
-          });
+          },
+        );
         try {
           const result = await built.provider.placeOrder(intent);
           expect(result).toMatchObject({
@@ -34266,22 +34231,20 @@ describe('Lighter bounded Chase provider probe', () => {
           ).toBeDefined();
         } finally {
           await built.provider.disconnect();
-          jest.useRealTimers();
+          vi.useRealTimers();
         }
       },
     );
     it('retains the frozen parent refusal when signing alone ages a fresh quote', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const built = setup();
-      const execute = jest
-        .spyOn(built.bridge, 'execute')
-        .getMockImplementation();
+      const execute = vi.spyOn(built.bridge, 'execute').getMockImplementation();
       if (!execute) {
         throw new Error('Missing signer implementation');
       }
-      jest.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+      vi.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
         if (call.function === '_signCreateOrder') {
-          jest.setSystemTime(Date.now() + 5001);
+          vi.setSystemTime(Date.now() + 5001);
         }
         return await execute(call);
       });
@@ -34297,7 +34260,7 @@ describe('Lighter bounded Chase provider probe', () => {
         expect(built.clientInstance.sendTx).not.toHaveBeenCalled();
       } finally {
         await built.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
   });
@@ -34326,35 +34289,33 @@ describe('Lighter bounded Chase provider probe', () => {
           },
         );
       } else if (boundary === 'readiness') {
-        const original = jest
+        const original = vi
           .spyOn(built.bridge, 'createClient')
           .getMockImplementation();
         if (!original) {
           throw new Error('Missing signer readiness implementation');
         }
-        jest
-          .spyOn(built.bridge, 'createClient')
-          .mockImplementationOnce(async (params) => {
+        vi.spyOn(built.bridge, 'createClient').mockImplementationOnce(
+          async (params) => {
             entered.resolve();
             await pending.promise;
             return await original(params);
-          });
+          },
+        );
       } else {
-        const original = jest
+        const original = vi
           .spyOn(deps.diskCache, 'getItem')
           .getMockImplementation();
         if (!original) {
           throw new Error('Missing disk read implementation');
         }
-        jest
-          .spyOn(deps.diskCache, 'getItem')
-          .mockImplementation(async (key) => {
-            if (key.startsWith('lighterNativeTwap:')) {
-              entered.resolve();
-              await pending.promise;
-            }
-            return await original(key);
-          });
+        vi.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) => {
+          if (key.startsWith('lighterNativeTwap:')) {
+            entered.resolve();
+            await pending.promise;
+          }
+          return await original(key);
+        });
       }
       try {
         const starting = built.provider.placeOrder(intent);
@@ -34380,7 +34341,7 @@ describe('Lighter bounded Chase provider probe', () => {
     },
   );
   it('keeps a wrong-symbol Chase cancellation under its original duration owner', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const built = setup();
     try {
       const result = await built.provider.placeOrder({
@@ -34405,11 +34366,11 @@ describe('Lighter bounded Chase provider probe', () => {
       expect(
         built.calls.filter((call) => call.function === '_signCancelOrder'),
       ).toHaveLength(0);
-      await jest.advanceTimersByTimeAsync(179999);
+      await vi.advanceTimersByTimeAsync(179999);
       expect(
         built.calls.filter((call) => call.function === '_signCancelOrder'),
       ).toHaveLength(0);
-      await jest.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(1);
       expect(
         built.calls.filter((call) => call.function === '_signCancelOrder'),
       ).toHaveLength(1);
@@ -34422,7 +34383,7 @@ describe('Lighter bounded Chase provider probe', () => {
       });
     } finally {
       await built.provider.disconnect();
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
   const restartAbsentChase = async (
@@ -34555,7 +34516,7 @@ describe('Lighter bounded Chase provider probe', () => {
         (value) => ({ value }),
         (error: unknown) => ({ error }),
       );
-      await jest.advanceTimersByTimeAsync(
+      await vi.advanceTimersByTimeAsync(
         LIGHTER_CHASE_CANCEL_SETTLEMENT_WINDOW_MS + 1,
       );
       const result = await outcome;
@@ -34647,8 +34608,8 @@ describe('Lighter bounded Chase provider probe', () => {
         built.calls.filter((call) => call.function === '_signChangePubKey'),
       ).toStrictEqual([]);
     };
-    beforeEach(() => jest.useFakeTimers());
-    afterEach(() => jest.useRealTimers());
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
 
     it('retains one original cancellation when exact getTx failure downgrades acknowledgement and the child remains open', async () => {
       const env = await retainedCancellation();
@@ -35045,7 +35006,7 @@ describe('Lighter bounded Chase provider probe', () => {
   ] as const)(
     'retains uncertain Chase cancellation after %s and expired absence across restart',
     async (evidence) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const deps = diskDependencies();
       const original = setup({ platformDependencies: deps });
       try {
@@ -35078,7 +35039,7 @@ describe('Lighter bounded Chase provider probe', () => {
         const first = original.provider.cancelOrder(
           cancelParams(placed.orderId),
         );
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect((await first).success).toBe(false);
         const retained = (await original.provider.getNativeChaseRecords())[0];
         const attempt = retained.children[0].cancellations[0];
@@ -35098,7 +35059,7 @@ describe('Lighter bounded Chase provider probe', () => {
             JSON.stringify({ version: 1, records: [legacy] }),
           );
         }
-        jest.setSystemTime(
+        vi.setSystemTime(
           (attempt.expiresAt ?? 0) + LIGHTER_TX_EXPIRY_SLACK_MS + 1,
         );
         const restored = setup({ platformDependencies: deps });
@@ -35136,7 +35097,7 @@ describe('Lighter bounded Chase provider probe', () => {
           const stopping = restored.provider.cancelOrder(
             cancelParams(placed.orderId),
           );
-          await jest.advanceTimersByTimeAsync(10000);
+          await vi.advanceTimersByTimeAsync(10000);
           expect((await stopping).success).toBe(false);
           expect(
             restored.calls.filter(
@@ -35153,17 +35114,17 @@ describe('Lighter bounded Chase provider probe', () => {
         }
       } finally {
         await original.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
   it('retains unknown Chase evidence when conflict persistence fails after an owner switch', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const deps = diskDependencies();
     const original = setup({ platformDependencies: deps });
     const held = createDeferred<void>();
     const entered = createDeferred<void>();
-    const write = jest.spyOn(deps.diskCache, 'setItem').getMockImplementation();
+    const write = vi.spyOn(deps.diskCache, 'setItem').getMockImplementation();
     if (!write) {
       throw new Error('Missing journal storage');
     }
@@ -35178,7 +35139,7 @@ describe('Lighter bounded Chase provider probe', () => {
       const first = original.provider.cancelOrder(
         cancelParams(placed.orderId ?? ''),
       );
-      await jest.advanceTimersByTimeAsync(10000);
+      await vi.advanceTimersByTimeAsync(10000);
       expect((await first).success).toBe(false);
       const retained = (await original.provider.getNativeChaseRecords())[0];
       const dispatch = retained.children[0].cancellations[0];
@@ -35202,14 +35163,14 @@ describe('Lighter bounded Chase provider probe', () => {
       original.getUserAddressMock.mockReturnValue(
         '0x0000000000000000000000000000000000000099',
       );
-      jest
-        .spyOn(deps.diskCache, 'setItem')
-        .mockRejectedValue(new Error('completion storage unavailable'));
+      vi.spyOn(deps.diskCache, 'setItem').mockRejectedValue(
+        new Error('completion storage unavailable'),
+      );
       held.resolve();
       expect((await stopping).success).toBe(false);
       await original.provider.disconnect();
-      jest.spyOn(deps.diskCache, 'setItem').mockImplementation(write);
-      jest.setSystemTime(
+      vi.spyOn(deps.diskCache, 'setItem').mockImplementation(write);
+      vi.setSystemTime(
         (dispatch.expiresAt ?? 0) + LIGHTER_TX_EXPIRY_SLACK_MS + 1,
       );
       const restored = setup({ platformDependencies: deps });
@@ -35221,7 +35182,7 @@ describe('Lighter bounded Chase provider probe', () => {
         const cleanup = restored.provider.cancelOrder(
           cancelParams(placed.orderId ?? ''),
         );
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect((await cleanup).success).toBe(false);
         expect(
           restored.calls.filter((call) => call.function === '_signCancelOrder'),
@@ -35233,8 +35194,8 @@ describe('Lighter bounded Chase provider probe', () => {
     } finally {
       held.resolve();
       await original.provider.disconnect();
-      jest.spyOn(deps.diskCache, 'setItem').mockImplementation(write);
-      jest.useRealTimers();
+      vi.spyOn(deps.diskCache, 'setItem').mockImplementation(write);
+      vi.useRealTimers();
     }
   });
   it.each(
@@ -35247,19 +35208,17 @@ describe('Lighter bounded Chase provider probe', () => {
   )(
     'retains accepted Chase $operation and its nonce after completion $failure failure across restart',
     async ({ operation, failure }) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const deps = diskDependencies();
       const original = setup({ platformDependencies: deps });
-      const read = jest
-        .spyOn(deps.diskCache, 'getItem')
-        .getMockImplementation();
+      const read = vi.spyOn(deps.diskCache, 'getItem').getMockImplementation();
       if (!read) {
         throw new Error('Missing journal storage');
       }
       let armed = false;
       let injected = false;
       let attempted: LighterChaseRecord | undefined;
-      jest.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) => {
+      vi.spyOn(deps.diskCache, 'getItem').mockImplementation(async (key) => {
         const raw = await read(key);
         if (!armed || !key.startsWith('lighterChase:')) {
           return raw;
@@ -35307,7 +35266,7 @@ describe('Lighter bounded Chase provider probe', () => {
           operation === 'place'
             ? original.provider.placeOrder(intent)
             : original.provider.cancelOrder(cancelParams(handle));
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect((await pending).success).toBe(false);
         expect(injected).toBe(true);
         if (!attempted) {
@@ -35346,7 +35305,7 @@ describe('Lighter bounded Chase provider probe', () => {
           operation === 'cancel' ? 2 : 1,
         );
         await original.provider.disconnect();
-        jest.setSystemTime(
+        vi.setSystemTime(
           (dispatch.expiresAt ?? 0) + LIGHTER_TX_EXPIRY_SLACK_MS + 1,
         );
         const restored = setup({ platformDependencies: deps });
@@ -35366,7 +35325,7 @@ describe('Lighter bounded Chase provider probe', () => {
           const cleanup = restored.provider.cancelOrder(
             cancelParams(saved.intent.handle),
           );
-          await jest.advanceTimersByTimeAsync(10000);
+          await vi.advanceTimersByTimeAsync(10000);
           expect((await cleanup).success).toBe(false);
           const retained = (await restored.provider.getNativeChaseRecords())[0];
           expect(retained.status).toBe('termination_pending');
@@ -35390,8 +35349,8 @@ describe('Lighter bounded Chase provider probe', () => {
         }
       } finally {
         await original.provider.disconnect();
-        jest.spyOn(deps.diskCache, 'getItem').mockImplementation(read);
-        jest.useRealTimers();
+        vi.spyOn(deps.diskCache, 'getItem').mockImplementation(read);
+        vi.useRealTimers();
       }
     },
   );
@@ -35409,7 +35368,7 @@ describe('Lighter bounded Chase provider probe', () => {
   )(
     'saves accepted Chase $operation before $boundary and nonce retirement',
     async ({ operation, boundary }) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const deps = diskDependencies();
       const original = setup({ platformDependencies: deps });
       const entered = createDeferred<void>();
@@ -35417,15 +35376,12 @@ describe('Lighter bounded Chase provider probe', () => {
       let switchedInventory: LighterChaseRecord[] = [];
       let switchedCallCount = 0;
       let captured: LighterChaseRecord | undefined;
-      const write = jest
-        .spyOn(deps.diskCache, 'setItem')
-        .getMockImplementation();
+      const write = vi.spyOn(deps.diskCache, 'setItem').getMockImplementation();
       if (!write) {
         throw new Error('Missing journal storage');
       }
-      jest
-        .spyOn(deps.diskCache, 'setItem')
-        .mockImplementation(async (key, value) => {
+      vi.spyOn(deps.diskCache, 'setItem').mockImplementation(
+        async (key, value) => {
           if (key.startsWith('lighterChase:')) {
             const journal = JSON.parse(value) as {
               records: LighterChaseRecord[];
@@ -35443,7 +35399,8 @@ describe('Lighter bounded Chase provider probe', () => {
             }
           }
           await write(key, value);
-        });
+        },
+      );
       try {
         let handle = '';
         if (operation === 'cancel') {
@@ -35482,7 +35439,7 @@ describe('Lighter bounded Chase provider probe', () => {
           original.fireReset();
         }
         held.resolve();
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect((await pending).success).toBe(false);
         expect(switchedInventory).toStrictEqual([]);
         expect(switchedCallCount).toBe(0);
@@ -35509,8 +35466,8 @@ describe('Lighter bounded Chase provider probe', () => {
           boundary === 'storage failure' ? 1 : 0,
         );
         await original.provider.disconnect();
-        jest.spyOn(deps.diskCache, 'setItem').mockImplementation(write);
-        jest.setSystemTime(
+        vi.spyOn(deps.diskCache, 'setItem').mockImplementation(write);
+        vi.setSystemTime(
           (dispatch.expiresAt ?? 0) + LIGHTER_TX_EXPIRY_SLACK_MS + 1,
         );
         const restored = setup({ platformDependencies: deps });
@@ -35527,7 +35484,7 @@ describe('Lighter bounded Chase provider probe', () => {
           const cleanup = restored.provider.cancelOrder(
             cancelParams(saved.intent.handle),
           );
-          await jest.advanceTimersByTimeAsync(10000);
+          await vi.advanceTimersByTimeAsync(10000);
           expect((await cleanup).success).toBe(false);
           expect(
             (await restored.provider.getNativeChaseRecords())[0].status,
@@ -35544,12 +35501,12 @@ describe('Lighter bounded Chase provider probe', () => {
       } finally {
         held.resolve();
         await original.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
   it('retries an unacknowledged Chase cancellation only with complete never-landed proof', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const deps = diskDependencies();
     const original = setup({ platformDependencies: deps });
     try {
@@ -35563,7 +35520,7 @@ describe('Lighter bounded Chase provider probe', () => {
       const first = original.provider.cancelOrder(
         cancelParams(placed.orderId ?? ''),
       );
-      await jest.advanceTimersByTimeAsync(10000);
+      await vi.advanceTimersByTimeAsync(10000);
       expect((await first).success).toBe(false);
       const retained = (await original.provider.getNativeChaseRecords())[0];
       const dispatch = retained.children[0].cancellations[0];
@@ -35572,7 +35529,7 @@ describe('Lighter bounded Chase provider probe', () => {
         acknowledged: false,
       });
       await original.provider.disconnect();
-      jest.setSystemTime(
+      vi.setSystemTime(
         (dispatch.expiresAt ?? 0) + LIGHTER_TX_EXPIRY_SLACK_MS + 1,
       );
       const restored = setup({ platformDependencies: deps });
@@ -35604,13 +35561,13 @@ describe('Lighter bounded Chase provider probe', () => {
       }
     } finally {
       await original.provider.disconnect();
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
   it.each(['place', 'cancel'] as const)(
     'saves exact-seen Chase %s acceptance across an owner switch',
     async (operation) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const deps = diskDependencies();
       const original = setup({ platformDependencies: deps });
       const held = createDeferred<void>();
@@ -35640,7 +35597,7 @@ describe('Lighter bounded Chase provider probe', () => {
             new Error('response lost'),
           );
           const first = original.provider.cancelOrder(cancelParams(handle));
-          await jest.advanceTimersByTimeAsync(10000);
+          await vi.advanceTimersByTimeAsync(10000);
           initialSuccess = (await first).success;
         }
         expect(initialSuccess).toBe(false);
@@ -35669,7 +35626,7 @@ describe('Lighter bounded Chase provider probe', () => {
         held.resolve();
         expect((await stopping).success).toBe(false);
         await original.provider.disconnect();
-        jest.setSystemTime(
+        vi.setSystemTime(
           (dispatch.expiresAt ?? 0) + LIGHTER_TX_EXPIRY_SLACK_MS + 1,
         );
         const restored = setup({ platformDependencies: deps });
@@ -35690,7 +35647,7 @@ describe('Lighter bounded Chase provider probe', () => {
               : record.children[0].cancellations[0],
           ).toMatchObject({ phase: 'acknowledged', acknowledged: true });
           const cleanup = restored.provider.cancelOrder(cancelParams(handle));
-          await jest.advanceTimersByTimeAsync(10000);
+          await vi.advanceTimersByTimeAsync(10000);
           expect((await cleanup).success).toBe(false);
           expect(
             restored.calls.filter((call) =>
@@ -35704,7 +35661,7 @@ describe('Lighter bounded Chase provider probe', () => {
       } finally {
         held.resolve();
         await original.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
@@ -35715,7 +35672,7 @@ describe('Lighter bounded Chase provider probe', () => {
   ])(
     'keeps exact-seen Chase acceptance after response loss, expired absence and restart outcome=%s',
     async (outcome) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       try {
         const deps = diskDependencies();
         const original = setup({
@@ -35736,7 +35693,7 @@ describe('Lighter bounded Chase provider probe', () => {
         const cancel = (): ReturnType<typeof original.provider.cancelOrder> =>
           original.provider.cancelOrder(cancelParams(handle));
         const firstCancellation = cancel();
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect((await firstCancellation).success).toBe(false);
         const attempted = (await original.provider.getNativeChaseRecords())[0];
         const dispatch = attempted.children[0].cancellations[0];
@@ -35757,11 +35714,11 @@ describe('Lighter bounded Chase provider probe', () => {
           status: outcome,
         });
         const observingAcceptance = cancel();
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect((await observingAcceptance).success).toBe(false);
         const seen = (await original.provider.getNativeChaseRecords())[0];
         await original.provider.disconnect();
-        await jest.advanceTimersByTimeAsync(
+        await vi.advanceTimersByTimeAsync(
           dispatch.expiresAt + LIGHTER_TX_EXPIRY_SLACK_MS - Date.now() + 1,
         );
         for (let restart = 0; restart < 2; restart += 1) {
@@ -35775,7 +35732,7 @@ describe('Lighter bounded Chase provider probe', () => {
             const cancellation = restored.provider.cancelOrder(
               cancelParams(placed.orderId),
             );
-            await jest.advanceTimersByTimeAsync(10000);
+            await vi.advanceTimersByTimeAsync(10000);
             expect((await cancellation).success).toBe(false);
             const current = (
               await restored.provider.getNativeChaseRecords()
@@ -35807,12 +35764,12 @@ describe('Lighter bounded Chase provider probe', () => {
           ),
         ).toHaveLength(1);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
   it('preserves a real attempted cancellation through absent stops and refuses an unknown duplicate after restart', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     try {
       const deps = diskDependencies();
       const original = setup({
@@ -35832,7 +35789,7 @@ describe('Lighter bounded Chase provider probe', () => {
       const firstCancellation = original.provider.cancelOrder(
         cancelParams(placed.orderId),
       );
-      await jest.advanceTimersByTimeAsync(10000);
+      await vi.advanceTimersByTimeAsync(10000);
       expect((await firstCancellation).success).toBe(false);
       const attempted = (await original.provider.getNativeChaseRecords())[0];
       expect(attempted.children[0].cancellations[0]).toMatchObject({
@@ -35889,7 +35846,7 @@ describe('Lighter bounded Chase provider probe', () => {
         const retainedCancellation = restored.provider.cancelOrder(
           cancelParams(placed.orderId),
         );
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect((await retainedCancellation).success).toBe(false);
         expect(
           (await restored.provider.getNativeChaseRecords())[0].children[0]
@@ -35910,7 +35867,7 @@ describe('Lighter bounded Chase provider probe', () => {
         await restored.provider.disconnect();
       }
     } finally {
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
   it.each(['empty', 'other-wallet', 'other-network'] as const)(
@@ -35941,20 +35898,18 @@ describe('Lighter bounded Chase provider probe', () => {
         state === 'malformed JSON' ? '{' : JSON.stringify([28, 28]),
       );
       if (state === 'unreadable') {
-        const original = jest
+        const original = vi
           .spyOn(deps.diskCache, 'getItem')
           .getMockImplementation();
         if (!original) {
           throw new Error('Missing disk read implementation');
         }
-        jest
-          .spyOn(deps.diskCache, 'getItem')
-          .mockImplementation(async (name) => {
-            if (name === key) {
-              throw new Error('remembered Chase identity storage unavailable');
-            }
-            return await original(name);
-          });
+        vi.spyOn(deps.diskCache, 'getItem').mockImplementation(async (name) => {
+          if (name === key) {
+            throw new Error('remembered Chase identity storage unavailable');
+          }
+          return await original(name);
+        });
       }
       const built = buildProvider({
         platformDependencies: deps,
@@ -35986,7 +35941,7 @@ describe('Lighter bounded Chase provider probe', () => {
   it.each(['settled', 'later-settled', 'unresolved'] as const)(
     'reports the requested Chase cleanup independently of its earlier failure: %s',
     async (state) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const built = setup();
       const original =
         built.clientInstance.getOrdersByClientIds.getMockImplementation() as
@@ -36018,7 +35973,7 @@ describe('Lighter bounded Chase provider probe', () => {
         built.clientInstance.getOrderBookOrders.mockRejectedValue(
           new Error('quote unavailable'),
         );
-        await jest.advanceTimersByTimeAsync(11000);
+        await vi.advanceTimersByTimeAsync(11000);
         const before = (await built.provider.getNativeChaseRecords())[0];
         expect(before.stopReason).toBe('failed');
         if (state === 'later-settled') {
@@ -36028,7 +35983,7 @@ describe('Lighter bounded Chase provider probe', () => {
         const cancellation = built.provider.cancelOrder(
           cancelParams(placed.orderId),
         );
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         const receipt = await cancellation;
 
         const after = (await built.provider.getNativeChaseRecords())[0];
@@ -36055,7 +36010,7 @@ describe('Lighter bounded Chase provider probe', () => {
         ).toHaveLength(1);
       } finally {
         await built.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
@@ -36084,7 +36039,7 @@ describe('Lighter bounded Chase provider probe', () => {
     },
   );
   it('retains an accepted placement through exact-row indexer lag and observes it on the next tick', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const built = setup();
     const exact =
       built.clientInstance.getOrdersByClientIds.getMockImplementation() as
@@ -36104,7 +36059,7 @@ describe('Lighter bounded Chase provider probe', () => {
       expect(result.success).toBe(true);
       expect((await built.provider.getChaseOrders())[0].status).toBe('active');
       visible = true;
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect((await built.provider.getChaseOrders())[0]).toMatchObject({
         status: 'active',
         restingOrderId: '9001',
@@ -36114,7 +36069,7 @@ describe('Lighter bounded Chase provider probe', () => {
       ).toHaveLength(1);
     } finally {
       await built.provider.disconnect();
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
   it.each(['open', 'canceled'] as const)(
@@ -36246,7 +36201,7 @@ describe('Lighter bounded Chase provider probe', () => {
   it.each(['failed', 'expired'] as const)(
     'settles a %s never-landed Chase placement across restart',
     async (outcome) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const deps = diskDependencies();
       const built = setup({ platformDependencies: deps });
       built.clientInstance.sendTx.mockImplementation(async (kind: number) => {
@@ -36284,7 +36239,7 @@ describe('Lighter bounded Chase provider probe', () => {
               : null,
         );
         if (outcome === 'expired') {
-          jest.setSystemTime((dispatch.expiresAt ?? 0) + 30001);
+          vi.setSystemTime((dispatch.expiresAt ?? 0) + 30001);
         }
         expect(
           await restarted.provider.cancelOrder(
@@ -36314,14 +36269,14 @@ describe('Lighter bounded Chase provider probe', () => {
         await restarted.provider.disconnect();
       } finally {
         await built.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
   it.each([0, 3, null] as const)(
     'settles a terminal child independently of cancellation outcome %s',
     async (outcome) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const built = setup();
       try {
         const result = await built.provider.placeOrder(intent);
@@ -36355,21 +36310,21 @@ describe('Lighter bounded Chase provider probe', () => {
         if (outcome === null) {
           const cancel = (await built.provider.getNativeChaseRecords())[0]
             .children[0].cancellations[0];
-          jest.setSystemTime((cancel.expiresAt ?? 0) + 30001);
+          vi.setSystemTime((cancel.expiresAt ?? 0) + 30001);
         }
         expect(await built.provider.placeOrder(intent)).toMatchObject({
           success: true,
         });
       } finally {
         await built.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
   it.each(['failed', 'unknown'] as const)(
     'allows cleanup retry only for a definitively %s cancellation despite unavailable fills',
     async (outcome) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       try {
         const deps = diskDependencies();
         const built = setup({ platformDependencies: deps });
@@ -36396,7 +36351,7 @@ describe('Lighter bounded Chase provider probe', () => {
         const cancellation = built.provider.cancelOrder(
           cancelParams(placed.orderId ?? ''),
         );
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect((await cancellation).success).toBe(false);
         const original = (await built.provider.getNativeChaseRecords())[0];
         await built.provider.disconnect();
@@ -36469,12 +36424,12 @@ describe('Lighter bounded Chase provider probe', () => {
         ).toHaveLength(outcome === 'failed' ? 1 : 0);
         await restarted.provider.disconnect();
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
   it('cleans up at an absolute non-divisible deadline', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const built = setup();
     try {
       await built.provider.placeOrder({
@@ -36483,11 +36438,11 @@ describe('Lighter bounded Chase provider probe', () => {
         chaseMaxDurationMs: 180000,
         chaseMaxRepricings: 5,
       });
-      await jest.advanceTimersByTimeAsync(179999);
+      await vi.advanceTimersByTimeAsync(179999);
       expect(
         built.calls.filter((call) => call.function === '_signCancelOrder'),
       ).toHaveLength(0);
-      await jest.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(1);
       expect(
         built.calls.filter((call) => call.function === '_signCancelOrder'),
       ).toHaveLength(1);
@@ -36500,13 +36455,13 @@ describe('Lighter bounded Chase provider probe', () => {
       );
     } finally {
       await built.provider.disconnect();
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
   it.each(['quote', 'sign'] as const)(
     'invalidates a replacement before queued discovery while %s is pending',
     async (phase) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const built = setup();
       const pending = createDeferred<void>();
       const entered = createDeferred<void>();
@@ -36532,22 +36487,20 @@ describe('Lighter bounded Chase provider probe', () => {
           };
         });
         if (phase === 'sign') {
-          const executeSpy = jest.spyOn(built.bridge, 'execute');
+          const executeSpy = vi.spyOn(built.bridge, 'execute');
           const execute = executeSpy.getMockImplementation();
           if (!execute) {
             throw new Error('Missing signer implementation');
           }
-          jest
-            .spyOn(built.bridge, 'execute')
-            .mockImplementation(async (call) => {
-              if (call.function === '_signCreateOrder') {
-                entered.resolve();
-                await pending.promise;
-              }
-              return await execute(call);
-            });
+          vi.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+            if (call.function === '_signCreateOrder') {
+              entered.resolve();
+              await pending.promise;
+            }
+            return await execute(call);
+          });
         }
-        const ticking = jest.advanceTimersByTimeAsync(1000);
+        const ticking = vi.advanceTimersByTimeAsync(1000);
         await entered.promise;
         const canceling = built.provider.cancelOrder(
           cancelParams(placed.orderId ?? ''),
@@ -36574,7 +36527,7 @@ describe('Lighter bounded Chase provider probe', () => {
       } finally {
         pending.resolve();
         await built.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
@@ -36860,12 +36813,12 @@ describe('Lighter bounded Chase provider probe', () => {
       const pending = createDeferred<void>();
       const entered = createDeferred<void>();
       if (phase === 'sign') {
-        const executeSpy = jest.spyOn(built.bridge, 'execute');
+        const executeSpy = vi.spyOn(built.bridge, 'execute');
         const execute = executeSpy.getMockImplementation();
         if (!execute) {
           throw new Error('Missing signer implementation');
         }
-        jest.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
+        vi.spyOn(built.bridge, 'execute').mockImplementation(async (call) => {
           const result = await execute(call);
           if (call.function === '_signCancelOrder') {
             entered.resolve();
@@ -36874,14 +36827,13 @@ describe('Lighter bounded Chase provider probe', () => {
           return result;
         });
       } else {
-        const writeSpy = jest.spyOn(deps.diskCache, 'setItem');
+        const writeSpy = vi.spyOn(deps.diskCache, 'setItem');
         const write = writeSpy.getMockImplementation();
         if (!write) {
           throw new Error('Missing disk implementation');
         }
-        jest
-          .spyOn(deps.diskCache, 'setItem')
-          .mockImplementation(async (key, value) => {
+        vi.spyOn(deps.diskCache, 'setItem').mockImplementation(
+          async (key, value) => {
             await write(key, value);
             if (
               key.startsWith('lighterChase:') &&
@@ -36890,7 +36842,8 @@ describe('Lighter bounded Chase provider probe', () => {
               entered.resolve();
               await pending.promise;
             }
-          });
+          },
+        );
       }
       try {
         const canceling = built.provider.cancelOrder(
@@ -36919,7 +36872,7 @@ describe('Lighter bounded Chase provider probe', () => {
   it.each(['initial', 'tick'] as const)(
     'uses the absolute deadline with delayed %s observation',
     async (phase) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const built = setup();
       const exact =
         built.clientInstance.getOrdersByClientIds.getMockImplementation() as
@@ -36937,9 +36890,7 @@ describe('Lighter bounded Chase provider probe', () => {
             (phase === 'initial' || Date.now() >= started + 120000)
           ) {
             delayed = true;
-            jest.setSystemTime(
-              started + (phase === 'initial' ? 150000 : 181000),
-            );
+            vi.setSystemTime(started + (phase === 'initial' ? 150000 : 181000));
           }
           return await exact(...args);
         },
@@ -36952,9 +36903,7 @@ describe('Lighter bounded Chase provider probe', () => {
           chaseMaxRepricings: 5,
         });
         expect(result.success).toBe(true);
-        await jest.advanceTimersByTimeAsync(
-          phase === 'initial' ? 30000 : 120000,
-        );
+        await vi.advanceTimersByTimeAsync(phase === 'initial' ? 30000 : 120000);
         expect(
           built.calls.filter((call) => call.function === '_signCancelOrder'),
         ).toHaveLength(1);
@@ -36966,26 +36915,26 @@ describe('Lighter bounded Chase provider probe', () => {
         );
       } finally {
         await built.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
   it('prepares Chase reference and duration after slow signer readiness', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const built = setup();
-    const create = jest
+    const create = vi
       .spyOn(built.bridge, 'createClient')
       .getMockImplementation();
     if (!create) {
       throw new Error('Missing client creation');
     }
     const readyAt = Date.now() + 70000;
-    jest
-      .spyOn(built.bridge, 'createClient')
-      .mockImplementation(async (params) => {
-        jest.setSystemTime(readyAt);
+    vi.spyOn(built.bridge, 'createClient').mockImplementation(
+      async (params) => {
+        vi.setSystemTime(readyAt);
         return await create(params);
-      });
+      },
+    );
     try {
       const result = await built.provider.placeOrder(intent);
       expect(result.success).toBe(true);
@@ -36997,7 +36946,7 @@ describe('Lighter bounded Chase provider probe', () => {
       ).toHaveLength(1);
     } finally {
       await built.provider.disconnect();
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
   it('keeps original-slot Chase cleanup pending when only another signing slot is available', async () => {
@@ -37045,7 +36994,7 @@ describe('Lighter bounded Chase provider probe', () => {
   it.each(['active', 'history'] as const)(
     'keeps expired TWAP exclusion across restart and both strategies after incomplete %s reads',
     async (failure) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const deps = diskDependencies();
       const built = setup({ platformDependencies: deps });
       built.clientInstance.getOrderBookDetails.mockResolvedValue({
@@ -37092,7 +37041,7 @@ describe('Lighter bounded Chase provider probe', () => {
       try {
         await built.provider.placeOrder(twap);
         const [record] = await built.provider.getNativeTwapObservations();
-        jest.setSystemTime((record.record.placement.expiresAt ?? 0) + 30001);
+        vi.setSystemTime((record.record.placement.expiresAt ?? 0) + 30001);
         built.clientInstance.getTx.mockResolvedValue(null);
         if (failure === 'active') {
           built.clientInstance.getActiveOrders.mockRejectedValue(
@@ -37141,7 +37090,7 @@ describe('Lighter bounded Chase provider probe', () => {
         await restarted.provider.disconnect();
       } finally {
         await built.provider.disconnect();
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
@@ -37228,7 +37177,7 @@ describe('Lighter bounded Chase provider probe', () => {
       const pending = createDeferred<void>();
       const entered = createDeferred<void>();
       if (phase === 'sign') {
-        const executeSpy = jest.spyOn(built.bridge, 'execute');
+        const executeSpy = vi.spyOn(built.bridge, 'execute');
         const execute = executeSpy.getMockImplementation();
         if (!execute) {
           throw new Error('Missing signer implementation');
@@ -37242,7 +37191,7 @@ describe('Lighter bounded Chase provider probe', () => {
           return result;
         });
       } else {
-        const writeSpy = jest.spyOn(deps.diskCache, 'setItem');
+        const writeSpy = vi.spyOn(deps.diskCache, 'setItem');
         const write = writeSpy.getMockImplementation();
         if (!write) {
           throw new Error('Missing disk implementation');
@@ -37286,14 +37235,14 @@ describe('Lighter bounded Chase provider probe', () => {
     },
   );
   it('logs and persists a scheduler journal read failure without continuing', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     const deps = diskDependencies();
     const built = setup({ platformDependencies: deps });
     try {
       expect(await built.provider.placeOrder(intent)).toMatchObject({
         success: true,
       });
-      const readSpy = jest.spyOn(deps.diskCache, 'getItem');
+      const readSpy = vi.spyOn(deps.diskCache, 'getItem');
       const read = readSpy.getMockImplementation();
       if (!read) {
         throw new Error('Missing disk read');
@@ -37306,8 +37255,8 @@ describe('Lighter bounded Chase provider probe', () => {
         }
         return await read(key);
       });
-      await jest.advanceTimersByTimeAsync(1000);
-      expect(jest.spyOn(deps.debugLogger, 'log')).toHaveBeenCalledWith(
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(vi.spyOn(deps.debugLogger, 'log')).toHaveBeenCalledWith(
         '[LighterProvider] Chase tick failed',
         expect.objectContaining({ error: 'journal read failed' }),
       );
@@ -37323,7 +37272,7 @@ describe('Lighter bounded Chase provider probe', () => {
       ).toHaveLength(0);
     } finally {
       await built.provider.disconnect();
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
 });

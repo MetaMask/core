@@ -11,6 +11,7 @@ import type { PerpsMaxSlippageSource } from '../constants/eventNames.js';
 import type { CHASE_ORDER_STATUS } from '../constants/perpsConfig.js';
 import type { PerpsErrorDetails } from '../errors.js';
 import type { PerpsErrorCode } from '../perpsErrorCodes.js';
+import type { LighterProvider } from '../providers/LighterProvider.js';
 import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
@@ -1516,6 +1517,14 @@ export type LighterCredentials = {
    * platform surface stays venue-agnostic.
    */
   signerBridge?: LighterSignerBridge;
+  /**
+   * Loads the Lighter provider module. Clients whose bundler cannot load the
+   * controller's own bundler-ignored import (for example Next.js) pass
+   * `() => import('@metamask/perps-controller/providers/lighter')`, so only
+   * clients that import that path bundle Lighter. Without it the controller
+   * imports the module itself.
+   */
+  loadProvider?: () => Promise<{ LighterProvider: typeof LighterProvider }>;
 };
 
 export type PerpsProviderCredentials = {

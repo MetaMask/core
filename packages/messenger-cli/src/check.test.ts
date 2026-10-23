@@ -1,7 +1,7 @@
-import { jest } from '@jest/globals';
 import { createSandbox } from '@metamask/node-utils';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 
 import { checkActionTypesFiles } from './check.js';
 import { generateActionTypesContent } from './generate-content.js';
@@ -28,7 +28,7 @@ describe('checkActionTypesFiles', () => {
         'utf8',
       );
 
-      const consoleSpy = jest
+      const consoleSpy = vi
         .spyOn(console, 'log')
         .mockImplementation(() => undefined);
       const result = await checkActionTypesFiles([controller], 'prettier');
@@ -55,10 +55,10 @@ describe('checkActionTypesFiles', () => {
         'utf8',
       );
 
-      const consoleSpy = jest
+      const consoleSpy = vi
         .spyOn(console, 'log')
         .mockImplementation(() => undefined);
-      const consoleErrorSpy = jest
+      const consoleErrorSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
       const result = await checkActionTypesFiles([controller], 'prettier');
@@ -80,10 +80,10 @@ describe('checkActionTypesFiles', () => {
         methods: [{ name: 'doStuff', jsDoc: '' }],
       };
 
-      const consoleSpy = jest
+      const consoleSpy = vi
         .spyOn(console, 'log')
         .mockImplementation(() => undefined);
-      const consoleErrorSpy = jest
+      const consoleErrorSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
       const result = await checkActionTypesFiles([controller], 'prettier');
@@ -106,16 +106,16 @@ describe('checkActionTypesFiles', () => {
       };
 
       // Mock fs.promises.access to throw a non-ENOENT error
-      const accessSpy = jest
+      const accessSpy = vi
         .spyOn(fs.promises, 'access')
         .mockRejectedValue(
           Object.assign(new Error('EPERM'), { code: 'EPERM' }),
         );
 
-      const consoleSpy = jest
+      const consoleSpy = vi
         .spyOn(console, 'log')
         .mockImplementation(() => undefined);
-      const consoleErrorSpy = jest
+      const consoleErrorSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
       const result = await checkActionTypesFiles([controller], 'prettier');

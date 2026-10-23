@@ -25,16 +25,16 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/wallet-framework-docs",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/wallet-framework-docs",
     "dev": "docusaurus start site",
-    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
-    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
-    "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts content --formatter oxfmt --esm --check",
-    "messenger-action-types:generate": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts content --formatter oxfmt --esm --generate",
+    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
+    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
+    "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts ../../packages/messenger-cli/src/cli.ts content --formatter oxfmt --esm --check",
+    "messenger-action-types:generate": "node --import ../../scripts/resolver/register.ts ../../packages/messenger-cli/src/cli.ts content --formatter oxfmt --esm --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "start": "docusaurus serve site",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
-    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
-    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+    "test": "vitest",
+    "test:clean": "vitest --clearCache",
+    "test:verbose": "vitest --reporter=verbose",
+    "test:watch": "vitest --watch"
   },
   "dependencies": {
     "@metamask/base-data-service": "^2.1.0",
@@ -53,19 +53,16 @@
     "@easyops-cn/docusaurus-search-local": "^0.55.3",
     "@mdx-js/react": "^3.1.1",
     "@metamask/auto-changelog": "^6.2.1",
-    "@types/jest": "^30.0.0",
     "@types/react": "^19.0.0",
-    "deepmerge": "^4.3.1",
-    "jest": "^30.5.2",
     "nock": "^13.5.6",
     "prism-react-renderer": "^2.4.1",
     "raw-loader": "^4.0.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "ts-jest": "^29.4.14",
-    "typescript": "7.1.0-beta"
+    "typescript": "7.1.0-beta",
+    "vitest": "^5.0.0"
   },
   "engines": {
-    "node": "^22.14.0 || ^24"
+    "node": "^22.14.0 || ^24 || ^26"
   }
 }

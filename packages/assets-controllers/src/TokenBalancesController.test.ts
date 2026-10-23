@@ -1,5 +1,9 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import { toChecksumHexAddress, toHex } from '@metamask/controller-utils';
+import {
+  safelyExecuteWithTimeout,
+  toChecksumHexAddress,
+  toHex,
+} from '@metamask/controller-utils';
 import type { BalanceUpdate } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -15,8 +19,10 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import type nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
-import { jestAdvanceTime, flushPromises } from '../../../tests/helpers.js';
+import { advanceTime, flushPromises } from '../../../tests/vitest/helpers.js';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import type { RpcEndpoint } from '../../network-controller/src/NetworkController.js';
 import { mockAPI_accountsAPI_MultichainAccountBalances as mockAPIAccountsAPIMultichainAccountBalancesCamelCase } from './__fixtures__/account-api-v4-mocks.js';
@@ -54,9 +60,9 @@ type RootMessenger = Messenger<
 >;
 
 // Mock safelyExecuteWithTimeout
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  safelyExecuteWithTimeout: jest.fn(),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  safelyExecuteWithTimeout: vi.fn(),
 }));
 
 // Constants for native token and staking addresses used in tests
@@ -64,10 +70,7 @@ const NATIVE_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
 const STAKING_CONTRACT_ADDRESS = '0x4FEF9D741011476750A243aC70b9789a63dd47Df';
 
 // Mock function for safelyExecuteWithTimeout
-const { safelyExecuteWithTimeout } = jest.requireMock(
-  '@metamask/controller-utils',
-);
-const mockedSafelyExecuteWithTimeout = safelyExecuteWithTimeout as jest.Mock;
+const mockedSafelyExecuteWithTimeout = safelyExecuteWithTimeout as Mock;
 
 const setupController = ({
   config,
@@ -79,7 +82,7 @@ const setupController = ({
   listAccounts?: InternalAccount[];
 } = {}): {
   controller: TokenBalancesController;
-  updateSpy: jest.SpyInstance;
+  updateSpy: MockInstance;
   messenger: RootMessenger;
   tokenBalancesControllerMessenger: TokenBalancesControllerMessenger;
 } => {
@@ -130,7 +133,7 @@ const setupController = ({
 
   messenger.registerActionHandler(
     'NetworkController:getState',
-    jest.fn().mockImplementation(() => ({
+    vi.fn().mockImplementation(() => ({
       networkConfigurationsByChainId: {
         '0x1': {
           defaultRpcEndpointIndex: 0,
@@ -158,42 +161,42 @@ const setupController = ({
 
   messenger.registerActionHandler(
     'PreferencesController:getState',
-    jest.fn().mockImplementation(() => ({})),
+    vi.fn().mockImplementation(() => ({})),
   );
 
   messenger.registerActionHandler(
     'TokensController:getState',
-    jest.fn().mockImplementation(() => tokens),
+    vi.fn().mockImplementation(() => tokens),
   );
 
   messenger.registerActionHandler(
     'TokenDetectionController:addDetectedTokensViaPolling',
-    jest.fn().mockResolvedValue(undefined),
+    vi.fn().mockResolvedValue(undefined),
   );
 
   messenger.registerActionHandler(
     'TokenDetectionController:addDetectedTokensViaWs',
-    jest.fn().mockResolvedValue(undefined),
+    vi.fn().mockResolvedValue(undefined),
   );
 
   messenger.registerActionHandler(
     'AccountTrackerController:getState',
-    jest.fn().mockImplementation(() => ({
+    vi.fn().mockImplementation(() => ({
       accountsByChainId: {},
     })),
   );
 
   messenger.registerActionHandler(
     'AccountTrackerController:updateNativeBalances',
-    jest.fn(),
+    vi.fn(),
   );
 
   messenger.registerActionHandler(
     'AccountTrackerController:updateStakedBalances',
-    jest.fn(),
+    vi.fn(),
   );
 
-  const mockListAccounts = jest.fn().mockReturnValue(listAccounts);
+  const mockListAccounts = vi.fn().mockReturnValue(listAccounts);
   messenger.registerActionHandler(
     'AccountsController:listAccounts',
     mockListAccounts,
@@ -201,7 +204,7 @@ const setupController = ({
 
   messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
-    jest.fn().mockImplementation(() => {
+    vi.fn().mockImplementation(() => {
       // Use first account from listAccounts if available, otherwise default to zero address
       if (listAccounts.length > 0) {
         return listAccounts[0];
@@ -212,33 +215,33 @@ const setupController = ({
 
   messenger.registerActionHandler(
     'TokenDetectionController:detectTokens',
-    jest.fn().mockResolvedValue(undefined),
+    vi.fn().mockResolvedValue(undefined),
   );
 
   messenger.registerActionHandler(
     'KeyringController:getState',
-    jest.fn().mockReturnValue({ isUnlocked: true }),
+    vi.fn().mockReturnValue({ isUnlocked: true }),
   );
 
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
-    jest.fn().mockReturnValue({
+    vi.fn().mockReturnValue({
       provider: {
-        request: jest.fn().mockResolvedValue('0x0'),
-        sendAsync: jest.fn(),
-        send: jest.fn(),
+        request: vi.fn().mockResolvedValue('0x0'),
+        sendAsync: vi.fn(),
+        send: vi.fn(),
       },
       blockTracker: {
-        checkForLatestBlock: jest.fn().mockResolvedValue(undefined),
+        checkForLatestBlock: vi.fn().mockResolvedValue(undefined),
       },
-      getBlockNumber: jest.fn().mockResolvedValue(1),
+      getBlockNumber: vi.fn().mockResolvedValue(1),
     }),
   );
   const controller = new TokenBalancesController({
     messenger: tokenBalancesControllerMessenger,
     ...config,
   });
-  const updateSpy = jest.spyOn(controller, 'update' as never);
+  const updateSpy = vi.spyOn(controller, 'update' as never);
 
   return {
     controller,
@@ -551,9 +554,9 @@ describe('TokenBalancesController', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
     mockedSafelyExecuteWithTimeout.mockRestore();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('should set default state', () => {
@@ -735,9 +738,9 @@ describe('TokenBalancesController', () => {
   });
 
   it('should poll and update balances in the right interval', async () => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers();
     try {
-      const pollSpy = jest.spyOn(
+      const pollSpy = vi.spyOn(
         TokenBalancesController.prototype,
         '_executePoll',
       );
@@ -747,14 +750,14 @@ describe('TokenBalancesController', () => {
 
       controller.startPolling({ chainIds: ['0x1'] });
 
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalled();
       expect(pollSpy).not.toHaveBeenCalledTimes(2);
 
-      await jestAdvanceTime({ duration: interval * 1.5 });
+      await advanceTime({ duration: interval * 1.5 });
       expect(pollSpy).toHaveBeenCalledTimes(2);
     } finally {
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
 
@@ -778,15 +781,16 @@ describe('TokenBalancesController', () => {
     expect(controller.state.tokenBalances).toStrictEqual({});
 
     const balance = 123456;
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [tokenAddress]: {
-            [accountAddress]: new BN(balance),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [tokenAddress]: {
+          [accountAddress]: new BN(balance),
         },
-      });
+      },
+    });
 
     await controller._executePoll({
       chainIds: [chainId],
@@ -826,15 +830,16 @@ describe('TokenBalancesController', () => {
     expect(controller.state.tokenBalances).toStrictEqual({});
 
     for (let balance = 0; balance < 10; balance++) {
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [tokenAddress]: {
-              [accountAddress]: new BN(balance),
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [tokenAddress]: {
+            [accountAddress]: new BN(balance),
           },
-        });
+        },
+      });
 
       await controller._executePoll({
         chainIds: [chainId],
@@ -874,15 +879,16 @@ describe('TokenBalancesController', () => {
     });
 
     const balance = 123456;
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [tokenAddress]: {
-            [accountAddress]: new BN(balance),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [tokenAddress]: {
+          [accountAddress]: new BN(balance),
         },
-      });
+      },
+    });
 
     // Publish an update with a token
 
@@ -942,15 +948,16 @@ describe('TokenBalancesController', () => {
 
     // Set initial balance
     const balance = 123456;
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [tokenAddress]: {
-            [accountAddress]: new BN(balance),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [tokenAddress]: {
+          [accountAddress]: new BN(balance),
         },
-      });
+      },
+    });
 
     await controller._executePoll({
       chainIds: [chainId],
@@ -1014,15 +1021,16 @@ describe('TokenBalancesController', () => {
 
     // Set initial balance
     const balance = 123456;
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [tokenAddress]: {
-            [accountAddress]: new BN(balance),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [tokenAddress]: {
+          [accountAddress]: new BN(balance),
         },
-      });
+      },
+    });
 
     await controller._executePoll({
       chainIds: [chainId],
@@ -1090,15 +1098,16 @@ describe('TokenBalancesController', () => {
 
     // Set initial balance
     const balance = 123456;
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [tokenAddress]: {
-            [accountAddress]: new BN(balance),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [tokenAddress]: {
+          [accountAddress]: new BN(balance),
         },
-      });
+      },
+    });
 
     await controller._executePoll({
       chainIds: [chainId],
@@ -1183,24 +1192,25 @@ describe('TokenBalancesController', () => {
 
     const balance1 = 100;
     const balance2 = 200;
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [tokenAddress]: {
-            [account1]: new BN(balance1),
-            [account2]: new BN(balance2),
-          },
-          [NATIVE_TOKEN_ADDRESS]: {
-            [account1]: new BN(0),
-            [account2]: new BN(0),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [tokenAddress]: {
+          [account1]: new BN(balance1),
+          [account2]: new BN(balance2),
         },
-        stakedBalances: {
+        [NATIVE_TOKEN_ADDRESS]: {
           [account1]: new BN(0),
           [account2]: new BN(0),
         },
-      });
+      },
+      stakedBalances: {
+        [account1]: new BN(0),
+        [account2]: new BN(0),
+      },
+    });
 
     await controller._executePoll({
       chainIds: [chainId],
@@ -1256,24 +1266,25 @@ describe('TokenBalancesController', () => {
     const trackedBalance = new BN(1000);
     const ignoredBalance = new BN(2000);
 
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [trackedToken]: {
-            [accountAddress]: trackedBalance,
-          },
-          [ignoredToken]: {
-            [accountAddress]: ignoredBalance,
-          },
-          [NATIVE_TOKEN_ADDRESS]: {
-            [accountAddress]: new BN(0),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [trackedToken]: {
+          [accountAddress]: trackedBalance,
         },
-        stakedBalances: {
+        [ignoredToken]: {
+          [accountAddress]: ignoredBalance,
+        },
+        [NATIVE_TOKEN_ADDRESS]: {
           [accountAddress]: new BN(0),
         },
-      });
+      },
+      stakedBalances: {
+        [accountAddress]: new BN(0),
+      },
+    });
 
     await controller.updateBalances({ chainIds: [chainId] });
 
@@ -1333,21 +1344,22 @@ describe('TokenBalancesController', () => {
 
     const nativeBalance = new BN('1000000000000000000'); // 1 ETH
 
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [NATIVE_TOKEN_ADDRESS]: {
-            [accountAddress]: nativeBalance,
-          },
-          [tokenAddress]: {
-            [accountAddress]: new BN(0),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [NATIVE_TOKEN_ADDRESS]: {
+          [accountAddress]: nativeBalance,
         },
-        stakedBalances: {
+        [tokenAddress]: {
           [accountAddress]: new BN(0),
         },
-      });
+      },
+      stakedBalances: {
+        [accountAddress]: new BN(0),
+      },
+    });
 
     await controller.updateBalances({ chainIds: [chainId] });
 
@@ -1383,21 +1395,22 @@ describe('TokenBalancesController', () => {
 
     const trackedBalance = new BN(1000);
 
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [trackedToken]: {
-            [accountAddress]: trackedBalance,
-          },
-          [NATIVE_TOKEN_ADDRESS]: {
-            [accountAddress]: new BN(0),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [trackedToken]: {
+          [accountAddress]: trackedBalance,
         },
-        stakedBalances: {
+        [NATIVE_TOKEN_ADDRESS]: {
           [accountAddress]: new BN(0),
         },
-      });
+      },
+      stakedBalances: {
+        [accountAddress]: new BN(0),
+      },
+    });
 
     await controller.updateBalances({ chainIds: [chainId] });
 
@@ -1446,16 +1459,17 @@ describe('TokenBalancesController', () => {
 
     const balance1 = 100;
     const balance2 = 200;
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [tokenAddress]: {
-            [account1]: new BN(balance1),
-            [account2]: new BN(balance2),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [tokenAddress]: {
+          [account1]: new BN(balance1),
+          [account2]: new BN(balance2),
         },
-      });
+      },
+    });
 
     await controller._executePoll({
       chainIds: [chainId],
@@ -1519,9 +1533,10 @@ describe('TokenBalancesController', () => {
     );
 
     // Mock Promise allSettled to return a failure for the multi-account contract
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({ tokenBalances: {} });
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({ tokenBalances: {} });
 
     await controller._executePoll({
       chainIds: [chainId],
@@ -1578,16 +1593,17 @@ describe('TokenBalancesController', () => {
     const balance1 = 100;
     const balance2 = 200;
     const balance3 = 300;
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [tokenAddress]: {
-            [account1]: new BN(balance1),
-            [account2]: new BN(balance2),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [tokenAddress]: {
+          [account1]: new BN(balance1),
+          [account2]: new BN(balance2),
         },
-      });
+      },
+    });
 
     await controller._executePoll({
       chainIds: [chainId],
@@ -1613,8 +1629,7 @@ describe('TokenBalancesController', () => {
       });
     });
 
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
+    vi.spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
       .mockClear()
       .mockResolvedValue({
         tokenBalances: {
@@ -1680,15 +1695,16 @@ describe('TokenBalancesController', () => {
     });
 
     const balance = 100;
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [tokenAddress]: {
-            [selectedAccount]: new BN(balance),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [tokenAddress]: {
+          [selectedAccount]: new BN(balance),
         },
-      });
+      },
+    });
 
     await controller._executePoll({
       chainIds: [chainId],
@@ -1819,7 +1835,7 @@ describe('TokenBalancesController', () => {
         initialState.tokenBalances,
       );
 
-      const fetchSpy = jest.spyOn(
+      const fetchSpy = vi.spyOn(
         multicall,
         'getTokenBalancesForMultipleAddresses',
       );
@@ -1842,7 +1858,7 @@ describe('TokenBalancesController', () => {
         initialState.tokenBalances,
       );
 
-      const fetchSpy = jest.spyOn(
+      const fetchSpy = vi.spyOn(
         multicall,
         'getTokenBalancesForMultipleAddresses',
       );
@@ -1892,13 +1908,13 @@ describe('TokenBalancesController', () => {
     });
 
     it('clears stale tokenBalances when a queued batched update flushes after isDeprecated toggles to true', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       let deprecated = false;
       const { controller } = setupController({
         config: { state: initialState, isDeprecated: () => deprecated },
       });
 
-      const fetchSpy = jest.spyOn(
+      const fetchSpy = vi.spyOn(
         multicall,
         'getTokenBalancesForMultipleAddresses',
       );
@@ -1909,7 +1925,7 @@ describe('TokenBalancesController', () => {
       // Toggle deprecation before the batch flushes.
       deprecated = true;
 
-      await jest.advanceTimersByTimeAsync(UPDATE_BALANCES_BATCH_MS);
+      await vi.advanceTimersByTimeAsync(UPDATE_BALANCES_BATCH_MS);
       await promise;
 
       expect(fetchSpy).not.toHaveBeenCalled();
@@ -2091,18 +2107,19 @@ describe('TokenBalancesController', () => {
 
       const balance = 123456;
       const balance2 = 200;
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [tokenAddress]: {
-              [accountAddress]: new BN(balance),
-            },
-            [tokenAddress2]: {
-              [accountAddress2]: new BN(balance2),
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [tokenAddress]: {
+            [accountAddress]: new BN(balance),
           },
-        });
+          [tokenAddress2]: {
+            [accountAddress2]: new BN(balance2),
+          },
+        },
+      });
 
       await controller._executePoll({
         chainIds: [chainId],
@@ -2164,7 +2181,7 @@ describe('TokenBalancesController', () => {
         },
       };
 
-      const updateBalancesSpy = jest
+      const updateBalancesSpy = vi
         .spyOn(TokenBalancesController.prototype, 'updateBalances')
         .mockResolvedValue(undefined);
 
@@ -2193,7 +2210,7 @@ describe('TokenBalancesController', () => {
         address: '0x0000000000000000000000000000000000000001',
       });
 
-      const updateBalancesSpy = jest.spyOn(
+      const updateBalancesSpy = vi.spyOn(
         TokenBalancesController.prototype,
         'updateBalances',
       );
@@ -2222,7 +2239,7 @@ describe('TokenBalancesController', () => {
 
   describe('multicall integration', () => {
     it('should use getTokenBalancesForMultipleAddresses when available', async () => {
-      const mockGetTokenBalances = jest
+      const mockGetTokenBalances = vi
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockResolvedValueOnce({
           tokenBalances: {
@@ -2275,7 +2292,7 @@ describe('TokenBalancesController', () => {
       const tokenAddress = '0x6B175474E89094C44Da98b954EedeAC495271d0F';
 
       // Mock the RPC balance fetcher's fetch method to verify the parameter
-      const mockRpcFetch = jest.spyOn(RpcBalanceFetcher.prototype, 'fetch');
+      const mockRpcFetch = vi.spyOn(RpcBalanceFetcher.prototype, 'fetch');
       mockRpcFetch.mockResolvedValueOnce({ balances: [] });
 
       const { controller } = setupController({
@@ -2345,15 +2362,16 @@ describe('TokenBalancesController', () => {
         },
       });
 
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            '0xToken1': {
-              [accountAddress]: new BN(100),
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          '0xToken1': {
+            [accountAddress]: new BN(100),
           },
-        });
+        },
+      });
 
       await controller.updateBalances({
         chainIds: ['0x1'],
@@ -2411,21 +2429,19 @@ describe('TokenBalancesController', () => {
       });
 
       // Set up spy for event publishing
-      const publishSpy = jest.spyOn(
-        tokenBalancesControllerMessenger,
-        'publish',
-      );
+      const publishSpy = vi.spyOn(tokenBalancesControllerMessenger, 'publish');
 
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            '0xToken1': {
-              [accountAddress]: new BN(100),
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          '0xToken1': {
+            [accountAddress]: new BN(100),
           },
-          stakedBalances: {}, // Empty staked balances
-        });
+        },
+        stakedBalances: {}, // Empty staked balances
+      });
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -2478,16 +2494,17 @@ describe('TokenBalancesController', () => {
       });
 
       // Mock multicall to return partial results
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [tokenAddress1]: {
-              [accountAddress]: new BN(100),
-            },
-            // tokenAddress2 missing (failed call)
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [tokenAddress1]: {
+            [accountAddress]: new BN(100),
           },
-        });
+          // tokenAddress2 missing (failed call)
+        },
+      });
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -2530,14 +2547,15 @@ describe('TokenBalancesController', () => {
       });
 
       // Set initial balances using updateBalances first
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValueOnce({
-          tokenBalances: {
-            [tokenAddress1]: { [accountAddress]: new BN(100) },
-            [tokenAddress2]: { [accountAddress]: new BN(200) },
-          },
-        });
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValueOnce({
+        tokenBalances: {
+          [tokenAddress1]: { [accountAddress]: new BN(100) },
+          [tokenAddress2]: { [accountAddress]: new BN(200) },
+        },
+      });
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -2601,8 +2619,8 @@ describe('TokenBalancesController', () => {
 
     // Mock empty aggregated results
     const mockFetcher = {
-      supports: jest.fn().mockReturnValue(true),
-      fetch: jest.fn().mockResolvedValue({ balances: [] }), // Return empty result
+      supports: vi.fn().mockReturnValue(true),
+      fetch: vi.fn().mockResolvedValue({ balances: [] }), // Return empty result
     };
 
     // Replace the balance fetchers with our mock
@@ -2664,15 +2682,16 @@ describe('TokenBalancesController', () => {
       },
     });
 
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [tokenAddress]: {
-            [accountAddress]: new BN(100),
-          },
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [tokenAddress]: {
+          [accountAddress]: new BN(100),
         },
-      });
+      },
+    });
 
     // Mock the controller to have no chains with tokens
     Object.defineProperty(controller, '#chainIdsWithTokens', {
@@ -2735,16 +2754,17 @@ describe('TokenBalancesController', () => {
     });
 
     // Mock multicall to return balance for only one token
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [tokenAddress1]: {
-            [accountAddress]: new BN(123456), // Only this token has a balance returned
-          },
-          // tokenAddress2, tokenAddress3, and detectedTokenAddress are missing from results
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [tokenAddress1]: {
+          [accountAddress]: new BN(123456), // Only this token has a balance returned
         },
-      });
+        // tokenAddress2, tokenAddress3, and detectedTokenAddress are missing from results
+      },
+    });
 
     await controller.updateBalances({
       chainIds: [chainId],
@@ -2798,11 +2818,12 @@ describe('TokenBalancesController', () => {
     });
 
     // Mock multicall to return empty results (complete failure)
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {}, // No balances returned at all
-      });
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {}, // No balances returned at all
+    });
 
     await controller.updateBalances({
       chainIds: [chainId],
@@ -2855,16 +2876,17 @@ describe('TokenBalancesController', () => {
     });
 
     // Mock multicall to return balance for only one account/token combination
-    jest
-      .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-      .mockResolvedValue({
-        tokenBalances: {
-          [tokenAddress1]: {
-            [account1]: new BN(500), // Only this account/token has balance returned
-          },
-          // account2/tokenAddress2 missing from results
+    vi.spyOn(
+      multicall,
+      'getTokenBalancesForMultipleAddresses',
+    ).mockResolvedValue({
+      tokenBalances: {
+        [tokenAddress1]: {
+          [account1]: new BN(500), // Only this account/token has balance returned
         },
-      });
+        // account2/tokenAddress2 missing from results
+      },
+    });
 
     await controller.updateBalances({
       chainIds: [chainId],
@@ -2912,18 +2934,19 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({ tokens });
 
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [tokenAddress]: {
-              [accountAddress]: new BN('1000000000000000000'), // 1 DAI
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [tokenAddress]: {
+            [accountAddress]: new BN('1000000000000000000'), // 1 DAI
           },
-          stakedBalances: {
-            [accountAddress]: stakedBalance,
-          },
-        });
+        },
+        stakedBalances: {
+          [accountAddress]: stakedBalance,
+        },
+      });
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -2972,20 +2995,21 @@ describe('TokenBalancesController', () => {
         [],
       );
 
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [tokenAddress]: {
-              [account1]: new BN('1000000000000000000'),
-              [account2]: new BN('2000000000000000000'),
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [tokenAddress]: {
+            [account1]: new BN('1000000000000000000'),
+            [account2]: new BN('2000000000000000000'),
           },
-          stakedBalances: {
-            [account1]: new BN('3000000000000000000'), // 3 ETH staked
-            [account2]: new BN('4000000000000000000'), // 4 ETH staked
-          },
-        });
+        },
+        stakedBalances: {
+          [account1]: new BN('3000000000000000000'), // 3 ETH staked
+          [account2]: new BN('4000000000000000000'), // 4 ETH staked
+        },
+      });
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -3030,18 +3054,19 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({ tokens });
 
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [tokenAddress]: {
-              [accountAddress]: new BN('1000000000000000000'),
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [tokenAddress]: {
+            [accountAddress]: new BN('1000000000000000000'),
           },
-          stakedBalances: {
-            [accountAddress]: new BN('0'), // Zero staked balance
-          },
-        });
+        },
+        stakedBalances: {
+          [accountAddress]: new BN('0'), // Zero staked balance
+        },
+      });
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -3079,16 +3104,17 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({ tokens });
 
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [tokenAddress]: {
-              [accountAddress]: new BN('1000000000000000000'),
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [tokenAddress]: {
+            [accountAddress]: new BN('1000000000000000000'),
           },
-          // No stakedBalances property
-        });
+        },
+        // No stakedBalances property
+      });
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -3132,15 +3158,16 @@ describe('TokenBalancesController', () => {
         },
       });
 
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [tokenAddress]: {
-              [accountAddress]: new BN('1000000000000000000'),
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [tokenAddress]: {
+            [accountAddress]: new BN('1000000000000000000'),
           },
-        });
+        },
+      });
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -3169,11 +3196,15 @@ describe('TokenBalancesController', () => {
       const mockError = new Error('Fetcher failed');
 
       // Spy on console.error since safelyExecuteWithTimeout logs errors there
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       // Override the mock to use the real safelyExecuteWithTimeout for this test
-      const realSafelyExecuteWithTimeout = jest.requireActual(
-        '@metamask/controller-utils',
+      const realSafelyExecuteWithTimeout = (
+        await vi.importActual<typeof import('@metamask/controller-utils')>(
+          '@metamask/controller-utils',
+        )
       ).safelyExecuteWithTimeout;
       mockedSafelyExecuteWithTimeout.mockImplementation(
         realSafelyExecuteWithTimeout,
@@ -3198,7 +3229,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({ tokens });
 
       // Mock the multicall function to throw an error
-      const multicallSpy = jest
+      const multicallSpy = vi
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockRejectedValue(mockError);
 
@@ -3219,7 +3250,7 @@ describe('TokenBalancesController', () => {
     });
 
     it('should log error when updateBalances fails after token change', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
       try {
         const chainId = '0x1';
         const accountAddress = '0x0000000000000000000000000000000000000000';
@@ -3227,12 +3258,14 @@ describe('TokenBalancesController', () => {
         const mockError = new Error('UpdateBalances failed');
 
         // Spy on console.warn
-        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const consoleWarnSpy = vi
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
 
         const { controller, messenger } = setupController();
 
         // Mock updateBalances to throw an error
-        const updateBalancesSpy = jest
+        const updateBalancesSpy = vi
           .spyOn(controller, 'updateBalances')
           .mockRejectedValue(mockError);
 
@@ -3253,13 +3286,13 @@ describe('TokenBalancesController', () => {
           [],
         );
 
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         // Verify updateBalances was called
         expect(updateBalancesSpy).toHaveBeenCalled();
 
         // Wait a bit more for the catch block to execute
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         // Verify the error was logged
         expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -3271,7 +3304,7 @@ describe('TokenBalancesController', () => {
         updateBalancesSpy.mockRestore();
         consoleWarnSpy.mockRestore();
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -3280,7 +3313,9 @@ describe('TokenBalancesController', () => {
       const accountAddress = '0x0000000000000000000000000000000000000000';
       const tokenAddress = '0x0000000000000000000000000000000000000001';
 
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
 
       // Set up tokens so there's something to fetch
       const tokens = {
@@ -3306,7 +3341,7 @@ describe('TokenBalancesController', () => {
       );
 
       // Mock the multicall function - this won't be reached due to timeout simulation
-      const multicallSpy = jest
+      const multicallSpy = vi
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockResolvedValue({
           tokenBalances: {},
@@ -3366,15 +3401,16 @@ describe('TokenBalancesController', () => {
       });
 
       // Mock balance fetcher to return balance with lowercase address
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [tokenAddressLowercase]: {
-              [accountAddress]: new BN(100000), // 0x186a0
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [tokenAddressLowercase]: {
+            [accountAddress]: new BN(100000), // 0x186a0
           },
-        });
+        },
+      });
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -3439,18 +3475,19 @@ describe('TokenBalancesController', () => {
       });
 
       // Mock balances returned with lowercase addresses
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [tokenAddress1Lower]: {
-              [accountAddress]: new BN(500),
-            },
-            [tokenAddress2Lower]: {
-              [accountAddress]: new BN(1000),
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [tokenAddress1Lower]: {
+            [accountAddress]: new BN(500),
           },
-        });
+          [tokenAddress2Lower]: {
+            [accountAddress]: new BN(1000),
+          },
+        },
+      });
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -3499,15 +3536,16 @@ describe('TokenBalancesController', () => {
       });
 
       // Mock fetcher to return balance with different mixed case address
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [tokenAddressFetched]: {
-              [accountAddress]: new BN(100000),
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [tokenAddressFetched]: {
+            [accountAddress]: new BN(100000),
           },
-        });
+        },
+      });
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -3562,15 +3600,16 @@ describe('TokenBalancesController', () => {
       });
 
       // Simulate the scenario that caused duplicates - different case in fetch results
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [tokenAddressLower]: {
-              [accountAddress]: new BN(0x186a0), // Balance for lowercase version
-            },
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [tokenAddressLower]: {
+            [accountAddress]: new BN(0x186a0), // Balance for lowercase version
           },
-        });
+        },
+      });
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -3645,7 +3684,7 @@ describe('TokenBalancesController', () => {
       });
 
       const balance = 100;
-      const mockGetTokenBalances = jest
+      const mockGetTokenBalances = vi
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockResolvedValue({
           tokenBalances: {
@@ -3739,10 +3778,10 @@ describe('TokenBalancesController', () => {
 
   describe('Per-chain polling intervals', () => {
     beforeEach(() => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
     });
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should use default interval when no chain-specific config is provided', () => {
@@ -3943,7 +3982,7 @@ describe('TokenBalancesController', () => {
         allDetectedTokens: {},
       };
 
-      const pollSpy = jest.spyOn(
+      const pollSpy = vi.spyOn(
         TokenBalancesController.prototype,
         '_executePoll',
       );
@@ -3959,7 +3998,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
       // Initial polls should happen immediately for both chains
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
@@ -3967,14 +4006,14 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Advance by Ethereum interval (1000ms) - only Ethereum should poll
-      await jestAdvanceTime({ duration: ethInterval });
+      await advanceTime({ duration: ethInterval });
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
 
       pollSpy.mockClear();
 
       // Advance by another 1000ms (total 2000ms) - both should poll
-      await jestAdvanceTime({ duration: ethInterval });
+      await advanceTime({ duration: ethInterval });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] }); // Ethereum again
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] }); // Polygon first repeat
@@ -3999,7 +4038,7 @@ describe('TokenBalancesController', () => {
         allDetectedTokens: {},
       };
 
-      const pollSpy = jest.spyOn(
+      const pollSpy = vi.spyOn(
         TokenBalancesController.prototype,
         '_executePoll',
       );
@@ -4018,12 +4057,12 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
       // Initial polls
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       pollSpy.mockClear();
 
       // Advance 1500ms - only Ethereum should poll
-      await jestAdvanceTime({ duration: ethInterval });
+      await advanceTime({ duration: ethInterval });
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
 
@@ -4035,7 +4074,7 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Advance 1500ms - both should poll now (same interval, grouped together)
-      await jestAdvanceTime({ duration: ethInterval });
+      await advanceTime({ duration: ethInterval });
       expect(pollSpy).toHaveBeenCalledTimes(1); // Now grouped together
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0x89'] }); // Both chains in one call
 
@@ -4067,7 +4106,7 @@ describe('TokenBalancesController', () => {
         allDetectedTokens: {},
       };
 
-      const pollSpy = jest.spyOn(
+      const pollSpy = vi.spyOn(
         TokenBalancesController.prototype,
         '_executePoll',
       );
@@ -4083,7 +4122,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89', '0xa4b1'] });
 
       // Initial polls - should group efficiently
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(2); // Two groups: fast (ETH + ARB) and slow (MATIC)
 
       // Verify Ethereum and Arbitrum are grouped together (same interval)
@@ -4094,14 +4133,14 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Advance by fast interval (1200ms) - only fast group should poll
-      await jestAdvanceTime({ duration: fastInterval });
+      await advanceTime({ duration: fastInterval });
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0xa4b1'] });
 
       pollSpy.mockClear();
 
       // Advance by another 1200ms (total 2400ms) - both groups should poll
-      await jestAdvanceTime({ duration: fastInterval });
+      await advanceTime({ duration: fastInterval });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0xa4b1'] }); // Fast group again
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] }); // Slow group first repeat
@@ -4130,7 +4169,7 @@ describe('TokenBalancesController', () => {
         allDetectedTokens: {},
       };
 
-      const pollSpy = jest.spyOn(
+      const pollSpy = vi.spyOn(
         TokenBalancesController.prototype,
         '_executePoll',
       );
@@ -4146,7 +4185,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
       // Initial polls
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
@@ -4154,14 +4193,14 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Advance 800ms - only Ethereum should poll (configured interval)
-      await jestAdvanceTime({ duration: ethInterval });
+      await advanceTime({ duration: ethInterval });
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
 
       pollSpy.mockClear();
 
       // Advance another 800ms (total 1600ms) - both should poll
-      await jestAdvanceTime({ duration: ethInterval });
+      await advanceTime({ duration: ethInterval });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] }); // Ethereum again
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] }); // Polygon using default interval
@@ -4182,7 +4221,7 @@ describe('TokenBalancesController', () => {
         allDetectedTokens: {},
       };
 
-      const pollSpy = jest.spyOn(
+      const pollSpy = vi.spyOn(
         TokenBalancesController.prototype,
         '_executePoll',
       );
@@ -4202,12 +4241,12 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
       // Initial polls
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(2);
       pollSpy.mockClear();
 
       // Let some polling happen
-      await jestAdvanceTime({ duration: 1000 }); // Ethereum polls
+      await advanceTime({ duration: 1000 }); // Ethereum polls
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
 
@@ -4220,7 +4259,7 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Both should now poll every 500ms (regrouped)
-      await jestAdvanceTime({ duration: 500 });
+      await advanceTime({ duration: 500 });
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0x89'] }); // Now grouped together
 
@@ -4229,7 +4268,7 @@ describe('TokenBalancesController', () => {
 
     it('should preserve original chainIds across config updates even when chains have no tokens', async () => {
       // Test the design flaw fix: original chainIds should be preserved, not replaced with chainIdsWithTokens
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
 
       const tokens = {
         allTokens: {
@@ -4254,15 +4293,15 @@ describe('TokenBalancesController', () => {
         tokens,
       });
 
-      const pollSpy = jest
+      const pollSpy = vi
         .spyOn(controller, '_executePoll')
-        .mockImplementation();
+        .mockImplementation(async () => undefined);
 
       // Start polling for 3 chains: only Ethereum has tokens, others don't
       controller.startPolling({ chainIds: ['0x1', '0x89', '0xa4b1'] });
 
       // Initial polls - all 3 chains should be polled despite only Ethereum having tokens
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(3); // All three chains polled
 
       // Verify all originally requested chains are being polled
@@ -4279,7 +4318,7 @@ describe('TokenBalancesController', () => {
 
       // All originally requested chains should still be polled (not just chains with tokens)
       // Wait for the longest interval (3000ms) to ensure all interval groups have polled
-      await jestAdvanceTime({ duration: 3000 });
+      await advanceTime({ duration: 3000 });
 
       // ✅ KEY VERIFICATION: All originally requested chains are still being polled,
       // including Polygon and Arbitrum which have NO tokens!
@@ -4296,12 +4335,12 @@ describe('TokenBalancesController', () => {
       expect(allCalledChains).toContain('0xa4b1'); // Arbitrum (no tokens) - ✅ PRESERVED!
 
       controller.stopAllPolling();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should preserve original chainIds when tokens are added or removed during polling', async () => {
       // Test that token changes don't affect original polling intent
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
 
       const initialTokens = {
         allTokens: {
@@ -4319,15 +4358,15 @@ describe('TokenBalancesController', () => {
         tokens: initialTokens,
       });
 
-      const pollSpy = jest
+      const pollSpy = vi
         .spyOn(controller, '_executePoll')
-        .mockImplementation();
+        .mockImplementation(async () => undefined);
 
       // Start polling for 3 chains, only Ethereum has tokens initially
       controller.startPolling({ chainIds: ['0x1', '0x89', '0xa4b1'] });
 
       // Initial state: all 3 chains polled (they use default interval so grouped together)
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
       expect(pollSpy).toHaveBeenCalledTimes(1); // All chains use same default interval, so grouped
       expect(pollSpy).toHaveBeenCalledWith({
         chainIds: ['0x1', '0x89', '0xa4b1'],
@@ -4358,7 +4397,7 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // After token change, should still poll all originally requested chains
-      await jestAdvanceTime({ duration: 1000 });
+      await advanceTime({ duration: 1000 });
 
       // ✅ KEY VERIFICATION: All originally requested chains are still being polled
       // even after token state changes (not filtered by chainIdsWithTokens)
@@ -4374,12 +4413,12 @@ describe('TokenBalancesController', () => {
       expect(allCalledChains).toContain('0xa4b1'); // Arbitrum (still no tokens) - ✅ PRESERVED!
 
       controller.stopAllPolling();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     describe('immediateUpdate option', () => {
       it('should trigger immediate polling by default when updating configs', async () => {
-        jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+        vi.useFakeTimers();
         const chainId = '0x1';
         const accountAddress = '0x0000000000000000000000000000000000000000';
         const tokenAddress = '0x0000000000000000000000000000000000000001';
@@ -4400,15 +4439,15 @@ describe('TokenBalancesController', () => {
           tokens,
         });
 
-        const pollSpy = jest
+        const pollSpy = vi
           .spyOn(controller, '_executePoll')
-          .mockImplementation();
+          .mockImplementation(async () => undefined);
 
         // Start polling
         controller.startPolling({ chainIds: [chainId] });
 
         // Wait for initial poll
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
         pollSpy.mockClear();
 
@@ -4418,22 +4457,22 @@ describe('TokenBalancesController', () => {
         });
 
         // Should trigger immediate polling by default
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
         expect(pollSpy).toHaveBeenCalledWith({ chainIds: [chainId] });
 
         pollSpy.mockClear();
 
         // And should continue polling on the new interval
-        await jestAdvanceTime({ duration: 15000 });
+        await advanceTime({ duration: 15000 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
         controller.stopAllPolling();
-        jest.useRealTimers();
+        vi.useRealTimers();
       });
 
       it('should not trigger immediate polling when immediateUpdate is false', async () => {
-        jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+        vi.useFakeTimers();
         const chainId = '0x1';
         const accountAddress = '0x0000000000000000000000000000000000000000';
         const tokenAddress = '0x0000000000000000000000000000000000000001';
@@ -4454,15 +4493,15 @@ describe('TokenBalancesController', () => {
           tokens,
         });
 
-        const pollSpy = jest
+        const pollSpy = vi
           .spyOn(controller, '_executePoll')
-          .mockImplementation();
+          .mockImplementation(async () => undefined);
 
         // Start polling
         controller.startPolling({ chainIds: [chainId] });
 
         // Wait for initial poll
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
         pollSpy.mockClear();
 
@@ -4478,15 +4517,15 @@ describe('TokenBalancesController', () => {
         expect(pollSpy).not.toHaveBeenCalled();
 
         // But should poll on the new interval
-        await jestAdvanceTime({ duration: 15000 });
+        await advanceTime({ duration: 15000 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
         controller.stopAllPolling();
-        jest.useRealTimers();
+        vi.useRealTimers();
       });
 
       it('should trigger immediate polling when immediateUpdate is true', async () => {
-        jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+        vi.useFakeTimers();
         const chainId = '0x1';
         const accountAddress = '0x0000000000000000000000000000000000000000';
         const tokenAddress = '0x0000000000000000000000000000000000000001';
@@ -4507,15 +4546,15 @@ describe('TokenBalancesController', () => {
           tokens,
         });
 
-        const pollSpy = jest
+        const pollSpy = vi
           .spyOn(controller, '_executePoll')
-          .mockImplementation();
+          .mockImplementation(async () => undefined);
 
         // Start polling
         controller.startPolling({ chainIds: [chainId] });
 
         // Wait for initial poll
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
         pollSpy.mockClear();
 
@@ -4528,18 +4567,18 @@ describe('TokenBalancesController', () => {
         );
 
         // Should trigger immediate polling
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
         expect(pollSpy).toHaveBeenCalledWith({ chainIds: [chainId] });
 
         pollSpy.mockClear();
 
         // And should continue polling on the new interval
-        await jestAdvanceTime({ duration: 15000 });
+        await advanceTime({ duration: 15000 });
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
         controller.stopAllPolling();
-        jest.useRealTimers();
+        vi.useRealTimers();
       });
 
       it('should handle immediateUpdate option when polling is not active', () => {
@@ -4563,9 +4602,9 @@ describe('TokenBalancesController', () => {
           tokens,
         });
 
-        const pollSpy = jest
+        const pollSpy = vi
           .spyOn(controller, '_executePoll')
-          .mockImplementation();
+          .mockImplementation(async () => undefined);
 
         // DON'T start polling - controller is inactive
 
@@ -4587,7 +4626,7 @@ describe('TokenBalancesController', () => {
       });
 
       it('should handle immediateUpdate with multiple chains and different intervals', async () => {
-        jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+        vi.useFakeTimers();
         const accountAddress = '0x0000000000000000000000000000000000000000';
 
         const tokens = {
@@ -4611,15 +4650,15 @@ describe('TokenBalancesController', () => {
           tokens,
         });
 
-        const pollSpy = jest
+        const pollSpy = vi
           .spyOn(controller, '_executePoll')
-          .mockImplementation();
+          .mockImplementation(async () => undefined);
 
         // Start polling
         controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
         // Wait for initial polls
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(1); // Both chains use default interval
         pollSpy.mockClear();
 
@@ -4633,20 +4672,20 @@ describe('TokenBalancesController', () => {
         );
 
         // Should trigger immediate polling for all chains
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
         expect(pollSpy).toHaveBeenCalledTimes(2); // Now different intervals, so separate calls
         expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
         expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
 
         controller.stopAllPolling();
-        jest.useRealTimers();
+        vi.useRealTimers();
       });
     });
   });
 
   describe('Error handling and edge cases', () => {
     it('should handle polling errors gracefully', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
       try {
         const chainId = '0x1';
         const accountAddress = '0x0000000000000000000000000000000000000000';
@@ -4663,7 +4702,9 @@ describe('TokenBalancesController', () => {
           },
         };
 
-        const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const consoleSpy = vi
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
 
         const { controller } = setupController({
           tokens,
@@ -4671,17 +4712,17 @@ describe('TokenBalancesController', () => {
         });
 
         // Mock _executePoll to throw an error
-        const pollSpy = jest
+        const pollSpy = vi
           .spyOn(controller, '_executePoll')
           .mockRejectedValue(new Error('Polling failed'));
 
         controller.startPolling({ chainIds: ['0x1'] });
 
         // Wait for initial poll and error
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         // Wait for interval poll and error
-        await jestAdvanceTime({ duration: 100 });
+        await advanceTime({ duration: 100 });
 
         // Should have attempted polls despite errors
         expect(pollSpy).toHaveBeenCalledTimes(2);
@@ -4689,12 +4730,12 @@ describe('TokenBalancesController', () => {
         controller.stopAllPolling();
         consoleSpy.mockRestore();
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
     it('should handle updateBalances errors in token change handler', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
       try {
         const chainId = '0x1';
         const accountAddress = '0x0000000000000000000000000000000000000000';
@@ -4711,14 +4752,16 @@ describe('TokenBalancesController', () => {
           },
         };
 
-        const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const consoleSpy = vi
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
 
         const { controller, messenger } = setupController({
           tokens,
         });
 
         // Mock updateBalances to throw an error
-        const updateBalancesSpy = jest
+        const updateBalancesSpy = vi
           .spyOn(controller, 'updateBalances')
           .mockRejectedValue(new Error('Update failed'));
 
@@ -4749,7 +4792,7 @@ describe('TokenBalancesController', () => {
         ]);
 
         // Wait for async error handling
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         expect(updateBalancesSpy).toHaveBeenCalled();
         expect(consoleSpy).toHaveBeenCalledWith(
@@ -4759,19 +4802,21 @@ describe('TokenBalancesController', () => {
 
         consoleSpy.mockRestore();
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
     it('should handle malformed JSON in _stopPollingByPollingTokenSetId gracefully', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
       try {
         const { controller } = setupController();
 
         // Start polling to create an active session
         controller.startPolling({ chainIds: ['0x1', '0x2'] });
 
-        const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const consoleSpy = vi
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
 
         // Call with malformed JSON - this should trigger the fallback behavior
         const malformedTokenSetId = '{invalid json}';
@@ -4785,7 +4830,7 @@ describe('TokenBalancesController', () => {
 
         // Verify that controller can recover by starting new polling session successfully
         // This demonstrates that the fallback stop-all-polling behavior worked
-        const updateBalancesSpy = jest
+        const updateBalancesSpy = vi
           .spyOn(controller, 'updateBalances')
           .mockResolvedValue();
 
@@ -4793,14 +4838,14 @@ describe('TokenBalancesController', () => {
         controller.startPolling({ chainIds: ['0x1'] });
 
         // Wait for any immediate polling to complete
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         // Clean up
         controller.stopAllPolling();
         consoleSpy.mockRestore();
         updateBalancesSpy.mockRestore();
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -4810,7 +4855,7 @@ describe('TokenBalancesController', () => {
       // Start some polling to create timers
       controller.startPolling({ chainIds: ['0x1'] });
 
-      const superDestroySpy = jest.spyOn(
+      const superDestroySpy = vi.spyOn(
         Object.getPrototypeOf(Object.getPrototypeOf(controller)),
         'destroy',
       );
@@ -5003,7 +5048,7 @@ describe('TokenBalancesController', () => {
       });
 
       // Mock the RPC multicall to track when it's called
-      const multicallSpy = jest
+      const multicallSpy = vi
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockResolvedValue({
           tokenBalances: {
@@ -5046,17 +5091,17 @@ describe('TokenBalancesController', () => {
       });
 
       // Use fake timers to control polling intervals
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       // Mock _executePoll to track calls
-      const executePollSpy = jest.spyOn(controller, '_executePoll');
+      const executePollSpy = vi.spyOn(controller, '_executePoll');
 
       // Start polling to set up the timer
       controller.startPolling({ chainIds: [chainId] });
 
       // Allow initial polling to complete
       await flushPromises();
-      jest.runOnlyPendingTimers();
+      vi.runOnlyPendingTimers();
       await flushPromises();
 
       // Clear spy calls from setup
@@ -5067,14 +5112,14 @@ describe('TokenBalancesController', () => {
 
       // Fast forward time to trigger the next scheduled poll interval
       // This should hit line 335 (early return when !#isControllerPollingActive)
-      jest.advanceTimersByTime(150);
+      vi.advanceTimersByTime(150);
       await flushPromises();
 
       // The scheduled poll should have been prevented by the inactive check (line 335)
       expect(executePollSpy).not.toHaveBeenCalled();
       expect(controller).toBeDefined();
 
-      jest.useRealTimers();
+      vi.useRealTimers();
       executePollSpy.mockRestore();
     });
 
@@ -5083,7 +5128,7 @@ describe('TokenBalancesController', () => {
       const chainId2 = '0x89'; // Polygon
 
       // Mock clearInterval to verify it's called (line 359)
-      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
 
       const { controller } = setupController({
         config: {
@@ -5139,7 +5184,7 @@ describe('TokenBalancesController', () => {
       });
 
       // Mock the RpcBalanceFetcher to not support this specific chain
-      const mockSupports = jest
+      const mockSupports = vi
         .spyOn(RpcBalanceFetcher.prototype, 'supports')
         .mockReturnValue(false);
 
@@ -5193,7 +5238,7 @@ describe('TokenBalancesController', () => {
     });
 
     it('should test AccountsApiFetcher supports method logic', async () => {
-      jest.setTimeout(10000);
+      vi.setConfig({ testTimeout: 10000 });
 
       const chainId1 = '0x1'; // Will be returned by accountsApiChainIds()
       const chainId2 = '0x89'; // Will be returned by accountsApiChainIds()
@@ -5204,21 +5249,21 @@ describe('TokenBalancesController', () => {
       const account = createMockInternalAccount({ address: accountAddress });
 
       // Mock AccountsApiBalanceFetcher to track when line 320 logic is executed
-      const mockSupports = jest.fn().mockReturnValue(true);
-      const mockApiFetch = jest.fn().mockResolvedValue({ balances: [] });
+      const mockSupports = vi.fn().mockReturnValue(true);
+      const mockApiFetch = vi.fn().mockResolvedValue({ balances: [] });
 
-      const apiBalanceFetcher = jest.requireActual(
-        './multi-chain-accounts-service/api-balance-fetcher',
-      );
+      const apiBalanceFetcher = await vi.importActual<
+        typeof import('./multi-chain-accounts-service/api-balance-fetcher.js')
+      >('./multi-chain-accounts-service/api-balance-fetcher.js');
 
-      const supportsSpy = jest
+      const supportsSpy = vi
         .spyOn(
           apiBalanceFetcher.AccountsApiBalanceFetcher.prototype,
           'supports',
         )
         .mockImplementation(mockSupports);
 
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(apiBalanceFetcher.AccountsApiBalanceFetcher.prototype, 'fetch')
         .mockImplementation(mockApiFetch);
 
@@ -5228,7 +5273,7 @@ describe('TokenBalancesController', () => {
       });
 
       // Mock fetch globally to prevent any network calls
-      const mockGlobalFetch = jest.fn().mockResolvedValue({
+      const mockGlobalFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: () => Promise.resolve([]),
       });
@@ -5357,13 +5402,13 @@ describe('TokenBalancesController', () => {
         });
 
       // Spy on AccountTrackerController calls
-      const updateNativeBalancesSpy = jest.fn();
-      jest
-        .spyOn(tokenBalancesControllerMessenger, 'call')
-        .mockImplementation((action: string, ...args: unknown[]) => {
+      const updateNativeBalancesSpy = vi.fn();
+      vi.spyOn(tokenBalancesControllerMessenger, 'call').mockImplementation(
+        (action: string, ...args: unknown[]) => {
           updateNativeBalancesSpy(action, ...args);
           return;
-        });
+        },
+      );
 
       // Emit balance update event for native token
       messenger.publish('AccountActivityService:balanceUpdated', {
@@ -5416,7 +5461,7 @@ describe('TokenBalancesController', () => {
         listAccounts: [account],
       });
 
-      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
+      const updateBalancesSpy = vi.spyOn(controller, 'updateBalances');
 
       // Emit balance update event with error
       messenger.publish('AccountActivityService:balanceUpdated', {
@@ -5453,7 +5498,7 @@ describe('TokenBalancesController', () => {
         listAccounts: [account],
       });
 
-      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
+      const updateBalancesSpy = vi.spyOn(controller, 'updateBalances');
 
       // Emit balance update event with unsupported asset type
       messenger.publish('AccountActivityService:balanceUpdated', {
@@ -5481,14 +5526,11 @@ describe('TokenBalancesController', () => {
     });
 
     it('should handle status change to "up" and increase polling interval', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const { controller, messenger } = setupController();
 
-      const updateConfigSpy = jest.spyOn(
-        controller,
-        'updateChainPollingConfigs',
-      );
+      const updateConfigSpy = vi.spyOn(controller, 'updateChainPollingConfigs');
 
       // Emit status change to "up"
       messenger.publish('AccountActivityService:statusChanged', {
@@ -5497,11 +5539,11 @@ describe('TokenBalancesController', () => {
       });
 
       // Wait for debounce (5 seconds)
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       // Wait for jitter (up to default interval)
-      jest.advanceTimersByTime(30000);
+      vi.advanceTimersByTime(30000);
       await flushPromises();
 
       // Verify polling config was updated to backup interval (5 minutes)
@@ -5513,18 +5555,15 @@ describe('TokenBalancesController', () => {
         { immediateUpdate: true },
       );
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should handle status change to "down" and restore default polling interval', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const { controller, messenger } = setupController();
 
-      const updateConfigSpy = jest.spyOn(
-        controller,
-        'updateChainPollingConfigs',
-      );
+      const updateConfigSpy = vi.spyOn(controller, 'updateChainPollingConfigs');
 
       // Emit status change to "down"
       messenger.publish('AccountActivityService:statusChanged', {
@@ -5533,11 +5572,11 @@ describe('TokenBalancesController', () => {
       });
 
       // Wait for debounce (5 seconds)
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       // Wait for jitter (up to default interval)
-      jest.advanceTimersByTime(30000);
+      vi.advanceTimersByTime(30000);
       await flushPromises();
 
       // Verify polling config was updated to default interval (30 seconds)
@@ -5548,18 +5587,15 @@ describe('TokenBalancesController', () => {
         { immediateUpdate: true },
       );
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should debounce rapid status changes', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const { controller, messenger } = setupController();
 
-      const updateConfigSpy = jest.spyOn(
-        controller,
-        'updateChainPollingConfigs',
-      );
+      const updateConfigSpy = vi.spyOn(controller, 'updateChainPollingConfigs');
 
       // Emit multiple rapid status changes
       messenger.publish('AccountActivityService:statusChanged', {
@@ -5567,14 +5603,14 @@ describe('TokenBalancesController', () => {
         status: 'down',
       });
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
       messenger.publish('AccountActivityService:statusChanged', {
         chainIds: ['eip155:1'],
         status: 'up',
       });
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
       messenger.publish('AccountActivityService:statusChanged', {
         chainIds: ['eip155:1'],
@@ -5582,11 +5618,11 @@ describe('TokenBalancesController', () => {
       });
 
       // Wait for debounce (5 seconds)
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
 
       // Wait for jitter
-      jest.advanceTimersByTime(30000);
+      vi.advanceTimersByTime(30000);
       await flushPromises();
 
       // Verify config was updated only once with the latest status
@@ -5598,52 +5634,46 @@ describe('TokenBalancesController', () => {
         { immediateUpdate: true },
       );
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should skip non-EVM chains like solana without crashing', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const { controller, messenger } = setupController();
 
-      const updateConfigSpy = jest.spyOn(
-        controller,
-        'updateChainPollingConfigs',
-      );
+      const updateConfigSpy = vi.spyOn(controller, 'updateChainPollingConfigs');
 
       messenger.publish('AccountActivityService:statusChanged', {
         chainIds: ['solana:mainnet'],
         status: 'up',
       });
 
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
-      jest.advanceTimersByTime(30000);
+      vi.advanceTimersByTime(30000);
       await flushPromises();
 
       expect(updateConfigSpy).not.toHaveBeenCalled();
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should process EVM chains and skip non-EVM chains in mixed status changes', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const { controller, messenger } = setupController();
 
-      const updateConfigSpy = jest.spyOn(
-        controller,
-        'updateChainPollingConfigs',
-      );
+      const updateConfigSpy = vi.spyOn(controller, 'updateChainPollingConfigs');
 
       messenger.publish('AccountActivityService:statusChanged', {
         chainIds: ['eip155:1', 'solana:mainnet'],
         status: 'up',
       });
 
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await flushPromises();
-      jest.advanceTimersByTime(30000);
+      vi.advanceTimersByTime(30000);
       await flushPromises();
 
       expect(updateConfigSpy).toHaveBeenCalledTimes(1);
@@ -5660,7 +5690,7 @@ describe('TokenBalancesController', () => {
         expect.anything(),
       );
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should handle multiple chains in a single balance update', async () => {
@@ -5753,7 +5783,7 @@ describe('TokenBalancesController', () => {
         listAccounts: [account],
       });
 
-      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
+      const updateBalancesSpy = vi.spyOn(controller, 'updateBalances');
 
       // Emit balance update with invalid address format
       messenger.publish('AccountActivityService:balanceUpdated', {
@@ -5778,13 +5808,10 @@ describe('TokenBalancesController', () => {
     });
 
     it('should handle status changes with hex chain ID format', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const { controller, messenger } = setupController();
-      const updateConfigSpy = jest.spyOn(
-        controller,
-        'updateChainPollingConfigs',
-      );
+      const updateConfigSpy = vi.spyOn(controller, 'updateChainPollingConfigs');
 
       // Send status change with CAIP format (as expected from AccountActivityService)
       messenger.publish('AccountActivityService:statusChanged', {
@@ -5793,7 +5820,7 @@ describe('TokenBalancesController', () => {
       });
 
       // Wait for debounce and jitter
-      jest.advanceTimersByTime(5000 + 30000);
+      vi.advanceTimersByTime(5000 + 30000);
       await flushPromises();
 
       expect(updateConfigSpy).toHaveBeenCalledWith(
@@ -5801,7 +5828,7 @@ describe('TokenBalancesController', () => {
         expect.any(Object),
       );
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should call addTokens for new untracked tokens received via balance updates', async () => {
@@ -5823,7 +5850,7 @@ describe('TokenBalancesController', () => {
       });
 
       // Unregister existing handler and spy on addDetectedTokensViaWs action
-      const addTokensSpy = jest.fn().mockResolvedValue(undefined);
+      const addTokensSpy = vi.fn().mockResolvedValue(undefined);
       messenger.unregisterActionHandler(
         'TokenDetectionController:addDetectedTokensViaWs',
       );
@@ -5898,7 +5925,7 @@ describe('TokenBalancesController', () => {
       });
 
       // Unregister existing handler and spy on addDetectedTokensViaWs - should NOT be called
-      const addTokensSpy = jest.fn().mockResolvedValue(undefined);
+      const addTokensSpy = vi.fn().mockResolvedValue(undefined);
       messenger.unregisterActionHandler(
         'TokenDetectionController:addDetectedTokensViaWs',
       );
@@ -5964,7 +5991,7 @@ describe('TokenBalancesController', () => {
       });
 
       // Unregister existing handler and spy on addDetectedTokensViaWs - should NOT be called
-      const addTokensSpy = jest.fn().mockResolvedValue(undefined);
+      const addTokensSpy = vi.fn().mockResolvedValue(undefined);
       messenger.unregisterActionHandler(
         'TokenDetectionController:addDetectedTokensViaWs',
       );
@@ -6024,7 +6051,7 @@ describe('TokenBalancesController', () => {
       });
 
       // Unregister existing handler and spy on addDetectedTokensViaWs - should NOT be called for native tokens
-      const addTokensSpy = jest.fn().mockResolvedValue(undefined);
+      const addTokensSpy = vi.fn().mockResolvedValue(undefined);
       messenger.unregisterActionHandler(
         'TokenDetectionController:addDetectedTokensViaWs',
       );
@@ -6083,10 +6110,12 @@ describe('TokenBalancesController', () => {
         tokens,
       });
 
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
 
       // Unregister existing handler and register addDetectedTokensViaWs to throw an error
-      const addTokensSpy = jest
+      const addTokensSpy = vi
         .fn()
         .mockRejectedValue(new Error('Failed to add token'));
       messenger.unregisterActionHandler(
@@ -6098,7 +6127,7 @@ describe('TokenBalancesController', () => {
       );
 
       // Spy on updateBalances
-      const updateBalancesSpy = jest
+      const updateBalancesSpy = vi
         .spyOn(controller, 'updateBalances')
         .mockResolvedValue();
 
@@ -6166,7 +6195,7 @@ describe('TokenBalancesController', () => {
         tokens,
       });
 
-      const addTokensSpy = jest.fn().mockResolvedValue(undefined);
+      const addTokensSpy = vi.fn().mockResolvedValue(undefined);
       messenger.unregisterActionHandler(
         'TokenDetectionController:addDetectedTokensViaWs',
       );
@@ -6229,10 +6258,10 @@ describe('TokenBalancesController', () => {
     });
 
     it('should cleanup debouncing timer on destroy', () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
       const { controller, messenger } = setupController();
-      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
 
       // Create a pending status change
       messenger.publish('AccountActivityService:statusChanged', {
@@ -6244,7 +6273,7 @@ describe('TokenBalancesController', () => {
 
       expect(clearTimeoutSpy).toHaveBeenCalled();
 
-      jest.useRealTimers();
+      vi.useRealTimers();
       clearTimeoutSpy.mockRestore();
     });
   });
@@ -6365,13 +6394,13 @@ describe('TokenBalancesController', () => {
   describe('event subscriptions', () => {
     it('should handle TransactionController:transactionConfirmed event', async () => {
       const { controller, messenger } = setupController();
-      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
+      const updateBalancesSpy = vi.spyOn(controller, 'updateBalances');
 
       messenger.publish('TransactionController:transactionConfirmed', {
         chainId: '0x1',
       } as unknown as TransactionMeta);
 
-      await jest.advanceTimersByTimeAsync(0);
+      await flushPromises();
 
       expect(updateBalancesSpy).toHaveBeenCalledWith({
         chainIds: ['0x1'],
@@ -6379,13 +6408,15 @@ describe('TokenBalancesController', () => {
     });
 
     it('should handle errors from #onTokensChanged gracefully', async () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const warnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
       const { controller, messenger } = setupController();
 
       // Mock updateBalances to throw an error
-      jest
-        .spyOn(controller, 'updateBalances')
-        .mockRejectedValue(new Error('Test error'));
+      vi.spyOn(controller, 'updateBalances').mockRejectedValue(
+        new Error('Test error'),
+      );
 
       messenger.publish(
         'TokensController:stateChange',
@@ -6401,7 +6432,7 @@ describe('TokenBalancesController', () => {
         [],
       );
 
-      await jest.advanceTimersByTimeAsync(0);
+      await flushPromises();
 
       expect(warnSpy).toHaveBeenCalledWith(
         'Error updating balances after token change:',
@@ -6412,7 +6443,9 @@ describe('TokenBalancesController', () => {
     });
 
     it('should handle errors from #onAccountActivityBalanceUpdate gracefully', async () => {
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const warnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
       const { messenger } = setupController();
 
       // Publish malformed balance update to trigger error
@@ -6431,7 +6464,7 @@ describe('TokenBalancesController', () => {
         updates: BalanceUpdate[];
       });
 
-      await jest.advanceTimersByTimeAsync(0);
+      await flushPromises();
 
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining('Error handling balance update:'),
@@ -6444,10 +6477,10 @@ describe('TokenBalancesController', () => {
 
   describe('polling behavior', () => {
     beforeEach(() => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
     });
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should not poll when controller polling is not active', async () => {
@@ -6457,14 +6490,14 @@ describe('TokenBalancesController', () => {
         },
       });
 
-      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
+      const updateBalancesSpy = vi.spyOn(controller, 'updateBalances');
 
       // Start and then stop polling to deactivate
       controller.startPolling({ chainIds: ['0x1'] });
       controller.stopAllPolling();
 
       // Wait for poll interval
-      await jest.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(2000);
 
       // updateBalances should have been called once during startPolling,
       // but not again after stopping
@@ -6472,7 +6505,7 @@ describe('TokenBalancesController', () => {
     });
 
     it('should clear existing timer when setting new polling timer', async () => {
-      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
 
       const { controller } = setupController({
         config: {
@@ -6514,12 +6547,12 @@ describe('TokenBalancesController', () => {
         tokens: initialTokens,
       });
 
-      const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
+      const updateBalancesSpy = vi.spyOn(controller, 'updateBalances');
 
       // Publish the same state again - tokens haven't changed
       messenger.publish('TokensController:stateChange', initialTokens, []);
 
-      await jest.advanceTimersByTimeAsync(0);
+      await flushPromises();
 
       // updateBalances should not be called since tokens haven't changed
       expect(updateBalancesSpy).not.toHaveBeenCalled();
@@ -6527,6 +6560,11 @@ describe('TokenBalancesController', () => {
   });
 
   describe('status change accumulation', () => {
+    // These tests advance timers, which Jest skipped under real timers
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
     it('should return early when no status changes accumulated', async () => {
       // This test verifies line 1384: early return when no changes
       const { messenger, controller } = setupController();
@@ -6538,7 +6576,7 @@ describe('TokenBalancesController', () => {
       });
 
       // Wait for debounce
-      await jest.advanceTimersByTimeAsync(6000);
+      await vi.advanceTimersByTimeAsync(6000);
 
       // No errors should occur and controller should still be functional
       expect(controller.state.tokenBalances).toBeDefined();
@@ -6564,7 +6602,7 @@ describe('TokenBalancesController', () => {
   describe('error handling in event subscriptions', () => {
     it('should log error when onTokensChanged fails', async () => {
       // This test verifies line 360
-      const consoleWarnSpy = jest
+      const consoleWarnSpy = vi
         .spyOn(console, 'warn')
         .mockImplementation(() => undefined);
 
@@ -6577,7 +6615,7 @@ describe('TokenBalancesController', () => {
         [],
       );
 
-      await jest.advanceTimersByTimeAsync(0);
+      await flushPromises();
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         'Error handling token state change:',
@@ -6589,7 +6627,7 @@ describe('TokenBalancesController', () => {
 
     it('should log error when onAccountActivityBalanceUpdate fails', async () => {
       // This test verifies line 384
-      const consoleWarnSpy = jest
+      const consoleWarnSpy = vi
         .spyOn(console, 'warn')
         .mockImplementation(() => undefined);
 
@@ -6602,7 +6640,7 @@ describe('TokenBalancesController', () => {
         updates: [],
       });
 
-      await jest.advanceTimersByTimeAsync(0);
+      await flushPromises();
 
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         expect.stringContaining('Error'),
@@ -6614,6 +6652,11 @@ describe('TokenBalancesController', () => {
   });
 
   describe('polling inactive state', () => {
+    // These tests advance timers, which Jest skipped under real timers
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
     it('should return early when polling is inactive', async () => {
       // This test verifies line 554
       const { controller } = setupController({
@@ -6627,7 +6670,7 @@ describe('TokenBalancesController', () => {
       controller.stopAllPolling();
 
       // Polling should not execute when inactive
-      await jest.advanceTimersByTimeAsync(35000);
+      await vi.advanceTimersByTimeAsync(35000);
 
       // Controller state should remain unchanged
       expect(controller.state.tokenBalances).toBeDefined();
@@ -6636,10 +6679,10 @@ describe('TokenBalancesController', () => {
 
   describe('polling timer management', () => {
     beforeEach(() => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
     });
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should clear existing timer when setting new one for same interval', async () => {
@@ -6653,21 +6696,21 @@ describe('TokenBalancesController', () => {
       // Start polling twice with same chain - should clear previous timer
       controller.startPolling({ chainIds: ['0x1'] });
 
-      await jest.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(100);
 
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Should not cause double polling
-      await jest.advanceTimersByTimeAsync(35000);
+      await vi.advanceTimersByTimeAsync(35000);
 
       expect(controller.state.tokenBalances).toBeDefined();
     });
 
     it('should handle immediate polling errors gracefully', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
       try {
         // This test verifies that errors in updateBalances are caught by the polling error handler
-        const consoleWarnSpy = jest
+        const consoleWarnSpy = vi
           .spyOn(console, 'warn')
           .mockImplementation(() => undefined);
 
@@ -6711,7 +6754,7 @@ describe('TokenBalancesController', () => {
 
         controller.startPolling({ chainIds: ['0x1'] });
 
-        await jest.advanceTimersByTimeAsync(100);
+        await vi.advanceTimersByTimeAsync(100);
 
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           expect.stringContaining('Polling failed'),
@@ -6720,15 +6763,15 @@ describe('TokenBalancesController', () => {
 
         consoleWarnSpy.mockRestore();
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
     it('should handle interval polling errors gracefully', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
       try {
         // This test verifies that errors in interval polling are caught and logged
-        const consoleWarnSpy = jest
+        const consoleWarnSpy = vi
           .spyOn(console, 'warn')
           .mockImplementation(() => undefined);
 
@@ -6761,7 +6804,7 @@ describe('TokenBalancesController', () => {
 
         controller.startPolling({ chainIds: ['0x1'] });
 
-        await jest.advanceTimersByTimeAsync(100);
+        await vi.advanceTimersByTimeAsync(100);
 
         // Now break the handler to cause errors on subsequent polls
         // Breaking AccountsController:getSelectedAccount causes error before #fetchAllBalances
@@ -6776,7 +6819,7 @@ describe('TokenBalancesController', () => {
         );
 
         // Wait for interval polling to trigger
-        await jest.advanceTimersByTimeAsync(1500);
+        await vi.advanceTimersByTimeAsync(1500);
 
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           expect.stringContaining('Polling failed'),
@@ -6785,7 +6828,7 @@ describe('TokenBalancesController', () => {
 
         consoleWarnSpy.mockRestore();
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
   });
@@ -6859,7 +6902,7 @@ describe('TokenBalancesController', () => {
       expect(controller.isActive).toBe(false);
 
       // Spy on RpcBalanceFetcher to verify it's not called
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(RpcBalanceFetcher.prototype, 'fetch')
         .mockResolvedValue({ balances: [], unprocessedChainIds: [] });
 
@@ -6905,7 +6948,7 @@ describe('TokenBalancesController', () => {
       expect(controller.isActive).toBe(true);
 
       // Spy on RpcBalanceFetcher to verify it IS called after unlock
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(RpcBalanceFetcher.prototype, 'fetch')
         .mockResolvedValue({ balances: [], unprocessedChainIds: [] });
 
@@ -6952,7 +6995,7 @@ describe('TokenBalancesController', () => {
       messenger.publish('KeyringController:lock');
       expect(controller.isActive).toBe(false);
 
-      const multicallSpy = jest
+      const multicallSpy = vi
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockResolvedValue({ tokenBalances: {} });
 
@@ -6970,13 +7013,13 @@ describe('TokenBalancesController', () => {
     });
 
     it('should log warning when immediate polling fails (line 603)', async () => {
-      const consoleWarnSpy = jest
+      const consoleWarnSpy = vi
         .spyOn(console, 'warn')
         .mockImplementation(() => {
           // Suppress console.warn
         });
 
-      const multicallSpy = jest
+      const multicallSpy = vi
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockRejectedValue(new Error('Immediate polling error'));
 
@@ -6997,9 +7040,9 @@ describe('TokenBalancesController', () => {
     });
 
     it('should clear timers during interval group polling restart (line 620 path)', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
 
-      const clearIntervalSpy = jest.spyOn(global, 'clearInterval');
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
 
       const { controller } = setupController();
 
@@ -7007,7 +7050,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Wait for initial poll
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
 
       // Start polling again - this goes through #startIntervalGroupPolling
       // which clears existing timers at line 564
@@ -7018,19 +7061,19 @@ describe('TokenBalancesController', () => {
 
       controller.stopAllPolling();
       clearIntervalSpy.mockRestore();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should log warning when interval polling fails (line 625)', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
 
-      const consoleWarnSpy = jest
+      const consoleWarnSpy = vi
         .spyOn(console, 'warn')
         .mockImplementation(() => {
           // Suppress console.warn
         });
 
-      const multicallSpy = jest
+      const multicallSpy = vi
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockRejectedValue(new Error('Interval polling error'));
 
@@ -7040,7 +7083,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Advance timer to trigger the interval callback
-      await jestAdvanceTime({ duration: 35000 });
+      await advanceTime({ duration: 35000 });
 
       // Wait for the promise to reject
       await flushPromises();
@@ -7051,7 +7094,7 @@ describe('TokenBalancesController', () => {
       controller.stopAllPolling();
       multicallSpy.mockRestore();
       consoleWarnSpy.mockRestore();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should filter balances by token addresses when provided (lines 904-906)', async () => {
@@ -7076,15 +7119,16 @@ describe('TokenBalancesController', () => {
 
       const { controller } = setupController({ tokens });
 
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [token1]: { [accountAddress]: new BN(100) },
-            [token2]: { [accountAddress]: new BN(200) },
-            [token3]: { [accountAddress]: new BN(300) },
-          },
-        });
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [token1]: { [accountAddress]: new BN(100) },
+          [token2]: { [accountAddress]: new BN(200) },
+          [token3]: { [accountAddress]: new BN(300) },
+        },
+      });
 
       // Update balances filtering to only token1 and token2
       await controller.updateBalances({
@@ -7124,14 +7168,15 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({ tokens });
 
       // Mock multicall to return both token balances
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({
-          tokenBalances: {
-            [token1]: { [accountAddress]: new BN(100) },
-            [token2]: { [accountAddress]: new BN(200) },
-          },
-        });
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({
+        tokenBalances: {
+          [token1]: { [accountAddress]: new BN(100) },
+          [token2]: { [accountAddress]: new BN(200) },
+        },
+      });
 
       await controller._executePoll({
         chainIds: [chainId],
@@ -7159,9 +7204,10 @@ describe('TokenBalancesController', () => {
         },
       });
 
-      jest
-        .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
-        .mockResolvedValue({ tokenBalances: {} });
+      vi.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      ).mockResolvedValue({ tokenBalances: {} });
 
       // Execute poll with no tokens - should not call addDetectedTokensViaWs
       await controller._executePoll({
@@ -7193,7 +7239,7 @@ describe('TokenBalancesController', () => {
         tokens: initialTokens,
       });
 
-      const multicallSpy = jest
+      const multicallSpy = vi
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockResolvedValue({ tokenBalances: {} });
 
@@ -7251,11 +7297,11 @@ describe('TokenBalancesController', () => {
     });
 
     it('should return early from poll function when controller is inactive (line 588)', async () => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+      vi.useFakeTimers();
 
       const { controller, messenger } = setupController();
 
-      const multicallSpy = jest
+      const multicallSpy = vi
         .spyOn(multicall, 'getTokenBalancesForMultipleAddresses')
         .mockResolvedValue({ tokenBalances: {} });
 
@@ -7263,25 +7309,25 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Wait for immediate poll
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
       const initialCallCount = multicallSpy.mock.calls.length;
 
       // Lock the controller (sets #isControllerPollingActive to false)
       messenger.publish('KeyringController:lock');
 
       // Advance time to trigger the interval poll
-      await jestAdvanceTime({ duration: 35000 });
+      await advanceTime({ duration: 35000 });
 
       // The poll function should have returned early without calling multicall
       expect(multicallSpy.mock.calls).toHaveLength(initialCallCount);
 
       controller.stopAllPolling();
       multicallSpy.mockRestore();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('should log warning when poll execution fails (line 603)', async () => {
-      const consoleWarnSpy = jest
+      const consoleWarnSpy = vi
         .spyOn(console, 'warn')
         .mockImplementation(() => {
           // Suppress console output
@@ -7290,9 +7336,9 @@ describe('TokenBalancesController', () => {
       // Mock _executePoll to throw an error
       const { controller } = setupController();
 
-      jest
-        .spyOn(controller, '_executePoll')
-        .mockRejectedValue(new Error('Poll execution failed'));
+      vi.spyOn(controller, '_executePoll').mockRejectedValue(
+        new Error('Poll execution failed'),
+      );
 
       // Start polling - the poll function catches errors and logs them
       controller.startPolling({ chainIds: ['0x1'] });
@@ -7330,13 +7376,13 @@ describe('TokenBalancesController', () => {
       });
 
       // Spy on messenger.call to verify detectTokens is called
-      const messengerCallSpy = jest.spyOn(
+      const messengerCallSpy = vi.spyOn(
         tokenBalancesControllerMessenger,
         'call',
       );
 
       // Mock RpcBalanceFetcher to return unprocessedChainIds
-      jest.spyOn(RpcBalanceFetcher.prototype, 'fetch').mockResolvedValue({
+      vi.spyOn(RpcBalanceFetcher.prototype, 'fetch').mockResolvedValue({
         balances: [
           {
             success: true,
@@ -7387,7 +7433,7 @@ describe('TokenBalancesController', () => {
         address: accountAddress,
       });
 
-      const apiFetchSpy = jest
+      const apiFetchSpy = vi
         .spyOn(AccountsApiBalanceFetcher.prototype, 'fetch')
         .mockResolvedValue({
           balances: [
@@ -7414,7 +7460,7 @@ describe('TokenBalancesController', () => {
         },
       });
 
-      const rpcFetchSpy = jest
+      const rpcFetchSpy = vi
         .spyOn(RpcBalanceFetcher.prototype, 'fetch')
         .mockResolvedValue({
           balances: [
@@ -7477,21 +7523,21 @@ describe('TokenBalancesController', () => {
       });
 
       // Spy on messenger.call to verify detectTokens is called
-      const messengerCallSpy = jest.spyOn(
+      const messengerCallSpy = vi.spyOn(
         tokenBalancesControllerMessenger,
         'call',
       );
 
-      const consoleWarnSpy = jest
+      const consoleWarnSpy = vi
         .spyOn(console, 'warn')
         .mockImplementation(() => {
           // Suppress console output
         });
 
       // Mock RpcBalanceFetcher to throw an error
-      jest
-        .spyOn(RpcBalanceFetcher.prototype, 'fetch')
-        .mockRejectedValue(new Error('Fetcher error'));
+      vi.spyOn(RpcBalanceFetcher.prototype, 'fetch').mockRejectedValue(
+        new Error('Fetcher error'),
+      );
 
       await controller.updateBalances({
         chainIds: [chainId],
@@ -7538,7 +7584,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({ tokens });
 
       // Mock RpcBalanceFetcher to return mixed success/failure
-      jest.spyOn(RpcBalanceFetcher.prototype, 'fetch').mockResolvedValue({
+      vi.spyOn(RpcBalanceFetcher.prototype, 'fetch').mockResolvedValue({
         balances: [
           {
             success: true,
@@ -7598,7 +7644,7 @@ describe('TokenBalancesController', () => {
       const { controller } = setupController({ tokens });
 
       // Mock RpcBalanceFetcher to return one with undefined value
-      jest.spyOn(RpcBalanceFetcher.prototype, 'fetch').mockResolvedValue({
+      vi.spyOn(RpcBalanceFetcher.prototype, 'fetch').mockResolvedValue({
         balances: [
           {
             success: true,

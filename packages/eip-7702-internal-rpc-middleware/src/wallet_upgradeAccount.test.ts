@@ -1,5 +1,7 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { UpgradeAccountParams } from './types.js';
 import { walletUpgradeAccount } from './wallet_upgradeAccount.js';
@@ -8,17 +10,17 @@ const TEST_ACCOUNT = '0x1234567890123456789012345678901234567890';
 const UPGRADE_CONTRACT = '0x0000000000000000000000000000000000000000';
 
 const createTestHooks = (): {
-  upgradeAccount: jest.Mock;
-  getCurrentChainIdForDomain: jest.Mock;
-  isEip7702Supported: jest.Mock;
-  getPermittedAccountsForOrigin: jest.Mock;
+  upgradeAccount: Mock;
+  getCurrentChainIdForDomain: Mock;
+  isEip7702Supported: Mock;
+  getPermittedAccountsForOrigin: Mock;
 } => {
-  const upgradeAccount = jest.fn();
-  const getCurrentChainIdForDomain = jest.fn().mockReturnValue('0x1');
-  const getPermittedAccountsForOrigin = jest
+  const upgradeAccount = vi.fn();
+  const getCurrentChainIdForDomain = vi.fn().mockReturnValue('0x1');
+  const getPermittedAccountsForOrigin = vi
     .fn()
     .mockResolvedValue([TEST_ACCOUNT]);
-  const isEip7702Supported = jest
+  const isEip7702Supported = vi
     .fn()
     .mockImplementation(
       async ({ chainId }: { address: string; chainId: string }) => {
@@ -60,7 +62,7 @@ const createTestResponse = (): PendingJsonRpcResponse => ({
 
 describe('walletUpgradeAccount', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('successfully upgrades account with current chain ID', async () => {

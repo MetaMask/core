@@ -1,5 +1,4 @@
-import type { ResolveHook } from 'module';
-import type { ResolveFnOutput } from 'node:module';
+import type { ResolveFnOutput, ResolveHookSync } from 'node:module';
 
 /**
  * A mapping of package names to their source file paths. This is used t
@@ -26,17 +25,14 @@ const PACKAGE_SOURCE_OVERRIDES: Record<string, string> = {
  * @param nextResolve - The next resolver hook function to call.
  * @returns The result of the resolution.
  */
-export const resolve: ResolveHook = async (
+export const resolve: ResolveHookSync = (
   specifier,
   context,
   nextResolve,
-): Promise<ResolveFnOutput> => {
+): ResolveFnOutput => {
   const sourceOverride = PACKAGE_SOURCE_OVERRIDES[specifier];
   if (sourceOverride) {
-    return await nextResolve(
-      new URL(sourceOverride, import.meta.url).href,
-      context,
-    );
+    return nextResolve(new URL(sourceOverride, import.meta.url).href, context);
   }
 
   if (
@@ -45,20 +41,21 @@ export const resolve: ResolveHook = async (
   ) {
     const tsSpecifier = `${specifier.slice(0, -3)}.ts`;
     try {
-      return await nextResolve(tsSpecifier, context);
+      return nextResolve(tsSpecifier, context);
     } catch (error: unknown) {
       if (
         typeof error === 'object' &&
         error !== null &&
         'code' in error &&
-        error.code === 'ERR_MODULE_NOT_FOUND'
+        (error.code === 'ERR_MODULE_NOT_FOUND' ||
+          error.code === 'MODULE_NOT_FOUND')
       ) {
-        return await nextResolve(specifier, context);
+        return nextResolve(specifier, context);
       }
 
       throw error;
     }
   }
 
-  return await nextResolve(specifier, context);
+  return nextResolve(specifier, context);
 };

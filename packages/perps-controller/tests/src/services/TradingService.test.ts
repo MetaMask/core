@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
+
 import { PERPS_EVENT_VALUE } from '../../../src/constants/eventNames.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { ServiceContext } from '../../../src/services/ServiceContext.js';
@@ -28,21 +31,21 @@ import {
   createMockInfrastructure,
 } from '../../helpers/serviceMocks.js';
 
-jest.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
+vi.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
 
 describe('TradingService', () => {
-  let mockProvider: jest.Mocked<PerpsProvider>;
+  let mockProvider: Mocked<PerpsProvider>;
   let mockContext: ServiceContext;
-  let mockDeps: jest.Mocked<PerpsPlatformDependencies>;
+  let mockDeps: Mocked<PerpsPlatformDependencies>;
   let tradingService: TradingService;
-  let mockReportOrderToDataLake: jest.Mock;
-  let mockWithStreamPause: jest.Mock;
-  let mockGetPositions: jest.Mock;
-  let mockGetOpenOrders: jest.Mock;
-  let mockSaveTradeConfiguration: jest.Mock;
+  let mockReportOrderToDataLake: Mock;
+  let mockWithStreamPause: Mock;
+  let mockGetPositions: Mock;
+  let mockGetOpenOrders: Mock;
+  let mockSaveTradeConfiguration: Mock;
   let mockRewardsIntegrationService: {
-    calculateUserFeeDiscount: jest.Mock;
-    resolveFee: jest.Mock;
+    calculateUserFeeDiscount: Mock;
+    resolveFee: Mock;
   };
 
   const defaultFeeResolution: PerpsFeeResolution = {
@@ -60,8 +63,8 @@ describe('TradingService', () => {
     createMockServiceContext({
       errorContext: { controller: 'TradingService', method: 'test' },
       stateManager: {
-        update: jest.fn(),
-        getState: jest.fn(() => createMockPerpsControllerState()),
+        update: vi.fn(),
+        getState: vi.fn(() => createMockPerpsControllerState()),
       },
     });
 
@@ -69,8 +72,8 @@ describe('TradingService', () => {
     mockDeps = createMockInfrastructure();
     tradingService = new TradingService(mockDeps);
     mockRewardsIntegrationService = {
-      calculateUserFeeDiscount: jest.fn().mockResolvedValue(undefined),
-      resolveFee: jest.fn(async () => {
+      calculateUserFeeDiscount: vi.fn().mockResolvedValue(undefined),
+      resolveFee: vi.fn(async () => {
         const discountBips =
           await mockRewardsIntegrationService.calculateUserFeeDiscount();
         return discountBips === undefined
@@ -87,26 +90,26 @@ describe('TradingService', () => {
       rewardsIntegrationService: mockRewardsIntegrationService as never,
     });
     mockProvider =
-      createMockHyperLiquidProvider() as unknown as jest.Mocked<PerpsProvider>;
-    mockSaveTradeConfiguration = jest.fn();
+      createMockHyperLiquidProvider() as unknown as Mocked<PerpsProvider>;
+    mockSaveTradeConfiguration = vi.fn();
     mockContext = createMockServiceContext({
       errorContext: { controller: 'TradingService', method: 'test' },
       stateManager: {
-        update: jest.fn(),
-        getState: jest.fn(() => createMockPerpsControllerState()),
+        update: vi.fn(),
+        getState: vi.fn(() => createMockPerpsControllerState()),
       },
       saveTradeConfiguration: mockSaveTradeConfiguration,
     });
-    mockReportOrderToDataLake = jest.fn().mockResolvedValue(undefined);
-    mockWithStreamPause = jest.fn(async (callback) => await callback());
-    mockGetPositions = jest.fn().mockResolvedValue([]);
-    mockGetOpenOrders = jest.fn().mockResolvedValue([]);
+    mockReportOrderToDataLake = vi.fn().mockResolvedValue(undefined);
+    mockWithStreamPause = vi.fn(async (callback) => await callback());
+    mockGetPositions = vi.fn().mockResolvedValue([]);
+    mockGetOpenOrders = vi.fn().mockResolvedValue([]);
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('placeOrder', () => {
@@ -166,9 +169,9 @@ describe('TradingService', () => {
       const aggregatedProvider = {
         ...mockProvider,
         protocolId: 'aggregated',
-        getWriteProviderId: jest.fn(() => 'hyperliquid' as const),
-        setUserFeeResolution: jest.fn(),
-      } as unknown as jest.Mocked<PerpsProvider>;
+        getWriteProviderId: vi.fn(() => 'hyperliquid' as const),
+        setUserFeeResolution: vi.fn(),
+      } as unknown as Mocked<PerpsProvider>;
       mockRewardsIntegrationService.resolveFee.mockResolvedValue(resolution);
       aggregatedProvider.placeOrder.mockImplementation(async () => {
         expect(
@@ -201,7 +204,7 @@ describe('TradingService', () => {
     });
 
     it('preserves the subscription source through order construction', async () => {
-      mockProvider.setUserFeeResolution = jest.fn();
+      mockProvider.setUserFeeResolution = vi.fn();
       const subscriptionResolution: PerpsFeeResolution = {
         feeBips: 0,
         discountBips: 10000,
@@ -319,7 +322,7 @@ describe('TradingService', () => {
           };
         },
       );
-      mockProvider.setUserFeeResolution = jest.fn();
+      mockProvider.setUserFeeResolution = vi.fn();
       mockProvider.placeOrder.mockResolvedValue({ success: true });
 
       await tradingService.placeOrder({
@@ -490,7 +493,7 @@ describe('TradingService', () => {
         .mockResolvedValueOnce(rewardsResolution);
 
       let activeResolution: PerpsFeeResolution | undefined;
-      mockProvider.setUserFeeResolution = jest.fn((resolution) => {
+      mockProvider.setUserFeeResolution = vi.fn((resolution) => {
         activeResolution = resolution;
       });
       let releaseFirst: () => void = () => undefined;
@@ -546,9 +549,9 @@ describe('TradingService', () => {
     });
 
     it('resolves a queued order fee only after an earlier order releases the fee context', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const now = new Date('2026-10-21T12:00:00.000Z');
-      jest.setSystemTime(now);
+      vi.setSystemTime(now);
       const grantExpiresAt = now.getTime() + 1_000;
       const defaultResolution = defaultFeeResolution;
       const grantResolution: PerpsFeeResolution = {
@@ -570,7 +573,7 @@ describe('TradingService', () => {
         );
 
       let activeResolution: PerpsFeeResolution | undefined;
-      mockProvider.setUserFeeResolution = jest.fn((resolution) => {
+      mockProvider.setUserFeeResolution = vi.fn((resolution) => {
         activeResolution = resolution;
       });
       const releaseFirst = createDeferred<void>();
@@ -611,7 +614,7 @@ describe('TradingService', () => {
           reportOrderToDataLake: mockReportOrderToDataLake,
         });
 
-        jest.setSystemTime(grantExpiresAt);
+        vi.setSystemTime(grantExpiresAt);
         releaseFirst.resolve();
         await Promise.all([first, second]);
 
@@ -620,7 +623,7 @@ describe('TradingService', () => {
         );
         expect(observed).toStrictEqual([defaultResolution, rewardsResolution]);
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -852,9 +855,8 @@ describe('TradingService', () => {
       });
 
       const tradeCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock<
-          void,
-          [PerpsAnalyticsEvent, Record<string, unknown>]
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
         >
       ).mock.calls.filter(
         (call) => call[0] === PerpsAnalyticsEvent.TradeTransaction,
@@ -897,9 +899,8 @@ describe('TradingService', () => {
       });
 
       const tradeCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock<
-          void,
-          [PerpsAnalyticsEvent, Record<string, unknown>]
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
         >
       ).mock.calls.filter(
         (call) => call[0] === PerpsAnalyticsEvent.TradeTransaction,
@@ -1664,9 +1665,8 @@ describe('TradingService', () => {
       });
 
       const tradeCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock<
-          void,
-          [PerpsAnalyticsEvent, Record<string, unknown>]
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
         >
       ).mock.calls.filter(
         (call) => call[0] === PerpsAnalyticsEvent.TradeTransaction,
@@ -1716,9 +1716,8 @@ describe('TradingService', () => {
       });
 
       const tradeCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock<
-          void,
-          [PerpsAnalyticsEvent, Record<string, unknown>]
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
         >
       ).mock.calls.filter(
         (call) => call[0] === PerpsAnalyticsEvent.TradeTransaction,
@@ -1760,9 +1759,8 @@ describe('TradingService', () => {
       });
 
       const tradeCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock<
-          void,
-          [PerpsAnalyticsEvent, Record<string, unknown>]
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
         >
       ).mock.calls.filter(
         (call) => call[0] === PerpsAnalyticsEvent.TradeTransaction,
@@ -1805,9 +1803,8 @@ describe('TradingService', () => {
       ).rejects.toThrow('Edit failed');
 
       const tradeCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock<
-          void,
-          [PerpsAnalyticsEvent, Record<string, unknown>]
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
         >
       ).mock.calls.filter(
         (call) => call[0] === PerpsAnalyticsEvent.TradeTransaction,
@@ -2157,7 +2154,7 @@ describe('TradingService', () => {
       };
 
       mockGetOpenOrders.mockResolvedValue(mockOrders);
-      (mockProvider.cancelOrders as jest.Mock).mockResolvedValue({
+      (mockProvider.cancelOrders as Mock).mockResolvedValue({
         success: true,
         results: [{ success: true, orderId: 'order-1' }],
       });
@@ -2181,7 +2178,7 @@ describe('TradingService', () => {
       };
 
       mockGetOpenOrders.mockResolvedValue(mockOrders);
-      (mockProvider.cancelOrders as jest.Mock).mockResolvedValue({
+      (mockProvider.cancelOrders as Mock).mockResolvedValue({
         success: true,
         results: [
           { success: true, orderId: 'order-2' },
@@ -2206,7 +2203,7 @@ describe('TradingService', () => {
       };
 
       mockGetOpenOrders.mockResolvedValue(mockOrders);
-      (mockProvider.cancelOrders as jest.Mock).mockResolvedValue({
+      (mockProvider.cancelOrders as Mock).mockResolvedValue({
         success: true,
         results: [{ success: true, orderId: 'order-1' }],
       });
@@ -2250,7 +2247,7 @@ describe('TradingService', () => {
       };
 
       mockGetOpenOrders.mockResolvedValue(mockOrders);
-      (mockProvider.cancelOrders as jest.Mock).mockResolvedValue({
+      (mockProvider.cancelOrders as Mock).mockResolvedValue({
         success: false,
         results: [
           { success: true, orderId: 'order-1' },
@@ -2275,7 +2272,7 @@ describe('TradingService', () => {
       };
 
       mockGetOpenOrders.mockResolvedValue(mockOrders);
-      (mockProvider.cancelOrders as jest.Mock).mockResolvedValue({
+      (mockProvider.cancelOrders as Mock).mockResolvedValue({
         success: true,
         results: [{ success: true, orderId: 'order-1' }],
       });
@@ -2299,7 +2296,7 @@ describe('TradingService', () => {
       mockWithStreamPause.mockImplementation(
         async (callback) => await callback(),
       );
-      (mockProvider.cancelOrders as jest.Mock).mockRejectedValue(
+      (mockProvider.cancelOrders as Mock).mockRejectedValue(
         new Error('Cancel failed'),
       );
 
@@ -2341,7 +2338,7 @@ describe('TradingService', () => {
       mockWithStreamPause.mockImplementation(
         async (callback) => await callback(),
       );
-      (mockProvider.cancelOrders as jest.Mock).mockResolvedValue({
+      (mockProvider.cancelOrders as Mock).mockResolvedValue({
         success: false,
         successCount: 0,
         failureCount: 2,
@@ -2369,7 +2366,7 @@ describe('TradingService', () => {
       });
 
       expect(result.success).toBe(false);
-      expect((mockDeps.logger.error as jest.Mock).mock.calls).toStrictEqual([
+      expect((mockDeps.logger.error as Mock).mock.calls).toStrictEqual([
         [
           new Error(
             'cancelOrders batch failure: 2/2 failed (2 reported) - BTC/order-1: rate limit; ETH/order-2: not found',
@@ -2399,7 +2396,7 @@ describe('TradingService', () => {
       mockWithStreamPause.mockImplementation(
         async (callback) => await callback(),
       );
-      (mockProvider.cancelOrders as jest.Mock).mockResolvedValue({
+      (mockProvider.cancelOrders as Mock).mockResolvedValue({
         success: false,
         successCount: 0,
         failureCount: 2,
@@ -2453,7 +2450,7 @@ describe('TradingService', () => {
       mockWithStreamPause.mockImplementation(
         async (callback) => await callback(),
       );
-      (mockProvider.cancelOrders as jest.Mock).mockResolvedValue({
+      (mockProvider.cancelOrders as Mock).mockResolvedValue({
         success: false,
         successCount: 0,
         failureCount: 2,
@@ -2480,7 +2477,7 @@ describe('TradingService', () => {
         withStreamPause: mockWithStreamPause,
       });
 
-      expect((mockDeps.logger.error as jest.Mock).mock.calls).toStrictEqual([
+      expect((mockDeps.logger.error as Mock).mock.calls).toStrictEqual([
         [
           new Error(
             'cancelOrders batch failure: 2/2 failed (1 reported) - ETH/order-2: rate limit',
@@ -2522,10 +2519,8 @@ describe('TradingService', () => {
       });
 
       // Batch-level log must not fire; individual leaf logs cover per-order failures
-      const batchErrorCalls = (
-        mockDeps.logger.error as jest.Mock
-      ).mock.calls.filter(
-        ([err]: [Error]) =>
+      const batchErrorCalls = (mockDeps.logger.error as Mock).mock.calls.filter(
+        ([err]: Error[]) =>
           err instanceof Error &&
           err.message.includes('cancelOrders batch failure'),
       );
@@ -2597,7 +2592,7 @@ describe('TradingService', () => {
         { ...mockPosition, positionValue: '99000', providerId: 'lighter' },
         { ...mockPosition, positionValue: '25000', providerId: 'hyperliquid' },
       ]);
-      mockProvider.getWriteProviderId = jest.fn(
+      mockProvider.getWriteProviderId = vi.fn(
         (providerId?: string) => providerId ?? 'hyperliquid',
       ) as never;
       mockProvider.closePosition.mockResolvedValue({ success: true });
@@ -2918,8 +2913,8 @@ describe('TradingService', () => {
       // and shrinks the waiver for positions this call never touches.
       const batchProvider = {
         ...mockProvider,
-        getWriteProviderId: jest.fn(() => 'hyperliquid'),
-        getPositions: jest.fn().mockResolvedValue([
+        getWriteProviderId: vi.fn(() => 'hyperliquid'),
+        getPositions: vi.fn().mockResolvedValue([
           {
             symbol: 'BTC',
             size: '0.5',
@@ -2933,13 +2928,13 @@ describe('TradingService', () => {
             providerId: 'lighter',
           },
         ]),
-        closePositions: jest.fn().mockResolvedValue({
+        closePositions: vi.fn().mockResolvedValue({
           success: true,
           successCount: 1,
           failureCount: 0,
           results: [],
         }),
-      } as unknown as jest.Mocked<PerpsProvider>;
+      } as unknown as Mocked<PerpsProvider>;
 
       await tradingService.closePositions({
         provider: batchProvider,
@@ -2960,8 +2955,8 @@ describe('TradingService', () => {
       // actually closes $10,000 — over-granting the waiver.
       const batchProvider = {
         ...mockProvider,
-        getWriteProviderId: jest.fn(() => 'hyperliquid'),
-        getPositions: jest.fn().mockResolvedValue([
+        getWriteProviderId: vi.fn(() => 'hyperliquid'),
+        getPositions: vi.fn().mockResolvedValue([
           {
             symbol: 'BTC',
             size: '0.02',
@@ -2975,13 +2970,13 @@ describe('TradingService', () => {
             providerId: 'hyperliquid',
           },
         ]),
-        closePositions: jest.fn().mockResolvedValue({
+        closePositions: vi.fn().mockResolvedValue({
           success: true,
           successCount: 2,
           failureCount: 0,
           results: [],
         }),
-      } as unknown as jest.Mocked<PerpsProvider>;
+      } as unknown as Mocked<PerpsProvider>;
 
       await tradingService.closePositions({
         provider: batchProvider,
@@ -2998,8 +2993,8 @@ describe('TradingService', () => {
     it('prices a batch close from the named symbols when closeAll is not set', async () => {
       const batchProvider = {
         ...mockProvider,
-        getWriteProviderId: jest.fn(() => 'hyperliquid'),
-        getPositions: jest.fn().mockResolvedValue([
+        getWriteProviderId: vi.fn(() => 'hyperliquid'),
+        getPositions: vi.fn().mockResolvedValue([
           {
             symbol: 'BTC',
             size: '0.02',
@@ -3013,13 +3008,13 @@ describe('TradingService', () => {
             providerId: 'hyperliquid',
           },
         ]),
-        closePositions: jest.fn().mockResolvedValue({
+        closePositions: vi.fn().mockResolvedValue({
           success: true,
           successCount: 1,
           failureCount: 0,
           results: [],
         }),
-      } as unknown as jest.Mocked<PerpsProvider>;
+      } as unknown as Mocked<PerpsProvider>;
 
       await tradingService.closePositions({
         provider: batchProvider,
@@ -3072,7 +3067,7 @@ describe('TradingService', () => {
       };
 
       mockGetPositions.mockResolvedValue(mockPositions);
-      (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+      (mockProvider.closePositions as Mock).mockResolvedValue({
         success: true,
         results: [
           { success: true, orderId: 'close-1', symbol: 'BTC' },
@@ -3099,7 +3094,7 @@ describe('TradingService', () => {
       };
 
       mockGetPositions.mockResolvedValue(mockPositions);
-      (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+      (mockProvider.closePositions as Mock).mockResolvedValue({
         success: true,
         results: [{ success: true, orderId: 'close-1', symbol: 'BTC' }],
       });
@@ -3123,7 +3118,7 @@ describe('TradingService', () => {
       };
 
       mockGetPositions.mockResolvedValue(mockPositions);
-      (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+      (mockProvider.closePositions as Mock).mockResolvedValue({
         success: false,
         successCount: 0,
         failureCount: 0,
@@ -3146,7 +3141,7 @@ describe('TradingService', () => {
       };
 
       mockGetPositions.mockResolvedValue(mockPositions);
-      (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+      (mockProvider.closePositions as Mock).mockResolvedValue({
         success: false,
         results: [
           { success: true, orderId: 'close-1', symbol: 'BTC' },
@@ -3194,7 +3189,7 @@ describe('TradingService', () => {
 
     it('logs batch error when provider.closePositions returns partial/full failure', async () => {
       const params: ClosePositionsParams = { closeAll: true };
-      (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+      (mockProvider.closePositions as Mock).mockResolvedValue({
         success: false,
         successCount: 0,
         failureCount: 2,
@@ -3214,7 +3209,7 @@ describe('TradingService', () => {
       });
 
       expect(result.success).toBe(false);
-      expect((mockDeps.logger.error as jest.Mock).mock.calls).toStrictEqual([
+      expect((mockDeps.logger.error as Mock).mock.calls).toStrictEqual([
         [
           new Error(
             'closePositions batch failure: 2/2 failed (2 reported) - BTC: insufficient liquidity; ETH: min size',
@@ -3241,7 +3236,7 @@ describe('TradingService', () => {
     });
 
     it('does not log a batch close that failed only because the signer could not sign', async () => {
-      (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+      (mockProvider.closePositions as Mock).mockResolvedValue({
         success: false,
         successCount: 0,
         failureCount: 1,
@@ -3279,7 +3274,7 @@ describe('TradingService', () => {
     });
 
     it('counts and lists only the reported failures of a batch close', async () => {
-      (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+      (mockProvider.closePositions as Mock).mockResolvedValue({
         success: false,
         successCount: 0,
         failureCount: 2,
@@ -3302,7 +3297,7 @@ describe('TradingService', () => {
         context: { ...mockContext, getPositions: mockGetPositions },
       });
 
-      expect((mockDeps.logger.error as jest.Mock).mock.calls).toStrictEqual([
+      expect((mockDeps.logger.error as Mock).mock.calls).toStrictEqual([
         [
           new Error(
             'closePositions batch failure: 2/2 failed (1 reported) - ETH: min size',
@@ -3347,10 +3342,8 @@ describe('TradingService', () => {
       });
 
       // Batch-level log must not fire; individual leaf logs cover per-position failures
-      const batchErrorCalls = (
-        mockDeps.logger.error as jest.Mock
-      ).mock.calls.filter(
-        ([err]: [Error]) =>
+      const batchErrorCalls = (mockDeps.logger.error as Mock).mock.calls.filter(
+        ([err]: Error[]) =>
           err instanceof Error &&
           err.message.includes('closePositions batch failure'),
       );
@@ -3695,9 +3688,8 @@ describe('TradingService', () => {
       });
 
       const riskCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock<
-          void,
-          [PerpsAnalyticsEvent, Record<string, unknown>]
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
         >
       ).mock.calls.filter(
         (call) => call[0] === PerpsAnalyticsEvent.RiskManagement,
@@ -3733,9 +3725,8 @@ describe('TradingService', () => {
       });
 
       const riskCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock<
-          void,
-          [PerpsAnalyticsEvent, Record<string, unknown>]
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
         >
       ).mock.calls.filter(
         (call) => call[0] === PerpsAnalyticsEvent.RiskManagement,
@@ -3820,7 +3811,7 @@ describe('TradingService', () => {
   describe('updateMargin', () => {
     it('updates margin successfully when adding margin', async () => {
       const mockResult = { success: true };
-      mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
+      mockProvider.updateMargin = vi.fn().mockResolvedValue(mockResult);
 
       const result = await tradingService.updateMargin({
         provider: mockProvider,
@@ -3838,7 +3829,7 @@ describe('TradingService', () => {
 
     it('updates margin successfully when removing margin', async () => {
       const mockResult = { success: true };
-      mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
+      mockProvider.updateMargin = vi.fn().mockResolvedValue(mockResult);
 
       const result = await tradingService.updateMargin({
         provider: mockProvider,
@@ -3869,7 +3860,7 @@ describe('TradingService', () => {
 
     it('returns error when margin update fails', async () => {
       const mockResult = { success: false, error: 'Insufficient balance' };
-      mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
+      mockProvider.updateMargin = vi.fn().mockResolvedValue(mockResult);
 
       const result = await tradingService.updateMargin({
         provider: mockProvider,
@@ -3884,7 +3875,7 @@ describe('TradingService', () => {
 
     it('tracks analytics on success', async () => {
       const mockResult = { success: true };
-      mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
+      mockProvider.updateMargin = vi.fn().mockResolvedValue(mockResult);
 
       await tradingService.updateMargin({
         provider: mockProvider,
@@ -3902,7 +3893,7 @@ describe('TradingService', () => {
     });
 
     it('tracks analytics on failure with error message', async () => {
-      mockProvider.updateMargin = jest
+      mockProvider.updateMargin = vi
         .fn()
         .mockRejectedValue(new Error('Network error'));
 
@@ -3925,7 +3916,7 @@ describe('TradingService', () => {
 
     it('emits a failed Risk Management event on a non-throwing { success: false } result', async () => {
       const mockResult = { success: false, error: 'Insufficient balance' };
-      mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
+      mockProvider.updateMargin = vi.fn().mockResolvedValue(mockResult);
 
       const result = await tradingService.updateMargin({
         provider: mockProvider,
@@ -3937,7 +3928,7 @@ describe('TradingService', () => {
       expect(result.success).toBe(false);
 
       const riskCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock
+        mockDeps.metrics.trackPerpsEvent as Mock
       ).mock.calls.filter(
         ([event]) => event === PerpsAnalyticsEvent.RiskManagement,
       );
@@ -3955,7 +3946,7 @@ describe('TradingService', () => {
     });
 
     it('emits the failed Risk Management event exactly once on a thrown error', async () => {
-      mockProvider.updateMargin = jest
+      mockProvider.updateMargin = vi
         .fn()
         .mockRejectedValue(new Error('Network error'));
 
@@ -3969,7 +3960,7 @@ describe('TradingService', () => {
       ).rejects.toThrow('Network error');
 
       const riskCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock
+        mockDeps.metrics.trackPerpsEvent as Mock
       ).mock.calls.filter(
         ([event]) => event === PerpsAnalyticsEvent.RiskManagement,
       );
@@ -3981,7 +3972,7 @@ describe('TradingService', () => {
 
     it('emits the Risk Management event exactly once on success', async () => {
       const mockResult = { success: true };
-      mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
+      mockProvider.updateMargin = vi.fn().mockResolvedValue(mockResult);
 
       await tradingService.updateMargin({
         provider: mockProvider,
@@ -3991,7 +3982,7 @@ describe('TradingService', () => {
       });
 
       const riskCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock
+        mockDeps.metrics.trackPerpsEvent as Mock
       ).mock.calls.filter(
         ([event]) => event === PerpsAnalyticsEvent.RiskManagement,
       );
@@ -4003,7 +3994,7 @@ describe('TradingService', () => {
 
     it('updates state on success', async () => {
       const mockResult = { success: true };
-      mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
+      mockProvider.updateMargin = vi.fn().mockResolvedValue(mockResult);
 
       await tradingService.updateMargin({
         provider: mockProvider,
@@ -4017,7 +4008,7 @@ describe('TradingService', () => {
 
     it('creates trace for margin update', async () => {
       const mockResult = { success: true };
-      mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
+      mockProvider.updateMargin = vi.fn().mockResolvedValue(mockResult);
 
       await tradingService.updateMargin({
         provider: mockProvider,
@@ -4060,7 +4051,7 @@ describe('TradingService', () => {
         source: 'subscription',
         subscription: { eligible: true, reason: 'eligible' },
       };
-      mockProvider.setUserFeeResolution = jest.fn();
+      mockProvider.setUserFeeResolution = vi.fn();
       mockRewardsIntegrationService.resolveFee.mockResolvedValue(resolution);
       mockProvider.placeOrder.mockResolvedValue({ success: true });
 
@@ -4359,7 +4350,7 @@ describe('TradingService', () => {
       // Aggregated writes fall back to the default provider when placeOrder
       // omits providerId. The grant is already scoped to the position venue,
       // so a non-default flip must carry that same route.
-      mockProvider.getWriteProviderId = jest.fn(
+      mockProvider.getWriteProviderId = vi.fn(
         (providerId?: string) => providerId ?? 'hyperliquid',
       ) as never;
       mockProvider.placeOrder.mockResolvedValue({ success: true });
@@ -4406,7 +4397,7 @@ describe('TradingService', () => {
     };
 
     const findCall = (event: PerpsAnalyticsEvent, status: string) =>
-      (mockDeps.metrics.trackPerpsEvent as jest.Mock).mock.calls.find(
+      (mockDeps.metrics.trackPerpsEvent as Mock).mock.calls.find(
         ([calledEvent, props]) =>
           calledEvent === event && props.status === status,
       );
@@ -5051,7 +5042,7 @@ describe('TradingService', () => {
         ).toBeUndefined();
         // No emitted trade event carries a NaN size property.
         const tradeCalls = (
-          mockDeps.metrics.trackPerpsEvent as jest.Mock
+          mockDeps.metrics.trackPerpsEvent as Mock
         ).mock.calls.filter(
           ([event]) => event === PerpsAnalyticsEvent.TradeTransaction,
         );
@@ -5096,7 +5087,7 @@ describe('TradingService', () => {
     describe('number_positions_closed on batch close', () => {
       it('carries the successful-close count on the batch close summary event', async () => {
         mockGetPositions.mockResolvedValue([mockClosePosition]);
-        (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+        (mockProvider.closePositions as Mock).mockResolvedValue({
           success: true,
           successCount: 2,
           failureCount: 1,
@@ -5144,10 +5135,96 @@ describe('TradingService', () => {
       });
     });
 
+    describe('order_type on batch close', () => {
+      const closeEventOrderTypes = (): unknown[] =>
+        vi
+          .mocked(mockDeps.metrics.trackPerpsEvent)
+          .mock.calls.filter(
+            ([event]) => event === PerpsAnalyticsEvent.PositionCloseTransaction,
+          )
+          .map(([, props]) => props.order_type);
+
+      it('tags the batch close summary event as a market close', async () => {
+        mockProvider.closePositions = vi.fn().mockResolvedValue({
+          success: true,
+          successCount: 1,
+          failureCount: 0,
+          results: [{ success: true, orderId: 'close-1', symbol: 'BTC' }],
+        });
+
+        await tradingService.closePositions({
+          provider: mockProvider,
+          params: { closeAll: true },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        expect(
+          findCall(
+            PerpsAnalyticsEvent.PositionCloseTransaction,
+            'executed',
+          )?.[1],
+        ).toStrictEqual(
+          expect.objectContaining({
+            order_type: 'market',
+            number_positions_closed: 1,
+          }),
+        );
+        expect(closeEventOrderTypes()).toStrictEqual(['market']);
+      });
+
+      it('tags the summary event as a market close when the batch close throws', async () => {
+        mockProvider.closePositions = vi
+          .fn()
+          .mockRejectedValue(new Error('Network error'));
+
+        await expect(
+          tradingService.closePositions({
+            provider: mockProvider,
+            params: { symbols: ['BTC'] },
+            context: { ...mockContext, getPositions: mockGetPositions },
+          }),
+        ).rejects.toThrow('Network error');
+
+        expect(
+          findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'failed')?.[1],
+        ).toStrictEqual(
+          expect.objectContaining({
+            order_type: 'market',
+            error_message: 'Network error',
+          }),
+        );
+        expect(closeEventOrderTypes()).toStrictEqual(['market']);
+      });
+
+      it('tags every per-item and summary event as a market close in the fallback path', async () => {
+        delete mockProvider.closePositions;
+        mockGetPositions.mockResolvedValue([mockClosePosition]);
+        mockProvider.closePosition.mockResolvedValue({
+          success: true,
+          orderId: 'close-1',
+          filledSize: '0.5',
+          averagePrice: '55000',
+        });
+
+        await tradingService.closePositions({
+          provider: mockProvider,
+          params: { closeAll: true },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        // Per-item submitted and executed, then the batch summary.
+        expect(closeEventOrderTypes()).toStrictEqual([
+          'market',
+          'market',
+          'market',
+        ]);
+      });
+    });
+
     describe('bulk_action_id on batch close/cancel', () => {
       it('attaches bulk_action_id to the batch close summary event', async () => {
         mockGetPositions.mockResolvedValue([mockClosePosition]);
-        (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+        (mockProvider.closePositions as Mock).mockResolvedValue({
           success: true,
           successCount: 1,
           failureCount: 0,
@@ -5208,7 +5285,7 @@ describe('TradingService', () => {
             timestamp: 1,
           } as Order,
         ]);
-        (mockProvider.cancelOrders as jest.Mock).mockResolvedValue({
+        (mockProvider.cancelOrders as Mock).mockResolvedValue({
           success: true,
           successCount: 1,
           failureCount: 0,

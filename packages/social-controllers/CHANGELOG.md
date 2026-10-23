@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `volumeUsd30d` and `volumeUsd7d` to `FeedActorSummary` and `LeaderboardEntry`. Feed actors carry all-chain totals from profile metadata, including realtime feed normalization. Leaderboard entries carry the chain-scoped totals returned by social-api ([#11042](https://github.com/MetaMask/core/pull/11042))
+
+## [3.11.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
-- Normalize full hydrated Social feed events into `FeedItem` data for direct client hydration ([#10986](https://github.com/MetaMask/core/pull/10986)).
+- Normalize full hydrated Social feed events into `FeedItem` data for direct client hydration. ([#10986](https://github.com/MetaMask/core/pull/10986))
 
 ## [3.10.0]
 
@@ -307,7 +317,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.10.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.11.0...HEAD
+[3.11.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.10.0...@metamask/social-controllers@3.11.0
 [3.10.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.9.0...@metamask/social-controllers@3.10.0
 [3.9.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.8.0...@metamask/social-controllers@3.9.0
 [3.8.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.7.0...@metamask/social-controllers@3.8.0

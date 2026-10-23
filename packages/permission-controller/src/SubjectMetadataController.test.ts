@@ -6,6 +6,8 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type {
   SubjectMetadata,
@@ -53,11 +55,11 @@ function getSubjectMetadataControllerMessenger(): readonly [
     AllSubjectMetadataControllerEvents,
     RootMessenger
   >,
-  jest.Mock,
+  Mock,
 ] {
   const rootMessenger = getRootMessenger();
 
-  const hasPermissionsSpy = jest.fn();
+  const hasPermissionsSpy = vi.fn();
   rootMessenger.registerActionHandler(
     'PermissionController:hasPermissions',
     hasPermissionsSpy,

@@ -12,6 +12,15 @@ import {
 import { CancelledError, hashKey, QueryClient } from '@tanstack/query-core';
 import { BrokenCircuitError } from 'cockatiel';
 import { cleanAll } from 'nock';
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 
 import {
   ExampleDataService,
@@ -48,11 +57,11 @@ type RootMessenger = Messenger<
 
 describe('BaseDataService', () => {
   beforeAll(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    vi.useFakeTimers({ toNotFake: ['nextTick', 'setImmediate'] });
   });
 
   afterAll(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   beforeEach(() => {
@@ -193,7 +202,7 @@ describe('BaseDataService', () => {
 
   it('emits `:cacheUpdated` events when query cache entry is added', async () => {
     const messenger = createServiceMessenger();
-    const publishSpy = jest.spyOn(messenger, 'publish');
+    const publishSpy = vi.spyOn(messenger, 'publish');
     const service = new ExampleDataService(messenger);
 
     await service.getAssets(MOCK_ASSETS);
@@ -237,7 +246,7 @@ describe('BaseDataService', () => {
     mockAddFollowerRequest();
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
-    const publishSpy = jest.spyOn(messenger, 'publish');
+    const publishSpy = vi.spyOn(messenger, 'publish');
 
     await service.addFollower('1');
 
@@ -279,7 +288,7 @@ describe('BaseDataService', () => {
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
 
-    const publishSpy = jest.spyOn(messenger, 'publish');
+    const publishSpy = vi.spyOn(messenger, 'publish');
 
     await service.getAssets(MOCK_ASSETS);
 
@@ -344,7 +353,7 @@ describe('BaseDataService', () => {
     mockAddFollowerRequest();
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
-    const publishSpy = jest.spyOn(messenger, 'publish');
+    const publishSpy = vi.spyOn(messenger, 'publish');
 
     await service.addFollower('1');
 
@@ -399,12 +408,12 @@ describe('BaseDataService', () => {
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
 
-    const publishSpy = jest.spyOn(messenger, 'publish');
+    const publishSpy = vi.spyOn(messenger, 'publish');
 
     await service.getAssets(MOCK_ASSETS);
 
     // Wait for GC
-    jest.runAllTimers();
+    vi.runAllTimers();
 
     const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS];
 
@@ -436,11 +445,11 @@ describe('BaseDataService', () => {
     mockAddFollowerRequest();
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
-    const publishSpy = jest.spyOn(messenger, 'publish');
+    const publishSpy = vi.spyOn(messenger, 'publish');
 
     await service.addFollower('1');
     // Wait for GC
-    jest.runAllTimers();
+    vi.runAllTimers();
 
     const hash = hashKey(['ExampleDataService:addFollower', '1']);
     expect(publishSpy).toHaveBeenCalledTimes(8);
@@ -481,7 +490,7 @@ describe('BaseDataService', () => {
     mockAddFollowerRequest();
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
-    const publishSpy = jest.spyOn(messenger, 'publish');
+    const publishSpy = vi.spyOn(messenger, 'publish');
 
     await service.addFollower('1', 'global-id');
 
@@ -504,7 +513,7 @@ describe('BaseDataService', () => {
     mockAddFollowerRequest();
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
-    const publishSpy = jest.spyOn(messenger, 'publish');
+    const publishSpy = vi.spyOn(messenger, 'publish');
 
     service.destroy();
 
@@ -518,18 +527,18 @@ describe('BaseDataService', () => {
     mockAddFollowerRequest();
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
-    const timerCountBeforeMutation = jest.getTimerCount();
+    const timerCountBeforeMutation = vi.getTimerCount();
     await service.addFollower('1');
 
     service.destroy();
 
-    expect(jest.getTimerCount()).toBe(timerCountBeforeMutation);
+    expect(vi.getTimerCount()).toBe(timerCountBeforeMutation);
   });
 
   it('invalidates queries when requested', async () => {
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
-    const publishSpy = jest.spyOn(messenger, 'publish');
+    const publishSpy = vi.spyOn(messenger, 'publish');
 
     await service.getAssets(MOCK_ASSETS);
 
@@ -581,7 +590,7 @@ describe('BaseDataService', () => {
   it('forwards cancel options when cancelling in-flight queries', async () => {
     const messenger = createServiceMessenger();
     const service = new ExampleDataService(messenger);
-    const cancelSpy = jest.spyOn(QueryClient.prototype, 'cancelQueries');
+    const cancelSpy = vi.spyOn(QueryClient.prototype, 'cancelQueries');
     mockAssets();
 
     const cancelledRequest = service
@@ -599,11 +608,11 @@ describe('BaseDataService', () => {
 
   describe('validation', () => {
     beforeAll(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     afterAll(() => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      vi.useFakeTimers({ toNotFake: ['nextTick', 'setImmediate'] });
     });
 
     beforeEach(() => {
@@ -644,11 +653,11 @@ describe('BaseDataService', () => {
 
   describe('service policy', () => {
     beforeAll(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     afterAll(() => {
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+      vi.useFakeTimers({ toNotFake: ['nextTick', 'setImmediate'] });
     });
 
     beforeEach(() => {
@@ -726,7 +735,7 @@ describe('BaseDataService', () => {
 
   describe('persistence', () => {
     it('persists the cache using the StorageService', async () => {
-      const setItem = jest.fn();
+      const setItem = vi.fn();
       const rootMessenger = createRootMessenger({
         actionHandlers: {
           'StorageService:setItem': setItem,
@@ -739,7 +748,7 @@ describe('BaseDataService', () => {
 
       await service.getAssets(MOCK_ASSETS);
 
-      jest.runAllTimers();
+      vi.runAllTimers();
 
       expect(setItem).toHaveBeenCalledWith(serviceName, STORAGE_SERVICE_KEY, {
         state: {
@@ -799,7 +808,7 @@ describe('BaseDataService', () => {
     });
 
     it('rehydrates the cache using the StorageService', async () => {
-      const getItem = jest.fn().mockResolvedValue({
+      const getItem = vi.fn().mockResolvedValue({
         result: {
           state: {
             queries: [
@@ -877,7 +886,7 @@ describe('BaseDataService', () => {
     });
 
     it('discards the cache if it has expired', async () => {
-      const getItem = jest.fn().mockResolvedValue({
+      const getItem = vi.fn().mockResolvedValue({
         result: {
           state: {
             queries: [],
@@ -886,7 +895,7 @@ describe('BaseDataService', () => {
           timestamp: 1783516587702,
         },
       });
-      const removeItem = jest.fn();
+      const removeItem = vi.fn();
       const rootMessenger = createRootMessenger({
         actionHandlers: {
           'StorageService:getItem': getItem,
@@ -894,7 +903,7 @@ describe('BaseDataService', () => {
         },
       });
       const messenger = createServiceMessenger(rootMessenger);
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      const publishSpy = vi.spyOn(messenger, 'publish');
       const service = new ExampleDataService(messenger);
       service.init();
 
@@ -908,7 +917,7 @@ describe('BaseDataService', () => {
     });
 
     it('removes the persisted cache from the StorageService if the cache is empty', async () => {
-      const removeItem = jest.fn();
+      const removeItem = vi.fn();
       const rootMessenger = createRootMessenger({
         actionHandlers: {
           'StorageService:removeItem': removeItem,
@@ -922,13 +931,13 @@ describe('BaseDataService', () => {
       await service.getAssets(MOCK_ASSETS);
 
       // Wait for GC
-      jest.runAllTimers();
+      vi.runAllTimers();
 
       expect(removeItem).toHaveBeenCalledWith(serviceName, STORAGE_SERVICE_KEY);
     });
 
     it('skips persisting cache if persistConfig is not set', async () => {
-      const setItem = jest.fn();
+      const setItem = vi.fn();
       const rootMessenger = createRootMessenger({
         actionHandlers: {
           'StorageService:setItem': setItem,
@@ -941,13 +950,13 @@ describe('BaseDataService', () => {
 
       await service.getAssets(MOCK_ASSETS);
 
-      jest.runAllTimers();
+      vi.runAllTimers();
 
       expect(setItem).not.toHaveBeenCalled();
     });
 
     it('skips rehydrating cache if persistConfig is not set', async () => {
-      const getItem = jest.fn();
+      const getItem = vi.fn();
       const rootMessenger = createRootMessenger({
         actionHandlers: {
           'StorageService:getItem': getItem,
@@ -962,7 +971,7 @@ describe('BaseDataService', () => {
     });
 
     it('ignores rehydration if the StorageService fails', async () => {
-      const getItem = jest.fn().mockResolvedValue({
+      const getItem = vi.fn().mockResolvedValue({
         error: new Error('Failed to retrieve item.'),
       });
       const rootMessenger = createRootMessenger({
@@ -971,7 +980,7 @@ describe('BaseDataService', () => {
         },
       });
       const messenger = createServiceMessenger(rootMessenger);
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      const publishSpy = vi.spyOn(messenger, 'publish');
       const service = new ExampleDataService(messenger);
       service.init();
 
@@ -991,9 +1000,9 @@ describe('BaseDataService', () => {
  */
 function createRootMessenger({
   actionHandlers = {
-    'StorageService:getItem': jest.fn(),
-    'StorageService:setItem': jest.fn(),
-    'StorageService:removeItem': jest.fn(),
+    'StorageService:getItem': vi.fn(),
+    'StorageService:setItem': vi.fn(),
+    'StorageService:removeItem': vi.fn(),
   },
 }: {
   actionHandlers?: {
