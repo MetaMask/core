@@ -731,9 +731,6 @@ export class RpcDataSource extends AbstractDataSource<
     // Only send new data to AssetsController - it handles merging atomically
     // to avoid race conditions when concurrent updates occur for the same account
     const response: DataResponse = {
-      detectedAssets: {
-        [result.accountId]: result.detectedAssets.map((asset) => asset.assetId),
-      },
       assetsInfo: newMetadata,
       assetsBalance: {
         [result.accountId]: newBalances,
@@ -1704,9 +1701,6 @@ export class RpcDataSource extends AbstractDataSource<
       }
 
       const response: DataResponse = {
-        detectedAssets: {
-          [accountId]: result.detectedAssets.map((asset) => asset.assetId),
-        },
         assetsBalance: {
           [accountId]: balances,
         },
