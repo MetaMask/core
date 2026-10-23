@@ -506,7 +506,7 @@ describe('Balance Change Utils', () => {
               },
             },
           ],
-        } as unknown as SimulationResponse);
+        } as unknown as SentinelSimulationResponse);
 
         const result = await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -540,7 +540,7 @@ describe('Balance Change Utils', () => {
               },
             },
           ],
-        } as unknown as SimulationResponse);
+        } as unknown as SentinelSimulationResponse);
 
         const result = await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -577,7 +577,7 @@ describe('Balance Change Utils', () => {
               },
             },
           ],
-        } as unknown as SimulationResponse);
+        } as unknown as SentinelSimulationResponse);
 
         const result = await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -615,7 +615,7 @@ describe('Balance Change Utils', () => {
               },
             },
           ],
-        } as unknown as SimulationResponse);
+        } as unknown as SentinelSimulationResponse);
 
         const result = await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -654,7 +654,7 @@ describe('Balance Change Utils', () => {
               },
             },
           ],
-        } as unknown as SimulationResponse);
+        } as unknown as SentinelSimulationResponse);
 
         const result = await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -691,7 +691,7 @@ describe('Balance Change Utils', () => {
               },
             },
           ],
-        } as unknown as SimulationResponse);
+        } as unknown as SentinelSimulationResponse);
 
         const result = await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -729,7 +729,7 @@ describe('Balance Change Utils', () => {
                 },
               },
             ],
-          } as unknown as SimulationResponse);
+          } as unknown as SentinelSimulationResponse);
 
           const result = await getBalanceChanges({
             ...REQUEST_MOCK,
@@ -767,7 +767,7 @@ describe('Balance Change Utils', () => {
               },
             },
           ],
-        } as unknown as SimulationResponse);
+        } as unknown as SentinelSimulationResponse);
 
         const result = await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -801,7 +801,7 @@ describe('Balance Change Utils', () => {
               },
             },
           ],
-        } as unknown as SimulationResponse);
+        } as unknown as SentinelSimulationResponse);
 
         const result = await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -845,7 +845,7 @@ describe('Balance Change Utils', () => {
               },
             },
           ],
-        } as unknown as SimulationResponse);
+        } as unknown as SentinelSimulationResponse);
 
         const result = await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -886,7 +886,7 @@ describe('Balance Change Utils', () => {
               },
             },
           ],
-        } as unknown as SimulationResponse);
+        } as unknown as SentinelSimulationResponse);
 
         const { value, ...txParamsWithoutValue } = REQUEST_MOCK.txParams;
 
