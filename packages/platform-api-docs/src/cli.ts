@@ -115,23 +115,6 @@ async function setupSite(outDir: string): Promise<void> {
     filter: (source) => !skip.has(path.basename(source)),
   });
 
-  // Symlink this package's `node_modules` into the output so the copied
-  // `docusaurus.config.ts` and the rest of Docusaurus's bundling pipeline can
-  // resolve their deps the same way they do in the source tree. Without it,
-  // Node's resolver walks up from the output and can't reach our nested deps
-  // when the package is installed as a regular dependency by an external
-  // consumer (e.g. `metamask-extension`, `metamask-mobile`).
-  const linkPath = path.join(outDir, 'node_modules');
-  try {
-    // `'junction'` works cross-platform (POSIX ignores it; Windows uses it
-    // without admin) — `'dir'` would require admin on Windows.
-    await fs.symlink(packageNodeModules, linkPath, 'junction');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
-      throw error;
-    }
-  }
-
   // Write a minimal package.json so Docusaurus doesn't warn about a missing one
   const pkgJsonPath = path.join(outDir, 'package.json');
   try {
