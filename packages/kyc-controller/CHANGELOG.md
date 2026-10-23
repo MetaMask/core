@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `KycController:verificationStatusChanged` and `KycController:kycStatusChanged` events for analytics ([#11041](https://github.com/MetaMask/core/pull/11041))
-  - `verificationStatusChanged` is published after the state write for each SumSub launch attempt (`submitted`, `abandoned`, `failed`), including a repeat of the previous outcome and the failures that leave state unchanged. The payload is `status`, `kycStatus`, `providerFlowStatus` and `vendor`
-  - `kycStatusChanged` is published after any state write that changes the derived KYC status (for example `new` to `pending`, `pending` to `approved`, or `pending` to `retry`). The payload is `previousKycStatus` (absent when the session was just created), `kycStatus`, `providerFlowStatus` and `vendor`
+- Add `KycController:analyticsVerificationOutcome` and `KycController:analyticsStatusChanged` events for analytics ([#11041](https://github.com/MetaMask/core/pull/11041))
+  - `analyticsVerificationOutcome` is published after the state write for each SumSub launch attempt (`submitted`, `abandoned`, `failed`), including a repeat of the previous outcome and the failures that leave state unchanged. The payload is `status`, `kycStatus`, `providerFlowStatus` and `vendor`
+  - `analyticsStatusChanged` is published after any state write that changes the analytics KYC status (for example `new` to `pending`, `pending` to `approved`, or `pending` to `retry`). The payload is `previousKycStatus` (absent when the session was just created), `kycStatus`, `providerFlowStatus` and `vendor`
   - Loading a session into an empty slot (for example after a reinstall) publishes neither event
   - Neither payload carries session id, email, disclaimer or token data
-- Export `deriveKycStatus`, `KYC_DERIVED_STATUSES` and the `KycDerivedStatus`, `KycVerificationEventStatus`, `KycVerificationStatusChangedPayload` and `KycStatusChangedPayload` types
+- Export `getKycAnalyticsStatus`, `KYC_ANALYTICS_STATUSES` and the `KycAnalyticsStatus`, `KycAnalyticsVerificationOutcome`, `KycAnalyticsVerificationOutcomePayload` and `KycAnalyticsStatusChangedPayload` types
 
 ## [0.12.0]
 

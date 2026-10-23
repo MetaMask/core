@@ -8,6 +8,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
+import type {
+  KycAnalyticsStatusChangedPayload,
+  KycAnalyticsVerificationOutcomePayload,
+} from './analytics.js';
+import { getKycAnalyticsStatus } from './analytics.js';
 import { toBase64Url } from './encoding.js';
 import {
   getDefaultKycControllerState,
@@ -21,11 +26,6 @@ import {
   verifyJwtChain,
 } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
-import type {
-  KycStatusChangedPayload,
-  KycVerificationStatusChangedPayload,
-} from './verificationStatus.js';
-import { deriveKycStatus } from './verificationStatus.js';
 
 vi.mock(import('./ukyc/jwtChain.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -1625,17 +1625,17 @@ describe('KycController', () => {
     });
 
     /**
-     * Collects every `KycController:verificationStatusChanged` payload.
+     * Collects every `KycController:analyticsVerificationOutcome` payload.
      *
      * @param rootMessenger - The root messenger of the test controller.
      * @returns The array that payloads are pushed to.
      */
-    function collectVerificationEvents(
+    function collectAnalyticsVerificationEvents(
       rootMessenger: RootMessenger,
-    ): KycVerificationStatusChangedPayload[] {
-      const events: KycVerificationStatusChangedPayload[] = [];
+    ): KycAnalyticsVerificationOutcomePayload[] {
+      const events: KycAnalyticsVerificationOutcomePayload[] = [];
       rootMessenger.subscribe(
-        'KycController:verificationStatusChanged',
+        'KycController:analyticsVerificationOutcome',
         (payload) => {
           events.push(payload);
         },
@@ -1644,18 +1644,21 @@ describe('KycController', () => {
     }
 
     /**
-     * Collects every `KycController:kycStatusChanged` payload.
+     * Collects every `KycController:analyticsStatusChanged` payload.
      *
      * @param rootMessenger - The root messenger of the test controller.
      * @returns The array that payloads are pushed to.
      */
-    function collectStatusEvents(
+    function collectAnalyticsStatusEvents(
       rootMessenger: RootMessenger,
-    ): KycStatusChangedPayload[] {
-      const events: KycStatusChangedPayload[] = [];
-      rootMessenger.subscribe('KycController:kycStatusChanged', (payload) => {
-        events.push(payload);
-      });
+    ): KycAnalyticsStatusChangedPayload[] {
+      const events: KycAnalyticsStatusChangedPayload[] = [];
+      rootMessenger.subscribe(
+        'KycController:analyticsStatusChanged',
+        (payload) => {
+          events.push(payload);
+        },
+      );
       return events;
     }
 
@@ -1667,8 +1670,9 @@ describe('KycController', () => {
           },
         },
         async ({ controller, rootMessenger, handlers, launcher }) => {
-          const verification = collectVerificationEvents(rootMessenger);
-          const status = collectStatusEvents(rootMessenger);
+          const verification =
+            collectAnalyticsVerificationEvents(rootMessenger);
+          const status = collectAnalyticsStatusEvents(rootMessenger);
           launcher.launch.mockResolvedValue({ status: 'Completed' });
           handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
 
@@ -1698,8 +1702,9 @@ describe('KycController', () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('new') } } },
         async ({ controller, rootMessenger, launcher }) => {
-          const verification = collectVerificationEvents(rootMessenger);
-          const status = collectStatusEvents(rootMessenger);
+          const verification =
+            collectAnalyticsVerificationEvents(rootMessenger);
+          const status = collectAnalyticsStatusEvents(rootMessenger);
           launcher.launch.mockResolvedValue({ status: 'Incomplete' });
 
           await controller.launchProviderFlow({});
@@ -1721,8 +1726,9 @@ describe('KycController', () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('new') } } },
         async ({ controller, rootMessenger, launcher }) => {
-          const verification = collectVerificationEvents(rootMessenger);
-          const status = collectStatusEvents(rootMessenger);
+          const verification =
+            collectAnalyticsVerificationEvents(rootMessenger);
+          const status = collectAnalyticsStatusEvents(rootMessenger);
 
           launcher.launch.mockResolvedValueOnce({ status: 'Failed' });
           await controller.launchProviderFlow({});
@@ -1745,7 +1751,8 @@ describe('KycController', () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('new') } } },
         async ({ controller, rootMessenger, launcher }) => {
-          const verification = collectVerificationEvents(rootMessenger);
+          const verification =
+            collectAnalyticsVerificationEvents(rootMessenger);
           launcher.launch.mockResolvedValue({ status: 'Incomplete' });
 
           await controller.launchProviderFlow({});
@@ -1763,8 +1770,9 @@ describe('KycController', () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('new') } } },
         async ({ controller, rootMessenger, launcher }) => {
-          const verification = collectVerificationEvents(rootMessenger);
-          const status = collectStatusEvents(rootMessenger);
+          const verification =
+            collectAnalyticsVerificationEvents(rootMessenger);
+          const status = collectAnalyticsStatusEvents(rootMessenger);
           launcher.launch.mockImplementation(async () => {
             await controller.reset();
             return { status: 'Completed' };
@@ -1790,7 +1798,8 @@ describe('KycController', () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('new') } } },
         async ({ controller, rootMessenger, launcher }) => {
-          const verification = collectVerificationEvents(rootMessenger);
+          const verification =
+            collectAnalyticsVerificationEvents(rootMessenger);
           launcher.launch.mockImplementation(async () => {
             controller.clearState();
             throw new Error('launcher unavailable');
@@ -1810,8 +1819,9 @@ describe('KycController', () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('pending') } } },
         async ({ controller, rootMessenger, handlers }) => {
-          const status = collectStatusEvents(rootMessenger);
-          const verification = collectVerificationEvents(rootMessenger);
+          const status = collectAnalyticsStatusEvents(rootMessenger);
+          const verification =
+            collectAnalyticsVerificationEvents(rootMessenger);
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('approved'),
           );
@@ -1841,7 +1851,7 @@ describe('KycController', () => {
         await withController(
           { options: { state: { sessionStatus: sessionStatus('pending') } } },
           async ({ controller, rootMessenger, handlers }) => {
-            const status = collectStatusEvents(rootMessenger);
+            const status = collectAnalyticsStatusEvents(rootMessenger);
             handlers.getSessionStatus.mockResolvedValue(
               sessionStatus(finalStatus),
             );
@@ -1868,7 +1878,7 @@ describe('KycController', () => {
           },
         },
         async ({ controller, rootMessenger, handlers }) => {
-          const status = collectStatusEvents(rootMessenger);
+          const status = collectAnalyticsStatusEvents(rootMessenger);
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('approved'),
           );
@@ -1884,7 +1894,7 @@ describe('KycController', () => {
 
     it('publishes a KYC status change without a previous status when the session is first created', async () => {
       await withController(async ({ controller, rootMessenger, handlers }) => {
-        const status = collectStatusEvents(rootMessenger);
+        const status = collectAnalyticsStatusEvents(rootMessenger);
         handlers.setAuthorizations.mockResolvedValue(sessionStatus('new'));
 
         await controller.startSession({
@@ -1904,8 +1914,8 @@ describe('KycController', () => {
 
     it('does not publish when an already-approved session is loaded into empty state', async () => {
       await withController(async ({ controller, rootMessenger, handlers }) => {
-        const status = collectStatusEvents(rootMessenger);
-        const verification = collectVerificationEvents(rootMessenger);
+        const status = collectAnalyticsStatusEvents(rootMessenger);
+        const verification = collectAnalyticsVerificationEvents(rootMessenger);
         handlers.getSessionStatusForVendor.mockResolvedValue(
           sessionStatus('approved'),
         );
@@ -1922,7 +1932,7 @@ describe('KycController', () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('approved') } } },
         async ({ controller, rootMessenger, handlers }) => {
-          const status = collectStatusEvents(rootMessenger);
+          const status = collectAnalyticsStatusEvents(rootMessenger);
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('approved', { vendorStatus: 'still-approved' }),
           );
@@ -1939,9 +1949,12 @@ describe('KycController', () => {
         { options: { state: { sessionStatus: sessionStatus('pending') } } },
         async ({ controller, rootMessenger, handlers }) => {
           const statusAtPublish: (string | undefined)[] = [];
-          rootMessenger.subscribe('KycController:kycStatusChanged', () => {
-            statusAtPublish.push(controller.state.sessionStatus?.finalStatus);
-          });
+          rootMessenger.subscribe(
+            'KycController:analyticsStatusChanged',
+            () => {
+              statusAtPublish.push(controller.state.sessionStatus?.finalStatus);
+            },
+          );
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('approved'),
           );
@@ -1954,7 +1967,7 @@ describe('KycController', () => {
     });
   });
 
-  describe('deriveKycStatus', () => {
+  describe('getKycAnalyticsStatus', () => {
     it.each([
       [null, 'not_started', 'none'],
       [sessionStatus('approved'), 'not_started', 'approved'],
@@ -1975,7 +1988,7 @@ describe('KycController', () => {
       [sessionStatus('new'), 'not_started', 'new'],
       [sessionStatus('mystery'), 'not_started', 'none'],
     ] as const)('maps %j with flow %s to %s', (session, flow, expected) => {
-      expect(deriveKycStatus(session, flow)).toBe(expected);
+      expect(getKycAnalyticsStatus(session, flow)).toBe(expected);
     });
   });
 

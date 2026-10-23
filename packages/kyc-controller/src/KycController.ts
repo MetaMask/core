@@ -17,6 +17,12 @@ import type {
 import { stringToBytes, wrapError } from '@metamask/utils';
 import { x25519 } from '@noble/curves/ed25519';
 
+import type {
+  KycAnalyticsStatus,
+  KycAnalyticsStatusChangedPayload,
+  KycAnalyticsVerificationOutcomePayload,
+} from './analytics.js';
+import { getKycAnalyticsStatus } from './analytics.js';
 import { toBase64Url } from './encoding.js';
 import type { KycControllerMethodActions } from './KycController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
@@ -65,12 +71,6 @@ import {
   areVendorDisclaimersCompleted,
   recordVendorDisclaimerAcceptance,
 } from './vendorDisclaimers.js';
-import type {
-  KycDerivedStatus,
-  KycStatusChangedPayload,
-  KycVerificationStatusChangedPayload,
-} from './verificationStatus.js';
-import { deriveKycStatus } from './verificationStatus.js';
 
 // === GENERAL ===
 
@@ -310,26 +310,26 @@ export type KycControllerStateChangeEvent = ControllerStateChangeEvent<
  * per attempt, including a repeat of the previous outcome, and for the two
  * failures that leave state unchanged.
  */
-export type KycControllerVerificationStatusChangedEvent = {
-  type: `${typeof controllerName}:verificationStatusChanged`;
-  payload: [KycVerificationStatusChangedPayload];
+export type KycControllerAnalyticsVerificationOutcomeEvent = {
+  type: `${typeof controllerName}:analyticsVerificationOutcome`;
+  payload: [KycAnalyticsVerificationOutcomePayload];
 };
 
 /**
- * Published after a state write that changes the derived KYC status (for
+ * Published after a state write that changes the analytics KYC status (for
  * example `new` to `pending`, `pending` to `approved`, or `pending` to
  * `retry`). Intended for analytics. Loading a session into an empty slot
  * (for example after a reinstall) does not publish it.
  */
-export type KycControllerKycStatusChangedEvent = {
-  type: `${typeof controllerName}:kycStatusChanged`;
-  payload: [KycStatusChangedPayload];
+export type KycControllerAnalyticsStatusChangedEvent = {
+  type: `${typeof controllerName}:analyticsStatusChanged`;
+  payload: [KycAnalyticsStatusChangedPayload];
 };
 
 export type KycControllerEvents =
   | KycControllerStateChangeEvent
-  | KycControllerVerificationStatusChangedEvent
-  | KycControllerKycStatusChangedEvent;
+  | KycControllerAnalyticsVerificationOutcomeEvent
+  | KycControllerAnalyticsStatusChangedEvent;
 
 type AllowedEvents = never;
 
@@ -728,43 +728,45 @@ export class KycController extends BaseController<
   /**
    * Derives the current KYC status from state.
    *
-   * @returns The derived KYC status.
+   * @returns The analytics KYC status.
    */
-  #getKycStatus(): KycDerivedStatus {
-    return deriveKycStatus(
+  #getKycAnalyticsStatus(): KycAnalyticsStatus {
+    return getKycAnalyticsStatus(
       this.state.sessionStatus,
       this.state.providerFlowStatus,
     );
   }
 
   /**
-   * Publishes `KycController:verificationStatusChanged` for the current state.
+   * Publishes `KycController:analyticsVerificationOutcome` for the current state.
    *
    * @param status - The launch outcome.
    */
-  #publishVerificationStatus(
-    status: KycVerificationStatusChangedPayload['status'],
+  #publishAnalyticsVerificationOutcome(
+    status: KycAnalyticsVerificationOutcomePayload['status'],
   ): void {
-    this.messenger.publish('KycController:verificationStatusChanged', {
+    this.messenger.publish('KycController:analyticsVerificationOutcome', {
       status,
-      kycStatus: this.#getKycStatus(),
+      kycStatus: this.#getKycAnalyticsStatus(),
       providerFlowStatus: this.state.providerFlowStatus,
       vendor: this.state.vendor,
     });
   }
 
   /**
-   * Publishes `KycController:kycStatusChanged` when the derived KYC status
+   * Publishes `KycController:analyticsStatusChanged` when the analytics KYC status
    * differs from the one before the causing write.
    *
-   * @param previousKycStatus - Derived KYC status before the causing write.
+   * @param previousKycStatus - Analytics KYC status before the causing write.
    */
-  #publishKycStatusIfChanged(previousKycStatus: KycDerivedStatus): void {
-    const kycStatus = this.#getKycStatus();
+  #publishAnalyticsStatusIfChanged(
+    previousKycStatus: KycAnalyticsStatus,
+  ): void {
+    const kycStatus = this.#getKycAnalyticsStatus();
     if (kycStatus === previousKycStatus) {
       return;
     }
-    this.messenger.publish('KycController:kycStatusChanged', {
+    this.messenger.publish('KycController:analyticsStatusChanged', {
       ...(previousKycStatus === 'none' ? {} : { previousKycStatus }),
       kycStatus,
       providerFlowStatus: this.state.providerFlowStatus,
@@ -774,7 +776,7 @@ export class KycController extends BaseController<
 
   /**
    * Replaces the stored session status, then publishes
-   * `KycController:kycStatusChanged` when the derived KYC status changed. State
+   * `KycController:analyticsStatusChanged` when the analytics KYC status changed. State
    * is written before the event is published.
    *
    * Writes that load a session into an empty slot must not use this helper, so
@@ -783,11 +785,11 @@ export class KycController extends BaseController<
    * @param sessionStatus - The session status to store.
    */
   #updateSessionStatus(sessionStatus: KycSessionStatus): void {
-    const previousKycStatus = this.#getKycStatus();
+    const previousKycStatus = this.#getKycAnalyticsStatus();
     this.update((state) => {
       state.sessionStatus = sessionStatus;
     });
-    this.#publishKycStatusIfChanged(previousKycStatus);
+    this.#publishAnalyticsStatusIfChanged(previousKycStatus);
   }
 
   /**
@@ -804,12 +806,12 @@ export class KycController extends BaseController<
     status: 'submitted' | 'abandoned' | 'failed',
     update?: (state: KycControllerState) => void,
   ): void {
-    const previousKycStatus = this.#getKycStatus();
+    const previousKycStatus = this.#getKycAnalyticsStatus();
     if (update) {
       this.update(update);
     }
-    this.#publishVerificationStatus(status);
-    this.#publishKycStatusIfChanged(previousKycStatus);
+    this.#publishAnalyticsVerificationOutcome(status);
+    this.#publishAnalyticsStatusIfChanged(previousKycStatus);
   }
 
   /**
