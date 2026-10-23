@@ -1,5 +1,6 @@
 import { Failure, StructError } from '@metamask/superstruct';
 import { KnownCaipNamespace } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { mockBridgeQuotesErc20Erc20V2Migration } from '../../tests/mock-quotes-erc20-erc20-migration-v2.js';
 import { mockBridgeQuotesErc20Erc20V1 } from '../../tests/mock-quotes-erc20-erc20.js';
@@ -144,24 +145,24 @@ describe('quote-response-v1 compatibility', () => {
       // @ts-expect-error - invalid quote response
       expect(() => toQuoteResponseV1(quoteResponse))
         .toThrowErrorMatchingInlineSnapshot(`
-        "Failed to convert QuoteResponseV2 to QuoteResponseV1. [
-          "At path: quote.srcChainId (number) -- Expected a number, but received: undefined",
-          "At path: quote.srcAsset (number) -- Expected an object, but received: undefined",
-          "At path: quote.srcTokenAmount (number) -- Expected a string, but received: undefined",
-          "At path: quote.destChainId (number) -- Expected a number, but received: undefined",
-          "At path: quote.destAsset (number) -- Expected an object, but received: undefined",
-          "At path: quote.destTokenAmount (number) -- Expected a string, but received: undefined",
-          "At path: quote.feeData (number) -- Expected an object, but received: undefined",
-          "At path: quote.bridgeId (number) -- Expected a string, but received: undefined",
-          "At path: quote.bridges (number) -- Expected an array value, but received: undefined",
-          "At path: quote.steps (number) -- Expected an array value, but received: undefined",
-          "At path: estimatedProcessingTimeInSeconds (number) -- Expected a number, but received: undefined",
-          "At path: trade (number) -- Expected the value to satisfy a union of \`type | type | type | union | string\`, but received: undefined",
-          "At path: trade (number) -- Expected an object, but received: undefined",
-          "At path: trade (number) -- Expected the value to satisfy a union of \`type | type\`, but received: undefined",
-          "At path: trade (number) -- Expected a string, but received: undefined"
-        ]"
-      `);
+          [Error: Failed to convert QuoteResponseV2 to QuoteResponseV1. [
+            "At path: quote.srcChainId (number) -- Expected a number, but received: undefined",
+            "At path: quote.srcAsset (number) -- Expected an object, but received: undefined",
+            "At path: quote.srcTokenAmount (number) -- Expected a string, but received: undefined",
+            "At path: quote.destChainId (number) -- Expected a number, but received: undefined",
+            "At path: quote.destAsset (number) -- Expected an object, but received: undefined",
+            "At path: quote.destTokenAmount (number) -- Expected a string, but received: undefined",
+            "At path: quote.feeData (number) -- Expected an object, but received: undefined",
+            "At path: quote.bridgeId (number) -- Expected a string, but received: undefined",
+            "At path: quote.bridges (number) -- Expected an array value, but received: undefined",
+            "At path: quote.steps (number) -- Expected an array value, but received: undefined",
+            "At path: estimatedProcessingTimeInSeconds (number) -- Expected a number, but received: undefined",
+            "At path: trade (number) -- Expected the value to satisfy a union of \`type | type | type | union | string\`, but received: undefined",
+            "At path: trade (number) -- Expected an object, but received: undefined",
+            "At path: trade (number) -- Expected the value to satisfy a union of \`type | type\`, but received: undefined",
+            "At path: trade (number) -- Expected a string, but received: undefined"
+          ]]
+        `);
 
       expect(formatStructErrors(expectedError)).toMatchInlineSnapshot(`
         [

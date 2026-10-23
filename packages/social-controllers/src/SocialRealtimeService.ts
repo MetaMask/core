@@ -5,8 +5,8 @@ import type {
   WebSocketSubscription,
 } from '@metamask/core-backend';
 
-import { parseSocialRealtimeFeedItem } from './structs.js';
-import type { SocialRealtimeFeedItem } from './structs.js';
+import { parseRealtimeFeedItem } from './realtime-feed-item.js';
+import type { RealtimeFeedEventData } from './realtime-feed-item.js';
 
 export const SOCIAL_FEED_CHANNELS = {
   all: 'social.v1.feed.all',
@@ -24,7 +24,7 @@ export type SocialFeedEvent = {
   feedItemId: string;
   revision: number;
   occurredAt: string;
-  data: SocialRealtimeFeedItem;
+  data: RealtimeFeedEventData;
 };
 
 export type SocialFeedEventListener = (
@@ -64,7 +64,7 @@ const parseSocialFeedEvent = (data: unknown): SocialFeedEvent | undefined => {
     return undefined;
   }
 
-  const feedItem = parseSocialRealtimeFeedItem(data.data);
+  const feedItem = parseRealtimeFeedItem(data.data);
   if (
     data.version !== 1 ||
     data.kind !== 'feed-item' ||

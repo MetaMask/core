@@ -1,6 +1,7 @@
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import {
@@ -32,23 +33,23 @@ import { TradeType } from '../../utils/trade-type.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
 
-jest.mock('../../utils/feature-flags', () => ({
-  ...jest.requireActual('../../utils/feature-flags'),
-  getFeatureFlags: jest.fn(),
-  getSlippage: jest.fn(),
-  isEIP7702Chain: jest.fn(),
+vi.mock(import('../../utils/feature-flags.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getFeatureFlags: vi.fn(),
+  getSlippage: vi.fn(),
+  isEIP7702Chain: vi.fn(),
 }));
-jest.mock('./server-api');
+vi.mock(import('./server-api.js'));
 // `resolveGasPayment` is a pure resolver, so keep the real implementation and
 // only stub the gas station lookup that performs network work. This lets the
 // sponsorship and gas-fee-token modes be exercised for real.
-jest.mock('../../utils/gas-payment', () => ({
-  ...jest.requireActual('../../utils/gas-payment'),
-  resolveGasStationCost: jest.fn(),
+vi.mock(import('../../utils/gas-payment.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  resolveGasStationCost: vi.fn(),
 }));
-jest.mock('../../utils/gas');
-jest.mock('../../utils/quote-gas');
-jest.mock('../../utils/token');
+vi.mock(import('../../utils/gas.js'));
+vi.mock(import('../../utils/quote-gas.js'));
+vi.mock(import('../../utils/token.js'));
 
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
 const SOURCE_TOKEN_ADDRESS_MOCK =
@@ -178,9 +179,9 @@ const DELEGATION_RESULT_MOCK = {
 } as Awaited<ReturnType<GetDelegationTransactionCallback>>;
 
 describe('server-quotes', () => {
-  const fetchServerQuoteMock = jest.mocked(fetchServerQuote);
-  const getSlippageMock = jest.mocked(getSlippage);
-  const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
+  const fetchServerQuoteMock = vi.mocked(fetchServerQuote);
+  const getSlippageMock = vi.mocked(getSlippage);
+  const isEIP7702ChainMock = vi.mocked(isEIP7702Chain);
   const {
     getControllerStateMock,
     getDelegationTransactionMock,
@@ -190,7 +191,7 @@ describe('server-quotes', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     fetchServerQuoteMock.mockResolvedValue({
       results: [FULFILLED_RESULT_MOCK],
@@ -198,33 +199,31 @@ describe('server-quotes', () => {
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
     getSlippageMock.mockReturnValue(0.005);
     isEIP7702ChainMock.mockReturnValue(false);
-    jest.mocked(getFeatureFlags).mockReturnValue({
+    vi.mocked(getFeatureFlags).mockReturnValue({
       relayFallbackGas: '0x5208',
     } as never);
-    jest
-      .mocked(getNativeToken)
-      .mockReturnValue('0x0000000000000000000000000000000000000000');
-    jest.mocked(getTokenBalance).mockReturnValue('0');
-    jest.mocked(calculateGasCost).mockReturnValue({
+    vi.mocked(getNativeToken).mockReturnValue(
+      '0x0000000000000000000000000000000000000000',
+    );
+    vi.mocked(getTokenBalance).mockReturnValue('0');
+    vi.mocked(calculateGasCost).mockReturnValue({
       fiat: '0',
       human: '0',
       raw: '0',
       usd: '0',
     });
-    jest.mocked(getGasFee).mockReturnValue({
+    vi.mocked(getGasFee).mockReturnValue({
       estimatedBaseFee: undefined,
       maxFeePerGas: '1000000000',
       maxPriorityFeePerGas: '500000000',
     });
-    jest.mocked(estimateSourceGas).mockResolvedValue({
+    vi.mocked(estimateSourceGas).mockResolvedValue({
       gasLimits: [25000],
       is7702: false,
       totalGasEstimate: '0x5208',
       totalGasLimit: '0x7530',
     } as never);
-    jest
-      .mocked(resolveGasStationCost)
-      .mockResolvedValue({ isAvailable: false });
+    vi.mocked(resolveGasStationCost).mockResolvedValue({ isAvailable: false });
   });
 
   it('maps transactions without bundled calls to EXACT_INPUT quote requests', async () => {
@@ -571,7 +570,7 @@ describe('server-quotes', () => {
   });
 
   it('computes sourceAmount fiat and usd from token fiat rate when available', async () => {
-    jest.mocked(getTokenFiatRate).mockReturnValue({
+    vi.mocked(getTokenFiatRate).mockReturnValue({
       fiatRate: '2',
       usdRate: '1.5',
     });
@@ -594,7 +593,7 @@ describe('server-quotes', () => {
   });
 
   it('computes targetAmount fiat and usd from the target token fiat rate', async () => {
-    jest.mocked(getTokenFiatRate).mockReturnValue({
+    vi.mocked(getTokenFiatRate).mockReturnValue({
       fiatRate: '2',
       usdRate: '1.5',
     });
@@ -675,11 +674,9 @@ describe('server-quotes', () => {
     };
 
     beforeEach(() => {
-      jest.mocked(calculateGasCost).mockReturnValue(GAS_ESTIMATE_MOCK);
-      jest.mocked(getTokenBalance).mockReturnValue('999999999999999999999');
-      jest
-        .mocked(resolveGasStationCost)
-        .mockResolvedValue({ isAvailable: true });
+      vi.mocked(calculateGasCost).mockReturnValue(GAS_ESTIMATE_MOCK);
+      vi.mocked(getTokenBalance).mockReturnValue('999999999999999999999');
+      vi.mocked(resolveGasStationCost).mockResolvedValue({ isAvailable: true });
       fetchServerQuoteMock.mockResolvedValue({
         results: [NON_GASLESS_RESULT_MOCK],
       });
@@ -738,8 +735,8 @@ describe('server-quotes', () => {
           transaction: SPONSORED_TRANSACTION_MOCK,
         });
 
-        expect(jest.mocked(estimateSourceGas)).not.toHaveBeenCalled();
-        expect(jest.mocked(resolveGasStationCost)).not.toHaveBeenCalled();
+        expect(vi.mocked(estimateSourceGas)).not.toHaveBeenCalled();
+        expect(vi.mocked(resolveGasStationCost)).not.toHaveBeenCalled();
       });
 
       it('does not zero fees when the route is cross-chain', async () => {
@@ -780,7 +777,7 @@ describe('server-quotes', () => {
     });
 
     it('returns gas cost estimate and max when native balance is sufficient', async () => {
-      jest.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
+      vi.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -794,10 +791,10 @@ describe('server-quotes', () => {
     });
 
     it('returns estimate and max when gas station is not supported', async () => {
-      jest.mocked(getTokenBalance).mockReturnValue('0');
-      jest
-        .mocked(resolveGasStationCost)
-        .mockResolvedValue({ isAvailable: false });
+      vi.mocked(getTokenBalance).mockReturnValue('0');
+      vi.mocked(resolveGasStationCost).mockResolvedValue({
+        isAvailable: false,
+      });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -810,10 +807,11 @@ describe('server-quotes', () => {
     });
 
     it('returns estimate and max when gas station cost is unavailable', async () => {
-      jest.mocked(getTokenBalance).mockReturnValue('0');
-      jest
-        .mocked(resolveGasStationCost)
-        .mockResolvedValue({ amount: undefined, isAvailable: true });
+      vi.mocked(getTokenBalance).mockReturnValue('0');
+      vi.mocked(resolveGasStationCost).mockResolvedValue({
+        amount: undefined,
+        isAvailable: true,
+      });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -833,11 +831,12 @@ describe('server-quotes', () => {
         usd: '0',
       };
 
-      jest.mocked(getTokenBalance).mockReturnValue('0');
+      vi.mocked(getTokenBalance).mockReturnValue('0');
 
-      jest
-        .mocked(resolveGasStationCost)
-        .mockResolvedValue({ amount: GAS_FEE_TOKEN_COST, isAvailable: true });
+      vi.mocked(resolveGasStationCost).mockResolvedValue({
+        amount: GAS_FEE_TOKEN_COST,
+        isAvailable: true,
+      });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -876,7 +875,7 @@ describe('server-quotes', () => {
     });
 
     it('falls back to zero when step does not include gas fee fields', async () => {
-      jest.mocked(getTokenBalance).mockReturnValue('0');
+      vi.mocked(getTokenBalance).mockReturnValue('0');
       fetchServerQuoteMock.mockResolvedValue({
         results: [
           {
@@ -908,8 +907,8 @@ describe('server-quotes', () => {
     });
 
     it('uses the combined gas limit when the batch is EIP-7702', async () => {
-      jest.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
-      jest.mocked(estimateSourceGas).mockResolvedValue({
+      vi.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
+      vi.mocked(estimateSourceGas).mockResolvedValue({
         gasLimits: [50000],
         is7702: true,
         totalGasEstimate: 42000,
@@ -930,8 +929,8 @@ describe('server-quotes', () => {
     });
 
     it('passes zero maxFeePerGas to calculateGasCost when gas fee estimate returns undefined', async () => {
-      jest.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
-      jest.mocked(getGasFee).mockReturnValue({
+      vi.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
+      vi.mocked(getGasFee).mockReturnValue({
         estimatedBaseFee: undefined,
         maxFeePerGas: undefined,
         maxPriorityFeePerGas: undefined,
@@ -964,7 +963,7 @@ describe('server-quotes', () => {
       });
 
       expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
-      expect(jest.mocked(calculateGasCost)).toHaveBeenCalledWith(
+      expect(vi.mocked(calculateGasCost)).toHaveBeenCalledWith(
         expect.objectContaining({
           maxFeePerGas: '0',
           maxPriorityFeePerGas: '0',
@@ -1695,9 +1694,12 @@ describe('server-quotes', () => {
     });
 
     it('does not charge source network fees, as the Polymarket relayer pays the gas', async () => {
-      jest
-        .mocked(calculateGasCost)
-        .mockReturnValue({ fiat: '1', human: '1', raw: '1', usd: '1' });
+      vi.mocked(calculateGasCost).mockReturnValue({
+        fiat: '1',
+        human: '1',
+        raw: '1',
+        usd: '1',
+      });
       fetchServerQuoteMock.mockResolvedValue({
         results: [NON_GASLESS_DEPOSIT_RESULT_MOCK],
       });
@@ -1820,19 +1822,19 @@ describe('server-quotes', () => {
     };
 
     beforeEach(() => {
-      jest.mocked(calculateGasCost).mockReturnValue({
+      vi.mocked(calculateGasCost).mockReturnValue({
         fiat: '0',
         human: '0.001',
         raw: '1000',
         usd: '0',
       });
-      jest
-        .mocked(resolveGasStationCost)
-        .mockResolvedValue({ isAvailable: false });
+      vi.mocked(resolveGasStationCost).mockResolvedValue({
+        isAvailable: false,
+      });
       fetchServerQuoteMock.mockResolvedValue({
         results: [NON_GASLESS_DEPOSIT_RESULT_MOCK],
       });
-      jest.mocked(estimateSourceGas).mockResolvedValue({
+      vi.mocked(estimateSourceGas).mockResolvedValue({
         gasLimits: [100000, 50000],
         is7702: false,
         totalGasEstimate: 130000,
@@ -1850,7 +1852,7 @@ describe('server-quotes', () => {
       });
 
       const [{ request, transaction, transactions }] =
-        jest.mocked(estimateSourceGas).mock.calls[0];
+        vi.mocked(estimateSourceGas).mock.calls[0];
 
       expect(request.isPostQuote).toBe(true);
       expect(transaction).toBe(PREDICT_WITHDRAW_TRANSACTION_MOCK);
@@ -1898,7 +1900,7 @@ describe('server-quotes', () => {
       });
 
       const [{ fromOverride, transactions }] =
-        jest.mocked(estimateSourceGas).mock.calls[0];
+        vi.mocked(estimateSourceGas).mock.calls[0];
 
       expect(fromOverride).toBeUndefined();
       expect(transactions.map((tx) => tx.from)).toStrictEqual([FROM_MOCK]);
@@ -1942,7 +1944,7 @@ describe('server-quotes', () => {
     };
 
     beforeEach(() => {
-      jest.mocked(resolveGasStationCost).mockResolvedValue({
+      vi.mocked(resolveGasStationCost).mockResolvedValue({
         amount: GAS_FEE_TOKEN_COST_MOCK,
         isAvailable: true,
       });

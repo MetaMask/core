@@ -12,6 +12,9 @@
       "path": "../address-book-controller/tsconfig.build.json"
     },
     {
+      "path": "../analytics-controller/tsconfig.build.json"
+    },
+    {
       "path": "../approval-controller/tsconfig.build.json"
     },
     {

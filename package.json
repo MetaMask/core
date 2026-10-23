@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1350.0.0",
+  "version": "1360.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -46,9 +46,9 @@
     "lint:tsc:prune": "node --import ./scripts/resolver/register.ts scripts/lint-tsc.ts --prune-suppressions",
     "lint:tsc:suppress": "node --import ./scripts/resolver/register.ts scripts/lint-tsc.ts --suppress-all",
     "lint:tsconfigs": "node --import ./scripts/resolver/register.ts scripts/lint-tsconfigs/lint-tsconfigs.ts",
-    "lint:tsconfigs:all": "yarn workspaces foreach --all --parallel --interlaced --verbose run lint:tsconfigs",
+    "lint:tsconfigs:all": "node --import ./scripts/resolver/register.ts scripts/lint-tsconfigs/lint-tsconfigs.ts --all",
     "lint:tsconfigs:fix": "node --import ./scripts/resolver/register.ts scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
-    "lint:tsconfigs:fix:all": "yarn workspaces foreach --all --parallel --interlaced --verbose run lint:tsconfigs:fix",
+    "lint:tsconfigs:fix:all": "node --import ./scripts/resolver/register.ts scripts/lint-tsconfigs/lint-tsconfigs.ts --all --fix",
     "messenger-action-types:check": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run messenger-action-types:check",
     "messenger-action-types:generate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run messenger-action-types:generate",
     "postinstall": "yarn skills:postinstall",
@@ -59,10 +59,10 @@
     "setup": "yarn install",
     "skills": "metamask-skills sync",
     "skills:postinstall": "metamask-skills postinstall",
-    "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:scripts:shell && yarn test:packages",
+    "test": "yarn test:scripts --coverage.enabled=false --silent && yarn test:scripts:shell && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
     "test:packages": "yarn test:verbose --silent --coverage=false",
-    "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.cjs --silent",
+    "test:scripts": "vitest --config ./vitest.config.scripts.ts",
     "test:scripts:shell": "node_modules/bats/bin/bats scripts/*.bats",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
@@ -98,6 +98,7 @@
     "@yarnpkg/fslib": "^3.1.5",
     "@yarnpkg/parsers": "^3.0.3",
     "@yarnpkg/types": "^4.0.0",
+    "async-mutex": "^0.5.0",
     "bats": "^1.13.0",
     "comment-json": "^4.6.2",
     "eslint-plugin-n": "^18.3.0",
@@ -116,7 +117,6 @@
     "rimraf": "^6.1.3",
     "semver": "^7.8.5",
     "simple-git-hooks": "^2.14.0",
-    "ts-jest": "^29.4.14",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "uuid": "^11.1.1",
     "vite": "^8.0.8",
@@ -131,7 +131,7 @@
     "pre-push": "yarn lint"
   },
   "engines": {
-    "node": "^22.14.0 || ^24"
+    "node": "^22.14.0 || ^24 || ^26"
   },
   "packageManager": "yarn@4.17.1+sha256.471ffb15e0523663865bbf46a69e7d157ecf532412eb436c48dfab6e3f2abe88",
   "lavamoat": {

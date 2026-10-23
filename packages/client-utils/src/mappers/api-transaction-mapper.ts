@@ -421,6 +421,7 @@ export function mapApiTransaction({
       transactionCategory,
       transactionProtocol: transaction.transactionProtocol,
       ...(token ? { token } : {}),
+      fees: getFees(transaction),
     },
   };
 }

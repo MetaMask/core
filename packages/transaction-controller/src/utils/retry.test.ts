@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { TransactionParams } from '../types.js';
 import { getTransactionParamsWithIncreasedGasFee } from './retry.js';
 

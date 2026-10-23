@@ -277,7 +277,6 @@ export type SwapsBenefitUsage = {
 
 export type PerpsBenefitUsage = {
   builderFeeBips: string | null;
-  builderCode: string | null;
   capMicroUsd?: number;
   consumedMicroUsd?: number;
   remainingMicroUsd: number | null;

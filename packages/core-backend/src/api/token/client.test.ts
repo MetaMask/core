@@ -2,6 +2,8 @@
  * Token API Client Tests - token.api.cx.metamask.io
  */
 
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import {
   mockFetch,
   createMockResponse,

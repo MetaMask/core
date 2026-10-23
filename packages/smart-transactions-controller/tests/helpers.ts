@@ -1,17 +1,22 @@
 import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { setImmediate as realSetImmediate } from 'node:timers';
+import { vi } from 'vitest';
 
 /**
  * Resolve all pending promises.
  * This method is used for async tests that use fake timers.
- * See https://stackoverflow.com/a/58716087 and https://jestjs.io/docs/timer-mocks.
+ * See https://stackoverflow.com/a/58716087 and https://vitest.dev/guide/mocking/timers.
+ *
+ * `setImmediate` comes from `node:timers` so that it is the real one even while
+ * fake timers are installed.
  */
 export const flushPromises = async () => {
-  return new Promise(jest.requireActual('timers').setImmediate);
+  return new Promise(realSetImmediate);
 };
 
 /**
- * Advances Jest's fake timer by a specified duration in incremental steps.
+ * Advances Vitest's fake timer by a specified duration in incremental steps.
  * Between each step, any enqueued promises are processed. Fake timers in testing libraries
  * allow simulation of time without actually waiting. However, they don't always account for
  * promises or other asynchronous operations that may get enqueued during the timer's duration.
@@ -30,7 +35,7 @@ export async function advanceTime({
   stepSize?: number;
 }): Promise<void> {
   do {
-    await jest.advanceTimersByTimeAsync(stepSize);
+    await vi.advanceTimersByTimeAsync(stepSize);
     await flushPromises();
     // eslint-disable-next-line no-param-reassign
     duration -= stepSize;

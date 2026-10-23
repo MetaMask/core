@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { isVersionInBounds } from './isVersionInBounds.js';
 
 describe('isVersionInBounds', () => {
