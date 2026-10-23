@@ -98,7 +98,8 @@ export function bytesToHex(bytes: Uint8Array): Hex {
   const hexadecimal = new Array(bytes.length);
 
   for (let i = 0; i < bytes.length; i++) {
-    hexadecimal[i] = lookupTable[bytes[i]];
+    // oxlint-disable-next-line typescript/no-non-null-assertion
+    hexadecimal[i] = lookupTable[bytes[i]!];
   }
 
   return add0x(hexadecimal.join(''));
@@ -416,7 +417,8 @@ export function concatBytes(values: Bytes[]): Uint8Array<ArrayBuffer> {
   let byteLength = 0;
 
   for (let i = 0; i < values.length; i++) {
-    const value = valueToBytes(values[i]);
+    // oxlint-disable-next-line typescript/no-non-null-assertion
+    const value = valueToBytes(values[i]!);
 
     normalizedValues[i] = value;
     byteLength += value.length;

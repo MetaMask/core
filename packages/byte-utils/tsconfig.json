@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "erasableSyntaxOnly": true,
+    "noUncheckedIndexedAccess": true,
     "types": ["node"]
   },
   "references": [
