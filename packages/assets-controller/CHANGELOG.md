@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Replaced the generic Ethers ABI encoding/decoding used by `MulticallClient` for Multicall3 `aggregate3` batches with hand-rolled fixed-layout codecs: `encodeAggregate3` and `decodeAggregate3Response` now build and parse calldata/responses with direct string operations (and `decodeUint256` with native `BigInt`), producing byte-identical output to Ethers with matching error behavior for malformed data and result-count mismatches, while making 300-call multicall batches roughly 44× faster to encode/decode on Hermes (React Native) runtimes ([#11010](https://github.com/MetaMask/core/pull/11010))
+- Replaced the generic Ethers ABI encoding/decoding used by `MulticallClient` for Multicall3 `aggregate3` batches with hand-rolled fixed-layout codecs: `encodeAggregate3` and `decodeAggregate3Response` now build and parse calldata/responses with direct string operations (and `decodeUint256` with native `BigInt`), producing byte-identical output to Ethers with matching error behavior for malformed data and result-count mismatches, while making 300-call multicall batches roughly 42× faster to encode/decode on the Hermes V1 engine shipped with React Native 0.86.3 (`hermes-v250829098.0.17`) ([#11010](https://github.com/MetaMask/core/pull/11010))
 - Bump `@metamask/account-tree-controller` from `^11.0.1` to `^11.1.1` ([#10891](https://github.com/MetaMask/core/pull/10891), [#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/assets-controllers` from `^112.1.2` to `^112.1.3` ([#10925](https://github.com/MetaMask/core/pull/10925))
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))

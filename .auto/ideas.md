@@ -3,18 +3,26 @@
 Primary metric: `encdec_full_ms` (encode 300-call batch + decode response +
 decodeUint256 per result), Hermes `-O`, median of 3 invocations.
 
+Engine for the numbers below: Hermes `hermes-v250829098.0.17`
+(commit `3477757eb247`, HBC bytecode 98), the Hermes V1 build React Native
+0.86.3 ships. macOS arm64 Release CLI, JIT off, debugger off. Parity
+self-check passed on every run. Runs 1–10 in `.auto/log.jsonl` were an earlier
+Static Hermes `static_h` checkout (bytecode 99); those ratios were within a
+few percent of these.
+
 ## Done (this session)
 
 | #   | Idea                                                                                                                                      | Verdict         | Result                                                                           |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------- |
-| 1   | Hand-rolled `encodeAggregate3`: fixed-layout string assembly, hardcoded selector (asserted vs interface at load), zero Ethers on hot path | KEEP (run 2)    | encode 25.0 → 0.65 ms (38×)                                                      |
-| 2   | Hand-rolled `decodeAggregate3Response`: direct substring parsing following all offset words, no Result/BigNumber allocation               | KEEP (run 3)    | decode 18.4 → 0.25 ms (74×)                                                      |
-| 3   | `decodeUint256` via native `BigInt(data.slice(0,66)).toString()`                                                                          | KEEP (run 7)    | uint256 5.45 → 0.2 ms (27×)                                                      |
-| 4   | Rope-style `+=` encoder assembly vs array push+join                                                                                       | DISCARD (run 8) | identical numbers (1.125 vs 1.125) — converged                                   |
+| 1   | Hand-rolled `encodeAggregate3`: fixed-layout string assembly, hardcoded selector (asserted vs interface at load), zero Ethers on hot path | KEEP (run 2)    | encode 25.4 → 0.675 ms (38×)                                                     |
+| 2   | Hand-rolled `decodeAggregate3Response`: direct substring parsing following all offset words, no Result/BigNumber allocation               | KEEP (run 3)    | decode 18.1 → 0.30 ms (60×)                                                      |
+| 3   | `decodeUint256` via native `BigInt(data.slice(0,66)).toString()`                                                                          | KEEP (run 7)    | uint256 5.5 → 0.2 ms (27×)                                                       |
+| 4   | Rope-style `+=` encoder assembly vs array push+join                                                                                       | DISCARD (run 8) | tie on the earlier engine (1.125 vs 1.125); not remeasured                       |
 | —   | Metric fix                                                                                                                                | run 5           | primary metric now encdec_full_ms (was encode+decode only, missed uint256 stage) |
 
-Session: baseline `encdec_full_ms` = 49.7 → 1.125 (**44×**). Loop converged after
-run 8 — micro-optimizations no longer clear the 2% keep threshold.
+Session: baseline `encdec_full_ms` = 49.0 → 1.175 (**42×**) on the React Native
+0.86.3 engine. Loop converged after run 8 — micro-optimizations no longer
+clear the 2% keep threshold.
 
 ## Key learnings
 
@@ -56,15 +64,15 @@ run 8 — micro-optimizations no longer clear the 2% keep threshold.
 
 ### viem instead of Ethers / hand-rolled codec (run 9 — measured, not adopted)
 
-Measured on Hermes (`-O`, 300-call batch, median of 3, parity vs stock
+Remeasured on Hermes V1 `hermes-v250829098.0.17` (`-O`, 300-call batch, median of 3, parity vs stock
 ethers, SELF_CHECK=OK): a viem-based MulticallClient codec
 (`encodeFunctionData`/`decodeFunctionResult`/module-level `parseAbi`,
 pruned ABI closure = what a tree-shaken mobile bundle keeps, ~127 KB JS,
 45 files):
 
-- viem full pipeline: **11.853 ms** (encode 2.9 / decode 7.353 / uint256 1.6)
-- stock Ethers baseline: 49.707 ms → viem is **~4.2x faster than Ethers**
-- hand-rolled codec (current PR): **1.125 ms** → viem is **~10.5x SLOWER**
+- viem full pipeline: **13.344 ms** (encode 3.211 / decode 8.333 / uint256 1.8)
+- stock Ethers baseline: 49.043 ms → viem is **~3.7x faster than Ethers**
+- hand-rolled codec (current PR): **1.175 ms** → viem is **~11x SLOWER**
 
 Verdict: viem is a legitimate Ethers replacement if maintainers reject
 hand-rolled encoders (already in the monorepo via perps-controller, faithful
@@ -79,6 +87,6 @@ reverted, all decided by `.auto/run-exp.sh` against the working tree.
 
 ## Run 10 — over-fit check (scaling sweep)
 
-- **Conclusion: NOT over-fit.** Correctness is generic (bounds-checked offset-following decoder, byte-parity vs Ethers for arbitrary inputs, error paths preserved). Performance is linear and flat per call across n=30→3000 (~3.3–3.8 µs/call) and nearly independent of returnData size (0.325 ms at 500 B/call vs 0.275 ms at 32 B/call). viem scales linearly in both n and bytes (n=3000 → 116 ms; 500 B → 20 ms decode).
-- One honest caveat: bench addresses were all-lowercase, so Ethers/viem baselines skipped EIP-55 checksum keccak validation; with mixed-case (real-world) addresses the library baselines get *slower*, i.e. the reported 44× is a conservative lower bound.
+- **Conclusion: NOT over-fit.** Correctness is generic (bounds-checked offset-following decoder, byte-parity vs Ethers for arbitrary inputs, error paths preserved). Performance is linear and flat per call across n=30→3000 (~3.3–4.0 µs/call) and nearly independent of returnData size (0.325 ms at 500 B/call vs 0.300 ms at 32 B/call). viem scales linearly in both n and bytes (n=3000 → 129 ms; 500 B → 22 ms decode).
+- One honest caveat: bench addresses were all-lowercase, so Ethers/viem baselines skipped EIP-55 checksum keccak validation; with mixed-case (real-world) addresses the library baselines get *slower*, i.e. the reported 42× is a conservative lower bound.
 - On-device A/B in the real mobile app closes the loop (see PR body harness instructions).
