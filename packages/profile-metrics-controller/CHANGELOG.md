@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
+### Changed
+
+- Bump `@metamask/snaps-utils` from `^12.1.2` to `^12.6.1` ([#10738](https://github.com/MetaMask/core/pull/10738))
+
 ## [5.1.4]
 
 ### Changed
