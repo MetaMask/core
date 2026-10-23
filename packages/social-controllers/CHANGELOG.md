@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `volumeUsd30d` and `volumeUsd7d` to `FeedActorSummary` and `LeaderboardEntry`. Feed actors carry all-chain totals from profile metadata, including realtime feed normalization. Leaderboard entries carry the chain-scoped totals returned by social-api
+
 ## [3.11.0]
 
 ### Added
