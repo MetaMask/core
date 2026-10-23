@@ -67,7 +67,7 @@
     "bn.js": "^5.2.5",
     "immer": "^11.1.18",
     "lodash-es": "^4.18.1",
-    "uuid": "^11.1.1"
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
