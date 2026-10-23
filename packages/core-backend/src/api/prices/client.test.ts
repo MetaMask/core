@@ -2,6 +2,8 @@
  * Prices API Client Tests - price.api.cx.metamask.io
  */
 
+import { beforeEach, describe, expect, it } from 'vitest';
+
 import {
   createMockResponse,
   mockFetch,
