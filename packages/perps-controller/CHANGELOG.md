@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [22.0.0]
 
-### Uncategorized
-
-- Release/1354.0.0 ([#11000](https://github.com/MetaMask/core/pull/11000))
-
 ### Added
 
 - Accept an optional `environmentType` string on `TrackingData`, `TPSLTrackingData`, and `WithdrawParams`. ([#10899](https://github.com/MetaMask/core/pull/10899))
