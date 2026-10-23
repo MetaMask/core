@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^20.0.0` to `^20.0.2` ([#11157](https://github.com/MetaMask/core/pull/11157), [#11196](https://github.com/MetaMask/core/pull/11196))
 - Bump `@metamask/ramps-controller` from `^28.0.0` to `^28.1.0` ([#11175](https://github.com/MetaMask/core/pull/11175))
 - Use shared recipient resolution for Relay and Server quotes ([#10887](https://github.com/MetaMask/core/pull/10887))
+- Detect Hyperliquid perps deposits from the transaction calldata in `RelayStrategy`, `AcrossStrategy` and `ServerStrategy`, rather than from the transaction type ([#11026](https://github.com/MetaMask/core/pull/11026))
+  - A perps deposit is now any transaction, or nested transaction, that calls the Hyperliquid bridge or makes an ERC-20 transfer to it.
+  - `AcrossStrategy` now supports `perpsDepositAndOrder` transactions as HyperCore direct deposits, and labels the resulting transaction as `perpsAcrossDeposit`.
+  - Each strategy still sets its own HyperCore USDC address in the quote request.
+
+### Fixed
+
+- Fix Hyperliquid perps deposits and withdrawals in `ServerStrategy` ([#11026](https://github.com/MetaMask/core/pull/11026))
+  - Detect perps deposits made as an ERC-20 transfer to the Hyperliquid bridge, rather than only calls whose `to` is the bridge.
+  - Convert perps withdrawal amounts from 6 to 8 decimals, instead of 8 to 6.
 
 ## [30.3.1]
 
@@ -36,12 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Stop copying the outer EIP-7702 gas limit into the `gas` of each nested transaction when submitting a Server quote as an EIP-7702 batch, as nested gas is not supported in EIP-7702 batches ([#10790](https://github.com/MetaMask/core/pull/10790))
-
-### Fixed
-
-- Fix Hyperliquid perps deposits and withdrawals in `ServerStrategy` ([#11026](https://github.com/MetaMask/core/pull/11026))
-  - Detect perps deposits made as an ERC-20 transfer to the Hyperliquid bridge, rather than only calls whose `to` is the bridge.
-  - Convert perps withdrawal amounts from 6 to 8 decimals, instead of 8 to 6.
 
 ## [30.2.0]
 
