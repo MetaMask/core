@@ -37,7 +37,7 @@ export {
 } from './unitsConversion.js';
 
 // Re-exports for backwards compatibility.
-export type { Hex } from '@metamask/byte-utils';
+export type { Bytes, Hex } from '@metamask/byte-utils';
 export {
   HEX_REGEX,
   STRICT_HEX_REGEX,
