@@ -739,10 +739,7 @@ export class KycController extends BaseController<
    * @returns The analytics KYC status.
    */
   #getKycAnalyticsStatus(): KycAnalyticsStatus {
-    return getKycAnalyticsStatus(
-      this.state.sessionStatus,
-      this.state.providerFlowStatus,
-    );
+    return getKycAnalyticsStatus(this.state.sessionStatus);
   }
 
   /**

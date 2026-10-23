@@ -1969,26 +1969,21 @@ describe('KycController', () => {
 
   describe('getKycAnalyticsStatus', () => {
     it.each([
-      [null, 'not_started', 'none'],
-      [sessionStatus('approved'), 'not_started', 'approved'],
-      [
-        sessionStatus('pending', { kycStatus: 'approved' }),
-        'not_started',
-        'approved',
-      ],
-      [sessionStatus('rejected'), 'submitted', 'rejected'],
-      [sessionStatus('retry'), 'submitted', 'retry'],
-      [sessionStatus('new'), 'submitted', 'pending'],
-      [sessionStatus('pending'), 'not_started', 'pending'],
-      [
-        sessionStatus('new', { kycStatus: 'pending' }),
-        'not_started',
-        'pending',
-      ],
-      [sessionStatus('new'), 'not_started', 'new'],
-      [sessionStatus('mystery'), 'not_started', 'none'],
-    ] as const)('maps %j with flow %s to %s', (session, flow, expected) => {
-      expect(getKycAnalyticsStatus(session, flow)).toBe(expected);
+      [null, 'none'],
+      [sessionStatus('new'), 'new'],
+      [sessionStatus('pending'), 'pending'],
+      [sessionStatus('approved'), 'approved'],
+      [sessionStatus('rejected'), 'rejected'],
+      [sessionStatus('retry'), 'retry'],
+      [sessionStatus('mystery'), 'none'],
+    ] as const)('maps %j to %s', (session, expected) => {
+      expect(getKycAnalyticsStatus(session)).toBe(expected);
+    });
+
+    it('ignores the relay kycStatus', () => {
+      expect(
+        getKycAnalyticsStatus(sessionStatus('new', { kycStatus: 'approved' })),
+      ).toBe('new');
     });
   });
 

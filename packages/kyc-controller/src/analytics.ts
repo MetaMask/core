@@ -64,40 +64,18 @@ export type KycAnalyticsStatusChangedPayload = {
 };
 
 /**
- * Derives the KYC status from the persisted session and provider-flow outcome.
- *
- * Relay approval (`kycStatus: 'approved'`) counts even when `finalStatus` is
- * still `pending`. A non-approved session whose provider flow was submitted, or
- * whose status is pending, is `pending`.
+ * Maps the session's `finalStatus` onto the analytics KYC status. A missing
+ * session is `none`, and so is a `finalStatus` outside
+ * {@link KYC_ANALYTICS_STATUSES}.
  *
  * @param session - Persisted or freshly fetched KYC session, if any.
- * @param providerFlowStatus - Durable provider-flow outcome.
  * @returns The analytics KYC status.
  */
 export function getKycAnalyticsStatus(
   session: KycSessionStatus | null,
-  providerFlowStatus: KycProviderFlowStatus,
 ): KycAnalyticsStatus {
-  if (!session) {
-    return 'none';
+  if (session && KYC_ANALYTICS_STATUS_SET.has(session.finalStatus)) {
+    return session.finalStatus as KycAnalyticsStatus;
   }
-  if (session.finalStatus === 'approved' || session.kycStatus === 'approved') {
-    return 'approved';
-  }
-  const mapped: KycAnalyticsStatus = KYC_ANALYTICS_STATUS_SET.has(
-    session.finalStatus,
-  )
-    ? (session.finalStatus as KycAnalyticsStatus)
-    : 'none';
-  if (mapped === 'rejected' || mapped === 'retry') {
-    return mapped;
-  }
-  if (
-    session.finalStatus === 'pending' ||
-    session.kycStatus === 'pending' ||
-    providerFlowStatus === 'submitted'
-  ) {
-    return 'pending';
-  }
-  return mapped;
+  return 'none';
 }
