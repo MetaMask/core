@@ -1,6 +1,7 @@
 import { Messenger } from '@metamask/messenger';
 import { NetworkEnablementController } from '@metamask/network-enablement-controller';
 import type { NetworkEnablementControllerState } from '@metamask/network-enablement-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import * as walletExports from '../../../index.js';
 import { defaultConfigurations } from '../../defaults.js';
@@ -101,7 +102,7 @@ describe('networkEnablementController', () => {
     'NetworkController:getState',
   ])('delegates the %s action', (actionType) => {
     const rootMessenger = getRootMessenger();
-    const handler = jest.fn().mockReturnValue('result');
+    const handler = vi.fn().mockReturnValue('result');
     registerActionHandler(rootMessenger, actionType, handler);
     const messenger = networkEnablementController.getMessenger(rootMessenger);
 
@@ -121,7 +122,7 @@ describe('networkEnablementController', () => {
   ])('delegates the %s event', (eventType) => {
     const rootMessenger = getRootMessenger();
     const messenger = networkEnablementController.getMessenger(rootMessenger);
-    const listener = jest.fn();
+    const listener = vi.fn();
     (
       messenger as unknown as {
         subscribe(type: string, handler: ActionHandler): void;
