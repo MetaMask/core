@@ -47,7 +47,8 @@ export const resolve: ResolveHookSync = (
         typeof error === 'object' &&
         error !== null &&
         'code' in error &&
-        error.code === 'ERR_MODULE_NOT_FOUND'
+        (error.code === 'ERR_MODULE_NOT_FOUND' ||
+          error.code === 'MODULE_NOT_FOUND')
       ) {
         return nextResolve(specifier, context);
       }
