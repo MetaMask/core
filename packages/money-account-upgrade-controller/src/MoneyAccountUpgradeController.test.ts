@@ -346,9 +346,7 @@ function setup({
     });
 
   const mocks: Mocks = {
-    getServiceDetails: vi
-      .fn()
-      .mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE),
+    getServiceDetails: vi.fn().mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE),
     signPersonalMessage: vi.fn().mockResolvedValue('0xdeadbeef'),
     createAddressChallenge: vi.fn().mockResolvedValue({
       challengeId: '7b1e6f0c-1f3a-4d2b-9c8e-2a4b6c8d0e1f',

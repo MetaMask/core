@@ -189,13 +189,13 @@
       "path": "./packages/money-account-api-data-service"
     },
     {
-      "path": "./packages/money-account-api-data-service"
-    },
-    {
       "path": "./packages/money-account-balance-service"
     },
     {
       "path": "./packages/money-account-controller"
+    },
+    {
+      "path": "./packages/money-account-lifecycle-controller"
     },
     {
       "path": "./packages/money-account-mfa-whitelist"

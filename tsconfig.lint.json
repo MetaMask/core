@@ -201,6 +201,9 @@
       "path": "./packages/money-account-controller/tsconfig.lint.json"
     },
     {
+      "path": "./packages/money-account-lifecycle-controller/tsconfig.lint.json"
+    },
+    {
       "path": "./packages/money-account-mfa-whitelist/tsconfig.lint.json"
     },
     {

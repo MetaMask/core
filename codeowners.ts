@@ -221,6 +221,9 @@ const config = {
     'money-account-controller': {
       teams: ['@MetaMask/accounts-engineers'],
     },
+    'money-account-lifecycle-controller': {
+      teams: ['@MetaMask/earn'],
+    },
     'money-account-mfa-whitelist': {
       teams: ['@MetaMask/earn'],
     },
