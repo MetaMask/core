@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
+### Changed
+
+- Bump `immer` from `^11.1.18` to `^11.2.3` ([#10723](https://github.com/MetaMask/core/pull/10723))
+
 ## [37.1.1]
 
 ### Changed
