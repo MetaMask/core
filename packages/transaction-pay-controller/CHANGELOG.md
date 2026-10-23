@@ -14,16 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Use shared recipient resolution for Relay and Server quotes ([#10887](https://github.com/MetaMask/core/pull/10887))
-- Detect Hyperliquid perps deposits from the transaction calldata in `RelayStrategy`, `AcrossStrategy` and `ServerStrategy`, rather than from the transaction type ([#11026](https://github.com/MetaMask/core/pull/11026))
-  - A perps deposit is now any transaction, or nested transaction, that calls the Hyperliquid bridge or makes an ERC-20 transfer to it.
-  - `AcrossStrategy` now supports `perpsDepositAndOrder` transactions as HyperCore direct deposits, and labels the resulting transaction as `perpsAcrossDeposit`.
-  - Each strategy still sets its own HyperCore USDC address in the quote request.
+- Use shared Hyperliquid perps logic in all strategies, detecting deposits from calldata rather than transaction type ([#11026](https://github.com/MetaMask/core/pull/11026))
 
 ### Fixed
 
-- Fix Hyperliquid perps deposits and withdrawals in `ServerStrategy` ([#11026](https://github.com/MetaMask/core/pull/11026))
-  - Detect perps deposits made as an ERC-20 transfer to the Hyperliquid bridge, rather than only calls whose `to` is the bridge.
-  - Convert perps withdrawal amounts from 6 to 8 decimals, instead of 8 to 6.
+- Fix Hyperliquid perps deposit detection and withdrawal decimals in `ServerStrategy` ([#11026](https://github.com/MetaMask/core/pull/11026))
 
 ## [30.2.0]
 
