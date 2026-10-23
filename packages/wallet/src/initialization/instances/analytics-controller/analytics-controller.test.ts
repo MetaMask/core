@@ -7,6 +7,8 @@ import type {
   AnalyticsTrackingEvent,
 } from '@metamask/analytics-controller';
 import { Messenger } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {
@@ -30,10 +32,10 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
 }
 
 type StubPlatformAdapter = AnalyticsPlatformAdapter & {
-  track: jest.Mock;
-  identify: jest.Mock;
-  view: jest.Mock;
-  onSetupCompleted: jest.Mock;
+  track: Mock;
+  identify: Mock;
+  view: Mock;
+  onSetupCompleted: Mock;
 };
 
 /**
@@ -43,10 +45,10 @@ type StubPlatformAdapter = AnalyticsPlatformAdapter & {
  */
 function createStubPlatformAdapter(): StubPlatformAdapter {
   return {
-    track: jest.fn(),
-    identify: jest.fn(),
-    view: jest.fn(),
-    onSetupCompleted: jest.fn(),
+    track: vi.fn(),
+    identify: vi.fn(),
+    view: vi.fn(),
+    onSetupCompleted: vi.fn(),
   };
 }
 
@@ -162,7 +164,7 @@ describe('analyticsController', () => {
 
   it('delegates ConfigRegistryController and GeolocationController actions', () => {
     const parent = getRootMessenger();
-    const delegateSpy = jest.spyOn(parent, 'delegate');
+    const delegateSpy = vi.spyOn(parent, 'delegate');
     const messenger = analyticsController.getMessenger(parent);
 
     expect(delegateSpy).toHaveBeenCalledWith({

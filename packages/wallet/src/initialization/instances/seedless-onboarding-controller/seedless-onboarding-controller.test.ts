@@ -4,6 +4,7 @@ import {
   SeedlessOnboardingController,
   getDefaultSeedlessOnboardingControllerState,
 } from '@metamask/seedless-onboarding-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import type {
   DefaultActions,
@@ -33,16 +34,16 @@ function getSeedlessOnboardingOptions(): SeedlessOnboardingControllerInstanceOpt
     encryptor: encryptorFactory(
       600_000,
     ) as SeedlessOnboardingControllerInstanceOptions['encryptor'],
-    refreshJWTToken: jest.fn(),
-    revokeRefreshToken: jest.fn(),
-    renewRefreshToken: jest.fn(),
+    refreshJWTToken: vi.fn(),
+    revokeRefreshToken: vi.fn(),
+    renewRefreshToken: vi.fn(),
   };
 }
 
 describe('seedlessOnboardingController', () => {
   it('delegates the actions used by the controller', () => {
     const rootMessenger = getRootMessenger();
-    const delegateSpy = jest.spyOn(rootMessenger, 'delegate');
+    const delegateSpy = vi.spyOn(rootMessenger, 'delegate');
 
     const messenger = seedlessOnboardingController.getMessenger(rootMessenger);
 

@@ -5,6 +5,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { RateLimitMessenger } from './RateLimitController.js';
 import { RateLimitController } from './RateLimitController.js';
@@ -13,10 +14,10 @@ const controllerName = 'RateLimitController';
 
 const implementations = {
   apiWithoutCustomLimit: {
-    method: jest.fn(),
+    method: vi.fn(),
   },
   apiWithCustomLimit: {
-    method: jest.fn(),
+    method: vi.fn(),
     rateLimitCount: 2,
     rateLimitTimeout: 3000,
   },
@@ -74,13 +75,13 @@ const message = 'foo';
 
 describe('RateLimitController', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
     implementations.apiWithoutCustomLimit.method.mockClear();
     implementations.apiWithCustomLimit.method.mockClear();
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('action: RateLimitController:call', async () => {
@@ -186,7 +187,7 @@ describe('RateLimitController', () => {
     expect(
       await controller.call(origin, 'apiWithoutCustomLimit', origin, message),
     ).toBeUndefined();
-    jest.runAllTimers();
+    vi.runAllTimers();
     expect(
       await controller.call(origin, 'apiWithoutCustomLimit', origin, message),
     ).toBeUndefined();
@@ -199,7 +200,7 @@ describe('RateLimitController', () => {
       await controller.call(origin, 'apiWithCustomLimit', origin, message),
     ).toBeUndefined();
 
-    jest.runAllTimers();
+    vi.runAllTimers();
 
     expect(
       await controller.call(origin, 'apiWithCustomLimit', origin, message),
@@ -230,17 +231,17 @@ describe('RateLimitController', () => {
     expect(
       await controller.call(origin, 'apiWithoutCustomLimit', origin, message),
     ).toBeUndefined();
-    jest.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(2500);
     expect(
       await controller.call(origin, 'apiWithoutCustomLimit', origin, message),
     ).toBeUndefined();
     expect(controller.state.requests.apiWithoutCustomLimit[origin]).toBe(2);
-    jest.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(2500);
     expect(controller.state.requests.apiWithoutCustomLimit[origin]).toBe(0);
     expect(
       await controller.call(origin, 'apiWithoutCustomLimit', origin, message),
     ).toBeUndefined();
-    jest.advanceTimersByTime(2500);
+    vi.advanceTimersByTime(2500);
     expect(controller.state.requests.apiWithoutCustomLimit[origin]).toBe(1);
   });
 

@@ -1,6 +1,7 @@
 import { GasFeeController } from '@metamask/gas-fee-controller';
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { WalletOptions } from '../../../types.js';
 import { Wallet } from '../../../Wallet.js';
@@ -77,7 +78,7 @@ describe('gasFeeController', () => {
   it('exposes GasFeeController:fetchGasFeeEstimates over the shared bus, resolving the TransactionController delegation', async () => {
     // The messenger binds the method at construction, so spy on the prototype
     // before building the wallet. This also avoids the real network fetch.
-    const fetchGasFeeEstimates = jest
+    const fetchGasFeeEstimates = vi
       .spyOn(GasFeeController.prototype, 'fetchGasFeeEstimates')
       .mockResolvedValue({
         gasFeeEstimatesByChainId: {},
@@ -138,10 +139,10 @@ describe('gasFeeController', () => {
   it('applies injectable options over the defaults', () => {
     const rootMessenger = getRootMessenger();
     const messenger = gasFeeController.getMessenger(rootMessenger);
-    const getCurrentAccountEIP1559Compatibility = jest
+    const getCurrentAccountEIP1559Compatibility = vi
       .fn()
       .mockReturnValue(false);
-    const getCurrentNetworkLegacyGasAPICompatibility = jest
+    const getCurrentNetworkLegacyGasAPICompatibility = vi
       .fn()
       .mockReturnValue(true);
 
@@ -172,14 +173,14 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
     rootMessenger,
     'NetworkController',
     'NetworkController:getState',
-    jest.fn().mockReturnValue({ selectedNetworkClientId: 'mainnet' }),
+    vi.fn().mockReturnValue({ selectedNetworkClientId: 'mainnet' }),
   );
 
   registerActionHandler(
     rootMessenger,
     'NetworkController',
     'NetworkController:getNetworkClientById',
-    jest.fn().mockReturnValue({
+    vi.fn().mockReturnValue({
       // Errors immediately so `eth_gasPrice` fallback settles without a network
       // call rather than hanging.
       provider: {
@@ -196,7 +197,7 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
     'NetworkController:getEIP1559Compatibility',
     // `false` skips the EIP-1559/legacy API fetches, so a fetch goes straight to
     // the offline provider above.
-    jest.fn().mockResolvedValue(false),
+    vi.fn().mockResolvedValue(false),
   );
 
   return rootMessenger;
@@ -206,10 +207,10 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
   return {
     analyticsController: {
       platformAdapter: {
-        track: jest.fn(),
-        identify: jest.fn(),
-        view: jest.fn(),
-        onSetupCompleted: jest.fn(),
+        track: vi.fn(),
+        identify: vi.fn(),
+        view: vi.fn(),
+        onSetupCompleted: vi.fn(),
       },
       analyticsId: '11111111-1111-4111-8111-111111111111',
     },
