@@ -907,7 +907,6 @@ describe('NetworkEnablementController', () => {
       const { controller, messenger } = setupController();
 
       // Start with empty state to test namespace bucket creation
-      // eslint-disable-next-line dot-notation
       controller['update']((state) => {
         state.enabledNetworkMap = {};
       });
@@ -2047,7 +2046,6 @@ describe('NetworkEnablementController', () => {
       const { controller } = setupController();
 
       // Remove the BIP122 namespace to test the early return
-      // eslint-disable-next-line dot-notation
       controller['update']((state) => {
         delete state.enabledNetworkMap[KnownCaipNamespace.Bip122];
       });

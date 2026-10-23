@@ -49,7 +49,6 @@ type RootMessenger = Messenger<
  */
 class MockWebSocket extends EventTarget {
   // WebSocket state constants
-  /* eslint-disable @typescript-eslint/naming-convention */
   public static readonly CONNECTING = 0;
 
   public static readonly OPEN = 1;
@@ -57,7 +56,6 @@ class MockWebSocket extends EventTarget {
   public static readonly CLOSING = 2;
 
   public static readonly CLOSED = 3;
-  /* eslint-enable @typescript-eslint/naming-convention */
 
   // Track total instances created for testing
   static #instanceCount = 0;
@@ -155,7 +153,7 @@ class MockWebSocket extends EventTarget {
 
   public simulateClose(code = 1000, reason = ''): void {
     this.readyState = MockWebSocket.CLOSED;
-    // eslint-disable-next-line n/no-unsupported-features/node-builtins, no-restricted-globals
+    // eslint-disable-next-line n/no-unsupported-features/node-builtins
     const event = new CloseEvent('close', { code, reason });
     this.onclose?.(event);
     this.dispatchEvent(event);
@@ -367,7 +365,6 @@ const setupBackendWebSocketService = ({
   }
 
   // Replace global WebSocket for this test
-  // eslint-disable-next-line n/no-unsupported-features/node-builtins
   global.WebSocket = TestMockWebSocket as unknown as typeof WebSocket;
 
   const service = new BackendWebSocketService({

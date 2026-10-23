@@ -8,7 +8,6 @@ import type {
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 // `getActiveChainsSync` is part of the data source's public API; asserting on
 // it is intentional and not a filesystem-style sync call.
-/* eslint-disable n/no-sync */
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 

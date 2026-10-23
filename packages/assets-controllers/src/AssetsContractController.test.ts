@@ -241,7 +241,6 @@ function mockNetworkWithDefaultChainId({
   });
 }
 
-// eslint-disable-next-line vitest/no-export
 export { setupAssetContractControllers, mockNetworkWithDefaultChainId };
 
 describe('AssetsContractController', () => {

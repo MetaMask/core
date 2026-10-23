@@ -405,7 +405,6 @@ describe('RpcDataSource', () => {
             ) => {
               if (source !== null) {
                 callbackResult = {
-                  // eslint-disable-next-line n/no-sync -- testing sync API used by AssetsController
                   syncChains: source.getActiveChainsSync(),
                   newChains,
                 };
@@ -439,10 +438,7 @@ describe('RpcDataSource', () => {
           },
         },
         ({ controller }) => {
-          expect(
-            // eslint-disable-next-line n/no-sync -- testing sync API
-            controller.getActiveChainsSync(),
-          ).toStrictEqual([]);
+          expect(controller.getActiveChainsSync()).toStrictEqual([]);
         },
       );
     });
@@ -1848,7 +1844,6 @@ describe('RpcDataSource', () => {
       );
       const networkState = createMockNetworkState(NetworkStatus.Degraded);
       await withController({ networkState }, async ({ controller }) => {
-        // eslint-disable-next-line n/no-sync -- testing sync API used by AssetsController
         expect(controller.getActiveChainsSync()).toStrictEqual([]);
 
         await controller.subscribe({
@@ -1929,7 +1924,6 @@ describe('RpcDataSource', () => {
           isUpdate: false,
           onAssetsUpdate: vi.fn(),
         });
-        // eslint-disable-next-line n/no-sync -- testing sync API used by AssetsController
         expect(controller.getActiveChainsSync()).toStrictEqual([]);
       });
     });
