@@ -8,9 +8,8 @@ This document provides guidance for AI agents working within this repo.
 
 - **Yarn 4** for managing the monorepo
 - **TypeScript 5** for writing type-safe code
-- **Jest** for writing tests
+- **Vitest** for writing tests
 - **ESLint 9** and **Prettier** for linting and formatting code
-- **Babel** for compiling ESM code so that Jest can run it
 - **`@metamask/auto-changelog`** for writing and validating changelogs
 - **`@metamask/create-release-branch`**, **`MetaMask/action-publish-release`**, and **`MetaMask/action-npm-publish`** for creating and publishing releases
 - **TypeDoc** for generating API documentation
@@ -56,11 +55,11 @@ The monorepo uses a hierarchical configuration approach for different tools. For
 - `packages/**/tsconfig.build.json` (and `scripts/create-package/package-template/tsconfig.build.json`) defines TypeScript settings for each package that are used to produce a build.
 - `scripts/create-package/tsconfig.json` customizes TypeScript settings for the `create-package` tool.
 
-#### Jest
+#### Vitest
 
-- `jest.config.packages.js` defines shared Jest settings for all directories in `packages/`.
+- `vitest.config.packages.ts` defines shared Vitest settings for all directories in `packages/`.
 - `vitest.config.scripts.ts` defines Vitest settings for the tests in `scripts/`.
-- `packages/**/jest.config.js` (and `scripts/create-package/package-template/jest.config.js`) customizes Jest settings for each package.
+- `packages/**/vitest.config.ts` (and `packages/package-template/vitest.config.ts`) customizes Vitest settings for each package.
 
 #### Oxlint
 
@@ -77,7 +76,6 @@ The monorepo uses a hierarchical configuration approach for different tools. For
 
 #### Other files
 
-- `babel.config.js` configures Babel, which is used for tests within `scripts/create-package`.
 - `release.config.js` configures the `@metamask/create-release-branch` tool.
 
 ## Processes
@@ -121,7 +119,7 @@ For more on these commands, see:
 ### Running tests
 
 - Run `yarn workspace <package-name> run test` to run all tests for a package.
-- Run `yarn workspace <package-name> run jest --no-coverage <file>` to run a specific test file.
+- Run `yarn workspace <package-name> run test run <file> --coverage.enabled=false` to run a specific test file.
 - Prefer the above two commands, but if you must, run `yarn test` to run tests for all packages in the monorepo.
 
 ### Linting and formatting

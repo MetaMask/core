@@ -17,9 +17,10 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import assert from 'assert';
 import type { Patch } from 'immer';
-import { when, resetAllWhenMocks, WhenMock } from 'jest-when';
 import { inspect, isDeepStrictEqual, promisify } from 'util';
 import { v4 as uuidV4 } from 'uuid';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import { NetworkStatus } from '../src/constants.js';
 import * as createAutoManagedNetworkClientModule from '../src/create-auto-managed-network-client.js';
@@ -68,16 +69,12 @@ import {
 } from './helpers.js';
 import type { RootMessenger } from './helpers.js';
 
-jest.mock('../src/create-network-client');
+vi.mock('../src/create-network-client.js');
 
-jest.mock('uuid', () => {
-  const actual = jest.requireActual('uuid');
-
-  return {
-    ...actual,
-    v4: jest.fn(),
-  };
-});
+vi.mock(import('uuid'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  v4: vi.fn(),
+}));
 
 /**
  * A block header object that `eth_getBlockByNumber` can be mocked to return.
@@ -90,10 +87,10 @@ type Block = {
   baseFeePerGas?: string;
 };
 
-const createNetworkClientMock = jest.mocked(createNetworkClient);
+const createNetworkClientMock = vi.mocked(createNetworkClient);
 // `v4` is overloaded; naming the signature used here avoids resolving to the
 // last overload, which returns a `Uint8Array`.
-const uuidV4Mock = jest.mocked<() => string>(uuidV4);
+const uuidV4Mock = vi.mocked<() => string>(uuidV4);
 
 /**
  * A dummy block that matches the pre-EIP-1559 format (i.e. it doesn't have the
@@ -158,11 +155,7 @@ describe('NetworkController', () => {
 
     createNetworkClientMock.mockReturnValue(buildFakeClient());
 
-    jest.spyOn(Date, 'now').mockReturnValue(FAKE_DATE_NOW_MS);
-  });
-
-  afterEach(() => {
-    resetAllWhenMocks();
+    vi.spyOn(Date, 'now').mockReturnValue(FAKE_DATE_NOW_MS);
   });
 
   describe('constructor', () => {
@@ -378,7 +371,7 @@ describe('NetworkController', () => {
 
     it('corrects an invalid selectedNetworkClientId to the default RPC endpoint of the first chain, logging this fact', () => {
       const messenger = buildRootMessenger();
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
       const controller = new NetworkController({
@@ -425,7 +418,7 @@ describe('NetworkController', () => {
 
     it('removes invalid network client IDs from networksMetadata, logging this fact', () => {
       const messenger = buildRootMessenger();
-      const captureExceptionSpy = jest.spyOn(messenger, 'captureException');
+      const captureExceptionSpy = vi.spyOn(messenger, 'captureException');
       const controllerMessenger = buildNetworkControllerMessenger(messenger);
 
       const controller = new NetworkController({
@@ -814,18 +807,17 @@ describe('NetworkController', () => {
         createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
       const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
         [];
-      jest
-        .spyOn(
-          createAutoManagedNetworkClientModule,
-          'createAutoManagedNetworkClient',
-        )
-        .mockImplementation((...args) => {
-          const autoManagedNetworkClient =
-            originalCreateAutoManagedNetworkClient(...args);
-          jest.spyOn(autoManagedNetworkClient, 'setRpcFailoverMode');
-          autoManagedNetworkClients.push(autoManagedNetworkClient);
-          return autoManagedNetworkClient;
-        });
+      vi.spyOn(
+        createAutoManagedNetworkClientModule,
+        'createAutoManagedNetworkClient',
+      ).mockImplementation((...args) => {
+        const autoManagedNetworkClient = originalCreateAutoManagedNetworkClient(
+          ...args,
+        );
+        vi.spyOn(autoManagedNetworkClient, 'setRpcFailoverMode');
+        autoManagedNetworkClients.push(autoManagedNetworkClient);
+        return autoManagedNetworkClient;
+      });
 
       await withController(
         {
@@ -884,18 +876,17 @@ describe('NetworkController', () => {
         createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
       const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
         [];
-      jest
-        .spyOn(
-          createAutoManagedNetworkClientModule,
-          'createAutoManagedNetworkClient',
-        )
-        .mockImplementation((...args) => {
-          const autoManagedNetworkClient =
-            originalCreateAutoManagedNetworkClient(...args);
-          jest.spyOn(autoManagedNetworkClient, 'setRpcFailoverMode');
-          autoManagedNetworkClients.push(autoManagedNetworkClient);
-          return autoManagedNetworkClient;
-        });
+      vi.spyOn(
+        createAutoManagedNetworkClientModule,
+        'createAutoManagedNetworkClient',
+      ).mockImplementation((...args) => {
+        const autoManagedNetworkClient = originalCreateAutoManagedNetworkClient(
+          ...args,
+        );
+        vi.spyOn(autoManagedNetworkClient, 'setRpcFailoverMode');
+        autoManagedNetworkClients.push(autoManagedNetworkClient);
+        return autoManagedNetworkClient;
+      });
 
       await withController(
         {
@@ -943,18 +934,17 @@ describe('NetworkController', () => {
         createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
       const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
         [];
-      jest
-        .spyOn(
-          createAutoManagedNetworkClientModule,
-          'createAutoManagedNetworkClient',
-        )
-        .mockImplementation((...args) => {
-          const autoManagedNetworkClient =
-            originalCreateAutoManagedNetworkClient(...args);
-          jest.spyOn(autoManagedNetworkClient, 'setRpcFailoverMode');
-          autoManagedNetworkClients.push(autoManagedNetworkClient);
-          return autoManagedNetworkClient;
-        });
+      vi.spyOn(
+        createAutoManagedNetworkClientModule,
+        'createAutoManagedNetworkClient',
+      ).mockImplementation((...args) => {
+        const autoManagedNetworkClient = originalCreateAutoManagedNetworkClient(
+          ...args,
+        );
+        vi.spyOn(autoManagedNetworkClient, 'setRpcFailoverMode');
+        autoManagedNetworkClients.push(autoManagedNetworkClient);
+        return autoManagedNetworkClient;
+      });
 
       await withController(
         {
@@ -2160,7 +2150,7 @@ describe('NetworkController', () => {
                   },
                 },
                 async ({ controller, messenger }) => {
-                  const stateChangeListener = jest.fn();
+                  const stateChangeListener = vi.fn();
                   messenger.subscribe(
                     'NetworkController:stateChange',
                     stateChangeListener,
@@ -2186,7 +2176,7 @@ describe('NetworkController', () => {
                   },
                 },
                 async ({ controller, messenger }) => {
-                  const infuraIsUnblockedListener = jest.fn();
+                  const infuraIsUnblockedListener = vi.fn();
                   messenger.subscribe(
                     'NetworkController:infuraIsUnblocked',
                     infuraIsUnblockedListener,
@@ -2212,7 +2202,7 @@ describe('NetworkController', () => {
                   },
                 },
                 async ({ controller, messenger }) => {
-                  const infuraIsBlockedListener = jest.fn();
+                  const infuraIsBlockedListener = vi.fn();
                   messenger.subscribe(
                     'NetworkController:infuraIsBlocked',
                     infuraIsBlockedListener,
@@ -2595,13 +2585,14 @@ describe('NetworkController', () => {
 
                   const lookupNetworkPromise = controller.lookupNetwork();
                   const error = new Error('oops');
-                  jest
-                    .spyOn(networkControllerMessenger, 'unsubscribe')
-                    .mockImplementation((eventType) => {
-                      if (eventType === 'NetworkController:networkDidChange') {
-                        throw error;
-                      }
-                    });
+                  vi.spyOn(
+                    networkControllerMessenger,
+                    'unsubscribe',
+                  ).mockImplementation((eventType) => {
+                    if (eventType === 'NetworkController:networkDidChange') {
+                      throw error;
+                    }
+                  });
                   await expect(lookupNetworkPromise).rejects.toThrow(error);
                 },
               );
@@ -2642,7 +2633,7 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller, messenger }) => {
-                const stateChangeListener = jest.fn();
+                const stateChangeListener = vi.fn();
                 messenger.subscribe(
                   'NetworkController:stateChange',
                   stateChangeListener,
@@ -2674,7 +2665,7 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller, messenger }) => {
-                const infuraIsUnblockedListener = jest.fn();
+                const infuraIsUnblockedListener = vi.fn();
                 messenger.subscribe(
                   'NetworkController:infuraIsUnblocked',
                   infuraIsUnblockedListener,
@@ -2706,7 +2697,7 @@ describe('NetworkController', () => {
                 },
               },
               async ({ controller, messenger }) => {
-                const infuraIsBlockedListener = jest.fn();
+                const infuraIsBlockedListener = vi.fn();
                 messenger.subscribe(
                   'NetworkController:infuraIsBlocked',
                   infuraIsBlockedListener,
@@ -3107,13 +3098,14 @@ describe('NetworkController', () => {
 
                 const lookupNetworkPromise = controller.lookupNetwork();
                 const error = new Error('oops');
-                jest
-                  .spyOn(networkControllerMessenger, 'unsubscribe')
-                  .mockImplementation((eventType) => {
-                    if (eventType === 'NetworkController:networkDidChange') {
-                      throw error;
-                    }
-                  });
+                vi.spyOn(
+                  networkControllerMessenger,
+                  'unsubscribe',
+                ).mockImplementation((eventType) => {
+                  if (eventType === 'NetworkController:networkDidChange') {
+                    throw error;
+                  }
+                });
                 await expect(lookupNetworkPromise).rejects.toThrow(error);
               },
             );
@@ -3982,7 +3974,7 @@ describe('NetworkController', () => {
     ],
   ] as const) {
     // This is a string!
-    // eslint-disable-next-line jest/valid-title
+    // eslint-disable-next-line vitest/valid-title
     describe(name, () => {
       for (const infuraNetworkType of INFURA_NETWORKS) {
         const infuraChainId = ChainId[infuraNetworkType];
@@ -4095,7 +4087,7 @@ describe('NetworkController', () => {
     ],
   ] as const) {
     // This is a string!
-    // eslint-disable-next-line jest/valid-title
+    // eslint-disable-next-line vitest/valid-title
     describe(name, () => {
       for (const infuraNetworkType of INFURA_NETWORKS) {
         const infuraChainId = ChainId[infuraNetworkType];
@@ -4564,7 +4556,7 @@ describe('NetworkController', () => {
           uuidV4Mock
             .mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB')
             .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC');
-          const createAutoManagedNetworkClientSpy = jest.spyOn(
+          const createAutoManagedNetworkClientSpy = vi.spyOn(
             createAutoManagedNetworkClientModule,
             'createAutoManagedNetworkClient',
           );
@@ -4736,7 +4728,7 @@ describe('NetworkController', () => {
           uuidV4Mock
             .mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB')
             .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC');
-          const createAutoManagedNetworkClientSpy = jest.spyOn(
+          const createAutoManagedNetworkClientSpy = vi.spyOn(
             createAutoManagedNetworkClientModule,
             'createAutoManagedNetworkClient',
           );
@@ -4914,7 +4906,7 @@ describe('NetworkController', () => {
                 }),
             },
             ({ controller, messenger }) => {
-              const networkAddedEventListener = jest.fn();
+              const networkAddedEventListener = vi.fn();
               messenger.subscribe(
                 'NetworkController:networkAdded',
                 networkAddedEventListener,
@@ -5136,7 +5128,7 @@ describe('NetworkController', () => {
         uuidV4Mock.mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA');
 
         await withController(({ controller, messenger }) => {
-          const networkAddedEventListener = jest.fn();
+          const networkAddedEventListener = vi.fn();
           messenger.subscribe(
             'NetworkController:networkAdded',
             networkAddedEventListener,
@@ -5184,7 +5176,7 @@ describe('NetworkController', () => {
         uuidV4Mock.mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA');
 
         await withController(({ controller, messenger }) => {
-          const networkAddedEventListener = jest.fn();
+          const networkAddedEventListener = vi.fn();
           messenger.subscribe(
             'NetworkController:networkAdded',
             networkAddedEventListener,
@@ -5232,7 +5224,7 @@ describe('NetworkController', () => {
         uuidV4Mock.mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA');
 
         await withController(({ messenger }) => {
-          const networkAddedEventListener = jest.fn();
+          const networkAddedEventListener = vi.fn();
           messenger.subscribe(
             'NetworkController:networkAdded',
             networkAddedEventListener,
@@ -5991,7 +5983,7 @@ describe('NetworkController', () => {
       describe(`if the existing chain ID is the Infura-supported chain ${infuraChainId} and is not being changed`, () => {
         describe('when a new Infura RPC endpoint is being added', () => {
           it('creates and registers a new network client for the RPC endpoint', async () => {
-            const createAutoManagedNetworkClientSpy = jest.spyOn(
+            const createAutoManagedNetworkClientSpy = vi.spyOn(
               createAutoManagedNetworkClientModule,
               'createAutoManagedNetworkClient',
             );
@@ -6103,7 +6095,7 @@ describe('NetworkController', () => {
           });
 
           it('overrides the endpoint failover URLs with the chain-level failoverUrls when the controller was initialized with them', async () => {
-            const createAutoManagedNetworkClientSpy = jest.spyOn(
+            const createAutoManagedNetworkClientSpy = vi.spyOn(
               createAutoManagedNetworkClientModule,
               'createAutoManagedNetworkClient',
             );
@@ -6312,7 +6304,7 @@ describe('NetworkController', () => {
             uuidV4Mock
               .mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA')
               .mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB');
-            const createAutoManagedNetworkClientSpy = jest.spyOn(
+            const createAutoManagedNetworkClientSpy = vi.spyOn(
               createAutoManagedNetworkClientModule,
               'createAutoManagedNetworkClient',
             );
@@ -6626,7 +6618,7 @@ describe('NetworkController', () => {
                 const existingNetworkClient = controller.getNetworkClientById(
                   'AAAA-AAAA-AAAA-AAAA',
                 );
-                const destroySpy = jest.spyOn(existingNetworkClient, 'destroy');
+                const destroySpy = vi.spyOn(existingNetworkClient, 'destroy');
 
                 await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
@@ -7282,7 +7274,7 @@ describe('NetworkController', () => {
                 const existingNetworkClient = controller.getNetworkClientById(
                   'AAAA-AAAA-AAAA-AAAA',
                 );
-                const destroySpy = jest.spyOn(existingNetworkClient, 'destroy');
+                const destroySpy = vi.spyOn(existingNetworkClient, 'destroy');
 
                 await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
@@ -7306,7 +7298,7 @@ describe('NetworkController', () => {
 
           it('creates and registers a network client for the new version of the RPC endpoint', async () => {
             uuidV4Mock.mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB');
-            const createAutoManagedNetworkClientSpy = jest.spyOn(
+            const createAutoManagedNetworkClientSpy = vi.spyOn(
               createAutoManagedNetworkClientModule,
               'createAutoManagedNetworkClient',
             );
@@ -8174,7 +8166,7 @@ describe('NetworkController', () => {
           uuidV4Mock
             .mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB')
             .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC');
-          const createAutoManagedNetworkClientSpy = jest.spyOn(
+          const createAutoManagedNetworkClientSpy = vi.spyOn(
             createAutoManagedNetworkClientModule,
             'createAutoManagedNetworkClient',
           );
@@ -8511,7 +8503,7 @@ describe('NetworkController', () => {
               const existingNetworkClient = controller.getNetworkClientById(
                 'AAAA-AAAA-AAAA-AAAA',
               );
-              const destroySpy = jest.spyOn(existingNetworkClient, 'destroy');
+              const destroySpy = vi.spyOn(existingNetworkClient, 'destroy');
 
               await controller.updateNetwork('0x1337', {
                 ...networkConfigurationToUpdate,
@@ -9149,7 +9141,7 @@ describe('NetworkController', () => {
               const existingNetworkClient = controller.getNetworkClientById(
                 'AAAA-AAAA-AAAA-AAAA',
               );
-              const destroySpy = jest.spyOn(existingNetworkClient, 'destroy');
+              const destroySpy = vi.spyOn(existingNetworkClient, 'destroy');
 
               await controller.updateNetwork('0x1337', {
                 ...networkConfigurationToUpdate,
@@ -9174,7 +9166,7 @@ describe('NetworkController', () => {
 
         it('creates and registers a network client for the new version of the RPC endpoint', async () => {
           uuidV4Mock.mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB');
-          const createAutoManagedNetworkClientSpy = jest.spyOn(
+          const createAutoManagedNetworkClientSpy = vi.spyOn(
             createAutoManagedNetworkClientModule,
             'createAutoManagedNetworkClient',
           );
@@ -10297,17 +10289,11 @@ describe('NetworkController', () => {
                 const existingNetworkClient1 = controller.getNetworkClientById(
                   'AAAA-AAAA-AAAA-AAAA',
                 );
-                const destroySpy1 = jest.spyOn(
-                  existingNetworkClient1,
-                  'destroy',
-                );
+                const destroySpy1 = vi.spyOn(existingNetworkClient1, 'destroy');
                 const existingNetworkClient2 = controller.getNetworkClientById(
                   'BBBB-BBBB-BBBB-BBBB',
                 );
-                const destroySpy2 = jest.spyOn(
-                  existingNetworkClient2,
-                  'destroy',
-                );
+                const destroySpy2 = vi.spyOn(existingNetworkClient2, 'destroy');
 
                 await controller.updateNetwork('0x1337', {
                   ...networkConfigurationToUpdate,
@@ -10332,7 +10318,7 @@ describe('NetworkController', () => {
             uuidV4Mock
               .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC')
               .mockReturnValueOnce('DDDD-DDDD-DDDD-DDDD');
-            const createAutoManagedNetworkClientSpy = jest.spyOn(
+            const createAutoManagedNetworkClientSpy = vi.spyOn(
               createAutoManagedNetworkClientModule,
               'createAutoManagedNetworkClient',
             );
@@ -10962,17 +10948,11 @@ describe('NetworkController', () => {
                 const existingNetworkClient1 = controller.getNetworkClientById(
                   'AAAA-AAAA-AAAA-AAAA',
                 );
-                const destroySpy1 = jest.spyOn(
-                  existingNetworkClient1,
-                  'destroy',
-                );
+                const destroySpy1 = vi.spyOn(existingNetworkClient1, 'destroy');
                 const existingNetworkClient2 = controller.getNetworkClientById(
                   'BBBB-BBBB-BBBB-BBBB',
                 );
-                const destroySpy2 = jest.spyOn(
-                  existingNetworkClient2,
-                  'destroy',
-                );
+                const destroySpy2 = vi.spyOn(existingNetworkClient2, 'destroy');
 
                 await controller.updateNetwork(
                   infuraChainId,
@@ -11005,7 +10985,7 @@ describe('NetworkController', () => {
               .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC')
               .mockReturnValueOnce('DDDD-DDDD-DDDD-DDDD');
 
-            const createAutoManagedNetworkClientSpy = jest.spyOn(
+            const createAutoManagedNetworkClientSpy = vi.spyOn(
               createAutoManagedNetworkClientModule,
               'createAutoManagedNetworkClient',
             );
@@ -11661,17 +11641,11 @@ describe('NetworkController', () => {
                 const existingNetworkClient1 = controller.getNetworkClientById(
                   'AAAA-AAAA-AAAA-AAAA',
                 );
-                const destroySpy1 = jest.spyOn(
-                  existingNetworkClient1,
-                  'destroy',
-                );
+                const destroySpy1 = vi.spyOn(existingNetworkClient1, 'destroy');
                 const existingNetworkClient2 = controller.getNetworkClientById(
                   'BBBB-BBBB-BBBB-BBBB',
                 );
-                const destroySpy2 = jest.spyOn(
-                  existingNetworkClient2,
-                  'destroy',
-                );
+                const destroySpy2 = vi.spyOn(existingNetworkClient2, 'destroy');
 
                 await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
@@ -11703,7 +11677,7 @@ describe('NetworkController', () => {
             uuidV4Mock
               .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC')
               .mockReturnValueOnce('DDDD-DDDD-DDDD-DDDD');
-            const createAutoManagedNetworkClientSpy = jest.spyOn(
+            const createAutoManagedNetworkClientSpy = vi.spyOn(
               createAutoManagedNetworkClientModule,
               'createAutoManagedNetworkClient',
             );
@@ -12390,11 +12364,11 @@ describe('NetworkController', () => {
             const existingNetworkClient1 = controller.getNetworkClientById(
               'AAAA-AAAA-AAAA-AAAA',
             );
-            const destroySpy1 = jest.spyOn(existingNetworkClient1, 'destroy');
+            const destroySpy1 = vi.spyOn(existingNetworkClient1, 'destroy');
             const existingNetworkClient2 = controller.getNetworkClientById(
               'BBBB-BBBB-BBBB-BBBB',
             );
-            const destroySpy2 = jest.spyOn(existingNetworkClient2, 'destroy');
+            const destroySpy2 = vi.spyOn(existingNetworkClient2, 'destroy');
 
             await controller.updateNetwork('0x1337', {
               ...networkConfigurationToUpdate,
@@ -12418,7 +12392,7 @@ describe('NetworkController', () => {
         uuidV4Mock
           .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC')
           .mockReturnValueOnce('DDDD-DDDD-DDDD-DDDD');
-        const createAutoManagedNetworkClientSpy = jest.spyOn(
+        const createAutoManagedNetworkClientSpy = vi.spyOn(
           createAutoManagedNetworkClientModule,
           'createAutoManagedNetworkClient',
         );
@@ -12908,7 +12882,7 @@ describe('NetworkController', () => {
               async ({ controller }) => {
                 const existingNetworkClient =
                   controller.getNetworkClientById(infuraNetworkType);
-                const destroySpy = jest.spyOn(existingNetworkClient, 'destroy');
+                const destroySpy = vi.spyOn(existingNetworkClient, 'destroy');
 
                 await controller.updateNetwork(
                   infuraChainId,
@@ -12924,7 +12898,7 @@ describe('NetworkController', () => {
             const existingNetworkConfiguration =
               buildInfuraNetworkConfiguration(infuraNetworkType);
 
-            const createAutoManagedNetworkClientSpy = jest.spyOn(
+            const createAutoManagedNetworkClientSpy = vi.spyOn(
               createAutoManagedNetworkClientModule,
               'createAutoManagedNetworkClient',
             );
@@ -13035,7 +13009,7 @@ describe('NetworkController', () => {
               const existingNetworkClient = controller.getNetworkClientById(
                 'AAAA-AAAA-AAAA-AAAA',
               );
-              const destroySpy = jest.spyOn(existingNetworkClient, 'destroy');
+              const destroySpy = vi.spyOn(existingNetworkClient, 'destroy');
 
               await controller.updateNetwork(
                 '0x1337',
@@ -13052,7 +13026,7 @@ describe('NetworkController', () => {
             chainId: '0x1337',
           });
 
-          const createAutoManagedNetworkClientSpy = jest.spyOn(
+          const createAutoManagedNetworkClientSpy = vi.spyOn(
             createAutoManagedNetworkClientModule,
             'createAutoManagedNetworkClient',
           );
@@ -13292,11 +13266,11 @@ describe('NetworkController', () => {
             ({ controller }) => {
               const existingNetworkClient1 =
                 controller.getNetworkClientById(infuraNetworkType);
-              const destroySpy1 = jest.spyOn(existingNetworkClient1, 'destroy');
+              const destroySpy1 = vi.spyOn(existingNetworkClient1, 'destroy');
               const existingNetworkClient2 = controller.getNetworkClientById(
                 'AAAA-AAAA-AAAA-AAAA',
               );
-              const destroySpy2 = jest.spyOn(existingNetworkClient2, 'destroy');
+              const destroySpy2 = vi.spyOn(existingNetworkClient2, 'destroy');
 
               controller.removeNetwork(infuraChainId);
 
@@ -13429,11 +13403,11 @@ describe('NetworkController', () => {
             const existingNetworkClient1 = controller.getNetworkClientById(
               'AAAA-AAAA-AAAA-AAAA',
             );
-            const destroySpy1 = jest.spyOn(existingNetworkClient1, 'destroy');
+            const destroySpy1 = vi.spyOn(existingNetworkClient1, 'destroy');
             const existingNetworkClient2 = controller.getNetworkClientById(
               'BBBB-BBBB-BBBB-BBBB',
             );
-            const destroySpy2 = jest.spyOn(existingNetworkClient2, 'destroy');
+            const destroySpy2 = vi.spyOn(existingNetworkClient2, 'destroy');
 
             controller.removeNetwork('0x1337');
 
@@ -13487,7 +13461,7 @@ describe('NetworkController', () => {
             },
           },
           ({ controller, messenger }) => {
-            const networkRemovedListener = jest.fn();
+            const networkRemovedListener = vi.fn();
             messenger.subscribe(
               'NetworkController:networkRemoved',
               networkRemovedListener,
@@ -15632,15 +15606,14 @@ describe('selectAvailableNetworkClientIds', () => {
 });
 
 /**
- * Creates a mocked version of `createNetworkClient` where multiple mock
- * invocations can be specified. A default implementation is provided so that if
- * none of the actual invocations of the function match the mock invocations
+ * Creates a mocked version of `createNetworkClient`. A default implementation
+ * is provided so that if the caller does not go on to specify a return value
  * then an error will be thrown.
  *
  * @returns The mocked version of `createNetworkClient`.
  */
-function mockCreateNetworkClient(): WhenMock<NetworkClient> {
-  return when(createNetworkClientMock).mockImplementation((options) => {
+function mockCreateNetworkClient(): MockedFunction<typeof createNetworkClient> {
+  return createNetworkClientMock.mockImplementation((options) => {
     const inspectedOptions = inspect(options, { depth: null, compact: true });
     const lines = [
       `No fake network client was specified for ${inspectedOptions}.`,
@@ -15679,7 +15652,6 @@ function refreshNetworkTests({
   initialState?: Partial<NetworkState>;
   operation: (controller: NetworkController) => Promise<void>;
 }): void {
-  // eslint-disable-next-line jest/require-top-level-describe
   it('emits networkWillChange with state payload', async () => {
     await withController(
       {
@@ -15708,7 +15680,6 @@ function refreshNetworkTests({
     );
   });
 
-  // eslint-disable-next-line jest/require-top-level-describe
   it('emits networkDidChange with state payload', async () => {
     await withController(
       {
@@ -15738,7 +15709,6 @@ function refreshNetworkTests({
   });
 
   if (expectedNetworkClientConfiguration.type === NetworkClientType.Custom) {
-    // eslint-disable-next-line jest/require-top-level-describe
     it('sets the provider to a custom RPC provider initialized with the RPC target and chain ID', async () => {
       await withController(
         {
@@ -15778,7 +15748,6 @@ function refreshNetworkTests({
       );
     });
   } else {
-    // eslint-disable-next-line jest/require-top-level-describe
     it(`sets the provider to an Infura provider pointed to ${expectedNetworkClientConfiguration.network}`, async () => {
       await withController(
         {
@@ -15823,7 +15792,6 @@ function refreshNetworkTests({
     });
   }
 
-  // eslint-disable-next-line jest/require-top-level-describe
   it('replaces the provider object underlying the provider proxy without creating a new instance of the proxy itself', async () => {
     await withController(
       {
@@ -16940,7 +16908,7 @@ async function setFakeProvider(
   const fakeProvider = buildFakeProvider(stubs);
   const fakeNetworkClient = buildFakeClient(fakeProvider);
   createNetworkClientMock.mockReturnValue(fakeNetworkClient);
-  const lookupNetworkMock = jest.spyOn(controller, 'lookupNetwork');
+  const lookupNetworkMock = vi.spyOn(controller, 'lookupNetwork');
 
   if (stubLookupNetworkWhileSetting) {
     lookupNetworkMock.mockResolvedValue(undefined);
@@ -17055,7 +17023,6 @@ async function waitForPublishedEvents<Events extends NetworkControllerEvents>({
             );
           }
 
-          // eslint-disable-next-line require-atomic-updates
           alreadyEnded = true;
         }
       }
