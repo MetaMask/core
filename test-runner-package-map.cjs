@@ -7,7 +7,6 @@ const { workspaces } = require('./package.json');
 const PACKAGES_ON_JEST = new Set([
   '@metamask/assets-controllers',
   '@metamask/chain-agnostic-permission',
-  '@metamask/core-backend',
   '@metamask/eip-5792-middleware',
   '@metamask/eip-7702-internal-rpc-middleware',
   '@metamask/eip1193-permission-middleware',
@@ -18,7 +17,6 @@ const PACKAGES_ON_JEST = new Set([
   '@metamask/json-rpc-middleware-stream',
   '@metamask/multichain-api-middleware',
   '@metamask/network-controller',
-  '@metamask/network-enablement-controller',
   '@metamask/permission-controller',
   '@metamask/permission-log-controller',
   '@metamask/perps-controller',
