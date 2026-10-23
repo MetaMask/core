@@ -9,7 +9,6 @@ import {
 import type { QuoteRequest } from '../../types.js';
 import {
   SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
-  isServerPerpsDepositRequest,
   normalizeServerPerpsRequest,
 } from './perps.js';
 
@@ -18,10 +17,6 @@ const BRIDGE_ADDRESS_LOWER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7';
 // transfer(HL bridge, 1000000)
 const BRIDGE_TRANSFER_DATA =
   '0xa9059cbb0000000000000000000000002df1c51e09aecf9cacb7bc98cb1742757f163df700000000000000000000000000000000000000000000000000000000000f4240';
-
-// approve(HL bridge, 1000000)
-const BRIDGE_APPROVE_DATA =
-  '0x095ea7b30000000000000000000000002df1c51e09aecf9cacb7bc98cb1742757f163df700000000000000000000000000000000000000000000000000000000000f4240';
 
 const baseRequest: QuoteRequest = {
   from: '0x97e298b35d580c080f4a59f1f0fabd09b5add715',
@@ -59,128 +54,6 @@ const bridgeTransferTransaction = {
 } as unknown as TransactionMeta;
 
 describe('strategy/server/perps', () => {
-  describe('isServerPerpsDepositRequest', () => {
-    it('returns true when txParams.to references the Hyperliquid bridge', () => {
-      expect(isServerPerpsDepositRequest(baseRequest, bridgeTransaction)).toBe(
-        true,
-      );
-    });
-
-    it('returns true when a nested transaction targets the bridge directly', () => {
-      const nestedTransaction = {
-        txParams: {
-          from: '0x97e298b35d580c080f4a59f1f0fabd09b5add715',
-          to: ARBITRUM_USDC_ADDRESS,
-          data: '0x',
-        },
-        nestedTransactions: [
-          {
-            to: BRIDGE_ADDRESS_LOWER,
-            data: '0xdeadbeef',
-          },
-        ],
-      } as unknown as TransactionMeta;
-
-      expect(isServerPerpsDepositRequest(baseRequest, nestedTransaction)).toBe(
-        true,
-      );
-    });
-
-    it('returns true when txParams.data transfers tokens to the bridge', () => {
-      expect(
-        isServerPerpsDepositRequest(baseRequest, bridgeTransferTransaction),
-      ).toBe(true);
-    });
-
-    it('returns true when a nested transaction transfers tokens to the bridge', () => {
-      const nestedTransaction = {
-        txParams: {
-          from: '0x97e298b35d580c080f4a59f1f0fabd09b5add715',
-          to: '0x1111111111111111111111111111111111111111',
-          data: '0x',
-        },
-        nestedTransactions: [
-          {
-            to: ARBITRUM_USDC_ADDRESS,
-            data: BRIDGE_TRANSFER_DATA,
-          },
-        ],
-      } as unknown as TransactionMeta;
-
-      expect(isServerPerpsDepositRequest(baseRequest, nestedTransaction)).toBe(
-        true,
-      );
-    });
-
-    it('returns false when calldata references the bridge but is not a transfer', () => {
-      const approveTransaction = {
-        txParams: {
-          to: ARBITRUM_USDC_ADDRESS,
-          data: BRIDGE_APPROVE_DATA,
-        },
-      } as unknown as TransactionMeta;
-
-      expect(isServerPerpsDepositRequest(baseRequest, approveTransaction)).toBe(
-        false,
-      );
-    });
-
-    it('returns false when transaction params are missing', () => {
-      expect(
-        isServerPerpsDepositRequest(baseRequest, {} as TransactionMeta),
-      ).toBe(false);
-    });
-
-    it('matches the bridge address case-insensitively in txParams.to', () => {
-      const upperTransaction = {
-        txParams: {
-          to: BRIDGE_ADDRESS_LOWER.toUpperCase(),
-          data: '0x',
-        },
-      } as unknown as TransactionMeta;
-
-      expect(isServerPerpsDepositRequest(baseRequest, upperTransaction)).toBe(
-        true,
-      );
-    });
-
-    it('returns false when transaction to does not reference the bridge', () => {
-      expect(
-        isServerPerpsDepositRequest(baseRequest, innocuousTransaction),
-      ).toBe(false);
-    });
-
-    it('returns false when target chain is not Arbitrum', () => {
-      expect(
-        isServerPerpsDepositRequest(
-          { ...baseRequest, targetChainId: '0x1' },
-          bridgeTransaction,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns false when target token is not Arbitrum USDC', () => {
-      expect(
-        isServerPerpsDepositRequest(
-          {
-            ...baseRequest,
-            targetTokenAddress: '0x0000000000000000000000000000000000000002',
-          },
-          bridgeTransaction,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns false on post-quote requests', () => {
-      expect(
-        isServerPerpsDepositRequest(
-          { ...baseRequest, isPostQuote: true },
-          bridgeTransaction,
-        ),
-      ).toBe(false);
-    });
-  });
-
   describe('normalizeServerPerpsRequest', () => {
     it('rewrites target chain, token, and amount when the bridge is referenced', () => {
       const result = normalizeServerPerpsRequest(

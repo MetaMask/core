@@ -969,6 +969,37 @@ describe('Across Submit', () => {
       );
     });
 
+    it('uses perps across deposit type for perps deposit-and-order transactions', async () => {
+      const noApprovalQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [noApprovalQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDepositAndOrder,
+        },
+        isSmartTransaction: vi.fn(),
+      });
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.perpsAcrossDeposit,
+        }),
+      );
+    });
+
     it('defaults to perps across deposit when transaction type is undefined', async () => {
       const noApprovalQuote = {
         ...QUOTE_MOCK,

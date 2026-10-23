@@ -15,6 +15,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
+import { PERPS_DEPOSIT_TYPES } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyExecuteRequest,
@@ -597,9 +598,11 @@ function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
     return TransactionType.predictAcrossWithdraw;
   }
 
+  if (transaction.type && PERPS_DEPOSIT_TYPES.includes(transaction.type)) {
+    return TransactionType.perpsAcrossDeposit;
+  }
+
   switch (transaction.type) {
-    case TransactionType.perpsDeposit:
-      return TransactionType.perpsAcrossDeposit;
     case TransactionType.predictDeposit:
       return TransactionType.predictAcrossDeposit;
     case undefined:

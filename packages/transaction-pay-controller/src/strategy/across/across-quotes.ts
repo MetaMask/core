@@ -97,7 +97,7 @@ async function getSingleQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
   const { messenger, signal, transaction } = fullRequest;
-  const normalizedRequest = normalizeAcrossRequest(request, transaction.type);
+  const normalizedRequest = normalizeAcrossRequest(request, transaction);
   const {
     from,
     isMaxAmount,
