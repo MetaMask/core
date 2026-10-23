@@ -23,4 +23,5 @@ export type {
 export type {
   MoneyAccountUpgradeControllerUpgradeAccountAction,
   MoneyAccountUpgradeControllerForceUpgradeAccountAction,
+  MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction,
 } from './MoneyAccountUpgradeController-method-action-types.js';
