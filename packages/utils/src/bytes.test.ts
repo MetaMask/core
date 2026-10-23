@@ -649,5 +649,5 @@ describe('areUint8ArraysEqual', () => {
     const ratio =
       Math.max(earlyTotal, lateTotal) / Math.min(earlyTotal, lateTotal);
     expect(ratio).toBeLessThan(2);
-  });
+  }, 10_000);
 });

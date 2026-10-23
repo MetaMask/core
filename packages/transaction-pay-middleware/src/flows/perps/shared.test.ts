@@ -1,4 +1,5 @@
 import { errorCodes } from '@metamask/rpc-errors';
+import { describe, expect, it } from 'vitest';
 
 import { createMessenger } from '../../tests/messenger-mock.js';
 import { assertPerpsEligible, toUsdcAmountRaw } from './shared.js';

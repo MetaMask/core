@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
 - Bump `execa` from `^5.0.0` to `^10.0.1` ([#10330](https://github.com/MetaMask/core/pull/10330), [#10332](https://github.com/MetaMask/core/pull/10332))
