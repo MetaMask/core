@@ -67,6 +67,14 @@ const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
 const TRANSACTION_META_MOCK = {
   txParams: { from: FROM_MOCK },
 } as TransactionMeta;
+const PERPS_DEPOSIT_TRANSACTION_MOCK = {
+  txParams: {
+    from: FROM_MOCK,
+    to: ARBITRUM_USDC_ADDRESS,
+    // transfer(HL bridge, 1000000)
+    data: '0xa9059cbb0000000000000000000000002df1c51e09aecf9cacb7bc98cb1742757f163df700000000000000000000000000000000000000000000000000000000000f4240',
+  },
+} as TransactionMeta;
 const PREDICT_WITHDRAW_TRANSACTION_MOCK = {
   txParams: {},
   nestedTransactions: [{ type: TransactionType.predictWithdraw }],
@@ -5097,7 +5105,7 @@ describe('Relay Quotes Utils', () => {
         messenger,
         requests: [arbitrumToHyperliquidRequest],
         transaction: {
-          ...TRANSACTION_META_MOCK,
+          ...PERPS_DEPOSIT_TRANSACTION_MOCK,
           type: TransactionType.perpsDeposit,
         },
       });
@@ -5133,7 +5141,7 @@ describe('Relay Quotes Utils', () => {
         messenger,
         requests: [arbitrumToHyperliquidRequest],
         transaction: {
-          ...TRANSACTION_META_MOCK,
+          ...PERPS_DEPOSIT_TRANSACTION_MOCK,
           type: TransactionType.perpsDepositAndOrder,
         },
       });

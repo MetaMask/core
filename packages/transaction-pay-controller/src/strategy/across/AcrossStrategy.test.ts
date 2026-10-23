@@ -41,6 +41,16 @@ describe('AcrossStrategy', () => {
     },
   } as TransactionMeta;
 
+  const PERPS_DEPOSIT_TRANSACTION_MOCK = {
+    ...TRANSACTION_META_MOCK,
+    txParams: {
+      from: '0xabc',
+      to: ARBITRUM_USDC_ADDRESS,
+      // transfer(HL bridge, 1000000)
+      data: '0xa9059cbb0000000000000000000000002df1c51e09aecf9cacb7bc98cb1742757f163df700000000000000000000000000000000000000000000000000000000000f4240',
+    },
+  } as TransactionMeta;
+
   const baseRequest = {
     messenger,
     transaction: TRANSACTION_META_MOCK,
@@ -118,10 +128,7 @@ describe('AcrossStrategy', () => {
     expect(
       strategy.supports({
         ...baseRequest,
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.perpsDeposit,
-        },
+        transaction: PERPS_DEPOSIT_TRANSACTION_MOCK,
         requests: [
           {
             from: '0xabc',
@@ -143,10 +150,7 @@ describe('AcrossStrategy', () => {
     expect(
       strategy.supports({
         ...baseRequest,
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.perpsDeposit,
-        },
+        transaction: PERPS_DEPOSIT_TRANSACTION_MOCK,
         requests: [
           {
             from: '0xabc',
@@ -275,10 +279,7 @@ describe('AcrossStrategy', () => {
     expect(
       strategy.supports({
         ...baseRequest,
-        transaction: {
-          ...TRANSACTION_META_MOCK,
-          type: TransactionType.perpsDeposit,
-        },
+        transaction: PERPS_DEPOSIT_TRANSACTION_MOCK,
       }),
     ).toBe(false);
   });

@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Use shared recipient resolution for Relay and Server quotes ([#10887](https://github.com/MetaMask/core/pull/10887))
+- Use shared Hyperliquid perps logic in all strategies, detecting deposits from calldata rather than transaction type ([#11026](https://github.com/MetaMask/core/pull/11026))
+
+### Fixed
+
+- Fix Hyperliquid perps deposit detection and withdrawal decimals in `ServerStrategy` ([#11026](https://github.com/MetaMask/core/pull/11026))
 
 ## [30.2.0]
 
