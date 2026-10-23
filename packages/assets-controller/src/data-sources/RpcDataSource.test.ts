@@ -1,4 +1,4 @@
-import { Web3Provider as Web3ProviderMock } from '@ethersproject/providers';
+import { Web3Provider } from '@ethersproject/providers';
 import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
@@ -567,7 +567,7 @@ describe('RpcDataSource', () => {
     });
 
     it('returns empty balances when Multicall aggregate3 fails after retries', async () => {
-      const Web3Provider = vi.mocked(Web3ProviderMock);
+      const Web3ProviderMocked = vi.mocked(Web3Provider);
       vi.mocked(shouldSkipNativeForCaipChainId).mockReturnValue(true);
 
       const mockCall = vi
@@ -577,7 +577,7 @@ describe('RpcDataSource', () => {
       const mockGetBalance = vi
         .fn()
         .mockResolvedValue({ toString: () => '1000000000000000000' });
-      Web3Provider.mockImplementationOnce(function () {
+      Web3ProviderMocked.mockImplementationOnce(function () {
         return {
           call: mockCall,
           getBalance: mockGetBalance,
@@ -594,7 +594,7 @@ describe('RpcDataSource', () => {
 
     it('uses getBalance when Multicall aggregate3 fails after retries', async () => {
       const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
-      const Web3Provider = vi.mocked(Web3ProviderMock);
+      const Web3ProviderMocked = vi.mocked(Web3Provider);
       const mockCall = vi
         .fn()
         .mockRejectedValueOnce(new Error('aggregate3 unavailable'))
@@ -603,7 +603,7 @@ describe('RpcDataSource', () => {
       const mockGetBalance = vi
         .fn()
         .mockResolvedValue({ toString: () => '1000000000000000000' });
-      Web3Provider.mockImplementationOnce(function () {
+      Web3ProviderMocked.mockImplementationOnce(function () {
         return {
           call: mockCall,
           getBalance: mockGetBalance,
@@ -733,8 +733,8 @@ describe('RpcDataSource', () => {
       const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
-      const Web3Provider = vi.mocked(Web3ProviderMock);
-      Web3Provider.mockImplementationOnce(function () {
+      const Web3ProviderMocked = vi.mocked(Web3Provider);
+      Web3ProviderMocked.mockImplementationOnce(function () {
         return {
           getBalance: vi
             .fn()
@@ -803,8 +803,8 @@ describe('RpcDataSource', () => {
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
       const normalizedErc20Id = normalizeAssetId(erc20AssetId);
-      const Web3Provider = vi.mocked(Web3ProviderMock);
-      Web3Provider.mockImplementationOnce(function () {
+      const Web3ProviderMocked = vi.mocked(Web3Provider);
+      Web3ProviderMocked.mockImplementationOnce(function () {
         return {
           getBalance: vi
             .fn()
