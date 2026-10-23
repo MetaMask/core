@@ -54,6 +54,7 @@
   },
   "dependencies": {
     "@ethereumjs/tx": "^5.4.0",
+    "@metamask/byte-utils": "^0.0.0",
     "@metamask/error-utils": "^0.0.0",
     "@metamask/node-utils": "^0.0.0",
     "@metamask/scure-bip39": "^2.1.1",

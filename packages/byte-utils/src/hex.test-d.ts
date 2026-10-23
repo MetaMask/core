@@ -1,6 +1,6 @@
 import { describe, expectTypeOf, test } from 'vitest';
 
-import type { Hex } from './index.js';
+import type { Hex } from './hex.js';
 
 describe('Hex', () => {
   test('accepts valid hex strings', () => {

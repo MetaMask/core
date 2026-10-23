@@ -98,8 +98,7 @@ export function bytesToHex(bytes: Uint8Array): Hex {
   const hexadecimal = new Array(bytes.length);
 
   for (let i = 0; i < bytes.length; i++) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    hexadecimal[i] = lookupTable[bytes[i]!];
+    hexadecimal[i] = lookupTable[bytes[i]];
   }
 
   return add0x(hexadecimal.join(''));
@@ -417,8 +416,7 @@ export function concatBytes(values: Bytes[]): Uint8Array<ArrayBuffer> {
   let byteLength = 0;
 
   for (let i = 0; i < values.length; i++) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const value = valueToBytes(values[i]!);
+    const value = valueToBytes(values[i]);
 
     normalizedValues[i] = value;
     byteLength += value.length;
@@ -434,6 +432,13 @@ export function concatBytes(values: Bytes[]): Uint8Array<ArrayBuffer> {
   }
 
   return bytes;
+}
+
+function isBuffer<ArrayBufferImplementation extends ArrayBufferLike>(
+  bytes: Uint8Array<ArrayBufferImplementation>,
+): bytes is Buffer<ArrayBufferImplementation> {
+  // oxlint-disable-next-line no-undef
+  return typeof Buffer !== 'undefined' && bytes instanceof Buffer;
 }
 
 /**
@@ -466,12 +471,12 @@ export function createDataView<
   // To maintain compatibility with Node.js, we need to check if the bytes are
   // a Buffer. If so, we need to slice the buffer to get the underlying
   // ArrayBuffer.
-  // eslint-disable-next-line no-restricted-globals
-  if (typeof Buffer !== 'undefined' && bytes instanceof Buffer) {
+  // eslint-disable-next-line no-restricted-globals, no-undef
+  if (isBuffer(bytes)) {
     const buffer = bytes.buffer.slice(
       bytes.byteOffset,
       bytes.byteOffset + bytes.byteLength,
-    );
+    ) as ArrayBufferImplementation;
 
     return new DataView<ArrayBufferImplementation>(buffer);
   }
