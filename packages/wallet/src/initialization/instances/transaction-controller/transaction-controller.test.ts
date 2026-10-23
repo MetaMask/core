@@ -80,7 +80,7 @@ describe('transactionController', () => {
 
   it('delegates SentinelApiService:simulateTransactions to the controller messenger', async () => {
     const rootMessenger = getRootMessenger();
-    const simulateTransactions = jest
+    const simulateTransactions = vi
       .fn()
       .mockResolvedValue({ transactions: [] });
 
