@@ -289,7 +289,6 @@ export function createMockWeb3Provider(
     throw new Error('MOCK FAILURE: Invalid function data');
   });
 
-  // A function, not an arrow, because the provider is constructed with `new`
   mockProvider.mockImplementation(function () {
     return { call: mockCalls } as unknown as ProviderModule.Web3Provider;
   });
