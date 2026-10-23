@@ -598,35 +598,6 @@
       "count": 1
     }
   },
-  "packages/network-controller/src/rpc-service/rpc-service.test.ts": {
-    "TS2578": {
-      "count": 1
-    },
-    "TS2769": {
-      "count": 1
-    }
-  },
-  "packages/network-controller/tests/NetworkController.test.ts": {
-    "TS2339": {
-      "count": 3
-    }
-  },
-  "packages/network-controller/tests/network-client/block-hash-in-response.ts": {
-    "TS2339": {
-      "count": 4
-    },
-    "TS2554": {
-      "count": 4
-    }
-  },
-  "packages/network-controller/tests/network-client/no-block-param.ts": {
-    "TS2339": {
-      "count": 4
-    },
-    "TS2554": {
-      "count": 4
-    }
-  },
   "packages/network-enablement-controller/src/NetworkEnablementController.test.ts": {
     "TS6305": {
       "count": 1

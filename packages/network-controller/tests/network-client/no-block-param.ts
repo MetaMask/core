@@ -612,10 +612,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
 
         const result = await withNetworkClient(
           { providerType },
-          async ({ makeRpcCall, clock }) => {
+          async ({ makeRpcCall }) => {
             return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
               makeRpcCall(request),
-              clock,
             );
           },
         );
@@ -641,10 +640,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
         });
         const promiseForResult = withNetworkClient(
           { providerType },
-          async ({ makeRpcCall, clock }) => {
+          async ({ makeRpcCall }) => {
             return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
               makeRpcCall(request),
-              clock,
             );
           },
         );
@@ -703,10 +701,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
 
         const result = await withNetworkClient(
           { providerType },
-          async ({ makeRpcCall, clock }) => {
+          async ({ makeRpcCall }) => {
             return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
               makeRpcCall(request),
-              clock,
             );
           },
         );
@@ -730,10 +727,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
         });
         const promiseForResult = withNetworkClient(
           { providerType },
-          async ({ makeRpcCall, clock }) => {
+          async ({ makeRpcCall }) => {
             return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
               makeRpcCall(request),
-              clock,
             );
           },
         );

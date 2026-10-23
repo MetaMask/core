@@ -2056,7 +2056,10 @@ describe('NetworkController', () => {
           async ({ controller }) => {
             mockCreateNetworkClient().mockReturnValue(buildFakeClient());
 
-            const registry = controller.getNetworkClientRegistry();
+            const registry: Record<
+              NetworkClientId,
+              AutoManagedNetworkClient<NetworkClientConfiguration>
+            > = controller.getNetworkClientRegistry();
 
             expect(
               registry['AAAA-AAAA-AAAA-AAAA'].configuration.failoverRpcUrls,

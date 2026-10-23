@@ -11,7 +11,13 @@ export default mergeConfig(
       name: basename(dirname(fileURLToPath(import.meta.url))),
 
       typecheck: {
-        ignoreSourceErrors: true,
+        checker: fileURLToPath(
+          new URL(
+            './bin/tsc',
+            import.meta.resolve('@typescript/native/package.json'),
+          ),
+        ),
+        tsconfig: './tsconfig.test.json',
       },
 
       coverage: {
