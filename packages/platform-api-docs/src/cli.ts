@@ -105,7 +105,6 @@ async function runDocusaurus(
 async function setupSite(outDir: string): Promise<void> {
   const packageDir = path.resolve(import.meta.dirname, '..');
   const siteDir = path.join(packageDir, 'site');
-  const packageNodeModules = path.join(packageDir, 'node_modules');
   const skip = new Set(['node_modules', 'docs', 'tsconfig.json']);
 
   console.log(`\nSetting up Docusaurus site in ${outDir}...`);
