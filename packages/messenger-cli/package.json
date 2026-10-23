@@ -46,7 +46,7 @@
     "@metamask/error-utils": "^0.0.0",
     "@metamask/node-utils": "^0.0.0",
     "@metamask/type-utils": "^0.0.0",
-    "yargs": "^17.7.3"
+    "yargs": "^18.2.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
