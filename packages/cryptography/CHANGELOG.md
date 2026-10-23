@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
+### Fixed
+
+- Derive HKDF from HMAC when the input keying material is empty, as some WebCrypto implementations such as `react-native-quick-crypto` reject an empty HKDF key ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ## [1.1.2]
 
 ### Fixed
