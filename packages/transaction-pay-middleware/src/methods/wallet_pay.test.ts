@@ -2,6 +2,8 @@
 import { errorCodes } from '@metamask/rpc-errors';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex, Json, PendingJsonRpcResponse } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
 
 import { createMessenger } from '../tests/messenger-mock.js';
 import type { MessengerMocks } from '../tests/messenger-mock.js';
@@ -42,12 +44,12 @@ async function run({
 } = {}): Promise<{
   response: PendingJsonRpcResponse;
   request: WalletPayJsonRpcRequest;
-  hooks: jest.Mocked<WalletPayHooks>;
+  hooks: Mocked<WalletPayHooks>;
   mocks: MessengerMocks;
 }> {
   const mocks = createMessenger(messengerOptions);
-  const hooks: jest.Mocked<WalletPayHooks> = {
-    getPermittedAccountsForOrigin: jest.fn(async () => permittedAccounts),
+  const hooks: Mocked<WalletPayHooks> = {
+    getPermittedAccountsForOrigin: vi.fn(async () => permittedAccounts),
   };
   const request: WalletPayJsonRpcRequest = {
     jsonrpc: '2.0',
@@ -153,7 +155,7 @@ describe('walletPay', () => {
             params: [],
           },
           response,
-          { getPermittedAccountsForOrigin: jest.fn() },
+          { getPermittedAccountsForOrigin: vi.fn() },
           mocks.messenger,
         ),
       ).rejects.toMatchObject({ code: errorCodes.rpc.invalidParams });

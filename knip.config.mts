@@ -214,16 +214,6 @@ const config: KnipConfig = {
     'packages/user-operation-controller': {
       ignoreDependencies: ['immer'],
     },
-    'packages/wallet-cli': {
-      // `anvil` (from Foundry) is an external system binary the real-chain send
-      // e2e probes and spawns; it's installed via `foundryup`, not an npm
-      // package, so knip can't tie the invocation to a dependency.
-      ignoreBinaries: ['anvil'],
-      // `tsx` is the dev-mode loader: it's referenced only as a `node --import`
-      // argument string (in `daemon-spawn`'s source-entry path and `bin/dev`),
-      // never as a traceable import, so knip can't see it.
-      ignoreDependencies: ['tsx'],
-    },
     'packages/wallet-framework-docs': {
       // Source lives under `site/` instead of `src/`; tell knip to scan it
       // so the type imports of `@docusaurus/*` / `prism-react-renderer` in

@@ -2108,6 +2108,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@bcoe/v8-coverage@npm:^1.0.2":
+  version: 1.0.2
+  resolution: "@bcoe/v8-coverage@npm:1.0.2"
+  checksum: 10/46600b2dde460269b07a8e4f12b72e418eae1337b85c979f43af3336c9a1c65b04e42508ab6b245f1e0e3c64328e1c38d8cd733e4a7cebc4fbf9cf65c6e59937
+  languageName: node
+  linkType: hard
+
 "@colors/colors@npm:1.5.0":
   version: 1.5.0
   resolution: "@colors/colors@npm:1.5.0"
@@ -4896,83 +4903,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@inquirer/ansi@npm:^2.0.8":
-  version: 2.0.8
-  resolution: "@inquirer/ansi@npm:2.0.8"
-  checksum: 10/43b9de6f56ed7972d56475299727432a5bb505d34e376ecb6cb81b0b40c0e9fd273846473091d6df7abde8948600e52284f15db33d785c125912964b2aebd6a1
-  languageName: node
-  linkType: hard
-
-"@inquirer/confirm@npm:^6.3.2":
-  version: 6.3.2
-  resolution: "@inquirer/confirm@npm:6.3.2"
-  dependencies:
-    "@inquirer/core": "npm:^12.0.3"
-    "@inquirer/type": "npm:4.1.1"
-  peerDependencies:
-    "@types/node": ">=18"
-  peerDependenciesMeta:
-    "@types/node":
-      optional: true
-  checksum: 10/d82547615909120232db1fdeb6d8bedac7231ca0137a0de87d1d37ca65b12f329eb09c9cc4ec179454d234c3d0552467bbf35caecb3d2b1caaebc5631b3aaaa0
-  languageName: node
-  linkType: hard
-
-"@inquirer/core@npm:^12.0.3":
-  version: 12.0.3
-  resolution: "@inquirer/core@npm:12.0.3"
-  dependencies:
-    "@inquirer/ansi": "npm:^2.0.8"
-    "@inquirer/figures": "npm:^2.0.9"
-    "@inquirer/type": "npm:4.1.1"
-    cli-width: "npm:^4.1.0"
-    fast-wrap-ansi: "npm:^0.2.0"
-    mute-stream: "npm:^3.0.0"
-    signal-exit: "npm:^4.1.0"
-  peerDependencies:
-    "@types/node": ">=18"
-  peerDependenciesMeta:
-    "@types/node":
-      optional: true
-  checksum: 10/3aab1fc0efeb519054e31eb74d091fc6025e281c70c27b7145df261a072001a23b11225a844ed33274993089445e19f5c22a31bd3bbc1616c50e702264a1b3d1
-  languageName: node
-  linkType: hard
-
-"@inquirer/figures@npm:^2.0.9":
-  version: 2.0.9
-  resolution: "@inquirer/figures@npm:2.0.9"
-  checksum: 10/22a325d1da578f3971252f0b4151110b37b86cd4cf0fc8def15aed366ee420eb44585c1dc5c6c0761972b36f4d99647aaeb20cd3d5a4635765874dded69ebac5
-  languageName: node
-  linkType: hard
-
-"@inquirer/password@npm:^5.2.2":
-  version: 5.2.2
-  resolution: "@inquirer/password@npm:5.2.2"
-  dependencies:
-    "@inquirer/ansi": "npm:^2.0.8"
-    "@inquirer/core": "npm:^12.0.3"
-    "@inquirer/type": "npm:4.1.1"
-  peerDependencies:
-    "@types/node": ">=18"
-  peerDependenciesMeta:
-    "@types/node":
-      optional: true
-  checksum: 10/edfe2c4d4604cb6a79ae51507cf84892f83f1b254bf284593af5a66267409adf8f30eed368a6589199380f7438bd4001a7cd83fb40cdaeca53f9ad2faaa6a696
-  languageName: node
-  linkType: hard
-
-"@inquirer/type@npm:4.1.1":
-  version: 4.1.1
-  resolution: "@inquirer/type@npm:4.1.1"
-  peerDependencies:
-    "@types/node": ">=18"
-  peerDependenciesMeta:
-    "@types/node":
-      optional: true
-  checksum: 10/789b1fcc1d27bb75c4baa17666fb3427d30c41143a24eb77a121e4b64a41ca1753b9203e71a10bc26eefdf3c7d3d3ff619b82641e302afb38f9b23c5d9db38e7
-  languageName: node
-  linkType: hard
-
 "@isaacs/cliui@npm:^8.0.2":
   version: 8.0.2
   resolution: "@isaacs/cliui@npm:8.0.2"
@@ -5875,7 +5805,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/accounts-controller@npm:^40.1.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
+"@metamask/accounts-controller@npm:^40.0.0, @metamask/accounts-controller@npm:^40.1.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
@@ -5933,15 +5863,12 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -5950,15 +5877,12 @@ __metadata:
   resolution: "@metamask/advanced-chart-core@workspace:packages/advanced-chart-core"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
-    jest-environment-jsdom: "npm:^30.5.2"
+    jsdom: "npm:^27.0.0"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -5989,17 +5913,14 @@ __metadata:
     "@metamask/geolocation-controller": "npm:^2.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6012,16 +5933,13 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6032,15 +5950,12 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6058,15 +5973,12 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6309,7 +6221,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/base-controller@npm:^10.1.0, @metamask/base-controller@workspace:packages/base-controller":
+"@metamask/base-controller@npm:^10.0.0, @metamask/base-controller@npm:^10.1.0, @metamask/base-controller@workspace:packages/base-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
@@ -6348,21 +6260,18 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
     "@tanstack/query-core": "npm:^5.103.2"
-    "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
     cockatiel: "npm:^3.2.1"
-    deepmerge: "npm:^4.3.1"
     fast-deep-equal: "npm:^3.1.3"
-    jest: "npm:^30.5.2"
     lodash-es: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6372,15 +6281,12 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/local-node-utils": "npm:^2.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   bin:
     bitcoin-regtest-up: ./dist/bin/bitcoin-regtest-up.js
   languageName: unknown
@@ -6415,21 +6321,17 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.2.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
-    jest-environment-jsdom: "npm:^30.5.2"
     lodash-es: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6452,20 +6354,17 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.2.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
+    "@vitest/coverage-v8": "npm:^5.0.0"
     bignumber.js: "npm:^9.1.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
-    jest-environment-jsdom: "npm:^30.5.2"
     lodash-es: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6485,15 +6384,28 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/utils": "npm:^12.0.0"
     "@types/eslint": "npm:^8.44.7"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
+  languageName: unknown
+  linkType: soft
+
+"@metamask/byte-utils@npm:^0.0.0, @metamask/byte-utils@workspace:packages/byte-utils":
+  version: 0.0.0-use.local
+  resolution: "@metamask/byte-utils@workspace:packages/byte-utils"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^6.2.1"
+    "@metamask/type-utils": "npm:^0.0.0"
+    "@scure/base": "npm:^1.2.6"
+    "@typescript/native": "npm:typescript@^7.0.2"
+    rimraf: "npm:^6.1.3"
+    typedoc: "npm:^0.28.20"
+    typedoc-plugin-missing-exports: "npm:^4.1.4"
+    typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6572,16 +6484,12 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
-    jest-environment-jsdom: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6598,16 +6506,13 @@ __metadata:
     "@metamask/slip44": "npm:^4.5.0"
     "@metamask/transaction-controller": "npm:^72.2.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
     eth-chainlist: "npm:^0.0.844"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6620,17 +6525,14 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     nock: "npm:^13.5.6"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6642,16 +6544,13 @@ __metadata:
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/json-rpc-engine": "npm:^11.0.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
     immer: "npm:^11.1.18"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6669,17 +6568,14 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     nock: "npm:^13.5.6"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6690,16 +6586,13 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6799,19 +6692,16 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@tanstack/query-core": "npm:^5.103.2"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
     cockatiel: "npm:^3.2.1"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
-    jest-environment-jsdom: "npm:^30.5.2"
+    jsdom: "npm:^27.0.0"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -6849,6 +6739,7 @@ __metadata:
     "@yarnpkg/fslib": "npm:^3.1.5"
     "@yarnpkg/parsers": "npm:^3.0.3"
     "@yarnpkg/types": "npm:^4.0.0"
+    async-mutex: "npm:^0.5.0"
     bats: "npm:^1.13.0"
     comment-json: "npm:^4.6.2"
     eslint-plugin-n: "npm:^18.3.0"
@@ -6867,7 +6758,6 @@ __metadata:
     rimraf: "npm:^6.1.3"
     semver: "npm:^7.8.5"
     simple-git-hooks: "npm:^2.14.0"
-    ts-jest: "npm:^29.4.14"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
     vite: "npm:^8.0.8"
@@ -6913,15 +6803,12 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -7208,7 +7095,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/eth-money-keyring@npm:^4.0.2":
+"@metamask/eth-money-keyring@npm:^4.0.0, @metamask/eth-money-keyring@npm:^4.0.2":
   version: 4.0.2
   resolution: "@metamask/eth-money-keyring@npm:4.0.2"
   dependencies:
@@ -7423,27 +7310,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/foundryup@npm:^2.0.0, @metamask/foundryup@workspace:packages/foundryup":
+"@metamask/foundryup@workspace:packages/foundryup":
   version: 0.0.0-use.local
   resolution: "@metamask/foundryup@workspace:packages/foundryup"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
-    "@types/jest": "npm:^30.0.0"
     "@types/unzipper": "npm:^0.10.10"
     "@types/yargs": "npm:^17.0.35"
     "@types/yargs-parser": "npm:^21.0.3"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     minipass: "npm:^7.1.3"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     tar: "npm:^7.5.22"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     unzipper: "npm:^0.12.3"
+    vitest: "npm:^5.0.0"
     yaml: "npm:^2.9.1"
     yargs: "npm:^17.7.3"
     yargs-parser: "npm:^21.1.1"
@@ -7467,19 +7351,15 @@ __metadata:
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/utils": "npm:^12.0.0"
     "@types/bn.js": "npm:^5.2.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bn.js: "npm:^5.2.5"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
-    jest-when: "npm:^4.0.3"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   peerDependencies:
     "@babel/runtime": ^7.0.0
   languageName: unknown
@@ -7521,15 +7401,12 @@ __metadata:
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -7539,15 +7416,12 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/local-node-utils": "npm:^2.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   bin:
     java-tron-up: ./dist/bin/java-tron-up.js
   languageName: unknown
@@ -7654,7 +7528,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-controller@npm:^28.2.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
+"@metamask/keyring-controller@npm:^28.0.0, @metamask/keyring-controller@npm:^28.2.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
@@ -7833,16 +7707,13 @@ __metadata:
   resolution: "@metamask/local-node-utils@workspace:packages/local-node-utils"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
     yaml: "npm:^2.9.1"
   languageName: unknown
   linkType: soft
@@ -7855,16 +7726,13 @@ __metadata:
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -7899,17 +7767,14 @@ __metadata:
     "@metamask/eth-sig-util": "npm:^9.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     jsonschema: "npm:^1.4.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -7917,20 +7782,18 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/messenger-cli@workspace:packages/messenger-cli"
   dependencies:
-    "@jest/globals": "npm:^30.5.2"
     "@metamask/auto-changelog": "npm:^6.2.1"
-    "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
+    "@metamask/error-utils": "npm:^0.0.0"
+    "@metamask/node-utils": "npm:^0.0.0"
+    "@metamask/type-utils": "npm:^0.0.0"
     "@types/yargs": "npm:^17.0.35"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
     execa: "npm:^10.0.1"
-    jest: "npm:^30.5.2"
     oxfmt: "npm:^0.72.0"
     prettier: "npm:^3.9.9"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
     yargs: "npm:^17.7.3"
   peerDependencies:
     oxfmt: ^0.44.0
@@ -8057,7 +7920,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/money-account-api-data-service@npm:^2.2.0, @metamask/money-account-api-data-service@workspace:packages/money-account-api-data-service":
+"@metamask/money-account-api-data-service@npm:^2.3.0, @metamask/money-account-api-data-service@workspace:packages/money-account-api-data-service":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-api-data-service@workspace:packages/money-account-api-data-service"
   dependencies:
@@ -8089,7 +7952,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
-    "@metamask/money-account-api-data-service": "npm:^2.2.0"
+    "@metamask/money-account-api-data-service": "npm:^2.3.0"
     "@metamask/network-controller": "npm:^37.1.1"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
@@ -8104,7 +7967,22 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/money-account-controller@npm:^2.0.0, @metamask/money-account-controller@workspace:packages/money-account-controller":
+"@metamask/money-account-controller@npm:^2.0.0":
+  version: 2.0.0
+  resolution: "@metamask/money-account-controller@npm:2.0.0"
+  dependencies:
+    "@metamask/accounts-controller": "npm:^40.0.0"
+    "@metamask/base-controller": "npm:^10.0.0"
+    "@metamask/eth-money-keyring": "npm:^4.0.0"
+    "@metamask/keyring-api": "npm:^24.0.0"
+    "@metamask/keyring-controller": "npm:^28.0.0"
+    "@metamask/messenger": "npm:^3.0.0"
+    async-mutex: "npm:^0.5.0"
+  checksum: 10/79ef066bf107eb7a9f0ec45621d05b1e0cdb10c3237578ca51fff58cfea37826004d84865ba9874d3e8d81e8fe0e6bb86cd744047f71635fe99f88cf6712db30
+  languageName: node
+  linkType: hard
+
+"@metamask/money-account-controller@workspace:packages/money-account-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-controller@workspace:packages/money-account-controller"
   dependencies:
@@ -8368,16 +8246,13 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -8394,16 +8269,13 @@ __metadata:
     "@metamask/network-controller": "npm:^37.1.1"
     "@metamask/network-enablement-controller": "npm:^7.0.2"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -8474,16 +8346,13 @@ __metadata:
     "@metamask/slip44": "npm:^4.5.0"
     "@metamask/transaction-controller": "npm:^72.2.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -8530,27 +8399,24 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/profile-sync-controller": "npm:^35.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@types/lodash-es": "npm:^4.17.12"
     "@types/readable-stream": "npm:^2.3.0"
     "@types/semver": "npm:^7.8.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
     contentful: "npm:^11.12.10"
-    deepmerge: "npm:^4.3.1"
     firebase: "npm:^12.19.0"
-    jest: "npm:^30.5.2"
-    jest-environment-jsdom: "npm:^30.5.2"
+    jsdom: "npm:^27.0.0"
     lodash-es: "npm:^4.18.1"
     loglevel: "npm:^1.9.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
     semver: "npm:^7.8.5"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -8764,7 +8630,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/perps-controller@npm:^20.1.0, @metamask/perps-controller@workspace:packages/perps-controller":
+"@metamask/perps-controller@npm:^22.0.0, @metamask/perps-controller@workspace:packages/perps-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/perps-controller@workspace:packages/perps-controller"
   dependencies:
@@ -8781,7 +8647,7 @@ __metadata:
     "@metamask/network-controller": "npm:^37.1.1"
     "@metamask/profile-sync-controller": "npm:^35.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
-    "@metamask/subscription-controller": "npm:^14.0.2"
+    "@metamask/subscription-controller": "npm:^15.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.2.1"
     "@metamask/utils": "npm:^12.0.0"
@@ -8838,27 +8704,23 @@ __metadata:
     "@docusaurus/theme-common": "npm:^3.10.2"
     "@docusaurus/types": "npm:^3.10.2"
     "@easyops-cn/docusaurus-search-local": "npm:^0.55.3"
-    "@jest/globals": "npm:^30.5.2"
     "@mdx-js/react": "npm:^3.1.1"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/node-utils": "npm:^0.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^22.13.14"
     "@types/npm-which": "npm:^3"
     "@types/react": "npm:^19.0.0"
     "@types/yargs": "npm:^17.0.35"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
     execa: "npm:^10.0.1"
-    jest: "npm:^30.5.2"
     npm-which: "npm:^3.0.1"
     prism-react-renderer: "npm:^2.4.1"
     react: "npm:^19.3.0"
     react-dom: "npm:^19.3.0"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     ts-morph: "npm:^28.0.0"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
     yargs: "npm:^17.7.3"
   bin:
     platform-api-docs: ./dist/cli.js
@@ -8901,15 +8763,12 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/messenger": "npm:^3.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -8953,18 +8812,15 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.2.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -9064,15 +8920,12 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -9086,17 +8939,14 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@tanstack/query-core": "npm:^5.103.2"
     "@tanstack/react-query": "npm:^5.103.2"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   peerDependencies:
     react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
     react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
@@ -9119,17 +8969,14 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -9254,16 +9101,13 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
     "@tanstack/query-core": "npm:^5.103.2"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -9312,18 +9156,15 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.1.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     jsonschema: "npm:^1.4.1"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -9367,16 +9208,14 @@ __metadata:
     "@metamask/utils": "npm:^12.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     lodash-es: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -9552,15 +9391,12 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/local-node-utils": "npm:^2.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   bin:
     solana-test-validator-up: ./dist/bin/solana-test-validator-up.js
   languageName: unknown
@@ -9578,15 +9414,12 @@ __metadata:
   resolution: "@metamask/stellar-quickstart-up@workspace:packages/stellar-quickstart-up"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.2.1"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -9607,19 +9440,16 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
-"@metamask/subscription-controller@npm:^14.0.2, @metamask/subscription-controller@workspace:packages/subscription-controller":
+"@metamask/subscription-controller@npm:^15.0.0, @metamask/subscription-controller@workspace:packages/subscription-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/subscription-controller@workspace:packages/subscription-controller"
   dependencies:
@@ -9720,27 +9550,24 @@ __metadata:
     "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/utils": "npm:^12.0.0"
     "@types/bn.js": "npm:^5.2.0"
-    "@types/jest": "npm:^30.0.0"
     "@types/node": "npm:^22.13.14"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
     bignumber.js: "npm:^9.1.2"
     bn.js: "npm:^5.2.5"
-    deepmerge: "npm:^4.3.1"
     eth-method-registry: "npm:^4.0.0"
     ethereum-cryptography: "npm:^3.2.0"
     fast-json-patch: "npm:^3.1.1"
     immer: "npm:^11.1.18"
-    jest: "npm:^30.5.2"
-    jest-environment-jsdom: "npm:^30.5.2"
+    jsdom: "npm:^27.0.0"
     lodash-es: "npm:^4.18.1"
     nock: "npm:^13.5.6"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
     uuid: "npm:^11.1.1"
+    vitest: "npm:^5.0.0"
   peerDependencies:
     "@babel/runtime": ^7.0.0
     "@metamask/eth-block-tracker": ">=9"
@@ -9769,19 +9596,16 @@ __metadata:
     "@metamask/sentinel-api-service": "npm:^2.1.0"
     "@metamask/transaction-controller": "npm:^72.2.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
     bn.js: "npm:^5.2.5"
-    deepmerge: "npm:^4.3.1"
     immer: "npm:^11.1.18"
-    jest: "npm:^30.5.2"
     lodash-es: "npm:^4.18.1"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -9793,22 +9617,19 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.1.1"
-    "@metamask/perps-controller": "npm:^20.1.0"
+    "@metamask/perps-controller": "npm:^22.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^72.2.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -9886,13 +9707,13 @@ __metadata:
   dependencies:
     "@ethereumjs/tx": "npm:^5.4.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
+    "@metamask/byte-utils": "npm:^0.0.0"
     "@metamask/error-utils": "npm:^0.0.0"
     "@metamask/node-utils": "npm:^0.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/type-utils": "npm:^0.0.0"
     "@noble/hashes": "npm:^1.8.0"
-    "@scure/base": "npm:^1.2.6"
     "@types/debug": "npm:^4.1.7"
     "@types/jest": "npm:^30.0.0"
     "@types/lodash": "npm:^4.17.26"
@@ -9927,43 +9748,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/wallet-cli@workspace:packages/wallet-cli":
-  version: 0.0.0-use.local
-  resolution: "@metamask/wallet-cli@workspace:packages/wallet-cli"
-  dependencies:
-    "@inquirer/confirm": "npm:^6.3.2"
-    "@inquirer/password": "npm:^5.2.2"
-    "@metamask/analytics-controller": "npm:^4.0.0"
-    "@metamask/auto-changelog": "npm:^6.2.1"
-    "@metamask/base-controller": "npm:^10.1.0"
-    "@metamask/config-registry-controller": "npm:^5.0.0"
-    "@metamask/foundryup": "npm:^2.0.0"
-    "@metamask/messenger": "npm:^3.0.0"
-    "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
-    "@metamask/rpc-errors": "npm:^7.0.3"
-    "@metamask/scure-bip39": "npm:^2.1.1"
-    "@metamask/storage-service": "npm:^2.0.0"
-    "@metamask/superstruct": "npm:^3.4.1"
-    "@metamask/utils": "npm:^12.0.0"
-    "@metamask/wallet": "npm:^18.0.1"
-    "@oclif/core": "npm:^4.10.5"
-    "@types/better-sqlite3": "npm:^7.6.13"
-    "@types/jest": "npm:^30.0.0"
-    "@typescript/native": "npm:typescript@^7.0.2"
-    better-sqlite3: "npm:^13.0.3"
-    deepmerge: "npm:^4.3.1"
-    immer: "npm:^11.1.18"
-    jest: "npm:^30.5.2"
-    jest-environment-node: "npm:^30.5.2"
-    nock: "npm:^13.5.6"
-    rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
-    typescript: "npm:@typescript/typescript6@^6.0.2"
-  bin:
-    mm: ./bin/run.mjs
-  languageName: unknown
-  linkType: soft
-
 "@metamask/wallet-framework-docs@workspace:packages/wallet-framework-docs":
   version: 0.0.0-use.local
   resolution: "@metamask/wallet-framework-docs@workspace:packages/wallet-framework-docs"
@@ -9982,27 +9766,25 @@ __metadata:
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.0"
     "@tanstack/query-core": "npm:^5.103.2"
-    "@types/jest": "npm:^30.0.0"
     "@types/react": "npm:^19.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     nock: "npm:^13.5.6"
     prism-react-renderer: "npm:^2.4.1"
     raw-loader: "npm:^4.0.2"
     react: "npm:^19.3.0"
     react-dom: "npm:^19.3.0"
-    ts-jest: "npm:^29.4.14"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
-"@metamask/wallet@npm:^18.0.1, @metamask/wallet@workspace:packages/wallet":
+"@metamask/wallet@workspace:packages/wallet":
   version: 0.0.0-use.local
   resolution: "@metamask/wallet@workspace:packages/wallet"
   dependencies:
     "@metamask/accounts-controller": "npm:^40.1.0"
     "@metamask/address-book-controller": "npm:^8.0.0"
+    "@metamask/analytics-controller": "npm:^4.0.0"
     "@metamask/approval-controller": "npm:^10.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.1.0"
@@ -10025,18 +9807,15 @@ __metadata:
     "@metamask/selected-network-controller": "npm:^27.0.0"
     "@metamask/shield-controller": "npm:^7.0.5"
     "@metamask/storage-service": "npm:^2.0.0"
-    "@metamask/subscription-controller": "npm:^14.0.2"
+    "@metamask/subscription-controller": "npm:^15.0.0"
     "@metamask/transaction-controller": "npm:^72.2.1"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/jest": "npm:^30.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    deepmerge: "npm:^4.3.1"
-    jest: "npm:^30.5.2"
     rimraf: "npm:^6.1.3"
-    ts-jest: "npm:^29.4.14"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
     typescript: "npm:@typescript/typescript6@^6.0.2"
+    vitest: "npm:^5.0.0"
   languageName: unknown
   linkType: soft
 
@@ -10486,32 +10265,6 @@ __metadata:
     node-gyp: "npm:^12.1.0"
     proc-log: "npm:^6.0.0"
   checksum: 10/dd5f92aa6c50761c125eb836432497edfe57a32ddde175218167515bc8f54ba82b7fa8b89b8f73eda69c3a88d1ffe97e14080b316aefdddc264c450e24c32c8b
-  languageName: node
-  linkType: hard
-
-"@oclif/core@npm:^4.10.5":
-  version: 4.11.4
-  resolution: "@oclif/core@npm:4.11.4"
-  dependencies:
-    ansi-escapes: "npm:^4.3.2"
-    ansis: "npm:^3.17.0"
-    clean-stack: "npm:^3.0.1"
-    cli-spinners: "npm:^2.9.2"
-    debug: "npm:^4.4.3"
-    ejs: "npm:^3.1.10"
-    get-package-type: "npm:^0.1.0"
-    indent-string: "npm:^4.0.0"
-    is-wsl: "npm:^2.2.0"
-    lilconfig: "npm:^3.1.3"
-    minimatch: "npm:^10.2.5"
-    semver: "npm:^7.8.1"
-    string-width: "npm:^4.2.3"
-    supports-color: "npm:^8"
-    tinyglobby: "npm:^0.2.16"
-    widest-line: "npm:^3.1.0"
-    wordwrap: "npm:^1.0.0"
-    wrap-ansi: "npm:^7.0.0"
-  checksum: 10/e213c43818fe8c78067bb131bed4d0e1bc8b441f35a33f61292bb513741e17ba1849bb995de7b3b07fa1c5b80bbcf7eadc805963fc236dbbd762154d9fc506e4
   languageName: node
   linkType: hard
 
@@ -12604,15 +12357,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/better-sqlite3@npm:^7.6.13":
-  version: 7.6.13
-  resolution: "@types/better-sqlite3@npm:7.6.13"
-  dependencies:
-    "@types/node": "npm:*"
-  checksum: 10/c74dafa3c550ac866737870016d7b1a735c7d450c16d40962eeb54510fa150e91752bfdf678f55e91894d8853771b95f909b0062122116cddac4d80491b74411
-  languageName: node
-  linkType: hard
-
 "@types/bn.js@npm:*, @types/bn.js@npm:^5.1.0, @types/bn.js@npm:^5.1.5, @types/bn.js@npm:^5.2.0":
   version: 5.2.0
   resolution: "@types/bn.js@npm:5.2.0"
@@ -13726,6 +13470,28 @@ __metadata:
   peerDependencies:
     vitest: 5.0.3
   checksum: 10/6d5d99f189d7fbdf142f5285b0192bce1e54a9132570efd2bba0cba618dbff239087ff0573bf185c3bb25a5df18dd3bbf1c54b8a0244863ef21bb376b6cfcca2
+  languageName: node
+  linkType: hard
+
+"@vitest/coverage-v8@npm:^5.0.0":
+  version: 5.0.3
+  resolution: "@vitest/coverage-v8@npm:5.0.3"
+  dependencies:
+    "@bcoe/v8-coverage": "npm:^1.0.2"
+    "@vitest/istanbul-lib-coverage": "npm:^1.0.0"
+    "@vitest/istanbul-lib-report": "npm:^1.0.0"
+    ast-v8-to-istanbul: "npm:^1.0.5"
+    magicast: "npm:^0.5.4"
+    obug: "npm:^2.1.4"
+    std-env: "npm:^4.2.0"
+    tinyrainbow: "npm:^3.1.1"
+  peerDependencies:
+    "@vitest/browser": 5.0.3
+    vitest: 5.0.3
+  peerDependenciesMeta:
+    "@vitest/browser":
+      optional: true
+  checksum: 10/06c13198db770b7ccf8d6c3b8c8ca747f18f4ea0fde934a8478dfadb0f78ada6d2d0633833db7d6e1e8e21427d9c496b85b346e32acbddbfd11ec0b059bc304f
   languageName: node
   linkType: hard
 
@@ -14924,7 +14690,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ansis@npm:^3.17.0, ansis@npm:^3.2.0":
+"ansis@npm:^3.2.0":
   version: 3.17.0
   resolution: "ansis@npm:3.17.0"
   checksum: 10/6fd6bc4d1187b894d9706f4c141c81b788e90766426617385486dae38f8b2f5a1726d8cc754939e44265f92a9db4647d5136cb1425435c39ac42b35e3acf4f3d
@@ -15010,6 +14776,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"ast-v8-to-istanbul@npm:^1.0.5":
+  version: 1.0.7
+  resolution: "ast-v8-to-istanbul@npm:1.0.7"
+  dependencies:
+    "@jridgewell/trace-mapping": "npm:^0.3.31"
+    estree-walker: "npm:^3.0.3"
+    js-tokens: "npm:^10.0.0"
+  checksum: 10/277e54d126807ee0d434726c11ddb77c2b7c59d19d6e5fa0d9c61f480d05b02d7ab2ab5514d924da31d62e66cb46dc87f72e477440dc1521aa07e47fa7f2d057
+  languageName: node
+  linkType: hard
+
 "astral-regex@npm:^2.0.0":
   version: 2.0.0
   resolution: "astral-regex@npm:2.0.0"
@@ -15046,13 +14823,6 @@ __metadata:
   dependencies:
     tslib: "npm:^2.4.0"
   checksum: 10/4c6bfce1cc9cd43f723c4d96403ac5f4757f885c953b839cde6956ec8817ff39623b82d67614de10c7933e21626925882fb9bac367db7d15d7cb4f84228722c9
-  languageName: node
-  linkType: hard
-
-"async@npm:^3.2.6":
-  version: 3.2.6
-  resolution: "async@npm:3.2.6"
-  checksum: 10/cb6e0561a3c01c4b56a799cc8bab6ea5fef45f069ab32500b6e19508db270ef2dffa55e5aed5865c5526e9907b1f8be61b27530823b411ffafb5e1538c86c368
   languageName: node
   linkType: hard
 
@@ -15365,16 +15135,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"better-sqlite3@npm:^13.0.3":
-  version: 13.0.3
-  resolution: "better-sqlite3@npm:13.0.3"
-  dependencies:
-    node-addon-api: "npm:^8.0.0"
-    node-gyp: "npm:latest"
-  checksum: 10/035f8fa70784762fd73e1dbeb6f157186abb97705ff759b312cfb0dc1c675fd1c6b5378d2c036758000ce9da1d49bf61689531aa2718a7e32dc272c114a4c71f
-  languageName: node
-  linkType: hard
-
 "bidi-js@npm:^1.0.3":
   version: 1.1.0
   resolution: "bidi-js@npm:1.1.0"
@@ -15560,7 +15320,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"brace-expansion@npm:^2.0.1, brace-expansion@npm:^2.0.2":
+"brace-expansion@npm:^2.0.2":
   version: 2.1.2
   resolution: "brace-expansion@npm:2.1.2"
   dependencies:
@@ -16128,15 +15888,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"clean-stack@npm:^3.0.1":
-  version: 3.0.1
-  resolution: "clean-stack@npm:3.0.1"
-  dependencies:
-    escape-string-regexp: "npm:4.0.0"
-  checksum: 10/dc18c842d7792dd72d463936b1b0a5b2621f0fc11588ee48b602e1a29b6c010c606d89f3de1f95d15d72de74aea93c0fbac8246593a31d95f8462cac36148e05
-  languageName: node
-  linkType: hard
-
 "cli-boxes@npm:^2.2.0":
   version: 2.2.1
   resolution: "cli-boxes@npm:2.2.1"
@@ -16160,13 +15911,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"cli-spinners@npm:^2.9.2":
-  version: 2.9.2
-  resolution: "cli-spinners@npm:2.9.2"
-  checksum: 10/a0a863f442df35ed7294424f5491fa1756bd8d2e4ff0c8736531d886cec0ece4d85e8663b77a5afaf1d296e3cbbebff92e2e99f52bbea89b667cbe789b994794
-  languageName: node
-  linkType: hard
-
 "cli-table3@npm:^0.6.3":
   version: 0.6.5
   resolution: "cli-table3@npm:0.6.5"
@@ -16187,13 +15931,6 @@ __metadata:
     slice-ansi: "npm:^3.0.0"
     string-width: "npm:^4.2.0"
   checksum: 10/976f1887de067a8cd6ec830a7a8508336aebe6cec79b521d98ed13f67ef073b637f7305675b6247dd22f9e9cf045ec55fe746c7bdb288fbe8db0dfdc9fd52e55
-  languageName: node
-  linkType: hard
-
-"cli-width@npm:^4.1.0":
-  version: 4.1.0
-  resolution: "cli-width@npm:4.1.0"
-  checksum: 10/b58876fbf0310a8a35c79b72ecfcf579b354e18ad04e6b20588724ea2b522799a758507a37dfe132fafaf93a9922cafd9514d9e1598e6b2cd46694853aed099f
   languageName: node
   linkType: hard
 
@@ -16714,7 +16451,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"create-hmac@npm:^1.1.4, create-hmac@npm:^1.1.7":
+"create-hmac@npm:^1.1.7":
   version: 1.1.7
   resolution: "create-hmac@npm:1.1.7"
   dependencies:
@@ -17490,17 +17227,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ejs@npm:^3.1.10":
-  version: 3.1.10
-  resolution: "ejs@npm:3.1.10"
-  dependencies:
-    jake: "npm:^10.8.5"
-  bin:
-    ejs: bin/cli.js
-  checksum: 10/a9cb7d7cd13b7b1cd0be5c4788e44dd10d92f7285d2f65b942f33e127230c054f99a42db4d99f766d8dbc6c57e94799593ee66a14efd7c8dd70c4812bf6aa384
-  languageName: node
-  linkType: hard
-
 "electron-to-chromium@npm:^1.5.328":
   version: 1.5.361
   resolution: "electron-to-chromium@npm:1.5.361"
@@ -17882,17 +17608,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"escape-string-regexp@npm:4.0.0, escape-string-regexp@npm:^4.0.0":
-  version: 4.0.0
-  resolution: "escape-string-regexp@npm:4.0.0"
-  checksum: 10/98b48897d93060f2322108bf29db0feba7dd774be96cd069458d1453347b25ce8682ecc39859d4bca2203cc0ab19c237bcc71755eff49a0f8d90beadeeba5cc5
-  languageName: node
-  linkType: hard
-
 "escape-string-regexp@npm:^2.0.0":
   version: 2.0.0
   resolution: "escape-string-regexp@npm:2.0.0"
   checksum: 10/9f8a2d5743677c16e85c810e3024d54f0c8dea6424fad3c79ef6666e81dd0846f7437f5e729dfcdac8981bc9e5294c39b4580814d114076b8d36318f46ae4395
+  languageName: node
+  linkType: hard
+
+"escape-string-regexp@npm:^4.0.0":
+  version: 4.0.0
+  resolution: "escape-string-regexp@npm:4.0.0"
+  checksum: 10/98b48897d93060f2322108bf29db0feba7dd774be96cd069458d1453347b25ce8682ecc39859d4bca2203cc0ab19c237bcc71755eff49a0f8d90beadeeba5cc5
   languageName: node
   linkType: hard
 
@@ -18515,35 +18241,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-string-truncated-width@npm:^3.0.2":
-  version: 3.0.3
-  resolution: "fast-string-truncated-width@npm:3.0.3"
-  checksum: 10/3a1631e48927cb558b612a90ee78a61a660823c39b024bfc113935760b5b64805dbf03c4e696c33005294db578417687432e9d13567f1a582c2c75015e8a7648
-  languageName: node
-  linkType: hard
-
-"fast-string-width@npm:^3.0.2":
-  version: 3.0.2
-  resolution: "fast-string-width@npm:3.0.2"
-  dependencies:
-    fast-string-truncated-width: "npm:^3.0.2"
-  checksum: 10/5b9019769f2b00b96d43575c202f4e035a0e55eba7669a9a32351de9fa0805d0959a2afcaec6e4db5ee9b9a4c08d8e77f95abeb04b5bae2f76635cf04ddb4b80
-  languageName: node
-  linkType: hard
-
 "fast-uri@npm:^3.0.1":
   version: 3.1.2
   resolution: "fast-uri@npm:3.1.2"
   checksum: 10/1dff04865b2a38d3e0659deadfbf72efdf83a776bfbf9667e4aa9e5a3ec31bc341cda9622136b32b7652a857c8ba11896794186e8f876f8b2b72731fce8622f6
-  languageName: node
-  linkType: hard
-
-"fast-wrap-ansi@npm:^0.2.0":
-  version: 0.2.0
-  resolution: "fast-wrap-ansi@npm:0.2.0"
-  dependencies:
-    fast-string-width: "npm:^3.0.2"
-  checksum: 10/e717a249dae84c9a964e6b5da05c373fadd92714b2afb2d6c7e6f766c3409c773c95b28e186dcdd397e2d7850533dbdd766845d0cd29e15d172d33128f9447d3
   languageName: node
   linkType: hard
 
@@ -18660,15 +18361,6 @@ __metadata:
   peerDependencies:
     webpack: ^4.0.0 || ^5.0.0
   checksum: 10/3a854be3a7501bdb0fd8a1c0d45c156c0dc8f0afced07cbdac0b13a79c2f2a03f7770d68cb555ff30b5ea7c20719df34e1b2bd896c93e3138ee31f0bdc560310
-  languageName: node
-  linkType: hard
-
-"filelist@npm:^1.0.4":
-  version: 1.0.6
-  resolution: "filelist@npm:1.0.6"
-  dependencies:
-    minimatch: "npm:^5.0.1"
-  checksum: 10/84a0be69efe6724c105f18c34e8a772370d9c45e53a1ba8ced7eecf4addd2c5a357347d94bfd8bfa9cbc36b09392cad70d82206305263e26bba184eea4ca8042
   languageName: node
   linkType: hard
 
@@ -19319,10 +19011,10 @@ __metadata:
   linkType: hard
 
 "handlebars@npm:^4.7.9":
-  version: 4.7.9
-  resolution: "handlebars@npm:4.7.9"
+  version: 4.7.10
+  resolution: "handlebars@npm:4.7.10"
   dependencies:
-    minimist: "npm:^1.2.5"
+    minimist: "npm:^1.2.8"
     neo-async: "npm:^2.6.2"
     source-map: "npm:^0.6.1"
     uglify-js: "npm:^3.1.4"
@@ -19332,7 +19024,7 @@ __metadata:
       optional: true
   bin:
     handlebars: bin/handlebars
-  checksum: 10/e755433d652e8a15fc02f83d7478e652359e7a4d354c4328818853ed4f8a39d4a09e1d22dad3c7213c5240864a65b3c840970b8b181745575dd957dd258f2b8d
+  checksum: 10/e7df9b9986594384de11ea27d2f9c694f90dca9ff768ac28851b4cf89f6268a3177ec50c9bb1601c8841f67bee25598b37bdcd53d1f7acd3744619f938ad1f53
   languageName: node
   linkType: hard
 
@@ -19375,14 +19067,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"hash-base@npm:^3.0.0":
-  version: 3.1.0
-  resolution: "hash-base@npm:3.1.0"
+"hash-base@npm:^3.0.0, hash-base@npm:^3.1.2":
+  version: 3.1.2
+  resolution: "hash-base@npm:3.1.2"
   dependencies:
     inherits: "npm:^2.0.4"
-    readable-stream: "npm:^3.6.0"
-    safe-buffer: "npm:^5.2.0"
-  checksum: 10/26b7e97ac3de13cb23fc3145e7e3450b0530274a9562144fc2bf5c1e2983afd0e09ed7cc3b20974ba66039fad316db463da80eb452e7373e780cbee9a0d2f2dc
+    readable-stream: "npm:^2.3.8"
+    safe-buffer: "npm:^5.2.1"
+    to-buffer: "npm:^1.2.1"
+  checksum: 10/f2100420521ec77736ebd9279f2c0b3ab2820136a2fa408ea36f3201d3f6984cda166806e6a0287f92adf179430bedfbdd74348ac351e24a3eff9f01a8c406b0
   languageName: node
   linkType: hard
 
@@ -20504,7 +20197,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"is-typed-array@npm:^1.1.3":
+"is-typed-array@npm:^1.1.14, is-typed-array@npm:^1.1.3":
   version: 1.1.15
   resolution: "is-typed-array@npm:1.1.15"
   dependencies:
@@ -20708,19 +20401,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jake@npm:^10.8.5":
-  version: 10.9.4
-  resolution: "jake@npm:10.9.4"
-  dependencies:
-    async: "npm:^3.2.6"
-    filelist: "npm:^1.0.4"
-    picocolors: "npm:^1.1.1"
-  bin:
-    jake: bin/cli.js
-  checksum: 10/97e48f73f5e315a3b6e1a48b4bcc0cdf2c2cf82100ec9e76a032fd5d614dcd32c4315572cfcb66e9f9bdecca3900aaa61fe72b781a74b06aefd3ec4c1c917f0b
-  languageName: node
-  linkType: hard
-
 "jest-changed-files@npm:30.5.1":
   version: 30.5.1
   resolution: "jest-changed-files@npm:30.5.1"
@@ -20879,7 +20559,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jest-environment-node@npm:30.5.2, jest-environment-node@npm:^30.5.2":
+"jest-environment-node@npm:30.5.2":
   version: 30.5.2
   resolution: "jest-environment-node@npm:30.5.2"
   dependencies:
@@ -21753,7 +21433,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lilconfig@npm:^3.1.1, lilconfig@npm:^3.1.3":
+"lilconfig@npm:^3.1.1":
   version: 3.1.3
   resolution: "lilconfig@npm:3.1.3"
   checksum: 10/b932ce1af94985f0efbe8896e57b1f814a48c8dbd7fc0ef8469785c6303ed29d0090af3ccad7e36b626bfca3a4dc56cc262697e9a8dd867623cf09a39d54e4c3
@@ -23102,15 +22782,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimatch@npm:^5.0.1":
-  version: 5.1.9
-  resolution: "minimatch@npm:5.1.9"
-  dependencies:
-    brace-expansion: "npm:^2.0.1"
-  checksum: 10/23b4feb64dcb77ba93b70a72be551eb2e2677ac02178cf1ed3d38836cc4cd84802d90b77f60ef87f2bac64d270d2d8eba242e428f0554ea4e36bfdb7e9d25d0c
-  languageName: node
-  linkType: hard
-
 "minimatch@npm:^9.0.4":
   version: 9.0.9
   resolution: "minimatch@npm:9.0.9"
@@ -23120,7 +22791,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"minimist@npm:^1.2.0, minimist@npm:^1.2.5":
+"minimist@npm:^1.2.0, minimist@npm:^1.2.8":
   version: 1.2.8
   resolution: "minimist@npm:1.2.8"
   checksum: 10/908491b6cc15a6c440ba5b22780a0ba89b9810e1aea684e253e43c4e3b8d56ec1dcdd7ea96dde119c29df59c936cde16062159eae4225c691e19c70b432b6e6f
@@ -23293,13 +22964,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"mute-stream@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "mute-stream@npm:3.0.0"
-  checksum: 10/bee5db5c996a4585dbffc49e51fea10f3582d7f65441db9bc63126f16269541713c6ccb5a6fe37e08f627967b6eb28dd6b35e54a8dce53cf3837d7e010917b43
-  languageName: node
-  linkType: hard
-
 "nanoid@npm:^3.3.10, nanoid@npm:^3.3.19, nanoid@npm:^3.3.8":
   version: 3.3.19
   resolution: "nanoid@npm:3.3.19"
@@ -23398,15 +23062,6 @@ __metadata:
   dependencies:
     node-gyp: "npm:latest"
   checksum: 10/ee1e1ed6284a2f8cd1d59ac6175ecbabf8978dcf570345e9a8095a9d0a2b9ced591074ae77f9009287b00c402352b38aa9322a34f2199cdc9f567b842a636b94
-  languageName: node
-  linkType: hard
-
-"node-addon-api@npm:^8.0.0":
-  version: 8.9.2
-  resolution: "node-addon-api@npm:8.9.2"
-  dependencies:
-    node-gyp: "npm:latest"
-  checksum: 10/5354f9b53631d99a952408112d795f36782fd41c0ac073bd91814805fe931b619c743689d0cedcc310c0ae8392fc9b104b2852d28cce294236407ca57d01743e
   languageName: node
   linkType: hard
 
@@ -24592,15 +24247,16 @@ __metadata:
   linkType: hard
 
 "pbkdf2@npm:^3.0.17":
-  version: 3.1.2
-  resolution: "pbkdf2@npm:3.1.2"
+  version: 3.1.7
+  resolution: "pbkdf2@npm:3.1.7"
   dependencies:
-    create-hash: "npm:^1.1.2"
-    create-hmac: "npm:^1.1.4"
-    ripemd160: "npm:^2.0.1"
-    safe-buffer: "npm:^5.0.1"
-    sha.js: "npm:^2.4.8"
-  checksum: 10/40bdf30df1c9bb1ae41ec50c11e480cf0d36484b7c7933bf55e4451d1d0e3f09589df70935c56e7fccc5702779a0d7b842d012be8c08a187b44eb24d55bb9460
+    create-hash: "npm:^1.2.0"
+    create-hmac: "npm:^1.1.7"
+    ripemd160: "npm:^2.0.3"
+    safe-buffer: "npm:^5.2.1"
+    sha.js: "npm:^2.4.12"
+    to-buffer: "npm:^1.2.2"
+  checksum: 10/3b8cf9d991d823d426f71aecbb75f9ec261887683448f1f41e16cd3745512b3d96c3f455f6417ca5c562a9ef557a82f7888e703e8f03695de989603ae5d1f555
   languageName: node
   linkType: hard
 
@@ -26072,7 +25728,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"readable-stream@npm:^2.0.1, readable-stream@npm:^2.0.2":
+"readable-stream@npm:^2.0.1, readable-stream@npm:^2.0.2, readable-stream@npm:^2.3.8":
   version: 2.3.8
   resolution: "readable-stream@npm:2.3.8"
   dependencies:
@@ -26569,13 +26225,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ripemd160@npm:^2.0.0, ripemd160@npm:^2.0.1":
-  version: 2.0.2
-  resolution: "ripemd160@npm:2.0.2"
+"ripemd160@npm:^2.0.0, ripemd160@npm:^2.0.1, ripemd160@npm:^2.0.3":
+  version: 2.0.3
+  resolution: "ripemd160@npm:2.0.3"
   dependencies:
-    hash-base: "npm:^3.0.0"
-    inherits: "npm:^2.0.1"
-  checksum: 10/006accc40578ee2beae382757c4ce2908a826b27e2b079efdcd2959ee544ddf210b7b5d7d5e80467807604244e7388427330f5c6d4cd61e6edaddc5773ccc393
+    hash-base: "npm:^3.1.2"
+    inherits: "npm:^2.0.4"
+  checksum: 10/d15d42ea0460426675e5320f86d3468ab408af95b1761cf35f8d32c0c97b4d3bb72b7226e990e643b96e1637a8ad26b343a6c7666e1a297bcab4f305a1d9d3e3
   languageName: node
   linkType: hard
 
@@ -26685,7 +26341,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"safe-buffer@npm:5.2.1, safe-buffer@npm:>=5.1.0, safe-buffer@npm:^5.0.1, safe-buffer@npm:^5.1.0, safe-buffer@npm:^5.1.1, safe-buffer@npm:^5.1.2, safe-buffer@npm:^5.2.0, safe-buffer@npm:~5.2.0":
+"safe-buffer@npm:5.2.1, safe-buffer@npm:>=5.1.0, safe-buffer@npm:^5.0.1, safe-buffer@npm:^5.1.0, safe-buffer@npm:^5.1.1, safe-buffer@npm:^5.1.2, safe-buffer@npm:^5.2.1, safe-buffer@npm:~5.2.0":
   version: 5.2.1
   resolution: "safe-buffer@npm:5.2.1"
   checksum: 10/32872cd0ff68a3ddade7a7617b8f4c2ae8764d8b7d884c651b74457967a9e0e886267d3ecc781220629c44a865167b61c375d2da6c720c840ecd73f45d5d9451
@@ -26851,7 +26507,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"semver@npm:^7.1.1, semver@npm:^7.3.5, semver@npm:^7.3.7, semver@npm:^7.5.3, semver@npm:^7.5.4, semver@npm:^7.6.3, semver@npm:^7.7.2, semver@npm:^7.8.1, semver@npm:^7.8.5":
+"semver@npm:^7.1.1, semver@npm:^7.3.5, semver@npm:^7.3.7, semver@npm:^7.5.3, semver@npm:^7.5.4, semver@npm:^7.6.3, semver@npm:^7.7.2, semver@npm:^7.8.5":
   version: 7.8.5
   resolution: "semver@npm:7.8.5"
   bin:
@@ -26985,15 +26641,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"sha.js@npm:^2.4.0, sha.js@npm:^2.4.8":
-  version: 2.4.11
-  resolution: "sha.js@npm:2.4.11"
+"sha.js@npm:^2.4.0, sha.js@npm:^2.4.12, sha.js@npm:^2.4.8":
+  version: 2.4.12
+  resolution: "sha.js@npm:2.4.12"
   dependencies:
-    inherits: "npm:^2.0.1"
-    safe-buffer: "npm:^5.0.1"
+    inherits: "npm:^2.0.4"
+    safe-buffer: "npm:^5.2.1"
+    to-buffer: "npm:^1.2.0"
   bin:
-    sha.js: ./bin.js
-  checksum: 10/d833bfa3e0a67579a6ce6e1bc95571f05246e0a441dd8c76e3057972f2a3e098465687a4369b07e83a0375a88703577f71b5b2e966809e67ebc340dbedb478c7
+    sha.js: bin.js
+  checksum: 10/39c0993592c2ab34eb2daae2199a2a1d502713765aecb611fd97c0c4ab7cd53e902d628e1962aaf384bafd28f55951fef46dcc78799069ce41d74b03aa13b5a7
   languageName: node
   linkType: hard
 
@@ -27037,9 +26694,9 @@ __metadata:
   linkType: hard
 
 "shell-quote@npm:^1.6.1, shell-quote@npm:^1.8.3":
-  version: 1.10.0
-  resolution: "shell-quote@npm:1.10.0"
-  checksum: 10/d4a22aeefe64919290af753ac6098239d7ffee52a5db62c20edef69794bd10b5f86e298f68be26af9606ac435e890dd391994a5405a90bb8aebef1ff1dde839b
+  version: 1.12.0
+  resolution: "shell-quote@npm:1.12.0"
+  checksum: 10/18b3e382272804e79fd3187c18877cfd4e736b5afb576bf1ab66a561b0a0e26eada4b7c8eb45473d1f17268ffcf12d0aaa90b9235132123eb673df5d0a5df943
   languageName: node
   linkType: hard
 
@@ -27680,7 +27337,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"supports-color@npm:^8, supports-color@npm:^8.0.0, supports-color@npm:^8.1.1":
+"supports-color@npm:^8.0.0, supports-color@npm:^8.1.1":
   version: 8.1.1
   resolution: "supports-color@npm:8.1.1"
   dependencies:
@@ -27931,7 +27588,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tinyglobby@npm:^0.2.12, tinyglobby@npm:^0.2.14, tinyglobby@npm:^0.2.16, tinyglobby@npm:^0.2.17":
+"tinyglobby@npm:^0.2.12, tinyglobby@npm:^0.2.14, tinyglobby@npm:^0.2.17":
   version: 0.2.17
   resolution: "tinyglobby@npm:0.2.17"
   dependencies:
@@ -28002,6 +27659,17 @@ __metadata:
   bin:
     tldts: bin/cli.js
   checksum: 10/8b29032c713d6fbdd806cc4f81ee2e860e3997ef2a96f1325b02c953af2cf3cd6ccf9cd1e54857388e748da088a4ccd03bfc3bed056040d887efbbd56ad288aa
+  languageName: node
+  linkType: hard
+
+"to-buffer@npm:^1.2.0, to-buffer@npm:^1.2.1, to-buffer@npm:^1.2.2":
+  version: 1.2.2
+  resolution: "to-buffer@npm:1.2.2"
+  dependencies:
+    isarray: "npm:^2.0.5"
+    safe-buffer: "npm:^5.2.1"
+    typed-array-buffer: "npm:^1.0.3"
+  checksum: 10/69d806c20524ff1e4c44d49276bc96ff282dcae484780a3974e275dabeb75651ea430b074a2a4023701e63b3e1d87811cd82c0972f35280fe5461710e4872aba
   languageName: node
   linkType: hard
 
@@ -28298,6 +27966,17 @@ __metadata:
     media-typer: "npm:0.3.0"
     mime-types: "npm:~2.1.24"
   checksum: 10/0bd9eeae5efd27d98fd63519f999908c009e148039d8e7179a074f105362d4fcc214c38b24f6cda79c87e563cbd12083a4691381ed28559220d4a10c2047bed4
+  languageName: node
+  linkType: hard
+
+"typed-array-buffer@npm:^1.0.3":
+  version: 1.0.3
+  resolution: "typed-array-buffer@npm:1.0.3"
+  dependencies:
+    call-bound: "npm:^1.0.3"
+    es-errors: "npm:^1.3.0"
+    is-typed-array: "npm:^1.1.14"
+  checksum: 10/3fb91f0735fb413b2bbaaca9fabe7b8fc14a3fa5a5a7546bab8a57e755be0e3788d893195ad9c2b842620592de0e68d4c077d4c2c41f04ec25b8b5bb82fa9a80
   languageName: node
   linkType: hard
 

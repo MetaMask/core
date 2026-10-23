@@ -54,7 +54,6 @@ const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 const TOOLS = [
   '@metamask/foundryup',
   '@metamask/messenger-cli',
-  '@metamask/wallet-cli',
   '@metamask/wallet-framework-docs',
   '@metamask/platform-api-docs',
 ];
@@ -66,12 +65,8 @@ const DOCSITE_PACKAGES = ['@metamask/wallet-framework-docs'];
 
 /**
  * We don't check that test scripts are defined for these packages.
- *
- * Here we exclude `@metamask/wallet-cli`: it prepends a `better-sqlite3`
- * prebuild fetch to its "test" script, as the native addon isn't built
- * during `yarn install` (Yarn runs with `enableScripts: false`).
  */
-const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = ['@metamask/wallet-cli'];
+const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = [];
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
@@ -239,12 +234,12 @@ module.exports = defineConfig({
         expectWorkspaceField(
           workspace,
           'scripts.lint:tsconfigs',
-          'node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts',
+          'node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts',
         );
         expectWorkspaceField(
           workspace,
           'scripts.lint:tsconfigs:fix',
-          'node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
+          'node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
         );
       }
 
@@ -306,7 +301,7 @@ module.exports = defineConfig({
       }
 
       // All packages must specify a minimum Node.js version of 22.
-      expectWorkspaceField(workspace, 'engines.node', '^22.14.0 || ^24');
+      expectWorkspaceField(workspace, 'engines.node', '^22.14.0 || ^24 || ^26');
 
       // All non-root public packages should be published to the NPM registry;
       // all non-root private packages should not.

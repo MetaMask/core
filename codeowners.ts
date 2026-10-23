@@ -74,6 +74,9 @@ const config = {
     'build-utils': {
       teams: ['@MetaMask/core-platform'],
     },
+    'byte-utils': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'chain-agnostic-permission': {
       teams: ['@MetaMask/core-platform'],
     },
@@ -403,9 +406,6 @@ const config = {
       teams: ['@MetaMask/core-platform'],
     },
     wallet: {
-      teams: ['@MetaMask/core-platform'],
-    },
-    'wallet-cli': {
       teams: ['@MetaMask/core-platform'],
     },
     'wallet-framework-docs': {

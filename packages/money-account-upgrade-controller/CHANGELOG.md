@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Skips the recorded-upgrade shortcut, like `forceUpgradeAccount`.
   - Link rejections that can never succeed are thrown as terminal step errors. A predecessor with a withdrawal in progress is not terminal, and the step error's `cause` carries the `PREDECESSOR_HAS_OPEN_WITHDRAWALS` CHOMP error code.
 - Add `MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction` type
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 

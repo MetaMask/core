@@ -3,12 +3,14 @@
  */
 
 import { QueryClient } from '@tanstack/query-core';
+import { vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { ApiPlatformClient } from '../src/api/ApiPlatformClient.js';
 
 // Mock fetch globally
-export const mockFetch = jest.fn();
-(globalThis as typeof globalThis & { fetch: jest.Mock }).fetch = mockFetch;
+export const mockFetch: Mock = vi.fn();
+(globalThis as typeof globalThis & { fetch: Mock }).fetch = mockFetch;
 
 /**
  * Helper to create a mock Response.
@@ -27,18 +29,18 @@ export const createMockResponse = <ResponseData>(
     ok: status >= 200 && status < 300,
     status,
     statusText,
-    json: jest.fn().mockResolvedValue(data),
-    headers: { get: jest.fn() },
+    json: vi.fn().mockResolvedValue(data),
+    headers: { get: vi.fn() },
     redirected: false,
     type: 'basic',
     url: '',
-    clone: jest.fn(),
+    clone: vi.fn(),
     body: null,
     bodyUsed: false,
-    arrayBuffer: jest.fn(),
-    blob: jest.fn(),
-    formData: jest.fn(),
-    text: jest.fn(),
+    arrayBuffer: vi.fn(),
+    blob: vi.fn(),
+    formData: vi.fn(),
+    text: vi.fn(),
   }) as unknown as Response;
 
 /**
@@ -68,7 +70,7 @@ export function createTestClient(): ApiPlatformClient {
  * @returns An object containing a fresh test client.
  */
 export function setupTestEnvironment(): { client: ApiPlatformClient } {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   mockFetch.mockReset();
   return { client: createTestClient() };
 }

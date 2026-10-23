@@ -1,8 +1,10 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { NameType } from '../types.js';
 import { handleFetch } from '../util.js';
 import { TokenNameProvider } from './token.js';
 
-jest.mock('../util');
+vi.mock(import('../util.js'));
 
 const VALUE_MOCK = 'TestValue';
 const CHAIN_ID_MOCK = '0x1';
@@ -10,7 +12,7 @@ const SOURCE_ID = 'token';
 const TOKEN_NAME_MOCK = 'TestTokenName';
 
 describe('TokenNameProvider', () => {
-  const handleFetchMock = jest.mocked(handleFetch);
+  const handleFetchMock = vi.mocked(handleFetch);
 
   describe('getMetadata', () => {
     it('returns the provider metadata', () => {

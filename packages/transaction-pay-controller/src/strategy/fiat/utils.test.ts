@@ -2,6 +2,7 @@ import type { RampsOrder } from '@metamask/ramps-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
@@ -22,7 +23,7 @@ const WALLET_ADDRESS_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
 const ERC20_ADDRESS_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
 const NETWORK_CLIENT_ID_MOCK = 'net-client-1';
-const PROVIDER_MOCK = { request: jest.fn() };
+const PROVIDER_MOCK = { request: vi.fn() };
 
 const ERC20_FIAT_ASSET_MOCK: TransactionPayFiatAsset = {
   address: ERC20_ADDRESS_MOCK,
@@ -47,7 +48,7 @@ describe('Fiat Utils', () => {
     getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
@@ -251,7 +252,7 @@ describe('Fiat Utils', () => {
     } = getMessengerMock();
 
     beforeEach(() => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
 
       findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
       getNetworkConfigurationByChainIdMock.mockReturnValue(undefined);
