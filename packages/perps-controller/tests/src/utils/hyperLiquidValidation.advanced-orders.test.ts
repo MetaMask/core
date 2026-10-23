@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { HYPERLIQUID_ORDER_LIMITS } from '../../../src/constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { OrderType, TpslLinkage } from '../../../src/types/perps-types.js';
