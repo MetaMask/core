@@ -23,7 +23,11 @@ import type {
   MoneyAccountControllerSetDefaultMoneyAccountAction,
   MoneyAccountControllerStateChangeEvent,
 } from '@metamask/money-account-controller';
-import type { MoneyAccountUpgradeControllerUpgradeAccountAction } from '@metamask/money-account-upgrade-controller';
+import type {
+  MoneyAccountRegistrationStatus,
+  MoneyAccountUpgradeControllerGetRegistrationStatusAction,
+  MoneyAccountUpgradeControllerUpgradeAccountAction,
+} from '@metamask/money-account-upgrade-controller';
 import type {
   FeatureFlags,
   RemoteFeatureFlagControllerGetStateAction,
@@ -38,10 +42,6 @@ import {
 } from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycleControllerMethodActions } from './money-account-lifecycle-controller-method-action-types.js';
-import type {
-  MoneyAccountUpgradeControllerGetRegistrationStatusAction,
-  RegistrationStatus,
-} from './money-account-upgrade-controller-registration-status.js';
 
 const CONTROLLER_NAME = 'MoneyAccountLifecycleController';
 
@@ -159,7 +159,7 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   readonly #registrationStatusRequests = new Map<
     string,
-    Promise<RegistrationStatus>
+    Promise<MoneyAccountRegistrationStatus>
   >();
 
   #isMigrationInFlight = false;
@@ -324,14 +324,14 @@ export class MoneyAccountLifecycleController extends BaseController<
       return upgradeInFlight;
     }
 
-    const upgrade = this.#upgradeMoneyAccount(moneyAccount.address).finally(
-      () => this.#upgradesInFlight.delete(moneyAccountKey),
-    );
+    const upgrade = this.#upgradeMoneyAccount(
+      moneyAccount.address as Hex,
+    ).finally(() => this.#upgradesInFlight.delete(moneyAccountKey));
     this.#upgradesInFlight.set(moneyAccountKey, upgrade);
     return upgrade;
   }
 
-  async #upgradeMoneyAccount(moneyAccountAddress: string): Promise<void> {
+  async #upgradeMoneyAccount(moneyAccountAddress: Hex): Promise<void> {
     await this.#waitForLatestDerivedIdentities();
     if (!this.#isReady()) {
       return;
@@ -345,7 +345,7 @@ export class MoneyAccountLifecycleController extends BaseController<
 
     await this.messenger.call(
       'MoneyAccountUpgradeController:upgradeAccount',
-      moneyAccountAddress as Hex,
+      moneyAccountAddress,
     );
     if (!this.#isReady()) {
       return;
@@ -589,7 +589,7 @@ export class MoneyAccountLifecycleController extends BaseController<
         return;
       }
 
-      this.#fetchRegistrationStatus(moneyAccount.address).catch(
+      this.#fetchRegistrationStatus(moneyAccount.address as Hex).catch(
         (error: unknown) => this.#reportError(error),
       );
       if (lifecycle.type === 'mfa') {
@@ -621,7 +621,7 @@ export class MoneyAccountLifecycleController extends BaseController<
     );
   }
 
-  async #fetchRegistrationStatus(address: string): Promise<void> {
+  async #fetchRegistrationStatus(address: Hex): Promise<void> {
     const addressKey = address.toLowerCase();
     const request = this.messenger.call(
       'MoneyAccountUpgradeController:getRegistrationStatus',

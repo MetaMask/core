@@ -17,6 +17,7 @@ import type {
   GetMoneyAccountSelector,
   MoneyAccount,
 } from '@metamask/money-account-controller';
+import type { MoneyAccountRegistrationStatus } from '@metamask/money-account-upgrade-controller';
 import type {
   FeatureFlags,
   RemoteFeatureFlagControllerState,
@@ -28,7 +29,6 @@ import type { Mock } from 'vitest';
 import type { MoneyAccountLifecycle } from '../src/get-money-account-lifecycle.js';
 import { MoneyAccountLifecycleController } from '../src/money-account-lifecycle-controller.js';
 import type { MoneyAccountLifecycleControllerMessenger } from '../src/money-account-lifecycle-controller.js';
-import type { RegistrationStatus } from '../src/money-account-upgrade-controller-registration-status.js';
 
 const SFA_ACCOUNT_ID = 'sfa-account-id';
 export const MPC_ACCOUNT_ID = 'mpc-account-id';
@@ -103,7 +103,9 @@ type Mocks = {
   getMoneyAccount: Mock<
     (selector?: GetMoneyAccountSelector) => MoneyAccount | undefined
   >;
-  getRegistrationStatus: Mock<(address: string) => Promise<RegistrationStatus>>;
+  getRegistrationStatus: Mock<
+    (address: Hex) => Promise<MoneyAccountRegistrationStatus>
+  >;
   upgradeAccount: Mock<(address: Hex) => Promise<void>>;
   setDefaultMoneyAccount: Mock<(id: string) => void>;
   isEnabled: Mock<(remoteFeatureFlags: FeatureFlags) => boolean>;
@@ -261,7 +263,7 @@ export async function withController<ReturnValue>(
           : sfaAccount;
       }),
     getRegistrationStatus: vi
-      .fn<(address: string) => Promise<RegistrationStatus>>()
+      .fn<(address: Hex) => Promise<MoneyAccountRegistrationStatus>>()
       .mockResolvedValue({ isRegistered: true }),
     upgradeAccount: vi
       .fn<(address: Hex) => Promise<void>>()

@@ -14,6 +14,7 @@ import type {
   ChompApiServiceCreateIntentsAction,
   ChompApiServiceCreateUpgradeAction,
   ChompApiServiceGetAssociatedAddressesAction,
+  ChompApiServiceGetDerivedIdentityByAddressAction,
   ChompApiServiceGetIntentsByAddressAction,
   ChompApiServiceGetServiceDetailsAction,
   ChompApiServiceVerifyDelegationAction,
@@ -121,9 +122,18 @@ export function getDefaultMoneyAccountUpgradeControllerState(): MoneyAccountUpgr
   };
 }
 
+/**
+ * Whether an address is registered with CHOMP as a Money Account address.
+ */
+export type MoneyAccountRegistrationStatus = {
+  isRegistered: boolean;
+};
+
 const MESSENGER_EXPOSED_METHODS = [
   'upgradeAccount',
   'forceUpgradeAccount',
+  'upgradeSuccessorAccount',
+  'getRegistrationStatus',
 ] as const;
 
 export type MoneyAccountUpgradeControllerGetStateAction =
@@ -144,6 +154,7 @@ type AllowedActions =
   | ChompApiServiceCreateIntentsAction
   | ChompApiServiceCreateUpgradeAction
   | ChompApiServiceGetAssociatedAddressesAction
+  | ChompApiServiceGetDerivedIdentityByAddressAction
   | ChompApiServiceGetIntentsByAddressAction
   | ChompApiServiceGetServiceDetailsAction
   | ChompApiServiceVerifyDelegationAction
@@ -694,6 +705,57 @@ export class MoneyAccountUpgradeController extends BaseController<
   }
 
   /**
+   * Upgrades `address` as the successor of an existing Money Account, as part
+   * of migrating that Money Account to a new address. Runs the same steps as
+   * {@link upgradeAccount}, except that associating the address with the
+   * CHOMP profile also links it to `predecessorAddress`, which starts the
+   * migration on CHOMP and freezes the predecessor until it completes or is
+   * cancelled.
+   *
+   * Like {@link forceUpgradeAccount}, this skips the recorded-upgrade
+   * shortcut, so a previously recorded upgrade of `address` cannot cause the
+   * link to be skipped. Each step still only performs its action if its own
+   * remote check finds it is not already done.
+   *
+   * @param address - The new Money Account address.
+   * @param predecessorAddress - The current address of the Money Account
+   * that `address` succeeds.
+   * @throws If the controller is not bootstrapped, if the armed config is
+   * disarmed or superseded while the sequence is running, or if a step
+   * fails (wrapped in a {@link MoneyAccountUpgradeStepError}). A link CHOMP
+   * can never accept is marked terminal; a predecessor with a withdrawal in
+   * progress is not, and its cause carries the
+   * `PREDECESSOR_HAS_OPEN_WITHDRAWALS` CHOMP error code.
+   */
+  async upgradeSuccessorAccount(
+    address: Hex,
+    predecessorAddress: Hex,
+  ): Promise<void> {
+    const config = await this.#getArmedConfig();
+    await this.#runSteps(address, config, predecessorAddress);
+  }
+
+  /**
+   * Looks up whether `address` is registered with CHOMP, meaning it is part of
+   * a Money Account identity of the authenticated profile in any role:
+   * current, previous, or pending successor.
+   *
+   * Unlike the upgrade methods, this does not require a bootstrap.
+   *
+   * @param address - The address to look up.
+   * @returns Whether the address is registered.
+   */
+  async getRegistrationStatus(
+    address: Hex,
+  ): Promise<MoneyAccountRegistrationStatus> {
+    const result = await this.messenger.call(
+      'ChompApiService:getDerivedIdentityByAddress',
+      address,
+    );
+    return { isRegistered: result !== null };
+  }
+
+  /**
    * Waits for the bootstrap chain to settle and returns the armed config.
    *
    * @returns The armed upgrade config.
@@ -721,10 +783,13 @@ export class MoneyAccountUpgradeController extends BaseController<
    *
    * @param address - The Money Account address.
    * @param config - The armed config to run against.
+   * @param predecessorAddress - The address `address` succeeds, when
+   * upgrading a successor.
    */
   async #runSteps(
     address: Hex,
     config: UpgradeConfig & { chainId: Hex },
+    predecessorAddress?: Hex,
   ): Promise<void> {
     for (const step of this.#steps) {
       if (this.#config !== config) {
@@ -736,6 +801,7 @@ export class MoneyAccountUpgradeController extends BaseController<
         await step.run({
           messenger: this.messenger,
           address,
+          ...(predecessorAddress ? { predecessorAddress } : {}),
           ...config,
         });
       } catch (error) {
