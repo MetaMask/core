@@ -27743,20 +27743,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tstyche@npm:^7.2.5":
-  version: 7.2.5
-  resolution: "tstyche@npm:7.2.5"
-  peerDependencies:
-    typescript: ">=5.4"
-  peerDependenciesMeta:
-    typescript:
-      optional: true
-  bin:
-    tstyche: ./dist/bin.js
-  checksum: 10/450e9b98ab6f62dd5e2169b2d30ade4e4bed559a73df3c08c0d8587c972e4d71387c2daf1a0fc0097c1bfdc987ced266890a3c6dff6e996500abca4af2463078
-  languageName: node
-  linkType: hard
-
 "tsx@npm:^4.20.5":
   version: 4.23.15
   resolution: "tsx@npm:4.23.15"
