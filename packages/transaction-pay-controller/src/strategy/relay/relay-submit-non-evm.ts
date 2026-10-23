@@ -22,6 +22,7 @@ import {
   getRelaySolanaTransaction,
   getSolanaPayFailure,
   getSolanaSourceAddress,
+  isHypercoreDepositQuoteRequest,
   isMoneyAccountRequest,
   isSolanaPayProductTransaction,
   persistSolanaExecution,
@@ -123,7 +124,10 @@ export async function submitRelayNonEvmQuote({
   const requiresNonAtomicFollowUp = isMoneyAccountRequest(request);
 
   const execution: MetamaskPaySolanaExecution = {
-    atomicProductActionIncluded: Boolean(quote.original.request.txs?.length),
+    // A direct HyperCore deposit is the product action itself.
+    atomicProductActionIncluded:
+      Boolean(quote.original.request.txs?.length) ||
+      isHypercoreDepositQuoteRequest(quote.original.request),
     atomicProductActionRequired:
       isSolanaPayProductTransaction(transaction) && !requiresNonAtomicFollowUp,
     followUpStatus: requiresNonAtomicFollowUp ? 'not-started' : 'not-required',

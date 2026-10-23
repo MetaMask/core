@@ -25,6 +25,7 @@ import {
   getSolanaAffordability,
   getSolanaPayFailure,
   getSolanaPayStatus,
+  isHypercoreDepositQuoteRequest,
   isTerminalSolanaPayOutcome,
   mapRelayStatus,
   readSolanaSourceFailure,
@@ -210,8 +211,6 @@ describe('Solana Relay Pay', () => {
     });
 
     it.each([
-      TransactionType.perpsDeposit,
-      TransactionType.perpsDepositAndOrder,
       TransactionType.predictDeposit,
       TransactionType.predictDepositAndOrder,
     ])('embeds atomic product calls for %s', async (type) => {
@@ -240,6 +239,70 @@ describe('Solana Relay Pay', () => {
           },
         ],
       });
+    });
+
+    it.each([
+      TransactionType.perpsDeposit,
+      TransactionType.perpsDepositAndOrder,
+    ])(
+      'quotes %s to Arbitrum USDC as a direct HyperCore deposit',
+      async (type) => {
+        const result = await buildRelaySolanaQuoteRequest(
+          getRequest(),
+          { ...TRANSACTION, type },
+          messenger,
+        );
+
+        expect(result).toStrictEqual({
+          amount: '90000000',
+          destinationChainId: 1337,
+          destinationCurrency: '0x00000000000000000000000000000000',
+          originChainId: 792703809,
+          originCurrency: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+          recipient: RECIPIENT,
+          refundTo: '7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+          tradeType: 'EXACT_OUTPUT',
+          user: '7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+        });
+        expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+      },
+    );
+
+    it('detects a nested Perps deposit as a direct HyperCore deposit', async () => {
+      const result = await buildRelaySolanaQuoteRequest(
+        getRequest(),
+        {
+          ...TRANSACTION,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.perpsDeposit }],
+        },
+        messenger,
+      );
+
+      expect(result.destinationChainId).toBe(1337);
+      expect(result.txs).toBeUndefined();
+    });
+
+    it('keeps a Perps deposit to another token on the atomic route', async () => {
+      const result = await buildRelaySolanaQuoteRequest(
+        getRequest({
+          targetTokenAddress: '0x1111111111111111111111111111111111111111',
+        }),
+        { ...TRANSACTION, type: TransactionType.perpsDeposit },
+        messenger,
+      );
+
+      expect(result.destinationChainId).toBe(42161);
+      expect(result.txs).toHaveLength(2);
+    });
+
+    it('identifies HyperCore deposit quote requests', () => {
+      expect(isHypercoreDepositQuoteRequest({ destinationChainId: 1337 })).toBe(
+        true,
+      );
+      expect(
+        isHypercoreDepositQuoteRequest({ destinationChainId: 42161 }),
+      ).toBe(false);
     });
 
     it('bridges the exact source amount for a non-atomic Money Account route', async () => {

@@ -400,7 +400,17 @@ function normalizeSolanaQuote(
   };
 
   return {
-    dust: getFiatValueFromUsd(calculateDustUsd(quote, request), usdToFiatRate),
+    dust: getFiatValueFromUsd(
+      calculateDustUsd(quote, {
+        // Exact-output quotes are in the Relay destination units, which differ
+        // from the request for a direct HyperCore deposit.
+        targetAmountMinimum:
+          quote.request.tradeType === 'EXACT_OUTPUT'
+            ? quote.request.amount
+            : request.targetAmountMinimum,
+      }),
+      usdToFiatRate,
+    ),
     estimatedDuration: timeEstimate,
     fees: {
       metaMask: getFiatValueFromUsd(appFeeUsd, usdToFiatRate),

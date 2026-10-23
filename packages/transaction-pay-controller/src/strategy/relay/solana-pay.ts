@@ -12,7 +12,16 @@ import { parseCaipAccountId, parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { PaymentOverride } from '../../constants.js';
+import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
+  CHAIN_ID_HYPERCORE,
+  HYPERCORE_USDC_ADDRESS,
+  HYPERCORE_USDC_DECIMALS,
+  PaymentOverride,
+  PERPS_DEPOSIT_TYPES,
+  USDC_DECIMALS,
+} from '../../constants.js';
 import type {
   NonEvmQuoteRequest,
   SolanaPayOutcome,
@@ -84,6 +93,26 @@ export async function buildRelaySolanaQuoteRequest(
 
   if (isProduct && request.atomic === false && !isMoneyAccount) {
     throw new Error('Unsupported non-atomic Solana Pay product route');
+  }
+
+  // Like the EVM Relay path, a Perps deposit to Arbitrum USDC is quoted as a
+  // direct HyperCore deposit. Relay credits the HyperCore account itself, so
+  // there are no destination calls, and the legacy Arbitrum bridge (which
+  // drops deposits below its minimum) is never used.
+  if (isHyperliquidDepositRequest(request, transaction) && !isMoneyAccount) {
+    return {
+      amount: new BigNumber(request.targetAmountMinimum)
+        .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
+        .toFixed(0),
+      destinationChainId: Number(CHAIN_ID_HYPERCORE),
+      destinationCurrency: HYPERCORE_USDC_ADDRESS,
+      originChainId: RELAY_SOLANA_CHAIN_ID,
+      originCurrency: getOriginCurrency(request),
+      recipient,
+      refundTo: sourceAccount,
+      tradeType: 'EXACT_OUTPUT',
+      user: sourceAccount,
+    };
   }
 
   const atomicDestination =
@@ -734,6 +763,39 @@ function isRelaySolanaInstructionKey(value: unknown): boolean {
     typeof value.isSigner === 'boolean' &&
     typeof value.isWritable === 'boolean'
   );
+}
+
+/**
+ * Whether a Solana Pay request is a Perps deposit that Relay should credit
+ * directly on HyperCore, mirroring the EVM Relay request normalization.
+ *
+ * @param request - Non-EVM quote request.
+ * @param transaction - Parent product transaction.
+ * @returns True for Perps deposits targeting Arbitrum USDC.
+ */
+function isHyperliquidDepositRequest(
+  request: NonEvmQuoteRequest,
+  transaction: TransactionMeta,
+): boolean {
+  return (
+    hasTransactionType(transaction, PERPS_DEPOSIT_TYPES) &&
+    request.targetChainId === CHAIN_ID_ARBITRUM &&
+    request.targetTokenAddress.toLowerCase() ===
+      ARBITRUM_USDC_ADDRESS.toLowerCase()
+  );
+}
+
+/**
+ * Whether a Relay Solana request deposits directly to HyperCore, in which case
+ * Relay itself performs the product action.
+ *
+ * @param request - Relay Solana quote request.
+ * @returns True when the destination is HyperCore.
+ */
+export function isHypercoreDepositQuoteRequest(
+  request: Pick<RelaySolanaQuoteRequest, 'destinationChainId'>,
+): boolean {
+  return request.destinationChainId === Number(CHAIN_ID_HYPERCORE);
 }
 
 export function isSolanaPayProductTransaction(

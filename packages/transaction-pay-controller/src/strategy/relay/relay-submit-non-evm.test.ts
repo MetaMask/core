@@ -360,6 +360,28 @@ describe('submitRelayNonEvmQuote', () => {
     });
   });
 
+  it('records a direct HyperCore Perps deposit as an included product action', async () => {
+    const quote = getQuote();
+    quote.original.request.destinationChainId = 1337;
+    quote.original.request.destinationCurrency =
+      '0x00000000000000000000000000000000';
+    quote.original.request.tradeType = 'EXACT_OUTPUT';
+
+    await submitRelayNonEvmQuote({
+      messenger,
+      quote,
+      transaction: {
+        ...transaction,
+        type: 'perpsDeposit',
+      } as TransactionMeta,
+    });
+
+    expect(transaction.metamaskPay?.solanaExecution).toMatchObject({
+      atomicProductActionIncluded: true,
+      atomicProductActionRequired: true,
+    });
+  });
+
   it('accepts a Snap response carrying a signature field', async () => {
     signAndSendMock.mockResolvedValue({ signature: 'legacy-signature' });
 

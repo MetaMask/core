@@ -6701,7 +6701,7 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit-non-evm.test.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 30
+      "count": 31
     },
     "typescript/no-unsafe-call": {
       "count": 14
@@ -6740,7 +6740,7 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/solana-pay.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 17
+      "count": 20
     },
     "typescript/no-unsafe-assignment": {
       "count": 6

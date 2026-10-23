@@ -1,3 +1,4 @@
+import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type {
   CaipAccountId,
@@ -628,6 +629,42 @@ describe('getRelaySolanaQuotes', () => {
 
     expect(quotes[0].fees.provider).toStrictEqual({ fiat: '0', usd: '0' });
     expect(quotes[0].fees.metaMask).toStrictEqual({ fiat: '0', usd: '0' });
+  });
+
+  it('quotes a Perps deposit as a direct HyperCore deposit without dust', async () => {
+    fetchRelaySolanaQuoteMock.mockImplementation(async (_messenger, body) => {
+      const quote = getRelaySolanaQuote(body);
+      quote.details.currencyIn.amount = '10000000';
+      quote.details.currencyOut = {
+        amount: body.amount,
+        amountFormatted: '9.9',
+        amountUsd: '9.9',
+        currency: { chainId: 1337, decimals: 8 },
+        minimumAmount: body.amount,
+      };
+      return quote;
+    });
+
+    const fullRequest = getFullRequest([getRequest()]);
+    fullRequest.transaction = {
+      ...fullRequest.transaction,
+      type: TransactionType.perpsDeposit,
+    };
+
+    const quotes = await getRelaySolanaQuotes(fullRequest);
+
+    expect(fetchRelaySolanaQuoteMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({
+        amount: '990000000',
+        destinationChainId: 1337,
+        destinationCurrency: '0x00000000000000000000000000000000',
+        tradeType: 'EXACT_OUTPUT',
+      }),
+      undefined,
+    );
+    expect(fetchRelaySolanaQuoteMock.mock.calls[0][1].txs).toBeUndefined();
+    expect(quotes[0].dust).toStrictEqual({ fiat: '0', usd: '0' });
   });
 
   it('returns no quotes when there are no non-EVM requests', async () => {
