@@ -12,6 +12,7 @@ import {
 import type { StateChangeListener } from '@metamask/base-controller';
 import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import { hasProperty } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -219,6 +220,13 @@ const CONNECTION_ERROR_TAGS: PerpsErrorTags = {
   component: PERPS_ERROR_COMPONENT.ConnectionManager,
   action: PERPS_ERROR_ACTION.ConnectionConnection,
 };
+
+// A browser that could not fetch a dynamically imported module rejects with a
+// TypeError: Chromium "Failed to fetch dynamically imported module", Firefox
+// "error loading dynamically imported module", Safari "Importing a module
+// script failed".
+const MODULE_FETCH_FAILURE_PATTERN =
+  /dynamically imported module|Importing a module script failed/u;
 
 function cloneUserDataSnapshot(
   snapshot: PerpsUserDataSnapshot,
@@ -1114,6 +1122,9 @@ export class PerpsController extends BaseController<
   #disconnectOperationPromise: Promise<void> | null = null;
 
   #lighterRegistrationPromise: Promise<void> | null = null;
+
+  // Why the last Lighter module load failed, for switchProvider('lighter').
+  #lighterLoadError: string | null = null;
 
   protected blockedRegionList: BlockedRegionList = {
     list: [],
@@ -2528,20 +2539,38 @@ export class PerpsController extends BaseController<
     // Uses .then()/.catch() instead of await because #createProviders is not
     // async; registration completing asynchronously is fine since the provider
     // is only used when explicitly enabled and selected.
+    this.#lighterLoadError = null;
     const isLighterEnabled = this.#isLighterProviderEnabled();
     if (isLighterEnabled) {
+      const loadProvider =
+        this.#options.clientConfig?.providerCredentials?.lighter?.loadProvider;
       // NOTE: Keep the path in a variable so bundlers that ignore the
       // webpackIgnore magic comment (e.g. Metro) cannot statically resolve the
       // import and pull the Lighter provider into the client bundle.
       const lighterModulePath = './providers/LighterProvider';
-      this.#lighterRegistrationPromise = import(
-        /* webpackIgnore: true */ lighterModulePath
-      )
-        .then(({ LighterProvider }) => {
-          this.registerLighterProvider(LighterProvider);
-          return;
-        })
-        .catch((error: unknown) => this.handleLighterImportError(error));
+      this.#lighterRegistrationPromise = Promise.resolve()
+        .then(() =>
+          loadProvider
+            ? loadProvider()
+            : import(/* webpackIgnore: true */ lighterModulePath),
+        )
+        .then(
+          ({ LighterProvider }) => {
+            this.registerLighterProvider(LighterProvider);
+            return;
+          },
+          (error: unknown) => this.handleLighterImportError(error),
+        )
+        .catch((error: unknown) =>
+          this.#logError(
+            ensureError(error, 'PerpsController.registerLighterProvider'),
+            this.#getErrorContext(
+              'createProviders.lighter',
+              undefined,
+              CONNECTION_ERROR_TAGS,
+            ),
+          ),
+        );
     }
   }
 
@@ -2592,23 +2621,44 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Handles errors from the Lighter dynamic import.
+   * Handles a Lighter provider module that failed to load.
    *
-   * Module-not-found errors are expected (clients may not ship Lighter) →
-   * debug log. Other errors indicate constructor/config problems → Sentry.
+   * A module that cannot be found or fetched (MODULE_NOT_FOUND,
+   * ERR_MODULE_NOT_FOUND, a browser that could not fetch it) is expected when a
+   * client does not ship Lighter for its bundler → debug log. Any other load
+   * failure, such as a chunk error from the client's loader or a module that
+   * throws while it runs → Sentry. Either way Lighter stays unregistered and
+   * `switchProvider('lighter')` returns the reason.
    *
-   * @param error - The caught error from the dynamic import or constructor.
+   * @param error - The error the module load rejected with.
    */
   protected handleLighterImportError(error: unknown): void {
-    const isModuleError =
-      (error as Record<string, unknown>)?.code === 'MODULE_NOT_FOUND';
-    if (isModuleError) {
+    const loadError = ensureError(
+      error,
+      'PerpsController.importLighterProvider',
+    );
+    const hasLoader = Boolean(
+      this.#options.clientConfig?.providerCredentials?.lighter?.loadProvider,
+    );
+    this.#lighterLoadError = `Lighter provider failed to load (${loadError.message}).${
+      hasLoader
+        ? ''
+        : ' Pass providerCredentials.lighter.loadProvider to load it from @metamask/perps-controller/providers/lighter.'
+    }`;
+    const code = hasProperty(loadError, 'code') ? loadError.code : undefined;
+    const isModuleUnavailable =
+      code === 'MODULE_NOT_FOUND' ||
+      code === 'ERR_MODULE_NOT_FOUND' ||
+      (loadError instanceof TypeError &&
+        MODULE_FETCH_FAILURE_PATTERN.test(loadError.message));
+    if (isModuleUnavailable) {
       this.#debugLog(
         'PerpsController: Lighter provider module not available, skipping registration',
+        { error: this.#lighterLoadError },
       );
     } else {
       this.#logError(
-        error instanceof Error ? error : new Error(String(error)),
+        loadError,
         this.#getErrorContext(
           'createProviders.lighter',
           undefined,
@@ -6098,7 +6148,10 @@ export class PerpsController extends BaseController<
         return {
           success: false,
           providerId: this.state.activeProvider,
-          error: `Provider ${providerId} not available`,
+          error:
+            providerId === 'lighter' && this.#lighterLoadError
+              ? `Provider ${providerId} not available: ${this.#lighterLoadError}`
+              : `Provider ${providerId} not available`,
         };
       }
 

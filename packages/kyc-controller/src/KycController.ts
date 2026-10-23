@@ -14,7 +14,7 @@ import type {
   UserStorageControllerPerformGetStorageAction,
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
-import { stringToBytes } from '@metamask/utils';
+import { stringToBytes, wrapError } from '@metamask/utils';
 import { x25519 } from '@noble/curves/ed25519';
 
 import { toBase64Url } from './encoding.js';
@@ -51,6 +51,7 @@ import type {
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
+import type { Jwk } from './ukyc/jwtChain.js';
 import {
   getOrCreateLocalUserSecret,
   UkycLocalUserSecretStore,
@@ -1231,20 +1232,41 @@ export class KycController extends BaseController<
    * `encryptionDataKey` is attested by the idOS enclave; `ukycCapabilityToken`
    * by the idOS relay.
    *
+   * Fetch and verification failures are rethrown as a short message suitable
+   * for display. The original error is preserved on `cause`.
+   *
    * @param encryptionDataKey - Encryption schema for the data encryption key.
    * @param capabilityTokenSchema - Encryption schema for the capability token.
+   * @throws When the issuer signing keys cannot be fetched, or a schema's
+   * `jwtChain` does not verify.
    */
   async #verifyWrappingKeys(
     encryptionDataKey: EncryptionSchema,
     capabilityTokenSchema: EncryptionSchema,
   ): Promise<void> {
-    const [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] =
-      await Promise.all([
+    let idosEnclaveKeys: Jwk[];
+    let idosRelayKeys: Jwk[];
+    try {
+      [{ keys: idosEnclaveKeys }, { keys: idosRelayKeys }] = await Promise.all([
         this.messenger.call('KycService:fetchIdosEnclaveJwks'),
         this.messenger.call('KycService:fetchIdosRelayJwks'),
       ]);
-    assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
-    assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    } catch (error) {
+      throw wrapError(
+        error,
+        'KycController.#verifyWrappingKeys: Unable to fetch JWKS needed to verify wrapping keys.',
+      );
+    }
+
+    try {
+      assertAttestedServerPublicKey(idosEnclaveKeys, encryptionDataKey);
+      assertAttestedServerPublicKey(idosRelayKeys, capabilityTokenSchema);
+    } catch (error) {
+      throw wrapError(
+        error,
+        'KycController.#verifyWrappingKeys: Failed to verify the wrapping keys.',
+      );
+    }
   }
 
   /**

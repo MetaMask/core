@@ -175,6 +175,15 @@
 /packages/build-utils/jest.config.*      @MetaMask/core-platform
 /packages/build-utils/vitest.config.*    @MetaMask/core-platform
 
+### byte-utils
+/packages/byte-utils                    @MetaMask/core-platform
+/packages/byte-utils/CHANGELOG.md       @MetaMask/core-platform
+/packages/byte-utils/package.json       @MetaMask/core-platform
+/packages/byte-utils/tsconfig.*         @MetaMask/core-platform
+/packages/byte-utils/typedoc.json       @MetaMask/core-platform
+/packages/byte-utils/jest.config.*      @MetaMask/core-platform
+/packages/byte-utils/vitest.config.*    @MetaMask/core-platform
+
 ### chain-agnostic-permission
 /packages/chain-agnostic-permission                    @MetaMask/core-platform
 /packages/chain-agnostic-permission/CHANGELOG.md       @MetaMask/core-platform
@@ -1015,15 +1024,6 @@
 /packages/wallet/typedoc.json                                                    @MetaMask/core-platform
 /packages/wallet/jest.config.*                                                   @MetaMask/core-platform
 /packages/wallet/vitest.config.*                                                 @MetaMask/core-platform
-
-### wallet-cli
-/packages/wallet-cli                    @MetaMask/core-platform
-/packages/wallet-cli/CHANGELOG.md       @MetaMask/core-platform
-/packages/wallet-cli/package.json       @MetaMask/core-platform
-/packages/wallet-cli/tsconfig.*         @MetaMask/core-platform
-/packages/wallet-cli/typedoc.json       @MetaMask/core-platform
-/packages/wallet-cli/jest.config.*      @MetaMask/core-platform
-/packages/wallet-cli/vitest.config.*    @MetaMask/core-platform
 
 ### wallet-framework-docs
 /packages/wallet-framework-docs                    @MetaMask/core-platform

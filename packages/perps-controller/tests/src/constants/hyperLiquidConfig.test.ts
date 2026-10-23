@@ -1,6 +1,23 @@
-import { HIP3_ASSET_MARKET_TYPES } from '../../../src/constants/hyperLiquidConfig.js';
+import {
+  getSupportedAssets,
+  HIP3_ASSET_MARKET_TYPES,
+} from '../../../src/constants/hyperLiquidConfig.js';
 import { MarketCategory, MARKET_CATEGORIES } from '../../../src/types/index.js';
 import type { MarketType, MarketTypeFilter } from '../../../src/types/index.js';
+
+describe('getSupportedAssets', () => {
+  it('returns the USDC2 token the Arbitrum Sepolia bridge credits on testnet', () => {
+    expect(getSupportedAssets(true)).toStrictEqual([
+      'eip155:421614/erc20:0x1baAbB04529D43a73232B713C0FE471f7c7334d5/default',
+    ]);
+  });
+
+  it('returns Arbitrum One USDC on mainnet', () => {
+    expect(getSupportedAssets(false)).toStrictEqual([
+      'eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831/default',
+    ]);
+  });
+});
 
 describe('HIP3_ASSET_MARKET_TYPES', () => {
   it('classifies known US stocks correctly', () => {

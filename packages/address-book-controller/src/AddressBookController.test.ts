@@ -7,6 +7,15 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 
 import type {
   AddressBookControllerContactDeletedEvent,
@@ -54,8 +63,8 @@ function arrangeMocks() {
   });
 
   // Set up mock event listeners
-  const contactUpdatedListener = jest.fn();
-  const contactDeletedListener = jest.fn();
+  const contactUpdatedListener = vi.fn();
+  const contactDeletedListener = vi.fn();
 
   // Subscribe to events
   rootMessenger.subscribe(
@@ -80,11 +89,11 @@ describe('AddressBookController', () => {
   const MOCK_TIMESTAMP = 1000000000000;
 
   beforeEach(() => {
-    jest.spyOn(Date, 'now').mockImplementation(() => MOCK_TIMESTAMP);
+    vi.spyOn(Date, 'now').mockImplementation(() => MOCK_TIMESTAMP);
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   afterAll(() => {

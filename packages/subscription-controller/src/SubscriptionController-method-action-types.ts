@@ -23,9 +23,13 @@ export type SubscriptionControllerGetSubscriptionsAction = {
 /**
  * Gets and stores the user's subscription benefits.
  *
- * @returns The benefits response.
- * @throws If the user is not an active Money Account Plus subscriber or is
- * not eligible for benefits.
+ * An ineligible response is a normal result. Persisted benefits are cleared
+ * and the response is returned so callers can branch on `eligible`. That
+ * includes a provisional subscription whose benefits are not ready yet,
+ * which is distinct from having no active Money Account Plus subscription.
+ *
+ * @returns The benefits response, including when `eligible` is false.
+ * @throws If the user is not an active Money Account Plus subscriber.
  */
 export type SubscriptionControllerGetBenefitsAction = {
   type: `SubscriptionController:getBenefits`;

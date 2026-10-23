@@ -6,6 +6,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
+import { describe, expect, it } from 'vitest';
 
 import type {
   FetchOrderResponse,
