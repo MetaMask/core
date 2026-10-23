@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [19.0.1]
 
-### Uncategorized
-
-- test: run core-platform-misc packages on Vitest ([#10973](https://github.com/MetaMask/core/pull/10973))
-- test(wallet): assert AnalyticsController pre-consent flag is forwarded ([#11005](https://github.com/MetaMask/core/pull/11005))
-
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
