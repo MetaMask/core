@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Delegate `SentinelApiService:simulateTransactions` from the wallet root messenger to `TransactionController` ([#9476](https://github.com/MetaMask/core/pull/9476))
+  - `TransactionController` now performs transaction simulation through this action.
+  - The wallet does not construct `SentinelApiService`. Clients must register that action on the Wallet messenger.
+
 ## [19.1.0]
 
 ### Added
@@ -58,9 +64,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Delegate `SentinelApiService:simulateTransactions` from the wallet root messenger to `TransactionController` ([#9476](https://github.com/MetaMask/core/pull/9476))
-  - `TransactionController` now performs transaction simulation through this action.
-  - The wallet does not construct `SentinelApiService`. Clients must register that action on the Wallet messenger.
 - Add `@metamask/client-controller` as a dependency ([#10826](https://github.com/MetaMask/core/pull/10826))
 - Add `@metamask/logging-controller` as a dependency ([#10828](https://github.com/MetaMask/core/pull/10828))
 - Add `@metamask/permission-controller` as a dependency ([#10807](https://github.com/MetaMask/core/pull/10807))
