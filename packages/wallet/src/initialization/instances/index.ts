@@ -12,6 +12,7 @@ export { gasFeeController } from './gas-fee-controller/gas-fee-controller.js';
 export { keyringController } from './keyring-controller/keyring-controller.js';
 export { loggingController } from './logging-controller/logging-controller.js';
 export { networkController } from './network-controller/network-controller.js';
+export { networkEnablementController } from './network-enablement-controller/network-enablement-controller.js';
 export { passkeyController } from './passkey-controller/passkey-controller.js';
 export { permissionController } from './permission-controller/permission-controller.js';
 export { subjectMetadataController } from './permission-controller/subject-metadata-controller.js';
