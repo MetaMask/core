@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/perps-controller` from `^21.0.0` to `^22.0.0` ([#11029](https://github.com/MetaMask/core/pull/11029))
+- Bump `bignumber.js` from `^9.1.2` to `^9.3.1` ([#10529](https://github.com/MetaMask/core/pull/10529))
 
 ## [1.0.0]
 
