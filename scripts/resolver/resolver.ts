@@ -32,10 +32,7 @@ export const resolve: ResolveHookSync = (
 ): ResolveFnOutput => {
   const sourceOverride = PACKAGE_SOURCE_OVERRIDES[specifier];
   if (sourceOverride) {
-    return nextResolve(
-      new URL(sourceOverride, import.meta.url).href,
-      context,
-    );
+    return nextResolve(new URL(sourceOverride, import.meta.url).href, context);
   }
 
   if (
