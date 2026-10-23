@@ -65,6 +65,9 @@
       "path": "./packages/build-utils/tsconfig.build.json"
     },
     {
+      "path": "./packages/byte-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/chain-agnostic-permission/tsconfig.build.json"
     },
     {
