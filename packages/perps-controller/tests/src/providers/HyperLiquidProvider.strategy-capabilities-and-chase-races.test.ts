@@ -3717,51 +3717,78 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(placed.orderId).toBeUndefined();
     });
 
-    it.each(['account', 'network'] as const)(
-      'does not retract a TWAP after its %s changes',
-      async (change) => {
-        let disconnected: Promise<unknown> | undefined;
-        const twapOrder = vi.fn().mockImplementation(async () => {
-          if (change === 'account') {
-            mockWalletService.getUserAddressWithDefault.mockResolvedValue(
-              '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-            );
-          } else {
-            mockClientService.isTestnetMode.mockReturnValue(true);
-          }
-          disconnected = provider.disconnect();
-          await Promise.resolve();
-          return {
-            status: 'ok',
-            response: {
-              type: 'twapOrder',
-              data: { status: { running: { twapId: 987 } } },
-            },
-          };
-        });
-        const twapCancel = vi.fn().mockResolvedValue({
+    /**
+     * Place a TWAP that disconnects as the venue accepts it, after the caller
+     * changes the account or network.
+     *
+     * @param changeContext - Switches the account or network before teardown.
+     * @returns The placement result and the client that served it.
+     */
+    const placeTwapDuringContextChange = async (
+      changeContext: () => void,
+    ): Promise<{ placed: OrderResult; exchangeClient: MockClient }> => {
+      let disconnected: Promise<unknown> | undefined;
+      const twapOrder = vi.fn().mockImplementation(async () => {
+        changeContext();
+        disconnected = provider.disconnect();
+        await Promise.resolve();
+        return {
           status: 'ok',
-          response: { type: 'twapCancel', data: { status: 'success' } },
-        });
-        const { exchangeClient } = useStrategyClients({
-          exchange: { twapOrder, twapCancel },
-        });
+          response: {
+            type: 'twapOrder',
+            data: { status: { running: { twapId: 987 } } },
+          },
+        };
+      });
+      const twapCancel = vi.fn().mockResolvedValue({
+        status: 'ok',
+        response: { type: 'twapCancel', data: { status: 'success' } },
+      });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { twapOrder, twapCancel },
+      });
 
-        const placed = await provider.placeOrder({
-          ...baseOrder,
-          orderType: 'twap',
-          twapDuration: 30,
-        } satisfies OrderParams);
-        await disconnected;
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'twap',
+        twapDuration: 30,
+      } satisfies OrderParams);
+      await disconnected;
 
-        expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
-        expect(placed).toMatchObject({
-          success: false,
-          error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
-          orderId: '987',
-        });
-      },
-    );
+      return { placed, exchangeClient };
+    };
+
+    it('does not retract a TWAP after its account changes', async () => {
+      const { placed, exchangeClient } = await placeTwapDuringContextChange(
+        () => {
+          mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+            '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+          );
+        },
+      );
+
+      expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        orderId: '987',
+      });
+    });
+
+    it('does not retract a TWAP after its network changes', async () => {
+      const { placed, exchangeClient } = await placeTwapDuringContextChange(
+        () => {
+          mockClientService.isTestnetMode.mockReturnValue(true);
+        },
+      );
+
+      expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        orderId: '987',
+      });
+    });
 
     it('treats an already-finished stale TWAP as retracted', async () => {
       let disconnected: Promise<unknown> | undefined;

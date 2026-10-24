@@ -9,7 +9,11 @@ import {
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
-import type { Order, OrderParams } from '../../../src/types/index.js';
+import type {
+  Order,
+  OrderParams,
+  OrderResult,
+} from '../../../src/types/index.js';
 import { HYPERLIQUID_SCALE_CLOID_MARKER } from '../../../src/utils/hyperLiquidAdapter.js';
 import {
   hasFeeReductionAppliedFlag,
@@ -1668,6 +1672,19 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
     });
 
+    /**
+     * The Scale group handle from a successful placement.
+     *
+     * @param placed - The placement result.
+     * @returns The group handle.
+     */
+    const requireScaleGroupHandle = (placed: OrderResult): string => {
+      if (!placed.orderId) {
+        throw new Error('Expected a Scale group handle');
+      }
+      return placed.orderId;
+    };
+
     it('corrects account support when Scale cancellation requires multi-signature', async () => {
       useStrategyClients({
         exchange: {
@@ -1694,11 +1711,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
         scaleMaxPrice: '3000',
         scaleNumOrders: 3,
       } satisfies OrderParams);
-      if (!placed.orderId) {
-        throw new Error('Expected a Scale group handle');
-      }
       const result = await provider.cancelOrder({
-        orderId: placed.orderId,
+        orderId: requireScaleGroupHandle(placed),
         symbol: 'ETH',
         orderType: 'scale',
       });

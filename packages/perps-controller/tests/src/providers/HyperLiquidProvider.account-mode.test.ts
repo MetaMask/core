@@ -1802,9 +1802,10 @@ describe('HyperLiquidProvider', () => {
 
       it('preserves a multi-signature rejection from the transfer', async () => {
         vi.spyOn(testableProvider, 'getBalanceForDex').mockResolvedValue(100);
-        vi
-          .spyOn(testableProvider, 'findSourceDexWithBalance')
-          .mockResolvedValue({ sourceDex: '', available: 1000 });
+        vi.spyOn(
+          testableProvider,
+          'findSourceDexWithBalance',
+        ).mockResolvedValue({ sourceDex: '', available: 1000 });
         vi.spyOn(testableProvider, 'transferBetweenDexs').mockResolvedValue({
           success: false,
           error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
@@ -2516,8 +2517,7 @@ describe('HyperLiquidProvider', () => {
       expect(userToMultiSigSigners).not.toHaveBeenCalled();
       expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
       expect(
-        (TradingReadinessCache as Mocked<typeof TradingReadinessCache>)
-          .set,
+        (TradingReadinessCache as Mocked<typeof TradingReadinessCache>).set,
       ).not.toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
         attempted: true,
         enabled: false,
@@ -2554,8 +2554,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(dispatch).not.toHaveBeenCalled();
       expect(
-        (TradingReadinessCache as Mocked<typeof TradingReadinessCache>)
-          .set,
+        (TradingReadinessCache as Mocked<typeof TradingReadinessCache>).set,
       ).not.toHaveBeenCalledWith('mainnet', USER_ADDRESS, {
         attempted: true,
         enabled: false,
@@ -2814,8 +2813,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(mockExchangeClient.agentSetAbstraction).not.toHaveBeenCalled();
       expect(
-        (TradingReadinessCache as Mocked<typeof TradingReadinessCache>)
-          .set,
+        (TradingReadinessCache as Mocked<typeof TradingReadinessCache>).set,
       ).not.toHaveBeenCalled();
     });
 
