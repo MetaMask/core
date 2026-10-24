@@ -12,8 +12,14 @@ describe('@metamask/eth-block-tracker package manifest', () => {
     // type-check against this package.
     //
     // Regression test for https://github.com/MetaMask/core/issues/6864
-    const packageJsonPath = path.resolve(import.meta.dirname, '..', 'package.json');
-    const { dependencies } = JSON.parse(readFileSync(packageJsonPath, 'utf8')) as {
+    const packageJsonPath = path.resolve(
+      import.meta.dirname,
+      '..',
+      'package.json',
+    );
+    const { dependencies } = JSON.parse(
+      readFileSync(packageJsonPath, 'utf8'),
+    ) as {
       dependencies: Record<string, string>;
     };
 
