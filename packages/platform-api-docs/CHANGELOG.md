@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@easyops-cn/docusaurus-search-local` from `^0.55.1` to `^0.55.3` ([#10713](https://github.com/MetaMask/core/pull/10713))
 - Replace `@metamask/utils` dependency with `@metamask/node-utils` ([#10970](https://github.com/MetaMask/core/pull/10970))
 
+### Fixed
+
+- Include `.d.ts` declarations when scanning installed MetaMask packages, so actions and events from ESM-only packages appear in generated documentation ([#10968](https://github.com/MetaMask/core/pull/10968))
+
 ## [0.2.1]
 
 ### Changed
