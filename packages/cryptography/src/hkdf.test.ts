@@ -209,3 +209,101 @@ describe('hkdfSha512', () => {
     );
   });
 });
+
+describe('HKDF with an empty IKM', () => {
+  const emptyIkm = new Uint8Array(0);
+  const emptyInfo = new Uint8Array(0);
+  const options = { unsafeInputKeyingMaterial: true };
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('does not import the empty IKM as a WebCrypto HKDF key', async () => {
+    // react-native-quick-crypto rejects an empty HKDF key.
+    const importKey = jest.spyOn(globalThis.crypto.subtle, 'importKey');
+
+    const key = await hkdfSha256(
+      emptyIkm,
+      new Uint8Array(32).fill(1),
+      emptyInfo,
+      64,
+      options,
+    );
+
+    expect(bytesToHex(key)).toBe(
+      '0xb5a5789af1d00c74773ef327dc63f0f11c7041252d4916c43a252b92e3358ad272d7e204fba7b0ac19964ebcba5e88e3609cb8c3cafa4b940945df49da83680f',
+    );
+    expect(importKey).not.toHaveBeenCalledWith(
+      'raw',
+      expect.anything(),
+      { name: 'HKDF' },
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('uses a zero salt of hash length when the salt is empty', async () => {
+    const key = await hkdfSha256(
+      emptyIkm,
+      new Uint8Array(0),
+      emptyInfo,
+      32,
+      options,
+    );
+
+    expect(bytesToHex(key)).toBe(
+      '0xeb70f01dede9afafa449eee1b1286504e1f62388b3f7dd4f956697b0e828fe18',
+    );
+  });
+
+  it('includes info and derives more than one block', async () => {
+    const key = await hkdfSha256(
+      emptyIkm,
+      new Uint8Array(32).fill(1),
+      info,
+      80,
+      options,
+    );
+
+    expect(bytesToHex(key)).toBe(
+      '0x12f2e1ee5e6ed702856aba724415af4fea6343248bfe221db0dce4ef4f5c2cc7c20a0acdcc06638d2ae58b55240230541813e6acca9936141786fa0bf8b658ca7585a3793a37bfedb9779e1f007f117b',
+    );
+  });
+
+  it('derives key material with HKDF-SHA-384', async () => {
+    const key = await hkdfSha384(
+      emptyIkm,
+      new Uint8Array(48).fill(2),
+      emptyInfo,
+      48,
+      options,
+    );
+
+    expect(bytesToHex(key)).toBe(
+      '0xa64c6c8eba82ddf729d3fcc16b9ef6057a82b4eb594b7c7def352047bcd5135c1d72ad30840f31488454b4b56383ee6a',
+    );
+  });
+
+  it('derives key material with HKDF-SHA-512', async () => {
+    const key = await hkdfSha512(
+      emptyIkm,
+      new Uint8Array(64).fill(3),
+      emptyInfo,
+      100,
+      options,
+    );
+
+    expect(bytesToHex(key)).toBe(
+      '0xeb78d46b71b65b758e187684283d5c1ee6f7c2cfe8149025a74ce46ff3410dfb3364c250215fa6ad98177b5d24e797375bb3426711e00030660c974227774d11e7f85e493893f0666e7feaad813f54206e7407502cdd1f639076c7d30abba283fe45b7de',
+    );
+  });
+
+  it('throws if the key length is longer than HKDF allows', async () => {
+    await expect(
+      hkdfSha256(emptyIkm, salt, emptyInfo, 255 * 32 + 1, options),
+    ).rejects.toThrow(
+      'Invalid key length: HKDF-SHA-256 can derive at most 8160 bytes.',
+    );
+  });
+});
