@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 
+### Fixed
+
+- Move `@metamask/json-rpc-engine` from `devDependencies` to `dependencies` ([#9830](https://github.com/MetaMask/core/pull/9830))
+  - `PollingBlockTracker` exposes its `ContextConstraint` and `MiddlewareContext` types in the published declaration files, so consumers need the package installed to type-check.
+
 ## [16.0.0]
 
 ### Changed
