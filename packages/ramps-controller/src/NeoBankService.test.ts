@@ -16,6 +16,17 @@ import { RampsEnvironment } from './RampsService.js';
 
 const STAGING_BASE = 'https://on-ramp.uat-api.cx.metamask.io';
 
+const isAutorampTransactionQuery = (
+  query: Record<string, string | string[] | undefined>,
+  pageSize?: string,
+): boolean => {
+  const pageMatches =
+    pageSize === undefined ? true : query.page_size === pageSize;
+  return (
+    query.autoramp_id === 'ar-1' && query.sort_order === 'desc' && pageMatches
+  );
+};
+
 /**
  * Builds a NeoBankService with AuthenticationController bearer auth stubbed.
  *
@@ -754,6 +765,20 @@ describe('NeoBankService', () => {
           createdAt: '2026-06-01T00:00:00Z',
         },
       ]);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('sends page_size when a page size is requested', async () => {
+      const scope = nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query((query) => isAutorampTransactionQuery(query, '50'))
+        .reply(200, { items: [] });
+
+      const service = createService();
+
+      expect(
+        await service.listAutorampTransactions('ar-1', { pageSize: 50 }),
+      ).toStrictEqual([]);
       expect(scope.isDone()).toBe(true);
     });
 
