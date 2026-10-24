@@ -78,6 +78,33 @@ describe('transactionController', () => {
     );
   });
 
+  it('delegates SentinelApiService:simulateTransactions to the controller messenger', async () => {
+    const rootMessenger = getRootMessenger();
+    const simulateTransactions = vi
+      .fn()
+      .mockResolvedValue({ transactions: [] });
+
+    registerActionHandler(
+      rootMessenger,
+      'SentinelApiService',
+      'SentinelApiService:simulateTransactions',
+      simulateTransactions,
+    );
+
+    const messenger = transactionController.getMessenger(rootMessenger);
+
+    const result = await messenger.call(
+      'SentinelApiService:simulateTransactions',
+      '0x1',
+      { transactions: [] },
+    );
+
+    expect(result).toStrictEqual({ transactions: [] });
+    expect(simulateTransactions).toHaveBeenCalledWith('0x1', {
+      transactions: [],
+    });
+  });
+
   it('forwards the provided state to the controller', () => {
     const rootMessenger = getRootMessenger();
     const messenger = transactionController.getMessenger(rootMessenger);
