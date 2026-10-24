@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets ([#11030](https://github.com/MetaMask/core/pull/11030))
+  - Snapshots without these fields, or with `null` values, still validate. An unrecognized `marginMode` rejects the snapshot, so snapshot-backed reads fall back to the provider.
+
 ## [22.0.0]
 
 ### Added
