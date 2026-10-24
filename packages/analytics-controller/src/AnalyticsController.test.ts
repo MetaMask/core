@@ -18,6 +18,8 @@ import {
   AnalyticsController,
   AnalyticsPlatformAdapterSetupError,
   AnalyticsPurpose,
+  DEFAULT_ERROR_TRACKING_OPTIONS,
+  ERROR_OCCURRED_EVENT_NAME,
   EVENT_FRAGMENT_MAX_AGE,
   getDefaultAnalyticsControllerState,
   analyticsControllerSelectors,
@@ -6300,6 +6302,543 @@ describe('AnalyticsController', () => {
         withConfiguredPurposeConsent({ product: false, marketing: true }),
         expect.anything(),
       );
+    });
+  });
+
+  describe('trackErrorAsAnalytics', () => {
+    const analyticsId = '12121212-1212-4121-8121-121212121212';
+    const category = 'Swaps';
+    const source = 'test';
+
+    async function setupTrackingController(
+      state: Partial<AnalyticsControllerState> = {},
+    ): Promise<
+      SetupControllerReturn & {
+        platformAdapter: MockAnalyticsPlatformAdapter;
+      }
+    > {
+      const platformAdapter = createMockAdapter();
+      const setup = await setupController({
+        state: {
+          optedIn: true,
+          consentDecisionMade: true,
+          analyticsId,
+          ...state,
+        },
+        platformAdapter,
+        isGeolocationEnabled: false,
+      });
+
+      return { ...setup, platformAdapter };
+    }
+
+    function expectErrorOccurred(
+      platformAdapter: MockAnalyticsPlatformAdapter,
+      errorMessage: string,
+      eventCategory = category,
+      eventSource = source,
+    ): void {
+      expect(platformAdapter.track).toHaveBeenCalledWith(
+        ERROR_OCCURRED_EVENT_NAME,
+        {
+          category: eventCategory,
+          source: eventSource,
+          error_message: errorMessage,
+        },
+        withPurposeConsent({ product: true, marketing: false }),
+      );
+    }
+
+    describe('error normalization', () => {
+      it('emits the sanitized message and no stack for an Error instance', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('boom'), {
+          category,
+          source,
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'boom');
+      });
+
+      it('normalizes error message whitespace', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(
+          new Error('failed\nwith   whitespace\taround'),
+          { category, source },
+        );
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'failed with whitespace around');
+      });
+
+      it('truncates messages above the 500 character cap', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('x'.repeat(600)), {
+          category,
+          source,
+        });
+
+        expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
+          category,
+          source,
+          error_message: `${'x'.repeat(499)}…`,
+        });
+      });
+
+      it('sanitizes non-Error thrown values', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics('unexpected\n  string   value', {
+          category,
+          source,
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'unexpected string value');
+      });
+
+      it('uses a string message property on a non-Error object', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(
+          { message: 'from object\nvalue' },
+          { category, source },
+        );
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'from object value');
+      });
+
+      it('stringifies other non-Error thrown values', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(42, { category, source });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, '42');
+      });
+
+      it('reports values without a string message as Unknown error', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics({ message: 1 }, { category, source });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'Unknown error');
+      });
+
+      it('reports null as Unknown error without throwing', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        expect(() => {
+          controller.trackErrorAsAnalytics(null, { category, source });
+        }).not.toThrow();
+
+        expectErrorOccurred(platformAdapter, 'Unknown error');
+      });
+
+      it('reports undefined as Unknown error without throwing', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        expect(() => {
+          controller.trackErrorAsAnalytics(undefined, { category, source });
+        }).not.toThrow();
+
+        expectErrorOccurred(platformAdapter, 'Unknown error');
+      });
+    });
+
+    describe('canonical schema', () => {
+      it('emits Error Occurred with category, source, and error_message only', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('boom'), {
+          category,
+          source,
+          volumeControls: {
+            samplingRate: 1,
+            dedupWindowMs: 12_345,
+            sessionCap: 7,
+          },
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
+          category,
+          source,
+          error_message: 'boom',
+        });
+      });
+    });
+
+    describe('fail-safe behavior', () => {
+      it('does not throw or consume the session budget when tracking throws', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        platformAdapter.track.mockImplementationOnce(() => {
+          throw new Error('dispatch failed');
+        });
+        const options = {
+          category,
+          source,
+          volumeControls: { sessionCap: 1 },
+        };
+
+        expect(() => {
+          controller.trackErrorAsAnalytics(new Error('boom'), options);
+        }).not.toThrow();
+        controller.trackErrorAsAnalytics(new Error('boom'), options);
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+      });
+
+      it('keeps a newer dedup entry when an earlier delivery throws', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        vi.useFakeTimers();
+        try {
+          vi.setSystemTime(1000);
+          platformAdapter.track.mockImplementationOnce(() => {
+            vi.setSystemTime(2000);
+            controller.trackErrorAsAnalytics(new Error('boom'), {
+              category,
+              source,
+              volumeControls: { dedupWindowMs: 0 },
+            });
+            throw new Error('dispatch failed');
+          });
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            category,
+            source,
+          });
+          vi.setSystemTime(2001);
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            category,
+            source,
+          });
+
+          expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+    });
+
+    describe('volume controls', () => {
+      it('suppresses events outside the sampling rate', async () => {
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0.75);
+        try {
+          const { controller, platformAdapter } =
+            await setupTrackingController();
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            category,
+            source,
+            volumeControls: { samplingRate: 0.5 },
+          });
+
+          expect(platformAdapter.track).not.toHaveBeenCalled();
+        } finally {
+          random.mockRestore();
+        }
+      });
+
+      it('emits events inside the sampling rate', async () => {
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0.25);
+        try {
+          const { controller, platformAdapter } =
+            await setupTrackingController();
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            category,
+            source,
+            volumeControls: { samplingRate: 0.5 },
+          });
+
+          expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        } finally {
+          random.mockRestore();
+        }
+      });
+
+      it('suppresses a sample equal to the sampling rate', async () => {
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+        try {
+          const { controller, platformAdapter } =
+            await setupTrackingController();
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            category,
+            source,
+            volumeControls: { samplingRate: 0.5 },
+          });
+
+          expect(platformAdapter.track).not.toHaveBeenCalled();
+        } finally {
+          random.mockRestore();
+        }
+      });
+
+      it('never emits when the sampling rate is zero, even on a zero draw', async () => {
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          const { controller, platformAdapter } =
+            await setupTrackingController();
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            category,
+            source,
+            volumeControls: { samplingRate: 0 },
+          });
+
+          expect(platformAdapter.track).not.toHaveBeenCalled();
+        } finally {
+          random.mockRestore();
+        }
+      });
+
+      it('emits only once for a duplicate signature within the dedup window', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        vi.useFakeTimers();
+        try {
+          vi.setSystemTime(1000);
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            category,
+            source,
+          });
+          vi.setSystemTime(2000);
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            category,
+            source,
+          });
+
+          expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('emits again for the same signature after the dedup window', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        vi.useFakeTimers();
+        try {
+          vi.setSystemTime(1000);
+          const options = {
+            category,
+            source,
+            volumeControls: { dedupWindowMs: 5000 },
+          };
+
+          controller.trackErrorAsAnalytics(new Error('boom'), options);
+          vi.setSystemTime(1000 + 5000 + 1);
+          controller.trackErrorAsAnalytics(new Error('boom'), options);
+
+          expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('treats different error messages as distinct signatures', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('first'), {
+          category,
+          source,
+        });
+        controller.trackErrorAsAnalytics(new Error('second'), {
+          category,
+          source,
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+      });
+
+      it('emits again for the same message under a different source', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('boom'), {
+          category,
+          source: 'first-source',
+        });
+        controller.trackErrorAsAnalytics(new Error('boom'), {
+          category,
+          source: 'second-source',
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+      });
+
+      it('emits again for the same message under a different category', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('boom'), {
+          category: 'Swaps',
+          source,
+        });
+        controller.trackErrorAsAnalytics(new Error('boom'), {
+          category: 'Settings',
+          source,
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+      });
+
+      it('suppresses all events once the session cap is reached', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        const options = {
+          category,
+          source,
+          volumeControls: { sessionCap: 1 },
+        };
+
+        controller.trackErrorAsAnalytics(new Error('first'), options);
+        controller.trackErrorAsAnalytics(new Error('second'), options);
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'first');
+      });
+
+      it('clamps an out-of-range sampling rate instead of failing open', async () => {
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0);
+        try {
+          const { controller, platformAdapter } =
+            await setupTrackingController();
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            category,
+            source,
+            volumeControls: { samplingRate: -1 },
+          });
+
+          expect(platformAdapter.track).not.toHaveBeenCalled();
+        } finally {
+          random.mockRestore();
+        }
+      });
+
+      it('falls back to the default sampling rate for NaN', async () => {
+        const random = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+        try {
+          const { controller, platformAdapter } =
+            await setupTrackingController();
+
+          controller.trackErrorAsAnalytics(new Error('boom'), {
+            category,
+            source,
+            volumeControls: { samplingRate: Number.NaN },
+          });
+
+          expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        } finally {
+          random.mockRestore();
+        }
+      });
+
+      it('still dedupes when dedupWindowMs is NaN', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        vi.useFakeTimers();
+        try {
+          vi.setSystemTime(1000);
+          const options = {
+            category,
+            source,
+            volumeControls: { dedupWindowMs: Number.NaN },
+          };
+
+          controller.trackErrorAsAnalytics(new Error('boom'), options);
+          vi.setSystemTime(2000);
+          controller.trackErrorAsAnalytics(new Error('boom'), options);
+
+          expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('falls back to the default session cap for NaN', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        const options = {
+          category,
+          source,
+          volumeControls: { sessionCap: Number.NaN },
+        };
+
+        controller.trackErrorAsAnalytics(new Error('first'), options);
+        controller.trackErrorAsAnalytics(new Error('second'), options);
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+      });
+
+      it('falls back to the default session cap for a negative value', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('boom'), {
+          category,
+          source,
+          volumeControls: { sessionCap: -1 },
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+      });
+
+      it('clamps a caller-supplied sessionCap above the global default', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+        const options = {
+          category,
+          source,
+          volumeControls: { sessionCap: Number.MAX_SAFE_INTEGER },
+        };
+        const cap = DEFAULT_ERROR_TRACKING_OPTIONS.sessionCap;
+
+        for (let index = 0; index < cap + 1; index += 1) {
+          controller.trackErrorAsAnalytics(
+            new Error(`error-${index}`),
+            options,
+          );
+        }
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(cap);
+      });
+    });
+
+    describe('consent', () => {
+      it('does not emit or consume the session budget when the user is opted out', async () => {
+        const { controller, platformAdapter } = await setupTrackingController({
+          optedIn: false,
+          consentDecisionMade: true,
+        });
+        const options = {
+          category,
+          source,
+          volumeControls: { sessionCap: 1 },
+        };
+
+        controller.trackErrorAsAnalytics(new Error('boom'), options);
+        expect(platformAdapter.track).not.toHaveBeenCalled();
+
+        await controller.optIn();
+        controller.trackErrorAsAnalytics(new Error('boom'), options);
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expectErrorOccurred(platformAdapter, 'boom');
+      });
+    });
+
+    it('reaches the platform adapter when called via the messenger action', async () => {
+      const { messenger, platformAdapter } = await setupTrackingController();
+
+      messenger.call(
+        'AnalyticsController:trackErrorAsAnalytics',
+        new Error('boom'),
+        { category, source },
+      );
+
+      expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+      expectErrorOccurred(platformAdapter, 'boom');
     });
   });
 });

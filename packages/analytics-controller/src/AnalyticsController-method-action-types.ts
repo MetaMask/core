@@ -19,6 +19,37 @@ export type AnalyticsControllerTrackEventAction = {
 };
 
 /**
+ * Report a caught error as an `Error Occurred` analytics event.
+ *
+ * Properties are `category`, `source`, and a sanitized `error_message`.
+ * Whitespace is collapsed and the message is capped at 500 characters.
+ * Stack traces are never included.
+ *
+ * Sampling, a deduplication window, and a per-session cap bound volume.
+ * Those controls default to always emitting, 10 seconds, and 50 events.
+ * A caller can only lower the session cap. The budget belongs to this
+ * controller instance and is not persisted.
+ *
+ * Delivery goes through {@link trackEvent}, so consent gating, the
+ * pre-consent queue, and geolocation enrichment all apply. Opted-out
+ * calls return before the volume controls run, so they do not consume
+ * the session budget.
+ *
+ * Fail-safe: this method never throws. If delivery throws, the session
+ * reservation is released.
+ *
+ * @param error - The caught value to report.
+ * @param options - Category, source, and optional volume controls.
+ * @param options.category - Canonical event category.
+ * @param options.source - Operation or callsite that produced the error.
+ * @param options.volumeControls - Optional sampling, dedup, and session cap.
+ */
+export type AnalyticsControllerTrackErrorAsAnalyticsAction = {
+  type: `AnalyticsController:trackErrorAsAnalytics`;
+  handler: AnalyticsController['trackErrorAsAnalytics'];
+};
+
+/**
  * Identify a user for analytics.
  *
  * @param traits - User traits/properties
@@ -246,6 +277,7 @@ export type AnalyticsControllerSetMarketingCampaignCookieIdAction = {
  */
 export type AnalyticsControllerMethodActions =
   | AnalyticsControllerTrackEventAction
+  | AnalyticsControllerTrackErrorAsAnalyticsAction
   | AnalyticsControllerIdentifyAction
   | AnalyticsControllerTrackViewAction
   | AnalyticsControllerCreateEventFragmentAction

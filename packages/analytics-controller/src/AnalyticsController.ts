@@ -38,6 +38,15 @@ import type {
   ReadonlyAnalyticsEventFragment,
 } from './EventFragment.types.js';
 import { analyticsControllerSelectors } from './selectors.js';
+import type {
+  ErrorTrackingSession,
+  TrackErrorAsAnalyticsOptions,
+} from './track-error-as-analytics.js';
+import {
+  ERROR_OCCURRED_EVENT_NAME,
+  releaseErrorTrackingReservation,
+  reserveErrorOccurredEvent,
+} from './track-error-as-analytics.js';
 
 // === GENERAL ===
 
@@ -355,6 +364,7 @@ const analyticsControllerMetadata = {
 
 const MESSENGER_EXPOSED_METHODS = [
   'trackEvent',
+  'trackErrorAsAnalytics',
   'identify',
   'trackView',
   'optIn',
@@ -772,6 +782,15 @@ export class AnalyticsController extends BaseController<
   #locationResolvePromise: Promise<void> | undefined;
 
   #locationContext: AnalyticsLocationContext | undefined;
+
+  /**
+   * In-memory sampling, deduplication, and session-cap state for
+   * {@link trackErrorAsAnalytics}. Not persisted.
+   */
+  readonly #errorTrackingSession: ErrorTrackingSession = {
+    emittedCount: 0,
+    lastEmittedAtBySignature: new Map(),
+  };
 
   /**
    * Constructs an AnalyticsController instance.
@@ -1954,6 +1973,67 @@ export class AnalyticsController extends BaseController<
       this.#purposesFromName(event.name),
       this.#eventsConfigVersion,
     );
+  }
+
+  /**
+   * Report a caught error as an `Error Occurred` analytics event.
+   *
+   * Properties are `category`, `source`, and a sanitized `error_message`.
+   * Whitespace is collapsed and the message is capped at 500 characters.
+   * Stack traces are never included.
+   *
+   * Sampling, a deduplication window, and a per-session cap bound volume.
+   * Those controls default to always emitting, 10 seconds, and 50 events.
+   * A caller can only lower the session cap. The budget belongs to this
+   * controller instance and is not persisted.
+   *
+   * Delivery goes through {@link trackEvent}, so consent gating, the
+   * pre-consent queue, and geolocation enrichment all apply. Opted-out
+   * calls return before the volume controls run, so they do not consume
+   * the session budget.
+   *
+   * Fail-safe: this method never throws. If delivery throws, the session
+   * reservation is released.
+   *
+   * @param error - The caught value to report.
+   * @param options - Category, source, and optional volume controls.
+   * @param options.category - Canonical event category.
+   * @param options.source - Operation or callsite that produced the error.
+   * @param options.volumeControls - Optional sampling, dedup, and session cap.
+   */
+  trackErrorAsAnalytics(
+    error: unknown,
+    options: TrackErrorAsAnalyticsOptions,
+  ): void {
+    try {
+      if (
+        !this.#isCaptureAllowed(
+          this.#purposesFromName(ERROR_OCCURRED_EVENT_NAME),
+        )
+      ) {
+        return;
+      }
+
+      const reserved = reserveErrorOccurredEvent(
+        this.#errorTrackingSession,
+        error,
+        options,
+      );
+      if (reserved === undefined) {
+        return;
+      }
+
+      try {
+        this.trackEvent(reserved.event);
+      } catch {
+        releaseErrorTrackingReservation(
+          this.#errorTrackingSession,
+          reserved.reservation,
+        );
+      }
+    } catch {
+      // Fail-safe: telemetry must never break the calling flow.
+    }
   }
 
   #trackEvent(

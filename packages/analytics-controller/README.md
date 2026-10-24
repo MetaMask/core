@@ -115,6 +115,25 @@ Fragments are removed when they are finalized, deleted, or when no eligible purp
 
 This feature is disabled by default. When disabled, every fragment method is a logged no-op and no fragment is written to state.
 
+## Error events
+
+`trackErrorAsAnalytics` reports a caught error as an `Error Occurred` event. The properties are `category`, `source`, and `error_message`. The message is whitespace-normalized and capped at 500 characters. Stack traces are not included.
+
+The call is fail-safe and returns without throwing. Events use the same consent gate as `trackEvent`. An opted-out user does not emit an event and does not consume the session budget.
+
+Volume is bounded per controller instance:
+
+- `samplingRate` defaults to `1` and is clamped to the range 0 through 1. A rate of `0` never emits.
+- `dedupWindowMs` defaults to `10000`. The same category, source, and message are suppressed inside that window.
+- `sessionCap` defaults to `50`. A caller can only lower that ceiling.
+
+```ts
+controller.trackErrorAsAnalytics(error, {
+  category: 'Swaps',
+  source: 'swap-quote-fetch',
+});
+```
+
 ## Lifecycle Hooks
 
 ### `onSetupCompleted`
