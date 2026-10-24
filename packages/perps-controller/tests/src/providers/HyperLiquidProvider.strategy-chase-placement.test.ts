@@ -1051,18 +1051,17 @@ describe('HyperLiquidProvider - strategy order types', () => {
       'HyperLiquidProvider: Auto-rebalance not signed - funds remain on HIP-3 DEX';
 
     const transferRequests = (transfer: Mock): TransferBetweenDexsParams[] =>
-      transfer.mock.calls.map(
-        ([request]: [
-          TransferBetweenDexsParams & {
-            destination: string;
-            token: string;
-          },
-        ]) => ({
+      transfer.mock.calls.map((call) => {
+        const request = call[0] as TransferBetweenDexsParams & {
+          destination: string;
+          token: string;
+        };
+        return {
           sourceDex: request.sourceDex,
           destinationDex: request.destinationDex,
           amount: request.amount,
-        }),
-      );
+        };
+      });
 
     /**
      * The transfers noted as not signed, with their details.
