@@ -217,6 +217,11 @@
       "count": 1
     }
   },
+  "packages/assets-controller/vitest.config.ts": {
+    "TS6305": {
+      "count": 1
+    }
+  },
   "packages/assets-controllers/src/AccountTrackerController.test.ts": {
     "TS2345": {
       "count": 1
@@ -1244,6 +1249,11 @@
       "count": 1
     },
     "TS2739": {
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/vitest.config.ts": {
+    "TS6305": {
       "count": 1
     }
   },

@@ -3,7 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
 import type { ViteUserConfig } from 'vitest/config';
 
-import baseConfig, { lowerDecorators } from '../../vitest.config.packages.js';
+import { lowerDecorators } from '../../tests/vitest/lower-decorators.js';
+import baseConfig from '../../vitest.config.packages.js';
 
 const name = basename(dirname(fileURLToPath(import.meta.url)));
 

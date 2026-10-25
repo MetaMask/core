@@ -26,7 +26,7 @@ export default defineConfig({
     environment: 'node',
 
     // The files to include in the test run.
-    include: ['scripts/**/*.test.ts'],
+    include: ['scripts/**/*.test.ts', 'tests/vitest/**/*.test.ts'],
 
     // The package template is copied into new packages, and its tests are run
     // there.
