@@ -1,6 +1,6 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger } from '@metamask/messenger';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type {
   Context,
@@ -107,10 +107,6 @@ function setupController(
 }
 
 describe('DetectionMiddleware', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('initializes with correct name', () => {
     const { middleware } = setupController();
     expect(middleware.name).toBe('DetectionMiddleware');

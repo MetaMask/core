@@ -1,12 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { executeWithRetry } from './network-utils.js';
 
 describe('BackupAndSync - UserStorage - NetworkUtils', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('executeWithRetry', () => {
     it('returns result on successful operation', async () => {
       const mockOperation = vi.fn().mockResolvedValue('success');

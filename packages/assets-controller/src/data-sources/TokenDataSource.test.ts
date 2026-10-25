@@ -6,7 +6,7 @@ import type {
   PhishingControllerBulkScanTokensAction,
 } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
@@ -196,10 +196,6 @@ function setupController(options: {
 }
 
 describe('TokenDataSource', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('initializes with correct name', () => {
     const { controller } = setupController({
       messenger: createTestMessenger(),

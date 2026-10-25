@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { Env, Platform } from '../../shared/env.js';
 import {
@@ -101,10 +101,6 @@ const createMockResponse = (
 };
 
 describe('services', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('URL builders', () => {
     it('should build correct NONCE_URL', () => {
       expect(NONCE_URL(Env.DEV)).toBe(

@@ -8,7 +8,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { cleanAll as cleanAllNock } from 'nock';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 
 import {
@@ -3872,10 +3872,6 @@ describe('MFA credential verification', () => {
       mockEndpointMfaCredentials();
     });
 
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
     it('completes with the token that began it, even past the default session age', async () => {
       const { controller, verificationToken } = await beginWithSession();
       expect(verificationToken).toBeDefined();
@@ -3990,10 +3986,6 @@ describe('MFA credential verification', () => {
         base: base as string,
       };
     }
-
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
 
     it('does not let a session older than the default limit authorize enrollment', async () => {
       const { controller, base } = await arrangeAgedSession();

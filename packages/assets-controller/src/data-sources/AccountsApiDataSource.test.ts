@@ -2,15 +2,7 @@ import type { V5BalanceItem, V6BalanceItem } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { getDefaultTrackedAssetsForChain } from '../defaults.js';
@@ -323,10 +315,6 @@ describe('AccountsApiDataSource', () => {
     activeTimers.clear();
     global.setInterval = originalSetInterval;
     global.clearInterval = originalClearInterval;
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   it('initializes with correct name', async () => {

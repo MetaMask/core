@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
 import type { PerpsControllerState } from '../../../src/PerpsController.js';
@@ -77,10 +77,6 @@ describe('AccountService', () => {
 
     // Mock Date.now() to return a stable timestamp
     vi.spyOn(Date, 'now').mockReturnValue(1234567890000);
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   describe('withdraw', () => {

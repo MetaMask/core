@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
 import { DataLakeService } from '../../../src/services/DataLakeService.js';
@@ -64,10 +64,6 @@ describe('DataLakeService', () => {
     });
 
     setupDefaultMessenger();
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   describe('reportOrder', () => {

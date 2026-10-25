@@ -5664,10 +5664,6 @@ describe('LighterProvider', () => {
     );
   });
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('native attached placement', () => {
     const attachedIntent: OrderParams = {
       symbol: 'BTC',

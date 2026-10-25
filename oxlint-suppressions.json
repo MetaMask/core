@@ -1564,11 +1564,6 @@
       "count": 1
     }
   },
-  "packages/bridge-controller/src/utils/metrics/properties.test.ts": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "packages/bridge-controller/src/utils/metrics/types.ts": {
     "id-length": {
       "count": 4

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
 import { PERPS_EVENT_VALUE } from '../../../src/constants/eventNames.js';
@@ -106,10 +106,6 @@ describe('TradingService', () => {
     mockGetOpenOrders = vi.fn().mockResolvedValue([]);
 
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   describe('placeOrder', () => {
