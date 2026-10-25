@@ -5277,8 +5277,7 @@ describe('TokenBalancesController', () => {
         ok: true,
         json: () => Promise.resolve([]),
       });
-      const originalFetch = global.fetch;
-      global.fetch = mockGlobalFetch;
+      vi.stubGlobal('fetch', mockGlobalFetch);
 
       // Create controller with accountsApiChainIds to enable AccountsApi fetcher; tokens so we fetch for chainId1
       const tokenAddress = '0x0000000000000000000000000000000000000001';
@@ -5327,8 +5326,6 @@ describe('TokenBalancesController', () => {
       supportsSpy.mockRestore();
       fetchSpy.mockRestore();
       mockedSafelyExecuteWithTimeout.mockRestore();
-      (global as unknown as { fetch: typeof originalFetch }).fetch =
-        originalFetch;
     });
   });
 

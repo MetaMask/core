@@ -100,11 +100,6 @@
       "count": 4
     }
   },
-  "packages/account-tree-controller/src/backup-and-sync/user-storage/network-utils.test.ts": {
-    "typescript/no-unsafe-call": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/backup-and-sync/user-storage/network-utils.ts": {
     "id-length": {
       "count": 1

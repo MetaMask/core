@@ -38,7 +38,6 @@ import {
 } from './services.js';
 
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
 
 const registration = {
   id: 'credential-id',
@@ -76,6 +75,7 @@ function response(
 
 describe('MFA services', () => {
   beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch);
     mockFetch.mockReset();
   });
 
