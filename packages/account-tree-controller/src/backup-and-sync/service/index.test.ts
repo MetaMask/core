@@ -1,20 +1,39 @@
 import { AccountWalletType } from '@metamask/account-api';
+import type { UserStorageController } from '@metamask/profile-sync-controller';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import type { AccountGroupObject } from '../../group.js';
 import type { AccountTreeControllerState } from '../../types.js';
-import type { AccountWalletEntropyObject } from '../../wallet.js';
+import type {
+  AccountWalletEntropyObject,
+  AccountWalletObject,
+} from '../../wallet.js';
 import { TraceName } from '../analytics/index.js';
 import { getProfileId } from '../authentication/index.js';
 import {
+  createLocalGroupsFromUserStorage,
   performLegacyAccountSyncing,
+  syncGroupMetadata,
+  syncGroupsMetadata,
   syncWalletMetadata,
 } from '../syncing/index.js';
-import type { BackupAndSyncContext } from '../types.js';
-import { getAllGroupsFromUserStorage } from '../user-storage/index.js';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWallet,
+  UserStorageSyncedWalletGroup,
+} from '../types.js';
+import {
+  getAllGroupsFromUserStorage,
+  getWalletFromUserStorage,
+} from '../user-storage/index.js';
 // We only need to import the functions we actually spy on
-import { createStateSnapshot, getLocalEntropyWallets } from '../utils/index.js';
+import {
+  createStateSnapshot,
+  getLocalEntropyWallets,
+  restoreStateFromSnapshot,
+} from '../utils/index.js';
+import { AtomicSyncQueue } from './atomic-sync-queue.js';
 import { BackupAndSyncService } from './index.js';
 
 // Mock the sync functions and all external dependencies
@@ -197,6 +216,93 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         'test-entropy-id',
       );
     });
+
+    it('syncs the wallet metadata against the wallet from user storage', async () => {
+      const wallet = {
+        id: 'entropy:wallet-1',
+        type: AccountWalletType.Entropy,
+        metadata: {
+          entropy: { id: 'test-entropy-id' },
+          name: 'Test Wallet',
+        },
+        groups: {},
+      } as unknown as AccountWalletEntropyObject;
+      const walletFromUserStorage = {
+        name: { value: 'Remote Wallet', lastUpdatedAt: 1 },
+      } as unknown as UserStorageSyncedWallet;
+      mockContext.controller.state.accountTree.wallets = {
+        'entropy:wallet-1': wallet,
+      };
+      vi.mocked(getWalletFromUserStorage).mockResolvedValue(
+        walletFromUserStorage,
+      );
+      const enqueueSpy = vi.spyOn(AtomicSyncQueue.prototype, 'enqueue');
+
+      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
+      await enqueueSpy.mock.results[0].value;
+
+      expect(getWalletFromUserStorage).toHaveBeenCalledWith(
+        mockContext,
+        'test-entropy-id',
+      );
+      expect(mockSyncWalletMetadata).toHaveBeenCalledWith(
+        mockContext,
+        wallet,
+        walletFromUserStorage,
+        'test-profile-id',
+      );
+    });
+
+    it('skips wallets that are not entropy wallets', async () => {
+      mockContext.controller.state.accountTree.wallets = {
+        'keyring:wallet-1': {
+          id: 'keyring:wallet-1',
+          type: AccountWalletType.Keyring,
+          metadata: { name: 'Keyring Wallet' },
+          groups: {},
+        } as unknown as AccountWalletObject,
+      };
+      const enqueueSpy = vi.spyOn(AtomicSyncQueue.prototype, 'enqueue');
+
+      backupAndSyncService.enqueueSingleWalletSync('keyring:wallet-1');
+      await enqueueSpy.mock.results[0].value;
+
+      expect(mockGetProfileId).not.toHaveBeenCalled();
+      expect(mockSyncWalletMetadata).not.toHaveBeenCalled();
+    });
+
+    it('skips wallets that are missing from the account tree', async () => {
+      const enqueueSpy = vi.spyOn(AtomicSyncQueue.prototype, 'enqueue');
+
+      backupAndSyncService.enqueueSingleWalletSync('entropy:missing');
+      await enqueueSpy.mock.results[0].value;
+
+      expect(mockGetProfileId).not.toHaveBeenCalled();
+      expect(mockSyncWalletMetadata).not.toHaveBeenCalled();
+    });
+
+    it('rejects the queued sync when the wallet sync fails', async () => {
+      mockContext.controller.state.accountTree.wallets = {
+        'entropy:wallet-1': {
+          id: 'entropy:wallet-1',
+          type: AccountWalletType.Entropy,
+          metadata: {
+            entropy: { id: 'test-entropy-id' },
+            name: 'Test Wallet',
+          },
+          groups: {},
+        } as unknown as AccountWalletEntropyObject,
+      };
+      mockGetProfileId.mockRejectedValue(new Error('profile boom'));
+      const enqueueSpy = vi.spyOn(AtomicSyncQueue.prototype, 'enqueue');
+
+      backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
+
+      await expect(enqueueSpy.mock.results[0].value).rejects.toThrow(
+        'profile boom',
+      );
+      expect(mockSyncWalletMetadata).not.toHaveBeenCalled();
+    });
   });
 
   describe('enqueueSingleGroupSync', () => {
@@ -304,6 +410,126 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
 
       // Should have called getProfileId as part of group sync
       expect(mockGetProfileId).toHaveBeenCalled();
+    });
+
+    it('skips groups that are not mapped to a wallet', async () => {
+      const enqueueSpy = vi.spyOn(AtomicSyncQueue.prototype, 'enqueue');
+
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
+      await enqueueSpy.mock.results[0].value;
+
+      expect(mockGetProfileId).not.toHaveBeenCalled();
+      expect(syncGroupMetadata).not.toHaveBeenCalled();
+    });
+
+    it('skips groups whose wallet is not an entropy wallet', async () => {
+      mockContext.groupIdToWalletId.set(
+        'keyring:wallet-1/0x123',
+        'keyring:wallet-1',
+      );
+      mockContext.controller.state.accountTree.wallets = {
+        'keyring:wallet-1': {
+          id: 'keyring:wallet-1',
+          type: AccountWalletType.Keyring,
+          metadata: { name: 'Keyring Wallet' },
+          groups: {},
+        } as unknown as AccountWalletObject,
+      };
+      const enqueueSpy = vi.spyOn(AtomicSyncQueue.prototype, 'enqueue');
+
+      backupAndSyncService.enqueueSingleGroupSync('keyring:wallet-1/0x123');
+      await enqueueSpy.mock.results[0].value;
+
+      expect(mockGetProfileId).not.toHaveBeenCalled();
+      expect(syncGroupMetadata).not.toHaveBeenCalled();
+    });
+
+    it('skips groups that are missing from their wallet', async () => {
+      mockContext.groupIdToWalletId.set(
+        'entropy:wallet-1/1',
+        'entropy:wallet-1',
+      );
+      mockContext.controller.state.accountTree.wallets = {
+        'entropy:wallet-1': {
+          id: 'entropy:wallet-1',
+          type: AccountWalletType.Entropy,
+          metadata: {
+            entropy: { id: 'test-entropy-id' },
+            name: 'Test Wallet',
+          },
+          groups: {},
+        } as unknown as AccountWalletEntropyObject,
+      };
+      const enqueueSpy = vi.spyOn(AtomicSyncQueue.prototype, 'enqueue');
+
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
+      await enqueueSpy.mock.results[0].value;
+
+      expect(mockGetProfileId).not.toHaveBeenCalled();
+      expect(syncGroupMetadata).not.toHaveBeenCalled();
+    });
+
+    it('rejects the queued sync when the group sync fails', async () => {
+      mockContext.groupIdToWalletId.set(
+        'entropy:wallet-1/1',
+        'entropy:wallet-1',
+      );
+      mockContext.controller.state.accountTree.wallets = {
+        'entropy:wallet-1': {
+          id: 'entropy:wallet-1',
+          type: AccountWalletType.Entropy,
+          metadata: {
+            entropy: { id: 'test-entropy-id' },
+            name: 'Test Wallet',
+          },
+          groups: {
+            'entropy:wallet-1/1': {
+              id: 'entropy:wallet-1/1',
+              name: 'Test Group',
+              metadata: {
+                entropy: { groupIndex: 1 },
+              },
+            } as unknown as AccountGroupObject,
+          },
+        } as unknown as AccountWalletEntropyObject,
+      };
+      vi.mocked(syncGroupMetadata).mockRejectedValue(new Error('group boom'));
+      const enqueueSpy = vi.spyOn(AtomicSyncQueue.prototype, 'enqueue');
+
+      backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
+
+      await expect(enqueueSpy.mock.results[0].value).rejects.toThrow(
+        'group boom',
+      );
+    });
+  });
+
+  describe('handleUserStorageStateChange', () => {
+    it.each([
+      { isBackupAndSyncEnabled: false, isAccountSyncingEnabled: true },
+      { isBackupAndSyncEnabled: true, isAccountSyncingEnabled: false },
+    ])(
+      'clears the service state when syncing is disabled (%o)',
+      (syncState) => {
+        const clearStateSpy = vi.spyOn(backupAndSyncService, 'clearState');
+
+        backupAndSyncService.handleUserStorageStateChange(
+          syncState as UserStorageController.UserStorageControllerState,
+        );
+
+        expect(clearStateSpy).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('keeps the service state when syncing is enabled', () => {
+      const clearStateSpy = vi.spyOn(backupAndSyncService, 'clearState');
+
+      backupAndSyncService.handleUserStorageStateChange({
+        isBackupAndSyncEnabled: true,
+        isAccountSyncingEnabled: true,
+      } as UserStorageController.UserStorageControllerState);
+
+      expect(clearStateSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -519,6 +745,130 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       await backupAndSyncService.performFullSync();
 
       expect(mockContext.traceFn).not.toHaveBeenCalled();
+    });
+
+    it('does not sync anything when there are no local wallets', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([]);
+
+      expect(await backupAndSyncService.performFullSync()).toBeUndefined();
+
+      expect(mockGetProfileId).not.toHaveBeenCalled();
+      expect(mockSyncWalletMetadata).not.toHaveBeenCalled();
+    });
+
+    it('syncs group metadata when groups already exist in user storage', async () => {
+      const wallet = {
+        id: 'entropy:wallet-1',
+        metadata: { entropy: { id: 'test-entropy-id' } },
+      } as unknown as AccountWalletEntropyObject;
+      const groupsFromUserStorage = [
+        { groupIndex: 0 },
+      ] as unknown as UserStorageSyncedWalletGroup[];
+      mockGetLocalEntropyWallets.mockReturnValue([wallet]);
+      mockGetAllGroupsFromUserStorage.mockResolvedValue(groupsFromUserStorage);
+
+      await backupAndSyncService.performFullSync();
+
+      expect(createLocalGroupsFromUserStorage).toHaveBeenCalledWith(
+        mockContext,
+        groupsFromUserStorage,
+        'test-entropy-id',
+        'test-profile-id',
+      );
+      expect(syncGroupsMetadata).toHaveBeenCalledWith(
+        mockContext,
+        wallet,
+        groupsFromUserStorage,
+        'test-entropy-id',
+        'test-profile-id',
+      );
+      expect(restoreStateFromSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('skips legacy account syncing when the wallet in user storage disables it', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+      vi.mocked(getWalletFromUserStorage).mockResolvedValue({
+        isLegacyAccountSyncingDisabled: true,
+      });
+      mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
+
+      await backupAndSyncService.performFullSync();
+
+      expect(mockPerformLegacyAccountSyncing).not.toHaveBeenCalled();
+      expect(mockSyncWalletMetadata).toHaveBeenCalled();
+    });
+
+    it('rolls back a failed wallet when the context has no mutation tracker', async () => {
+      const service = new BackupAndSyncService({
+        ...mockContext,
+        mutationTracker: undefined,
+      });
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+      mockSyncWalletMetadata.mockRejectedValue(new Error('boom'));
+
+      expect(await service.performFullSync()).toBeUndefined();
+
+      expect(restoreStateFromSnapshot).toHaveBeenCalledTimes(1);
+      expect(mockContext.traceFn).not.toHaveBeenCalled();
+    });
+
+    it('continues the sync when the state snapshot of a failed wallet is missing', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+      mockCreateStateSnapshot.mockReturnValue(
+        undefined as unknown as ReturnType<typeof createStateSnapshot>,
+      );
+      mockSyncWalletMetadata.mockRejectedValue(new Error('boom'));
+
+      expect(await backupAndSyncService.performFullSync()).toBeUndefined();
+
+      expect(restoreStateFromSnapshot).not.toHaveBeenCalled();
+      const state = {
+        hasAccountTreeSyncingSyncedAtLeastOnce: false,
+      } as AccountTreeControllerState;
+      for (const [updater] of vi.mocked(mockContext.controllerStateUpdateFn)
+        .mock.calls) {
+        updater(state);
+      }
+      expect(state.hasAccountTreeSyncingSyncedAtLeastOnce).toBe(true);
+    });
+
+    it('continues with the next wallet when rolling back throws a non-Error value', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+        {
+          id: 'entropy:wallet-2',
+          metadata: { entropy: { id: 'test-entropy-id-2' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+      mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
+      mockSyncWalletMetadata.mockRejectedValueOnce(new Error('boom'));
+      vi.mocked(restoreStateFromSnapshot).mockImplementation(() => {
+        // eslint-disable-next-line no-throw-literal, @typescript-eslint/only-throw-error
+        throw 'rollback boom';
+      });
+
+      expect(await backupAndSyncService.performFullSync()).toBeUndefined();
+
+      expect(restoreStateFromSnapshot).toHaveBeenCalledTimes(1);
+      expect(mockSyncWalletMetadata).toHaveBeenCalledTimes(2);
     });
 
     it('awaits the ongoing promise if a second call is made during sync', async () => {
