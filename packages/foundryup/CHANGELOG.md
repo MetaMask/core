@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `yargs` from `^17.7.2` to `^17.7.3` ([#10446](https://github.com/MetaMask/core/pull/10446))
 - Bump `minipass` from `^7.1.2` to `^7.1.3` ([#10725](https://github.com/MetaMask/core/pull/10725))
 - Bump `yargs-parser` from `^21.1.1` to `^22.0.0` ([#10604](https://github.com/MetaMask/core/pull/10604))
+- Bump `unzipper` from `^0.12.3` to `^0.12.5` ([#10726](https://github.com/MetaMask/core/pull/10726))
 
 ## [2.0.0]
 
