@@ -685,7 +685,8 @@ function expectCorrectWorkspaceChangelogScripts(workspace) {
  * the type tests, otherwise just the unit tests.
  *
  * It must also provide scripts that allow the tests to be run in silent mode,
- * clean mode, verbose mode, and watch mode.
+ * clean mode, verbose mode, and watch mode, and a coverage script that enforces
+ * coverage thresholds (coverage is off by default).
  *
  * @param {Workspace} workspace - The workspace to check.
  */
@@ -703,6 +704,11 @@ function expectTestScripts(workspace) {
       workspace,
       'scripts.test:verbose',
       'vitest --reporter=verbose',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:coverage',
+      'vitest --coverage',
     );
   } else {
     expectWorkspaceField(
@@ -730,6 +736,16 @@ function expectTestScripts(workspace) {
       workspace,
       'scripts.test:unit:verbose',
       'vitest --reporter=verbose',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:coverage',
+      'yarn test:unit:coverage && yarn test:types',
+    );
+    expectWorkspaceField(
+      workspace,
+      'scripts.test:unit:coverage',
+      'vitest --coverage',
     );
   }
 }

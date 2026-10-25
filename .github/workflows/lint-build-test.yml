@@ -219,7 +219,7 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
-      - run: yarn test:scripts
+      - run: yarn test:scripts --coverage
       - run: yarn test:scripts:shell
       - name: Require clean working directory
         shell: bash
@@ -248,7 +248,7 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: 22.x
-      - run: yarn workspace "$PACKAGE_NAME" run test
+      - run: yarn workspace "$PACKAGE_NAME" run test:coverage
         env:
           PACKAGE_NAME: ${{ matrix.package-name }}
       - name: Require clean working directory
@@ -275,7 +275,7 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: 24.x
-      - run: yarn workspace "$PACKAGE_NAME" run test
+      - run: yarn workspace "$PACKAGE_NAME" run test:coverage
         env:
           PACKAGE_NAME: ${{ matrix.package-name }}
       - name: Require clean working directory
@@ -302,7 +302,7 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: 26.x
-      - run: yarn workspace "$PACKAGE_NAME" run test
+      - run: yarn workspace "$PACKAGE_NAME" run test:coverage
         env:
           PACKAGE_NAME: ${{ matrix.package-name }}
       - name: Require clean working directory

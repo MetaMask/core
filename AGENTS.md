@@ -119,8 +119,9 @@ For more on these commands, see:
 ### Running tests
 
 - Run `yarn workspace <package-name> run test` to run all tests for a package.
-- Run `yarn workspace <package-name> run test run <file> --coverage.enabled=false` to run a specific test file.
-- Prefer the above two commands, but if you must, run `yarn test` to run tests for all packages in the monorepo.
+- Run `yarn workspace <package-name> run test run <file>` to run a specific test file.
+- Run `yarn workspace <package-name> run test:coverage` to run all tests for a package with coverage and enforce its coverage thresholds.
+- Prefer the above commands, but if you must, run `yarn test` to run tests for all packages in the monorepo.
 
 ### Linting and formatting
 

@@ -40,7 +40,8 @@ export default defineConfig({
     restoreMocks: true,
 
     coverage: {
-      enabled: true,
+      // Coverage is opt in through `yarn test:scripts --coverage`, which CI runs.
+      enabled: false,
 
       // Configure the coverage provider. We use `istanbul` here, because it is
       // more stable than `v8`.
