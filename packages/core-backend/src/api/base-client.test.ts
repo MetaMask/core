@@ -25,6 +25,10 @@ function authorizationHeaderOfCall(callIndex: number): string | undefined {
 }
 
 describe('BaseApiClient', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
   describe('invalidateAuthToken', () => {
     it('calls resetQueries on the query client with auth bearer token key', async () => {
       const mockResetQueries = vi.fn().mockResolvedValue(undefined);
