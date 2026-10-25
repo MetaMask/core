@@ -2,20 +2,26 @@ import type { Dir } from 'fs';
 import { readFileSync } from 'fs';
 import fs from 'fs/promises';
 import nock, { cleanAll } from 'nock';
+// The module is mocked below, so `exit` must come from it rather than the global.
+// eslint-disable-next-line n/prefer-global/process
+import { exit } from 'node:process';
 import { join, relative } from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 
+import { extractFrom } from './extract.js';
 import {
   checkAndDownloadBinaries,
+  downloadAndInstallFoundryBinaries,
   getBinaryArchiveUrl,
   getCacheDirectory,
+  installBinaries,
 } from './index.js';
 import { parseArgs } from './options.js';
 import type { Binary, Checksums } from './types.js';
 import { Architecture, Platform } from './types.js';
-import { isCodedError } from './utils.js';
+import { getVersion, isCodedError, say } from './utils.js';
 
 type OperationDetails = {
   path?: string;
@@ -57,6 +63,22 @@ vi.mock(import('fs/promises'), async (importOriginal) => {
 
 vi.mock('fs');
 vi.mock('yaml');
+
+vi.mock(import('node:process'), async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, exit: vi.fn() } as unknown as typeof actual;
+});
+
+vi.mock(import('./extract.js'), async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, extractFrom: vi.fn(actual.extractFrom) };
+});
+
+vi.mock(import('./utils.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getVersion: vi.fn(),
+  say: vi.fn(),
+}));
 
 vi.mock(import('./options.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -182,6 +204,44 @@ describe('foundryup', () => {
       const result = getCacheDirectory();
       expect(result).toContain('.metamask/cache');
     });
+
+    it('uses local cache when .yarnrc.yml does not exist', () => {
+      vi.mocked(readFileSync).mockImplementation(() => {
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      });
+
+      expect(getCacheDirectory()).toBe(
+        join(process.cwd(), '.metamask', 'cache'),
+      );
+      expect(parseYaml).not.toHaveBeenCalled();
+    });
+
+    it('warns and uses local cache when .yarnrc.yml cannot be read', () => {
+      const error = Object.assign(new Error('EACCES'), { code: 'EACCES' });
+      vi.mocked(readFileSync).mockImplementation(() => {
+        throw error;
+      });
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {
+        // Intentionally empty - used to suppress test output
+      });
+
+      expect(getCacheDirectory()).toBe(
+        join(process.cwd(), '.metamask', 'cache'),
+      );
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Warning: Error reading .yarnrc.yml, using local cache:',
+        error,
+      );
+    });
+
+    it('uses local cache when .yarnrc.yml does not configure the global cache', () => {
+      vi.mocked(parseYaml).mockReturnValue(null);
+      vi.mocked(readFileSync).mockReturnValue('');
+
+      expect(getCacheDirectory()).toBe(
+        join(process.cwd(), '.metamask', 'cache'),
+      );
+    });
   });
 
   describe('getBinaryArchiveUrl', () => {
@@ -240,6 +300,64 @@ describe('foundryup', () => {
       await expect(result).rejects.toThrow(
         'Request to https://example.com/binaries.zip failed. Status Code: 500 - null',
       );
+    });
+
+    it('returns the cached binaries without downloading them', async () => {
+      const cachedDir = {} as Dir;
+      vi.mocked(fs.opendir).mockResolvedValue(cachedDir);
+
+      const result = await checkAndDownloadBinaries(
+        mockUrl,
+        mockBinaries,
+        mockCachePath,
+        Platform.Linux,
+        Architecture.Amd64,
+      );
+
+      expect(result).toBe(cachedDir);
+      expect(fs.opendir).toHaveBeenCalledTimes(1);
+      expect(fs.opendir).toHaveBeenCalledWith(mockCachePath);
+    });
+
+    it('downloads and extracts the binaries when they are not cached', async () => {
+      const downloadedDir = {} as Dir;
+      vi.mocked(fs.opendir)
+        .mockRejectedValueOnce(
+          Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
+        )
+        .mockResolvedValueOnce(downloadedDir);
+      vi.mocked(extractFrom).mockResolvedValue([]);
+
+      const result = await checkAndDownloadBinaries(
+        mockUrl,
+        mockBinaries,
+        mockCachePath,
+        Platform.Linux,
+        Architecture.Amd64,
+      );
+
+      expect(result).toBe(downloadedDir);
+      expect(extractFrom).toHaveBeenCalledWith(
+        mockUrl,
+        mockBinaries,
+        mockCachePath,
+        null,
+      );
+    });
+
+    it('rethrows errors other than a missing cache directory', async () => {
+      const error = Object.assign(new Error('EACCES'), { code: 'EACCES' });
+      vi.mocked(fs.opendir).mockRejectedValue(error);
+
+      await expect(
+        checkAndDownloadBinaries(
+          mockUrl,
+          mockBinaries,
+          mockCachePath,
+          Platform.Linux,
+          Architecture.Amd64,
+        ),
+      ).rejects.toThrow(error);
     });
   });
 
@@ -307,6 +425,63 @@ describe('foundryup', () => {
       await expect(
         mockInstallBinaries(mockDir, mockBinDir, mockCachePath),
       ).rejects.toThrow('Other error');
+    });
+
+    it('symlinks each cached file into the bin directory', async () => {
+      const dir = {
+        async *[Symbol.asyncIterator]() {
+          yield {
+            name: 'nested',
+            isFile: (): boolean => false,
+            parentPath: mockCachePath,
+          };
+          yield {
+            name: 'forge',
+            isFile: (): boolean => true,
+            parentPath: mockCachePath,
+          };
+        },
+      } as unknown as Dir;
+      vi.mocked(fs.unlink).mockResolvedValue();
+      vi.mocked(fs.symlink).mockResolvedValue();
+      vi.mocked(getVersion).mockReturnValue(Buffer.from('forge 1.0.0'));
+
+      await installBinaries(dir, mockBinDir, mockCachePath);
+
+      expect(fs.mkdir).toHaveBeenCalledWith(mockBinDir, { recursive: true });
+      expect(fs.unlink).toHaveBeenCalledWith('/mock/bin/dir/forge');
+      expect(fs.symlink).toHaveBeenCalledTimes(1);
+      expect(fs.symlink).toHaveBeenCalledWith(
+        '../../cache/path/forge',
+        '/mock/bin/dir/forge',
+      );
+      expect(fs.copyFile).not.toHaveBeenCalled();
+      expect(say).toHaveBeenCalledWith('installed - forge 1.0.0');
+    });
+
+    it('copies the file when symlinking fails with EXDEV', async () => {
+      vi.mocked(fs.unlink).mockRejectedValue(new Error('ENOENT'));
+      vi.mocked(fs.symlink).mockRejectedValue(
+        Object.assign(new Error('EXDEV'), { code: 'EXDEV' }),
+      );
+      vi.mocked(getVersion).mockReturnValue(Buffer.from('forge 1.0.0'));
+
+      await installBinaries(mockDir, mockBinDir, mockCachePath);
+
+      expect(fs.copyFile).toHaveBeenCalledWith(
+        '/mock/cache/path/forge',
+        '/mock/bin/dir/forge',
+      );
+    });
+
+    it('rethrows symlink errors that are not permission related', async () => {
+      vi.mocked(fs.unlink).mockResolvedValue();
+      vi.mocked(fs.symlink).mockRejectedValue(new Error('Other error'));
+
+      await expect(
+        installBinaries(mockDir, mockBinDir, mockCachePath),
+      ).rejects.toThrow('Other error');
+      expect(fs.copyFile).not.toHaveBeenCalled();
     });
   });
 
@@ -434,6 +609,54 @@ describe('foundryup', () => {
         'Mock error',
       );
       consoleSpy.mockRestore();
+    });
+
+    it('removes the cache directory and exits for the cache clean command', async () => {
+      vi.mocked(parseArgs).mockReturnValue({ command: 'cache clean' });
+      vi.mocked(parseYaml).mockReturnValue({ enableGlobalCache: false });
+      vi.mocked(readFileSync).mockReturnValue('');
+      vi.mocked(exit).mockImplementation(() => {
+        throw new Error('exit');
+      });
+
+      await expect(downloadAndInstallFoundryBinaries()).rejects.toThrow('exit');
+
+      expect(fs.rm).toHaveBeenCalledWith(
+        join(process.cwd(), '.metamask', 'cache'),
+        { recursive: true, force: true },
+      );
+      expect(exit).toHaveBeenCalledWith(0);
+    });
+
+    it('installs the cached binaries into node_modules/.bin', async () => {
+      vi.mocked(parseYaml).mockReturnValue({ enableGlobalCache: false });
+      vi.mocked(readFileSync).mockReturnValue('');
+      const cachedDir = {
+        async *[Symbol.asyncIterator]() {
+          yield {
+            name: 'forge',
+            isFile: (): boolean => true,
+            parentPath: '/cache',
+          };
+        },
+      } as unknown as Dir;
+      vi.mocked(fs.opendir).mockResolvedValue(cachedDir);
+      vi.mocked(fs.unlink).mockResolvedValue();
+      vi.mocked(fs.symlink).mockResolvedValue();
+      vi.mocked(getVersion).mockReturnValue(Buffer.from('forge 1.0.0'));
+
+      await downloadAndInstallFoundryBinaries();
+
+      const binDir = join(process.cwd(), 'node_modules', '.bin');
+      expect(fs.opendir).toHaveBeenCalledWith(
+        expect.stringContaining(join('.metamask', 'cache')),
+      );
+      expect(fs.mkdir).toHaveBeenCalledWith(binDir, { recursive: true });
+      expect(fs.symlink).toHaveBeenCalledTimes(1);
+      expect(say).toHaveBeenCalledWith(
+        'fetching forge, anvil 1.0.0 for linux amd64',
+      );
+      expect(say).toHaveBeenLastCalledWith('done!');
     });
   });
 
