@@ -80,6 +80,10 @@ export default defineConfig({
     mockReset: true,
     restoreMocks: true,
 
+    // Undo `vi.stubGlobal` after each test, so a stubbed `fetch` cannot leak
+    // from one test into the next.
+    unstubGlobals: true,
+
     typecheck: {
       enabled: true,
     },
