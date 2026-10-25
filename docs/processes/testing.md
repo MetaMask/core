@@ -9,6 +9,7 @@ If you need to customize the behavior of the test runner for a package, see `vit
 - Run `yarn workspace <workspaceName> run test` to run all tests for a package.
 - Run `yarn workspace <workspaceName> run test run <file> --coverage.enabled=false` to run a single test file.
 - Run `yarn test` to run tests for all packages.
+- Run `yarn test:packages --project <directory-name>` from the root to run a single package through the root Vitest projects config.
 
 > **Note**
 >
