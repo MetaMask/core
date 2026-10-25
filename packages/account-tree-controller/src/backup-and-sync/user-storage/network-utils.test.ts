@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { executeWithRetry } from './network-utils.js';
 
@@ -8,6 +8,10 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
   });
 
   describe('executeWithRetry', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('returns result on successful operation', async () => {
       const mockOperation = vi.fn().mockResolvedValue('success');
 
@@ -58,7 +62,6 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
 
       expect(await promise).toBe('success on retry');
       expect(mockOperation).toHaveBeenCalledTimes(2);
-      vi.useRealTimers();
     });
 
     it('works with custom parameters', async () => {
