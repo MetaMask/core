@@ -802,12 +802,12 @@ describe('RpcService', () => {
         isOffline: (): boolean => false,
       });
 
-      // @ts-expect-error Intentionally passing bad input.
       const response = await service.request({
         id: 1,
         jsonrpc: '2.0',
         method: 'eth_chainId',
         params: [],
+        // @ts-expect-error Intentionally passing bad input.
         some: 'extra',
         properties: 'here',
       });
