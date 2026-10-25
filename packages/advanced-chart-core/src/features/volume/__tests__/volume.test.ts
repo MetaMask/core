@@ -223,6 +223,85 @@ describe('handleToggleVolume', () => {
     );
   });
 
+  it('builds overlay overrides without theme colors when theme is null', () => {
+    const { chart, mock } = makeChart();
+    setupReadyWidget(chart);
+    setTheme(null as unknown as ChartTheme);
+
+    handleToggleVolume({ visible: true, volumeOverlay: true });
+
+    expect(mock.createStudy).toHaveBeenCalledWith(
+      'Volume',
+      true,
+      false,
+      {},
+      { 'volume ma.display': 0, 'volume.transparency': 70 },
+      { priceScale: 'no-scale' },
+    );
+  });
+
+  it('leaves pane heights alone when the chart does not have two panes', async () => {
+    const { chart, mock } = makeChart();
+    mock.getAllPanesHeight.mockReturnValue([400]);
+    setupReadyWidget(chart);
+
+    handleToggleVolume({ visible: true });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mock.setAllPanesHeight).not.toHaveBeenCalled();
+  });
+
+  it('keeps a minimum main pane height on very short charts', async () => {
+    const { chart, mock } = makeChart();
+    mock.getAllPanesHeight.mockReturnValue([50, 50]);
+    setupReadyWidget(chart);
+
+    handleToggleVolume({ visible: true });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mock.setAllPanesHeight).toHaveBeenCalledWith([48, 52]);
+  });
+
+  it('reports errors when reading pane heights fails', async () => {
+    const { chart, mock } = makeChart();
+    mock.getAllPanesHeight.mockImplementation(() => {
+      throw new Error('no panes');
+    });
+    const bridge = { postMessage: vi.fn() };
+    window.ReactNativeWebView = bridge;
+    setupReadyWidget(chart);
+
+    handleToggleVolume({ visible: true });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(mock.setAllPanesHeight).not.toHaveBeenCalled();
+    expect(bridge.postMessage).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"ERROR"'),
+    );
+  });
+
+  it('still recreates the study when removing it fails during a mode switch', () => {
+    const { chart, mock } = makeChart();
+    mock.removeEntity.mockImplementation(() => {
+      throw new Error('disposed');
+    });
+    const bridge = { postMessage: vi.fn() };
+    window.ReactNativeWebView = bridge;
+    setupReadyWidget(chart);
+    setVolumeStudyId('vol-existing');
+    setVolumeIsOverlay(false);
+
+    handleToggleVolume({ visible: true, volumeOverlay: true });
+
+    expect(bridge.postMessage).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"ERROR"'),
+    );
+    expect(mock.createStudy).toHaveBeenCalledTimes(1);
+  });
+
   it('swallows createStudy rejection', async () => {
     const createStudy = vi.fn().mockRejectedValue(new Error('study fail'));
     const { chart } = makeChart(createStudy);
@@ -283,6 +362,66 @@ describe('registerVolumeThemeSync', () => {
       expect.objectContaining({
         'volume.color.1': expect.any(String),
       }),
+    );
+  });
+
+  it('does not recolor while the chart is not ready', async () => {
+    const { registerVolumeThemeSync: registerVolumeTheme } =
+      await import('../index.js');
+    const { applyThemeColors } = await import('../../../widget/theme.js');
+    const getStudyById = vi.fn();
+    setWidget({
+      activeChart: () => ({ getStudyById }),
+    } as unknown as TVChartingLibraryWidget);
+    setChartReady(false);
+    setVolumeStudyId('vol-sync');
+
+    registerVolumeTheme();
+    applyThemeColors({ successColor: 'rgb(0,200,0)' });
+
+    expect(getStudyById).not.toHaveBeenCalled();
+  });
+
+  it('skips studies that cannot apply overrides', async () => {
+    const { registerVolumeThemeSync: registerVolumeTheme } =
+      await import('../index.js');
+    const { applyThemeColors } = await import('../../../widget/theme.js');
+    const getStudyById = vi.fn().mockReturnValue({});
+    setWidget({
+      activeChart: () => ({ getStudyById }),
+    } as unknown as TVChartingLibraryWidget);
+    setChartReady(true);
+    setVolumeStudyId('vol-sync');
+
+    registerVolumeTheme();
+
+    expect(() =>
+      applyThemeColors({ successColor: 'rgb(0,200,0)' }),
+    ).not.toThrow();
+    expect(getStudyById).toHaveBeenCalledWith('vol-sync');
+  });
+
+  it('reports errors when looking up the study fails', async () => {
+    const { registerVolumeThemeSync: registerVolumeTheme } =
+      await import('../index.js');
+    const { applyThemeColors } = await import('../../../widget/theme.js');
+    const bridge = { postMessage: vi.fn() };
+    window.ReactNativeWebView = bridge;
+    setWidget({
+      activeChart: () => ({
+        getStudyById: (): never => {
+          throw new Error('gone');
+        },
+      }),
+    } as unknown as TVChartingLibraryWidget);
+    setChartReady(true);
+    setVolumeStudyId('vol-sync');
+
+    registerVolumeTheme();
+    applyThemeColors({ successColor: 'rgb(0,200,0)' });
+
+    expect(bridge.postMessage).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"ERROR"'),
     );
   });
 });

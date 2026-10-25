@@ -7,6 +7,7 @@ import {
   getMaStudies,
   registerStudy,
   setChartReady,
+  setSubPaneHeightRatio,
   setWidget,
 } from '../../../core/state.js';
 import type {
@@ -119,6 +120,48 @@ describe('handleAddIndicator', () => {
     );
     expect(getActiveStudies().get('MACD')).toBe('sid-macd');
   });
+
+  it('ignores reserved object keys as names', () => {
+    const { chart, mock } = makeChart();
+    setupReadyWidget(chart);
+    handleAddIndicator({ name: '__proto__' }, baseConfig);
+    expect(mock.createStudy).not.toHaveBeenCalled();
+  });
+
+  it('keeps pane heights when adding an indicator on the main pane', async () => {
+    const createStudy = vi.fn().mockResolvedValue('sid-bol');
+    const { chart, mock } = makeChart(createStudy);
+    setupReadyWidget(chart);
+    handleAddIndicator({ name: 'BOL' }, baseConfig);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(getActiveStudies().get('BOL')).toBe('sid-bol');
+    expect(mock.setAllPanesHeight).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      reason: 'an Error',
+      rejection: new Error('boom'),
+      expected: 'Failed to add indicator: boom',
+    },
+    { reason: 'a non Error value', rejection: 'boom', expected: 'boom' },
+  ])(
+    'reports a createStudy rejection with $reason',
+    async ({ rejection, expected }) => {
+      const createStudy = vi.fn().mockRejectedValue(rejection);
+      const { chart } = makeChart(createStudy);
+      setupReadyWidget(chart);
+      const bridge = installRNBridge();
+      handleAddIndicator({ name: 'MACD' }, baseConfig);
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(getActiveStudies().has('MACD')).toBe(false);
+      expect(bridge.postMessage).toHaveBeenCalledWith(
+        expect.stringContaining(expected),
+      );
+    },
+  );
 });
 
 describe('handleRemoveIndicator', () => {
@@ -141,6 +184,53 @@ describe('handleRemoveIndicator', () => {
     setupReadyWidget(chart);
     handleRemoveIndicator({ name: 'RSI' });
     expect(mock.removeEntity).not.toHaveBeenCalled();
+  });
+
+  it('no-ops when no widget exists', () => {
+    registerStudy('active', 'RSI', 'sid-rsi');
+    handleRemoveIndicator({ name: 'RSI' });
+    expect(getActiveStudies().get('RSI')).toBe('sid-rsi');
+  });
+
+  it.each([
+    { reason: 'no name', indicatorName: '' },
+    { reason: 'a reserved object key', indicatorName: 'constructor' },
+  ])('no-ops for $reason', ({ indicatorName }) => {
+    const { chart, mock } = makeChart();
+    setupReadyWidget(chart);
+    handleRemoveIndicator({ name: indicatorName });
+    expect(mock.removeEntity).not.toHaveBeenCalled();
+  });
+
+  it('rebalances the remaining sub panes after removing a sub pane study', () => {
+    const { chart, mock } = makeChart();
+    mock.getStudyById.mockReturnValue({ paneIndex: () => 1 });
+    setupReadyWidget(chart);
+    setSubPaneHeightRatio(0.25);
+    registerStudy('active', 'RSI', 'sid-rsi');
+    registerStudy('active', 'MACD', 'sid-macd');
+
+    handleRemoveIndicator({ name: 'RSI' });
+
+    expect(mock.removeEntity).toHaveBeenCalledWith('sid-rsi');
+    expect(mock.setAllPanesHeight).toHaveBeenCalled();
+  });
+
+  it('reports errors when removing the study fails', () => {
+    const { chart, mock } = makeChart();
+    mock.removeEntity.mockImplementation(() => {
+      throw new Error('disposed');
+    });
+    const bridge = installRNBridge();
+    setupReadyWidget(chart);
+    registerStudy('active', 'RSI', 'sid-rsi');
+
+    handleRemoveIndicator({ name: 'RSI' });
+
+    expect(getActiveStudies().has('RSI')).toBe(false);
+    expect(bridge.postMessage).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"ERROR"'),
+    );
   });
 });
 
@@ -194,5 +284,67 @@ describe('handleSetMAVisibility', () => {
     setupReadyWidget(chart);
     handleSetMAVisibility({ visible: ['MAUnknown'] }, baseConfig);
     expect(mock.createStudy).not.toHaveBeenCalled();
+  });
+
+  it('no-ops when no widget exists', () => {
+    registerStudy('ma', 'MA5', 'sid-5');
+    handleSetMAVisibility({ visible: [] }, baseConfig);
+    expect(getMaStudies().get('MA5')).toBe('sid-5');
+  });
+
+  it('no-ops when the payload is missing', () => {
+    const { chart, mock } = makeChart();
+    setupReadyWidget(chart);
+    registerStudy('ma', 'MA5', 'sid-5');
+    handleSetMAVisibility(
+      null as unknown as Parameters<typeof handleSetMAVisibility>[0],
+      baseConfig,
+    );
+    expect(mock.removeEntity).not.toHaveBeenCalled();
+  });
+
+  it('removes every MA variant when the visible list is missing', () => {
+    const { chart, mock } = makeChart();
+    setupReadyWidget(chart);
+    registerStudy('ma', 'MA5', 'sid-5');
+    handleSetMAVisibility(
+      {} as Parameters<typeof handleSetMAVisibility>[0],
+      baseConfig,
+    );
+    expect(mock.removeEntity).toHaveBeenCalledWith('sid-5');
+    expect(getMaStudies().size).toBe(0);
+  });
+
+  it('reports errors when removing an MA variant fails', () => {
+    const { chart, mock } = makeChart();
+    mock.removeEntity.mockImplementation(() => {
+      throw new Error('disposed');
+    });
+    const bridge = installRNBridge();
+    setupReadyWidget(chart);
+    registerStudy('ma', 'MA5', 'sid-5');
+
+    handleSetMAVisibility({ visible: [] }, baseConfig);
+
+    expect(getMaStudies().has('MA5')).toBe(false);
+    expect(bridge.postMessage).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"ERROR"'),
+    );
+  });
+
+  it('reports MA variants that fail to be created', async () => {
+    const createStudy = vi.fn().mockRejectedValue(new Error('boom'));
+    const { chart } = makeChart(createStudy);
+    const bridge = installRNBridge();
+    setupReadyWidget(chart);
+
+    handleSetMAVisibility({ visible: ['MA20'] }, baseConfig);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(getMaStudies().has('MA20')).toBe(false);
+    expect(bridge.postMessage).toHaveBeenCalledWith(
+      expect.stringContaining('MA creation failed: MA20'),
+    );
   });
 });

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   _resetStateForTests,
   bumpOhlcvGeneration,
+  isSlbCenteringPending,
   setChartReady,
   setOhlcvData,
   setSlbCenteringPending,
@@ -273,6 +274,103 @@ describe('slbCenterViewport', () => {
     vi.advanceTimersByTime(1000);
     expect(stub.setRangeCalls).toHaveLength(0);
   });
+
+  it('historical frame: a newer hold supersedes the running one', () => {
+    const stub = makeStubChart();
+    installWidget(stub.chart);
+    setVisibleFromMs(Number(HOUR_MS));
+    setVisibleToMs(3 * HOUR_MS);
+    slbCenterViewport(stub.chart, { immediate: true });
+
+    setSlbCenteringPending(true);
+    setVisibleFromMs(2 * HOUR_MS);
+    setVisibleToMs(4 * HOUR_MS);
+    slbCenterViewport(stub.chart, { immediate: true });
+    stub.setRangeCalls.length = 0;
+    vi.advanceTimersByTime(1000);
+
+    expect(stub.setRangeCalls.length).toBeGreaterThan(0);
+    stub.setRangeCalls.forEach((call) => {
+      expect(call.range.to).toBeGreaterThanOrEqual(4 * 60 * 60);
+    });
+  });
+
+  it('historical frame: the hold stops when the chart is torn down', () => {
+    const stub = makeStubChart();
+    installWidget(stub.chart);
+    setVisibleFromMs(Number(HOUR_MS));
+    setVisibleToMs(3 * HOUR_MS);
+
+    slbCenterViewport(stub.chart, { immediate: true });
+    const before = stub.setRangeCalls.length;
+    setWidget(null);
+    vi.advanceTimersByTime(1000);
+
+    expect(stub.setRangeCalls).toHaveLength(before);
+  });
+
+  it('historical frame: falls back to setTimeout when requestAnimationFrame throws', () => {
+    vi.mocked(window.requestAnimationFrame).mockImplementation(() => {
+      throw new Error('rAF unavailable');
+    });
+    const stub = makeStubChart();
+    installWidget(stub.chart);
+    setVisibleFromMs(Number(HOUR_MS));
+    setVisibleToMs(3 * HOUR_MS);
+
+    slbCenterViewport(stub.chart, { immediate: true });
+    vi.advanceTimersByTime(1000);
+
+    expect(stub.setRangeCalls.length).toBeGreaterThan(1);
+  });
+
+  it('drops the framing when centering is no longer pending at the load event', () => {
+    const stub = makeStubChart();
+    installWidget(stub.chart);
+    setVisibleFromMs(8 * HOUR_MS);
+    setVisibleToMs(LAST_BAR_MS);
+
+    slbCenterViewport(stub.chart);
+    setSlbCenteringPending(false);
+    stub.fireDataLoaded();
+
+    expect(stub.setRangeCalls).toHaveLength(0);
+  });
+
+  it('treats the frame as trailing when no bars are loaded', () => {
+    setOhlcvData([]);
+    const stub = makeStubChart();
+    installWidget(stub.chart);
+    setVisibleFromMs(Number(HOUR_MS));
+    setVisibleToMs(3 * HOUR_MS);
+
+    slbCenterViewport(stub.chart, { immediate: true });
+
+    expect(stub.setRangeCalls).toHaveLength(1);
+    expect(stub.setRangeCalls[0].options).toStrictEqual({
+      percentRightMargin: 0,
+    });
+  });
+
+  it('reports errors and keeps centering pending when setting the range fails', () => {
+    const bridge = { postMessage: vi.fn() };
+    window.ReactNativeWebView = bridge;
+    const chart = {
+      setVisibleRange: () => {
+        throw new Error('mid teardown');
+      },
+    } as unknown as TVActiveChart;
+    installWidget(chart);
+    setVisibleFromMs(8 * HOUR_MS);
+    setVisibleToMs(LAST_BAR_MS);
+
+    slbCenterViewport(chart, { immediate: true });
+
+    expect(bridge.postMessage).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"ERROR"'),
+    );
+    expect(isSlbCenteringPending()).toBe(true);
+  });
 });
 
 describe('slbScheduleInitialCentering', () => {
@@ -294,6 +392,38 @@ describe('slbScheduleInitialCentering', () => {
     setSlbMode(true);
     setSlbCenteringPending(true);
     expect(() => slbScheduleInitialCentering()).not.toThrow();
+  });
+
+  it('centers the active chart once its data loads', () => {
+    setSlbMode(true);
+    setSlbCenteringPending(true);
+    setVisibleFromMs(8 * HOUR_MS);
+    setVisibleToMs(LAST_BAR_MS);
+    const stub = makeStubChart();
+    installWidget(stub.chart);
+
+    slbScheduleInitialCentering();
+    stub.fireDataLoaded();
+
+    expect(stub.setRangeCalls).toHaveLength(1);
+  });
+
+  it('reports errors when the active chart is unavailable', () => {
+    setSlbMode(true);
+    setSlbCenteringPending(true);
+    const bridge = { postMessage: vi.fn() };
+    window.ReactNativeWebView = bridge;
+    setWidget({
+      activeChart: () => {
+        throw new Error('disposed');
+      },
+    } as unknown as TVChartingLibraryWidget);
+    setChartReady(true);
+
+    expect(() => slbScheduleInitialCentering()).not.toThrow();
+    expect(bridge.postMessage).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"ERROR"'),
+    );
   });
 });
 

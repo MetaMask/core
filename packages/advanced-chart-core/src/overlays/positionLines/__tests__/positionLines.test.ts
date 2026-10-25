@@ -282,6 +282,46 @@ describe('positionLines/index', () => {
     expect(getPositionShapeIds()).toStrictEqual([]);
   });
 
+  it('only draws the lines whose prices are set', () => {
+    const { createShape } = installWidget();
+
+    handleSetPositionLines({
+      position: { side: 'long', takeProfitPrice: 45000 },
+    });
+
+    expect(createShape).toHaveBeenCalledTimes(1);
+    expect(createShape).toHaveBeenCalledWith(
+      { price: 45000 },
+      expect.objectContaining({ text: 'TP' }),
+    );
+  });
+
+  it('does not track shapes that TradingView did not create', async () => {
+    const { createShape } = installWidget();
+    createShape.mockResolvedValue(null);
+
+    handleSetPositionLines({
+      position: { side: 'long', entryPrice: 100 },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(getPositionShapeIds()).toStrictEqual([]);
+  });
+
+  it('ignores shape creation failures', async () => {
+    const { createShape } = installWidget();
+    createShape.mockRejectedValue(new Error('createShape failed'));
+
+    handleSetPositionLines({
+      position: { side: 'long', entryPrice: 100 },
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(getPositionShapeIds()).toStrictEqual([]);
+  });
+
   describe('registerPositionLinesOverlay', () => {
     it('registers SET_POSITION_LINES handler', () => {
       installWidget();
