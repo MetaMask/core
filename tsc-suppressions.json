@@ -627,11 +627,6 @@
       "count": 4
     }
   },
-  "packages/network-enablement-controller/src/NetworkEnablementController.test.ts": {
-    "TS6305": {
-      "count": 1
-    }
-  },
   "packages/notification-services-controller/src/NotificationServicesController/NotificationServicesController.test.ts": {
     "TS2739": {
       "count": 3
@@ -996,9 +991,6 @@
       "count": 1
     },
     "TS2741": {
-      "count": 1
-    },
-    "TS6305": {
       "count": 1
     }
   },
