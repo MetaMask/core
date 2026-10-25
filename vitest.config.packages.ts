@@ -94,9 +94,10 @@ export default defineConfig({
       // The files to include in the coverage report.
       include: ['src/**/*.ts'],
 
-      // The files to exclude from the coverage report. An index file only
-      // re-exports, so it has nothing to cover.
-      exclude: ['src/**/index.ts', 'src/**/*.d.ts'],
+      // The files to exclude from the coverage report. Index files are
+      // measured like any other source; a package that needs an exception
+      // adds it to its own config with a reason.
+      exclude: ['src/**/*.d.ts'],
 
       // `lcovonly` rather than `lcov`, which also writes a second HTML report.
       reporter: ['text', 'html', 'json-summary', 'lcovonly'],
