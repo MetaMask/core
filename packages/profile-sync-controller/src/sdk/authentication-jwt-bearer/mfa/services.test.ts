@@ -375,6 +375,7 @@ describe('MFA services', () => {
     ['email_already_enrolled', CredentialAlreadyEnrolledError, 409],
     ['totp_already_enrolled', CredentialAlreadyEnrolledError, 409],
     ['email_socially_verified', CredentialAlreadyEnrolledError, 409],
+    ['email_claimed', CredentialAlreadyEnrolledError, 409],
     ['credential_not_enrolled', CredentialNotEnrolledError, 409],
     ['aal2_required', StepUpRequiredError, 403],
     ['flow_expired', MfaFlowExpiredError, 400],

@@ -293,6 +293,7 @@ export type MfaErrorCode =
   | 'credential_already_enrolled'
   | 'credential_not_enrolled'
   | 'email_socially_verified'
+  | 'email_claimed'
   | 'mfa_identity_missing'
   | 'multi_primary_srp'
   | 'aal2_required'

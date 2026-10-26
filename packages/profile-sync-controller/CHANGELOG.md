@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A 403 `authentication_required` response, which the server sends when that verification is too old, is also reported as `StepUpRequiredError`: it drops that verification session, so the next verification runs a new ceremony, and leaves the SRP session in place
   - Exports the `RequestMfaApprovalRequest`, `MfaApproval` and `MfaApprovalIdentifier` types from the SDK, and the `AuthenticationControllerRequestMfaApprovalAction` type
 
+### Changed
+
+- Report the `email_claimed` error, which the server sends when another profile uses the email being added, as a `CredentialAlreadyEnrolledError` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ## [35.0.0]
 
 ### Added
