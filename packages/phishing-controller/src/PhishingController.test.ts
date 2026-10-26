@@ -2878,7 +2878,7 @@ describe('PhishingController', () => {
       const scope = nock(PHISHING_DETECTION_BASE_URL)
         .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
         .query({ url: 'example.com' })
-        .delayConnection(10000)
+        .delay(10000)
         .reply(200, {});
 
       const promise = rootMessenger.call('PhishingController:scanUrl', testUrl);
@@ -2890,6 +2890,9 @@ describe('PhishingController', () => {
         fetchError: 'timeout of 8000ms exceeded',
       });
       expect(scope.isDone()).toBe(false);
+
+      // Let the delayed response settle so it cannot leak into the next test.
+      await vi.runOnlyPendingTimersAsync();
     });
 
     it('should only send hostname when URL contains query parameters', async () => {
@@ -3282,7 +3285,7 @@ describe('PhishingController', () => {
         .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
           urls: testUrls,
         })
-        .delayConnection(20000)
+        .delay(20000)
         .reply(200, {});
 
       const promise = rootMessenger.call(
@@ -3298,6 +3301,9 @@ describe('PhishingController', () => {
         },
       });
       expect(scope.isDone()).toBe(false);
+
+      // Let the delayed response settle so it cannot leak into the next test.
+      await vi.runOnlyPendingTimersAsync();
     });
 
     it('should process URLs in batches when more than 50 URLs are provided', async () => {
@@ -3716,7 +3722,7 @@ describe('PhishingController', () => {
           chain: 'ethereum',
           address: testAddress.toLowerCase(),
         })
-        .delayConnection(10000)
+        .delay(10000)
         .reply(200, {});
 
       const promise = rootMessenger.call(
@@ -3731,6 +3737,9 @@ describe('PhishingController', () => {
         label: '',
       });
       expect(scope.isDone()).toBe(false);
+
+      // Let the delayed response settle so it cannot leak into the next test.
+      await vi.runOnlyPendingTimersAsync();
     });
 
     it('will return an AddressScanResult with an ErrorResult when address is missing', async () => {
@@ -4023,7 +4032,7 @@ describe('PhishingController', () => {
           chain: 'ethereum',
           address: testAddress.toLowerCase(),
         })
-        .delayConnection(10000)
+        .delay(10000)
         .reply(200, mockResponse);
 
       const promise = rootMessenger.call(
@@ -4035,6 +4044,9 @@ describe('PhishingController', () => {
       const response = await promise;
       expect(response).toStrictEqual({ approvals: [] });
       expect(scope.isDone()).toBe(false);
+
+      // Let the delayed response settle so it cannot leak into the next test.
+      await vi.runOnlyPendingTimersAsync();
     });
 
     it('will normalize address to lowercase before API call', async () => {
