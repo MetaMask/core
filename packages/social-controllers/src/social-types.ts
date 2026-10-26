@@ -9,12 +9,6 @@ import {
 } from '@metamask/superstruct';
 import type { CaipAssetTypeOrId } from '@metamask/utils';
 
-/**
- * A UUID string, such as a Clicker profile or position id. Checked at compile
- * time by its dashed shape; the server validates the exact format.
- */
-export type Uuid = `${string}-${string}-${string}-${string}-${string}`;
-
 // ---------------------------------------------------------------------------
 // Shared sub-types
 // ---------------------------------------------------------------------------
@@ -732,7 +726,7 @@ export type FetchFeedOptions = {
   /**
    * Only this trader's items. A Clicker profile ID (UUID), not a wallet address.
    */
-  profileId?: Uuid;
+  profileId?: string;
   /**
    * When true, return only items that carry an author comment. Omitted from
    * the request when false or unset.

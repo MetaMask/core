@@ -95,7 +95,6 @@ export type {
   FeedResponse,
   FeedScope,
   FetchFeedOptions,
-  Uuid,
   FetchFollowersOptions,
   FetchTraderFollowingOptions,
   FetchTokenFeedOptions,
