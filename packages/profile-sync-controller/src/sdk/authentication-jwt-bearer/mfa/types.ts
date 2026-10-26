@@ -307,6 +307,7 @@ export type MfaErrorCode =
   | 'cross_type_step_up_required'
   | 'last_credential'
   | 'email_socially_verified'
+  | 'email_claimed'
   | 'mfa_identity_missing'
   | 'multi_primary_srp'
   | 'aal2_required'

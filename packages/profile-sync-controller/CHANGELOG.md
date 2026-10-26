@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `EnrolledCredential` has a required `id`, read from the `credential_id` the credentials endpoint now returns: the WebAuthn credential ID for a passkey, `email_otp` or `totp` otherwise ([#11079](https://github.com/MetaMask/core/pull/11079))
   - Code that builds `EnrolledCredential` objects, such as test fixtures, must add an `id`
+- Report the `email_claimed` error, which the server sends when another profile uses the email being added, as a `CredentialAlreadyEnrolledError` ([#11083](https://github.com/MetaMask/core/pull/11083))
 
 ## [35.0.0]
 
