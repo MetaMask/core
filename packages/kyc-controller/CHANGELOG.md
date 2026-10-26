@@ -9,15 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `currentStep` to `KycSessionStatus`. Known values are `processing`, `emailOtpCollection`, `phoneOtpCollection`, `capabilityAuthorization`, `kyc`, `approved`, and `rejected`
+- Add optional `currentStep` to `KycSessionStatus`. Known values are `processing`, `emailOtpCollection`, `phoneOtpCollection`, `capabilityAuthorization`, `kyc`, `approved`, and `rejected` ([#11094](https://github.com/MetaMask/core/pull/11094))
   - `KycService.getSessionStatus`, `KycService.getSessionStatusForVendor`, and `KycService.setAuthorizations` read `currentStep` from the kyc-api session response
   - A missing `currentStep` is left unset. Any other value, including one this package does not know, is returned as sent. Sessions saved before this field existed keep working until the next status fetch
   - Export `KYC_CURRENT_STEPS` and `KycCurrentStep`
 
 ### Changed
 
-- When a kyc-api session reports `finalStatus` `pending` and `currentStep` `kyc`, the session returned by those endpoints uses `finalStatus` `new`. Every other `finalStatus` is returned unchanged. This resolves a regression where `finalStatus: pending` originally was only possible after sumsub was fully submitted, but now it is possible when partially submitted.
+- When a kyc-api session reports `finalStatus` `pending` and `currentStep` `kyc`, the session returned by those endpoints uses `finalStatus` `new`. Every other `finalStatus` is returned unchanged. This resolves a regression where `finalStatus: pending` originally was only possible after sumsub was fully submitted, but now it is possible when partially submitted. ([#11094](https://github.com/MetaMask/core/pull/11094))
   - After the SumSub SDK completes, the stored session is `finalStatus` `pending` with `currentStep` `processing`
+
+## [0.12.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
 
 ## [0.12.0]
 
@@ -206,7 +212,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.1...HEAD
+[0.12.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.0...@metamask/kyc-controller@0.12.1
 [0.12.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.11.0...@metamask/kyc-controller@0.12.0
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.10.0...@metamask/kyc-controller@0.11.0
 [0.10.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.9.0...@metamask/kyc-controller@0.10.0

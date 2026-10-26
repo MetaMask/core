@@ -325,6 +325,7 @@ async function throwMfaError(
     case 'email_already_enrolled':
     case 'totp_already_enrolled':
     case 'email_socially_verified':
+    case 'email_claimed':
       throw new CredentialAlreadyEnrolledError(code, message, status);
     case 'credential_not_enrolled':
       throw new CredentialNotEnrolledError(message, status);
