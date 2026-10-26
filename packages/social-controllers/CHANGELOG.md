@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `assetIds`, `profileId` and `commentedOnly` to `FetchFeedOptions`, sent as repeated `assetIds` params and as `profileId` and `commentedOnly=true` on `GET /v1/feed`, matching the filters social-api now accepts ([#11059](https://github.com/MetaMask/core/pull/11059))
 - Add optional `volumeUsd30d` and `volumeUsd7d` to `FeedActorSummary` and `LeaderboardEntry`. Feed actors carry all-chain totals from profile metadata, including realtime feed normalization. Leaderboard entries carry the chain-scoped totals returned by social-api ([#11042](https://github.com/MetaMask/core/pull/11042))
 
 ## [3.11.0]
