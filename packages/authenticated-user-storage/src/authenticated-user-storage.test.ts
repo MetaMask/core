@@ -1496,7 +1496,7 @@ describe('AuthenticatedUserStorageService', () => {
         }
         handleMockSetUserAssets();
         const { service } = createService();
-        const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+        const invalidateSpy = vi.spyOn(service, 'invalidateQueries');
 
         await run(service);
 
