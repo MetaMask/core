@@ -11582,7 +11582,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       vi.useFakeTimers();
     });
 
-    afterEach(() => {
+    afterEach(async () => {
+      // Stop the running Chase while its ticks are still on fake time.
+      await provider.disconnect();
       vi.useRealTimers();
     });
 
