@@ -121,6 +121,7 @@ For more on these commands, see:
 - Run `yarn workspace <package-name> run test` to run all tests for a package.
 - Run `yarn workspace <package-name> run test run <file> --coverage.enabled=false` to run a specific test file.
 - Prefer the above two commands, but if you must, run `yarn test` to run tests for all packages in the monorepo.
+- Run `yarn test:packages --project <directory-name>` from the root to run a single package's tests through the root Vitest projects config.
 
 ### Linting and formatting
 

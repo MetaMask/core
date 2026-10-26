@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1360.0.0",
+  "version": "1361.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -61,10 +61,10 @@
     "skills:postinstall": "metamask-skills postinstall",
     "test": "yarn test:scripts --coverage.enabled=false --silent && yarn test:scripts:shell && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
-    "test:packages": "yarn test:verbose --silent --coverage=false",
+    "test:packages": "vitest --silent --coverage.enabled=false",
     "test:scripts": "vitest --config ./vitest.config.scripts.ts",
     "test:scripts:shell": "node_modules/bats/bin/bats scripts/*.bats",
-    "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
+    "test:verbose": "vitest --reporter=verbose --coverage.enabled=false",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
   },
   "devDependencies": {

@@ -9,19 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add `GeolocationController` and `GeolocationApiService` to the default initialization configurations ([#11058](https://github.com/MetaMask/core/pull/11058))
-  - Optional `instanceOptions.geolocationApiService` accepts `env`, `fetch`, `ttlMs`, and `policyOptions`. Defaults to production and `globalThis.fetch`.
-  - `GeolocationController` delegates `GeolocationApiService:fetchGeolocationData`.
-  - Hosts that already register `GeolocationController` or `GeolocationApiService` on the wallet root messenger must remove them before upgrading, or messenger registration will collide.
-  - Hosts no longer need to register `GeolocationController` when `AnalyticsController` `isGeolocationEnabled` is `true`.
 - **BREAKING:** Add `NetworkEnablementController` to the default initialization configurations ([#10997](https://github.com/MetaMask/core/pull/10997))
   - `Wallet.init()` calls `NetworkEnablementController.init()`, which reads `MultichainNetworkController:getState`. The wallet does not construct `MultichainNetworkController`. Clients must register that action on the wallet messenger before calling `wallet.init()`.
   - Export `networkEnablementController` so clients can pass it through `initializationConfigurations` before `assetsController`. Additional configurations initialize before defaults, and `AssetsController` reads `NetworkEnablementController:getState` during construction.
 
 ### Changed
 
-- Add `@metamask/geolocation-controller` as a dependency ([#11058](https://github.com/MetaMask/core/pull/11058))
 - Add `@metamask/network-enablement-controller` as a dependency ([#10997](https://github.com/MetaMask/core/pull/10997))
+
+## [20.0.0]
+
+### Added
+
+- **BREAKING:** Add `GeolocationController` and `GeolocationApiService` to the default initialization configurations ([#11058](https://github.com/MetaMask/core/pull/11058))
+  - Optional `instanceOptions.geolocationApiService` accepts `env`, `fetch`, `ttlMs`, and `policyOptions`. Defaults to production and `globalThis.fetch`.
+  - `GeolocationController` delegates `GeolocationApiService:fetchGeolocationData`.
+  - Hosts that already register `GeolocationController` or `GeolocationApiService` on the wallet root messenger must remove them before upgrading, or messenger registration will collide.
+  - Hosts no longer need to register `GeolocationController` when `AnalyticsController` `isGeolocationEnabled` is `true`.
+
+### Changed
+
+- Add `@metamask/geolocation-controller` as a dependency ([#11058](https://github.com/MetaMask/core/pull/11058))
+- Bump `@metamask/analytics-controller` from `^4.0.0` to `^4.1.0` ([#11072](https://github.com/MetaMask/core/pull/11072))
 
 ## [19.1.0]
 
@@ -425,7 +434,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.1.0...@metamask/wallet@20.0.0
 [19.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.0...@metamask/wallet@19.1.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.1...@metamask/wallet@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.0...@metamask/wallet@18.0.1
