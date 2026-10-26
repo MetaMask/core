@@ -14,8 +14,10 @@ import type {
 } from '@metamask/messenger';
 import type { OnAssetHistoricalPriceResponse } from '@metamask/snaps-sdk';
 import { v4 as uuidv4 } from 'uuid';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
-import { jestAdvanceTime } from '../../../../tests/helpers.js';
+import { advanceTime } from '../../../../tests/vitest/helpers.js';
 import { MultichainAssetsRatesController } from './index.js';
 import type { MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController.js';
 
@@ -149,14 +151,14 @@ const setupController = ({
 } = {}): {
   controller: MultichainAssetsRatesController;
   messenger: RootMessenger;
-  updateSpy: jest.SpyInstance;
-  mockGetAssetsState: jest.Mock;
+  updateSpy: MockInstance;
+  mockGetAssetsState: Mock;
 } => {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
 
-  const mockGetAssetsState = jest.fn().mockImplementation(() => ({
+  const mockGetAssetsState = vi.fn().mockImplementation(() => ({
     accountsAssets: {
       account1: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
       account2: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
@@ -236,7 +238,7 @@ const setupController = ({
     ...config,
   });
 
-  const updateSpy = jest.spyOn(controller, 'update' as never);
+  const updateSpy = vi.spyOn(controller, 'update' as never);
 
   return {
     controller,
@@ -250,13 +252,13 @@ describe('MultichainAssetsRatesController', () => {
   const mockedDate = 1705760550000;
 
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.spyOn(Date, 'now').mockReturnValue(mockedDate);
+    vi.useFakeTimers();
+    vi.spyOn(Date, 'now').mockReturnValue(mockedDate);
   });
 
   afterEach(() => {
-    jest.useRealTimers();
-    jest.restoreAllMocks();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('initializes with an empty conversionRates state', () => {
@@ -271,14 +273,12 @@ describe('MultichainAssetsRatesController', () => {
     const { controller, messenger } = setupController();
 
     // Stub KeyringClient.listAccountAssets so that the controller “discovers” one asset.
-    jest
-      .spyOn(KeyringClient.prototype, 'listAccountAssets')
-      .mockResolvedValue([
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-      ]);
+    vi.spyOn(KeyringClient.prototype, 'listAccountAssets').mockResolvedValue([
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+    ]);
 
     // Override the SnapController:handleRequest handler to return our fake conversion rates.
-    const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
+    const snapHandler = vi.fn().mockResolvedValue(fakeAccountRates);
     messenger.registerActionHandler(
       'SnapController:handleRequest',
       snapHandler,
@@ -332,16 +332,14 @@ describe('MultichainAssetsRatesController', () => {
     // Simulate a keyring lock event to set the controller as inactive.
     messenger.publish('KeyringController:lock');
     // Override SnapController:handleRequest and stub listAccountAssets.
-    const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
+    const snapHandler = vi.fn().mockResolvedValue(fakeAccountRates);
     messenger.registerActionHandler(
       'SnapController:handleRequest',
       snapHandler,
     );
-    jest
-      .spyOn(KeyringClient.prototype, 'listAccountAssets')
-      .mockResolvedValue([
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-      ]);
+    vi.spyOn(KeyringClient.prototype, 'listAccountAssets').mockResolvedValue([
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+    ]);
 
     await controller.updateAssetsRates();
     // Since the controller is locked, no update should occur.
@@ -353,16 +351,14 @@ describe('MultichainAssetsRatesController', () => {
     const { controller, messenger } = setupController();
     messenger.publish('KeyringController:lock');
     // Override SnapController:handleRequest and stub listAccountAssets.
-    const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
+    const snapHandler = vi.fn().mockResolvedValue(fakeAccountRates);
     messenger.registerActionHandler(
       'SnapController:handleRequest',
       snapHandler,
     );
-    jest
-      .spyOn(KeyringClient.prototype, 'listAccountAssets')
-      .mockResolvedValue([
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-      ]);
+    vi.spyOn(KeyringClient.prototype, 'listAccountAssets').mockResolvedValue([
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+    ]);
     await controller.updateAssetsRates();
     expect(controller.isActive).toBe(false);
 
@@ -375,11 +371,9 @@ describe('MultichainAssetsRatesController', () => {
   it('calls updateTokensRates when _executePoll is invoked', async () => {
     const { controller, messenger } = setupController();
 
-    jest
-      .spyOn(KeyringClient.prototype, 'listAccountAssets')
-      .mockResolvedValue([
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-      ]);
+    vi.spyOn(KeyringClient.prototype, 'listAccountAssets').mockResolvedValue([
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+    ]);
 
     messenger.registerActionHandler(
       'SnapController:handleRequest',
@@ -396,7 +390,7 @@ describe('MultichainAssetsRatesController', () => {
     );
 
     // Spy on updateAssetsRates.
-    const updateSpy = jest.spyOn(controller, 'updateAssetsRates');
+    const updateSpy = vi.spyOn(controller, 'updateAssetsRates');
     await controller._executePoll();
     expect(updateSpy).toHaveBeenCalled();
   });
@@ -487,7 +481,7 @@ describe('MultichainAssetsRatesController', () => {
       ],
     };
 
-    const snapSpy = jest.fn().mockImplementation((args) => {
+    const snapSpy = vi.fn().mockImplementation((args) => {
       const { handler } = args;
       return Promise.resolve(
         mockResponses[handler as keyof typeof mockResponses].shift(),
@@ -510,7 +504,7 @@ describe('MultichainAssetsRatesController', () => {
 
     // Wait for the asynchronous subscriber to run.
     await Promise.resolve();
-    await jestAdvanceTime({ duration: 10 });
+    await advanceTime({ duration: 10 });
 
     expect(updateSpy).toHaveBeenCalledTimes(1);
     expect(controller.state.conversionRates).toMatchObject({
@@ -585,7 +579,7 @@ describe('MultichainAssetsRatesController', () => {
     });
 
     await Promise.resolve();
-    await jestAdvanceTime({ duration: 10 });
+    await advanceTime({ duration: 10 });
 
     expect(controller.state.conversionRates).toStrictEqual({
       [keptAsset]: {
@@ -650,7 +644,7 @@ describe('MultichainAssetsRatesController', () => {
     });
 
     await Promise.resolve();
-    await jestAdvanceTime({ duration: 10 });
+    await advanceTime({ duration: 10 });
 
     expect(controller.state.conversionRates).toStrictEqual({
       [sharedAsset]: {
@@ -702,7 +696,7 @@ describe('MultichainAssetsRatesController', () => {
       accountsAssets: [fakeEvmAccountWithoutMetadata],
     });
 
-    const snapSpy = jest.fn().mockResolvedValue({ conversionRates: {} });
+    const snapSpy = vi.fn().mockResolvedValue({ conversionRates: {} });
     messenger.registerActionHandler('SnapController:handleRequest', snapSpy);
 
     await controller.updateAssetsRates();
@@ -714,7 +708,7 @@ describe('MultichainAssetsRatesController', () => {
   it('does not make snap requests when updateAssetsRatesForNewAssets is called with no new assets', async () => {
     const { controller, messenger } = setupController();
 
-    const snapSpy = jest.fn().mockResolvedValue(fakeAccountRates);
+    const snapSpy = vi.fn().mockResolvedValue(fakeAccountRates);
     messenger.registerActionHandler('SnapController:handleRequest', snapSpy);
 
     // Publish accountAssetListUpdated event with accounts that have no new assets (empty added arrays)
@@ -739,13 +733,13 @@ describe('MultichainAssetsRatesController', () => {
   it('updates state when currency is updated', async () => {
     const { controller, messenger } = setupController();
 
-    const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
+    const snapHandler = vi.fn().mockResolvedValue(fakeAccountRates);
     messenger.registerActionHandler(
       'SnapController:handleRequest',
       snapHandler,
     );
 
-    const updateSpy = jest.spyOn(controller, 'updateAssetsRates');
+    const updateSpy = vi.spyOn(controller, 'updateAssetsRates');
 
     messenger.publish(
       'CurrencyRateController:stateChange',
@@ -763,12 +757,14 @@ describe('MultichainAssetsRatesController', () => {
     it('handles JSON-RPC parameter validation errors gracefully', async () => {
       const { controller, messenger } = setupController();
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       const paramValidationError = new Error(
         'Invalid request params: At path: conversions.0.from -- Expected a value of type `CaipAssetType`, but received: `"swift:0/test-asset"`.',
       );
 
-      const snapHandler = jest.fn().mockRejectedValue(paramValidationError);
+      const snapHandler = vi.fn().mockRejectedValue(paramValidationError);
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         snapHandler,
@@ -803,10 +799,12 @@ describe('MultichainAssetsRatesController', () => {
     it('handles generic snap request errors gracefully', async () => {
       const { controller, messenger } = setupController();
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       const genericError = new Error('Network timeout');
 
-      const snapHandler = jest.fn().mockRejectedValue(genericError);
+      const snapHandler = vi.fn().mockRejectedValue(genericError);
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         snapHandler,
@@ -836,10 +834,12 @@ describe('MultichainAssetsRatesController', () => {
         accountsAssets: [fakeNonEvmAccount, fakeNonEvmAccount2],
       });
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       // Mock different responses for different calls
-      const snapHandler = jest
+      const snapHandler = vi
         .fn()
         .mockResolvedValueOnce(fakeAccountRates) // First call succeeds (onAssetsConversion)
         .mockResolvedValueOnce({
@@ -883,10 +883,12 @@ describe('MultichainAssetsRatesController', () => {
     it('handles market data request errors independently', async () => {
       const { controller, messenger } = setupController();
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       // Mock onAssetsConversion to succeed but onAssetsMarketData to fail
-      const snapHandler = jest
+      const snapHandler = vi
         .fn()
         .mockResolvedValueOnce(fakeAccountRates) // onAssetsConversion succeeds
         .mockRejectedValueOnce(new Error('Market data unavailable')); // onAssetsMarketData fails
@@ -924,7 +926,7 @@ describe('MultichainAssetsRatesController', () => {
       const testAsset = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501';
       const { controller, messenger } = setupController();
 
-      const snapHandler = jest.fn().mockRejectedValue(new Error('test error'));
+      const snapHandler = vi.fn().mockRejectedValue(new Error('test error'));
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         snapHandler,
@@ -955,7 +957,7 @@ describe('MultichainAssetsRatesController', () => {
         },
       });
 
-      const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+      const snapHandler = vi.fn().mockResolvedValue(fakeHistoricalPrices);
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         snapHandler,
@@ -971,7 +973,7 @@ describe('MultichainAssetsRatesController', () => {
     it('does not update state if historical prices return null', async () => {
       const { controller, messenger } = setupController();
 
-      const snapHandler = jest.fn().mockResolvedValue(null);
+      const snapHandler = vi.fn().mockResolvedValue(null);
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         snapHandler,
@@ -1002,7 +1004,7 @@ describe('MultichainAssetsRatesController', () => {
         },
       });
 
-      const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+      const snapHandler = vi.fn().mockResolvedValue(fakeHistoricalPrices);
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         snapHandler,
@@ -1032,7 +1034,7 @@ describe('MultichainAssetsRatesController', () => {
         },
       });
 
-      const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+      const snapHandler = vi.fn().mockResolvedValue(fakeHistoricalPrices);
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         snapHandler,
@@ -1054,7 +1056,7 @@ describe('MultichainAssetsRatesController', () => {
       };
       const testAsset = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501';
 
-      const snapHandler = jest.fn().mockResolvedValue({
+      const snapHandler = vi.fn().mockResolvedValue({
         historicalPrice: testHistoricalPriceReturn,
       });
       messenger.registerActionHandler(
@@ -1165,7 +1167,7 @@ describe('MultichainAssetsRatesController', () => {
       );
 
       // Track Snap calls to verify only the account with assets gets processed
-      const snapHandler = jest.fn().mockResolvedValue({
+      const snapHandler = vi.fn().mockResolvedValue({
         conversionRates: {
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
             'swift:0/iso4217:USD': {
@@ -1338,7 +1340,7 @@ describe('MultichainAssetsRatesController', () => {
         }),
       );
 
-      const snapHandler = jest.fn().mockResolvedValue({
+      const snapHandler = vi.fn().mockResolvedValue({
         conversionRates: {
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
             'swift:0/iso4217:USD': {
@@ -1382,9 +1384,9 @@ describe('MultichainAssetsRatesController', () => {
         ],
       });
 
-      jest
-        .spyOn(KeyringClient.prototype, 'listAccountAssets')
-        .mockResolvedValue([]);
+      vi.spyOn(KeyringClient.prototype, 'listAccountAssets').mockResolvedValue(
+        [],
+      );
 
       const controller = new MultichainAssetsRatesController({
         messenger: multichainAssetsRatesControllerMessenger,
@@ -1400,11 +1402,9 @@ describe('MultichainAssetsRatesController', () => {
         account1: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
       };
 
-      jest
-        .spyOn(KeyringClient.prototype, 'listAccountAssets')
-        .mockResolvedValue([
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
-        ]);
+      vi.spyOn(KeyringClient.prototype, 'listAccountAssets').mockResolvedValue([
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+      ]);
 
       // Fetch again - should now pick up the new assets
       await controller.updateAssetsRates();
@@ -1470,7 +1470,7 @@ describe('MultichainAssetsRatesController', () => {
         config: { isDeprecated: () => deprecated, state: initialState },
       });
 
-      const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
+      const snapHandler = vi.fn().mockResolvedValue(fakeAccountRates);
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         snapHandler,
@@ -1491,7 +1491,7 @@ describe('MultichainAssetsRatesController', () => {
         config: { isDeprecated: () => deprecated, state: initialState },
       });
 
-      const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
+      const snapHandler = vi.fn().mockResolvedValue(fakeAccountRates);
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         snapHandler,
@@ -1558,7 +1558,7 @@ describe('MultichainAssetsRatesController', () => {
         config: { isDeprecated: () => deprecated, state: initialState },
       });
 
-      const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+      const snapHandler = vi.fn().mockResolvedValue(fakeHistoricalPrices);
       messenger.registerActionHandler(
         'SnapController:handleRequest',
         snapHandler,

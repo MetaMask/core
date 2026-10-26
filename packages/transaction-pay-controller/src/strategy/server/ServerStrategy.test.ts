@@ -1,5 +1,6 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionPayControllerMessenger } from '../../index.js';
 import type {
@@ -13,9 +14,9 @@ import { submitServerQuotes } from './server-submit.js';
 import { ServerStrategy } from './ServerStrategy.js';
 import type { ServerQuote } from './types.js';
 
-jest.mock('./server-quotes');
-jest.mock('./server-submit');
-jest.mock('../../utils/feature-flags');
+vi.mock(import('./server-quotes.js'));
+vi.mock(import('./server-submit.js'));
+vi.mock(import('../../utils/feature-flags.js'));
 
 const QUOTE_MOCK = {
   estimatedDuration: 5,
@@ -39,12 +40,12 @@ const SUPPORTS_REQUEST_MOCK = {
 } as PayStrategyGetQuotesRequest;
 
 describe('ServerStrategy', () => {
-  const getServerQuotesMock = jest.mocked(getServerQuotes);
-  const submitServerQuotesMock = jest.mocked(submitServerQuotes);
-  const getPayStrategiesConfigMock = jest.mocked(getPayStrategiesConfig);
+  const getServerQuotesMock = vi.mocked(getServerQuotes);
+  const submitServerQuotesMock = vi.mocked(submitServerQuotes);
+  const getPayStrategiesConfigMock = vi.mocked(getPayStrategiesConfig);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     getServerQuotesMock.mockResolvedValue([QUOTE_MOCK]);
     getPayStrategiesConfigMock.mockReturnValue({
       server: {

@@ -8,6 +8,8 @@ import {
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 import { EthAccountType } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type {
   AccountTreeControllerMessenger,
@@ -80,7 +82,7 @@ const MNEMONIC_PAYLOAD = makeAccountTreePayload(
  *
  * @param options - Setup options.
  * @param options.wallets - Initial wallet state (default: empty).
- * @returns context, mocks (per-action jest.fn()s), and the mutable walletsRef.
+ * @returns context, mocks (per-action vi.fn()s), and the mutable walletsRef.
  */
 function setup({
   wallets = {},
@@ -91,18 +93,18 @@ function setup({
   /* eslint-disable @typescript-eslint/naming-convention */
   mocks: {
     KeyringController: {
-      withKeyringV2Unsafe: jest.Mock;
-      withController: jest.Mock;
+      withKeyringV2Unsafe: Mock;
+      withController: Mock;
     };
     MultichainAccountService: {
-      createMultichainAccountWallet: jest.Mock;
-      createMultichainAccountGroups: jest.Mock;
+      createMultichainAccountWallet: Mock;
+      createMultichainAccountGroups: Mock;
     };
     setters: {
-      setWalletName: jest.Mock;
-      setAccountGroupName: jest.Mock;
-      setAccountGroupPinned: jest.Mock;
-      setAccountGroupHidden: jest.Mock;
+      setWalletName: Mock;
+      setAccountGroupName: Mock;
+      setAccountGroupPinned: Mock;
+      setAccountGroupHidden: Mock;
     };
   };
   /* eslint-enable @typescript-eslint/naming-convention */
@@ -112,23 +114,23 @@ function setup({
 
   const mocks = {
     KeyringController: {
-      withKeyringV2Unsafe: jest.fn(),
-      withController: jest.fn(),
+      withKeyringV2Unsafe: vi.fn(),
+      withController: vi.fn(),
     },
     MultichainAccountService: {
-      createMultichainAccountWallet: jest.fn(),
-      createMultichainAccountGroups: jest.fn().mockResolvedValue(undefined),
+      createMultichainAccountWallet: vi.fn(),
+      createMultichainAccountGroups: vi.fn().mockResolvedValue(undefined),
     },
     setters: {
-      setWalletName: jest.fn(),
-      setAccountGroupName: jest.fn(),
-      setAccountGroupPinned: jest.fn(),
-      setAccountGroupHidden: jest.fn(),
+      setWalletName: vi.fn(),
+      setAccountGroupName: vi.fn(),
+      setAccountGroupPinned: vi.fn(),
+      setAccountGroupHidden: vi.fn(),
     },
   };
 
   const messenger = {
-    call: jest.fn().mockImplementation((action: string, ...args: unknown[]) => {
+    call: vi.fn().mockImplementation((action: string, ...args: unknown[]) => {
       switch (action) {
         case 'KeyringController:withKeyringV2Unsafe':
           return mocks.KeyringController.withKeyringV2Unsafe(...args);
@@ -167,8 +169,8 @@ function setup({
   return { context, mocks, walletsRef };
 }
 
-function makeWithKeyringV2UnsafeMock(keyring: unknown): jest.Mock {
-  return jest
+function makeWithKeyringV2UnsafeMock(keyring: unknown): Mock {
+  return vi
     .fn()
     .mockImplementation(
       async (_selector: unknown, fn: (ctx: { keyring: unknown }) => unknown) =>
@@ -178,7 +180,7 @@ function makeWithKeyringV2UnsafeMock(keyring: unknown): jest.Mock {
 
 type WithControllerFn = (ctx: {
   keyrings: { keyring: { type: string }; keyringV2: unknown }[];
-  addNewKeyring: jest.Mock;
+  addNewKeyring: Mock;
 }) => Promise<unknown>;
 
 function makeWithControllerMock({
@@ -187,8 +189,8 @@ function makeWithControllerMock({
 }: {
   existingKeyringV2?: unknown;
   newKeyringV2?: unknown;
-} = {}): jest.Mock {
-  return jest.fn().mockImplementation(async (fn: WithControllerFn) => {
+} = {}): Mock {
+  return vi.fn().mockImplementation(async (fn: WithControllerFn) => {
     const keyrings = existingKeyringV2
       ? [
           {
@@ -197,7 +199,7 @@ function makeWithControllerMock({
           },
         ]
       : [];
-    const addNewKeyring = jest.fn().mockResolvedValue({
+    const addNewKeyring = vi.fn().mockResolvedValue({
       keyring: { type: KeyringTypes.simple },
       keyringV2: newKeyringV2,
     });
@@ -214,7 +216,7 @@ async function importSnapshot(
 
 describe('importState', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('mnemonic wallets', () => {
@@ -625,7 +627,7 @@ describe('importState', () => {
       const { context, mocks, walletsRef } = setup();
 
       const keyringV2 = {
-        createAccounts: jest.fn().mockImplementation(async () => {
+        createAccounts: vi.fn().mockImplementation(async () => {
           walletsRef.current = makeLocalKeyringWallet(KeyringTypes.simple, [
             { address: ADDR_B, name: 'New Import', accounts: [newAccountId] },
           ]);
@@ -650,7 +652,7 @@ describe('importState', () => {
       const [[fn]] = mocks.KeyringController.withController.mock.calls as [
         [WithControllerFn],
       ];
-      const addNewKeyring = jest.fn().mockResolvedValue({
+      const addNewKeyring = vi.fn().mockResolvedValue({
         keyring: { type: KeyringTypes.simple },
         keyringV2,
       });
@@ -672,7 +674,7 @@ describe('importState', () => {
       const { context, mocks, walletsRef } = setup();
 
       const keyringV2 = {
-        createAccounts: jest.fn().mockImplementation(async () => {
+        createAccounts: vi.fn().mockImplementation(async () => {
           walletsRef.current = makeLocalKeyringWallet(KeyringTypes.simple, [
             { address: ADDR_B, name: 'New Import', accounts: [newAccountId] },
           ]);
@@ -697,7 +699,7 @@ describe('importState', () => {
       const [[fn]] = mocks.KeyringController.withController.mock.calls as [
         [WithControllerFn],
       ];
-      const addNewKeyring = jest.fn();
+      const addNewKeyring = vi.fn();
       await fn({
         keyrings: [{ keyring: { type: KeyringTypes.simple }, keyringV2 }],
         addNewKeyring,
@@ -725,7 +727,7 @@ describe('importState', () => {
       // Simulate the wallet tree being updated during the import and the
       // new account being returned by createAccounts.
       const keyringV2 = {
-        createAccounts: jest.fn().mockImplementation(async () => {
+        createAccounts: vi.fn().mockImplementation(async () => {
           walletsRef.current = makeLocalKeyringWallet(KeyringTypes.simple, [
             { address: ADDR_B, name: 'New Import', accounts: [newAccountId] },
           ]);
@@ -765,7 +767,7 @@ describe('importState', () => {
     it('throws when createAccounts returns an empty account list', async () => {
       const { context, mocks } = setup();
       mocks.KeyringController.withController = makeWithControllerMock({
-        newKeyringV2: { createAccounts: jest.fn().mockResolvedValue([]) },
+        newKeyringV2: { createAccounts: vi.fn().mockResolvedValue([]) },
       });
 
       await expect(
@@ -820,7 +822,7 @@ describe('importState', () => {
     it('does not skip a private-key group whose value type is eip155:eoa', async () => {
       const { context, mocks } = setup();
       mocks.KeyringController.withController = makeWithControllerMock({
-        newKeyringV2: { createAccounts: jest.fn().mockResolvedValue([]) },
+        newKeyringV2: { createAccounts: vi.fn().mockResolvedValue([]) },
       });
 
       // withController is called (not skipped), but createAccounts returns [] so it throws.
@@ -860,7 +862,7 @@ describe('importState', () => {
       // State stays empty -- the import succeeds but leaves no group in the tree.
       mocks.KeyringController.withController = makeWithControllerMock({
         newKeyringV2: {
-          createAccounts: jest
+          createAccounts: vi
             .fn()
             .mockResolvedValue([{ id: 'some-account-id' }]),
         },

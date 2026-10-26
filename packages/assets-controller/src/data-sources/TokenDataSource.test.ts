@@ -6,6 +6,8 @@ import type {
   PhishingControllerBulkScanTokensAction,
 } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import type {
@@ -39,11 +41,11 @@ const MOCK_SPL_ASSET =
 
 type MockApiClient = {
   tokens: {
-    fetchTokenV2SupportedNetworks: jest.Mock;
-    fetchV3Assets: jest.Mock;
+    fetchTokenV2SupportedNetworks: Mock;
+    fetchV3Assets: Mock;
   };
   token: {
-    fetchV1SuggestedOccurrenceFloors: jest.Mock;
+    fetchV1SuggestedOccurrenceFloors: Mock;
   };
 };
 
@@ -73,14 +75,14 @@ function createMockApiClient(
 ): MockApiClient {
   return {
     tokens: {
-      fetchTokenV2SupportedNetworks: jest.fn().mockResolvedValue({
+      fetchTokenV2SupportedNetworks: vi.fn().mockResolvedValue({
         fullSupport: supportedNetworks,
         partialSupport: [],
       }),
-      fetchV3Assets: jest.fn().mockResolvedValue(assetsResponse),
+      fetchV3Assets: vi.fn().mockResolvedValue(assetsResponse),
     },
     token: {
-      fetchV1SuggestedOccurrenceFloors: jest
+      fetchV1SuggestedOccurrenceFloors: vi
         .fn()
         .mockResolvedValue(suggestedOccurrenceFloors),
     },
@@ -195,7 +197,7 @@ function setupController(options: {
 
 describe('TokenDataSource', () => {
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('initializes with correct name', () => {
@@ -220,7 +222,7 @@ describe('TokenDataSource', () => {
       messenger: createTestMessenger(),
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {},
     });
@@ -235,7 +237,7 @@ describe('TokenDataSource', () => {
       messenger: createTestMessenger(),
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: { detectedAssets: {} },
     });
@@ -252,7 +254,7 @@ describe('TokenDataSource', () => {
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -302,7 +304,7 @@ describe('TokenDataSource', () => {
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         assetsBalance: {
@@ -339,7 +341,7 @@ describe('TokenDataSource', () => {
       suggestedOccurrenceFloors: { '1': 3 },
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         assetsBalance: {
@@ -374,7 +376,7 @@ describe('TokenDataSource', () => {
       suggestedOccurrenceFloors: { '1': 3 },
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -409,7 +411,7 @@ describe('TokenDataSource', () => {
       supportedNetworks: ['eip155:1'],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -450,7 +452,7 @@ describe('TokenDataSource', () => {
       }),
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -472,7 +474,7 @@ describe('TokenDataSource', () => {
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -515,7 +517,7 @@ describe('TokenDataSource', () => {
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -549,7 +551,7 @@ describe('TokenDataSource', () => {
       supportedNetworks: ['eip155:1'],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -573,7 +575,7 @@ describe('TokenDataSource', () => {
       new Error('Network Error'),
     );
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -598,7 +600,7 @@ describe('TokenDataSource', () => {
       new Error('API Error'),
     );
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -625,7 +627,7 @@ describe('TokenDataSource', () => {
       ],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -654,7 +656,7 @@ describe('TokenDataSource', () => {
       ],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -704,7 +706,7 @@ describe('TokenDataSource', () => {
         ],
       });
 
-      const next = jest.fn().mockResolvedValue(undefined);
+      const next = vi.fn().mockResolvedValue(undefined);
       const context = createMiddlewareContext({
         response: {
           detectedAssets: {
@@ -729,7 +731,7 @@ describe('TokenDataSource', () => {
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         assetsInfo: {
@@ -769,7 +771,7 @@ describe('TokenDataSource', () => {
       ],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -804,7 +806,7 @@ describe('TokenDataSource', () => {
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -844,7 +846,7 @@ describe('TokenDataSource', () => {
       assetsResponse,
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -875,7 +877,7 @@ describe('TokenDataSource', () => {
       createMockAssetResponse(MOCK_TOKEN_ASSET),
     ]);
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -907,7 +909,7 @@ describe('TokenDataSource', () => {
       assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -949,7 +951,7 @@ describe('TokenDataSource', () => {
       suggestedOccurrenceFloors: { '1': 3 },
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -995,7 +997,7 @@ describe('TokenDataSource', () => {
       suggestedOccurrenceFloors: { '1': 3 },
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     // Websocket-shaped update: detected asset with a seeded metadata stub
     // (name/symbol, no image). If the stub survived filtering it would
     // persist to state and mask re-detection of the spam token.
@@ -1051,7 +1053,7 @@ describe('TokenDataSource', () => {
       }),
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     // Websocket-shaped update: brand-new tokens (absent from state) with
     // seeded metadata stubs. Runs BEFORE DetectionMiddleware.
     const context = createMiddlewareContext({
@@ -1108,7 +1110,7 @@ describe('TokenDataSource', () => {
       }),
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     // AccountActivity (websocket) delivers lower-case ERC-20 IDs, while state
     // stores them checksummed — the same holding, different case.
     const context = createMiddlewareContext({
@@ -1156,7 +1158,7 @@ describe('TokenDataSource', () => {
       }),
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest({ dataTypes: ['balance'] }),
       response: {
@@ -1199,7 +1201,7 @@ describe('TokenDataSource', () => {
       }),
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     // Graduation runs first and empties `customAssets`, so the exemption is
     // gone by the time this middleware reads state; the zero balance seeded
     // by `addCustomAsset` (checksummed) is what marks the asset as known.
@@ -1241,7 +1243,7 @@ describe('TokenDataSource', () => {
       }),
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest({ dataTypes: ['balance'] }),
       response: {
@@ -1277,7 +1279,7 @@ describe('TokenDataSource', () => {
       suggestedOccurrenceFloors: { '1': 3, '143': 1 },
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest({ chainIds: ['eip155:143'] }),
       response: {
@@ -1307,7 +1309,7 @@ describe('TokenDataSource', () => {
       suggestedOccurrenceFloors: { '1': 3 },
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest({ chainIds: ['eip155:137'] }),
       response: {
@@ -1336,7 +1338,7 @@ describe('TokenDataSource', () => {
       new Error('floors unavailable'),
     );
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -1375,7 +1377,7 @@ describe('TokenDataSource', () => {
       }),
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       request: createDataRequest(),
       response: {
@@ -1411,7 +1413,7 @@ describe('TokenDataSource', () => {
       ],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -1437,7 +1439,7 @@ describe('TokenDataSource', () => {
       ],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -1484,7 +1486,7 @@ describe('TokenDataSource', () => {
       ],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -1513,7 +1515,7 @@ describe('TokenDataSource', () => {
       ],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {},
     });
@@ -1540,7 +1542,7 @@ describe('TokenDataSource', () => {
       ],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -1574,7 +1576,7 @@ describe('TokenDataSource', () => {
       ],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     // detectedAssets is intentionally omitted (undefined) to mirror the real-world
     // case where DetectionMiddleware finds zero balances and zero custom assets
     const context = createMiddlewareContext({
@@ -1603,7 +1605,7 @@ describe('TokenDataSource', () => {
       ],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -1634,7 +1636,7 @@ describe('TokenDataSource', () => {
       ],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {
@@ -1670,7 +1672,7 @@ describe('TokenDataSource', () => {
       ],
     });
 
-    const next = jest.fn().mockResolvedValue(undefined);
+    const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
       response: {
         detectedAssets: {

@@ -6,8 +6,10 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Hex, Json } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { flushPromises } from '../../../../tests/helpers.js';
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import type { Transaction, BalanceUpdate } from '../types.js';
 import type { AccountActivityMessage } from '../types.js';
 import { AccountActivityService } from './AccountActivityService.js';
@@ -28,17 +30,17 @@ type RootMessenger = Messenger<
 >;
 
 type TestMocks = {
-  getAccountsFromSelectedAccountGroup: jest.Mock<InternalAccount[]>;
-  connect: jest.Mock;
-  subscribe: jest.Mock;
-  channelHasSubscription: jest.Mock;
-  getSubscriptionsByChannel: jest.Mock;
-  findSubscriptionsByChannelPrefix: jest.Mock;
-  forceReconnection: jest.Mock;
-  addChannelCallback: jest.Mock;
-  removeChannelCallback: jest.Mock;
-  getConnectionInfo: jest.Mock;
-  getFeatureFlagState: jest.Mock;
+  getAccountsFromSelectedAccountGroup: Mock<() => InternalAccount[]>;
+  connect: Mock;
+  subscribe: Mock;
+  channelHasSubscription: Mock;
+  getSubscriptionsByChannel: Mock;
+  findSubscriptionsByChannelPrefix: Mock;
+  forceReconnection: Mock;
+  addChannelCallback: Mock;
+  removeChannelCallback: Mock;
+  getConnectionInfo: Mock;
+  getFeatureFlagState: Mock;
 };
 
 // Helper function for completing async operations
@@ -149,20 +151,20 @@ const getMessenger = (): {
   });
 
   // Create mock action handlers
-  const mockGetAccountsFromSelectedAccountGroup = jest.fn();
-  const mockConnect = jest.fn();
-  const mockForceReconnection = jest.fn();
-  const mockSubscribe = jest.fn();
-  const mockChannelHasSubscription = jest.fn();
-  const mockGetSubscriptionsByChannel = jest.fn();
-  const mockFindSubscriptionsByChannelPrefix = jest.fn().mockReturnValue([]);
-  const mockAddChannelCallback = jest.fn();
-  const mockRemoveChannelCallback = jest.fn();
-  const mockGetConnectionInfo = jest.fn().mockReturnValue({
+  const mockGetAccountsFromSelectedAccountGroup = vi.fn();
+  const mockConnect = vi.fn();
+  const mockForceReconnection = vi.fn();
+  const mockSubscribe = vi.fn();
+  const mockChannelHasSubscription = vi.fn();
+  const mockGetSubscriptionsByChannel = vi.fn();
+  const mockFindSubscriptionsByChannelPrefix = vi.fn().mockReturnValue([]);
+  const mockAddChannelCallback = vi.fn();
+  const mockRemoveChannelCallback = vi.fn();
+  const mockGetConnectionInfo = vi.fn().mockReturnValue({
     state: WebSocketState.CONNECTED,
   });
   // Solana enabled by default so tests exercise the multichain path
-  const mockGetFeatureFlagState = jest.fn().mockReturnValue({
+  const mockGetFeatureFlagState = vi.fn().mockReturnValue({
     remoteFeatureFlags: {
       networkAssetsSnapsMigrationSolana: { stage: 1 },
     },
@@ -347,7 +349,7 @@ type WithServiceCallback<ReturnValue> = (payload: {
  * @returns The system notification callback function
  */
 const getSystemNotificationCallback = (mocks: {
-  addChannelCallback: jest.Mock;
+  addChannelCallback: Mock;
 }): ((notification: ServerNotificationMessage) => void) => {
   const systemCallbackCall = mocks.addChannelCallback.mock.calls.find(
     (call: unknown[]) =>
@@ -426,7 +428,7 @@ describe('AccountActivityService', () => {
         expect(service.name).toBe('AccountActivityService');
 
         // Status changed event is only published when WebSocket connects
-        const statusChangedEventListener = jest.fn();
+        const statusChangedEventListener = vi.fn();
         messenger.subscribe(
           'AccountActivityService:statusChanged',
           statusChangedEventListener,
@@ -482,13 +484,13 @@ describe('AccountActivityService', () => {
       });
 
       it('should track chains as up and down based on system notifications', async () => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         // Remove the random jitter so the debounce delay is exactly the base
         // window; jitter is covered separately below.
-        jest.spyOn(Math, 'random').mockReturnValue(0);
+        vi.spyOn(Math, 'random').mockReturnValue(0);
         try {
           await withService(async ({ messenger, mocks }) => {
-            const statusChangedEventListener = jest.fn();
+            const statusChangedEventListener = vi.fn();
             messenger.subscribe(
               'AccountActivityService:statusChanged',
               statusChangedEventListener,
@@ -506,7 +508,7 @@ describe('AccountActivityService', () => {
               timestamp: 1760344704595,
             });
 
-            jest.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(1000);
 
             expect(statusChangedEventListener).toHaveBeenCalledWith({
               chainIds: ['eip155:1', 'eip155:137'],
@@ -524,7 +526,7 @@ describe('AccountActivityService', () => {
               timestamp: 1760344704696,
             });
 
-            jest.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(1000);
 
             expect(statusChangedEventListener).toHaveBeenCalledWith({
               chainIds: ['eip155:137'],
@@ -532,18 +534,18 @@ describe('AccountActivityService', () => {
             });
           });
         } finally {
-          jest.useRealTimers();
+          vi.useRealTimers();
         }
       });
 
       it('accumulates notifications and publishes one batched event per status after the debounce window', async () => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         // Remove the random jitter so the debounce delay is exactly the base
         // window; jitter is covered separately below.
-        jest.spyOn(Math, 'random').mockReturnValue(0);
+        vi.spyOn(Math, 'random').mockReturnValue(0);
         try {
           await withService(async ({ messenger, mocks }) => {
-            const statusChangedEventListener = jest.fn();
+            const statusChangedEventListener = vi.fn();
             messenger.subscribe(
               'AccountActivityService:statusChanged',
               statusChangedEventListener,
@@ -574,7 +576,7 @@ describe('AccountActivityService', () => {
             // Nothing published yet - still within the debounce window
             expect(statusChangedEventListener).not.toHaveBeenCalled();
 
-            jest.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(1000);
 
             // One batched 'up' event and one batched 'down' event.
             expect(statusChangedEventListener).toHaveBeenCalledTimes(2);
@@ -588,18 +590,18 @@ describe('AccountActivityService', () => {
             });
           });
         } finally {
-          jest.useRealTimers();
+          vi.useRealTimers();
         }
       });
 
       it('resets the debounce timer on each notification', async () => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         // Remove the random jitter so the debounce delay is exactly the base
         // window; jitter is covered separately below.
-        jest.spyOn(Math, 'random').mockReturnValue(0);
+        vi.spyOn(Math, 'random').mockReturnValue(0);
         try {
           await withService(async ({ messenger, mocks }) => {
-            const statusChangedEventListener = jest.fn();
+            const statusChangedEventListener = vi.fn();
             messenger.subscribe(
               'AccountActivityService:statusChanged',
               statusChangedEventListener,
@@ -615,7 +617,7 @@ describe('AccountActivityService', () => {
 
             // A second notification part-way through the window resets the
             // timer, pushing the flush back another full window.
-            jest.advanceTimersByTime(500);
+            vi.advanceTimersByTime(500);
             systemCallback({
               event: 'system-notification',
               channel: 'system-notifications.v1.account-activity.v1',
@@ -625,11 +627,11 @@ describe('AccountActivityService', () => {
 
             // 1000ms after the first notification, but only 500ms after the
             // second: not flushed yet because the timer was reset.
-            jest.advanceTimersByTime(500);
+            vi.advanceTimersByTime(500);
             expect(statusChangedEventListener).not.toHaveBeenCalled();
 
             // A full window after the last notification flushes both chains.
-            jest.advanceTimersByTime(500);
+            vi.advanceTimersByTime(500);
             expect(statusChangedEventListener).toHaveBeenCalledTimes(1);
             expect(statusChangedEventListener).toHaveBeenCalledWith({
               chainIds: ['eip155:1', 'eip155:137'],
@@ -637,17 +639,17 @@ describe('AccountActivityService', () => {
             });
           });
         } finally {
-          jest.useRealTimers();
+          vi.useRealTimers();
         }
       });
 
       it('adds random jitter on top of the debounce window before publishing', async () => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         // Mid-range jitter: 1000ms debounce + 0.5 * 1000ms jitter = 1500ms.
-        jest.spyOn(Math, 'random').mockReturnValue(0.5);
+        vi.spyOn(Math, 'random').mockReturnValue(0.5);
         try {
           await withService(async ({ messenger, mocks }) => {
-            const statusChangedEventListener = jest.fn();
+            const statusChangedEventListener = vi.fn();
             messenger.subscribe(
               'AccountActivityService:statusChanged',
               statusChangedEventListener,
@@ -662,11 +664,11 @@ describe('AccountActivityService', () => {
             });
 
             // Not yet flushed at the base debounce window: jitter delays it.
-            jest.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(1000);
             expect(statusChangedEventListener).not.toHaveBeenCalled();
 
             // Flushed once the jittered delay elapses.
-            jest.advanceTimersByTime(500);
+            vi.advanceTimersByTime(500);
             expect(statusChangedEventListener).toHaveBeenCalledTimes(1);
             expect(statusChangedEventListener).toHaveBeenCalledWith({
               chainIds: ['eip155:1'],
@@ -674,18 +676,18 @@ describe('AccountActivityService', () => {
             });
           });
         } finally {
-          jest.useRealTimers();
+          vi.useRealTimers();
         }
       });
 
       it('drops buffered status changes when the WebSocket disconnects before the window elapses', async () => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         // Remove the random jitter so the debounce delay is exactly the base
         // window; jitter is covered separately below.
-        jest.spyOn(Math, 'random').mockReturnValue(0);
+        vi.spyOn(Math, 'random').mockReturnValue(0);
         try {
           await withService(async ({ messenger, rootMessenger, mocks }) => {
-            const statusChangedEventListener = jest.fn();
+            const statusChangedEventListener = vi.fn();
             messenger.subscribe(
               'AccountActivityService:statusChanged',
               statusChangedEventListener,
@@ -724,22 +726,22 @@ describe('AccountActivityService', () => {
             });
 
             // Advancing past the window must not emit the stale 'up' event.
-            jest.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(1000);
             expect(statusChangedEventListener).toHaveBeenCalledTimes(1);
           });
         } finally {
-          jest.useRealTimers();
+          vi.useRealTimers();
         }
       });
 
       it('publishes down on disconnect for chains whose buffered down was still pending', async () => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         // Remove the random jitter so the debounce delay is exactly the base
         // window; jitter is covered separately below.
-        jest.spyOn(Math, 'random').mockReturnValue(0);
+        vi.spyOn(Math, 'random').mockReturnValue(0);
         try {
           await withService(async ({ messenger, rootMessenger, mocks }) => {
-            const statusChangedEventListener = jest.fn();
+            const statusChangedEventListener = vi.fn();
             messenger.subscribe(
               'AccountActivityService:statusChanged',
               statusChangedEventListener,
@@ -755,7 +757,7 @@ describe('AccountActivityService', () => {
               data: { chainIds: ['eip155:1', 'eip155:137'], status: 'up' },
               timestamp: 1000,
             });
-            jest.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(1000);
             expect(statusChangedEventListener).toHaveBeenCalledWith({
               chainIds: ['eip155:1', 'eip155:137'],
               status: 'up',
@@ -793,22 +795,22 @@ describe('AccountActivityService', () => {
             });
 
             // Advancing past the window must not emit anything further.
-            jest.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(1000);
             expect(statusChangedEventListener).toHaveBeenCalledTimes(2);
           });
         } finally {
-          jest.useRealTimers();
+          vi.useRealTimers();
         }
       });
 
       it('cancels a pending debounced flush when the service is destroyed', async () => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         // Remove the random jitter so the debounce delay is exactly the base
         // window; jitter is covered separately below.
-        jest.spyOn(Math, 'random').mockReturnValue(0);
+        vi.spyOn(Math, 'random').mockReturnValue(0);
         try {
           await withService(async ({ service, messenger, mocks }) => {
-            const statusChangedEventListener = jest.fn();
+            const statusChangedEventListener = vi.fn();
             messenger.subscribe(
               'AccountActivityService:statusChanged',
               statusChangedEventListener,
@@ -825,11 +827,11 @@ describe('AccountActivityService', () => {
             // Destroying before the window elapses cancels the pending flush.
             service.destroy();
 
-            jest.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(1000);
             expect(statusChangedEventListener).not.toHaveBeenCalled();
           });
         } finally {
-          jest.useRealTimers();
+          vi.useRealTimers();
         }
       });
     });
@@ -837,7 +839,7 @@ describe('AccountActivityService', () => {
     describe('handleWebSocketStateChange', () => {
       it('should handle WebSocket ERROR state by publishing tracked chains as down', async () => {
         await withService(async ({ messenger, rootMessenger, mocks }) => {
-          const statusChangedEventListener = jest.fn();
+          const statusChangedEventListener = vi.fn();
           messenger.subscribe(
             'AccountActivityService:statusChanged',
             statusChangedEventListener,
@@ -883,7 +885,7 @@ describe('AccountActivityService', () => {
 
       it('should not publish status change on disconnect when no chains are tracked', async () => {
         await withService(async ({ messenger, rootMessenger, mocks }) => {
-          const statusChangedEventListener = jest.fn();
+          const statusChangedEventListener = vi.fn();
           messenger.subscribe(
             'AccountActivityService:statusChanged',
             statusChangedEventListener,
@@ -958,7 +960,7 @@ describe('AccountActivityService', () => {
           });
           mocks.subscribe.mockResolvedValue({
             subscriptionId: 'tron-sub-123',
-            unsubscribe: jest.fn(),
+            unsubscribe: vi.fn(),
           });
           const evmAccount = createMockInternalAccount({
             address: '0xEvmAddress123abc',
@@ -1058,7 +1060,7 @@ describe('AccountActivityService', () => {
           ]);
           mocks.subscribe.mockResolvedValue({
             subscriptionId: 'sub-789',
-            unsubscribe: jest.fn(),
+            unsubscribe: vi.fn(),
           });
 
           // Publish account change event for account1
@@ -1089,7 +1091,7 @@ describe('AccountActivityService', () => {
           async ({ rootMessenger, mocks, messenger, mockSelectedAccounts }) => {
             let capturedCallback: (
               notification: ServerNotificationMessage,
-            ) => void = jest.fn();
+            ) => void = vi.fn();
             // Mock the subscribe call to capture the callback
             mocks.subscribe.mockImplementation((options) => {
               // Capture the callback from the subscription options
@@ -1291,7 +1293,7 @@ describe('AccountActivityService', () => {
             ]);
             mocks.channelHasSubscription.mockReturnValue(true); // Already subscribed
             mocks.subscribe.mockResolvedValue({
-              unsubscribe: jest.fn(),
+              unsubscribe: vi.fn(),
             });
 
             // Publish account change event on root messenger
@@ -1319,13 +1321,13 @@ describe('AccountActivityService', () => {
             mocks.channelHasSubscription.mockReturnValue(false);
             mocks.findSubscriptionsByChannelPrefix.mockReturnValue([
               {
-                unsubscribe: jest
+                unsubscribe: vi
                   .fn()
                   .mockRejectedValue(new Error('Unsubscribe failed')),
               },
             ]);
             mocks.subscribe.mockResolvedValue({
-              unsubscribe: jest.fn(),
+              unsubscribe: vi.fn(),
             });
 
             // Publish account change event on root messenger
@@ -1347,11 +1349,11 @@ describe('AccountActivityService', () => {
       });
 
       it('switches account channels without publishing tracked chains down', async () => {
-        jest.useFakeTimers();
-        jest.spyOn(Math, 'random').mockReturnValue(0);
+        vi.useFakeTimers();
+        vi.spyOn(Math, 'random').mockReturnValue(0);
         try {
           await withService(async ({ messenger, rootMessenger, mocks }) => {
-            const statusChangedEventListener = jest.fn();
+            const statusChangedEventListener = vi.fn();
             messenger.subscribe(
               'AccountActivityService:statusChanged',
               statusChangedEventListener,
@@ -1364,14 +1366,14 @@ describe('AccountActivityService', () => {
               data: { chainIds: ['eip155:1'], status: 'up' },
               timestamp: 1000,
             });
-            jest.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(1000);
             statusChangedEventListener.mockClear();
 
             mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
               createMockInternalAccount({ address: '0x123abc' }),
             ]);
             mocks.findSubscriptionsByChannelPrefix.mockReturnValue([
-              { unsubscribe: jest.fn() },
+              { unsubscribe: vi.fn() },
             ]);
 
             rootMessenger.publish(
@@ -1385,8 +1387,8 @@ describe('AccountActivityService', () => {
             expect(statusChangedEventListener).not.toHaveBeenCalled();
           });
         } finally {
-          jest.restoreAllMocks();
-          jest.useRealTimers();
+          vi.restoreAllMocks();
+          vi.useRealTimers();
         }
       });
 
@@ -1441,7 +1443,7 @@ describe('AccountActivityService', () => {
           mocks.getFeatureFlagState.mockReturnValue(featureFlagState(0));
           mocks.subscribe.mockResolvedValue({
             subscriptionId: 'sub-123',
-            unsubscribe: jest.fn(),
+            unsubscribe: vi.fn(),
           });
 
           // Connect with the Solana flag off: no subscription
@@ -1487,7 +1489,7 @@ describe('AccountActivityService', () => {
           ]);
           mocks.subscribe.mockResolvedValue({
             subscriptionId: 'sub-123',
-            unsubscribe: jest.fn(),
+            unsubscribe: vi.fn(),
           });
 
           // Prime the selector cache with an initial publish
@@ -1516,11 +1518,11 @@ describe('AccountActivityService', () => {
       });
 
       it('publishes every tracked chain as down when a migration flag change unsubscribes account activity', async () => {
-        jest.useFakeTimers();
-        jest.spyOn(Math, 'random').mockReturnValue(0);
+        vi.useFakeTimers();
+        vi.spyOn(Math, 'random').mockReturnValue(0);
         try {
           await withService(async ({ messenger, rootMessenger, mocks }) => {
-            const statusChangedEventListener = jest.fn();
+            const statusChangedEventListener = vi.fn();
             messenger.subscribe(
               'AccountActivityService:statusChanged',
               statusChangedEventListener,
@@ -1538,7 +1540,7 @@ describe('AccountActivityService', () => {
               },
               timestamp: 1000,
             });
-            jest.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(1000);
             statusChangedEventListener.mockClear();
 
             mocks.getFeatureFlagState.mockReturnValue(featureFlagState(0));
@@ -1546,7 +1548,7 @@ describe('AccountActivityService', () => {
               createMockInternalAccount({ address: '0xevmaccount' }),
             ]);
             mocks.findSubscriptionsByChannelPrefix.mockReturnValue([
-              { unsubscribe: jest.fn() },
+              { unsubscribe: vi.fn() },
             ]);
 
             rootMessenger.publish(
@@ -1574,7 +1576,7 @@ describe('AccountActivityService', () => {
               },
               timestamp: 2000,
             });
-            jest.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(1000);
             expect(statusChangedEventListener).toHaveBeenCalledTimes(2);
             expect(statusChangedEventListener).toHaveBeenLastCalledWith({
               chainIds: ['eip155:1', solanaChainId],
@@ -1582,17 +1584,17 @@ describe('AccountActivityService', () => {
             });
           });
         } finally {
-          jest.restoreAllMocks();
-          jest.useRealTimers();
+          vi.restoreAllMocks();
+          vi.useRealTimers();
         }
       });
 
       it('flushes every pending chain as down when a migration flag change unsubscribes account activity', async () => {
-        jest.useFakeTimers();
-        jest.spyOn(Math, 'random').mockReturnValue(0);
+        vi.useFakeTimers();
+        vi.spyOn(Math, 'random').mockReturnValue(0);
         try {
           await withService(async ({ messenger, rootMessenger, mocks }) => {
-            const statusChangedEventListener = jest.fn();
+            const statusChangedEventListener = vi.fn();
             messenger.subscribe(
               'AccountActivityService:statusChanged',
               statusChangedEventListener,
@@ -1622,12 +1624,12 @@ describe('AccountActivityService', () => {
               timestamp: expect.any(Number),
             });
 
-            jest.advanceTimersByTime(1000);
+            vi.advanceTimersByTime(1000);
             expect(statusChangedEventListener).toHaveBeenCalledTimes(1);
           });
         } finally {
-          jest.restoreAllMocks();
-          jest.useRealTimers();
+          vi.restoreAllMocks();
+          vi.useRealTimers();
         }
       });
 

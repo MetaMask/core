@@ -12,6 +12,9 @@
       "path": "../address-book-controller/tsconfig.build.json"
     },
     {
+      "path": "../analytics-controller/tsconfig.build.json"
+    },
+    {
       "path": "../approval-controller/tsconfig.build.json"
     },
     {
@@ -76,6 +79,9 @@
     },
     {
       "path": "../utils/tsconfig.build.json"
+    },
+    {
+      "path": "../geolocation-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

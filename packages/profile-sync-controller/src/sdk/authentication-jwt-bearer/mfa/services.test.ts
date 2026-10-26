@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { Env } from '../../../shared/env.js';
 import {
   CredentialAlreadyEnrolledError,
@@ -24,6 +26,8 @@ import {
 import {
   buildTotpSetupUri,
   getMfaCredentials,
+  MFA_APPROVALS_URL,
+  mfaApproval,
   mfaEnroll,
   mfaEnrollComplete,
   mfaVerify,
@@ -33,7 +37,7 @@ import {
   toEnrolledCredential,
 } from './services.js';
 
-const mockFetch = jest.fn();
+const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 const registration = {
@@ -666,5 +670,96 @@ describe('MFA services', () => {
     );
     expect(error).toBeInstanceOf(MfaUnavailableError);
     expect(error.status).toBeUndefined();
+  });
+
+  describe('mfaApproval', () => {
+    const requestHash = `0x${'a'.repeat(64)}`;
+    const passkeyIdentifier = {
+      type: 'passkey',
+      namespace: 'authentication.api.cx.metamask.io',
+      value: 'credential-id',
+      verifier: {
+        credentialId: 'credential-id',
+        publicKey: { cose: 'cose-key' },
+        rpId: 'authentication.api.cx.metamask.io',
+        origins: ['https://authentication.api.cx.metamask.io'],
+      },
+    };
+
+    it('requests an approval and returns the identifiers with all their fields', async () => {
+      mockFetch.mockResolvedValueOnce(
+        response({
+          approval: 'approval-jwt',
+          expires_in: 300,
+          identifiers: [passkeyIdentifier],
+        }),
+      );
+
+      expect(
+        await mfaApproval(Env.PRD, 'access-token', {
+          request_hash: requestHash,
+          audiences: ['escrow'],
+        }),
+      ).toStrictEqual({
+        approval: 'approval-jwt',
+        expiresIn: 300,
+        identifiers: [passkeyIdentifier],
+      });
+      const [url, init] = mockFetch.mock.calls[0] as [
+        string,
+        { method: string; headers: Record<string, string>; body: string },
+      ];
+      expect(url).toBe(MFA_APPROVALS_URL(Env.PRD));
+      expect(init.method).toBe('POST');
+      expect(init.headers.Authorization).toBe('Bearer access-token');
+      expect(JSON.parse(init.body)).toStrictEqual({
+        request_hash: requestHash,
+        audiences: ['escrow'],
+      });
+    });
+
+    it('leaves out identifiers the server did not send', async () => {
+      mockFetch.mockResolvedValueOnce(
+        response({ approval: 'approval-jwt', expires_in: 60 }),
+      );
+
+      expect(
+        await mfaApproval(Env.PRD, 'access-token', {
+          request_hash: requestHash,
+          audiences: ['escrow'],
+          include_identifiers: false,
+        }),
+      ).toStrictEqual({ approval: 'approval-jwt', expiresIn: 60 });
+    });
+
+    it('asks to verify again when the verification is too old', async () => {
+      mockFetch.mockResolvedValueOnce(
+        response(
+          { code: 'authentication_required', message: 'stale auth_time' },
+          { status: 403 },
+        ),
+      );
+
+      const error = await mfaApproval(Env.PRD, 'access-token', {
+        request_hash: requestHash,
+        audiences: ['escrow'],
+      }).catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(StepUpRequiredError);
+      expect(error).toMatchObject({ mfaCode: 'aal2_required', status: 403 });
+    });
+
+    it('rejects an approval without a lifetime', async () => {
+      mockFetch.mockResolvedValueOnce(
+        response({ approval: 'approval-jwt', expires_in: 0 }),
+      );
+
+      await expect(
+        mfaApproval(Env.PRD, 'access-token', {
+          request_hash: requestHash,
+          audiences: ['escrow'],
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_response' });
+    });
   });
 });

@@ -23,6 +23,7 @@ import { asRecord } from '../../utils/as-record.js';
 import { toErrorMessage } from '../../utils/to-error-message.js';
 import {
   AuthenticationResponseJSONStruct,
+  MfaApprovalResponseStruct,
   MfaCredentialsResponseStruct,
   MfaEnrollCompleteResponseStruct,
   MfaEnrollResponseStruct,
@@ -38,6 +39,8 @@ import {
 import type {
   AuthenticationResponseJSON,
   EnrolledCredential,
+  MfaApproval,
+  MfaApprovalRequest,
   MfaCredential,
   MfaCredentialStatus,
   MfaCredentialType,
@@ -64,6 +67,9 @@ export const MFA_VERIFY_COMPLETE_URL = (env: Env): string =>
 
 export const MFA_CREDENTIALS_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/mfa/credentials`;
+
+export const MFA_APPROVALS_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/mfa/approvals`;
 
 type EnrollmentServiceResult = {
   flowId: string;
@@ -319,7 +325,12 @@ async function throwMfaError(
       throw new CredentialAlreadyEnrolledError(code, message, status);
     case 'credential_not_enrolled':
       throw new CredentialNotEnrolledError(message, status);
+    // With a body code, `authentication_required` is not a 401 (handled
+    // above): the session is valid, but the verification behind it is too old
+    // for the request (approvals answer 403). Verifying again fixes it, while
+    // `authentication_required` would end the session.
     case 'aal2_required':
+    case 'authentication_required':
       throw new StepUpRequiredError(message, status);
     case 'flow_expired':
     case 'invalid_flow':
@@ -625,4 +636,30 @@ export async function getMfaCredentials(
     .filter((credential): credential is EnrolledCredential =>
       Boolean(credential),
     );
+}
+
+/**
+ * Requests an approval bound to one request, for the services in `audiences`.
+ *
+ * @param env - Authentication environment.
+ * @param accessToken - Base session token, or a verification token when the
+ * approval must prove a recent 2-step verification.
+ * @param body - Request digest, audiences and whether to list identifiers.
+ * @returns The approval, its lifetime and the recovery identifiers.
+ */
+export async function mfaApproval(
+  env: Env,
+  accessToken: string,
+  body: MfaApprovalRequest,
+): Promise<MfaApproval> {
+  const json = await requestJson(MFA_APPROVALS_URL(env), accessToken, {
+    method: 'POST',
+    body,
+  });
+  assertValidMfaResponse(json, MfaApprovalResponseStruct);
+  return {
+    approval: json.approval,
+    expiresIn: json.expires_in,
+    ...(json.identifiers ? { identifiers: json.identifiers } : {}),
+  };
 }

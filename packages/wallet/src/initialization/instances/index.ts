@@ -1,5 +1,6 @@
 export { accountsController } from './accounts-controller/accounts-controller.js';
 export { addressBookController } from './address-book-controller/address-book-controller.js';
+export { analyticsController } from './analytics-controller/analytics-controller.js';
 export { approvalController } from './approval-controller/approval-controller.js';
 export { claimsController } from './claims-controller/claims-controller.js';
 export { claimsService } from './claims-service/claims-service.js';
@@ -8,6 +9,8 @@ export { configRegistryApiService } from './config-registry-api-service/config-r
 export { configRegistryController } from './config-registry-controller/config-registry-controller.js';
 export { connectivityController } from './connectivity-controller/connectivity-controller.js';
 export { gasFeeController } from './gas-fee-controller/gas-fee-controller.js';
+export { geolocationApiService } from './geolocation-api-service/geolocation-api-service.js';
+export { geolocationController } from './geolocation-controller/geolocation-controller.js';
 export { keyringController } from './keyring-controller/keyring-controller.js';
 export { loggingController } from './logging-controller/logging-controller.js';
 export { networkController } from './network-controller/network-controller.js';

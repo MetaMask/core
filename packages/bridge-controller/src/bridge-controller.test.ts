@@ -1,4 +1,4 @@
-/* eslint-disable jest/no-restricted-matchers */
+/* eslint-disable vitest/no-restricted-matchers */
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { handleFetch } from '@metamask/controller-utils';
 import {
@@ -16,8 +16,10 @@ import type {
 } from '@metamask/messenger';
 import type { CaipAssetType } from '@metamask/utils';
 import nock from 'nock';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import { mockBridgeQuotesErc20NativeV1 } from '../tests/mock-quotes-erc20-native.js';
 import {
   mockBridgeQuotesNativeErc20EthV1,
@@ -67,21 +69,21 @@ import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 
-jest.mock('uuid', () => ({
+vi.mock('uuid', () => ({
   v4: (): string => 'test-uuid-1234',
 }));
 
-jest.mock('@ethersproject/contracts', () => {
+vi.mock('@ethersproject/contracts', async (importOriginal) => {
   return {
-    ...jest.requireActual('@ethersproject/contracts'),
-    Contract: jest.fn(),
+    ...(await importOriginal<typeof import('@ethersproject/contracts')>()),
+    Contract: vi.fn(),
   };
 });
 
-const getLayer1GasFeeMock = jest.fn();
+const getLayer1GasFeeMock = vi.fn();
 const mockFetchFn = handleFetch;
-const trackMetaMetricsFn = jest.fn();
-let fetchAssetPricesSpy: jest.SpyInstance;
+const trackMetaMetricsFn = vi.fn();
+let fetchAssetPricesSpy: MockInstance;
 
 const bridgeConfig = {
   minimumVersion: '0.0.0',
@@ -135,7 +137,7 @@ const BRIDGE_CONTROLLER_ALLOWED_EXTERNAL_ACTIONS = [
   'AssetsController:getExchangeRatesForBridge',
 ] as const;
 
-const messengerCallMock = jest.fn();
+const messengerCallMock = vi.fn();
 
 type WithControllerCallback<ReturnValue> = (payload: {
   controller: BridgeController;
@@ -186,8 +188,8 @@ async function withController<ReturnValue>(
 
 describe('BridgeController', function () {
   beforeEach(function () {
-    jest.clearAllMocks();
-    jest.clearAllTimers();
+    vi.clearAllMocks();
+    vi.clearAllTimers();
 
     nock(BRIDGE_PROD_API_BASE_URL)
       .get('/getTokens?chainId=10')
@@ -213,7 +215,7 @@ describe('BridgeController', function () {
         },
       ]);
 
-    fetchAssetPricesSpy = jest
+    fetchAssetPricesSpy = vi
       .spyOn(fetchUtils, 'fetchAssetPrices')
       .mockResolvedValue({
         'eip155:10/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984': {
@@ -278,7 +280,7 @@ describe('BridgeController', function () {
 
         expect(bridgeController.state).toStrictEqual(EMPTY_INIT_STATE);
 
-        const setIntervalLengthSpy = jest.spyOn(
+        const setIntervalLengthSpy = vi.spyOn(
           bridgeController,
           'setIntervalLength',
         );
@@ -448,21 +450,18 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should not call fetchBridgeQuotes if SSE is enabled', async function () {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
-        const stopAllPollingSpy = jest.spyOn(
-          bridgeController,
-          'stopAllPolling',
-        );
-        const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
-        const hasSufficientBalanceSpy = jest
+        const stopAllPollingSpy = vi.spyOn(bridgeController, 'stopAllPolling');
+        const startPollingSpy = vi.spyOn(bridgeController, 'startPolling');
+        const hasSufficientBalanceSpy = vi
           .spyOn(balanceUtils, 'hasSufficientBalance')
           .mockResolvedValue(true);
 
         messengerCallMock.mockReturnValue({
           address: '0x123',
-          provider: jest.fn(),
+          provider: vi.fn(),
           currencyRates: {},
           marketData: {},
           conversionRates: {},
@@ -474,7 +473,7 @@ describe('BridgeController', function () {
           },
         });
 
-        const fetchQuotesStreamSpy = jest
+        const fetchQuotesStreamSpy = vi
           .spyOn(fetchUtils, 'fetchBridgeQuoteStream')
           .mockImplementationOnce(async () => {
             return await new Promise((resolve) => {
@@ -483,10 +482,7 @@ describe('BridgeController', function () {
               }, 1000);
             });
           });
-        const fetchBridgeQuotesSpy = jest.spyOn(
-          fetchUtils,
-          'fetchBridgeQuotes',
-        );
+        const fetchBridgeQuotesSpy = vi.spyOn(fetchUtils, 'fetchBridgeQuotes');
 
         const quoteParams = {
           srcChainId: '0x1',
@@ -537,7 +533,7 @@ describe('BridgeController', function () {
           }),
         );
 
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         expect(fetchBridgeQuotesSpy).not.toHaveBeenCalled();
         expect(fetchQuotesStreamSpy).toHaveBeenCalledTimes(1);
@@ -547,15 +543,12 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should trigger quote polling if request is valid', async function () {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
-        const stopAllPollingSpy = jest.spyOn(
-          bridgeController,
-          'stopAllPolling',
-        );
-        const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
-        const hasSufficientBalanceSpy = jest
+        const stopAllPollingSpy = vi.spyOn(bridgeController, 'stopAllPolling');
+        const startPollingSpy = vi.spyOn(bridgeController, 'startPolling');
+        const hasSufficientBalanceSpy = vi
           .spyOn(balanceUtils, 'hasSufficientBalance')
           .mockResolvedValue(true);
         messengerCallMock.mockImplementation(
@@ -566,7 +559,7 @@ describe('BridgeController', function () {
               default:
                 return {
                   address: '0x123',
-                  provider: jest.fn(),
+                  provider: vi.fn(),
                   currencyRates: {},
                   marketData: {},
                   conversionRates: {},
@@ -581,7 +574,7 @@ describe('BridgeController', function () {
           },
         );
 
-        const fetchBridgeQuotesSpy = jest
+        const fetchBridgeQuotesSpy = vi
           .spyOn(fetchUtils, 'fetchBridgeQuotes')
           .mockImplementationOnce(async () => {
             return await new Promise((resolve) => {
@@ -630,9 +623,9 @@ describe('BridgeController', function () {
           });
         });
 
-        const consoleLogSpy = jest
+        const consoleLogSpy = vi
           .spyOn(console, 'log')
-          .mockImplementationOnce(jest.fn());
+          .mockImplementationOnce(vi.fn());
 
         const quoteParams = {
           srcChainId: '0x1',
@@ -684,7 +677,7 @@ describe('BridgeController', function () {
         );
 
         // Loading state
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await flushPromises();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
@@ -721,7 +714,7 @@ describe('BridgeController', function () {
         );
 
         // After first fetch
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
@@ -741,9 +734,9 @@ describe('BridgeController', function () {
 
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         // After 2nd fetch
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
@@ -769,9 +762,9 @@ describe('BridgeController', function () {
         expect(secondFetchTime).toBeGreaterThan(firstFetchTime!);
 
         // After 3nd fetch throws an error
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
         expect(bridgeController.state).toStrictEqual(
@@ -796,7 +789,7 @@ describe('BridgeController', function () {
         const thirdFetchTime = bridgeController.state.quotesLastFetched;
 
         // Incoming request update aborts current polling
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -822,9 +815,9 @@ describe('BridgeController', function () {
         );
 
         // Next fetch succeeds
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(4);
         const { quotesLastFetched, quotes, ...stateWithoutTimestamp } =
@@ -851,19 +844,17 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should reset minimumBalanceForRentExemptionInLamports if getMinimumBalanceForRentExemption call fails', async function () {
-    jest.useFakeTimers();
-    jest.clearAllMocks();
+    vi.useFakeTimers();
+    vi.clearAllMocks();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
-        jest
-          .spyOn(balanceUtils, 'hasSufficientBalance')
-          .mockResolvedValue(false);
-        const consoleErrorSpy = jest
+        vi.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(false);
+        const consoleErrorSpy = vi
           .spyOn(console, 'error')
-          .mockImplementation(jest.fn());
-        const consoleWarnSpy = jest
+          .mockImplementation(vi.fn());
+        const consoleWarnSpy = vi
           .spyOn(console, 'warn')
-          .mockImplementation(jest.fn());
+          .mockImplementation(vi.fn());
 
         const setupMessengerMock = (shouldMinBalanceFail = false): void => {
           messengerCallMock.mockImplementation(
@@ -940,17 +931,17 @@ describe('BridgeController', function () {
                 });
               }
               return {
-                provider: jest.fn() as never,
+                provider: vi.fn() as never,
               } as never;
             },
           );
         };
-        jest
-          .spyOn(selectors, 'selectIsAssetExchangeRateInState')
-          .mockReturnValue(true);
+        vi.spyOn(selectors, 'selectIsAssetExchangeRateInState').mockReturnValue(
+          true,
+        );
 
         setupMessengerMock();
-        const fetchBridgeQuotesSpy = jest
+        const fetchBridgeQuotesSpy = vi
           .spyOn(fetchUtils, 'fetchBridgeQuotes')
           .mockImplementation(async () => {
             return await new Promise((resolve) => {
@@ -993,9 +984,9 @@ describe('BridgeController', function () {
         );
 
         // Advance timers and check loading state
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         expect(bridgeController.state).toStrictEqual(
@@ -1007,9 +998,9 @@ describe('BridgeController', function () {
         );
 
         // Advance timers and check final state
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
@@ -1048,7 +1039,7 @@ describe('BridgeController', function () {
           { ...quoteParams, srcChainId: '0x1' },
           metricsContext,
         );
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
             minimumBalanceForRentExemptionInLamports: '0',
@@ -1065,7 +1056,7 @@ describe('BridgeController', function () {
           { ...quoteParams, destWalletAddress: 'SolanaWalletAddres1234' },
           metricsContext,
         );
-        jest.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(2000);
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
             minimumBalanceForRentExemptionInLamports: '0',
@@ -1079,13 +1070,13 @@ describe('BridgeController', function () {
           quoteParams,
           metricsContext,
         );
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(3);
         expect(bridgeController.state).toStrictEqual(
@@ -1128,13 +1119,13 @@ describe('BridgeController', function () {
         );
 
         // Check states during failure scenario
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(4);
         expect(bridgeController.state).toStrictEqual(
@@ -1183,15 +1174,12 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should only poll once if insufficientBal=true', async function () {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
-        const stopAllPollingSpy = jest.spyOn(
-          bridgeController,
-          'stopAllPolling',
-        );
-        const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
-        const hasSufficientBalanceSpy = jest
+        const stopAllPollingSpy = vi.spyOn(bridgeController, 'stopAllPolling');
+        const startPollingSpy = vi.spyOn(bridgeController, 'startPolling');
+        const hasSufficientBalanceSpy = vi
           .spyOn(balanceUtils, 'hasSufficientBalance')
           .mockResolvedValue(false);
         messengerCallMock.mockImplementation(
@@ -1202,7 +1190,7 @@ describe('BridgeController', function () {
               default:
                 return {
                   address: '0x123',
-                  provider: jest.fn(),
+                  provider: vi.fn(),
                   currentCurrency: 'usd',
                   currencyRates: {},
                   marketData: {},
@@ -1211,11 +1199,11 @@ describe('BridgeController', function () {
             }
           },
         );
-        jest
-          .spyOn(selectors, 'selectIsAssetExchangeRateInState')
-          .mockReturnValue(true);
+        vi.spyOn(selectors, 'selectIsAssetExchangeRateInState').mockReturnValue(
+          true,
+        );
 
-        const fetchBridgeQuotesSpy = jest
+        const fetchBridgeQuotesSpy = vi
           .spyOn(fetchUtils, 'fetchBridgeQuotes')
           .mockImplementationOnce(async () => {
             return await new Promise((resolve) => {
@@ -1287,7 +1275,7 @@ describe('BridgeController', function () {
         );
 
         // Loading state
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await flushPromises();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
@@ -1325,7 +1313,7 @@ describe('BridgeController', function () {
         );
 
         // After first fetch
-        jest.advanceTimersByTime(10000);
+        vi.advanceTimersByTime(10000);
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
@@ -1366,7 +1354,7 @@ describe('BridgeController', function () {
         expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
 
         // After 2nd fetch
-        jest.advanceTimersByTime(50000);
+        vi.advanceTimersByTime(50000);
         await flushPromises();
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         expect(bridgeController.state).toStrictEqual(
@@ -1393,15 +1381,12 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should set insufficientBal=true if RPC provider is tenderly', async function () {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
-        const stopAllPollingSpy = jest.spyOn(
-          bridgeController,
-          'stopAllPolling',
-        );
-        const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
-        const hasSufficientBalanceSpy = jest
+        const stopAllPollingSpy = vi.spyOn(bridgeController, 'stopAllPolling');
+        const startPollingSpy = vi.spyOn(bridgeController, 'startPolling');
+        const hasSufficientBalanceSpy = vi
           .spyOn(balanceUtils, 'hasSufficientBalance')
           .mockResolvedValue(false);
 
@@ -1440,12 +1425,12 @@ describe('BridgeController', function () {
               } as never;
             }
             return {
-              provider: jest.fn() as never,
+              provider: vi.fn() as never,
             } as never;
           },
         );
 
-        const fetchBridgeQuotesSpy = jest
+        const fetchBridgeQuotesSpy = vi
           .spyOn(fetchUtils, 'fetchBridgeQuotes')
           .mockImplementationOnce(async () => {
             return await new Promise((resolve) => {
@@ -1505,11 +1490,11 @@ describe('BridgeController', function () {
         });
 
         // Loading state
-        jest.advanceTimersByTime(1000);
+        vi.advanceTimersByTime(1000);
         await flushPromises();
 
         // After first fetch
-        jest.advanceTimersByTime(10000);
+        vi.advanceTimersByTime(10000);
         await flushPromises();
         expect(bridgeController.state).toStrictEqual(
           expect.objectContaining({
@@ -1535,14 +1520,11 @@ describe('BridgeController', function () {
   it('updateBridgeQuoteRequestParams should not trigger quote polling if request is invalid', async function () {
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
-        const stopAllPollingSpy = jest.spyOn(
-          bridgeController,
-          'stopAllPolling',
-        );
-        const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
+        const stopAllPollingSpy = vi.spyOn(bridgeController, 'stopAllPolling');
+        const startPollingSpy = vi.spyOn(bridgeController, 'startPolling');
         messengerCallMock.mockReturnValue({
           address: '0x123WalletAddress',
-          provider: jest.fn(),
+          provider: vi.fn(),
         });
 
         await rootMessenger.call(
@@ -1587,14 +1569,11 @@ describe('BridgeController', function () {
   it('updateBridgeQuoteRequestParams should not trigger quote polling if bridging to or from solana and destWalletAddress is undefined', async function () {
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
-        const stopAllPollingSpy = jest.spyOn(
-          bridgeController,
-          'stopAllPolling',
-        );
-        const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
+        const stopAllPollingSpy = vi.spyOn(bridgeController, 'stopAllPolling');
+        const startPollingSpy = vi.spyOn(bridgeController, 'startPolling');
         messengerCallMock.mockReturnValue({
           address: '0xabcWalletAddress',
-          provider: jest.fn(),
+          provider: vi.fn(),
         });
 
         await rootMessenger.call(
@@ -1637,15 +1616,15 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should include undefined Authentication header if getBearerToken throws an error', async function () {
-    const consoleErrorSpy = jest
+    const consoleErrorSpy = vi
       .spyOn(console, 'error')
-      .mockImplementationOnce(jest.fn())
-      .mockImplementationOnce(jest.fn());
-    jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
-    jest.useFakeTimers();
+      .mockImplementationOnce(vi.fn())
+      .mockImplementationOnce(vi.fn());
+    vi.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
+    vi.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
-        const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
+        const startPollingSpy = vi.spyOn(bridgeController, 'startPolling');
         messengerCallMock.mockImplementation(
           (...args: Parameters<BridgeControllerMessenger['call']>) => {
             switch (args[0]) {
@@ -1656,7 +1635,7 @@ describe('BridgeController', function () {
               default:
                 return {
                   address: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
-                  provider: jest.fn(),
+                  provider: vi.fn(),
                   currentCurrency: 'usd',
                   currencyRates: {},
                   marketData: {},
@@ -1665,11 +1644,11 @@ describe('BridgeController', function () {
             }
           },
         );
-        jest
-          .spyOn(selectors, 'selectIsAssetExchangeRateInState')
-          .mockReturnValue(true);
+        vi.spyOn(selectors, 'selectIsAssetExchangeRateInState').mockReturnValue(
+          true,
+        );
 
-        const fetchBridgeQuotesSpy = jest
+        const fetchBridgeQuotesSpy = vi
           .spyOn(fetchUtils, 'fetchBridgeQuotes')
           .mockImplementationOnce(async () => {
             return await new Promise((resolve) => {
@@ -1720,11 +1699,11 @@ describe('BridgeController', function () {
   });
 
   it('updateBridgeQuoteRequestParams should include auth token as Authentication header', async function () {
-    jest.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
-    jest.useFakeTimers();
+    vi.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
+    vi.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
-        const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
+        const startPollingSpy = vi.spyOn(bridgeController, 'startPolling');
         messengerCallMock.mockImplementation(
           (...args: Parameters<BridgeControllerMessenger['call']>) => {
             switch (args[0]) {
@@ -1733,7 +1712,7 @@ describe('BridgeController', function () {
               default:
                 return {
                   address: '0x141d32a89a1e0a5Ef360034a2f60a4B917c18838',
-                  provider: jest.fn(),
+                  provider: vi.fn(),
                   currentCurrency: 'usd',
                   currencyRates: {},
                   marketData: {},
@@ -1742,14 +1721,12 @@ describe('BridgeController', function () {
             }
           },
         );
-        jest
-          .spyOn(selectors, 'selectIsAssetExchangeRateInState')
-          .mockReturnValue(true);
+        vi.spyOn(selectors, 'selectIsAssetExchangeRateInState').mockReturnValue(
+          true,
+        );
 
-        jest
-          .spyOn(balanceUtils, 'hasSufficientBalance')
-          .mockResolvedValue(true);
-        const fetchBridgeQuotesSpy = jest
+        vi.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
+        const fetchBridgeQuotesSpy = vi
           .spyOn(fetchUtils, 'fetchBridgeQuotes')
           .mockImplementationOnce(async () => {
             return await new Promise((resolve) => {
@@ -1829,18 +1806,16 @@ describe('BridgeController', function () {
       )[],
       [expectedQuotesLength, expectedGetLayer1GasFeeMockCallCount]: number[],
     ) => {
-      const errorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation(jest.fn());
-      jest.useFakeTimers();
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(vi.fn());
+      vi.useFakeTimers();
       await withController(
         async ({ controller: bridgeController, rootMessenger }) => {
-          const stopAllPollingSpy = jest.spyOn(
+          const stopAllPollingSpy = vi.spyOn(
             bridgeController,
             'stopAllPolling',
           );
-          const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
-          const hasSufficientBalanceSpy = jest
+          const startPollingSpy = vi.spyOn(bridgeController, 'startPolling');
+          const hasSufficientBalanceSpy = vi
             .spyOn(balanceUtils, 'hasSufficientBalance')
             .mockResolvedValue(false);
           messengerCallMock.mockImplementation(
@@ -1851,7 +1826,7 @@ describe('BridgeController', function () {
                 default:
                   return {
                     address: '0x123',
-                    provider: jest.fn(),
+                    provider: vi.fn(),
                   } as never;
               }
             },
@@ -1878,7 +1853,7 @@ describe('BridgeController', function () {
             );
           }
 
-          const fetchBridgeQuotesSpy = jest
+          const fetchBridgeQuotesSpy = vi
             .spyOn(fetchUtils, 'fetchBridgeQuotes')
             .mockImplementationOnce(async () => {
               return await new Promise((resolve) => {
@@ -1934,7 +1909,7 @@ describe('BridgeController', function () {
           );
 
           // Loading state
-          jest.advanceTimersByTime(500);
+          vi.advanceTimersByTime(500);
           await flushPromises();
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledWith(
@@ -1970,7 +1945,7 @@ describe('BridgeController', function () {
           );
 
           // After first fetch
-          jest.advanceTimersByTime(1500);
+          vi.advanceTimersByTime(1500);
           await flushPromises();
           const { quotes } = bridgeController.state;
           expect(quotes).toHaveLength(expectedQuotesLength);
@@ -1992,7 +1967,7 @@ describe('BridgeController', function () {
               ...quote,
               l1GasFeesInHexWei: totalL1GasFeesInHexWei,
             };
-            // eslint-disable-next-line jest/prefer-strict-equal
+            // eslint-disable-next-line vitest/prefer-strict-equal
             expect(quote).toEqual(expectedQuote);
           });
 
@@ -2010,25 +1985,20 @@ describe('BridgeController', function () {
   );
 
   it('should handle errors from fetchBridgeQuotes', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
-        const fetchBridgeQuotesSpy = jest.spyOn(
-          fetchUtils,
-          'fetchBridgeQuotes',
-        );
+        const fetchBridgeQuotesSpy = vi.spyOn(fetchUtils, 'fetchBridgeQuotes');
         messengerCallMock.mockReturnValue({
           address: '0x123',
-          provider: jest.fn(),
+          provider: vi.fn(),
         });
 
-        jest
-          .spyOn(balanceUtils, 'hasSufficientBalance')
-          .mockResolvedValue(true);
+        vi.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
 
-        const consoleLogSpy = jest
+        const consoleLogSpy = vi
           .spyOn(console, 'log')
-          .mockImplementationOnce(jest.fn());
+          .mockImplementationOnce(vi.fn());
 
         // Fetch throws unknown Error
         fetchBridgeQuotesSpy.mockImplementationOnce(async () => {
@@ -2077,9 +2047,9 @@ describe('BridgeController', function () {
         );
 
         // Advance timers to trigger fetch
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
         // Verify state wasn't updated due to abort
         expect(bridgeController.state.quoteFetchError).toBe('Other error');
@@ -2101,9 +2071,9 @@ describe('BridgeController', function () {
           metricsContext,
         );
 
-        jest.advanceTimersToNextTimer();
+        vi.advanceTimersToNextTimer();
         await flushPromises();
-        jest.advanceTimersByTime(10000);
+        vi.advanceTimersByTime(10000);
         await flushPromises();
         const { quotes, quotesLastFetched, ...stateWithoutQuotes } =
           bridgeController.state;
@@ -2112,7 +2082,7 @@ describe('BridgeController', function () {
         expect(quotes).toStrictEqual(getMockBridgeQuotesNativeErc20EthV2());
         expect(quotesLastFetched).toBeCloseTo(Date.now() - 10000);
 
-        jest.advanceTimersByTime(10000);
+        vi.advanceTimersByTime(10000);
         await flushPromises();
         const {
           quotes: quotes2,
@@ -2134,7 +2104,7 @@ describe('BridgeController', function () {
   });
 
   it('returns early on AbortError without updating post-fetch state', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
         const abortError = new Error('Aborted');
@@ -2143,7 +2113,7 @@ describe('BridgeController', function () {
         // @ts-ignore
         abortError.name = 'AbortError';
 
-        const fetchBridgeQuotesSpy = jest
+        const fetchBridgeQuotesSpy = vi
           .spyOn(fetchUtils, 'fetchBridgeQuotes')
           .mockImplementationOnce(
             async () =>
@@ -2155,15 +2125,13 @@ describe('BridgeController', function () {
         // Minimal messenger/env setup to allow polling to start
         messengerCallMock.mockReturnValue({
           address: '0x123',
-          provider: jest.fn(),
+          provider: vi.fn(),
           currencyRates: {},
           marketData: {},
           conversionRates: {},
         });
 
-        jest
-          .spyOn(balanceUtils, 'hasSufficientBalance')
-          .mockResolvedValue(true);
+        vi.spyOn(balanceUtils, 'hasSufficientBalance').mockResolvedValue(true);
 
         const quoteParams = {
           srcChainId: '0x1',
@@ -2182,7 +2150,7 @@ describe('BridgeController', function () {
         );
 
         // Trigger the fetch + abort rejection
-        await jest.advanceTimersByTimeAsync(1000);
+        await vi.advanceTimersByTimeAsync(1000);
 
         // Early return path: no post-fetch updates
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
@@ -2248,15 +2216,15 @@ describe('BridgeController', function () {
       expectedMinBalance: string | undefined,
       isEvmAccount = false,
     ) => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       await withController(
         async ({ controller: bridgeController, rootMessenger }) => {
-          const stopAllPollingSpy = jest.spyOn(
+          const stopAllPollingSpy = vi.spyOn(
             bridgeController,
             'stopAllPolling',
           );
-          const startPollingSpy = jest.spyOn(bridgeController, 'startPolling');
-          const hasSufficientBalanceSpy = jest
+          const startPollingSpy = vi.spyOn(bridgeController, 'startPolling');
+          const hasSufficientBalanceSpy = vi
             .spyOn(balanceUtils, 'hasSufficientBalance')
             .mockResolvedValue(false);
 
@@ -2348,12 +2316,12 @@ describe('BridgeController', function () {
                 });
               }
               return {
-                provider: jest.fn() as never,
+                provider: vi.fn() as never,
               } as never;
             },
           );
 
-          const fetchBridgeQuotesSpy = jest
+          const fetchBridgeQuotesSpy = vi
             .spyOn(fetchUtils, 'fetchBridgeQuotes')
             .mockImplementation(async () => {
               return await new Promise((resolve) => {
@@ -2388,12 +2356,12 @@ describe('BridgeController', function () {
           expect(hasSufficientBalanceSpy).not.toHaveBeenCalled();
 
           // Loading state
-          jest.advanceTimersByTime(201);
+          vi.advanceTimersByTime(201);
           await flushPromises();
 
           // Wait for JWT token retrieval
           if (!isEvmAccount) {
-            jest.advanceTimersToNextTimer();
+            vi.advanceTimersToNextTimer();
             await flushPromises();
           }
 
@@ -2404,15 +2372,15 @@ describe('BridgeController', function () {
               minimumBalanceForRentExemptionInLamports: expectedMinBalance,
             }),
           );
-          jest.advanceTimersByTime(295);
+          vi.advanceTimersByTime(295);
           await flushPromises();
           expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
 
           // After fetch completes
-          jest.advanceTimersByTime(2601);
+          vi.advanceTimersByTime(2601);
           await flushPromises();
 
-          jest.advanceTimersByTime(100);
+          vi.advanceTimersByTime(100);
           await flushPromises();
           const { quotes } = bridgeController.state;
           expect(quotes).toHaveLength(expectedQuotesLength);
@@ -2453,7 +2421,7 @@ describe('BridgeController', function () {
   );
 
   it('should handle BTC chain fees correctly', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
         // Use the actual Solana mock which already has string trade type
@@ -2521,12 +2489,12 @@ describe('BridgeController', function () {
             }
 
             return {
-              provider: jest.fn() as never,
+              provider: vi.fn() as never,
             } as never;
           },
         );
 
-        jest.spyOn(fetchUtils, 'fetchBridgeQuotes').mockResolvedValue({
+        vi.spyOn(fetchUtils, 'fetchBridgeQuotes').mockResolvedValue({
           quotes: btcQuoteResponse,
           validationFailures: [],
         });
@@ -2549,19 +2517,19 @@ describe('BridgeController', function () {
         );
 
         // Wait for polling to start
-        jest.advanceTimersByTime(201);
+        vi.advanceTimersByTime(201);
         await flushPromises();
 
         // Wait for fetch to trigger
-        jest.advanceTimersByTime(295);
+        vi.advanceTimersByTime(295);
         await flushPromises();
 
         // Wait for fetch to complete
-        jest.advanceTimersByTime(2601);
+        vi.advanceTimersByTime(2601);
         await flushPromises();
 
         // Final wait for fee calculation
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         await flushPromises();
 
         const { quotes } = bridgeController.state;
@@ -2573,7 +2541,7 @@ describe('BridgeController', function () {
   });
 
   it('should catch BTC chain fees errors and return undefined fees', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     await withController(
       async ({ controller: bridgeController, rootMessenger }) => {
         // Use the actual Solana mock which already has string trade type
@@ -2586,9 +2554,9 @@ describe('BridgeController', function () {
           },
         }));
 
-        const consoleErrorSpy = jest
+        const consoleErrorSpy = vi
           .spyOn(console, 'error')
-          .mockImplementation(jest.fn());
+          .mockImplementation(vi.fn());
 
         messengerCallMock.mockImplementation(
           (
@@ -2624,12 +2592,12 @@ describe('BridgeController', function () {
             }
 
             return {
-              provider: jest.fn() as never,
+              provider: vi.fn() as never,
             } as never;
           },
         );
 
-        jest.spyOn(fetchUtils, 'fetchBridgeQuotes').mockResolvedValue({
+        vi.spyOn(fetchUtils, 'fetchBridgeQuotes').mockResolvedValue({
           quotes: btcQuoteResponse,
           validationFailures: [],
         });
@@ -2652,19 +2620,19 @@ describe('BridgeController', function () {
         );
 
         // Wait for polling to start
-        jest.advanceTimersByTime(201);
+        vi.advanceTimersByTime(201);
         await flushPromises();
 
         // Wait for fetch to trigger
-        jest.advanceTimersByTime(295);
+        vi.advanceTimersByTime(295);
         await flushPromises();
 
         // Wait for fetch to complete
-        jest.advanceTimersByTime(2601);
+        vi.advanceTimersByTime(2601);
         await flushPromises();
 
         // Final wait for fee calculation
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
         await flushPromises();
 
         const { quotes } = bridgeController.state;
@@ -2714,11 +2682,11 @@ describe('BridgeController', function () {
 
   describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       messengerCallMock.mockImplementationOnce(
         (): ReturnType<BridgeControllerMessenger['call']> => {
           return {
-            provider: jest.fn() as never,
+            provider: vi.fn() as never,
             rpcUrl: 'https://mainnet.infura.io/v3/123',
             configuration: {
               chainId: 'eip155:1',
@@ -2729,7 +2697,7 @@ describe('BridgeController', function () {
       messengerCallMock.mockImplementationOnce(
         (): ReturnType<BridgeControllerMessenger['call']> => {
           return {
-            provider: jest.fn() as never,
+            provider: vi.fn() as never,
             rpcUrl: 'https://mainnet.infura.io/v3/123',
             configuration: {
               chainId: 'eip155:1',
@@ -2763,7 +2731,7 @@ describe('BridgeController', function () {
     it('should track the ButtonClicked event', async () => {
       await withController(async ({ rootMessenger }) => {
         // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
-        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        vi.spyOn(console, 'warn').mockImplementationOnce(vi.fn());
         // Add walletAddress to the quoteRequest because it's required for some events
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -2780,7 +2748,7 @@ describe('BridgeController', function () {
             feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.ButtonClicked,
@@ -2800,7 +2768,7 @@ describe('BridgeController', function () {
     it('should track the PageViewed event', async () => {
       await withController(async ({ rootMessenger }) => {
         // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
-        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        vi.spyOn(console, 'warn').mockImplementationOnce(vi.fn());
         // Add walletAddress to the quoteRequest because it's required for some events
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -2817,7 +2785,7 @@ describe('BridgeController', function () {
             feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.PageViewed,
@@ -2903,7 +2871,7 @@ describe('BridgeController', function () {
             feature_id: FeatureId.BATCH_SELL,
           },
         );
-        jest.clearAllMocks();
+        vi.clearAllMocks();
 
         const chainIdSource = formatChainIdToCaip(ChainId.POLYGON);
         const chainIdDestination = formatChainIdToCaip(ChainId.BASE);
@@ -2977,7 +2945,7 @@ describe('BridgeController', function () {
 
     it('should track the FiatCryptoToggleClicked event', async () => {
       await withController(async ({ rootMessenger, controller }) => {
-        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        vi.spyOn(console, 'warn').mockImplementationOnce(vi.fn());
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
           {
@@ -2998,7 +2966,7 @@ describe('BridgeController', function () {
           'fiat_value',
         );
         expect(controller.state.inputPrimaryDenomination).toBe('fiat_value');
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.FiatCryptoToggleClicked,
@@ -3028,7 +2996,7 @@ describe('BridgeController', function () {
     it('should track InputChanged with an enum quick amount preset label', async () => {
       await withController(async ({ rootMessenger }) => {
         // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
-        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        vi.spyOn(console, 'warn').mockImplementationOnce(vi.fn());
         // Add walletAddress to the quoteRequest because it's required for some events
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -3045,7 +3013,7 @@ describe('BridgeController', function () {
             feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.InputChanged,
@@ -3074,7 +3042,7 @@ describe('BridgeController', function () {
     it('should track InputChanged with arbitrary quick amount preset labels', async () => {
       await withController(async ({ rootMessenger }) => {
         // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
-        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        vi.spyOn(console, 'warn').mockImplementationOnce(vi.fn());
         // Add walletAddress to the quoteRequest because it's required for some events
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -3091,7 +3059,7 @@ describe('BridgeController', function () {
             feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
           },
         );
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.InputChanged,
@@ -3134,7 +3102,7 @@ describe('BridgeController', function () {
     it('should track the InputSourceDestinationFlipped event', async () => {
       await withController(async ({ rootMessenger }) => {
         // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
-        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        vi.spyOn(console, 'warn').mockImplementationOnce(vi.fn());
         // Add walletAddress to the quoteRequest because it's required for some events
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -3151,7 +3119,7 @@ describe('BridgeController', function () {
             feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.InputSourceDestinationSwitched,
@@ -3175,7 +3143,7 @@ describe('BridgeController', function () {
     it('should track the AllQuotesOpened event', async () => {
       await withController(async ({ rootMessenger }) => {
         // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
-        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        vi.spyOn(console, 'warn').mockImplementationOnce(vi.fn());
         // Add walletAddress to the quoteRequest because it's required for some events
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -3192,7 +3160,7 @@ describe('BridgeController', function () {
             feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.AllQuotesOpened,
@@ -3215,7 +3183,7 @@ describe('BridgeController', function () {
     it('should track the AllQuotesSorted event', async () => {
       await withController(async ({ rootMessenger }) => {
         // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
-        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        vi.spyOn(console, 'warn').mockImplementationOnce(vi.fn());
         // Add walletAddress to the quoteRequest because it's required for some events
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -3232,7 +3200,7 @@ describe('BridgeController', function () {
             feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.AllQuotesSorted,
@@ -3257,7 +3225,7 @@ describe('BridgeController', function () {
     it('should track the QuoteSelected event', async () => {
       await withController(async ({ rootMessenger }) => {
         // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
-        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        vi.spyOn(console, 'warn').mockImplementationOnce(vi.fn());
         // Add walletAddress to the quoteRequest because it's required for some events
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -3274,7 +3242,7 @@ describe('BridgeController', function () {
             feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.QuoteSelected,
@@ -3301,7 +3269,7 @@ describe('BridgeController', function () {
     it('should track the QuotesReceived event', async () => {
       await withController(async ({ rootMessenger }) => {
         // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
-        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        vi.spyOn(console, 'warn').mockImplementationOnce(vi.fn());
         // Add walletAddress to the quoteRequest because it's required for some events
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -3318,7 +3286,7 @@ describe('BridgeController', function () {
             feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.QuotesReceived,
@@ -3346,7 +3314,7 @@ describe('BridgeController', function () {
 
     it('includes tokenSecurityTypeDestination on the tracked event payload when set', async () => {
       await withController(async ({ rootMessenger }) => {
-        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        vi.spyOn(console, 'warn').mockImplementationOnce(vi.fn());
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
           { walletAddress: '0x123' },
@@ -3360,7 +3328,7 @@ describe('BridgeController', function () {
             feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.QuotesReceived,
@@ -3391,7 +3359,7 @@ describe('BridgeController', function () {
     it('should track the AssetDetailTooltipClicked event', async () => {
       await withController(async ({ rootMessenger }) => {
         // Ignore console.warn for this test bc there will be expected asset rate fetching warnings
-        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        vi.spyOn(console, 'warn').mockImplementationOnce(vi.fn());
         // Add walletAddress to the quoteRequest because it's required for some events
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -3408,7 +3376,7 @@ describe('BridgeController', function () {
             feature_id: FeatureId.UNIFIED_SWAP_BRIDGE,
           },
         );
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           UnifiedSwapBridgeEventName.AssetDetailTooltipClicked,
@@ -3430,12 +3398,12 @@ describe('BridgeController', function () {
 
   describe('trackUnifiedSwapBridgeEvent bridge-status-controller calls', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
       messengerCallMock.mockImplementation(() => {
         return {
-          provider: jest.fn() as never,
+          provider: vi.fn() as never,
           rpcUrl: 'https://mainnet.infura.io/v3/123',
           configuration: {
             chainId: 'eip155:1',
@@ -3666,7 +3634,7 @@ describe('BridgeController', function () {
 
   describe('trackUnifiedSwapBridgeEvent client-side call exceptions', () => {
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       messengerCallMock.mockImplementation(
         (
           ...args: Parameters<BridgeControllerMessenger['call']>
@@ -3694,7 +3662,7 @@ describe('BridgeController', function () {
             };
           }
           return {
-            provider: jest.fn() as never,
+            provider: vi.fn() as never,
             rpcUrl: 'https://mainnet.infura.io/v3/123',
             configuration: {
               chainId: 'eip155:1',
@@ -3710,9 +3678,9 @@ describe('BridgeController', function () {
           'BridgeController:setLocation',
           MetaMetricsSwapsEventSource.TrendingExplore,
         );
-        const errorSpy = jest
+        const errorSpy = vi
           .spyOn(console, 'error')
-          .mockImplementationOnce(jest.fn());
+          .mockImplementationOnce(vi.fn());
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
           {
@@ -3798,24 +3766,22 @@ describe('BridgeController', function () {
     });
 
     beforeEach(() => {
-      jest.clearAllMocks();
-      jest
-        .spyOn(featureFlagUtils, 'getBridgeFeatureFlags')
-        .mockReturnValueOnce({
-          ...defaultFlags,
-          quoteRequestOverrides: {
-            [FeatureId.PERPS]: {
-              aggIds: ['debridge', 'socket'],
-              bridgeIds: ['bridge1', 'bridge2'],
-              fee: 0,
-            },
-            [FeatureId.QUICK_BUY_FOLLOW_TRADING]: undefined,
-            [FeatureId.QUICK_BUY_TOKEN_DETAILS]: undefined,
-            [FeatureId.BATCH_SELL]: undefined,
-            [FeatureId.UNIFIED_SWAP_BRIDGE]: undefined,
-            [FeatureId.DAPP_SWAP]: undefined,
+      vi.clearAllMocks();
+      vi.spyOn(featureFlagUtils, 'getBridgeFeatureFlags').mockReturnValueOnce({
+        ...defaultFlags,
+        quoteRequestOverrides: {
+          [FeatureId.PERPS]: {
+            aggIds: ['debridge', 'socket'],
+            bridgeIds: ['bridge1', 'bridge2'],
+            fee: 0,
           },
-        });
+          [FeatureId.QUICK_BUY_FOLLOW_TRADING]: undefined,
+          [FeatureId.QUICK_BUY_TOKEN_DETAILS]: undefined,
+          [FeatureId.BATCH_SELL]: undefined,
+          [FeatureId.UNIFIED_SWAP_BRIDGE]: undefined,
+          [FeatureId.DAPP_SWAP]: undefined,
+        },
+      });
       messengerCallMock.mockResolvedValueOnce('AUTH_TOKEN');
       messengerCallMock.mockResolvedValueOnce('AUTH_TOKEN');
       messengerCallMock.mockReturnValueOnce(() => ({
@@ -3826,7 +3792,7 @@ describe('BridgeController', function () {
     it('should override aggIds and fee in perps request', async () => {
       await withController(
         async ({ controller: bridgeController, rootMessenger }) => {
-          const fetchBridgeQuotesSpy = jest
+          const fetchBridgeQuotesSpy = vi
             .spyOn(fetchUtils, 'fetchBridgeQuotes')
             .mockResolvedValueOnce({
               quotes: quotesByDecreasingProcessingTime,
@@ -3898,7 +3864,7 @@ describe('BridgeController', function () {
     it('should throw error if account is not found', async () => {
       await withController(
         async ({ controller: bridgeController, rootMessenger }) => {
-          const fetchBridgeQuotesSpy = jest
+          const fetchBridgeQuotesSpy = vi
             .spyOn(fetchUtils, 'fetchBridgeQuotes')
             .mockResolvedValueOnce({
               quotes: quotesByDecreasingProcessingTime,
@@ -3936,7 +3902,7 @@ describe('BridgeController', function () {
     it('should add aggIds and fee to perps request', async () => {
       await withController(
         async ({ controller: bridgeController, rootMessenger }) => {
-          const fetchBridgeQuotesSpy = jest
+          const fetchBridgeQuotesSpy = vi
             .spyOn(fetchUtils, 'fetchBridgeQuotes')
             .mockResolvedValueOnce({
               quotes: quotesByDecreasingProcessingTime,
@@ -4005,7 +3971,7 @@ describe('BridgeController', function () {
     it('should not add aggIds and fee if featureId is not specified', async () => {
       await withController(
         async ({ controller: bridgeController, rootMessenger }) => {
-          const fetchBridgeQuotesSpy = jest
+          const fetchBridgeQuotesSpy = vi
             .spyOn(fetchUtils, 'fetchBridgeQuotes')
             .mockResolvedValueOnce({
               quotes: mockBridgeQuotesSolErc20V1,
@@ -4065,7 +4031,7 @@ describe('BridgeController', function () {
     it('should not add aggIds and fee if quoteRequestOverrides is not set', async () => {
       await withController(
         async ({ controller: bridgeController, rootMessenger }) => {
-          const getBridgeFeatureFlagsSpy = jest.spyOn(
+          const getBridgeFeatureFlagsSpy = vi.spyOn(
             featureFlagUtils,
             'getBridgeFeatureFlags',
           );
@@ -4075,7 +4041,7 @@ describe('BridgeController', function () {
             quoteRequestOverrides: undefined,
           });
 
-          const fetchBridgeQuotesSpy = jest
+          const fetchBridgeQuotesSpy = vi
             .spyOn(fetchUtils, 'fetchBridgeQuotes')
             .mockResolvedValueOnce({
               quotes: mockBridgeQuotesSolErc20V1,
@@ -4148,7 +4114,7 @@ describe('BridgeController', function () {
           secondQuote,
         ];
 
-        const fetchBridgeQuotesSpy = jest
+        const fetchBridgeQuotesSpy = vi
           .spyOn(fetchUtils, 'fetchBridgeQuotes')
           .mockResolvedValueOnce({
             quotes: quotesWithFlag,
@@ -4189,7 +4155,7 @@ describe('BridgeController', function () {
     const mockQuote = getMockBridgeQuotesNativeErc20EthV2()[0];
 
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       messengerCallMock.mockImplementation((actionType: string) => {
         if (actionType === 'AuthenticationController:getBearerToken') {
           return Promise.resolve('AUTH_TOKEN');
@@ -4200,7 +4166,7 @@ describe('BridgeController', function () {
 
     it('sets loading status, fetches trades, and updates state on success', async () => {
       await withController(async ({ rootMessenger, controller }) => {
-        const fetchBatchSellTradesSpy = jest
+        const fetchBatchSellTradesSpy = vi
           .spyOn(fetchUtils, 'fetchBatchSellTrades')
           .mockResolvedValueOnce(mockBatchSellTradesResponse as never);
 
@@ -4232,7 +4198,7 @@ describe('BridgeController', function () {
 
     it('filters out null quotes before sending the request', async () => {
       await withController(async ({ rootMessenger }) => {
-        const fetchBatchSellTradesSpy = jest
+        const fetchBatchSellTradesSpy = vi
           .spyOn(fetchUtils, 'fetchBatchSellTrades')
           .mockResolvedValueOnce(mockBatchSellTradesResponse as never);
 
@@ -4258,9 +4224,9 @@ describe('BridgeController', function () {
     it('sets ERROR status and resets batchSellTrades on non-abort error', async () => {
       await withController(async ({ rootMessenger, controller }) => {
         const fetchError = new Error('Network failure');
-        jest
-          .spyOn(fetchUtils, 'fetchBatchSellTrades')
-          .mockRejectedValueOnce(fetchError);
+        vi.spyOn(fetchUtils, 'fetchBatchSellTrades').mockRejectedValueOnce(
+          fetchError,
+        );
 
         await rootMessenger.call(
           'BridgeController:updateBatchSellTrades',
@@ -4279,9 +4245,9 @@ describe('BridgeController', function () {
       await withController(async ({ rootMessenger, controller }) => {
         const abortError = new Error('AbortError: The operation was aborted');
         abortError.name = 'AbortError';
-        jest
-          .spyOn(fetchUtils, 'fetchBatchSellTrades')
-          .mockRejectedValueOnce(abortError);
+        vi.spyOn(fetchUtils, 'fetchBatchSellTrades').mockRejectedValueOnce(
+          abortError,
+        );
 
         await rootMessenger.call(
           'BridgeController:updateBatchSellTrades',
@@ -4304,7 +4270,7 @@ describe('BridgeController', function () {
           resolveFirst = resolve;
         });
 
-        const fetchBatchSellTradesSpy = jest
+        const fetchBatchSellTradesSpy = vi
           .spyOn(fetchUtils, 'fetchBatchSellTrades')
           // First call hangs until we resolve manually
           .mockImplementationOnce(() => firstCallPromise as never)

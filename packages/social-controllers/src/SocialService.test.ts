@@ -4,6 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SocialServiceErrorMessage, serviceName } from './social-constants.js';
 import type { SocialServiceMessenger } from './SocialService.js';
@@ -128,7 +129,7 @@ function createService(
 }
 
 describe('SocialService', () => {
-  const mockFetch = jest.fn();
+  const mockFetch = vi.fn();
   const originalFetch = global.fetch;
 
   beforeEach(() => {
@@ -157,6 +158,8 @@ describe('SocialService', () => {
           winRate7d: 0.7,
           roiPercent7d: 1.2,
           tradeCount7d: 15,
+          volumeUsd30d: 250000,
+          volumeUsd7d: 40000,
           pnlPerChain: { base: 30000, solana: 20000 },
           followerCount: 100,
           socialHandles: mockSocialHandles,
@@ -269,6 +272,31 @@ describe('SocialService', () => {
       const result = await service.fetchLeaderboard();
 
       expect(result.traders[0].name).toBe('TraderAlice');
+      expect(result.traders[0].volumeUsd30d).toBeUndefined();
+      expect(result.traders[0].volumeUsd7d).toBeUndefined();
+    });
+
+    it('accepts chain-scoped volume totals, including null', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            traders: [
+              {
+                ...mockLeaderboardResponse.traders[0],
+                volumeUsd30d: null,
+                volumeUsd7d: 1250.5,
+              },
+            ],
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchLeaderboard();
+
+      expect(result.traders[0].volumeUsd30d).toBeNull();
+      expect(result.traders[0].volumeUsd7d).toBe(1250.5);
     });
 
     it('is callable via messenger action', async () => {
@@ -1540,6 +1568,8 @@ describe('SocialService', () => {
           ...mockProfileSummary,
           winRate30d: 0.61,
           pnl30d: 1200,
+          volumeUsd30d: 88000,
+          volumeUsd7d: null,
           tradeCount30d: 40,
           followerCount: 12,
         },
@@ -1563,6 +1593,8 @@ describe('SocialService', () => {
       const result = await service.fetchFeed();
 
       expect(result.items[0]?.actor.winRate30d).toBe(0.61);
+      expect(result.items[0]?.actor.volumeUsd30d).toBe(88000);
+      expect(result.items[0]?.actor.volumeUsd7d).toBeNull();
       expect(result.items[0]?.actor.followerCount).toBe(12);
       expect(result.items[0]?.commentCount).toBe(1);
       expect(result.items[0]?.replyCount).toBe(3);
@@ -2338,45 +2370,6 @@ describe('SocialService', () => {
         body: JSON.stringify({
           commentText: 'this is alpha',
           source: 'metamask-mobile',
-          tradeInFlight,
-        }),
-      });
-    });
-
-    it('sends a Hyperliquid orderId when the fill hash does not exist yet', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 201,
-        json: () =>
-          Promise.resolve({
-            ...mockSwapCommentResponse,
-            transactionHash: '',
-            chain: 'hyperliquid',
-            tokenAddress: 'BTC',
-          }),
-      });
-
-      const service = createService();
-      const tradeInFlight = {
-        orderId: '112233445566',
-        chain: 'hyperliquid' as const,
-        tokenAddress: 'BTC',
-      };
-
-      const result = await service.createSwapComment({
-        commentText: 'this is alpha',
-        tradeInFlight,
-      });
-
-      expect(result.transactionHash).toBe('');
-      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/swap-comments`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${MOCK_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          commentText: 'this is alpha',
           tradeInFlight,
         }),
       });

@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
+
 import type { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import { MarketDataService } from '../../../src/services/MarketDataService.js';
 import type { ServiceContext } from '../../../src/services/ServiceContext.js';
@@ -10,6 +13,7 @@ import type {
   Funding,
   MarketInfo,
   FeeCalculationResult,
+  PerpsFeeResolution,
   FeeCalculationParams,
   AssetRoute,
   PerpsPlatformDependencies,
@@ -19,6 +23,7 @@ import type {
 } from '../../../src/types/index.js';
 import type { CandleData } from '../../../src/types/perps-types.js';
 import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest.js';
+import { quantizeBuilderFeeTenthsBps } from '../../../src/utils/subscriptionFeeWaiver.js';
 /* eslint-disable */
 import {
   createMockHyperLiquidProvider,
@@ -30,30 +35,30 @@ import {
   createMockInfrastructure,
 } from '../../helpers/serviceMocks.js';
 
-jest.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
+vi.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
 
 describe('MarketDataService', () => {
-  let mockProvider: jest.Mocked<PerpsProvider>;
+  let mockProvider: Mocked<PerpsProvider>;
   let mockContext: ServiceContext;
-  let mockDeps: jest.Mocked<PerpsPlatformDependencies>;
+  let mockDeps: Mocked<PerpsPlatformDependencies>;
   let marketDataService: MarketDataService;
 
   beforeEach(() => {
     mockProvider =
-      createMockHyperLiquidProvider() as unknown as jest.Mocked<PerpsProvider>;
+      createMockHyperLiquidProvider() as unknown as Mocked<PerpsProvider>;
     mockDeps = createMockInfrastructure();
     marketDataService = new MarketDataService(mockDeps);
     mockContext = createMockServiceContext({
       errorContext: { controller: 'MarketDataService', method: 'test' },
     });
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // REST coalesce cache is module-scoped and persists across tests; reset
     // so each test starts from a clean slate.
     resetPerpsRestCacheForTests();
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('getPositions', () => {
@@ -333,7 +338,7 @@ describe('MarketDataService', () => {
 
   describe('REST request coalesce', () => {
     beforeEach(() => {
-      jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     });
 
     it('dedupes concurrent getOrderFills calls with identical params', async () => {
@@ -443,7 +448,7 @@ describe('MarketDataService', () => {
       mockProvider.getOrders.mockResolvedValue([]);
 
       // Caller A — resolved account 0x...001
-      (mockProvider.getCurrentAccountId as jest.Mock).mockResolvedValueOnce(
+      (mockProvider.getCurrentAccountId as Mock).mockResolvedValueOnce(
         'eip155:1:0x0000000000000000000000000000000000000001',
       );
       await marketDataService.getOrders({
@@ -452,7 +457,7 @@ describe('MarketDataService', () => {
       });
 
       // Caller B — resolved account 0x...002 (user switched accounts)
-      (mockProvider.getCurrentAccountId as jest.Mock).mockResolvedValueOnce(
+      (mockProvider.getCurrentAccountId as Mock).mockResolvedValueOnce(
         'eip155:1:0x0000000000000000000000000000000000000002',
       );
       await marketDataService.getOrders({
@@ -658,7 +663,7 @@ describe('MarketDataService', () => {
       const mockDexs = ['hyperliquid', 'vertex'];
       const providerWithDexs = {
         ...mockProvider,
-        getAvailableDexs: jest.fn().mockResolvedValue(mockDexs),
+        getAvailableDexs: vi.fn().mockResolvedValue(mockDexs),
       };
 
       const result = await marketDataService.getAvailableDexs({
@@ -865,6 +870,104 @@ describe('MarketDataService', () => {
 
       expect(result).toEqual(mockFees);
     });
+
+    it('returns only the winning source from the operation that reprices each preview', async () => {
+      const resolutions: PerpsFeeResolution[] = [
+        {
+          source: 'rewards',
+          feeBips: 3.5,
+          discountBips: 6500,
+          subscription: { eligible: false, reason: 'no-source' },
+        },
+        {
+          source: 'grant',
+          feeBips: 2,
+          discountBips: 8000,
+          subscription: { eligible: false, reason: 'no-source' },
+        },
+        {
+          source: 'subscription',
+          feeBips: 0,
+          discountBips: 10000,
+          subscription: { eligible: true, reason: 'eligible' },
+        },
+        {
+          source: 'default',
+          feeBips: 10,
+          discountBips: undefined,
+          subscription: { eligible: false, reason: 'no-source' },
+        },
+      ];
+      mockProvider.calculateFees.mockResolvedValue({
+        metamaskFeeRate: 0.001,
+        protocolFeeRate: 0.00045,
+      });
+      for (const resolution of resolutions) {
+        const result = await marketDataService.calculateFees({
+          provider: mockProvider,
+          params: {
+            orderType: 'market',
+            symbol: 'BTC',
+            amount: '1000',
+            isMaker: false,
+          },
+          context: { ...mockContext, feeResolution: resolution },
+        });
+        expect(result.feeSource).toBe(resolution.source);
+        expect(result).not.toHaveProperty('feeResolution');
+        const expectedMetamaskFeeRate =
+          quantizeBuilderFeeTenthsBps(resolution.discountBips ?? 0) / 100000;
+        expect(result.metamaskFeeRate).toBe(expectedMetamaskFeeRate);
+        expect(result.feeRate).toBeCloseTo(expectedMetamaskFeeRate + 0.00045);
+        expect(result.feeAmount).toBeCloseTo(
+          (expectedMetamaskFeeRate + 0.00045) * 1000,
+        );
+      }
+      expect(mockProvider.calculateFees).toHaveBeenCalledTimes(
+        resolutions.length,
+      );
+    });
+
+    it.each([
+      { rate: undefined, policy: undefined, applies: false },
+      { rate: undefined, policy: true, applies: false },
+      { rate: 0, policy: undefined, applies: false },
+      { rate: 0, policy: false, applies: false },
+      { rate: 0, policy: true, applies: true },
+      { rate: 0.001, policy: false, applies: false },
+    ])(
+      'only reprices and attributes applicable builder fee previews ($rate, $policy)',
+      async ({ rate, policy, applies }) => {
+        const resolution: PerpsFeeResolution = {
+          source: 'rewards',
+          feeBips: 3.5,
+          discountBips: 6500,
+          subscription: { eligible: false, reason: 'no-source' },
+        };
+        mockProvider.calculateFees.mockResolvedValue({
+          metamaskFeeRate: rate,
+          chargesMetamaskBuilderFee: policy,
+        });
+        const result = await marketDataService.calculateFees({
+          provider: mockProvider,
+          params: {
+            orderType: 'market',
+            symbol: 'BTC',
+            amount: '1000',
+            isMaker: false,
+          },
+          context: { ...mockContext, feeResolution: resolution },
+        });
+        if (applies) {
+          expect(result.feeSource).toBe('rewards');
+          expect(result.metamaskFeeRate).toBeCloseTo(0.00035);
+        } else {
+          expect(result).not.toHaveProperty('feeSource');
+          expect(result.metamaskFeeRate).toBe(rate);
+        }
+        expect(result).not.toHaveProperty('feeResolution');
+      },
+    );
 
     it('surfaces subscription eligibility and remainingNotionalUsd on the fee preview', async () => {
       const params: FeeCalculationParams = {
@@ -1162,7 +1265,7 @@ describe('MarketDataService', () => {
     };
 
     it('fetches historical candles successfully', async () => {
-      mockProvider.fetchHistoricalCandles = jest
+      mockProvider.fetchHistoricalCandles = vi
         .fn()
         .mockResolvedValue(mockCandleData);
 
@@ -1214,7 +1317,7 @@ describe('MarketDataService', () => {
 
     it('updates error state on failure', async () => {
       const mockError = new Error('Network timeout');
-      mockProvider.fetchHistoricalCandles = jest
+      mockProvider.fetchHistoricalCandles = vi
         .fn()
         .mockRejectedValue(mockError);
 
@@ -1233,7 +1336,7 @@ describe('MarketDataService', () => {
     it('skips Sentry logging for abort errors', async () => {
       const abortError = new Error('The operation was aborted');
       abortError.name = 'AbortError';
-      mockProvider.fetchHistoricalCandles = jest
+      mockProvider.fetchHistoricalCandles = vi
         .fn()
         .mockRejectedValue(abortError);
 
@@ -1252,7 +1355,7 @@ describe('MarketDataService', () => {
 
     it('logs to Sentry for real fetch failures', async () => {
       const networkError = new Error('Network timeout');
-      mockProvider.fetchHistoricalCandles = jest
+      mockProvider.fetchHistoricalCandles = vi
         .fn()
         .mockRejectedValue(networkError);
 
@@ -1270,7 +1373,7 @@ describe('MarketDataService', () => {
   });
 
   describe('Terminal API integration', () => {
-    let mockTerminalService: jest.Mocked<PerpsTerminalMarketService>;
+    let mockTerminalService: Mocked<PerpsTerminalMarketService>;
     let serviceWithTerminal: MarketDataService;
 
     const terminalMarkets: MarketInfo[] = [
@@ -1301,14 +1404,13 @@ describe('MarketDataService', () => {
 
     beforeEach(() => {
       mockDeps.terminalApi = {
-        ...mockDeps.terminalApi,
-        globalSnapshotUrl: 'https://terminal.test/v3/perpetuals',
+        marketDataUrl: 'https://terminal.test/v1/perpetuals',
       };
       mockTerminalService = {
-        fetchMarkets: jest.fn(),
-        fetchGlobalSnapshot: jest.fn(),
-        clearCache: jest.fn(),
-        logError: jest.fn(),
+        fetchMarkets: vi.fn(),
+        fetchGlobalSnapshot: vi.fn(),
+        clearCache: vi.fn(),
+        logError: vi.fn(),
       };
 
       serviceWithTerminal = new MarketDataService({
@@ -1405,7 +1507,7 @@ describe('MarketDataService', () => {
         const lighterProvider = {
           ...mockProvider,
           protocolId: 'lighter',
-          getMarkets: jest.fn().mockResolvedValue(providerMarkets),
+          getMarkets: vi.fn().mockResolvedValue(providerMarkets),
         };
 
         const result = await serviceWithTerminal.getMarkets({
@@ -1439,7 +1541,7 @@ describe('MarketDataService', () => {
         const aggregatedProvider = {
           ...mockProvider,
           protocolId: 'aggregated',
-          getMarkets: jest.fn().mockResolvedValue(providerMarkets),
+          getMarkets: vi.fn().mockResolvedValue(providerMarkets),
         };
 
         const result = await serviceWithTerminal.getMarkets({
@@ -1517,6 +1619,312 @@ describe('MarketDataService', () => {
       });
     });
 
+    describe('getMarkets with a configured global snapshot', () => {
+      const snapshotInfos: MarketInfo[] = [
+        { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+        { name: 'xyz:TSLA', szDecimals: 2, maxLeverage: 10, marginTableId: 0 },
+      ];
+
+      let fetchGlobalSnapshot: Mock;
+
+      const snapshotContext = ({
+        isCurrent = () => true,
+        isMarketAllowed = () => true,
+      }: {
+        isCurrent?: () => boolean;
+        isMarketAllowed?: (symbol: string) => boolean;
+      } = {}): ServiceContext => ({
+        ...mockContext,
+        globalSnapshot: {
+          request: {
+            provider: 'hyperliquid',
+            network: 'mainnet',
+            enabledDexes: ['main', 'xyz'],
+          },
+          isCurrent,
+          isMarketAllowed,
+        },
+      });
+
+      beforeEach(() => {
+        if (mockDeps.terminalApi) {
+          mockDeps.terminalApi.globalSnapshotUrl =
+            'https://terminal.test/v4/perpetuals';
+        }
+        fetchGlobalSnapshot = vi.fn().mockResolvedValue({
+          markets: [],
+          marketInfos: snapshotInfos,
+          expiresAt: Date.now() + 30_000,
+        });
+        mockTerminalService.fetchGlobalSnapshot = fetchGlobalSnapshot;
+      });
+
+      it('reads the snapshot cache and does not call /v1', async () => {
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: snapshotContext(),
+        });
+
+        expect(result).toEqual(snapshotInfos);
+        expect(fetchGlobalSnapshot).toHaveBeenCalledTimes(1);
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+      });
+
+      it('applies the allowlist to the snapshot', async () => {
+        const allowed = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: snapshotContext(),
+          isMarketAllowed: (symbol) => symbol === 'BTC',
+        });
+
+        expect(allowed).toEqual([snapshotInfos[0]]);
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+      });
+
+      it.each([undefined, false, true])(
+        'discovers markets outside snapshot DEXes with skipFilters and useTerminalApi=%s',
+        async (useTerminalApi) => {
+          const providerMarkets: MarketInfo[] = [
+            ...snapshotInfos,
+            {
+              name: 'flx:TSLA',
+              szDecimals: 2,
+              maxLeverage: 10,
+              marginTableId: 1,
+            },
+          ];
+          mockProvider.getMarkets.mockResolvedValue(providerMarkets);
+          const params = { skipFilters: true, useTerminalApi };
+
+          const result = await serviceWithTerminal.getMarkets({
+            provider: mockProvider,
+            params,
+            context: snapshotContext(),
+            isMarketAllowed: (symbol) => symbol === 'BTC',
+          });
+
+          expect(result).toEqual(providerMarkets);
+          expect(mockProvider.getMarkets).toHaveBeenCalledTimes(1);
+          expect(mockProvider.getMarkets).toHaveBeenCalledWith(params);
+          expect(fetchGlobalSnapshot).not.toHaveBeenCalled();
+          expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+        },
+      );
+
+      it('applies dex and symbol filters to the snapshot list', async () => {
+        const byDex = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { dex: 'xyz' },
+          context: snapshotContext(),
+        });
+        const bySymbol = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { symbols: ['btc'] },
+          context: snapshotContext(),
+        });
+
+        expect(byDex).toEqual([snapshotInfos[1]]);
+        expect(bySymbol).toEqual([snapshotInfos[0]]);
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+      });
+
+      it('returns an empty snapshot filter without calling the provider', async () => {
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { symbols: ['DOGE'] },
+          context: snapshotContext(),
+        });
+
+        expect(result).toEqual([]);
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+      });
+
+      it('falls back to the provider when the snapshot is rejected', async () => {
+        const providerMarkets: MarketInfo[] = [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+        ];
+        fetchGlobalSnapshot.mockRejectedValue(new Error('snapshot malformed'));
+        mockProvider.getMarkets.mockResolvedValue(providerMarkets);
+
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: snapshotContext(),
+        });
+
+        expect(result).toEqual(providerMarkets);
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+        expect(mockTerminalService.logError).toHaveBeenCalledWith(
+          expect.any(Error),
+          'getMarkets.globalSnapshot',
+        );
+      });
+
+      it('uses the provider when a snapshot URL is set but the identity is not static', async () => {
+        const providerMarkets: MarketInfo[] = [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+        ];
+        mockProvider.getMarkets.mockResolvedValue(providerMarkets);
+
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(result).toEqual(providerMarkets);
+        expect(fetchGlobalSnapshot).not.toHaveBeenCalled();
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+      });
+
+      it('reads the snapshot when useTerminalApi is omitted', async () => {
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          context: snapshotContext(),
+        });
+
+        expect(result).toEqual(snapshotInfos);
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+      });
+
+      it('uses the legacy /v1 list when a snapshot service is injected without a URL', async () => {
+        delete mockDeps.terminalApi?.globalSnapshotUrl;
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: terminalMetadata,
+        });
+
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: snapshotContext(),
+        });
+
+        expect(result).toEqual(terminalMarkets);
+        expect(mockTerminalService.fetchMarkets).toHaveBeenCalled();
+        expect(fetchGlobalSnapshot).not.toHaveBeenCalled();
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+      });
+
+      it('rejects when the snapshot context is already stale', async () => {
+        const isCurrent = vi.fn((): boolean => false);
+
+        await expect(
+          serviceWithTerminal.getMarkets({
+            provider: mockProvider,
+            context: snapshotContext({ isCurrent }),
+          }),
+        ).rejects.toThrow('snapshot context changed');
+
+        expect(fetchGlobalSnapshot).not.toHaveBeenCalled();
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+        expect(mockTerminalService.logError).not.toHaveBeenCalled();
+      });
+
+      it('rejects a snapshot context race without calling the provider', async () => {
+        const isCurrent = vi
+          .fn()
+          .mockReturnValueOnce(true)
+          .mockReturnValueOnce(false);
+
+        await expect(
+          serviceWithTerminal.getMarkets({
+            provider: mockProvider,
+            context: snapshotContext({ isCurrent }),
+          }),
+        ).rejects.toThrow('snapshot context changed');
+
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+      });
+
+      it('rejects when a failed snapshot fetch also races with a context change', async () => {
+        fetchGlobalSnapshot.mockRejectedValue(
+          new Error('snapshot network failure'),
+        );
+        const isCurrent = vi
+          .fn()
+          .mockReturnValueOnce(true)
+          .mockReturnValueOnce(false);
+
+        await expect(
+          serviceWithTerminal.getMarkets({
+            provider: mockProvider,
+            context: snapshotContext({ isCurrent }),
+          }),
+        ).rejects.toThrow('snapshot context changed');
+
+        expect(mockProvider.getMarkets).not.toHaveBeenCalled();
+        expect(mockTerminalService.logError).not.toHaveBeenCalled();
+      });
+
+      it('falls back to the provider when the snapshot expires', async () => {
+        const providerMarkets: MarketInfo[] = [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+        ];
+        fetchGlobalSnapshot.mockResolvedValue({
+          markets: [],
+          marketInfos: snapshotInfos,
+          expiresAt: Date.now() - 1,
+        });
+        mockProvider.getMarkets.mockResolvedValue(providerMarkets);
+
+        const result = await serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: snapshotContext(),
+        });
+
+        expect(result).toEqual(providerMarkets);
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+        expect(mockTerminalService.logError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: 'Terminal global snapshot expired',
+          }),
+          'getMarkets.globalSnapshot',
+        );
+      });
+
+      it('rejects a provider fallback when the snapshot context changes during the provider read', async () => {
+        const providerMarkets: MarketInfo[] = [
+          { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+        ];
+        fetchGlobalSnapshot.mockRejectedValue(new Error('snapshot rejected'));
+        let resolveProvider: ((markets: MarketInfo[]) => void) | undefined;
+        const providerCalled = new Promise<void>((resolve) => {
+          mockProvider.getMarkets.mockImplementation(
+            () =>
+              new Promise((resolveMarkets) => {
+                resolveProvider = resolveMarkets;
+                resolve();
+              }),
+          );
+        });
+        const isCurrent = vi
+          .fn()
+          .mockReturnValueOnce(true)
+          .mockReturnValueOnce(true)
+          .mockReturnValueOnce(false);
+
+        const pending = serviceWithTerminal.getMarkets({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: snapshotContext({ isCurrent }),
+        });
+        await providerCalled;
+        resolveProvider?.(providerMarkets);
+
+        await expect(pending).rejects.toThrow('snapshot context changed');
+        expect(mockProvider.getMarkets).toHaveBeenCalledTimes(1);
+        expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
+      });
+    });
+
     describe('getMarketDataWithPrices with useTerminalApi', () => {
       const providerMarketData: PerpsMarketData[] = [
         {
@@ -1576,7 +1984,7 @@ describe('MarketDataService', () => {
           markets: snapshotMarkets,
           expiresAt: Date.now() + 30_000,
         });
-        const isCurrent = jest.fn(() => true);
+        const isCurrent = vi.fn(() => true);
 
         const result = await serviceWithTerminal.getMarketDataWithPrices({
           provider: mockProvider,
@@ -1649,7 +2057,7 @@ describe('MarketDataService', () => {
         mockProvider.getMarketDataWithPrices.mockResolvedValue(
           providerMarketData,
         );
-        const isCurrent = jest
+        const isCurrent = vi
           .fn()
           .mockReturnValueOnce(true)
           .mockReturnValueOnce(false);
@@ -1669,7 +2077,7 @@ describe('MarketDataService', () => {
         mockTerminalService.fetchGlobalSnapshot?.mockRejectedValue(
           new Error('snapshot network failure'),
         );
-        const isCurrent = jest
+        const isCurrent = vi
           .fn()
           .mockReturnValueOnce(true)
           .mockReturnValueOnce(false);
@@ -1741,13 +2149,16 @@ describe('MarketDataService', () => {
           new Error('snapshot rejected'),
         );
         let resolveProvider: ((markets: PerpsMarketData[]) => void) | undefined;
-        mockProvider.getMarketDataWithPrices.mockImplementation(
-          () =>
-            new Promise((resolve) => {
-              resolveProvider = resolve;
-            }),
-        );
-        const isCurrent = jest
+        const providerCalled = new Promise<void>((resolve) => {
+          mockProvider.getMarketDataWithPrices.mockImplementation(
+            () =>
+              new Promise((resolveMarkets) => {
+                resolveProvider = resolveMarkets;
+                resolve();
+              }),
+          );
+        });
+        const isCurrent = vi
           .fn()
           .mockReturnValueOnce(true)
           .mockReturnValueOnce(true)
@@ -1757,7 +2168,7 @@ describe('MarketDataService', () => {
           provider: mockProvider,
           context: createGlobalSnapshotContext({ isCurrent }),
         });
-        await Promise.resolve();
+        await providerCalled;
         resolveProvider?.(providerMarketData);
 
         await expect(pending).rejects.toThrow('snapshot context changed');
@@ -1884,7 +2295,7 @@ describe('MarketDataService', () => {
         const aggregatedProvider = {
           ...mockProvider,
           protocolId: 'aggregated',
-          getMarketDataWithPrices: jest
+          getMarketDataWithPrices: vi
             .fn()
             .mockResolvedValue(aggregatedMarketData),
         };

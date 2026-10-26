@@ -3,6 +3,7 @@ import type {
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
@@ -23,8 +24,8 @@ import {
 import { getRelayMaxGasStationQuote } from './relay-max.js';
 import type { RelayQuote } from './types.js';
 
-jest.mock('../../utils/token');
-jest.mock('../../utils/gas');
+vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/gas.js'));
 
 const TRANSACTION_META_MOCK = { txParams: {} } as TransactionMeta;
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
@@ -154,10 +155,10 @@ function makeFullRequest(
 }
 
 describe('relay-max', () => {
-  const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
-  const getNativeTokenMock = jest.mocked(getNativeToken);
-  const getTokenBalanceMock = jest.mocked(getTokenBalance);
-  const getTokenInfoMock = jest.mocked(getTokenInfo);
+  const calculateGasFeeTokenCostMock = vi.mocked(calculateGasFeeTokenCost);
+  const getNativeTokenMock = vi.mocked(getNativeToken);
+  const getTokenBalanceMock = vi.mocked(getTokenBalance);
+  const getTokenInfoMock = vi.mocked(getTokenInfo);
 
   const {
     messenger,
@@ -166,7 +167,7 @@ describe('relay-max', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getNativeTokenMock.mockReturnValue(
       '0x0000000000000000000000000000000000000000',
@@ -195,7 +196,7 @@ describe('relay-max', () => {
   it('returns phase-1 quote when quote is an execute flow', async () => {
     const phase1Quote = makeQuote();
     phase1Quote.original.metamask.isExecute = true;
-    const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
+    const getSingleQuote = vi.fn().mockResolvedValue(phase1Quote);
 
     const request = { ...BASE_REQUEST };
     const result = await getRelayMaxGasStationQuote(
@@ -210,7 +211,7 @@ describe('relay-max', () => {
 
   it('returns phase-1 quote when native balance is sufficient', async () => {
     const phase1Quote = makeQuote({ sourceNetworkGasRaw: '100' });
-    const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
+    const getSingleQuote = vi.fn().mockResolvedValue(phase1Quote);
     getTokenBalanceMock.mockReturnValue('100');
 
     const request = { ...BASE_REQUEST };
@@ -226,7 +227,7 @@ describe('relay-max', () => {
 
   it('returns phase-1 quote when source chain is not gas-station eligible', async () => {
     const phase1Quote = makeQuote();
-    const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
+    const getSingleQuote = vi.fn().mockResolvedValue(phase1Quote);
 
     getRemoteFeatureFlagControllerStateMock.mockReturnValue({
       ...getDefaultRemoteFeatureFlagControllerState(),
@@ -250,7 +251,7 @@ describe('relay-max', () => {
 
   it('returns phase-1 quote when probe amount equals source amount', async () => {
     const phase1Quote = makeQuote();
-    const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
+    const getSingleQuote = vi.fn().mockResolvedValue(phase1Quote);
 
     const request = { ...BASE_REQUEST, sourceTokenAmount: '1' };
     const result = await getRelayMaxGasStationQuote(
@@ -270,7 +271,7 @@ describe('relay-max', () => {
       isSourceGasFeeToken: false,
       sourceAmountRaw: '25000',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote);
@@ -294,7 +295,7 @@ describe('relay-max', () => {
       isSourceGasFeeToken: false,
       sourceAmountRaw: '25000',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote);
@@ -318,7 +319,7 @@ describe('relay-max', () => {
       isSourceGasFeeToken: false,
       sourceAmountRaw: '25000',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote);
@@ -349,7 +350,7 @@ describe('relay-max', () => {
       sourceAmountRaw: '99900',
       sourceNetworkGasRaw: '100',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -403,7 +404,7 @@ describe('relay-max', () => {
       sourceNetworkGasRaw: '300',
     });
 
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -474,7 +475,7 @@ describe('relay-max', () => {
       sourceNetworkGasRaw: '100',
     });
 
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -519,7 +520,7 @@ describe('relay-max', () => {
       sourceAmountRaw: '99700',
       sourceNetworkGasRaw: '300',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -562,7 +563,7 @@ describe('relay-max', () => {
       sourceAmountRaw: '25000',
       sourceNetworkGasRaw: '100000',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote);
@@ -585,7 +586,7 @@ describe('relay-max', () => {
       sourceAmountRaw: '25000',
       sourceNetworkGasRaw: '100',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -610,7 +611,7 @@ describe('relay-max', () => {
       sourceNetworkGasRaw: '100',
     });
     const phase2Quote = makeQuote({ sourceAmountRaw: '99900' });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -643,7 +644,7 @@ describe('relay-max', () => {
       sourceAmountRaw: '99900',
       sourceNetworkGasRaw: '100',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -676,7 +677,7 @@ describe('relay-max', () => {
       sourceAmountRaw: '99900',
       sourceNetworkGasRaw: '100',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -711,7 +712,7 @@ describe('relay-max', () => {
     });
     phase2Quote.original.metamask = {} as RelayQuote['metamask'];
 
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -746,7 +747,7 @@ describe('relay-max', () => {
       sourceNetworkGasRaw: '100',
     });
 
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -780,7 +781,7 @@ describe('relay-max', () => {
       sourceAmountRaw: '99900',
       sourceNetworkGasRaw: '100',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -809,7 +810,7 @@ describe('relay-max', () => {
       sourceAmountRaw: '99900',
       sourceNetworkGasRaw: '200',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -842,7 +843,7 @@ describe('relay-max', () => {
       sourceAmountRaw: '99900',
       sourceNetworkGasRaw: '100',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -872,7 +873,7 @@ describe('relay-max', () => {
       sourceAmountRaw: '99900',
       sourceNetworkGasRaw: '100',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -893,7 +894,7 @@ describe('relay-max', () => {
 
   it('returns phase-1 quote when probe quote request fails', async () => {
     const phase1Quote = makeQuote({ sourceAmountRaw: '100000' });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockRejectedValueOnce(new Error('probe quote failed'));
@@ -913,7 +914,7 @@ describe('relay-max', () => {
 
   it('returns phase-1 quote when probe quote is unexpectedly undefined', async () => {
     const phase1Quote = makeQuote({ sourceAmountRaw: '100000' });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(undefined);
@@ -945,7 +946,7 @@ describe('relay-max', () => {
         },
       ] as unknown as RelayQuote['steps'],
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote);
@@ -969,7 +970,7 @@ describe('relay-max', () => {
       isSourceGasFeeToken: false,
       sourceAmountRaw: '25000',
     });
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote);
@@ -1001,7 +1002,7 @@ describe('relay-max', () => {
       sourceNetworkGasRaw: '100',
     });
 
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -1039,7 +1040,7 @@ describe('relay-max', () => {
       sourceNetworkGasRaw: '100',
     });
 
-    const getSingleQuote = jest
+    const getSingleQuote = vi
       .fn()
       .mockResolvedValueOnce(phase1Quote)
       .mockResolvedValueOnce(probeQuote)
@@ -1067,7 +1068,7 @@ describe('relay-max', () => {
 
   it('returns phase-1 quote when source amount is zero', async () => {
     const phase1Quote = makeQuote({ sourceAmountRaw: '0' });
-    const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
+    const getSingleQuote = vi.fn().mockResolvedValue(phase1Quote);
 
     getGasFeeTokensMock.mockResolvedValue([]);
 
@@ -1084,7 +1085,7 @@ describe('relay-max', () => {
 
   it('returns phase-1 quote when probe amount rounds down to zero', async () => {
     const phase1Quote = makeQuote({ sourceAmountRaw: '0.1' });
-    const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
+    const getSingleQuote = vi.fn().mockResolvedValue(phase1Quote);
 
     getGasFeeTokensMock.mockResolvedValue([]);
 

@@ -1,5 +1,6 @@
 import type { V6BalancesResponse } from '@metamask/core-backend';
 import type { CaipAssetType } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { groupDeFiPositionsV6 } from './group-defi-positions-v6.js';
 

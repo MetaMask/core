@@ -11,10 +11,6 @@ const config: KnipConfig = {
       ],
       project: ['scripts/**/*.ts', 'tests/**/*.ts', '*.{js,cjs,mjs,ts}'],
       ignore: ['scripts/create-package/package-template/**'],
-      // The `preset: 'ts-jest'` shorthand expands to `ts-jest/jest-preset`,
-      // which knip can't resolve to an actual file even though `ts-jest` is
-      // listed in `devDependencies`.
-      ignoreUnresolved: ['ts-jest/jest-preset'],
       // `bats` (used to run the shell script tests) ships a non-standard `bin`
       // field, so it has no `.bin` shim and is invoked by path. knip can't tie
       // that invocation back to the dependency, so both are declared here.
@@ -112,7 +108,7 @@ const config: KnipConfig = {
       ignoreBinaries: ['sysctl'],
     },
     'packages/gas-fee-controller': {
-      ignoreDependencies: ['@metamask/ethjs-unit', 'jest-when'],
+      ignoreDependencies: ['@metamask/ethjs-unit'],
     },
     'packages/geolocation-controller': {
       ignoreDependencies: ['cockatiel'],
@@ -214,16 +210,6 @@ const config: KnipConfig = {
     'packages/user-operation-controller': {
       ignoreDependencies: ['immer'],
     },
-    'packages/wallet-cli': {
-      // `anvil` (from Foundry) is an external system binary the real-chain send
-      // e2e probes and spawns; it's installed via `foundryup`, not an npm
-      // package, so knip can't tie the invocation to a dependency.
-      ignoreBinaries: ['anvil'],
-      // `tsx` is the dev-mode loader: it's referenced only as a `node --import`
-      // argument string (in `daemon-spawn`'s source-entry path and `bin/dev`),
-      // never as a traceable import, so knip can't see it.
-      ignoreDependencies: ['tsx'],
-    },
     'packages/wallet-framework-docs': {
       // Source lives under `site/` instead of `src/`; tell knip to scan it
       // so the type imports of `@docusaurus/*` / `prism-react-renderer` in
@@ -268,18 +254,13 @@ const config: KnipConfig = {
     'simple-git-hooks',
     'ts-node',
     'typedoc',
-    'jest-silent-reporter',
     'prettier-plugin-packagejson',
-    // Jest test environments referenced as strings in jest configs.
-    'jest-environment-node',
-    'jest-environment-jsdom',
     // Only `client-controller` actually loads `typedoc-plugin-missing-exports`
     // via its `typedoc.json`; the other packages declare it as a devDep but
     // never use it. Cleanup is a per-package follow-up.
     'typedoc-plugin-missing-exports',
-    // Pulled in by jest setup files / mocks; many consumer packages list
-    // these as devDeps "just in case". Real cleanup is a per-package
-    // follow-up.
+    // Some packages declare these devDependencies without using them.
+    // Cleanup is a per-package follow-up.
     '@metamask/providers',
     'webextension-polyfill',
   ],

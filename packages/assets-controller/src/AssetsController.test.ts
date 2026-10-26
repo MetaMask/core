@@ -1,4 +1,3 @@
-/* eslint-disable jest/unbound-method */
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
@@ -11,6 +10,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance, MockedFunction } from 'vitest';
 
 import { registerKeyringUnlockMock } from './__fixtures__/MockAssetControllerMessenger.js';
 import { waitFor } from './__fixtures__/test-utils.js';
@@ -48,16 +49,15 @@ import {
   normalizeAssetId,
 } from './utils/index.js';
 
-jest.mock('./utils', () => {
-  const actual =
-    jest.requireActual<typeof import('./utils/index.js')>('./utils');
+vi.mock(import('./utils/index.js'), async (importOriginal) => {
+  const actual = await importOriginal();
   return {
     ...actual,
-    formatExchangeRatesForBridge: jest.fn(actual.formatExchangeRatesForBridge),
+    formatExchangeRatesForBridge: vi.fn(actual.formatExchangeRatesForBridge),
   };
 });
 
-const formatExchangeRatesForBridgeMock = jest.mocked(
+const formatExchangeRatesForBridgeMock = vi.mocked(
   formatExchangeRatesForBridge,
 );
 
@@ -77,13 +77,13 @@ async function flushPromises(): Promise<void> {
 function createMockQueryApiClient(): ApiPlatformClient {
   const cache = new Map<string, unknown>();
   return {
-    fetch: jest.fn(),
-    getCachedData: jest.fn((key: string[]) => cache.get(JSON.stringify(key))),
-    setCachedData: jest.fn((key: string[], data: unknown) =>
+    fetch: vi.fn(),
+    getCachedData: vi.fn((key: string[]) => cache.get(JSON.stringify(key))),
+    setCachedData: vi.fn((key: string[], data: unknown) =>
       cache.set(JSON.stringify(key), data),
     ),
     queryClient: {
-      fetchQuery: jest.fn(
+      fetchQuery: vi.fn(
         async (opts: {
           queryKey: string[];
           queryFn: () => Promise<unknown>;
@@ -180,14 +180,14 @@ function createFailingQueryApiClient(): ApiPlatformClient {
   return {
     ...createMockQueryApiClient(),
     accounts: {
-      fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+      fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
         fullSupport: ['eip155:1'],
         partialSupport: [],
       }),
-      fetchV5MultiAccountBalances: jest
+      fetchV5MultiAccountBalances: vi
         .fn()
         .mockRejectedValue(new Error('fetch failed')),
-      fetchV6MultiAccountBalances: jest
+      fetchV6MultiAccountBalances: vi
         .fn()
         .mockRejectedValue(new Error('fetch failed')),
     },
@@ -301,7 +301,7 @@ type WithControllerCallback<ReturnValue> = ({
 }: {
   controller: AssetsController;
   messenger: RootMessenger;
-  getSelectedAccountsMock: jest.Mock<InternalAccount[], []>;
+  getSelectedAccountsMock: Mock<(...args: []) => InternalAccount[]>;
 }) => Promise<ReturnValue> | ReturnValue;
 
 async function withController<ReturnValue>(
@@ -360,7 +360,7 @@ async function withController<ReturnValue>(
   messenger.subscribe('AccountTreeController:uninitialized', () => {
     isAccountTreeInitialized = false;
   });
-  const getSelectedAccountsMock = jest.fn(() => [createMockInternalAccount()]);
+  const getSelectedAccountsMock = vi.fn(() => [createMockInternalAccount()]);
   messenger.registerActionHandler(
     'AccountTreeController:getAccountsFromSelectedAccountGroup',
     getSelectedAccountsMock,
@@ -612,7 +612,7 @@ describe('AssetsController', () => {
       });
 
       it('reports getter errors via captureException without breaking construction', async () => {
-        const captureException = jest.fn();
+        const captureException = vi.fn();
 
         await withController(
           {
@@ -855,7 +855,7 @@ describe('AssetsController', () => {
       const secondAssetId =
         'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
 
-      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+      const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
@@ -863,12 +863,12 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
             fullSupport: [1],
             partialSupport: [],
           }),
           fetchV6MultiAccountBalances,
-          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+          fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
             unprocessedNetworks: [],
           }),
@@ -1090,7 +1090,7 @@ describe('AssetsController', () => {
 
   describe('unhideAsset', () => {
     it('force-fetches the unhidden token as an includeAssetId on v6', async () => {
-      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+      const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
@@ -1098,12 +1098,12 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
             fullSupport: [1],
             partialSupport: [],
           }),
           fetchV6MultiAccountBalances,
-          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+          fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
             unprocessedNetworks: [],
           }),
@@ -1621,7 +1621,7 @@ describe('AssetsController', () => {
     });
 
     it('does not fail forceUpdate when parent trace rejects after work completes', async () => {
-      const traceMock = jest
+      const traceMock = vi
         .fn()
         .mockImplementation(
           async (
@@ -1651,7 +1651,7 @@ describe('AssetsController', () => {
     });
 
     it('still runs forceUpdate when parent trace rejects before invoking work', async () => {
-      const traceMock = jest
+      const traceMock = vi
         .fn()
         .mockRejectedValue(new Error('telemetry failed'));
       const trace = traceMock as unknown as TraceCallback;
@@ -1672,12 +1672,12 @@ describe('AssetsController', () => {
     // this asserts the controller wires its messenger through so the
     // `assetsAccountsApiV6` flag drives endpoint selection end-to-end.
     it('routes to the Accounts API v6 endpoint when the assetsAccountsApiV6 remote flag is enabled', async () => {
-      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+      const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
       });
-      const fetchV5MultiAccountBalances = jest.fn().mockResolvedValue({
+      const fetchV5MultiAccountBalances = vi.fn().mockResolvedValue({
         balances: [],
         unprocessedNetworks: [],
       });
@@ -1685,7 +1685,7 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
             fullSupport: [1],
             partialSupport: [],
           }),
@@ -1714,7 +1714,7 @@ describe('AssetsController', () => {
     });
 
     it('forwards user-pinned custom assets to the Accounts API v6 endpoint as includeAssetIds', async () => {
-      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+      const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
@@ -1723,12 +1723,12 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
             fullSupport: [1],
             partialSupport: [],
           }),
           fetchV6MultiAccountBalances,
-          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+          fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
             unprocessedNetworks: [],
           }),
@@ -1765,7 +1765,7 @@ describe('AssetsController', () => {
     });
 
     it('stops forwarding a pinned custom asset as includeAssetIds once it is hidden', async () => {
-      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+      const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
@@ -1774,12 +1774,12 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
             fullSupport: [1],
             partialSupport: [],
           }),
           fetchV6MultiAccountBalances,
-          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+          fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
             unprocessedNetworks: [],
           }),
@@ -1832,20 +1832,22 @@ describe('AssetsController', () => {
         'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
 
       const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
-      const accountsApiMiddleware: jest.MockedFunction<Middleware> = jest.fn(
+      const accountsApiMiddleware: MockedFunction<Middleware> = vi.fn(
         async (ctx, next) => {
           capturedCustomAssets.push(ctx.request.customAssets);
           return next(ctx);
         },
       );
-      const middlewareGetter = jest
+      const middlewareGetter = vi
         .spyOn(
           AccountsApiDataSource.prototype,
+          // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
           'assetsMiddleware',
-          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
           'get',
         )
-        .mockReturnValue(accountsApiMiddleware) as unknown as jest.SpyInstance;
+        .mockReturnValue(
+          accountsApiMiddleware as never,
+        ) as unknown as MockInstance;
 
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, mainnetToken);
@@ -1874,7 +1876,7 @@ describe('AssetsController', () => {
       const polygonToken =
         'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
 
-      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+      const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
@@ -1882,12 +1884,12 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
             fullSupport: [1, 137],
             partialSupport: [],
           }),
           fetchV6MultiAccountBalances,
-          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+          fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
             unprocessedNetworks: [],
           }),
@@ -1921,7 +1923,7 @@ describe('AssetsController', () => {
     });
 
     it('forwards user-hidden assets to the Accounts API v6 endpoint as excludeAssetIds', async () => {
-      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+      const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
@@ -1930,12 +1932,12 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
             fullSupport: [1],
             partialSupport: [],
           }),
           fetchV6MultiAccountBalances,
-          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+          fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
             unprocessedNetworks: [],
           }),
@@ -1972,7 +1974,7 @@ describe('AssetsController', () => {
     });
 
     it('forwards bypassServerCache on Accounts API v6 force updates', async () => {
-      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+      const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         accounts: [],
         unprocessedNetworks: [],
         unprocessedIncludeAssetIds: [],
@@ -1981,12 +1983,12 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
             fullSupport: [1],
             partialSupport: [],
           }),
           fetchV6MultiAccountBalances,
-          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+          fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
             unprocessedNetworks: [],
           }),
@@ -2025,7 +2027,7 @@ describe('AssetsController', () => {
         // Spy on handleAssetsUpdate to count how many times state is written.
         // Fast pipeline commits once; background pipelines each commit once more.
         await withController(async ({ controller }) => {
-          const updateSpy = jest.spyOn(controller, 'handleAssetsUpdate');
+          const updateSpy = vi.spyOn(controller, 'handleAssetsUpdate');
 
           await controller.getAssets([createMockInternalAccount()], {
             forceUpdate: true,
@@ -2101,7 +2103,7 @@ describe('AssetsController', () => {
         const customToken =
           'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 
-        const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+        const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
           balances: [],
           unprocessedNetworks: [],
           unprocessedIncludeAssetIds: [customToken],
@@ -2110,12 +2112,12 @@ describe('AssetsController', () => {
         const queryApiClient = {
           ...createMockQueryApiClient(),
           accounts: {
-            fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
               fullSupport: [1],
               partialSupport: [],
             }),
             fetchV6MultiAccountBalances,
-            fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+            fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
               balances: [],
               unprocessedNetworks: [],
             }),
@@ -2126,7 +2128,7 @@ describe('AssetsController', () => {
           chainIds: ChainId[];
           customAssets: Caip19AssetId[] | undefined;
         }[] = [];
-        const rpcMiddleware: jest.MockedFunction<Middleware> = jest.fn(
+        const rpcMiddleware: MockedFunction<Middleware> = vi.fn(
           async (ctx, next) => {
             rpcRequests.push({
               chainIds: ctx.request.chainIds,
@@ -2135,14 +2137,14 @@ describe('AssetsController', () => {
             return next(ctx);
           },
         );
-        const rpcMiddlewareGetter = jest
+        const rpcMiddlewareGetter = vi
           .spyOn(
             RpcDataSource.prototype,
+            // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
             'assetsMiddleware',
-            // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
             'get',
           )
-          .mockReturnValue(rpcMiddleware) as unknown as jest.SpyInstance;
+          .mockReturnValue(rpcMiddleware as never) as unknown as MockInstance;
 
         await withController(
           {
@@ -2176,18 +2178,18 @@ describe('AssetsController', () => {
       });
 
       it('does not run token or price middleware in getAssets pipelines when isBasicFunctionality is false', async () => {
-        const tokenMiddlewareGetter = jest.spyOn(
+        const tokenMiddlewareGetter = vi.spyOn(
           TokenDataSource.prototype,
+          // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
           'assetsMiddleware',
-          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
           'get',
-        ) as unknown as jest.SpyInstance;
-        const priceMiddlewareGetter = jest.spyOn(
+        ) as unknown as MockInstance;
+        const priceMiddlewareGetter = vi.spyOn(
           PriceDataSource.prototype,
+          // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
           'assetsMiddleware',
-          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
           'get',
-        ) as unknown as jest.SpyInstance;
+        ) as unknown as MockInstance;
 
         await withController(
           { isBasicFunctionality: () => false },
@@ -2210,33 +2212,33 @@ describe('AssetsController', () => {
       });
 
       it('does not call Accounts API v6 on force update when isBasicFunctionality is false', async () => {
-        const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+        const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
           balances: [],
           unprocessedNetworks: [],
           unprocessedIncludeAssetIds: [],
         });
-        const tokenMiddlewareGetter = jest.spyOn(
+        const tokenMiddlewareGetter = vi.spyOn(
           TokenDataSource.prototype,
+          // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
           'assetsMiddleware',
-          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
           'get',
-        ) as unknown as jest.SpyInstance;
-        const priceMiddlewareGetter = jest.spyOn(
+        ) as unknown as MockInstance;
+        const priceMiddlewareGetter = vi.spyOn(
           PriceDataSource.prototype,
+          // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
           'assetsMiddleware',
-          // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
           'get',
-        ) as unknown as jest.SpyInstance;
+        ) as unknown as MockInstance;
 
         const queryApiClient = {
           ...createMockQueryApiClient(),
           accounts: {
-            fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
               fullSupport: [1],
               partialSupport: [],
             }),
             fetchV6MultiAccountBalances,
-            fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+            fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
               balances: [],
               unprocessedNetworks: [],
             }),
@@ -2466,12 +2468,17 @@ describe('AssetsController', () => {
           [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1000' } },
         },
       };
-      const rpcMiddleware = jest.fn(
+      const rpcMiddleware = vi.fn(
         async (ctx: unknown, next: (ctx: unknown) => Promise<unknown>) =>
           next(ctx),
       );
-      const rpcMiddlewareGetter = jest
-        .spyOn(RpcDataSource.prototype, 'assetsMiddleware', 'get')
+      const rpcMiddlewareGetter = vi
+        .spyOn(
+          RpcDataSource.prototype,
+          // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'assetsMiddleware',
+          'get',
+        )
         .mockReturnValue(rpcMiddleware as never);
 
       await withController({ state: initialState }, async ({ controller }) => {
@@ -2531,7 +2538,7 @@ describe('AssetsController', () => {
     });
 
     it('does not fail when parent trace rejects after enrichment completes', async () => {
-      const traceMock = jest
+      const traceMock = vi
         .fn()
         .mockImplementation(
           async (
@@ -2679,18 +2686,18 @@ describe('AssetsController', () => {
     });
 
     it('does not run token or price middleware when isBasicFunctionality is false', async () => {
-      const tokenMiddlewareGetter = jest.spyOn(
+      const tokenMiddlewareGetter = vi.spyOn(
         TokenDataSource.prototype,
+        // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
         'assetsMiddleware',
-        // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
         'get',
-      ) as unknown as jest.SpyInstance;
-      const priceMiddlewareGetter = jest.spyOn(
+      ) as unknown as MockInstance;
+      const priceMiddlewareGetter = vi.spyOn(
         PriceDataSource.prototype,
+        // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
         'assetsMiddleware',
-        // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
         'get',
-      ) as unknown as jest.SpyInstance;
+      ) as unknown as MockInstance;
 
       const request: DataRequest = {
         accountsWithSupportedChains: [],
@@ -2726,12 +2733,12 @@ describe('AssetsController', () => {
     });
 
     it('falls back to RPC for chains a subscription update flagged as errored (e.g. unprocessedNetworks)', async () => {
-      const rpcMiddlewareGetter = jest.spyOn(
+      const rpcMiddlewareGetter = vi.spyOn(
         RpcDataSource.prototype,
+        // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
         'assetsMiddleware',
-        // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
         'get',
-      ) as unknown as jest.SpyInstance;
+      ) as unknown as MockInstance;
 
       const request: DataRequest = {
         accountsWithSupportedChains: [],
@@ -2763,12 +2770,12 @@ describe('AssetsController', () => {
     });
 
     it('does not run the RPC fallback when a subscription update has no errored chains', async () => {
-      const rpcMiddlewareGetter = jest.spyOn(
+      const rpcMiddlewareGetter = vi.spyOn(
         RpcDataSource.prototype,
+        // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
         'assetsMiddleware',
-        // @ts-expect-error -- Jest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
         'get',
-      ) as unknown as jest.SpyInstance;
+      ) as unknown as MockInstance;
 
       const request: DataRequest = {
         accountsWithSupportedChains: [],
@@ -2858,7 +2865,7 @@ describe('AssetsController', () => {
     it('re-subscribes assets when chains are added', async () => {
       await withController(async ({ controller, messenger }) => {
         await activateTracking(messenger);
-        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+        const subscribeSpy = vi.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
@@ -2869,7 +2876,7 @@ describe('AssetsController', () => {
 
     it('does not fetch balances directly when chains are added', async () => {
       await withController(async ({ controller }) => {
-        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
@@ -2880,7 +2887,7 @@ describe('AssetsController', () => {
 
     it('does not re-subscribe when no chains change', async () => {
       await withController(async ({ controller }) => {
-        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+        const subscribeSpy = vi.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', [], []);
@@ -2893,7 +2900,7 @@ describe('AssetsController', () => {
     it('re-subscribes assets when chains are removed', async () => {
       await withController(async ({ controller, messenger }) => {
         await activateTracking(messenger);
-        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+        const subscribeSpy = vi.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
@@ -2910,7 +2917,7 @@ describe('AssetsController', () => {
         messenger.publish('KeyringController:lock');
         await flushPromises();
 
-        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+        const subscribeSpy = vi.spyOn(controller, 'subscribeAssetsPrice');
 
         // Simulate the WebSocket flushing all chains as "down" after stop.
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
@@ -2926,7 +2933,7 @@ describe('AssetsController', () => {
           controllerOptions: { isEnabled: (): boolean => false },
         },
         async ({ controller }) => {
-          const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+          const subscribeSpy = vi.spyOn(controller, 'subscribeAssetsPrice');
           const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
 
           onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
@@ -2944,7 +2951,7 @@ describe('AssetsController', () => {
           controllerOptions: { isEnabled: (): boolean => enabled },
         },
         async ({ controller }) => {
-          const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+          const subscribeSpy = vi.spyOn(controller, 'subscribeAssetsPrice');
           enabled = false;
 
           const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
@@ -2960,13 +2967,14 @@ describe('AssetsController', () => {
     it('does not attach pinned assets to the account-activity subscription', async () => {
       // Account activity owns eip155:1. Pins stay in controller state; the
       // websocket does not take include/exclude lists.
-      jest
-        .spyOn(AccountActivityDataSource.prototype, 'getActiveChainsSync')
-        .mockReturnValue(['eip155:1']);
-      const wsSubscribeSpy = jest
+      vi.spyOn(
+        AccountActivityDataSource.prototype,
+        'getActiveChainsSync',
+      ).mockReturnValue(['eip155:1']);
+      const wsSubscribeSpy = vi
         .spyOn(AccountActivityDataSource.prototype, 'subscribe')
         .mockResolvedValue(undefined);
-      const rpcSubscribeSpy = jest
+      const rpcSubscribeSpy = vi
         .spyOn(RpcDataSource.prototype, 'subscribe')
         .mockResolvedValue(undefined);
 
@@ -2986,13 +2994,15 @@ describe('AssetsController', () => {
 
     it('does not create an RPC subscription for pinned assets on unassigned chains', async () => {
       // Account activity is not active on the pin's chain...
-      jest
-        .spyOn(AccountActivityDataSource.prototype, 'getActiveChainsSync')
-        .mockReturnValue([]);
-      jest
-        .spyOn(AccountActivityDataSource.prototype, 'subscribe')
-        .mockResolvedValue(undefined);
-      const rpcSubscribeSpy = jest
+      vi.spyOn(
+        AccountActivityDataSource.prototype,
+        'getActiveChainsSync',
+      ).mockReturnValue([]);
+      vi.spyOn(
+        AccountActivityDataSource.prototype,
+        'subscribe',
+      ).mockResolvedValue(undefined);
+      const rpcSubscribeSpy = vi
         .spyOn(RpcDataSource.prototype, 'subscribe')
         .mockResolvedValue(undefined);
 
@@ -4128,7 +4138,7 @@ describe('AssetsController', () => {
       await withController(({ controller }) => {
         expect(controller.state.selectedCurrency).toBe('usd');
 
-        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
         controller.setSelectedCurrency('usd');
 
@@ -4152,7 +4162,7 @@ describe('AssetsController', () => {
       };
 
       await withController({ state: initialState }, ({ controller }) => {
-        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
         controller.setSelectedCurrency('eur');
 
@@ -4178,7 +4188,7 @@ describe('AssetsController', () => {
       await withController(
         { state: initialState, isBasicFunctionality: () => false },
         ({ controller }) => {
-          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+          const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
           controller.setSelectedCurrency('eur');
 
@@ -4194,7 +4204,7 @@ describe('AssetsController', () => {
   describe('events', () => {
     it('force refreshes assets when transaction is confirmed', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest
+        const getAssetsSpy = vi
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
@@ -4220,7 +4230,7 @@ describe('AssetsController', () => {
 
     it('force refreshes assets when unapproved transaction is added', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest
+        const getAssetsSpy = vi
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
@@ -4246,7 +4256,7 @@ describe('AssetsController', () => {
 
     it('force refreshes assets with server cache bypass when a non-EVM transaction is confirmed', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest
+        const getAssetsSpy = vi
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
@@ -4273,7 +4283,7 @@ describe('AssetsController', () => {
 
     it('does not force refresh assets for a non-EVM transaction from a non-selected account', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest
+        const getAssetsSpy = vi
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
@@ -4293,7 +4303,7 @@ describe('AssetsController', () => {
 
     it('does not force refresh assets for a non-EVM transaction on an AccountActivity-active chain', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest
+        const getAssetsSpy = vi
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
@@ -4316,7 +4326,7 @@ describe('AssetsController', () => {
 
     it('force refreshes assets for a non-EVM transaction once the AccountActivity chain goes down', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest
+        const getAssetsSpy = vi
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
@@ -4353,7 +4363,7 @@ describe('AssetsController', () => {
 
     it('does not force refresh assets for a non-EVM transaction with an invalid chain', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest
+        const getAssetsSpy = vi
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
@@ -4371,7 +4381,7 @@ describe('AssetsController', () => {
 
     it('does not force refresh assets on transaction events for AccountActivity-active chains', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest
+        const getAssetsSpy = vi
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
@@ -4401,7 +4411,7 @@ describe('AssetsController', () => {
 
     it('publishes balanceChanged event when balance updates', async () => {
       await withController(async ({ controller, messenger }) => {
-        const balanceChangedHandler = jest.fn();
+        const balanceChangedHandler = vi.fn();
         messenger.subscribe(
           'AssetsController:balanceChanged',
           balanceChangedHandler,
@@ -4439,7 +4449,7 @@ describe('AssetsController', () => {
       await withController(
         { state: initialState },
         async ({ controller, messenger }) => {
-          const balanceChangedHandler = jest.fn();
+          const balanceChangedHandler = vi.fn();
           messenger.subscribe(
             'AssetsController:balanceChanged',
             balanceChangedHandler,
@@ -4480,7 +4490,7 @@ describe('AssetsController', () => {
       await withController(
         { state: initialState },
         async ({ controller, messenger }) => {
-          const stateChangeHandler = jest.fn();
+          const stateChangeHandler = vi.fn();
           messenger.subscribe(
             'AssetsController:stateChange',
             stateChangeHandler,
@@ -4514,7 +4524,7 @@ describe('AssetsController', () => {
       await withController(
         { state: initialState },
         async ({ controller, messenger }) => {
-          const stateChangeHandler = jest.fn();
+          const stateChangeHandler = vi.fn();
           messenger.subscribe(
             'AssetsController:stateChange',
             stateChangeHandler,
@@ -4551,7 +4561,7 @@ describe('AssetsController', () => {
       await withController(
         { state: initialState, isBasicFunctionality: () => false },
         async ({ controller, messenger }) => {
-          const stateChangeHandler = jest.fn();
+          const stateChangeHandler = vi.fn();
           messenger.subscribe(
             'AssetsController:stateChange',
             stateChangeHandler,
@@ -4591,7 +4601,7 @@ describe('AssetsController', () => {
       await withController(
         { state: initialState, isBasicFunctionality: () => false },
         async ({ controller, messenger }) => {
-          const stateChangeHandler = jest.fn();
+          const stateChangeHandler = vi.fn();
           messenger.subscribe(
             'AssetsController:stateChange',
             stateChangeHandler,
@@ -4627,7 +4637,7 @@ describe('AssetsController', () => {
       await withController(
         { state: initialState },
         async ({ controller, messenger }) => {
-          const stateChangeHandler = jest.fn();
+          const stateChangeHandler = vi.fn();
           messenger.subscribe(
             'AssetsController:stateChange',
             stateChangeHandler,
@@ -4657,7 +4667,7 @@ describe('AssetsController', () => {
       await withController(
         { state: initialState },
         async ({ controller, messenger }) => {
-          const stateChangeHandler = jest.fn();
+          const stateChangeHandler = vi.fn();
           messenger.subscribe(
             'AssetsController:stateChange',
             stateChangeHandler,
@@ -4681,7 +4691,7 @@ describe('AssetsController', () => {
   describe('keyring lifecycle', () => {
     it('does not start tracking on unlock until the account tree is initialized', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
         messenger.publish('KeyringController:unlock');
         await flushPromises();
@@ -4704,7 +4714,7 @@ describe('AssetsController', () => {
 
     it('invokes trace with first init fetch trace request on unlock', async () => {
       const parentSpan = { id: 'assets-full-fetch' };
-      const traceMock = jest
+      const traceMock = vi
         .fn()
         .mockImplementation(
           async (
@@ -4802,7 +4812,7 @@ describe('AssetsController', () => {
     });
 
     it('replaces pre-lock balances on unlock with a full Accounts API v6 snapshot', async () => {
-      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+      const fetchV6MultiAccountBalances = vi.fn().mockResolvedValue({
         balances: [
           {
             accountId: 'eip155:1:0x1234567890123456789012345678901234567890',
@@ -4819,12 +4829,12 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
             fullSupport: [1],
             partialSupport: [],
           }),
           fetchV6MultiAccountBalances,
-          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+          fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
             unprocessedNetworks: [],
           }),
@@ -4872,7 +4882,7 @@ describe('AssetsController', () => {
     });
 
     it('replaces pre-lock balances on unlock via merge with covered-chain replacement', async () => {
-      const fetchV5MultiAccountBalances = jest.fn().mockResolvedValue({
+      const fetchV5MultiAccountBalances = vi.fn().mockResolvedValue({
         balances: [
           {
             accountId: 'eip155:1:0x1234567890123456789012345678901234567890',
@@ -4886,7 +4896,7 @@ describe('AssetsController', () => {
       const queryApiClient = {
         ...createMockQueryApiClient(),
         accounts: {
-          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
             fullSupport: [1],
             partialSupport: [],
           }),
@@ -4934,7 +4944,7 @@ describe('AssetsController', () => {
     });
 
     it('invokes first-init fetch trace only once per session until lock', async () => {
-      const traceMock = jest
+      const traceMock = vi
         .fn()
         .mockImplementation(
           async (_request: TraceRequest, fn?: (context?: unknown) => unknown) =>
@@ -5003,7 +5013,7 @@ describe('AssetsController', () => {
         { clientControllerState: { isUiOpen: true } },
         async ({ controller, messenger }) => {
           let resolveGetAssets: (() => void) | undefined;
-          const getAssetsSpy = jest
+          const getAssetsSpy = vi
             .spyOn(controller, 'getAssets')
             .mockImplementation(
               () =>
@@ -5369,7 +5379,7 @@ describe('AssetsController', () => {
         isUiOpen: true,
       }));
 
-      const fetchV2SupportedNetworks = jest.fn().mockResolvedValue({
+      const fetchV2SupportedNetworks = vi.fn().mockResolvedValue({
         fullSupport: [1, 11155111],
         partialSupport: [],
       });
@@ -5378,7 +5388,7 @@ describe('AssetsController', () => {
         ...createMockQueryApiClient(),
         accounts: {
           fetchV2SupportedNetworks,
-          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+          fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
             balances: [],
             unprocessedNetworks: [],
           }),
@@ -5393,7 +5403,7 @@ describe('AssetsController', () => {
         },
       });
 
-      const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+      const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
       try {
         (
@@ -5439,7 +5449,7 @@ describe('AssetsController', () => {
   describe('account group changes', () => {
     it('refreshes assets when the selected group changes while tracking', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest
+        const getAssetsSpy = vi
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
@@ -5462,7 +5472,7 @@ describe('AssetsController', () => {
 
     it('skips asset refresh when group ID is empty (onboarding or wallet reset)', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
         (messenger as unknown as { publish: LifecyclePublish }).publish(
           'AccountTreeController:selectedAccountGroupChange',
@@ -5479,7 +5489,7 @@ describe('AssetsController', () => {
 
     it('skips init-time selectedAccountGroupChange so :initialized owns first start', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
         (
           messenger as unknown as {
@@ -5511,7 +5521,7 @@ describe('AssetsController', () => {
 
     it('skips selectedAccountGroupChange when group id did not change', async () => {
       await withController(async ({ controller, messenger }) => {
-        const getAssetsSpy = jest
+        const getAssetsSpy = vi
           .spyOn(controller, 'getAssets')
           .mockResolvedValue({});
 
@@ -5830,7 +5840,7 @@ describe('AssetsController', () => {
   });
   describe('account tree initialized', () => {
     it('triggers start when the tree initializes after unlock with empty accounts', async () => {
-      const getAccountsMock = jest.fn().mockReturnValue([]);
+      const getAccountsMock = vi.fn().mockReturnValue([]);
 
       const messenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,
@@ -5899,7 +5909,7 @@ describe('AssetsController', () => {
         },
       });
 
-      const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+      const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
       // Step 1: UI open + unlock — accounts empty, #start() is a no-op
       (
