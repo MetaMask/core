@@ -719,12 +719,14 @@ export type FetchFeedOptions = {
   scope?: FeedScope;
   /**
    * Filter by one or more chains, given as CAIP-2 chain ids (e.g.
-   * `eip155:8453`). Omit for the server defaults.
+   * `eip155:8453`). Omit for the server defaults. A set that excludes the chain
+   * of an asset in `assetIds` is rejected with a 400.
    */
   chains?: string[];
   /**
    * Only items in any of these assets, given as 1–10 CAIP-19 asset id (e.g.
-   * `eip155:8453/erc20:0x…`). Matches ANY of them.
+   * `eip155:8453/erc20:0x…`). Matches ANY of them. Invalid or unsupported asset
+   * ids (for example, ones with a token id) are rejected with a 400.
    */
   assetIds?: CaipAssetTypeOrId[];
   /**

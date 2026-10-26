@@ -446,7 +446,8 @@ export class SocialService extends BaseDataService<
    * @param options.scope - `following` (default), `leaderboard`, `all`, or
    * `trending`.
    * @param options.chains - Filter by one or more chains.
-   * @param options.assetIds - Only items in any of these CAIP-19 assets.
+   * @param options.assetIds - Only items in any of these CAIP-19 assets. Invalid
+   * or unsupported asset ids are rejected with a 400.
    * @param options.profileId - Only this trader's items.
    * @param options.commentedOnly - When true, only items with an author comment.
    * @param options.limit - Number of results per page.
