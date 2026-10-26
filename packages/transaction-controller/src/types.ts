@@ -2115,7 +2115,8 @@ export type GasFeeToken = {
 
   /**
    * Name of the party paying the gas fee, such as `Uniswap` or `MetaMask`.
-   * Only set when the gas fee is sponsored.
+   * Only set when the simulation reports the gas fee as sponsored.
+   * Check `TransactionMeta.isGasFeeSponsored` before displaying it.
    */
   sponsor?: string;
 
