@@ -19,6 +19,7 @@ export type {
 } from './KycController.js';
 export type {
   KycControllerClearStateAction,
+  KycControllerEnsureLocalUserSecretAction,
   KycControllerFetchSessionDisclaimersAction,
   KycControllerFetchVendorDisclaimersAction,
   KycControllerGetProviderFlowStatusAction,

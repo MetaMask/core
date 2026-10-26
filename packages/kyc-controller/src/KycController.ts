@@ -259,6 +259,7 @@ export type FetchSessionDisclaimersParams =
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
+  'ensureLocalUserSecret',
   'startSession',
   'reset',
   'clearState',
@@ -411,6 +412,29 @@ export class KycController extends BaseController<
   }
 
   /**
+   * Creates the UKYC `local_user_secret` and stores it in Encrypted User
+   * Storage when one does not already exist.
+   *
+   * Call this after the user has expressed intent to onboard and before
+   * {@link startSession}. Persisting the secret here moves generation and the
+   * storage write off the `startSession` path. `startSession` still reads the
+   * secret, and still creates it when this has not been called.
+   *
+   * Await this call, or attach a rejection handler. A failure does not block
+   * onboarding: {@link startSession} creates the secret if it is still missing.
+   *
+   * The operation is idempotent and uses the same primary entropy source as
+   * session creation. The plaintext secret is not returned and is not sent to
+   * idOS. Only the encrypted User Storage copy is synced.
+   *
+   * @throws When Encrypted User Storage cannot be read or written, or when a
+   * stored secret has an unexpected length.
+   */
+  async ensureLocalUserSecret(): Promise<void> {
+    await getOrCreateLocalUserSecret(this.#localUserSecretStore);
+  }
+
+  /**
    * Starts a KYC session for the given vendor. Reuses a latest vendor session
    * when one exists; otherwise creates a UKYC session.
    *
@@ -418,6 +442,11 @@ export class KycController extends BaseController<
    * identity token. When that request returns HTTP 422, a stored email is
    * kept for an existing session. Creating a vendor customer and UKYC session
    * requires the token, which both requests send as `partnerIdentityToken`.
+   *
+   * Session creation derives client material from the UKYC
+   * `local_user_secret`. Call {@link ensureLocalUserSecret} after the user
+   * has expressed intent to onboard so that secret is generated and stored
+   * before this method runs.
    *
    * @param params - The session parameters.
    * @param params.vendor - Identity vendor for the session.
