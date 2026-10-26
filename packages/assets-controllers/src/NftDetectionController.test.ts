@@ -1217,7 +1217,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
 
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
         mockAddNfts.mockReset();
         mockRemoveNft.mockReset();
 
@@ -1280,7 +1280,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
 
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
         mockRemoveNft.mockReset();
 
         await controller.detectNfts(['0x1']);
@@ -1378,7 +1378,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
 
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
         mockRemoveNft.mockReset();
 
         await controller.detectNfts(['0x1']);
@@ -1452,7 +1452,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
 
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
         mockRemoveNft.mockReset();
 
         await controller.detectNfts(['0xdead']);
