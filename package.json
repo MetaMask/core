@@ -70,10 +70,8 @@
   "devDependencies": {
     "@actions/core": "^3.0.1",
     "@actions/github": "^9.1.1",
-    "@jest/globals": "^30.5.2",
     "@lavamoat/allow-scripts": "^5.1.0",
     "@lavamoat/preinstall-always-fail": "^3.0.0",
-    "@metamask/action-utils": "^2.0.0",
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/create-release-branch": "^4.2.2",
     "@metamask/error-utils": "^0.0.0",
@@ -81,13 +79,11 @@
     "@metamask/node-utils": "^0.0.0",
     "@metamask/oxlint-config": "^0.1.1",
     "@metamask/oxlint-config-commonjs": "^0.1.1",
-    "@metamask/oxlint-config-jest": "^0.1.1",
     "@metamask/oxlint-config-nodejs": "^0.1.1",
     "@metamask/oxlint-config-typescript": "^0.1.1",
     "@metamask/oxlint-config-vitest": "^0.1.1",
     "@metamask/skills": "^0.3.1",
     "@metamask/type-utils": "^0.0.0",
-    "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.26",
     "@types/node": "^22.13.14",
     "@types/semver": "^7.8.0",
@@ -103,9 +99,6 @@
     "comment-json": "^4.6.2",
     "eslint-plugin-n": "^18.3.0",
     "execa": "^10.0.1",
-    "isomorphic-fetch": "^3.0.0",
-    "jest": "^30.5.2",
-    "jest-silent-reporter": "^0.6.0",
     "knip": "^6.39.0",
     "lodash": "^4.18.1",
     "nock": "^13.5.6",
@@ -118,7 +111,6 @@
     "semver": "^7.8.5",
     "simple-git-hooks": "^2.14.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "uuid": "^11.1.1",
     "vite": "^8.0.8",
     "vitest": "^5.0.0",
     "yargs": "^17.7.3"
@@ -141,10 +133,8 @@
       "@lavamoat/preinstall-always-fail": false,
       "vite>esbuild": false,
       "simple-git-hooks": false,
-      "jest>@jest/core>jest-resolve>unrs-resolver": false,
       "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
-      "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false,
-      "jest>@jest/core>jest-haste-map>@parcel/watcher#2.6.0": false
+      "@metamask/network-controller>@metamask/config-registry-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
     }
   }
 }

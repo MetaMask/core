@@ -1,5 +1,15 @@
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+import type { MockInstance } from 'vitest';
 
 import type { ProviderRequestStub } from '../test/util/helpers.js';
 import {
@@ -20,7 +30,7 @@ const originalSetTimeout = globalThis.setTimeout;
 
 describe('createRetryOnEmptyMiddleware', () => {
   beforeAll(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   let provider: ReturnType<typeof createProviderAndBlockTracker>['provider'];
@@ -35,7 +45,7 @@ describe('createRetryOnEmptyMiddleware', () => {
   });
 
   afterEach(async () => {
-    jest.clearAllTimers();
+    vi.clearAllTimers();
     await blockTracker.destroy();
   });
 
@@ -183,7 +193,7 @@ describe('createRetryOnEmptyMiddleware', () => {
 
         describe('if the block number in the request params is higher than the latest block number reported by the block tracker', () => {
           // Using custom expect helper
-          // eslint-disable-next-line jest/expect-expect
+          // eslint-disable-next-line vitest/expect-expect
           it('does not make a direct request through the provider', async () => {
             const engine = createEngine(
               createRetryOnEmptyMiddleware({
@@ -240,7 +250,7 @@ describe('createRetryOnEmptyMiddleware', () => {
           'if the block parameter is not a 0x-prefixed hex number such as %o',
           (blockParam) => {
             // Using custom expect helper
-            // eslint-disable-next-line jest/expect-expect
+            // eslint-disable-next-line vitest/expect-expect
             it('does not make a direct request through the provider', async () => {
               const engine = createEngine(
                 createRetryOnEmptyMiddleware({
@@ -298,7 +308,7 @@ describe('createRetryOnEmptyMiddleware', () => {
           'if the block parameter is %o',
           (blockParam) => {
             // Using custom expect helper
-            // eslint-disable-next-line jest/expect-expect
+            // eslint-disable-next-line vitest/expect-expect
             it('does not make a direct request through the provider', async () => {
               const engine = createEngine(
                 createRetryOnEmptyMiddleware({
@@ -356,7 +366,7 @@ describe('createRetryOnEmptyMiddleware', () => {
 
         describe('if no block parameter is given', () => {
           // Using custom expect helper
-          // eslint-disable-next-line jest/expect-expect
+          // eslint-disable-next-line vitest/expect-expect
           it('does not make a direct request through the provider', async () => {
             const engine = createEngine(
               createRetryOnEmptyMiddleware({
@@ -406,7 +416,7 @@ describe('createRetryOnEmptyMiddleware', () => {
 
   describe('a method that does not take a block parameter', () => {
     // Using custom expect helper
-    // eslint-disable-next-line jest/expect-expect
+    // eslint-disable-next-line vitest/expect-expect
     it('does not make a direct request through the provider', async () => {
       const engine = createEngine(
         createRetryOnEmptyMiddleware({
@@ -554,7 +564,7 @@ async function waitForRequestToBeRetried({
   request,
   numberOfTimes,
 }: {
-  requestSpy: jest.SpyInstance;
+  requestSpy: MockInstance;
   request: JsonRpcRequest;
   numberOfTimes: number;
 }): Promise<void> {
@@ -567,7 +577,7 @@ async function waitForRequestToBeRetried({
       requestSpy.mock.calls.filter((args) => requestMatches(args[0], request))
         .length === iterationNumber
     ) {
-      jest.runAllTimers();
+      vi.runAllTimers();
       iterationNumber += 1;
     }
   }

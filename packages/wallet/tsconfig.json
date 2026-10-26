@@ -78,6 +78,9 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../geolocation-controller"
     }
   ],
   "include": ["../../types", "./src"]

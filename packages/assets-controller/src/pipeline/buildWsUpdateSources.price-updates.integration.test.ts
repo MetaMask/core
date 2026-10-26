@@ -1,5 +1,6 @@
 import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   RESPONSE_DETECTED_ASSETS_SURFACE,
@@ -194,7 +195,7 @@ async function runWsUpdatePass({
   let captured: { response: DataResponse; request: DataRequest } | undefined;
   const accountActivityDataSource = new AccountActivityDataSource({
     messenger: assetsControllerMessenger,
-    onActiveChainsUpdated: jest.fn(),
+    onActiveChainsUpdated: vi.fn(),
     onAssetsUpdate: async (
       response: DataResponse,
       request: DataRequest,
@@ -322,7 +323,7 @@ describe('websocket update pipeline: prices for surfaced holdings', () => {
       event: buildEthAndUsdcBalanceUpdatedEvent(),
     });
 
-    // eslint-disable-next-line jest/no-restricted-matchers
+    // eslint-disable-next-line vitest/no-restricted-matchers
     expect(withZeroedTimestamps(response)).toMatchSnapshot();
   });
 

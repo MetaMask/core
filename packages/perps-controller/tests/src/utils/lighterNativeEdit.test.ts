@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { OrderParams } from '../../../src/types/index.js';
 import type {
   LighterEditableOrder,

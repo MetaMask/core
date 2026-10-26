@@ -2,6 +2,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import BN from 'bn.js';
 import nock from 'nock';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { ERC20Standard } from './ERC20Standard.js';
 
@@ -219,10 +220,8 @@ describe('ERC20Standard', () => {
 
   it('should handle getTokenSymbol with malformed result', async () => {
     const mockProvider = {
-      call: jest.fn().mockResolvedValue('0x'),
-      detectNetwork: jest
-        .fn()
-        .mockResolvedValue({ name: 'mainnet', chainId: 1 }),
+      call: vi.fn().mockResolvedValue('0x'),
+      detectNetwork: vi.fn().mockResolvedValue({ name: 'mainnet', chainId: 1 }),
     };
 
     const testInstance = new ERC20Standard(
@@ -247,9 +246,9 @@ describe('ERC20Standard', () => {
 
     const testInstance = new ERC20Standard(MAINNET_PROVIDER);
 
-    jest.spyOn(testInstance, 'getTokenDecimals').mockResolvedValue('18');
-    jest.spyOn(testInstance, 'getTokenSymbol').mockResolvedValue('TEST');
-    jest.spyOn(testInstance, 'getBalanceOf').mockResolvedValue(new BN('1000'));
+    vi.spyOn(testInstance, 'getTokenDecimals').mockResolvedValue('18');
+    vi.spyOn(testInstance, 'getTokenSymbol').mockResolvedValue('TEST');
+    vi.spyOn(testInstance, 'getBalanceOf').mockResolvedValue(new BN('1000'));
 
     const details = await testInstance.getDetails(mockAddress, mockUserAddress);
 
@@ -260,7 +259,7 @@ describe('ERC20Standard', () => {
     expect(details.balance?.toString()).toBe('1000');
 
     // Restore mocks
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('should get details without user address (no balance)', async () => {
@@ -275,8 +274,8 @@ describe('ERC20Standard', () => {
 
     const testInstance = new ERC20Standard(MAINNET_PROVIDER);
 
-    jest.spyOn(testInstance, 'getTokenDecimals').mockResolvedValue('18');
-    jest.spyOn(testInstance, 'getTokenSymbol').mockResolvedValue('TEST');
+    vi.spyOn(testInstance, 'getTokenDecimals').mockResolvedValue('18');
+    vi.spyOn(testInstance, 'getTokenSymbol').mockResolvedValue('TEST');
 
     const details = await testInstance.getDetails(mockAddress);
 
@@ -285,12 +284,12 @@ describe('ERC20Standard', () => {
     expect(details.symbol).toBe('TEST');
     expect(details.balance).toBeUndefined();
 
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   // it('should handle getTokenName non-revert exception rethrow', async () => {
   //   const mockProvider = {
-  //     call: jest.fn(),
+  //     call: vi.fn(),
   //     detectNetwork: jest
   //       .fn()
   //       .mockResolvedValue({ name: 'mainnet', chainId: 1 }),
@@ -302,7 +301,7 @@ describe('ERC20Standard', () => {
   //   jest
   //     .spyOn(require('@ethersproject/contracts'), 'Contract')
   //     .mockImplementation(() => ({
-  //       name: jest.fn().mockRejectedValue(new Error('Network timeout')),
+  //       name: vi.fn().mockRejectedValue(new Error('Network timeout')),
   //     }));
 
   //   await expect(
@@ -314,14 +313,12 @@ describe('ERC20Standard', () => {
 
   it('should handle getTokenSymbol parsing failure', async () => {
     const mockProvider = {
-      call: jest
+      call: vi
         .fn()
         .mockResolvedValue(
           '0x0000000000000000000000000000000000000000000000000000000000000000',
         ),
-      detectNetwork: jest
-        .fn()
-        .mockResolvedValue({ name: 'mainnet', chainId: 1 }),
+      detectNetwork: vi.fn().mockResolvedValue({ name: 'mainnet', chainId: 1 }),
     };
 
     const testInstance = new ERC20Standard(

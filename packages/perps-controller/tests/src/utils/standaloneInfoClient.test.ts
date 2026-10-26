@@ -1,5 +1,7 @@
 /* eslint-disable */
 import { HttpTransport, InfoClient } from '@nktkas/hyperliquid';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
 
 import type { ClearinghouseStateResponse } from '../../../src/types/hyperliquid-types.js';
 import {
@@ -11,18 +13,22 @@ import {
 // Mock instances — must use 'mock' prefix for Jest hoisting
 const mockHttpTransportInstance = { url: 'http://mock' };
 const mockInfoClientInstance = {
-  clearinghouseState: jest.fn(),
-  frontendOpenOrders: jest.fn(),
+  clearinghouseState: vi.fn(),
+  frontendOpenOrders: vi.fn(),
 };
 
-jest.mock('@nktkas/hyperliquid', () => ({
-  HttpTransport: jest.fn(() => mockHttpTransportInstance),
-  InfoClient: jest.fn(() => mockInfoClientInstance),
+vi.mock('@nktkas/hyperliquid', () => ({
+  HttpTransport: vi.fn(function () {
+    return mockHttpTransportInstance;
+  }),
+  InfoClient: vi.fn(function () {
+    return mockInfoClientInstance;
+  }),
 }));
 
-// After jest.mock hoisting, these imports are the mocked constructors
-const MockedHttpTransport = HttpTransport as unknown as jest.Mock;
-const MockedInfoClient = InfoClient as unknown as jest.Mock;
+// After vi.mock hoisting, these imports are the mocked constructors
+const MockedHttpTransport = HttpTransport as unknown as Mock;
+const MockedInfoClient = InfoClient as unknown as Mock;
 
 /**
  * Factory for mock ClearinghouseStateResponse.
@@ -44,9 +50,13 @@ const createMockClearinghouseResponse = (
 
 describe('standaloneInfoClient', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    MockedHttpTransport.mockImplementation(() => mockHttpTransportInstance);
-    MockedInfoClient.mockImplementation(() => mockInfoClientInstance);
+    vi.clearAllMocks();
+    MockedHttpTransport.mockImplementation(function () {
+      return mockHttpTransportInstance;
+    });
+    MockedInfoClient.mockImplementation(function () {
+      return mockInfoClientInstance;
+    });
   });
 
   // ----------------------------------------------------------------
@@ -101,11 +111,11 @@ describe('standaloneInfoClient', () => {
   describe('queryStandaloneClearinghouseStates', () => {
     const userAddress = '0xABCDEF1234567890abcdef1234567890ABCDEF12';
 
-    let mockInfoClient: jest.Mocked<Pick<InfoClient, 'clearinghouseState'>>;
+    let mockInfoClient: Mocked<Pick<InfoClient, 'clearinghouseState'>>;
 
     beforeEach(() => {
       mockInfoClient = {
-        clearinghouseState: jest.fn(),
+        clearinghouseState: vi.fn(),
       };
     });
 
@@ -251,12 +261,12 @@ describe('standaloneInfoClient', () => {
     const userAddress = '0xABCDEF1234567890abcdef1234567890ABCDEF12';
 
     let mockInfoClient: {
-      frontendOpenOrders: jest.Mock;
+      frontendOpenOrders: Mock;
     };
 
     beforeEach(() => {
       mockInfoClient = {
-        frontendOpenOrders: jest.fn(),
+        frontendOpenOrders: vi.fn(),
       };
     });
 

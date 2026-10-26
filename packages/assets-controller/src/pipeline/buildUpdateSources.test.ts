@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { AssetsDataSource } from '../types.js';
 import { buildUpdateSources } from './buildUpdateSources.js';
 import type { UpdateSources } from './buildUpdateSources.js';
