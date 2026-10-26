@@ -234,7 +234,7 @@ describe('Gas Fee Tokens Utils', () => {
       });
     });
 
-    it('includes sponsor in tokens if gas fee is sponsored', async () => {
+    it('returns sponsor if gas fee is sponsored', async () => {
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [
           {
@@ -272,10 +272,42 @@ describe('Gas Fee Tokens Utils', () => {
       const result = await getGasFeeTokens(REQUEST_MOCK);
 
       expect(result.gasFeeTokens[0].sponsor).toBe('Uniswap');
+      expect(result.gasFeeSponsor).toBe('Uniswap');
       expect(result.isGasFeeSponsored).toBe(true);
     });
 
-    it('does not include sponsor in tokens if gas fee is not sponsored', async () => {
+    it('returns sponsor if gas fee is sponsored without token fees', async () => {
+      simulateTransactionsMock.mockResolvedValueOnce({
+        transactions: [
+          {
+            fees: [
+              {
+                gas: '0x1',
+                maxFeePerGas: '0x2',
+                maxPriorityFeePerGas: '0x3',
+                tokenFees: [],
+              },
+            ],
+            return: '0x',
+          },
+        ],
+        sponsorship: {
+          isSponsored: true,
+          error: '',
+          sponsor: 'Uniswap',
+        },
+      });
+
+      const result = await getGasFeeTokens(REQUEST_MOCK);
+
+      expect(result).toStrictEqual({
+        gasFeeTokens: [],
+        gasFeeSponsor: 'Uniswap',
+        isGasFeeSponsored: true,
+      });
+    });
+
+    it('does not return sponsor if gas fee is not sponsored', async () => {
       simulateTransactionsMock.mockResolvedValueOnce({
         transactions: [
           {
@@ -313,6 +345,7 @@ describe('Gas Fee Tokens Utils', () => {
       const result = await getGasFeeTokens(REQUEST_MOCK);
 
       expect(result.gasFeeTokens[0]).not.toHaveProperty('sponsor');
+      expect(result).not.toHaveProperty('gasFeeSponsor');
     });
 
     it('returns empty if error', async () => {
