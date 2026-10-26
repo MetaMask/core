@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add `AuthenticationController.requestMfaApproval`, also exposed as the `AuthenticationController:requestMfaApproval` messenger action, which requests an approval bound to one request from `POST /api/v2/mfa/approvals` for services such as recovery and signing ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Takes `requestHash`, `audiences`, an optional `includeIdentifiers` and a trace `reason`, and returns `{ approval, expiresIn, identifiers? }`
+  - With `requireVerification: true`, the approval proves the verification session; without one, it throws `StepUpRequiredError` (`aal2_required`) without calling the server, so the caller verifies first
+  - A 403 `authentication_required` response, which the server sends when that verification is too old, is also reported as `StepUpRequiredError` and leaves the SRP session in place
+  - Exports the `RequestMfaApprovalRequest`, `MfaApproval` and `MfaApprovalIdentifier` types from the SDK
 
 ## [35.0.0]
 

@@ -135,6 +135,25 @@ export type AuthenticationControllerGetVerificationTokenAction = {
 };
 
 /**
+ * Requests an approval bound to one request (`POST /api/v2/mfa/approvals`),
+ * for the services in `audiences`, such as recovery or signing.
+ *
+ * Shows no UI. When `requireVerification` is set, the approval proves the
+ * verification session: without one, this throws a `StepUpRequiredError`
+ * (`aal2_required`) without calling the server. The server answers the same
+ * way when the verification is too old for it. Either way, the caller
+ * verifies through the client MFA kit (`verifyOrEnroll`) and calls again.
+ *
+ * @param request - Request digest, audiences, whether a recent verification
+ * is required, whether to return identifiers, and the trace reason.
+ * @returns The approval, its lifetime and the recovery identifiers.
+ */
+export type AuthenticationControllerRequestMfaApprovalAction = {
+  type: `AuthenticationController:requestMfaApproval`;
+  handler: AuthenticationController['requestMfaApproval'];
+};
+
+/**
  * Clears every in-memory verification session and its expiration timer,
  * and the tokens kept for enrollments in progress.
  */
@@ -269,6 +288,7 @@ export type AuthenticationControllerMethodActions =
   | AuthenticationControllerBeginCredentialVerificationAction
   | AuthenticationControllerCompleteCredentialVerificationAction
   | AuthenticationControllerGetVerificationTokenAction
+  | AuthenticationControllerRequestMfaApprovalAction
   | AuthenticationControllerClearVerificationSessionAction
   | AuthenticationControllerPerformSignOutAction
   | AuthenticationControllerClearStateAction
