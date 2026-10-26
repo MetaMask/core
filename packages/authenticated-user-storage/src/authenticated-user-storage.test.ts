@@ -142,10 +142,15 @@ describe('AuthenticatedUserStorageService', () => {
     });
 
     it('sends the correct request body', async () => {
-      handleMockCreateDelegation(undefined, MOCK_DELEGATION_SUBMISSION);
+      const mock = handleMockCreateDelegation(
+        undefined,
+        MOCK_DELEGATION_SUBMISSION,
+      );
       const { service } = createService();
 
       await service.createDelegation(MOCK_DELEGATION_SUBMISSION);
+
+      expect(mock.isDone()).toBe(true);
     });
   });
 
@@ -233,13 +238,15 @@ describe('AuthenticatedUserStorageService', () => {
     });
 
     it('sends the correct request body', async () => {
-      handleMockPutNotificationPreferences(
+      const mock = handleMockPutNotificationPreferences(
         undefined,
         MOCK_NOTIFICATION_PREFERENCES,
       );
       const { service } = createService();
 
       await service.putNotificationPreferences(MOCK_NOTIFICATION_PREFERENCES);
+
+      expect(mock.isDone()).toBe(true);
     });
 
     it('throws when the API returns a non-200 status', async () => {
@@ -347,10 +354,15 @@ describe('AuthenticatedUserStorageService', () => {
     });
 
     it('sends the correct request body', async () => {
-      handleMockPutMarketingConsent(undefined, MOCK_MARKETING_CONSENT);
+      const mock = handleMockPutMarketingConsent(
+        undefined,
+        MOCK_MARKETING_CONSENT,
+      );
       const { service } = createService();
 
       await service.putMarketingConsent(MOCK_MARKETING_CONSENT);
+
+      expect(mock.isDone()).toBe(true);
     });
 
     it('throws when the API returns a non-200 status', async () => {
@@ -463,7 +475,7 @@ describe('AuthenticatedUserStorageService', () => {
     });
 
     it('sends the audience write body, not the granted-audience map', async () => {
-      handleMockPutIdentitySharingConsent(
+      const mock = handleMockPutIdentitySharingConsent(
         undefined,
         MOCK_IDENTITY_SHARING_CONSENT_WRITE,
       );
@@ -472,6 +484,8 @@ describe('AuthenticatedUserStorageService', () => {
       await service.putIdentitySharingConsent(
         MOCK_IDENTITY_SHARING_CONSENT_WRITE,
       );
+
+      expect(mock.isDone()).toBe(true);
     });
 
     it('throws when the API returns a non-200 status', async () => {
@@ -615,10 +629,15 @@ describe('AuthenticatedUserStorageService', () => {
     });
 
     it('sends the correct request body', async () => {
-      handleMockSetAssetsWatchlist(undefined, MOCK_ASSETS_WATCHLIST_BLOB);
+      const mock = handleMockSetAssetsWatchlist(
+        undefined,
+        MOCK_ASSETS_WATCHLIST_BLOB,
+      );
       const { service } = createService();
 
       await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB);
+
+      expect(mock.isDone()).toBe(true);
     });
 
     it('sends Content-Type and Authorization headers but no X-Client-Type when clientType is omitted', async () => {
