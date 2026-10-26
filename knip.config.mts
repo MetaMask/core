@@ -228,9 +228,6 @@ const config: KnipConfig = {
         // Webpack loader used by docusaurus' build pipeline; never imported
         // by source.
         'raw-loader',
-        // Not invoked by any script yet (this package builds via docusaurus,
-        // not `tsc`), kept for consistency with every other package.
-        '@typescript/native',
       ],
     },
   },
