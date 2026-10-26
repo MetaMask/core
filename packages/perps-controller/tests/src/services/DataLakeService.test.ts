@@ -16,12 +16,6 @@ import {
 
 vi.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
 
-global.fetch = vi.fn();
-global.setTimeout = vi.fn((fn: () => void) => {
-  fn();
-  return 0 as unknown as NodeJS.Timeout;
-}) as unknown as typeof setTimeout;
-
 describe('DataLakeService', () => {
   let mockContext: ServiceContext;
   let mockDeps: Mocked<PerpsPlatformDependencies>;
@@ -29,10 +23,11 @@ describe('DataLakeService', () => {
   let dataLakeService: DataLakeService;
   const mockEvmAccount = createMockEvmAccount();
   const mockToken = 'mock-bearer-token';
+  const mockFetch = vi.fn();
 
   /**
    * Sets up the default messenger mock that returns a valid account and token.
-   * Called in beforeEach and after any mid-test vi.clearAllMocks().
+   * Called in beforeEach.
    */
   function setupDefaultMessenger() {
     (mockMessenger.call as Mock).mockImplementation((action: string) => {
@@ -49,9 +44,8 @@ describe('DataLakeService', () => {
   }
 
   beforeEach(() => {
-    // These tests replace setTimeout with the instant spy above; put it back
-    // in place of the fake clock the package test setup installs.
-    vi.useRealTimers();
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', mockFetch);
     vi.clearAllMocks();
 
     mockDeps = createMockInfrastructure();
@@ -71,6 +65,7 @@ describe('DataLakeService', () => {
 
   afterEach(() => {
     vi.resetAllMocks();
+    vi.useRealTimers();
   });
 
   describe('reportOrder', () => {
@@ -91,7 +86,7 @@ describe('DataLakeService', () => {
     });
 
     it('reports order successfully on first attempt', async () => {
-      (fetch as Mock).mockResolvedValue({
+      mockFetch.mockResolvedValue({
         ok: true,
         status: 201,
         text: vi.fn().mockResolvedValue(''),
@@ -140,7 +135,7 @@ describe('DataLakeService', () => {
     });
 
     it('includes performance measurement on success', async () => {
-      (fetch as Mock).mockResolvedValue({
+      mockFetch.mockResolvedValue({
         ok: true,
         status: 201,
         text: vi.fn().mockResolvedValue(''),
@@ -240,7 +235,7 @@ describe('DataLakeService', () => {
         error: 'No account or token available',
       });
       expect(fetch).not.toHaveBeenCalled();
-      expect(setTimeout).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
       expect(mockDeps.logger.error).not.toHaveBeenCalled();
       expect(mockDeps.tracer.endTrace).toHaveBeenCalledTimes(1);
       expect(mockDeps.tracer.endTrace).toHaveBeenCalledWith(
@@ -294,12 +289,12 @@ describe('DataLakeService', () => {
           expect.objectContaining({ message }),
           expect.anything(),
         );
-        expect(setTimeout).toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(1);
       },
     );
 
     it('retries on network error with exponential backoff', async () => {
-      (fetch as Mock)
+      mockFetch
         .mockRejectedValueOnce(new Error('Network error'))
         .mockRejectedValueOnce(new Error('Network error'))
         .mockResolvedValueOnce({
@@ -321,24 +316,30 @@ describe('DataLakeService', () => {
         'DataLake API: Scheduling retry',
         expect.objectContaining({ nextAttempt: 2 }),
       );
-      expect(setTimeout).toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(999);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetch).toHaveBeenCalledTimes(2);
     });
 
     it('retries up to 3 times then gives up', async () => {
-      (fetch as Mock).mockRejectedValue(new Error('Persistent error'));
+      mockFetch.mockRejectedValue(new Error('Persistent error'));
 
       const result = await dataLakeService.reportOrder({
         action: 'open',
         symbol: 'BTC',
         isTestnet: false,
         context: mockContext,
-        retryCount: 3,
       });
 
       expect(result).toEqual({
         success: false,
         error: 'Persistent error',
       });
+      await vi.runAllTimersAsync();
+      expect(fetch).toHaveBeenCalledTimes(4);
+      expect(vi.getTimerCount()).toBe(0);
       expect(mockDeps.logger.error).toHaveBeenCalledWith(
         expect.any(Error),
         expect.objectContaining({
@@ -361,7 +362,7 @@ describe('DataLakeService', () => {
     });
 
     it('calculates exponential backoff delays correctly', async () => {
-      (fetch as Mock).mockRejectedValue(new Error('Network error'));
+      mockFetch.mockRejectedValue(new Error('Network error'));
 
       await dataLakeService.reportOrder({
         action: 'open',
@@ -370,11 +371,14 @@ describe('DataLakeService', () => {
         context: mockContext,
         retryCount: 0,
       });
-      expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 1000);
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(999);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetch).toHaveBeenCalledTimes(2);
 
-      vi.clearAllMocks();
-      setupDefaultMessenger();
-      (fetch as Mock).mockRejectedValue(new Error('Network error'));
+      await vi.runAllTimersAsync();
+      mockFetch.mockClear();
 
       await dataLakeService.reportOrder({
         action: 'open',
@@ -383,11 +387,14 @@ describe('DataLakeService', () => {
         context: mockContext,
         retryCount: 1,
       });
-      expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 2000);
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(1999);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetch).toHaveBeenCalledTimes(2);
 
-      vi.clearAllMocks();
-      setupDefaultMessenger();
-      (fetch as Mock).mockRejectedValue(new Error('Network error'));
+      await vi.runAllTimersAsync();
+      mockFetch.mockClear();
 
       await dataLakeService.reportOrder({
         action: 'open',
@@ -396,11 +403,15 @@ describe('DataLakeService', () => {
         context: mockContext,
         retryCount: 2,
       });
-      expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 4000);
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(3999);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetch).toHaveBeenCalledTimes(2);
     });
 
     it('handles API error responses', async () => {
-      (fetch as Mock).mockResolvedValue({
+      mockFetch.mockResolvedValue({
         ok: false,
         status: 500,
         text: vi.fn().mockResolvedValue('Internal Server Error'),
@@ -419,7 +430,7 @@ describe('DataLakeService', () => {
     });
 
     it('handles API 4xx error responses', async () => {
-      (fetch as Mock).mockResolvedValue({
+      mockFetch.mockResolvedValue({
         ok: false,
         status: 400,
         text: vi.fn().mockResolvedValue('Bad Request'),
@@ -437,7 +448,7 @@ describe('DataLakeService', () => {
     });
 
     it('logs all retry attempts correctly', async () => {
-      (fetch as Mock).mockRejectedValue(new Error('Network error'));
+      mockFetch.mockRejectedValue(new Error('Network error'));
 
       await dataLakeService.reportOrder({
         action: 'open',
@@ -453,7 +464,7 @@ describe('DataLakeService', () => {
     });
 
     it('uses custom trace ID when provided', async () => {
-      (fetch as Mock).mockResolvedValue({
+      mockFetch.mockResolvedValue({
         ok: true,
         status: 201,
         text: vi.fn().mockResolvedValue(''),
@@ -473,7 +484,7 @@ describe('DataLakeService', () => {
     });
 
     it('reports close action with TP/SL prices', async () => {
-      (fetch as Mock).mockResolvedValue({
+      mockFetch.mockResolvedValue({
         ok: true,
         status: 201,
         text: vi.fn().mockResolvedValue(''),
@@ -502,7 +513,7 @@ describe('DataLakeService', () => {
     });
 
     it('reports order without TP/SL prices when not provided', async () => {
-      (fetch as Mock).mockResolvedValue({
+      mockFetch.mockResolvedValue({
         ok: true,
         status: 201,
         text: vi.fn().mockResolvedValue(''),
@@ -529,7 +540,7 @@ describe('DataLakeService', () => {
     });
 
     it('handles response with body text', async () => {
-      (fetch as Mock).mockResolvedValue({
+      mockFetch.mockResolvedValue({
         ok: true,
         status: 201,
         text: vi.fn().mockResolvedValue('{"orderId": "123"}'),
@@ -550,7 +561,7 @@ describe('DataLakeService', () => {
     });
 
     it('handles empty response body', async () => {
-      (fetch as Mock).mockResolvedValue({
+      mockFetch.mockResolvedValue({
         ok: true,
         status: 201,
         text: vi.fn().mockResolvedValue(''),
@@ -571,7 +582,7 @@ describe('DataLakeService', () => {
     });
 
     it('only starts trace on first attempt', async () => {
-      (fetch as Mock).mockResolvedValue({
+      mockFetch.mockResolvedValue({
         ok: true,
         status: 201,
         text: vi.fn().mockResolvedValue(''),

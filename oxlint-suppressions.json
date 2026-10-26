@@ -100,11 +100,6 @@
       "count": 4
     }
   },
-  "packages/account-tree-controller/src/backup-and-sync/user-storage/network-utils.test.ts": {
-    "typescript/no-unsafe-call": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/backup-and-sync/user-storage/network-utils.ts": {
     "id-length": {
       "count": 1
@@ -498,7 +493,7 @@
       "count": 9
     },
     "vitest/no-conditional-in-test": {
-      "count": 13
+      "count": 14
     }
   },
   "packages/assets-controller/src/AssetsController.ts": {
@@ -559,7 +554,7 @@
   },
   "packages/assets-controller/src/data-sources/PriceDataSource.test.ts": {
     "vitest/no-conditional-in-test": {
-      "count": 2
+      "count": 5
     }
   },
   "packages/assets-controller/src/data-sources/RpcDataSource.test.ts": {
@@ -672,11 +667,6 @@
   "packages/assets-controller/src/pipeline/buildFastFetchSources.bsc-spam-token-filtering.integration.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 1
-    }
-  },
-  "packages/assets-controller/src/pipeline/buildWsUpdateSources.price-updates.integration.test.ts": {
-    "vitest/no-conditional-in-test": {
-      "count": 3
     }
   },
   "packages/assets-controller/src/pipeline/executeAssetsPipeline.ts": {
@@ -1888,10 +1878,10 @@
   },
   "packages/chomp-api-service/src/chomp-api-service.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 9
+      "count": 10
     },
     "typescript/no-unsafe-return": {
-      "count": 9
+      "count": 10
     }
   },
   "packages/claims-controller/src/ClaimsService.test.ts": {
@@ -2860,9 +2850,6 @@
   },
   "packages/messenger-cli/src/cli.test.ts": {
     "jsdoc/require-param": {
-      "count": 1
-    },
-    "n/no-unsupported-features/node-builtins": {
       "count": 1
     }
   },
@@ -4080,11 +4067,6 @@
   "packages/phishing-controller/tests/utils.ts": {
     "typescript/explicit-function-return-type": {
       "count": 2
-    }
-  },
-  "packages/platform-api-docs/src/cli.test.ts": {
-    "n/no-unsupported-features/node-builtins": {
-      "count": 1
     }
   },
   "packages/platform-api-docs/src/cli.ts": {
