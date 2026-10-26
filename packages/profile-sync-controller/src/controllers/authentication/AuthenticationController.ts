@@ -26,6 +26,7 @@ import {
   BeginVerificationRequestStruct,
   CompleteVerificationRequestStruct,
   GetVerificationTokenRequestStruct,
+  RequestMfaApprovalRequestStruct,
   parseVerificationTokenClaims,
 } from '../../sdk/authentication-jwt-bearer/mfa/schemas.js';
 import type {
@@ -47,8 +48,10 @@ import type {
   CompleteVerificationRequest,
   VerificationToken,
   GetVerificationTokenRequest,
+  MfaApproval,
   MfaCredentialType,
   MfaVerificationAssertion,
+  RequestMfaApprovalRequest,
   VerificationChallenge,
 } from '../../sdk/index.js';
 import {
@@ -57,6 +60,7 @@ import {
   Env,
   JwtBearerAuth,
   PairConflictError,
+  StepUpRequiredError,
   getMfaErrorCode,
   VerificationTokenInvalidError,
 } from '../../sdk/index.js';
@@ -229,6 +233,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'beginCredentialVerification',
   'completeCredentialVerification',
   'getVerificationToken',
+  'requestMfaApproval',
   'clearVerificationSession',
 ] as const;
 
@@ -1317,6 +1322,69 @@ export class AuthenticationController extends BaseController<
       return null;
     }
     return session.token;
+  }
+
+  /**
+   * Requests an approval bound to one request (`POST /api/v2/mfa/approvals`),
+   * for the services in `audiences`, such as recovery or signing.
+   *
+   * Shows no UI. When `requireVerification` is set, the approval proves the
+   * verification session: without one, this throws a `StepUpRequiredError`
+   * (`aal2_required`) without calling the server. The server answers the same
+   * way when the verification is too old for it, and that session is then
+   * dropped. Either way, the caller verifies through the client MFA kit
+   * (`verifyOrEnroll`), which runs a new ceremony, and calls again.
+   *
+   * @param request - Request digest, audiences, whether a recent verification
+   * is required, whether to return identifiers, and the trace reason.
+   * @returns The approval, its lifetime and the recovery identifiers.
+   */
+  public async requestMfaApproval(
+    request: RequestMfaApprovalRequest,
+  ): Promise<MfaApproval> {
+    this.#assertIsUnlocked('requestMfaApproval');
+    const sessionEpoch = this.#authSessionEpoch;
+    assertValidMfaRequest(request, RequestMfaApprovalRequestStruct);
+    const verification = request.requireVerification
+      ? this.getVerificationToken()
+      : null;
+    if (request.requireVerification && !verification) {
+      throw new StepUpRequiredError(
+        'requestMfaApproval requires a verification session',
+      );
+    }
+    const approval = await this.#runMfaRequest(
+      'MFA Approval',
+      request.reason.operation,
+      verification ? verification.claims.amr.join(',') : 'none',
+      async () =>
+        await this.#auth.requestMfaApproval(
+          {
+            request_hash: request.requestHash,
+            audiences: request.audiences,
+            ...(request.includeIdentifiers === undefined
+              ? {}
+              : { include_identifiers: request.includeIdentifiers }),
+          },
+          {
+            entropySourceId: this.#getPrimaryEntropySourceId(),
+            accessToken: verification?.accessToken,
+          },
+        ),
+    ).catch((error: unknown) => {
+      // The server found the verification too old: drop it, so the caller's
+      // next verification runs a new ceremony instead of reusing it. A
+      // session opened meanwhile is kept.
+      if (
+        getMfaErrorCode(error) === 'aal2_required' &&
+        this.#verificationSessions.get(DEFAULT_AUDIENCE)?.token === verification
+      ) {
+        this.#dropVerificationSession(DEFAULT_AUDIENCE);
+      }
+      throw error;
+    });
+    this.#assertAuthSessionEpoch(sessionEpoch, 'requestMfaApproval');
+    return approval;
   }
 
   /**
