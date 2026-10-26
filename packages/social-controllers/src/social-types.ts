@@ -7,6 +7,13 @@ import {
   string,
   type as structType,
 } from '@metamask/superstruct';
+import type { CaipAssetId, CaipAssetType } from '@metamask/utils';
+
+/**
+ * A UUID string, such as a Clicker profile or position id. Checked at compile
+ * time by its dashed shape; the server validates the exact format.
+ */
+export type Uuid = `${string}-${string}-${string}-${string}-${string}`;
 
 // ---------------------------------------------------------------------------
 // Shared sub-types
@@ -501,8 +508,7 @@ export type CopyTradeOrigin = {
  * the Hyperliquid order id returned on submission.
  */
 export type CopyTradeExecution =
-  | { product: 'swaps'; quoteId: string }
-  | { product: 'perps'; oid: string };
+  { product: 'swaps'; quoteId: string } | { product: 'perps'; oid: string };
 
 /**
  * Options for `POST /v1/copy-trade-intents`.
@@ -680,12 +686,7 @@ export type TokenFeedStatus = 'open' | 'closed';
  * Chain name accepted by `GET /v1/tokens/:chain/:contractAddress/feed`.
  */
 export type TokenFeedChain =
-  | 'base'
-  | 'bsc'
-  | 'ethereum'
-  | 'hyperliquid'
-  | 'robinhood'
-  | 'solana';
+  'base' | 'bsc' | 'ethereum' | 'hyperliquid' | 'robinhood' | 'solana';
 
 /**
  * Options for `GET /v1/tokens/:chain/:contractAddress/feed`.
@@ -722,14 +723,14 @@ export type FetchFeedOptions = {
    */
   chains?: string[];
   /**
-   * Only items in any of these assets, given as 1–10 CAIP-19 asset ids (e.g.
+   * Only items in any of these assets, given as 1–10 CAIP-19 asset id (e.g.
    * `eip155:8453/erc20:0x…`). Matches ANY of them.
    */
-  assetIds?: string[];
+  assetIds?: CaipAssetId[];
   /**
-   * Only this trader's items. A Clicker profile ID, not a wallet address.
+   * Only this trader's items. A Clicker profile ID (UUID), not a wallet address.
    */
-  profileId?: string;
+  profileId?: Uuid;
   /**
    * When true, return only items that carry an author comment. Omitted from
    * the request when false or unset.
