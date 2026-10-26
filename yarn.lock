@@ -6187,11 +6187,11 @@ __metadata:
     "@metamask/oxlint-config-vitest": "npm:^0.1.1"
     "@metamask/skills": "npm:^0.3.1"
     "@metamask/type-utils": "npm:^0.0.0"
-    "@types/lodash": "npm:^4.17.26"
+    "@types/lodash": "npm:^4.17.27"
     "@types/node": "npm:^22.13.14"
     "@types/semver": "npm:^7.8.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    "@vitest/coverage-istanbul": "npm:^5.0.0"
+    "@vitest/coverage-istanbul": "npm:^5.0.5"
     "@yarnpkg/cli": "npm:^4.18.1"
     "@yarnpkg/core": "npm:^4.9.0"
     "@yarnpkg/fslib": "npm:^3.1.5"
@@ -6519,7 +6519,7 @@ __metadata:
     "@metamask/json-rpc-engine": "npm:^11.0.0"
     "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/utils": "npm:^12.0.0"
-    "@types/lodash": "npm:^4.17.26"
+    "@types/lodash": "npm:^4.17.27"
     "@typescript/native": "npm:typescript@^7.0.2"
     ethers: "npm:^6.17.0"
     lodash-es: "npm:^4.18.1"
@@ -7178,7 +7178,7 @@ __metadata:
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/profile-sync-controller": "npm:^36.0.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    "@vitest/coverage-istanbul": "npm:^5.0.0"
+    "@vitest/coverage-istanbul": "npm:^5.0.5"
     rimraf: "npm:^6.1.3"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -9079,7 +9079,7 @@ __metadata:
     "@metamask/type-utils": "npm:^0.0.0"
     "@noble/hashes": "npm:^1.8.0"
     "@types/debug": "npm:^4.1.7"
-    "@types/lodash": "npm:^4.17.26"
+    "@types/lodash": "npm:^4.17.27"
     "@typescript/native": "npm:typescript@^7.0.2"
     debug: "npm:^4.4.3"
     lodash: "npm:^4.18.1"
@@ -11819,10 +11819,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/lodash@npm:*, @types/lodash@npm:^4.17.20, @types/lodash@npm:^4.17.26":
-  version: 4.17.26
-  resolution: "@types/lodash@npm:4.17.26"
-  checksum: 10/49620ccc6e8c03e0f7589be3d21ead40409fb6a2c4808170e57f35cd4523d146ebf6ecbd97a266d767a71e98417fce215740690f4f131be060d1a534cac09b84
+"@types/lodash@npm:*, @types/lodash@npm:^4.17.20, @types/lodash@npm:^4.17.27":
+  version: 4.17.27
+  resolution: "@types/lodash@npm:4.17.27"
+  checksum: 10/ae02ef86268664e5a024fd1a7d907b676fe7cd9b58b52bdddc7c42c7ffb3d05e869f6bd13e3e6cbb4001cac1d072f5e2a6e5deed2ef7dc62d7853fc735a077be
   languageName: node
   linkType: hard
 
@@ -12409,22 +12409,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vitest/coverage-istanbul@npm:^5.0.0":
-  version: 5.0.3
-  resolution: "@vitest/coverage-istanbul@npm:5.0.3"
+"@vitest/coverage-istanbul@npm:^5.0.5":
+  version: 5.0.5
+  resolution: "@vitest/coverage-istanbul@npm:5.0.5"
   dependencies:
     "@jridgewell/gen-mapping": "npm:^0.3.13"
     "@jridgewell/trace-mapping": "npm:0.3.31"
-    "@vitest/istanbul-lib-coverage": "npm:^1.0.0"
-    "@vitest/istanbul-lib-instrument": "npm:^1.0.0"
-    "@vitest/istanbul-lib-report": "npm:^1.0.0"
-    "@vitest/istanbul-lib-source-maps": "npm:^1.0.0"
-    magicast: "npm:^0.5.4"
-    obug: "npm:^2.1.4"
-    tinyrainbow: "npm:^3.1.1"
+    "@vitest/istanbul-lib-coverage": "npm:^1.0.2"
+    "@vitest/istanbul-lib-instrument": "npm:^1.0.2"
+    "@vitest/istanbul-lib-report": "npm:^1.0.2"
+    "@vitest/istanbul-lib-source-maps": "npm:^1.0.2"
+    magicast: "npm:^0.5.5"
+    obug: "npm:^3.0.0"
+    tinyrainbow: "npm:^3.2.0"
   peerDependencies:
-    vitest: 5.0.3
-  checksum: 10/6d5d99f189d7fbdf142f5285b0192bce1e54a9132570efd2bba0cba618dbff239087ff0573bf185c3bb25a5df18dd3bbf1c54b8a0244863ef21bb376b6cfcca2
+    vitest: 5.0.5
+  checksum: 10/53f2ba389af76af6d4ff78b4625722831d2b6b08bd30f42f4ff9d38fa0180ed3fcdde113129417e02fc4665320f2ffc71423b737c1f472fc4e8a9ce1ca7adb29
   languageName: node
   linkType: hard
 
@@ -12450,14 +12450,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vitest/istanbul-lib-coverage@npm:1.0.2, @vitest/istanbul-lib-coverage@npm:^1.0.0":
+"@vitest/istanbul-lib-coverage@npm:1.0.2, @vitest/istanbul-lib-coverage@npm:^1.0.0, @vitest/istanbul-lib-coverage@npm:^1.0.2":
   version: 1.0.2
   resolution: "@vitest/istanbul-lib-coverage@npm:1.0.2"
   checksum: 10/de20649829feeadadf2e1ea2a0aa339ae334993d9f1a243412a435805f8f76c2d3917e0988b9dd6fc4ad84ebbcdbf9dd52480ee0eb5d771642f987a4801efa37
   languageName: node
   linkType: hard
 
-"@vitest/istanbul-lib-instrument@npm:^1.0.0":
+"@vitest/istanbul-lib-instrument@npm:^1.0.2":
   version: 1.0.2
   resolution: "@vitest/istanbul-lib-instrument@npm:1.0.2"
   dependencies:
@@ -12470,7 +12470,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vitest/istanbul-lib-report@npm:^1.0.0":
+"@vitest/istanbul-lib-report@npm:^1.0.0, @vitest/istanbul-lib-report@npm:^1.0.2":
   version: 1.0.2
   resolution: "@vitest/istanbul-lib-report@npm:1.0.2"
   dependencies:
@@ -12479,7 +12479,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@vitest/istanbul-lib-source-maps@npm:^1.0.0":
+"@vitest/istanbul-lib-source-maps@npm:^1.0.2":
   version: 1.0.2
   resolution: "@vitest/istanbul-lib-source-maps@npm:1.0.2"
   dependencies:
@@ -19764,7 +19764,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"magicast@npm:^0.5.4":
+"magicast@npm:^0.5.4, magicast@npm:^0.5.5":
   version: 0.5.5
   resolution: "magicast@npm:0.5.5"
   dependencies:
@@ -25549,7 +25549,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tinyrainbow@npm:^3.1.1":
+"tinyrainbow@npm:^3.1.1, tinyrainbow@npm:^3.2.0":
   version: 3.2.0
   resolution: "tinyrainbow@npm:3.2.0"
   checksum: 10/27089c12ad4b18439fbdd651bf9d076584aad9b2a36da36ba841d6bd31156f5489e15497b2377162478277cb89cf6ea6a323be401fd9d55794a6963b65fe55d4
