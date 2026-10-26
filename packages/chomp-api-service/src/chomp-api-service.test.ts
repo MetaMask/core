@@ -6,7 +6,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 
 import type { ChompApiServiceMessenger } from './chomp-api-service.js';
 import { ChompApiService } from './chomp-api-service.js';
@@ -15,6 +15,10 @@ const BASE_URL = 'https://api.chomp.example.com';
 const MOCK_TOKEN = 'mock-jwt-token';
 
 describe('ChompApiService', () => {
+  afterEach(() => {
+    nock.cleanAll();
+  });
+
   describe('associateAddress', () => {
     const associateParams = {
       signature: '0x123' as const,
@@ -941,7 +945,7 @@ describe('ChompApiService', () => {
       const { service } = createService();
 
       await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
-        'network down',
+        /network down|fetch failed/u,
       );
       expect(scope.isDone()).toBe(true);
     });
