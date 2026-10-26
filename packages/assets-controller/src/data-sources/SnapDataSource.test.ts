@@ -31,6 +31,7 @@ import {
   getChainIdsCaveat,
   KEYRING_PERMISSION,
   ASSETS_PERMISSION,
+  getSnapBalanceRetryDelay,
 } from './SnapDataSource.js';
 
 // Test chain IDs
@@ -207,6 +208,8 @@ function setupController(
     isBalanceV6Enabled?: () => boolean;
     getAssetVisibility?: GetAssetVisibility;
     getAssetsState?: () => AssetsControllerState;
+    onBalanceFetchStatusChange?: SnapDataSourceOptions['onBalanceFetchStatusChange'];
+    retryBackoff?: SnapDataSourceOptions['retryBackoff'];
   } = {},
 ): SetupResult {
   const {
@@ -295,6 +298,8 @@ function setupController(
     isBalanceV6Enabled,
     getAssetVisibility,
     getAssetsState,
+    onBalanceFetchStatusChange: options.onBalanceFetchStatusChange,
+    retryBackoff: options.retryBackoff,
   };
 
   const controller = new SnapDataSource(controllerOptions);
@@ -1367,6 +1372,358 @@ describe('SnapDataSource', () => {
 
     // Just verify no errors on destroy
     expect(true).toBe(true);
+  });
+
+  describe('per-account balance fetch errors and retry', () => {
+    const SOL_BALANCE = { amount: '1000000000', unit: 'SOL' };
+
+    const failingHandler =
+      (failing: { value: boolean }) =>
+      (params: { request?: { method: string } }): Promise<unknown> => {
+        if (params.request?.method === 'keyring_listAccountAssets') {
+          return Promise.resolve([MOCK_SOL_ASSET]);
+        }
+        if (params.request?.method === 'keyring_getAccountBalances') {
+          return failing.value
+            ? Promise.reject(
+                new Error('the account has not been synchronized yet'),
+              )
+            : Promise.resolve({ [MOCK_SOL_ASSET]: SOL_BALANCE });
+        }
+        return Promise.resolve(null);
+      };
+
+    const setupFailing = (
+      options: {
+        isBalanceV6Enabled?: () => boolean;
+        retryBackoff?: SnapDataSourceOptions['retryBackoff'];
+        onBalanceFetchStatusChange?: jest.Mock;
+      } = {},
+    ): SetupResult & {
+      failing: { value: boolean };
+      onStatus: jest.Mock;
+    } => {
+      const onStatus = options.onBalanceFetchStatusChange ?? jest.fn();
+      const failing = { value: true };
+      const setup = setupController({
+        installedSnaps: {
+          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        },
+        isBalanceV6Enabled: options.isBalanceV6Enabled ?? ((): boolean => true),
+        getAssetVisibility: () => ({
+          visibleAssetIds: [MOCK_SOL_ASSET],
+          hiddenAssetIds: [],
+        }),
+        onBalanceFetchStatusChange: onStatus,
+        // Long default so automatic retries never fire unless a test wants them.
+        retryBackoff: options.retryBackoff ?? { initialDelayMs: 60_000 },
+      });
+      setup.mockHandleRequest.mockImplementation(failingHandler(failing));
+      return { ...setup, failing, onStatus };
+    };
+
+    const flush = async (ms = 0): Promise<void> => {
+      await new Promise((resolve) => setTimeout(resolve, ms));
+    };
+
+    it('getSnapBalanceRetryDelay grows exponentially and is capped', () => {
+      expect(getSnapBalanceRetryDelay(1, 1000, 10_000)).toBe(1000);
+      expect(getSnapBalanceRetryDelay(2, 1000, 10_000)).toBe(2000);
+      expect(getSnapBalanceRetryDelay(3, 1000, 10_000)).toBe(4000);
+      expect(getSnapBalanceRetryDelay(10, 1000, 10_000)).toBe(10_000);
+      expect(getSnapBalanceRetryDelay(0)).toBe(30_000);
+      expect(getSnapBalanceRetryDelay(100)).toBe(300_000);
+    });
+
+    it.each([
+      ['v6', true],
+      ['v5', false],
+    ])(
+      'reports the account as unavailable instead of swallowing the error (%s)',
+      async (_label, v6) => {
+        const { controller, onStatus, cleanup } = setupFailing({
+          isBalanceV6Enabled: (): boolean => v6,
+        });
+        await flush();
+
+        const response = await controller.fetch(createDataRequest());
+
+        expect(response.assetsBalance).toStrictEqual({});
+        expect(onStatus).toHaveBeenLastCalledWith({
+          accountId: 'mock-account-id',
+          chainIds: [SOLANA_MAINNET],
+          error: expect.objectContaining({
+            status: 'unavailable',
+            error: 'the account has not been synchronized yet',
+            attempts: expect.any(Number),
+            failedAt: expect.any(Number),
+            nextRetryAt: expect.any(Number),
+          }),
+        });
+        expect(controller.getAccountBalanceErrors()).toStrictEqual({
+          'mock-account-id': {
+            chainIds: [SOLANA_MAINNET],
+            attempts: expect.any(Number),
+          },
+        });
+
+        cleanup();
+      },
+    );
+
+    const lastError = (
+      onStatus: jest.Mock,
+    ): {
+      attempts: number;
+      failedAt: number;
+      nextRetryAt: number | null;
+      error: string;
+    } => {
+      const calls = onStatus.mock.calls.filter(
+        ([update]) => update.accountId === 'mock-account-id' && update.error,
+      );
+      return calls[calls.length - 1]?.[0].error;
+    };
+
+    it('does not count ordinary failed fetches as retry attempts, and schedules the first retry after the initial delay', async () => {
+      const { controller, onStatus, cleanup } = setupFailing({
+        retryBackoff: { initialDelayMs: 30_000, maxDelayMs: 300_000 },
+      });
+      await flush();
+
+      // Onboarding: many fetches fail within seconds (subscriptions, polling,
+      // other controllers). None of them is a retry.
+      for (let i = 0; i < 13; i++) {
+        await controller.fetch(createDataRequest());
+      }
+
+      expect(
+        controller.getAccountBalanceErrors()['mock-account-id']?.attempts,
+      ).toBe(0);
+      const status = lastError(onStatus);
+      expect(status.attempts).toBe(0);
+      expect(status.nextRetryAt).not.toBeNull();
+      // The retry scheduled by the first failure is kept: ~30 s, not the cap.
+      expect(
+        (status.nextRetryAt as number) - status.failedAt,
+      ).toBeLessThanOrEqual(30_000);
+      expect((status.nextRetryAt as number) - Date.now()).toBeGreaterThan(
+        25_000,
+      );
+
+      cleanup();
+    });
+
+    it('notifies repeated ordinary failures only when the error changes', async () => {
+      const { controller, onStatus, cleanup } = setupFailing();
+      await flush();
+      await controller.fetch(createDataRequest());
+      const callsAfterFirst = onStatus.mock.calls.length;
+
+      await controller.fetch(createDataRequest());
+      await controller.fetch(createDataRequest());
+
+      expect(onStatus.mock.calls).toHaveLength(callsAfterFirst);
+
+      cleanup();
+    });
+
+    it('only scheduled retries advance the backoff (30 s, 60 s, ... capped)', async () => {
+      const { controller, onStatus, cleanup } = setupFailing({
+        retryBackoff: { initialDelayMs: 20, maxDelayMs: 80 },
+      });
+      await flush();
+      await controller.fetch(createDataRequest());
+      const first = lastError(onStatus);
+      expect(first.attempts).toBe(0);
+      expect((first.nextRetryAt as number) - first.failedAt).toBe(20);
+
+      // First scheduled retry fires after ~20 ms and fails again.
+      await flush(35);
+      const second = lastError(onStatus);
+      expect(second.attempts).toBe(1);
+      expect((second.nextRetryAt as number) - second.failedAt).toBe(40);
+
+      // Second scheduled retry fires after ~40 ms more.
+      await flush(55);
+      const third = lastError(onStatus);
+      expect(third.attempts).toBe(2);
+      expect((third.nextRetryAt as number) - third.failedAt).toBe(80);
+
+      cleanup();
+    });
+
+    it('a failed manual retry resets the backoff to the initial delay', async () => {
+      const { controller, onStatus, cleanup } = setupFailing({
+        retryBackoff: { initialDelayMs: 20, maxDelayMs: 80 },
+      });
+      await flush();
+      await controller.fetch(createDataRequest());
+      await flush(35);
+      expect(lastError(onStatus).attempts).toBe(1);
+
+      await controller.retryFailedAccounts(['mock-account-id']);
+
+      const status = lastError(onStatus);
+      expect(status.attempts).toBe(0);
+      expect((status.nextRetryAt as number) - status.failedAt).toBe(20);
+
+      cleanup();
+    });
+
+    it('a manual retry calls the snap again (so it can start a sync)', async () => {
+      const { controller, mockHandleRequest, cleanup } = setupFailing();
+      await flush();
+      await controller.fetch(createDataRequest());
+      mockHandleRequest.mockClear();
+
+      await controller.retryFailedAccounts();
+
+      expect(mockHandleRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            method: 'keyring_getAccountBalances',
+          }),
+        }),
+      );
+
+      cleanup();
+    });
+
+    it('retryFailedAccounts clears the error and reports balances on success', async () => {
+      const { controller, failing, onStatus, assetsUpdateHandler, cleanup } =
+        setupFailing();
+      await flush();
+      await controller.fetch(createDataRequest());
+      assetsUpdateHandler.mockClear();
+
+      failing.value = false;
+      await controller.retryFailedAccounts(['mock-account-id']);
+
+      expect(onStatus).toHaveBeenLastCalledWith({
+        accountId: 'mock-account-id',
+        chainIds: [SOLANA_MAINNET],
+        error: null,
+      });
+      expect(controller.getAccountBalanceErrors()).toStrictEqual({});
+      expect(assetsUpdateHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assetsBalance: {
+            'mock-account-id': { [MOCK_SOL_ASSET]: { amount: '1000000000' } },
+          },
+        }),
+      );
+
+      cleanup();
+    });
+
+    it('retryFailedAccounts ignores accounts that did not fail', async () => {
+      const { controller, mockHandleRequest, cleanup } = setupFailing();
+      await flush();
+      mockHandleRequest.mockClear();
+
+      await controller.retryFailedAccounts(['some-other-account']);
+
+      expect(mockHandleRequest).not.toHaveBeenCalled();
+
+      cleanup();
+    });
+
+    it('a successful fetch clears a previous failure', async () => {
+      const { controller, failing, onStatus, cleanup } = setupFailing();
+      await flush();
+      await controller.fetch(createDataRequest());
+
+      failing.value = false;
+      const response = await controller.fetch(createDataRequest());
+
+      expect(response.assetsBalance).toStrictEqual({
+        'mock-account-id': { [MOCK_SOL_ASSET]: { amount: '1000000000' } },
+      });
+      expect(onStatus).toHaveBeenLastCalledWith(
+        expect.objectContaining({ error: null }),
+      );
+      expect(controller.getAccountBalanceErrors()).toStrictEqual({});
+
+      cleanup();
+    });
+
+    it('a snap balances-updated event for the account clears the failure', async () => {
+      const { controller, onStatus, triggerBalancesUpdated, cleanup } =
+        setupFailing();
+      await flush();
+      await controller.fetch(createDataRequest());
+
+      triggerBalancesUpdated({
+        balances: {
+          'mock-account-id': { [MOCK_SOL_ASSET]: SOL_BALANCE },
+        },
+      });
+      await flush();
+
+      expect(onStatus).toHaveBeenLastCalledWith(
+        expect.objectContaining({ accountId: 'mock-account-id', error: null }),
+      );
+      expect(controller.getAccountBalanceErrors()).toStrictEqual({});
+
+      cleanup();
+    });
+
+    it('retries automatically with backoff until the fetch succeeds', async () => {
+      const { controller, failing, onStatus, assetsUpdateHandler, cleanup } =
+        setupFailing({ retryBackoff: { initialDelayMs: 20, maxDelayMs: 40 } });
+      await flush();
+      await controller.fetch(createDataRequest());
+      failing.value = false;
+      assetsUpdateHandler.mockClear();
+
+      await flush(150);
+
+      expect(onStatus).toHaveBeenLastCalledWith(
+        expect.objectContaining({ error: null }),
+      );
+      expect(controller.getAccountBalanceErrors()).toStrictEqual({});
+      expect(assetsUpdateHandler).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assetsBalance: {
+            'mock-account-id': { [MOCK_SOL_ASSET]: { amount: '1000000000' } },
+          },
+        }),
+      );
+
+      cleanup();
+    });
+
+    it('destroy cancels pending retries', async () => {
+      const { controller, mockHandleRequest, cleanup } = setupFailing({
+        retryBackoff: { initialDelayMs: 20 },
+      });
+      await flush();
+      await controller.fetch(createDataRequest());
+      cleanup();
+      mockHandleRequest.mockClear();
+
+      await flush(100);
+
+      expect(mockHandleRequest).not.toHaveBeenCalled();
+    });
+
+    it('a throwing status listener does not break the fetch', async () => {
+      const onStatus = jest.fn(() => {
+        throw new Error('listener failed');
+      });
+      const { controller, cleanup } = setupFailing({
+        onBalanceFetchStatusChange: onStatus,
+      });
+      await flush();
+
+      const response = await controller.fetch(createDataRequest());
+
+      expect(response.assetsBalance).toStrictEqual({});
+      expect(onStatus).toHaveBeenCalled();
+
+      cleanup();
+    });
   });
 
   it('createSnapDataSource factory creates instance', async () => {

@@ -421,6 +421,26 @@ export type AssetsUpdateMode = 'full' | 'merge';
 
 export type AssetsLoadingStatus = 'loading' | 'loaded';
 
+/**
+ * Why a balance could not be fetched for an account on a chain (non-EVM snap
+ * accounts today). Present only while the balance is unavailable: the entry is
+ * removed once a fetch succeeds or the snap pushes balances for the account.
+ * A balance in `assetsBalance` for the same account and chain is then the
+ * last-known value (or a placeholder), not a confirmed amount.
+ */
+export type AssetsBalanceFetchError = {
+  /** Always `'unavailable'` for now; kept as a field to allow more states. */
+  status: 'unavailable';
+  /** The error message of the last failed attempt. */
+  error: string;
+  /** Number of consecutive failed attempts. */
+  attempts: number;
+  /** When the last attempt failed (ms since epoch). */
+  failedAt: number;
+  /** When the next automatic retry is scheduled (ms since epoch), if any. */
+  nextRetryAt: number | null;
+};
+
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)
 // ============================================================================
@@ -503,6 +523,14 @@ export type AssetsControllerState = {
   /** Currently-active ISO 4217 currency code */
   selectedCurrency: SupportedCurrency;
   assetsLoadingStatus?: Record<AccountId, AssetsLoadingStatus>;
+  /**
+   * Per-account, per-chain balance fetch failures (not persisted). See
+   * {@link AssetsBalanceFetchError}.
+   */
+  assetsBalanceErrors?: Record<
+    AccountId,
+    Record<ChainId, AssetsBalanceFetchError>
+  >;
 };
 
 // ============================================================================

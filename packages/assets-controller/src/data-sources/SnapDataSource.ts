@@ -20,7 +20,9 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { AssetsControllerMessenger } from '../AssetsController.js';
 import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
+  AccountWithSupportedChains,
   AssetBalance,
+  AssetsBalanceFetchError,
   AssetsControllerState,
   ChainId,
   Caip19AssetId,
@@ -77,6 +79,40 @@ export const KEYRING_PERMISSION = 'endowment:keyring';
 
 /** The permission name for snap assets endowment (contains chainIds) */
 export const ASSETS_PERMISSION = 'endowment:assets';
+
+/** First automatic retry delay after a failed snap balance fetch. */
+export const SNAP_BALANCE_RETRY_INITIAL_DELAY_MS = 30_000;
+
+/** Maximum automatic retry delay after repeated snap balance fetch failures. */
+export const SNAP_BALANCE_RETRY_MAX_DELAY_MS = 5 * 60_000;
+
+/**
+ * Exponential backoff for automatic snap balance retries.
+ *
+ * @param attempts - 1-based index of the upcoming automatic retry (1 for the
+ * retry scheduled right after the first failure, 2 after one failed retry...).
+ * @param initialDelayMs - Delay after the first failure.
+ * @param maxDelayMs - Upper bound.
+ * @returns The delay before the next retry, in ms.
+ */
+export function getSnapBalanceRetryDelay(
+  attempts: number,
+  initialDelayMs: number = SNAP_BALANCE_RETRY_INITIAL_DELAY_MS,
+  maxDelayMs: number = SNAP_BALANCE_RETRY_MAX_DELAY_MS,
+): number {
+  const exponent = Math.max(0, attempts - 1);
+  return Math.min(maxDelayMs, initialDelayMs * 2 ** Math.min(exponent, 20));
+}
+
+/**
+ * Per-account balance fetch status change reported by the SnapDataSource.
+ * `error: null` means the balance is available again.
+ */
+export type SnapBalanceFetchStatusUpdate = {
+  accountId: string;
+  chainIds: ChainId[];
+  error: AssetsBalanceFetchError | null;
+};
 
 // ============================================================================
 // PERMISSION UTILITIES
@@ -189,6 +225,13 @@ export type SnapDataSourceOptions = {
   configuredNetworks?: ChainId[];
   /** Default polling interval in ms for subscriptions */
   pollInterval?: number;
+  /**
+   * Called when a snap account's balance becomes unavailable (a fetch failed)
+   * or available again (a fetch succeeded or the snap pushed balances).
+   */
+  onBalanceFetchStatusChange?: (update: SnapBalanceFetchStatusUpdate) => void;
+  /** Automatic retry backoff for failed per-account fetches. */
+  retryBackoff?: { initialDelayMs?: number; maxDelayMs?: number };
   /** Initial state */
   state?: Partial<SnapDataSourceState>;
 };
@@ -196,6 +239,28 @@ export type SnapDataSourceOptions = {
 // ============================================================================
 // SNAP DATA SOURCE
 // ============================================================================
+
+/**
+ * Balance fetch failure tracked per account.
+ */
+type FailedAccountEntry = {
+  /**
+   * Retries made so far (scheduled automatic retries only; a manual retry
+   * resets the backoff). Ordinary fetches (polling, subscriptions, other
+   * controllers) that fail do not count: they never advance the backoff.
+   */
+  attempts: number;
+  chainIds: ChainId[];
+  /** Narrowed request used to retry the account. */
+  request: DataRequest;
+  timer: ReturnType<typeof setTimeout> | null;
+  /** Message of the last failure. */
+  error: string;
+  failedAt: number;
+  nextRetryAt: number | null;
+  /** Kind of retry whose fetch is in progress, if any. */
+  retryInProgress: 'scheduled' | 'manual' | null;
+};
 
 /**
  * Unified Snap data source that routes requests to the appropriate wallet snap
@@ -245,6 +310,22 @@ export class SnapDataSource extends AbstractDataSource<
   /** Cache of KeyringClient instances per snap ID to avoid re-instantiation */
   readonly #keyringClientCache: Map<string, KeyringClient> = new Map();
 
+  readonly #onBalanceFetchStatusChange?: (
+    update: SnapBalanceFetchStatusUpdate,
+  ) => void;
+
+  readonly #retryInitialDelayMs: number;
+
+  readonly #retryMaxDelayMs: number;
+
+  /**
+   * Accounts whose last balance fetch failed, with the narrowed request used
+   * to retry them and the pending retry timer.
+   */
+  readonly #failedAccounts: Map<string, FailedAccountEntry> = new Map();
+
+  #destroyed = false;
+
   constructor(options: SnapDataSourceOptions) {
     super(SNAP_DATA_SOURCE_NAME, {
       ...defaultSnapState,
@@ -257,6 +338,12 @@ export class SnapDataSource extends AbstractDataSource<
     this.#isBalanceV6Enabled = options.isBalanceV6Enabled;
     this.#getAssetVisibility = options.getAssetVisibility;
     this.#getAssetsState = options.getAssetsState;
+    this.#onBalanceFetchStatusChange = options.onBalanceFetchStatusChange;
+    this.#retryInitialDelayMs =
+      options.retryBackoff?.initialDelayMs ??
+      SNAP_BALANCE_RETRY_INITIAL_DELAY_MS;
+    this.#retryMaxDelayMs =
+      options.retryBackoff?.maxDelayMs ?? SNAP_BALANCE_RETRY_MAX_DELAY_MS;
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound =
@@ -330,6 +417,8 @@ export class SnapDataSource extends AbstractDataSource<
       if (accountAssets) {
         assetsBalance ??= {};
         assetsBalance[accountId] = accountAssets;
+        // The snap pushed balances for this account: it is synchronized again.
+        this.#markAccountSucceeded(accountId);
       }
     }
 
@@ -500,7 +589,8 @@ export class SnapDataSource extends AbstractDataSource<
     };
 
     // Fetch balances for each account using its snap ID from metadata
-    for (const { account } of request.accountsWithSupportedChains) {
+    for (const entry of request.accountsWithSupportedChains) {
+      const { account } = entry;
       // Skip accounts without snap metadata (non-snap accounts)
       const snapId = account.metadata.snap?.id;
       if (!snapId) {
@@ -508,10 +598,10 @@ export class SnapDataSource extends AbstractDataSource<
       }
 
       // Skip accounts whose snap doesn't support any of the requested chains
-      const snapSupportsRequestedChains = request.chainIds.some(
+      const supportedChainIds = request.chainIds.filter(
         (chainId) => this.state.chainToSnap[chainId] === snapId,
       );
-      if (!snapSupportsRequestedChains) {
+      if (supportedChainIds.length === 0) {
         continue;
       }
 
@@ -524,6 +614,7 @@ export class SnapDataSource extends AbstractDataSource<
 
         // If no assets, skip to next account
         if (!accountAssets || accountAssets.length === 0) {
+          this.#markAccountSucceeded(accountId);
           continue;
         }
 
@@ -544,8 +635,13 @@ export class SnapDataSource extends AbstractDataSource<
             }
           }
         }
-      } catch {
-        // Expected when account doesn't belong to this snap
+        this.#markAccountSucceeded(accountId);
+      } catch (error) {
+        // The account's snap was resolved from its own metadata, so this is a
+        // real failure (e.g. the snap has not synchronized the account yet, or
+        // its network calls fail), not a foreign account. Keep the previous
+        // balance, but record the failure and retry with backoff.
+        this.#markAccountFailed(entry, supportedChainIds, request, error);
       }
     }
 
@@ -574,7 +670,8 @@ export class SnapDataSource extends AbstractDataSource<
     };
 
     // Fetch balances for each account using its snap ID from metadata
-    for (const { account } of request.accountsWithSupportedChains) {
+    for (const entry of request.accountsWithSupportedChains) {
+      const { account } = entry;
       // Skip accounts without snap metadata (non-snap accounts)
       const snapId = account.metadata.snap?.id;
       if (!snapId) {
@@ -641,9 +738,12 @@ export class SnapDataSource extends AbstractDataSource<
         if (results.assetsBalance) {
           results.assetsBalance[accountId] = accountBalances;
         }
-      } catch {
-        // Snap failed or the account does not belong to this snap. Contribute
-        // nothing so previous balances stay in state.
+        this.#markAccountSucceeded(accountId);
+      } catch (error) {
+        // Snap failed. Contribute nothing so previous balances stay in state,
+        // but record the failure (the balance is unavailable, not 0) and retry
+        // with backoff.
+        this.#markAccountFailed(entry, supportedChainIds, request, error);
       }
     }
 
@@ -869,6 +969,218 @@ export class SnapDataSource extends AbstractDataSource<
   }
 
   // ============================================================================
+  // PER-ACCOUNT FAILURES AND RETRY
+  // ============================================================================
+
+  /**
+   * Accounts whose last balance fetch failed, keyed by account ID.
+   *
+   * @returns The current failures.
+   */
+  getAccountBalanceErrors(): Record<
+    string,
+    { chainIds: ChainId[]; attempts: number }
+  > {
+    const errors: Record<string, { chainIds: ChainId[]; attempts: number }> =
+      {};
+    for (const [accountId, failure] of this.#failedAccounts) {
+      errors[accountId] = {
+        chainIds: [...failure.chainIds],
+        attempts: failure.attempts,
+      };
+    }
+    return errors;
+  }
+
+  /**
+   * Retry failed balance fetches now, instead of waiting for the backoff.
+   * A manual retry resets the backoff: if it fails, the next automatic retry
+   * comes after the initial delay again.
+   *
+   * @param accountIds - Accounts to retry; all failed accounts when omitted.
+   */
+  async retryFailedAccounts(accountIds?: string[]): Promise<void> {
+    const targets = accountIds
+      ? accountIds.filter((accountId) => this.#failedAccounts.has(accountId))
+      : Array.from(this.#failedAccounts.keys());
+    await Promise.all(
+      targets.map(async (accountId) => this.#retryAccount(accountId, 'manual')),
+    );
+  }
+
+  #markAccountSucceeded(accountId: string): void {
+    const failure = this.#failedAccounts.get(accountId);
+    if (!failure) {
+      return;
+    }
+    if (failure.timer) {
+      clearTimeout(failure.timer);
+    }
+    this.#failedAccounts.delete(accountId);
+    this.#notifyStatus({ accountId, chainIds: failure.chainIds, error: null });
+  }
+
+  /**
+   * Records a failed balance fetch for an account.
+   *
+   * Only retries drive the backoff: the first failure schedules the first
+   * retry after the initial delay; a failed scheduled retry schedules the next
+   * one with a doubled delay (capped); a failed manual retry starts over at
+   * the initial delay. Any other failing fetch of an account that is already
+   * failing (polling, subscriptions, the legacy controller...) keeps the
+   * pending retry and its counter, and only refreshes the error.
+   *
+   * @param entry - The account and its supported chains.
+   * @param chainIds - The chains whose balance could not be fetched.
+   * @param request - The originating request.
+   * @param error - The failure.
+   */
+  #markAccountFailed(
+    entry: AccountWithSupportedChains,
+    chainIds: ChainId[],
+    request: DataRequest,
+    error: unknown,
+  ): void {
+    const accountId = entry.account.id;
+    const previous = this.#failedAccounts.get(accountId);
+    const message = error instanceof Error ? error.message : String(error);
+    const now = Date.now();
+    const retryRequest: DataRequest = {
+      ...request,
+      chainIds,
+      accountsWithSupportedChains: [entry],
+      forceUpdate: true,
+    };
+
+    const isRetryResult = Boolean(previous?.retryInProgress);
+    if (previous && !isRetryResult && (previous.timer || this.#destroyed)) {
+      // Not a retry: keep the scheduled retry and the backoff step.
+      const changed =
+        previous.error !== message ||
+        previous.chainIds.length !== chainIds.length ||
+        previous.chainIds.some((chainId) => !chainIds.includes(chainId));
+      previous.error = message;
+      previous.failedAt = now;
+      previous.chainIds = chainIds;
+      previous.request = retryRequest;
+      log('Snap balance fetch failed (retry already scheduled)', {
+        accountId,
+        chainIds,
+        attempts: previous.attempts,
+        error,
+      });
+      if (changed) {
+        this.#notifyFailure(accountId, previous);
+      }
+      return;
+    }
+
+    if (previous?.timer) {
+      clearTimeout(previous.timer);
+    }
+    // `attempts` was already advanced by `#retryAccount` for a scheduled
+    // retry and reset for a manual one; a first failure starts at 0.
+    const attempts = previous?.attempts ?? 0;
+    const delay = getSnapBalanceRetryDelay(
+      attempts + 1,
+      this.#retryInitialDelayMs,
+      this.#retryMaxDelayMs,
+    );
+    log('Snap balance fetch failed', {
+      accountId,
+      chainIds,
+      attempts,
+      nextRetryInMs: delay,
+      error,
+    });
+
+    const failure: FailedAccountEntry = {
+      attempts,
+      chainIds,
+      request: retryRequest,
+      timer: null,
+      error: message,
+      failedAt: now,
+      nextRetryAt: null,
+      retryInProgress: previous?.retryInProgress ?? null,
+    };
+    if (!this.#destroyed) {
+      failure.timer = setTimeout(() => {
+        failure.timer = null;
+        this.#retryAccount(accountId, 'scheduled').catch((retryError) =>
+          log('Snap balance retry failed', { accountId, error: retryError }),
+        );
+      }, delay);
+      // Do not keep a Node process (tests, scripts) alive for a retry.
+      (failure.timer as { unref?: () => void }).unref?.();
+      failure.nextRetryAt = now + delay;
+    }
+    this.#failedAccounts.set(accountId, failure);
+    this.#notifyFailure(accountId, failure);
+  }
+
+  #notifyFailure(accountId: string, failure: FailedAccountEntry): void {
+    this.#notifyStatus({
+      accountId,
+      chainIds: failure.chainIds,
+      error: {
+        status: 'unavailable',
+        error: failure.error,
+        attempts: failure.attempts,
+        failedAt: failure.failedAt,
+        nextRetryAt: failure.nextRetryAt,
+      },
+    });
+  }
+
+  /**
+   * Retries the balance fetch of a failed account. The snap is asked for the
+   * balance again, which also lets snaps that answer from local state start a
+   * sync of the account (the Bitcoin and Stellar snaps kick off a
+   * deduplicated sync / full scan when asked for an unknown balance).
+   *
+   * @param accountId - The account ID.
+   * @param kind - `scheduled` (automatic, advances the backoff) or `manual`
+   * (user-initiated, resets the backoff).
+   */
+  async #retryAccount(
+    accountId: string,
+    kind: 'scheduled' | 'manual',
+  ): Promise<void> {
+    const failure = this.#failedAccounts.get(accountId);
+    if (!failure || this.#destroyed) {
+      return;
+    }
+    if (failure.timer) {
+      clearTimeout(failure.timer);
+      failure.timer = null;
+    }
+    failure.attempts = kind === 'scheduled' ? failure.attempts + 1 : 0;
+    failure.retryInProgress = kind;
+    try {
+      // `fetch` records the outcome (success clears the failure, another
+      // failure reschedules the next retry).
+      const response = await this.fetch(failure.request);
+      if (Object.keys(response.assetsBalance ?? {}).length > 0) {
+        await this.#onAssetsUpdate(response);
+      }
+    } finally {
+      const current = this.#failedAccounts.get(accountId);
+      if (current) {
+        current.retryInProgress = null;
+      }
+    }
+  }
+
+  #notifyStatus(update: SnapBalanceFetchStatusUpdate): void {
+    try {
+      this.#onBalanceFetchStatusChange?.(update);
+    } catch (error) {
+      log('Balance fetch status listener failed', { error });
+    }
+  }
+
+  // ============================================================================
   // KEYRING CLIENT
   // ============================================================================
 
@@ -933,6 +1245,15 @@ export class SnapDataSource extends AbstractDataSource<
 
     // Clear keyring client cache
     this.#keyringClientCache.clear();
+
+    // Stop pending retries
+    this.#destroyed = true;
+    for (const failure of this.#failedAccounts.values()) {
+      if (failure.timer) {
+        clearTimeout(failure.timer);
+      }
+    }
+    this.#failedAccounts.clear();
   }
 }
 

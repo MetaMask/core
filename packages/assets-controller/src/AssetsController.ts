@@ -100,6 +100,7 @@ import type { RpcDataSourceConfig } from './data-sources/RpcDataSource.js';
 import { RpcDataSource } from './data-sources/RpcDataSource.js';
 import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sources/SnapDataSource.js';
 import { SnapDataSource } from './data-sources/SnapDataSource.js';
+import type { SnapBalanceFetchStatusUpdate } from './data-sources/SnapDataSource.js';
 import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource.js';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource.js';
 import {
@@ -497,6 +498,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     usedInUi: true,
   },
   assetsLoadingStatus: {
+    persist: false,
+    includeInStateLogs: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  assetsBalanceErrors: {
     persist: false,
     includeInStateLogs: true,
     includeInDebugSnapshot: true,
@@ -1025,6 +1032,8 @@ export class AssetsController extends BaseController<
       isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
       getAssetVisibility: this.#getAssetVisibility.bind(this),
       getAssetsState: (): AssetsControllerState => this.state,
+      onBalanceFetchStatusChange: (update): void =>
+        this.#handleBalanceFetchStatusChange(update),
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,
@@ -2280,6 +2289,61 @@ export class AssetsController extends BaseController<
       accounts: accounts.map((a) => ({ id: a.id, address: a.address })),
       nativeAssetIdentifiers: this.#getNativeAssetMap(),
       networkConfigurationsByChainId,
+    });
+  }
+
+  // ============================================================================
+  // SNAP BALANCE FETCH STATUS
+  // ============================================================================
+
+  /**
+   * Retry balance fetches for snap (non-EVM) accounts whose last fetch failed.
+   * Accounts that never failed are ignored. Success clears the matching
+   * `assetsBalanceErrors` entries; failure re-schedules the backoff retry.
+   *
+   * @param accountIds - Optional account IDs to retry. Defaults to all failed accounts.
+   */
+  async retrySnapBalances(accountIds?: string[]): Promise<void> {
+    await this.#snapDataSource.retryFailedAccounts(accountIds);
+  }
+
+  /**
+   * Apply a per-account balance fetch status change from the SnapDataSource to
+   * `assetsBalanceErrors`. While an entry exists, any balance stored for that
+   * account/chain (including a seeded native `0`) is a placeholder or stale
+   * value and must not be presented as a confirmed balance.
+   *
+   * @param update - The status change.
+   */
+  #handleBalanceFetchStatusChange(update: SnapBalanceFetchStatusUpdate): void {
+    const { accountId, chainIds, error } = update;
+    const current = this.state.assetsBalanceErrors?.[accountId];
+    if (!error && !current) {
+      return;
+    }
+    this.update((state) => {
+      const errors = (state.assetsBalanceErrors ??= {});
+      if (error) {
+        const accountErrors = (errors[accountId] ??= {});
+        for (const chainId of chainIds) {
+          accountErrors[chainId] = { ...error };
+        }
+        return;
+      }
+      const accountErrors = errors[accountId];
+      if (!accountErrors) {
+        return;
+      }
+      if (chainIds.length === 0) {
+        delete errors[accountId];
+        return;
+      }
+      for (const chainId of chainIds) {
+        delete accountErrors[chainId];
+      }
+      if (Object.keys(accountErrors).length === 0) {
+        delete errors[accountId];
+      }
     });
   }
 
