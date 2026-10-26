@@ -376,12 +376,16 @@ describe('parseRealtimeFeedItem', () => {
     });
     const fromCard = normalizeRealtimeFeedItem({
       ...fullHydratedPosition,
-      flags: ['insider', 'future-flag'],
+      flags: ['insider', 'developer', 'future-flag'],
     });
     const absent = normalizeRealtimeFeedItem(fullHydratedPosition);
 
     expect(fromMetadata?.flags).toStrictEqual(['insider']);
-    expect(fromCard?.flags).toStrictEqual(['insider', 'future-flag']);
+    expect(fromCard?.flags).toStrictEqual([
+      'insider',
+      'developer',
+      'future-flag',
+    ]);
     expect(absent?.flags).toBeUndefined();
   });
 

@@ -888,7 +888,12 @@ describe('SocialService', () => {
         status: 200,
         json: () =>
           Promise.resolve({
-            positions: [{ ...mockPosition, flags: ['insider', 'future-flag'] }],
+            positions: [
+              {
+                ...mockPosition,
+                flags: ['insider', 'developer', 'future-flag'],
+              },
+            ],
             pagination: { hasMore: false },
           }),
       });
@@ -900,6 +905,7 @@ describe('SocialService', () => {
 
       expect(result.positions[0].flags).toStrictEqual([
         'insider',
+        'developer',
         'future-flag',
       ]);
     });

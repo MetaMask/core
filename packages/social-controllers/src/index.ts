@@ -56,6 +56,7 @@ export type {
 } from './SocialService-method-action-types.js';
 
 export {
+  DEVELOPER_POSITION_FLAG,
   INSIDER_POSITION_FLAG,
   TRADER_RANKING_TAGS,
   TradeStruct,
