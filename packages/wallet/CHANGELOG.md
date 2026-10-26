@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Add `@metamask/geolocation-controller` as a dependency ([#11058](https://github.com/MetaMask/core/pull/11058))
+- Bump `@metamask/analytics-controller` from `^4.0.0` to `^4.1.0` ([#11072](https://github.com/MetaMask/core/pull/11072))
 
 ## [19.1.0]
 
