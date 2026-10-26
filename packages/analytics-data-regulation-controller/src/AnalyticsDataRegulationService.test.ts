@@ -360,7 +360,7 @@ describe('AnalyticsDataRegulationService', () => {
 
       const onRetryListener = vi.fn();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
+        vi.runOnlyPendingTimersAsync().catch(console.error);
         onRetryListener();
       });
 
@@ -384,7 +384,7 @@ describe('AnalyticsDataRegulationService', () => {
 
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
 
       const onBreakListener = vi.fn();
@@ -449,7 +449,7 @@ describe('AnalyticsDataRegulationService', () => {
 
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       const onDegradedListener = vi.fn();
       service.onDegraded(onDegradedListener);
