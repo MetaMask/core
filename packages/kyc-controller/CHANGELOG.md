@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `currentStep` to `KycSessionStatus`. Known values are `processing`, `emailOtpCollection`, `phoneOtpCollection`, `capabilityAuthorization`, `kyc`, `approved`, and `rejected`
+  - `KycService.getSessionStatus`, `KycService.getSessionStatusForVendor`, and `KycService.setAuthorizations` read `currentStep` from the kyc-api session response
+  - A missing `currentStep` is left unset. Any other value, including one this package does not know, is returned as sent. Sessions saved before this field existed keep working until the next status fetch
+  - Export `KYC_CURRENT_STEPS` and `KycCurrentStep`
+
+### Changed
+
+- When a kyc-api session reports `finalStatus` `pending` and `currentStep` `kyc`, the session returned by those endpoints uses `finalStatus` `new`. Every other `finalStatus` is returned unchanged. This resolves a regression where `finalStatus: pending` originally was only possible after sumsub was fully submitted, but now it is possible when partially submitted.
+  - After the SumSub SDK completes, the stored session is `finalStatus` `pending` with `currentStep` `processing`
+
 ## [0.12.0]
 
 ### Added
