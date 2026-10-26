@@ -9,6 +9,8 @@ import type {
   EnrolledCredential,
   EnrollmentChallenge,
   EnrollmentProof,
+  MfaApproval,
+  MfaApprovalRequest,
   MfaCredentialType,
   VerificationChallenge,
   VerificationProof,
@@ -168,6 +170,14 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   ): Promise<EnrolledCredential[]> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.getMfaCredentials(entropySourceId);
+  }
+
+  async requestMfaApproval(
+    body: MfaApprovalRequest,
+    options?: { entropySourceId?: string; accessToken?: string },
+  ): Promise<MfaApproval> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.requestMfaApproval(body, options);
   }
 
   async deleteMfaCredential(
