@@ -106,7 +106,6 @@ export default createConfig({
         'packages/*/vitest.config.ts',
       ],
       rules: {
-        // Config files only run on the Node version used for development and CI.
         'n/no-unsupported-features/node-builtins': 'off',
       },
     },
