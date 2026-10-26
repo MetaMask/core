@@ -142,9 +142,7 @@ describe('AuthenticatedUserStorageService', () => {
     });
 
     it('sends the correct request body', async () => {
-      handleMockCreateDelegation(undefined, async (_, requestBody) => {
-        expect(requestBody).toStrictEqual(MOCK_DELEGATION_SUBMISSION);
-      });
+      handleMockCreateDelegation(undefined, MOCK_DELEGATION_SUBMISSION);
       const { service } = createService();
 
       await service.createDelegation(MOCK_DELEGATION_SUBMISSION);
@@ -237,9 +235,7 @@ describe('AuthenticatedUserStorageService', () => {
     it('sends the correct request body', async () => {
       handleMockPutNotificationPreferences(
         undefined,
-        async (_, requestBody) => {
-          expect(requestBody).toStrictEqual(MOCK_NOTIFICATION_PREFERENCES);
-        },
+        MOCK_NOTIFICATION_PREFERENCES,
       );
       const { service } = createService();
 
@@ -351,9 +347,7 @@ describe('AuthenticatedUserStorageService', () => {
     });
 
     it('sends the correct request body', async () => {
-      handleMockPutMarketingConsent(undefined, async (_, requestBody) => {
-        expect(requestBody).toStrictEqual(MOCK_MARKETING_CONSENT);
-      });
+      handleMockPutMarketingConsent(undefined, MOCK_MARKETING_CONSENT);
       const { service } = createService();
 
       await service.putMarketingConsent(MOCK_MARKETING_CONSENT);
@@ -469,10 +463,10 @@ describe('AuthenticatedUserStorageService', () => {
     });
 
     it('sends the audience write body, not the granted-audience map', async () => {
-      handleMockPutIdentitySharingConsent(undefined, async (_, requestBody) => {
-        expect(requestBody).toStrictEqual(MOCK_IDENTITY_SHARING_CONSENT_WRITE);
-        expect(requestBody).not.toStrictEqual(MOCK_IDENTITY_SHARING_CONSENT);
-      });
+      handleMockPutIdentitySharingConsent(
+        undefined,
+        MOCK_IDENTITY_SHARING_CONSENT_WRITE,
+      );
       const { service } = createService();
 
       await service.putIdentitySharingConsent(
@@ -621,9 +615,7 @@ describe('AuthenticatedUserStorageService', () => {
     });
 
     it('sends the correct request body', async () => {
-      handleMockSetAssetsWatchlist(undefined, async (_, requestBody) => {
-        expect(requestBody).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
-      });
+      handleMockSetAssetsWatchlist(undefined, MOCK_ASSETS_WATCHLIST_BLOB);
       const { service } = createService();
 
       await service.setAssetsWatchlist(MOCK_ASSETS_WATCHLIST_BLOB);
