@@ -801,7 +801,22 @@ function ownershipController(
   return { controller, host };
 }
 
+/**
+ * Work a test leaves in flight can hold the provider's process-wide mutexes.
+ * Finish it before the package setup removes the fake clock and its pending
+ * timers, or the next test waits on those mutexes forever.
+ */
+function finishPendingTimersAfterEach(): void {
+  afterEach(async () => {
+    if (vi.isFakeTimers()) {
+      await vi.runAllTimersAsync();
+    }
+  });
+}
+
 describe('LighterProvider', () => {
+  finishPendingTimersAfterEach();
+
   describe('native ordinary resting-limit edit', () => {
     const target = (): LighterEditableOrder => ({
       orderIndex: '288230376151711745',
@@ -32349,6 +32364,8 @@ describe('LighterProvider', () => {
 });
 
 describe('Lighter post-only placement', () => {
+  finishPendingTimersAfterEach();
+
   const intent: OrderParams = {
     symbol: 'BTC',
     isBuy: true,
@@ -32587,6 +32604,8 @@ describe('Lighter post-only placement', () => {
 });
 
 describe('Lighter bounded Chase provider probe', () => {
+  finishPendingTimersAfterEach();
+
   type ExactLookup = LighterClientService['getOrdersByClientIds'];
   type TxLookup = LighterClientService['getTx'];
   const intent: OrderParams = {
@@ -37278,6 +37297,8 @@ describe('Lighter bounded Chase provider probe', () => {
 });
 
 describe('integrated advanced perpetual market boundary', () => {
+  finishPendingTimersAfterEach();
+
   it.each(['validate', 'place'] as const)(
     'refuses post-only active spot before account or signer setup during %s',
     async (operation) => {

@@ -49,6 +49,9 @@ describe('DataLakeService', () => {
   }
 
   beforeEach(() => {
+    // These tests replace setTimeout with the instant spy above; put it back
+    // in place of the fake clock the package test setup installs.
+    vi.useRealTimers();
     vi.clearAllMocks();
 
     mockDeps = createMockInfrastructure();
