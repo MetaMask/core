@@ -612,9 +612,8 @@ export function decodeAggregate3Response(
   const offsetBaseWord = arrayWord + 1;
   const results: { success: boolean; returnData: Hex }[] = [];
   for (let i = 0; i < resultCount; i++) {
-    const tupleOffset = parseHexWord(
-      readHexWord(body, offsetBaseWord + i),
-    ) / 32;
+    const tupleOffset =
+      parseHexWord(readHexWord(body, offsetBaseWord + i)) / 32;
     if (!Number.isInteger(tupleOffset) || tupleOffset < 0) {
       throw new Error('aggregate3 response has an invalid element offset');
     }
