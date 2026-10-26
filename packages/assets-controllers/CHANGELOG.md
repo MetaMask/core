@@ -13,14 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `NftDetectionController` constructor now requires a `removeNft` option (type `NftController['removeNft']`); during detection, any NFT already in state that the API now returns as spam (`isSpam: true`) is automatically removed ([#8237](https://github.com/MetaMask/core/pull/8237))
+  - Callers must pass `removeNft: nftController.removeNft.bind(nftController)` (or equivalent) when constructing `NftDetectionController`
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
 
 ## [112.1.3]
 
 ### Changed
 
-- **BREAKING:** `NftDetectionController` constructor now requires a `removeNft` option (type `NftController['removeNft']`); during detection, any NFT already in state that the API now returns as spam (`isSpam: true`) is automatically removed ([#8237](https://github.com/MetaMask/core/pull/8237))
-  - Callers must pass `removeNft: nftController.removeNft.bind(nftController)` (or equivalent) when constructing `NftDetectionController`
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/contract-metadata` from `^2.4.0` to `^2.5.0` ([#10716](https://github.com/MetaMask/core/pull/10716))
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^35.0.0` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761), [#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
