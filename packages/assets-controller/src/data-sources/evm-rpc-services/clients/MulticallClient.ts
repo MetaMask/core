@@ -473,24 +473,101 @@ function buildAggregate3BalanceCalls(
 /**
  * Encode a Multicall3 aggregate3 call.
  *
+ * Lays out `aggregate3((address,bool,bytes)[])` directly instead of going
+ * through the ethers Interface machinery: selector + wrapper word + length
+ * word + element-offset words (each pointing past the offset area) + per call
+ * `target | allowFailure | callData offset | callData length | padded
+ * callData`. Produces byte-identical calldata to the ethers implementation
+ * (enforced by tests and the parity corpus in `.auto/bench`).
+ *
  * @param calls - Array of calls with target, allowFailure, and callData.
  * @returns The encoded aggregate3 call data.
  */
+const ZERO_HEX_WORD = '0'.repeat(64);
+
+/** Render a small non-negative integer as a padded 32-byte hex word. */
+function toHexWord(value: number): string {
+  return value.toString(16).padStart(64, '0');
+}
+
 export function encodeAggregate3(
   calls: readonly { target: Address; allowFailure: boolean; callData: Hex }[],
 ): Hex {
-  return encodeFunctionData(multicall3Interface, 'aggregate3', [
-    calls.map((call) => ({
-      target: call.target,
-      allowFailure: call.allowFailure,
-      callData: call.callData,
-    })),
-  ]);
+  const callCount = calls.length;
+  const offsets: string[] = [];
+  const tuples: string[] = [];
+  let tupleWords = 0;
+  for (let i = 0; i < callCount; i++) {
+    const call = calls[i];
+    // Element offsets are byte offsets relative to the first offset word.
+    offsets.push(toHexWord((callCount + tupleWords) * 32));
+    const payload = call.callData.slice(2);
+    const payloadBytes = payload.length / 2;
+    const padChars = (64 - (payload.length % 64)) % 64;
+    // Tuple head is three words (address, allowFailure, callData offset), so
+    // the callData offset is the constant 0x60 relative to the tuple start.
+    tuples.push(
+      '0'.repeat(24) +
+        call.target.toLowerCase().slice(2) +
+        (call.allowFailure ? toHexWord(1) : ZERO_HEX_WORD) +
+        toHexWord(0x60) +
+        toHexWord(payloadBytes) +
+        payload +
+        '0'.repeat(padChars),
+    );
+    tupleWords += 4 + Math.ceil(payloadBytes / 32);
+  }
+  return ('0x82ad56cb' +
+    toHexWord(0x20) +
+    toHexWord(callCount) +
+    offsets.join('') +
+    tuples.join('')) as Hex;
+}
+
+/**
+ * Read the 32-byte hex word at `wordIndex` (0-based, after the `0x` prefix).
+ *
+ * @param body - Response hex without the `0x` prefix.
+ * @param wordIndex - Index of the word to read.
+ * @returns The 64-character hex word.
+ */
+function readHexWord(body: string, wordIndex: number): string {
+  const start = wordIndex * 64;
+  if (start < 0 || start + 64 > body.length) {
+    throw new Error('aggregate3 response data is too short');
+  }
+  return body.slice(start, start + 64);
+}
+
+/**
+ * Parse a 32-byte hex word as an unsigned integer, rejecting non-hex words
+ * the same way a strict hex parser would (e.g. odd or corrupted data).
+ *
+ * @param word - The 64-character hex word.
+ * @returns The unsigned integer value.
+ */
+function parseHexWord(word: string): number {
+  const value = parseInt(word, 16);
+  if (
+    !Number.isInteger(value) ||
+    value < 0 ||
+    value.toString(16).padStart(64, '0') !== word.toLowerCase()
+  ) {
+    throw new Error('aggregate3 response contains an invalid hex word');
+  }
+  return value;
 }
 
 /**
  * Decode the response from aggregate3.
  * Returns array of (success, returnData) tuples.
+ *
+ * Reads `0x20 | arrayLength | elementOffsets | tuples` directly instead of
+ * going through the ethers Interface machinery. A tuple is `success |
+ * returnData offset (relative to the tuple start) | length | padded data`;
+ * the returnData offset is always 0x40 for this shape. Produces the same
+ * values (and throws on the same malformed shapes) as the ethers
+ * implementation.
  *
  * @param data - The raw response data.
  * @param callCount - Number of calls made (used for validation).
@@ -500,26 +577,63 @@ export function decodeAggregate3Response(
   data: Hex,
   callCount: number,
 ): { success: boolean; returnData: Hex }[] {
-  const decoded = multicall3Interface.decodeFunctionResult('aggregate3', data);
-
-  // decoded[0] is the array of (success, returnData) tuples
-  const results = decoded[0] as readonly {
-    success: boolean;
-    returnData: string;
-  }[];
+  const body = data.slice(2);
+  if (body.length % 2 !== 0) {
+    throw new Error('aggregate3 response data has odd length');
+  }
+  // Top-level wrapper offset: points at the array length word.
+  const arrayWord = parseHexWord(readHexWord(body, 0)) / 32;
+  if (!Number.isInteger(arrayWord) || arrayWord < 1) {
+    throw new Error('aggregate3 response has an invalid array offset');
+  }
+  const resultCount = parseHexWord(readHexWord(body, arrayWord));
+  if (resultCount < 0) {
+    throw new Error('aggregate3 response has an invalid array length');
+  }
+  // Element offsets are relative to the word after the array length word.
+  const offsetBaseWord = arrayWord + 1;
+  const results: { success: boolean; returnData: Hex }[] = [];
+  for (let i = 0; i < resultCount; i++) {
+    const tupleOffset = parseHexWord(
+      readHexWord(body, offsetBaseWord + i),
+    ) / 32;
+    if (!Number.isInteger(tupleOffset) || tupleOffset < 0) {
+      throw new Error('aggregate3 response has an invalid element offset');
+    }
+    const tupleWord = offsetBaseWord + tupleOffset;
+    const successWord = readHexWord(body, tupleWord);
+    const dataOffset = parseHexWord(readHexWord(body, tupleWord + 1)) / 32;
+    if (!Number.isInteger(dataOffset) || dataOffset < 2) {
+      throw new Error('aggregate3 response has an invalid returnData offset');
+    }
+    const dataBytes = parseHexWord(readHexWord(body, tupleWord + dataOffset));
+    if (dataBytes < 0) {
+      throw new Error('aggregate3 response has an invalid returnData length');
+    }
+    const dataStart = (tupleWord + dataOffset + 1) * 64;
+    const dataChars = dataBytes * 2;
+    if (dataStart + dataChars > body.length) {
+      throw new Error('aggregate3 response returnData is out of bounds');
+    }
+    results.push({
+      success: successWord !== ZERO_HEX_WORD,
+      returnData: ('0x' + body.slice(dataStart, dataStart + dataChars)) as Hex,
+    });
+  }
 
   if (results.length !== callCount) {
     throw new Error(`Expected ${callCount} results, got ${results.length}`);
   }
 
-  return results.map((result) => ({
-    success: result.success,
-    returnData: result.returnData as Hex,
-  }));
+  return results;
 }
 
 /**
  * Decode a uint256 balance from return data.
+ *
+ * Reads the first 32-byte word directly (same word the ethers balanceOf
+ * decoder reads) and renders it as a decimal string via BigInt, instead of
+ * going through the ethers Reader machinery.
  *
  * @param data - The hex return data.
  * @returns The decoded balance as a string.
@@ -529,8 +643,11 @@ function decodeUint256(data: Hex): string {
     // Empty or invalid data; treat as 0
     return '0';
   }
-  const decoded = erc20Interface.decodeFunctionResult('balanceOf', data);
-  return decoded[0].toString();
+  if (data.length % 2 !== 0) {
+    // Odd-length hex is malformed and must throw, like the ABI decoder.
+    throw new Error('return data has odd length');
+  }
+  return BigInt('0x' + data.slice(2, 66)).toString();
 }
 
 // =============================================================================
