@@ -37,7 +37,6 @@ import { AuthType } from './types.js';
 
 // Mock global fetch
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
 
 // Store original Response
 const OriginalResponse = global.Response;
@@ -101,6 +100,11 @@ const createMockResponse = (
 };
 
 describe('services', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch);
+    vi.clearAllMocks();
+  });
+
   describe('URL builders', () => {
     it('should build correct NONCE_URL', () => {
       expect(NONCE_URL(Env.DEV)).toBe(

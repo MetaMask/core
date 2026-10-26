@@ -62,7 +62,7 @@
     "@metamask/type-utils": "^0.0.0",
     "@noble/hashes": "^1.8.0",
     "@types/debug": "^4.1.7",
-    "@types/lodash": "^4.17.26",
+    "@types/lodash": "^4.17.27",
     "debug": "^4.4.3",
     "lodash": "^4.18.1",
     "semver": "^7.8.5"

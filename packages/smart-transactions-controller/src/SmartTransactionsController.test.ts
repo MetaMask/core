@@ -27,11 +27,7 @@ import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import packageJson from '../package.json';
-import {
-  advanceTime,
-  flushPromises,
-  getFakeProvider,
-} from '../tests/helpers.js';
+import { flushPromises, getFakeProvider } from '../tests/helpers.js';
 import {
   SENTINEL_API_BASE_URL_MAP,
   SmartTransactionsTraceName,
@@ -2435,7 +2431,7 @@ describe('SmartTransactionsController', () => {
             chainIds: [ChainId.mainnet],
           });
 
-          await advanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
           const fetchHeaders = {
             headers: {
@@ -2452,7 +2448,7 @@ describe('SmartTransactionsController', () => {
             fetchHeaders,
           );
 
-          await advanceTime({ duration: DEFAULT_INTERVAL });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             2,
@@ -2463,7 +2459,7 @@ describe('SmartTransactionsController', () => {
           );
 
           controller.startPolling({ chainIds: [ChainId.sepolia] });
-          await advanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             3,
@@ -2473,7 +2469,7 @@ describe('SmartTransactionsController', () => {
             fetchHeaders,
           );
 
-          await advanceTime({ duration: DEFAULT_INTERVAL });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
             5,
@@ -2487,9 +2483,9 @@ describe('SmartTransactionsController', () => {
           controller.stopPollingByPollingToken(mainnetPollingToken);
 
           // cycle two polling intervals
-          await advanceTime({ duration: DEFAULT_INTERVAL });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
-          await advanceTime({ duration: DEFAULT_INTERVAL });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
           // check that the mainnet polling has stopped while the sepolia polling continues
           expect(handleFetchSpy).toHaveBeenNthCalledWith(
@@ -2556,7 +2552,7 @@ describe('SmartTransactionsController', () => {
             chainIds: ['notSupportedChainId' as Hex],
           });
 
-          await advanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
           expect(handleFetchSpy).not.toHaveBeenCalled();
         },

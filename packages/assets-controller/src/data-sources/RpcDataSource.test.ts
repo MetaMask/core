@@ -1561,14 +1561,13 @@ describe('RpcDataSource', () => {
           MOCK_CHAIN_ID_CAIP,
           createMockInternalAccount(),
         );
-        expect(result.detectedAssets).toBeDefined();
         expect(result.assetsBalance).toBeDefined();
         expect(Object.keys(result.assetsInfo ?? {})).toHaveLength(1);
       });
       detectTokensSpy.mockRestore();
     });
 
-    it('returns detected asset ids but omits assetsBalance when detected token has no decimals', async () => {
+    it('omits balance and metadata when detected token has no decimals', async () => {
       const assetId =
         'eip155:1/erc20:0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Caip19AssetId;
       const detectTokensSpy = vi
@@ -1600,9 +1599,6 @@ describe('RpcDataSource', () => {
           MOCK_CHAIN_ID_CAIP,
           createMockInternalAccount(),
         );
-        expect(result.detectedAssets?.[MOCK_ACCOUNT_ID]).toStrictEqual([
-          assetId,
-        ]);
         expect(
           result.assetsBalance?.[MOCK_ACCOUNT_ID]?.[assetId],
         ).toBeUndefined();

@@ -7,6 +7,7 @@ import {
   string,
   type as structType,
 } from '@metamask/superstruct';
+import type { CaipAssetTypeOrId } from '@metamask/utils';
 
 // ---------------------------------------------------------------------------
 // Shared sub-types
@@ -718,9 +719,25 @@ export type FetchFeedOptions = {
   scope?: FeedScope;
   /**
    * Filter by one or more chains, given as CAIP-2 chain ids (e.g.
-   * `eip155:8453`). Omit for the server defaults.
+   * `eip155:8453`). Omit for the server defaults. A set that excludes the chain
+   * of an asset in `assetIds` is rejected with a 400.
    */
   chains?: string[];
+  /**
+   * Only items in any of these assets, given as 1–10 CAIP-19 asset id (e.g.
+   * `eip155:8453/erc20:0x…`). Matches ANY of them. Invalid or unsupported asset
+   * ids (for example, ones with a token id) are rejected with a 400.
+   */
+  assetIds?: CaipAssetTypeOrId[];
+  /**
+   * Only this trader's items. A Clicker profile ID (UUID), not a wallet address.
+   */
+  profileId?: string;
+  /**
+   * When true, return only items that carry an author comment. Omitted from
+   * the request when false or unset.
+   */
+  commentedOnly?: boolean;
   /** Number of results to return. */
   limit?: number;
   /** Cursor for older items (infinite scroll). Use `pagination.olderCursor`. */
