@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [112.2.0]
+
+### Uncategorized
+
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: stub globals and use fake timers instead of replacing them directly ([#11064](https://github.com/MetaMask/core/pull/11064))
+- test: run assets-controllers on Vitest ([#10979](https://github.com/MetaMask/core/pull/10979))
+- feat(money-account-controller)!: add MPC keyring support ([#10694](https://github.com/MetaMask/core/pull/10694))
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -3603,7 +3612,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.2.0...HEAD
+[112.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.3...@metamask/assets-controllers@112.2.0
 [112.1.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.2...@metamask/assets-controllers@112.1.3
 [112.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.1...@metamask/assets-controllers@112.1.2
 [112.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.0...@metamask/assets-controllers@112.1.1

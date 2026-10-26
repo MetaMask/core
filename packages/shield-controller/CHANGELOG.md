@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.0]
+
+### Uncategorized
+
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: run web3auth packages on Vitest ([#10957](https://github.com/MetaMask/core/pull/10957))
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -355,7 +362,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of the shield-controller package ([#6137](https://github.com/MetaMask/core/pull/6137)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.5...@metamask/shield-controller@7.1.0
 [7.0.5]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.4...@metamask/shield-controller@7.0.5
 [7.0.4]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.3...@metamask/shield-controller@7.0.4
 [7.0.3]: https://github.com/MetaMask/core/compare/@metamask/shield-controller@7.0.2...@metamask/shield-controller@7.0.3

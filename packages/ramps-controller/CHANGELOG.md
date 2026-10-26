@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.2.0]
+
+### Uncategorized
+
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -753,7 +759,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.2.0...HEAD
+[27.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.1.0...@metamask/ramps-controller@27.2.0
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.2...@metamask/ramps-controller@27.1.0
 [27.0.2]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.1...@metamask/ramps-controller@27.0.2
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.0...@metamask/ramps-controller@27.0.1

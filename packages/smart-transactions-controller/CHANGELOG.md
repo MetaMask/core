@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.2.0]
+
+### Uncategorized
+
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: stub globals and use fake timers instead of replacing them directly ([#11064](https://github.com/MetaMask/core/pull/11064))
+- test: run transactions packages on Vitest ([#10960](https://github.com/MetaMask/core/pull/10960))
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -173,7 +181,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.0.0` to `^68.0.1` ([#9177](https://github.com/MetaMask/core/pull/9177))
 - Drop unused dependencies `@ethereumjs/tx`, `@ethereumjs/util`, and `fast-json-patch` ([#9139](https://github.com/MetaMask/core/pull/9139))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.2.0...HEAD
+[27.2.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.1.1...@metamask/smart-transactions-controller@27.2.0
 [27.1.1]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.1.0...@metamask/smart-transactions-controller@27.1.1
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.3...@metamask/smart-transactions-controller@27.1.0
 [27.0.3]: https://github.com/MetaMask/core/compare/@metamask/smart-transactions-controller@27.0.2...@metamask/smart-transactions-controller@27.0.3

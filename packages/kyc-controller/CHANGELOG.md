@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1]
+
+### Uncategorized
+
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: stub globals and use fake timers instead of replacing them directly ([#11064](https://github.com/MetaMask/core/pull/11064))
+
 ## [0.12.0]
 
 ### Added
@@ -194,7 +201,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.1...HEAD
+[0.12.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.0...@metamask/kyc-controller@0.12.1
 [0.12.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.11.0...@metamask/kyc-controller@0.12.0
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.10.0...@metamask/kyc-controller@0.11.0
 [0.10.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.9.0...@metamask/kyc-controller@0.10.0

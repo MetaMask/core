@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [36.0.0]
+
+### Uncategorized
+
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: stub globals and use fake timers instead of replacing them directly ([#11064](https://github.com/MetaMask/core/pull/11064))
+- test: run network-controller on Vitest ([#10873](https://github.com/MetaMask/core/pull/10873))
+- test: run accounts packages on Vitest ([#10974](https://github.com/MetaMask/core/pull/10974))
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -1114,7 +1123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@35.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.0.0...HEAD
+[36.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@35.0.0...@metamask/profile-sync-controller@36.0.0
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.1.0...@metamask/profile-sync-controller@35.0.0
 [34.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.3...@metamask/profile-sync-controller@34.1.0
 [34.0.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.2...@metamask/profile-sync-controller@34.0.3

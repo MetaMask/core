@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.2.0]
+
+### Uncategorized
+
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: stub globals and use fake timers instead of replacing them directly ([#11064](https://github.com/MetaMask/core/pull/11064))
+- test: run network-controller on Vitest ([#10873](https://github.com/MetaMask/core/pull/10873))
+- feat(money-account-controller)!: add MPC keyring support ([#10694](https://github.com/MetaMask/core/pull/10694))
+- test: run accounts packages on Vitest ([#10974](https://github.com/MetaMask/core/pull/10974))
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -772,7 +782,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.2.0...HEAD
+[11.2.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.1.1...@metamask/account-tree-controller@11.2.0
 [11.1.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.1.0...@metamask/account-tree-controller@11.1.1
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.0.1...@metamask/account-tree-controller@11.1.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.0.0...@metamask/account-tree-controller@11.0.1

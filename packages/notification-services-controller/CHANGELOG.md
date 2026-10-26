@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.1.0]
+
+### Uncategorized
+
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: run network-controller on Vitest ([#10873](https://github.com/MetaMask/core/pull/10873))
+- test: run engagement packages on Vitest ([#10958](https://github.com/MetaMask/core/pull/10958))
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -1006,7 +1014,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.1.0...HEAD
+[30.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.1...@metamask/notification-services-controller@30.1.0
 [30.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.0...@metamask/notification-services-controller@30.0.1
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.3...@metamask/notification-services-controller@30.0.0
 [29.0.3]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.2...@metamask/notification-services-controller@29.0.3

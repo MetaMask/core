@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0]
+
+### Uncategorized
+
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: stub globals and use fake timers instead of replacing them directly ([#11064](https://github.com/MetaMask/core/pull/11064))
+- test: run accounts packages on Vitest ([#10974](https://github.com/MetaMask/core/pull/10974))
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -52,7 +60,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `ProfileController` for managing user profile state, exposing `getMetaMaskProfile`, `getXprofile`, `createProfile`, `replaceProfile`, `updateProfile`, `deleteProfile`, `checkUsernameAvailability`, `getXAuthUrl`, `connectX`, and `getXAccount` via the messenger ([#10558](https://github.com/MetaMask/core/pull/10558))
 - Add `ProfileService` for communicating with the MetaMask Profile API, exposing `getProfile`, `createProfile`, `replaceProfile`, `updateProfile`, `deleteProfile`, `checkUsernameAvailability`, `getXAuthUrl`, `connectX`, and `getXAccount` via the messenger, with superstruct validation on all inputs and responses ([#10558](https://github.com/MetaMask/core/pull/10558))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.2.0...HEAD
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.1.1...@metamask/profile-controller@1.2.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.1.0...@metamask/profile-controller@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.0.1...@metamask/profile-controller@1.1.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.0.0...@metamask/profile-controller@1.0.1
