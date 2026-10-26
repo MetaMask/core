@@ -199,6 +199,25 @@ export const MfaErrorResponseStruct = type({
   retry_after_seconds: optional(integer()),
 });
 
+/**
+ * A recovery identifier of the canonical profile, for the approval's
+ * recipients. Only the fields every identifier has are checked: the others
+ * pass through unchanged.
+ */
+export const MfaApprovalIdentifierStruct = type({
+  type: string(),
+  namespace: string(),
+  value: string(),
+});
+
+export const MfaApprovalResponseStruct = type({
+  approval: sensitive(string()),
+
+  expires_in: min(integer(), 1),
+
+  identifiers: optional(array(MfaApprovalIdentifierStruct)),
+});
+
 export const TokenReasonStruct = object({
   operation: pattern(string(), /^[A-Za-z0-9_.:-]{1,64}$/u),
 });
@@ -261,6 +280,14 @@ const VerificationProofStruct = union([
 export const CompleteVerificationRequestStruct = object({
   flowId: string(),
   proof: VerificationProofStruct,
+  reason: TokenReasonStruct,
+});
+
+export const RequestMfaApprovalRequestStruct = object({
+  requestHash: pattern(string(), /^0x[0-9a-f]{64}$/u),
+  audiences: size(array(size(string(), 1, Infinity)), 1, Infinity),
+  requireVerification: optional(boolean()),
+  includeIdentifiers: optional(boolean()),
   reason: TokenReasonStruct,
 });
 

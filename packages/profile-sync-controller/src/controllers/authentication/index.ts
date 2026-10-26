@@ -23,5 +23,6 @@ export type {
   AuthenticationControllerBeginCredentialVerificationAction,
   AuthenticationControllerCompleteCredentialVerificationAction,
   AuthenticationControllerGetVerificationTokenAction,
+  AuthenticationControllerRequestMfaApprovalAction,
   AuthenticationControllerClearVerificationSessionAction,
 } from './AuthenticationController-method-action-types.js';
