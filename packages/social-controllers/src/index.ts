@@ -55,7 +55,11 @@ export type {
   SocialServiceUnfollowAction,
 } from './SocialService-method-action-types.js';
 
-export { TRADER_RANKING_TAGS, TradeStruct } from './social-types.js';
+export {
+  INSIDER_POSITION_FLAG,
+  TRADER_RANKING_TAGS,
+  TradeStruct,
+} from './social-types.js';
 export {
   SOCIAL_FEED_CHANNELS,
   SOCIAL_FEED_CHANNEL_TYPE,

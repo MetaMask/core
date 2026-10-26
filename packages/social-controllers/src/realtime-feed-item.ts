@@ -80,6 +80,7 @@ const RawHydratedPositionStruct = structType({
     perpPositionType: optional(nullable(enums(['long', 'short']))),
     perpLeverage: optional(nullable(number())),
     positionAmountWithLeverage: optional(nullable(number())),
+    flags: optional(nullable(array(string()))),
   }),
   metrics: structType({
     reactions: array(unknownStruct()),
@@ -92,6 +93,7 @@ const RawHydratedPositionStruct = structType({
   firstTradeAt: optional(nullable(number())),
   holdTimeMs: optional(nullable(number())),
   entryPriceUsd: optional(nullable(number())),
+  flags: optional(nullable(array(string()))),
 });
 
 export type RealtimeFeedEventData = FeedItem;
@@ -255,6 +257,22 @@ const toTrade = (trade: {
 const isNormalizedRealtimeFeedItem = (value: unknown): value is FeedItem =>
   is(value, FeedItemStruct);
 
+/**
+ * Position flags from a hydrated card. Metadata wins when both are set;
+ * omit the key when neither the position nor the card sent `flags`.
+ *
+ * @param metadataFlags - Flags on the hydrated position metadata.
+ * @param cardFlags - Flags on the hydrated card itself.
+ * @returns A `flags` field, or nothing when the event predates the field.
+ */
+const readPositionFlags = (
+  metadataFlags: string[] | null | undefined,
+  cardFlags: string[] | null | undefined,
+): { flags: string[] | null } | Record<string, never> => {
+  const flags = metadataFlags === undefined ? cardFlags : metadataFlags;
+  return flags === undefined ? {} : { flags };
+};
+
 export const normalizeRealtimeFeedItem = (
   value: unknown,
 ): FeedItem | undefined => {
@@ -297,6 +315,7 @@ export const normalizeRealtimeFeedItem = (
     firstTradeAt: value.firstTradeAt ?? null,
     holdTimeMs: value.holdTimeMs ?? null,
     entryPriceUsd: value.entryPriceUsd ?? null,
+    ...readPositionFlags(value.metadata.flags, value.flags),
   };
 };
 

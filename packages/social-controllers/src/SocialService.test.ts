@@ -882,6 +882,68 @@ describe('SocialService', () => {
       expect(result.positions[0].trades[0].action).toBeUndefined();
     });
 
+    it('passes position flags through, including flags it does not recognize', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [{ ...mockPosition, flags: ['insider', 'future-flag'] }],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchOpenPositions({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.positions[0].flags).toStrictEqual([
+        'insider',
+        'future-flag',
+      ]);
+    });
+
+    it('accepts a position without flags and a position with null flags', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [mockPosition, { ...mockPosition, flags: null }],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchOpenPositions({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.positions[0].flags).toBeUndefined();
+      expect(result.positions[1].flags).toBeNull();
+    });
+
+    it('rejects a position whose flags are not an array of strings', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [{ ...mockPosition, flags: 'insider' }],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchOpenPositions({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE,
+      );
+    });
+
     it('rejects an unknown trade action', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -1641,6 +1703,24 @@ describe('SocialService', () => {
       expect(result.items[0]?.firstTradeAt).toBe(1_699_999_000);
       expect(result.items[0]?.holdTimeMs).toBe(28_800_000);
       expect(result.items[0]?.entryPriceUsd).toBe(2500);
+    });
+
+    it('passes feed item flags through and drops an item with invalid flags', async () => {
+      const flagged = { ...mockFeedItem, flags: ['insider'] };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [flagged, { ...mockFeedItem, flags: [1] }],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items).toStrictEqual([flagged]);
     });
 
     // An open position has no final hold; the anchor is what the client

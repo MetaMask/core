@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `flags` to `Position`, so open positions, closed positions, position-by-id, and feed items (including realtime hydration) can carry an open list of server flags. `insider` (`INSIDER_POSITION_FLAG`) marks a Codex insider wallet/token pair that is excluded from the trader's realized PnL and must not be copy-traded. Unrecognized flag strings are preserved, `null` is accepted, and responses that omit `flags` still validate
+
 ## [3.12.1]
 
 ### Changed

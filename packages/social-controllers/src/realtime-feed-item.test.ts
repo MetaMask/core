@@ -365,4 +365,33 @@ describe('parseRealtimeFeedItem', () => {
 
     expect(normalizeRealtimeFeedItem(value)?.authorComment).toBeNull();
   });
+
+  it('copies position flags from a hydrated feed event', () => {
+    const fromMetadata = normalizeRealtimeFeedItem({
+      ...fullHydratedPosition,
+      metadata: {
+        ...fullHydratedPosition.metadata,
+        flags: ['insider'],
+      },
+    });
+    const fromCard = normalizeRealtimeFeedItem({
+      ...fullHydratedPosition,
+      flags: ['insider', 'future-flag'],
+    });
+    const absent = normalizeRealtimeFeedItem(fullHydratedPosition);
+
+    expect(fromMetadata?.flags).toStrictEqual(['insider']);
+    expect(fromCard?.flags).toStrictEqual(['insider', 'future-flag']);
+    expect(absent?.flags).toBeUndefined();
+  });
+
+  it('keeps flags on an already normalized feed item', () => {
+    const normalized = normalizeRealtimeFeedItem(fullHydratedPosition);
+    const flagged = { ...normalized, flags: ['insider'] };
+
+    expect(parseRealtimeFeedItem(flagged)?.flags).toStrictEqual(['insider']);
+    expect(
+      parseRealtimeFeedItem({ ...normalized, flags: 'insider' }),
+    ).toBeUndefined();
+  });
 });
