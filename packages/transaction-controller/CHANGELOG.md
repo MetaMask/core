@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `daFootprintGasScalar`, `operatorFeeScalar`, `operatorFeeConstant`, and `tokenRatio` fields to `TransactionReceipt` for OP Stack / Mantle Arsia receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add optional `sponsor` property to `GasFeeToken` ([#11068](https://github.com/MetaMask/core/pull/11068))
+  - Set from the simulation API when the gas fee is sponsored, naming who pays it, such as `Uniswap` or `MetaMask`.
 
 ### Changed
 
