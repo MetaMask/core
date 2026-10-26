@@ -93,6 +93,11 @@ export type MfaVerifyCompleteRequest = {
 };
 
 type EnrolledCredentialBase = {
+  /**
+   * The server's identifier, to remove the credential with: the WebAuthn
+   * credential ID for a passkey, `email_otp` or `totp` otherwise.
+   */
+  id: string;
   status: MfaCredentialStatus;
   /** Epoch milliseconds, when the server sent a valid date. */
   enrolledAt?: number;
@@ -281,6 +286,12 @@ export type RequestMfaApprovalRequest = {
   reason: TokenReason;
 };
 
+export type RemoveCredentialRequest = {
+  /** The `id` of the credential to remove. */
+  credentialId: string;
+  reason: TokenReason;
+};
+
 export type GetVerificationTokenRequest = {
   maxSessionAgeMs?: number;
 };
@@ -292,6 +303,9 @@ export type MfaErrorCode =
   | 'totp_already_enrolled'
   | 'credential_already_enrolled'
   | 'credential_not_enrolled'
+  | 'credential_not_found'
+  | 'cross_type_step_up_required'
+  | 'last_credential'
   | 'email_socially_verified'
   | 'email_claimed'
   | 'mfa_identity_missing'

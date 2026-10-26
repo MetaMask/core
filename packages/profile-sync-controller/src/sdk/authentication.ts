@@ -180,6 +180,14 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     return await this.#sdk.requestMfaApproval(body, options);
   }
 
+  async deleteMfaCredential(
+    credentialId: string,
+    accessToken: string,
+  ): Promise<EnrolledCredential[]> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.deleteMfaCredential(credentialId, accessToken);
+  }
+
   async exchangeMfaAssertion(assertionJwt: string): Promise<AccessToken> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.exchangeMfaAssertion(assertionJwt);

@@ -5,7 +5,6 @@ import type { AssetsDataSource } from '../types.js';
 export type UpdateSources = {
   customAssetGraduationMiddleware: AssetsDataSource;
   rpcFallbackMiddleware: AssetsDataSource;
-  detectionMiddleware: AssetsDataSource;
   tokenDataSource: AssetsDataSource;
   priceDataSource: AssetsDataSource;
 };
@@ -31,7 +30,6 @@ export function buildUpdateSources(
   const {
     customAssetGraduationMiddleware,
     rpcFallbackMiddleware,
-    detectionMiddleware,
     tokenDataSource,
     priceDataSource,
   } = sources;
@@ -41,7 +39,6 @@ export function buildUpdateSources(
       ? [customAssetGraduationMiddleware]
       : []),
     ...(options.includeRpcFallback ? [rpcFallbackMiddleware] : []),
-    detectionMiddleware,
     ...(options.isBasicFunctionality
       ? [createParallelMiddleware([tokenDataSource, priceDataSource])]
       : []),

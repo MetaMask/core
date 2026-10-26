@@ -29,7 +29,6 @@ import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
-import { advanceTime } from '../../../tests/vitest/helpers.js';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
   buildMockFindNetworkClientIdByChainId,
@@ -382,9 +381,7 @@ describe('NftDetectionController', () => {
         await controller.detectNfts(['0x1']);
         expect(mockNfts).toHaveBeenCalledTimes(1);
 
-        await advanceTime({
-          duration: 10,
-        });
+        await vi.advanceTimersByTimeAsync(10);
 
         expect(mockNfts).toHaveBeenCalledTimes(1);
       },
@@ -527,9 +524,7 @@ describe('NftDetectionController', () => {
         });
 
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          duration: 1,
-        });
+        await vi.advanceTimersByTimeAsync(1);
         mockAddNfts.mockReset();
 
         await controller.detectNfts(['0x1']);
@@ -607,9 +602,7 @@ describe('NftDetectionController', () => {
         });
 
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          duration: 1,
-        });
+        await vi.advanceTimersByTimeAsync(1);
         mockAddNfts.mockReset();
 
         await controller.detectNfts(['0x1', '0xe708']);
@@ -668,9 +661,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          duration: 1,
-        });
+        await vi.advanceTimersByTimeAsync(1);
         mockAddNfts.mockReset();
 
         await controller.detectNfts(['0x1'], {
@@ -733,9 +724,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          duration: 1,
-        });
+        await vi.advanceTimersByTimeAsync(1);
         mockAddNfts.mockReset();
 
         await controller.detectNfts(['0x1']);
@@ -807,9 +796,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          duration: 1,
-        });
+        await vi.advanceTimersByTimeAsync(1);
 
         expect(mockNfts).not.toHaveBeenCalled();
       },
@@ -836,9 +823,7 @@ describe('NftDetectionController', () => {
           useNftDetection: false,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          duration: 1,
-        });
+        await vi.advanceTimersByTimeAsync(1);
         mockAddNfts.mockReset();
 
         await controller.detectNfts(['0x1']);
@@ -875,9 +860,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          duration: 1,
-        });
+        await vi.advanceTimersByTimeAsync(1);
         mockAddNfts.mockReset();
 
         // eslint-disable-next-line vitest/require-to-throw-message
@@ -902,9 +885,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          duration: 1,
-        });
+        await vi.advanceTimersByTimeAsync(1);
         // This mock is for the call under test
         nock(NFT_API_BASE_URL)
           .get(`/users/${selectedAddress}/tokens`)
@@ -943,9 +924,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          duration: 1,
-        });
+        await vi.advanceTimersByTimeAsync(1);
         mockAddNfts.mockReset();
         mockAddNfts.mockRejectedValueOnce(new Error('UNEXPECTED ERROR'));
 
@@ -978,7 +957,7 @@ describe('NftDetectionController', () => {
             securityAlertsEnabled: true,
           });
         }
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         expect(detectNfts).not.toHaveBeenCalled();
 
         // Irrelevant preference changes shouldn't trigger a detection
@@ -987,7 +966,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
           securityAlertsEnabled: true,
         });
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         expect(detectNfts).not.toHaveBeenCalled();
       },
     );
@@ -1101,9 +1080,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
 
-        await advanceTime({
-          duration: 1,
-        });
+        await vi.advanceTimersByTimeAsync(1);
         mockAddNfts.mockReset();
 
         await controller.detectNfts(['0x1'], { firstPageOnly: true });
@@ -1213,9 +1190,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
 
-        await advanceTime({
-          duration: 1,
-        });
+        await vi.advanceTimersByTimeAsync(1);
         mockAddNfts.mockReset();
 
         const abortController = new AbortController();

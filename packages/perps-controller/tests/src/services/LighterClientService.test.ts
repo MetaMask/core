@@ -77,7 +77,7 @@ describe('LighterClientService', () => {
 
   beforeEach(() => {
     fetchMock = vi.fn();
-    global.fetch = fetchMock;
+    vi.stubGlobal('fetch', fetchMock);
   });
 
   describe('lossless native edit reads', () => {

@@ -4,7 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SocialServiceErrorMessage, serviceName } from './social-constants.js';
 import type { SocialServiceMessenger } from './SocialService.js';
@@ -130,15 +130,10 @@ function createService(
 
 describe('SocialService', () => {
   const mockFetch = vi.fn();
-  const originalFetch = global.fetch;
 
   beforeEach(() => {
-    global.fetch = mockFetch;
+    vi.stubGlobal('fetch', mockFetch);
     mockFetch.mockReset();
-  });
-
-  afterAll(() => {
-    global.fetch = originalFetch;
   });
 
   describe('fetchLeaderboard', () => {
