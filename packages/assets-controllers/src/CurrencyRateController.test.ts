@@ -14,7 +14,6 @@ import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { advanceTime } from '../../../tests/vitest/helpers.js';
 import type { CurrencyRateMessenger } from './CurrencyRateController.js';
 import { CurrencyRateController } from './CurrencyRateController.js';
 import type { AbstractTokenPricesService } from './token-prices-service/index.js';
@@ -241,7 +240,7 @@ describe('CurrencyRateController', () => {
       tokenPricesService,
     });
 
-    await advanceTime({ duration: 200 });
+    await vi.advanceTimersByTimeAsync(200);
 
     expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
 
@@ -275,7 +274,7 @@ describe('CurrencyRateController', () => {
     });
 
     controller.startPolling({ nativeCurrencies: ['ETH'] });
-    await advanceTime({ duration: 0 });
+    await vi.advanceTimersByTimeAsync(0);
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
     expect(controller.state.currencyRates).toStrictEqual({
@@ -285,11 +284,11 @@ describe('CurrencyRateController', () => {
         usdConversionRate: null,
       },
     });
-    await advanceTime({ duration: 99 });
+    await vi.advanceTimersByTimeAsync(99);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(2);
     expect(controller.state.currencyRates).toStrictEqual({
@@ -325,14 +324,14 @@ describe('CurrencyRateController', () => {
 
     controller.startPolling({ nativeCurrencies: ['ETH'] });
 
-    await advanceTime({ duration: 0 });
+    await vi.advanceTimersByTimeAsync(0);
 
     controller.stopAllPolling();
 
     // called once upon initial start
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
-    await advanceTime({ duration: 150, stepSize: 50 });
+    await vi.advanceTimersByTimeAsync(150);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
@@ -359,7 +358,7 @@ describe('CurrencyRateController', () => {
       tokenPricesService,
     });
     controller.startPolling({ nativeCurrencies: ['ETH'] });
-    await advanceTime({ duration: 0 });
+    await vi.advanceTimersByTimeAsync(0);
 
     controller.stopAllPolling();
 
@@ -367,11 +366,11 @@ describe('CurrencyRateController', () => {
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
     controller.startPolling({ nativeCurrencies: ['ETH'] });
-    await advanceTime({ duration: 0 });
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(2);
 
-    await advanceTime({ duration: 100 });
+    await vi.advanceTimersByTimeAsync(100);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(3);
   });
@@ -528,7 +527,7 @@ describe('CurrencyRateController', () => {
       },
     });
 
-    await advanceTime({ duration: 0 });
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(controller.state).toStrictEqual({
       currentCurrency,
@@ -921,11 +920,11 @@ describe('CurrencyRateController', () => {
       });
 
       controller.startPolling({ nativeCurrencies: ['ETH'] });
-      await advanceTime({ duration: 0 });
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
 
-      await advanceTime({ duration: 100 });
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
 

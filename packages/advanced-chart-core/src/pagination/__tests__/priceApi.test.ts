@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import {
@@ -31,10 +31,6 @@ describe('pagination/priceApi', () => {
     delete window.ReactNativeWebView;
   });
 
-  afterEach(() => {
-    delete (globalThis as { fetch?: typeof fetch }).fetch;
-  });
-
   it('returns noData when there is no cursor', async () => {
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
     expect(result).toStrictEqual({ olderBars: [], noData: true });
@@ -58,14 +54,31 @@ describe('pagination/priceApi', () => {
       assetId: 'eip155:1/slip44:60',
       vsCurrency: 'usd',
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = mockFetchOk({
-      data: [
-        { timestamp: 50, open: 1, high: 2, low: 0.5, close: 1.5, volume: 100 },
-        { timestamp: 80, open: 2, high: 3, low: 1.5, close: 2.5, volume: 200 },
-      ],
-      nextCursor: 'def=',
-      hasNext: true,
-    }) as unknown as typeof fetch;
+    vi.stubGlobal(
+      'fetch',
+      mockFetchOk({
+        data: [
+          {
+            timestamp: 50,
+            open: 1,
+            high: 2,
+            low: 0.5,
+            close: 1.5,
+            volume: 100,
+          },
+          {
+            timestamp: 80,
+            open: 2,
+            high: 3,
+            low: 1.5,
+            close: 2.5,
+            volume: 200,
+          },
+        ],
+        nextCursor: 'def=',
+        hasNext: true,
+      }),
+    );
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
@@ -86,16 +99,17 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: 'usd',
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = vi
-      .fn()
-      .mockImplementation(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => {
         bumpOhlcvGeneration();
         return Promise.resolve({
           ok: true,
           json: () =>
             Promise.resolve({ data: [], nextCursor: null, hasNext: false }),
         } as Response);
-      }) as unknown as typeof fetch;
+      }),
+    );
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
     expect(result).toStrictEqual({ olderBars: [], noData: true });
@@ -109,9 +123,7 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: null,
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = vi
-      .fn()
-      .mockRejectedValue(new Error('offline')) as unknown as typeof fetch;
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')));
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
     expect(result).toStrictEqual({ olderBars: [], noData: true });
@@ -127,14 +139,17 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: 'usd',
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = mockFetchOk({
-      data: [
-        { timestamp: 50, open: 1, high: 1, low: 1, close: 1 },
-        { timestamp: 150, open: 1, high: 1, low: 1, close: 1 },
-      ],
-      nextCursor: null,
-      hasNext: false,
-    }) as unknown as typeof fetch;
+    vi.stubGlobal(
+      'fetch',
+      mockFetchOk({
+        data: [
+          { timestamp: 50, open: 1, high: 1, low: 1, close: 1 },
+          { timestamp: 150, open: 1, high: 1, low: 1, close: 1 },
+        ],
+        nextCursor: null,
+        hasNext: false,
+      }),
+    );
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
     expect(result.olderBars).toHaveLength(1);
@@ -149,11 +164,14 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: 'usd',
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 429,
-      json: () => Promise.resolve({}),
-    } as unknown as Response) as unknown as typeof fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 429,
+        json: () => Promise.resolve({}),
+      } as unknown as Response),
+    );
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
@@ -171,16 +189,17 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: 'usd',
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = vi
-      .fn()
-      .mockImplementation(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => {
         bumpOhlcvGeneration();
         return Promise.resolve({
           ok: false,
           status: 500,
           json: () => Promise.resolve({}),
         } as unknown as Response);
-      }) as unknown as typeof fetch;
+      }),
+    );
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
@@ -197,10 +216,13 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: 'usd',
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.reject(new Error('Unexpected token')),
-    } as unknown as Response) as unknown as typeof fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.reject(new Error('Unexpected token')),
+      } as unknown as Response),
+    );
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
@@ -218,11 +240,14 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: 'usd',
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = mockFetchOk({
-      data: 'not-an-array',
-      nextCursor: null,
-      hasNext: false,
-    }) as unknown as typeof fetch;
+    vi.stubGlobal(
+      'fetch',
+      mockFetchOk({
+        data: 'not-an-array',
+        nextCursor: null,
+        hasNext: false,
+      }),
+    );
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
@@ -241,11 +266,14 @@ describe('pagination/priceApi', () => {
       assetId: 'eip155:1/slip44:60',
       vsCurrency: null,
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = mockFetchOk({
-      data: [],
-      nextCursor: null,
-      hasNext: false,
-    }) as unknown as typeof fetch;
+    vi.stubGlobal(
+      'fetch',
+      mockFetchOk({
+        data: [],
+        nextCursor: null,
+        hasNext: false,
+      }),
+    );
 
     await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 
@@ -265,11 +293,14 @@ describe('pagination/priceApi', () => {
       assetId: 'a',
       vsCurrency: 'usd',
     });
-    (globalThis as { fetch?: typeof fetch }).fetch = mockFetchOk({
-      data: [],
-      nextCursor: null,
-      hasNext: false,
-    }) as unknown as typeof fetch;
+    vi.stubGlobal(
+      'fetch',
+      mockFetchOk({
+        data: [],
+        nextCursor: null,
+        hasNext: false,
+      }),
+    );
 
     const result = await fetchOlderBarsFromPriceApi({ oldestAtDefer: 100 });
 

@@ -80,6 +80,8 @@ export default defineConfig({
     mockReset: true,
     restoreMocks: true,
 
+    unstubGlobals: true,
+
     typecheck: {
       enabled: true,
     },
