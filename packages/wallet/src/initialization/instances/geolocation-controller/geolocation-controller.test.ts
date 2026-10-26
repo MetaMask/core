@@ -77,9 +77,11 @@ describe('geolocationController', () => {
       options: {},
     });
 
-    await expect(
-      rootMessenger.call('GeolocationController:getGeolocationData'),
-    ).resolves.toStrictEqual({
+    const result = await rootMessenger.call(
+      'GeolocationController:getGeolocationData',
+    );
+
+    expect(result).toStrictEqual({
       country: 'US',
       region: 'NY',
       timezone: 'America/New_York',
