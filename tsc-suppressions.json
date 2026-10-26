@@ -146,11 +146,6 @@
       "count": 1
     }
   },
-  "packages/assets-controller/src/data-sources/PriceDataSource.test.ts": {
-    "TS2352": {
-      "count": 1
-    }
-  },
   "packages/assets-controller/src/data-sources/RpcDataSource.test.ts": {
     "TS2353": {
       "count": 8
@@ -159,11 +154,6 @@
   "packages/assets-controller/src/data-sources/SnapDataSource.test.ts": {
     "TS2353": {
       "count": 2
-    }
-  },
-  "packages/assets-controller/src/data-sources/TokenDataSource.test.ts": {
-    "TS2322": {
-      "count": 1
     }
   },
   "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {
