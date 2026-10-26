@@ -141,8 +141,9 @@ export type AuthenticationControllerGetVerificationTokenAction = {
  * Shows no UI. When `requireVerification` is set, the approval proves the
  * verification session: without one, this throws a `StepUpRequiredError`
  * (`aal2_required`) without calling the server. The server answers the same
- * way when the verification is too old for it. Either way, the caller
- * verifies through the client MFA kit (`verifyOrEnroll`) and calls again.
+ * way when the verification is too old for it, and that session is then
+ * dropped. Either way, the caller verifies through the client MFA kit
+ * (`verifyOrEnroll`), which runs a new ceremony, and calls again.
  *
  * @param request - Request digest, audiences, whether a recent verification
  * is required, whether to return identifiers, and the trace reason.

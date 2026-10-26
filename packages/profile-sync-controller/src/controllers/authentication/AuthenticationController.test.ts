@@ -4325,6 +4325,49 @@ describe('MFA credential verification', () => {
       ).not.toBe('');
     });
 
+    it('drops a verification session the server finds too old', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify({
+            code: 'authentication_required',
+            message: 'stale auth_time',
+          }),
+          { status: 403 },
+        ),
+      );
+
+      await expect(
+        controller.requestMfaApproval({
+          ...request,
+          requireVerification: true,
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'aal2_required' });
+      expect(controller.getVerificationToken()).toBeNull();
+    });
+
+    it('keeps the verification session on other failures', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify({ code: 'invalid_request', message: 'bad hash' }),
+          { status: 400 },
+        ),
+      );
+
+      await expect(
+        controller.requestMfaApproval({
+          ...request,
+          requireVerification: true,
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+      expect(controller.getVerificationToken()).not.toBeNull();
+    });
+
     it('rejects an invalid request without calling the server', async () => {
       const { controller } = createController();
       const fetchSpy = vi.spyOn(globalThis, 'fetch');
