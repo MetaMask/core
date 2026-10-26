@@ -180,6 +180,7 @@ export const MfaCredentialStruct = type({
   // Intentionally accepts strings so future server credential types and
   // statuses can be ignored without making the complete response invalid.
 
+  credential_id: string(),
   credential_type: string(),
   status: string(),
 
@@ -261,6 +262,11 @@ const VerificationProofStruct = union([
 export const CompleteVerificationRequestStruct = object({
   flowId: string(),
   proof: VerificationProofStruct,
+  reason: TokenReasonStruct,
+});
+
+export const RemoveCredentialRequestStruct = object({
+  credentialId: size(string(), 1, Infinity),
   reason: TokenReasonStruct,
 });
 

@@ -3025,6 +3025,7 @@ describe('MFA credential enrollment', () => {
     });
     const existing = [
       {
+        id: 'existing-passkey-id',
         type: 'passkey',
         status: 'active',
         displayName: 'Existing passkey',
@@ -3067,6 +3068,7 @@ describe('MFA credential enrollment', () => {
         ...mockSignedInState(),
         enrolledCredentials: [
           {
+            id: 'email_otp',
             type: 'email_otp',
             status: 'active',
             email: 'user@example.com',
@@ -4188,6 +4190,99 @@ describe('MFA credential verification', () => {
       }
     });
   });
+
+  describe('removeCredential', () => {
+    const request = {
+      credentialId: 'totp',
+      reason: { operation: 'settings.removeAuthenticatorApp' },
+    };
+    const credentialsLeft = {
+      credentials: [
+        {
+          credential_id: 'email_otp',
+          credential_type: 'email_otp',
+          status: 'active',
+          email: { address: 'user@example.com', verified: true },
+        },
+      ],
+    };
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('removes a credential with the verification token and caches the ones left', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const verificationToken = controller.getVerificationToken()?.accessToken;
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new globalThis.Response(JSON.stringify(credentialsLeft), {
+          status: 200,
+        }),
+      );
+
+      const credentials = await controller.removeCredential(request);
+
+      expect(credentials).toStrictEqual([
+        {
+          id: 'email_otp',
+          type: 'email_otp',
+          status: 'active',
+          email: 'user@example.com',
+          verified: true,
+        },
+      ]);
+      expect(controller.state.enrolledCredentials).toStrictEqual(credentials);
+      const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url.endsWith('/api/v2/mfa/credentials/totp')).toBe(true);
+      expect(init.method).toBe('DELETE');
+      expect(new globalThis.Headers(init.headers).get('Authorization')).toBe(
+        `Bearer ${verificationToken}`,
+      );
+    });
+
+    it('asks to verify first without a verification session', async () => {
+      const { controller } = createController();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      await expect(controller.removeCredential(request)).rejects.toMatchObject({
+        mfaCode: 'aal2_required',
+      });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('passes the server refusal through and keeps the cache', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const before = controller.state.enrolledCredentials;
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify({
+            code: 'last_credential',
+            message: 'cannot remove the last MFA credential',
+          }),
+          { status: 409 },
+        ),
+      );
+
+      await expect(controller.removeCredential(request)).rejects.toMatchObject({
+        mfaCode: 'last_credential',
+      });
+      expect(controller.state.enrolledCredentials).toBe(before);
+    });
+
+    it('rejects an invalid request without calling the server', async () => {
+      const { controller } = createController();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      await expect(
+        controller.removeCredential({ ...request, credentialId: '' }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('metadata', () => {
@@ -4223,12 +4318,14 @@ describe('metadata', () => {
           ...mockSignedInState(),
           enrolledCredentials: [
             {
+              id: 'passkey-id',
               type: 'passkey',
               status: 'active',
               enrolledAt: 1_000,
               displayName: 'My iPhone',
             },
             {
+              id: 'email_otp',
               type: 'email_otp',
               status: 'pending',
               enrolledAt: 2_000,

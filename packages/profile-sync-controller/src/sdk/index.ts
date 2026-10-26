@@ -16,6 +16,7 @@ export type {
   BeginVerificationRequest,
   CompleteVerificationRequest,
   GetVerificationTokenRequest,
+  RemoveCredentialRequest,
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
   RegistrationResponseJSON,

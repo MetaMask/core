@@ -120,6 +120,7 @@ export const MOCK_MFA_ENROLL_COMPLETE_RESPONSE =
 export const MOCK_MFA_CREDENTIALS_RESPONSE = {
   credentials: [
     {
+      credential_id: 'passkey-credential-id',
       credential_type: 'passkey',
       status: 'active',
       enrolled_at: '2026-09-15T10:00:00Z',
@@ -129,6 +130,7 @@ export const MOCK_MFA_CREDENTIALS_RESPONSE = {
       },
     },
     {
+      credential_id: 'email_otp',
       credential_type: 'email_otp',
       status: 'pending',
       enrolled_at: '2026-09-15T10:05:00Z',
