@@ -101,6 +101,18 @@ export default createConfig({
 
     {
       files: [
+        'vitest.config.packages.ts',
+        'vitest.config.scripts.ts',
+        'packages/*/vitest.config.ts',
+      ],
+      rules: {
+        // Config files only run on the Node version used for development and CI.
+        'n/no-unsupported-features/node-builtins': 'off',
+      },
+    },
+
+    {
+      files: [
         'packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts',
         'packages/foundryup/src/cli.ts',
         'packages/java-tron-up/src/bin/java-tron-up.ts',

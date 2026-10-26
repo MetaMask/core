@@ -1,10 +1,9 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { defineConfig } from 'vitest/config';
 import type { Plugin } from 'vitest/config';
 
-const monorepoRoot = path.dirname(fileURLToPath(import.meta.url));
+const monorepoRoot = import.meta.dirname;
 
 // A line that starts with a decorator, e.g. `@trackAssetsLoading`.
 const DECORATOR_PATTERN = /^\s*@[A-Za-z_$][\w$]*/mu;
