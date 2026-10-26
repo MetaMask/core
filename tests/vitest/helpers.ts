@@ -2,8 +2,7 @@ import {
   setImmediate as realSetImmediate,
   setTimeout as realSetTimeout,
 } from 'node:timers';
-import { expect, vi } from '
-test';
+import { expect, vi } from 'vitest';
 
 /**
  * Advances the provided fake timer by a specified duration in incremental steps.
