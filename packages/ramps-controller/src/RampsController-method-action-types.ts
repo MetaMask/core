@@ -535,7 +535,10 @@ export type RampsControllerRefreshAutorampsAction = {
  * The updated record is written before any event is published. A failed
  * fetch leaves the record untouched. Concurrent calls for the same autoramp
  * share one request. The first successful fetch seeds the record and
- * publishes nothing.
+ * publishes nothing. When this autoramp was on the cursor at the start of
+ * the fetch and was removed before the response is applied
+ * (`removeAutoramp`, a cursor replace that drops the id, or a foreign VBA
+ * session discard), the record is not restored and no event is published.
  *
  * @param autorampId - MoonPay autoramp id.
  * @returns Transaction summaries from the newest page.

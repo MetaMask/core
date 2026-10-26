@@ -4604,7 +4604,10 @@ export class RampsController extends BaseController<
    * The updated record is written before any event is published. A failed
    * fetch leaves the record untouched. Concurrent calls for the same autoramp
    * share one request. The first successful fetch seeds the record and
-   * publishes nothing.
+   * publishes nothing. When this autoramp was on the cursor at the start of
+   * the fetch and was removed before the response is applied
+   * (`removeAutoramp`, a cursor replace that drops the id, or a foreign VBA
+   * session discard), the record is not restored and no event is published.
    *
    * @param autorampId - MoonPay autoramp id.
    * @returns Transaction summaries from the newest page.
@@ -4631,14 +4634,25 @@ export class RampsController extends BaseController<
     }
   }
 
+  #tracksAutoramp(autorampId: string): boolean {
+    return this.state.autoramps.some((autoramp) => autoramp.id === autorampId);
+  }
+
   async #refreshAutorampTransactions(
     autorampId: string,
   ): Promise<AutorampTransactionSummary[]> {
+    const trackedAtStart = this.#tracksAutoramp(autorampId);
     const fetched = await this.messenger.call(
       'NeoBankService:listAutorampTransactions',
       autorampId,
       { pageSize: AUTORAMP_TRANSACTION_PAGE_SIZE },
     );
+    // A removal that landed during the fetch wins. Writing now would put the
+    // cleared record back and later refreshes could emit for an autoramp that
+    // is gone, including one discarded with the previous profile.
+    if (trackedAtStart && !this.#tracksAutoramp(autorampId)) {
+      return fetched;
+    }
     const { changes, nextRecord } = diffAutorampTransactions(
       this.state.autorampTransactionRecords[autorampId],
       fetched,

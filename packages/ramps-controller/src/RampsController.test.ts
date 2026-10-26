@@ -10690,6 +10690,65 @@ describe('RampsController', () => {
       });
     });
 
+    it('does not restore a record or publish when the autoramp is removed during the fetch', async () => {
+      await withController(async ({ controller, rootMessenger, messenger }) => {
+        controller.addAutoramp({
+          id: 'ar-1',
+          customerId: 'cust-1',
+          walletAddress: '0xabc',
+          status: AutorampStatus.Approved,
+        });
+        controller.addAutoramp({
+          id: 'ar-2',
+          customerId: 'cust-1',
+          walletAddress: '0xdef',
+          status: AutorampStatus.Approved,
+        });
+        let resolveList: (
+          transactions: ReturnType<typeof fetchedTransaction>[],
+        ) => void = () => undefined;
+        const pending = new Promise<ReturnType<typeof fetchedTransaction>[]>(
+          (resolve) => {
+            resolveList = resolve;
+          },
+        );
+        const list = vi
+          .fn()
+          .mockResolvedValueOnce([
+            fetchedTransaction('tx-1', 'FundsReviewInProgress'),
+          ])
+          .mockImplementation(() => pending);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:listAutorampTransactions',
+          list,
+        );
+        const events: unknown[] = [];
+        messenger.subscribe(
+          'RampsController:autorampTransactionStatusChanged',
+          (payload) => {
+            events.push(payload);
+          },
+        );
+
+        await controller.refreshAutorampTransactions('ar-1');
+        const removedRefresh = controller.refreshAutorampTransactions('ar-1');
+        const keptRefresh = controller.refreshAutorampTransactions('ar-2');
+        controller.removeAutoramp('ar-1');
+        const page = [fetchedTransaction('tx-1', 'Completed')];
+        resolveList(page);
+
+        expect(await removedRefresh).toStrictEqual(page);
+        expect(await keptRefresh).toStrictEqual(page);
+        expect(
+          controller.state.autorampTransactionRecords['ar-1'],
+        ).toBeUndefined();
+        expect(
+          controller.state.autorampTransactionRecords['ar-2']?.statuses,
+        ).toStrictEqual({ 'tx-1': 'Completed' });
+        expect(events).toHaveLength(0);
+      });
+    });
+
     it('clears the record when that autoramp is removed', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add persisted `autorampTransactionRecords` on `RampsController`. Each autoramp stores `syncedAt` and the last seen status string per transaction id. The first successful fetch seeds the record and emits nothing ([#11017](https://github.com/MetaMask/core/pull/11017))
 - Add `diffAutorampTransactions`, which reports a transaction id that is new or whose status string changed. A transaction missing from the fetch stays in the record ([#11017](https://github.com/MetaMask/core/pull/11017))
-- Add `refreshAutorampTransactions`, which loads the newest autoramp transaction page (`page_size` 50) and publishes `RampsController:autorampTransactionStatusChanged` after the record is written. Overlapping calls for one autoramp share one request. A failed fetch writes nothing. Removing an autoramp, replacing the autoramp cursor, or discarding a foreign VBA session clears the matching records ([#11017](https://github.com/MetaMask/core/pull/11017))
+- Add `refreshAutorampTransactions`, which loads the newest autoramp transaction page (`page_size` 50) and publishes `RampsController:autorampTransactionStatusChanged` after the record is written. Overlapping calls for one autoramp share one request. A failed fetch writes nothing. Removing an autoramp, replacing the autoramp cursor, or discarding a foreign VBA session clears the matching records. A fetch still in flight when that autoramp leaves the cursor does not write the record or publish ([#11017](https://github.com/MetaMask/core/pull/11017))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
