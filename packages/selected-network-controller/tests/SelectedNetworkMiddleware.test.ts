@@ -6,6 +6,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { JsonRpcResponse } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { SelectedNetworkControllerActionTypes } from '../src/SelectedNetworkController.js';
 import type { SelectedNetworkControllerMessenger } from '../src/SelectedNetworkController.js';
@@ -57,7 +58,7 @@ function getSelectedNetworkControllerMessenger(
   });
 }
 
-const noop = jest.fn();
+const noop = vi.fn();
 
 describe('createSelectedNetworkMiddleware', () => {
   it('throws if not provided an origin', async () => {
@@ -89,7 +90,7 @@ describe('createSelectedNetworkMiddleware', () => {
       origin: 'example.com',
     } as SelectedNetworkMiddlewareJsonRpcRequest;
 
-    const mockGetNetworkClientIdForDomain = jest
+    const mockGetNetworkClientIdForDomain = vi
       .fn()
       .mockReturnValue('mockNetworkClientId');
 
@@ -114,7 +115,7 @@ describe('createSelectedNetworkMiddleware', () => {
       next();
     });
     engine.push(createSelectedNetworkMiddleware(messenger));
-    const mockNextMiddleware = jest
+    const mockNextMiddleware = vi
       .fn()
       .mockImplementation((req, res, _, end) => {
         res.result = req.networkClientId;
@@ -122,7 +123,7 @@ describe('createSelectedNetworkMiddleware', () => {
       });
     engine.push(mockNextMiddleware);
     const testNetworkClientId = 'testNetworkClientId';
-    const mockGetNetworkClientIdForDomain = jest
+    const mockGetNetworkClientIdForDomain = vi
       .fn()
       .mockReturnValue(testNetworkClientId);
     messenger.registerActionHandler(

@@ -19,6 +19,8 @@ const fullHydratedPosition = {
       metadata: {
         winRate30d: 0.75,
         pnl30d: 120,
+        volumeUsd30d: 45000,
+        volumeUsd7d: 8000,
         tradeCount30d: 8,
       },
     },
@@ -164,6 +166,8 @@ describe('parseRealtimeFeedItem', () => {
         profileId: 'profile-1',
         imageUrl: 'small-avatar',
         winRate30d: 0.75,
+        volumeUsd30d: 45000,
+        volumeUsd7d: 8000,
       },
       authorComment: {
         uid: 'comment-1',
@@ -296,6 +300,8 @@ describe('parseRealtimeFeedItem', () => {
       actor: {
         imageUrl: null,
         winRate30d: null,
+        volumeUsd30d: null,
+        volumeUsd7d: null,
       },
       copyCount: 0,
       firstTradeAt: null,

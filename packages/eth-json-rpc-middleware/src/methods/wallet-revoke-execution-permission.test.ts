@@ -1,5 +1,7 @@
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import type { WalletMiddlewareParams } from '../wallet.js';
 import type {
@@ -19,7 +21,7 @@ const REQUEST_MOCK = {
 describe('wallet_revokeExecutionPermission', () => {
   let request: JsonRpcRequest<RevokeExecutionPermissionRequestParams>;
   let params: RevokeExecutionPermissionRequestParams;
-  let processRevokeExecutionPermissionMock: jest.MockedFunction<ProcessRevokeExecutionPermissionHook>;
+  let processRevokeExecutionPermissionMock: MockedFunction<ProcessRevokeExecutionPermissionHook>;
   let context: WalletMiddlewareParams['context'];
 
   const callMethod = async (): Promise<Readonly<Json> | undefined> => {
@@ -30,7 +32,7 @@ describe('wallet_revokeExecutionPermission', () => {
   };
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     request = klona(REQUEST_MOCK);
     params = request.params as RevokeExecutionPermissionRequestParams;
@@ -39,7 +41,7 @@ describe('wallet_revokeExecutionPermission', () => {
       ['origin', 'test-origin'],
     ]) as WalletMiddlewareParams['context'];
 
-    processRevokeExecutionPermissionMock = jest.fn();
+    processRevokeExecutionPermissionMock = vi.fn();
     processRevokeExecutionPermissionMock.mockResolvedValue({});
   });
 

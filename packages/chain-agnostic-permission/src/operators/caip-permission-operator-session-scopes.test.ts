@@ -1,4 +1,5 @@
 import type { CaipAccountId } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   KnownNotifications,
@@ -41,8 +42,8 @@ describe('CAIP-25 session scopes adapters', () => {
   });
 
   describe('getSessionScopes', () => {
-    const getNonEvmSupportedMethods = jest.fn();
-    const mockSortAccountIdsByLastSelected = jest.fn();
+    const getNonEvmSupportedMethods = vi.fn();
+    const mockSortAccountIdsByLastSelected = vi.fn();
 
     it('returns a NormalizedScopesObject for the wallet scope', () => {
       const result = getSessionScopes(
@@ -351,7 +352,7 @@ describe('CAIP-25 session scopes adapters', () => {
 
   describe('getSessionProperties', () => {
     it('returns the persisted session properties merged with an empty eip155Capabilities record when there are no permitted accounts', async () => {
-      const getCapabilities = jest.fn();
+      const getCapabilities = vi.fn();
 
       const result = await getSessionProperties(
         {
@@ -372,7 +373,7 @@ describe('CAIP-25 session scopes adapters', () => {
     });
 
     it('calls getCapabilities with each unique permitted EVM address', async () => {
-      const getCapabilities = jest
+      const getCapabilities = vi
         .fn()
         .mockResolvedValue({ '0x1': { atomic: { status: 'supported' } } });
 
@@ -401,7 +402,7 @@ describe('CAIP-25 session scopes adapters', () => {
     });
 
     it('returns the session properties with an eip155Capabilities record keyed by address', async () => {
-      const getCapabilities = jest.fn().mockResolvedValue({
+      const getCapabilities = vi.fn().mockResolvedValue({
         '0x1': { atomic: { status: 'supported' } },
       });
 
@@ -431,7 +432,7 @@ describe('CAIP-25 session scopes adapters', () => {
     });
 
     it('does not call getCapabilities for non-EVM accounts', async () => {
-      const getCapabilities = jest.fn();
+      const getCapabilities = vi.fn();
 
       const result = await getSessionProperties(
         {
@@ -455,11 +456,11 @@ describe('CAIP-25 session scopes adapters', () => {
     });
 
     it('logs an error and omits the address when getCapabilities rejects', async () => {
-      const consoleErrorSpy = jest
+      const consoleErrorSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
       const error = new Error('failed');
-      const getCapabilities = jest
+      const getCapabilities = vi
         .fn()
         .mockResolvedValueOnce({ '0x1': { atomic: { status: 'supported' } } })
         .mockRejectedValueOnce(error);
