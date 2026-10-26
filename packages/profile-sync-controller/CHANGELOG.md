@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - With `requireVerification: true`, the approval proves the verification session; without one, it throws `StepUpRequiredError` (`aal2_required`) without calling the server, so the caller verifies first
   - A 403 `authentication_required` response, which the server sends when that verification is too old, is also reported as `StepUpRequiredError`: it drops that verification session, so the next verification runs a new ceremony, and leaves the SRP session in place
   - Exports the `RequestMfaApprovalRequest`, `MfaApproval` and `MfaApprovalIdentifier` types from the SDK, and the `AuthenticationControllerRequestMfaApprovalAction` type
+- Add `AuthenticationController.removeCredential`, also exposed as the `AuthenticationController:removeCredential` messenger action, which removes an MFA credential with `DELETE /api/v2/mfa/credentials/{credential_id}` and caches the credentials left ([#11079](https://github.com/MetaMask/core/pull/11079))
+  - Takes the credential's `credentialId` and a trace `reason`, and returns the credentials left
+  - Sends the verification session; without one, it throws `StepUpRequiredError` (`aal2_required`) without calling the server, so the caller verifies with another method first
+  - The server refuses with the new `cross_type_step_up_required` error code when the verification used the same type of credential, `last_credential` for the only credential left, and `credential_not_found` for an unknown one
+  - Exports the `RemoveCredentialRequest` type from the SDK, and the `AuthenticationControllerRemoveCredentialAction` type
+
+### Changed
+
+- **BREAKING:** `EnrolledCredential` has a required `id`, read from the `credential_id` the credentials endpoint now returns: the WebAuthn credential ID for a passkey, `email_otp` or `totp` otherwise ([#11079](https://github.com/MetaMask/core/pull/11079))
+  - Code that builds `EnrolledCredential` objects, such as test fixtures, must add an `id`
 
 ## [35.0.0]
 
