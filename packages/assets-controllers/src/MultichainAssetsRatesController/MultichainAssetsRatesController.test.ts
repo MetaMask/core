@@ -17,7 +17,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 
-import { advanceTime } from '../../../../tests/vitest/helpers.js';
 import { MultichainAssetsRatesController } from './index.js';
 import type { MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController.js';
 
@@ -504,7 +503,7 @@ describe('MultichainAssetsRatesController', () => {
 
     // Wait for the asynchronous subscriber to run.
     await Promise.resolve();
-    await advanceTime({ duration: 10 });
+    await vi.advanceTimersByTimeAsync(10);
 
     expect(updateSpy).toHaveBeenCalledTimes(1);
     expect(controller.state.conversionRates).toMatchObject({
@@ -579,7 +578,7 @@ describe('MultichainAssetsRatesController', () => {
     });
 
     await Promise.resolve();
-    await advanceTime({ duration: 10 });
+    await vi.advanceTimersByTimeAsync(10);
 
     expect(controller.state.conversionRates).toStrictEqual({
       [keptAsset]: {
@@ -644,7 +643,7 @@ describe('MultichainAssetsRatesController', () => {
     });
 
     await Promise.resolve();
-    await advanceTime({ duration: 10 });
+    await vi.advanceTimersByTimeAsync(10);
 
     expect(controller.state.conversionRates).toStrictEqual({
       [sharedAsset]: {

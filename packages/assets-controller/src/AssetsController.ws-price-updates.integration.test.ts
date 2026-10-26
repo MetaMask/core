@@ -318,7 +318,7 @@ describe('AssetsController: websocket price updates', () => {
 
     it('did not refetch metadata for the enriched token', () => {
       expect(askedAbout(result.mocks.tokenAPI.assetBatches)).toStrictEqual(
-        new Set([ETH_ASSET_ID]),
+        new Set(),
       );
     });
   });

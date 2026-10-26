@@ -50,7 +50,7 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/analytics-controller": "^4.0.0",
+    "@metamask/analytics-controller": "^4.1.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/config-registry-controller": "^5.0.0",
     "@metamask/connectivity-controller": "^1.0.0",

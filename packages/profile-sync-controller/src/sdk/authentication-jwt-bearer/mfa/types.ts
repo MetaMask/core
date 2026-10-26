@@ -2,6 +2,7 @@ import type { Infer } from '@metamask/superstruct';
 
 import type {
   AuthenticationResponseJSONStruct,
+  MfaApprovalIdentifierStruct,
   MfaCredentialStruct,
   MfaCredentialsResponseStruct,
   MfaEmailDetailStruct,
@@ -92,6 +93,11 @@ export type MfaVerifyCompleteRequest = {
 };
 
 type EnrolledCredentialBase = {
+  /**
+   * The server's identifier, to remove the credential with: the WebAuthn
+   * credential ID for a passkey, `email_otp` or `totp` otherwise.
+   */
+  id: string;
   status: MfaCredentialStatus;
   /** Epoch milliseconds, when the server sent a valid date. */
   enrolledAt?: number;
@@ -241,6 +247,51 @@ export type CompleteVerificationRequest = {
   reason: TokenReason;
 };
 
+export type MfaApprovalRequest = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  request_hash: string;
+  audiences: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  include_identifiers?: boolean;
+};
+
+export type MfaApprovalIdentifier = Infer<typeof MfaApprovalIdentifierStruct>;
+
+/** A short-lived token approving one request, for the services it names. */
+export type MfaApproval = {
+  /** Signed JWT bound to the request hash and audiences. Never log it. */
+  approval: string;
+  /** Lifetime in seconds. */
+  expiresIn: number;
+  /**
+   * The canonical profile's recovery identifiers, unless they were not
+   * requested.
+   */
+  identifiers?: MfaApprovalIdentifier[];
+};
+
+export type RequestMfaApprovalRequest = {
+  /** `0x` and 64 lowercase hex characters: the digest of the request. */
+  requestHash: string;
+  /** Services that will accept the approval. */
+  audiences: string[];
+  /**
+   * Whether the approval must prove a 2-step verification, with the token of
+   * the live verification session. The server decides whether it is recent
+   * enough.
+   */
+  requireVerification?: boolean;
+  /** Whether to return the profile's recovery identifiers. Defaults to true. */
+  includeIdentifiers?: boolean;
+  reason: TokenReason;
+};
+
+export type RemoveCredentialRequest = {
+  /** The `id` of the credential to remove. */
+  credentialId: string;
+  reason: TokenReason;
+};
+
 export type GetVerificationTokenRequest = {
   maxSessionAgeMs?: number;
 };
@@ -252,7 +303,11 @@ export type MfaErrorCode =
   | 'totp_already_enrolled'
   | 'credential_already_enrolled'
   | 'credential_not_enrolled'
+  | 'credential_not_found'
+  | 'cross_type_step_up_required'
+  | 'last_credential'
   | 'email_socially_verified'
+  | 'email_claimed'
   | 'mfa_identity_missing'
   | 'multi_primary_srp'
   | 'aal2_required'

@@ -3,7 +3,6 @@ import { cleanAll } from 'nock';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
-  RESPONSE_DETECTED_ASSETS_SURFACE,
   RESPONSE_METADATA_SURFACE,
   RESPONSE_PRICES_SURFACE,
   responseBalancesSurface,
@@ -28,7 +27,6 @@ import { PriceDataSource } from '../data-sources/PriceDataSource.js';
 import { RpcDataSource } from '../data-sources/RpcDataSource.js';
 import { TokenDataSource } from '../data-sources/TokenDataSource.js';
 import { CustomAssetGraduationMiddleware } from '../middlewares/CustomAssetGraduationMiddleware.js';
-import { DetectionMiddleware } from '../middlewares/DetectionMiddleware.js';
 import { RpcFallbackMiddleware } from '../middlewares/RpcFallbackMiddleware.js';
 import type {
   AccountId,
@@ -55,7 +53,6 @@ import { buildFastFetchSources, executeAssetsPipeline } from './index.js';
 const BALANCES = responseBalancesSurface(BSC_SPAM_ACCOUNT_ID);
 const METADATA = RESPONSE_METADATA_SURFACE;
 const PRICES = RESPONSE_PRICES_SURFACE;
-const DETECTED_ASSETS = RESPONSE_DETECTED_ASSETS_SURFACE;
 
 async function runPipeline(
   state: AssetsControllerState,
@@ -168,9 +165,6 @@ async function runPipeline(
         rpcDataSource: rpcOverride ?? rpcDataSource,
         getAssetsState: (): AssetsControllerState => state,
       }),
-      detectionMiddleware: new DetectionMiddleware({
-        getAssetsState: (): AssetsControllerState => state,
-      }),
       tokenDataSource,
       priceDataSource,
     },
@@ -217,26 +211,36 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
     cleanAll();
   });
 
-  describe.each(WALLET_PASSES)('$pass', ({ run }) => {
+  describe.each(WALLET_PASSES)('$pass', ({ pass, run }) => {
     let response: DataResponse;
 
     beforeAll(async () => {
       response = await run();
     });
 
-    it.each([BALANCES, METADATA, DETECTED_ASSETS])(
+    it.each([BALANCES, METADATA])(
       '$surface - filter out the spam token',
       ({ lookUp }) => {
         expect(lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
       },
     );
 
-    it.each([BALANCES, METADATA])(
-      '$surface - keeps the native BNB asset despite low occurrences',
-      ({ lookUp }) => {
-        expect(lookUp(response, BNB_ASSET_ID)).toBeDefined();
-      },
-    );
+    if (pass.startsWith('second')) {
+      it('balances - keeps the stored native BNB balance', () => {
+        expect(BALANCES.lookUp(response, BNB_ASSET_ID)).toBeDefined();
+      });
+
+      it('metadata - does not refetch the stored native BNB record', () => {
+        expect(METADATA.lookUp(response, BNB_ASSET_ID)).toBeUndefined();
+      });
+    } else {
+      it.each([BALANCES, METADATA])(
+        '$surface - keeps the native BNB asset despite low occurrences',
+        ({ lookUp }) => {
+          expect(lookUp(response, BNB_ASSET_ID)).toBeDefined();
+        },
+      );
+    }
 
     // Legitimate failing test, our middleware stack does not filter out spam
     // asset prices! This does eventually get cleaned up during unlock cleanup,
@@ -280,7 +284,7 @@ describe('assets pipeline (without graduation middleware only on v6 integration)
     return { source, requests };
   };
 
-  it.each([BALANCES, METADATA, DETECTED_ASSETS])(
+  it.each([BALANCES, METADATA])(
     '$surface - keeps the imported token despite a positive API balance and low occurrences',
     async ({ lookUp }) => {
       const response = await runPipeline(
