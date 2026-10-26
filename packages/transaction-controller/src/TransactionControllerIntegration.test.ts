@@ -66,11 +66,14 @@ import { TransactionStatus, TransactionType } from './types.js';
 const realSetTimeout = globalThis.setTimeout;
 
 /**
- * Advances the fake timers like `advanceTime` from `tests/vitest/helpers`,
- * but also yields a real macrotask after each step. nock replies on the real
- * event loop, and Jest yielded through the real `setTimeout` between fake
- * timers (its environment has no `setImmediate`), so replies landed in time.
+ * Advances the fake timers in steps, and yields a real macrotask after each
+ * step. nock replies on the real event loop, and Jest yielded through the
+ * real `setTimeout` between fake timers (its environment has no
+ * `setImmediate`), so replies landed in time.
  * Vitest yields through `setImmediate`, which is not always long enough.
+ * A single `vi.advanceTimersByTimeAsync` call is not enough either: without
+ * this flush, 'should be able to get to confirmed state' (and eight other
+ * multichain and `getNonceLock` tests) fail.
  *
  * @param options - The options object.
  * @param options.duration - The total time to advance by, in milliseconds.
