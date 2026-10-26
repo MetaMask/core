@@ -145,6 +145,10 @@ async function persistLocalUserSecret(
  * session: repeated or parallel calls resolve to the same `local_user_secret`
  * and never generate more than one secret for a given entropy source.
  *
+ * A missing secret is generated, persisted, and returned. `performSetStorage`
+ * replaces the value at that path, so those persisted bytes are what storage
+ * holds.
+ *
  * @param store - The Encrypted User Storage adapter.
  * @param entropySourceId - Optional HD keyring entropy source id, used to scope
  * the secret to a specific SRP in multi-SRP wallets. Defaults to the primary SRP.
@@ -169,13 +173,7 @@ export async function getOrCreateLocalUserSecret(
 
     const localUserSecret = randomBytes(UKYC_LOCAL_USER_SECRET_SIZE_BYTES);
     await persistLocalUserSecret(store, localUserSecret, entropySourceId);
-
-    // Re-read after persisting so that all callers converge on whatever value
-    // actually landed in storage (defends against a competing write that may
-    // have won the race, e.g. from another device syncing the same feature).
-    return (
-      (await loadLocalUserSecret(store, entropySourceId)) ?? localUserSecret
-    );
+    return localUserSecret;
   })();
 
   inFlightCreations.set(cacheKey, creation);

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Creating a UKYC `local_user_secret` returns the bytes just written to Encrypted User Storage
+
 ## [0.12.1]
 
 ### Changed

@@ -110,33 +110,36 @@ describe('UKYC localUserSecret', () => {
     });
 
     it('generates and persists a new local_user_secret on first enrollment', async () => {
-      const { store, set } = makeStore(null);
+      const { store, get, set } = makeStore(null);
 
       const result = await getOrCreateLocalUserSecret(store);
 
+      expect(get).toHaveBeenCalledTimes(1);
       expect(set).toHaveBeenCalledTimes(1);
-      const [path, persisted] = set.mock.calls[0];
+      const [path, persisted] = set.mock.calls[0] as [string, string];
       expect(path).toBe(UKYC_LOCAL_USER_SECRET_PATH);
       // The persisted value round-trips to the returned bytes.
       expect(result).toStrictEqual(base64ToBytes(persisted));
       expect(result).toHaveLength(UKYC_LOCAL_USER_SECRET_SIZE_BYTES);
     });
 
-    it('converges on a competing value that won the write race', async () => {
-      const competing = new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(
-        9,
+    it('returns the persisted secret without reading storage again', async () => {
+      const competing = bytesToBase64(
+        new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(9),
       );
-      // First read (existence check) misses; the re-read after our write sees a
-      // value another writer landed first.
+      // A second read would observe a different value. Creation must not
+      // perform that read.
       const get = vi
         .fn()
         .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(bytesToBase64(competing));
+        .mockResolvedValueOnce(competing);
       const set = vi.fn().mockResolvedValue(undefined);
 
       const result = await getOrCreateLocalUserSecret({ get, set });
 
-      expect(result).toStrictEqual(competing);
+      expect(get).toHaveBeenCalledTimes(1);
+      const [, persisted] = set.mock.calls[0] as [string, string];
+      expect(result).toStrictEqual(base64ToBytes(persisted));
     });
 
     it('deduplicates concurrent create calls into a single generation', async () => {
@@ -149,17 +152,6 @@ describe('UKYC localUserSecret', () => {
 
       expect(a).toStrictEqual(b);
       expect(set).toHaveBeenCalledTimes(1);
-    });
-
-    it('falls back to the generated secret if the re-read returns nothing', async () => {
-      // `get` always misses, even after the write, so the helper falls back to
-      // the value it just generated.
-      const get = vi.fn().mockResolvedValue(null);
-      const set = vi.fn().mockResolvedValue(undefined);
-
-      const result = await getOrCreateLocalUserSecret({ get, set });
-
-      expect(result).toHaveLength(UKYC_LOCAL_USER_SECRET_SIZE_BYTES);
     });
   });
 
