@@ -721,6 +721,20 @@ export type FetchFeedOptions = {
    * `eip155:8453`). Omit for the server defaults.
    */
   chains?: string[];
+  /**
+   * Only items in any of these assets, given as 1–10 CAIP-19 asset ids (e.g.
+   * `eip155:8453/erc20:0x…`). Matches ANY of them.
+   */
+  assetIds?: string[];
+  /**
+   * Only this trader's items. A Clicker profile ID, not a wallet address.
+   */
+  profileId?: string;
+  /**
+   * When true, return only items that carry an author comment. Omitted from
+   * the request when false or unset.
+   */
+  commentedOnly?: boolean;
   /** Number of results to return. */
   limit?: number;
   /** Cursor for older items (infinite scroll). Use `pagination.olderCursor`. */
