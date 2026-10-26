@@ -64,7 +64,7 @@ const formatExchangeRatesForBridgeMock = vi.mocked(
 
 /**
  * Flush pending microtasks so fire-and-forget background pipelines settle
- * before Jest tears down the test.  Multiple rounds are needed because the
+ * before the test runner tears down the test.  Multiple rounds are needed because the
  * background pipeline chains several async steps.
  *
  * @returns A promise that resolves after pending callbacks.
@@ -274,10 +274,10 @@ function createMockKeyringTransaction(
 }
 
 type AusUserAssetsActionMocks = {
-  importTokens: jest.Mock;
-  hideTokens: jest.Mock;
-  getUserAssets: jest.Mock;
-  setUserAssets: jest.Mock;
+  importTokens: Mock;
+  hideTokens: Mock;
+  getUserAssets: Mock;
+  setUserAssets: Mock;
 };
 
 /**
@@ -305,10 +305,10 @@ function registerAusUserAssetsActionMocks(
   };
   const makeHandler = <ReturnValue>(
     resolveValue: () => ReturnValue,
-  ): jest.Mock<Promise<ReturnValue>, []> =>
+  ): Mock<() => Promise<ReturnValue>> =>
     rejectWith
-      ? jest.fn(() => Promise.reject(rejectWith))
-      : jest.fn(async () => resolveValue());
+      ? vi.fn(() => Promise.reject(rejectWith))
+      : vi.fn(async () => resolveValue());
 
   const importTokens = makeHandler((): UserAssetsBlob => emptyBlob);
   const hideTokens = makeHandler((): UserAssetsBlob => emptyBlob);
@@ -1117,58 +1117,6 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('unhideAsset', () => {
-    it('removes the hidden flag from assetPreferences', async () => {
-      await withController(
-        {
-          state: {
-            assetPreferences: { [MOCK_ASSET_ID]: { hidden: true } },
-          },
-        },
-        async ({ controller }) => {
-          controller.unhideAsset(MOCK_ASSET_ID);
-
-          expect(
-            controller.state.assetPreferences[MOCK_ASSET_ID],
-          ).toBeUndefined();
-        },
-      );
-    });
-
-    it('strips the unhidden asset from the AUS hidden list', async () => {
-      await withController(
-        {
-          state: {
-            assetPreferences: { [MOCK_ASSET_ID]: { hidden: true } },
-          },
-        },
-        async ({ controller, messenger }) => {
-          const { getUserAssets, setUserAssets } =
-            registerAusUserAssetsActionMocks(messenger, {
-              blob: {
-                version: 1,
-                importedAssets: [OTHER_ASSET_ID],
-                hiddenAssets: [MOCK_ASSET_ID, OTHER_ASSET_ID],
-              },
-            });
-
-          controller.unhideAsset(MOCK_ASSET_ID);
-          await flushPromises();
-
-          // Strip-only: the hidden list loses the id; the imported list is
-          // untouched (unhiding does not re-import the asset).
-          expect(getUserAssets).toHaveBeenCalledTimes(1);
-          expect(setUserAssets).toHaveBeenCalledTimes(1);
-          expect(setUserAssets).toHaveBeenCalledWith({
-            version: 1,
-            importedAssets: [OTHER_ASSET_ID],
-            hiddenAssets: [OTHER_ASSET_ID],
-          });
-        },
-      );
-    });
-  });
-
   describe('custom asset graduation', () => {
     const SOLANA_ASSET_ID =
       'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
@@ -1383,6 +1331,56 @@ describe('AssetsController', () => {
             expect(params?.includeAssetIds ?? []).toContain(MOCK_ASSET_ID);
             expect(params?.excludeAssetIds ?? []).not.toContain(MOCK_ASSET_ID);
           }
+        },
+      );
+    });
+
+    it('removes the hidden flag from assetPreferences', async () => {
+      await withController(
+        {
+          state: {
+            assetPreferences: { [MOCK_ASSET_ID]: { hidden: true } },
+          },
+        },
+        async ({ controller }) => {
+          await controller.unhideAsset(MOCK_ASSET_ID);
+
+          expect(
+            controller.state.assetPreferences[MOCK_ASSET_ID],
+          ).toBeUndefined();
+        },
+      );
+    });
+
+    it('strips the unhidden asset from the AUS hidden list', async () => {
+      await withController(
+        {
+          state: {
+            assetPreferences: { [MOCK_ASSET_ID]: { hidden: true } },
+          },
+        },
+        async ({ controller, messenger }) => {
+          const { getUserAssets, setUserAssets } =
+            registerAusUserAssetsActionMocks(messenger, {
+              blob: {
+                version: 1,
+                importedAssets: [OTHER_ASSET_ID],
+                hiddenAssets: [MOCK_ASSET_ID, OTHER_ASSET_ID],
+              },
+            });
+
+          await controller.unhideAsset(MOCK_ASSET_ID);
+          await flushPromises();
+
+          // Strip-only: the hidden list loses the id; the imported list is
+          // untouched (unhiding does not re-import the asset).
+          expect(getUserAssets).toHaveBeenCalledTimes(1);
+          expect(setUserAssets).toHaveBeenCalledTimes(1);
+          expect(setUserAssets).toHaveBeenCalledWith({
+            version: 1,
+            importedAssets: [OTHER_ASSET_ID],
+            hiddenAssets: [OTHER_ASSET_ID],
+          });
         },
       );
     });

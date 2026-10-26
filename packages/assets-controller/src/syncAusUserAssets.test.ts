@@ -1,4 +1,6 @@
 import type { UserAssetsBlob } from '@metamask/authenticated-user-storage';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { syncAusUserAssets } from './syncAusUserAssets.js';
 import type { AccountId, Caip19AssetId } from './types.js';
@@ -20,7 +22,7 @@ const HIDE_TOKENS = 'AuthenticatedUserStorageService:hideTokens';
 
 /**
  * Flush pending microtasks and timers so fire-and-forget AUS syncs settle
- * before Jest tears down the test.
+ * before Vitest tears down the test.
  */
 async function flushPromises(): Promise<void> {
   for (let i = 0; i < 10; i++) {
@@ -28,7 +30,7 @@ async function flushPromises(): Promise<void> {
   }
 }
 
-type AusFixtureMessenger = { call: jest.Mock };
+type AusFixtureMessenger = { call: Mock };
 
 type AusMockOptions = {
   /** The blob `getUserAssets` serves (defaults to `null`, i.e. no blob). */
@@ -71,7 +73,7 @@ function installAusMock(
  * control.
  */
 class AusSyncFixture {
-  readonly messenger: AusFixtureMessenger = { call: jest.fn() };
+  readonly messenger: AusFixtureMessenger = { call: vi.fn() };
 
   /** When set, `addCustomAsset` resolves only when this promise does. */
   pending?: Promise<void>;
