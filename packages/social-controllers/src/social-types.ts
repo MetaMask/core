@@ -7,7 +7,7 @@ import {
   string,
   type as structType,
 } from '@metamask/superstruct';
-import type { CaipAssetId, CaipAssetType } from '@metamask/utils';
+import type { CaipAssetTypeOrId } from '@metamask/utils';
 
 /**
  * A UUID string, such as a Clicker profile or position id. Checked at compile
@@ -726,7 +726,7 @@ export type FetchFeedOptions = {
    * Only items in any of these assets, given as 1–10 CAIP-19 asset id (e.g.
    * `eip155:8453/erc20:0x…`). Matches ANY of them.
    */
-  assetIds?: CaipAssetId[];
+  assetIds?: CaipAssetTypeOrId[];
   /**
    * Only this trader's items. A Clicker profile ID (UUID), not a wallet address.
    */
