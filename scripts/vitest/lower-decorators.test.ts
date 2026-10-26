@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { lowerDecorators } from './lower-decorators.js';
+import { lowerDecorators } from './lower-decorators.ts';
 
 type Transform = (code: string, id: string) => { code: string } | null;
 
