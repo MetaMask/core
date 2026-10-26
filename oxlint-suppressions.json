@@ -2618,11 +2618,6 @@
       "count": 14
     }
   },
-  "packages/kyc-controller/src/ukyc/localUserSecret.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    }
-  },
   "packages/kyc-controller/src/ukyc/testToken.test.ts": {
     "typescript/no-unsafe-return": {
       "count": 1
