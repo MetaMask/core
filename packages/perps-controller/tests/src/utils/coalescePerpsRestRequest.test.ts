@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   coalescePerpsRestRequest,
   resetPerpsRestCacheForTests,
@@ -6,17 +8,17 @@ import {
 describe('coalescePerpsRestRequest', () => {
   beforeEach(() => {
     resetPerpsRestCacheForTests();
-    jest.useFakeTimers();
-    jest.setSystemTime(0);
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
     resetPerpsRestCacheForTests();
   });
 
   it('returns the fetcher result on first call', async () => {
-    const fetcher = jest.fn().mockResolvedValue('v1');
+    const fetcher = vi.fn().mockResolvedValue('v1');
 
     const result = await coalescePerpsRestRequest('k', fetcher);
 
@@ -26,7 +28,7 @@ describe('coalescePerpsRestRequest', () => {
 
   it('shares the in-flight promise across concurrent callers', async () => {
     let resolveFetch!: (v: string) => void;
-    const fetcher = jest.fn(
+    const fetcher = vi.fn(
       () =>
         new Promise<string>((resolve) => {
           resolveFetch = resolve;
@@ -47,12 +49,12 @@ describe('coalescePerpsRestRequest', () => {
   });
 
   it('serves cached value within the TTL window', async () => {
-    const fetcher = jest.fn().mockResolvedValue('cached');
+    const fetcher = vi.fn().mockResolvedValue('cached');
 
     const first = await coalescePerpsRestRequest('k', fetcher, {
       ttlMs: 1000,
     });
-    jest.setSystemTime(500);
+    vi.setSystemTime(500);
     const second = await coalescePerpsRestRequest('k', fetcher, {
       ttlMs: 1000,
     });
@@ -63,13 +65,13 @@ describe('coalescePerpsRestRequest', () => {
   });
 
   it('refetches after the TTL expires', async () => {
-    const fetcher = jest
+    const fetcher = vi
       .fn()
       .mockResolvedValueOnce('first')
       .mockResolvedValueOnce('second');
 
     const a = await coalescePerpsRestRequest('k', fetcher, { ttlMs: 1000 });
-    jest.setSystemTime(1001);
+    vi.setSystemTime(1001);
     const b = await coalescePerpsRestRequest('k', fetcher, { ttlMs: 1000 });
 
     expect(a).toBe('first');
@@ -78,8 +80,8 @@ describe('coalescePerpsRestRequest', () => {
   });
 
   it('scopes cache by key', async () => {
-    const fetcherA = jest.fn().mockResolvedValue('A');
-    const fetcherB = jest.fn().mockResolvedValue('B');
+    const fetcherA = vi.fn().mockResolvedValue('A');
+    const fetcherB = vi.fn().mockResolvedValue('B');
 
     const rA = await coalescePerpsRestRequest('a', fetcherA);
     const rB = await coalescePerpsRestRequest('b', fetcherB);
@@ -91,7 +93,7 @@ describe('coalescePerpsRestRequest', () => {
   });
 
   it('bypasses cache when forceRefresh is true', async () => {
-    const fetcher = jest
+    const fetcher = vi
       .fn()
       .mockResolvedValueOnce('stale')
       .mockResolvedValueOnce('fresh');
@@ -107,13 +109,13 @@ describe('coalescePerpsRestRequest', () => {
 
   it('does not let a stale in-flight resolution clobber a forceRefresh result', async () => {
     let resolveStale!: (v: string) => void;
-    const staleFetcher = jest.fn(
+    const staleFetcher = vi.fn(
       () =>
         new Promise<string>((resolve) => {
           resolveStale = resolve;
         }),
     );
-    const freshFetcher = jest.fn().mockResolvedValue('fresh');
+    const freshFetcher = vi.fn().mockResolvedValue('fresh');
 
     const stalePromise = coalescePerpsRestRequest('k', staleFetcher);
     const freshPromise = coalescePerpsRestRequest('k', freshFetcher, {
@@ -125,7 +127,7 @@ describe('coalescePerpsRestRequest', () => {
     await stalePromise;
 
     // Next cached read must return the fresh value, not the late stale one.
-    const cachedFetcher = jest.fn();
+    const cachedFetcher = vi.fn();
     const cachedResult = await coalescePerpsRestRequest('k', cachedFetcher);
 
     expect(freshResult).toBe('fresh');
@@ -134,8 +136,8 @@ describe('coalescePerpsRestRequest', () => {
   });
 
   it('does not cache the value when the fetcher rejects', async () => {
-    const rejectingFetcher = jest.fn().mockRejectedValue(new Error('boom'));
-    const retryFetcher = jest.fn().mockResolvedValue('ok');
+    const rejectingFetcher = vi.fn().mockRejectedValue(new Error('boom'));
+    const retryFetcher = vi.fn().mockResolvedValue('ok');
 
     await expect(
       coalescePerpsRestRequest('k', rejectingFetcher),
@@ -147,14 +149,14 @@ describe('coalescePerpsRestRequest', () => {
   });
 
   it('evicts expired entries on TTL-miss', async () => {
-    const fetcher = jest
+    const fetcher = vi
       .fn()
       .mockResolvedValueOnce('first')
       .mockResolvedValueOnce('second');
 
     // Populate under key A and let it expire.
     await coalescePerpsRestRequest('a', fetcher, { ttlMs: 1000 });
-    jest.setSystemTime(1001);
+    vi.setSystemTime(1001);
     // Next call under key A must evict the stale entry before running.
     const refreshed = await coalescePerpsRestRequest('a', fetcher, {
       ttlMs: 1000,
@@ -165,7 +167,7 @@ describe('coalescePerpsRestRequest', () => {
   });
 
   it('resetPerpsRestCacheForTests clears cache and in-flight entries', async () => {
-    const fetcher = jest
+    const fetcher = vi
       .fn()
       .mockResolvedValueOnce('first')
       .mockResolvedValueOnce('second');

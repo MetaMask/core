@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
+
 import type { PerpsControllerState } from '../../../src/PerpsController.js';
 import { AccountService } from '../../../src/services/AccountService.js';
 import type { ServiceContext } from '../../../src/services/ServiceContext.js';
@@ -16,8 +19,8 @@ import {
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
 
-jest.mock('uuid', () => ({ v4: () => 'mock-withdrawal-trace-id' }));
-jest.mock('../../../src/constants/eventNames', () => ({
+vi.mock('uuid', () => ({ v4: () => 'mock-withdrawal-trace-id' }));
+vi.mock('../../../src/constants/eventNames', () => ({
   PERPS_EVENT_PROPERTY: {
     STATUS: 'status',
     WITHDRAWAL_AMOUNT: 'withdrawal_amount',
@@ -32,10 +35,10 @@ jest.mock('../../../src/constants/eventNames', () => ({
     },
   },
 }));
-jest.mock('../../../src/constants/hyperLiquidConfig', () => ({
+vi.mock('../../../src/constants/hyperLiquidConfig', () => ({
   USDC_SYMBOL: 'USDC',
 }));
-jest.mock('../../../src/perpsErrorCodes', () => ({
+vi.mock('../../../src/perpsErrorCodes', () => ({
   PERPS_ERROR_CODES: {
     WITHDRAW_FAILED: 'WITHDRAW_FAILED',
   },
@@ -44,9 +47,9 @@ jest.mock('../../../src/perpsErrorCodes', () => ({
 // The mock is set up via createMockMessenger() in serviceMocks.ts
 
 describe('AccountService', () => {
-  let mockProvider: jest.Mocked<PerpsProvider>;
+  let mockProvider: Mocked<PerpsProvider>;
   let mockContext: ServiceContext;
-  let mockRefreshAccountState: jest.Mock;
+  let mockRefreshAccountState: Mock;
   let mockDeps: PerpsPlatformDependencies;
   let mockMessenger: ReturnType<typeof createMockMessenger>;
   let accountService: AccountService;
@@ -59,25 +62,25 @@ describe('AccountService', () => {
 
   beforeEach(() => {
     mockProvider =
-      createMockHyperLiquidProvider() as unknown as jest.Mocked<PerpsProvider>;
+      createMockHyperLiquidProvider() as unknown as Mocked<PerpsProvider>;
     mockContext = createMockServiceContext({
       errorContext: { controller: 'AccountService', method: 'test' },
     });
-    mockRefreshAccountState = jest.fn().mockResolvedValue(undefined);
+    mockRefreshAccountState = vi.fn().mockResolvedValue(undefined);
 
     // Create mock dependencies and service instance
     mockDeps = createMockInfrastructure();
     mockMessenger = createMockMessenger();
     accountService = new AccountService(mockDeps, mockMessenger);
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Mock Date.now() to return a stable timestamp
-    jest.spyOn(Date, 'now').mockReturnValue(1234567890000);
+    vi.spyOn(Date, 'now').mockReturnValue(1234567890000);
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('withdraw', () => {
@@ -182,7 +185,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCall = (mockContext.stateManager?.update as jest.Mock).mock
+      const updateCall = (mockContext.stateManager?.update as Mock).mock
         .calls[0][0];
       const mockState: Pick<
         PerpsControllerState,
@@ -216,7 +219,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCall = (mockContext.stateManager?.update as jest.Mock).mock
+      const updateCall = (mockContext.stateManager?.update as Mock).mock
         .calls[0][0];
       const mockState = {
         withdrawInProgress: false,
@@ -251,8 +254,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCalls = (mockContext.stateManager?.update as jest.Mock).mock
-        .calls;
+      const updateCalls = (mockContext.stateManager?.update as Mock).mock.calls;
 
       // Run the first updater to discover the generated withdrawal ID
       const setupUpdater = updateCalls[0][0];
@@ -304,8 +306,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCalls = (mockContext.stateManager?.update as jest.Mock).mock
-        .calls;
+      const updateCalls = (mockContext.stateManager?.update as Mock).mock.calls;
       expect(updateCalls.length).toBeGreaterThan(1);
     });
 
@@ -382,9 +383,8 @@ describe('AccountService', () => {
       });
 
       const withdrawalCalls = (
-        mockDeps.metrics.trackPerpsEvent as jest.Mock<
-          void,
-          [PerpsAnalyticsEvent, Record<string, unknown>]
+        mockDeps.metrics.trackPerpsEvent as Mock<
+          (...args: [PerpsAnalyticsEvent, Record<string, unknown>]) => void
         >
       ).mock.calls.filter(
         (call) => call[0] === PerpsAnalyticsEvent.WithdrawalTransaction,
@@ -468,8 +468,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCalls = (mockContext.stateManager?.update as jest.Mock).mock
-        .calls;
+      const updateCalls = (mockContext.stateManager?.update as Mock).mock.calls;
 
       const setupUpdater = updateCalls[0][0];
       const setupState = {
@@ -603,8 +602,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCalls = (mockContext.stateManager?.update as jest.Mock).mock
-        .calls;
+      const updateCalls = (mockContext.stateManager?.update as Mock).mock.calls;
 
       const setupUpdater = updateCalls[0][0];
       const setupState = {
@@ -684,7 +682,7 @@ describe('AccountService', () => {
         refreshAccountState: mockRefreshAccountState,
       });
 
-      const updateCall = (mockContext.stateManager?.update as jest.Mock).mock
+      const updateCall = (mockContext.stateManager?.update as Mock).mock
         .calls[0][0];
       const mockState: Pick<
         PerpsControllerState,

@@ -1,5 +1,9 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import { query, toChecksumHexAddress } from '@metamask/controller-utils';
+import {
+  query,
+  safelyExecuteWithTimeout,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
 import { MockInternalProvider } from '@metamask/eth-json-rpc-provider';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
@@ -19,8 +23,10 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { jestAdvanceTime } from '../../../tests/helpers.js';
+import { advanceTime } from '../../../tests/vitest/helpers.js';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
   buildCustomNetworkClientConfiguration,
@@ -43,17 +49,17 @@ type RootMessenger = Messenger<
   AllAccountTrackerControllerEvents
 >;
 
-jest.mock('@metamask/controller-utils', () => {
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => {
   return {
-    ...jest.requireActual('@metamask/controller-utils'),
-    query: jest.fn(),
-    safelyExecuteWithTimeout: jest.fn(),
+    ...(await importOriginal()),
+    query: vi.fn(),
+    safelyExecuteWithTimeout: vi.fn(),
   };
 });
 
-jest.mock('./multicall', () => ({
-  ...jest.requireActual('./multicall'),
-  getTokenBalancesForMultipleAddresses: jest.fn(),
+vi.mock(import('./multicall.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getTokenBalancesForMultipleAddresses: vi.fn(),
 }));
 
 const mockGetStakedBalanceForChain = async (addresses: string[]) =>
@@ -74,22 +80,18 @@ const EMPTY_ACCOUNT = {
 } as InternalAccount;
 const initialChainId = '0x1';
 
-const mockedQuery = query as jest.Mock<
-  ReturnType<typeof query>,
-  Parameters<typeof query>
+const mockedQuery = query as Mock<
+  (...args: Parameters<typeof query>) => ReturnType<typeof query>
 >;
 
 const mockedGetTokenBalancesForMultipleAddresses =
-  getTokenBalancesForMultipleAddresses as jest.Mock;
+  getTokenBalancesForMultipleAddresses as Mock;
 
-const { safelyExecuteWithTimeout } = jest.requireMock(
-  '@metamask/controller-utils',
-);
-const mockedSafelyExecuteWithTimeout = safelyExecuteWithTimeout as jest.Mock;
+const mockedSafelyExecuteWithTimeout = safelyExecuteWithTimeout as Mock;
 
 describe('AccountTrackerController', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     mockedQuery.mockReturnValue(Promise.resolve('0x0'));
 
     // Set up default mock for multicall function (without staked balances)
@@ -117,7 +119,7 @@ describe('AccountTrackerController', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
     mockedQuery.mockRestore();
     mockedGetTokenBalancesForMultipleAddresses.mockClear();
     mockedSafelyExecuteWithTimeout.mockRestore();
@@ -144,7 +146,7 @@ describe('AccountTrackerController', () => {
         isMultiAccountBalancesEnabled: true,
       },
       ({ controller, triggerSelectedAccountChange }) => {
-        const refreshSpy = jest.spyOn(controller, 'refresh');
+        const refreshSpy = vi.spyOn(controller, 'refresh');
 
         triggerSelectedAccountChange(ACCOUNT_1);
 
@@ -185,7 +187,7 @@ describe('AccountTrackerController', () => {
           transactionMeta,
         );
 
-        await jest.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(1);
 
         expect(
           controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
@@ -228,7 +230,7 @@ describe('AccountTrackerController', () => {
           transactionMeta,
         );
 
-        await jest.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(1);
 
         // Both from and to addresses should have their balances refreshed
         expect(
@@ -273,7 +275,7 @@ describe('AccountTrackerController', () => {
           transactionMeta,
         );
 
-        await jest.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(1);
 
         expect(
           controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
@@ -316,7 +318,7 @@ describe('AccountTrackerController', () => {
           transactionMeta,
         );
 
-        await jest.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(1);
 
         // Both from and to addresses should have their balances refreshed
         expect(
@@ -394,7 +396,7 @@ describe('AccountTrackerController', () => {
           rpcEndpoints: [{ networkClientId: 'mainnet' }],
         } as unknown as NetworkConfiguration);
 
-        await jest.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(1);
 
         expect(
           controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
@@ -497,7 +499,7 @@ describe('AccountTrackerController', () => {
         listAccounts: [ACCOUNT_1],
       },
       async ({ controller, messenger }) => {
-        const refreshSpy = jest.spyOn(controller, 'refresh');
+        const refreshSpy = vi.spyOn(controller, 'refresh');
 
         // Lock the keyring first
         messenger.publish('KeyringController:lock');
@@ -522,13 +524,13 @@ describe('AccountTrackerController', () => {
           listAccounts: [ACCOUNT_1],
         },
         async ({ controller, messenger, networkEnablementMocks }) => {
-          const refreshSpy = jest
+          const refreshSpy = vi
             .spyOn(controller, 'refresh')
             .mockResolvedValue();
 
           messenger.publish('KeyringController:unlock');
 
-          await jest.advanceTimersByTimeAsync(1);
+          await vi.advanceTimersByTimeAsync(1);
 
           expect(
             networkEnablementMocks.listPopularEvmNetworks,
@@ -550,13 +552,13 @@ describe('AccountTrackerController', () => {
           listAccounts: [ACCOUNT_1],
         },
         async ({ controller, messenger, networkEnablementMocks }) => {
-          const refreshSpy = jest
+          const refreshSpy = vi
             .spyOn(controller, 'refresh')
             .mockResolvedValue();
 
           messenger.publish('KeyringController:unlock');
 
-          await jest.advanceTimersByTimeAsync(1);
+          await vi.advanceTimersByTimeAsync(1);
 
           expect(networkEnablementMocks.getState).toHaveBeenCalled();
           expect(
@@ -1348,7 +1350,7 @@ describe('AccountTrackerController', () => {
           {
             options: {
               includeStakedAssets: false,
-              getStakedBalanceForChain: jest.fn().mockResolvedValue(undefined),
+              getStakedBalanceForChain: vi.fn().mockResolvedValue(undefined),
             },
             isMultiAccountBalancesEnabled: true,
             selectedAccount: ACCOUNT_1,
@@ -1380,7 +1382,9 @@ describe('AccountTrackerController', () => {
 
       it('should handle unsupported chains gracefully', async () => {
         const networkClientId = 'networkClientId1';
-        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const consoleWarnSpy = vi
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
         await withController(
           {
             options: {
@@ -1425,7 +1429,9 @@ describe('AccountTrackerController', () => {
       });
 
       it('should handle timeout error correctly', async () => {
-        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+        const consoleWarnSpy = vi
+          .spyOn(console, 'warn')
+          .mockImplementation(() => undefined);
 
         await withController(
           {
@@ -1472,7 +1478,7 @@ describe('AccountTrackerController', () => {
 
       it('should use default allowExternalServices when not provided (covers line 390)', async () => {
         // Mock fetch to simulate API balance fetcher behavior
-        const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+        const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
           ok: true,
           json: async () => ({ accounts: [] }),
         } as Response);
@@ -1505,7 +1511,7 @@ describe('AccountTrackerController', () => {
 
       it('should respect allowExternalServices when set to true', async () => {
         // Mock fetch to simulate API balance fetcher behavior
-        const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+        const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
           ok: true,
           json: async () => ({ accounts: [] }),
         } as Response);
@@ -1538,7 +1544,7 @@ describe('AccountTrackerController', () => {
 
       it('should respect allowExternalServices when set to false', async () => {
         // Mock fetch to simulate API balance fetcher behavior
-        const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+        const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
           ok: true,
           json: async () => ({ accounts: [] }),
         } as Response);
@@ -1574,7 +1580,7 @@ describe('AccountTrackerController', () => {
 
     it('should continue to next fetcher when current fetcher supports no chains', async () => {
       // Spy on the AccountsApiBalanceFetcher's supports method to return false
-      const supportsSpy = jest
+      const supportsSpy = vi
         .spyOn(AccountsApiBalanceFetcher.prototype, 'supports')
         .mockReturnValue(false);
 
@@ -1610,10 +1616,12 @@ describe('AccountTrackerController', () => {
     });
 
     it('should log warning when balance fetcher throws an error', async () => {
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
 
       // Mock AccountsApiBalanceFetcher to throw an error
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(AccountsApiBalanceFetcher.prototype, 'fetch')
         .mockRejectedValue(new Error('API request failed'));
 
@@ -1647,7 +1655,7 @@ describe('AccountTrackerController', () => {
 
     it('should handle unprocessedChainIds from fetcher and retry with next fetcher', async () => {
       // Mock AccountsApiBalanceFetcher to return unprocessedChainIds
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(AccountsApiBalanceFetcher.prototype, 'fetch')
         .mockResolvedValue({
           balances: [], // No balances returned
@@ -1897,7 +1905,7 @@ describe('AccountTrackerController', () => {
   });
 
   it('should call refresh every interval on polling', async () => {
-    const pollSpy = jest.spyOn(
+    const pollSpy = vi.spyOn(
       AccountTrackerController.prototype,
       '_executePoll',
     );
@@ -1909,21 +1917,21 @@ describe('AccountTrackerController', () => {
         listAccounts: [],
       },
       async ({ controller }) => {
-        jest.spyOn(controller, 'refresh').mockResolvedValue();
+        vi.spyOn(controller, 'refresh').mockResolvedValue();
 
         controller.startPolling({
           networkClientIds: ['networkClientId1'],
           queryAllAccounts: true,
         });
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
 
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
-        await jestAdvanceTime({ duration: 50 });
+        await advanceTime({ duration: 50 });
 
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
-        await jestAdvanceTime({ duration: 50 });
+        await advanceTime({ duration: 50 });
 
         expect(pollSpy).toHaveBeenCalledTimes(2);
       },
@@ -1941,21 +1949,19 @@ describe('AccountTrackerController', () => {
         listAccounts: [],
       },
       async ({ controller }) => {
-        const refreshSpy = jest
-          .spyOn(controller, 'refresh')
-          .mockResolvedValue();
+        const refreshSpy = vi.spyOn(controller, 'refresh').mockResolvedValue();
 
         controller.startPolling({
           networkClientIds: [networkClientId1],
           queryAllAccounts: true,
         });
 
-        await jestAdvanceTime({ duration: 0 });
+        await advanceTime({ duration: 0 });
         expect(refreshSpy).toHaveBeenNthCalledWith(1, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(1);
-        await jestAdvanceTime({ duration: 50 });
+        await advanceTime({ duration: 50 });
         expect(refreshSpy).toHaveBeenCalledTimes(1);
-        await jestAdvanceTime({ duration: 50 });
+        await advanceTime({ duration: 50 });
         expect(refreshSpy).toHaveBeenNthCalledWith(2, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(2);
 
@@ -1964,23 +1970,23 @@ describe('AccountTrackerController', () => {
           queryAllAccounts: true,
         });
 
-        await jestAdvanceTime({ duration: 0 });
+        await advanceTime({ duration: 0 });
         expect(refreshSpy).toHaveBeenNthCalledWith(3, [networkClientId2], true);
         expect(refreshSpy).toHaveBeenCalledTimes(3);
-        await jestAdvanceTime({ duration: 100 });
+        await advanceTime({ duration: 100 });
         expect(refreshSpy).toHaveBeenNthCalledWith(4, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenNthCalledWith(5, [networkClientId2], true);
         expect(refreshSpy).toHaveBeenCalledTimes(5);
 
         controller.stopPollingByPollingToken(pollToken);
 
-        await jestAdvanceTime({ duration: 100 });
+        await advanceTime({ duration: 100 });
         expect(refreshSpy).toHaveBeenNthCalledWith(6, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(6);
 
         controller.stopAllPolling();
 
-        await jestAdvanceTime({ duration: 100 });
+        await advanceTime({ duration: 100 });
 
         expect(refreshSpy).toHaveBeenCalledTimes(6);
       },
@@ -1993,9 +1999,7 @@ describe('AccountTrackerController', () => {
         options: { interval: 100 },
       },
       async ({ controller }) => {
-        const refreshSpy = jest
-          .spyOn(controller, 'refresh')
-          .mockResolvedValue();
+        const refreshSpy = vi.spyOn(controller, 'refresh').mockResolvedValue();
 
         expect(refreshSpy).not.toHaveBeenCalled();
         controller.startPolling({
@@ -2003,7 +2007,7 @@ describe('AccountTrackerController', () => {
           queryAllAccounts: true,
         });
 
-        await jestAdvanceTime({ duration: 1 });
+        await advanceTime({ duration: 1 });
         expect(refreshSpy).toHaveBeenCalledTimes(1);
       },
     );
@@ -2237,8 +2241,8 @@ describe('AccountTrackerController', () => {
 });
 
 type NetworkEnablementMocks = {
-  getState: jest.Mock;
-  listPopularEvmNetworks: jest.Mock;
+  getState: Mock;
+  listPopularEvmNetworks: Mock;
 };
 
 type WithControllerCallback<ReturnValue> = ({
@@ -2294,13 +2298,13 @@ async function withController<ReturnValue>(
     namespace: MOCK_ANY_NAMESPACE,
   });
 
-  const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+  const mockGetSelectedAccount = vi.fn().mockReturnValue(selectedAccount);
   messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     mockGetSelectedAccount,
   );
 
-  const mockListAccounts = jest.fn().mockReturnValue(listAccounts);
+  const mockListAccounts = vi.fn().mockReturnValue(listAccounts);
   messenger.registerActionHandler(
     'AccountsController:listAccounts',
     mockListAccounts,
@@ -2379,7 +2383,7 @@ async function withController<ReturnValue>(
     },
   );
 
-  const mockGetPreferencesControllerState = jest.fn().mockReturnValue({
+  const mockGetPreferencesControllerState = vi.fn().mockReturnValue({
     ...getDefaultPreferencesState(),
     isMultiAccountBalancesEnabled,
   });
@@ -2388,7 +2392,7 @@ async function withController<ReturnValue>(
     mockGetPreferencesControllerState,
   );
 
-  const mockNetworkState = jest.fn().mockReturnValue({
+  const mockNetworkState = vi.fn().mockReturnValue({
     ...getDefaultNetworkControllerState(),
     chainId: initialChainId,
   });
@@ -2398,7 +2402,7 @@ async function withController<ReturnValue>(
     mockNetworkState,
   );
 
-  const mockGetNetworkEnablementState = jest.fn().mockReturnValue({
+  const mockGetNetworkEnablementState = vi.fn().mockReturnValue({
     enabledNetworkMap: {
       eip155: { [initialChainId]: true },
     },
@@ -2409,7 +2413,7 @@ async function withController<ReturnValue>(
   );
 
   const defaultNetworkState = getDefaultNetworkControllerState();
-  const mockListPopularEvmNetworks = jest
+  const mockListPopularEvmNetworks = vi
     .fn()
     .mockReturnValue(
       Object.keys(defaultNetworkState.networkConfigurationsByChainId),
@@ -2421,7 +2425,7 @@ async function withController<ReturnValue>(
 
   messenger.registerActionHandler(
     'KeyringController:getState',
-    jest.fn().mockReturnValue({ isUnlocked: true }),
+    vi.fn().mockReturnValue({ isUnlocked: true }),
   );
 
   const accountTrackerMessenger = new Messenger<
@@ -2461,7 +2465,7 @@ async function withController<ReturnValue>(
 
   const controller = new AccountTrackerController({
     messenger: accountTrackerMessenger,
-    getStakedBalanceForChain: jest.fn(),
+    getStakedBalanceForChain: vi.fn(),
     ...options,
   });
 
@@ -2470,7 +2474,7 @@ async function withController<ReturnValue>(
     queryAllAccounts?: boolean,
   ) => {
     const promise = controller.refresh(networkClientIds, queryAllAccounts);
-    await jest.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(1);
     await promise;
   };
 

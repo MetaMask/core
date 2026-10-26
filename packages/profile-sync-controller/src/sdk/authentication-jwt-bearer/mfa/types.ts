@@ -2,6 +2,7 @@ import type { Infer } from '@metamask/superstruct';
 
 import type {
   AuthenticationResponseJSONStruct,
+  MfaApprovalIdentifierStruct,
   MfaCredentialStruct,
   MfaCredentialsResponseStruct,
   MfaEmailDetailStruct,
@@ -238,6 +239,45 @@ export type BeginVerificationRequest = {
 export type CompleteVerificationRequest = {
   flowId: string;
   proof: VerificationProof;
+  reason: TokenReason;
+};
+
+export type MfaApprovalRequest = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  request_hash: string;
+  audiences: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  include_identifiers?: boolean;
+};
+
+export type MfaApprovalIdentifier = Infer<typeof MfaApprovalIdentifierStruct>;
+
+/** A short-lived token approving one request, for the services it names. */
+export type MfaApproval = {
+  /** Signed JWT bound to the request hash and audiences. Never log it. */
+  approval: string;
+  /** Lifetime in seconds. */
+  expiresIn: number;
+  /**
+   * The canonical profile's recovery identifiers, unless they were not
+   * requested.
+   */
+  identifiers?: MfaApprovalIdentifier[];
+};
+
+export type RequestMfaApprovalRequest = {
+  /** `0x` and 64 lowercase hex characters: the digest of the request. */
+  requestHash: string;
+  /** Services that will accept the approval. */
+  audiences: string[];
+  /**
+   * Whether the approval must prove a 2-step verification, with the token of
+   * the live verification session. The server decides whether it is recent
+   * enough.
+   */
+  requireVerification?: boolean;
+  /** Whether to return the profile's recovery identifiers. Defaults to true. */
+  includeIdentifiers?: boolean;
   reason: TokenReason;
 };
 

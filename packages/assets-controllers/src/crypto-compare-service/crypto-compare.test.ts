@@ -1,4 +1,5 @@
 import nock from 'nock';
+import { describe, expect, it } from 'vitest';
 
 import { fetchExchangeRate, fetchMultiExchangeRate } from './crypto-compare.js';
 

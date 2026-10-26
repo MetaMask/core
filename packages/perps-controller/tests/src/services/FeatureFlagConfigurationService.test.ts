@@ -1,5 +1,7 @@
 /* eslint-disable */
 import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
 
 import { FeatureFlagConfigurationService } from '../../../src/services/FeatureFlagConfigurationService.js';
 import type { ServiceContext } from '../../../src/services/ServiceContext.js';
@@ -14,15 +16,15 @@ import {
   createMockInfrastructure,
 } from '../../helpers/serviceMocks.js';
 
-jest.mock('../../../src/utils/stringParseUtils');
-jest.mock('../../../src/utils/marketUtils', () => ({
-  ...jest.requireActual('../../../src/utils/marketUtils'),
-  validateMarketPattern: jest.fn(),
+vi.mock('../../../src/utils/stringParseUtils');
+vi.mock(import('../../../src/utils/marketUtils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  validateMarketPattern: vi.fn(),
 }));
 
 describe('FeatureFlagConfigurationService', () => {
   let mockContext: ServiceContext;
-  let mockDeps: jest.Mocked<PerpsPlatformDependencies>;
+  let mockDeps: Mocked<PerpsPlatformDependencies>;
   let featureFlagConfigurationService: FeatureFlagConfigurationService;
   let mockRemoteFeatureFlagState: RemoteFeatureFlagControllerState;
   let mockCurrentHip3Config: {
@@ -59,16 +61,16 @@ describe('FeatureFlagConfigurationService', () => {
         controller: 'FeatureFlagConfigurationService',
         method: 'test',
       },
-      getHip3Config: jest.fn(() => mockCurrentHip3Config),
-      setHip3Config: jest.fn((config) => {
+      getHip3Config: vi.fn(() => mockCurrentHip3Config),
+      setHip3Config: vi.fn((config) => {
         Object.assign(mockCurrentHip3Config, config);
       }),
-      incrementHip3ConfigVersion: jest.fn(() => 1),
-      getBlockedRegionList: jest.fn(() => mockCurrentBlockedRegionList),
-      setBlockedRegionList: jest.fn((list, source) => {
+      incrementHip3ConfigVersion: vi.fn(() => 1),
+      getBlockedRegionList: vi.fn(() => mockCurrentBlockedRegionList),
+      setBlockedRegionList: vi.fn((list, source) => {
         mockCurrentBlockedRegionList = { list, source };
       }),
-      refreshEligibility: jest.fn().mockResolvedValue(undefined),
+      refreshEligibility: vi.fn().mockResolvedValue(undefined),
     });
 
     mockRemoteFeatureFlagState = {
@@ -76,7 +78,7 @@ describe('FeatureFlagConfigurationService', () => {
       cacheTimestamp: Date.now(),
     };
 
-    (parseCommaSeparatedString as jest.Mock).mockImplementation((str: string) =>
+    (parseCommaSeparatedString as Mock).mockImplementation((str: string) =>
       str
         .split(',')
         .map((s) => s.trim())
@@ -84,16 +86,16 @@ describe('FeatureFlagConfigurationService', () => {
     );
 
     // stripQuotes is called after parseCommaSeparatedString - mock it to pass through values
-    (stripQuotes as jest.Mock).mockImplementation((s: string) => s);
+    (stripQuotes as Mock).mockImplementation((s: string) => s);
 
     // validateMarketPattern passes by default
-    (validateMarketPattern as jest.Mock).mockImplementation(() => true);
+    (validateMarketPattern as Mock).mockImplementation(() => true);
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('refreshHip3Config', () => {
@@ -112,7 +114,7 @@ describe('FeatureFlagConfigurationService', () => {
 
     it('updates config when equity flag changes', () => {
       // isVersionGatedFeatureFlag is now a real function from types - provide valid flag data
-      (mockDeps.featureFlags.validateVersionGated as jest.Mock).mockReturnValue(
+      (mockDeps.featureFlags.validateVersionGated as Mock).mockReturnValue(
         true,
       );
       mockRemoteFeatureFlagState.remoteFeatureFlags = {
@@ -134,7 +136,7 @@ describe('FeatureFlagConfigurationService', () => {
 
     it('increments version when equity flag changes', () => {
       // isVersionGatedFeatureFlag is now a real function from types - provide valid flag data
-      (mockDeps.featureFlags.validateVersionGated as jest.Mock).mockReturnValue(
+      (mockDeps.featureFlags.validateVersionGated as Mock).mockReturnValue(
         true,
       );
       mockRemoteFeatureFlagState.remoteFeatureFlags = {
@@ -207,7 +209,7 @@ describe('FeatureFlagConfigurationService', () => {
     it('strips quotes from array values', () => {
       // No equity flag in this test (isVersionGatedFeatureFlag returns false for non-flag objects)
       // Mock stripQuotes to actually strip quotes for this test
-      (stripQuotes as jest.Mock).mockImplementation((s: string) =>
+      (stripQuotes as Mock).mockImplementation((s: string) =>
         s.replace(/^["']|["']$/g, ''),
       );
       mockRemoteFeatureFlagState.remoteFeatureFlags = {
@@ -290,7 +292,7 @@ describe('FeatureFlagConfigurationService', () => {
       mockCurrentHip3Config.blocklistMarkets = ['MEME'];
 
       // isVersionGatedFeatureFlag is now a real function from types - provide valid flag data
-      (mockDeps.featureFlags.validateVersionGated as jest.Mock).mockReturnValue(
+      (mockDeps.featureFlags.validateVersionGated as Mock).mockReturnValue(
         true,
       );
       mockRemoteFeatureFlagState.remoteFeatureFlags = {
@@ -325,7 +327,7 @@ describe('FeatureFlagConfigurationService', () => {
 
     it('logs config change details', () => {
       // isVersionGatedFeatureFlag is now a real function from types - provide valid flag data
-      (mockDeps.featureFlags.validateVersionGated as jest.Mock).mockReturnValue(
+      (mockDeps.featureFlags.validateVersionGated as Mock).mockReturnValue(
         true,
       );
       mockRemoteFeatureFlagState.remoteFeatureFlags = {
@@ -349,10 +351,10 @@ describe('FeatureFlagConfigurationService', () => {
 
     it('logs version increment', () => {
       // isVersionGatedFeatureFlag is now a real function from types - provide valid flag data
-      (mockDeps.featureFlags.validateVersionGated as jest.Mock).mockReturnValue(
+      (mockDeps.featureFlags.validateVersionGated as Mock).mockReturnValue(
         true,
       );
-      (mockContext.incrementHip3ConfigVersion as jest.Mock).mockReturnValue(42);
+      (mockContext.incrementHip3ConfigVersion as Mock).mockReturnValue(42);
       mockRemoteFeatureFlagState.remoteFeatureFlags = {
         perpsHip3Enabled: { enabled: true, minimumVersion: '1.0.0' },
       };
@@ -370,7 +372,7 @@ describe('FeatureFlagConfigurationService', () => {
 
     it('handles empty string for allowlist markets', () => {
       // No equity flag in this test (isVersionGatedFeatureFlag returns false for non-flag objects)
-      (parseCommaSeparatedString as jest.Mock).mockReturnValue([]);
+      (parseCommaSeparatedString as Mock).mockReturnValue([]);
       mockRemoteFeatureFlagState.remoteFeatureFlags = {
         perpsHip3AllowlistMarkets: '',
       };
@@ -388,7 +390,7 @@ describe('FeatureFlagConfigurationService', () => {
 
     it('handles empty string for blocklist markets', () => {
       // No equity flag in this test (isVersionGatedFeatureFlag returns false for non-flag objects)
-      (parseCommaSeparatedString as jest.Mock).mockReturnValue([]);
+      (parseCommaSeparatedString as Mock).mockReturnValue([]);
       mockRemoteFeatureFlagState.remoteFeatureFlags = {
         perpsHip3BlocklistMarkets: '',
       };
@@ -405,20 +407,18 @@ describe('FeatureFlagConfigurationService', () => {
     });
 
     it('filters out invalid patterns from string allowlist', () => {
-      (parseCommaSeparatedString as jest.Mock).mockReturnValue([
+      (parseCommaSeparatedString as Mock).mockReturnValue([
         'xyz:TSLA',
         '"bad"pattern"',
         'valid:*',
       ]);
-      (stripQuotes as jest.Mock).mockImplementation((s: string) => s);
-      (validateMarketPattern as jest.Mock).mockImplementation(
-        (pattern: string) => {
-          if (pattern === '"bad"pattern"') {
-            throw new Error('Market pattern contains invalid characters');
-          }
-          return true;
-        },
-      );
+      (stripQuotes as Mock).mockImplementation((s: string) => s);
+      (validateMarketPattern as Mock).mockImplementation((pattern: string) => {
+        if (pattern === '"bad"pattern"') {
+          throw new Error('Market pattern contains invalid characters');
+        }
+        return true;
+      });
 
       mockRemoteFeatureFlagState.remoteFeatureFlags = {
         perpsHip3AllowlistMarkets: 'xyz:TSLA,"bad"pattern",valid:*',
@@ -437,15 +437,13 @@ describe('FeatureFlagConfigurationService', () => {
     });
 
     it('filters out invalid patterns from array blocklist', () => {
-      (stripQuotes as jest.Mock).mockImplementation((s: string) => s);
-      (validateMarketPattern as jest.Mock).mockImplementation(
-        (pattern: string) => {
-          if (pattern === '"invalid"') {
-            throw new Error('Market pattern contains invalid characters');
-          }
-          return true;
-        },
-      );
+      (stripQuotes as Mock).mockImplementation((s: string) => s);
+      (validateMarketPattern as Mock).mockImplementation((pattern: string) => {
+        if (pattern === '"invalid"') {
+          throw new Error('Market pattern contains invalid characters');
+        }
+        return true;
+      });
 
       mockRemoteFeatureFlagState.remoteFeatureFlags = {
         perpsHip3BlocklistMarkets: ['valid:BTC', '"invalid"', 'also:valid'],
@@ -465,8 +463,8 @@ describe('FeatureFlagConfigurationService', () => {
 
     it('preserves current config when all array patterns are invalid', () => {
       mockCurrentHip3Config.allowlistMarkets = ['existing:BTC'];
-      (stripQuotes as jest.Mock).mockImplementation((s: string) => s);
-      (validateMarketPattern as jest.Mock).mockImplementation(() => {
+      (stripQuotes as Mock).mockImplementation((s: string) => s);
+      (validateMarketPattern as Mock).mockImplementation(() => {
         throw new Error('Market pattern contains invalid characters');
       });
 
@@ -483,11 +481,9 @@ describe('FeatureFlagConfigurationService', () => {
       expect(mockContext.setHip3Config).not.toHaveBeenCalled();
     });
     it('logs warning for dropped invalid patterns', () => {
-      (parseCommaSeparatedString as jest.Mock).mockReturnValue([
-        '"bad"pattern"',
-      ]);
-      (stripQuotes as jest.Mock).mockImplementation((s: string) => s);
-      (validateMarketPattern as jest.Mock).mockImplementation(() => {
+      (parseCommaSeparatedString as Mock).mockReturnValue(['"bad"pattern"']);
+      (stripQuotes as Mock).mockImplementation((s: string) => s);
+      (validateMarketPattern as Mock).mockImplementation(() => {
         throw new Error('Market pattern contains invalid characters');
       });
 
@@ -537,7 +533,7 @@ describe('FeatureFlagConfigurationService', () => {
         },
       };
 
-      const refreshHip3ConfigSpy = jest.spyOn(
+      const refreshHip3ConfigSpy = vi.spyOn(
         featureFlagConfigurationService,
         'refreshHip3Config',
       );
@@ -653,7 +649,7 @@ describe('FeatureFlagConfigurationService', () => {
     });
 
     it('handles eligibility refresh error gracefully', () => {
-      (mockContext.refreshEligibility as jest.Mock).mockRejectedValue(
+      (mockContext.refreshEligibility as Mock).mockRejectedValue(
         new Error('Refresh failed'),
       );
 
@@ -667,7 +663,7 @@ describe('FeatureFlagConfigurationService', () => {
     });
 
     it('logs error when eligibility refresh fails', async () => {
-      (mockContext.refreshEligibility as jest.Mock).mockRejectedValue(
+      (mockContext.refreshEligibility as Mock).mockRejectedValue(
         new Error('Refresh failed'),
       );
 

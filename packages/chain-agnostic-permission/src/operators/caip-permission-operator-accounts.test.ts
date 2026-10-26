@@ -1,4 +1,5 @@
 import type { CaipAccountId } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import type { Caip25CaveatValue } from '../caip25Permission.js';
 import type { InternalScopesObject } from '../scope/types.js';

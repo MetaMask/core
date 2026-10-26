@@ -3,6 +3,8 @@ import { providerErrors } from '@metamask/rpc-errors';
 import type { StructError } from '@metamask/superstruct';
 import { any, validate } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import type { WalletMiddlewareKeyValues } from '../wallet.js';
 import {
@@ -14,9 +16,9 @@ import {
   validateTypedMessageKeys,
 } from './validation.js';
 
-jest.mock('@metamask/superstruct', () => ({
-  ...jest.requireActual('@metamask/superstruct'),
-  validate: jest.fn(),
+vi.mock(import('@metamask/superstruct'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  validate: vi.fn(),
 }));
 
 const ADDRESS_MOCK = '0xABCDabcdABCDabcdABCDabcdABCDabcdABCDabcd';
@@ -40,20 +42,20 @@ const STRUCT_ERROR_MOCK = {
 } as StructError;
 
 describe('Validation Utils', () => {
-  const validateMock = jest.mocked(validate);
+  const validateMock = vi.mocked(validate);
 
-  let getAccountsMock: jest.MockedFn<
+  let getAccountsMock: MockedFunction<
     (origin: string, scope: string) => Promise<string[]>
   >;
-  let getNetworkClientByIdMock: jest.MockedFn<
+  let getNetworkClientByIdMock: MockedFunction<
     (id: string) => { configuration: { chainId: Hex } }
   >;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
-    getAccountsMock = jest.fn().mockResolvedValue([ADDRESS_MOCK]);
-    getNetworkClientByIdMock = jest
+    getAccountsMock = vi.fn().mockResolvedValue([ADDRESS_MOCK]);
+    getNetworkClientByIdMock = vi
       .fn()
       .mockReturnValue({ configuration: { chainId: '0x1' } });
   });
@@ -211,11 +213,11 @@ describe('Validation Utils', () => {
 
       expect(() => validateParams({}, any()))
         .toThrowErrorMatchingInlineSnapshot(`
-        "Invalid params
+          [Error: Invalid params
 
-        test1 > test2 - test message
-        test3 - test message 2"
-      `);
+          test1 > test2 - test message
+          test3 - test message 2]
+        `);
     });
   });
 
@@ -375,10 +377,10 @@ describe('Validation Utils', () => {
     const VALID_FROM = '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb';
     const VALID_TO = '0xdac17f958d2ee523a2206206994597c13d831ec7';
 
-    beforeEach(() => {
-      const actual = jest.requireActual<{
-        validate: typeof validate;
-      }>('@metamask/superstruct');
+    beforeEach(async () => {
+      const actual = await vi.importActual<
+        typeof import('@metamask/superstruct')
+      >('@metamask/superstruct');
       validateMock.mockImplementation(actual.validate);
     });
 
@@ -561,7 +563,7 @@ describe('Validation Utils', () => {
     });
 
     it('runs the size check before schema validation', () => {
-      const stringifySpy = jest.spyOn(JSON, 'stringify');
+      const stringifySpy = vi.spyOn(JSON, 'stringify');
 
       try {
         expect(() =>

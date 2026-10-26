@@ -36,6 +36,8 @@ const FeedActorStruct = assign(
   structType({
     winRate30d: optional(nullable(number())),
     pnl30d: optional(nullable(number())),
+    volumeUsd30d: optional(nullable(number())),
+    volumeUsd7d: optional(nullable(number())),
     tradeCount30d: optional(nullable(number())),
     followerCount: optional(nullable(number())),
   }),
@@ -254,6 +256,8 @@ const LeaderboardEntryStruct = structType({
   winRate7d: optional(nullable(number())),
   roiPercent7d: optional(nullable(number())),
   tradeCount7d: optional(nullable(number())),
+  volumeUsd30d: optional(nullable(number())),
+  volumeUsd7d: optional(nullable(number())),
   pnlPerChain: record(string(), number()),
   followerCount: number(),
   socialHandles: SocialHandlesStruct,

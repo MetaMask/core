@@ -1,8 +1,7 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "forceConsistentCasingInFileNames": true,
-    "types": ["jest"]
+    "forceConsistentCasingInFileNames": true
   },
   "references": [
     {

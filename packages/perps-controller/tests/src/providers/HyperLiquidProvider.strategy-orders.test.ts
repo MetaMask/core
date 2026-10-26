@@ -1,5 +1,13 @@
 import { ExchangeClient, HyperliquidError } from '@nktkas/hyperliquid';
 import type { MetaResponse } from '@nktkas/hyperliquid';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type {
+  Mock,
+  MockInstance,
+  Mocked,
+  MockedClass,
+  MockedFunction,
+} from 'vitest';
 
 import { BUILDER_FEE_CONFIG } from '../../../src/constants/hyperLiquidConfig.js';
 import { SUBSCRIPTION_CLOID_FLAGS } from '../../../src/constants/perpsConfig.js';
@@ -28,6 +36,7 @@ import type {
 import type { OrderType } from '../../../src/types/perps-types.js';
 import { createGuardedHyperLiquidClient } from '../../../src/utils/guardedHyperLiquidClient.js';
 import { HYPERLIQUID_SCALE_CLOID_MARKER } from '../../../src/utils/hyperLiquidAdapter.js';
+import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
 import {
   validateAssetSupport,
   validateBalance,
@@ -36,6 +45,7 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
+import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import {
   hasFeeReductionAppliedFlag,
   isSubscriptionProgramCloid,
@@ -48,28 +58,28 @@ import {
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
 
-jest.mock('../../../src/services/HyperLiquidClientService');
-jest.mock('../../../src/services/HyperLiquidWalletService');
-jest.mock('../../../src/services/HyperLiquidSubscriptionService');
+vi.mock('../../../src/services/HyperLiquidClientService');
+vi.mock('../../../src/services/HyperLiquidWalletService');
+vi.mock('../../../src/services/HyperLiquidSubscriptionService');
 
-jest.mock('../../../src/utils/hyperLiquidValidation', () => ({
-  validateOrderParams: jest.fn(),
-  validateWithdrawalParams: jest.fn(),
-  validateDepositParams: jest.fn(),
-  validateCoinExists: jest.fn(),
-  validateAssetSupport: jest.fn(),
-  validateBalance: jest.fn(),
-  getSupportedPaths: jest
+vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
+  validateOrderParams: vi.fn(),
+  validateWithdrawalParams: vi.fn(),
+  validateDepositParams: vi.fn(),
+  validateCoinExists: vi.fn(),
+  validateAssetSupport: vi.fn(),
+  validateBalance: vi.fn(),
+  getSupportedPaths: vi
     .fn()
     .mockReturnValue([
       'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
       'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
     ]),
-  getBridgeInfo: jest.fn().mockReturnValue({
+  getBridgeInfo: vi.fn().mockReturnValue({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: jest.fn((error, defaultResponse) => ({
+  createErrorResult: vi.fn((error, defaultResponse) => ({
     ...defaultResponse,
     success: false,
     error: error instanceof Error ? error.message : String(error),
@@ -77,11 +87,14 @@ jest.mock('../../../src/utils/hyperLiquidValidation', () => ({
 }));
 
 // Mock adapter functions
-jest.mock('../../../src/utils/hyperLiquidAdapter', () => {
-  const actual = jest.requireActual('../../../src/utils/hyperLiquidAdapter');
+vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../../../src/utils/hyperLiquidAdapter.js')
+    >();
   return {
     ...actual,
-    adaptHyperLiquidLedgerUpdateToUserHistoryItem: jest.fn((updates) => {
+    adaptHyperLiquidLedgerUpdateToUserHistoryItem: vi.fn((updates) => {
       // Return mock history items based on input
       if (!updates || !Array.isArray(updates) || updates.length === 0) {
         return [];
@@ -97,8 +110,7 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => {
 });
 
 // Mock TradingReadinessCache - global singleton for signing operation caching
-// Use jest.createMockFromModule for proper mock creation
-jest.mock('../../../src/services/TradingReadinessCache');
+vi.mock('../../../src/services/TradingReadinessCache');
 
 class TestApiRequestError extends HyperliquidError {
   readonly response: unknown;
@@ -110,36 +122,37 @@ class TestApiRequestError extends HyperliquidError {
   }
 }
 
-const MockedHyperLiquidClientService =
-  HyperLiquidClientService as jest.MockedClass<typeof HyperLiquidClientService>;
-const MockedHyperLiquidWalletService =
-  HyperLiquidWalletService as jest.MockedClass<typeof HyperLiquidWalletService>;
+const MockedHyperLiquidClientService = HyperLiquidClientService as MockedClass<
+  typeof HyperLiquidClientService
+>;
+const MockedHyperLiquidWalletService = HyperLiquidWalletService as MockedClass<
+  typeof HyperLiquidWalletService
+>;
 const MockedHyperLiquidSubscriptionService =
-  HyperLiquidSubscriptionService as jest.MockedClass<
+  HyperLiquidSubscriptionService as MockedClass<
     typeof HyperLiquidSubscriptionService
   >;
-const mockValidateOrderParams = validateOrderParams as jest.MockedFunction<
+const mockValidateOrderParams = validateOrderParams as MockedFunction<
   typeof validateOrderParams
 >;
-const mockValidateWithdrawalParams =
-  validateWithdrawalParams as jest.MockedFunction<
-    typeof validateWithdrawalParams
-  >;
-const mockValidateDepositParams = validateDepositParams as jest.MockedFunction<
+const mockValidateWithdrawalParams = validateWithdrawalParams as MockedFunction<
+  typeof validateWithdrawalParams
+>;
+const mockValidateDepositParams = validateDepositParams as MockedFunction<
   typeof validateDepositParams
 >;
-const mockValidateCoinExists = validateCoinExists as jest.MockedFunction<
+const mockValidateCoinExists = validateCoinExists as MockedFunction<
   typeof validateCoinExists
 >;
-const mockValidateAssetSupport = validateAssetSupport as jest.MockedFunction<
+const mockValidateAssetSupport = validateAssetSupport as MockedFunction<
   typeof validateAssetSupport
 >;
-const mockValidateBalance = validateBalance as jest.MockedFunction<
+const mockValidateBalance = validateBalance as MockedFunction<
   typeof validateBalance
 >;
 
-/** Every method on the mocked info and exchange clients is a jest mock. */
-type MockClient = Record<string, jest.Mock>;
+/** Every method on the mocked info and exchange clients is a Vitest mock. */
+type MockClient = Record<string, Mock>;
 
 type MockClearinghouseBalance = {
   marginSummary: {
@@ -161,7 +174,7 @@ type MockClearinghouseBalance = {
  * @returns The mock info client.
  */
 const createMockInfoClient = (overrides: MockClient = {}): MockClient => ({
-  clearinghouseState: jest.fn().mockResolvedValue({
+  clearinghouseState: vi.fn().mockResolvedValue({
     marginSummary: {
       totalMarginUsed: '500',
       accountValue: '10500',
@@ -206,19 +219,19 @@ const createMockInfoClient = (overrides: MockClient = {}): MockClient => ({
       totalMarginUsed: '5000',
     },
   }),
-  spotClearinghouseState: jest.fn().mockResolvedValue({
+  spotClearinghouseState: vi.fn().mockResolvedValue({
     balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
   }),
   // Mode-aware fold gate reads userAbstraction; default to unifiedAccount
   // so tests that predated the gate still see spot folded into spendable/withdrawable.
-  userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
-  meta: jest.fn().mockResolvedValue({
+  userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+  meta: vi.fn().mockResolvedValue({
     universe: [
       { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
       { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
     ],
   }),
-  metaAndAssetCtxs: jest.fn().mockResolvedValue([
+  metaAndAssetCtxs: vi.fn().mockResolvedValue([
     {
       universe: [
         { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
@@ -246,11 +259,11 @@ const createMockInfoClient = (overrides: MockClient = {}): MockClient => ({
       },
     ],
   ]),
-  perpDexs: jest.fn().mockResolvedValue([null]),
-  allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
+  perpDexs: vi.fn().mockResolvedValue([null]),
+  allMids: vi.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
   // editOrder verifies the resting order's placement type before modifying it,
   // so the account lists the plain limit order the edit tests target.
-  frontendOpenOrders: jest.fn().mockResolvedValue([
+  frontendOpenOrders: vi.fn().mockResolvedValue([
     {
       coin: 'BTC',
       side: 'B',
@@ -268,14 +281,14 @@ const createMockInfoClient = (overrides: MockClient = {}): MockClient => ({
       orderType: 'Limit',
     },
   ]),
-  referral: jest.fn().mockResolvedValue({
+  referral: vi.fn().mockResolvedValue({
     referrerState: {
       stage: 'ready',
       data: { code: 'MMCSI' },
     },
   }),
-  maxBuilderFee: jest.fn().mockResolvedValue(1),
-  userFees: jest.fn().mockResolvedValue({
+  maxBuilderFee: vi.fn().mockResolvedValue(1),
+  userFees: vi.fn().mockResolvedValue({
     feeSchedule: {
       cross: '0.00030',
       add: '0.00010',
@@ -284,7 +297,7 @@ const createMockInfoClient = (overrides: MockClient = {}): MockClient => ({
     },
     dailyUserVlm: [],
   }),
-  userNonFundingLedgerUpdates: jest.fn().mockResolvedValue([
+  userNonFundingLedgerUpdates: vi.fn().mockResolvedValue([
     {
       delta: { type: 'deposit', usdc: '100' },
       time: Date.now(),
@@ -296,7 +309,7 @@ const createMockInfoClient = (overrides: MockClient = {}): MockClient => ({
       hash: '0x456def',
     },
   ]),
-  portfolio: jest.fn().mockResolvedValue([
+  portfolio: vi.fn().mockResolvedValue([
     null,
     [
       null,
@@ -309,19 +322,19 @@ const createMockInfoClient = (overrides: MockClient = {}): MockClient => ({
       },
     ],
   ]),
-  spotMeta: jest.fn().mockResolvedValue({
+  spotMeta: vi.fn().mockResolvedValue({
     tokens: [
       { name: 'USDC', tokenId: '0xdef456', index: 0 },
       { name: 'USDT', tokenId: '0x789abc', index: 1 },
     ],
     universe: [],
   }),
-  historicalOrders: jest.fn().mockResolvedValue([]),
-  twapHistory: jest.fn().mockResolvedValue([]),
-  userFills: jest.fn().mockResolvedValue([]),
-  userFillsByTime: jest.fn().mockResolvedValue([]),
-  userFunding: jest.fn().mockResolvedValue([]),
-  userTwapSliceFills: jest.fn().mockResolvedValue([]),
+  historicalOrders: vi.fn().mockResolvedValue([]),
+  twapHistory: vi.fn().mockResolvedValue([]),
+  userFills: vi.fn().mockResolvedValue([]),
+  userFillsByTime: vi.fn().mockResolvedValue([]),
+  userFunding: vi.fn().mockResolvedValue([]),
+  userTwapSliceFills: vi.fn().mockResolvedValue([]),
   ...overrides,
 });
 
@@ -332,7 +345,7 @@ const createMockInfoClient = (overrides: MockClient = {}): MockClient => ({
  * @returns The mock exchange client.
  */
 const createMockExchangeClient = (overrides: MockClient = {}): MockClient => ({
-  order: jest.fn().mockImplementation((request: { orders: unknown[] }) =>
+  order: vi.fn().mockImplementation((request: { orders: unknown[] }) =>
     Promise.resolve({
       status: 'ok',
       response: {
@@ -344,40 +357,38 @@ const createMockExchangeClient = (overrides: MockClient = {}): MockClient => ({
       },
     }),
   ),
-  modify: jest.fn().mockResolvedValue({
+  modify: vi.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: '123' } }] } },
   }),
-  cancel: jest.fn().mockResolvedValue({
+  cancel: vi.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: ['success'] } },
   }),
-  cancelByCloid: jest
-    .fn()
-    .mockImplementation((request: { cancels: unknown[] }) =>
-      Promise.resolve({
-        status: 'ok',
-        response: {
-          data: { statuses: request.cancels.map(() => 'success') },
-        },
-      }),
-    ),
-  withdraw3: jest.fn().mockResolvedValue({
+  cancelByCloid: vi.fn().mockImplementation((request: { cancels: unknown[] }) =>
+    Promise.resolve({
+      status: 'ok',
+      response: {
+        data: { statuses: request.cancels.map(() => 'success') },
+      },
+    }),
+  ),
+  withdraw3: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  updateLeverage: jest.fn().mockResolvedValue({
+  updateLeverage: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  approveBuilderFee: jest.fn().mockResolvedValue({
+  approveBuilderFee: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  setReferrer: jest.fn().mockResolvedValue({
+  setReferrer: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  sendAsset: jest.fn().mockResolvedValue({
+  sendAsset: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  agentSetAbstraction: jest.fn().mockResolvedValue({
+  agentSetAbstraction: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
   ...overrides,
@@ -423,118 +434,119 @@ const createTestProvider = (
 
 describe('HyperLiquidProvider - strategy order types', () => {
   let provider: HyperLiquidProvider;
-  let mockClientService: jest.Mocked<HyperLiquidClientService>;
-  let mockWalletService: jest.Mocked<HyperLiquidWalletService>;
-  let mockSubscriptionService: jest.Mocked<HyperLiquidSubscriptionService>;
+  let mockClientService: Mocked<HyperLiquidClientService>;
+  let mockWalletService: Mocked<HyperLiquidWalletService>;
+  let mockSubscriptionService: Mocked<HyperLiquidSubscriptionService>;
 
   beforeEach(() => {
     // Reset all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockMessenger = createMockMessenger();
     (
-      mockPlatformDependencies.marketDataFormatters.formatVolume as jest.Mock
+      mockPlatformDependencies.marketDataFormatters.formatVolume as Mock
     ).mockImplementation((value: number) => `$${value.toFixed(0)}`);
     (
-      mockPlatformDependencies.marketDataFormatters.formatPerpsFiat as jest.Mock
+      mockPlatformDependencies.marketDataFormatters.formatPerpsFiat as Mock
     ).mockImplementation((value: number) => `$${value.toFixed(2)}`);
     (
-      mockPlatformDependencies.marketDataFormatters
-        .formatPercentage as jest.Mock
+      mockPlatformDependencies.marketDataFormatters.formatPercentage as Mock
     ).mockImplementation((value: number) => `${value.toFixed(2)}%`);
     (
-      mockPlatformDependencies.featureFlags.validateVersionGated as jest.Mock
+      mockPlatformDependencies.featureFlags.validateVersionGated as Mock
     ).mockReturnValue(undefined);
-    (mockPlatformDependencies.metrics.isEnabled as jest.Mock).mockReturnValue(
-      true,
-    );
+    (mockPlatformDependencies.metrics.isEnabled as Mock).mockReturnValue(true);
 
     // Reset TradingReadinessCache mock state (using imported mocked module)
-    const mockedCache = TradingReadinessCache as jest.Mocked<
+    const mockedCache = TradingReadinessCache as Mocked<
       typeof TradingReadinessCache
     >;
     mockedCache.get.mockReturnValue(undefined);
     mockedCache.getBuilderFee.mockReturnValue(undefined);
     mockedCache.getReferral.mockReturnValue(undefined);
     mockedCache.isInFlight.mockReturnValue(undefined);
-    mockedCache.setInFlight.mockReturnValue(jest.fn());
+    mockedCache.setInFlight.mockReturnValue(vi.fn());
 
     // Create mocked service instances using factory functions
     mockClientService = {
-      initialize: jest.fn(),
-      isInitialized: jest.fn().mockReturnValue(true),
-      isTestnetMode: jest.fn().mockReturnValue(false),
-      ensureInitialized: jest.fn(),
-      getExchangeClient: jest.fn().mockReturnValue(createMockExchangeClient()),
-      getInfoClient: jest.fn().mockReturnValue(createMockInfoClient()),
-      fetchHistoricalOrders: jest.fn().mockResolvedValue([]),
-      disconnect: jest.fn().mockResolvedValue(undefined),
-      toggleTestnet: jest.fn(),
-      setTestnetMode: jest.fn(),
-      getNetwork: jest.fn().mockReturnValue('mainnet'),
-      ensureSubscriptionClient: jest.fn().mockResolvedValue(undefined),
-      getSubscriptionClient: jest.fn(),
-      setOnReconnectCallback: jest.fn(),
-      setOnTerminateCallback: jest.fn(),
-      getConnectionState: jest.fn().mockReturnValue('connected'),
-    } as Partial<HyperLiquidClientService> as jest.Mocked<HyperLiquidClientService>;
+      initialize: vi.fn(),
+      isInitialized: vi.fn().mockReturnValue(true),
+      isTestnetMode: vi.fn().mockReturnValue(false),
+      ensureInitialized: vi.fn(),
+      getExchangeClient: vi.fn().mockReturnValue(createMockExchangeClient()),
+      getInfoClient: vi.fn().mockReturnValue(createMockInfoClient()),
+      fetchHistoricalOrders: vi.fn().mockResolvedValue([]),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      toggleTestnet: vi.fn(),
+      setTestnetMode: vi.fn(),
+      getNetwork: vi.fn().mockReturnValue('mainnet'),
+      ensureSubscriptionClient: vi.fn().mockResolvedValue(undefined),
+      getSubscriptionClient: vi.fn(),
+      setOnReconnectCallback: vi.fn(),
+      setOnTerminateCallback: vi.fn(),
+      getConnectionState: vi.fn().mockReturnValue('connected'),
+    } as Partial<HyperLiquidClientService> as Mocked<HyperLiquidClientService>;
 
     mockWalletService = {
-      setTestnetMode: jest.fn(),
-      getCurrentAccountId: jest
+      setTestnetMode: vi.fn(),
+      getCurrentAccountId: vi
         .fn()
         .mockReturnValue(
           'eip155:42161:0x1234567890123456789012345678901234567890',
         ),
-      createWalletAdapter: jest.fn().mockReturnValue({
-        request: jest
+      createWalletAdapter: vi.fn().mockReturnValue({
+        request: vi
           .fn()
           .mockResolvedValue(['0x1234567890123456789012345678901234567890']),
       }),
-      getUserAddress: jest
+      getUserAddress: vi
         .fn()
         .mockReturnValue('0x1234567890123456789012345678901234567890'),
-      getUserAddressWithDefault: jest
+      getUserAddressWithDefault: vi
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
-      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
-    } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
+      isMainAccountSignerReady: vi.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: vi.fn().mockReturnValue(false),
+    } as Partial<HyperLiquidWalletService> as Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
-      subscribeToPrices: jest.fn().mockResolvedValue(jest.fn()), // Returns Promise
-      subscribeToPositions: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
-      subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
-      clearAll: jest.fn(),
-      isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
-      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
-      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
-      getCachedPositions: jest.fn().mockReturnValue([]),
-      updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
+      subscribeToPrices: vi.fn().mockResolvedValue(vi.fn()), // Returns Promise
+      subscribeToPositions: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
+      subscribeToOrderFills: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
+      clearAll: vi.fn(),
+      isPositionsCacheInitialized: vi.fn().mockReturnValue(false),
+      getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+      getFreshPositionsForAllDexs: vi.fn().mockReturnValue(null),
+      getCachedPositions: vi.fn().mockReturnValue([]),
+      updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
-      setDexMetaCache: jest.fn(),
-      setDexAssetCtxsCache: jest.fn(),
-      getDexAssetCtxsCache: jest.fn().mockReturnValue(undefined),
+      setDexMetaCache: vi.fn(),
+      setDexAssetCtxsCache: vi.fn(),
+      getDexAssetCtxsCache: vi.fn().mockReturnValue(undefined),
       // Price cache used by placeOrder, editOrder, closePosition optimizations
-      getCachedPrice: jest.fn().mockImplementation((symbol: string) => {
+      getCachedPrice: vi.fn().mockImplementation((symbol: string) => {
         const prices: Record<string, string> = { BTC: '50000', ETH: '3000' };
         return prices[symbol];
       }),
-      getLastAllMidsSnapshot: jest.fn().mockReturnValue(null),
+      getLastAllMidsSnapshot: vi.fn().mockReturnValue(null),
       // Orders cache used by updatePositionTPSL and getOpenOrders
-      isOrdersCacheInitialized: jest.fn().mockReturnValue(false),
-      getCachedOrders: jest.fn().mockReturnValue([]),
+      isOrdersCacheInitialized: vi.fn().mockReturnValue(false),
+      getCachedOrders: vi.fn().mockReturnValue([]),
       // Atomic getter - returns null when cache not initialized (prevents race condition)
-      getOrdersCacheIfInitialized: jest.fn().mockReturnValue(null),
+      getOrdersCacheIfInitialized: vi.fn().mockReturnValue(null),
       // Abstraction-mode resolved-mode setter (unified account migration)
-      setUserAbstractionMode: jest.fn(),
-    } as Partial<HyperLiquidSubscriptionService> as jest.Mocked<HyperLiquidSubscriptionService>;
+      setUserAbstractionMode: vi.fn(),
+    } as Partial<HyperLiquidSubscriptionService> as Mocked<HyperLiquidSubscriptionService>;
 
     // Mock constructors
-    MockedHyperLiquidClientService.mockImplementation(() => mockClientService);
-    MockedHyperLiquidWalletService.mockImplementation(() => mockWalletService);
-    MockedHyperLiquidSubscriptionService.mockImplementation(
-      () => mockSubscriptionService,
-    );
+    MockedHyperLiquidClientService.mockImplementation(function () {
+      return mockClientService;
+    });
+    MockedHyperLiquidWalletService.mockImplementation(function () {
+      return mockWalletService;
+    });
+    MockedHyperLiquidSubscriptionService.mockImplementation(function () {
+      return mockSubscriptionService;
+    });
 
     // Mock validation
     mockValidateOrderParams.mockReturnValue({ isValid: true });
@@ -543,9 +555,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
     mockValidateCoinExists.mockReturnValue({ isValid: true });
     mockValidateAssetSupport.mockReturnValue({ isValid: true });
     mockValidateBalance.mockReturnValue({ isValid: true });
-    const hyperLiquidValidation = jest.requireMock(
-      '../../../src/utils/hyperLiquidValidation',
-    );
+    const hyperLiquidValidation =
+      hyperLiquidValidationModule as unknown as Record<string, Mock>;
     hyperLiquidValidation.getSupportedPaths.mockReturnValue([
       'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
       'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
@@ -561,9 +572,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
         error: error instanceof Error ? error.message : String(error),
       }),
     );
-    const hyperLiquidAdapter = jest.requireMock(
-      '../../../src/utils/hyperLiquidAdapter',
-    );
+    const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
+      string,
+      Mock
+    >;
     hyperLiquidAdapter.adaptHyperLiquidLedgerUpdateToUserHistoryItem.mockImplementation(
       (updates: unknown[]) => {
         if (!updates || !Array.isArray(updates) || updates.length === 0) {
@@ -599,14 +611,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
     overrides: { exchange?: MockClient; info?: MockClient } = {},
   ): { exchangeClient: MockClient; infoClient: MockClient } => {
     const exchangeClient = createMockExchangeClient({
-      twapOrder: jest.fn().mockResolvedValue({
+      twapOrder: vi.fn().mockResolvedValue({
         status: 'ok',
         response: {
           type: 'twapOrder',
           data: { status: { running: { twapId: 987 } } },
         },
       }),
-      twapCancel: jest.fn().mockResolvedValue({
+      twapCancel: vi.fn().mockResolvedValue({
         status: 'ok',
         response: { type: 'twapCancel', data: { status: 'success' } },
       }),
@@ -615,7 +627,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     const infoClient = createMockInfoClient({
       // A Chase reads liveness before re-pricing. Tests that cancel a child
       // override this with the final canceled remainder when it matters.
-      orderStatus: jest.fn().mockResolvedValue({
+      orderStatus: vi.fn().mockResolvedValue({
         status: 'order',
         order: {
           status: 'open',
@@ -637,7 +649,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         },
       }),
-      l2Book: jest.fn().mockResolvedValue({
+      l2Book: vi.fn().mockResolvedValue({
         coin: 'ETH',
         levels: [
           [{ px: '2999', sz: '10', n: 1 }],
@@ -668,8 +680,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
   } => {
     const { infoClient } = useStrategyClients({
       info: {
-        perpDexs: jest.fn().mockResolvedValue([null, { name: 'xyz' }]),
-        meta: jest.fn().mockResolvedValue({
+        perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+        meta: vi.fn().mockResolvedValue({
           universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
           collateralToken: 0,
         }),
@@ -773,12 +785,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
     ): ReturnType<typeof useStrategyClients> =>
       useStrategyClients({
         info: {
-          clearinghouseState: jest
+          clearinghouseState: vi
             .fn()
             .mockResolvedValue(createClearinghouseBalance('10000')),
-          frontendOpenOrders: jest.fn().mockResolvedValue([]),
-          twapHistory: jest.fn().mockResolvedValue(history),
-          activeAssetData: jest
+          frontendOpenOrders: vi.fn().mockResolvedValue([]),
+          twapHistory: vi.fn().mockResolvedValue(history),
+          activeAssetData: vi
             .fn()
             .mockResolvedValue({ leverage: { type: existingMode, value: 5 } }),
         },
@@ -931,12 +943,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
       it('rejects a mode change while an unfilled native TWAP is active before signing', async () => {
         const { exchangeClient, infoClient } = useStrategyClients({
           info: {
-            clearinghouseState: jest
+            clearinghouseState: vi
               .fn()
               .mockResolvedValue(createClearinghouseBalance('10000')),
-            frontendOpenOrders: jest.fn().mockResolvedValue([]),
-            twapHistory: jest.fn().mockResolvedValue(activeEthTwapHistory),
-            activeAssetData: jest
+            frontendOpenOrders: vi.fn().mockResolvedValue([]),
+            twapHistory: vi.fn().mockResolvedValue(activeEthTwapHistory),
+            activeAssetData: vi
               .fn()
               .mockResolvedValue({ leverage: { type: 'isolated', value: 5 } }),
           },
@@ -964,13 +976,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
         async (marginMode) => {
           const { exchangeClient } = useStrategyClients({
             info: {
-              clearinghouseState: jest
+              clearinghouseState: vi
                 .fn()
                 .mockResolvedValue(createClearinghouseBalance('10000')),
-              frontendOpenOrders: jest.fn().mockResolvedValue([]),
+              frontendOpenOrders: vi.fn().mockResolvedValue([]),
             },
             exchange: {
-              order: jest
+              order: vi
                 .fn()
                 .mockImplementation((request: { orders: unknown[] }) =>
                   Promise.resolve({
@@ -1029,7 +1041,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
             restricted
               ? {
                   info: {
-                    meta: jest.fn().mockResolvedValue({
+                    meta: vi.fn().mockResolvedValue({
                       universe: [
                         {
                           name: 'ETH',
@@ -1111,13 +1123,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('keeps existing protection when builder approval fails', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          approveBuilderFee: jest
+          approveBuilderFee: vi
             .fn()
             .mockRejectedValue(new Error('Builder approval failed')),
         },
         info: {
-          maxBuilderFee: jest.fn().mockResolvedValue(0),
-          frontendOpenOrders: jest.fn().mockResolvedValue([
+          maxBuilderFee: vi.fn().mockResolvedValue(0),
+          frontendOpenOrders: vi.fn().mockResolvedValue([
             {
               coin: 'ETH',
               oid: 456,
@@ -1148,7 +1160,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('does not replace whole-position protection when pre-cancel is refused', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: { statuses: [{ error: 'Invalid nonce' }] },
@@ -1156,7 +1168,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([
+          frontendOpenOrders: vi.fn().mockResolvedValue([
             {
               coin: 'ETH',
               oid: 456,
@@ -1184,7 +1196,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('reports lost protection when the old cancel outcome is unknown', async () => {
-      const frontendOpenOrders = jest
+      const frontendOpenOrders = vi
         .fn()
         .mockResolvedValueOnce([
           {
@@ -1209,7 +1221,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         .mockRejectedValueOnce(new Error('Open orders unavailable'));
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: ['success'] } },
           }),
@@ -1240,7 +1252,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       async (change, expectedError) => {
         const { exchangeClient, infoClient } = useStrategyClients({
           info: {
-            frontendOpenOrders: jest.fn().mockResolvedValue([
+            frontendOpenOrders: vi.fn().mockResolvedValue([
               {
                 coin: 'ETH',
                 side: 'A',
@@ -1305,7 +1317,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it.each(['account', 'network', 'disconnect'])(
       'omits restoration receipts after %s changes while restoring',
       async (change) => {
-        const order = jest
+        const order = vi
           .fn()
           .mockResolvedValueOnce({
             status: 'ok',
@@ -1338,7 +1350,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useStrategyClients({
           exchange: { order },
           info: {
-            frontendOpenOrders: jest.fn().mockResolvedValue([
+            frontendOpenOrders: vi.fn().mockResolvedValue([
               {
                 coin: 'ETH',
                 side: 'A',
@@ -1373,18 +1385,18 @@ describe('HyperLiquidProvider - strategy order types', () => {
       async (change) => {
         const { infoClient } = useStrategyClients({
           info: {
-            referral: jest.fn().mockResolvedValue({
+            referral: vi.fn().mockResolvedValue({
               referredBy: {
                 referrer: '0x1111111111111111111111111111111111111111',
                 code: 'EXISTING',
               },
             }),
-            maxBuilderFee: jest.fn().mockResolvedValue(100000),
+            maxBuilderFee: vi.fn().mockResolvedValue(100000),
           },
         });
         const signing = createDeferred<void>();
         const release = createDeferred<void>();
-        const request = jest.fn().mockResolvedValue({
+        const request = vi.fn().mockResolvedValue({
           status: 'ok',
           response: {
             type: 'order',
@@ -1474,14 +1486,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
         }[] = [];
         const { infoClient } = useStrategyClients({
           info: {
-            referral: jest.fn().mockResolvedValue({
+            referral: vi.fn().mockResolvedValue({
               referredBy: {
                 referrer: '0x1111111111111111111111111111111111111111',
                 code: 'EXISTING',
               },
             }),
-            maxBuilderFee: jest.fn().mockResolvedValue(100000),
-            frontendOpenOrders: jest
+            maxBuilderFee: vi.fn().mockResolvedValue(100000),
+            frontendOpenOrders: vi
               .fn()
               .mockResolvedValueOnce([old])
               .mockResolvedValue([
@@ -1493,7 +1505,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
                   cloid: '0x99999999999999999999999999999999',
                 },
               ]),
-            orderStatus: jest
+            orderStatus: vi
               .fn()
               .mockImplementation(async ({ oid }: { oid: string }) =>
                 mode === 'partial-error' && oid === submittedCloid
@@ -1509,7 +1521,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         });
         let orderRequests = 0;
-        const request = jest
+        const request = vi
           .fn()
           .mockImplementation(
             async (
@@ -1613,7 +1625,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           response: (action: SignedAction) => Promise<unknown>;
         };
         defaultResponse: (action: SignedAction) => unknown;
-        request: jest.Mock;
+        request: Mock;
       } => {
         const old = {
           coin: 'ETH',
@@ -1633,15 +1645,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
         };
         const { infoClient } = useStrategyClients({
           info: {
-            referral: jest.fn().mockResolvedValue({
+            referral: vi.fn().mockResolvedValue({
               referredBy: {
                 referrer: '0x1111111111111111111111111111111111111111',
                 code: 'EXISTING',
               },
             }),
-            maxBuilderFee: jest.fn().mockResolvedValue(100000),
-            userToMultiSigSigners: jest.fn().mockResolvedValue(null),
-            frontendOpenOrders: jest.fn().mockResolvedValue(
+            maxBuilderFee: vi.fn().mockResolvedValue(100000),
+            userToMultiSigSigners: vi.fn().mockResolvedValue(null),
+            frontendOpenOrders: vi.fn().mockResolvedValue(
               oldCount === 1
                 ? [old]
                 : [
@@ -1656,7 +1668,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
                     },
                   ],
             ),
-            orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
+            orderStatus: vi.fn().mockResolvedValue({ status: 'unknownOid' }),
           },
         });
         const actions: SignedAction[] = [];
@@ -1681,7 +1693,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           sign: async () => undefined,
           response: async (action) => defaultResponse(action),
         };
-        const request = jest
+        const request = vi
           .fn()
           .mockImplementation(
             async (_endpoint: string, payload: { action: SignedAction }) => {
@@ -1915,7 +1927,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         'retains live replacement IDs and loss when cleanup hits %s multisig conversion',
         async (mode) => {
           const { actions, hooks, infoClient, defaultResponse } = setup();
-          const errorLog = jest.spyOn(mockPlatformDependencies.logger, 'error');
+          const errorLog = vi.spyOn(mockPlatformDependencies.logger, 'error');
           hooks.response = async (action): Promise<unknown> => {
             if (action.type === 'order') {
               return {
@@ -1984,7 +1996,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       it('reports a definitive restoration failure with protection context', async () => {
         const { hooks, defaultResponse } = setup();
-        const errorLog = jest.spyOn(mockPlatformDependencies.logger, 'error');
+        const errorLog = vi.spyOn(mockPlatformDependencies.logger, 'error');
         hooks.response = async (action): Promise<unknown> =>
           action.type === 'order'
             ? { status: 'err', response: 'Order price too far' }
@@ -2024,7 +2036,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         'blocks transport when account becomes multisig during %s signing',
         async (stage) => {
           const { actions, hooks, infoClient, defaultResponse } = setup();
-          const errorLog = jest.spyOn(mockPlatformDependencies.logger, 'error');
+          const errorLog = vi.spyOn(mockPlatformDependencies.logger, 'error');
           hooks.response = async (action): Promise<unknown> =>
             action.type === 'order'
               ? { status: 'err', response: 'Replacement rejected' }
@@ -2095,7 +2107,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it.each([false, true])(
       'restores whole-position protection when replacement fails after pre-cancel, marked=%s',
       async (marked) => {
-        const order = jest
+        const order = vi
           .fn()
           .mockResolvedValueOnce({
             status: 'ok',
@@ -2112,7 +2124,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         const { exchangeClient } = useStrategyClients({
           exchange: { order },
           info: {
-            frontendOpenOrders: jest.fn().mockResolvedValue([
+            frontendOpenOrders: vi.fn().mockResolvedValue([
               {
                 coin: 'ETH',
                 side: 'A',
@@ -2208,7 +2220,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     ])(
       'reports lost protection when restoration $label',
       async ({ restoreResult }) => {
-        const order = jest.fn().mockResolvedValueOnce({
+        const order = vi.fn().mockResolvedValueOnce({
           status: 'ok',
           response: {
             data: { statuses: [{ error: 'Rejected replacement' }] },
@@ -2222,7 +2234,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useStrategyClients({
           exchange: { order },
           info: {
-            frontendOpenOrders: jest.fn().mockResolvedValue([
+            frontendOpenOrders: vi.fn().mockResolvedValue([
               {
                 coin: 'ETH',
                 side: 'A',
@@ -2258,7 +2270,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     );
 
     it('reports recreated protection IDs when restoration is incomplete', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -2280,13 +2292,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       useStrategyClients({
         exchange: {
           order,
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: ['success', 'success'] } },
           }),
         },
         info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([
+          frontendOpenOrders: vi.fn().mockResolvedValue([
             {
               coin: 'ETH',
               side: 'A',
@@ -2338,7 +2350,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('restores only the order confirmed cancelled when replacement fails', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -2360,7 +2372,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       useStrategyClients({
         exchange: {
           order,
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -2376,7 +2388,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([
+          frontendOpenOrders: vi.fn().mockResolvedValue([
             {
               coin: 'ETH',
               side: 'A',
@@ -2447,7 +2459,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('restores a standalone trigger with its remaining size and builder fee', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -2464,11 +2476,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const { exchangeClient } = useStrategyClients({
         exchange: { order },
         info: {
-          maxBuilderFee: jest
+          maxBuilderFee: vi
             .fn()
             .mockResolvedValueOnce(0)
             .mockResolvedValueOnce(BUILDER_FEE_CONFIG.MaxFeeDecimal),
-          frontendOpenOrders: jest.fn().mockResolvedValue([
+          frontendOpenOrders: vi.fn().mockResolvedValue([
             {
               coin: 'ETH',
               side: 'A',
@@ -2556,10 +2568,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
       async ({ statuses, ids }) => {
         useStrategyClients({
           info: {
-            orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
+            orderStatus: vi.fn().mockResolvedValue({ status: 'unknownOid' }),
           },
           exchange: {
-            order: jest.fn().mockResolvedValue({
+            order: vi.fn().mockResolvedValue({
               status: 'ok',
               response: { data: { statuses } },
             }),
@@ -2593,7 +2605,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       'wrong-coin',
     ])('correlates final sent protection cloids: %s', async (mode) => {
       let sent: { c?: string; t: { trigger?: { isMarket: boolean } } }[] = [];
-      const orderStatus = jest
+      const orderStatus = vi
         .fn()
         .mockImplementation(async ({ oid }: { oid: string }) => {
           if (mode === 'read-failure') {
@@ -2620,7 +2632,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         });
       useStrategyClients({
         exchange: {
-          order: jest
+          order: vi
             .fn()
             .mockImplementation(async (request: { orders: typeof sent }) => {
               sent = request.orders;
@@ -2689,13 +2701,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       async (change) => {
         useStrategyClients({
           exchange: {
-            order: jest.fn().mockResolvedValue({
+            order: vi.fn().mockResolvedValue({
               status: 'ok',
               response: { data: { statuses: ['waitingForTrigger'] } },
             }),
           },
           info: {
-            orderStatus: jest.fn().mockImplementation(async () => {
+            orderStatus: vi.fn().mockImplementation(async () => {
               if (change === 'account') {
                 mockWalletService.getUserAddressWithDefault.mockResolvedValue(
                   '0x2222222222222222222222222222222222222222',
@@ -2762,7 +2774,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('accepts an unchanged expected position through protection setup', async () => {
       const { exchangeClient } = useStrategyClients({
         info: {
-          orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
+          orderStatus: vi.fn().mockResolvedValue({ status: 'unknownOid' }),
         },
       });
       const result = await provider.updatePositionTPSL({
@@ -2803,7 +2815,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('accepts an old TP/SL order that is already gone before replacement', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -2818,8 +2830,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
-          frontendOpenOrders: jest.fn().mockResolvedValue([
+          orderStatus: vi.fn().mockResolvedValue({ status: 'unknownOid' }),
+          frontendOpenOrders: vi.fn().mockResolvedValue([
             {
               coin: 'ETH',
               oid: 456,
@@ -2851,7 +2863,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('rejects a TP/SL batch with one failed placement status', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -2886,7 +2898,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('returns a recoverable ID when partial-placement cleanup is refused', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -2897,7 +2909,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               },
             },
           }),
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: [{ error: 'Invalid nonce' }] } },
           }),
@@ -2923,7 +2935,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('reports lost protection when whole-position cleanup is refused', async () => {
-      const cancel = jest
+      const cancel = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -2936,7 +2948,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
           cancel,
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -2949,7 +2961,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([
+          frontendOpenOrders: vi.fn().mockResolvedValue([
             {
               coin: 'ETH',
               oid: 456,
@@ -2992,7 +3004,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('reports a filled partial trigger without trying to cancel it', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -3025,7 +3037,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('restores protection removed by a mixed old pre-cancel without placing the replacement', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -3035,7 +3047,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([
+          frontendOpenOrders: vi.fn().mockResolvedValue([
             {
               coin: 'ETH',
               side: 'A',
@@ -3111,7 +3123,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('accepts one successful placement status per TP/SL order', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -3139,7 +3151,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       mockSubscriptionService.getOrdersCacheIfInitialized.mockReturnValue([]);
       const { exchangeClient, infoClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -3149,7 +3161,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+          frontendOpenOrders: vi.fn().mockResolvedValue([]),
         },
       });
 
@@ -3171,7 +3183,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('accepts mixed resting and waitingForTrigger placement statuses', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -3181,7 +3193,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+          frontendOpenOrders: vi.fn().mockResolvedValue([]),
         },
       });
 
@@ -3196,7 +3208,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('replaces existing protection when the trigger waits for activation', async () => {
-      const frontendOpenOrders = jest.fn().mockResolvedValueOnce([
+      const frontendOpenOrders = vi.fn().mockResolvedValueOnce([
         {
           coin: 'ETH',
           side: 'A',
@@ -3216,7 +3228,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ]);
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: { statuses: ['waitingForTrigger'] },
@@ -3239,7 +3251,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('reconciles a waiting trigger before cleaning up a mixed failure', async () => {
-      const frontendOpenOrders = jest
+      const frontendOpenOrders = vi
         .fn()
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([
@@ -3262,7 +3274,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         ]);
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -3276,7 +3288,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         },
         info: {
           frontendOpenOrders,
-          orderStatus: jest
+          orderStatus: vi
             .fn()
             .mockImplementation(async ({ oid }: { oid: string }) => ({
               status: 'order',
@@ -3309,7 +3321,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('reports lost protection when a waiting trigger cannot be reconciled after a mixed failure', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -3322,7 +3334,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+          frontendOpenOrders: vi.fn().mockResolvedValue([]),
         },
       });
 
@@ -3349,7 +3361,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     ])(
       'retains uncertainty without duplicate restoration after %s',
       async (_label, statuses) => {
-        const order = jest
+        const order = vi
           .fn()
           .mockResolvedValueOnce({
             status: 'ok',
@@ -3366,7 +3378,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         const { exchangeClient } = useStrategyClients({
           exchange: { order },
           info: {
-            frontendOpenOrders: jest.fn().mockResolvedValue([
+            frontendOpenOrders: vi.fn().mockResolvedValue([
               {
                 coin: 'ETH',
                 side: 'A',
@@ -3408,7 +3420,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('cancels old protection before placing partial TP/SL', async () => {
       const { exchangeClient } = useStrategyClients({
         info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([
+          frontendOpenOrders: vi.fn().mockResolvedValue([
             {
               coin: 'ETH',
               side: 'A',
@@ -3448,7 +3460,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('restores old protection when a partial TP/SL replacement fails', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -3465,7 +3477,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const { exchangeClient } = useStrategyClients({
         exchange: { order },
         info: {
-          frontendOpenOrders: jest.fn().mockResolvedValue([
+          frontendOpenOrders: vi.fn().mockResolvedValue([
             {
               coin: 'ETH',
               side: 'A',
@@ -3510,7 +3522,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
   describe('TWAP placement', () => {
     it('does not request builder-fee approval', async () => {
       const { exchangeClient } = useStrategyClients({
-        info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+        info: { maxBuilderFee: vi.fn().mockResolvedValue(0) },
       });
 
       await provider.placeOrder({
@@ -3527,7 +3539,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('approves the builder fee when a standard order follows a TWAP', async () => {
       const { exchangeClient } = useStrategyClients({
-        info: { maxBuilderFee: jest.fn().mockResolvedValue(0) },
+        info: { maxBuilderFee: vi.fn().mockResolvedValue(0) },
       });
 
       await provider.placeOrder({
@@ -3578,9 +3590,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
       }>();
       const { exchangeClient } = useStrategyClients({
         info: {
-          maxBuilderFee: jest.fn().mockResolvedValue(0),
-          perpDexs: jest.fn().mockResolvedValue([null]),
-          spotMeta: jest.fn().mockImplementation(() => {
+          maxBuilderFee: vi.fn().mockResolvedValue(0),
+          perpDexs: vi.fn().mockResolvedValue([null]),
+          spotMeta: vi.fn().mockImplementation(() => {
             spotMetaRequestStarted.resolve();
             return pendingSpotMeta.promise;
           }),
@@ -3617,7 +3629,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         tokens: { name: string; tokenId: string; index: number }[];
         universe: never[];
       }>();
-      const spotMeta = jest
+      const spotMeta = vi
         .fn()
         .mockImplementationOnce(() => {
           spotMetaRequestStarted.resolve();
@@ -3717,7 +3729,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('surfaces a venue rejection as a failed result', async () => {
       useStrategyClients({
         exchange: {
-          twapOrder: jest.fn().mockResolvedValue({
+          twapOrder: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               type: 'twapOrder',
@@ -3742,7 +3754,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       async (twapId) => {
         useStrategyClients({
           exchange: {
-            twapOrder: jest.fn().mockResolvedValue({
+            twapOrder: vi.fn().mockResolvedValue({
               status: 'ok',
               response: {
                 type: 'twapOrder',
@@ -3769,7 +3781,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('uses the TWAP cancel endpoint, never the order cancel endpoint', async () => {
       const { exchangeClient } = useStrategyClients({
         info: {
-          twapHistory: jest.fn().mockResolvedValue(activeEthTwapHistory),
+          twapHistory: vi.fn().mockResolvedValue(activeEthTwapHistory),
         },
       });
 
@@ -3811,7 +3823,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('treats an already-finished TWAP cancel as successful', async () => {
       useStrategyClients({
         exchange: {
-          twapCancel: jest.fn().mockResolvedValue({
+          twapCancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               type: 'twapCancel',
@@ -3820,7 +3832,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          twapHistory: jest.fn().mockResolvedValue(activeEthTwapHistory),
+          twapHistory: vi.fn().mockResolvedValue(activeEthTwapHistory),
         },
       });
 
@@ -3837,7 +3849,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('reports a refused TWAP cancel as a failure', async () => {
       useStrategyClients({
         exchange: {
-          twapCancel: jest.fn().mockResolvedValue({
+          twapCancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               type: 'twapCancel',
@@ -3846,7 +3858,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          twapHistory: jest.fn().mockResolvedValue(activeEthTwapHistory),
+          twapHistory: vi.fn().mockResolvedValue(activeEthTwapHistory),
         },
       });
 
@@ -3882,7 +3894,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('cancels an untracked TWAP when venue history is temporarily unavailable', async () => {
       const { exchangeClient } = useStrategyClients({
         info: {
-          twapHistory: jest
+          twapHistory: vi
             .fn()
             .mockRejectedValue(new Error('History unavailable')),
         },
@@ -3902,7 +3914,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('does not authenticate an unknown TWAP through a failed history read', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          twapCancel: jest.fn().mockResolvedValue({
+          twapCancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               type: 'twapCancel',
@@ -3911,7 +3923,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          twapHistory: jest
+          twapHistory: vi
             .fn()
             .mockRejectedValue(new Error('History unavailable')),
         },
@@ -3990,7 +4002,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('retains the requested exchange ID when an ordinary cancel rejects', async () => {
       useStrategyClients({
         exchange: {
-          cancel: jest.fn().mockRejectedValue(new Error('Cancel unavailable')),
+          cancel: vi.fn().mockRejectedValue(new Error('Cancel unavailable')),
         },
       });
 
@@ -4009,7 +4021,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('rejects every ordinary cancel when the batch response is truncated', async () => {
       useStrategyClients({
         exchange: {
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: ['success', 'success'] } },
           }),
@@ -4055,18 +4067,18 @@ describe('HyperLiquidProvider - strategy order types', () => {
     const startedAt = 1_700_000_000_000;
 
     beforeEach(() => {
-      jest.useFakeTimers();
-      jest.setSystemTime(startedAt + 5 * 60_000);
+      vi.useFakeTimers();
+      vi.setSystemTime(startedAt + 5 * 60_000);
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('adapts active progress and slice fills from the venue', async () => {
       const { infoClient } = useStrategyClients({
         info: {
-          twapHistory: jest.fn().mockResolvedValue([
+          twapHistory: vi.fn().mockResolvedValue([
             {
               time: 1_700_000_030,
               twapId: 987,
@@ -4085,7 +4097,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               status: { status: 'activated' },
             },
           ]),
-          userTwapSliceFills: jest.fn().mockResolvedValue([
+          userTwapSliceFills: vi.fn().mockResolvedValue([
             {
               twapId: 987,
               fill: {
@@ -4155,7 +4167,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('deduplicates history and distinguishes an underfilled completion', async () => {
       useStrategyClients({
         info: {
-          twapHistory: jest.fn().mockResolvedValue([
+          twapHistory: vi.fn().mockResolvedValue([
             {
               time: 1_700_000_001,
               twapId: 987,
@@ -4287,10 +4299,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ])('keeps the terminal record (%s)', async (_label, history) => {
         useStrategyClients({
           info: {
-            twapHistory: jest.fn().mockResolvedValue(history),
-            userTwapSliceFills: jest
-              .fn()
-              .mockResolvedValue(completingSliceFills),
+            twapHistory: vi.fn().mockResolvedValue(history),
+            userTwapSliceFills: vi.fn().mockResolvedValue(completingSliceFills),
           },
         });
 
@@ -4324,7 +4334,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ) => {
         useStrategyClients({
           info: {
-            twapHistory: jest.fn().mockResolvedValue([
+            twapHistory: vi.fn().mockResolvedValue([
               {
                 time: 1_700_000_600,
                 twapId: 987,
@@ -4365,7 +4375,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     ] as const)('maps the venue %s status to %s', async (status, expected) => {
       useStrategyClients({
         info: {
-          twapHistory: jest.fn().mockResolvedValue([
+          twapHistory: vi.fn().mockResolvedValue([
             {
               time: 1_700_000_030,
               twapId: 987,
@@ -4395,7 +4405,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('omits a TWAP with malformed venue decimals', async () => {
       useStrategyClients({
         info: {
-          twapHistory: jest.fn().mockResolvedValue([
+          twapHistory: vi.fn().mockResolvedValue([
             {
               time: 1_700_000_030,
               twapId: 987,
@@ -4422,7 +4432,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('coalesces concurrent HIP-3 TWAP collateral cleanup', async () => {
       let twapPlaced = false;
-      const clearinghouseState = jest.fn().mockImplementation(({ dex }) => {
+      const clearinghouseState = vi.fn().mockImplementation(({ dex }) => {
         let withdrawable = '1000';
         if (dex === 'xyz') {
           withdrawable = twapPlaced ? '20' : '0';
@@ -4431,7 +4441,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       useStrategyClients({
         exchange: {
-          twapOrder: jest.fn().mockImplementation(async () => {
+          twapOrder: vi.fn().mockImplementation(async () => {
             twapPlaced = true;
             return {
               status: 'ok',
@@ -4444,13 +4454,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
         },
         info: {
           clearinghouseState,
-          perpDexs: jest.fn().mockResolvedValue([null, { name: 'xyz' }]),
-          meta: jest.fn().mockResolvedValue({
+          perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+          meta: vi.fn().mockResolvedValue({
             universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
             collateralToken: 0,
           }),
-          allMids: jest.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
-          twapHistory: jest.fn().mockResolvedValue([
+          allMids: vi.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+          twapHistory: vi.fn().mockResolvedValue([
             {
               time: 1_700_000_600,
               twapId: 987,
@@ -4479,7 +4489,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       const cleanupStarted = createDeferred<void>();
       const pendingCleanup = createDeferred<{ success: boolean }>();
-      const transfer = jest
+      const transfer = vi
         .spyOn(provider, 'transferBetweenDexs')
         .mockResolvedValueOnce({ success: true })
         .mockImplementationOnce(() => {
@@ -4507,14 +4517,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('retries a failed HIP-3 collateral rebalance after provider recreation', async () => {
       let twapPlaced = false;
-      const clearinghouseState = jest.fn().mockImplementation(({ dex }) => {
+      const clearinghouseState = vi.fn().mockImplementation(({ dex }) => {
         let withdrawable = '1000';
         if (dex === 'xyz') {
           withdrawable = twapPlaced ? '20' : '0';
         }
         return Promise.resolve(createClearinghouseBalance(withdrawable));
       });
-      const twapOrder = jest.fn().mockImplementation(async () => {
+      const twapOrder = vi.fn().mockImplementation(async () => {
         twapPlaced = true;
         return {
           status: 'ok',
@@ -4528,13 +4538,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
         exchange: { twapOrder },
         info: {
           clearinghouseState,
-          perpDexs: jest.fn().mockResolvedValue([null, { name: 'xyz' }]),
-          meta: jest.fn().mockResolvedValue({
+          perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+          meta: vi.fn().mockResolvedValue({
             universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
             collateralToken: 0,
           }),
-          allMids: jest.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
-          twapHistory: jest.fn().mockResolvedValue([
+          allMids: vi.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+          twapHistory: vi.fn().mockResolvedValue([
             {
               time: 1_700_000_600,
               twapId: 987,
@@ -4561,7 +4571,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useUnifiedAccount: false,
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
-      const initialTransfer = jest
+      const initialTransfer = vi
         .spyOn(provider, 'transferBetweenDexs')
         .mockResolvedValue({ success: true });
 
@@ -4582,7 +4592,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useUnifiedAccount: false,
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
-      const rebalance = jest
+      const rebalance = vi
         .spyOn(recreatedProvider, 'transferBetweenDexs')
         .mockResolvedValueOnce({ success: false, error: 'transfer failed' })
         .mockResolvedValue({ success: true });
@@ -4614,7 +4624,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('fans out one order per rung, spread across the range', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+        exchange: { order: vi.fn().mockResolvedValue(scaleStatuses) },
       });
 
       await provider.placeOrder({
@@ -4640,7 +4650,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('marks every rung cloid when subscription wins and keeps the ladder recoverable', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+        exchange: { order: vi.fn().mockResolvedValue(scaleStatuses) },
       });
       provider.setUserFeeResolution({
         feeBips: 0,
@@ -4682,7 +4692,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('leaves rung cloids unmarked when subscription did not win', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+        exchange: { order: vi.fn().mockResolvedValue(scaleStatuses) },
       });
 
       await provider.placeOrder({
@@ -4705,7 +4715,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('submits the provider preview prices for fractional bounds', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+        exchange: { order: vi.fn().mockResolvedValue(scaleStatuses) },
       });
       const { symbol } = baseOrder;
       const minPrice = 12.341;
@@ -4741,7 +4751,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('splits the size across the rungs so the total is preserved', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+        exchange: { order: vi.fn().mockResolvedValue(scaleStatuses) },
       });
 
       await provider.placeOrder({
@@ -4765,7 +4775,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('weights the rungs along the ladder when a skew is supplied', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+        exchange: { order: vi.fn().mockResolvedValue(scaleStatuses) },
       });
 
       await provider.placeOrder({
@@ -4792,7 +4802,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('weights the bottom of the ladder for a skew below 1', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+        exchange: { order: vi.fn().mockResolvedValue(scaleStatuses) },
       });
 
       await provider.placeOrder({
@@ -4812,7 +4822,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('splits evenly for a skew of exactly 1', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+        exchange: { order: vi.fn().mockResolvedValue(scaleStatuses) },
       });
 
       await provider.placeOrder({
@@ -4832,7 +4842,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('rests every rung as a plain GTC limit order', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+        exchange: { order: vi.fn().mockResolvedValue(scaleStatuses) },
       });
 
       await provider.placeOrder({
@@ -4852,7 +4862,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('returns the ladder children alongside a group handle', async () => {
       useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses) },
+        exchange: { order: vi.fn().mockResolvedValue(scaleStatuses) },
       });
 
       const result = await provider.placeOrder({
@@ -4880,7 +4890,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('fails when every rung is rejected', async () => {
       useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -4913,7 +4923,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     ])('rejects %s placement statuses', async (_label, statuses) => {
       useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses } },
           }),
@@ -4935,7 +4945,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('reports accepted IDs after a non-ok response but keeps only resting rungs recoverable', async () => {
-      const cancel = jest
+      const cancel = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -4949,7 +4959,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         });
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'err',
             response: {
               data: {
@@ -5004,8 +5014,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('cancels every child of the group in one batch', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue(scaleStatuses),
-          cancel: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue(scaleStatuses),
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: ['success', 'success', 'success'] } },
           }),
@@ -5041,8 +5051,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('does not restore a canceled group from a stale open-order cache', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue(scaleStatuses),
-          cancel: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue(scaleStatuses),
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: ['success', 'success', 'success'] } },
           }),
@@ -5103,8 +5113,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('does not shrink a live Scale group from a partial open-order snapshot', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue(scaleStatuses),
-          cancel: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue(scaleStatuses),
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: ['success', 'success', 'success'] } },
           }),
@@ -5158,7 +5168,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('cleans a waiting child instead of registering it for later recovery', async () => {
-      const order = jest.fn().mockResolvedValue({
+      const order = vi.fn().mockResolvedValue({
         status: 'ok',
         response: {
           data: {
@@ -5196,8 +5206,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('adds later Scale rungs to a partially recovered group', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue(scaleStatuses),
-          cancel: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue(scaleStatuses),
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: ['success', 'success', 'success'] } },
           }),
@@ -5262,7 +5272,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('reports an incomplete group cancel and keeps the handle for a retry', async () => {
-      const cancel = jest
+      const cancel = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -5277,7 +5287,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           response: { data: { statuses: ['success'] } },
         });
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(scaleStatuses), cancel },
+        exchange: { order: vi.fn().mockResolvedValue(scaleStatuses), cancel },
       });
 
       const placed = await provider.placeOrder({
@@ -5334,7 +5344,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('rests post-only at the near touch for a buy', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
 
       await provider.placeOrder({
@@ -5352,13 +5362,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('refreshes the touch and retries an initial post-only rejection', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockRejectedValueOnce(
           new Error('Post only order would have immediately matched'),
         )
         .mockResolvedValue(chaseRested);
-      const l2Book = jest
+      const l2Book = vi
         .fn()
         .mockResolvedValueOnce({
           coin: 'ETH',
@@ -5390,11 +5400,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('refreshes the touch and retries an initial oracle-distance rejection', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockRejectedValueOnce(new Error('Price too far from oracle'))
         .mockResolvedValue(chaseRested);
-      const l2Book = jest
+      const l2Book = vi
         .fn()
         .mockResolvedValueOnce({
           coin: 'ETH',
@@ -5426,7 +5436,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('stops after three retryable initial-placement rejections', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockRejectedValue(
           new Error('Post only order would have immediately matched'),
@@ -5443,9 +5453,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('does not retry a non-retryable initial-placement rejection', async () => {
-      const order = jest
-        .fn()
-        .mockRejectedValue(new Error('insufficient margin'));
+      const order = vi.fn().mockRejectedValue(new Error('insufficient margin'));
       const { exchangeClient } = useStrategyClients({ exchange: { order } });
 
       const result = await provider.placeOrder({
@@ -5459,7 +5467,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('rests at the best ask for a sell', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
 
       await provider.placeOrder({
@@ -5475,7 +5483,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('returns a session handle carrying the live order', async () => {
       useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
 
       const result = await provider.placeOrder({
@@ -5490,7 +5498,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('exposes the running session state needed by clients', async () => {
       useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
 
       const result = await provider.placeOrder({
@@ -5519,7 +5527,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('refreshes the snapshot remaining size after a partial fill', async () => {
       const { infoClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
       const result = await provider.placeOrder({
         ...baseOrder,
@@ -5569,7 +5577,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('retries a temporarily unknown child before refreshing Chase state', async () => {
       const { exchangeClient, infoClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
       const result = await provider.placeOrder({
         ...baseOrder,
@@ -5602,8 +5610,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('marks a confirmed fill and stops the Chase timer', async () => {
-      jest.useFakeTimers();
-      const order = jest.fn().mockResolvedValue(chaseRested);
+      vi.useFakeTimers();
+      const order = vi.fn().mockResolvedValue(chaseRested);
       const { exchangeClient, infoClient } = useStrategyClients({
         exchange: { order },
       });
@@ -5644,16 +5652,16 @@ describe('HyperLiquidProvider - strategy order types', () => {
         }),
       );
 
-      await jest.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(5000);
 
       expect(order).toHaveBeenCalledTimes(1);
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('does not report an externally cancelled child as filled', async () => {
       const { infoClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
       const result = await provider.placeOrder({
         ...baseOrder,
@@ -5694,7 +5702,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('reports a canceled child with no remainder as filled', async () => {
       const { infoClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
       const result = await provider.placeOrder({
         ...baseOrder,
@@ -5735,7 +5743,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('backgrounds every active session without cancelling its resting child', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
 
       const result = await provider.placeOrder({
@@ -5758,7 +5766,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('retains HIP-3 collateral while a Chase child rests and retries cleanup', async () => {
       let chasePlaced = false;
-      const clearinghouseState = jest.fn().mockImplementation(({ dex }) => {
+      const clearinghouseState = vi.fn().mockImplementation(({ dex }) => {
         let withdrawable = '1000';
         if (dex === 'xyz') {
           withdrawable = chasePlaced ? '20' : '0';
@@ -5767,19 +5775,19 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
       useStrategyClients({
         exchange: {
-          order: jest.fn().mockImplementation(async () => {
+          order: vi.fn().mockImplementation(async () => {
             chasePlaced = true;
             return chaseRested;
           }),
         },
         info: {
           clearinghouseState,
-          perpDexs: jest.fn().mockResolvedValue([null, { name: 'xyz' }]),
-          meta: jest.fn().mockResolvedValue({
+          perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+          meta: vi.fn().mockResolvedValue({
             universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
             collateralToken: 0,
           }),
-          allMids: jest.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+          allMids: vi.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
         },
       });
       provider = createTestProvider({
@@ -5788,7 +5796,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useUnifiedAccount: false,
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
-      const transfer = jest
+      const transfer = vi
         .spyOn(provider, 'transferBetweenDexs')
         .mockResolvedValueOnce({ success: true })
         .mockResolvedValueOnce({ success: false, error: 'Transfer failed' })
@@ -5819,9 +5827,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('reports a backgrounded child that later fills as filled', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const { infoClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
       const result = await provider.placeOrder({
         ...baseOrder,
@@ -5851,7 +5859,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         },
       });
-      await jest.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.DefaultIntervalMs);
+      await vi.advanceTimersByTimeAsync(CHASE_ORDER_CONFIG.DefaultIntervalMs);
 
       expect(await provider.getChaseOrders()).toContainEqual(
         expect.objectContaining({
@@ -5861,16 +5869,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'filled',
         }),
       );
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('fails when the book has no price on the side it must rest at', async () => {
       useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
         info: {
-          l2Book: jest
-            .fn()
-            .mockResolvedValue({ coin: 'ETH', levels: [[], []] }),
+          l2Book: vi.fn().mockResolvedValue({ coin: 'ETH', levels: [[], []] }),
         },
       });
 
@@ -5887,7 +5893,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('cancels the live order and stops the session', async () => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
 
       const placed = await provider.placeOrder({
@@ -5918,12 +5924,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('deduplicates concurrent termination of the same Chase', async () => {
-      const cancel = jest.fn().mockResolvedValue({
+      const cancel = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: ['success'] } },
       });
       useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested), cancel },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested), cancel },
       });
       const placed = await provider.placeOrder({
         ...baseOrder,
@@ -5952,7 +5958,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('stops the owning session when its child is cancelled directly', async () => {
       useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
 
       await provider.placeOrder({
@@ -5968,7 +5974,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('returns an error result when child cancellation setup fails', async () => {
       useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested) },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested) },
       });
 
       await provider.placeOrder({
@@ -5997,7 +6003,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const orderStarted = new Promise<void>((resolve) => {
         notifyOrderStarted = resolve;
       });
-      const order = jest.fn().mockImplementation(async () => {
+      const order = vi.fn().mockImplementation(async () => {
         notifyOrderStarted?.();
         return await new Promise<typeof chaseRested>((resolve) => {
           settleOrder = resolve;
@@ -6034,7 +6040,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('reports an incomplete chase cancel and keeps the handle for a retry', async () => {
-      const cancel = jest
+      const cancel = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -6045,7 +6051,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           response: { data: { statuses: ['success'] } },
         });
       useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested), cancel },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested), cancel },
       });
 
       const placed = await provider.placeOrder({
@@ -6079,13 +6085,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('keeps the terminal reason when cancelling a stopped Chase fails', async () => {
-      jest.useFakeTimers();
-      const cancel = jest.fn().mockResolvedValue({
+      vi.useFakeTimers();
+      const cancel = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: [{ error: 'multi-sig required' }] } },
       });
       useStrategyClients({
-        exchange: { order: jest.fn().mockResolvedValue(chaseRested), cancel },
+        exchange: { order: vi.fn().mockResolvedValue(chaseRested), cancel },
       });
       const placed = await provider.placeOrder({
         ...baseOrder,
@@ -6093,7 +6099,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
         chaseMaxDurationMs: 1000,
       });
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       const result = await provider.cancelOrder({
         orderId: placed.orderId,
@@ -6111,7 +6117,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'duration_reached',
         }),
       ]);
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('rejects a cancel for a session it does not hold', async () => {
@@ -6173,12 +6179,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         });
         const { exchangeClient } = useStrategyClients({
           info: {
-            meta: jest.fn().mockResolvedValue({
+            meta: vi.fn().mockResolvedValue({
               universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
               collateralToken: 0,
             }),
-            perpDexs: jest.fn().mockResolvedValue([null, { name: 'xyz' }]),
-            allMids: jest.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+            perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+            allMids: vi.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
           },
         });
 
@@ -6218,19 +6224,19 @@ describe('HyperLiquidProvider - strategy order types', () => {
     const useHip3MarketOrder = (
       orderResponse: Record<string, unknown>,
     ): {
-      transfer: jest.SpyInstance;
-      order: jest.Mock;
+      transfer: MockInstance;
+      order: Mock;
       exchangeClient: MockClient;
     } => {
       let ordered = false;
-      const order = jest.fn(async () => {
+      const order = vi.fn(async () => {
         ordered = true;
         return orderResponse;
       });
       const { exchangeClient } = useStrategyClients({
         exchange: { order },
         info: {
-          clearinghouseState: jest
+          clearinghouseState: vi
             .fn()
             .mockImplementation(({ dex }: { dex?: string }) => {
               let withdrawable = '10000';
@@ -6240,12 +6246,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
               }
               return Promise.resolve(createClearinghouseBalance(withdrawable));
             }),
-          perpDexs: jest.fn().mockResolvedValue([null, { name: 'xyz' }]),
-          meta: jest.fn().mockResolvedValue({
+          perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+          meta: vi.fn().mockResolvedValue({
             universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
             collateralToken: 0,
           }),
-          allMids: jest.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+          allMids: vi.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
         },
       });
       provider = createTestProvider({
@@ -6255,7 +6261,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
       return {
-        transfer: jest.spyOn(provider, 'transferBetweenDexs'),
+        transfer: vi.spyOn(provider, 'transferBetweenDexs'),
         order,
         exchangeClient,
       };
@@ -6296,12 +6302,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
      * @returns Each note's message and details.
      */
     const unsignedTransferNotes = (): [unknown, unknown][] =>
-      (mockPlatformDependencies.debugLogger.log as jest.Mock).mock.calls
-        .filter(
-          ([message]: [unknown]) =>
-            message === ROLLBACK_NOT_SIGNED || message === REBALANCE_NOT_SIGNED,
-        )
-        .map(([message, details]: [unknown, unknown]) => [message, details]);
+      (
+        mockPlatformDependencies.debugLogger.log as Mock<
+          (message: unknown, details: unknown) => void
+        >
+      ).mock.calls.filter(
+        ([message]) =>
+          message === ROLLBACK_NOT_SIGNED || message === REBALANCE_NOT_SIGNED,
+      );
 
     /**
      * The errors reported, with the provider method named in each.
@@ -6309,12 +6317,17 @@ describe('HyperLiquidProvider - strategy order types', () => {
      * @returns Each reported error's message and method.
      */
     const reportedErrors = (): [string, unknown][] =>
-      (mockPlatformDependencies.logger.error as jest.Mock).mock.calls.map(
-        ([error, options]: [
-          Error,
-          { context: { data: { method: unknown } } },
-        ]) => [error.message, options.context.data.method],
-      );
+      (
+        mockPlatformDependencies.logger.error as unknown as Mock<
+          (
+            error: Error,
+            options: { context: { data: { method: unknown } } },
+          ) => void
+        >
+      ).mock.calls.map(([error, options]) => [
+        error.message,
+        options.context.data.method,
+      ]);
 
     it('reads an omitted margin mode from the HIP-3 DEX position slice', async () => {
       const { transfer, exchangeClient } = useHip3MarketOrder(REFUSED_ORDER);
@@ -6485,11 +6498,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     /**
@@ -6498,9 +6511,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
      * @param bids - Best bid for each successive read; the last repeats.
      * @returns The mock.
      */
-    const bookWalkingBids = (bids: string[]): jest.Mock => {
+    const bookWalkingBids = (bids: string[]): Mock => {
       let call = 0;
-      return jest.fn().mockImplementation(async () => {
+      return vi.fn().mockImplementation(async () => {
         const px = bids[Math.min(call, bids.length - 1)];
         call += 1;
         return {
@@ -6511,7 +6524,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     };
 
     it('cancels and re-places when the touch moves', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce(chaseRested(55))
         .mockResolvedValue(chaseRested(66));
@@ -6526,7 +6539,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
         cancels: [{ a: 1, o: 55 }],
@@ -6544,13 +6557,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const cancelStarted = new Promise<void>((resolve) => {
         notifyCancelStarted = resolve;
       });
-      const cancel = jest.fn().mockImplementation(async () => {
+      const cancel = vi.fn().mockImplementation(async () => {
         notifyCancelStarted?.();
         return await new Promise<Record<string, unknown>>((resolve) => {
           settleCancel = resolve;
         });
       });
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce(chaseRested(55))
         .mockResolvedValue(chaseRested(66));
@@ -6564,7 +6577,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         chaseIntervalMs: 1000,
       });
-      const ticking = jest.advanceTimersByTimeAsync(1000);
+      const ticking = vi.advanceTimersByTimeAsync(1000);
       await cancelStarted;
       const directCancellation = provider.cancelOrder({
         orderId: '55',
@@ -6588,13 +6601,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const cancelStarted = new Promise<void>((resolve) => {
         notifyCancelStarted = resolve;
       });
-      const cancel = jest.fn().mockImplementation(async () => {
+      const cancel = vi.fn().mockImplementation(async () => {
         notifyCancelStarted?.();
         return await new Promise<Record<string, unknown>>((resolve) => {
           settleCancel = resolve;
         });
       });
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce(chaseRested(55))
         .mockResolvedValue(chaseRested(66));
@@ -6608,7 +6621,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         chaseIntervalMs: 1000,
       });
-      const ticking = jest.advanceTimersByTimeAsync(1000);
+      const ticking = vi.advanceTimersByTimeAsync(1000);
       await cancelStarted;
       const batchCancellation = provider.cancelOrders([
         { orderId: '55', symbol: 'ETH' },
@@ -6636,13 +6649,13 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const cancelStarted = new Promise<void>((resolve) => {
         notifyCancelStarted = resolve;
       });
-      const cancel = jest.fn().mockImplementation(async () => {
+      const cancel = vi.fn().mockImplementation(async () => {
         notifyCancelStarted?.();
         return await new Promise<Record<string, unknown>>((resolve) => {
           settleCancel = resolve;
         });
       });
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce(chaseRested(55))
         .mockResolvedValue(chaseRested(66));
@@ -6656,7 +6669,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         chaseIntervalMs: 1000,
       });
-      const ticking = jest.advanceTimersByTimeAsync(1000);
+      const ticking = vi.advanceTimersByTimeAsync(1000);
       await cancelStarted;
 
       const suspension = provider.suspendChaseOrders();
@@ -6678,7 +6691,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('leaves the order alone while the touch holds still', async () => {
-      const order = jest.fn().mockResolvedValue(chaseRested(55));
+      const order = vi.fn().mockResolvedValue(chaseRested(55));
       const { exchangeClient } = useStrategyClients({
         exchange: { order },
         info: { l2Book: bookWalkingBids(['2999']) },
@@ -6690,14 +6703,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(3000);
+      await vi.advanceTimersByTimeAsync(3000);
 
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
       expect(order).toHaveBeenCalledTimes(1);
     });
 
     it('uses the throttled default interval when none is supplied', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce(chaseRested(55))
         .mockResolvedValue(chaseRested(66));
@@ -6711,18 +6724,18 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
       });
 
-      await jest.advanceTimersByTimeAsync(
+      await vi.advanceTimersByTimeAsync(
         CHASE_ORDER_CONFIG.DefaultIntervalMs - 1,
       );
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
 
-      await jest.advanceTimersByTimeAsync(1);
+      await vi.advanceTimersByTimeAsync(1);
       expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
       expect(order).toHaveBeenCalledTimes(2);
     });
 
     it('defers re-pricing while another Chase placement is in flight', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce(chaseRested(55))
         .mockResolvedValueOnce(chaseRested(66));
@@ -6756,7 +6769,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         chaseIntervalMs: 1000,
       });
-      await jest.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
       for (let turn = 0; turn < 20; turn += 1) {
         if (finishBookRead !== undefined) {
           break;
@@ -6765,7 +6778,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       }
       expect(finishBookRead).toBeDefined();
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
       expect(order).toHaveBeenCalledTimes(1);
@@ -6776,7 +6789,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('drains an in-flight re-price before starting another Chase placement', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce(chaseRested(55))
         .mockResolvedValueOnce(chaseRested(66))
@@ -6806,7 +6819,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               });
           }),
       );
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect(finishTickBookRead).toBeDefined();
 
       const secondPlacement = provider.placeOrder({
@@ -6814,7 +6827,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         chaseIntervalMs: 1000,
       });
-      await jest.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(order).toHaveBeenCalledTimes(1);
 
@@ -6824,12 +6837,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('stops chasing once the order is no longer resting', async () => {
-      const order = jest.fn().mockResolvedValue(chaseRested(55));
+      const order = vi.fn().mockResolvedValue(chaseRested(55));
       const { exchangeClient, infoClient } = useStrategyClients({
         exchange: {
           order,
           // A cancel the exchange refuses means the order already left the book.
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: { statuses: [{ error: 'Order was never placed' }] },
@@ -6837,7 +6850,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          l2Book: jest
+          l2Book: vi
             .fn()
             .mockResolvedValueOnce({
               coin: 'ETH',
@@ -6856,7 +6869,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
                 [{ px: '3001', sz: '10', n: 1 }],
               ],
             }),
-          orderStatus: jest.fn().mockResolvedValue({ status: 'unknownOid' }),
+          orderStatus: vi.fn().mockResolvedValue({ status: 'unknownOid' }),
         },
       });
 
@@ -6866,7 +6879,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(5000);
 
       expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
       // No replacement was rested after the failed cancel.
@@ -6881,7 +6894,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('stops re-pricing at the repricing cap', async () => {
-      const order = jest.fn().mockResolvedValue(chaseRested(55));
+      const order = vi.fn().mockResolvedValue(chaseRested(55));
       useStrategyClients({
         exchange: { order },
         info: { l2Book: bookWalkingBids(['2999', '2998', '2997', '2996']) },
@@ -6894,14 +6907,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseMaxRepricings: 1,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(5000);
 
       // One initial placement plus exactly one re-price.
       expect(order).toHaveBeenCalledTimes(2);
     });
 
     it('stops re-pricing once the window closes', async () => {
-      const order = jest.fn().mockResolvedValue(chaseRested(55));
+      const order = vi.fn().mockResolvedValue(chaseRested(55));
       useStrategyClients({
         exchange: { order },
         info: { l2Book: bookWalkingBids(['2999', '2998', '2997', '2996']) },
@@ -6914,7 +6927,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseMaxDurationMs: 2000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(10_000);
+      await vi.advanceTimersByTimeAsync(10_000);
 
       // Ticks at 1s and 2s; the 2s tick finds the deadline reached and stops,
       // so only the first one re-prices.
@@ -6922,9 +6935,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('rests at the configured max-distance boundary and stops chasing', async () => {
-      const onChaseOrderMaxDistanceReached = jest.fn();
+      const onChaseOrderMaxDistanceReached = vi.fn();
       provider = createTestProvider({ onChaseOrderMaxDistanceReached });
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce(chaseRested(55))
         .mockResolvedValue(chaseRested(66));
@@ -6940,7 +6953,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseMaxDistanceBps: 100,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(5000);
 
       expect(order).toHaveBeenCalledTimes(2);
       expect(order.mock.calls[1][0].orders[0].p).toBe('3029');
@@ -6966,7 +6979,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('keeps chasing when the touch moves favorably beyond max distance', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce(chaseRested(55))
         .mockResolvedValue(chaseRested(66));
@@ -6982,7 +6995,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseMaxDistanceBps: 100,
       });
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       expect(order).toHaveBeenCalledTimes(2);
       expect(await provider.getChaseOrders()).toStrictEqual([
@@ -6995,7 +7008,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('stops every running chase on disconnect', async () => {
-      const order = jest.fn().mockResolvedValue(chaseRested(55));
+      const order = vi.fn().mockResolvedValue(chaseRested(55));
       const { exchangeClient } = useStrategyClients({
         exchange: { order },
         info: { l2Book: bookWalkingBids(['2999', '2998', '2997']) },
@@ -7008,7 +7021,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
 
       await provider.disconnect();
-      await jest.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(5000);
 
       // Disconnecting stops the loop; it does not cancel what is already resting.
       expect(order).toHaveBeenCalledTimes(1);
@@ -7054,8 +7067,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
         };
         const order =
           responseKind === 'resolved'
-            ? jest.fn().mockResolvedValue(response)
-            : jest
+            ? vi.fn().mockResolvedValue(response)
+            : vi
                 .fn()
                 .mockRejectedValue(
                   new TestApiRequestError(
@@ -7138,8 +7151,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
       };
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue(response),
-          cancelByCloid: jest
+          order: vi.fn().mockResolvedValue(response),
+          cancelByCloid: vi
             .fn()
             .mockRejectedValue(new TestApiRequestError(cancelResponse)),
         },
@@ -7162,7 +7175,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('rejects an all-waiting Scale batch and cleans every rung by CLOID', async () => {
-      const order = jest.fn().mockResolvedValue({
+      const order = vi.fn().mockResolvedValue({
         status: 'ok',
         response: {
           data: {
@@ -7232,7 +7245,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     ])(
       'cancels every unclassified rung by CLOID for a %s',
       async (_label, statuses, unclassifiedIndexes, restingOrderIds) => {
-        const order = jest.fn().mockResolvedValue({
+        const order = vi.fn().mockResolvedValue({
           status: 'ok',
           response: { data: { statuses } },
         });
@@ -7273,7 +7286,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     );
 
     it('keeps an unclassified rung retryable when CLOID cleanup is refused', async () => {
-      const order = jest.fn().mockResolvedValue({
+      const order = vi.fn().mockResolvedValue({
         status: 'ok',
         response: {
           data: {
@@ -7285,7 +7298,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         },
       });
-      const cancelByCloid = jest
+      const cancelByCloid = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -7347,12 +7360,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
       };
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest
+          order: vi
             .fn()
             .mockRejectedValue(
               new TestApiRequestError(response, 'order 2: Insufficient margin'),
             ),
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: ['success'] } },
           }),
@@ -7428,7 +7441,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
           `Malformed bulk response: ${label}`,
         );
-        const order = jest.fn().mockRejectedValue(error);
+        const order = vi.fn().mockRejectedValue(error);
         const { exchangeClient } = useStrategyClients({ exchange: { order } });
 
         const result = await provider.placeOrder({
@@ -7471,7 +7484,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         'order 0: Multi-sig required',
       );
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockRejectedValue(error) },
+        exchange: { order: vi.fn().mockRejectedValue(error) },
       });
 
       const result = await provider.placeOrder({
@@ -7514,7 +7527,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ['non-SDK', new Error('Network unavailable'), 'Network unavailable'],
     ])('does not unwrap a %s SDK error', async (_label, error, message) => {
       const { exchangeClient } = useStrategyClients({
-        exchange: { order: jest.fn().mockRejectedValue(error) },
+        exchange: { order: vi.fn().mockRejectedValue(error) },
       });
 
       const result = await provider.placeOrder({
@@ -7532,7 +7545,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('keeps accepted rungs when the ladder only partly rests', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue(partlyRested),
+          order: vi.fn().mockResolvedValue(partlyRested),
         },
       });
 
@@ -7558,7 +7571,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('returns filled and resting IDs but cancels only resting rungs', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -7572,7 +7585,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               },
             },
           }),
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: ['success'] } },
           }),
@@ -7614,7 +7627,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('keeps an incomplete cleanup recoverable by its group handle', async () => {
-      const cancel = jest
+      const cancel = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -7628,7 +7641,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         });
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             ...partlyRested,
             status: 'err',
           }),
@@ -7672,7 +7685,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('accepts filled rungs and exposes all accepted IDs in the result', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -7686,7 +7699,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               },
             },
           }),
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: ['success', 'success'] } },
           }),
@@ -7741,7 +7754,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       async (_label, oid) => {
         const { exchangeClient } = useStrategyClients({
           exchange: {
-            order: jest.fn().mockResolvedValue({
+            order: vi.fn().mockResolvedValue({
               status: 'ok',
               response: {
                 data: {
@@ -7779,15 +7792,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Chase cancel racing a re-pricing tick', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('rests nothing when a cancel lands between the tick cancelling and re-placing', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -7801,7 +7814,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       let sessionId = '';
       let callerCancel: Promise<unknown> | undefined;
       let cancelCalls = 0;
-      const cancel = jest.fn().mockImplementation(async () => {
+      const cancel = vi.fn().mockImplementation(async () => {
         cancelCalls += 1;
         // Call 1 is the tick's own cancel: the old order is gone and its
         // replacement has not been rested yet. That is precisely the window the
@@ -7823,7 +7836,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       useStrategyClients({
         exchange: { order, cancel },
         info: {
-          l2Book: jest
+          l2Book: vi
             .fn()
             .mockResolvedValueOnce({
               coin: 'ETH',
@@ -7849,7 +7862,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
       sessionId = placed.orderId as string;
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       await callerCancel;
 
       // Only the original placement. Without the guard the tick would rest a
@@ -7862,7 +7875,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       let callerCancel: Promise<CancelOrderResult> | undefined;
       let releasePublicCancel: (() => void) | undefined;
       let cancelCalls = 0;
-      const cancel = jest.fn().mockImplementation(async () => {
+      const cancel = vi.fn().mockImplementation(async () => {
         cancelCalls += 1;
         if (cancelCalls === 1) {
           mockWalletService.getUserAddressWithDefault.mockReturnValueOnce(
@@ -7900,14 +7913,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: [{ resting: { oid: 55 } }] } },
           }),
           cancel,
         },
         info: {
-          l2Book: jest
+          l2Book: vi
             .fn()
             .mockResolvedValueOnce({
               coin: 'ETH',
@@ -7933,7 +7946,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
       sessionId = placed.orderId as string;
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       releasePublicCancel?.();
 
       const first = await callerCancel;
@@ -7955,11 +7968,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Chase cancel racing the replacement placement', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('cancels the replacement when the cancel lands during its round trip', async () => {
@@ -7967,7 +7980,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       let callerCancel: Promise<CancelOrderResult> | undefined;
       let orderCalls = 0;
 
-      const order = jest.fn().mockImplementation(async () => {
+      const order = vi.fn().mockImplementation(async () => {
         orderCalls += 1;
         // Call 2 is the tick's replacement. Firing the caller's cancel from
         // inside its round trip is the window this closes: `session.orderId` is
@@ -7995,7 +8008,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const { exchangeClient } = useStrategyClients({
         exchange: { order },
         info: {
-          l2Book: jest
+          l2Book: vi
             .fn()
             .mockResolvedValueOnce({
               coin: 'ETH',
@@ -8021,7 +8034,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
       sessionId = placed.orderId as string;
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       const result = await callerCancel;
 
       // The replacement must not be left live on the exchange with the caller
@@ -8186,11 +8199,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Order capabilities', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('advertises the strategies supported for a routed market', async () => {
@@ -8304,7 +8317,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       async (_, restriction) => {
         useStrategyClients({
           info: {
-            meta: jest.fn().mockResolvedValue({
+            meta: vi.fn().mockResolvedValue({
               universe: [
                 { name: 'ETH', szDecimals: 4, maxLeverage: 50, ...restriction },
               ],
@@ -8359,7 +8372,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('does not advertise a non-USDC-collateral HIP-3 market', async () => {
       const { capabilityProvider } = useHip3Capabilities({
-        meta: jest.fn().mockResolvedValue({
+        meta: vi.fn().mockResolvedValue({
           universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
           collateralToken: 1,
         }),
@@ -8403,7 +8416,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('keeps delisted main-DEX discovery aligned with placement', async () => {
       useStrategyClients({
         info: {
-          meta: jest.fn().mockResolvedValue({
+          meta: vi.fn().mockResolvedValue({
             universe: [
               {
                 name: 'ETH',
@@ -8515,14 +8528,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const { infoClient } = useStrategyClients();
 
       await provider.getOrderCapabilities({ symbol: 'DOGE' });
-      jest.advanceTimersByTime(
+      vi.advanceTimersByTime(
         PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs - 1,
       );
       await provider.getOrderCapabilities({ symbol: 'ETH' });
 
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
 
-      jest.advanceTimersByTime(1);
+      vi.advanceTimersByTime(1);
       await provider.getOrderCapabilities({ symbol: 'ETH' });
 
       expect(infoClient.meta).toHaveBeenCalledTimes(2);
@@ -8539,7 +8552,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           { name: 'PUMP', szDecimals: 0, maxLeverage: 20 },
         ],
       });
-      jest.advanceTimersByTime(
+      vi.advanceTimersByTime(
         PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
       );
 
@@ -8615,7 +8628,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const pendingMeta = createDeferred<{
         universe: { name: string; szDecimals: number; maxLeverage: number }[];
       }>();
-      const meta = jest
+      const meta = vi
         .fn()
         .mockImplementationOnce(() => {
           requestStarted.resolve();
@@ -8628,7 +8641,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       const capabilities = provider.getOrderCapabilities({ symbol: 'ETH' });
       await requestStarted.promise;
-      jest.advanceTimersByTime(
+      vi.advanceTimersByTime(
         PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
       );
       pendingMeta.resolve({
@@ -8641,7 +8654,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ).toMatchObject({ status: 'ready' });
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
 
-      jest.advanceTimersByTime(
+      vi.advanceTimersByTime(
         PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
       );
       expect(
@@ -8657,7 +8670,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       }>();
       const { infoClient } = useStrategyClients({
         info: {
-          meta: jest
+          meta: vi
             .fn()
             .mockImplementationOnce(() => {
               sharedRequestStarted.resolve();
@@ -8741,7 +8754,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       }>();
       const { infoClient } = useStrategyClients({
         info: {
-          meta: jest.fn().mockImplementation(() => {
+          meta: vi.fn().mockImplementation(() => {
             metaRequestStarted.resolve();
             return pendingMeta.promise;
           }),
@@ -8820,7 +8833,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         universe: { name: string; szDecimals: number; maxLeverage: number }[];
         collateralToken: number;
       }>();
-      const meta = jest
+      const meta = vi
         .fn()
         .mockReturnValueOnce(pendingMeta.promise)
         .mockResolvedValue({
@@ -8840,7 +8853,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await Promise.all(reads);
 
       expect(infoClient.meta).toHaveBeenCalledTimes(1);
-      jest.advanceTimersByTime(
+      vi.advanceTimersByTime(
         PERFORMANCE_CONFIG.OrderCapabilitiesMetaFreshnessMs,
       );
       await capabilityProvider.getOrderCapabilities({ symbol: 'xyz:TSLA' });
@@ -9059,7 +9072,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       }>();
       const { infoClient } = useStrategyClients({
         info: {
-          meta: jest
+          meta: vi
             .fn()
             .mockImplementationOnce(() => {
               requestStarted.resolve();
@@ -9124,7 +9137,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('retries immediately after a metadata refresh failure', async () => {
       const { infoClient } = useStrategyClients({
         info: {
-          meta: jest
+          meta: vi
             .fn()
             .mockRejectedValueOnce(new Error('offline'))
             .mockResolvedValueOnce({
@@ -9174,7 +9187,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const universe = [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }];
       const requestStarted = createDeferred<void>();
       const pendingMeta = createDeferred<{ universe: typeof universe }>();
-      const meta = jest
+      const meta = vi
         .fn()
         .mockImplementationOnce(() => {
           requestStarted.resolve();
@@ -9233,7 +9246,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       }>();
       const { infoClient } = useStrategyClients({
         info: {
-          meta: jest
+          meta: vi
             .fn()
             .mockImplementationOnce(() => {
               requestStarted.resolve();
@@ -9269,7 +9282,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const pendingMeta = createDeferred<{ universe: typeof universe }>();
       const { infoClient } = useStrategyClients({
         info: {
-          meta: jest
+          meta: vi
             .fn()
             .mockImplementationOnce(() => {
               requestStarted.resolve();
@@ -9297,7 +9310,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const pendingMids = createDeferred<Record<string, string>>();
       const { infoClient } = useStrategyClients({
         info: {
-          allMids: jest
+          allMids: vi
             .fn()
             .mockImplementationOnce(() => {
               requestStarted.resolve();
@@ -9331,7 +9344,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         createDeferred<(null | { name: string; deployerFeeScale: string })[]>();
       const { infoClient } = useStrategyClients({
         info: {
-          perpDexs: jest
+          perpDexs: vi
             .fn()
             .mockImplementationOnce(() => {
               requestStarted.resolve();
@@ -9341,7 +9354,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               null,
               { name: 'xyz', deployerFeeScale: '1' },
             ]),
-          meta: jest.fn().mockResolvedValue({
+          meta: vi.fn().mockResolvedValue({
             universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
           }),
         },
@@ -9373,7 +9386,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('clears cached capability metadata when the network changes', async () => {
-      const meta = jest
+      const meta = vi
         .fn()
         .mockResolvedValueOnce({
           universe: [{ name: 'ETH', szDecimals: 4, maxLeverage: 50 }],
@@ -9466,7 +9479,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const pendingMeta = createDeferred<{
         universe: { name: string; szDecimals: number; maxLeverage: number }[];
       }>();
-      const meta = jest
+      const meta = vi
         .fn()
         .mockImplementationOnce(() => {
           requestStarted.resolve();
@@ -9499,7 +9512,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('reports unavailable when market metadata cannot be loaded', async () => {
       useStrategyClients({
-        info: { meta: jest.fn().mockRejectedValue(new Error('offline')) },
+        info: { meta: vi.fn().mockRejectedValue(new Error('offline')) },
       });
       const coldProvider = createTestProvider();
 
@@ -9604,7 +9617,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     };
 
     it('clears cached user fee rates when the network changes', async () => {
-      const userFees = jest
+      const userFees = vi
         .fn()
         .mockResolvedValueOnce(mainnetFees)
         .mockResolvedValueOnce(testnetFees);
@@ -9629,7 +9642,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('does not cache user fee rates that resolve after a network change', async () => {
       const requestStarted = createDeferred<void>();
       const pendingUserFees = createDeferred<typeof mainnetFees>();
-      const userFees = jest
+      const userFees = vi
         .fn()
         .mockImplementationOnce(() => {
           requestStarted.resolve();
@@ -9663,7 +9676,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         createDeferred<(null | { name: string; deployerFeeScale: string })[]>();
       const { infoClient } = useStrategyClients({
         info: {
-          perpDexs: jest
+          perpDexs: vi
             .fn()
             .mockImplementationOnce(() => {
               requestStarted.resolve();
@@ -9673,7 +9686,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               null,
               { name: 'xyz', deployerFeeScale: '1' },
             ]),
-          meta: jest.fn().mockResolvedValue({
+          meta: vi.fn().mockResolvedValue({
             universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
           }),
         },
@@ -9706,7 +9719,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       let cachedBuilderFee:
         | { attempted: boolean; success: boolean }
         | undefined;
-      const mockedCache = jest.mocked(TradingReadinessCache);
+      const mockedCache = vi.mocked(TradingReadinessCache);
       mockedCache.getBuilderFee.mockImplementation(() => cachedBuilderFee);
       mockedCache.setBuilderFee.mockImplementation(
         (_network, _userAddress, status) => {
@@ -9715,7 +9728,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       );
       const verificationStarted = createDeferred<void>();
       const pendingVerification = createDeferred<number>();
-      const maxBuilderFee = jest
+      const maxBuilderFee = vi
         .fn()
         .mockResolvedValueOnce(0)
         .mockImplementationOnce(() => {
@@ -9756,7 +9769,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       const firstApprovalStarted = createDeferred<void>();
       const pendingFirstApproval = createDeferred<number>();
-      const maxBuilderFee = jest
+      const maxBuilderFee = vi
         .fn()
         .mockImplementationOnce(() => {
           firstApprovalStarted.resolve();
@@ -9869,7 +9882,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('accepts the same ladder without the skew', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -9931,11 +9944,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Chase tick failures', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     const rested = (oid: number): Record<string, unknown> => ({
@@ -9949,8 +9962,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('keeps chasing when a book read fails, leaving the order resting', async () => {
-      const order = jest.fn().mockResolvedValue(rested(55));
-      const l2Book = jest
+      const order = vi.fn().mockResolvedValue(rested(55));
+      const l2Book = vi
         .fn()
         .mockResolvedValueOnce(bookAt('2999'))
         .mockRejectedValueOnce(new Error('network blip'))
@@ -9967,7 +9980,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
 
       // Tick 1 throws on the book read; tick 2 must still happen and re-price.
-      await jest.advanceTimersByTimeAsync(2000);
+      await vi.advanceTimersByTimeAsync(2000);
 
       expect(order).toHaveBeenCalledTimes(2);
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
@@ -9986,11 +9999,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('ends the session cleanly when the replacement fails to rest', async () => {
       // The old order is cancelled and the re-place throws: nothing is on the
       // book, so the session must not keep claiming to hold a resting order.
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce(rested(55))
         .mockRejectedValue(new Error('insufficient margin'));
-      const l2Book = jest
+      const l2Book = vi
         .fn()
         .mockResolvedValueOnce(bookAt('2999'))
         .mockResolvedValue(bookAt('2998'));
@@ -10005,7 +10018,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(5000);
 
       // Two attempts: the original placement and the failed replacement. No
       // further ticks ran, so the session stopped rather than looping.
@@ -10052,11 +10065,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('completes a chase cancel whose child had already filled', async () => {
       useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: [{ resting: { oid: 55 } }] } },
           }),
-          cancel: jest.fn().mockResolvedValue(alreadyGone),
+          cancel: vi.fn().mockResolvedValue(alreadyGone),
         },
       });
 
@@ -10086,11 +10099,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('completes a chase cancel when the SDK throws that its child is gone', async () => {
       useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: [{ resting: { oid: 55 } }] } },
           }),
-          cancel: jest
+          cancel: vi
             .fn()
             .mockRejectedValue(
               new Error('Order was never placed, already canceled, or filled.'),
@@ -10115,7 +10128,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('completes a scale cancel when one rung had already filled', async () => {
       useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -10127,7 +10140,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
               },
             },
           }),
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -10189,7 +10202,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         },
       ],
     ])('retains every scale child after %s', async (_label, failedCancel) => {
-      const cancel = jest
+      const cancel = vi
         .fn()
         .mockResolvedValueOnce(failedCancel)
         .mockResolvedValueOnce({
@@ -10200,7 +10213,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         });
       useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: {
@@ -10254,11 +10267,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('still reports a genuinely refused cancel as incomplete', async () => {
       useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: [{ resting: { oid: 55 } }] } },
           }),
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: [{ error: 'multi-sig required' }] } },
           }),
@@ -10285,19 +10298,19 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Chase reprice when the exchange refuses the cancel', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('leaves the old order alone and retries on the next tick', async () => {
-      const order = jest.fn().mockResolvedValue({
+      const order = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: [{ resting: { oid: 55 } }] } },
       });
-      const cancel = jest
+      const cancel = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -10311,7 +10324,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       useStrategyClients({
         exchange: { order, cancel },
         info: {
-          l2Book: jest
+          l2Book: vi
             .fn()
             .mockResolvedValueOnce({
               coin: 'ETH',
@@ -10338,11 +10351,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       // Tick 1's cancel is refused, so no replacement may be placed — doing so
       // would double the position while the old order still rests.
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect(order).toHaveBeenCalledTimes(1);
 
       // Tick 2 retries and succeeds, so the chase resumes rather than ending.
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect(order).toHaveBeenCalledTimes(2);
     });
   });
@@ -10462,7 +10475,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('submits exactly the ladder it validated', async () => {
-      const order = jest.fn().mockResolvedValue({
+      const order = vi.fn().mockResolvedValue({
         status: 'ok',
         response: {
           data: {
@@ -10496,15 +10509,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Chase replacements keep the fee they were quoted at', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('reuses the placement-time builder fee after the discount is cleared', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -10518,7 +10531,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       useStrategyClients({
         exchange: { order },
         info: {
-          l2Book: jest
+          l2Book: vi
             .fn()
             .mockResolvedValueOnce({
               coin: 'ETH',
@@ -10549,14 +10562,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // TradingService clears it as soon as placeOrder returns, which for a
       // chase is long before the re-pricing loop runs.
       provider.setUserFeeDiscount(undefined);
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       expect(order).toHaveBeenCalledTimes(2);
       expect(order.mock.calls[1][0].builder.f).toBe(quotedFee);
     });
 
     it('marks the replacement cloid after the subscription context is cleared', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -10570,7 +10583,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       useStrategyClients({
         exchange: { order },
         info: {
-          l2Book: jest
+          l2Book: vi
             .fn()
             .mockResolvedValueOnce({
               coin: 'ETH',
@@ -10609,7 +10622,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // long before the chase re-prices. The replacement still pays the
       // discounted fee, so it must still carry the attribution.
       provider.setUserFeeResolution(undefined);
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       expect(order).toHaveBeenCalledTimes(2);
       expect(
@@ -10620,11 +10633,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Chase re-prices only what is still resting', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     /**
@@ -10632,8 +10645,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
      *
      * @returns The mock.
      */
-    const bookThatMoves = (): jest.Mock =>
-      jest
+    const bookThatMoves = (): Mock =>
+      vi
         .fn()
         .mockResolvedValueOnce({
           coin: 'ETH',
@@ -10651,16 +10664,16 @@ describe('HyperLiquidProvider - strategy order types', () => {
         });
 
     it('reads the remainder after the cancel, not before it', async () => {
-      const order = jest.fn().mockResolvedValue({
+      const order = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: [{ resting: { oid: 55 } }] } },
       });
       const callOrder: string[] = [];
-      const cancel = jest.fn().mockImplementation(async () => {
+      const cancel = vi.fn().mockImplementation(async () => {
         callOrder.push('cancel');
         return { status: 'ok', response: { data: { statuses: ['success'] } } };
       });
-      const orderStatus = jest.fn().mockImplementation(async () => {
+      const orderStatus = vi.fn().mockImplementation(async () => {
         callOrder.push('orderStatus');
         return {
           status: 'order',
@@ -10697,7 +10710,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       // Once the cancel has landed no further fills can reach the order, so the
       // remainder it reports is final. Reading first would leave a window in
@@ -10710,7 +10723,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('replaces a partly filled order at its remaining size', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -10726,7 +10739,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         info: {
           l2Book: bookThatMoves(),
           // 0.6 of the 1 ETH had filled by the time the cancel landed.
-          orderStatus: jest
+          orderStatus: vi
             .fn()
             .mockResolvedValueOnce({
               status: 'order',
@@ -10782,7 +10795,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
       expect(order.mock.calls[0][0].orders[0].s).toBe('1');
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       // The replacement must cover only what was left. Re-placing the original
       // size would buy 1.6 ETH in total against a 1 ETH request.
@@ -10791,7 +10804,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('reports no remainder when the canceled child filled during repricing', async () => {
-      const order = jest.fn().mockResolvedValue({
+      const order = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: [{ resting: { oid: 55 } }] } },
       });
@@ -10799,7 +10812,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         exchange: { order },
         info: {
           l2Book: bookThatMoves(),
-          orderStatus: jest
+          orderStatus: vi
             .fn()
             .mockResolvedValueOnce({
               status: 'order',
@@ -10854,7 +10867,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       expect(await provider.getChaseOrders()).toContainEqual(
         expect.objectContaining({
@@ -10868,7 +10881,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('ends the session without cancelling when the order already filled', async () => {
-      const order = jest.fn().mockResolvedValue({
+      const order = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: [{ resting: { oid: 55 } }] } },
       });
@@ -10877,7 +10890,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         info: {
           l2Book: bookThatMoves(),
           // The order had already filled in full.
-          orderStatus: jest.fn().mockResolvedValue({
+          orderStatus: vi.fn().mockResolvedValue({
             status: 'order',
             order: {
               status: 'filled',
@@ -10908,7 +10921,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(5000);
 
       // The order's level is gone from the book, so the tick verifies it rather
       // than assuming, finds it filled, and ends the session — releasing its
@@ -10926,7 +10939,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('retries on the next tick when the resting child is briefly unknown', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -10951,7 +10964,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(1200);
+      await vi.advanceTimersByTimeAsync(1200);
 
       expect(infoClient.orderStatus).toHaveBeenCalledTimes(3);
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
@@ -10963,7 +10976,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         }),
       );
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       expect(order).toHaveBeenCalledTimes(2);
       expect(exchangeClient.cancel).toHaveBeenCalledWith({
@@ -11014,11 +11027,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Chase pricing against the book', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     /**
@@ -11038,14 +11051,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('joins the touch when the spread is a single tick', async () => {
-      const order = jest.fn().mockResolvedValue({
+      const order = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: [{ resting: { oid: 55 } }] } },
       });
       useStrategyClients({
         exchange: { order },
         info: {
-          l2Book: jest.fn().mockResolvedValue({
+          l2Book: vi.fn().mockResolvedValue({
             coin: 'ETH',
             levels: [
               [{ px: '2999.9', sz: '10', n: 1 }],
@@ -11066,7 +11079,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('re-prices when the external touch moves behind its own order', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -11080,7 +11093,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // Tick 1: the chase's own 1 ETH at 2999.1 tops the book, with a real
       // external bid of 2999 beneath it. Tick 2: that external bid drops to
       // 2990 and only the chase's own order is left at the top.
-      const l2Book = jest
+      const l2Book = vi
         .fn()
         .mockResolvedValueOnce(bookWithBids([{ px: '2999', sz: '10' }]))
         .mockResolvedValue(
@@ -11102,7 +11115,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
       expect(order.mock.calls[0][0].orders[0].p).toBe('2999.1');
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       // Reading the raw book would see its own 2999.1 as the best bid, conclude
       // nothing had moved, and sit there while the market walked away. Netting
@@ -11116,7 +11129,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it("refuses a chase beyond the venue's simultaneous limit", async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: [{ resting: { oid: 55 } }] } },
           }),
@@ -11150,7 +11163,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('refuses an overflow chase before signing or changing leverage', async () => {
       const { exchangeClient } = useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: [{ resting: { oid: 55 } }] } },
           }),
@@ -11167,7 +11180,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           orderType: 'chase',
         } satisfies OrderParams);
       }
-      (exchangeClient.updateLeverage as jest.Mock).mockClear();
+      exchangeClient.updateLeverage.mockClear();
 
       const overflow = await provider.placeOrder({
         ...baseOrder,
@@ -11185,7 +11198,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('frees a slot when a chase is cancelled', async () => {
       useStrategyClients({
         exchange: {
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: [{ resting: { oid: 55 } }] } },
           }),
@@ -11222,15 +11235,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Chase cancel racing the post-cancel remainder read', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('rests nothing when a cancel lands during the remainder read', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -11243,7 +11256,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       let sessionId = '';
       let callerCancel: Promise<CancelOrderResult> | undefined;
-      const orderStatus = jest.fn().mockImplementation(async () => {
+      const orderStatus = vi.fn().mockImplementation(async () => {
         // The old order is already cancelled and the replacement has not gone
         // up. A caller cancelling here finds nothing to cancel, reports success
         // and drops the handle — so the tick must not rest anything after it.
@@ -11281,7 +11294,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         exchange: { order },
         info: {
           orderStatus,
-          l2Book: jest
+          l2Book: vi
             .fn()
             .mockResolvedValueOnce({
               coin: 'ETH',
@@ -11307,7 +11320,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
       sessionId = placed.orderId as string;
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       await callerCancel;
 
       // Only the original placement: no unreachable replacement was left live.
@@ -11317,15 +11330,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Chase state when a post-cancel read fails', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('retries a transient unknown status before replacing the child', async () => {
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -11357,7 +11370,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         },
       };
-      const orderStatus = jest
+      const orderStatus = vi
         .fn()
         .mockResolvedValueOnce({
           ...cancelledOrderStatus,
@@ -11369,7 +11382,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         exchange: { order },
         info: {
           orderStatus,
-          l2Book: jest
+          l2Book: vi
             .fn()
             .mockResolvedValueOnce({
               coin: 'ETH',
@@ -11394,7 +11407,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(1100);
+      await vi.advanceTimersByTimeAsync(1100);
 
       expect(orderStatus).toHaveBeenCalledTimes(3);
       expect(order).toHaveBeenCalledTimes(2);
@@ -11403,7 +11416,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('does not retain the cancelled child as a Chase route after a fill', async () => {
-      const order = jest.fn().mockResolvedValue({
+      const order = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: [{ resting: { oid: 55 } }] } },
       });
@@ -11435,11 +11448,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       const { exchangeClient } = useStrategyClients({
         exchange: { order },
         info: {
-          orderStatus: jest
+          orderStatus: vi
             .fn()
             .mockResolvedValueOnce(orderStatus('open', '1'))
             .mockResolvedValueOnce(orderStatus('filled', '0')),
-          l2Book: jest
+          l2Book: vi
             .fn()
             .mockResolvedValueOnce({
               coin: 'ETH',
@@ -11463,7 +11476,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         orderType: 'chase',
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       await provider.cancelOrder({ orderId: '55', symbol: 'ETH' });
 
@@ -11474,7 +11487,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('ends the session rather than rescheduling a chase with nothing resting', async () => {
-      const order = jest.fn().mockResolvedValue({
+      const order = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: [{ resting: { oid: 55 } }] } },
       });
@@ -11482,8 +11495,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
         exchange: { order },
         info: {
           // The cancel succeeds, then the remainder lookup fails.
-          orderStatus: jest.fn().mockRejectedValue(new Error('network blip')),
-          l2Book: jest
+          orderStatus: vi.fn().mockRejectedValue(new Error('network blip')),
+          l2Book: vi
             .fn()
             .mockResolvedValueOnce({
               coin: 'ETH',
@@ -11508,7 +11521,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(5000);
 
       // The order was cancelled, so nothing rests. Recovery must not keep
       // ticking a session that has no live order.
@@ -11528,7 +11541,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Chase concurrency cap under concurrent placement', () => {
     it('does not exceed the cap when placements overlap', async () => {
-      const order = jest.fn().mockImplementation(async () => {
+      const order = vi.fn().mockImplementation(async () => {
         // Every placement is in flight at once: the cap is checked before this
         // resolves, so a check that does not reserve its slot lets them all in.
         await Promise.resolve();
@@ -11566,11 +11579,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Chase netting uses the live resting size', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('resolves ambiguous Chase children concurrently', async () => {
@@ -11597,14 +11610,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         },
       });
-      const orderStatus = jest
+      const orderStatus = vi
         .fn()
         .mockImplementation(({ oid }) =>
           oid === 55
             ? pendingFirstStatus.promise
             : Promise.resolve(openStatus(oid)),
         );
-      const order = jest
+      const order = vi
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
@@ -11618,7 +11631,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           status: 'ok',
           response: { data: { statuses: [{ resting: { oid: 77 } }] } },
         });
-      const l2Book = jest
+      const l2Book = vi
         .fn()
         .mockResolvedValueOnce({
           coin: 'ETH',
@@ -11667,7 +11680,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         throw new Error('Expected both Chase handles');
       }
 
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       for (
         let index = 0;
         index < 10 && orderStatus.mock.calls.length < 2;
@@ -11687,7 +11700,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     });
 
     it('sees external liquidity sharing its level after a partial fill', async () => {
-      const order = jest.fn().mockResolvedValue({
+      const order = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: [{ resting: { oid: 55 } }] } },
       });
@@ -11695,7 +11708,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // The chase placed 1 ETH at 2999.1 and 0.8 of it has since filled, so
       // only 0.2 is its own. The level shows 0.5 — the other 0.3 is external,
       // and it is still the best bid.
-      const orderStatus = jest.fn().mockResolvedValue({
+      const orderStatus = vi.fn().mockResolvedValue({
         status: 'order',
         order: {
           status: 'open',
@@ -11722,7 +11735,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         exchange: { order },
         info: {
           orderStatus,
-          l2Book: jest
+          l2Book: vi
             .fn()
             .mockResolvedValueOnce({
               coin: 'ETH',
@@ -11750,7 +11763,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         chaseIntervalMs: 1000,
       } satisfies OrderParams);
 
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
 
       // Netting the live 0.2 leaves 0.3 of external size at 2999.1, so that is
       // still the best external bid and the chase improves on it by a tick.
@@ -11765,7 +11778,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
   describe('Strategy placement racing a disconnect', () => {
     it('retracts a TWAP that finishes after teardown through its captured client', async () => {
       let disconnected: Promise<unknown> | undefined;
-      const twapOrder = jest.fn().mockImplementation(async () => {
+      const twapOrder = vi.fn().mockImplementation(async () => {
         disconnected = provider.disconnect();
         mockClientService.getExchangeClient.mockImplementation(() => {
           throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
@@ -11779,7 +11792,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         };
       });
-      const twapCancel = jest.fn().mockResolvedValue({
+      const twapCancel = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { type: 'twapCancel', data: { status: 'success' } },
       });
@@ -11805,7 +11818,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('treats an already-finished stale TWAP as retracted', async () => {
       let disconnected: Promise<unknown> | undefined;
-      const twapOrder = jest.fn().mockImplementation(async () => {
+      const twapOrder = vi.fn().mockImplementation(async () => {
         disconnected = provider.disconnect();
         await Promise.resolve();
         return {
@@ -11816,7 +11829,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         };
       });
-      const twapCancel = jest.fn().mockResolvedValue({
+      const twapCancel = vi.fn().mockResolvedValue({
         status: 'ok',
         response: {
           type: 'twapCancel',
@@ -11841,7 +11854,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('retracts resting scale rungs and registers no stale group after teardown', async () => {
       let disconnected: Promise<unknown> | undefined;
-      const order = jest.fn().mockImplementation(async () => {
+      const order = vi.fn().mockImplementation(async () => {
         disconnected = provider.disconnect();
         mockClientService.getExchangeClient.mockImplementation(() => {
           throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
@@ -11860,7 +11873,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         };
       });
-      const cancel = jest.fn().mockResolvedValue({
+      const cancel = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: ['success', 'success'] } },
       });
@@ -11951,10 +11964,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
      * @returns The placement result and the exchange client that served it.
      */
     const placeChaseTornDownMidFlight = async (
-      cancel: jest.Mock,
+      cancel: Mock,
     ): Promise<{ placed: OrderResult; exchangeClient: MockClient }> => {
       let disconnected: Promise<unknown> | undefined;
-      const order = jest.fn().mockImplementation(async () => {
+      const order = vi.fn().mockImplementation(async () => {
         // The order is on its way to the venue when the provider is torn down.
         disconnected = provider.disconnect();
         mockClientService.getExchangeClient.mockImplementation(() => {
@@ -11981,7 +11994,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     };
 
     it('retracts the order it could not put a strategy behind', async () => {
-      const cancel = jest.fn().mockResolvedValue({
+      const cancel = vi.fn().mockResolvedValue({
         status: 'ok',
         response: { data: { statuses: ['success'] } },
       });
@@ -12015,7 +12028,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // The venue refuses the cancel and the order stays on the book. This is
       // the only case where the caller is left holding a live order, so it is
       // the only one that gets an id to reach it with.
-      const cancel = jest.fn().mockResolvedValue({
+      const cancel = vi.fn().mockResolvedValue({
         status: 'ok',
         response: {
           data: { statuses: [{ error: 'Order could not be found' }] },
@@ -12048,7 +12061,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // A provider mid-teardown can fail the cancel outright rather than have
       // it refused. Best-effort by construction: the placement still resolves
       // as an abandoned chase rather than throwing the cancel's error.
-      const cancel = jest.fn().mockRejectedValue(new Error('client torn down'));
+      const cancel = vi.fn().mockRejectedValue(new Error('client torn down'));
       const { placed } = await placeChaseTornDownMidFlight(cancel);
 
       expect(placed.success).toBe(false);
@@ -12059,7 +12072,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it('retains legacy HIP-3 collateral when an orphaned child still rests', async () => {
       let disconnected: Promise<unknown> | undefined;
       let transferred = false;
-      const order = jest.fn().mockImplementation(async () => {
+      const order = vi.fn().mockImplementation(async () => {
         disconnected = provider.disconnect();
         mockClientService.getExchangeClient.mockImplementation(() => {
           throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
@@ -12073,7 +12086,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       useStrategyClients({
         exchange: {
           order,
-          cancel: jest.fn().mockResolvedValue({
+          cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
               data: { statuses: [{ error: 'Order could not be found' }] },
@@ -12081,7 +12094,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
         },
         info: {
-          clearinghouseState: jest
+          clearinghouseState: vi
             .fn()
             .mockImplementation(({ dex }) =>
               Promise.resolve(
@@ -12090,12 +12103,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
                 ),
               ),
             ),
-          perpDexs: jest.fn().mockResolvedValue([null, { name: 'xyz' }]),
-          meta: jest.fn().mockResolvedValue({
+          perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+          meta: vi.fn().mockResolvedValue({
             universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
             collateralToken: 0,
           }),
-          allMids: jest.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+          allMids: vi.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
         },
       });
       provider = createTestProvider({
@@ -12104,7 +12117,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useUnifiedAccount: false,
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
-      const transfer = jest
+      const transfer = vi
         .spyOn(provider, 'transferBetweenDexs')
         .mockImplementation(async () => {
           transferred = true;
@@ -12132,7 +12145,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         info: {
           // The book read is a round trip after the preamble's own checks, so
           // a disconnect can land inside it.
-          l2Book: jest.fn().mockImplementation(async () => {
+          l2Book: vi.fn().mockImplementation(async () => {
             disconnected = provider.disconnect();
             await Promise.resolve();
             return {
@@ -12166,16 +12179,16 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
   describe('Two chases on the same side do not leapfrog each other', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('treats another session of its own as not-external liquidity', async () => {
       let placements = 0;
-      const order = jest.fn().mockImplementation(async () => {
+      const order = vi.fn().mockImplementation(async () => {
         placements += 1;
         return {
           status: 'ok',
@@ -12189,7 +12202,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // when nothing of ours is resting yet; afterwards the book carries the
       // two chases' combined 2 ETH at 2999.1 on top of the external 2999.
       let bookReads = 0;
-      const l2Book = jest.fn().mockImplementation(async () => {
+      const l2Book = vi.fn().mockImplementation(async () => {
         bookReads += 1;
         const bids =
           bookReads <= 2
@@ -12218,7 +12231,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
       expect(order).toHaveBeenCalledTimes(2);
 
-      await jest.advanceTimersByTimeAsync(5000);
+      await vi.advanceTimersByTimeAsync(5000);
 
       // Netting only its own order, each session would read the other's 1 ETH
       // as external size at 2999.1, improve to 2999.2, then improve on that —
@@ -12236,7 +12249,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           // These are the fields the fee path actually reads; a `feeSchedule`
           // shape parses to NaN and falls back to the base rates, which would
           // make this test pass without ever entering the branch it is about.
-          userFees: jest.fn().mockResolvedValue({
+          userFees: vi.fn().mockResolvedValue({
             userCrossRate: '0.00030',
             userAddRate: '0.00010',
             userSpotCrossRate: '0.00040',
@@ -12275,12 +12288,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
         exchange: {
           // The leverage update is part of the shared preamble, before the
           // chase handler is even reached.
-          updateLeverage: jest.fn().mockImplementation(async () => {
+          updateLeverage: vi.fn().mockImplementation(async () => {
             disconnected = provider.disconnect();
             await Promise.resolve();
             return { status: 'ok' };
           }),
-          order: jest.fn().mockResolvedValue({
+          order: vi.fn().mockResolvedValue({
             status: 'ok',
             response: { data: { statuses: [{ resting: { oid: 55 } }] } },
           }),
