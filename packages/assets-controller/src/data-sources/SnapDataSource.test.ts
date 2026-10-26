@@ -32,6 +32,8 @@ import {
   KEYRING_PERMISSION,
   ASSETS_PERMISSION,
   getSnapBalanceRetryDelay,
+  SNAP_BALANCE_REVALIDATE_AFTER_MS,
+  SNAP_EMPTY_BALANCES_ERROR,
 } from './SnapDataSource.js';
 
 // Test chain IDs
@@ -210,6 +212,7 @@ function setupController(
     getAssetsState?: () => AssetsControllerState;
     onBalanceFetchStatusChange?: SnapDataSourceOptions['onBalanceFetchStatusChange'];
     retryBackoff?: SnapDataSourceOptions['retryBackoff'];
+    revalidation?: SnapDataSourceOptions['revalidation'];
   } = {},
 ): SetupResult {
   const {
@@ -300,6 +303,7 @@ function setupController(
     getAssetsState,
     onBalanceFetchStatusChange: options.onBalanceFetchStatusChange,
     retryBackoff: options.retryBackoff,
+    revalidation: options.revalidation,
   };
 
   const controller = new SnapDataSource(controllerOptions);
@@ -1398,6 +1402,7 @@ describe('SnapDataSource', () => {
         isBalanceV6Enabled?: () => boolean;
         retryBackoff?: SnapDataSourceOptions['retryBackoff'];
         onBalanceFetchStatusChange?: jest.Mock;
+        revalidation?: SnapDataSourceOptions['revalidation'];
       } = {},
     ): SetupResult & {
       failing: { value: boolean };
@@ -1417,6 +1422,7 @@ describe('SnapDataSource', () => {
         onBalanceFetchStatusChange: onStatus,
         // Long default so automatic retries never fire unless a test wants them.
         retryBackoff: options.retryBackoff ?? { initialDelayMs: 60_000 },
+        revalidation: options.revalidation,
       });
       setup.mockHandleRequest.mockImplementation(failingHandler(failing));
       return { ...setup, failing, onStatus };
@@ -1723,6 +1729,226 @@ describe('SnapDataSource', () => {
       expect(onStatus).toHaveBeenCalled();
 
       cleanup();
+    });
+
+    describe('revalidation of subscribed accounts (v3)', () => {
+      const balanceCalls = (mock: jest.Mock): number =>
+        mock.mock.calls.filter(
+          ([params]) => params.request?.method === 'keyring_getAccountBalances',
+        ).length;
+
+      const subscribe = async (controller: SnapDataSource): Promise<void> => {
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'reval-sub',
+          isUpdate: false,
+          onAssetsUpdate: jest.fn(),
+        });
+      };
+
+      it('flags a quiet, failing snap account unavailable after the revalidation window (TRX case)', async () => {
+        const { controller, failing, onStatus, mockHandleRequest, cleanup } =
+          setupFailing();
+        failing.value = false;
+        await flush();
+        await subscribe(controller);
+        expect(controller.getAccountBalanceErrors()).toStrictEqual({});
+
+        // The snap's own syncs start failing: it stops pushing balances.
+        failing.value = true;
+        const before = balanceCalls(mockHandleRequest);
+
+        // Still within the window: nothing is asked.
+        await controller.revalidateStaleAccounts(
+          Date.now() + SNAP_BALANCE_REVALIDATE_AFTER_MS - 10_000,
+        );
+        expect(balanceCalls(mockHandleRequest)).toBe(before);
+
+        // Past the window: the snap is asked again, and the failure flags the
+        // cached balance unavailable.
+        await controller.revalidateStaleAccounts(
+          Date.now() + SNAP_BALANCE_REVALIDATE_AFTER_MS + 1,
+        );
+        expect(balanceCalls(mockHandleRequest)).toBe(before + 1);
+        expect(controller.getAccountBalanceErrors()).toStrictEqual({
+          'mock-account-id': { chainIds: [SOLANA_MAINNET], attempts: 0 },
+        });
+        expect(lastError(onStatus).error).toBe(
+          'the account has not been synchronized yet',
+        );
+
+        cleanup();
+      });
+
+      it('flags a synced account unavailable when the snap reports its balance as stale, Retry asks the snap, and recovery clears it (v6)', async () => {
+        const STALE_MESSAGE =
+          'Account balance unavailable: synchronization has been failing since the last successful sync';
+        const snapState = { stale: false };
+        const { controller, onStatus, mockHandleRequest, cleanup } =
+          setupFailing();
+        mockHandleRequest.mockImplementation(
+          (params: { request?: { method: string } }): Promise<unknown> => {
+            if (params.request?.method === 'keyring_listAccountAssets') {
+              return Promise.resolve([MOCK_SOL_ASSET]);
+            }
+            if (params.request?.method === 'keyring_getAccountBalances') {
+              // As re-created by the keyring SDK: a plain Error with the message.
+              return snapState.stale
+                ? Promise.reject(new Error(STALE_MESSAGE))
+                : Promise.resolve({ [MOCK_SOL_ASSET]: SOL_BALANCE });
+            }
+            return Promise.resolve(null);
+          },
+        );
+        await flush();
+        await subscribe(controller);
+        expect(controller.getAccountBalanceErrors()).toStrictEqual({});
+
+        // The connection breaks after the account was synchronized: ~90 s
+        // later the snap answers with the stale-balance error.
+        snapState.stale = true;
+        await controller.revalidateStaleAccounts(
+          Date.now() + SNAP_BALANCE_REVALIDATE_AFTER_MS + 1,
+        );
+        expect(controller.getAccountBalanceErrors()).toStrictEqual({
+          'mock-account-id': { chainIds: [SOLANA_MAINNET], attempts: 0 },
+        });
+        expect(lastError(onStatus).error).toBe(STALE_MESSAGE);
+
+        // Retry while still failing: the snap is asked again (it schedules a
+        // sync) and the account stays unavailable.
+        const before = balanceCalls(mockHandleRequest);
+        await controller.retryFailedAccounts(['mock-account-id']);
+        expect(balanceCalls(mockHandleRequest)).toBe(before + 1);
+        expect(controller.getAccountBalanceErrors()).toHaveProperty(
+          'mock-account-id',
+        );
+
+        // The snap syncs again: the next Retry clears the error.
+        snapState.stale = false;
+        await controller.retryFailedAccounts(['mock-account-id']);
+        expect(controller.getAccountBalanceErrors()).toStrictEqual({});
+        expect(onStatus).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            accountId: 'mock-account-id',
+            error: null,
+          }),
+        );
+
+        cleanup();
+      });
+
+      it('does not ask again when the snap pushed balances recently', async () => {
+        const {
+          controller,
+          failing,
+          mockHandleRequest,
+          triggerBalancesUpdated,
+          cleanup,
+        } = setupFailing();
+        failing.value = false;
+        await flush();
+        await subscribe(controller);
+        const start = Date.now();
+
+        await flush(5);
+        triggerBalancesUpdated({
+          balances: { 'mock-account-id': { [MOCK_SOL_ASSET]: SOL_BALANCE } },
+        });
+        const before = balanceCalls(mockHandleRequest);
+
+        // 90 s after the subscription, but less than 90 s after the push.
+        await controller.revalidateStaleAccounts(
+          start + SNAP_BALANCE_REVALIDATE_AFTER_MS + 1,
+        );
+
+        expect(balanceCalls(mockHandleRequest)).toBe(before);
+        cleanup();
+      });
+
+      it('leaves failing accounts to their scheduled retries', async () => {
+        const { controller, mockHandleRequest, cleanup } = setupFailing();
+        await flush();
+        await subscribe(controller);
+        expect(controller.getAccountBalanceErrors()).toHaveProperty(
+          'mock-account-id',
+        );
+        const before = balanceCalls(mockHandleRequest);
+
+        await controller.revalidateStaleAccounts(Date.now() + 10 * 60_000);
+
+        expect(balanceCalls(mockHandleRequest)).toBe(before);
+        cleanup();
+      });
+
+      it('runs on its own timer, and stops after unsubscribe', async () => {
+        const { controller, failing, mockHandleRequest, cleanup } =
+          setupFailing({ revalidation: { afterMs: 20, checkIntervalMs: 10 } });
+        failing.value = false;
+        await flush();
+        await subscribe(controller);
+        const before = balanceCalls(mockHandleRequest);
+
+        await flush(80);
+        expect(balanceCalls(mockHandleRequest)).toBeGreaterThan(before);
+
+        await controller.unsubscribe('reval-sub');
+        await controller.unsubscribe('test-sub');
+        await flush(5);
+        const afterUnsubscribe = balanceCalls(mockHandleRequest);
+        await flush(60);
+        expect(balanceCalls(mockHandleRequest)).toBe(afterUnsubscribe);
+
+        cleanup();
+      });
+
+      it('can be disabled', async () => {
+        const { controller, failing, mockHandleRequest, cleanup } =
+          setupFailing({ revalidation: false });
+        failing.value = false;
+        await flush();
+        await subscribe(controller);
+        const before = balanceCalls(mockHandleRequest);
+
+        await controller.revalidateStaleAccounts(Date.now() + 10 * 60_000);
+
+        expect(balanceCalls(mockHandleRequest)).toBe(before);
+        cleanup();
+      });
+
+      it.each([
+        ['v6', true],
+        ['v5', false],
+      ])(
+        'an empty balance map for requested assets is a failure, not a confirmed balance (SOL case, %s)',
+        async (_label, v6) => {
+          const { controller, mockHandleRequest, onStatus, cleanup } =
+            setupFailing({ isBalanceV6Enabled: (): boolean => v6 });
+          mockHandleRequest.mockImplementation(
+            (params: { request?: { method: string } }) => {
+              if (params.request?.method === 'keyring_listAccountAssets') {
+                return Promise.resolve([MOCK_SOL_ASSET]);
+              }
+              if (params.request?.method === 'keyring_getAccountBalances') {
+                return Promise.resolve({});
+              }
+              return Promise.resolve(null);
+            },
+          );
+          await flush();
+
+          const response = await controller.fetch(createDataRequest());
+
+          expect(response.assetsBalance).toStrictEqual({});
+          expect(controller.getAccountBalanceErrors()).toHaveProperty(
+            'mock-account-id',
+          );
+          expect(lastError(onStatus).error).toContain(
+            SNAP_EMPTY_BALANCES_ERROR,
+          );
+          cleanup();
+        },
+      );
     });
   });
 

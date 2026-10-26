@@ -87,6 +87,23 @@ export const SNAP_BALANCE_RETRY_INITIAL_DELAY_MS = 30_000;
 export const SNAP_BALANCE_RETRY_MAX_DELAY_MS = 5 * 60_000;
 
 /**
+ * How long a subscribed snap account may go without a confirmed balance (a
+ * successful fetch or a balance pushed by the snap) before the data source
+ * asks the snap again. Snaps push balances only after a successful sync, so a
+ * snap whose syncs keep failing goes quiet: without this revalidation the
+ * client would keep showing the cached balance until something else fetches
+ * it. Healthy snaps push every 30-60 s, so they are not asked again.
+ */
+export const SNAP_BALANCE_REVALIDATE_AFTER_MS = 90_000;
+
+/** How often subscribed snap accounts are checked for revalidation. */
+export const SNAP_BALANCE_REVALIDATE_CHECK_INTERVAL_MS = 15_000;
+
+/** Error recorded when a snap returns no balance for the requested assets. */
+export const SNAP_EMPTY_BALANCES_ERROR =
+  'Snap returned no balances for the requested assets';
+
+/**
  * Exponential backoff for automatic snap balance retries.
  *
  * @param attempts - 1-based index of the upcoming automatic retry (1 for the
@@ -232,6 +249,11 @@ export type SnapDataSourceOptions = {
   onBalanceFetchStatusChange?: (update: SnapBalanceFetchStatusUpdate) => void;
   /** Automatic retry backoff for failed per-account fetches. */
   retryBackoff?: { initialDelayMs?: number; maxDelayMs?: number };
+  /**
+   * Revalidation of subscribed accounts whose balance was not confirmed
+   * recently (see `SNAP_BALANCE_REVALIDATE_AFTER_MS`). `false` disables it.
+   */
+  revalidation?: { afterMs?: number; checkIntervalMs?: number } | false;
   /** Initial state */
   state?: Partial<SnapDataSourceState>;
 };
@@ -260,6 +282,13 @@ type FailedAccountEntry = {
   nextRetryAt: number | null;
   /** Kind of retry whose fetch is in progress, if any. */
   retryInProgress: 'scheduled' | 'manual' | null;
+};
+
+/**
+ * A subscribed snap account, with the narrowed request used to revalidate it.
+ */
+type WatchedAccountEntry = {
+  request: DataRequest;
 };
 
 /**
@@ -324,6 +353,25 @@ export class SnapDataSource extends AbstractDataSource<
    */
   readonly #failedAccounts: Map<string, FailedAccountEntry> = new Map();
 
+  /** Subscribed snap accounts per subscription ID. */
+  readonly #watchedAccounts: Map<string, Map<string, WatchedAccountEntry>> =
+    new Map();
+
+  /**
+   * Last time each account's balance was confirmed: a successful fetch or a
+   * balance pushed by its snap.
+   */
+  readonly #lastConfirmedAt: Map<string, number> = new Map();
+
+  /** Accounts whose revalidation fetch is in progress. */
+  readonly #revalidating: Set<string> = new Set();
+
+  readonly #revalidateAfterMs: number | null;
+
+  readonly #revalidateCheckIntervalMs: number;
+
+  #revalidationTimer: ReturnType<typeof setInterval> | null = null;
+
   #destroyed = false;
 
   constructor(options: SnapDataSourceOptions) {
@@ -344,6 +392,15 @@ export class SnapDataSource extends AbstractDataSource<
       SNAP_BALANCE_RETRY_INITIAL_DELAY_MS;
     this.#retryMaxDelayMs =
       options.retryBackoff?.maxDelayMs ?? SNAP_BALANCE_RETRY_MAX_DELAY_MS;
+    this.#revalidateAfterMs =
+      options.revalidation === false
+        ? null
+        : (options.revalidation?.afterMs ?? SNAP_BALANCE_REVALIDATE_AFTER_MS);
+    this.#revalidateCheckIntervalMs =
+      (options.revalidation === false
+        ? undefined
+        : options.revalidation?.checkIntervalMs) ??
+      SNAP_BALANCE_REVALIDATE_CHECK_INTERVAL_MS;
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound =
@@ -622,8 +679,21 @@ export class SnapDataSource extends AbstractDataSource<
         const balances: Record<CaipAssetType, Balance> =
           await client.getAccountBalances(accountId, accountAssets);
 
+        // The snap listed assets but returned no balance for any of them:
+        // that is a failed fetch (snaps that swallow network errors answer
+        // with an empty map), not a confirmed balance.
+        if (
+          !balances ||
+          typeof balances !== 'object' ||
+          Object.keys(balances).length === 0
+        ) {
+          throw new Error(
+            `${SNAP_EMPTY_BALANCES_ERROR}: ${accountAssets.length} asset(s) requested`,
+          );
+        }
+
         // Transform keyring response to DataResponse format
-        if (balances && typeof balances === 'object' && results.assetsBalance) {
+        if (results.assetsBalance) {
           for (const [assetId, balance] of Object.entries(balances)) {
             results.assetsBalance[accountId] ??= {};
             const accountBalances = results.assetsBalance[accountId];
@@ -714,6 +784,14 @@ export class SnapDataSource extends AbstractDataSource<
           typeof balances !== 'object' ||
           Object.keys(balances).length === 0
         ) {
+          if (assetsToFetch.length > 0) {
+            // Assets were requested but none came back: the snap swallowed
+            // a failed fetch. Record it so the cached balance is flagged
+            // unavailable instead of being shown as current.
+            throw new Error(
+              `${SNAP_EMPTY_BALANCES_ERROR}: ${assetsToFetch.length} asset(s) requested`,
+            );
+          }
           continue;
         }
 
@@ -951,8 +1029,14 @@ export class SnapDataSource extends AbstractDataSource<
     );
 
     if (supportedChains.length === 0) {
+      this.#unwatchSubscription(subscriptionId);
       return;
     }
+
+    this.#watchSubscription(subscriptionId, {
+      ...request,
+      chainIds: supportedChains,
+    });
 
     try {
       const fetchResponse = await this.fetch({
@@ -1008,7 +1092,126 @@ export class SnapDataSource extends AbstractDataSource<
     );
   }
 
+  async unsubscribe(subscriptionId: string): Promise<void> {
+    this.#unwatchSubscription(subscriptionId);
+    await super.unsubscribe(subscriptionId);
+  }
+
+  // ============================================================================
+  // REVALIDATION OF SUBSCRIBED ACCOUNTS
+  // ============================================================================
+
+  /**
+   * Remember the snap accounts of a subscription, so that their balance is
+   * revalidated when it is not confirmed for a while.
+   *
+   * @param subscriptionId - The subscription ID.
+   * @param request - The subscription request, narrowed to snap chains.
+   */
+  #watchSubscription(subscriptionId: string, request: DataRequest): void {
+    if (this.#revalidateAfterMs === null || this.#destroyed) {
+      return;
+    }
+    const now = Date.now();
+    const watched = new Map<string, WatchedAccountEntry>();
+    for (const entry of request.accountsWithSupportedChains ?? []) {
+      const snapId = entry.account.metadata.snap?.id;
+      if (!snapId) {
+        continue;
+      }
+      const chainIds = request.chainIds.filter(
+        (chainId) => this.state.chainToSnap[chainId] === snapId,
+      );
+      if (chainIds.length === 0) {
+        continue;
+      }
+      const accountId = entry.account.id;
+      watched.set(accountId, {
+        request: {
+          ...request,
+          chainIds,
+          accountsWithSupportedChains: [entry],
+          forceUpdate: true,
+        },
+      });
+      // The subscription fetches it right away: start the clock now.
+      if (!this.#lastConfirmedAt.has(accountId)) {
+        this.#lastConfirmedAt.set(accountId, now);
+      }
+    }
+    if (watched.size === 0) {
+      this.#unwatchSubscription(subscriptionId);
+      return;
+    }
+    this.#watchedAccounts.set(subscriptionId, watched);
+    if (!this.#revalidationTimer) {
+      this.#revalidationTimer = setInterval(() => {
+        this.revalidateStaleAccounts().catch((error) =>
+          log('Snap balance revalidation failed', { error }),
+        );
+      }, this.#revalidateCheckIntervalMs);
+      // Do not keep a Node process (tests, scripts) alive for revalidation.
+      (this.#revalidationTimer as { unref?: () => void }).unref?.();
+    }
+  }
+
+  #unwatchSubscription(subscriptionId: string): void {
+    this.#watchedAccounts.delete(subscriptionId);
+    if (this.#watchedAccounts.size === 0 && this.#revalidationTimer) {
+      clearInterval(this.#revalidationTimer);
+      this.#revalidationTimer = null;
+    }
+  }
+
+  /**
+   * Ask the snaps again for subscribed accounts whose balance was not
+   * confirmed (fetched or pushed) within the revalidation window. A failure
+   * flags the balance unavailable and starts the retry backoff; accounts that
+   * are already failing are left to their scheduled retries.
+   *
+   * @param now - Current time (for tests).
+   */
+  async revalidateStaleAccounts(now: number = Date.now()): Promise<void> {
+    if (this.#revalidateAfterMs === null || this.#destroyed) {
+      return;
+    }
+    const due = new Map<string, WatchedAccountEntry>();
+    for (const watched of this.#watchedAccounts.values()) {
+      for (const [accountId, entry] of watched) {
+        if (
+          due.has(accountId) ||
+          this.#failedAccounts.has(accountId) ||
+          this.#revalidating.has(accountId)
+        ) {
+          continue;
+        }
+        const confirmedAt = this.#lastConfirmedAt.get(accountId) ?? 0;
+        if (now - confirmedAt >= this.#revalidateAfterMs) {
+          due.set(accountId, entry);
+        }
+      }
+    }
+
+    await Promise.all(
+      Array.from(due.entries()).map(async ([accountId, entry]) => {
+        this.#revalidating.add(accountId);
+        try {
+          log('Revalidating snap balance', { accountId });
+          // `fetch` records the outcome: success confirms the balance, a
+          // failure flags it unavailable and schedules a retry.
+          const response = await this.fetch(entry.request);
+          if (Object.keys(response.assetsBalance ?? {}).length > 0) {
+            await this.#onAssetsUpdate(response);
+          }
+        } finally {
+          this.#revalidating.delete(accountId);
+        }
+      }),
+    );
+  }
+
   #markAccountSucceeded(accountId: string): void {
+    this.#lastConfirmedAt.set(accountId, Date.now());
     const failure = this.#failedAccounts.get(accountId);
     if (!failure) {
       return;
@@ -1245,6 +1448,13 @@ export class SnapDataSource extends AbstractDataSource<
 
     // Clear keyring client cache
     this.#keyringClientCache.clear();
+
+    // Stop revalidation
+    if (this.#revalidationTimer) {
+      clearInterval(this.#revalidationTimer);
+      this.#revalidationTimer = null;
+    }
+    this.#watchedAccounts.clear();
 
     // Stop pending retries
     this.#destroyed = true;
