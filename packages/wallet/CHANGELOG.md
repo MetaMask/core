@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `GeolocationController` and `GeolocationApiService` to the default initialization configurations
+  - Optional `instanceOptions.geolocationApiService` accepts `env`, `fetch`, `ttlMs`, and `policyOptions`. Defaults to production and `globalThis.fetch`.
+  - `GeolocationController` delegates `GeolocationApiService:fetchGeolocationData`.
+  - Hosts that already register `GeolocationController` or `GeolocationApiService` on the wallet root messenger must remove them before upgrading, or messenger registration will collide.
+  - Hosts no longer need to register `GeolocationController` when `AnalyticsController` `isGeolocationEnabled` is `true`.
+
+### Changed
+
+- Add `@metamask/geolocation-controller` as a dependency
+
 ## [19.1.0]
 
 ### Added
