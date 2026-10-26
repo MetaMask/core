@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Report the `email_claimed` error, which the server sends when another profile uses the email being added, as a `CredentialAlreadyEnrolledError` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Report the `email_claimed` error, which the server sends when another profile uses the email being added, as a `CredentialAlreadyEnrolledError` ([#11083](https://github.com/MetaMask/core/pull/11083))
 
 ## [35.0.0]
 
