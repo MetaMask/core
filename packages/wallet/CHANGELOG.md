@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.0]
+
 ### Added
 
 - **BREAKING:** Add `GeolocationController` and `GeolocationApiService` to the default initialization configurations ([#11058](https://github.com/MetaMask/core/pull/11058))
@@ -421,7 +423,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.1.0...@metamask/wallet@20.0.0
 [19.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.0...@metamask/wallet@19.1.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.1...@metamask/wallet@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.0...@metamask/wallet@18.0.1
