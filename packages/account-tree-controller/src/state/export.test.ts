@@ -8,6 +8,8 @@ import { AccountGroupType } from '@metamask/account-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { SnapId } from '@metamask/snaps-sdk';
 import { InternalAccount } from '@metamask/snaps-utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type {
   AccountTreeControllerMessenger,
@@ -71,7 +73,7 @@ const MOCK_PRIVATE_KEY_WALLET_STATE = makeLocalKeyringWallet(
  * @param options - Setup options.
  * @param options.wallets - Initial wallet state.
  * @param options.isUnlocked - Whether the vault reports as unlocked (default: true).
- * @returns context, mocks (per-action jest.fn()s), and the raw messenger mock.
+ * @returns context, mocks (per-action vi.fn()s), and the raw messenger mock.
  */
 function setup({
   wallets = {},
@@ -84,30 +86,30 @@ function setup({
   /* eslint-disable @typescript-eslint/naming-convention */
   mocks: {
     KeyringController: {
-      getState: jest.Mock;
-      verifyPassword: jest.Mock;
-      withKeyringV2Unsafe: jest.Mock;
-      withKeyringV2: jest.Mock;
+      getState: Mock;
+      verifyPassword: Mock;
+      withKeyringV2Unsafe: Mock;
+      withKeyringV2: Mock;
     };
-    AccountsController: { getAccount: jest.Mock };
+    AccountsController: { getAccount: Mock };
   };
   /* eslint-enable @typescript-eslint/naming-convention */
   messenger: AccountTreeControllerMessenger;
 } {
   const mocks = {
     KeyringController: {
-      getState: jest.fn().mockReturnValue({ isUnlocked, keyrings: [] }),
-      verifyPassword: jest.fn().mockResolvedValue(undefined),
-      withKeyringV2Unsafe: jest.fn(),
-      withKeyringV2: jest.fn(),
+      getState: vi.fn().mockReturnValue({ isUnlocked, keyrings: [] }),
+      verifyPassword: vi.fn().mockResolvedValue(undefined),
+      withKeyringV2Unsafe: vi.fn(),
+      withKeyringV2: vi.fn(),
     },
     AccountsController: {
-      getAccount: jest.fn(),
+      getAccount: vi.fn(),
     },
   };
 
   const messenger = {
-    call: jest.fn().mockImplementation((action: string, ...args: unknown[]) => {
+    call: vi.fn().mockImplementation((action: string, ...args: unknown[]) => {
       switch (action) {
         case 'KeyringController:getState':
           return mocks.KeyringController.getState();
@@ -145,8 +147,8 @@ function setup({
 function makeHdKeyringHandler(
   entropySourceId: string,
   mnemonic: Uint8Array | null = null,
-): jest.Mock {
-  return jest
+): Mock {
+  return vi
     .fn()
     .mockImplementation(
       async (
@@ -164,8 +166,8 @@ function makeHdKeyringHandler(
 
 function makePrivateKeyExportHandler(
   result: { privateKey: string; encoding: string } | undefined,
-): jest.Mock {
-  return jest
+): Mock {
+  return vi
     .fn()
     .mockImplementation(
       async (

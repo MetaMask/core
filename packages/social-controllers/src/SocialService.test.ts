@@ -4,6 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SocialServiceErrorMessage, serviceName } from './social-constants.js';
 import type { SocialServiceMessenger } from './SocialService.js';
@@ -128,7 +129,7 @@ function createService(
 }
 
 describe('SocialService', () => {
-  const mockFetch = jest.fn();
+  const mockFetch = vi.fn();
   const originalFetch = global.fetch;
 
   beforeEach(() => {
@@ -157,6 +158,8 @@ describe('SocialService', () => {
           winRate7d: 0.7,
           roiPercent7d: 1.2,
           tradeCount7d: 15,
+          volumeUsd30d: 250000,
+          volumeUsd7d: 40000,
           pnlPerChain: { base: 30000, solana: 20000 },
           followerCount: 100,
           socialHandles: mockSocialHandles,
@@ -269,6 +272,31 @@ describe('SocialService', () => {
       const result = await service.fetchLeaderboard();
 
       expect(result.traders[0].name).toBe('TraderAlice');
+      expect(result.traders[0].volumeUsd30d).toBeUndefined();
+      expect(result.traders[0].volumeUsd7d).toBeUndefined();
+    });
+
+    it('accepts chain-scoped volume totals, including null', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            traders: [
+              {
+                ...mockLeaderboardResponse.traders[0],
+                volumeUsd30d: null,
+                volumeUsd7d: 1250.5,
+              },
+            ],
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchLeaderboard();
+
+      expect(result.traders[0].volumeUsd30d).toBeNull();
+      expect(result.traders[0].volumeUsd7d).toBe(1250.5);
     });
 
     it('is callable via messenger action', async () => {
@@ -499,6 +527,90 @@ describe('SocialService', () => {
         volumeUSD: 9800,
         distinctActors: 4,
       });
+    });
+
+    it('accepts and returns optional createdAt from social-api', async () => {
+      const withCreatedAt = {
+        ...mockProfileResponse,
+        profile: {
+          ...mockProfileResponse.profile,
+          createdAt: '2024-06-01T00:00:00.000Z',
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withCreatedAt),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.profile.createdAt).toBe('2024-06-01T00:00:00.000Z');
+    });
+
+    it('accepts a profile without createdAt', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockProfileResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.profile.createdAt).toBeUndefined();
+    });
+
+    it('accepts explicit null createdAt', async () => {
+      const withNullCreatedAt = {
+        ...mockProfileResponse,
+        profile: {
+          ...mockProfileResponse.profile,
+          createdAt: null,
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withNullCreatedAt),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.profile.createdAt).toBeNull();
+    });
+
+    it('throws when createdAt is not a string', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockProfileResponse,
+            profile: {
+              ...mockProfileResponse.profile,
+              createdAt: 1700000000,
+            },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchTraderProfile({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
+      );
     });
 
     it('accepts a profile without the optional 7-day per-chain breakdown', async () => {
@@ -1244,6 +1356,49 @@ describe('SocialService', () => {
       expect(calledUrl).toContain('newerThan=newer-cursor');
     });
 
+    it('fetches the shared all scope with projection metadata', async () => {
+      const allScopeResponse = {
+        items: [
+          {
+            ...mockFeedItem,
+            eventId: 'social.v1.feed.all.position-1.2',
+            revision: 2,
+            occurredAt: '2026-01-02T03:04:05.000Z',
+          },
+        ],
+        pagination: { olderCursor: null, newerCursor: null },
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(allScopeResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'all' });
+
+      expect(result).toStrictEqual(allScopeResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/feed?scope=all`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('fetches the shared trending scope', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'trending' });
+
+      expect(result).toStrictEqual(mockFeedResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/feed?scope=trending`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
     it('validates a perp feed item', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -1413,6 +1568,8 @@ describe('SocialService', () => {
           ...mockProfileSummary,
           winRate30d: 0.61,
           pnl30d: 1200,
+          volumeUsd30d: 88000,
+          volumeUsd7d: null,
           tradeCount30d: 40,
           followerCount: 12,
         },
@@ -1436,6 +1593,8 @@ describe('SocialService', () => {
       const result = await service.fetchFeed();
 
       expect(result.items[0]?.actor.winRate30d).toBe(0.61);
+      expect(result.items[0]?.actor.volumeUsd30d).toBe(88000);
+      expect(result.items[0]?.actor.volumeUsd7d).toBeNull();
       expect(result.items[0]?.actor.followerCount).toBe(12);
       expect(result.items[0]?.commentCount).toBe(1);
       expect(result.items[0]?.replyCount).toBe(3);

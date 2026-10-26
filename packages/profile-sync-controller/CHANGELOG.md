@@ -7,10 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add `AuthenticationController.requestMfaApproval`, also exposed as the `AuthenticationController:requestMfaApproval` messenger action, which requests an approval bound to one request from `POST /api/v2/mfa/approvals` for services such as recovery and signing ([#11071](https://github.com/MetaMask/core/pull/11071))
+  - Takes `requestHash`, `audiences`, an optional `includeIdentifiers` and a trace `reason`, and returns `{ approval, expiresIn, identifiers? }`
+  - With `requireVerification: true`, the approval proves the verification session; without one, it throws `StepUpRequiredError` (`aal2_required`) without calling the server, so the caller verifies first
+  - A 403 `authentication_required` response, which the server sends when that verification is too old, is also reported as `StepUpRequiredError`: it drops that verification session, so the next verification runs a new ceremony, and leaves the SRP session in place
+  - Exports the `RequestMfaApprovalRequest`, `MfaApproval` and `MfaApprovalIdentifier` types from the SDK, and the `AuthenticationControllerRequestMfaApprovalAction` type
+
+## [35.0.0]
+
+### Added
+
+- Add authenticator app (TOTP) support to MFA enrollment and verification ([#10914](https://github.com/MetaMask/core/pull/10914))
+  - `AuthenticationController.beginCredentialEnrollment({ type: 'totp' })` returns a `totp` challenge with the base32 `secret`, a PNG data URL `qrCode`, and a `setupUri` (`otpauth://` link) that opens an authenticator app on the same device
+  - `completeCredentialEnrollment` and `completeCredentialVerification` accept a `{ type: 'totp', code }` proof, and `beginCredentialVerification({ type: 'totp' })` returns a `totp` challenge
+  - Enrolled authenticator apps are listed in `enrolledCredentials` as `{ type: 'totp' }`
+  - The server's `totp_already_enrolled` error is thrown as `CredentialAlreadyEnrolledError`
+- Add `lastUsedAt` to every `EnrolledCredential`, from the server's `last_used_at` ([#10914](https://github.com/MetaMask/core/pull/10914))
+
+### Changed
+
+- **BREAKING:** `MFA_CREDENTIAL_TYPES`, `MfaCredentialType`, `EnrolledCredential`, `EnrollmentChallenge`, `EnrollmentProof`, `VerificationChallenge`, `VerificationProof` and `MfaErrorCode` now include TOTP (`'totp'` and `'totp_already_enrolled'`) ([#10914](https://github.com/MetaMask/core/pull/10914))
+
+## [34.1.0]
+
+### Added
+
+- Add `AuthenticationController.exchangeSocialAccessToken` and the `AuthenticationController:exchangeSocialAccessToken` messenger action, exchanging the wallet's Google, Apple or Telegram social access token (`POST /api/v2/social/login`) for an access token and the canonical profile, without storing them ([#10886](https://github.com/MetaMask/core/pull/10886))
+  - Add `exchangeSocialAccessToken` to the SDK's `JwtBearerAuth`, the `SocialLoginParams` type, and `SocialIdentifierNotPairedError`, thrown when the identifier was never paired to a profile
+
 ### Changed
 
 - Bump `loglevel` from `^1.8.1` to `^1.9.2` ([#10724](https://github.com/MetaMask/core/pull/10724))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+### Fixed
+
+- Fix `AuthenticationController.completeCredentialEnrollment` failing with `aal2_required` when adding a second factor, by sending the verification token that began the enrollment, which the server now requires to complete it too ([#10900](https://github.com/MetaMask/core/pull/10900))
+  - `JwtBearerAuth.completeMfaEnrollment` accepts an optional `accessToken`, like `beginMfaEnrollment`
 
 ## [34.0.3]
 
@@ -1066,7 +1103,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@35.0.0...HEAD
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.1.0...@metamask/profile-sync-controller@35.0.0
+[34.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.3...@metamask/profile-sync-controller@34.1.0
 [34.0.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.2...@metamask/profile-sync-controller@34.0.3
 [34.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.1...@metamask/profile-sync-controller@34.0.2
 [34.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.0...@metamask/profile-sync-controller@34.0.1

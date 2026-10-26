@@ -5,6 +5,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
 import { associateAddressStep } from './associate-address.js';
@@ -41,9 +43,9 @@ type AllActions = MessengerActions<MoneyAccountUpgradeControllerMessenger>;
 type AllEvents = MessengerEvents<MoneyAccountUpgradeControllerMessenger>;
 
 type Mocks = {
-  signPersonalMessage: jest.Mock;
-  associateAddress: jest.Mock;
-  getAssociatedAddresses: jest.Mock;
+  signPersonalMessage: Mock;
+  associateAddress: Mock;
+  getAssociatedAddresses: Mock;
 };
 
 function setup(): {
@@ -51,13 +53,13 @@ function setup(): {
   mocks: Mocks;
 } {
   const mocks: Mocks = {
-    signPersonalMessage: jest.fn().mockResolvedValue(MOCK_SIGNATURE),
-    associateAddress: jest.fn().mockResolvedValue({
+    signPersonalMessage: vi.fn().mockResolvedValue(MOCK_SIGNATURE),
+    associateAddress: vi.fn().mockResolvedValue({
       profileId: 'profile-1',
       address: MOCK_ADDRESS_LOWERCASE,
       status: 'created',
     }),
-    getAssociatedAddresses: jest.fn().mockResolvedValue([]),
+    getAssociatedAddresses: vi.fn().mockResolvedValue([]),
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -113,12 +115,12 @@ async function run(
 
 describe('associateAddressStep', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(MOCK_NOW);
+    vi.useFakeTimers();
+    vi.setSystemTime(MOCK_NOW);
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('is named "associate-address"', () => {

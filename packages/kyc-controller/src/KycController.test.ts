@@ -4,8 +4,10 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockedFunction } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import { toBase64Url } from './encoding.js';
 import {
   getDefaultKycControllerState,
@@ -14,29 +16,30 @@ import {
 import type { KycControllerMessenger } from './KycController.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import type { KycConsentRecord, KycSessionDisclaimers } from './types.js';
-import { verifyJwtChain } from './ukyc/jwtChain.js';
+import {
+  assertAttestedServerPublicKey,
+  verifyJwtChain,
+} from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 
-jest.mock('./ukyc/jwtChain', () => {
-  const actual = jest.requireActual('./ukyc/jwtChain');
-  return {
-    ...actual,
-    verifyJwtChain: jest.fn(),
-    assertAttestedServerPublicKey: jest.fn(),
-  };
-});
-jest.mock('./ukyc/wrapEncryptionKey', () => {
-  const actual = jest.requireActual('./ukyc/wrapEncryptionKey');
-  return {
-    ...actual,
-    wrapEncryptionKey: jest.fn(),
-  };
-});
+vi.mock(import('./ukyc/jwtChain.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  verifyJwtChain: vi.fn(),
+  assertAttestedServerPublicKey: vi.fn(),
+}));
+vi.mock(import('./ukyc/wrapEncryptionKey.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  wrapEncryptionKey: vi.fn(),
+}));
 
-const mockVerifyJwtChain = verifyJwtChain as jest.MockedFunction<
+const mockVerifyJwtChain = verifyJwtChain as MockedFunction<
   typeof verifyJwtChain
 >;
-const mockWrapEncryptionKey = wrapEncryptionKey as jest.MockedFunction<
+const mockAssertAttestedServerPublicKey =
+  assertAttestedServerPublicKey as MockedFunction<
+    typeof assertAttestedServerPublicKey
+  >;
+const mockWrapEncryptionKey = wrapEncryptionKey as MockedFunction<
   typeof wrapEncryptionKey
 >;
 
@@ -128,6 +131,9 @@ describe('KycController', () => {
             residenceCountry: 'USA',
             vendor: 'iron',
             aal2Token: AAL2_TOKEN,
+            partnerIdentityToken: unsignedJwt({
+              ext: { email: 'a@b.co', email_verified: true },
+            }),
           }),
         );
         expect(
@@ -508,6 +514,7 @@ describe('KycController', () => {
             'KycController missing partner identity token for vendor',
           );
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
         },
       );
     });
@@ -540,6 +547,14 @@ describe('KycController', () => {
             ext: { email: 'moonpay@example.com', email_verified: true },
           }),
         });
+        expect(handlers.createUkycSession).toHaveBeenCalledWith(
+          expect.objectContaining({
+            vendor: 'moonpay',
+            partnerIdentityToken: unsignedJwt({
+              ext: { email: 'moonpay@example.com', email_verified: true },
+            }),
+          }),
+        );
       });
     });
 
@@ -599,6 +614,54 @@ describe('KycController', () => {
         expect(controller.state.sessionStatus).toBeNull();
       });
     });
+
+    it('throws a readable error when fetching signing keys fails', async () => {
+      const fetchError = new Error(
+        "Fetching 'https://idos.example/.well-known/jwks.json' failed with status '500'",
+      );
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        handlers.fetchIdosEnclaveJwks.mockRejectedValueOnce(fetchError);
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          message:
+            'KycController.#verifyWrappingKeys: Unable to fetch JWKS needed to verify wrapping keys.',
+          cause: fetchError,
+        });
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
+
+    it('throws a readable error when encryption-key verification fails', async () => {
+      const verificationError = new Error(
+        'UKYC: jwtChain signature verification failed against JWKS.',
+      );
+      mockAssertAttestedServerPublicKey.mockImplementationOnce(() => {
+        throw verificationError;
+      });
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          message:
+            'KycController.#verifyWrappingKeys: Failed to verify the wrapping keys.',
+          cause: verificationError,
+        });
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
   });
 
   describe('reset and clearState', () => {
@@ -641,7 +704,7 @@ describe('KycController', () => {
 
   describe('refreshSessionStatus', () => {
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('throws when no session is available', async () => {
@@ -655,7 +718,7 @@ describe('KycController', () => {
     it.each(['approved', 'rejected', 'retry'] as const)(
       'returns a %s session without fetching, refreshing authorization, or polling',
       async (finalStatus) => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         const current = sessionStatus(finalStatus, {
           capabilityAuthorizationStatus: 'expired',
         });
@@ -671,7 +734,7 @@ describe('KycController', () => {
             expect(handlers.setAuthorizations).not.toHaveBeenCalled();
             expect(controller.state.sessionStatus).toStrictEqual(current);
 
-            await jest.advanceTimersByTimeAsync(30_000);
+            await vi.advanceTimersByTimeAsync(30_000);
             expect(handlers.getSessionStatus).not.toHaveBeenCalled();
           },
         );
@@ -679,7 +742,7 @@ describe('KycController', () => {
     );
 
     it('returns the persisted status and starts polling when not terminal', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       const current = sessionStatus('pending', {
         capabilityAuthorizationStatus: 'expired',
       });
@@ -702,7 +765,7 @@ describe('KycController', () => {
           expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
           expect(handlers.setAuthorizations).not.toHaveBeenCalled();
 
-          await jest.advanceTimersByTimeAsync(15_000);
+          await vi.advanceTimersByTimeAsync(15_000);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
         },
       );
@@ -734,11 +797,11 @@ describe('KycController', () => {
 
   describe('fetchSessionStatusOnce', () => {
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('writes one session-status GET and does not poll', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       await withController(
         {
           options: { state: { sessionStatus: sessionStatus('pending') } },
@@ -766,7 +829,7 @@ describe('KycController', () => {
             sessionId: 'sid',
           });
 
-          await jest.advanceTimersByTimeAsync(60_000);
+          await vi.advanceTimersByTimeAsync(60_000);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
         },
       );
@@ -775,7 +838,7 @@ describe('KycController', () => {
 
   describe('startSessionStatusPolling', () => {
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('throws when no session id is available', async () => {
@@ -901,7 +964,7 @@ describe('KycController', () => {
     it.each(['approved', 'rejected', 'retry'])(
       'stops polling once finalStatus is %s',
       async (finalStatus) => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         await withController(
           {
             options: { state: { sessionStatus: sessionStatus('pending') } },
@@ -915,7 +978,7 @@ describe('KycController', () => {
             await flushPromises();
             expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
-            await jest.advanceTimersByTimeAsync(30_000);
+            await vi.advanceTimersByTimeAsync(30_000);
             expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
           },
         );
@@ -923,7 +986,7 @@ describe('KycController', () => {
     );
 
     it('waits 10 seconds longer after each poll', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       await withController(
         {
           options: { state: { sessionStatus: sessionStatus('pending') } },
@@ -935,26 +998,26 @@ describe('KycController', () => {
           await flushPromises();
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
-          await jest.advanceTimersByTimeAsync(9_999);
+          await vi.advanceTimersByTimeAsync(9_999);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
-          await jest.advanceTimersByTimeAsync(1);
+          await vi.advanceTimersByTimeAsync(1);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
 
-          await jest.advanceTimersByTimeAsync(19_999);
+          await vi.advanceTimersByTimeAsync(19_999);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
-          await jest.advanceTimersByTimeAsync(1);
+          await vi.advanceTimersByTimeAsync(1);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
 
-          await jest.advanceTimersByTimeAsync(29_999);
+          await vi.advanceTimersByTimeAsync(29_999);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
-          await jest.advanceTimersByTimeAsync(1);
+          await vi.advanceTimersByTimeAsync(1);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
         },
       );
     });
 
     it('restarts the backoff when polling starts again', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       await withController(
         {
           options: { state: { sessionStatus: sessionStatus('pending') } },
@@ -964,31 +1027,31 @@ describe('KycController', () => {
 
           controller.startSessionStatusPolling();
           await flushPromises();
-          await jest.advanceTimersByTimeAsync(10_000);
+          await vi.advanceTimersByTimeAsync(10_000);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
 
           controller.startSessionStatusPolling();
           await flushPromises();
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
 
-          await jest.advanceTimersByTimeAsync(9_999);
+          await vi.advanceTimersByTimeAsync(9_999);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
-          await jest.advanceTimersByTimeAsync(1);
+          await vi.advanceTimersByTimeAsync(1);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
 
           // The replaced loop would have fired 20s after this restart.
-          await jest.advanceTimersByTimeAsync(10_000);
+          await vi.advanceTimersByTimeAsync(10_000);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
-          await jest.advanceTimersByTimeAsync(9_999);
+          await vi.advanceTimersByTimeAsync(9_999);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(4);
-          await jest.advanceTimersByTimeAsync(1);
+          await vi.advanceTimersByTimeAsync(1);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(5);
         },
       );
     });
 
     it('polls again after a failed request', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       await withController(
         {
           options: { state: { sessionStatus: sessionStatus('pending') } },
@@ -1002,7 +1065,7 @@ describe('KycController', () => {
           await flushPromises();
           expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
 
-          await jest.advanceTimersByTimeAsync(10_000);
+          await vi.advanceTimersByTimeAsync(10_000);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
           expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
         },
@@ -1010,7 +1073,7 @@ describe('KycController', () => {
     });
 
     it('lengthens the wait after a failed request', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       await withController(
         {
           options: { state: { sessionStatus: sessionStatus('pending') } },
@@ -1024,19 +1087,19 @@ describe('KycController', () => {
           await flushPromises();
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
-          await jest.advanceTimersByTimeAsync(10_000);
+          await vi.advanceTimersByTimeAsync(10_000);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
 
-          await jest.advanceTimersByTimeAsync(10_000);
+          await vi.advanceTimersByTimeAsync(10_000);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
-          await jest.advanceTimersByTimeAsync(10_000);
+          await vi.advanceTimersByTimeAsync(10_000);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
         },
       );
     });
 
     it('cancels a scheduled poll when reset lands between ticks', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       await withController(
         {
           options: { state: { sessionStatus: sessionStatus('pending') } },
@@ -1050,7 +1113,7 @@ describe('KycController', () => {
 
           await controller.reset();
 
-          await jest.advanceTimersByTimeAsync(60_000);
+          await vi.advanceTimersByTimeAsync(60_000);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
         },
       );
@@ -1575,31 +1638,31 @@ type RootMessenger = Messenger<
 >;
 
 type ServiceHandlers = {
-  getGeoCountry: jest.Mock;
-  getPartnerIdentityToken: jest.Mock;
-  putIdentitySharingConsent: jest.Mock;
-  fetchVendorDisclaimers: jest.Mock;
-  createMoonpaySession: jest.Mock;
-  createVendorCustomer: jest.Mock;
-  submitVendorDisclaimers: jest.Mock;
-  fetchSessionDisclaimersByCountry: jest.Mock;
-  fetchSessionDisclaimersBySessionId: jest.Mock;
-  submitSessionDisclaimers: jest.Mock;
-  fetchIdosEnclaveJwks: jest.Mock;
-  fetchIdosRelayJwks: jest.Mock;
-  createUkycSession: jest.Mock;
-  resetWrappingKeys: jest.Mock;
-  setAuthorizations: jest.Mock;
-  createJourney: jest.Mock;
-  getSessionStatus: jest.Mock;
-  getSessionStatusForVendor: jest.Mock;
-  performGetStorage: jest.Mock;
-  performSetStorage: jest.Mock;
+  getGeoCountry: Mock;
+  getPartnerIdentityToken: Mock;
+  putIdentitySharingConsent: Mock;
+  fetchVendorDisclaimers: Mock;
+  createMoonpaySession: Mock;
+  createVendorCustomer: Mock;
+  submitVendorDisclaimers: Mock;
+  fetchSessionDisclaimersByCountry: Mock;
+  fetchSessionDisclaimersBySessionId: Mock;
+  submitSessionDisclaimers: Mock;
+  fetchIdosEnclaveJwks: Mock;
+  fetchIdosRelayJwks: Mock;
+  createUkycSession: Mock;
+  resetWrappingKeys: Mock;
+  setAuthorizations: Mock;
+  createJourney: Mock;
+  getSessionStatus: Mock;
+  getSessionStatusForVendor: Mock;
+  performGetStorage: Mock;
+  performSetStorage: Mock;
 };
 
 type Launcher = {
-  isAvailable: jest.Mock;
-  launch: jest.Mock;
+  isAvailable: Mock;
+  launch: Mock;
 };
 
 type WithControllerCallback<ReturnValue> = (payload: {
@@ -1663,7 +1726,7 @@ function ukycSessionResponse(
  * @param sessionId - Expected UKYC session id.
  */
 function expectResetWrappingKeys(
-  resetWrappingKeys: jest.Mock,
+  resetWrappingKeys: Mock,
   sessionId: string,
 ): void {
   const calls = resetWrappingKeys.mock.calls as [
@@ -1762,44 +1825,44 @@ function withController<ReturnValue>(
   });
 
   const handlers: ServiceHandlers = {
-    getGeoCountry: jest.fn().mockResolvedValue('USA'),
-    getPartnerIdentityToken: jest
+    getGeoCountry: vi.fn().mockResolvedValue('USA'),
+    getPartnerIdentityToken: vi
       .fn()
       .mockResolvedValue(
         unsignedJwt({ ext: { email: 'a@b.co', email_verified: true } }),
       ),
-    putIdentitySharingConsent: jest.fn().mockResolvedValue(undefined),
-    fetchVendorDisclaimers: jest.fn().mockResolvedValue([]),
-    createMoonpaySession: jest.fn().mockResolvedValue({ sessionToken: 'sess' }),
-    createVendorCustomer: jest.fn().mockResolvedValue({
+    putIdentitySharingConsent: vi.fn().mockResolvedValue(undefined),
+    fetchVendorDisclaimers: vi.fn().mockResolvedValue([]),
+    createMoonpaySession: vi.fn().mockResolvedValue({ sessionToken: 'sess' }),
+    createVendorCustomer: vi.fn().mockResolvedValue({
       id: 'cust-1',
       email: 'a@b.co',
       status: 'SigningsRequired',
     }),
-    submitVendorDisclaimers: jest.fn().mockResolvedValue([]),
-    fetchSessionDisclaimersByCountry: jest.fn().mockResolvedValue({
+    submitVendorDisclaimers: vi.fn().mockResolvedValue([]),
+    fetchSessionDisclaimersByCountry: vi.fn().mockResolvedValue({
       idOS: [],
       kycProvider: [],
     }),
-    fetchSessionDisclaimersBySessionId: jest
+    fetchSessionDisclaimersBySessionId: vi
       .fn()
       .mockResolvedValue(MOCK_SESSION_DISCLAIMERS),
-    submitSessionDisclaimers: jest.fn().mockResolvedValue({
+    submitSessionDisclaimers: vi.fn().mockResolvedValue({
       ...MOCK_SESSION_DISCLAIMERS,
       credentialReusabilityConsentGiven: true,
     }),
-    fetchIdosEnclaveJwks: jest.fn().mockResolvedValue({ keys: [] }),
-    fetchIdosRelayJwks: jest.fn().mockResolvedValue({ keys: [] }),
-    createUkycSession: jest.fn().mockResolvedValue(ukycSessionResponse()),
-    resetWrappingKeys: jest.fn().mockResolvedValue(ukycSessionResponse()),
-    setAuthorizations: jest.fn().mockResolvedValue(sessionStatus('approved')),
-    createJourney: jest
+    fetchIdosEnclaveJwks: vi.fn().mockResolvedValue({ keys: [] }),
+    fetchIdosRelayJwks: vi.fn().mockResolvedValue({ keys: [] }),
+    createUkycSession: vi.fn().mockResolvedValue(ukycSessionResponse()),
+    resetWrappingKeys: vi.fn().mockResolvedValue(ukycSessionResponse()),
+    setAuthorizations: vi.fn().mockResolvedValue(sessionStatus('approved')),
+    createJourney: vi
       .fn()
       .mockResolvedValue({ status: 'ok', applicantAccessToken: 'aat' }),
-    getSessionStatus: jest.fn().mockResolvedValue(sessionStatus('approved')),
-    getSessionStatusForVendor: jest.fn().mockResolvedValue(null),
-    performGetStorage: jest.fn().mockResolvedValue(null),
-    performSetStorage: jest.fn().mockResolvedValue(undefined),
+    getSessionStatus: vi.fn().mockResolvedValue(sessionStatus('approved')),
+    getSessionStatusForVendor: vi.fn().mockResolvedValue(null),
+    performGetStorage: vi.fn().mockResolvedValue(null),
+    performSetStorage: vi.fn().mockResolvedValue(undefined),
   };
 
   rootMessenger.registerActionHandler(
@@ -1893,8 +1956,8 @@ function withController<ReturnValue>(
   });
 
   const launcher: Launcher = {
-    isAvailable: jest.fn().mockReturnValue(true),
-    launch: jest.fn().mockResolvedValue({ ok: true }),
+    isAvailable: vi.fn().mockReturnValue(true),
+    launch: vi.fn().mockResolvedValue({ ok: true }),
   };
 
   const controller = new KycController({

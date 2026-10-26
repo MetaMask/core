@@ -1,8 +1,10 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { NameType } from '../types.js';
 import { graphQL } from '../util.js';
 import { LensNameProvider } from './lens.js';
 
-jest.mock('../util');
+vi.mock(import('../util.js'));
 
 const VALUE_MOCK = 'TestValue';
 const CHAIN_ID_MOCK = '0x1';
@@ -11,7 +13,7 @@ const HANDLE_MOCK = 'TestHandle';
 const HANDLE_2_MOCK = 'TestHandle2';
 
 describe('LensNameProvider', () => {
-  const graphqlMock = jest.mocked(graphQL);
+  const graphqlMock = vi.mocked(graphQL);
 
   describe('getMetadata', () => {
     it('returns the provider metadata', () => {

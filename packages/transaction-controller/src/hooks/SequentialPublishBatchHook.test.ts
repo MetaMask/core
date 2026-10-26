@@ -1,6 +1,8 @@
 import type { Hex } from '@metamask/utils';
+import type { Mock, Mocked, MockedFunction } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flushPromises } from '../../../../tests/helpers.js';
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker.js';
 import type { PublishBatchHookTransaction, TransactionMeta } from '../types.js';
 import { SequentialPublishBatchHook } from './SequentialPublishBatchHook.js';
@@ -41,12 +43,12 @@ const TRANSACTION_META_2_MOCK = {
 } as TransactionMeta;
 
 describe('SequentialPublishBatchHook', () => {
-  const eventListeners: Record<string, jest.Mock[]> = {};
-  let publishTransactionMock: jest.MockedFn<
+  const eventListeners: Record<string, Mock[]> = {};
+  let publishTransactionMock: MockedFunction<
     (transactionMeta: TransactionMeta) => Promise<Hex>
   >;
-  let getTransactionMock: jest.MockedFn<(id: string) => TransactionMeta>;
-  let pendingTransactionTrackerMock: jest.Mocked<PendingTransactionTracker>;
+  let getTransactionMock: MockedFunction<(id: string) => TransactionMeta>;
+  let pendingTransactionTrackerMock: Mocked<PendingTransactionTracker>;
 
   /**
    * Simulate an event from the pending transaction tracker.
@@ -62,10 +64,10 @@ describe('SequentialPublishBatchHook', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
-    publishTransactionMock = jest.fn();
-    getTransactionMock = jest.fn();
+    publishTransactionMock = vi.fn();
+    getTransactionMock = vi.fn();
 
     getTransactionMock.mockImplementation((id) => {
       if (id === TRANSACTION_ID_MOCK) {
@@ -79,13 +81,13 @@ describe('SequentialPublishBatchHook', () => {
 
     pendingTransactionTrackerMock = {
       hub: {
-        on: jest.fn((eventName, callback) => {
+        on: vi.fn((eventName, callback) => {
           if (!eventListeners[eventName]) {
             eventListeners[eventName] = [];
           }
           eventListeners[eventName].push(callback);
         }),
-        off: jest.fn((eventName) => {
+        off: vi.fn((eventName) => {
           if (eventName) {
             eventListeners[eventName] = [];
           } else {
@@ -95,13 +97,13 @@ describe('SequentialPublishBatchHook', () => {
           }
         }),
       },
-      addTransactionToPoll: jest.fn(),
-      stop: jest.fn(),
-    } as unknown as jest.Mocked<PendingTransactionTracker>;
+      addTransactionToPoll: vi.fn(),
+      stop: vi.fn(),
+    } as unknown as Mocked<PendingTransactionTracker>;
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('publishes multiple transactions sequentially', async () => {
@@ -117,7 +119,7 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getPendingTransactionTracker: jest
+      getPendingTransactionTracker: vi
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
     });
@@ -199,7 +201,7 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getPendingTransactionTracker: jest
+      getPendingTransactionTracker: vi
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
     });
@@ -226,7 +228,7 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getPendingTransactionTracker: jest
+      getPendingTransactionTracker: vi
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
     });
@@ -254,7 +256,7 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getPendingTransactionTracker: jest
+      getPendingTransactionTracker: vi
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
     });
@@ -302,7 +304,7 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getPendingTransactionTracker: jest
+      getPendingTransactionTracker: vi
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
     });
@@ -351,7 +353,7 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getPendingTransactionTracker: jest
+      getPendingTransactionTracker: vi
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
     });
@@ -390,7 +392,7 @@ describe('SequentialPublishBatchHook', () => {
     const sequentialPublishBatchHook = new SequentialPublishBatchHook({
       publishTransaction: publishTransactionMock,
       getTransaction: getTransactionMock,
-      getPendingTransactionTracker: jest
+      getPendingTransactionTracker: vi
         .fn()
         .mockReturnValue(pendingTransactionTrackerMock),
     });

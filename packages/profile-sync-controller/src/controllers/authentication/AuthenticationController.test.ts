@@ -8,17 +8,29 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { cleanAll as cleanAllNock } from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
-import { arrangeAuthAPIs } from '../../sdk/__fixtures__/auth.js';
+import {
+  arrangeAuthAPIs,
+  handleMockSocialLogin,
+} from '../../sdk/__fixtures__/auth.js';
+import { buildTotpSetupUri } from '../../sdk/authentication-jwt-bearer/mfa/services.js';
 import type { LoginResponse } from '../../sdk/index.js';
-import { EmailRequiredError, Platform } from '../../sdk/index.js';
+import {
+  EmailRequiredError,
+  Platform,
+  SocialIdentifierNotPairedError,
+} from '../../sdk/index.js';
 import {
   MOCK_ACCESS_JWT,
   MOCK_MFA_CREDENTIALS_RESPONSE,
   MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
   MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
   MOCK_MFA_ENROLL_EMAIL_RESPONSE,
+  MOCK_MFA_ENROLL_TOTP_RESPONSE,
   MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
+  MOCK_SOCIAL_LOGIN_RESPONSE,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
 } from '../../sdk/mocks/auth.js';
 import {
@@ -49,12 +61,12 @@ import {
   MOCK_PAIR_SOCIAL_IDENTIFIER_RESPONSE,
 } from './mocks/mockResponses.js';
 
-jest.mock('../../shared/utils/message-signing.js', () => ({
+vi.mock('../../shared/utils/message-signing.js', () => ({
   MESSAGE_SIGNING_SNAP_ID: 'npm:@metamask/message-signing-snap',
-  getMessageSigningPublicKey: jest.fn(async () => 'MOCK_PUBLIC_KEY'),
-  signMessageWithMessageSigningKey: jest.fn(async () => 'MOCK_SIGNED_MESSAGE'),
-  deriveMessageSigningPrivateKey: jest.fn(),
-  deriveSip6PrivateKey: jest.fn(),
+  getMessageSigningPublicKey: vi.fn(async () => 'MOCK_PUBLIC_KEY'),
+  signMessageWithMessageSigningKey: vi.fn(async () => 'MOCK_SIGNED_MESSAGE'),
+  deriveMessageSigningPrivateKey: vi.fn(),
+  deriveSip6PrivateKey: vi.fn(),
 }));
 
 const MOCK_HD_SEED = new Uint8Array(64).fill(1);
@@ -1766,6 +1778,119 @@ describe('AuthenticationController', () => {
     });
   });
 
+  describe('exchangeSocialAccessToken', () => {
+    const arrangeSocialLogin = ({
+      authConnection = 'google',
+      vault = 'encrypted',
+      socialJwt = MOCK_SOCIAL_JWT,
+    }: {
+      authConnection?: string;
+      vault?: string | null;
+      socialJwt?: string;
+    } = {}): {
+      controller: AuthenticationController;
+      baseMessenger: RootMessenger;
+    } => {
+      const {
+        messenger,
+        baseMessenger,
+        mockSeedlessOnboardingGetState,
+        mockSeedlessOnboardingGetAccessToken,
+      } = createMockAuthenticationMessenger();
+      mockSeedlessOnboardingGetState.mockReturnValue({ vault, authConnection });
+      mockSeedlessOnboardingGetAccessToken.mockResolvedValue(socialJwt);
+      const controller = new AuthenticationController({
+        messenger,
+        metametrics: createMockAuthMetaMetrics(),
+        state: mockSignedInState(),
+      });
+      return { controller, baseMessenger };
+    };
+
+    it.each([
+      ['google', 'GOOGLE'],
+      ['apple', 'APPLE'],
+      ['telegram', 'TELEGRAM'],
+    ])(
+      'exchanges the %s token for the canonical profile without storing it',
+      async (authConnection, identifierType) => {
+        const requests: { body: unknown; authorization: string }[] = [];
+        const mockSocialLoginUrl = handleMockSocialLogin(undefined, (request) =>
+          requests.push(request),
+        );
+        arrangeAuthAPIs();
+        const { controller } = arrangeSocialLogin({ authConnection });
+        const stateBefore = controller.state;
+
+        const result = await controller.exchangeSocialAccessToken();
+
+        expect(mockSocialLoginUrl.isDone()).toBe(true);
+        expect(requests).toStrictEqual([
+          {
+            body: { identifier_type: identifierType },
+            authorization: `Bearer ${MOCK_SOCIAL_JWT}`,
+          },
+        ]);
+        expect(result.token.accessToken).toBe(
+          MOCK_OATH_TOKEN_RESPONSE.access_token,
+        );
+        expect(result.profile.canonicalProfileId).toBe(
+          MOCK_SOCIAL_LOGIN_RESPONSE.profile.profile_id,
+        );
+        expect(controller.state).toBe(stateBefore);
+      },
+    );
+
+    it.each([
+      ['there is no social vault', { vault: null }],
+      ['the social provider is unknown', { authConnection: 'github' }],
+    ])('throws when %s', async (_case, options) => {
+      const mockSocialLoginUrl = handleMockSocialLogin();
+      const { controller } = arrangeSocialLogin(options);
+
+      await expect(controller.exchangeSocialAccessToken()).rejects.toThrow(
+        'exchangeSocialAccessToken - the wallet has no social login',
+      );
+      expect(mockSocialLoginUrl.isDone()).toBe(false);
+    });
+
+    it('throws when the social token is unavailable', async () => {
+      const mockSocialLoginUrl = handleMockSocialLogin();
+      const { controller } = arrangeSocialLogin({ socialJwt: '' });
+
+      await expect(controller.exchangeSocialAccessToken()).rejects.toThrow(
+        'exchangeSocialAccessToken - no social access token',
+      );
+      expect(mockSocialLoginUrl.isDone()).toBe(false);
+    });
+
+    it('throws SocialIdentifierNotPairedError when the identifier is not paired', async () => {
+      handleMockSocialLogin({
+        status: 404,
+        body: { message: 'social identifier is not paired to any profile' },
+      });
+      const { controller } = arrangeSocialLogin();
+
+      await expect(controller.exchangeSocialAccessToken()).rejects.toThrow(
+        SocialIdentifierNotPairedError,
+      );
+    });
+
+    it('is exposed via the messenger registry', async () => {
+      handleMockSocialLogin();
+      arrangeAuthAPIs();
+      const { baseMessenger } = arrangeSocialLogin();
+
+      const result = await baseMessenger.call(
+        'AuthenticationController:exchangeSocialAccessToken',
+      );
+
+      expect(result.token.accessToken).toBe(
+        MOCK_OATH_TOKEN_RESPONSE.access_token,
+      );
+    });
+  });
+
   describe('requestProfilePairing', () => {
     it('flips needsProfilePairing from false to true', () => {
       const metametrics = createMockAuthMetaMetrics();
@@ -2554,7 +2679,7 @@ describe('MFA credential enrollment', () => {
   it('refreshes credentials and writes state only when data changes', async () => {
     mockEndpointMfaCredentials();
     const { controller, baseMessenger } = createController();
-    const listener = jest.fn();
+    const listener = vi.fn();
     baseMessenger.subscribe('AuthenticationController:stateChange', listener);
 
     expect(await controller.refreshEnrolledCredentials()).toHaveLength(2);
@@ -2583,8 +2708,8 @@ describe('MFA credential enrollment', () => {
 
   it('begins passkey enrollment with validated tracing tags', async () => {
     mockEndpointMfaEnroll();
-    const setAttribute = jest.fn();
-    const trace = jest.fn(
+    const setAttribute = vi.fn();
+    const trace = vi.fn(
       (
         _request: unknown,
         fn?: (context?: unknown) => unknown,
@@ -2648,10 +2773,46 @@ describe('MFA credential enrollment', () => {
     ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
   });
 
+  it('enrolls an authenticator app without touching the SRP session', async () => {
+    mockEndpointMfaEnroll({
+      status: 200,
+      body: MOCK_MFA_ENROLL_TOTP_RESPONSE,
+    });
+    mockEndpointMfaEnrollComplete();
+    mockEndpointMfaCredentials();
+    const { controller } = createController();
+    const sessionBefore =
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]];
+
+    expect(
+      await controller.beginCredentialEnrollment({
+        type: 'totp',
+        reason: { operation: 'settings.addAuthenticatorApp' },
+      }),
+    ).toStrictEqual({
+      type: 'totp',
+      flowId: 'enroll-totp-flow-id',
+      expiresAt: Date.parse('2099-09-07T14:30:00Z'),
+      secret: MOCK_MFA_ENROLL_TOTP_RESPONSE.totp_secret,
+      qrCode: MOCK_MFA_ENROLL_TOTP_RESPONSE.totp_qr,
+      setupUri: buildTotpSetupUri(MOCK_MFA_ENROLL_TOTP_RESPONSE.totp_secret),
+    });
+    await controller.completeCredentialEnrollment({
+      flowId: 'enroll-totp-flow-id',
+      proof: { type: 'totp', code: '123456' },
+      reason: { operation: 'settings.addAuthenticatorApp' },
+    });
+
+    // Only email enrollment adds a token claim that needs a new SRP session.
+    expect(
+      controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]],
+    ).toStrictEqual(sessionBefore);
+  });
+
   it('completes passkey enrollment, refreshes the cache and traces the caller operation', async () => {
     mockEndpointMfaEnrollComplete();
     mockEndpointMfaCredentials();
-    const trace = jest.fn(
+    const trace = vi.fn(
       (_request: unknown, fn?: () => unknown): Promise<unknown> =>
         Promise.resolve(fn?.()),
     ) as unknown as TraceCallback;
@@ -2719,7 +2880,7 @@ describe('MFA credential enrollment', () => {
     const requestStarted = new Promise<void>((resolve) => {
       requestStartedResolve = resolve;
     });
-    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementationOnce(
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementationOnce(
       async (): ReturnType<typeof fetch> =>
         await new Promise((resolve) => {
           release = resolve;
@@ -2767,7 +2928,7 @@ describe('MFA credential enrollment', () => {
       const requestStarted = new Promise<void>((resolve) => {
         requestStartedResolve = resolve;
       });
-      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementationOnce(
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementationOnce(
         async (): ReturnType<typeof fetch> =>
           await new Promise((resolve) => {
             release = resolve;
@@ -2802,7 +2963,7 @@ describe('MFA credential enrollment', () => {
     const requestStarted = new Promise<void>((resolve) => {
       requestStartedResolve = resolve;
     });
-    const fetchSpy = jest
+    const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockImplementationOnce(
         async (): ReturnType<typeof fetch> =>
@@ -2928,7 +3089,7 @@ describe('MFA credential enrollment', () => {
     const requestStarted = new Promise<void>((resolve) => {
       requestStartedResolve = resolve;
     });
-    const fetchSpy = jest
+    const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
       .mockImplementationOnce(
         async (): ReturnType<typeof fetch> =>
@@ -3007,7 +3168,7 @@ describe('MFA credential enrollment', () => {
     const enrollCompleteStarted = deferred<void>();
     const enrollmentCredentialsStarted = deferred<void>();
 
-    const fetchSpy = jest.spyOn(globalThis, 'fetch');
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
     fetchSpy
       .mockImplementationOnce(async (): ReturnType<typeof fetch> => {
         slowStarted.resolve();
@@ -3189,7 +3350,7 @@ describe('MFA credential verification', () => {
   it('opens a verification session after the token exchange without writing state', async () => {
     mockSuccessfulCompletion();
     const { controller, baseMessenger } = createController();
-    const listener = jest.fn();
+    const listener = vi.fn();
     baseMessenger.subscribe('AuthenticationController:stateChange', listener);
 
     const token = await controller.completeCredentialVerification({
@@ -3224,7 +3385,7 @@ describe('MFA credential verification', () => {
 
   it('does not write state when clearing a session that does not exist', () => {
     const { controller, baseMessenger } = createController();
-    const listener = jest.fn();
+    const listener = vi.fn();
     baseMessenger.subscribe('AuthenticationController:stateChange', listener);
 
     controller.clearVerificationSession();
@@ -3237,8 +3398,8 @@ describe('MFA credential verification', () => {
     mockEndpointMfaVerify();
     mockSuccessfulCompletion();
     const requests: { name?: string }[] = [];
-    const setAttribute = jest.fn();
-    const trace = jest.fn(
+    const setAttribute = vi.fn();
+    const trace = vi.fn(
       (
         request: { name?: string },
         fn?: (context?: unknown) => unknown,
@@ -3307,8 +3468,8 @@ describe('MFA credential verification', () => {
     now: Date,
     lifetimeSeconds: number,
     serverClockOffsetSeconds = 0,
-  ): jest.SpyInstance {
-    return jest
+  ): MockInstance {
+    return vi
       .spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(
         new globalThis.Response(
@@ -3345,18 +3506,18 @@ describe('MFA credential verification', () => {
         60 * 60,
         serverClockOffsetSeconds,
       );
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
-      jest.setSystemTime(now);
+      vi.useFakeTimers({ toNotFake: ['nextTick', 'setImmediate'] });
+      vi.setSystemTime(now);
       try {
         const { controller } = createController();
         await completeCredentialVerification(controller);
 
-        jest.advanceTimersByTime(60 * 60 * 1000 - 1);
+        vi.advanceTimersByTime(60 * 60 * 1000 - 1);
         expect(controller.getVerificationToken()).not.toBeNull();
-        jest.advanceTimersByTime(1);
+        vi.advanceTimersByTime(1);
         expect(controller.getVerificationToken()).toBeNull();
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
         fetchSpy.mockRestore();
       }
     },
@@ -3387,18 +3548,18 @@ describe('MFA credential verification', () => {
     async (lifetimeSeconds) => {
       const now = new Date('2026-09-16T10:00:00Z');
       const fetchSpy = mockVerificationWithLifetime(now, lifetimeSeconds);
-      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
-      jest.setSystemTime(now);
+      vi.useFakeTimers({ toNotFake: ['nextTick', 'setImmediate'] });
+      vi.setSystemTime(now);
       try {
         const { controller } = createController();
         await completeCredentialVerification(controller);
 
-        jest.advanceTimersByTime(lifetimeSeconds * 1000 - 1);
+        vi.advanceTimersByTime(lifetimeSeconds * 1000 - 1);
         expect(controller.getVerificationToken()).not.toBeNull();
-        jest.advanceTimersByTime(1);
+        vi.advanceTimersByTime(1);
         expect(controller.getVerificationToken()).toBeNull();
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
         fetchSpy.mockRestore();
       }
     },
@@ -3407,16 +3568,16 @@ describe('MFA credential verification', () => {
   it('drops the session when the clock passes expiration before the timer runs', async () => {
     const now = new Date('2026-09-16T10:00:00Z');
     const fetchSpy = mockVerificationWithLifetime(now, 60);
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
-    jest.setSystemTime(now);
+    vi.useFakeTimers({ toNotFake: ['nextTick', 'setImmediate'] });
+    vi.setSystemTime(now);
     try {
       const { controller } = createController();
       await completeCredentialVerification(controller);
 
-      jest.setSystemTime(now.getTime() + 61_000);
+      vi.setSystemTime(now.getTime() + 61_000);
       expect(controller.getVerificationToken()).toBeNull();
     } finally {
-      jest.useRealTimers();
+      vi.useRealTimers();
       fetchSpy.mockRestore();
     }
   });
@@ -3442,7 +3603,7 @@ describe('MFA credential verification', () => {
     const requestStarted = new Promise<void>((resolve) => {
       requestStartedResolve = resolve;
     });
-    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementationOnce(
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementationOnce(
       async (): ReturnType<typeof fetch> =>
         await new Promise((resolve) => {
           resolveVerification = resolve;
@@ -3574,7 +3735,7 @@ describe('MFA credential verification', () => {
     const verificationToken = controller.getVerificationToken()?.accessToken;
     expect(verificationToken).toBeDefined();
 
-    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new globalThis.Response(JSON.stringify(MOCK_MFA_ENROLL_EMAIL_RESPONSE), {
         status: 200,
       }),
@@ -3598,7 +3759,7 @@ describe('MFA credential verification', () => {
 
   it('sends the base token on enrollment calls without a live session', async () => {
     const { controller } = createController();
-    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new globalThis.Response(JSON.stringify(MOCK_MFA_ENROLL_EMAIL_RESPONSE), {
         status: 200,
       }),
@@ -3621,6 +3782,142 @@ describe('MFA credential verification', () => {
     } finally {
       fetchSpy.mockRestore();
     }
+  });
+
+  describe('enrollment completion bearer', () => {
+    const emailProof = { type: 'email_otp' as const, code: '123456' };
+
+    /**
+     * Mocks the next fetch with a JSON response, letting later calls reach
+     * nock.
+     *
+     * @param body - Response body.
+     * @param status - Response status.
+     * @returns The fetch spy.
+     */
+    function mockNextFetch(
+      body: unknown,
+      status = 200,
+    ): MockInstance<typeof fetch> {
+      return vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          new globalThis.Response(JSON.stringify(body), { status }),
+        );
+    }
+
+    /**
+     * Reads the bearer token of a fetch call.
+     *
+     * @param fetchSpy - The fetch spy.
+     * @param call - Call index.
+     * @returns The token from the `Authorization` header.
+     */
+    function getBearer(
+      fetchSpy: MockInstance<typeof fetch>,
+      call = 0,
+    ): string | null | undefined {
+      return new globalThis.Headers(fetchSpy.mock.calls[call]?.[1]?.headers)
+        .get('Authorization')
+        ?.replace('Bearer ', '');
+    }
+
+    /**
+     * Begins an email enrollment while a verification session is live.
+     *
+     * @returns The controller and the session's token.
+     */
+    async function beginWithSession(): Promise<{
+      controller: AuthenticationController;
+      verificationToken: string | undefined;
+    }> {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const verificationToken = controller.getVerificationToken()?.accessToken;
+      const fetchSpy = mockNextFetch(MOCK_MFA_ENROLL_EMAIL_RESPONSE);
+      try {
+        await controller.beginCredentialEnrollment({
+          type: 'email_otp',
+          email: 'user@example.com',
+          reason: { operation: 'settings.addEmail' },
+        });
+      } finally {
+        fetchSpy.mockRestore();
+      }
+      return { controller, verificationToken };
+    }
+
+    /**
+     * Completes the email enrollment started by `beginWithSession`.
+     *
+     * @param controller - Controller under test.
+     * @returns The completion promise.
+     */
+    async function complete(
+      controller: AuthenticationController,
+    ): Promise<unknown> {
+      return controller.completeCredentialEnrollment({
+        flowId: MOCK_MFA_ENROLL_EMAIL_RESPONSE.flow_id,
+        proof: emailProof,
+        reason: { operation: 'settings.addEmail' },
+      });
+    }
+
+    beforeEach(() => {
+      mockEndpointAccessToken({
+        status: 200,
+        body: MOCK_VERIFICATION_ACCESS_TOKEN_RESPONSE,
+      });
+      mockEndpointMfaCredentials();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('completes with the token that began it, even past the default session age', async () => {
+      const { controller, verificationToken } = await beginWithSession();
+      expect(verificationToken).toBeDefined();
+      const now = Date.now();
+      vi.spyOn(Date, 'now').mockReturnValue(
+        now + ENROLLMENT_MAX_SESSION_AGE_MS + 60_000,
+      );
+
+      const fetchSpy = mockNextFetch(MOCK_MFA_ENROLL_COMPLETE_RESPONSE);
+      await complete(controller);
+
+      expect(getBearer(fetchSpy)).toBe(verificationToken);
+    });
+
+    it('keeps the token for a code retried on the same flow', async () => {
+      const { controller, verificationToken } = await beginWithSession();
+
+      const failedSpy = mockNextFetch(
+        { code: 'invalid_code', message: 'Invalid code' },
+        400,
+      );
+      await expect(complete(controller)).rejects.toBeDefined();
+      expect(getBearer(failedSpy)).toBe(verificationToken);
+      failedSpy.mockRestore();
+
+      const retrySpy = mockNextFetch(MOCK_MFA_ENROLL_COMPLETE_RESPONSE);
+      await complete(controller);
+      expect(getBearer(retrySpy)).toBe(verificationToken);
+    });
+
+    it('sends the base token once the verification session is cleared', async () => {
+      const { controller } = await beginWithSession();
+      controller.clearVerificationSession();
+
+      const fetchSpy = mockNextFetch(MOCK_MFA_ENROLL_COMPLETE_RESPONSE);
+      await complete(controller);
+
+      expect(getBearer(fetchSpy)).toBe(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
+          .accessToken,
+      );
+    });
   });
 
   it('surfaces aal2_required from enrollment', async () => {
@@ -3649,7 +3946,7 @@ describe('MFA credential verification', () => {
     controller: AuthenticationController,
     maxSessionAgeMs?: number,
   ): Promise<string | undefined> {
-    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new globalThis.Response(JSON.stringify(MOCK_MFA_ENROLL_EMAIL_RESPONSE), {
         status: 200,
       }),
@@ -3684,9 +3981,9 @@ describe('MFA credential verification', () => {
       const base =
         controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
           .accessToken;
-      jest
-        .spyOn(Date, 'now')
-        .mockReturnValue((token?.obtainedAt ?? 0) + sessionAgeMs);
+      vi.spyOn(Date, 'now').mockReturnValue(
+        (token?.obtainedAt ?? 0) + sessionAgeMs,
+      );
       return {
         controller,
         verificationToken: token?.accessToken as string,
@@ -3695,7 +3992,7 @@ describe('MFA credential verification', () => {
     }
 
     afterEach(() => {
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('does not let a session older than the default limit authorize enrollment', async () => {
@@ -3761,7 +4058,7 @@ describe('MFA credential verification', () => {
       });
       mockEndpointMfaCredentials();
       const requests: { name?: string }[] = [];
-      const trace = jest.fn(
+      const trace = vi.fn(
         (
           request: { name?: string },
           fn?: (context?: unknown) => unknown,
@@ -3846,7 +4143,7 @@ describe('MFA credential verification', () => {
       const exchangeStarted = new Promise<void>((resolve) => {
         exchangeStartedResolve = resolve;
       });
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(globalThis, 'fetch')
         .mockResolvedValueOnce(
           new globalThis.Response(
@@ -3889,6 +4186,199 @@ describe('MFA credential verification', () => {
       } finally {
         fetchSpy.mockRestore();
       }
+    });
+  });
+
+  describe('requestMfaApproval', () => {
+    const request = {
+      requestHash: `0x${'a'.repeat(64)}`,
+      audiences: ['escrow'],
+      reason: { operation: 'recovery.approve' },
+    };
+
+    /**
+     * Answers the next request with an approval and returns the fetch spy.
+     *
+     * @returns The fetch spy.
+     */
+    function mockApproval(): MockInstance {
+      return vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          new globalThis.Response(
+            JSON.stringify({ approval: 'approval-jwt', expires_in: 300 }),
+            { status: 200 },
+          ),
+        );
+    }
+
+    /**
+     * Reads the bearer and body of the approval request.
+     *
+     * @param fetchSpy - The fetch spy.
+     * @returns The bearer and the parsed body.
+     */
+    function getSentRequest(fetchSpy: MockInstance): {
+      authorization: string | null;
+      body: unknown;
+    } {
+      const init = fetchSpy.mock.calls[0][1] as RequestInit;
+      return {
+        authorization: new globalThis.Headers(init.headers).get(
+          'Authorization',
+        ),
+        body: JSON.parse(init.body as string),
+      };
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('requests an approval with the base session token', async () => {
+      const setAttribute = vi.fn();
+      const trace = vi.fn(
+        (
+          _request: unknown,
+          fn?: (context?: unknown) => unknown,
+        ): Promise<unknown> => Promise.resolve(fn?.({ setAttribute })),
+      ) as unknown as TraceCallback;
+      const { controller } = createController({ trace });
+      const fetchSpy = mockApproval();
+
+      expect(
+        await controller.requestMfaApproval({
+          ...request,
+          includeIdentifiers: false,
+        }),
+      ).toStrictEqual({ approval: 'approval-jwt', expiresIn: 300 });
+
+      const base =
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
+          .accessToken;
+      expect(getSentRequest(fetchSpy)).toStrictEqual({
+        authorization: `Bearer ${base}`,
+        body: {
+          request_hash: request.requestHash,
+          audiences: ['escrow'],
+          include_identifiers: false,
+        },
+      });
+      expect(trace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'MFA Approval',
+          tags: { operation: 'recovery.approve', credentialType: 'none' },
+        }),
+        expect.any(Function),
+      );
+    });
+
+    it('proves a recent verification with the verification token', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const verificationToken = controller.getVerificationToken()?.accessToken;
+      const fetchSpy = mockApproval();
+
+      await controller.requestMfaApproval({
+        ...request,
+        requireVerification: true,
+      });
+
+      expect(getSentRequest(fetchSpy)).toStrictEqual({
+        authorization: `Bearer ${verificationToken}`,
+        body: { request_hash: request.requestHash, audiences: ['escrow'] },
+      });
+    });
+
+    it('asks to verify first when there is no verification session', async () => {
+      const { controller } = createController();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      await expect(
+        controller.requestMfaApproval({
+          ...request,
+          requireVerification: true,
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'aal2_required' });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('keeps the session when the server finds the verification too old', async () => {
+      const { controller } = createController();
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify({
+            code: 'authentication_required',
+            message: 'stale auth_time',
+          }),
+          { status: 403 },
+        ),
+      );
+
+      await expect(
+        controller.requestMfaApproval(request),
+      ).rejects.toMatchObject({ mfaCode: 'aal2_required' });
+      expect(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+          .canonicalProfileId,
+      ).not.toBe('');
+    });
+
+    it('drops a verification session the server finds too old', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify({
+            code: 'authentication_required',
+            message: 'stale auth_time',
+          }),
+          { status: 403 },
+        ),
+      );
+
+      await expect(
+        controller.requestMfaApproval({
+          ...request,
+          requireVerification: true,
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'aal2_required' });
+      expect(controller.getVerificationToken()).toBeNull();
+    });
+
+    it('keeps the verification session on other failures', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify({ code: 'invalid_request', message: 'bad hash' }),
+          { status: 400 },
+        ),
+      );
+
+      await expect(
+        controller.requestMfaApproval({
+          ...request,
+          requireVerification: true,
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+      expect(controller.getVerificationToken()).not.toBeNull();
+    });
+
+    it('rejects an invalid request without calling the server', async () => {
+      const { controller } = createController();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      await expect(
+        controller.requestMfaApproval({ ...request, requestHash: '0x1234' }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+      await expect(
+        controller.requestMfaApproval({ ...request, audiences: [] }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
   });
 });
@@ -4219,27 +4709,27 @@ function createAuthenticationMessenger(): {
 function createMockAuthenticationMessenger(): {
   messenger: AuthenticationControllerMessenger;
   baseMessenger: RootMessenger;
-  mockGetPublicKey: jest.Mock;
-  mockSignMessage: jest.Mock;
-  mockKeyringControllerGetState: jest.Mock;
-  mockWithKeyringV2Unsafe: jest.Mock;
-  mockSeedlessOnboardingGetState: jest.Mock;
-  mockSeedlessOnboardingGetAccessToken: jest.Mock;
+  mockGetPublicKey: Mock;
+  mockSignMessage: Mock;
+  mockKeyringControllerGetState: Mock;
+  mockWithKeyringV2Unsafe: Mock;
+  mockSeedlessOnboardingGetState: Mock;
+  mockSeedlessOnboardingGetAccessToken: Mock;
 } {
   const { baseMessenger, messenger } = createAuthenticationMessenger();
 
-  const mockCall = jest.spyOn(messenger, 'call');
-  const mockGetPublicKey = jest.mocked(getMessageSigningPublicKey);
-  const mockSignMessage = jest.mocked(signMessageWithMessageSigningKey);
+  const mockCall = vi.spyOn(messenger, 'call');
+  const mockGetPublicKey = vi.mocked(getMessageSigningPublicKey);
+  const mockSignMessage = vi.mocked(signMessageWithMessageSigningKey);
   mockGetPublicKey.mockReset().mockResolvedValue('MOCK_PUBLIC_KEY');
   mockSignMessage.mockReset().mockResolvedValue('MOCK_SIGNED_MESSAGE');
 
-  const mockKeyringControllerGetState = jest.fn().mockReturnValue({
+  const mockKeyringControllerGetState = vi.fn().mockReturnValue({
     isUnlocked: true,
     keyrings: MOCK_HD_KEYRINGS,
   });
 
-  const mockWithKeyringV2Unsafe = jest
+  const mockWithKeyringV2Unsafe = vi
     .fn()
     .mockImplementation(
       async (
@@ -4256,11 +4746,11 @@ function createMockAuthenticationMessenger(): {
       },
     );
 
-  const mockSeedlessOnboardingGetState = jest
+  const mockSeedlessOnboardingGetState = vi
     .fn()
     .mockReturnValue({ vault: null });
 
-  const mockSeedlessOnboardingGetAccessToken = jest
+  const mockSeedlessOnboardingGetAccessToken = vi
     .fn()
     .mockResolvedValue(undefined);
 
@@ -4347,10 +4837,10 @@ function mockAuthenticationFlowEndpoints(params?: {
  * @returns mock metametrics method
  */
 function createMockAuthMetaMetrics(): {
-  getMetaMetricsId: jest.Mock;
+  getMetaMetricsId: Mock;
   agent: typeof Platform.EXTENSION;
 } {
-  const getMetaMetricsId = jest
+  const getMetaMetricsId = vi
     .fn()
     .mockReturnValue(MOCK_LOGIN_RESPONSE.profile.metametrics_id);
 

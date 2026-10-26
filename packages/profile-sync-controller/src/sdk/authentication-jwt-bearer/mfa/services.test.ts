@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { Env } from '../../../shared/env.js';
 import {
   CredentialAlreadyEnrolledError,
@@ -17,11 +19,15 @@ import {
   MOCK_MFA_CREDENTIALS_RESPONSE,
   MOCK_MFA_ENROLL_COMPLETE_RESPONSE,
   MOCK_MFA_ENROLL_PASSKEY_RESPONSE,
+  MOCK_MFA_ENROLL_TOTP_RESPONSE,
   MOCK_MFA_VERIFY_COMPLETE_RESPONSE,
   MOCK_MFA_VERIFY_PASSKEY_RESPONSE,
 } from '../../mocks/auth.js';
 import {
+  buildTotpSetupUri,
   getMfaCredentials,
+  MFA_APPROVALS_URL,
+  mfaApproval,
   mfaEnroll,
   mfaEnrollComplete,
   mfaVerify,
@@ -31,7 +37,7 @@ import {
   toEnrolledCredential,
 } from './services.js';
 
-const mockFetch = jest.fn();
+const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 const registration = {
@@ -96,6 +102,54 @@ describe('MFA services', () => {
         }),
       }),
     );
+  });
+
+  it('begins authenticator app enrollment and returns the secret and QR code', async () => {
+    mockFetch.mockResolvedValue(response(MOCK_MFA_ENROLL_TOTP_RESPONSE));
+
+    expect(
+      await mfaEnroll(Env.PRD, 'access-token', { credential_type: 'totp' }),
+    ).toStrictEqual({
+      flowId: 'enroll-totp-flow-id',
+      expiresAt: Date.parse('2099-09-07T14:30:00Z'),
+      totp: {
+        secret: MOCK_MFA_ENROLL_TOTP_RESPONSE.totp_secret,
+        qrCode: MOCK_MFA_ENROLL_TOTP_RESPONSE.totp_qr,
+        setupUri: buildTotpSetupUri(MOCK_MFA_ENROLL_TOTP_RESPONSE.totp_secret),
+      },
+    });
+  });
+
+  describe('buildTotpSetupUri', () => {
+    it('builds an otpauth link named MetaMask with the secret', () => {
+      expect(buildTotpSetupUri('JBSWY3DPEHPK3PXP')).toBe(
+        'otpauth://totp/MetaMask?secret=JBSWY3DPEHPK3PXP&issuer=MetaMask&algorithm=SHA1&digits=6&period=30',
+      );
+    });
+
+    it("uses the settings the server's QR code encodes", () => {
+      // Decoded from a DEV enrollment QR code, with a stand-in secret.
+      const serverUri = new URL(
+        'otpauth://totp/MetaMask%20Identity:MetaMask%20cbe1d631?algorithm=SHA1&digits=6&issuer=MetaMask%20Identity&period=30&secret=JBSWY3DPEHPK3PXP',
+      );
+      const ours = new URL(buildTotpSetupUri('JBSWY3DPEHPK3PXP'));
+
+      for (const setting of ['secret', 'algorithm', 'digits', 'period']) {
+        expect(ours.searchParams.get(setting)).toBe(
+          serverUri.searchParams.get(setting),
+        );
+      }
+    });
+  });
+
+  it('leaves out an incomplete authenticator app setup', async () => {
+    const { totp_qr: _qrCode, ...withoutQrCode } =
+      MOCK_MFA_ENROLL_TOTP_RESPONSE;
+    mockFetch.mockResolvedValue(response(withoutQrCode));
+
+    expect(
+      await mfaEnroll(Env.PRD, 'access-token', { credential_type: 'totp' }),
+    ).not.toHaveProperty('totp');
   });
 
   it('completes passkey and email enrollment and returns the assertion', async () => {
@@ -233,7 +287,7 @@ describe('MFA services', () => {
     ).toStrictEqual({ type: 'passkey', status: 'pending' });
     expect(
       toEnrolledCredential({
-        credential_type: 'totp',
+        credential_type: 'sms_otp',
         status: 'active',
       }),
     ).toBeNull();
@@ -243,6 +297,39 @@ describe('MFA services', () => {
         status: 'revoked',
       }),
     ).toBeNull();
+  });
+
+  it('maps an authenticator app and when each method was last used', () => {
+    expect(
+      toEnrolledCredential({
+        credential_type: 'totp',
+        status: 'active',
+        enrolled_at: '2026-10-20T10:00:00Z',
+        last_used_at: '2026-10-20T11:00:00Z',
+      }),
+    ).toStrictEqual({
+      type: 'totp',
+      status: 'active',
+      enrolledAt: Date.parse('2026-10-20T10:00:00Z'),
+      lastUsedAt: Date.parse('2026-10-20T11:00:00Z'),
+    });
+    expect(
+      toEnrolledCredential({
+        credential_type: 'passkey',
+        status: 'active',
+        last_used_at: '2026-10-20T11:00:00Z',
+      }),
+    ).toMatchObject({ lastUsedAt: Date.parse('2026-10-20T11:00:00Z') });
+  });
+
+  it('drops an unparsable last use date', () => {
+    expect(
+      toEnrolledCredential({
+        credential_type: 'totp',
+        status: 'active',
+        last_used_at: 'yesterday',
+      }),
+    ).toStrictEqual({ type: 'totp', status: 'active' });
   });
 
   it('keeps email credentials listed without an address', () => {
@@ -286,6 +373,7 @@ describe('MFA services', () => {
   it.each([
     ['credential_already_enrolled', CredentialAlreadyEnrolledError, 409],
     ['email_already_enrolled', CredentialAlreadyEnrolledError, 409],
+    ['totp_already_enrolled', CredentialAlreadyEnrolledError, 409],
     ['email_socially_verified', CredentialAlreadyEnrolledError, 409],
     ['credential_not_enrolled', CredentialNotEnrolledError, 409],
     ['aal2_required', StepUpRequiredError, 403],
@@ -582,5 +670,96 @@ describe('MFA services', () => {
     );
     expect(error).toBeInstanceOf(MfaUnavailableError);
     expect(error.status).toBeUndefined();
+  });
+
+  describe('mfaApproval', () => {
+    const requestHash = `0x${'a'.repeat(64)}`;
+    const passkeyIdentifier = {
+      type: 'passkey',
+      namespace: 'authentication.api.cx.metamask.io',
+      value: 'credential-id',
+      verifier: {
+        credentialId: 'credential-id',
+        publicKey: { cose: 'cose-key' },
+        rpId: 'authentication.api.cx.metamask.io',
+        origins: ['https://authentication.api.cx.metamask.io'],
+      },
+    };
+
+    it('requests an approval and returns the identifiers with all their fields', async () => {
+      mockFetch.mockResolvedValueOnce(
+        response({
+          approval: 'approval-jwt',
+          expires_in: 300,
+          identifiers: [passkeyIdentifier],
+        }),
+      );
+
+      expect(
+        await mfaApproval(Env.PRD, 'access-token', {
+          request_hash: requestHash,
+          audiences: ['escrow'],
+        }),
+      ).toStrictEqual({
+        approval: 'approval-jwt',
+        expiresIn: 300,
+        identifiers: [passkeyIdentifier],
+      });
+      const [url, init] = mockFetch.mock.calls[0] as [
+        string,
+        { method: string; headers: Record<string, string>; body: string },
+      ];
+      expect(url).toBe(MFA_APPROVALS_URL(Env.PRD));
+      expect(init.method).toBe('POST');
+      expect(init.headers.Authorization).toBe('Bearer access-token');
+      expect(JSON.parse(init.body)).toStrictEqual({
+        request_hash: requestHash,
+        audiences: ['escrow'],
+      });
+    });
+
+    it('leaves out identifiers the server did not send', async () => {
+      mockFetch.mockResolvedValueOnce(
+        response({ approval: 'approval-jwt', expires_in: 60 }),
+      );
+
+      expect(
+        await mfaApproval(Env.PRD, 'access-token', {
+          request_hash: requestHash,
+          audiences: ['escrow'],
+          include_identifiers: false,
+        }),
+      ).toStrictEqual({ approval: 'approval-jwt', expiresIn: 60 });
+    });
+
+    it('asks to verify again when the verification is too old', async () => {
+      mockFetch.mockResolvedValueOnce(
+        response(
+          { code: 'authentication_required', message: 'stale auth_time' },
+          { status: 403 },
+        ),
+      );
+
+      const error = await mfaApproval(Env.PRD, 'access-token', {
+        request_hash: requestHash,
+        audiences: ['escrow'],
+      }).catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(StepUpRequiredError);
+      expect(error).toMatchObject({ mfaCode: 'aal2_required', status: 403 });
+    });
+
+    it('rejects an approval without a lifetime', async () => {
+      mockFetch.mockResolvedValueOnce(
+        response({ approval: 'approval-jwt', expires_in: 0 }),
+      );
+
+      await expect(
+        mfaApproval(Env.PRD, 'access-token', {
+          request_hash: requestHash,
+          audiences: ['escrow'],
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_response' });
+    });
   });
 });

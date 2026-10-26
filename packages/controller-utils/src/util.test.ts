@@ -4,6 +4,7 @@ import { assert, JsonRpcParams } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
 import nock from 'nock';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { MAX_SAFE_CHAIN_ID } from './constants.js';
 import * as util from './util.js';

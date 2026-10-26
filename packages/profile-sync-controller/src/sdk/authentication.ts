@@ -9,6 +9,8 @@ import type {
   EnrolledCredential,
   EnrollmentChallenge,
   EnrollmentProof,
+  MfaApproval,
+  MfaApprovalRequest,
   MfaCredentialType,
   VerificationChallenge,
   VerificationProof,
@@ -20,10 +22,12 @@ import {
 import type { PairProfilesResponse } from './authentication-jwt-bearer/services.js';
 import type {
   AccessToken,
+  LoginResponse,
   UserProfile,
   Pair,
   PairSocialIdentifierParams,
   ProfileIdentifier,
+  SocialLoginParams,
   OidcTokenAudience,
   OidcTokenClaims,
   UserProfileLineage,
@@ -129,12 +133,14 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     flowId: string,
     proof: EnrollmentProof,
     entropySourceId?: string,
+    accessToken?: string,
   ): Promise<MfaVerificationAssertion> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.completeMfaEnrollment(
       flowId,
       proof,
       entropySourceId,
+      accessToken,
     );
   }
 
@@ -166,6 +172,14 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     return await this.#sdk.getMfaCredentials(entropySourceId);
   }
 
+  async requestMfaApproval(
+    body: MfaApprovalRequest,
+    options?: { entropySourceId?: string; accessToken?: string },
+  ): Promise<MfaApproval> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.requestMfaApproval(body, options);
+  }
+
   async exchangeMfaAssertion(assertionJwt: string): Promise<AccessToken> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.exchangeMfaAssertion(assertionJwt);
@@ -185,6 +199,13 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   ): Promise<ProfileIdentifier[] | undefined> {
     this.#assertSRP(this.#type, this.#sdk);
     return await this.#sdk.pairSocialIdentifier(params, authAccessToken);
+  }
+
+  async exchangeSocialAccessToken(
+    params: SocialLoginParams,
+  ): Promise<LoginResponse> {
+    this.#assertSRP(this.#type, this.#sdk);
+    return await this.#sdk.exchangeSocialAccessToken(params);
   }
 
   async signMessage(

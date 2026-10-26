@@ -67,8 +67,6 @@ jobs:
         **/*.test.js*
         **/*.test.ts*
         **/fixtures/
-        **/jest.config.js
-        **/jest.environment.js
         **/mocks/
         **/test*/
         docs/

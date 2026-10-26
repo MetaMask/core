@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.0]
+
+### Added
+
+- **BREAKING:** Add `GeolocationController` and `GeolocationApiService` to the default initialization configurations ([#11058](https://github.com/MetaMask/core/pull/11058))
+  - Optional `instanceOptions.geolocationApiService` accepts `env`, `fetch`, `ttlMs`, and `policyOptions`. Defaults to production and `globalThis.fetch`.
+  - `GeolocationController` delegates `GeolocationApiService:fetchGeolocationData`.
+  - Hosts that already register `GeolocationController` or `GeolocationApiService` on the wallet root messenger must remove them before upgrading, or messenger registration will collide.
+  - Hosts no longer need to register `GeolocationController` when `AnalyticsController` `isGeolocationEnabled` is `true`.
+
+### Changed
+
+- Add `@metamask/geolocation-controller` as a dependency ([#11058](https://github.com/MetaMask/core/pull/11058))
+- Bump `@metamask/analytics-controller` from `^4.0.0` to `^4.1.0` ([#11072](https://github.com/MetaMask/core/pull/11072))
+
+## [19.1.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Fixed
+
+- Fall back to `options.analyticsId` when persisted `analyticsId` is null, undefined, or empty ([#11025](https://github.com/MetaMask/core/pull/11025))
+
+## [19.0.0]
+
+### Added
+
+- **BREAKING:** Add `AnalyticsController` to the default initialization configurations ([#10901](https://github.com/MetaMask/core/pull/10901))
+  - Requires `instanceOptions.analyticsController.platformAdapter` and `instanceOptions.analyticsController.analyticsId`.
+  - Accepts optional feature flags `isAnonymousEventsFeatureEnabled`, `isEventQueuePersistenceEnabled`, `isPreConsentQueueEnabled`, `isGeolocationEnabled`, and `isEventFragmentsEnabled`, each defaulting to `false`.
+  - Persisted `AnalyticsController` state overrides the supplied `analyticsId` when present.
+  - `AnalyticsController` delegates `ConfigRegistryController:getState` and `GeolocationController:getGeolocationData`, and subscribes to `ConfigRegistryController:stateChanged`.
+  - Hosts that already register `AnalyticsController` or no-op `AnalyticsController:*` handlers on the wallet root messenger must remove them before upgrading, or messenger registration will collide.
+  - When `isGeolocationEnabled` is `true`, hosts must register `GeolocationController` on the wallet root messenger.
+
+### Changed
+
+- Bump `@metamask/subscription-controller` from `^14.0.1` to `^15.0.0` ([#11000](https://github.com/MetaMask/core/pull/11000))
+- Add `@metamask/analytics-controller` as a dependency ([#10901](https://github.com/MetaMask/core/pull/10901))
+- Bump `@metamask/claims-controller` from `^1.0.3` to `^1.0.4` ([#10925](https://github.com/MetaMask/core/pull/10925))
+- Bump `@metamask/shield-controller` from `^7.0.4` to `^7.0.5` ([#10925](https://github.com/MetaMask/core/pull/10925))
+- Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
+
+## [18.0.1]
+
+### Changed
+
+- Bump `@metamask/subscription-controller` from `^14.0.0` to `^14.0.1` ([#10896](https://github.com/MetaMask/core/pull/10896))
+
+## [18.0.0]
+
 ### Added
 
 - **BREAKING:** Require a `reference` property on `InitializationConfiguration` for instances that have state ([#10023](https://github.com/MetaMask/core/pull/10023))
@@ -27,6 +80,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
 ## [17.1.0]
 
@@ -369,7 +424,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.1.0...@metamask/wallet@20.0.0
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.0...@metamask/wallet@19.1.0
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.1...@metamask/wallet@19.0.0
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.0...@metamask/wallet@18.0.1
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.1.0...@metamask/wallet@18.0.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.0.0...@metamask/wallet@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.1...@metamask/wallet@17.0.0
 [16.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@16.0.0...@metamask/wallet@16.0.1

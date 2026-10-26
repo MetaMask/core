@@ -5,6 +5,7 @@ import {
 import { invalidParams } from '@metamask/permission-controller';
 import type { RequestedPermissions } from '@metamask/permission-controller';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types.js';
 import { requestPermissionsHandler } from './wallet-requestPermissions.js';
@@ -24,13 +25,13 @@ const getBaseRequest = (overrides = {}) => ({
 });
 
 const createMockedHandler = () => {
-  const next = jest.fn();
-  const end = jest.fn();
-  const requestPermissionsForOrigin = jest
+  const next = vi.fn();
+  const end = vi.fn();
+  const requestPermissionsForOrigin = vi
     .fn()
     .mockResolvedValue([{ [Caip25EndowmentPermissionName]: {} }]);
-  const getAccounts = jest.fn().mockReturnValue([]);
-  const getCaip25PermissionFromLegacyPermissionsForOrigin = jest
+  const getAccounts = vi.fn().mockReturnValue([]);
+  const getCaip25PermissionFromLegacyPermissionsForOrigin = vi
     .fn()
     .mockReturnValue({});
 
@@ -64,7 +65,7 @@ const createMockedHandler = () => {
 
 describe('requestPermissionsHandler', () => {
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   it('returns an error if params is malformed', async () => {

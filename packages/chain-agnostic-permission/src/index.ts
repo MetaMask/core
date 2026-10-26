@@ -6,6 +6,7 @@ export {
   getCaipAccountIdsFromCaip25CaveatValue,
   isInternalAccountInPermittedAccountIds,
   isCaipAccountIdInPermittedAccountIds,
+  getEthAccountsForScope,
 } from './operators/caip-permission-operator-accounts.js';
 export {
   getPermittedEthChainIds,

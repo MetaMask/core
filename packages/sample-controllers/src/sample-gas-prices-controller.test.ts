@@ -7,8 +7,9 @@ import type {
 } from '@metamask/messenger';
 import { SampleGasPricesController } from '@metamask/sample-controllers';
 import type { SampleGasPricesControllerMessenger } from '@metamask/sample-controllers';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flushPromises } from '../../../tests/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import { buildMockGetNetworkClientById } from '../../network-controller/tests/helpers.js';
 
 describe('SampleGasPricesController', () => {
@@ -46,11 +47,11 @@ describe('SampleGasPricesController', () => {
 
   describe('on NetworkController:stateChange', () => {
     beforeEach(() => {
-      jest.useFakeTimers().setSystemTime(new Date('2024-01-02'));
+      vi.useFakeTimers().setSystemTime(new Date('2024-01-02'));
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('fetches and updates gas prices for the newly selected chain ID, if it has changed', async () => {
@@ -106,9 +107,9 @@ describe('SampleGasPricesController', () => {
         const chainId = '0x42';
         let i = 0;
         const delays = [5000, 1000];
-        const fetchGasPrices = jest.fn(async (givenChainId) => {
+        const fetchGasPrices = vi.fn(async (givenChainId) => {
           if (givenChainId === chainId) {
-            jest.advanceTimersByTime(delays[i]);
+            vi.advanceTimersByTime(delays[i]);
             i += 1;
             return {
               low: 5,
@@ -149,7 +150,7 @@ describe('SampleGasPricesController', () => {
           { selectedNetworkClientId: 'BBBB-BBBB-BBBB-BBBB' },
           [],
         );
-        jest.runAllTimers();
+        vi.runAllTimers();
         await flushPromises();
 
         expect(fetchGasPrices).toHaveBeenCalledTimes(1);
@@ -159,7 +160,7 @@ describe('SampleGasPricesController', () => {
     it('does not fetch gas prices for the selected chain ID again if it has not changed', async () => {
       await withController(async ({ rootMessenger }) => {
         const chainId = '0x42';
-        const fetchGasPrices = jest.fn(async (givenChainId) => {
+        const fetchGasPrices = vi.fn(async (givenChainId) => {
           if (givenChainId === chainId) {
             return {
               low: 5,
@@ -206,7 +207,7 @@ describe('SampleGasPricesController', () => {
       await withController(async ({ rootMessenger }) => {
         const chainId = '0x42';
 
-        const fetchGasPrices = jest.fn(async (givenChainId) => {
+        const fetchGasPrices = vi.fn(async (givenChainId) => {
           if (givenChainId === chainId) {
             throw new Error('Failed to fetch gas prices');
           }
@@ -214,7 +215,7 @@ describe('SampleGasPricesController', () => {
           throw new Error(`Unrecognized chain ID '${givenChainId}'`);
         });
 
-        const captureException = jest.spyOn(rootMessenger, 'captureException');
+        const captureException = vi.spyOn(rootMessenger, 'captureException');
         rootMessenger.registerActionHandler(
           'SampleGasPricesService:fetchGasPrices',
           fetchGasPrices,
@@ -251,11 +252,11 @@ describe('SampleGasPricesController', () => {
 
   describe('SampleGasPricesController:updateGasPrices', () => {
     beforeEach(() => {
-      jest.useFakeTimers().setSystemTime(new Date('2024-01-02'));
+      vi.useFakeTimers().setSystemTime(new Date('2024-01-02'));
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('fetches and persists gas prices for the current chain through the service object', async () => {
@@ -296,11 +297,11 @@ describe('SampleGasPricesController', () => {
 
   describe('updateGasPrices', () => {
     beforeEach(() => {
-      jest.useFakeTimers().setSystemTime(new Date('2024-01-02'));
+      vi.useFakeTimers().setSystemTime(new Date('2024-01-02'));
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('does the same thing as the messenger action', async () => {
@@ -435,7 +436,7 @@ type WithControllerOptions = {
 function getRootMessenger(): RootMessenger {
   return new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
-    captureException: jest.fn(),
+    captureException: vi.fn(),
   });
 }
 

@@ -5,6 +5,7 @@ import {
 } from '@metamask/toprf-secure-backup';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
+import { describe, expect, it } from 'vitest';
 
 import { createMockJWTToken } from '../../tests/mocks/utils.js';
 import {

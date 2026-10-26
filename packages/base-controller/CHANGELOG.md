@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+## [10.1.0]
+
+### Added
+
 - Add `validateControllerState` function for validating controller state against the `struct` property ([#10023](https://github.com/MetaMask/core/pull/10023))
 
 ### Changed
@@ -454,7 +460,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@10.1.0...HEAD
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@10.0.0...@metamask/base-controller@10.1.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.1.0...@metamask/base-controller@10.0.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.1...@metamask/base-controller@9.1.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.0...@metamask/base-controller@9.0.1

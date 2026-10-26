@@ -65,6 +65,9 @@
       "path": "./packages/build-utils/tsconfig.build.json"
     },
     {
+      "path": "./packages/byte-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/chain-agnostic-permission/tsconfig.build.json"
     },
     {
@@ -116,6 +119,9 @@
       "path": "./packages/eip1193-permission-middleware/tsconfig.build.json"
     },
     {
+      "path": "./packages/error-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/eth-block-tracker/tsconfig.build.json"
     },
     {
@@ -158,6 +164,9 @@
       "path": "./packages/logging-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/marketing-consent-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/message-manager/tsconfig.build.json"
     },
     {
@@ -165,6 +174,9 @@
     },
     {
       "path": "./packages/messenger/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/mfa-recovery-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/money-account-api-data-service/tsconfig.build.json"
@@ -210,6 +222,9 @@
     },
     {
       "path": "./packages/network-enablement-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/node-utils/tsconfig.build.json"
     },
     {
       "path": "./packages/notification-services-controller/tsconfig.build.json"
@@ -311,19 +326,22 @@
       "path": "./packages/transaction-pay-middleware/tsconfig.build.json"
     },
     {
+      "path": "./packages/type-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/user-operation-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/utils/tsconfig.build.json"
     },
     {
-      "path": "./packages/wallet-cli/tsconfig.build.json"
-    },
-    {
       "path": "./packages/wallet-framework-docs/tsconfig.build.json"
     },
     {
       "path": "./packages/wallet/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/watch-only-account-service/tsconfig.build.json"
     }
   ],
   "files": [],

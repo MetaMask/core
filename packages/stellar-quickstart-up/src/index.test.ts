@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import greeter from './index.js';
 
 describe('Test', () => {

@@ -1,4 +1,6 @@
 /* eslint-disable */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   TradingReadinessCache,
   PerpsSigningCache,
@@ -72,7 +74,7 @@ describe('TradingReadinessCache / PerpsSigningCache', () => {
 
       it('updates timestamp on each set', () => {
         // Use fake timers to control timestamp
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         const startTime = Date.now();
 
         TradingReadinessCache.set(network, userAddress, {
@@ -85,7 +87,7 @@ describe('TradingReadinessCache / PerpsSigningCache', () => {
         )?.timestamp;
 
         // Advance time by 100ms
-        jest.advanceTimersByTime(100);
+        vi.advanceTimersByTime(100);
 
         TradingReadinessCache.set(network, userAddress, {
           attempted: true,
@@ -99,7 +101,7 @@ describe('TradingReadinessCache / PerpsSigningCache', () => {
         expect(firstTimestamp).toBeGreaterThanOrEqual(startTime);
         expect(secondTimestamp).toBeGreaterThan(firstTimestamp as number);
 
-        jest.useRealTimers();
+        vi.useRealTimers();
       });
 
       it('differentiates between mainnet and testnet', () => {

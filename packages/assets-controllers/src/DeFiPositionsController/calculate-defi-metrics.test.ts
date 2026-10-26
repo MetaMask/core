@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { MOCK_EXPECTED_RESULT } from './__fixtures__/mock-result.js';
 import { calculateDeFiPositionMetrics } from './calculate-defi-metrics.js';
 

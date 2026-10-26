@@ -1,5 +1,7 @@
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import type { PerpsAgentAccount } from '../../../src/types/index.js';
@@ -32,15 +34,15 @@ import { createDeferred } from '../../helpers/serviceMocks.js';
 // The SDK ships ES modules only; the provider reaches it through the mocked
 // client service, so the module itself is never loaded. The provider checks
 // cancel errors against its error class.
-jest.mock('@nktkas/hyperliquid', () => ({
+vi.mock('@nktkas/hyperliquid', () => ({
   HyperliquidError: class MockHyperliquidError extends Error {},
 }));
 
 // The client and subscription services are mocked: they own the SDK's
 // REST/exchange/info clients and the WebSocket subscriptions. The wallet
 // service, the signing caches and the validation run for real.
-jest.mock('../../../src/services/HyperLiquidClientService');
-jest.mock('../../../src/services/HyperLiquidSubscriptionService');
+vi.mock('../../../src/services/HyperLiquidClientService');
+vi.mock('../../../src/services/HyperLiquidSubscriptionService');
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -89,7 +91,7 @@ function listedAgent(
 }
 
 describe('HyperLiquidProvider with accountSigner: an agent the venue answers with "Must deposit"', () => {
-  let loggerError: jest.SpyInstance;
+  let loggerError: MockInstance;
   let mockClientService: ReturnType<
     typeof setUpAccountSignerSuite
   >['mockClientService'];
@@ -120,14 +122,14 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
     agents: () => Promise<ListedAgent[]> = async () => [],
   ): Promise<
     AccountSignerFixture & {
-      getAgentSigner: jest.Mock;
-      onAgentRejected: jest.Mock;
-      extraAgents: jest.Mock;
+      getAgentSigner: Mock;
+      onAgentRejected: Mock;
+      extraAgents: Mock;
     }
   > {
-    const getAgentSigner = jest.fn();
-    const onAgentRejected = jest.fn();
-    const extraAgents = jest.fn(agents);
+    const getAgentSigner = vi.fn();
+    const onAgentRejected = vi.fn();
+    const extraAgents = vi.fn(agents);
     const built = createAccountSignerProvider({
       abstraction: 'unifiedAccount',
       getAgentSigner,
@@ -153,13 +155,13 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
     agents: () => Promise<ListedAgent[]>,
     user: string = MAIN_ADDRESS,
   ): AccountSignerFixture & {
-    getAgentSigner: jest.Mock;
-    onAgentRejected: jest.Mock;
-    extraAgents: jest.Mock;
+    getAgentSigner: Mock;
+    onAgentRejected: Mock;
+    extraAgents: Mock;
   } {
-    const getAgentSigner = jest.fn();
-    const onAgentRejected = jest.fn();
-    const extraAgents = jest.fn(agents);
+    const getAgentSigner = vi.fn();
+    const onAgentRejected = vi.fn();
+    const extraAgents = vi.fn(agents);
     const built = createAccountSignerProvider({
       abstraction: 'unifiedAccount',
       getAgentSigner,
@@ -184,7 +186,7 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
       });
       const replacementAgent = {
         address: OTHER_AGENT_ADDRESS,
-        signTypedData: jest.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
+        signTypedData: vi.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
       };
       built.getAgentSigner.mockResolvedValue(replacementAgent);
       built.infoClient.frontendOpenOrders.mockResolvedValue([
@@ -569,9 +571,9 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
   });
 
   it('does not check the agent when the main account signed the answered request', async () => {
-    const getAgentSigner = jest.fn();
-    const onAgentRejected = jest.fn();
-    const extraAgents = jest.fn().mockResolvedValue([]);
+    const getAgentSigner = vi.fn();
+    const onAgentRejected = vi.fn();
+    const extraAgents = vi.fn().mockResolvedValue([]);
     const built = createAccountSignerProvider({
       abstraction: 'unifiedAccount',
       getAgentSigner,
@@ -600,14 +602,14 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
   });
 
   it('checks the agent that signed the answered request after the host switched agents', async () => {
-    const getAgentSigner = jest.fn();
-    const onAgentRejected = jest.fn();
+    const getAgentSigner = vi.fn();
+    const onAgentRejected = vi.fn();
     const replacement = {
       address: OTHER_AGENT_ADDRESS,
-      signTypedData: jest.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
+      signTypedData: vi.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
     };
     // The venue lists the replacement only.
-    const extraAgents = jest
+    const extraAgents = vi
       .fn()
       .mockResolvedValue([listedAgent(null, OTHER_AGENT_ADDRESS)]);
     const built = createAccountSignerProvider({
@@ -658,9 +660,9 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
 
   it('does not check a request signed before the provider switched networks', async () => {
     useSwitchableNetwork();
-    const getAgentSigner = jest.fn();
-    const onAgentRejected = jest.fn();
-    const extraAgents = jest.fn().mockResolvedValue([]);
+    const getAgentSigner = vi.fn();
+    const onAgentRejected = vi.fn();
+    const extraAgents = vi.fn().mockResolvedValue([]);
     const built = createAccountSignerProvider({
       abstraction: 'unifiedAccount',
       getAgentSigner,
@@ -669,7 +671,7 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
     });
     const testnetAgent = {
       address: OTHER_AGENT_ADDRESS,
-      signTypedData: jest.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
+      signTypedData: vi.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
     };
     getAgentSigner.mockImplementation(async (account: PerpsAgentAccount) =>
       account.isTestnet ? testnetAgent : built.agentSigner,
@@ -803,14 +805,14 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
 
   it('signs a write queued on mainnet with the mainnet agent after the provider switched to testnet', async () => {
     useSwitchableNetwork();
-    const getAgentSigner = jest.fn();
+    const getAgentSigner = vi.fn();
     const built = createAccountSignerProvider({
       abstraction: 'unifiedAccount',
       getAgentSigner,
     });
     const testnetAgent = {
       address: OTHER_AGENT_ADDRESS,
-      signTypedData: jest.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
+      signTypedData: vi.fn().mockResolvedValue(OTHER_AGENT_SIGNATURE),
     };
     getAgentSigner.mockImplementation(async (account: PerpsAgentAccount) =>
       account.isTestnet ? testnetAgent : built.agentSigner,
@@ -1065,9 +1067,9 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
 
   describe('without an agent', () => {
     it('fails the order with the venue error without checking the agents', async () => {
-      const getAgentSigner = jest.fn().mockResolvedValue(null);
-      const onAgentRejected = jest.fn();
-      const extraAgents = jest.fn().mockResolvedValue([]);
+      const getAgentSigner = vi.fn().mockResolvedValue(null);
+      const onAgentRejected = vi.fn();
+      const extraAgents = vi.fn().mockResolvedValue([]);
       const { accountSignerProvider, exchangeClient, signAndSend } =
         createAccountSignerProvider({
           abstraction: 'unifiedAccount',

@@ -38,6 +38,10 @@ export type FeedActorSummary = ProfileSummary & {
   winRate30d?: number | null;
   /** 30-day realized PnL in USD. */
   pnl30d?: number | null;
+  /** 30-day trading volume in USD, totaled across all chains. */
+  volumeUsd30d?: number | null;
+  /** 7-day trading volume in USD, totaled across all chains. */
+  volumeUsd7d?: number | null;
   /** 30-day sell count behind `winRate30d`. */
   tradeCount30d?: number | null;
   /** Profiles following this trader. */
@@ -116,6 +120,16 @@ export type LeaderboardEntry = {
   winRate7d?: number | null;
   roiPercent7d?: number | null;
   tradeCount7d?: number | null;
+  /**
+   * 30-day trading volume in USD. When the request includes `chains`, this is
+   * the sum of those chains; otherwise it is the all-chain total.
+   */
+  volumeUsd30d?: number | null;
+  /**
+   * 7-day trading volume in USD. When the request includes `chains`, this is
+   * the sum of those chains; otherwise it is the all-chain total.
+   */
+  volumeUsd7d?: number | null;
   pnlPerChain: Record<string, number>;
   followerCount: number;
   socialHandles: SocialHandles;
@@ -143,6 +157,12 @@ export type TraderProfile = {
   allAddresses: string[];
   name: string;
   imageUrl?: string | null;
+  /**
+   * When the social-api profile row was created, as an ISO-8601 timestamp.
+   * Omitted on older social-api builds. This is the row insert time, which can
+   * predate the trader claiming a username and avatar.
+   */
+  createdAt?: string | null;
 };
 
 export type TraderStats = {
@@ -362,6 +382,12 @@ export type FeedItem = Position & {
    * `null` when the position is flat. Absent on older social-api builds.
    */
   entryPriceUsd?: number | null;
+  /** Stable event ID for the shared feed-all projection. */
+  eventId?: string;
+  /** Projection revision for the shared feed-all item. */
+  revision?: number;
+  /** ISO timestamp for the shared feed-all projection event. */
+  occurredAt?: string;
 };
 
 export type ReactToCommentOptions = {
@@ -377,12 +403,29 @@ export type RemoveCommentReactionOptions = {
 /**
  * Identifies a swap that may not be indexed yet. Prefer {@link CreateSwapCommentOptions.positionUid}
  * when the client already has a feed or positions `positionId`.
+ *
+ * A spot swap sends `transactionHash`. A Hyperliquid order that has not
+ * settled sends `orderId` (the exchange `oid`) instead: the fill hash does not
+ * exist yet, and social-api rejects a body that names both. For Hyperliquid,
+ * `tokenAddress` is the coin (for example `BTC`), not a contract address.
  */
-export type TradeInFlight = {
-  transactionHash: string;
-  chain: string;
-  tokenAddress: string;
-};
+export type TradeInFlight =
+  | {
+      transactionHash: string;
+      chain: string;
+      /** Contract address of the token traded. */
+      tokenAddress: string;
+    }
+  | {
+      /**
+       * Hyperliquid order id (`oid`) of an order just submitted. Digits only.
+       * The comment attaches once the fill is indexed.
+       */
+      orderId: string;
+      chain: 'hyperliquid';
+      /** Hyperliquid coin, for example `BTC`. */
+      tokenAddress: string;
+    };
 
 /**
  * Options for `POST /v1/swap-comments`. Provide exactly one of `positionUid`
@@ -423,6 +466,10 @@ export type SwapCommentAuthor = {
 
 /**
  * Response from `POST /v1/swap-comments`.
+ *
+ * `transactionHash` is empty when the comment was saved against a Hyperliquid
+ * `orderId` whose fill is not indexed yet. Social-api stamps the hash once the
+ * order settles.
  */
 export type SwapCommentResponse = {
   uid: string;
@@ -664,10 +711,11 @@ export type FetchTokenFeedOptions = {
 export type FetchFeedOptions = {
   /**
    * Which feed to fetch: `following` (personalized to the current user,
-   * identified server-side from the JWT) or `leaderboard` (generic, shared by
-   * all users). Defaults to `following` server-side when omitted.
+   * identified server-side from the JWT), `leaderboard` (generic, shared by
+   * all users), or `all` (the shared feed-all projection). Defaults to
+   * `following` server-side when omitted.
    */
-  scope?: 'following' | 'leaderboard';
+  scope?: FeedScope;
   /**
    * Filter by one or more chains, given as CAIP-2 chain ids (e.g.
    * `eip155:8453`). Omit for the server defaults.
@@ -680,6 +728,8 @@ export type FetchFeedOptions = {
   /** Cursor for newer items (pull to refresh). Use `pagination.newerCursor`. */
   newerThan?: string;
 };
+
+export type FeedScope = 'following' | 'leaderboard' | 'all' | 'trending';
 
 export type FetchPositionByIdOptions = {
   /** Unique position ID (UUID). */

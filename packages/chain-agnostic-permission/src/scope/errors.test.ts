@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { Caip25Errors } from './errors.js';
 
 describe('Caip25Errors', () => {

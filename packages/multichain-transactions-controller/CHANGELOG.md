@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `MultichainTransactionsController:transactionFailed` event, published when a non-EVM transaction reaches `TransactionStatus.Failed` ([#10611](https://github.com/MetaMask/core/pull/10611))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-api` from `^24.0.0` to `^24.3.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/keyring-snap-client` from `^10.0.0` to `^10.0.1` ([#10792](https://github.com/MetaMask/core/pull/10792))
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
 ## [8.0.0]
 
