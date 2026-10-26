@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Sync custom-token changes to Authenticated User Storage: adding or hiding a custom asset now mirrors it to the user's AUS user-assets blob (fire-and-forget; failures are swallowed and never roll back local state), and removing or unhiding strips the asset from the corresponding AUS list ([#10336](https://github.com/MetaMask/core/pull/10336))
 - Add `syncAssetsPrices(assetIds)`, exposed as the `AssetsController:syncAssetsPrices` messenger action. It force-fetches spot prices for an explicit CAIP-19 asset list through `PriceDataSource` and merges them into state ([#10892](https://github.com/MetaMask/core/pull/10892))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
