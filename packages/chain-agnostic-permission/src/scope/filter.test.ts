@@ -1,25 +1,27 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import * as Assert from './assert.js';
 import { bucketScopesBySupport, getSupportedScopeObjects } from './filter.js';
 import * as Supported from './supported.js';
 
-jest.mock('./assert', () => ({
-  ...jest.requireActual('./assert'),
-  assertScopeSupported: jest.fn(),
+vi.mock(import('./assert.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  assertScopeSupported: vi.fn(),
 }));
-const MockAssert = jest.mocked(Assert);
+const MockAssert = vi.mocked(Assert);
 
-jest.mock('./supported', () => ({
-  ...jest.requireActual('./supported'),
-  isSupportedMethod: jest.fn(),
-  isSupportedNotification: jest.fn(),
+vi.mock(import('./supported.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  isSupportedMethod: vi.fn(),
+  isSupportedNotification: vi.fn(),
 }));
-const MockSupported = jest.mocked(Supported);
+const MockSupported = vi.mocked(Supported);
 
 describe('filter', () => {
   describe('bucketScopesBySupport', () => {
-    const isEvmChainIdSupported = jest.fn();
-    const isNonEvmScopeSupported = jest.fn();
-    const getNonEvmSupportedMethods = jest.fn();
+    const isEvmChainIdSupported = vi.fn();
+    const isNonEvmScopeSupported = vi.fn();
+    const getNonEvmSupportedMethods = vi.fn();
 
     it('checks if each scope is supported', () => {
       bucketScopesBySupport(
@@ -117,7 +119,7 @@ describe('filter', () => {
   });
 
   describe('getSupportedScopeObjects', () => {
-    const getNonEvmSupportedMethods = jest.fn();
+    const getNonEvmSupportedMethods = vi.fn();
 
     it('checks if each scopeObject method is supported', () => {
       getSupportedScopeObjects(

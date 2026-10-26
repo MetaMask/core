@@ -1,4 +1,6 @@
 /* eslint-disable */
+import { describe, expect, it } from 'vitest';
+
 import { PERPS_CONSTANTS } from '../../../src/constants/perpsConfig.js';
 import type { AccountState } from '../../../src/types/index.js';
 import {

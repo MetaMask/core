@@ -1,5 +1,6 @@
 import { parseCaipAssetType } from '@metamask/utils';
 import { cleanAll } from 'nock';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
   RESPONSE_DETECTED_ASSETS_SURFACE,
@@ -92,7 +93,7 @@ async function runPipeline(
   const accountsApiDataSource = new AccountsApiDataSource({
     messenger: assetsControllerMessenger,
     queryApiClient,
-    onActiveChainsUpdated: jest.fn(),
+    onActiveChainsUpdated: vi.fn(),
     getAssetsState: (): AssetsControllerState => state,
     getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
       getAssetVisibility({
@@ -107,7 +108,7 @@ async function runPipeline(
     messenger: assetsControllerMessenger,
     queryApiClient,
     getAssetsState: (): AssetsControllerState => state,
-    onActiveChainsUpdated: jest.fn(),
+    onActiveChainsUpdated: vi.fn(),
     getNativeAssetForChain: (): Caip19AssetId => BNB_ASSET_ID,
     getAssetType: (assetId): 'native' | 'erc20' =>
       parseCaipAssetType(assetId).assetNamespace === 'erc20'
@@ -240,7 +241,7 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
     // Legitimate failing test, our middleware stack does not filter out spam
     // asset prices! This does eventually get cleaned up during unlock cleanup,
     // but worth flagging.
-    it.failing('keeps the spam token out of prices', () => {
+    it.fails('keeps the spam token out of prices', () => {
       expect(PRICES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
     });
 

@@ -219,6 +219,8 @@ const toActor = (actor: {
   imageUrl: actor.images.sm ?? actor.images.raw,
   winRate30d: readNullableNumber(actor.profile.metadata.winRate30d),
   pnl30d: readNullableNumber(actor.profile.metadata.pnl30d),
+  volumeUsd30d: readNullableNumber(actor.profile.metadata.volumeUsd30d),
+  volumeUsd7d: readNullableNumber(actor.profile.metadata.volumeUsd7d),
   tradeCount30d: readNullableNumber(actor.profile.metadata.tradeCount30d),
   ...(actor.followerCount === undefined
     ? {}

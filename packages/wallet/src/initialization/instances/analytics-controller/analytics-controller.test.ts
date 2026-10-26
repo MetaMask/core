@@ -90,7 +90,7 @@ describe('analyticsController', () => {
     });
   });
 
-  it('lets persisted state override the supplied analyticsId', () => {
+  it('lets a non-empty persisted analyticsId override the supplied analyticsId', () => {
     const messenger = analyticsController.getMessenger(getRootMessenger());
 
     const instance = analyticsController.init({
@@ -104,6 +104,25 @@ describe('analyticsController', () => {
 
     expect(instance.state.analyticsId).toBe(PERSISTED_ANALYTICS_ID);
   });
+
+  it.each([null, undefined, ''])(
+    'falls back to options.analyticsId when persisted analyticsId is %p',
+    (persistedAnalyticsId) => {
+      const messenger = analyticsController.getMessenger(getRootMessenger());
+
+      const instance = analyticsController.init({
+        state: {
+          // @ts-expect-error: Intentionally using invalid values.
+          analyticsId: persistedAnalyticsId,
+          optedIn: false,
+        },
+        messenger,
+        options: getAnalyticsOptions(),
+      });
+
+      expect(instance.state.analyticsId).toBe(TEST_ANALYTICS_ID);
+    },
+  );
 
   it('forwards isPreConsentQueueEnabled so undecided track events are queued', () => {
     const messenger = analyticsController.getMessenger(getRootMessenger());

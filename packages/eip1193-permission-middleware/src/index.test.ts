@@ -1,4 +1,5 @@
 import { createMethodMiddleware } from '@metamask/json-rpc-engine';
+import { describe, expect, it } from 'vitest';
 
 import * as allExports from './index.js';
 import type { GetPermissionsHooks } from './wallet-getPermissions.js';

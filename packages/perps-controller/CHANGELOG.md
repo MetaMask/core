@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.0]
+
 ### Added
 
-- Accept an optional `environmentType` string on `TrackingData`, `TPSLTrackingData`, and `WithdrawParams` ([#10899](https://github.com/MetaMask/core/pull/10899)).
+- Accept an optional `environmentType` string on `TrackingData`, `TPSLTrackingData`, and `WithdrawParams`. ([#10899](https://github.com/MetaMask/core/pull/10899))
   - Trade, close, cancel, order, flip, and TP/SL events that already copy attribution include `environment_type` when the field is set.
   - An order edit includes only `environment_type` from `newOrder.trackingData`.
   - The withdrawal `executed` and `failed` events emitted by `withdraw()` include `environment_type` the same way. Withdrawal events from `updateWithdrawalStatus` and `completeWithdrawalFromHistory` do not.
@@ -28,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The exported literal type of `USDC_ARBITRUM_TESTNET_ADDRESS` changes to the USDC2 address. Code typed against `typeof USDC_ARBITRUM_TESTNET_ADDRESS` with the previous value no longer compiles.
   - On testnet, `withdraw` rejects the previous asset ID (`0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`). Read `HYPERLIQUID_ASSET_CONFIGS.usdc.testnet` or `getWithdrawalRoutes()` instead of hardcoding it, and update test fixtures that pin the previous asset ID.
 - On a testnet session, `depositWithConfirmation` now prepares an Arbitrum Sepolia transfer to the Hyperliquid testnet bridge instead of an Arbitrum One transfer to the mainnet bridge; `DepositService.prepareTransaction` takes deposit routes for the provider's own network instead of forcing mainnet ([#10991](https://github.com/MetaMask/core/pull/10991))
+- The `Perp Position Close Transaction` summary event that `closePositions` emits now includes `order_type: 'market'`, so close-all events no longer report an unset order type ([#11027](https://github.com/MetaMask/core/pull/11027))
 - Treat a Lighter provider module that cannot be fetched (`Failed to fetch dynamically imported module` and its Firefox and Safari equivalents) or resolved (`ERR_MODULE_NOT_FOUND`) like `MODULE_NOT_FOUND`: debug-logged instead of reported through `logger.error`. Other Lighter load failures are still reported through `logger.error`. ([#10996](https://github.com/MetaMask/core/pull/10996))
 
 ## [21.0.0]
@@ -1283,7 +1286,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@21.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.0.0...HEAD
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@21.0.0...@metamask/perps-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.1.0...@metamask/perps-controller@21.0.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.0.0...@metamask/perps-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@19.0.0...@metamask/perps-controller@20.0.0

@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,

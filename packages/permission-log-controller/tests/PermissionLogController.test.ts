@@ -12,6 +12,15 @@ import type {
 import { PendingJsonRpcResponseStruct } from '@metamask/utils';
 import type { PendingJsonRpcResponse, JsonRpcRequest } from '@metamask/utils';
 import { nanoid } from 'nanoid';
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 
 import { LOG_LIMIT, LOG_METHOD_TYPES } from '../src/enums.js';
 import { PermissionLogController } from '../src/PermissionLogController.js';
@@ -108,18 +117,18 @@ const mockNext =
   (advanceTime: boolean): JsonRpcEngineNextCallback =>
   (handler) => {
     if (advanceTime) {
-      jest.advanceTimersByTime(1);
+      vi.advanceTimersByTime(1);
     }
     handler?.(noop);
   };
 
 const initClock = (): void => {
-  jest.useFakeTimers();
-  jest.setSystemTime(new Date(1));
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(1));
 };
 
 const tearDownClock = (): void => {
-  jest.useRealTimers();
+  vi.useRealTimers();
 };
 
 const getSavedMockNext =
@@ -129,7 +138,7 @@ const getSavedMockNext =
   ): JsonRpcEngineNextCallback =>
   (handler) => {
     if (advanceTime) {
-      jest.advanceTimersByTime(1);
+      vi.advanceTimersByTime(1);
     }
     arr.push(handler);
   };
@@ -621,7 +630,7 @@ describe('PermissionLogController', () => {
         );
 
         // mock permission requested again, with another approved account
-        jest.advanceTimersByTime(1);
+        vi.advanceTimersByTime(1);
         res.result = [PERMS.granted.eth_accounts([ACCOUNTS.a.permitted[0]])];
 
         logMiddleware(req, res, mockNext(false), noop);
@@ -731,7 +740,7 @@ describe('PermissionLogController', () => {
         );
 
         // new permission requested, but not approved
-        jest.advanceTimersByTime(1);
+        vi.advanceTimersByTime(1);
 
         req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
@@ -812,7 +821,7 @@ describe('PermissionLogController', () => {
         );
 
         // make next round of requests
-        jest.advanceTimersByTime(1);
+        vi.advanceTimersByTime(1);
 
         // nothing for second origin in this round
         const round2: {
@@ -891,7 +900,7 @@ describe('PermissionLogController', () => {
         },
       });
 
-      jest.advanceTimersByTime(1);
+      vi.advanceTimersByTime(1);
       rootMessenger.call(
         'PermissionLogController:updateAccountsHistory',
         'foo.com',
