@@ -1,6 +1,8 @@
 export {
   decodeAggregate3Response,
   encodeAggregate3,
+} from './aggregate3Codec.js';
+export {
   MulticallClient,
   type MulticallClientConfig,
 } from './MulticallClient.js';

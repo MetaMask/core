@@ -11,8 +11,8 @@ import type {
   Provider,
 } from '../types/index.js';
 import {
-  decodeAggregate3Response,
-  encodeAggregate3,
+  decodeAggregate3ResponseWithEthers,
+  encodeAggregate3WithEthers,
   MulticallClient,
 } from './MulticallClient.js';
 
@@ -895,7 +895,7 @@ describe('MulticallClient', () => {
   });
 });
 
-describe('encodeAggregate3', () => {
+describe('encodeAggregate3WithEthers', () => {
   it('should encode a valid aggregate3 call', () => {
     const calls = [
       {
@@ -906,7 +906,7 @@ describe('encodeAggregate3', () => {
       },
     ];
 
-    const result = encodeAggregate3(calls);
+    const result = encodeAggregate3WithEthers(calls);
 
     expect(result).toMatch(/^0x82ad56cb/u); // starts with aggregate3 selector
     expect(typeof result).toBe('string');
@@ -926,14 +926,13 @@ describe('encodeAggregate3', () => {
       },
     ];
 
-    const result = encodeAggregate3(calls);
+    const result = encodeAggregate3WithEthers(calls);
 
     expect(result).toMatch(/^0x82ad56cb/u);
     expect(typeof result).toBe('string');
   });
 
   it('should produce valid ABI-encoded calldata that can be decoded', () => {
-    // Test with multiple calls to verify encoding is correct
     const calls = [
       {
         target: '0x1111111111111111111111111111111111111111' as Address,
@@ -947,7 +946,7 @@ describe('encodeAggregate3', () => {
       },
     ];
 
-    const result = encodeAggregate3(calls);
+    const result = encodeAggregate3WithEthers(calls);
 
     // Verify selector is correct (aggregate3)
     expect(result).toMatch(/^0x82ad56cb/u);
@@ -973,7 +972,7 @@ describe('encodeAggregate3', () => {
     expect(decodedCalls[1].callData.toLowerCase()).toBe(calls[1].callData);
   });
 
-  it('should produce identical calldata to regular Ethers implementation', () => {
+  it('should match encodeFunctionData for aggregate3', () => {
     const multicall3Interface = new Interface([
       'function aggregate3((address target, bool allowFailure, bytes callData)[] calls) payable returns ((bool success, bytes returnData)[])',
       'function getEthBalance(address addr) view returns (uint256)',
@@ -1011,17 +1010,17 @@ describe('encodeAggregate3', () => {
       calls,
     ]);
 
-    expect(encodeAggregate3(calls)).toBe(expected);
+    expect(encodeAggregate3WithEthers(calls)).toBe(expected);
   });
 });
 
-describe('decodeAggregate3Response', () => {
+describe('decodeAggregate3ResponseWithEthers', () => {
   it('should decode response with viem-encoded data', () => {
     const mockResponse = buildMockAggregate3Response([
       { success: true, balance: '1000000000' },
     ]);
 
-    const result = decodeAggregate3Response(mockResponse, 1);
+    const result = decodeAggregate3ResponseWithEthers(mockResponse, 1);
 
     expect(result).toHaveLength(1);
     expect(result[0].success).toBe(true);
@@ -1036,7 +1035,7 @@ describe('decodeAggregate3Response', () => {
       { success: true, balance: '300' },
     ]);
 
-    const result = decodeAggregate3Response(mockResponse, 3);
+    const result = decodeAggregate3ResponseWithEthers(mockResponse, 3);
 
     expect(result).toHaveLength(3);
     expect(result[0].success).toBe(true);
@@ -1049,7 +1048,7 @@ describe('decodeAggregate3Response', () => {
       { success: true, balance: '100' },
     ]);
 
-    expect(() => decodeAggregate3Response(mockResponse, 2)).toThrow(
+    expect(() => decodeAggregate3ResponseWithEthers(mockResponse, 2)).toThrow(
       'Expected 2 results, got 1',
     );
   });
