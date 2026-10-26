@@ -1,11 +1,10 @@
-import { basename, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { basename } from 'node:path';
 import { configDefaults, defineConfig, mergeConfig } from 'vitest/config';
 import type { ViteUserConfig } from 'vitest/config';
 
 import baseConfig, { lowerDecorators } from '../../vitest.config.packages.js';
 
-const name = basename(dirname(fileURLToPath(import.meta.url)));
+const name = basename(import.meta.dirname);
 
 /**
  * The suites selected with `--mode`. `yarn test` runs both the unit and the

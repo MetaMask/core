@@ -49,6 +49,24 @@ export type AuthenticationControllerRefreshEnrolledCredentialsAction = {
 };
 
 /**
+ * Removes a credential from the profile and caches the credentials left.
+ *
+ * The server requires a verification proven with another type of credential
+ * (`cross_type_step_up_required` otherwise) and refuses to remove the last
+ * one (`last_credential`). This sends the verification session: without
+ * one, it throws a `StepUpRequiredError` (`aal2_required`) without calling
+ * the server. The caller verifies with another method through the client
+ * MFA kit first, which decides how recent that verification must be.
+ *
+ * @param request - The credential's `id`, and the trace reason.
+ * @returns The credentials left.
+ */
+export type AuthenticationControllerRemoveCredentialAction = {
+  type: `AuthenticationController:removeCredential`;
+  handler: AuthenticationController['removeCredential'];
+};
+
+/**
  * Begins enrollment of a passkey, email OTP or authenticator app (TOTP)
  * credential.
  *
@@ -132,6 +150,26 @@ export type AuthenticationControllerCompleteCredentialVerificationAction = {
 export type AuthenticationControllerGetVerificationTokenAction = {
   type: `AuthenticationController:getVerificationToken`;
   handler: AuthenticationController['getVerificationToken'];
+};
+
+/**
+ * Requests an approval bound to one request (`POST /api/v2/mfa/approvals`),
+ * for the services in `audiences`, such as recovery or signing.
+ *
+ * Shows no UI. When `requireVerification` is set, the approval proves the
+ * verification session: without one, this throws a `StepUpRequiredError`
+ * (`aal2_required`) without calling the server. The server answers the same
+ * way when the verification is too old for it, and that session is then
+ * dropped. Either way, the caller verifies through the client MFA kit
+ * (`verifyOrEnroll`), which runs a new ceremony, and calls again.
+ *
+ * @param request - Request digest, audiences, whether a recent verification
+ * is required, whether to return identifiers, and the trace reason.
+ * @returns The approval, its lifetime and the recovery identifiers.
+ */
+export type AuthenticationControllerRequestMfaApprovalAction = {
+  type: `AuthenticationController:requestMfaApproval`;
+  handler: AuthenticationController['requestMfaApproval'];
 };
 
 /**
@@ -264,11 +302,13 @@ export type AuthenticationControllerMethodActions =
   | AuthenticationControllerExchangeSocialAccessTokenAction
   | AuthenticationControllerRequestProfilePairingAction
   | AuthenticationControllerRefreshEnrolledCredentialsAction
+  | AuthenticationControllerRemoveCredentialAction
   | AuthenticationControllerBeginCredentialEnrollmentAction
   | AuthenticationControllerCompleteCredentialEnrollmentAction
   | AuthenticationControllerBeginCredentialVerificationAction
   | AuthenticationControllerCompleteCredentialVerificationAction
   | AuthenticationControllerGetVerificationTokenAction
+  | AuthenticationControllerRequestMfaApprovalAction
   | AuthenticationControllerClearVerificationSessionAction
   | AuthenticationControllerPerformSignOutAction
   | AuthenticationControllerClearStateAction
