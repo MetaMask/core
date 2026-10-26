@@ -1,7 +1,7 @@
 /**
  * Analytics-only types and helpers for `KycController`. Nothing here is used
- * by the KYC business logic; it describes the payloads of the
- * `KycController:analytics*` events and the status they report.
+ * by the KYC business logic; it describes the payloads passed to
+ * {@link KycAnalyticsTrackers} and the status they report.
  */
 
 import type { KycProviderFlowStatus } from './KycController.js';
@@ -25,8 +25,8 @@ export type KycAnalyticsStatus = (typeof KYC_ANALYTICS_STATUSES)[number];
 const KYC_ANALYTICS_STATUS_SET = new Set<string>(KYC_ANALYTICS_STATUSES);
 
 /**
- * SumSub launch outcomes the controller reports through
- * `KycController:analyticsVerificationOutcome`, one per launch attempt.
+ * SumSub launch outcomes reported through
+ * {@link KycAnalyticsTrackers.verificationOutcome}, one per launch attempt.
  */
 export type KycAnalyticsVerificationOutcome =
   | 'submitted'
@@ -34,7 +34,7 @@ export type KycAnalyticsVerificationOutcome =
   | 'failed';
 
 /**
- * Payload of `KycController:analyticsVerificationOutcome`.
+ * Payload of {@link KycAnalyticsTrackers.verificationOutcome}.
  *
  * Carries no session id, email, disclaimer or token data.
  */
@@ -47,7 +47,7 @@ export type KycAnalyticsVerificationOutcomePayload = {
 };
 
 /**
- * Payload of `KycController:analyticsStatusChanged`.
+ * Payload of {@link KycAnalyticsTrackers.statusChanged}.
  *
  * Carries no session id, email, disclaimer or token data.
  */
@@ -61,6 +61,31 @@ export type KycAnalyticsStatusChangedPayload = {
   kycStatus: KycAnalyticsStatus;
   providerFlowStatus: KycProviderFlowStatus;
   vendor: string | null;
+};
+
+/**
+ * Client callbacks that record KYC analytics. Passed to `KycController` as
+ * `trackKycAnalytics`. The controller calls them after the state write that
+ * caused the signal.
+ */
+export type KycAnalyticsTrackers = {
+  /**
+   * Called once per SumSub launch attempt (`submitted`, `abandoned`, or
+   * `failed`), including a repeat of the previous outcome and the failures
+   * that leave state unchanged.
+   *
+   * @param payload - The launch outcome and the analytics status after it.
+   */
+  verificationOutcome: (
+    payload: KycAnalyticsVerificationOutcomePayload,
+  ) => void;
+  /**
+   * Called after a state write that changes the analytics KYC status. Not
+   * called when a session is loaded into an empty slot.
+   *
+   * @param payload - The analytics status before and after the change.
+   */
+  statusChanged: (payload: KycAnalyticsStatusChangedPayload) => void;
 };
 
 /**
