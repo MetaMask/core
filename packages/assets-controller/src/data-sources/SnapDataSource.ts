@@ -176,8 +176,6 @@ export type SnapDataSourceOptions = {
    * controller currently has an active subscription for the chain.
    */
   onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
-  /** Whether authoritative v6 balance snapshots are enabled. */
-  isBalanceV6Enabled: () => boolean;
   /** Resolves native, pinned, default, and hidden assets for a request scope. */
   getAssetVisibility: GetAssetVisibility;
   /**
@@ -229,8 +227,6 @@ export class SnapDataSource extends AbstractDataSource<
 
   readonly #onAssetsUpdate: (response: DataResponse) => void | Promise<void>;
 
-  readonly #isBalanceV6Enabled: () => boolean;
-
   readonly #getAssetVisibility: GetAssetVisibility;
 
   readonly #getAssetsState: () => AssetsControllerState;
@@ -254,7 +250,6 @@ export class SnapDataSource extends AbstractDataSource<
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#onAssetsUpdate = options.onAssetsUpdate;
-    this.#isBalanceV6Enabled = options.isBalanceV6Enabled;
     this.#getAssetVisibility = options.getAssetVisibility;
     this.#getAssetsState = options.getAssetsState;
 
@@ -467,103 +462,21 @@ export class SnapDataSource extends AbstractDataSource<
   // FETCH
   // ============================================================================
 
-  async fetch(request: DataRequest): Promise<DataResponse> {
-    // Guard against undefined request
-    // Note: chainIds filtering is done by middleware/subscribe before calling fetch
-    if (!request?.chainIds?.length) {
-      return {};
-    }
-
-    if (this.#isBalanceV6Enabled()) {
-      return this.#fetchV6(request);
-    }
-
-    return this.#fetchV5(request);
-  }
-
   /**
-   * v5 fetch. Unchanged from the pre-v6 handler; delete the v6 sibling first
-   * if `assetsAccountsApiV6` is rolled back.
-   *
-   * @param request - The data request.
-   * @returns Overlay (`merge`) balances from the snap keyring.
-   */
-  async #fetchV5(request: DataRequest): Promise<DataResponse> {
-    if (!request?.accountsWithSupportedChains?.length) {
-      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'merge' };
-    }
-
-    const results: DataResponse = {
-      assetsBalance: {},
-      assetsInfo: {},
-      updateMode: 'merge',
-    };
-
-    // Fetch balances for each account using its snap ID from metadata
-    for (const { account } of request.accountsWithSupportedChains) {
-      // Skip accounts without snap metadata (non-snap accounts)
-      const snapId = account.metadata.snap?.id;
-      if (!snapId) {
-        continue;
-      }
-
-      // Skip accounts whose snap doesn't support any of the requested chains
-      const snapSupportsRequestedChains = request.chainIds.some(
-        (chainId) => this.state.chainToSnap[chainId] === snapId,
-      );
-      if (!snapSupportsRequestedChains) {
-        continue;
-      }
-
-      const accountId = account.id;
-      try {
-        const client = this.#getKeyringClient(snapId);
-
-        // Step 1: Get the list of assets for this account
-        const accountAssets = await client.listAccountAssets(accountId);
-
-        // If no assets, skip to next account
-        if (!accountAssets || accountAssets.length === 0) {
-          continue;
-        }
-
-        // Step 2: Get balances for those specific assets
-        const balances: Record<CaipAssetType, Balance> =
-          await client.getAccountBalances(accountId, accountAssets);
-
-        // Transform keyring response to DataResponse format
-        if (balances && typeof balances === 'object' && results.assetsBalance) {
-          for (const [assetId, balance] of Object.entries(balances)) {
-            results.assetsBalance[accountId] ??= {};
-            const accountBalances = results.assetsBalance[accountId];
-            if (accountBalances) {
-              (accountBalances as Record<string, unknown>)[assetId] = {
-                amount: balance.amount,
-                ...(balance.metadata ? { metadata: balance.metadata } : {}),
-              };
-            }
-          }
-        }
-      } catch {
-        // Expected when account doesn't belong to this snap
-      }
-    }
-
-    return results;
-  }
-
-  /**
-   * v6 fetch: a complete snapshot of the requested account-chain slices.
+   * A complete snapshot of the requested account-chain slices.
    * Listed holdings and expected visible assets (native, pin, default
    * tracked) are requested together. Hidden assets are left out entirely.
-   * Delete with the rest of the v6 path if `assetsAccountsApiV6` is rolled
-   * back.
    *
    * @param request - The data request.
    * @returns Authoritative (`full`) balances for the requested slices.
    */
-  async #fetchV6(request: DataRequest): Promise<DataResponse> {
-    if (!request?.accountsWithSupportedChains?.length) {
+  async fetch(request: DataRequest): Promise<DataResponse> {
+    // Chain filtering is done by middleware/subscribe before calling fetch.
+    if (!request?.chainIds?.length) {
+      return {};
+    }
+
+    if (!request.accountsWithSupportedChains?.length) {
       return { assetsBalance: {}, assetsInfo: {}, updateMode: 'full' };
     }
 
@@ -599,7 +512,7 @@ export class SnapDataSource extends AbstractDataSource<
 
         // Step 1: Get the list of assets for this account
         const accountAssets = await client.listAccountAssets(accountId);
-        const assetsToFetch = this.#selectAssetsToFetchV6(
+        const assetsToFetch = this.#selectAssetsToFetch(
           accountAssets ?? [],
           visibleAssetIds,
           supportedChainIds,
@@ -705,7 +618,7 @@ export class SnapDataSource extends AbstractDataSource<
    * @param hiddenAssetIds - Asset IDs the user hid in this scope.
    * @returns Asset IDs to request balances for.
    */
-  #selectAssetsToFetchV6(
+  #selectAssetsToFetch(
     accountAssets: string[],
     visibleAssetIds: Caip19AssetId[],
     supportedChainIds: ChainId[],
@@ -744,7 +657,7 @@ export class SnapDataSource extends AbstractDataSource<
   // ============================================================================
   // TEMPORARY: balance-state tokens while a chain can roll back to Snaps
   //
-  // Delete this whole section, and the call marked TEMPORARY in `#fetchV6`,
+  // Delete this whole section, and the call marked TEMPORARY in `fetch`,
   // once balance reads fully move to Accounts API.
   //
   // The v6 request is the union of the snap's listed holdings, visible assets,

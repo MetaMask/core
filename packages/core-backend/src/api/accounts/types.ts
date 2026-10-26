@@ -146,8 +146,19 @@ export type V6BalanceItem = {
   symbol: string;
   decimals: number;
   balance: string;
+  /** Logo URL. Present on token rows the token registry knows. */
+  image?: string;
+  /** Token-list aggregator ids. Present on token rows the token registry knows. */
+  aggregators?: string[];
+  /** Token-list occurrence count. Present on token rows the token registry knows. */
+  occurrences?: number;
   /** Spot price in the requested `vsCurrency`. Present when `includePrices` is true. */
   price?: string;
+  /**
+   * 24h price change percentage for `price`. Present when `includePrices` is
+   * true. A number, or a decimal string.
+   */
+  pricePercentChange1d?: number | string;
   /** Asset metadata labels. Present when `includeLabels` is true. */
   labels?: string[];
   /** Canonical head asset ID. Present when `includeCanonicalHead` is true. */

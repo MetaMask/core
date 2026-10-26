@@ -156,11 +156,6 @@
       "count": 2
     }
   },
-  "packages/assets-controller/src/middlewares/CustomAssetGraduationMiddleware.test.ts": {
-    "TS2554": {
-      "count": 2
-    }
-  },
   "packages/assets-controller/src/middlewares/ParallelMiddleware.test.ts": {
     "TS2418": {
       "count": 3
@@ -168,10 +163,7 @@
   },
   "packages/assets-controller/src/middlewares/RpcFallbackMiddleware.test.ts": {
     "TS18048": {
-      "count": 5
-    },
-    "TS2532": {
-      "count": 2
+      "count": 3
     }
   },
   "packages/assets-controller/src/pipeline/buildWsUpdateSources.price-updates.integration.test.ts": {

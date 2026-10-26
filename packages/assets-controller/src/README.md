@@ -80,11 +80,18 @@ get selectedAccounts(): InternalAccount[]
 ```typescript
 registerActionHandlers()
 ├── AssetsController:getAssets
-├── AssetsController:getAssetsBalance
 ├── AssetsController:getAssetMetadata
-├── AssetsController:getAssetsPrice
-├── AssetsController:activeChainsUpdate   // Data sources report chain changes
-└── AssetsController:assetsUpdate         // Data sources push asset updates
+├── AssetsController:getAccountAssetByID
+├── AssetsController:getAccountAssetsByIDs
+├── AssetsController:getAccountAssetsByScope
+├── AssetsController:syncAssetsPrices
+├── AssetsController:getExchangeRatesForBridge
+├── AssetsController:getStateForTransactionPay
+├── AssetsController:addCustomAsset
+├── AssetsController:removeCustomAsset
+├── AssetsController:hideAsset
+├── AssetsController:unhideAsset
+└── AssetsController:setSelectedCurrency
 ```
 
 #### 1.5 Balance data source priority
@@ -269,11 +276,18 @@ destroy()
 │
 └── Unregister action handlers
     ├── AssetsController:getAssets
-    ├── AssetsController:getAssetsBalance
     ├── AssetsController:getAssetMetadata
-    ├── AssetsController:getAssetsPrice
-    ├── AssetsController:activeChainsUpdate
-    └── AssetsController:assetsUpdate
+    ├── AssetsController:getAccountAssetByID
+    ├── AssetsController:getAccountAssetsByIDs
+    ├── AssetsController:getAccountAssetsByScope
+    ├── AssetsController:syncAssetsPrices
+    ├── AssetsController:getExchangeRatesForBridge
+    ├── AssetsController:getStateForTransactionPay
+    ├── AssetsController:addCustomAsset
+    ├── AssetsController:removeCustomAsset
+    ├── AssetsController:hideAsset
+    ├── AssetsController:unhideAsset
+    └── AssetsController:setSelectedCurrency
 ```
 
 ---
@@ -387,49 +401,9 @@ console.log(`ETH Balance: ${ethAsset.fiatValue} USD`);
 
 ---
 
-#### `AssetsController:getAssetsBalance`
-
-Get only balance data (lighter query).
-
-```typescript
-const balances = await messenger.call(
-  'AssetsController:getAssetsBalance',
-  accounts,
-  options?
-);
-```
-
-**Return Type:**
-
-```typescript
-Record<AccountId, Record<Caip19AssetId, AssetBalance>>;
-
-interface AssetBalance {
-  amount: string; // Converted amount (e.g., "1" for 1 ETH)
-}
-```
-
-**Example:**
-
-```typescript
-const balances = await messenger.call(
-  'AssetsController:getAssetsBalance',
-  accounts,
-  {
-    chainIds: ['eip155:1', 'eip155:137'],
-    forceUpdate: true,
-  },
-);
-
-// Get ETH balance
-const ethBalance = balances[accountId]['eip155:1/slip44:60'].amount;
-```
-
----
-
 #### `AssetsController:getAssetMetadata`
 
-Get metadata for a specific asset (symbol, name, decimals, image, etc.). This is a synchronous call.
+Get metadata for a specific asset (symbol, name, decimals, image, etc.). This is a synchronous call. Snaps also read a single asset, a list of assets, or every asset on a chain with `AssetsController:getAccountAssetByID`, `AssetsController:getAccountAssetsByIDs`, and `AssetsController:getAccountAssetsByScope`.
 
 ```typescript
 const metadata = messenger.call(
@@ -442,44 +416,6 @@ const metadata = messenger.call(
 
 ```typescript
 AssetMetadata | undefined;
-
-interface AssetMetadata {
-  type: 'native' | 'erc20' | 'erc721' | 'erc1155' | 'spl' | string;
-  symbol: string; // "ETH", "USDC"
-  name: string; // "Ethereum", "USD Coin"
-  decimals: number; // 18, 6, etc.
-  image?: string; // Logo URL
-  isSpam?: boolean; // Spam detection flag
-  verified?: boolean; // Verification status
-}
-```
-
----
-
-#### `AssetsController:getAssetsPrice`
-
-Get only price data.
-
-```typescript
-const prices = await messenger.call(
-  'AssetsController:getAssetsPrice',
-  accounts,
-  options?
-);
-```
-
-**Return Type:**
-
-```typescript
-Record<Caip19AssetId, AssetPrice>;
-
-interface AssetPrice {
-  price: number; // Current price in USD
-  priceChange24h?: number; // 24h change percentage
-  lastUpdated: number; // Timestamp
-  marketCap?: number;
-  volume24h?: number;
-}
 ```
 
 ---
@@ -899,12 +835,6 @@ const assetsController = new AssetsController({
 const assets = await messenger.call('AssetsController:getAssets', accounts, {
   forceUpdate: true,
 });
-
-// Get just balances (lighter)
-const balances = await messenger.call(
-  'AssetsController:getAssetsBalance',
-  accounts,
-);
 
 // Get state directly
 const state = messenger.call('AssetsController:getState');

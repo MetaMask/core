@@ -40,16 +40,13 @@ export type {
 } from './AssetsController.js';
 export type {
   AssetsControllerGetAssetsAction,
-  AssetsControllerGetAssetsBalanceAction,
   AssetsControllerGetAssetMetadataAction,
   AssetsControllerGetAccountAssetByIDAction,
   AssetsControllerGetAccountAssetsByIDsAction,
   AssetsControllerGetAccountAssetsByScopeAction,
-  AssetsControllerGetAssetsPriceAction,
   AssetsControllerSyncAssetsPricesAction,
   AssetsControllerAddCustomAssetAction,
   AssetsControllerRemoveCustomAssetAction,
-  AssetsControllerGetCustomAssetsAction,
   AssetsControllerHideAssetAction,
   AssetsControllerUnhideAssetAction,
   AssetsControllerGetExchangeRatesForBridgeAction,
@@ -165,14 +162,8 @@ export type {
 } from './data-sources/index.js';
 
 // Middlewares
-export {
-  CustomAssetGraduationMiddleware,
-  RpcFallbackMiddleware,
-} from './middlewares/index.js';
-export type {
-  CustomAssetGraduationMiddlewareOptions,
-  RpcFallbackMiddlewareOptions,
-} from './middlewares/index.js';
+export { RpcFallbackMiddleware } from './middlewares/index.js';
+export type { RpcFallbackMiddlewareOptions } from './middlewares/index.js';
 
 // Utilities
 export {
