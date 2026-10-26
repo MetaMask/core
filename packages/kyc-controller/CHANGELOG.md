@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `KycController.ensureLocalUserSecret` and the `KycController:ensureLocalUserSecret` messenger action, which create and store the UKYC `local_user_secret` when one does not already exist
+- Add `KycController.ensureLocalUserSecret` and the `KycController:ensureLocalUserSecret` messenger action, which create and store the UKYC `local_user_secret` when one does not already exist ([#11099](https://github.com/MetaMask/core/pull/11099))
   - Call it after the user has expressed intent to onboard and before `startSession`, so secret generation and the Encrypted User Storage write happen before session creation
   - `startSession` still creates the secret when this method has not been called
   - The secret is not returned
