@@ -43,8 +43,20 @@ jobs:
             BASE_REF="${BASH_REMATCH[1]}"
           fi
 
-          MERGE_BASE=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_REF...$HEAD_SHA" --jq '.merge_base_commit.sha')
-          git fetch --unshallow --filter=blob:none --no-tags origin HEAD
+          # The compare API shares the installation rate limit. When it is
+          # unavailable, compute the same commit from git.
+          if ! MERGE_BASE=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_REF...$HEAD_SHA" --jq '.merge_base_commit.sha') || [[ -z "$MERGE_BASE" ]]; then
+            echo "GitHub compare API did not return a merge base; computing it with git."
+            git fetch --filter=blob:none --no-tags origin "$BASE_REF"
+            if [[ "$(git rev-parse --is-shallow-repository)" == "true" ]]; then
+              git fetch --unshallow --filter=blob:none --no-tags origin "$BASE_REF" "$HEAD_SHA"
+            else
+              git fetch --filter=blob:none --no-tags origin "$HEAD_SHA"
+            fi
+            MERGE_BASE=$(git merge-base "origin/$BASE_REF" "$HEAD_SHA")
+          else
+            git fetch --unshallow --filter=blob:none --no-tags origin HEAD
+          fi
 
           echo "merge-base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
         env:

@@ -47,8 +47,15 @@ runs:
         REPOSITORY: ${{ github.repository }}
         PR_NUMBER: ${{ steps.pr-number.outputs.pr-number }}
         GH_TOKEN: ${{ inputs.github-token }}
+        # Present for pull_request events. Merge-queue runs leave this empty
+        # and resolve the branch through the API instead.
+        HEAD_REF: ${{ github.event.pull_request.head.ref }}
       run: |
-        BRANCH=$(gh api "/repos/${REPOSITORY}/pulls/${PR_NUMBER}" --jq=.head.ref)
+        if [[ -n "$HEAD_REF" ]]; then
+          BRANCH="$HEAD_REF"
+        else
+          BRANCH=$(gh api "/repos/${REPOSITORY}/pulls/${PR_NUMBER}" --jq=.head.ref)
+        fi
         echo "pr-branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
     - name: Check changelog changes
