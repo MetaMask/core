@@ -502,7 +502,8 @@ export type CopyTradeOrigin = {
  * the Hyperliquid order id returned on submission.
  */
 export type CopyTradeExecution =
-  { product: 'swaps'; quoteId: string } | { product: 'perps'; oid: string };
+  | { product: 'swaps'; quoteId: string }
+  | { product: 'perps'; oid: string };
 
 /**
  * Options for `POST /v1/copy-trade-intents`.
@@ -680,7 +681,12 @@ export type TokenFeedStatus = 'open' | 'closed';
  * Chain name accepted by `GET /v1/tokens/:chain/:contractAddress/feed`.
  */
 export type TokenFeedChain =
-  'base' | 'bsc' | 'ethereum' | 'hyperliquid' | 'robinhood' | 'solana';
+  | 'base'
+  | 'bsc'
+  | 'ethereum'
+  | 'hyperliquid'
+  | 'robinhood'
+  | 'solana';
 
 /**
  * Options for `GET /v1/tokens/:chain/:contractAddress/feed`.
