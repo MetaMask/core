@@ -1,0 +1,10 @@
+{
+  "status": "ready",
+  "source_file": "packages/assets-controller/src/data-sources/evm-rpc-services/clients/MulticallClient.ts",
+  "metric": "primary_ms",
+  "metric_unit": "ms",
+  "direction": "lower",
+  "checks_command": "yarn vitest run packages/assets-controller/src/data-sources/evm-rpc-services/clients/MulticallClient.test.ts --coverage.enabled=false",
+  "area": "assets-controller/MulticallClient",
+  "notes": "Hot path from MetaMask Mobile Hermes profile run 39731720623 (commit 9b830f28): Multicall3 balance batching — batchBalanceOf -> buildAggregate3BalanceCalls -> encodeAggregate3 (ethers Interface encode) -> decodeAggregate3Response (ethers Interface decode) -> decodeUint256 (balanceOf decode). ~5.7s of the 20.4s Asset View scenario (~28% of JS time), 4.2-7.1s across 8 scenarios. Bench: .auto/bench/build.mjs bundles the REAL production source into .auto/bench/bundle.js (single Hermes file, ES5 for the old hermes-engine CLI) and measure.sh rebuilds before every measurement so edits are always picked up."
+}

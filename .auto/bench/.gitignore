@@ -1,0 +1,7 @@
+run_*.out
+tmp/
+bundle.js
+
+# generator/build artifacts (regenerable)
+gen-bundle.cjs
+build.log
