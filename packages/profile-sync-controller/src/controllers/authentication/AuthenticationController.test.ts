@@ -8,7 +8,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { cleanAll as cleanAllNock } from 'nock';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 
 import {
