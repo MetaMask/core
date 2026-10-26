@@ -2113,6 +2113,12 @@ export type GasFeeToken = {
   /** Account address to send the token to. */
   recipient: Hex;
 
+  /**
+   * Name of the party paying the gas fee, such as `Uniswap` or `MetaMask`.
+   * Only set when the gas fee is sponsored.
+   */
+  sponsor?: string;
+
   /** Symbol of the token. */
   symbol: string;
 

@@ -228,6 +228,7 @@ function parseGasFeeTokens(response: SimulationResponse): {
     ?.fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
 
   const isGasFeeSponsored = response.sponsorship?.isSponsored ?? false;
+  const sponsor = isGasFeeSponsored ? response.sponsorship?.sponsor : undefined;
 
   const tokenFees = feeLevel?.tokenFees ?? [];
 
@@ -243,6 +244,7 @@ function parseGasFeeTokens(response: SimulationResponse): {
       maxPriorityFeePerGas: feeLevel.maxPriorityFeePerGas,
       rateWei: tokenFee.rateWei,
       recipient: tokenFee.feeRecipient,
+      ...(sponsor ? { sponsor } : {}),
       symbol: tokenFee.token.symbol,
       tokenAddress: tokenFee.token.address,
     })),

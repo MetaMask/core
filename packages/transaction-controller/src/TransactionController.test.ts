@@ -2764,6 +2764,32 @@ describe('TransactionController', () => {
         ]);
       });
 
+      it('with sponsor', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [{ ...GAS_FEE_TOKEN_MOCK, sponsor: 'Uniswap' }],
+          isGasFeeSponsored: true,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeTokens).toStrictEqual([
+          { ...GAS_FEE_TOKEN_MOCK, sponsor: 'Uniswap' },
+        ]);
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
+      });
+
       it('with getSimulationConfig', async () => {
         getGasFeeTokensMock.mockResolvedValueOnce({
           gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
