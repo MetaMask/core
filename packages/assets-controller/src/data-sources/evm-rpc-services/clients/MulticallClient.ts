@@ -417,23 +417,38 @@ function createBalanceCallDataCache(): BalanceCallDataCache {
 
   return {
     getErc20BalanceCallData(accountAddress: Address): Hex {
-      const key = accountAddress.toLowerCase();
-      const existing = erc20ByAccount.get(key);
+      // Fast path first: repeated lookups of the same original-case string hit
+      // without allocating a lowercase key.
+      const existing = erc20ByAccount.get(accountAddress);
       if (existing !== undefined) {
         return existing;
+      }
+      const key = accountAddress.toLowerCase();
+      const existingByKey = erc20ByAccount.get(key);
+      if (existingByKey !== undefined) {
+        // Remember the original-case spelling for the fast path.
+        erc20ByAccount.set(accountAddress, existingByKey);
+        return existingByKey;
       }
       const callData = encodeBalanceOf(accountAddress);
       erc20ByAccount.set(key, callData);
+      erc20ByAccount.set(accountAddress, callData);
       return callData;
     },
     getNativeBalanceCallData(accountAddress: Address): Hex {
-      const key = accountAddress.toLowerCase();
-      const existing = nativeByAccount.get(key);
+      const existing = nativeByAccount.get(accountAddress);
       if (existing !== undefined) {
         return existing;
       }
+      const key = accountAddress.toLowerCase();
+      const existingByKey = nativeByAccount.get(key);
+      if (existingByKey !== undefined) {
+        nativeByAccount.set(accountAddress, existingByKey);
+        return existingByKey;
+      }
       const callData = encodeGetEthBalance(accountAddress);
       nativeByAccount.set(key, callData);
+      nativeByAccount.set(accountAddress, callData);
       return callData;
     },
   };
@@ -484,6 +499,9 @@ function buildAggregate3BalanceCalls(
  * @returns The encoded aggregate3 call data.
  */
 const ZERO_HEX_WORD = '0'.repeat(64);
+const ONE_HEX_WORD = toHexWord(1);
+const CALL_DATA_OFFSET_HEX_WORD = toHexWord(0x60);
+const ADDRESS_PAD_ZEROS = '0'.repeat(24);
 
 /** Render a small non-negative integer as a padded 32-byte hex word. */
 function toHexWord(value: number): string {
@@ -507,10 +525,10 @@ export function encodeAggregate3(
     // Tuple head is three words (address, allowFailure, callData offset), so
     // the callData offset is the constant 0x60 relative to the tuple start.
     tuples.push(
-      '0'.repeat(24) +
+      ADDRESS_PAD_ZEROS +
         call.target.toLowerCase().slice(2) +
-        (call.allowFailure ? toHexWord(1) : ZERO_HEX_WORD) +
-        toHexWord(0x60) +
+        (call.allowFailure ? ONE_HEX_WORD : ZERO_HEX_WORD) +
+        CALL_DATA_OFFSET_HEX_WORD +
         toHexWord(payloadBytes) +
         payload +
         '0'.repeat(padChars),
