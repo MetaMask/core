@@ -14,6 +14,8 @@ import type { V3AssetResponse } from '@metamask/core-backend';
 import type { Json } from '@metamask/utils';
 import nock from 'nock';
 
+import { getRequestUrl } from '../../test-utils.js';
+import type { NockRequestInfo } from '../../test-utils.js';
 import suggestedOccurrenceFloors from './token-api/suggestedOccurrenceFloors.js';
 import v3Assets from './tokens-api/v3-assets.js';
 
@@ -57,7 +59,7 @@ export function mockV3Assets({
     .get('/v3/assets')
     .query(true)
     .times(times)
-    .reply(200, (uri: string) => {
+    .reply(200, (uri: NockRequestInfo) => {
       const assetIds = readAssetIds(uri);
       requestedBatches.push(assetIds);
       return assetIds
@@ -94,8 +96,11 @@ export function mockSweepApis({
  * @param uri - The intercepted request URI, path and query.
  * @returns The asset IDs the caller asked about.
  */
-function readAssetIds(uri: string): string[] {
-  const assetIds = new URL(uri, API_URLS.TOKENS).searchParams.get('assetIds');
+function readAssetIds(uri: NockRequestInfo): string[] {
+  const assetIds = new URL(
+    getRequestUrl(uri),
+    API_URLS.TOKENS,
+  ).searchParams.get('assetIds');
   return assetIds ? assetIds.split(',') : [];
 }
 
