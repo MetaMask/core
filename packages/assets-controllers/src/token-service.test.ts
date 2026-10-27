@@ -527,9 +527,8 @@ describe('Token service', () => {
         .get(
           `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
         )
-        // well beyond timeout
-        .delay(ONE_SECOND_IN_MILLISECONDS)
-        .reply(200, sampleTokenList)
+        // never responds, so the request always times out
+        .reply(200, async () => new Promise(() => undefined))
         .persist();
 
       const result = await fetchTokenListByChainId(sampleChainId, signal, {
@@ -614,9 +613,8 @@ describe('Token service', () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
         .get(`/tokens/${sampleDecimalChainId}`)
-        // well beyond timeout
-        .delay(ONE_SECOND_IN_MILLISECONDS)
-        .reply(200, sampleTokenList)
+        // never responds, so the request always times out
+        .reply(200, async () => new Promise(() => undefined))
         .persist();
 
       const tokenMetadata = await fetchTokenMetadata(
@@ -762,7 +760,7 @@ describe('Token service', () => {
       expect(result).toStrictEqual({
         count: 0,
         data: [],
-        error: expect.stringContaining('Example network error'),
+        error: expect.stringMatching(/Example network error|fetch failed/u),
       });
     });
 

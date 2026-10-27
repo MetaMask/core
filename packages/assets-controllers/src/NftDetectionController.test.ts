@@ -898,7 +898,7 @@ describe('NftDetectionController', () => {
           .replyWithError(new Error('UNEXPECTED ERROR'));
 
         await expect(() => controller.detectNfts(['0x1'])).rejects.toThrow(
-          'UNEXPECTED ERROR',
+          /UNEXPECTED ERROR|fetch failed/u,
         );
       },
     );

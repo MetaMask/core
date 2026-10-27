@@ -193,7 +193,13 @@ class MockedNetwork {
         httpStatus,
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (_uri: any, requestBody: JsonRpcRequest<any>) => {
+        async (...args: unknown[]) => {
+          // Nock 13 calls reply callbacks with `(uri, body)`, whereas newer
+          // versions pass a single `Request`. Support both.
+          const requestBody: JsonRpcRequest =
+            args.length >= 2
+              ? (args[1] as JsonRpcRequest)
+              : await (args[0] as Request).clone().json();
           const baseResponse = { id: requestBody.id, jsonrpc: '2.0' as const };
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
