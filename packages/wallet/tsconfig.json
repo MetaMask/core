@@ -47,6 +47,9 @@
       "path": "../network-controller"
     },
     {
+      "path": "../network-enablement-controller"
+    },
+    {
       "path": "../passkey-controller"
     },
     {
@@ -75,6 +78,9 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../geolocation-controller"
     }
   ],
   "include": ["../../types", "./src"]

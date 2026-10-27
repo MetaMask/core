@@ -207,7 +207,7 @@ describe('MultichainMiddlewareManager', () => {
   it('should remove middleware by origin and tabId when the multiplexing middleware is destroyed and the middleware destroy function resolves', async () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
     const middlewareSpy = vi.fn() as unknown as ExtendedJsonRpcMiddleware;
-    // eslint-disable-next-line jest/prefer-spy-on
+    // eslint-disable-next-line vitest/prefer-spy-on
     middlewareSpy.destroy = vi.fn().mockResolvedValue(undefined);
     multichainMiddlewareManager.addMiddleware({
       scope,
@@ -243,7 +243,7 @@ describe('MultichainMiddlewareManager', () => {
   it('should remove middleware by origin and tabId when the multiplexing middleware is destroyed and the middleware destroy function rejects', async () => {
     const multichainMiddlewareManager = new MultichainMiddlewareManager();
     const middlewareSpy = vi.fn() as unknown as ExtendedJsonRpcMiddleware;
-    // eslint-disable-next-line jest/prefer-spy-on
+    // eslint-disable-next-line vitest/prefer-spy-on
     middlewareSpy.destroy = vi
       .fn()
       .mockRejectedValue(

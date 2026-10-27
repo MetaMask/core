@@ -59,6 +59,7 @@ export type {
   NftContract,
   NftMetadata,
 } from './NftController.js';
+export { Source } from './constants.js';
 export {
   getDefaultNftControllerState,
   NftController,

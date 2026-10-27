@@ -16,6 +16,7 @@ import type { Json } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import type { Draft } from 'immer';
 
+import type { AutorampTransactionSummary } from './autoramp-types.js';
 import type {
   AutorampAccount,
   AutorampRemoteSnapshot,
@@ -27,6 +28,11 @@ import {
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
+import type {
+  AutorampTransactionChange,
+  AutorampTransactionRecords,
+} from './diffAutorampTransactions.js';
+import { diffAutorampTransactions } from './diffAutorampTransactions.js';
 import {
   getHeadlessProviderAllowlist,
   isHeadlessAllProvidersEnabled,
@@ -37,6 +43,7 @@ import type {
   NeoBankServiceGetAutorampAction,
   NeoBankServiceGetAutorampsAction,
   NeoBankServiceGetCustomerByExternalIdAction,
+  NeoBankServiceListAutorampTransactionsAction,
   NeoBankServiceGetWalletRegistrationStatusAction,
   NeoBankServiceRegisterSelfHostedWalletAction,
 } from './NeoBankService-method-action-types.js';
@@ -223,6 +230,7 @@ export const RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS = [
   'NeoBankService:getAutoramp',
   'NeoBankService:getAutoramps',
   'NeoBankService:createAutoramp',
+  'NeoBankService:listAutorampTransactions',
   'NeoBankService:getCustomerByExternalId',
   'NeoBankService:getWalletRegistrationStatus',
   'NeoBankService:registerSelfHostedWallet',
@@ -400,6 +408,12 @@ export type VbaProviderFlowStatus = (typeof VBA_PROVIDER_FLOW_STATUSES)[number];
  * `'needs_wallet_registration'`, `'needs_source_currency'`, or
  * `'retryable_failure'` once an approved read settles.
  */
+/**
+ * Newest-page size for `refreshAutorampTransactions`.
+ * MoonPay accepts up to 100; 50 covers a details view without paging.
+ */
+const AUTORAMP_TRANSACTION_PAGE_SIZE = 50;
+
 export const VBA_AUTORAMP_STATUSES = [
   'not_ready',
   'in_progress',
@@ -848,6 +862,12 @@ export type RampsControllerState = {
    */
   autoramps: AutorampAccount[];
   /**
+   * Last seen autoramp transaction status per autoramp id.
+   * The first successful fetch seeds the record and emits nothing.
+   * Only the status string is stored.
+   */
+  autorampTransactionRecords: AutorampTransactionRecords;
+  /**
    * Money Account self-hosted wallet registrations observed by
    * {@link RampsController.registerMoneyAccountWallet}.
    * Each row is the address plus `active` or `disabled`. It does not store
@@ -925,6 +945,12 @@ const rampsControllerMetadata = {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
+  },
+  autorampTransactionRecords: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: false,
   },
   moneyAccountWalletRegistrations: {
     persist: true,
@@ -1005,6 +1031,7 @@ export function getDefaultRampsControllerState(): RampsControllerState {
     },
     orders: [],
     autoramps: [],
+    autorampTransactionRecords: {},
     moneyAccountWalletRegistrations: [],
     vbaAutorampListFetchedAt: null,
     providerAutoSelected: false,
@@ -1135,6 +1162,7 @@ type AllowedActions =
   | NeoBankServiceGetAutorampAction
   | NeoBankServiceGetAutorampsAction
   | NeoBankServiceCreateAutorampAction
+  | NeoBankServiceListAutorampTransactionsAction
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction
@@ -1185,6 +1213,17 @@ export type RampsControllerAutorampStatusChangedEvent = {
 };
 
 /**
+ * One autoramp transaction that is new or whose status changed.
+ * Passed to {@link RampsControllerOptions.trackAutorampTransactionStatusChanged}
+ * after the record is written. `previousStatus` is omitted for a new id.
+ */
+export type AutorampTransactionStatusChangedPayload = {
+  autorampId: string;
+  transaction: AutorampTransactionSummary;
+  previousStatus?: string;
+};
+
+/**
  * Events that {@link RampsControllerMessenger} exposes to other consumers.
  */
 export type RampsControllerEvents =
@@ -1231,6 +1270,14 @@ export type RampsControllerOptions = {
    * Optional performance tracing callback used by order sync operations.
    */
   trace?: TraceCallback;
+  /**
+   * Optional callback for a new autoramp transaction or a status change.
+   * Called after the transaction record is written. Omitted clients record
+   * nothing.
+   */
+  trackAutorampTransactionStatusChanged?: (
+    payload: AutorampTransactionStatusChangedPayload,
+  ) => void;
 };
 
 // === HELPER FUNCTIONS ===
@@ -1366,6 +1413,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'applyAutorampStatusFromPush',
   'refreshAutoramp',
   'refreshAutoramps',
+  'refreshAutorampTransactions',
   'startOrderPolling',
   'stopOrderPolling',
   'getBuyWidgetData',
@@ -1497,6 +1545,10 @@ export class RampsController extends BaseController<
 
   readonly #trace?: TraceCallback;
 
+  readonly #trackAutorampTransactionStatusChanged?: (
+    payload: AutorampTransactionStatusChangedPayload,
+  ) => void;
+
   /**
    * Map of pending requests for deduplication.
    * Key is the cache key, value is the pending request with abort controller.
@@ -1524,6 +1576,15 @@ export class RampsController extends BaseController<
   #initPromise: Promise<void> | null = null;
 
   #vbaOnboardingHydrationPromise: Promise<VbaOnboardingSnapshot> | null = null;
+
+  /**
+   * In-flight `refreshAutorampTransactions` calls, keyed by autoramp id.
+   * Concurrent refreshes for one autoramp share one request.
+   */
+  readonly #autorampTransactionRefreshes = new Map<
+    string,
+    Promise<AutorampTransactionSummary[]>
+  >();
 
   /**
    * Semaphore that prevents sync feedback loops while applying remote order changes.
@@ -1646,6 +1707,7 @@ export class RampsController extends BaseController<
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
    * @param args.onOrderSyncErroneousSituation - Optional order-sync error reporter.
    * @param args.trace - Optional performance tracing callback for order sync.
+   * @param args.trackAutorampTransactionStatusChanged - Optional callback for a new autoramp transaction or a status change.
    */
   constructor({
     messenger,
@@ -1654,6 +1716,7 @@ export class RampsController extends BaseController<
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
     onOrderSyncErroneousSituation,
     trace,
+    trackAutorampTransactionStatusChanged,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -1671,6 +1734,8 @@ export class RampsController extends BaseController<
     this.#requestCacheMaxSize = requestCacheMaxSize;
     this.#onOrderSyncErroneousSituation = onOrderSyncErroneousSituation;
     this.#trace = trace;
+    this.#trackAutorampTransactionStatusChanged =
+      trackAutorampTransactionStatusChanged;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -4236,6 +4301,7 @@ export class RampsController extends BaseController<
       this.update((state) => {
         state.moneyAccountWalletRegistrations = [];
         state.autoramps = [];
+        state.autorampTransactionRecords = {};
         state.vbaAutorampListFetchedAt = null;
       });
       return { ...EMPTY_VBA_ONBOARDING_SNAPSHOT };
@@ -4417,6 +4483,11 @@ export class RampsController extends BaseController<
       state.autoramps = state.autoramps.filter((autoramp) =>
         remoteAutorampIds.has(autoramp.id),
       );
+      for (const autorampId of Object.keys(state.autorampTransactionRecords)) {
+        if (!remoteAutorampIds.has(autorampId)) {
+          delete state.autorampTransactionRecords[autorampId];
+        }
+      }
       state.vbaAutorampListFetchedAt = Date.now();
     });
   }
@@ -4459,6 +4530,7 @@ export class RampsController extends BaseController<
       state.autoramps = state.autoramps.filter(
         (autoramp) => autoramp.id !== autorampId,
       );
+      delete state.autorampTransactionRecords[autorampId];
     });
   }
 
@@ -4536,6 +4608,108 @@ export class RampsController extends BaseController<
     }
 
     return updated;
+  }
+
+  /**
+   * Fetches the newest page of transactions for one autoramp and calls
+   * `trackAutorampTransactionStatusChanged` for each new id or status change.
+   *
+   * The updated record is written before the callback runs. A failed fetch
+   * leaves the record untouched. Concurrent calls for the same autoramp share
+   * one request. The first successful fetch seeds the record and calls
+   * nothing. When this autoramp was on the cursor at the start of the fetch
+   * and was removed before the response is applied (`removeAutoramp`, a cursor
+   * replace that drops the id, or a foreign VBA session discard), the record
+   * is not restored and the callback is not called. A callback that throws
+   * is ignored, so one failing change does not drop the rest of the batch.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @returns Transaction summaries from the newest page.
+   */
+  async refreshAutorampTransactions(
+    autorampId: string,
+  ): Promise<AutorampTransactionSummary[]> {
+    const inFlight = this.#autorampTransactionRefreshes.get(autorampId);
+    if (inFlight) {
+      return await inFlight;
+    }
+
+    const refreshPromise = this.#refreshAutorampTransactions(autorampId);
+    this.#autorampTransactionRefreshes.set(autorampId, refreshPromise);
+
+    try {
+      return await refreshPromise;
+    } finally {
+      if (
+        this.#autorampTransactionRefreshes.get(autorampId) === refreshPromise
+      ) {
+        this.#autorampTransactionRefreshes.delete(autorampId);
+      }
+    }
+  }
+
+  #tracksAutoramp(autorampId: string): boolean {
+    return this.state.autoramps.some((autoramp) => autoramp.id === autorampId);
+  }
+
+  async #refreshAutorampTransactions(
+    autorampId: string,
+  ): Promise<AutorampTransactionSummary[]> {
+    const trackedAtStart = this.#tracksAutoramp(autorampId);
+    const fetched = await this.messenger.call(
+      'NeoBankService:listAutorampTransactions',
+      autorampId,
+      { pageSize: AUTORAMP_TRANSACTION_PAGE_SIZE },
+    );
+    // A removal that landed during the fetch wins. Writing now would put the
+    // cleared record back and later refreshes could emit for an autoramp that
+    // is gone, including one discarded with the previous profile.
+    if (trackedAtStart && !this.#tracksAutoramp(autorampId)) {
+      return fetched;
+    }
+    const { changes, nextRecord } = diffAutorampTransactions(
+      this.state.autorampTransactionRecords[autorampId],
+      fetched,
+      Date.now(),
+    );
+
+    this.update((state) => {
+      state.autorampTransactionRecords[autorampId] = nextRecord;
+    });
+
+    for (const change of changes) {
+      this.#trackAutorampTransactionChange(autorampId, change);
+    }
+
+    return fetched;
+  }
+
+  /**
+   * Reports one transaction change through
+   * `trackAutorampTransactionStatusChanged`.
+   *
+   * A callback exception is ignored. The record already says this status was
+   * seen, so rethrowing would drop every later change in the same batch and
+   * none of them would ever be reported again.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @param change - The new transaction or status change to report.
+   */
+  #trackAutorampTransactionChange(
+    autorampId: string,
+    change: AutorampTransactionChange,
+  ): void {
+    try {
+      this.#trackAutorampTransactionStatusChanged?.({
+        autorampId,
+        transaction: change.transaction,
+        ...(change.previousStatus === undefined
+          ? {}
+          : { previousStatus: change.previousStatus }),
+      });
+    } catch {
+      // The host's tracker failed. The written record stays as it is.
+    }
   }
 
   /**

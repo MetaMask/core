@@ -180,6 +180,7 @@ export const MfaCredentialStruct = type({
   // Intentionally accepts strings so future server credential types and
   // statuses can be ignored without making the complete response invalid.
 
+  credential_id: string(),
   credential_type: string(),
   status: string(),
 
@@ -197,6 +198,25 @@ export const MfaErrorResponseStruct = type({
   code: optional(string()),
   message: string(),
   retry_after_seconds: optional(integer()),
+});
+
+/**
+ * A recovery identifier of the canonical profile, for the approval's
+ * recipients. Only the fields every identifier has are checked: the others
+ * pass through unchanged.
+ */
+export const MfaApprovalIdentifierStruct = type({
+  type: string(),
+  namespace: string(),
+  value: string(),
+});
+
+export const MfaApprovalResponseStruct = type({
+  approval: sensitive(string()),
+
+  expires_in: min(integer(), 1),
+
+  identifiers: optional(array(MfaApprovalIdentifierStruct)),
 });
 
 export const TokenReasonStruct = object({
@@ -261,6 +281,19 @@ const VerificationProofStruct = union([
 export const CompleteVerificationRequestStruct = object({
   flowId: string(),
   proof: VerificationProofStruct,
+  reason: TokenReasonStruct,
+});
+
+export const RequestMfaApprovalRequestStruct = object({
+  requestHash: pattern(string(), /^0x[0-9a-f]{64}$/u),
+  audiences: size(array(size(string(), 1, Infinity)), 1, Infinity),
+  requireVerification: optional(boolean()),
+  includeIdentifiers: optional(boolean()),
+  reason: TokenReasonStruct,
+});
+
+export const RemoveCredentialRequestStruct = object({
+  credentialId: size(string(), 1, Infinity),
   reason: TokenReasonStruct,
 });
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+### Fixed
+
+- Validate VBA SIWE challenge messages against the expected Money Account template before signing, rejecting a message whose domain, URI, address, statement, version, chain ID, nonce, or timestamps do not match ([#11112](https://github.com/MetaMask/core/pull/11112))
+
 ## [2.3.0]
 
 ### Added

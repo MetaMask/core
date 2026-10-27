@@ -40,7 +40,7 @@ describe('createStreamMiddleware', () => {
         },
         (errorObj) => {
           try {
-            // eslint-disable-next-line jest/no-restricted-matchers
+            // eslint-disable-next-line vitest/no-restricted-matchers
             expect(errorObj).toBeFalsy();
             expect(initRes).toStrictEqual(res);
           } catch (error) {

@@ -113,8 +113,7 @@ vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
 });
 
 // Mock PerpsSigningCache (exported from TradingReadinessCache module) — global
-// singleton for signing operation caching. Use jest.createMockFromModule for
-// proper mock creation.
+// singleton for signing operation caching.
 vi.mock('../../../src/services/TradingReadinessCache');
 
 const MockedHyperLiquidClientService = HyperLiquidClientService as MockedClass<

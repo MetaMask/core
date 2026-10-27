@@ -4121,6 +4121,62 @@ describe('AssetsController', () => {
     });
   });
 
+  describe('syncAssetsPrices', () => {
+    it('is exposed as the AssetsController:syncAssetsPrices messenger action', async () => {
+      const fetchedPrice = {
+        assetPriceType: 'fungible' as const,
+        price: 1.25,
+        usdPrice: 1.25,
+        lastUpdated: 123,
+      };
+      const fetchSpy = vi
+        .spyOn(PriceDataSource.prototype, 'fetchAssetPrices')
+        .mockResolvedValue({
+          [MOCK_ASSET_ID]: fetchedPrice,
+        });
+
+      await withController(async ({ controller, messenger }) => {
+        await messenger.call('AssetsController:syncAssetsPrices', [
+          MOCK_ASSET_ID,
+        ]);
+
+        expect(fetchSpy).toHaveBeenCalledWith([MOCK_ASSET_ID]);
+        expect(controller.state.assetsPrice[MOCK_ASSET_ID]).toStrictEqual(
+          fetchedPrice,
+        );
+      });
+
+      fetchSpy.mockRestore();
+    });
+
+    it('returns without fetching prices when basic functionality is off', async () => {
+      const fetchSpy = vi
+        .spyOn(PriceDataSource.prototype, 'fetchAssetPrices')
+        .mockResolvedValue({
+          [MOCK_ASSET_ID]: {
+            assetPriceType: 'fungible',
+            price: 1.25,
+            usdPrice: 1.25,
+            lastUpdated: 123,
+          },
+        });
+
+      await withController(
+        { isBasicFunctionality: () => false },
+        async ({ controller, messenger }) => {
+          await messenger.call('AssetsController:syncAssetsPrices', [
+            MOCK_ASSET_ID,
+          ]);
+
+          expect(fetchSpy).not.toHaveBeenCalled();
+          expect(controller.state.assetsPrice[MOCK_ASSET_ID]).toBeUndefined();
+        },
+      );
+
+      fetchSpy.mockRestore();
+    });
+  });
+
   describe('setSelectedCurrency', () => {
     it('updates selectedCurrency in state', async () => {
       await withController(({ controller }) => {
@@ -4138,18 +4194,18 @@ describe('AssetsController', () => {
       await withController(({ controller }) => {
         expect(controller.state.selectedCurrency).toBe('usd');
 
-        const getAssetsSpy = vi.spyOn(controller, 'getAssets');
+        const refreshSpy = vi.spyOn(controller, 'syncAssetsPrices');
 
         controller.setSelectedCurrency('usd');
 
         expect(controller.state.selectedCurrency).toBe('usd');
-        expect(getAssetsSpy).not.toHaveBeenCalled();
+        expect(refreshSpy).not.toHaveBeenCalled();
 
-        getAssetsSpy.mockRestore();
+        refreshSpy.mockRestore();
       });
     });
 
-    it('calls getAssets with forceUpdate, price dataType, and assetsForPriceUpdate to refresh prices', async () => {
+    it('refreshes prices for held assets when the currency changes', async () => {
       const mockAssetId2 =
         'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
       const initialState: Partial<AssetsControllerState> = {
@@ -4162,17 +4218,15 @@ describe('AssetsController', () => {
       };
 
       await withController({ state: initialState }, ({ controller }) => {
-        const getAssetsSpy = vi.spyOn(controller, 'getAssets');
+        const refreshSpy = vi
+          .spyOn(controller, 'syncAssetsPrices')
+          .mockResolvedValue(undefined);
 
         controller.setSelectedCurrency('eur');
 
-        expect(getAssetsSpy).toHaveBeenCalledWith(expect.any(Array), {
-          forceUpdate: true,
-          dataTypes: ['price'],
-          assetsForPriceUpdate: [MOCK_ASSET_ID, mockAssetId2],
-        });
+        expect(refreshSpy).toHaveBeenCalledWith([MOCK_ASSET_ID, mockAssetId2]);
 
-        getAssetsSpy.mockRestore();
+        refreshSpy.mockRestore();
       });
     });
 
@@ -4188,14 +4242,14 @@ describe('AssetsController', () => {
       await withController(
         { state: initialState, isBasicFunctionality: () => false },
         ({ controller }) => {
-          const getAssetsSpy = vi.spyOn(controller, 'getAssets');
+          const refreshSpy = vi.spyOn(controller, 'syncAssetsPrices');
 
           controller.setSelectedCurrency('eur');
 
           expect(controller.state.selectedCurrency).toBe('eur');
-          expect(getAssetsSpy).not.toHaveBeenCalled();
+          expect(refreshSpy).not.toHaveBeenCalled();
 
-          getAssetsSpy.mockRestore();
+          refreshSpy.mockRestore();
         },
       );
     });
@@ -5021,7 +5075,6 @@ describe('AssetsController', () => {
                   resolveGetAssets = (): void => resolve({});
                 }),
             );
-
           // First trigger: unlock + account tree ready. #start() kicks off
           // #runStartupRefresh(), whose forced getAssets() call is still
           // pending (it never resolves until we call resolveGetAssets below).
@@ -5050,20 +5103,12 @@ describe('AssetsController', () => {
           resolveGetAssets?.();
           await flushPromises();
 
-          // Once the single in-flight startup refresh settles, it also
-          // triggers one follow-up price-only getAssets() call — but a
-          // duplicate #runStartupRefresh() would double both of these (4
-          // total), not just add one. Two calls confirms no duplicate ran.
-          expect(getAssetsSpy).toHaveBeenCalledTimes(2);
-          expect(getAssetsSpy).toHaveBeenNthCalledWith(
-            1,
+          // The startup refresh remains a single getAssets call. Prices are
+          // fetched inside that pipeline pass.
+          expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+          expect(getAssetsSpy).toHaveBeenCalledWith(
             expect.anything(),
             expect.objectContaining({ forceUpdate: true }),
-          );
-          expect(getAssetsSpy).toHaveBeenNthCalledWith(
-            2,
-            expect.anything(),
-            expect.objectContaining({ dataTypes: ['price'] }),
           );
           getAssetsSpy.mockRestore();
         },
@@ -5154,6 +5199,57 @@ describe('AssetsController', () => {
         await new Promise(process.nextTick);
 
         expect(true).toBe(true);
+      });
+    });
+
+    it('prices a default tracked asset seeded when a chain is enabled', async () => {
+      const [lineaMusd] = getDefaultTrackedAssetsForChain('eip155:59144');
+
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
+
+        let musdPresentAtPriceFetch: boolean | undefined;
+        const fetchSpy = vi
+          .spyOn(PriceDataSource.prototype, 'fetch')
+          .mockImplementation(async () => {
+            musdPresentAtPriceFetch ??= Boolean(
+              controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[lineaMusd],
+            );
+            return {};
+          });
+
+        try {
+          (
+            messenger as unknown as {
+              publish: (
+                topic: string,
+                payload?: unknown,
+                patches?: unknown,
+              ) => void;
+            }
+          ).publish(
+            'NetworkEnablementController:stateChange',
+            {
+              enabledNetworkMap: {
+                eip155: { '1': true, '59144': true },
+              },
+              nativeAssetIdentifiers: {
+                'eip155:1': 'eip155:1/slip44:60',
+              },
+            },
+            [],
+          );
+
+          // The price poll snapshots state synchronously on an existing
+          // subscription, before this handler yields.
+          expect(fetchSpy).toHaveBeenCalled();
+          expect(musdPresentAtPriceFetch).toBe(true);
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[lineaMusd],
+          ).toStrictEqual({ amount: '0' });
+        } finally {
+          fetchSpy.mockRestore();
+        }
       });
     });
 
@@ -5440,6 +5536,156 @@ describe('AssetsController', () => {
         );
       } finally {
         getAssetsSpy.mockRestore();
+        await flushPromises();
+        controller.destroy();
+      }
+    });
+
+    it('prices a native seeded when the selected EVM network switches', async () => {
+      const sepoliaHex = '0xaa36a7';
+      const mainnetHex = '0x1';
+      let selectedNetworkClientId = 'sepolia';
+      const switchedAccountId = 'switched-account-id';
+      let selectedAccounts = [createMockInternalAccount()];
+
+      const getNetworkState = (): NetworkState => ({
+        networkConfigurationsByChainId: {},
+        networksMetadata: {},
+        selectedNetworkClientId,
+      });
+
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      registerKeyringUnlockMock(messenger);
+
+      messenger.registerActionHandler(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        () => selectedAccounts,
+      );
+      let isAccountTreeInitialized = false;
+      messenger.registerActionHandler(
+        'AccountTreeController:isInitialized',
+        () => isAccountTreeInitialized,
+      );
+      messenger.subscribe('AccountTreeController:initialized', () => {
+        isAccountTreeInitialized = true;
+      });
+      messenger.subscribe('AccountTreeController:uninitialized', () => {
+        isAccountTreeInitialized = false;
+      });
+      messenger.registerActionHandler(
+        'NetworkEnablementController:getState',
+        () => ({
+          enabledNetworkMap: { eip155: { '1': true, '11155111': true } },
+          nativeAssetIdentifiers: {
+            'eip155:1': 'eip155:1/slip44:60',
+            'eip155:11155111': 'eip155:11155111/slip44:60',
+          },
+        }),
+      );
+      messenger.registerActionHandler(
+        'NetworkController:getState',
+        getNetworkState,
+      );
+      (
+        messenger as {
+          registerActionHandler: (
+            actionName: string,
+            handler: (id: string) => unknown,
+          ) => void;
+        }
+      ).registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        (networkClientId: string) => ({
+          provider: {},
+          configuration: {
+            chainId: networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
+          },
+        }),
+      );
+      (
+        messenger as {
+          registerActionHandler: (
+            actionName: string,
+            handler: () => unknown,
+          ) => void;
+        }
+      ).registerActionHandler('ClientController:getState', () => ({
+        isUiOpen: true,
+      }));
+
+      const queryApiClient = {
+        ...createMockQueryApiClient(),
+        accounts: {
+          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
+            fullSupport: [1, 11155111],
+            partialSupport: [],
+          }),
+          fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
+            balances: [],
+            unprocessedNetworks: [],
+          }),
+        },
+      } as unknown as ApiPlatformClient;
+
+      const controller = new AssetsController({
+        messenger: messenger as unknown as AssetsControllerMessenger,
+        queryApiClient,
+        subscribeToBasicFunctionalityChange: (): void => {
+          /* no-op */
+        },
+      });
+
+      let nativePresentAtPriceFetch: boolean | undefined;
+      const fetchSpy = vi
+        .spyOn(PriceDataSource.prototype, 'fetch')
+        .mockImplementation(async () => {
+          nativePresentAtPriceFetch ??= Boolean(
+            controller.state.assetsBalance[switchedAccountId]?.[
+              MOCK_NATIVE_ASSET_ID
+            ],
+          );
+          return {};
+        });
+
+      try {
+        (
+          messenger as unknown as {
+            publish: (topic: string, payload?: unknown) => void;
+          }
+        ).publish('ClientController:stateChanged', { isUiOpen: true });
+        messenger.publish('KeyringController:unlock');
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
+          'AccountTreeController:initialized',
+          {},
+        );
+        await flushPromises();
+
+        // A new account has no native row yet. The switch must seed it
+        // before the price subscription snapshots state.
+        fetchSpy.mockClear();
+        nativePresentAtPriceFetch = undefined;
+        selectedAccounts = [
+          createMockInternalAccount({ id: switchedAccountId }),
+        ];
+        selectedNetworkClientId = 'mainnet';
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
+          'NetworkController:networkDidChange',
+          getNetworkState(),
+        );
+        await flushPromises();
+
+        expect(fetchSpy).toHaveBeenCalled();
+        expect(nativePresentAtPriceFetch).toBe(true);
+        expect(
+          controller.state.assetsBalance[switchedAccountId]?.[
+            MOCK_NATIVE_ASSET_ID
+          ],
+        ).toStrictEqual({ amount: '0' });
+      } finally {
+        fetchSpy.mockRestore();
         await flushPromises();
         controller.destroy();
       }
@@ -5940,20 +6186,10 @@ describe('AssetsController', () => {
       );
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      expect(getAssetsSpy).toHaveBeenCalledTimes(2);
-      expect(getAssetsSpy).toHaveBeenNthCalledWith(
-        1,
+      expect(getAssetsSpy).toHaveBeenCalledTimes(1);
+      expect(getAssetsSpy).toHaveBeenCalledWith(
         [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
         expect.objectContaining({ forceUpdate: true }),
-      );
-      expect(getAssetsSpy).toHaveBeenNthCalledWith(
-        2,
-        [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
-        expect.objectContaining({
-          forceUpdate: true,
-          dataTypes: ['price'],
-          assetsForPriceUpdate: expect.arrayContaining(['eip155:1/slip44:60']),
-        }),
       );
 
       controller.destroy();

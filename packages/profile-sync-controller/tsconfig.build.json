@@ -32,10 +32,5 @@
     }
   ],
   "include": ["../../types", "./src"],
-  "exclude": [
-    "./jest.config.packages.ts",
-    "**/*.test.ts",
-    "**/jest.config.ts",
-    "**/__fixtures__/"
-  ]
+  "exclude": ["**/*.test.ts", "**/__fixtures__/"]
 }
