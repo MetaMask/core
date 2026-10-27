@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
-- Accept a zero `amount` for `perpsWithdraw`, which opens the confirmation without a prefilled amount, like omitting `amount` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Accept a zero `amount` for `perpsWithdraw`, which opens the confirmation without a prefilled amount, like omitting `amount` ([#11114](https://github.com/MetaMask/core/pull/11114))
   - Add the optional `allowZeroAmount` property to `WalletPayFlow`.
 
 ### Changed
