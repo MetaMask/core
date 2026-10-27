@@ -28,30 +28,30 @@ const getReceivedNativeAmount = (
     : null;
 };
 
-const getReceivedERC20Amount = (
-  historyItem: BridgeHistoryItem,
-  txMeta: TransactionMeta,
+export const getReceivedERC20Amount = (
+  walletAddress: string,
+  destAssetAddress: string,
+  logs?: { address?: string; topics?: string[]; data?: string }[],
 ) => {
-  const { txReceipt } = txMeta;
-  if (!txReceipt?.logs || txReceipt.status === '0x0') {
+  if (!logs) {
     return null;
   }
-  const { account: accountAddress, quote } = historyItem;
 
   const TOKEN_TRANSFER_LOG_TOPIC_HASH =
     '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
-  const tokenTransferLog = txReceipt.logs.find((txReceiptLog) => {
-    const isTokenTransfer = txReceiptLog.topics?.[0]?.startsWith(
-      TOKEN_TRANSFER_LOG_TOPIC_HASH,
-    );
+  const tokenTransferLog = logs.find((txReceiptLog) => {
+    const isTokenTransfer = txReceiptLog.topics?.[0]
+      ?.toLowerCase()
+      .startsWith(TOKEN_TRANSFER_LOG_TOPIC_HASH);
     const isTransferFromGivenToken =
-      txReceiptLog.address?.toLowerCase() ===
-      quote.destAsset.address?.toLowerCase();
+      txReceiptLog.address?.toLowerCase() === destAssetAddress?.toLowerCase();
     const isTransferFromGivenAddress =
       txReceiptLog.topics?.[2] &&
-      (txReceiptLog.topics[2] === accountAddress ||
-        txReceiptLog.topics[2].match(accountAddress?.slice(2)));
+      (txReceiptLog.topics[2].toLowerCase() === walletAddress?.toLowerCase() ||
+        txReceiptLog.topics[2]
+          .toLowerCase()
+          .match(walletAddress?.slice(2).toLowerCase()));
 
     return (
       isTokenTransfer && isTransferFromGivenToken && isTransferFromGivenAddress
@@ -59,9 +59,7 @@ const getReceivedERC20Amount = (
   });
 
   if (tokenTransferLog?.data) {
-    return new BigNumber(tokenTransferLog.data, 16).div(
-      new BigNumber(10).pow(quote.destAsset.decimals),
-    );
+    return new BigNumber(tokenTransferLog.data, 16);
   }
 
   return null;
@@ -83,7 +81,7 @@ export const getActualSwapReceivedAmount = (
   const { pricingData } = historyItem;
   const quotedReturnAmount = historyItem.quote.destTokenAmount;
 
-  if (!txMeta?.txReceipt) {
+  if (!txMeta?.txReceipt || txMeta?.txReceipt.status === '0x0') {
     return null;
   }
 
@@ -91,7 +89,12 @@ export const getActualSwapReceivedAmount = (
     historyItem.quote.destAsset.address,
   )
     ? getReceivedNativeAmount(historyItem, actualGas, txMeta)
-    : getReceivedERC20Amount(historyItem, txMeta);
+    : getReceivedERC20Amount(
+        historyItem.account,
+        historyItem.quote.destAsset.address,
+        // @ts-expect-error - txReceipt.logs is not typed correctly
+        txMeta?.txReceipt?.logs,
+      )?.div(new BigNumber(10).pow(historyItem.quote.destAsset.decimals));
 
   const returnUsdExchangeRate =
     pricingData?.quotedReturnInUsd && quotedReturnAmount

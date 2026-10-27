@@ -152,14 +152,12 @@ export const shouldWaitForFinalBridgeStatus = async (
   historyItem: BridgeHistoryItem,
 ): Promise<boolean> => {
   // Keep waiting for status if the history is not pending or is not old enough yet
-  if (
-    !(
-      isHistoryItemTooOld(messenger, historyItem) &&
-      [StatusTypes.PENDING, StatusTypes.UNKNOWN].includes(
-        historyItem.status.status,
-      )
+  if (!(
+    isHistoryItemTooOld(messenger, historyItem) &&
+    [StatusTypes.PENDING, StatusTypes.UNKNOWN].includes(
+      historyItem.status.status,
     )
-  ) {
+  )) {
     return true;
   }
 

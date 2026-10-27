@@ -64,7 +64,7 @@ export const getMoneyAccountDepositSetup = async ({
     tellerAddress,
     accountantAddress,
     lensAddress,
-    moneyAccountAddress: primaryMoneyAccount.address as `0x${string}`,
+    moneyAccountAddress: primaryMoneyAccount.address,
     isGasFeeSponsored: CHAIN_IDS.MONAD === chainId,
   };
 };
