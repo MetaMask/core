@@ -3736,7 +3736,6 @@ describe('PhishingController', () => {
       });
       expect(scope.isDone()).toBe(false);
 
-      // Let the delayed response settle so it cannot leak into the next test.
       await vi.runOnlyPendingTimersAsync();
     });
 
