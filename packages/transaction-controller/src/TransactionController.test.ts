@@ -2764,6 +2764,32 @@ describe('TransactionController', () => {
         ]);
       });
 
+      it('with sponsor', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [{ ...GAS_FEE_TOKEN_MOCK, sponsor: 'Uniswap' }],
+          isGasFeeSponsored: true,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeTokens).toStrictEqual([
+          { ...GAS_FEE_TOKEN_MOCK, sponsor: 'Uniswap' },
+        ]);
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
+      });
+
       it('with getSimulationConfig', async () => {
         getGasFeeTokensMock.mockResolvedValueOnce({
           gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
@@ -2980,6 +3006,113 @@ describe('TransactionController', () => {
 
         expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
         expect(controller.state.transactions[0].isExternalSign).toBe(true);
+      });
+    });
+
+    describe('updates gasFeeSponsor', () => {
+      it('sets gasFeeSponsor when simulation reports sponsored without gas fee tokens', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [],
+          gasFeeSponsor: 'Uniswap',
+          isGasFeeSponsored: true,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeSponsor).toBe('Uniswap');
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(true);
+      });
+
+      it('does not set gasFeeSponsor when simulation reports not sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [GAS_FEE_TOKEN_MOCK],
+          isGasFeeSponsored: false,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].gasFeeSponsor).toBeUndefined();
+      });
+
+      it('does not set gasFeeSponsor when isGasFeeSponsored is false in options', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [],
+          gasFeeSponsor: 'Uniswap',
+          isGasFeeSponsored: true,
+        });
+
+        const { controller } = setupController();
+
+        await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            isGasFeeSponsored: false,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        );
+
+        await flushPromises();
+
+        expect(controller.state.transactions[0].isGasFeeSponsored).toBe(false);
+        expect(controller.state.transactions[0].gasFeeSponsor).toBeUndefined();
+      });
+
+      it('clears gasFeeSponsor when simulation no longer reports sponsored', async () => {
+        getGasFeeTokensMock.mockResolvedValueOnce({
+          gasFeeTokens: [],
+          isGasFeeSponsored: false,
+        });
+        shouldResimulateMock.mockReturnValueOnce({
+          blockTime: 123,
+          resimulate: true,
+        });
+        const transactionMeta = {
+          ...TRANSACTION_META_MOCK,
+          gasFeeSponsor: 'Uniswap',
+          isGasFeeSponsored: true,
+          status: TransactionStatus.unapproved as const,
+        };
+        const { controller } = setupController({
+          options: {
+            state: { transactions: [transactionMeta] },
+          },
+          updateToInitialState: true,
+        });
+
+        await controller.updateEditableParams(transactionMeta.id, {
+          data: '0xabcdef',
+        });
+        await flushPromises();
+
+        expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
+        expect(controller.state.transactions[0].gasFeeSponsor).toBeUndefined();
       });
     });
 

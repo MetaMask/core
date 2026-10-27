@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - If simulation is disabled, the chain is not supported by the Simulation API, or the simulation request fails or returns no gas limit, use `eth_estimateGas` on the selected network with unsigned authorizations omitted and the delegation of the sender set with a state override. Add 7,816 intrinsic gas per omitted authorization and, if the sender is not yet delegated, 35,190 gas once for the EIP-2780 delegation indicator charge. Keep pre-signed authorizations in the node request so their costs are included in its estimate.
   - A simulated transaction error is recorded as `simulationFails` without falling back to the selected network.
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add optional `gasFeeSponsor` property to `TransactionMeta` ([#11068](https://github.com/MetaMask/core/pull/11068))
+  - Names who pays the gas fee, such as `Uniswap` or `MetaMask`. Set from the simulation API only while `isGasFeeSponsored` is true, so a caller-provided `isGasFeeSponsored: false` still wins.
+- Add optional `sponsor` property to `GasFeeToken` ([#11068](https://github.com/MetaMask/core/pull/11068))
+  - Set from the simulation API when the gas fee is sponsored, naming who pays it, such as `Uniswap` or `MetaMask`.
 
 ### Changed
 
