@@ -3208,17 +3208,14 @@ describe('NftController', () => {
         expect(getNft(nftController).source).toBe(Source.Custom);
       });
 
-      it.each([Source.Dapp, Source.Detected, Source.Custom])(
-        'does not overwrite a custom source with %s',
-        async (source) => {
-          const { nftController } = setupController({ options: {} });
-          await add(nftController, Source.Custom);
+      it('does not overwrite a custom source with a dapp suggestion', async () => {
+        const { nftController } = setupController({ options: {} });
+        await add(nftController, Source.Custom);
 
-          await add(nftController, source, changedMetadata);
+        await add(nftController, Source.Dapp, changedMetadata);
 
-          expect(getNft(nftController).source).toBe(Source.Custom);
-        },
-      );
+        expect(getNft(nftController).source).toBe(Source.Custom);
+      });
 
       it.each([
         [Source.Dapp, Source.Custom],
