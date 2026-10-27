@@ -1,6 +1,6 @@
 import { API_URLS, ApiPlatformClient } from '@metamask/core-backend';
 import type { Json } from '@metamask/utils';
-import nock, { pendingMocks } from 'nock';
+import nock from 'nock';
 
 import {
   ARBITRUM_GMX,
@@ -155,7 +155,7 @@ export async function waitForTokenApiRequests(
 ): Promise<void> {
   await waitFor(
     () => {
-      if (pendingMocks().length > 0) {
+      if (nock.pendingMocks().length > 0) {
         throw new Error('Mocks are still pending');
       }
     },

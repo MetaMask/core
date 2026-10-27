@@ -1,7 +1,7 @@
 import type { Dir } from 'fs';
 import { readFileSync } from 'fs';
 import fs from 'fs/promises';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { join, relative } from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
@@ -217,13 +217,13 @@ describe('foundryup', () => {
 
     beforeEach(() => {
       vi.clearAllMocks();
-      cleanAll();
+      nock.cleanAll();
     });
 
     it('handles download errors gracefully', async () => {
       (fs.opendir as Mock).mockRejectedValue({ code: 'ENOENT' });
 
-      cleanAll();
+      nock.cleanAll();
       nock('https://example.com')
         .head('/binaries.zip')
         .reply(500, 'Internal Server Error')

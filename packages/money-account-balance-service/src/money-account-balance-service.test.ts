@@ -14,7 +14,7 @@ import type {
 } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Json } from '@metamask/utils';
-import nock, { cleanAll as nockCleanAll } from 'nock';
+import nock from 'nock';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock, MockedClass, MockedFunction } from 'vitest';
 
@@ -469,7 +469,7 @@ describe('MoneyAccountBalanceService', () => {
     MockWeb3Provider.mockImplementation(function () {
       return {} as unknown as Web3Provider;
     });
-    nockCleanAll();
+    nock.cleanAll();
   });
 
   afterEach(() => {
