@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `NftDetectionController` constructor now requires a `removeNft` option (type `NftController['removeNft']`); during detection, any NFT already in state that the API now returns as spam (`isSpam: true`) is automatically removed ([#8237](https://github.com/MetaMask/core/pull/8237))
   - Callers must pass `removeNft: nftController.removeNft.bind(nftController)` (or equivalent) when constructing `NftDetectionController`
-  - NFTs the user imported manually (`isManualImport: true`) are never auto-removed. NFTs added before `isManualImport` existed have it unset and can still be removed.
+  - NFTs whose stored `source` is `custom` (manual import) or `dapp` (approved dapp suggestion) are never auto-removed. Detected NFTs, and NFTs added before `source` was recorded, can be removed.
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
 - Bump `@metamask/account-tree-controller` from `^11.1.1` to `^11.2.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
 - Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))

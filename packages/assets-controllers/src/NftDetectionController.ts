@@ -640,8 +640,13 @@ export class NftDetectionController extends BaseController<
               nft.address.toLowerCase() === checksumAddress.toLowerCase() &&
               nft.tokenId === tokenId,
           );
-          // NFTs the user imported manually are never auto-removed.
-          if (existingNft && !existingNft.isManualImport) {
+          // NFTs the user added (manually or by approving a dapp suggestion)
+          // are never auto-removed. NFTs without a stored source were added
+          // before sources were recorded and can still be removed.
+          if (
+            existingNft &&
+            (!existingNft.source || existingNft.source === Source.Detected)
+          ) {
             try {
               const networkClientId = this.messenger.call(
                 'NetworkController:findNetworkClientIdByChainId',
