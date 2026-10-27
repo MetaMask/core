@@ -26,6 +26,7 @@ import {
   buildNetworkControllerMessenger,
   buildRootMessenger,
 } from '../helpers.js';
+import { getNockRequestBody } from '../mock-network.js';
 
 /**
  * A dummy value for the `infuraProjectId` option that `createInfuraClient`
@@ -199,8 +200,8 @@ function mockRpcCall({
     return nockRequest.replyWithError(error);
   }
 
-  return nockRequest.reply(async (_uri, requestBody) => {
-    const jsonRpcRequest = requestBody as JsonRpcRequest;
+  return nockRequest.reply(async (...replyArgs: unknown[]) => {
+    const jsonRpcRequest = await getNockRequestBody<JsonRpcRequest>(replyArgs);
     let resolvedResponse: Response | string | JSONRPCResponse | undefined;
     if (typeof response === 'function') {
       resolvedResponse = await response();
@@ -513,7 +514,9 @@ export async function withNetworkClient<Type>(
   // request the latest block) set up in `eth-json-rpc-middleware`
   // 2. Halting the retry logic in `@metamask/eth-json-rpc-infura` (which also
   // depends on `setTimeout`)
-  vi.useFakeTimers();
+  vi.useFakeTimers({
+    toNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'],
+  });
 
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
 
@@ -641,4 +644,18 @@ export function buildRequestWithReplacedBlockParam(
   const updatedParams = params.slice();
   updatedParams[blockParamIndex] = blockParam;
   return { method, params: updatedParams };
+}
+
+/**
+ * Builds a pattern that matches the message of an error that was produced by
+ * `fetch`. Depending on the implementation of `fetch`, the original error
+ * message is either preserved (`node-fetch`) or replaced with a generic one
+ * (native `fetch`), so both are accepted.
+ *
+ * @param message - The message that `node-fetch` would preserve.
+ * @returns A regular expression that matches either message.
+ */
+export function buildFetchErrorPattern(message: string): RegExp {
+  const escapedMessage = message.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  return new RegExp(`${escapedMessage}|fetch failed`, 'u');
 }
