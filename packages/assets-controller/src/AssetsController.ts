@@ -573,6 +573,69 @@ function normalizeResponse(response: DataResponse): DataResponse {
  * truncating `decimals`, negative values, ...) falls back to the original
  * `normalizeAmountString`.
  */
+/**
+ * Exact deep-equality for plain JSON values (objects, arrays, and
+ * primitives), mirroring lodash `isEqual` semantics on JSON-shaped inputs:
+ * - SameValueZero for primitives (NaN equals NaN, 0 equals -0)
+ * - strict key-set comparison (an undefined-valued key never matches a
+ *   missing key)
+ * - top-level type mismatch (array vs object) is never equal
+ *
+ * It exists because the #updateState metadata and price loops deep-compare
+ * every entry of every poll, and this JSON-specialized comparison is
+ * significantly cheaper than lodash's fully general deep-equal (which must
+ * sort key arrays, handle exotic types, and construct comparison machinery).
+ * Both operands there are API JSON payloads (FungibleAssetMetadata /
+ * AssetPrice), so the general fallbacks can never be hit.
+ */
+function jsonFlatEqual(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
+  }
+  const typeofA = typeof a;
+  const typeofB = typeof b;
+  if (typeofA !== 'object' || typeofB !== 'object' || a === null || b === null) {
+    if (typeofA !== 'object' && typeofB !== 'object') {
+      return a === b || (a !== a && b !== b);
+    }
+    return false;
+  }
+  const aIsArray = Array.isArray(a);
+  const bIsArray = Array.isArray(b);
+  if (aIsArray !== bIsArray) {
+    return false;
+  }
+  if (aIsArray) {
+    const arrA = a as unknown[];
+    const arrB = b as unknown[];
+    if (arrA.length !== arrB.length) {
+      return false;
+    }
+    for (let i = 0; i < arrA.length; i++) {
+      if (!jsonFlatEqual(arrA[i], arrB[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  const objA = a as Record<string, unknown>;
+  const objB = b as Record<string, unknown>;
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+  if (keysA.length !== keysB.length) {
+    return false;
+  }
+  for (const key of keysA) {
+    if (!Object.prototype.hasOwnProperty.call(objB, key)) {
+      return false;
+    }
+    if (!jsonFlatEqual(objA[key], objB[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function canonicalAmountFastPath(
   amount: unknown,
   decimals: number | undefined,
@@ -3075,7 +3138,7 @@ export class AssetsController extends BaseController<
                 : value;
 
             if (
-              !isEqual(
+              !jsonFlatEqual(
                 previousState.assetsInfo[key as Caip19AssetId],
                 nextValue,
               )
@@ -3304,7 +3367,7 @@ export class AssetsController extends BaseController<
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsPrice,
           )) {
-            if (!isEqual(previousPrices[key as Caip19AssetId], value)) {
+            if (!jsonFlatEqual(previousPrices[key as Caip19AssetId], value)) {
               prices[key] = value;
             }
           }

@@ -6024,6 +6024,53 @@ function getAssetTypeCachedForCtx(assetId, ctx) {
   return t;
 }
 
+// --- jsonFlatEqual (mirror of production module-local helper: exact
+// deep-equality for plain JSON values, SameValueZero for primitives,
+// strict key-set comparison) ---
+function jsonFlatEqual(a, b) {
+  if (a === b) {
+    return true;
+  }
+  const typeofA = typeof a;
+  const typeofB = typeof b;
+  if (typeofA !== 'object' || typeofB !== 'object' || a === null || b === null) {
+    if (typeofA !== 'object' && typeofB !== 'object') {
+      return a === b || (a !== a && b !== b);
+    }
+    return false;
+  }
+  const aIsArray = Array.isArray(a);
+  const bIsArray = Array.isArray(b);
+  if (aIsArray !== bIsArray) {
+    return false;
+  }
+  if (aIsArray) {
+    if (a.length !== b.length) {
+      return false;
+    }
+    for (let i = 0; i < a.length; i++) {
+      if (!jsonFlatEqual(a[i], b[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) {
+    return false;
+  }
+  for (const key of keysA) {
+    if (!Object.prototype.hasOwnProperty.call(b, key)) {
+      return false;
+    }
+    if (!jsonFlatEqual(a[key], b[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // -+ #updateState producer body (AssetsController.ts:2982-3243, mirrored) -+
 // Signature carries the closure variables of #updateState. `state` is the
 // immer-draft stand-in (a fresh clone the producer mutates).
@@ -6060,7 +6107,7 @@ function updateStateProducer_CAND(
             }
           : value;
 
-      if (!isEqual(previousState.assetsInfo[key], nextValue)) {
+      if (!jsonFlatEqual(previousState.assetsInfo[key], nextValue)) {
         metadata[key] = nextValue;
         changedMetadata.push(key);
       }
@@ -6197,7 +6244,7 @@ function updateStateProducer_CAND(
     for (const [key, value] of Object.entries(
       normalizedResponse.assetsPrice,
     )) {
-      if (!isEqual(previousPrices[key], value)) {
+      if (!jsonFlatEqual(previousPrices[key], value)) {
         prices[key] = value;
       }
     }
