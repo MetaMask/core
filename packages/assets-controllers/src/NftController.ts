@@ -112,13 +112,13 @@ type SuggestedNftMeta = {
  * creator - The NFT owner information object
  * isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
  * transactionId - Transaction Id associated with the NFT
- * isManualImport - Set to `true` only when the NFT is added or updated with `Source.Custom` (manual import). It is sticky: it is never cleared by later detection or dapp updates. It is not backfilled for NFTs added before this field existed, so an unset value means the origin is unknown.
+ * source - How the NFT was added: manually (`custom`), suggested by a dapp (`dapp`) or auto-detected (`detected`). It is stored when the NFT is created. Auto-detection never overwrites it, a dapp suggestion upgrades a detected NFT, and a manual import overrides any other source. It is not backfilled for NFTs added before this field existed, so an unset value means the origin is unknown.
  */
 export type Nft = {
   tokenId: string;
   address: string;
   isCurrentlyOwned?: boolean;
-  isManualImport?: boolean;
+  source?: Source;
 } & NftMetadata;
 
 type NftUpdate = {
@@ -921,7 +921,7 @@ export class NftController extends BaseController<
             ];
           }
 
-          let flagOnlyUpdate = false;
+          let sourceOnlyUpdate = false;
 
           const existingEntry = allNftsForUserPerChain[chainId].find(
             (nft) =>
@@ -944,16 +944,20 @@ export class NftController extends BaseController<
               !differentMetadata &&
               Boolean(existingEntry.isCurrentlyOwned) &&
               !hasNewFields;
-            const needsManualFlag =
-              source === Source.Custom && !existingEntry.isManualImport;
+            // Auto-detection never overwrites a stored source and nothing
+            // overwrites a manual import.
+            const needsSourceUpdate =
+              source !== Source.Detected &&
+              existingEntry.source !== Source.Custom &&
+              existingEntry.source !== source;
 
-            if (isUnchanged && !needsManualFlag) {
+            if (isUnchanged && !needsSourceUpdate) {
               continue;
             }
 
-            // The entry is only being updated to record the manual import
-            // flag, so it is not a newly added NFT.
-            flagOnlyUpdate = isUnchanged && needsManualFlag;
+            // The entry is only being updated to record its source, so it is
+            // not a newly added NFT.
+            sourceOnlyUpdate = isUnchanged && needsSourceUpdate;
 
             const indexToUpdate = allNftsForUserPerChain[chainId].findIndex(
               (nft) =>
@@ -965,7 +969,7 @@ export class NftController extends BaseController<
               allNftsForUserPerChain[chainId][indexToUpdate] = {
                 ...existingEntry,
                 ...nftMetadata,
-                ...(source === Source.Custom && { isManualImport: true }),
+                ...(needsSourceUpdate && { source }),
               };
             }
           } else {
@@ -974,8 +978,8 @@ export class NftController extends BaseController<
               tokenId,
               favorite: false,
               isCurrentlyOwned: true,
-              ...(source === Source.Custom && { isManualImport: true }),
               ...nftMetadata,
+              source,
             };
 
             allNftsForUserPerChain[chainId].push(newEntry);
@@ -983,7 +987,7 @@ export class NftController extends BaseController<
 
           modifiedChainIds.add(chainId);
 
-          if (this.#onNftAdded && !flagOnlyUpdate) {
+          if (this.#onNftAdded && !sourceOnlyUpdate) {
             pendingCallbacks.push({
               address: checksumHexAddress,
               symbol: nftContract.symbol,
@@ -1434,7 +1438,7 @@ export class NftController extends BaseController<
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @param options - an object of arguments
    * @param options.userAddress - The address of the current user.
-   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom` (which sets `isManualImport`), so callers that refresh or update existing NFTs should pass `Source.Detected`.
+   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom`, which is stored as the NFT's `source`, so callers that refresh or update existing NFTs should pass `Source.Detected`.
    */
   async addNftVerifyOwnership(
     address: string,
@@ -1476,7 +1480,7 @@ export class NftController extends BaseController<
    * @param options - an object of arguments
    * @param options.nftMetadata - NFT optional metadata.
    * @param options.userAddress - The address of the current user.
-   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom` (which sets `isManualImport`), so callers that refresh or update existing NFTs should pass `Source.Detected`.
+   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom`, which is stored as the NFT's `source`, so callers that refresh or update existing NFTs should pass `Source.Detected`.
    * @returns Promise resolving to the current NFT list.
    */
   async addNft(
@@ -1568,7 +1572,7 @@ export class NftController extends BaseController<
    * @param nfts[].tokenId - The NFT identifier.
    * @param nfts[].nftMetadata - NFT metadata including chainId.
    * @param userAddress - The address of the current user.
-   * @param source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom` (which sets `isManualImport`), so callers that refresh or update existing NFTs should pass `Source.Detected`.
+   * @param source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom`, which is stored as the NFT's `source`, so callers that refresh or update existing NFTs should pass `Source.Detected`.
    * @returns Promise resolving to the current NFT list.
    */
   async addNfts(

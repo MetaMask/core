@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Export the `Source` enum (`Custom`, `Dapp`, `Detected`) so consumers can pass it to `NftController.addNft` and related methods ([#11106](https://github.com/MetaMask/core/pull/11106))
-- Add optional `isManualImport` field to the `Nft` type, set to `true` on NFTs added through the manual import flow (`Source.Custom`) and left unset for detected or dapp-suggested NFTs ([#11106](https://github.com/MetaMask/core/pull/11106))
-  - The flag is sticky and is not backfilled: NFTs added before this change have it unset, which means their origin is unknown.
+- Add optional `source` field to the `Nft` type, recording how the NFT was added: manually (`custom`), suggested by a dapp (`dapp`) or auto-detected (`detected`) ([#11106](https://github.com/MetaMask/core/pull/11106))
+  - The source is stored when the NFT is created. Auto-detection never overwrites it, a dapp suggestion upgrades a detected NFT, and a manual import overrides any other source.
+  - NFTs added before this change have no `source` (origin unknown); it is not backfilled.
   - `Source.Custom` is the default `source` for `addNft`, `addNfts` and `addNftVerifyOwnership`, so callers that refresh existing NFTs should pass `Source.Detected`.
+  - `onNftAdded` is not called when an existing NFT is only updated to record its source.
 
 ## [112.2.0]
 
