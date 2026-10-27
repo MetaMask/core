@@ -562,7 +562,6 @@ describe('util', () => {
     });
 
     it('should fail fetch with timeout', async () => {
-      // fetch implementation.
       nock(SOME_API)
         .get(/.+/u)
         .reply(async () => await new Promise<never>(() => undefined));
