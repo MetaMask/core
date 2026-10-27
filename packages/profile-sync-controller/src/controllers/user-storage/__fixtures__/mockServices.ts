@@ -1,6 +1,6 @@
 import nock from 'nock';
 
-import { mockPutWithBodyCallback } from '../../../sdk/__fixtures__/userstorage.js';
+import { mockPutCapturingBodies } from '../../../sdk/__fixtures__/userstorage.js';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema.js';
 import type {
   UserStorageGenericPathWithFeatureAndKey,
@@ -63,29 +63,23 @@ export const mockEndpointGetUserStorage = async (
 export const mockEndpointUpsertUserStorage = (
   path: UserStorageGenericPathWithFeatureAndKey = `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
   mockReply?: Pick<MockReply, 'status'>,
-  expectCallback?: (requestBody: nock.Body) => Promise<void>,
 ) => {
   const mockResponse = getMockUserStoragePutResponse(path);
-  return mockPutWithBodyCallback(
-    mockResponse.url,
-    mockReply?.status ?? 204,
-    expectCallback,
-    { path: '', persist: false },
-  );
+  return mockPutCapturingBodies(mockResponse.url, mockReply?.status ?? 204, {
+    path: '',
+    persist: false,
+  });
 };
 
 export const mockEndpointBatchUpsertUserStorage = (
   path: UserStorageGenericPathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
   mockReply?: Pick<MockReply, 'status'>,
-  callback?: (requestBody: nock.Body) => Promise<void>,
 ) => {
   const mockResponse = getMockUserStorageBatchPutResponse(path);
-  return mockPutWithBodyCallback(
-    mockResponse.url,
-    mockReply?.status ?? 204,
-    callback,
-    { path: '', persist: false },
-  );
+  return mockPutCapturingBodies(mockResponse.url, mockReply?.status ?? 204, {
+    path: '',
+    persist: false,
+  });
 };
 
 export const mockEndpointDeleteUserStorage = (
@@ -119,13 +113,10 @@ export const mockEndpointDeleteUserStorageAllFeatureEntries = (
 export const mockEndpointBatchDeleteUserStorage = (
   path: UserStorageGenericPathWithFeatureOnly = 'notifications',
   mockReply?: Pick<MockReply, 'status'>,
-  callback?: (requestBody: nock.Body) => Promise<void>,
 ) => {
   const mockResponse = getMockUserStorageBatchDeleteResponse(path);
-  return mockPutWithBodyCallback(
-    mockResponse.url,
-    mockReply?.status ?? 204,
-    callback,
-    { path: '', persist: false },
-  );
+  return mockPutCapturingBodies(mockResponse.url, mockReply?.status ?? 204, {
+    path: '',
+    persist: false,
+  });
 };

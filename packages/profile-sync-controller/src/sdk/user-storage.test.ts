@@ -15,6 +15,7 @@ import {
   handleMockUserStorageDeleteAllFeatureEntries,
   handleMockUserStorageDelete,
   handleMockUserStorageBatchDelete,
+  parseRequestBodyObject,
 } from './__fixtures__/userstorage.js';
 import type { IBaseAuth } from './authentication-jwt-bearer/types.js';
 import { NotFoundError, UserStorageError } from './errors.js';
@@ -111,23 +112,21 @@ describe('User Storage', () => {
       status: 200,
       body: JSON.stringify(mockResponse),
     });
-    const mockPut = handleMockUserStoragePut(undefined, async (requestBody) => {
-      if (typeof requestBody === 'string') {
-        return;
-      }
-
-      const isEncryptedUsingSharedSalt =
-        encryption.getSalt(requestBody.data).toString() ===
-        SHARED_SALT.toString();
-
-      expect(isEncryptedUsingSharedSalt).toBe(true);
-    });
+    const mockPut = handleMockUserStoragePut();
 
     await userStorage.getItem(
       `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
     );
     expect(mockGet.isDone()).toBe(true);
     expect(mockPut.isDone()).toBe(true);
+    expect(mockPut.requestBodies).toHaveLength(1);
+
+    const requestBody = parseRequestBodyObject(mockPut.requestBodies[0]);
+    const isEncryptedUsingSharedSalt =
+      encryption.getSalt(requestBody.data).toString() ===
+      SHARED_SALT.toString();
+
+    expect(isEncryptedUsingSharedSalt).toBe(true);
   });
 
   it('gets all feature entries', async () => {
@@ -440,37 +439,36 @@ describe('User Storage', () => {
       body: mockResponse,
     });
 
-    const mockPut = handleMockUserStoragePut(undefined, async (requestBody) => {
-      if (typeof requestBody === 'string') {
-        return;
-      }
-
-      const doEntriesHaveDifferentSalts =
-        encryption.getIfEntriesHaveDifferentSalts(
-          Object.entries(requestBody.data).map((entry) => entry[1] as string),
-        );
-
-      expect(doEntriesHaveDifferentSalts).toBe(false);
-
-      const doEntriesUseSharedSalt = Object.entries(requestBody.data).every(
-        ([_entryKey, entryValue]) =>
-          encryption.getSalt(entryValue as string).toString() ===
-          SHARED_SALT.toString(),
-      );
-
-      expect(doEntriesUseSharedSalt).toBe(true);
-
-      const wereOnlyNonEmptySaltEntriesUploaded =
-        Object.entries(requestBody.data).length === 2;
-
-      expect(wereOnlyNonEmptySaltEntriesUploaded).toBe(true);
-    });
+    const mockPut = handleMockUserStoragePut();
 
     await userStorage.getAllFeatureItems(
       USER_STORAGE_FEATURE_NAMES.notifications,
     );
     expect(mockGetAll.isDone()).toBe(true);
     expect(mockPut.isDone()).toBe(true);
+    expect(mockPut.requestBodies).toHaveLength(1);
+
+    const requestBody = parseRequestBodyObject(mockPut.requestBodies[0]);
+
+    const doEntriesHaveDifferentSalts =
+      encryption.getIfEntriesHaveDifferentSalts(
+        Object.entries(requestBody.data).map((entry) => entry[1] as string),
+      );
+
+    expect(doEntriesHaveDifferentSalts).toBe(false);
+
+    const doEntriesUseSharedSalt = Object.entries(requestBody.data).every(
+      ([_entryKey, entryValue]) =>
+        encryption.getSalt(entryValue as string).toString() ===
+        SHARED_SALT.toString(),
+    );
+
+    expect(doEntriesUseSharedSalt).toBe(true);
+
+    const wereOnlyNonEmptySaltEntriesUploaded =
+      Object.entries(requestBody.data).length === 2;
+
+    expect(wereOnlyNonEmptySaltEntriesUploaded).toBe(true);
   });
 
   it('batch set items', async () => {
@@ -482,35 +480,33 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    const mockPut = handleMockUserStoragePut(undefined, async (requestBody) => {
-      if (typeof requestBody === 'string') {
-        return;
-      }
-
-      const decryptedBody = await Promise.all(
-        Object.entries<string>(requestBody.data).map(
-          async ([entryKey, entryValue]) => {
-            return [
-              entryKey,
-              await encryption.decryptString(entryValue, MOCK_STORAGE_KEY),
-            ];
-          },
-        ),
-      );
-
-      const expectedBody = dataToStore.map(([entryKey, entryValue]) => [
-        createSHA256Hash(String(entryKey) + MOCK_STORAGE_KEY),
-        entryValue,
-      ]);
-
-      expect(decryptedBody).toStrictEqual(expectedBody);
-    });
+    const mockPut = handleMockUserStoragePut();
 
     await userStorage.batchSetItems(
       USER_STORAGE_FEATURE_NAMES.accounts,
       dataToStore,
     );
     expect(mockPut.isDone()).toBe(true);
+    expect(mockPut.requestBodies).toHaveLength(1);
+
+    const requestBody = parseRequestBodyObject(mockPut.requestBodies[0]);
+    const decryptedBody = await Promise.all(
+      Object.entries<string>(requestBody.data).map(
+        async ([entryKey, entryValue]) => {
+          return [
+            entryKey,
+            await encryption.decryptString(entryValue, MOCK_STORAGE_KEY),
+          ];
+        },
+      ),
+    );
+
+    const expectedBody = dataToStore.map(([entryKey, entryValue]) => [
+      createSHA256Hash(String(entryKey) + MOCK_STORAGE_KEY),
+      entryValue,
+    ]);
+
+    expect(decryptedBody).toStrictEqual(expectedBody);
   });
 
   it('returns void when trying to batch set items with invalid data', async () => {
@@ -624,23 +620,18 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    const mockPut = handleMockUserStorageBatchDelete(
-      undefined,
-      async (requestBody) => {
-        if (typeof requestBody === 'string') {
-          return;
-        }
-
-        const expectedBody = keysToDelete.map((entryKey) =>
-          createSHA256Hash(String(entryKey) + MOCK_STORAGE_KEY),
-        );
-
-        expect(requestBody.batch_delete).toStrictEqual(expectedBody);
-      },
-    );
+    const mockPut = handleMockUserStorageBatchDelete();
 
     await userStorage.batchDeleteItems('accounts_v2', keysToDelete);
     expect(mockPut.isDone()).toBe(true);
+    expect(mockPut.requestBodies).toHaveLength(1);
+
+    const requestBody = parseRequestBodyObject(mockPut.requestBodies[0]);
+    const expectedBody = keysToDelete.map((entryKey) =>
+      createSHA256Hash(String(entryKey) + MOCK_STORAGE_KEY),
+    );
+
+    expect(requestBody.batch_delete).toStrictEqual(expectedBody);
   });
 
   it('returns void when trying to batch delete items with invalid data', async () => {
