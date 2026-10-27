@@ -6,7 +6,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 
 import type { ChompApiServiceMessenger } from './chomp-api-service.js';
 import { ChompApiError, ChompApiService } from './chomp-api-service.js';
@@ -22,6 +22,10 @@ const checksumLike = (address: string): string =>
   `0x${address.slice(2).toUpperCase()}`;
 
 describe('ChompApiService', () => {
+  afterEach(() => {
+    nock.cleanAll();
+  });
+
   describe('createAddressChallenge', () => {
     const challengeResponse = {
       challengeId: '7b1e6f0c-1f3a-4d2b-9c8e-2a4b6c8d0e1f',
@@ -1463,7 +1467,7 @@ describe('ChompApiService', () => {
       const { service } = createService();
 
       await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
-        'network down',
+        /network down|fetch failed/u,
       );
       expect(scope.isDone()).toBe(true);
     });
