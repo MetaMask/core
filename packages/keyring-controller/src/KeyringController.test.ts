@@ -4979,11 +4979,12 @@ describe('KeyringController', () => {
 
           // The V1 keyring's account read fails: the missing V2 adapter
           // must take precedence over it, instead of masking it.
-          jest
-            .spyOn(MockShallowKeyring.prototype, 'getAccounts')
-            .mockRejectedValue(new Error('getAccounts failed'));
+          vi.spyOn(
+            MockShallowKeyring.prototype,
+            'getAccounts',
+          ).mockRejectedValue(new Error('getAccounts failed'));
 
-          const fn = jest.fn();
+          const fn = vi.fn();
           await expect(
             controller.withKeyringV2({ id: metadata.id }, fn),
           ).rejects.toThrow(
@@ -6024,8 +6025,8 @@ describe('KeyringController', () => {
         const simpleKeyring = controller.getKeyringsByType(
           KeyringTypes.simple,
         )[0] as EthKeyring;
-        const hdDestroy = jest.fn();
-        const simpleDestroy = jest.fn();
+        const hdDestroy = vi.fn();
+        const simpleDestroy = vi.fn();
         (hdKeyring as { destroy?: () => void }).destroy = hdDestroy;
         (simpleKeyring as { destroy?: () => void }).destroy = simpleDestroy;
 
@@ -6063,7 +6064,7 @@ describe('KeyringController', () => {
       await withController(
         { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
         async ({ controller }) => {
-          const destroy = jest.fn();
+          const destroy = vi.fn();
 
           await expect(
             controller.withKeyring(
@@ -6086,7 +6087,7 @@ describe('KeyringController', () => {
     });
 
     it('drops a keyring created during a failed transaction even if its destruction fails, preserving the original error', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
       try {
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
@@ -6097,12 +6098,10 @@ describe('KeyringController', () => {
                 async ({ keyring }) => {
                   // The transaction creates the keyring, then fails; the
                   // created keyring's destruction fails too.
-                  jest
-                    .spyOn(
-                      keyring as { destroy?: () => Promise<void> },
-                      'destroy',
-                    )
-                    .mockRejectedValue(new Error('Cannot destroy'));
+                  vi.spyOn(
+                    keyring as { destroy?: () => Promise<void> },
+                    'destroy',
+                  ).mockRejectedValue(new Error('Cannot destroy'));
                   throw new Error('Oops');
                 },
                 { createIfMissing: true },
@@ -6129,12 +6128,12 @@ describe('KeyringController', () => {
       await withController(
         { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
         async ({ controller }) => {
-          jest
-            .spyOn(MockKeyring.prototype, 'getAccounts')
-            .mockRejectedValue(new Error('getAccounts failed'));
+          vi.spyOn(MockKeyring.prototype, 'getAccounts').mockRejectedValue(
+            new Error('getAccounts failed'),
+          );
 
           await expect(
-            controller.withKeyring({ type: MockKeyring.type }, jest.fn(), {
+            controller.withKeyring({ type: MockKeyring.type }, vi.fn(), {
               createIfMissing: true,
             }),
           ).rejects.toThrow('getAccounts failed');
@@ -6172,9 +6171,9 @@ describe('KeyringController', () => {
         )[0] as EthKeyring;
         const simpleKeyringId = controller.state.keyrings[1].metadata.id;
 
-        jest
-          .spyOn(encryptor, 'encryptWithKey')
-          .mockRejectedValue(new Error('Encryption failed'));
+        vi.spyOn(encryptor, 'encryptWithKey').mockRejectedValue(
+          new Error('Encryption failed'),
+        );
 
         await expect(controller.removeAccount(importedAccount)).rejects.toThrow(
           'Encryption failed',
@@ -6424,8 +6423,8 @@ describe('KeyringController', () => {
           const [firstKeyring, secondKeyring] = controller.getKeyringsByType(
             MockShallowKeyring.type,
           ) as MockShallowKeyring[];
-          const firstDestroy = jest.fn();
-          const secondDestroy = jest.fn();
+          const firstDestroy = vi.fn();
+          const secondDestroy = vi.fn();
           (firstKeyring as { destroy?: () => void }).destroy = firstDestroy;
           (secondKeyring as { destroy?: () => void }).destroy = secondDestroy;
 
@@ -6485,12 +6484,12 @@ describe('KeyringController', () => {
           // The teardown fails partway: the earlier keyrings are already
           // destroyed, and the failing destroy leaves the wallet unlocked.
           const destroy = sharedKeyring.destroy.bind(sharedKeyring);
-          jest
-            .spyOn(sharedKeyring, 'destroy')
-            .mockImplementation(async (): Promise<void> => {
+          vi.spyOn(sharedKeyring, 'destroy').mockImplementation(
+            async (): Promise<void> => {
               await destroy(); // The instance is disposed...
               throw new Error('Cannot destroy'); // ...but the teardown fails.
-            });
+            },
+          );
 
           // The destroy failure stays loud: the lock fails with it.
           await expect(controller.setLocked()).rejects.toThrow(
@@ -6617,7 +6616,7 @@ describe('KeyringController', () => {
     });
 
     it('leaves unsupported keyrings untouched by the rollback', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
       try {
         await withController(
           {
@@ -6696,7 +6695,7 @@ describe('KeyringController', () => {
           await controller.submitPassword(password);
           expect(controller.state.keyrings).toHaveLength(1);
 
-          const encryptSpy = jest
+          const encryptSpy = vi
             .spyOn(encryptor, 'encryptWithKey')
             .mockRejectedValue(new Error('Encryption failed'));
 
@@ -6722,7 +6721,7 @@ describe('KeyringController', () => {
     });
 
     it('parks keyrings as unsupported when their recreation fails, without failing the rollback', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
       try {
         await withController(async ({ controller, encryptor }) => {
           const importedAccount = await controller.importAccountWithStrategy(
@@ -6735,14 +6734,14 @@ describe('KeyringController', () => {
 
           // Make the rollback's recreation of the Simple keyring fail. The
           // no-argument constructor call must keep succeeding.
-          const deserializeSpy = jest
+          const deserializeSpy = vi
             .spyOn(SimpleKeyring.prototype, 'deserialize')
             .mockImplementation(async (privateKeys: string[]) => {
               if (privateKeys.length > 0) {
                 throw new Error('Cannot deserialize the keyring');
               }
             });
-          const encryptSpy = jest
+          const encryptSpy = vi
             .spyOn(encryptor, 'encryptWithKey')
             .mockRejectedValue(new Error('Encryption failed'));
 
@@ -6775,11 +6774,11 @@ describe('KeyringController', () => {
     });
 
     it('parks a mutated keyring as unsupported when its rebuild fails, without failing the rollback', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
       try {
         await withController(async ({ controller }) => {
           // Make the rollback's rebuild of the mutated HD keyring fail.
-          const deserializeSpy = jest
+          const deserializeSpy = vi
             .spyOn(HdKeyring.prototype, 'deserialize')
             .mockRejectedValue(new Error('Cannot deserialize the keyring'));
 
@@ -6822,9 +6821,9 @@ describe('KeyringController', () => {
           controller.withKeyring(
             { type: KeyringTypes.hd },
             async ({ keyring }) => {
-              jest
-                .spyOn(keyring, 'serialize')
-                .mockRejectedValue(new Error('Cannot serialize'));
+              vi.spyOn(keyring, 'serialize').mockRejectedValue(
+                new Error('Cannot serialize'),
+              );
               throw new Error('Oops');
             },
           ),
@@ -6838,7 +6837,7 @@ describe('KeyringController', () => {
     });
 
     it('completes the rollback and preserves the original error if destroying a discarded keyring fails', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
       try {
         await withController(async ({ controller }) => {
           const importedAccount = await controller.importAccountWithStrategy(
@@ -6849,7 +6848,7 @@ describe('KeyringController', () => {
           const simpleKeyring = controller.getKeyringsByType(
             KeyringTypes.simple,
           )[0] as EthKeyring;
-          const destroy = jest
+          const destroy = vi
             .fn()
             .mockRejectedValue(new Error('Cannot destroy'));
           (
@@ -6953,14 +6952,14 @@ describe('KeyringController', () => {
         const simpleKeyring = controller.getKeyringsByType(
           KeyringTypes.simple,
         )[0] as EthKeyring;
-        const hdDestroy = jest.fn();
-        const simpleDestroy = jest.fn();
+        const hdDestroy = vi.fn();
+        const simpleDestroy = vi.fn();
         (hdKeyring as { destroy?: () => void }).destroy = hdDestroy;
         (simpleKeyring as { destroy?: () => void }).destroy = simpleDestroy;
 
-        jest
-          .spyOn(encryptor, 'encryptWithKey')
-          .mockRejectedValue(new Error('Encryption failed'));
+        vi.spyOn(encryptor, 'encryptWithKey').mockRejectedValue(
+          new Error('Encryption failed'),
+        );
 
         await expect(controller.persistAllKeyrings()).rejects.toThrow(
           'Encryption failed',
@@ -6988,7 +6987,7 @@ describe('KeyringController', () => {
         const simpleKeyring = controller.getKeyringsByType(
           KeyringTypes.simple,
         )[0] as EthKeyring;
-        const serializeSpy = jest.spyOn(simpleKeyring, 'serialize');
+        const serializeSpy = vi.spyOn(simpleKeyring, 'serialize');
 
         // Happy path, with no change to the operated keyring.
         await controller.withKeyring({ type: KeyringTypes.hd }, async () => {
@@ -7013,7 +7012,7 @@ describe('KeyringController', () => {
 
     it('does not update the vault when the operated keyring is unchanged', async () => {
       await withController(async ({ controller, messenger, initialState }) => {
-        const mockStateChange = jest.fn();
+        const mockStateChange = vi.fn();
         messenger.subscribe('KeyringController:stateChange', mockStateChange);
 
         await controller.withKeyring({ type: KeyringTypes.hd }, async () => {
@@ -7027,7 +7026,7 @@ describe('KeyringController', () => {
 
     it('makes no extra getAccounts calls for the operated keyring in a single-keyring wallet', async () => {
       await withController(async ({ controller }) => {
-        const getAccountsSpy = jest.spyOn(HdKeyring.prototype, 'getAccounts');
+        const getAccountsSpy = vi.spyOn(HdKeyring.prototype, 'getAccounts');
 
         await controller.withKeyring({ type: KeyringTypes.hd }, async () => {
           // No operation.
@@ -7060,7 +7059,7 @@ describe('KeyringController', () => {
         },
         async ({ controller, messenger, initialState }) => {
           await controller.submitPassword(password);
-          const mockStateChange = jest.fn();
+          const mockStateChange = vi.fn();
           messenger.subscribe('KeyringController:stateChange', mockStateChange);
 
           // The operated keyring is the second of the two keyrings sharing
@@ -7091,9 +7090,9 @@ describe('KeyringController', () => {
           KeyringTypes.hd,
         )[0] as EthKeyring;
         const simpleKeyringId = controller.state.keyrings[1].metadata.id;
-        jest
-          .spyOn(encryptor, 'encryptWithKey')
-          .mockRejectedValue(new Error('Encryption failed'));
+        vi.spyOn(encryptor, 'encryptWithKey').mockRejectedValue(
+          new Error('Encryption failed'),
+        );
 
         // The operation drains the Simple keyring, the cleanup removes it,
         // and then persistence fails.
@@ -7172,9 +7171,9 @@ describe('KeyringController', () => {
           controller.withKeyring(
             { type: KeyringTypes.hd },
             async ({ keyring }) => {
-              jest
-                .spyOn(keyring, 'serialize')
-                .mockRejectedValue(new Error('Cannot serialize'));
+              vi.spyOn(keyring, 'serialize').mockRejectedValue(
+                new Error('Cannot serialize'),
+              );
             },
           ),
           // The keyring cannot be persisted in this state, so the operation
@@ -7217,9 +7216,7 @@ describe('KeyringController', () => {
         const simpleKeyring = controller.getKeyringsByType(
           KeyringTypes.simple,
         )[0] as EthKeyring;
-        const destroy = jest
-          .fn()
-          .mockRejectedValue(new Error('Cannot destroy'));
+        const destroy = vi.fn().mockRejectedValue(new Error('Cannot destroy'));
         (
           simpleKeyring as {
             destroy?: () => Promise<void>;
@@ -7254,10 +7251,10 @@ describe('KeyringController', () => {
       await withController(
         async ({ controller, encryptor, messenger, initialState }) => {
           const accountsBefore = await controller.getAccounts();
-          const mockStateChange = jest.fn();
+          const mockStateChange = vi.fn();
           messenger.subscribe('KeyringController:stateChange', mockStateChange);
           // The encryptor fails: a no-op transaction must not consult it.
-          const encryptSpy = jest
+          const encryptSpy = vi
             .spyOn(encryptor, 'encryptWithKey')
             .mockRejectedValue(new Error('Encryption failed'));
 
@@ -7288,7 +7285,7 @@ describe('KeyringController', () => {
     });
 
     it('parks the drained operated keyring as unsupported when its recreation fails', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
       try {
         await withController(async ({ controller, encryptor }) => {
           const importedAccount = await controller.importAccountWithStrategy(
@@ -7298,16 +7295,16 @@ describe('KeyringController', () => {
 
           // Make the rollback's recreation of the Simple keyring fail. The
           // no-argument constructor call must keep succeeding.
-          const deserializeSpy = jest
+          const deserializeSpy = vi
             .spyOn(SimpleKeyring.prototype, 'deserialize')
             .mockImplementation(async (privateKeys: string[]) => {
               if (privateKeys.length > 0) {
                 throw new Error('Cannot deserialize the keyring');
               }
             });
-          jest
-            .spyOn(encryptor, 'encryptWithKey')
-            .mockRejectedValue(new Error('Encryption failed'));
+          vi.spyOn(encryptor, 'encryptWithKey').mockRejectedValue(
+            new Error('Encryption failed'),
+          );
 
           // The operation drains the Simple keyring, the cleanup removes it,
           // persistence fails, and the rollback cannot recreate it.
