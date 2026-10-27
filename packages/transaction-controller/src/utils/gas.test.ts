@@ -37,6 +37,8 @@ import {
   DEFAULT_GAS_MULTIPLIER,
   MAX_GAS_BLOCK_PERCENT,
   EIP_2780_AUTHORIZATION_GAS,
+  EIP7280_AUTHORIZATION_INTRINSIC_GAS,
+  UPGRADE_AUTHORIZATION_GAS,
   simulateGasBatch,
 } from './gas.js';
 import { rpcRequest } from './provider.js';
@@ -335,6 +337,15 @@ describe('gas', () => {
     );
 
     getGasEstimateBufferMock.mockReturnValue(1.5);
+  });
+
+  it('combines intrinsic and runtime authorization gas for the batch upgrade fallback', () => {
+    expect(EIP_2780_AUTHORIZATION_GAS).toBe(35190);
+    expect(EIP7280_AUTHORIZATION_INTRINSIC_GAS).toBe(7816);
+    expect(UPGRADE_AUTHORIZATION_GAS).toBe(
+      EIP7280_AUTHORIZATION_INTRINSIC_GAS + EIP_2780_AUTHORIZATION_GAS,
+    );
+    expect(UPGRADE_AUTHORIZATION_GAS).toBe(43006);
   });
 
   describe('updateGas', () => {
@@ -1652,6 +1663,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: GAS_MOCK,
         gasLimits: [GAS_MOCK],
+        mode: 'eip7702',
         requiresAuthorizationList: true,
       });
 
@@ -1709,6 +1721,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: GAS_MOCK,
         gasLimits: [GAS_MOCK],
+        mode: 'eip7702',
       });
 
       expect(rpcRequestMock).toHaveBeenCalledWith({
@@ -1761,6 +1774,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: GAS_MOCK,
         gasLimits: [GAS_MOCK],
+        mode: 'eip7702',
       });
     });
 
@@ -1799,43 +1813,52 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: 521000,
         gasLimits: [521000],
+        mode: 'eip7702',
       });
     });
 
-    it('preserves requiresAuthorizationList when 7702 fallback fires for upgrade-required account', async () => {
-      const isAtomicBatchSupportedMock = vi.fn().mockResolvedValue([
-        {
-          chainId: CHAIN_ID_MOCK,
-          isSupported: false,
-          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
-        },
-      ]);
+    it.each([
+      ['first upgrade', undefined, 43006],
+      ['replacing an existing delegation', TO_MOCK, 7816],
+    ] as const)(
+      'adds authorization gas to provided gas for %s when estimation fails',
+      async (_title, delegationAddress, authorizationGas) => {
+        const isAtomicBatchSupportedMock = vi.fn().mockResolvedValue([
+          {
+            chainId: CHAIN_ID_MOCK,
+            delegationAddress,
+            isSupported: false,
+            upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+          },
+        ]);
 
-      generateEIP7702BatchTransactionMock.mockReturnValue({
-        to: TO_MOCK,
-        data: DATA_MOCK,
-      });
+        generateEIP7702BatchTransactionMock.mockReturnValue({
+          to: TO_MOCK,
+          data: DATA_MOCK,
+        });
 
-      mockQuery({
-        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
-        estimateGasError: new Error('execution reverted'),
-      });
+        mockQuery({
+          getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+          estimateGasError: new Error('execution reverted'),
+        });
 
-      const result = await estimateGasBatch({
-        networkClientId: NETWORK_CLIENT_ID_MOCK,
-        from: FROM_MOCK,
-        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
-        isAtomicBatchSupported: isAtomicBatchSupportedMock,
-        messenger: MESSENGER_MOCK,
-        transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
-      });
+        const result = await estimateGasBatch({
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+          from: FROM_MOCK,
+          getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+          isAtomicBatchSupported: isAtomicBatchSupportedMock,
+          messenger: MESSENGER_MOCK,
+          transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
+        });
 
-      expect(result).toStrictEqual({
-        totalGasLimit: 521000,
-        gasLimits: [521000],
-        requiresAuthorizationList: true,
-      });
-    });
+        expect(result).toStrictEqual({
+          totalGasLimit: 521000 + authorizationGas,
+          gasLimits: [521000 + authorizationGas],
+          mode: 'eip7702',
+          requiresAuthorizationList: true,
+        });
+      },
+    );
 
     it('throws error when upgrade contract address not found', async () => {
       const isAtomicBatchSupportedMock = vi.fn().mockResolvedValue([
@@ -1873,6 +1896,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: 521000,
         gasLimits: [21000, 500000],
+        mode: 'separate',
       });
 
       expect(simulateTransactionsMock).not.toHaveBeenCalled();
@@ -1897,6 +1921,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         totalGasLimit: 521000,
         gasLimits: [21000, 500000],
+        mode: 'separate',
       });
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(CHAIN_ID_MOCK, {
@@ -1999,6 +2024,7 @@ describe('gas', () => {
 
       expect(generateEIP7702BatchTransactionMock).not.toHaveBeenCalled();
       expect(result.gasLimits).toHaveLength(2);
+      expect(result.mode).toBe('separate');
     });
   });
 
