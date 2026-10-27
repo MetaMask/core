@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Lighter `Position.returnOnEquity` is now a fraction (`-0.107` for -10.7%), the same unit as Hyperliquid positions, instead of a percent, so clients that multiply it by 100 no longer show Lighter position PnL % 100x too large ([#11080](https://github.com/MetaMask/core/pull/11080))
+  - Lighter `AccountState.returnOnEquity` is unchanged: it stays a percent, like Hyperliquid's.
+
 ## [22.0.0]
 
 ### Added

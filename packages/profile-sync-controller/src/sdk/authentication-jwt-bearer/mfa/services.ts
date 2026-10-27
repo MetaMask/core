@@ -71,6 +71,9 @@ export const MFA_CREDENTIALS_URL = (env: Env): string =>
 export const MFA_APPROVALS_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/mfa/approvals`;
 
+export const MFA_CREDENTIAL_URL = (env: Env, credentialId: string): string =>
+  `${MFA_CREDENTIALS_URL(env)}/${encodeURIComponent(credentialId)}`;
+
 type EnrollmentServiceResult = {
   flowId: string;
   expiresAt: number;
@@ -322,6 +325,7 @@ async function throwMfaError(
     case 'email_already_enrolled':
     case 'totp_already_enrolled':
     case 'email_socially_verified':
+    case 'email_claimed':
       throw new CredentialAlreadyEnrolledError(code, message, status);
     case 'credential_not_enrolled':
       throw new CredentialNotEnrolledError(message, status);
@@ -382,7 +386,7 @@ async function throwMfaError(
 async function requestJson(
   url: string,
   accessToken: string,
-  init?: { method?: 'GET' | 'POST'; body?: Json },
+  init?: { method?: 'GET' | 'POST' | 'DELETE'; body?: Json },
 ): Promise<Json> {
   let response: Response;
   try {
@@ -571,7 +575,7 @@ function isSupportedStatus(status: string): status is MfaCredentialStatus {
 export function toEnrolledCredential(
   credential: MfaCredential,
 ): EnrolledCredential | null {
-  const { credential_type: type, status } = credential;
+  const { credential_id: id, credential_type: type, status } = credential;
   if (!isSupportedStatus(status)) {
     log.warn(`Ignoring MFA credential with unsupported status: ${status}`);
     return null;
@@ -583,6 +587,7 @@ export function toEnrolledCredential(
     credential.last_used_at,
   );
   const base = {
+    id,
     status,
     ...(enrolledAt === undefined ? {} : { enrolledAt }),
     ...(lastUsedAt === undefined ? {} : { lastUsedAt }),
@@ -629,7 +634,40 @@ export async function getMfaCredentials(
   env: Env,
   accessToken: string,
 ): Promise<EnrolledCredential[]> {
-  const json = await requestJson(MFA_CREDENTIALS_URL(env), accessToken);
+  return toEnrolledCredentials(
+    await requestJson(MFA_CREDENTIALS_URL(env), accessToken),
+  );
+}
+
+/**
+ * Removes a credential from the canonical profile. The server requires a
+ * verification token proven with another type of credential, and refuses to
+ * remove the last one.
+ *
+ * @param env - Authentication environment.
+ * @param accessToken - Verification token.
+ * @param credentialId - The credential's `id`.
+ * @returns The credentials left.
+ */
+export async function deleteMfaCredential(
+  env: Env,
+  accessToken: string,
+  credentialId: string,
+): Promise<EnrolledCredential[]> {
+  return toEnrolledCredentials(
+    await requestJson(MFA_CREDENTIAL_URL(env, credentialId), accessToken, {
+      method: 'DELETE',
+    }),
+  );
+}
+
+/**
+ * Validates a credential list response and keeps the supported credentials.
+ *
+ * @param json - The response body.
+ * @returns Supported enrolled credentials.
+ */
+function toEnrolledCredentials(json: Json): EnrolledCredential[] {
   assertValidMfaResponse(json, MfaCredentialsResponseStruct);
   return json.credentials
     .map(toEnrolledCredential)

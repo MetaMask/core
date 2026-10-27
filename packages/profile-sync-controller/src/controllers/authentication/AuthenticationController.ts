@@ -27,6 +27,7 @@ import {
   CompleteVerificationRequestStruct,
   GetVerificationTokenRequestStruct,
   RequestMfaApprovalRequestStruct,
+  RemoveCredentialRequestStruct,
   parseVerificationTokenClaims,
 } from '../../sdk/authentication-jwt-bearer/mfa/schemas.js';
 import type {
@@ -52,6 +53,7 @@ import type {
   MfaCredentialType,
   MfaVerificationAssertion,
   RequestMfaApprovalRequest,
+  RemoveCredentialRequest,
   VerificationChallenge,
 } from '../../sdk/index.js';
 import {
@@ -234,6 +236,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'completeCredentialVerification',
   'getVerificationToken',
   'requestMfaApproval',
+  'removeCredential',
   'clearVerificationSession',
 ] as const;
 
@@ -1028,8 +1031,60 @@ export class AuthenticationController extends BaseController<
       return this.#getEnrolledCredentials();
     }
 
-    // Skip the write when nothing changed so subscribers are not woken up by
-    // a fresh-but-identical array.
+    this.#setEnrolledCredentials(credentials);
+    return credentials;
+  }
+
+  /**
+   * Removes a credential from the profile and caches the credentials left.
+   *
+   * The server requires a verification proven with another type of credential
+   * (`cross_type_step_up_required` otherwise) and refuses to remove the last
+   * one (`last_credential`). This sends the verification session: without
+   * one, it throws a `StepUpRequiredError` (`aal2_required`) without calling
+   * the server. The caller verifies with another method through the client
+   * MFA kit first, which decides how recent that verification must be.
+   *
+   * @param request - The credential's `id`, and the trace reason.
+   * @returns The credentials left.
+   */
+  public async removeCredential(
+    request: RemoveCredentialRequest,
+  ): Promise<EnrolledCredential[]> {
+    this.#assertIsUnlocked('removeCredential');
+    const sessionEpoch = this.#authSessionEpoch;
+    assertValidMfaRequest(request, RemoveCredentialRequestStruct);
+    const accessToken = this.getVerificationToken()?.accessToken;
+    if (!accessToken) {
+      throw new StepUpRequiredError(
+        'removeCredential requires a verification session',
+      );
+    }
+    const type =
+      this.#getEnrolledCredentials().find(
+        ({ id }) => id === request.credentialId,
+      )?.type ?? 'unknown';
+    const credentials = await this.#runMfaRequest(
+      'MFA Credential Remove',
+      request.reason.operation,
+      type,
+      async () =>
+        await this.#auth.deleteMfaCredential(request.credentialId, accessToken),
+    );
+    this.#assertAuthSessionEpoch(sessionEpoch, 'removeCredential');
+    // A refresh still in flight may have read the list before the removal.
+    this.#credentialsRefreshSeq += 1;
+    this.#setEnrolledCredentials(credentials);
+    return credentials;
+  }
+
+  /**
+   * Caches the credential list. Skips the write when nothing changed so
+   * subscribers are not woken up by a fresh-but-identical array.
+   *
+   * @param credentials - The credentials from the server.
+   */
+  #setEnrolledCredentials(credentials: EnrolledCredential[]): void {
     if (
       JSON.stringify(credentials) !==
       JSON.stringify(this.#getEnrolledCredentials())
@@ -1038,7 +1093,6 @@ export class AuthenticationController extends BaseController<
         state.enrolledCredentials = credentials;
       });
     }
-    return credentials;
   }
 
   /**

@@ -25,9 +25,11 @@ import {
 } from '../../mocks/auth.js';
 import {
   buildTotpSetupUri,
+  deleteMfaCredential,
   getMfaCredentials,
   MFA_APPROVALS_URL,
   mfaApproval,
+  MFA_CREDENTIAL_URL,
   mfaEnroll,
   mfaEnrollComplete,
   mfaVerify,
@@ -38,7 +40,6 @@ import {
 } from './services.js';
 
 const mockFetch = vi.fn();
-global.fetch = mockFetch;
 
 const registration = {
   id: 'credential-id',
@@ -76,6 +77,7 @@ function response(
 
 describe('MFA services', () => {
   beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch);
     mockFetch.mockReset();
   });
 
@@ -222,12 +224,14 @@ describe('MFA services', () => {
 
     expect(await getMfaCredentials(Env.PRD, 'access-token')).toStrictEqual([
       {
+        id: 'passkey-credential-id',
         type: 'passkey',
         status: 'active',
         enrolledAt: Date.parse('2026-09-15T10:00:00Z'),
         displayName: 'MetaMask 3f9a1c2b',
       },
       {
+        id: 'email_otp',
         type: 'email_otp',
         status: 'pending',
         enrolledAt: Date.parse('2026-09-15T10:05:00Z'),
@@ -242,17 +246,20 @@ describe('MFA services', () => {
       response({
         credentials: [
           {
+            credential_id: 'passkey',
             credential_type: 'passkey',
             status: 'active',
             enrolled_at: 'not-a-date',
             passkey: { display_name: 'MetaMask 3f9a1c2b' },
           },
           {
+            credential_id: 'future_factor',
             credential_type: 'future_factor',
             status: 'active',
             enrolled_at: 'also-not-a-date',
           },
           {
+            credential_id: 'email_otp',
             credential_type: 'email_otp',
             status: 'active',
             enrolled_at: '2026-09-15T10:05:00Z',
@@ -264,11 +271,13 @@ describe('MFA services', () => {
 
     expect(await getMfaCredentials(Env.PRD, 'access-token')).toStrictEqual([
       {
+        id: 'passkey',
         type: 'passkey',
         status: 'active',
         displayName: 'MetaMask 3f9a1c2b',
       },
       {
+        id: 'email_otp',
         type: 'email_otp',
         status: 'active',
         enrolledAt: Date.parse('2026-09-15T10:05:00Z'),
@@ -281,18 +290,21 @@ describe('MFA services', () => {
   it('maps sparse credentials and ignores unsupported ones', () => {
     expect(
       toEnrolledCredential({
+        credential_id: 'passkey',
         credential_type: 'passkey',
         status: 'pending',
       }),
-    ).toStrictEqual({ type: 'passkey', status: 'pending' });
+    ).toStrictEqual({ id: 'passkey', type: 'passkey', status: 'pending' });
     expect(
       toEnrolledCredential({
+        credential_id: 'sms_otp',
         credential_type: 'sms_otp',
         status: 'active',
       }),
     ).toBeNull();
     expect(
       toEnrolledCredential({
+        credential_id: 'passkey',
         credential_type: 'passkey',
         status: 'revoked',
       }),
@@ -302,12 +314,14 @@ describe('MFA services', () => {
   it('maps an authenticator app and when each method was last used', () => {
     expect(
       toEnrolledCredential({
+        credential_id: 'totp',
         credential_type: 'totp',
         status: 'active',
         enrolled_at: '2026-10-20T10:00:00Z',
         last_used_at: '2026-10-20T11:00:00Z',
       }),
     ).toStrictEqual({
+      id: 'totp',
       type: 'totp',
       status: 'active',
       enrolledAt: Date.parse('2026-10-20T10:00:00Z'),
@@ -315,6 +329,7 @@ describe('MFA services', () => {
     });
     expect(
       toEnrolledCredential({
+        credential_id: 'passkey',
         credential_type: 'passkey',
         status: 'active',
         last_used_at: '2026-10-20T11:00:00Z',
@@ -325,37 +340,52 @@ describe('MFA services', () => {
   it('drops an unparsable last use date', () => {
     expect(
       toEnrolledCredential({
+        credential_id: 'totp',
         credential_type: 'totp',
         status: 'active',
         last_used_at: 'yesterday',
       }),
-    ).toStrictEqual({ type: 'totp', status: 'active' });
+    ).toStrictEqual({ id: 'totp', type: 'totp', status: 'active' });
   });
 
   it('keeps email credentials listed without an address', () => {
     expect(
       toEnrolledCredential({
+        credential_id: 'email_otp',
         credential_type: 'email_otp',
         status: 'active',
       }),
-    ).toStrictEqual({ type: 'email_otp', status: 'active', verified: true });
+    ).toStrictEqual({
+      id: 'email_otp',
+      type: 'email_otp',
+      status: 'active',
+      verified: true,
+    });
     expect(
       toEnrolledCredential({
+        credential_id: 'email_otp',
         credential_type: 'email_otp',
         status: 'active',
         email: { verified: true },
       }),
-    ).toStrictEqual({ type: 'email_otp', status: 'active', verified: true });
+    ).toStrictEqual({
+      id: 'email_otp',
+      type: 'email_otp',
+      status: 'active',
+      verified: true,
+    });
   });
 
   it('derives email verification from status when the server omits it', () => {
     expect(
       toEnrolledCredential({
+        credential_id: 'email_otp',
         credential_type: 'email_otp',
         status: 'active',
         email: { address: 'user@example.com' },
       }),
     ).toStrictEqual({
+      id: 'email_otp',
       type: 'email_otp',
       status: 'active',
       email: 'user@example.com',
@@ -363,6 +393,7 @@ describe('MFA services', () => {
     });
     expect(
       toEnrolledCredential({
+        credential_id: 'email_otp',
         credential_type: 'email_otp',
         status: 'pending',
         email: { address: 'user@example.com' },
@@ -375,6 +406,7 @@ describe('MFA services', () => {
     ['email_already_enrolled', CredentialAlreadyEnrolledError, 409],
     ['totp_already_enrolled', CredentialAlreadyEnrolledError, 409],
     ['email_socially_verified', CredentialAlreadyEnrolledError, 409],
+    ['email_claimed', CredentialAlreadyEnrolledError, 409],
     ['credential_not_enrolled', CredentialNotEnrolledError, 409],
     ['aal2_required', StepUpRequiredError, 403],
     ['flow_expired', MfaFlowExpiredError, 400],
@@ -760,6 +792,45 @@ describe('MFA services', () => {
           audiences: ['escrow'],
         }),
       ).rejects.toMatchObject({ mfaCode: 'invalid_response' });
+    });
+  });
+
+  describe('deleteMfaCredential', () => {
+    it('removes a credential and returns the ones left', async () => {
+      mockFetch.mockResolvedValueOnce(response(MOCK_MFA_CREDENTIALS_RESPONSE));
+
+      const credentials = await deleteMfaCredential(
+        Env.PRD,
+        'verification-token',
+        'a/b+c',
+      );
+
+      expect(credentials.map(({ id }) => id)).toStrictEqual([
+        'passkey-credential-id',
+        'email_otp',
+      ]);
+      const [url, init] = mockFetch.mock.calls[0] as [
+        string,
+        { method: string; headers: Record<string, string> },
+      ];
+      expect(url).toBe(MFA_CREDENTIAL_URL(Env.PRD, 'a/b+c'));
+      expect(url.endsWith('/api/v2/mfa/credentials/a%2Fb%2Bc')).toBe(true);
+      expect(init.method).toBe('DELETE');
+      expect(init.headers.Authorization).toBe('Bearer verification-token');
+    });
+
+    it.each([
+      ['cross_type_step_up_required', 403],
+      ['last_credential', 409],
+      ['credential_not_found', 404],
+    ] as const)('passes %s through with its status', async (code, status) => {
+      mockFetch.mockResolvedValueOnce(
+        response({ code, message: 'Server message' }, { status }),
+      );
+
+      await expect(
+        deleteMfaCredential(Env.PRD, 'verification-token', 'totp'),
+      ).rejects.toMatchObject({ mfaCode: code, status });
     });
   });
 });
