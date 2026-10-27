@@ -54,13 +54,11 @@ export type TrackErrorVolumeControls = {
  */
 export type TrackErrorAsAnalyticsOptions = {
   /**
-   * Canonical event category, for example a product area such as `Swaps`.
-   */
-  category: string;
-
-  /**
-   * Operation or callsite that produced the error, for example
-   * `swap-quote-fetch`.
+   * Unique discriminator for this error case.
+   *
+   * Use one value per distinct failure circumstance (for example
+   * `swap-quote-fetch` or `clear-metametrics-data`), not a shared label for
+   * every error in a file or package.
    */
   source: string;
 
@@ -188,13 +186,13 @@ function resolveNonNegativeNumber(
  * Applies volume controls and reserves session budget when the error should
  * be emitted.
  *
- * The signature is the event name, category, source, and sanitized message.
+ * The signature is the event name, source, and sanitized message.
  * Call {@link releaseErrorTrackingReservation} if delivery throws, so a
  * failed report does not consume the cap or suppress the next attempt.
  *
  * @param session - Mutable per-controller volume-control state.
  * @param error - The caught value to report.
- * @param options - Category, source, and optional volume controls.
+ * @param options - Source and optional volume controls.
  * @param now - Current time in milliseconds. Defaults to `Date.now()`.
  * @param randomSample - Sample in [0, 1). Defaults to `Math.random()`.
  * @returns The event to send and its reservation, or `undefined` when the
@@ -207,7 +205,7 @@ export function reserveErrorOccurredEvent(
   now: number = Date.now(),
   randomSample: number = Math.random(),
 ): ReservedErrorOccurredEvent | undefined {
-  const { category, source } = options;
+  const { source } = options;
   const volumeControls = options.volumeControls ?? {};
   const samplingRate = resolveSamplingRate(volumeControls.samplingRate);
   const dedupWindowMs = resolveNonNegativeNumber(
@@ -234,12 +232,7 @@ export function reserveErrorOccurredEvent(
   }
 
   const errorMessage = normalizeError(error);
-  const signature = [
-    ERROR_OCCURRED_EVENT_NAME,
-    category,
-    source,
-    errorMessage,
-  ].join(':');
+  const signature = [ERROR_OCCURRED_EVENT_NAME, source, errorMessage].join(':');
   const lastEmittedAt = session.lastEmittedAtBySignature.get(signature);
   if (lastEmittedAt !== undefined && now - lastEmittedAt < dedupWindowMs) {
     return undefined;
@@ -253,7 +246,6 @@ export function reserveErrorOccurredEvent(
     event: {
       name: ERROR_OCCURRED_EVENT_NAME,
       properties: {
-        category,
         source,
         error_message: errorMessage,
       },

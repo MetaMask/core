@@ -6307,7 +6307,6 @@ describe('AnalyticsController', () => {
 
   describe('trackErrorAsAnalytics', () => {
     const analyticsId = '12121212-1212-4121-8121-121212121212';
-    const category = 'Swaps';
     const source = 'test';
 
     async function setupTrackingController(
@@ -6335,13 +6334,11 @@ describe('AnalyticsController', () => {
     function expectErrorOccurred(
       platformAdapter: MockAnalyticsPlatformAdapter,
       errorMessage: string,
-      eventCategory = category,
       eventSource = source,
     ): void {
       expect(platformAdapter.track).toHaveBeenCalledWith(
         ERROR_OCCURRED_EVENT_NAME,
         {
-          category: eventCategory,
           source: eventSource,
           error_message: errorMessage,
         },
@@ -6353,10 +6350,7 @@ describe('AnalyticsController', () => {
       it('emits the sanitized message and no stack for an Error instance', async () => {
         const { controller, platformAdapter } = await setupTrackingController();
 
-        controller.trackErrorAsAnalytics(new Error('boom'), {
-          category,
-          source,
-        });
+        controller.trackErrorAsAnalytics(new Error('boom'), { source });
 
         expect(platformAdapter.track).toHaveBeenCalledTimes(1);
         expectErrorOccurred(platformAdapter, 'boom');
@@ -6367,7 +6361,7 @@ describe('AnalyticsController', () => {
 
         controller.trackErrorAsAnalytics(
           new Error('failed\nwith   whitespace\taround'),
-          { category, source },
+          { source },
         );
 
         expect(platformAdapter.track).toHaveBeenCalledTimes(1);
@@ -6378,12 +6372,10 @@ describe('AnalyticsController', () => {
         const { controller, platformAdapter } = await setupTrackingController();
 
         controller.trackErrorAsAnalytics(new Error('x'.repeat(600)), {
-          category,
           source,
         });
 
         expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
-          category,
           source,
           error_message: `${'x'.repeat(499)}…`,
         });
@@ -6393,7 +6385,6 @@ describe('AnalyticsController', () => {
         const { controller, platformAdapter } = await setupTrackingController();
 
         controller.trackErrorAsAnalytics('unexpected\n  string   value', {
-          category,
           source,
         });
 
@@ -6406,7 +6397,7 @@ describe('AnalyticsController', () => {
 
         controller.trackErrorAsAnalytics(
           { message: 'from object\nvalue' },
-          { category, source },
+          { source },
         );
 
         expect(platformAdapter.track).toHaveBeenCalledTimes(1);
@@ -6416,7 +6407,7 @@ describe('AnalyticsController', () => {
       it('stringifies other non-Error thrown values', async () => {
         const { controller, platformAdapter } = await setupTrackingController();
 
-        controller.trackErrorAsAnalytics(42, { category, source });
+        controller.trackErrorAsAnalytics(42, { source });
 
         expect(platformAdapter.track).toHaveBeenCalledTimes(1);
         expectErrorOccurred(platformAdapter, '42');
@@ -6425,7 +6416,7 @@ describe('AnalyticsController', () => {
       it('reports values without a string message as Unknown error', async () => {
         const { controller, platformAdapter } = await setupTrackingController();
 
-        controller.trackErrorAsAnalytics({ message: 1 }, { category, source });
+        controller.trackErrorAsAnalytics({ message: 1 }, { source });
 
         expect(platformAdapter.track).toHaveBeenCalledTimes(1);
         expectErrorOccurred(platformAdapter, 'Unknown error');
@@ -6435,7 +6426,7 @@ describe('AnalyticsController', () => {
         const { controller, platformAdapter } = await setupTrackingController();
 
         expect(() => {
-          controller.trackErrorAsAnalytics(null, { category, source });
+          controller.trackErrorAsAnalytics(null, { source });
         }).not.toThrow();
 
         expectErrorOccurred(platformAdapter, 'Unknown error');
@@ -6445,7 +6436,7 @@ describe('AnalyticsController', () => {
         const { controller, platformAdapter } = await setupTrackingController();
 
         expect(() => {
-          controller.trackErrorAsAnalytics(undefined, { category, source });
+          controller.trackErrorAsAnalytics(undefined, { source });
         }).not.toThrow();
 
         expectErrorOccurred(platformAdapter, 'Unknown error');
@@ -6453,11 +6444,10 @@ describe('AnalyticsController', () => {
     });
 
     describe('canonical schema', () => {
-      it('emits Error Occurred with category, source, and error_message only', async () => {
+      it('emits Error Occurred with source and error_message only', async () => {
         const { controller, platformAdapter } = await setupTrackingController();
 
         controller.trackErrorAsAnalytics(new Error('boom'), {
-          category,
           source,
           volumeControls: {
             samplingRate: 1,
@@ -6468,7 +6458,6 @@ describe('AnalyticsController', () => {
 
         expect(platformAdapter.track).toHaveBeenCalledTimes(1);
         expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
-          category,
           source,
           error_message: 'boom',
         });
@@ -6482,7 +6471,6 @@ describe('AnalyticsController', () => {
           throw new Error('dispatch failed');
         });
         const options = {
-          category,
           source,
           volumeControls: { sessionCap: 1 },
         };
@@ -6503,22 +6491,15 @@ describe('AnalyticsController', () => {
           platformAdapter.track.mockImplementationOnce(() => {
             vi.setSystemTime(2000);
             controller.trackErrorAsAnalytics(new Error('boom'), {
-              category,
               source,
               volumeControls: { dedupWindowMs: 0 },
             });
             throw new Error('dispatch failed');
           });
 
-          controller.trackErrorAsAnalytics(new Error('boom'), {
-            category,
-            source,
-          });
+          controller.trackErrorAsAnalytics(new Error('boom'), { source });
           vi.setSystemTime(2001);
-          controller.trackErrorAsAnalytics(new Error('boom'), {
-            category,
-            source,
-          });
+          controller.trackErrorAsAnalytics(new Error('boom'), { source });
 
           expect(platformAdapter.track).toHaveBeenCalledTimes(2);
         } finally {
@@ -6535,7 +6516,6 @@ describe('AnalyticsController', () => {
             await setupTrackingController();
 
           controller.trackErrorAsAnalytics(new Error('boom'), {
-            category,
             source,
             volumeControls: { samplingRate: 0.5 },
           });
@@ -6553,7 +6533,6 @@ describe('AnalyticsController', () => {
             await setupTrackingController();
 
           controller.trackErrorAsAnalytics(new Error('boom'), {
-            category,
             source,
             volumeControls: { samplingRate: 0.5 },
           });
@@ -6571,7 +6550,6 @@ describe('AnalyticsController', () => {
             await setupTrackingController();
 
           controller.trackErrorAsAnalytics(new Error('boom'), {
-            category,
             source,
             volumeControls: { samplingRate: 0.5 },
           });
@@ -6589,7 +6567,6 @@ describe('AnalyticsController', () => {
             await setupTrackingController();
 
           controller.trackErrorAsAnalytics(new Error('boom'), {
-            category,
             source,
             volumeControls: { samplingRate: 0 },
           });
@@ -6605,15 +6582,9 @@ describe('AnalyticsController', () => {
         vi.useFakeTimers();
         try {
           vi.setSystemTime(1000);
-          controller.trackErrorAsAnalytics(new Error('boom'), {
-            category,
-            source,
-          });
+          controller.trackErrorAsAnalytics(new Error('boom'), { source });
           vi.setSystemTime(2000);
-          controller.trackErrorAsAnalytics(new Error('boom'), {
-            category,
-            source,
-          });
+          controller.trackErrorAsAnalytics(new Error('boom'), { source });
 
           expect(platformAdapter.track).toHaveBeenCalledTimes(1);
         } finally {
@@ -6627,7 +6598,6 @@ describe('AnalyticsController', () => {
         try {
           vi.setSystemTime(1000);
           const options = {
-            category,
             source,
             volumeControls: { dedupWindowMs: 5000 },
           };
@@ -6645,14 +6615,8 @@ describe('AnalyticsController', () => {
       it('treats different error messages as distinct signatures', async () => {
         const { controller, platformAdapter } = await setupTrackingController();
 
-        controller.trackErrorAsAnalytics(new Error('first'), {
-          category,
-          source,
-        });
-        controller.trackErrorAsAnalytics(new Error('second'), {
-          category,
-          source,
-        });
+        controller.trackErrorAsAnalytics(new Error('first'), { source });
+        controller.trackErrorAsAnalytics(new Error('second'), { source });
 
         expect(platformAdapter.track).toHaveBeenCalledTimes(2);
       });
@@ -6661,27 +6625,10 @@ describe('AnalyticsController', () => {
         const { controller, platformAdapter } = await setupTrackingController();
 
         controller.trackErrorAsAnalytics(new Error('boom'), {
-          category,
           source: 'first-source',
         });
         controller.trackErrorAsAnalytics(new Error('boom'), {
-          category,
           source: 'second-source',
-        });
-
-        expect(platformAdapter.track).toHaveBeenCalledTimes(2);
-      });
-
-      it('emits again for the same message under a different category', async () => {
-        const { controller, platformAdapter } = await setupTrackingController();
-
-        controller.trackErrorAsAnalytics(new Error('boom'), {
-          category: 'Swaps',
-          source,
-        });
-        controller.trackErrorAsAnalytics(new Error('boom'), {
-          category: 'Settings',
-          source,
         });
 
         expect(platformAdapter.track).toHaveBeenCalledTimes(2);
@@ -6690,7 +6637,6 @@ describe('AnalyticsController', () => {
       it('suppresses all events once the session cap is reached', async () => {
         const { controller, platformAdapter } = await setupTrackingController();
         const options = {
-          category,
           source,
           volumeControls: { sessionCap: 1 },
         };
@@ -6709,7 +6655,6 @@ describe('AnalyticsController', () => {
             await setupTrackingController();
 
           controller.trackErrorAsAnalytics(new Error('boom'), {
-            category,
             source,
             volumeControls: { samplingRate: -1 },
           });
@@ -6727,7 +6672,6 @@ describe('AnalyticsController', () => {
             await setupTrackingController();
 
           controller.trackErrorAsAnalytics(new Error('boom'), {
-            category,
             source,
             volumeControls: { samplingRate: Number.NaN },
           });
@@ -6744,7 +6688,6 @@ describe('AnalyticsController', () => {
         try {
           vi.setSystemTime(1000);
           const options = {
-            category,
             source,
             volumeControls: { dedupWindowMs: Number.NaN },
           };
@@ -6762,7 +6705,6 @@ describe('AnalyticsController', () => {
       it('falls back to the default session cap for NaN', async () => {
         const { controller, platformAdapter } = await setupTrackingController();
         const options = {
-          category,
           source,
           volumeControls: { sessionCap: Number.NaN },
         };
@@ -6777,7 +6719,6 @@ describe('AnalyticsController', () => {
         const { controller, platformAdapter } = await setupTrackingController();
 
         controller.trackErrorAsAnalytics(new Error('boom'), {
-          category,
           source,
           volumeControls: { sessionCap: -1 },
         });
@@ -6788,7 +6729,6 @@ describe('AnalyticsController', () => {
       it('clamps a caller-supplied sessionCap above the global default', async () => {
         const { controller, platformAdapter } = await setupTrackingController();
         const options = {
-          category,
           source,
           volumeControls: { sessionCap: Number.MAX_SAFE_INTEGER },
         };
@@ -6812,7 +6752,6 @@ describe('AnalyticsController', () => {
           consentDecisionMade: true,
         });
         const options = {
-          category,
           source,
           volumeControls: { sessionCap: 1 },
         };
@@ -6834,7 +6773,7 @@ describe('AnalyticsController', () => {
       messenger.call(
         'AnalyticsController:trackErrorAsAnalytics',
         new Error('boom'),
-        { category, source },
+        { source },
       );
 
       expect(platformAdapter.track).toHaveBeenCalledTimes(1);

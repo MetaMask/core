@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
-- Add `trackErrorAsAnalytics` on `AnalyticsController` to report caught errors as `Error Occurred` events with `category`, `source`, and a sanitized `error_message`, bounded by sampling, deduplication, and a per-session cap ([#11051](https://github.com/MetaMask/core/pull/11051))
+- Add `trackErrorAsAnalytics` on `AnalyticsController` to report caught errors as `Error Occurred` events with a unique `source` and a sanitized `error_message`, bounded by sampling, deduplication, and a per-session cap ([#11051](https://github.com/MetaMask/core/pull/11051))
 
 ### Changed
 
