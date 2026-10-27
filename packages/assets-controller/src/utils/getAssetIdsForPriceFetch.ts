@@ -7,8 +7,6 @@ import type {
   DataRequest,
   DataResponse,
 } from '../types.js';
-import { normalizeAssetId } from './normalizeAssetId.js';
-
 const log = createModuleLogger(projectLogger, 'getAssetIdsForPriceFetch');
 
 const NON_PRICEABLE_ASSET_PATTERNS = [
@@ -56,7 +54,7 @@ export type GetAssetIdsForPriceFetchParams = {
  * @param params - State and request scope.
  * @param params.state - Controller state slices used for candidate collection.
  * @param params.request - Account and chain scope for the fetch.
- * @returns Deduplicated, checksummed CAIP-19 asset IDs.
+ * @returns Deduplicated CAIP-19 asset IDs.
  */
 export function getAssetIdsForPriceFetch({
   state,
@@ -87,7 +85,7 @@ export type GetResponseAssetIdsForPriceFetchParams = {
  *
  * @param params - Response balances.
  * @param params.response - Current pipeline response balances.
- * @returns Deduplicated, checksummed CAIP-19 asset IDs.
+ * @returns Deduplicated CAIP-19 asset IDs.
  */
 export function getResponseAssetIdsForPriceFetch({
   response,
@@ -96,7 +94,8 @@ export function getResponseAssetIdsForPriceFetch({
   for (const accountBalances of Object.values(response.assetsBalance ?? {})) {
     for (const assetId of Object.keys(accountBalances)) {
       try {
-        assetIds.add(normalizeAssetId(assetId as Caip19AssetId));
+        parseCaipAssetType(assetId as Caip19AssetId);
+        assetIds.add(assetId as Caip19AssetId);
       } catch (error) {
         log('Skipping malformed asset ID for price fetch', { assetId, error });
       }
@@ -220,8 +219,7 @@ function buildChainFilter(
 }
 
 /**
- * Ids of assets the user has marked hidden. Preferences in state are stored
- * checksummed, same as balances and prices.
+ * Ids of assets the user has marked hidden.
  *
  * @param assetPreferences - Preference map from controller state.
  * @returns Set of hidden CAIP-19 asset IDs.
@@ -232,14 +230,12 @@ function collectHiddenAssetIdKeys(
   return new Set(
     Object.entries(assetPreferences ?? {})
       .filter(([, preferences]) => preferences.hidden)
-      .map(([assetId]) => normalizeAssetId(assetId as Caip19AssetId)),
+      .map(([assetId]) => assetId as Caip19AssetId),
   );
 }
 
 /**
- * Checksum `assetId`, then keep it when it is in chain scope and not hidden.
- * An id that fails checksumming is skipped. {@link normalizeAssetId} is
- * memoized, so an id that is already checksummed is cheap.
+ * Keep `assetId` when it parses, is in chain scope, and is not hidden.
  *
  * @param assetId - Candidate CAIP-19 asset ID.
  * @param assetIds - Collected ids.
@@ -253,11 +249,11 @@ function addStoredAssetId(
   hiddenAssetIds: Set<Caip19AssetId>,
 ): void {
   try {
-    const id = normalizeAssetId(assetId as Caip19AssetId);
+    const id = assetId as Caip19AssetId;
+    const { chainId } = parseCaipAssetType(id);
     if (hiddenAssetIds.has(id)) {
       return;
     }
-    const { chainId } = parseCaipAssetType(id);
     if (chainFilter && !chainFilter.has(chainId)) {
       return;
     }

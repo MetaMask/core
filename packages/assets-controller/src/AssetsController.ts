@@ -159,7 +159,6 @@ import {
 import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement.js';
 import {
   normalizeAmountString,
-  normalizeAssetId,
   formatExchangeRatesForBridge,
   formatStateForTransactionPay,
   buildNativeAssetsFromConstant,
@@ -505,62 +504,6 @@ function extractChainId(assetId: Caip19AssetId): ChainId {
 }
 
 /**
- * Normalizes all asset IDs in a DataResponse.
- * This is applied at the controller level to ensure consistent state
- * regardless of how data sources format their asset IDs.
- *
- * @param response - The DataResponse to normalize.
- * @returns The normalized DataResponse with checksummed EVM addresses.
- */
-function normalizeResponse(response: DataResponse): DataResponse {
-  const normalized: DataResponse = {};
-
-  if (response.assetsInfo) {
-    normalized.assetsInfo = {};
-    for (const [assetId, metadata] of Object.entries(response.assetsInfo)) {
-      const normalizedId = normalizeAssetId(assetId as Caip19AssetId);
-      normalized.assetsInfo[normalizedId] = metadata;
-    }
-  }
-
-  if (response.assetsPrice) {
-    normalized.assetsPrice = {};
-    for (const [assetId, price] of Object.entries(response.assetsPrice)) {
-      const normalizedId = normalizeAssetId(assetId as Caip19AssetId);
-      normalized.assetsPrice[normalizedId] = price;
-    }
-  }
-
-  if (response.assetsBalance) {
-    normalized.assetsBalance = {};
-    for (const [accountId, balances] of Object.entries(
-      response.assetsBalance,
-    )) {
-      normalized.assetsBalance[accountId] = {};
-      for (const [assetId, balance] of Object.entries(balances)) {
-        const normalizedId = normalizeAssetId(assetId as Caip19AssetId);
-        normalized.assetsBalance[accountId][normalizedId] = balance;
-      }
-    }
-  }
-
-  // Preserve errors (chain IDs don't need normalization)
-  if (response.errors) {
-    normalized.errors = { ...response.errors };
-  }
-
-  if (response.updateMode) {
-    normalized.updateMode = response.updateMode;
-  }
-
-  if (response.replaceCoveredChainBalances) {
-    normalized.replaceCoveredChainBalances = true;
-  }
-
-  return normalized;
-}
-
-/**
  * Compute the effective account balances from a data-source response and prior state.
  *
  * @param previousBalances - Balances already in state for this account.
@@ -654,7 +597,7 @@ function effectiveAccountBalancesV6(
   );
   const shouldKeepAsset = (assetId: Caip19AssetId): boolean =>
     !updatedChains.has(extractChainId(assetId)) ||
-    undeletableAssetIds.has(assetId.toLowerCase()) ||
+    undeletableAssetIds.has(assetId) ||
     isStakingContractAssetId(assetId);
 
   const keptBalances: Record<string, AssetBalance> = {};
@@ -2090,12 +2033,9 @@ export class AssetsController extends BaseController<
   ): Asset | undefined {
     this.#assertNonEmptyAccountId(accountId, 'getAccountAssetByID');
 
-    const normalizedAssetId = this.#normalizeAssetIdOrThrow(
-      assetId,
-      'getAccountAssetByID',
-    );
+    this.#assertValidAssetId(assetId, 'getAccountAssetByID');
 
-    return this.#getAssetFromState(accountId, normalizedAssetId, {
+    return this.#getAssetFromState(accountId, assetId, {
       assetTypeSet: new Set(['fungible']),
     });
   }
@@ -2113,7 +2053,7 @@ export class AssetsController extends BaseController<
    * @param accountId - The account ID (`InternalAccount.id`, not an address).
    * @param assetIds - The CAIP-19 asset IDs including chain scope
    * (e.g. `eip155:1/erc20:0x...`).
-   * @returns A record of combined `Asset`s keyed by normalized CAIP-19 asset
+   * @returns A record of combined `Asset`s keyed by the given CAIP-19 asset
    * ID, containing only the requested assets that resolved.
    * @throws If `accountId` is empty or any `assetIds` entry is not a valid
    * CAIP-19 asset ID.
@@ -2127,17 +2067,14 @@ export class AssetsController extends BaseController<
     const result = Object.create(null) as Record<Caip19AssetId, Asset>;
 
     for (const assetId of assetIds) {
-      const normalizedAssetId = this.#normalizeAssetIdOrThrow(
-        assetId,
-        'getAccountAssetsByIDs',
-      );
+      this.#assertValidAssetId(assetId, 'getAccountAssetsByIDs');
 
-      const asset = this.#getAssetFromState(accountId, normalizedAssetId, {
+      const asset = this.#getAssetFromState(accountId, assetId, {
         assetTypeSet: new Set(['fungible']),
       });
 
       if (asset) {
-        result[normalizedAssetId] = asset;
+        result[assetId] = asset;
       }
     }
 
@@ -2209,19 +2146,15 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Normalizes a CAIP-19 asset ID, converting normalization failures into a
-   * descriptive error.
+   * Throws when `assetId` is not a valid CAIP-19 asset ID. The ID is stored
+   * and looked up as given.
    *
-   * @param assetId - The CAIP-19 asset ID to normalize.
+   * @param assetId - The CAIP-19 asset ID to validate.
    * @param methodName - The public method name used in the error message.
-   * @returns The normalized CAIP-19 asset ID.
    */
-  #normalizeAssetIdOrThrow(
-    assetId: Caip19AssetId,
-    methodName: string,
-  ): Caip19AssetId {
+  #assertValidAssetId(assetId: Caip19AssetId, methodName: string): void {
     try {
-      return normalizeAssetId(assetId);
+      parseCaipAssetType(assetId);
     } catch {
       throw new Error(
         `AssetsController.${methodName}: invalid CAIP-19 assetId "${assetId}"`,
@@ -2327,9 +2260,9 @@ export class AssetsController extends BaseController<
     assetId: Caip19AssetId,
     pendingMetadata?: PendingTokenMetadata,
   ): Promise<void> {
-    const normalizedAssetId = normalizeAssetId(assetId);
+    this.#assertValidAssetId(assetId, 'addCustomAsset');
 
-    log('Adding custom asset', { accountId, assetId: normalizedAssetId });
+    log('Adding custom asset', { accountId, assetId });
 
     this.update((state) => {
       const customAssets = state.customAssets as Record<string, string[]>;
@@ -2338,24 +2271,24 @@ export class AssetsController extends BaseController<
       }
 
       // Only add if not already present
-      if (!customAssets[accountId].includes(normalizedAssetId)) {
-        customAssets[accountId].push(normalizedAssetId);
+      if (!customAssets[accountId].includes(assetId)) {
+        customAssets[accountId].push(assetId);
       }
 
       // Unhide the asset if it was hidden (via assetPreferences)
-      const prefs = state.assetPreferences[normalizedAssetId];
+      const prefs = state.assetPreferences[assetId];
       if (prefs?.hidden) {
         delete prefs.hidden;
         if (Object.keys(prefs).length === 0) {
-          delete state.assetPreferences[normalizedAssetId];
+          delete state.assetPreferences[assetId];
         }
       }
 
       // Persist metadata from the UI so the token is immediately renderable
       if (pendingMetadata) {
-        const parsed = parseCaipAssetType(normalizedAssetId);
+        const parsed = parseCaipAssetType(assetId);
         let tokenType: FungibleAssetMetadata['type'] = 'erc20';
-        if (this.#isNativeAsset(normalizedAssetId)) {
+        if (this.#isNativeAsset(assetId)) {
           tokenType = 'native';
         } else if (
           parsed.chain.namespace === KnownCaipNamespace.Solana &&
@@ -2374,7 +2307,7 @@ export class AssetsController extends BaseController<
           occurrences: pendingMetadata.occurrences,
         };
 
-        (state.assetsInfo as Record<string, AssetMetadata>)[normalizedAssetId] =
+        (state.assetsInfo as Record<string, AssetMetadata>)[assetId] =
           assetMetadata;
       }
 
@@ -2385,14 +2318,13 @@ export class AssetsController extends BaseController<
         Record<string, AssetBalance>
       >;
       balances[accountId] ??= {};
-      balances[accountId][normalizedAssetId] ??=
-        getZeroAssetBalance(normalizedAssetId);
+      balances[accountId][assetId] ??= getZeroAssetBalance(assetId);
     });
 
     const account = this.#getSelectedAccounts().find((a) => a.id === accountId);
     if (account) {
       await this.getAssets([account], {
-        chainIds: [extractChainId(normalizedAssetId)],
+        chainIds: [extractChainId(assetId)],
         dataTypes: ['balance', 'metadata', 'price'],
         assetTypes: ['fungible'],
         forceUpdate: true,
@@ -2410,14 +2342,14 @@ export class AssetsController extends BaseController<
    * @param assetId - The CAIP-19 asset ID to remove.
    */
   removeCustomAsset(accountId: AccountId, assetId: Caip19AssetId): void {
-    const normalizedAssetId = normalizeAssetId(assetId);
+    this.#assertValidAssetId(assetId, 'removeCustomAsset');
 
-    log('Removing custom asset', { accountId, assetId: normalizedAssetId });
+    log('Removing custom asset', { accountId, assetId });
 
     this.update((state) => {
       if (state.customAssets[accountId]) {
         state.customAssets[accountId] = state.customAssets[accountId].filter(
-          (id) => id !== normalizedAssetId,
+          (id) => id !== assetId,
         );
 
         // Clean up empty arrays
@@ -2453,15 +2385,15 @@ export class AssetsController extends BaseController<
    * @param assetId - The CAIP-19 asset ID to hide.
    */
   hideAsset(assetId: Caip19AssetId): void {
-    const normalizedAssetId = normalizeAssetId(assetId);
+    this.#assertValidAssetId(assetId, 'hideAsset');
 
-    log('Hiding asset', { assetId: normalizedAssetId });
+    log('Hiding asset', { assetId });
 
     this.update((state) => {
-      if (!state.assetPreferences[normalizedAssetId]) {
-        state.assetPreferences[normalizedAssetId] = {};
+      if (!state.assetPreferences[assetId]) {
+        state.assetPreferences[assetId] = {};
       }
-      state.assetPreferences[normalizedAssetId].hidden = true;
+      state.assetPreferences[assetId].hidden = true;
     });
 
     // Re-evaluate subscriptions so polls exclude the newly hidden asset.
@@ -2477,21 +2409,21 @@ export class AssetsController extends BaseController<
    * @param assetId - The CAIP-19 asset ID to unhide.
    */
   async unhideAsset(assetId: Caip19AssetId): Promise<void> {
-    const normalizedAssetId = normalizeAssetId(assetId);
+    this.#assertValidAssetId(assetId, 'unhideAsset');
 
-    log('Unhiding asset', { assetId: normalizedAssetId });
+    log('Unhiding asset', { assetId });
 
     this.update((state) => {
-      const prefs = state.assetPreferences[normalizedAssetId];
+      const prefs = state.assetPreferences[assetId];
       if (prefs) {
         delete prefs.hidden;
         if (Object.keys(prefs).length === 0) {
-          delete state.assetPreferences[normalizedAssetId];
+          delete state.assetPreferences[assetId];
         }
       }
     });
 
-    const chainId = extractChainId(normalizedAssetId);
+    const chainId = extractChainId(assetId);
     const account = this.#getSelectedAccounts().find((selectedAccount) =>
       this.#getEnabledChainsForAccount(selectedAccount).includes(chainId),
     );
@@ -2685,17 +2617,17 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Lowercased asset IDs a v6 `full` snapshot must keep for an account, even
-   * when the response omits them: natives, pins, and default tracked assets
-   * the client asked for. Hidden assets are sent as `excludeAssetIds` and are
-   * dropped here; unhide is expected to fetch a new snapshot. Everything else
-   * on a covered chain was discovered by the source, so its absence means the
+   * Asset IDs a v6 `full` snapshot must keep for an account, even when the
+   * response omits them: natives, pins, and default tracked assets the client
+   * asked for. Hidden assets are sent as `excludeAssetIds` and are dropped
+   * here; unhide is expected to fetch a new snapshot. Everything else on a
+   * covered chain was discovered by the source, so its absence means the
    * balance is gone.
    *
    * @param state - State being updated (the in-flight draft, not `this.state`).
    * @param accountId - Account whose pins apply.
    * @param accountBalances - Incoming balances, which define the covered chains.
-   * @returns Lowercased CAIP-19 IDs that must survive the replace.
+   * @returns CAIP-19 IDs that must survive the replace.
    */
   #getUndeletableAssetIds(
     state: AssetsControllerState,
@@ -2718,14 +2650,14 @@ export class AssetsController extends BaseController<
       getNativeAssetForChain: (chainId) => this.#getNativeAssetMap()[chainId],
     });
 
-    return new Set(visibleAssetIds.map((assetId) => assetId.toLowerCase()));
+    return new Set(visibleAssetIds);
   }
 
   /**
    * Checks whether the given CAIP-19 asset ID represents a native asset
    * according to the cached native asset map, the asset namespace, and the asset reference.
    *
-   * @param assetId - The CAIP-19 asset ID to check (case-insensitive).
+   * @param assetId - The CAIP-19 asset ID to check.
    * @returns True if the asset ID is a native asset.
    */
   #isNativeAsset(assetId: Caip19AssetId): boolean {
@@ -2735,22 +2667,14 @@ export class AssetsController extends BaseController<
       return true;
     }
 
-    const lower = assetId.toLowerCase();
-    const isInNativeAssetMap = Object.values(this.#getNativeAssetMap()).some(
-      (id) => id.toLowerCase() === lower,
-    );
-    if (isInNativeAssetMap) {
+    if (this.#getNativeAssetMap()[parsed.chainId] === assetId) {
       return true;
     }
 
-    if (
+    return (
       parsed.assetNamespace === 'erc20' &&
       parsed.assetReference === ZERO_ADDRESS
-    ) {
-      return true;
-    }
-
-    return false;
+    );
   }
 
   /**
@@ -2960,8 +2884,7 @@ export class AssetsController extends BaseController<
   }
 
   async #updateState(response: DataResponse): Promise<void> {
-    const normalizedResponse = normalizeResponse(response);
-    const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
+    const mode: AssetsUpdateMode = response.updateMode ?? 'merge';
     const isBalanceV6Enabled = this.#isBalanceV6Enabled();
 
     const releaseLock = await this.#controllerMutex.acquire();
@@ -2988,10 +2911,8 @@ export class AssetsController extends BaseController<
         >;
         const prices = state.assetsPrice as Record<string, AssetPrice>;
 
-        if (normalizedResponse.assetsInfo) {
-          for (const [key, value] of Object.entries(
-            normalizedResponse.assetsInfo,
-          )) {
+        if (response.assetsInfo) {
+          for (const [key, value] of Object.entries(response.assetsInfo)) {
             const existing = metadata[key] as FungibleAssetMetadata | undefined;
             const incoming = value as FungibleAssetMetadata;
 
@@ -3027,8 +2948,8 @@ export class AssetsController extends BaseController<
         // Reconcile & self-heal stale asset "types" (e.g. erc20 -> native)
         // using IDs from new response assetInfo and assetBalance
         const assetsInfoAssetIdsSet = new Set<Caip19AssetId>([
-          ...Object.keys(normalizedResponse.assetsInfo ?? {}),
-          ...Object.values(normalizedResponse.assetsBalance ?? {}).flatMap(
+          ...Object.keys(response.assetsInfo ?? {}),
+          ...Object.values(response.assetsBalance ?? {}).flatMap(
             (accountBalances) => Object.keys(accountBalances),
           ),
         ] as Caip19AssetId[]);
@@ -3046,7 +2967,7 @@ export class AssetsController extends BaseController<
           }
         }
 
-        if (normalizedResponse.assetsBalance) {
+        if (response.assetsBalance) {
           const applyV5AccountBalanceUpdate = (
             accountId: string,
             accountBalances: Record<string, AssetBalance>,
@@ -3058,8 +2979,7 @@ export class AssetsController extends BaseController<
               ] ?? [];
 
             const replaceCoveredChains =
-              mode === 'full' ||
-              normalizedResponse.replaceCoveredChainBalances === true;
+              mode === 'full' || response.replaceCoveredChainBalances === true;
 
             const effectiveAccountBalances = effectiveAccountBalancesV5(
               previousBalances,
@@ -3195,7 +3115,7 @@ export class AssetsController extends BaseController<
           };
 
           for (const [accountId, accountBalances] of Object.entries(
-            normalizedResponse.assetsBalance,
+            response.assetsBalance,
           )) {
             const previousBalances =
               previousState.assetsBalance[accountId] ?? {};
@@ -3216,10 +3136,8 @@ export class AssetsController extends BaseController<
           }
         }
 
-        if (normalizedResponse.assetsPrice) {
-          for (const [key, value] of Object.entries(
-            normalizedResponse.assetsPrice,
-          )) {
+        if (response.assetsPrice) {
+          for (const [key, value] of Object.entries(response.assetsPrice)) {
             if (!isEqual(previousPrices[key as Caip19AssetId], value)) {
               prices[key] = value;
             }
@@ -3231,12 +3149,12 @@ export class AssetsController extends BaseController<
       this.#emitStateSizeTrace();
 
       // Calculate changed prices
-      const changedPriceAssets: string[] = normalizedResponse.assetsPrice
-        ? Object.keys(normalizedResponse.assetsPrice).filter(
+      const changedPriceAssets: string[] = response.assetsPrice
+        ? Object.keys(response.assetsPrice).filter(
             (assetId) =>
               !isEqual(
                 previousPrices[assetId as Caip19AssetId],
-                normalizedResponse.assetsPrice?.[assetId as Caip19AssetId],
+                response.assetsPrice?.[assetId as Caip19AssetId],
               ),
           )
         : [];
@@ -3268,12 +3186,11 @@ export class AssetsController extends BaseController<
       }
 
       // Publish price changed event with full price data
-      if (changedPriceAssets.length > 0 && normalizedResponse.assetsPrice) {
+      if (changedPriceAssets.length > 0 && response.assetsPrice) {
         // Build prices object with only changed prices
         const changedPrices: Record<Caip19AssetId, AssetPrice> = {};
         for (const assetId of changedPriceAssets) {
-          const price =
-            normalizedResponse.assetsPrice[assetId as Caip19AssetId];
+          const price = response.assetsPrice[assetId as Caip19AssetId];
           if (price) {
             changedPrices[assetId as Caip19AssetId] = price;
           }

@@ -5,8 +5,8 @@
  * Unlike `../../mockTokenApi.ts` (which synthesizes bodies by hand), these replay
  * verbatim captures so the integration test exercises the controller against
  * true-to-life occurrence counts and supported networks. The `/v3/assets`
- * capture is keyed by the lowercased asset ID the API actually returns, so any
- * batch composition is answered the way the live API would. Sourced from the
+ * capture is keyed by lowercased asset ID. Responses rewrite that ID to the
+ * checksummed form the Tokens API returns. Sourced from the
  * example scam-token wallet in `../scamWalletState.ts`.
  */
 import { API_URLS } from '@metamask/core-backend';
@@ -14,6 +14,7 @@ import type { V3AssetResponse } from '@metamask/core-backend';
 import type { Json } from '@metamask/utils';
 import nock from 'nock';
 
+import { checksumAssetId } from '../../checksumAssetId.js';
 import suggestedOccurrenceFloors from './token-api/suggestedOccurrenceFloors.js';
 import v3Assets from './tokens-api/v3-assets.js';
 
@@ -37,8 +38,8 @@ export function mockSuggestedOccurrenceFloors(): nock.Scope {
 
 /**
  * Intercept `GET {TOKENS}/v3/assets` and answer each batch from the captured
- * per-asset entries, preserving the API's reversed ordering and its lowercase
- * `assetId` echo. Assets the API does not carry are answered as empty stubs,
+ * per-asset entries, preserving the API's reversed ordering and answering with
+ * a checksummed `assetId`. Assets the API does not carry are answered as empty stubs,
  * matching `../../mockTokenApi.ts`.
  *
  * @param options - Response overrides.
@@ -107,9 +108,12 @@ function readAssetIds(uri: string): string[] {
  * @returns The captured response entry, or an empty stub.
  */
 function lookupAsset(assetId: string): V3AssetResponse {
+  const canonicalId = checksumAssetId(assetId);
   const captured = V3_ASSETS_BY_LOWER_ID[assetId.toLowerCase()];
   if (captured) {
-    return captured;
+    return captured.assetId === canonicalId
+      ? captured
+      : { ...captured, assetId: canonicalId };
   }
   return {
     symbol: '',
@@ -117,6 +121,6 @@ function lookupAsset(assetId: string): V3AssetResponse {
     decimals: null,
     address: assetId.split(':').pop() ?? assetId,
     type: 'erc20',
-    assetId: assetId.toLowerCase(),
+    assetId: canonicalId,
   } as unknown as V3AssetResponse;
 }

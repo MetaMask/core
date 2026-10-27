@@ -326,7 +326,7 @@ describe('RpcFallbackMiddleware', () => {
       expect(next).toHaveBeenCalledWith(ctx);
     });
 
-    it('matches response asset IDs case-insensitively', async () => {
+    it('fetches a tracked asset when the response uses a different asset ID', async () => {
       const { source, middleware: rpcMw } = createMockRpcSource();
       const mw = createFallback(source);
       const ctx = createContext(
@@ -348,7 +348,7 @@ describe('RpcFallbackMiddleware', () => {
 
       await mw.assetsMiddleware(ctx, next);
 
-      expect(rpcMw).not.toHaveBeenCalled();
+      expect(rpcMw).toHaveBeenCalled();
     });
 
     it('fetches tracked assets the response omitted via RPC', async () => {

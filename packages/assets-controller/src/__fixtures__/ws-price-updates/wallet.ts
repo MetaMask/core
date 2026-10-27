@@ -10,7 +10,7 @@ export const WS_ACCOUNT_ID = 'c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f';
 /** Native ETH. */
 export const ETH_ASSET_ID = `${MAINNET_CHAIN_ID}/slip44:60` as const;
 
-/** USDC, lower case as the websocket reports it. */
+/** USDC contract address, lower case. The asset ID the websocket reports is checksummed. */
 export const USDC_ADDRESS_LOWERCASE =
   '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
 

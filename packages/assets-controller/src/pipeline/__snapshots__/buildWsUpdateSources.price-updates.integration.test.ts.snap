@@ -13,7 +13,7 @@ exports[`websocket update pipeline: prices for surfaced holdings > generates sna
     },
   },
   "assetsInfo": {
-    "eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+    "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
       "aggregators": [
         "metamask",
         "liFi",
@@ -79,14 +79,14 @@ exports[`websocket update pipeline: prices for surfaced holdings > generates sna
     },
   },
   "assetsPrice": {
-    "eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": {
+    "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48": {
       "allTimeHigh": 1.043,
       "allTimeLow": 0.877647,
       "assetPriceType": "fungible",
       "circulatingSupply": 75286229145.11284,
       "dilutedMarketCap": 75353804428,
       "high1d": 1.001,
-      "id": "eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      "id": "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
       "lastUpdated": 0,
       "liquidity": 1781894605.7637963,
       "low1d": 0.99942,

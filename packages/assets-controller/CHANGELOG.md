@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING:** Remove `normalizeAssetId`. `addCustomAsset`, `removeCustomAsset`, `hideAsset`, `unhideAsset`, `getAccountAssetByID`, and `getAccountAssetsByIDs` keep the CAIP-19 asset ID as given instead of checksumming EVM addresses. They still reject an ID that is not valid CAIP-19
+
 ## [20.0.0]
 
 ### Added
@@ -16,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Store asset IDs from data sources as returned. The controller, balance pipeline, and metadata filters no longer checksum or case-fold those IDs
 - Fetch token metadata again when stored metadata is missing a field that controller logic or a client reads (`symbol`, `name`, `decimals`, `image`, `aggregators`, or `occurrences`), instead of treating an `image` as complete
 - **BREAKING:** Remove `DetectionMiddleware`. A balance refresh prices balances on the current response only when they have no stored price, and excludes hidden assets. The price poll still refreshes stored prices for held balances and custom assets, and does not price metadata that has no balance. `TokenDataSource` fetches metadata for state balances that have none and for response balances, and excludes hidden assets ([#10892](https://github.com/MetaMask/core/pull/10892))
 - **BREAKING:** Remove `assetsForPriceUpdate` from `getAssets` options. Refresh an explicit asset list with `syncAssetsPrices` instead ([#10892](https://github.com/MetaMask/core/pull/10892))

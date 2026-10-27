@@ -242,12 +242,16 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
       );
     }
 
-    // Legitimate failing test, our middleware stack does not filter out spam
-    // asset prices! This does eventually get cleaned up during unlock cleanup,
-    // but worth flagging.
-    it.fails('keeps the spam token out of prices', () => {
+    // The first fetch still prices the spam token. A later pass drops it once
+    // the stored asset ID is the checksummed ID the API returned.
+    const assertSpamPriceAbsent = () => {
       expect(PRICES.lookUp(response, CDOGE_ASSET_ID_LOWERCASE)).toBeUndefined();
-    });
+    };
+    if (pass.startsWith('second')) {
+      it('keeps the spam token out of prices', assertSpamPriceAbsent);
+    } else {
+      it.fails('keeps the spam token out of prices', assertSpamPriceAbsent);
+    }
 
     // V5 will perform a 'merge' operation instead of a 'full' operation
     it('v5 pipeline ends up performing a merge operation', () => {

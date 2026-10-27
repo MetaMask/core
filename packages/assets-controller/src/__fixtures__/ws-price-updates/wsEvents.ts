@@ -3,7 +3,7 @@ import type { BalanceUpdate } from '@metamask/core-backend';
 import {
   ETH_ASSET_ID,
   MAINNET_CHAIN_ID,
-  USDC_ASSET_ID_LOWERCASE,
+  USDC_ASSET_ID_CHECKSUM,
   WS_WALLET_ADDRESS,
 } from './wallet.js';
 
@@ -68,7 +68,7 @@ export function buildUsdcBalanceUpdatedEvent(options?: {
       {
         asset: {
           fungible: true,
-          type: USDC_ASSET_ID_LOWERCASE,
+          type: USDC_ASSET_ID_CHECKSUM,
           unit: 'USDC',
           decimals: 6,
         },

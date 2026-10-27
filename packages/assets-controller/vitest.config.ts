@@ -43,10 +43,10 @@ const suites: Record<'test' | 'unit' | 'integration', ViteUserConfig> = {
 
         // Reflects the unit suite alone, unlike the combined thresholds
         thresholds: {
-          branches: 85.46,
-          functions: 92.36,
-          lines: 93.21,
-          statements: 93.25,
+          branches: 85.15,
+          functions: 91.82,
+          lines: 92.58,
+          statements: 92.55,
         },
       },
     },

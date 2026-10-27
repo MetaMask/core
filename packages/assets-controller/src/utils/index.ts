@@ -1,11 +1,6 @@
 export { fetchWithTimeout } from './fetchWithTimeout.js';
 export { normalizeAmountString } from './normalizeAmountString.js';
 export {
-  normalizeAssetId,
-  safeNormalizeAssetId,
-  clearNormalizeAssetIdCacheForTesting,
-} from './normalizeAssetId.js';
-export {
   formatExchangeRatesForBridge,
   clearFormatExchangeRatesForBridgeCacheForTesting,
 } from './formatExchangeRatesForBridge.js';

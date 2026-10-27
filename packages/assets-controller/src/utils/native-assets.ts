@@ -1,8 +1,6 @@
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
 
 import type { Caip19AssetId, ChainId } from '../types.js';
-import { normalizeAssetId } from './normalizeAssetId.js';
-
 const CHAINID_NETWORK_URL = 'https://chainid.network/chains.json';
 
 type ChainIdNetworkEntry = {
@@ -53,7 +51,7 @@ export const NATIVE_ASSETS: Readonly<Record<ChainId, Caip19AssetId>> = {
   'eip155:747': 'eip155:747/slip44:539', // Flow evm - Native symbol: Flow
   'eip155:988': 'eip155:988/erc20:0x0000000000000000000000000000000000000000', // Stable - Native symbol: USDT0
   'eip155:999': 'eip155:999/slip44:2457', // HyperEVM - Native symbol: HYPE
-  'eip155:1088': 'eip155:1088/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Metis Andromeda Mainnet (Ethereum L2) - Native symbol: METIS
+  'eip155:1088': 'eip155:1088/erc20:0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000', // Metis Andromeda Mainnet (Ethereum L2) - Native symbol: METIS
   'eip155:1101': 'eip155:1101/slip44:60', // Polygon zkEVM mainnet - Native symbol: ETH
   'eip155:1284': 'eip155:1284/slip44:1284', // Moonbeam - Native symbol: GLMR
   'eip155:1285': 'eip155:1285/slip44:1285', // Moonriver - Native symbol: MOVR
@@ -64,7 +62,7 @@ export const NATIVE_ASSETS: Readonly<Record<ChainId, Caip19AssetId>> = {
   'eip155:2741': 'eip155:2741/erc20:0x0000000000000000000000000000000000000000', // Abstract - Native symbol: ETH
   'eip155:4217': 'eip155:4217/slip44:60', // Tempo Mainnet - No native asset
   'eip155:4326': 'eip155:4326/erc20:0x0000000000000000000000000000000000000000', // MegaETH Mainnet - Native symbol: ETH
-  'eip155:5000': 'eip155:5000/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle - Native symbol: MNT
+  'eip155:5000': 'eip155:5000/erc20:0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000', // Mantle - Native symbol: MNT
   'eip155:5031': 'eip155:5031/slip44:5031', // Somnia Mainnet - Native symbol: SOMI
   'eip155:5042': 'eip155:5042/slip44:5042', // Arc - Native symbol: USDC
   'eip155:7000': 'eip155:7000/slip44:7000', // ZetaChain - Native symbol: ZETA
@@ -129,30 +127,20 @@ export const NATIVE_ASSETS: Readonly<Record<ChainId, Caip19AssetId>> = {
   'tron:2494104990': 'tron:2494104990/slip44:195', // Tron Shasta - Native symbol: TRX
 };
 
-const NATIVE_ASSET_IDS = new Set(
-  Object.values(NATIVE_ASSETS).map((assetId) =>
-    normalizeAssetId(assetId).toLowerCase(),
-  ),
-);
+const NATIVE_ASSET_IDS = new Set<Caip19AssetId>(Object.values(NATIVE_ASSETS));
 
 /**
  * Whether `assetId` is the native asset for a chain in {@link NATIVE_ASSETS}.
- * ERC-20 addresses are compared in checksummed form.
  *
  * @param assetId - CAIP-19 asset ID to check.
  * @returns True when the ID matches a seeded native asset.
  */
 export function isNativeAssetId(assetId: Caip19AssetId): boolean {
-  try {
-    return NATIVE_ASSET_IDS.has(normalizeAssetId(assetId).toLowerCase());
-  } catch {
-    return false;
-  }
+  return NATIVE_ASSET_IDS.has(assetId);
 }
 
 /**
- * Builds a native asset map from {@link NATIVE_ASSETS}, normalizing each
- * CAIP-19 ID (ERC-20 addresses become EIP-55 checksummed).
+ * Builds a native asset map from {@link NATIVE_ASSETS}.
  *
  * @returns A record mapping CAIP-2 chain IDs to their CAIP-19 native asset IDs.
  */
@@ -160,11 +148,7 @@ export function buildNativeAssetsFromConstant(): Record<
   ChainId,
   Caip19AssetId
 > {
-  const nativeAssetsMap: Record<ChainId, Caip19AssetId> = {};
-  for (const [chainId, nativeAssetId] of Object.entries(NATIVE_ASSETS)) {
-    nativeAssetsMap[chainId as ChainId] = normalizeAssetId(nativeAssetId);
-  }
-  return nativeAssetsMap;
+  return { ...NATIVE_ASSETS };
 }
 
 /**

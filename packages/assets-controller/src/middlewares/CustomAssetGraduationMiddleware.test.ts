@@ -423,22 +423,19 @@ describe('CustomAssetGraduationMiddleware', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('graduates a custom asset when the response uses a non-checksummed (lowercase) address', async () => {
-    // Regression: AccountActivityDataSource does not normalize asset IDs,
-    // so balances may arrive with lowercase addresses while customAssets
-    // state stores the checksummed form. Graduation must be robust to that.
-    const checksummedCustomAsset =
+  it('does not graduate when the response asset ID differs from the stored ID', async () => {
+    const storedCustomAsset =
       'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-    const lowercaseFromWebsocket =
+    const differentAssetId =
       'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 
     const { middleware, context, removeCustomAsset } = setup({
-      [MOCK_ACCOUNT_ID]: [checksummedCustomAsset],
+      [MOCK_ACCOUNT_ID]: [storedCustomAsset],
     });
     context.response = {
       assetsBalance: {
         [MOCK_ACCOUNT_ID]: {
-          [lowercaseFromWebsocket]: { amount: '1000' },
+          [differentAssetId]: { amount: '1000' },
         },
       },
     };
@@ -446,12 +443,7 @@ describe('CustomAssetGraduationMiddleware', () => {
 
     await middleware.assetsMiddleware(context, next);
 
-    expect(removeCustomAsset).toHaveBeenCalledTimes(1);
-    // Removal must use the canonical (checksummed) form stored in state.
-    expect(removeCustomAsset).toHaveBeenCalledWith(
-      MOCK_ACCOUNT_ID,
-      checksummedCustomAsset,
-    );
+    expect(removeCustomAsset).not.toHaveBeenCalled();
   });
 
   it('does not graduate when the matching balance is added by downstream middleware (e.g. RPC fallback)', async () => {

@@ -27,9 +27,6 @@ const CHAIN_MAINNET = 'eip155:1' as ChainId;
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
 const MOCK_TOKEN_ASSET =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
-// Same token as MOCK_TOKEN_ASSET, in the checksummed form state stores.
-const MOCK_TOKEN_ASSET_CHECKSUMMED =
-  'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 const MOCK_NATIVE_ASSET = 'eip155:1/slip44:60' as Caip19AssetId;
 const MOCK_BTC_ASSET =
   'bip122:000000000019d6689c085ae165831e93/slip44:0' as Caip19AssetId;
@@ -1106,7 +1103,7 @@ describe('TokenDataSource', () => {
     expect(next).toHaveBeenCalled();
   });
 
-  it('occurrenceFilterMiddleware keeps holdings already in state balances when the response uses a different address case', async () => {
+  it('occurrenceFilterMiddleware keeps holdings already in state balances', async () => {
     const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
@@ -1117,7 +1114,7 @@ describe('TokenDataSource', () => {
       getAssetsState: (): Partial<AssetsControllerState> => ({
         assetsBalance: {
           'mock-account-id': {
-            [MOCK_TOKEN_ASSET_CHECKSUMMED]: { amount: '42' },
+            [MOCK_TOKEN_ASSET]: { amount: '42' },
           },
         },
         assetsInfo: {},
@@ -1125,8 +1122,6 @@ describe('TokenDataSource', () => {
     });
 
     const next = vi.fn().mockResolvedValue(undefined);
-    // AccountActivity (websocket) delivers lower-case ERC-20 IDs, while state
-    // stores them checksummed — the same holding, different case.
     const context = createMiddlewareContext({
       request: createDataRequest({ dataTypes: ['balance'] }),
       response: {
@@ -1151,7 +1146,7 @@ describe('TokenDataSource', () => {
     ).toStrictEqual({ amount: '100' });
   });
 
-  it('occurrenceFilterMiddleware keeps holdings known only through state metadata when the response uses a different address case', async () => {
+  it('occurrenceFilterMiddleware keeps holdings known only through state metadata', async () => {
     const { controller } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
@@ -1162,7 +1157,7 @@ describe('TokenDataSource', () => {
       getAssetsState: (): Partial<AssetsControllerState> => ({
         assetsBalance: {},
         assetsInfo: {
-          [MOCK_TOKEN_ASSET_CHECKSUMMED]: {
+          [MOCK_TOKEN_ASSET]: {
             type: 'erc20',
             name: 'USD Coin',
             symbol: 'USDC',
@@ -1207,7 +1202,7 @@ describe('TokenDataSource', () => {
       getAssetsState: (): Partial<AssetsControllerState> => ({
         assetsBalance: {
           'mock-account-id': {
-            [MOCK_TOKEN_ASSET_CHECKSUMMED]: { amount: '0' },
+            [MOCK_TOKEN_ASSET]: { amount: '0' },
           },
         },
         assetsInfo: {},
@@ -1218,7 +1213,7 @@ describe('TokenDataSource', () => {
     const next = vi.fn().mockResolvedValue(undefined);
     // Graduation runs first and empties `customAssets`, so the exemption is
     // gone by the time this middleware reads state; the zero balance seeded
-    // by `addCustomAsset` (checksummed) is what marks the asset as known.
+    // by `addCustomAsset` is what marks the asset as known.
     const context = createMiddlewareContext({
       request: createDataRequest({ dataTypes: ['balance'] }),
       response: {
@@ -1242,7 +1237,7 @@ describe('TokenDataSource', () => {
     ).toStrictEqual({ amount: '100' });
   });
 
-  it('occurrenceFilterMiddleware exempts custom assets recorded in a different address case', async () => {
+  it('occurrenceFilterMiddleware exempts custom assets', async () => {
     const { controller } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
@@ -1253,7 +1248,7 @@ describe('TokenDataSource', () => {
       getAssetsState: (): Partial<AssetsControllerState> => ({
         assetsBalance: {},
         assetsInfo: {},
-        customAssets: { 'mock-account-id': [MOCK_TOKEN_ASSET_CHECKSUMMED] },
+        customAssets: { 'mock-account-id': [MOCK_TOKEN_ASSET] },
       }),
     });
 
@@ -1373,26 +1368,20 @@ describe('TokenDataSource', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('middleware bypasses occurrence filter for custom assets when state-stored ID is checksummed and API returns lower-case', async () => {
-    // State stores customs in normalized (checksummed) form; the V3 Tokens
-    // API can echo the same asset ID lower-cased. Without a case-insensitive
-    // bypass, the user's imported asset would fall through to the
-    // occurrence filter and be stripped from `response.assetsInfo`.
-    const checksummedCustomAsset =
+  it('middleware bypasses occurrence filter for custom assets', async () => {
+    const customAsset =
       'eip155:1/erc20:0xA0b86991c6218b36c1D19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-    const lowercaseCustomAsset =
-      'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
 
     const { controller } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
       assetsResponse: [
-        createMockAssetResponse(lowercaseCustomAsset, { occurrences: 1 }),
+        createMockAssetResponse(customAsset, { occurrences: 1 }),
       ],
       getAssetsState: (): Partial<AssetsControllerState> => ({
         assetsInfo: {},
         customAssets: {
-          'mock-account-id': [checksummedCustomAsset],
+          'mock-account-id': [customAsset],
         },
       }),
     });
@@ -1403,7 +1392,7 @@ describe('TokenDataSource', () => {
       response: {
         assetsBalance: {
           'mock-account-id': {
-            [checksummedCustomAsset]: { amount: '1' },
+            [customAsset]: { amount: '1' },
           },
         },
       },
@@ -1411,9 +1400,7 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    // Custom asset is preserved despite occurrences=1 because the
-    // user-imported bypass is case-insensitive.
-    expect(context.response.assetsInfo?.[lowercaseCustomAsset]).toBeDefined();
+    expect(context.response.assetsInfo?.[customAsset]).toBeDefined();
   });
 
   it.each([
@@ -1421,7 +1408,7 @@ describe('TokenDataSource', () => {
     { occurrences: undefined, label: 'no occurrences' },
   ])('middleware keeps MUSD token despite $label', async ({ occurrences }) => {
     const musdAsset =
-      'eip155:1/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da' as Caip19AssetId;
+      'eip155:1/erc20:0xacA92E438df0B2401fF60dA7E4337B687a2435DA' as Caip19AssetId;
 
     const { controller } = setupController({
       messenger: createTestMessenger(),

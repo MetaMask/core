@@ -3,6 +3,10 @@ import type { V3AssetResponse } from '@metamask/core-backend';
 import type { Json } from '@metamask/utils';
 import nock from 'nock';
 
+import {
+  checksumAssetId,
+  withChecksummedPrice,
+} from '../../checksumAssetId.js';
 import accountsV2SupportedNetworks from './accounts-api/v2-supportedNetworks.js';
 import pricesV2SupportedNetworks from './price-api/v2-supportedNetworks.js';
 import v3SpotPrices from './price-api/v3-spot-prices.js';
@@ -79,7 +83,7 @@ function mockSuggestedOccurrenceFloors(): nock.Scope {
 
 /**
  * Intercept `GET {TOKENS}/v3/assets`, answering each batch from the captured
- * per-asset entries with the API's lower-case `assetId` echo.
+ * per-asset entries with a checksummed `assetId`.
  *
  * @returns The nock scope and the asset IDs each request asked about.
  */
@@ -113,7 +117,7 @@ function mockPricesSupportedNetworks(): nock.Scope {
 
 /**
  * Intercept `GET {PRICES}/v3/spot-prices`, answering from the captured prices
- * with the API's lower-case keying.
+ * and keying each entry by its checksummed asset ID.
  *
  * @returns The nock scope and the asset IDs each request asked about.
  */
@@ -130,10 +134,12 @@ function mockV3SpotPrices(): BatchRecordingMock {
 
       const prices: Record<string, Json> = {};
       for (const assetId of assetIds) {
-        const lowerId = assetId.toLowerCase();
-        const captured = V3_SPOT_PRICES_BY_LOWER_ID[lowerId];
+        const captured = V3_SPOT_PRICES_BY_LOWER_ID[assetId.toLowerCase()];
         if (captured !== undefined) {
-          prices[lowerId] = captured;
+          prices[checksumAssetId(assetId)] = withChecksummedPrice(
+            captured,
+            assetId,
+          );
         }
       }
       return prices;
@@ -187,9 +193,12 @@ function readListParam(uri: string, param: string, base: string): string[] {
  * @returns The captured entry, or an empty stub.
  */
 function lookupAsset(assetId: string): V3AssetResponse {
+  const canonicalId = checksumAssetId(assetId);
   const captured = V3_ASSETS_BY_LOWER_ID[assetId.toLowerCase()];
   if (captured) {
-    return captured;
+    return captured.assetId === canonicalId
+      ? captured
+      : { ...captured, assetId: canonicalId };
   }
   return {
     symbol: '',
@@ -197,6 +206,6 @@ function lookupAsset(assetId: string): V3AssetResponse {
     decimals: null,
     address: assetId.split(':').pop() ?? assetId,
     type: 'erc20',
-    assetId: assetId.toLowerCase(),
+    assetId: canonicalId,
   } as unknown as V3AssetResponse;
 }

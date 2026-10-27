@@ -40,7 +40,6 @@ import type {
 import type { GetAssetVisibility } from '../utils/assetVisibility.js';
 import { ZERO_ADDRESS } from '../utils/constants.js';
 import { filterFailedChainBalances } from '../utils/filterFailedChainBalances.js';
-import { normalizeAssetId } from '../utils/index.js';
 import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   DataSourceState,
@@ -313,7 +312,7 @@ export class RpcDataSource extends AbstractDataSource<
       isNativeAsset: (assetId: Caip19AssetId): boolean => {
         const { chainId } = parseCaipAssetType(assetId);
         const nativeId = this.#getNativeAssetForChain(chainId);
-        return nativeId?.toLowerCase() === assetId.toLowerCase();
+        return nativeId === assetId;
       },
       isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
       getAssetVisibility: this.#getAssetVisibility,
@@ -402,7 +401,7 @@ export class RpcDataSource extends AbstractDataSource<
       const existingMeta = existingMetadata[balance.assetId];
       const isNative =
         existingMeta?.type === 'native' ||
-        balance.assetId.toLowerCase() === nativeAssetId?.toLowerCase() ||
+        balance.assetId === nativeAssetId ||
         this.#getAssetType(balance.assetId) === 'native';
 
       if (isNative && !this.#hasValidDecimals(existingMeta)) {
@@ -500,22 +499,16 @@ export class RpcDataSource extends AbstractDataSource<
     const chainIdDecimal = parseInt(result.chainId, 16);
     const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
 
-    // Normalize asset IDs from BalanceFetcher (lowercase) to checksummed form
-    const normalizedBalances = result.balances.map((b) => ({
-      ...b,
-      assetId: normalizeAssetId(b.assetId),
-    }));
-
     // Collect metadata for all balances
     const assetsInfo = this.#collectMetadataForBalances(
-      normalizedBalances,
+      result.balances,
       caipChainId,
     );
 
     // Convert balances to human-readable format.
     // Resolution: state metadata → pipeline metadata; skip if decimals unknown.
     const existingMetadata = this.#getExistingAssetsMetadata();
-    for (const balance of normalizedBalances) {
+    for (const balance of result.balances) {
       const stateMetadata = existingMetadata[balance.assetId];
       const pipelineMetadata = assetsInfo[balance.assetId];
       const decimals = this.#pickValidDecimals(stateMetadata, pipelineMetadata);
@@ -579,15 +572,9 @@ export class RpcDataSource extends AbstractDataSource<
     const chainIdDecimal = parseInt(result.chainId, 16);
     const caipChainId = `eip155:${chainIdDecimal}` as ChainId;
 
-    // Normalize asset IDs from BalanceFetcher (lowercase) to checksummed form
-    const normalizedBalances = result.balances.map((b) => ({
-      ...b,
-      assetId: normalizeAssetId(b.assetId),
-    }));
-
     // Collect metadata for all balances
     const assetsInfo = this.#collectMetadataForBalances(
-      normalizedBalances,
+      result.balances,
       caipChainId,
     );
 
@@ -599,7 +586,7 @@ export class RpcDataSource extends AbstractDataSource<
     );
     const handledAssetKeys = new Set<string>();
     const existingMetadata = this.#getExistingAssetsMetadata();
-    for (const balance of normalizedBalances) {
+    for (const balance of result.balances) {
       if (
         this.#isUnheldInvisibleAsset(
           balance.assetId,
@@ -607,7 +594,7 @@ export class RpcDataSource extends AbstractDataSource<
           visibleAssetKeys,
         )
       ) {
-        handledAssetKeys.add(balance.assetId.toLowerCase());
+        handledAssetKeys.add(balance.assetId);
         continue;
       }
 
@@ -627,7 +614,7 @@ export class RpcDataSource extends AbstractDataSource<
       newBalances[balance.assetId] = {
         amount: humanReadableAmount,
       };
-      handledAssetKeys.add(balance.assetId.toLowerCase());
+      handledAssetKeys.add(balance.assetId);
     }
 
     if (handledAssetKeys.size === 0) {
@@ -639,10 +626,7 @@ export class RpcDataSource extends AbstractDataSource<
     const unresolved = this.#getAssetsToFetchV6(
       result.accountId,
       caipChainId,
-    ).filter(
-      (entry) =>
-        !handledAssetKeys.has(normalizeAssetId(entry.assetId).toLowerCase()),
-    );
+    ).filter((entry) => !handledAssetKeys.has(entry.assetId));
     this.#carryOverUnresolvedBalances({
       unresolved,
       accountId: result.accountId,
@@ -1263,10 +1247,7 @@ export class RpcDataSource extends AbstractDataSource<
             visibleAssetKeys,
           );
           const unresolved = assetsToFetch.filter(
-            (entry) =>
-              !handledAssetKeys.has(
-                normalizeAssetId(entry.assetId).toLowerCase(),
-              ),
+            (entry) => !handledAssetKeys.has(entry.assetId),
           );
 
           if (unresolved.length === 0) {
@@ -1339,19 +1320,19 @@ export class RpcDataSource extends AbstractDataSource<
   }
 
   /**
-   * Lowercased visible asset IDs (native, pins, default tracked) for one
-   * account-chain scope, for membership checks against normalized IDs.
+   * Visible asset IDs (native, pins, default tracked) for one account-chain
+   * scope.
    *
    * @param accountId - Account being fetched.
    * @param chainId - Chain being fetched.
-   * @returns Lookup keys for the visible set.
+   * @returns Visible asset IDs.
    */
   #getVisibleAssetKeys(accountId: string, chainId: ChainId): Set<string> {
     const { visibleAssetIds } = this.#getAssetVisibility(
       [accountId],
       [chainId],
     );
-    return new Set(visibleAssetIds.map((assetId) => assetId.toLowerCase()));
+    return new Set(visibleAssetIds);
   }
 
   /**
@@ -1363,9 +1344,9 @@ export class RpcDataSource extends AbstractDataSource<
    * omission drops it instead. Visible assets (native, pins, default tracked)
    * are always written, at zero when the account holds none.
    *
-   * @param assetId - Normalized CAIP-19 asset ID.
+   * @param assetId - CAIP-19 asset ID.
    * @param rawBalance - Raw on-chain amount as returned by the fetcher.
-   * @param visibleAssetKeys - Lowercased visible IDs for this account-chain.
+   * @param visibleAssetKeys - Visible IDs for this account-chain.
    * @returns True when the asset should be omitted from the snapshot.
    */
   #isUnheldInvisibleAsset(
@@ -1373,7 +1354,7 @@ export class RpcDataSource extends AbstractDataSource<
     rawBalance: string,
     visibleAssetKeys: Set<string>,
   ): boolean {
-    return rawBalance === '0' && !visibleAssetKeys.has(assetId.toLowerCase());
+    return rawBalance === '0' && !visibleAssetKeys.has(assetId);
   }
 
   /**
@@ -1387,11 +1368,11 @@ export class RpcDataSource extends AbstractDataSource<
    * @param chainId - The CAIP-2 chain ID.
    * @param assetsBalance - Accumulator for converted balances.
    * @param assetsInfo - Accumulator for metadata collected from this fetch.
-   * @param visibleAssetKeys - Lowercased visible IDs (v6 only). When given,
-   * zero balances for assets outside the set are left out of the snapshot.
-   * @returns Lowercased IDs this pass settled: written, or deliberately left
-   * out as an unheld invisible asset. Anything requested but missing from the
-   * set failed and still needs its previous amount.
+   * @param visibleAssetKeys - Visible IDs (v6 only). When given, zero balances
+   * for assets outside the set are left out of the snapshot.
+   * @returns IDs this pass settled: written, or deliberately left out as an
+   * unheld invisible asset. Anything requested but missing from the set failed
+   * and still needs its previous amount.
    */
   async #ingestFetchedBalances(
     result: BalanceFetchResult,
@@ -1403,19 +1384,14 @@ export class RpcDataSource extends AbstractDataSource<
   ): Promise<Set<string>> {
     assetsBalance[accountId] ??= {};
 
-    const normalizedBalances = result.balances.map((balance) => ({
-      ...balance,
-      assetId: normalizeAssetId(balance.assetId),
-    }));
-
     Object.assign(
       assetsInfo,
-      this.#collectMetadataForBalances(normalizedBalances, chainId),
+      this.#collectMetadataForBalances(result.balances, chainId),
     );
 
     const handledAssetKeys = new Set<string>();
     const existingMetadata = this.#getExistingAssetsMetadata();
-    for (const balance of normalizedBalances) {
+    for (const balance of result.balances) {
       if (
         visibleAssetKeys &&
         this.#isUnheldInvisibleAsset(
@@ -1429,7 +1405,7 @@ export class RpcDataSource extends AbstractDataSource<
           chainId,
           assetId: balance.assetId,
         });
-        handledAssetKeys.add(balance.assetId.toLowerCase());
+        handledAssetKeys.add(balance.assetId);
         continue;
       }
 
@@ -1462,7 +1438,7 @@ export class RpcDataSource extends AbstractDataSource<
       assetsBalance[accountId][balance.assetId] = {
         amount: this.#convertToHumanReadable(balance.balance, decimals),
       };
-      handledAssetKeys.add(balance.assetId.toLowerCase());
+      handledAssetKeys.add(balance.assetId);
     }
 
     return handledAssetKeys;
@@ -1483,7 +1459,7 @@ export class RpcDataSource extends AbstractDataSource<
    * @param options.accountId - Account being fetched.
    * @param options.chainId - Chain being fetched.
    * @param options.balances - Balance map for this account, mutated in place.
-   * @param options.visibleAssetKeys - Lowercased visible IDs for this scope.
+   * @param options.visibleAssetKeys - Visible IDs for this scope.
    */
   #carryOverUnresolvedBalances({
     unresolved,
@@ -1500,25 +1476,18 @@ export class RpcDataSource extends AbstractDataSource<
   }): void {
     const previousBalances =
       this.#getAssetsState().assetsBalance[accountId] ?? {};
-    const previousByKey = new Map(
-      Object.entries(previousBalances).map(([assetId, balance]) => [
-        assetId.toLowerCase(),
-        balance,
-      ]),
-    );
 
     for (const entry of unresolved) {
-      const assetId = normalizeAssetId(entry.assetId);
-      const key = assetId.toLowerCase();
+      const { assetId } = entry;
       if (balances[assetId] !== undefined) {
         continue;
       }
 
-      const previous = previousByKey.get(key);
+      const previous = previousBalances[assetId];
       if (previous === undefined) {
         continue;
       }
-      if (!visibleAssetKeys.has(key) && Number(previous.amount) === 0) {
+      if (!visibleAssetKeys.has(assetId) && Number(previous.amount) === 0) {
         continue;
       }
 
@@ -1984,8 +1953,7 @@ export class RpcDataSource extends AbstractDataSource<
             this.#getAssetType(assetId) === 'erc20'
           ) {
             const tokenAddress = parsed.assetReference.toLowerCase() as Address;
-            const normalizedId = normalizeAssetId(assetId);
-            const decimals = existingMetadata[normalizedId]?.decimals;
+            const decimals = existingMetadata[assetId]?.decimals;
 
             assetsToFetch.push({
               assetId,
@@ -2059,22 +2027,21 @@ export class RpcDataSource extends AbstractDataSource<
       try {
         const parsed = parseCaipAssetType(assetId);
         const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
-        const normalizedId = normalizeAssetId(assetId);
         if (
-          hidden.has(normalizedId) ||
+          hidden.has(assetId) ||
           isStakingContractAssetId(assetId) ||
           assetChainId !== chainId ||
           this.#getAssetType(assetId) !== 'erc20' ||
-          seen.has(normalizedId)
+          seen.has(assetId)
         ) {
           continue;
         }
 
-        seen.add(normalizedId);
+        seen.add(assetId);
         assetsToFetch.push({
           assetId,
           address: parsed.assetReference.toLowerCase() as Address,
-          decimals: assetsInfo[normalizedId]?.decimals,
+          decimals: assetsInfo[assetId]?.decimals,
         });
       } catch {
         // Skip unparseable asset IDs

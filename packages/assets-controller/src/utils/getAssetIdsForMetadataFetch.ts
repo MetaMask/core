@@ -25,8 +25,8 @@ export type GetAssetIdsForMetadataFetchResult = {
   /** Asset IDs that still need metadata fetched. */
   assetIdsNeedingMetadata: Set<string>;
   /**
-   * Lower-case asset IDs that must skip spam filtering (state balance heals
-   * and response balances already known in state).
+   * Asset IDs that must skip spam filtering (state balance heals and response
+   * balances already known in state).
    */
   balanceHealAssetIds: Set<string>;
 };
@@ -56,15 +56,13 @@ export function getAssetIdsForMetadataFetch({
   const accountFilter = buildAccountFilter(request);
   const chainFilter = buildChainFilter(request);
   const hiddenAssetIds = collectHiddenAssetIdKeys(state.assetPreferences);
-  const knownMetadataIds = new Set(
-    Object.keys(stateMetadata).map((assetId) => assetId.toLowerCase()),
-  );
+  const knownMetadataIds = new Set(Object.keys(stateMetadata));
   const assetIdsNeedingMetadata = new Set<string>();
   const balanceHealAssetIds = new Set<string>();
   const stateBalanceIds = new Set<string>();
 
   const needsMetadata = (assetId: string): boolean => {
-    if (hiddenAssetIds.has(assetId.toLowerCase())) {
+    if (hiddenAssetIds.has(assetId)) {
       return false;
     }
     if (
@@ -97,12 +95,12 @@ export function getAssetIdsForMetadataFetch({
       continue;
     }
     for (const assetId of Object.keys(accountBalances)) {
-      stateBalanceIds.add(assetId.toLowerCase());
+      stateBalanceIds.add(assetId);
       if (!inRequestChains(assetId) || !needsMetadata(assetId)) {
         continue;
       }
       assetIdsNeedingMetadata.add(assetId);
-      balanceHealAssetIds.add(assetId.toLowerCase());
+      balanceHealAssetIds.add(assetId);
     }
   }
 
@@ -112,9 +110,8 @@ export function getAssetIdsForMetadataFetch({
         continue;
       }
       assetIdsNeedingMetadata.add(assetId);
-      const lowerId = assetId.toLowerCase();
-      if (stateBalanceIds.has(lowerId) || knownMetadataIds.has(lowerId)) {
-        balanceHealAssetIds.add(lowerId);
+      if (stateBalanceIds.has(assetId) || knownMetadataIds.has(assetId)) {
+        balanceHealAssetIds.add(assetId);
       }
     }
   }
@@ -196,10 +193,10 @@ function buildChainFilter(
 }
 
 /**
- * Lower-case keys of assets the user has marked hidden.
+ * Keys of assets the user has marked hidden.
  *
  * @param assetPreferences - Preference map from controller state.
- * @returns Set of lower-case asset ID keys.
+ * @returns Set of hidden asset IDs.
  */
 function collectHiddenAssetIdKeys(
   assetPreferences: AssetsControllerState['assetPreferences'] | undefined,
@@ -207,6 +204,6 @@ function collectHiddenAssetIdKeys(
   return new Set(
     Object.entries(assetPreferences ?? {})
       .filter(([, preferences]) => preferences.hidden)
-      .map(([assetId]) => assetId.toLowerCase()),
+      .map(([assetId]) => assetId),
   );
 }

@@ -553,8 +553,7 @@ describe('TokenDetector', () => {
 
           expect(result.detectedAssets).toHaveLength(1);
           expect(result.detectedAssets[0]).toStrictEqual({
-            assetId:
-              'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            assetId: `eip155:1/erc20:${TEST_TOKEN_1}`,
             chainId: MAINNET_CHAIN_ID,
             address: TEST_TOKEN_1,
             type: 'erc20',
@@ -1135,7 +1134,7 @@ describe('TokenDetector', () => {
           );
 
           expect(result.detectedAssets[0].assetId).toBe(
-            'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            `eip155:1/erc20:${TEST_TOKEN_1}`,
           );
         },
       );
@@ -1173,7 +1172,7 @@ describe('TokenDetector', () => {
           );
 
           expect(result.detectedAssets[0].assetId).toBe(
-            'eip155:137/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+            `eip155:137/erc20:${TEST_TOKEN_1}`,
           );
         },
       );

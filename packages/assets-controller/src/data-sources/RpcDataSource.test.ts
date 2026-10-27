@@ -22,7 +22,6 @@ import { getDefaultTrackedAssetsForChain } from '../defaults.js';
 import type { Caip19AssetId, ChainId, DataRequest, Context } from '../types.js';
 import type { AssetVisibility } from '../utils/assetVisibility.js';
 import { getAssetVisibility } from '../utils/assetVisibility.js';
-import { normalizeAssetId } from '../utils/index.js';
 import { BalanceFetcher, TokenDetector } from './evm-rpc-services/index.js';
 import type {
   BalanceFetchResult,
@@ -790,9 +789,7 @@ describe('RpcDataSource', () => {
             response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[nativeAssetId],
           ).toStrictEqual({ amount: '1' });
           expect(
-            response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[
-              normalizeAssetId(erc20AssetId)
-            ],
+            response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[erc20AssetId],
           ).toStrictEqual({ amount: '7' });
         },
       );
@@ -802,7 +799,6 @@ describe('RpcDataSource', () => {
       const nativeAssetId = 'eip155:1/slip44:60' as Caip19AssetId;
       const erc20AssetId =
         'eip155:1/erc20:0xAbc0000000000000000000000000000000000001' as Caip19AssetId;
-      const normalizedErc20Id = normalizeAssetId(erc20AssetId);
       const Web3ProviderMocked = vi.mocked(Web3Provider);
       Web3ProviderMocked.mockImplementationOnce(function () {
         return {
@@ -846,7 +842,7 @@ describe('RpcDataSource', () => {
           response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[nativeAssetId],
         ).toStrictEqual({ amount: '1' });
         expect(
-          response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[normalizedErc20Id],
+          response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[erc20AssetId],
         ).toBeUndefined();
       });
     });
@@ -2080,7 +2076,6 @@ describe('RpcDataSource', () => {
     it('uses existing metadata from AssetsController state for ERC20 (#getExistingAssetsMetadata)', async () => {
       const erc20AssetId =
         'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
-      const normalizedId = normalizeAssetId(erc20AssetId);
       const existingMetadata = {
         type: 'erc20' as const,
         symbol: 'FROM_STATE',
@@ -2103,7 +2098,7 @@ describe('RpcDataSource', () => {
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
-              assetsInfo: { [normalizedId]: existingMetadata },
+              assetsInfo: { [erc20AssetId]: existingMetadata },
             }),
           },
         },
@@ -2132,10 +2127,10 @@ describe('RpcDataSource', () => {
       const [response] = onAssetsUpdate.mock.calls[0];
       // Existing ERC-20 metadata is already in state; the response must not
       // re-emit it to avoid overwriting richer entries with stale data.
-      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
+      expect(response.assetsInfo?.[erc20AssetId]).toBeUndefined();
       // The balance must still be computed correctly via stateMetadata decimals.
       expect(
-        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[normalizedId],
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[erc20AssetId],
       ).toStrictEqual({ amount: '1' });
     });
 
@@ -2307,7 +2302,7 @@ describe('RpcDataSource', () => {
           assetsBalance: {
             [MOCK_ACCOUNT_ID]: {
               [nativeAssetId]: { amount: '1' },
-              [normalizeAssetId(erc20AssetId)]: { amount: '7' },
+              [erc20AssetId]: { amount: '7' },
             },
           },
         }),
@@ -2578,7 +2573,6 @@ describe('RpcDataSource', () => {
     it('omits unknown ERC-20 from assetsInfo when not in existing state', async () => {
       const tokenAddress = '0xAbc0000000000000000000000000000000000001';
       const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
-      const normalizedId = normalizeAssetId(erc20AssetId);
       let balanceUpdateCallback:
         | ((result: BalanceFetchResult) => void | Promise<void>)
         | null = null;
@@ -2620,13 +2614,12 @@ describe('RpcDataSource', () => {
       );
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
+      expect(response.assetsInfo?.[erc20AssetId]).toBeUndefined();
     });
 
     it('omits assetsBalance when ERC20 state metadata has no decimals and on-chain decimals resolve to falsy', async () => {
       const tokenAddress = '0xAbc0000000000000000000000000000000000999';
       const erc20AssetId = `eip155:1/erc20:${tokenAddress}` as Caip19AssetId;
-      const normalizedId = normalizeAssetId(erc20AssetId);
 
       let balanceUpdateCallback:
         | ((result: BalanceFetchResult) => void | Promise<void>)
@@ -2645,7 +2638,7 @@ describe('RpcDataSource', () => {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
               assetsInfo: {
-                [normalizedId]: {
+                [erc20AssetId]: {
                   type: 'erc20',
                   symbol: 'PART',
                   name: 'Partial Meta',
@@ -2677,7 +2670,7 @@ describe('RpcDataSource', () => {
       expect(onAssetsUpdate).toHaveBeenCalled();
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(
-        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[normalizedId],
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[erc20AssetId],
       ).toBeUndefined();
     });
   });

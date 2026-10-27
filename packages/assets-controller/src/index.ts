@@ -176,7 +176,6 @@ export type {
 
 // Utilities
 export {
-  normalizeAssetId,
   formatExchangeRatesForBridge,
   formatStateForTransactionPay,
 } from './utils/index.js';

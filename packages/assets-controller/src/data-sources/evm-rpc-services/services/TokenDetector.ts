@@ -530,7 +530,7 @@ export class TokenDetector extends StaticIntervalPollingControllerOnly<Detection
     const chainIdDecimal = parseInt(chainId, 16);
 
     const assetId =
-      `eip155:${chainIdDecimal}/erc20:${tokenAddress.toLowerCase()}` as CaipAssetType;
+      `eip155:${chainIdDecimal}/erc20:${tokenAddress}` as CaipAssetType;
 
     return {
       assetId,

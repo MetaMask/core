@@ -11,11 +11,7 @@ import type {
  *
  * Must be checksummed so that the CAIP-19 asset IDs produced by
  * `musdAssetId()` (and therefore the keys seeded into `assetsInfo` by
- * `buildDefaultAssetsInfo()`) match the keys written by data sources, which
- * always pass IDs through `normalizeAssetId` → `toChecksumAddress` before
- * emitting a `DataResponse`. Using a lowercase address would cause the
- * pre-seeded keys to diverge from the data-source keys, leaving a duplicate
- * entry in `assetsInfo` after the first balance or token-data poll.
+ * `buildDefaultAssetsInfo()`) match the asset IDs data sources return.
  */
 const MUSD_ADDRESS = '0xacA92E438df0B2401fF60dA7E4337B687a2435DA';
 
@@ -85,8 +81,7 @@ export const CHAINS_WITH_DEFAULT_TRACKED_ASSETS: ReadonlySet<ChainId> = new Set(
 
 /**
  * Pre-seeded metadata for every default tracked asset, keyed by the
- * checksummed CAIP-19 id. All callers must pass a checksummed asset ID;
- * use `normalizeAssetId` to ensure the correct format before looking up.
+ * checksummed CAIP-19 id. Callers pass that same asset ID.
  */
 export const DEFAULT_ASSET_METADATA: ReadonlyMap<string, AssetMetadata> =
   new Map<string, AssetMetadata>([
