@@ -4364,9 +4364,6 @@
     },
     "typescript/no-unsafe-argument": {
       "count": 5
-    },
-    "vitest/no-conditional-in-test": {
-      "count": 4
     }
   },
   "packages/profile-sync-controller/src/sdk/user-storage.ts": {
