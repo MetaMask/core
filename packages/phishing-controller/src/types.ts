@@ -228,6 +228,7 @@ export const DEFAULT_CHAIN_ID_TO_NAME = {
   '0x18232': 'plume',
   '0x93e': 'kite-ai',
   '0x279f': 'monad-testnet',
+  '0x32': 'xdc',
   solana: 'solana',
   starknet: 'starknet',
   'starknet-sepolia': 'starknet-sepolia',
