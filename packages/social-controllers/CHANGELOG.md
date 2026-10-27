@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `flags` to `Position`, so open positions, closed positions, position-by-id, and feed items (including realtime hydration) can carry an open list of server flags. `insider` (`INSIDER_POSITION_FLAG`) marks a Codex insider wallet/token pair that is excluded from the trader's realized PnL and must not be copy-traded. `developer` (`DEVELOPER_POSITION_FLAG`) is also a known flag. Unrecognized flag strings are preserved, `null` is accepted, and responses that omit `flags` still validate ([#11097](https://github.com/MetaMask/core/pull/11097))
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
 ## [3.12.1]
 
 ### Changed

@@ -79,7 +79,7 @@
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^12.0.0",
+    "@metamask/utils": "^12.0.1",
     "@nktkas/hyperliquid": "^0.33.3",
     "bignumber.js": "^9.1.2",
     "reselect": "^5.3.0",
