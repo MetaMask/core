@@ -1,4 +1,3 @@
-import type { Infer } from '@metamask/superstruct';
 import {
   array,
   assign,
@@ -12,7 +11,6 @@ import {
   record,
   string,
   type as structType,
-  unknown as unknownStruct,
   union,
 } from '@metamask/superstruct';
 
@@ -38,6 +36,8 @@ const FeedActorStruct = assign(
   structType({
     winRate30d: optional(nullable(number())),
     pnl30d: optional(nullable(number())),
+    volumeUsd30d: optional(nullable(number())),
+    volumeUsd7d: optional(nullable(number())),
     tradeCount30d: optional(nullable(number())),
     followerCount: optional(nullable(number())),
   }),
@@ -183,38 +183,11 @@ export const parseFeedResponse = (
   };
 };
 
-const RealtimeFeedTradeStruct = structType({
-  intent: enums(['enter', 'exit']),
-  comments: array(record(string(), unknownStruct())),
-});
-
-const RealtimeFeedItemStruct = structType({
-  itemId: string(),
-  timestamp: number(),
-  cardLatestTradeAt: number(),
-  actor: structType({
-    type: literal('user'),
-    address: string(),
-    name: string(),
-    images: record(string(), unknownStruct()),
-    profile: structType({
-      id: string(),
-      metadata: record(string(), unknownStruct()),
-    }),
-  }),
-  metadata: structType({
-    tokenChain: string(),
-    tokenAddress: string(),
-    trades: array(RealtimeFeedTradeStruct),
-  }),
-});
-
-export type SocialRealtimeFeedItem = Infer<typeof RealtimeFeedItemStruct>;
-
-export const parseSocialRealtimeFeedItem = (
-  value: unknown,
-): SocialRealtimeFeedItem | undefined =>
-  is(value, RealtimeFeedItemStruct) ? value : undefined;
+export {
+  normalizeRealtimeFeedItem,
+  parseRealtimeFeedItem,
+} from './realtime-feed-item.js';
+export type { RealtimeFeedEventData } from './realtime-feed-item.js';
 
 export const TraderProfileStruct = structType({
   profileId: string(),
@@ -283,6 +256,8 @@ const LeaderboardEntryStruct = structType({
   winRate7d: optional(nullable(number())),
   roiPercent7d: optional(nullable(number())),
   tradeCount7d: optional(nullable(number())),
+  volumeUsd30d: optional(nullable(number())),
+  volumeUsd7d: optional(nullable(number())),
   pnlPerChain: record(string(), number()),
   followerCount: number(),
   socialHandles: SocialHandlesStruct,

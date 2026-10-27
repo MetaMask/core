@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
 ## [1.0.4]
 
 ### Changed
@@ -223,7 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `generateMessageForClaimSignature`: generate message to sign for the claim signature.
   - `verifyClaimSignature`: verify claim signature produced by user.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.4...@metamask/claims-controller@1.1.0
 [1.0.4]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.3...@metamask/claims-controller@1.0.4
 [1.0.3]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.2...@metamask/claims-controller@1.0.3
 [1.0.2]: https://github.com/MetaMask/core/compare/@metamask/claims-controller@1.0.1...@metamask/claims-controller@1.0.2

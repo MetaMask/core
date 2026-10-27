@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^27.1.0` to `^27.2.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [30.2.0]
+
+### Added
+
 - Support Predict withdraw in `ServerStrategy` ([#10702](https://github.com/MetaMask/core/pull/10702))
   - Polymarket deposit wallet withdrawals unwrap directly to a provider deposit address, then sweep any leftover or refunded USDC.e back into the deposit wallet.
   - Polymarket deposit wallet withdrawals have no source network fee, as the Polymarket relayer pays origin gas.
@@ -1729,7 +1739,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.2.0...HEAD
+[30.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.1.0...@metamask/transaction-pay-controller@30.2.0
 [30.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.3...@metamask/transaction-pay-controller@30.1.0
 [30.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.2...@metamask/transaction-pay-controller@30.0.3
 [30.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.1...@metamask/transaction-pay-controller@30.0.2

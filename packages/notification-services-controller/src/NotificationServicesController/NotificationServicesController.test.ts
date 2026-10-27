@@ -21,6 +21,8 @@ import type {
 import { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 import type nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
 import type {
   NotificationServicesPushControllerAddPushNotificationLinksAction,
@@ -82,10 +84,10 @@ const featureAnnouncementsEnv = {
 };
 
 // Testing util to clean up verbose logs when testing errors
-const mockErrorLog = (): jest.SpyInstance =>
-  jest.spyOn(log, 'error').mockImplementation(jest.fn());
-const mockWarnLog = (): jest.SpyInstance =>
-  jest.spyOn(log, 'warn').mockImplementation(jest.fn());
+const mockErrorLog = (): MockInstance =>
+  vi.spyOn(log, 'error').mockImplementation(vi.fn());
+const mockWarnLog = (): MockInstance =>
+  vi.spyOn(log, 'warn').mockImplementation(vi.fn());
 
 // Removing caches to avoid interference
 const clearAPICache = (): void => {
@@ -159,9 +161,9 @@ describe('NotificationServicesController', () => {
   describe('init', () => {
     const arrangeMocks = (): ReturnType<typeof mockNotificationMessenger> => {
       const messengerMocks = mockNotificationMessenger();
-      jest
-        .spyOn(ControllerUtils, 'toChecksumHexAddress')
-        .mockImplementation((address) => address);
+      vi.spyOn(ControllerUtils, 'toChecksumHexAddress').mockImplementation(
+        (address) => address,
+      );
 
       return messengerMocks;
     };
@@ -182,11 +184,11 @@ describe('NotificationServicesController', () => {
 
     describe('KeyringController:stateChange (debounced)', () => {
       beforeEach(() => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
       });
 
       afterEach(() => {
-        jest.useRealTimers();
+        vi.useRealTimers();
       });
 
       const arrangeActAssertKeyringTest = async (
@@ -197,10 +199,10 @@ describe('NotificationServicesController', () => {
           addressesEvents: string[][],
           assertion: () => void,
         ) => Promise<void>;
-        mockEnable: jest.SpyInstance;
-        mockDisable: jest.SpyInstance;
-        mockAddPushNotificationLinks: jest.Mock;
-        mockDeletePushNotificationLinks: jest.Mock;
+        mockEnable: MockInstance;
+        mockDisable: MockInstance;
+        mockAddPushNotificationLinks: Mock;
+        mockDeletePushNotificationLinks: Mock;
       }> => {
         const mocks = arrangeMocks();
         const {
@@ -234,12 +236,12 @@ describe('NotificationServicesController', () => {
           },
         });
         controller.init();
-        await jest.advanceTimersByTimeAsync(ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS);
+        await vi.advanceTimersByTimeAsync(ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS);
 
-        const mockEnable = jest
+        const mockEnable = vi
           .spyOn(controller, 'enableAccounts')
           .mockResolvedValue();
-        const mockDisable = jest
+        const mockDisable = vi
           .spyOn(controller, 'disableAccounts')
           .mockResolvedValue();
 
@@ -269,7 +271,7 @@ describe('NotificationServicesController', () => {
           mockKeyringState(addresses);
 
           await actPublishKeyringStateChange(globalMessenger, addresses);
-          await jest.advanceTimersByTimeAsync(ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS);
+          await vi.advanceTimersByTimeAsync(ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS);
           assertion();
 
           // Cleanup mocks for next act/assert
@@ -285,7 +287,7 @@ describe('NotificationServicesController', () => {
             await actPublishKeyringStateChange(globalMessenger, addresses);
           }
 
-          await jest.advanceTimersByTimeAsync(ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS);
+          await vi.advanceTimersByTimeAsync(ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS);
           assertion();
 
           // Cleanup mocks for next act/assert
@@ -420,7 +422,7 @@ describe('NotificationServicesController', () => {
     const arrangeActInitialisePushNotifications = (
       modifications?: (mocks: ReturnType<typeof arrangeMocks>) => void,
     ): ReturnType<typeof arrangeMocks> & {
-      mockAPIGetNotificationConfig: jest.Mock;
+      mockAPIGetNotificationConfig: Mock;
     } => {
       // Arrange
       const mocks = arrangeMocks();
@@ -488,7 +490,7 @@ describe('NotificationServicesController', () => {
       });
 
       // Test Wallet Unlock
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       mockKeyringControllerGetState.mockReturnValue({
         isUnlocked: true,
         keyrings: [
@@ -517,7 +519,7 @@ describe('NotificationServicesController', () => {
       });
       controller.init();
 
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(controller, 'fetchAndUpdateMetamaskNotifications')
         .mockImplementationOnce(
           () =>
@@ -625,10 +627,10 @@ describe('NotificationServicesController', () => {
 
   describe('createOnChainTriggers', () => {
     const arrangeMocks = (overrides?: {
-      configurePrefs?: (mock: jest.Mock) => void;
+      configurePrefs?: (mock: Mock) => void;
     }): ReturnType<typeof mockNotificationMessenger> & {
-      mockGetConfig: jest.Mock;
-      mockUpdateNotifications: jest.Mock;
+      mockGetConfig: Mock;
+      mockUpdateNotifications: Mock;
     } => {
       const messengerMocks = mockNotificationMessenger();
       const mockGetConfig = messengerMocks.mockGetNotificationPreferences;
@@ -2013,10 +2015,10 @@ describe('NotificationServicesController', () => {
 
   describe('enableMetamaskNotifications', () => {
     const arrangeMocks = (overrides?: {
-      configurePrefs?: (mock: jest.Mock) => void;
+      configurePrefs?: (mock: Mock) => void;
     }): ReturnType<typeof mockNotificationMessenger> & {
-      mockGetConfig: jest.Mock;
-      mockUpdateNotifications: jest.Mock;
+      mockGetConfig: Mock;
+      mockUpdateNotifications: Mock;
     } => {
       const messengerMocks = mockNotificationMessenger();
       const mockGetConfig = messengerMocks.mockGetNotificationPreferences;
@@ -2210,7 +2212,7 @@ describe('NotificationServicesController', () => {
 
   describe('enablePushNotifications', () => {
     const arrangeMocks = (): ReturnType<typeof mockNotificationMessenger> & {
-      mockGetConfig: jest.Mock;
+      mockGetConfig: Mock;
     } => {
       const messengerMocks = mockNotificationMessenger();
       const mockGetConfig = messengerMocks.mockGetNotificationPreferences;
@@ -2500,9 +2502,9 @@ describe('NotificationServicesController', () => {
       const { messenger } = mockNotificationMessenger();
       // Mock API to fail
       const mockCreatePerpAPI = mockCreatePerpNotification({ status: 500 });
-      const mockConsoleError = jest
+      const mockConsoleError = vi
         .spyOn(console, 'error')
-        .mockImplementation(jest.fn());
+        .mockImplementation(vi.fn());
 
       const controller = new NotificationServicesController({
         messenger,
@@ -2967,10 +2969,9 @@ describe('NotificationServicesController', () => {
 // Thus this `AnyFunc` can be used to help constrain the generic parameters correctly
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyFunc = (...args: any[]) => any;
-const typedMockAction = <Action extends { handler: AnyFunc }>(): jest.Mock<
-  ReturnType<Action['handler']>,
-  Parameters<Action['handler']>
-> => jest.fn<ReturnType<Action['handler']>, Parameters<Action['handler']>>();
+const typedMockAction = <Action extends { handler: AnyFunc }>(): Mock<
+  Action['handler']
+> => vi.fn<Action['handler']>();
 
 const controllerName = 'NotificationServicesController';
 
@@ -3005,19 +3006,19 @@ function getRootMessenger(): RootMessenger {
 function mockNotificationMessenger(): {
   globalMessenger: RootMessenger;
   messenger: NotificationServicesControllerMessenger;
-  mockGetBearerToken: jest.Mock;
-  mockIsSignedIn: jest.Mock;
-  mockAuthPerformSignIn: jest.Mock;
-  mockAddPushNotificationLinks: jest.Mock;
-  mockDisablePushNotifications: jest.Mock;
-  mockDeletePushNotificationLinks: jest.Mock;
-  mockEnablePushNotifications: jest.Mock;
-  mockSubscribeToPushNotifications: jest.Mock;
-  mockKeyringControllerGetState: jest.Mock;
-  mockGetNotificationPreferences: jest.Mock;
-  mockPutNotificationPreferences: jest.Mock;
-  mockInvalidateQueries: jest.Mock;
-  mockAnalyticsControllerGetState: jest.Mock;
+  mockGetBearerToken: Mock;
+  mockIsSignedIn: Mock;
+  mockAuthPerformSignIn: Mock;
+  mockAddPushNotificationLinks: Mock;
+  mockDisablePushNotifications: Mock;
+  mockDeletePushNotificationLinks: Mock;
+  mockEnablePushNotifications: Mock;
+  mockSubscribeToPushNotifications: Mock;
+  mockKeyringControllerGetState: Mock;
+  mockGetNotificationPreferences: Mock;
+  mockPutNotificationPreferences: Mock;
+  mockInvalidateQueries: Mock;
+  mockAnalyticsControllerGetState: Mock;
 } {
   const globalMessenger = getRootMessenger();
 
@@ -3122,7 +3123,7 @@ function mockNotificationMessenger(): {
       optedInToMarketing: false,
     } as ReturnType<AnalyticsControllerGetStateAction['handler']>);
 
-  jest.spyOn(messenger, 'call').mockImplementation((...args) => {
+  vi.spyOn(messenger, 'call').mockImplementation((...args) => {
     const [actionType] = args;
 
     // This mock implementation does not have a nice discriminate union where types/parameters can be correctly inferred
@@ -3240,18 +3241,18 @@ function mockNotificationMessenger(): {
 function arrangeFailureAuthAssertions(
   mocks: ReturnType<typeof mockNotificationMessenger>,
 ): {
-  notLoggedIn: () => jest.Mock;
-  noBearerToken: () => jest.Mock;
-  rejectedBearerToken: () => jest.Mock;
+  notLoggedIn: () => Mock;
+  noBearerToken: () => Mock;
+  rejectedBearerToken: () => Mock;
 } {
   const testScenarios = {
-    notLoggedIn: (): jest.Mock => mocks.mockIsSignedIn.mockReturnValue(false),
+    notLoggedIn: (): Mock => mocks.mockIsSignedIn.mockReturnValue(false),
 
     // unlikely, but in case it returns null
-    noBearerToken: (): jest.Mock =>
+    noBearerToken: (): Mock =>
       mocks.mockGetBearerToken.mockResolvedValueOnce(null),
 
-    rejectedBearerToken: (): jest.Mock =>
+    rejectedBearerToken: (): Mock =>
       mocks.mockGetBearerToken.mockRejectedValueOnce(
         new Error('MOCK - no bearer token'),
       ),

@@ -1,4 +1,5 @@
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import { AlwaysOnlineAdapter } from './always-online-adapter.js';
 
@@ -12,7 +13,7 @@ describe('AlwaysOnlineAdapter', () => {
 
   it('onConnectivityChange is a no-op', () => {
     const adapter = new AlwaysOnlineAdapter();
-    const callback = jest.fn();
+    const callback = vi.fn();
 
     adapter.onConnectivityChange(callback);
 

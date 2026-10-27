@@ -5,6 +5,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
 import { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants.js';
 import type {

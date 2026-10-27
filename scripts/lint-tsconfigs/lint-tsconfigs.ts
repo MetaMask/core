@@ -1,5 +1,10 @@
 import { hasProperty } from '@metamask/type-utils';
+import { getPluginConfiguration } from '@yarnpkg/cli';
+import { Configuration, Project } from '@yarnpkg/core';
+import { npath, ppath } from '@yarnpkg/fslib';
+import { Semaphore } from 'async-mutex';
 import fs from 'fs';
+import { availableParallelism } from 'os';
 import path from 'path';
 
 import { lintPackageTsconfigs } from './lint-package-tsconfigs.ts';
@@ -15,6 +20,8 @@ await main();
  *
  * When run from the root, lints only the root TypeScript configs.
  * When run from a package, lints only that package's TypeScript configs.
+ * When run with `--all`, lints the root TypeScript configs and the TypeScript
+ * configs of every workspace package.
  */
 async function main(): Promise<void> {
   const cwd = process.cwd();
@@ -22,7 +29,9 @@ async function main(): Promise<void> {
   const manifest = await readPackageManifest(cwd);
 
   let didLintPass;
-  if (hasProperty(manifest, 'workspaces')) {
+  if (process.argv.includes('--all')) {
+    didLintPass = await lintAllTsconfigs({ cwd, shouldFix });
+  } else if (hasProperty(manifest, 'workspaces')) {
     // We are in the root.
     didLintPass = await lintRootTsconfigs({ repoRoot: cwd, shouldFix });
   } else {
@@ -39,6 +48,69 @@ async function main(): Promise<void> {
     // oxlint-disable-next-line require-atomic-updates
     process.exitCode = 1;
   }
+}
+
+/**
+ * Lints the root TypeScript configs and the TypeScript configs of every
+ * workspace package.
+ *
+ * @param options - The options object.
+ * @param options.cwd - A directory within the Yarn project.
+ * @param options.shouldFix - Whether to automatically fix issues.
+ * @returns `true` if no issues were found in any workspace, `false` otherwise.
+ */
+async function lintAllTsconfigs({
+  cwd,
+  shouldFix,
+}: {
+  cwd: string;
+  shouldFix: boolean;
+}): Promise<boolean> {
+  const { repoRoot, packageRoots } = await getProjectRoots(cwd);
+
+  const didRootPass = await lintRootTsconfigs({ repoRoot, shouldFix });
+
+  const semaphore = new Semaphore(availableParallelism());
+  const results = await Promise.all(
+    packageRoots.map(async (packageRoot) =>
+      semaphore.runExclusive(async () =>
+        lintPackageTsconfigs({ packageRoot, repoRoot, shouldFix }),
+      ),
+    ),
+  );
+
+  return didRootPass && results.every(Boolean);
+}
+
+/**
+ * Read the Yarn project to find the repository root and the root directory of
+ * each non-root workspace.
+ *
+ * @param cwd - A directory within the Yarn project.
+ * @returns The repository root and the (sorted) workspace package roots.
+ */
+async function getProjectRoots(
+  cwd: string,
+): Promise<{ repoRoot: string; packageRoots: string[] }> {
+  const configuration = await Configuration.find(
+    npath.toPortablePath(cwd),
+    getPluginConfiguration(),
+    // `@yarnpkg/core` is outdated and with `strict: true` fails on newer
+    // configuration settings.
+    { strict: false },
+  );
+
+  const { project } = await Project.find(
+    configuration,
+    npath.toPortablePath(cwd),
+  );
+
+  const packageRoots = project.workspaces
+    .filter((workspace) => workspace.cwd !== project.cwd)
+    .map((workspace) => npath.fromPortablePath(ppath.resolve(workspace.cwd)))
+    .sort();
+
+  return { repoRoot: npath.fromPortablePath(project.cwd), packageRoots };
 }
 
 /**

@@ -135,6 +135,10 @@ export type SocialServiceFetchPositionByIdAction = {
  * @param options.scope - `following` (default), `leaderboard`, `all`, or
  * `trending`.
  * @param options.chains - Filter by one or more chains.
+ * @param options.assetIds - Only items in any of these CAIP-19 assets. Invalid
+ * or unsupported asset ids are rejected with a 400.
+ * @param options.profileId - Only this trader's items.
+ * @param options.commentedOnly - When true, only items with an author comment.
  * @param options.limit - Number of results per page.
  * @param options.olderThan - Cursor for older items (scroll down).
  * @param options.newerThan - Cursor for newer items (refresh).
@@ -248,9 +252,7 @@ export type SocialServiceRemoveCommentReactionAction = {
  * `https://static.klipy.com/...gif` file URL; social-api rejects other links.
  * @param options.source - Free-form origin label stored on the comment.
  * @param options.positionUid - Position UUID (`positionId` / feed item id).
- * @param options.tradeInFlight - Hash, chain, and token of a swap in flight,
- * or a Hyperliquid `orderId`, chain, and coin when the fill hash does not
- * exist yet. Provide exactly one of `transactionHash` or `orderId`.
+ * @param options.tradeInFlight - Hash, chain, and token of a swap in flight.
  * @returns The created swap comment.
  */
 export type SocialServiceCreateSwapCommentAction = {

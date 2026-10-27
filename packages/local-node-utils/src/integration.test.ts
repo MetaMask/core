@@ -1,5 +1,5 @@
 import nock, { cleanAll } from 'nock';
-/* eslint-disable jest/expect-expect, n/no-sync */
+/* eslint-disable vitest/expect-expect, n/no-sync */
 import assert from 'node:assert/strict';
 import {
   chmodSync,
@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { extractTarBz2Archive, extractTarGzArchive } from './archive.js';
 import { getMetamaskCacheDirectory } from './cache-directory.js';
@@ -23,11 +24,11 @@ import { installExecutableWrapper } from './executable-wrapper.js';
 import { findExecutable, isDirectory, isFile } from './filesystem.js';
 import { getPlatformKey, normalizeSystemArchitecture } from './platform.js';
 
-jest.mock('./command', () => ({
-  runCommand: jest.fn(),
+vi.mock(import('./command.js'), () => ({
+  runCommand: vi.fn(),
 }));
 
-const runCommandMock = jest.mocked(runCommand);
+const runCommandMock = vi.mocked(runCommand);
 
 describe('archive', () => {
   beforeEach(() => {
@@ -135,7 +136,7 @@ describe('download', () => {
 describe('cache directory warnings', () => {
   it('falls back to the local cache when .yarnrc.yml is invalid', () => {
     const cwd = mkdtempSync(join(tmpdir(), 'local-node-utils-'));
-    const warnSpy = jest
+    const warnSpy = vi
       .spyOn(console, 'warn')
       .mockImplementation(() => undefined);
     writeFileSync(join(cwd, '.yarnrc.yml'), 'not: [valid');

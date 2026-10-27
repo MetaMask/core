@@ -4,6 +4,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   multicallOrFallback,
@@ -14,7 +15,9 @@ import {
 } from './multicall.js';
 import type { Aggregate3Call, NftOwnershipQuery } from './multicall.js';
 
-const provider = new Web3Provider(jest.fn());
+const provider = new Web3Provider(
+  vi.fn<(method: string) => Promise<unknown>>(),
+);
 
 // Create a mock contract for testing
 const mockContract = new Contract(
@@ -25,7 +28,7 @@ const mockContract = new Contract(
 
 describe('multicall', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should return empty results for empty calls', async () => {
@@ -54,19 +57,17 @@ describe('multicall', () => {
 
     it('should return results via multicall on supported chains', async () => {
       // Mock return value for the single multicall
-      jest
-        .spyOn(provider, 'call')
-        .mockResolvedValue(
-          defaultAbiCoder.encode(
-            ['tuple(bool,bytes)[]'],
-            [
-              calls.map((_, i) => [
-                true,
-                defaultAbiCoder.encode(['uint256'], [i + 1]),
-              ]),
-            ],
-          ),
-        );
+      vi.spyOn(provider, 'call').mockResolvedValue(
+        defaultAbiCoder.encode(
+          ['tuple(bool,bytes)[]'],
+          [
+            calls.map((_, i) => [
+              true,
+              defaultAbiCoder.encode(['uint256'], [i + 1]),
+            ]),
+          ],
+        ),
+      );
 
       const results = await multicallOrFallback(calls, '0x1', provider);
       expect(results).toMatchObject([
@@ -83,19 +84,17 @@ describe('multicall', () => {
 
     it('should handle the multicall contract returning false for success', async () => {
       // Mock an unsuccessful multicall
-      jest
-        .spyOn(provider, 'call')
-        .mockResolvedValue(
-          defaultAbiCoder.encode(
-            ['tuple(bool,bytes)[]'],
-            [
-              calls.map((_, i) => [
-                false,
-                defaultAbiCoder.encode(['uint256'], [i + 1]),
-              ]),
-            ],
-          ),
-        );
+      vi.spyOn(provider, 'call').mockResolvedValue(
+        defaultAbiCoder.encode(
+          ['tuple(bool,bytes)[]'],
+          [
+            calls.map((_, i) => [
+              false,
+              defaultAbiCoder.encode(['uint256'], [i + 1]),
+            ]),
+          ],
+        ),
+      );
 
       const results = await multicallOrFallback(calls, '0x1', provider);
       expect(results).toMatchObject([
@@ -113,13 +112,11 @@ describe('multicall', () => {
     it('should fallback to parallel calls on unsupported chains', async () => {
       // Mock return values for each call
       let timesCalled = 0;
-      jest
-        .spyOn(provider, 'call')
-        .mockImplementation(() =>
-          Promise.resolve(
-            defaultAbiCoder.encode(['uint256'], [(timesCalled += 1)]),
-          ),
-        );
+      vi.spyOn(provider, 'call').mockImplementation(() =>
+        Promise.resolve(
+          defaultAbiCoder.encode(['uint256'], [(timesCalled += 1)]),
+        ),
+      );
 
       const results = await multicallOrFallback(calls, '0x123456789', provider);
       expect(results).toMatchObject([
@@ -147,16 +144,14 @@ describe('multicall', () => {
     };
 
     it('should fall back to parallel calls when multicall reverts', async () => {
-      jest.spyOn(provider, 'call').mockImplementationOnce(() => {
+      vi.spyOn(provider, 'call').mockImplementationOnce(() => {
         const error = { code: 'CALL_EXCEPTION' };
         return Promise.reject(error);
       });
 
-      jest
-        .spyOn(provider, 'call')
-        .mockImplementationOnce(() =>
-          Promise.resolve(defaultAbiCoder.encode(['uint256'], [1])),
-        );
+      vi.spyOn(provider, 'call').mockImplementationOnce(() =>
+        Promise.resolve(defaultAbiCoder.encode(['uint256'], [1])),
+      );
 
       const results = await multicallOrFallback([call], '0x1', provider);
 
@@ -170,7 +165,7 @@ describe('multicall', () => {
 
     it('should throw rpc errors other than revert', async () => {
       const error = { code: 'network error' };
-      jest.spyOn(provider, 'call').mockImplementationOnce(() => {
+      vi.spyOn(provider, 'call').mockImplementationOnce(() => {
         return Promise.reject(error);
       });
 
@@ -203,7 +198,7 @@ describe('multicall', () => {
       ];
 
       // Mock the aggregate3 contract call
-      jest.spyOn(provider, 'call').mockResolvedValue(
+      vi.spyOn(provider, 'call').mockResolvedValue(
         defaultAbiCoder.encode(
           ['tuple(bool,bytes)[]'],
           [
@@ -232,11 +227,9 @@ describe('multicall', () => {
       ];
 
       // Mock a failed call
-      jest
-        .spyOn(provider, 'call')
-        .mockResolvedValue(
-          defaultAbiCoder.encode(['tuple(bool,bytes)[]'], [[[false, '0x']]]),
-        );
+      vi.spyOn(provider, 'call').mockResolvedValue(
+        defaultAbiCoder.encode(['tuple(bool,bytes)[]'], [[[false, '0x']]]),
+      );
 
       const results = await aggregate3(calls, '0x1', provider);
       expect(results).toHaveLength(1);
@@ -271,7 +264,7 @@ describe('multicall', () => {
       ];
 
       const error = new Error('Contract call failed');
-      jest.spyOn(provider, 'call').mockRejectedValue(error);
+      vi.spyOn(provider, 'call').mockRejectedValue(error);
 
       await expect(aggregate3(calls, '0x1', provider)).rejects.toThrow(
         'Contract call failed',
@@ -302,7 +295,7 @@ describe('multicall', () => {
     ];
 
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should return empty results for empty inputs', async () => {
@@ -345,7 +338,7 @@ describe('multicall', () => {
       const mockBalance3 = new BN('3000000000000000000'); // 3 tokens
       const mockBalance4 = new BN('4000000000000000000'); // 4 tokens
 
-      jest.spyOn(provider, 'call').mockResolvedValue(
+      vi.spyOn(provider, 'call').mockResolvedValue(
         defaultAbiCoder.encode(
           ['tuple(bool,bytes)[]'],
           [
@@ -399,7 +392,7 @@ describe('multicall', () => {
       const mockNativeBalance1 = new BN('5000000000000000000'); // 5 ETH
       const mockNativeBalance2 = new BN('6000000000000000000'); // 6 ETH
 
-      jest.spyOn(provider, 'call').mockResolvedValue(
+      vi.spyOn(provider, 'call').mockResolvedValue(
         defaultAbiCoder.encode(
           ['tuple(bool,bytes)[]'],
           [
@@ -438,7 +431,7 @@ describe('multicall', () => {
       const mockERC20Balance = new BN('1000000000000000000');
       const mockNativeBalance = new BN('2000000000000000000');
 
-      jest.spyOn(provider, 'call').mockResolvedValue(
+      vi.spyOn(provider, 'call').mockResolvedValue(
         defaultAbiCoder.encode(
           ['tuple(bool,bytes)[]'],
           [
@@ -482,7 +475,7 @@ describe('multicall', () => {
     });
 
     it('should handle failed balance calls gracefully', async () => {
-      jest.spyOn(provider, 'call').mockResolvedValue(
+      vi.spyOn(provider, 'call').mockResolvedValue(
         defaultAbiCoder.encode(
           ['tuple(bool,bytes)[]'],
           [
@@ -525,15 +518,12 @@ describe('multicall', () => {
 
     it('should use fallback for unsupported chains', async () => {
       // Mock provider.call for individual ERC20 calls
-      jest
-        .spyOn(provider, 'call')
-        .mockResolvedValue(
-          defaultAbiCoder.encode(['uint256'], ['1000000000000000000']),
-        );
+      vi.spyOn(provider, 'call').mockResolvedValue(
+        defaultAbiCoder.encode(['uint256'], ['1000000000000000000']),
+      );
 
       // Mock provider.getBalance for native balance calls
-      jest
-        .spyOn(provider, 'getBalance')
+      vi.spyOn(provider, 'getBalance')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockResolvedValue({ toString: () => '2000000000000000000' } as any);
 
@@ -558,12 +548,12 @@ describe('multicall', () => {
 
     it('should handle errors in fallback mode gracefully', async () => {
       // Mock provider.call to fail for ERC20 calls
-      jest.spyOn(provider, 'call').mockRejectedValue(new Error('Call failed'));
+      vi.spyOn(provider, 'call').mockRejectedValue(new Error('Call failed'));
 
       // Mock provider.getBalance to fail for native balance calls
-      jest
-        .spyOn(provider, 'getBalance')
-        .mockRejectedValue(new Error('Balance call failed'));
+      vi.spyOn(provider, 'getBalance').mockRejectedValue(
+        new Error('Balance call failed'),
+      );
 
       const results = await getTokenBalancesForMultipleAddresses(
         [
@@ -589,19 +579,17 @@ describe('multicall', () => {
         (_, i) => `0x000000000000000000000000000000000000000${i + 1}`,
       );
 
-      jest
-        .spyOn(provider, 'call')
-        .mockResolvedValue(
-          defaultAbiCoder.encode(
-            ['tuple(bool,bytes)[]'],
-            [
-              Array.from({ length: 5 }, () => [
-                true,
-                defaultAbiCoder.encode(['uint256'], ['1000000000000000000']),
-              ]),
-            ],
-          ),
-        );
+      vi.spyOn(provider, 'call').mockResolvedValue(
+        defaultAbiCoder.encode(
+          ['tuple(bool,bytes)[]'],
+          [
+            Array.from({ length: 5 }, () => [
+              true,
+              defaultAbiCoder.encode(['uint256'], ['1000000000000000000']),
+            ]),
+          ],
+        ),
+      );
 
       const results = await getTokenBalancesForMultipleAddresses(
         [
@@ -622,7 +610,7 @@ describe('multicall', () => {
 
     it('should handle contract call errors and rethrow non-revert errors', async () => {
       const error = new Error('Network error');
-      jest.spyOn(provider, 'call').mockRejectedValue(error);
+      vi.spyOn(provider, 'call').mockRejectedValue(error);
 
       await expect(
         getTokenBalancesForMultipleAddresses(
@@ -641,18 +629,15 @@ describe('multicall', () => {
     it('should fallback on CALL_EXCEPTION errors', async () => {
       // Mock aggregate3 to fail with CALL_EXCEPTION
       const callExceptionError = { code: 'CALL_EXCEPTION' };
-      jest.spyOn(provider, 'call').mockRejectedValueOnce(callExceptionError);
+      vi.spyOn(provider, 'call').mockRejectedValueOnce(callExceptionError);
 
       // Mock fallback calls to succeed
-      jest
-        .spyOn(provider, 'call')
-        .mockResolvedValue(
-          defaultAbiCoder.encode(['uint256'], ['1000000000000000000']),
-        );
+      vi.spyOn(provider, 'call').mockResolvedValue(
+        defaultAbiCoder.encode(['uint256'], ['1000000000000000000']),
+      );
 
       // Mock provider.getBalance for native balance calls
-      jest
-        .spyOn(provider, 'getBalance')
+      vi.spyOn(provider, 'getBalance')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .mockResolvedValue({ toString: () => '2000000000000000000' } as any);
 
@@ -696,7 +681,7 @@ describe('multicall', () => {
       ];
 
       // Mock aggregate3 to return failed native balance call
-      jest.spyOn(provider, 'call').mockResolvedValue(
+      vi.spyOn(provider, 'call').mockResolvedValue(
         defaultAbiCoder.encode(
           ['tuple(bool success, bytes returnData)[]'],
           [
@@ -733,7 +718,7 @@ describe('multicall', () => {
         },
       ];
 
-      jest.spyOn(provider, 'call').mockResolvedValue(
+      vi.spyOn(provider, 'call').mockResolvedValue(
         defaultAbiCoder.encode(
           ['tuple(bool success, bytes returnData)[]'],
           [
@@ -771,9 +756,9 @@ describe('multicall', () => {
       ];
 
       // Mock aggregate3 to fail
-      jest
-        .spyOn(provider, 'call')
-        .mockRejectedValue(new Error('Aggregate3 not supported'));
+      vi.spyOn(provider, 'call').mockRejectedValue(
+        new Error('Aggregate3 not supported'),
+      );
 
       // The function should handle the error appropriately
       await expect(
@@ -801,17 +786,17 @@ describe('multicall', () => {
 
       // mock getBalance
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      jest.spyOn(provider, 'getBalance').mockResolvedValue('1000' as any);
+      vi.spyOn(provider, 'getBalance').mockResolvedValue('1000' as any);
 
       // mock getBalance
-      jest
-        .spyOn(provider, 'call')
-        .mockResolvedValue(defaultAbiCoder.encode(['uint256'], ['1000']));
+      vi.spyOn(provider, 'call').mockResolvedValue(
+        defaultAbiCoder.encode(['uint256'], ['1000']),
+      );
 
       // mock getShares
-      jest
-        .spyOn(provider, 'call')
-        .mockResolvedValue(defaultAbiCoder.encode(['uint256'], ['1000']));
+      vi.spyOn(provider, 'call').mockResolvedValue(
+        defaultAbiCoder.encode(['uint256'], ['1000']),
+      );
 
       const result = await getTokenBalancesForMultipleAddresses(
         groups,
@@ -834,7 +819,7 @@ describe('multicall', () => {
         ];
 
         // Mock provider.call to throw null error (covers !error branch)
-        jest.spyOn(provider, 'call').mockRejectedValue(null);
+        vi.spyOn(provider, 'call').mockRejectedValue(null);
 
         await expect(
           multicallOrFallback(calls, '0x1', provider),
@@ -851,7 +836,7 @@ describe('multicall', () => {
         ];
 
         // Mock provider.call to throw string error (covers typeof error !== 'object' branch)
-        jest.spyOn(provider, 'call').mockRejectedValue('Network error');
+        vi.spyOn(provider, 'call').mockRejectedValue('Network error');
 
         await expect(multicallOrFallback(calls, '0x1', provider)).rejects.toBe(
           'Network error',
@@ -869,7 +854,7 @@ describe('multicall', () => {
 
         // Mock provider.call to throw object without code (covers !('code' in error) branch)
         const errorWithoutCode = { message: 'Something went wrong' };
-        jest.spyOn(provider, 'call').mockRejectedValue(errorWithoutCode);
+        vi.spyOn(provider, 'call').mockRejectedValue(errorWithoutCode);
 
         await expect(
           multicallOrFallback(calls, '0x1', provider),
@@ -890,7 +875,7 @@ describe('multicall', () => {
           code: 'NETWORK_ERROR',
           message: 'Network issue',
         };
-        jest.spyOn(provider, 'call').mockRejectedValue(errorWithDifferentCode);
+        vi.spyOn(provider, 'call').mockRejectedValue(errorWithDifferentCode);
 
         await expect(
           multicallOrFallback(calls, '0x1', provider),
@@ -909,7 +894,7 @@ describe('multicall', () => {
         ];
 
         // Mock provider.call to throw null error (covers !error branch in getTokenBalancesForMultipleAddresses)
-        jest.spyOn(provider, 'call').mockRejectedValue(null);
+        vi.spyOn(provider, 'call').mockRejectedValue(null);
 
         await expect(
           getTokenBalancesForMultipleAddresses(
@@ -934,7 +919,7 @@ describe('multicall', () => {
         ];
 
         // Mock provider.call to throw string error
-        jest.spyOn(provider, 'call').mockRejectedValue('Connection timeout');
+        vi.spyOn(provider, 'call').mockRejectedValue('Connection timeout');
 
         await expect(
           getTokenBalancesForMultipleAddresses(
@@ -963,7 +948,7 @@ describe('multicall', () => {
           reason: 'Invalid transaction',
           data: '0x123',
         };
-        jest.spyOn(provider, 'call').mockRejectedValue(errorWithoutCode);
+        vi.spyOn(provider, 'call').mockRejectedValue(errorWithoutCode);
 
         await expect(
           getTokenBalancesForMultipleAddresses(
@@ -992,7 +977,7 @@ describe('multicall', () => {
           code: 'INSUFFICIENT_FUNDS',
           message: 'Not enough gas',
         };
-        jest.spyOn(provider, 'call').mockRejectedValue(errorWithDifferentCode);
+        vi.spyOn(provider, 'call').mockRejectedValue(errorWithDifferentCode);
 
         await expect(
           getTokenBalancesForMultipleAddresses(
@@ -1015,14 +1000,14 @@ describe('multicall', () => {
         ];
 
         // Mock aggregate3 to fail, forcing fallback
-        jest
-          .spyOn(provider, 'call')
-          .mockRejectedValue({ code: 'CALL_EXCEPTION' });
+        vi.spyOn(provider, 'call').mockRejectedValue({
+          code: 'CALL_EXCEPTION',
+        });
 
         // Mock getBalance to throw an error (this will be caught by Promise.allSettled)
-        jest
-          .spyOn(provider, 'getBalance')
-          .mockRejectedValue(new Error('Balance fetch failed'));
+        vi.spyOn(provider, 'getBalance').mockRejectedValue(
+          new Error('Balance fetch failed'),
+        );
 
         const result = await getTokenBalancesForMultipleAddresses(
           groups,
@@ -1046,12 +1031,12 @@ describe('multicall', () => {
         ];
 
         // Mock aggregate3 to fail, forcing fallback
-        jest
-          .spyOn(provider, 'call')
-          .mockRejectedValue({ code: 'CALL_EXCEPTION' });
+        vi.spyOn(provider, 'call').mockRejectedValue({
+          code: 'CALL_EXCEPTION',
+        });
 
         // Mock getBalance to return null (testing the null check in line 652)
-        jest.spyOn(provider, 'getBalance').mockImplementation(() => {
+        vi.spyOn(provider, 'getBalance').mockImplementation(() => {
           return Promise.resolve({
             toString: () => 'null',
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1079,13 +1064,13 @@ describe('multicall', () => {
         ];
 
         // Mock aggregate3 to fail, forcing fallback
-        jest
-          .spyOn(provider, 'call')
-          .mockRejectedValue({ code: 'CALL_EXCEPTION' });
+        vi.spyOn(provider, 'call').mockRejectedValue({
+          code: 'CALL_EXCEPTION',
+        });
 
         // Mock getBalance for native balance
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        jest.spyOn(provider, 'getBalance').mockResolvedValue('1000' as any);
+        vi.spyOn(provider, 'getBalance').mockResolvedValue('1000' as any);
 
         const result = await getTokenBalancesForMultipleAddresses(
           groups,
@@ -1113,19 +1098,18 @@ describe('multicall', () => {
         ];
 
         // Mock aggregate3 to fail, forcing fallback
-        jest
-          .spyOn(provider, 'call')
-          .mockRejectedValue({ code: 'CALL_EXCEPTION' });
+        vi.spyOn(provider, 'call').mockRejectedValue({
+          code: 'CALL_EXCEPTION',
+        });
 
         // Mock individual calls - some succeed, some fail
-        jest
-          .spyOn(provider, 'call')
+        vi.spyOn(provider, 'call')
           .mockRejectedValueOnce({ code: 'CALL_EXCEPTION' }) // First aggregate3 call fails
           .mockResolvedValueOnce(defaultAbiCoder.encode(['uint256'], ['1000'])) // Token balance succeeds
           .mockRejectedValueOnce(new Error('Individual call failed')); // Some individual calls fail
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        jest.spyOn(provider, 'getBalance').mockResolvedValue('2000' as any);
+        vi.spyOn(provider, 'getBalance').mockResolvedValue('2000' as any);
 
         const result = await getTokenBalancesForMultipleAddresses(
           groups,
@@ -1153,7 +1137,7 @@ describe('multicall', () => {
         const unsupportedChainId = '0x999' as const;
 
         // Mock the provider call for token balances
-        jest.spyOn(provider, 'call').mockResolvedValue(
+        vi.spyOn(provider, 'call').mockResolvedValue(
           defaultAbiCoder.encode(
             ['tuple(bool success, bytes returnData)[]'],
             [
@@ -1184,7 +1168,7 @@ describe('multicall', () => {
 
         // Mock getBalance for native balance
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        jest.spyOn(provider, 'getBalance').mockResolvedValue('1000' as any);
+        vi.spyOn(provider, 'getBalance').mockResolvedValue('1000' as any);
 
         const result = await getTokenBalancesForMultipleAddresses(
           groups,
@@ -1202,14 +1186,12 @@ describe('multicall', () => {
         const groups: { accountAddress: Hex; tokenAddresses: Hex[] }[] = [];
 
         // Mock for staking contract call
-        jest
-          .spyOn(provider, 'call')
-          .mockResolvedValue(
-            defaultAbiCoder.encode(
-              ['tuple(bool success, bytes returnData)[]'],
-              [[]],
-            ),
-          );
+        vi.spyOn(provider, 'call').mockResolvedValue(
+          defaultAbiCoder.encode(
+            ['tuple(bool success, bytes returnData)[]'],
+            [[]],
+          ),
+        );
 
         const result = await getTokenBalancesForMultipleAddresses(
           groups,
@@ -1228,17 +1210,15 @@ describe('multicall', () => {
 
         // Mock getBalance for native balance
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        jest.spyOn(provider, 'getBalance').mockResolvedValue('1000' as any);
+        vi.spyOn(provider, 'getBalance').mockResolvedValue('1000' as any);
 
         // Mock for staking contract call
-        jest
-          .spyOn(provider, 'call')
-          .mockResolvedValue(
-            defaultAbiCoder.encode(
-              ['tuple(bool success, bytes returnData)[]'],
-              [[]],
-            ),
-          );
+        vi.spyOn(provider, 'call').mockResolvedValue(
+          defaultAbiCoder.encode(
+            ['tuple(bool success, bytes returnData)[]'],
+            [[]],
+          ),
+        );
 
         const result = await getTokenBalancesForMultipleAddresses(
           groups,
@@ -1263,7 +1243,7 @@ describe('multicall', () => {
         ];
 
         // Mock the aggregate3 call to succeed with only token balance result
-        jest.spyOn(provider, 'call').mockResolvedValue(
+        vi.spyOn(provider, 'call').mockResolvedValue(
           defaultAbiCoder.encode(
             ['tuple(bool success, bytes returnData)[]'],
             [
@@ -1299,13 +1279,12 @@ describe('multicall', () => {
     ];
 
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
     });
 
     it('should fetch staked balances for addresses with non-zero shares', async () => {
       // Mock getShares calls - first address has shares, second doesn't
-      jest
-        .spyOn(provider, 'call')
+      vi.spyOn(provider, 'call')
         .mockResolvedValueOnce(
           defaultAbiCoder.encode(
             ['tuple(bool,bytes)[]'],
@@ -1352,7 +1331,7 @@ describe('multicall', () => {
 
     it('should return empty object when all addresses have zero shares', async () => {
       // Mock getShares calls - all addresses have zero shares
-      jest.spyOn(provider, 'call').mockResolvedValueOnce(
+      vi.spyOn(provider, 'call').mockResolvedValueOnce(
         defaultAbiCoder.encode(
           ['tuple(bool,bytes)[]'],
           [
@@ -1378,8 +1357,7 @@ describe('multicall', () => {
 
     it('should handle failed getShares calls gracefully', async () => {
       // Mock getShares with some failures
-      jest
-        .spyOn(provider, 'call')
+      vi.spyOn(provider, 'call')
         .mockResolvedValueOnce(
           defaultAbiCoder.encode(
             ['tuple(bool,bytes)[]'],
@@ -1422,8 +1400,7 @@ describe('multicall', () => {
 
     it('should handle failed convertToAssets calls gracefully', async () => {
       // Mock successful getShares
-      jest
-        .spyOn(provider, 'call')
+      vi.spyOn(provider, 'call')
         .mockResolvedValueOnce(
           defaultAbiCoder.encode(
             ['tuple(bool,bytes)[]'],
@@ -1459,7 +1436,7 @@ describe('multicall', () => {
     });
 
     it('should handle unsupported chains', async () => {
-      const callSpy = jest.spyOn(provider, 'call');
+      const callSpy = vi.spyOn(provider, 'call');
 
       const result = await getStakedBalancesForAddresses(
         testAddresses,
@@ -1473,9 +1450,7 @@ describe('multicall', () => {
 
     it('should handle contract call errors gracefully', async () => {
       // Mock contract call to throw error
-      jest
-        .spyOn(provider, 'call')
-        .mockRejectedValue(new Error('Contract error'));
+      vi.spyOn(provider, 'call').mockRejectedValue(new Error('Contract error'));
 
       const result = await getStakedBalancesForAddresses(
         testAddresses,
@@ -1487,7 +1462,7 @@ describe('multicall', () => {
     });
 
     it('should handle empty user addresses array', async () => {
-      const callSpy = jest.spyOn(provider, 'call');
+      const callSpy = vi.spyOn(provider, 'call');
 
       const result = await getStakedBalancesForAddresses([], '0x1', provider);
 
@@ -1504,8 +1479,7 @@ describe('multicall', () => {
       ];
 
       // Mock getShares - addresses 1 and 3 have shares, 2 and 4 don't
-      jest
-        .spyOn(provider, 'call')
+      vi.spyOn(provider, 'call')
         .mockResolvedValueOnce(
           defaultAbiCoder.encode(
             ['tuple(bool,bytes)[]'],
@@ -1600,7 +1574,7 @@ describe('multicall', () => {
 
     describe('via multicall (supported chain)', () => {
       it('should detect ERC-721 ownership when ownerOf matches', async () => {
-        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
           encodeAggregate3Response([
             { success: true, data: encodeOwnerOfResult(ownerAddress) },
             { success: false, data: '0x' },
@@ -1619,7 +1593,7 @@ describe('multicall', () => {
       });
 
       it('should detect ERC-721 non-ownership when ownerOf returns a different address', async () => {
-        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
           encodeAggregate3Response([
             { success: true, data: encodeOwnerOfResult(otherAddress) },
             { success: false, data: '0x' },
@@ -1638,7 +1612,7 @@ describe('multicall', () => {
       });
 
       it('should fall back to ERC-1155 balanceOf when ownerOf fails', async () => {
-        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
           encodeAggregate3Response([
             { success: false, data: '0x' },
             { success: true, data: encodeBalanceOfResult(3) },
@@ -1657,7 +1631,7 @@ describe('multicall', () => {
       });
 
       it('should return isOwned=false when ERC-1155 balance is zero', async () => {
-        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
           encodeAggregate3Response([
             { success: false, data: '0x' },
             { success: true, data: encodeBalanceOfResult(0) },
@@ -1676,7 +1650,7 @@ describe('multicall', () => {
       });
 
       it('should return isOwned=undefined when both calls fail', async () => {
-        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
           encodeAggregate3Response([
             { success: false, data: '0x' },
             { success: false, data: '0x' },
@@ -1695,13 +1669,11 @@ describe('multicall', () => {
       });
 
       it('should skip ERC-1155 call when standard is ERC721', async () => {
-        jest
-          .spyOn(provider, 'call')
-          .mockResolvedValueOnce(
-            encodeAggregate3Response([
-              { success: true, data: encodeOwnerOfResult(ownerAddress) },
-            ]),
-          );
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: true, data: encodeOwnerOfResult(ownerAddress) },
+          ]),
+        );
 
         const results = await getNftOwnershipForMultipleNfts(
           [makeQuery({ standard: 'ERC721' })],
@@ -1717,13 +1689,11 @@ describe('multicall', () => {
       });
 
       it('should skip ERC-721 call when standard is ERC1155', async () => {
-        jest
-          .spyOn(provider, 'call')
-          .mockResolvedValueOnce(
-            encodeAggregate3Response([
-              { success: true, data: encodeBalanceOfResult(1) },
-            ]),
-          );
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeAggregate3Response([
+            { success: true, data: encodeBalanceOfResult(1) },
+          ]),
+        );
 
         const results = await getNftOwnershipForMultipleNfts(
           [makeQuery({ standard: 'ERC1155' })],
@@ -1738,7 +1708,7 @@ describe('multicall', () => {
       });
 
       it('should not let ERC-1155 result override a definitive ERC-721 result', async () => {
-        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
           encodeAggregate3Response([
             { success: true, data: encodeOwnerOfResult(ownerAddress) },
             { success: true, data: encodeBalanceOfResult(0) },
@@ -1758,7 +1728,7 @@ describe('multicall', () => {
 
       it('should handle multiple NFTs in a single batch', async () => {
         const nftAddress2 = '0x0000000000000000000000000000000000000DEF';
-        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
           encodeAggregate3Response([
             { success: true, data: encodeOwnerOfResult(ownerAddress) },
             { success: false, data: '0x' },
@@ -1782,9 +1752,9 @@ describe('multicall', () => {
 
     describe('via individual calls (unsupported chain)', () => {
       it('should detect ERC-721 ownership via individual ownerOf call', async () => {
-        jest
-          .spyOn(provider, 'call')
-          .mockResolvedValueOnce(encodeOwnerOfResult(ownerAddress));
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeOwnerOfResult(ownerAddress),
+        );
 
         const results = await getNftOwnershipForMultipleNfts(
           [makeQuery()],
@@ -1798,8 +1768,7 @@ describe('multicall', () => {
       });
 
       it('should fall back to ERC-1155 when ERC-721 call reverts', async () => {
-        jest
-          .spyOn(provider, 'call')
+        vi.spyOn(provider, 'call')
           .mockRejectedValueOnce(new Error('not ERC721'))
           .mockResolvedValueOnce(encodeBalanceOfResult(2));
 
@@ -1815,8 +1784,7 @@ describe('multicall', () => {
       });
 
       it('should return isOwned=undefined when both individual calls fail', async () => {
-        jest
-          .spyOn(provider, 'call')
+        vi.spyOn(provider, 'call')
           .mockRejectedValueOnce(new Error('not ERC721'))
           .mockRejectedValueOnce(new Error('not ERC1155'));
 
@@ -1832,9 +1800,9 @@ describe('multicall', () => {
       });
 
       it('should skip ERC-1155 when standard is ERC721', async () => {
-        jest
-          .spyOn(provider, 'call')
-          .mockResolvedValueOnce(encodeOwnerOfResult(ownerAddress));
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeOwnerOfResult(ownerAddress),
+        );
 
         const results = await getNftOwnershipForMultipleNfts(
           [makeQuery({ standard: 'ERC721' })],
@@ -1849,9 +1817,9 @@ describe('multicall', () => {
       });
 
       it('should skip ERC-721 when standard is ERC1155', async () => {
-        jest
-          .spyOn(provider, 'call')
-          .mockResolvedValueOnce(encodeBalanceOfResult(1));
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
+          encodeBalanceOfResult(1),
+        );
 
         const results = await getNftOwnershipForMultipleNfts(
           [makeQuery({ standard: 'ERC1155' })],
@@ -1868,13 +1836,13 @@ describe('multicall', () => {
 
     describe('multicall fallback', () => {
       it('should fall back to individual calls when multicall3 throws', async () => {
-        const callSpy = jest.spyOn(provider, 'call');
+        const callSpy = vi.spyOn(provider, 'call');
         // First call: multicall3 aggregate3 fails
         callSpy.mockRejectedValueOnce(new Error('multicall3 reverted'));
         // Subsequent calls: individual ownerOf succeeds
         callSpy.mockResolvedValueOnce(encodeOwnerOfResult(ownerAddress));
 
-        const consoleSpy = jest
+        const consoleSpy = vi
           .spyOn(console, 'warn')
           .mockImplementation(() => undefined);
 
@@ -1899,7 +1867,7 @@ describe('multicall', () => {
     describe('unknown-standard NFT exclusion', () => {
       it('should skip NFTs with explicitly unrecognized standard entirely', async () => {
         const cryptoPunksAddress = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
-        const callSpy = jest.spyOn(provider, 'call');
+        const callSpy = vi.spyOn(provider, 'call');
 
         // Only call: multicall aggregate3 for the known-standard NFT
         callSpy.mockResolvedValueOnce(
@@ -1934,7 +1902,7 @@ describe('multicall', () => {
       });
 
       it('should still include standard=null NFTs in multicall batch', async () => {
-        jest.spyOn(provider, 'call').mockResolvedValueOnce(
+        vi.spyOn(provider, 'call').mockResolvedValueOnce(
           encodeAggregate3Response([
             { success: true, data: encodeOwnerOfResult(ownerAddress) },
             { success: false, data: '0x' },

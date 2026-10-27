@@ -34,7 +34,8 @@ export class MfaError extends Error {
  * The credential cannot be enrolled because an equivalent one already exists:
  * `email_already_enrolled` (this profile already has a verified email),
  * `totp_already_enrolled` (this profile already has an authenticator app),
- * `email_socially_verified` (the email is verified through a social login), or
+ * `email_socially_verified` (the email is verified through a social login),
+ * `email_claimed` (another profile uses the email: use a different one), or
  * `credential_already_enrolled` (the email or passkey is enrolled on another
  * profile; the profiles must be paired or the credential removed).
  */
@@ -44,7 +45,8 @@ export class CredentialAlreadyEnrolledError extends MfaError {
       | 'credential_already_enrolled'
       | 'email_already_enrolled'
       | 'totp_already_enrolled'
-      | 'email_socially_verified',
+      | 'email_socially_verified'
+      | 'email_claimed',
     message: string,
     status = HTTP_STATUS_CODES.CONFLICT,
   ) {

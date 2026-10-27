@@ -3,6 +3,8 @@ import { readFileSync } from 'fs';
 import fs from 'fs/promises';
 import nock, { cleanAll } from 'nock';
 import { join, relative } from 'path';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 
 import {
@@ -29,12 +31,12 @@ type OperationDetails = {
   checksums?: Checksums;
 };
 
-jest.mock('fs/promises', () => {
+vi.mock(import('fs/promises'), async (importOriginal) => {
   console.log('Mocking fs/promises');
-  const actualFs = jest.requireActual('fs/promises');
-  return {
+  const actualFs = await importOriginal();
+  const mockedFs = {
     ...actualFs,
-    opendir: jest.fn().mockImplementation((path) => {
+    opendir: vi.fn().mockImplementation((path) => {
       console.log('Mock opendir called with path:', path);
       // Simulate ENOENT error for the first call
       const error = new Error(
@@ -43,25 +45,26 @@ jest.mock('fs/promises', () => {
       (error as NodeJS.ErrnoException).code = 'ENOENT';
       throw error;
     }),
-    mkdir: jest.fn().mockResolvedValue(undefined),
-    access: jest.fn().mockResolvedValue(undefined),
-    symlink: jest.fn(),
-    unlink: jest.fn(),
-    copyFile: jest.fn(),
-    rm: jest.fn(),
+    mkdir: vi.fn().mockResolvedValue(undefined),
+    access: vi.fn().mockResolvedValue(undefined),
+    symlink: vi.fn(),
+    unlink: vi.fn(),
+    copyFile: vi.fn(),
+    rm: vi.fn(),
   };
+  return { ...mockedFs, default: mockedFs };
 });
 
-jest.mock('fs');
-jest.mock('yaml');
+vi.mock('fs');
+vi.mock('yaml');
 
-jest.mock('./options', () => ({
-  ...jest.requireActual('./options'),
-  parseArgs: jest.fn(),
-  printBanner: jest.fn(),
-  say: jest.fn(),
-  getVersion: jest.fn().mockReturnValue('0.1.0'),
-  extractFrom: jest.fn().mockResolvedValue(['mock/path/to/binary']),
+vi.mock(import('./options.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  parseArgs: vi.fn(),
+  printBanner: vi.fn(),
+  say: vi.fn(),
+  getVersion: vi.fn().mockReturnValue('0.1.0'),
+  extractFrom: vi.fn().mockResolvedValue(['mock/path/to/binary']),
 }));
 
 const mockInstallBinaries = async (
@@ -165,16 +168,16 @@ const mockDownloadAndInstallFoundryBinaries = async (): Promise<
 describe('foundryup', () => {
   describe('getCacheDirectory', () => {
     it('uses global cache when enabled in .yarnrc.yml', () => {
-      (parseYaml as jest.Mock).mockReturnValue({ enableGlobalCache: true });
-      (readFileSync as jest.Mock).mockReturnValue('dummy yaml content');
+      (parseYaml as Mock).mockReturnValue({ enableGlobalCache: true });
+      (readFileSync as Mock).mockReturnValue('dummy yaml content');
 
       const result = getCacheDirectory();
       expect(result).toMatch(/\/(home|Users)\/.*\/\.cache\/metamask$/u);
     });
 
     it('uses local cache when global cache is disabled', () => {
-      (parseYaml as jest.Mock).mockReturnValue({ enableGlobalCache: false });
-      (readFileSync as jest.Mock).mockReturnValue('dummy yaml content');
+      (parseYaml as Mock).mockReturnValue({ enableGlobalCache: false });
+      (readFileSync as Mock).mockReturnValue('dummy yaml content');
 
       const result = getCacheDirectory();
       expect(result).toContain('.metamask/cache');
@@ -213,12 +216,12 @@ describe('foundryup', () => {
     const mockCachePath = './test-cache-path';
 
     beforeEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       cleanAll();
     });
 
     it('handles download errors gracefully', async () => {
-      (fs.opendir as jest.Mock).mockRejectedValue({ code: 'ENOENT' });
+      (fs.opendir as Mock).mockRejectedValue({ code: 'ENOENT' });
 
       cleanAll();
       nock('https://example.com')
@@ -276,7 +279,7 @@ describe('foundryup', () => {
       epermError.code = 'EPERM';
 
       // Mock symlink to fail
-      (fs.symlink as jest.Mock).mockRejectedValueOnce(epermError);
+      (fs.symlink as Mock).mockRejectedValueOnce(epermError);
 
       const operations = await mockInstallBinaries(
         mockDir,
@@ -299,7 +302,7 @@ describe('foundryup', () => {
       const otherError = new Error('Other error');
 
       // Mock symlink to fail with other error
-      jest.spyOn(fs, 'symlink').mockRejectedValue(otherError);
+      vi.spyOn(fs, 'symlink').mockRejectedValue(otherError);
 
       await expect(
         mockInstallBinaries(mockDir, mockBinDir, mockCachePath),
@@ -343,15 +346,18 @@ describe('foundryup', () => {
       },
     };
 
-    beforeEach(() => {
-      jest.clearAllMocks();
-      const mockedOptions = jest.requireMock('./options');
+    beforeEach(async () => {
+      vi.clearAllMocks();
+      const mockedOptions = (await import('./options.js')) as unknown as Record<
+        string,
+        Mock
+      >;
 
       mockedOptions.parseArgs.mockReturnValue(mockArgs);
       mockedOptions.printBanner.mockImplementation(() => {
         // Intentionally empty - used to suppress test output
       });
-      mockedOptions.say.mockImplementation(jest.fn());
+      mockedOptions.say.mockImplementation(vi.fn());
     });
 
     it('should execute all operations in correct order', async () => {
@@ -394,8 +400,8 @@ describe('foundryup', () => {
         command: 'cache clean',
       };
 
-      (parseArgs as jest.Mock).mockReturnValue(mockCleanArgs);
-      const rmSpy = jest.spyOn(fs, 'rm').mockResolvedValue();
+      (parseArgs as Mock).mockReturnValue(mockCleanArgs);
+      const rmSpy = vi.spyOn(fs, 'rm').mockResolvedValue();
 
       const operations = await mockDownloadAndInstallFoundryBinaries();
 
@@ -412,15 +418,17 @@ describe('foundryup', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      jest.spyOn(fs, 'rm').mockRejectedValue(new Error('Mock error'));
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      vi.spyOn(fs, 'rm').mockRejectedValue(new Error('Mock error'));
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       const mockCleanArgs = {
         ...mockArgs,
         command: 'cache clean',
       };
 
-      (parseArgs as jest.Mock).mockReturnValue(mockCleanArgs);
+      (parseArgs as Mock).mockReturnValue(mockCleanArgs);
 
       await expect(mockDownloadAndInstallFoundryBinaries()).rejects.toThrow(
         'Mock error',
@@ -430,9 +438,10 @@ describe('foundryup', () => {
   });
 
   describe('printBanner', () => {
-    it('should print the banner to the console', () => {
-      const { printBanner } = jest.requireActual('./options');
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {
+    it('should print the banner to the console', async () => {
+      const { printBanner } =
+        await vi.importActual<typeof import('./options.js')>('./options.js');
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {
         // Intentionally empty - used to suppress test output
       });
       printBanner();
@@ -457,19 +466,10 @@ describe('foundryup', () => {
       };
     };
 
-    beforeEach(() => {
-      jest.unmock('./options');
-      const optionsModule = jest.requireActual('./options');
-      actualParseArgs = optionsModule.parseArgs;
-    });
-
-    afterEach(() => {
-      // Re-mock after each test
-      jest.doMock('./options', () => ({
-        ...jest.requireActual('./options'),
-        parseArgs: jest.fn(),
-        printBanner: jest.fn(),
-      }));
+    beforeEach(async () => {
+      const optionsModule =
+        await vi.importActual<typeof import('./options.js')>('./options.js');
+      actualParseArgs = optionsModule.parseArgs as typeof actualParseArgs;
     });
 
     describe('checksums option', () => {

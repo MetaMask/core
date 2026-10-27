@@ -16,7 +16,10 @@ import {
 import type { KycControllerMessenger } from './KycController.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import type { KycConsentRecord, KycSessionDisclaimers } from './types.js';
-import { verifyJwtChain } from './ukyc/jwtChain.js';
+import {
+  assertAttestedServerPublicKey,
+  verifyJwtChain,
+} from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
 
 vi.mock(import('./ukyc/jwtChain.js'), async (importOriginal) => ({
@@ -32,6 +35,10 @@ vi.mock(import('./ukyc/wrapEncryptionKey.js'), async (importOriginal) => ({
 const mockVerifyJwtChain = verifyJwtChain as MockedFunction<
   typeof verifyJwtChain
 >;
+const mockAssertAttestedServerPublicKey =
+  assertAttestedServerPublicKey as MockedFunction<
+    typeof assertAttestedServerPublicKey
+  >;
 const mockWrapEncryptionKey = wrapEncryptionKey as MockedFunction<
   typeof wrapEncryptionKey
 >;
@@ -604,6 +611,54 @@ describe('KycController', () => {
           }),
         ).rejects.toThrow('customer failed');
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
+
+    it('throws a readable error when fetching signing keys fails', async () => {
+      const fetchError = new Error(
+        "Fetching 'https://idos.example/.well-known/jwks.json' failed with status '500'",
+      );
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        handlers.fetchIdosEnclaveJwks.mockRejectedValueOnce(fetchError);
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          message:
+            'KycController.#verifyWrappingKeys: Unable to fetch JWKS needed to verify wrapping keys.',
+          cause: fetchError,
+        });
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        expect(controller.state.sessionStatus).toBeNull();
+      });
+    });
+
+    it('throws a readable error when encryption-key verification fails', async () => {
+      const verificationError = new Error(
+        'UKYC: jwtChain signature verification failed against JWKS.',
+      );
+      mockAssertAttestedServerPublicKey.mockImplementationOnce(() => {
+        throw verificationError;
+      });
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+
+        await expect(
+          controller.startSession({
+            vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toMatchObject({
+          message:
+            'KycController.#verifyWrappingKeys: Failed to verify the wrapping keys.',
+          cause: verificationError,
+        });
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
         expect(controller.state.sessionStatus).toBeNull();
       });
     });

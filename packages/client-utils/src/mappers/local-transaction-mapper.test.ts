@@ -1,4 +1,5 @@
 import { TransactionType } from '@metamask/transaction-controller';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { localTransactionFixtures } from '../../test/fixtures/local-transactions.js';
 import type { ActivityItem } from '../types.js';
@@ -6,8 +7,8 @@ import * as caip from './helpers/caip.js';
 import { formatAddressToAssetId } from './helpers/caip.js';
 import { mapLocalTransaction } from './local-transaction-mapper.js';
 
-jest.mock('./helpers/token-metadata', () => ({
-  getKnownTokenMetadata: jest.requireActual('../../test/test-helpers')
+vi.mock(import('./helpers/token-metadata.js'), async () => ({
+  getKnownTokenMetadata: (await import('../../test/test-helpers.js'))
     .getKnownTokenMetadata,
 }));
 
@@ -27,7 +28,7 @@ const mapLocal = (input: unknown): ActivityItem =>
 
 describe('mapLocalTransaction', () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
   it('maps a pending native send to a Send activity', () => {
     const item = mapLocal(
@@ -1335,7 +1336,7 @@ describe('mapLocalTransaction', () => {
   });
 
   it('omits native assetId when resolveNativeAssetId returns undefined', () => {
-    jest.spyOn(caip, 'resolveNativeAssetId').mockReturnValue(undefined);
+    vi.spyOn(caip, 'resolveNativeAssetId').mockReturnValue(undefined);
 
     const item = mapLocal({
       ...localTransactionFixtures.mapInputs.mapsAPendingNativeSendTo,

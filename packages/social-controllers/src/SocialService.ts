@@ -446,6 +446,10 @@ export class SocialService extends BaseDataService<
    * @param options.scope - `following` (default), `leaderboard`, `all`, or
    * `trending`.
    * @param options.chains - Filter by one or more chains.
+   * @param options.assetIds - Only items in any of these CAIP-19 assets. Invalid
+   * or unsupported asset ids are rejected with a 400.
+   * @param options.profileId - Only this trader's items.
+   * @param options.commentedOnly - When true, only items with an author comment.
    * @param options.limit - Number of results per page.
    * @param options.olderThan - Cursor for older items (scroll down).
    * @param options.newerThan - Cursor for newer items (refresh).
@@ -456,7 +460,16 @@ export class SocialService extends BaseDataService<
       queryKey: [`${this.name}:fetchFeed`, options ?? null],
       staleTime: 0,
       queryFn: async () => {
-        const { scope, chains, limit, olderThan, newerThan } = options ?? {};
+        const {
+          scope,
+          chains,
+          assetIds,
+          profileId,
+          commentedOnly,
+          limit,
+          olderThan,
+          newerThan,
+        } = options ?? {};
         const url = new URL(`${this.#v1Url}/feed`);
         if (scope) {
           url.searchParams.append('scope', scope);
@@ -465,6 +478,17 @@ export class SocialService extends BaseDataService<
           for (const chain of chains) {
             url.searchParams.append('chains', chain);
           }
+        }
+        if (assetIds) {
+          for (const assetId of assetIds) {
+            url.searchParams.append('assetIds', assetId);
+          }
+        }
+        if (profileId) {
+          url.searchParams.append('profileId', profileId);
+        }
+        if (commentedOnly === true) {
+          url.searchParams.append('commentedOnly', 'true');
         }
         if (limit !== undefined) {
           url.searchParams.append('limit', String(limit));
@@ -725,9 +749,7 @@ export class SocialService extends BaseDataService<
    * `https://static.klipy.com/...gif` file URL; social-api rejects other links.
    * @param options.source - Free-form origin label stored on the comment.
    * @param options.positionUid - Position UUID (`positionId` / feed item id).
-   * @param options.tradeInFlight - Hash, chain, and token of a swap in flight,
-   * or a Hyperliquid `orderId`, chain, and coin when the fill hash does not
-   * exist yet. Provide exactly one of `transactionHash` or `orderId`.
+   * @param options.tradeInFlight - Hash, chain, and token of a swap in flight.
    * @returns The created swap comment.
    */
   async createSwapComment(

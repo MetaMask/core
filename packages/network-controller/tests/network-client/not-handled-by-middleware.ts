@@ -1,4 +1,5 @@
 import { fill } from 'lodash-es';
+import { expect, it } from 'vitest';
 
 import type { ProviderType } from './helpers.js';
 import { withMockedCommunications, withNetworkClient } from './helpers.js';

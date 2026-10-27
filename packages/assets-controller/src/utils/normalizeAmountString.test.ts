@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { normalizeAmountString } from './normalizeAmountString.js';
 
 describe('normalizeAmountString', () => {

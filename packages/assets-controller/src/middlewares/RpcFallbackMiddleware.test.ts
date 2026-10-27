@@ -1,4 +1,6 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import type {
   AssetsControllerState,
@@ -90,8 +92,8 @@ function createContext(
   };
 }
 
-function createNext(): jest.MockedFunction<NextFunction> {
-  return jest.fn(async (innerCtx) => innerCtx);
+function createNext(): MockedFunction<NextFunction> {
+  return vi.fn(async (innerCtx) => innerCtx);
 }
 
 function createFallback(
@@ -107,14 +109,12 @@ function createFallback(
 
 function createMockRpcSource(response: DataResponse = {}): {
   source: AssetsDataSource;
-  middleware: jest.MockedFunction<Middleware>;
+  middleware: MockedFunction<Middleware>;
 } {
-  const middleware: jest.MockedFunction<Middleware> = jest.fn(
-    async (ctx, next) => {
-      ctx.response = response;
-      return next(ctx);
-    },
-  );
+  const middleware: MockedFunction<Middleware> = vi.fn(async (ctx, next) => {
+    ctx.response = response;
+    return next(ctx);
+  });
   const source: AssetsDataSource = {
     getName: () => 'RpcDataSource',
     get assetsMiddleware() {
@@ -126,7 +126,7 @@ function createMockRpcSource(response: DataResponse = {}): {
 
 describe('RpcFallbackMiddleware', () => {
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('passes through when there are no errors in the response', async () => {

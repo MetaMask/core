@@ -11,6 +11,8 @@ import type {
 } from '@metamask/preferences-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockedFunction } from 'vitest';
 
 import type { EIP5792Messenger } from '../types.js';
 import { getCapabilities } from './getCapabilities.js';
@@ -26,30 +28,30 @@ type AllActions = MessengerActions<EIP5792Messenger>;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions>;
 
 describe('EIP-5792', () => {
-  const isAtomicBatchSupportedMock: jest.MockedFn<
+  const isAtomicBatchSupportedMock: MockedFunction<
     TransactionController['isAtomicBatchSupported']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getIsSmartTransactionMock: jest.MockedFn<(chainId: Hex) => boolean> =
-    jest.fn();
+  const getIsSmartTransactionMock: MockedFunction<(chainId: Hex) => boolean> =
+    vi.fn();
 
-  const isRelaySupportedMock: jest.Mock = jest.fn();
+  const isRelaySupportedMock: Mock = vi.fn();
 
-  const getSendBundleSupportedChainsMock: jest.Mock = jest.fn();
+  const getSendBundleSupportedChainsMock: Mock = vi.fn();
 
-  const getDismissSmartAccountSuggestionEnabledMock: jest.MockedFn<
+  const getDismissSmartAccountSuggestionEnabledMock: MockedFunction<
     () => boolean
-  > = jest.fn();
+  > = vi.fn();
 
-  const getAccountsStateMock: jest.MockedFn<
+  const getAccountsStateMock: MockedFunction<
     AccountsControllerGetStateAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const getPreferencesStateMock: jest.MockedFn<
+  const getPreferencesStateMock: MockedFunction<
     PreferencesControllerGetStateAction['handler']
-  > = jest.fn();
+  > = vi.fn();
 
-  const isAuxiliaryFundsSupportedMock: jest.Mock = jest.fn();
+  const isAuxiliaryFundsSupportedMock: Mock = vi.fn();
 
   let rootMessenger: RootMessenger;
 
@@ -66,7 +68,7 @@ describe('EIP-5792', () => {
   };
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     rootMessenger = new Messenger<MockAnyNamespace, AllActions>({
       namespace: MOCK_ANY_NAMESPACE,
@@ -460,7 +462,7 @@ describe('EIP-5792', () => {
 
       rootMessenger.registerActionHandler(
         'NetworkController:getState',
-        jest.fn().mockReturnValue({
+        vi.fn().mockReturnValue({
           networkConfigurationsByChainId: networkConfigurationsMock,
         }),
       );
