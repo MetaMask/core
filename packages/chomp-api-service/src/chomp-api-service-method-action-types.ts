@@ -48,11 +48,10 @@ export type ChompApiServiceAssociateAddressV2Action = {
 };
 
 /**
- * Removes an address association from the authenticated profile. For an
- * address linked as a successor, this cancels the migration and unfreezes
- * its predecessor. CHOMP rejects the cancellation with `LINK_COMPLETE` once
- * a funds-transfer request exists for the link, which can happen before
- * the migration is `DONE`.
+ * Removes an address association from the authenticated profile.
+ * When called with an addresses that is linked as successors it will only succeed
+ * if the chomp migration has not yet created a funds-transfer request. Otherwise
+ * CHOMP will reject the request with `LINK_COMPLETE`
  *
  * DELETE /v1/auth/address
  *
@@ -189,10 +188,8 @@ export type ChompApiServiceGetServiceDetailsAction = {
 };
 
 /**
- * Fetches the Money Account identities of the authenticated profile, with
- * the status and migration steps CHOMP derives on every read. When funds
- * transfer is the only missing step, CHOMP creates the transfer request as
- * part of the read, after which the migration can no longer be cancelled.
+ * Fetches the Money Account identities of the authenticated profile, including
+ * status and migration steps information. Calling this will start migrations.
  *
  * GET /v1/money-account/identities
  *
@@ -210,19 +207,16 @@ export type ChompApiServiceGetDerivedIdentitiesAction = {
 
 /**
  * Fetches the identity containing an address, along with where the address
- * sits in it. The identity's `status` describes the whole chain. Like
- * {@link ChompApiService.getDerivedIdentities}, this read can create the
- * migration's funds-transfer request.
+ * sits in it.
  *
  * GET /v1/money-account/identities/address/:address
  *
- * Always fetched fresh and keyed by a digest of the bearer token, like
- * {@link ChompApiService.getDerivedIdentities}.
+ * Always fetched fresh and keyed by a digest of the bearer token.
  *
  * @param address - The address to look up.
  * @returns The identity and address details, or `null` when CHOMP responds
- * with `ADDRESS_NOT_ASSOCIATED`: the address is not associated with the
- * authenticated profile, or it is but belongs to no Money Account.
+ * with `ADDRESS_NOT_ASSOCIATED`
+ *
  * Addresses are lowercased.
  */
 export type ChompApiServiceGetDerivedIdentityByAddressAction = {
