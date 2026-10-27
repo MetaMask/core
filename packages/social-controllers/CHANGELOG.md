@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `sourceLanguage` (`string | null`) and `translations` (`Record<string, string>`) to `AuthorComment` and `AuthorCommentStruct`. Feed validation and the realtime feed parser keep both when social-api sends them, and responses that omit them still validate
-- Add `translateComment` to `SocialController` and `SocialService` (`SocialController:translateComment`, `SocialService:translateComment`). Calls `POST /swap-comment/:commentId/translate` with `{ targetLanguage }`. social-api does not expose that route yet: a 404 is logged as `Translation endpoint does not exist yet` and rethrown
+- Add optional `sourceLanguage` (`string | null`) and `translations` (`Record<string, string>`) to `AuthorComment` and `AuthorCommentStruct`. Feed validation and the realtime feed parser keep both when social-api sends them, and responses that omit them still validate ([#11137](https://github.com/MetaMask/core/pull/11137))
+- Add `translateComment` to `SocialController` and `SocialService` (`SocialController:translateComment`, `SocialService:translateComment`). Calls `POST /swap-comment/:commentId/translate` with `{ targetLanguage }`. social-api does not expose that route yet: a 404 is logged as `Translation endpoint does not exist yet` and rethrown ([#11137](https://github.com/MetaMask/core/pull/11137))
 - Add optional `flags` to `Position`, so open positions, closed positions, position-by-id, and feed items (including realtime hydration) can carry an open list of server flags. `insider` (`INSIDER_POSITION_FLAG`) marks a Codex insider wallet/token pair that is excluded from the trader's realized PnL and must not be copy-traded. `developer` (`DEVELOPER_POSITION_FLAG`) is also a known flag. Unrecognized flag strings are preserved, `null` is accepted, and responses that omit `flags` still validate ([#11097](https://github.com/MetaMask/core/pull/11097))
 
 ### Changed
