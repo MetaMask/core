@@ -1,5 +1,5 @@
 import nock from 'nock';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createMockNetworkConfig } from '../../tests/helpers.js';
 import {
