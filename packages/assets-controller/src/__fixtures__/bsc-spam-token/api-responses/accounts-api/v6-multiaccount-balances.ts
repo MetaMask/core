@@ -39,6 +39,11 @@ const v6MultiAccountBalances: Omit<V6BalancesResponse, 'balances'> & {
       symbol: 'BNB',
       decimals: 18,
       balance: '0.009495005467800000',
+      image: 'https://example.com/bnb.png',
+      aggregators: ['binance'],
+      occurrences: 50,
+      price: '600',
+      pricePercentChange1d: -1.5,
       securityResultType: 'Verified',
     },
     {

@@ -10,29 +10,6 @@ export type AssetsControllerGetAssetsAction = {
   handler: AssetsController['getAssets'];
 };
 
-/**
- * Force-fetch spot prices for an explicit asset list.
- *
- * Calls `PriceDataSource` directly and merges the result into `assetsPrice`.
- * Prices are shared across accounts, so this does not take an account or
- * chain scope and does not run the balance pipeline.
- *
- * Returns without calling the Price API when basic functionality is off.
- * That matches the asset pipeline, which drops the price source in RPC-only
- * mode, and `setSelectedCurrency`, which skips its price refresh.
- *
- * @param assetIds - CAIP-19 asset IDs to sync.
- */
-export type AssetsControllerSyncAssetsPricesAction = {
-  type: `AssetsController:syncAssetsPrices`;
-  handler: AssetsController['syncAssetsPrices'];
-};
-
-export type AssetsControllerGetAssetsBalanceAction = {
-  type: `AssetsController:getAssetsBalance`;
-  handler: AssetsController['getAssetsBalance'];
-};
-
 export type AssetsControllerGetAssetMetadataAction = {
   type: `AssetsController:getAssetMetadata`;
   handler: AssetsController['getAssetMetadata'];
@@ -104,9 +81,22 @@ export type AssetsControllerGetAccountAssetsByScopeAction = {
   handler: AssetsController['getAccountAssetsByScope'];
 };
 
-export type AssetsControllerGetAssetsPriceAction = {
-  type: `AssetsController:getAssetsPrice`;
-  handler: AssetsController['getAssetsPrice'];
+/**
+ * Force-fetch spot prices for an explicit asset list.
+ *
+ * Calls `PriceDataSource` directly and merges the result into `assetsPrice`.
+ * Prices are shared across accounts, so this does not take an account or
+ * chain scope and does not run the balance pipeline.
+ *
+ * Returns without calling the Price API when basic functionality is off.
+ * That matches the asset pipeline, which drops the price source in RPC-only
+ * mode, and `setSelectedCurrency`, which skips its price refresh.
+ *
+ * @param assetIds - CAIP-19 asset IDs to sync.
+ */
+export type AssetsControllerSyncAssetsPricesAction = {
+  type: `AssetsController:syncAssetsPrices`;
+  handler: AssetsController['syncAssetsPrices'];
 };
 
 /**
@@ -168,17 +158,6 @@ export type AssetsControllerRemoveCustomAssetAction = {
 };
 
 /**
- * Get all custom assets for an account.
- *
- * @param accountId - The account ID to get custom assets for.
- * @returns Array of CAIP-19 asset IDs for the account's custom assets.
- */
-export type AssetsControllerGetCustomAssetsAction = {
-  type: `AssetsController:getCustomAssets`;
-  handler: AssetsController['getCustomAssets'];
-};
-
-/**
  * Hide an asset globally.
  * Hidden assets are excluded from the asset list returned by getAssets.
  * The hidden state is stored in assetPreferences.
@@ -218,18 +197,15 @@ export type AssetsControllerSetSelectedCurrencyAction = {
  */
 export type AssetsControllerMethodActions =
   | AssetsControllerGetAssetsAction
-  | AssetsControllerSyncAssetsPricesAction
-  | AssetsControllerGetAssetsBalanceAction
   | AssetsControllerGetAssetMetadataAction
   | AssetsControllerGetAccountAssetByIDAction
   | AssetsControllerGetAccountAssetsByIDsAction
   | AssetsControllerGetAccountAssetsByScopeAction
-  | AssetsControllerGetAssetsPriceAction
+  | AssetsControllerSyncAssetsPricesAction
   | AssetsControllerGetExchangeRatesForBridgeAction
   | AssetsControllerGetStateForTransactionPayAction
   | AssetsControllerAddCustomAssetAction
   | AssetsControllerRemoveCustomAssetAction
-  | AssetsControllerGetCustomAssetsAction
   | AssetsControllerHideAssetAction
   | AssetsControllerUnhideAssetAction
   | AssetsControllerSetSelectedCurrencyAction;

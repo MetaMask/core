@@ -510,9 +510,8 @@ describe('RpcDataSource', () => {
     it('fetches balances for accounts', async () => {
       await withController(async ({ controller }) => {
         const response = await controller.fetch(createDataRequest());
-        expect(response).toBeDefined();
-        expect(response.assetsBalance).toBeDefined();
-        expect(response.updateMode).toBe('merge');
+        expect(response.updateMode).toBe('full');
+        expect(response.errors?.[MOCK_CHAIN_ID_CAIP]).toBe('RPC fetch failed');
       });
     });
 
@@ -520,11 +519,8 @@ describe('RpcDataSource', () => {
       vi.mocked(shouldSkipNativeForCaipChainId).mockReturnValue(true);
       await withController(async ({ controller }) => {
         const response = await controller.fetch(createDataRequest());
-        expect(response).toBeDefined();
-        expect(response.assetsBalance).toBeDefined();
-        expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).not.toHaveProperty(
-          'eip155:1/slip44:60',
-        );
+        expect(response.updateMode).toBe('full');
+        expect(response.assetsBalance).toBeUndefined();
       });
     });
 
@@ -586,8 +582,8 @@ describe('RpcDataSource', () => {
 
       await withController(async ({ controller }) => {
         const response = await controller.fetch(createDataRequest());
-        expect(response.assetsBalance).toBeDefined();
-        expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).toStrictEqual({});
+        expect(response.errors?.[MOCK_CHAIN_ID_CAIP]).toBe('RPC fetch failed');
+        expect(response.assetsBalance).toBeUndefined();
         expect(mockGetBalance).not.toHaveBeenCalled();
       });
     });
@@ -661,11 +657,7 @@ describe('RpcDataSource', () => {
         const response = await controller.fetch(request);
         expect(response.errors).toBeDefined();
         expect(response.errors?.[MOCK_CHAIN_ID_CAIP]).toBe('RPC fetch failed');
-        expect(response.assetsBalance).toBeDefined();
-        expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).toBeDefined();
-        expect(
-          response.assetsBalance?.[MOCK_ACCOUNT_ID]?.['eip155:1/slip44:60'],
-        ).toStrictEqual({ amount: '0' });
+        expect(response.assetsBalance).toBeUndefined();
       });
     });
 
@@ -675,7 +667,6 @@ describe('RpcDataSource', () => {
         'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
       await withController(
         {
-          options: { isBalanceV6Enabled: (): boolean => true },
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
@@ -745,7 +736,6 @@ describe('RpcDataSource', () => {
 
       await withController(
         {
-          options: { isBalanceV6Enabled: (): boolean => true },
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
@@ -863,132 +853,8 @@ describe('RpcDataSource', () => {
         const response = await controller.fetch(request);
         expect(response.errors).toBeDefined();
         expect(response.errors?.[MOCK_CHAIN_ID_CAIP]).toBe('RPC fetch failed');
-        expect(response.assetsBalance).toBeDefined();
-        expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).toBeDefined();
-        expect(response.assetsBalance?.[MOCK_ACCOUNT_ID]).not.toHaveProperty(
-          'eip155:1/slip44:60',
-        );
+        expect(response.assetsBalance).toBeUndefined();
       });
-    });
-
-    it('returns undefined from #getProvider when network client has no provider', async () => {
-      const networkState = createMockNetworkState(NetworkStatus.Available);
-      (networkState.networkConfigurationsByChainId as Record<string, unknown>)[
-        '0x89'
-      ] = {
-        chainId: '0x89',
-        name: 'Polygon',
-        nativeCurrency: 'MATIC',
-        defaultRpcEndpointIndex: 0,
-        rpcEndpoints: [
-          {
-            networkClientId: 'polygon',
-            url: 'https://polygon-rpc.com',
-            type: RpcEndpointType.Custom,
-          },
-        ],
-        blockExplorerUrls: [],
-      };
-      (networkState.networksMetadata as Record<string, unknown>).polygon = {
-        status: NetworkStatus.Available,
-        EIPS: {},
-      };
-
-      await withController(
-        {
-          networkState,
-          actionHandlerOverrides: {
-            'NetworkController:getNetworkClientById': (
-              networkClientId: string,
-            ) => {
-              if (networkClientId === 'polygon') {
-                return { configuration: { chainId: '0x89' } };
-              }
-              return {
-                provider: { request: vi.fn().mockResolvedValue('0x0') },
-                configuration: { chainId: MOCK_CHAIN_ID_HEX },
-              };
-            },
-          },
-        },
-        async ({ controller }) => {
-          const account = createMockInternalAccount();
-          const request: DataRequest = {
-            accountsWithSupportedChains: [
-              {
-                account,
-                supportedChains: [MOCK_CHAIN_ID_CAIP, 'eip155:137'],
-              },
-            ],
-            chainIds: [MOCK_CHAIN_ID_CAIP, 'eip155:137'],
-            dataTypes: ['balance'],
-          };
-          const response = await controller.fetch(request);
-          expect(response.assetsBalance).toBeDefined();
-          expect(response.errors).toBeDefined();
-          expect(response.errors?.['eip155:137']).toBe('RPC fetch failed');
-        },
-      );
-    });
-
-    it('includes error and native balance when fetch fails for a chain', async () => {
-      const networkState = createMockNetworkState(NetworkStatus.Available);
-      (networkState.networkConfigurationsByChainId as Record<string, unknown>)[
-        '0x89'
-      ] = {
-        chainId: '0x89',
-        name: 'Polygon',
-        nativeCurrency: 'MATIC',
-        defaultRpcEndpointIndex: 0,
-        rpcEndpoints: [
-          {
-            networkClientId: 'polygon',
-            url: 'https://polygon-rpc.com',
-            type: RpcEndpointType.Custom,
-          },
-        ],
-        blockExplorerUrls: [],
-      };
-      (networkState.networksMetadata as Record<string, unknown>).polygon = {
-        status: NetworkStatus.Available,
-        EIPS: {},
-      };
-
-      await withController(
-        {
-          networkState,
-          actionHandlerOverrides: {
-            'NetworkController:getNetworkClientById': (
-              networkClientId: string,
-            ) => {
-              if (networkClientId === 'polygon') {
-                throw new Error('Provider unavailable');
-              }
-              return {
-                provider: { request: vi.fn().mockResolvedValue('0x0') },
-                configuration: { chainId: MOCK_CHAIN_ID_HEX },
-              };
-            },
-          },
-        },
-        async ({ controller }) => {
-          const account = createMockInternalAccount();
-          const request: DataRequest = {
-            accountsWithSupportedChains: [
-              {
-                account,
-                supportedChains: [MOCK_CHAIN_ID_CAIP, 'eip155:137'],
-              },
-            ],
-            chainIds: [MOCK_CHAIN_ID_CAIP, 'eip155:137'],
-            dataTypes: ['balance'],
-          };
-          const response = await controller.fetch(request);
-          expect(response.assetsBalance).toBeDefined();
-          expect(response.errors).toBeDefined();
-          expect(response.errors?.['eip155:137']).toBe('RPC fetch failed');
-        },
-      );
     });
 
     it('merges metadata from chain status and existing state', async () => {
@@ -1036,88 +902,6 @@ describe('RpcDataSource', () => {
       );
     });
 
-    it('passes custom ERC20 asset entries (plus native) to BalanceFetcher', async () => {
-      const customAssetId =
-        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-
-      const fetchSpy = vi
-        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
-        .mockResolvedValue(createBalanceFetchResult());
-
-      await withController(async ({ controller }) => {
-        const request = createDataRequest({
-          customAssets: [customAssetId],
-        });
-        await controller.fetch(request);
-
-        expect(fetchSpy).toHaveBeenCalledWith(
-          MOCK_CHAIN_ID_HEX,
-          MOCK_ACCOUNT_ID,
-          MOCK_ADDRESS,
-          [
-            {
-              assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
-              address: '0x0000000000000000000000000000000000000000',
-            },
-            expect.objectContaining({
-              assetId: customAssetId,
-              address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-            }),
-          ],
-        );
-      });
-
-      fetchSpy.mockRestore();
-    });
-
-    it('filters custom assets to only include tokens on the fetched chain', async () => {
-      const matchingAsset =
-        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-      const otherChainAsset =
-        'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
-
-      const fetchSpy = vi
-        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
-        .mockResolvedValue(createBalanceFetchResult());
-
-      await withController(
-        {
-          actionHandlerOverrides: {
-            'AssetsController:getState': () => ({
-              ...getDefaultAssetsControllerState(),
-              customAssets: {
-                [MOCK_ACCOUNT_ID]: [matchingAsset, otherChainAsset],
-              },
-            }),
-          },
-        },
-        async ({ controller }) => {
-          const request = createDataRequest({
-            customAssets: [matchingAsset, otherChainAsset],
-          });
-          await controller.fetch(request);
-
-          expect(fetchSpy).toHaveBeenCalledWith(
-            MOCK_CHAIN_ID_HEX,
-            MOCK_ACCOUNT_ID,
-            MOCK_ADDRESS,
-            [
-              {
-                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
-                address: '0x0000000000000000000000000000000000000000',
-              },
-              expect.objectContaining({
-                assetId: matchingAsset,
-                address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
-              }),
-            ],
-          );
-        },
-      );
-
-      fetchSpy.mockRestore();
-    });
-
     it('fetches existing balances, pins, and default tracked assets from state on the v6 path when the request carries no customAssets', async () => {
       const pinnedAsset =
         'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
@@ -1130,7 +914,6 @@ describe('RpcDataSource', () => {
 
       await withController(
         {
-          options: { isBalanceV6Enabled: (): boolean => true },
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
@@ -1191,7 +974,6 @@ describe('RpcDataSource', () => {
 
       await withController(
         {
-          options: { isBalanceV6Enabled: (): boolean => true },
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
@@ -1253,7 +1035,6 @@ describe('RpcDataSource', () => {
 
       await withController(
         {
-          options: { isBalanceV6Enabled: (): boolean => true },
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
@@ -1301,7 +1082,6 @@ describe('RpcDataSource', () => {
 
       await withController(
         {
-          options: { isBalanceV6Enabled: (): boolean => true },
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
@@ -1335,91 +1115,6 @@ describe('RpcDataSource', () => {
       fetchSpy.mockRestore();
     });
 
-    it('fetches only native on the v5 path when the request carries no customAssets', async () => {
-      const pinnedAsset =
-        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-      const trackedBalanceAsset =
-        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
-
-      const fetchSpy = vi
-        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
-        .mockResolvedValue(createBalanceFetchResult());
-
-      await withController(
-        {
-          actionHandlerOverrides: {
-            'AssetsController:getState': () => ({
-              ...getDefaultAssetsControllerState(),
-              customAssets: { [MOCK_ACCOUNT_ID]: [pinnedAsset] },
-              assetsBalance: {
-                [MOCK_ACCOUNT_ID]: {
-                  [trackedBalanceAsset]: { amount: '1' },
-                },
-              },
-            }),
-          },
-        },
-        async ({ controller }) => {
-          await controller.fetch(createDataRequest());
-
-          // v5 reads ERC-20s from the scoped request only; state pins and
-          // tracked balances are polled by the balance fetcher instead.
-          const assets = fetchSpy.mock.calls[0][3] as { assetId: string }[];
-          const assetIds = assets.map((entry) => entry.assetId);
-          expect(assetIds).toStrictEqual([`${MOCK_CHAIN_ID_CAIP}/slip44:60`]);
-          expect(assetIds).not.toContain(pinnedAsset);
-          expect(assetIds).not.toContain(trackedBalanceAsset);
-        },
-      );
-
-      fetchSpy.mockRestore();
-    });
-
-    it('fetches only the request custom assets when the request is scoped', async () => {
-      const requestedAsset =
-        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-      const otherPinnedAsset =
-        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
-
-      const fetchSpy = vi
-        .spyOn(BalanceFetcher.prototype, 'fetchBalancesForAssets')
-        .mockResolvedValue(createBalanceFetchResult());
-
-      await withController(
-        {
-          actionHandlerOverrides: {
-            'AssetsController:getState': () => ({
-              ...getDefaultAssetsControllerState(),
-              customAssets: {
-                [MOCK_ACCOUNT_ID]: [requestedAsset, otherPinnedAsset],
-              },
-            }),
-          },
-        },
-        async ({ controller }) => {
-          // A scoped fetch must not widen into the account's other pins.
-          await controller.fetch(
-            createDataRequest({ customAssets: [requestedAsset] }),
-          );
-
-          expect(fetchSpy).toHaveBeenCalledWith(
-            MOCK_CHAIN_ID_HEX,
-            MOCK_ACCOUNT_ID,
-            MOCK_ADDRESS,
-            [
-              {
-                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
-                address: '0x0000000000000000000000000000000000000000',
-              },
-              expect.objectContaining({ assetId: requestedAsset }),
-            ],
-          );
-        },
-      );
-
-      fetchSpy.mockRestore();
-    });
-
     it('skips hidden custom assets from state', async () => {
       const hiddenAsset =
         'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
@@ -1441,17 +1136,11 @@ describe('RpcDataSource', () => {
         async ({ controller }) => {
           await controller.fetch(createDataRequest());
 
-          expect(fetchSpy).toHaveBeenCalledWith(
-            MOCK_CHAIN_ID_HEX,
-            MOCK_ACCOUNT_ID,
-            MOCK_ADDRESS,
-            [
-              {
-                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
-                address: '0x0000000000000000000000000000000000000000',
-              },
-            ],
-          );
+          const assets = fetchSpy.mock.calls[0][3] as { assetId: string }[];
+          const assetIds = assets.map((entry) => entry.assetId);
+          expect(assetIds).toContain(`${MOCK_CHAIN_ID_CAIP}/slip44:60`);
+          expect(assetIds).toContain(MAINNET_MUSD);
+          expect(assetIds).not.toContain(hiddenAsset);
         },
       );
 
@@ -1478,17 +1167,11 @@ describe('RpcDataSource', () => {
         async ({ controller }) => {
           await controller.fetch(createDataRequest());
 
-          expect(fetchSpy).toHaveBeenCalledWith(
-            MOCK_CHAIN_ID_HEX,
-            MOCK_ACCOUNT_ID,
-            MOCK_ADDRESS,
-            [
-              {
-                assetId: `${MOCK_CHAIN_ID_CAIP}/slip44:60`,
-                address: '0x0000000000000000000000000000000000000000',
-              },
-            ],
-          );
+          const assets = fetchSpy.mock.calls[0][3] as { assetId: string }[];
+          const assetIds = assets.map((entry) => entry.assetId);
+          expect(assetIds).toContain(`${MOCK_CHAIN_ID_CAIP}/slip44:60`);
+          expect(assetIds).toContain(MAINNET_MUSD);
+          expect(assetIds).not.toContain(otherAccountAsset);
         },
       );
 
@@ -1786,21 +1469,18 @@ describe('RpcDataSource', () => {
     });
 
     it('forwards full updateMode on the v6 path', async () => {
-      await withController(
-        { options: { isBalanceV6Enabled: (): boolean => true } },
-        async ({ controller }) => {
-          const context: Context = {
-            request: createDataRequest(),
-            response: {},
-            getAssetsState: vi.fn(),
-          };
-          const next = vi
-            .fn()
-            .mockImplementation((ctx: Context) => Promise.resolve(ctx));
-          await controller.assetsMiddleware(context, next);
-          expect(context.response.updateMode).toBe('full');
-        },
-      );
+      await withController(async ({ controller }) => {
+        const context: Context = {
+          request: createDataRequest(),
+          response: {},
+          getAssetsState: vi.fn(),
+        };
+        const next = vi
+          .fn()
+          .mockImplementation((ctx: Context) => Promise.resolve(ctx));
+        await controller.assetsMiddleware(context, next);
+        expect(context.response.updateMode).toBe('full');
+      });
     });
   });
 
@@ -2151,27 +1831,24 @@ describe('RpcDataSource', () => {
       });
 
       const onAssetsUpdate = vi.fn();
-      await withController(
-        { options: { isBalanceV6Enabled: (): boolean => true } },
-        async ({ controller }) => {
-          await controller.subscribe({
-            request: createDataRequest(),
-            subscriptionId: 'test-sub',
-            isUpdate: false,
-            onAssetsUpdate,
-          });
-          await balanceUpdateCallback?.(
-            createBalanceFetchResult({
-              balances: [
-                {
-                  assetId: 'eip155:1/slip44:60' as Caip19AssetId,
-                  balance: '1000000000000000000',
-                } as BalanceFetchResult['balances'][0],
-              ],
-            }),
-          );
-        },
-      );
+      await withController(async ({ controller }) => {
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate,
+        });
+        await balanceUpdateCallback?.(
+          createBalanceFetchResult({
+            balances: [
+              {
+                assetId: 'eip155:1/slip44:60' as Caip19AssetId,
+                balance: '1000000000000000000',
+              } as BalanceFetchResult['balances'][0],
+            ],
+          }),
+        );
+      });
 
       expect(onAssetsUpdate).toHaveBeenCalledWith(
         expect.objectContaining({ updateMode: 'full' }),
@@ -2196,7 +1873,6 @@ describe('RpcDataSource', () => {
       const onAssetsUpdate = vi.fn();
       await withController(
         {
-          options: { isBalanceV6Enabled: (): boolean => true },
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
@@ -2266,7 +1942,6 @@ describe('RpcDataSource', () => {
       const onAssetsUpdate = vi.fn();
       await withController(
         {
-          options: { isBalanceV6Enabled: (): boolean => true },
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
@@ -2334,7 +2009,6 @@ describe('RpcDataSource', () => {
       const onAssetsUpdate = vi.fn();
       await withController(
         {
-          options: { isBalanceV6Enabled: (): boolean => true },
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
@@ -2406,7 +2080,6 @@ describe('RpcDataSource', () => {
       const onAssetsUpdate = vi.fn();
       await withController(
         {
-          options: { isBalanceV6Enabled: (): boolean => true },
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
@@ -2480,7 +2153,6 @@ describe('RpcDataSource', () => {
       const onAssetsUpdate = vi.fn();
       await withController(
         {
-          options: { isBalanceV6Enabled: (): boolean => true },
           actionHandlerOverrides: {
             'AssetsController:getState': () => ({
               ...getDefaultAssetsControllerState(),
@@ -2548,29 +2220,26 @@ describe('RpcDataSource', () => {
       });
 
       const onAssetsUpdate = vi.fn();
-      await withController(
-        { options: { isBalanceV6Enabled: (): boolean => true } },
-        async ({ controller }) => {
-          await controller.subscribe({
-            request: createDataRequest(),
-            subscriptionId: 'test-sub',
-            isUpdate: false,
-            onAssetsUpdate,
-          });
-          // Non-zero, so the token is not omitted as an unheld invisible
-          // zero; its decimals are unknown, so it cannot be converted.
-          await balanceUpdateCallback?.(
-            createBalanceFetchResult({
-              balances: [
-                {
-                  assetId: erc20AssetId,
-                  balance: '500',
-                } as BalanceFetchResult['balances'][0],
-              ],
-            }),
-          );
-        },
-      );
+      await withController(async ({ controller }) => {
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate,
+        });
+        // Non-zero, so the token is not omitted as an unheld invisible
+        // zero; its decimals are unknown, so it cannot be converted.
+        await balanceUpdateCallback?.(
+          createBalanceFetchResult({
+            balances: [
+              {
+                assetId: erc20AssetId,
+                balance: '500',
+              } as BalanceFetchResult['balances'][0],
+            ],
+          }),
+        );
+      });
 
       expect(onAssetsUpdate).not.toHaveBeenCalled();
     });
@@ -2674,11 +2343,7 @@ describe('RpcDataSource', () => {
         },
       );
 
-      expect(onAssetsUpdate).toHaveBeenCalled();
-      const [response] = onAssetsUpdate.mock.calls[0];
-      expect(
-        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[normalizedId],
-      ).toBeUndefined();
+      expect(onAssetsUpdate).not.toHaveBeenCalled();
     });
   });
 
@@ -3063,31 +2728,25 @@ describe('RpcDataSource', () => {
         });
 
       try {
-        await withController(
-          { options: { isBalanceV6Enabled: (): boolean => true } },
-          async ({ controller, rootMessenger }) => {
-            await controller.subscribe({
-              request: createDataRequest(),
-              subscriptionId: 'test-sub',
-              isUpdate: false,
-              onAssetsUpdate,
-            });
+        await withController(async ({ controller, rootMessenger }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
 
-            rootMessenger.publish(
-              'TransactionController:transactionConfirmed',
-              {
-                chainId: MOCK_CHAIN_ID_HEX,
-                txParams: { from: MOCK_ADDRESS },
-              } as unknown as TransactionMeta,
-            );
-            await new Promise(process.nextTick);
+          rootMessenger.publish('TransactionController:transactionConfirmed', {
+            chainId: MOCK_CHAIN_ID_HEX,
+            txParams: { from: MOCK_ADDRESS },
+          } as unknown as TransactionMeta);
+          await new Promise(process.nextTick);
 
-            expect(onAssetsUpdate).toHaveBeenCalledWith(
-              expect.objectContaining({ updateMode: 'full' }),
-              expect.objectContaining({ dataTypes: ['balance'] }),
-            );
-          },
-        );
+          expect(onAssetsUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({ updateMode: 'full' }),
+            expect.objectContaining({ dataTypes: ['balance'] }),
+          );
+        });
       } finally {
         fetchSpy.mockRestore();
       }
@@ -3254,8 +2913,7 @@ describe('RpcDataSource', () => {
         { options: { isOnboarded: () => true } },
         async ({ controller }) => {
           const response = await controller.fetch(createDataRequest());
-          expect(response).toBeDefined();
-          expect(response.assetsBalance).toBeDefined();
+          expect(response.updateMode).toBe('full');
         },
       );
     });

@@ -463,7 +463,7 @@ describe('TokenDataSource', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
-  it('middleware fetches metadata for assets without image in existing metadata', async () => {
+  it('middleware skips a token that already has symbol, name, and decimals', async () => {
     const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
@@ -491,18 +491,7 @@ describe('TokenDataSource', () => {
 
     await controller.assetsMiddleware(context, next);
 
-    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
-      [MOCK_TOKEN_ASSET],
-      {
-        includeIconUrl: true,
-        includeLabels: true,
-        includeMarketData: true,
-        includeMetadata: true,
-        includeRwaData: true,
-        includeAggregators: true,
-        includeOccurrences: true,
-      },
-    );
+    expect(apiClient.tokens.fetchV3Assets).not.toHaveBeenCalled();
   });
 
   it('middleware filters assets by supported networks', async () => {
@@ -1015,9 +1004,10 @@ describe('TokenDataSource', () => {
     });
 
     const next = vi.fn().mockResolvedValue(undefined);
-    // Websocket-shaped update: detected asset with a seeded metadata stub
-    // (name/symbol, no image). If the stub survived filtering it would
-    // persist to state and mask re-detection of the spam token.
+    // Seeded stub is missing a symbol, so metadata is fetched. The token is
+    // below the occurrence floor and both the balance and the stub are
+    // removed. A stub that already has symbol, name, and decimals is left
+    // alone by this middleware.
     const context = createMiddlewareContext({
       response: {
         assetsBalance: {
@@ -1029,7 +1019,7 @@ describe('TokenDataSource', () => {
           [spamAsset]: {
             type: 'erc20',
             name: 'Spam Token',
-            symbol: 'SPAM',
+            symbol: '',
             decimals: 18,
           },
         },
@@ -1196,7 +1186,7 @@ describe('TokenDataSource', () => {
     ).toStrictEqual({ amount: '100' });
   });
 
-  it('occurrenceFilterMiddleware keeps a custom asset that CustomAssetGraduationMiddleware just removed from customAssets', async () => {
+  it('occurrenceFilterMiddleware keeps a known asset after it leaves customAssets', async () => {
     const { controller } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:1'],
@@ -1216,9 +1206,8 @@ describe('TokenDataSource', () => {
     });
 
     const next = vi.fn().mockResolvedValue(undefined);
-    // Graduation runs first and empties `customAssets`, so the exemption is
-    // gone by the time this middleware reads state; the zero balance seeded
-    // by `addCustomAsset` (checksummed) is what marks the asset as known.
+    // The pin exemption is gone once `customAssets` is empty. The zero balance
+    // seeded by `addCustomAsset` (checksummed) is what marks the asset as known.
     const context = createMiddlewareContext({
       request: createDataRequest({ dataTypes: ['balance'] }),
       response: {

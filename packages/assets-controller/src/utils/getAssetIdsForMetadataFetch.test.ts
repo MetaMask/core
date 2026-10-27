@@ -31,24 +31,6 @@ const COMPLETE_METADATA: FungibleAssetMetadata = {
   symbol: 'TOK',
   name: 'Token',
   decimals: 18,
-  image: 'https://example.com/token.png',
-  aggregators: ['metamask'],
-  occurrences: 5,
-};
-
-const METADATA_WITH_IMAGE: FungibleAssetMetadata = {
-  type: 'erc20',
-  symbol: 'TOK',
-  name: 'Token',
-  decimals: 18,
-  image: 'https://example.com/token.png',
-};
-
-const METADATA_WITHOUT_IMAGE: FungibleAssetMetadata = {
-  type: 'erc20',
-  symbol: 'TOK',
-  name: 'Token',
-  decimals: 18,
 };
 
 function createAccount(id: string): InternalAccount {
@@ -171,7 +153,9 @@ describe('getAssetIdsForMetadataFetch', () => {
   it('marks response balances with known state metadata as heals', () => {
     const result = getAssetIdsForMetadataFetch({
       state: emptyState({
-        assetsInfo: { [TOKEN_MAINNET]: METADATA_WITHOUT_IMAGE },
+        assetsInfo: {
+          [TOKEN_MAINNET]: { ...COMPLETE_METADATA, symbol: '' },
+        },
       }),
       request: createRequest(),
       response: {
@@ -222,9 +206,6 @@ describe('getAssetIdsForMetadataFetch', () => {
   });
 
   it.each([
-    ['image', METADATA_WITH_IMAGE],
-    ['aggregators', { ...COMPLETE_METADATA, aggregators: undefined }],
-    ['occurrences', { ...COMPLETE_METADATA, occurrences: undefined }],
     ['symbol', { ...COMPLETE_METADATA, symbol: '' }],
     ['name', { ...COMPLETE_METADATA, name: '' }],
     ['decimals', { ...COMPLETE_METADATA, decimals: Number.NaN }],

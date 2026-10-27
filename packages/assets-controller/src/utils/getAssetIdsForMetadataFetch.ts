@@ -34,10 +34,9 @@ export type GetAssetIdsForMetadataFetchResult = {
 /**
  * Metadata to fetch for this request.
  *
- * State balances whose metadata is missing a field that controller logic or a
- * client reads are heals: they are enriched and not spam-filtered. Those
- * fields are `symbol`, `name`, `decimals`, `image`, `aggregators`, and
- * `occurrences`. Response balances are included too; a response balance
+ * State balances whose metadata is missing `symbol`, `name`, or `decimals`
+ * are heals: they are enriched and not spam-filtered. Response balances are
+ * included too; a response balance
  * already present in state is a heal, and one that is new to state is
  * spam-filtered. Hidden assets are excluded.
  *
@@ -123,8 +122,7 @@ export function getAssetIdsForMetadataFetch({
 }
 
 /**
- * True when metadata already has every field that controller logic or a
- * client reads from `assetsInfo`.
+ * True when metadata already has a symbol, a name, and decimals.
  *
  * @param metadata - Stored or in-flight asset metadata.
  * @returns Whether another metadata fetch can be skipped.
@@ -132,21 +130,14 @@ export function getAssetIdsForMetadataFetch({
 function hasMetadataUsedByClients(
   metadata: AssetMetadata | undefined,
 ): boolean {
-  if (
-    !metadata ||
-    !('aggregators' in metadata) ||
-    !('occurrences' in metadata)
-  ) {
+  if (!metadata) {
     return false;
   }
 
   return (
     hasText(metadata.symbol) &&
     hasText(metadata.name) &&
-    isFiniteNonNegative(metadata.decimals) &&
-    hasText(metadata.image) &&
-    Array.isArray(metadata.aggregators) &&
-    isFiniteNonNegative(metadata.occurrences)
+    isFiniteNonNegative(metadata.decimals)
   );
 }
 

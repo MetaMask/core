@@ -25,7 +25,6 @@ import type {
 } from './AssetsController.js';
 import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource.js';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
-import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import { PriceDataSource } from './data-sources/PriceDataSource.js';
 import { RpcDataSource } from './data-sources/RpcDataSource.js';
@@ -37,7 +36,6 @@ import {
 import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
 import type {
   Caip19AssetId,
-  AccountId,
   ChainId,
   DataRequest,
   DataResponse,
@@ -652,8 +650,8 @@ describe('AssetsController', () => {
         // Action handlers should be registered
         expect(() => {
           (messenger as unknown as { call: LifecyclePublish }).call(
-            'AssetsController:getCustomAssets',
-            MOCK_ACCOUNT_ID,
+            'AssetsController:setSelectedCurrency',
+            'usd',
           );
         }).not.toThrow();
       });
@@ -697,7 +695,6 @@ describe('AssetsController', () => {
             },
             accountsApiDataSourceConfig: {
               pollInterval: 15_000,
-              tokenDetectionEnabled: (): boolean => false,
             },
           }),
       ).not.toThrow();
@@ -959,11 +956,11 @@ describe('AssetsController', () => {
     });
   });
 
-  describe('custom asset graduation', () => {
+  describe('custom assets stay pinned when a balance update reports them', () => {
     const SOLANA_ASSET_ID =
       'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Caip19AssetId;
 
-    it('graduates an EVM custom asset when AccountsApiDataSource reports a balance for it', async () => {
+    it('keeps an EVM custom asset when AccountsApiDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
         expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
@@ -981,11 +978,13 @@ describe('AssetsController', () => {
           'AccountsApiDataSource',
         );
 
-        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+          MOCK_ASSET_ID,
+        );
       });
     });
 
-    it('graduates an EVM custom asset when AccountActivityDataSource reports a balance for it', async () => {
+    it('keeps an EVM custom asset when AccountActivityDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
@@ -1000,11 +999,13 @@ describe('AssetsController', () => {
           'AccountActivityDataSource',
         );
 
-        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toBeUndefined();
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+          MOCK_ASSET_ID,
+        );
       });
     });
 
-    it('does not graduate when RpcDataSource reports a balance for a custom asset', async () => {
+    it('keeps an EVM custom asset when RpcDataSource reports a balance for it', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
 
@@ -1025,7 +1026,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('does not graduate a non-EVM (Solana) custom asset', async () => {
+    it('keeps a non-EVM (Solana) custom asset', async () => {
       await withController(
         {
           state: {
@@ -1049,42 +1050,6 @@ describe('AssetsController', () => {
           );
         },
       );
-    });
-  });
-
-  describe('getCustomAssets', () => {
-    it('returns empty array for account with no custom assets', async () => {
-      await withController(({ controller }) => {
-        const customAssets = controller.getCustomAssets(MOCK_ACCOUNT_ID);
-
-        expect(customAssets).toStrictEqual([]);
-      });
-    });
-
-    it('returns custom assets for an account', async () => {
-      await withController(async ({ controller }) => {
-        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-
-        const customAssets = controller.getCustomAssets(MOCK_ACCOUNT_ID);
-
-        expect(customAssets).toStrictEqual([MOCK_ASSET_ID]);
-      });
-    });
-
-    it('returns custom assets for specific account only', async () => {
-      const secondAccountId = 'mock-account-id-2' as AccountId;
-
-      await withController(async ({ controller }) => {
-        await controller.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
-
-        const customAssetsFirstAccount =
-          controller.getCustomAssets(MOCK_ACCOUNT_ID);
-        const customAssetsSecondAccount =
-          controller.getCustomAssets(secondAccountId);
-
-        expect(customAssetsFirstAccount).toStrictEqual([MOCK_ASSET_ID]);
-        expect(customAssetsSecondAccount).toStrictEqual([]);
-      });
     });
   });
 
@@ -1801,7 +1766,7 @@ describe('AssetsController', () => {
           controller.hideAsset(customToken);
 
           // The pin is preserved so the import is remembered.
-          expect(controller.getCustomAssets(MOCK_ACCOUNT_ID)).toContain(
+          expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
             customToken,
           );
 
@@ -1823,51 +1788,6 @@ describe('AssetsController', () => {
           }
         },
       );
-    });
-
-    it('includes every pinned asset on the v5 force-update request, including other chains', async () => {
-      const mainnetToken =
-        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-      const polygonToken =
-        'eip155:137/erc20:0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174' as Caip19AssetId;
-
-      const capturedCustomAssets: (Caip19AssetId[] | undefined)[] = [];
-      const accountsApiMiddleware: MockedFunction<Middleware> = vi.fn(
-        async (ctx, next) => {
-          capturedCustomAssets.push(ctx.request.customAssets);
-          return next(ctx);
-        },
-      );
-      const middlewareGetter = vi
-        .spyOn(
-          AccountsApiDataSource.prototype,
-          // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
-          'assetsMiddleware',
-          'get',
-        )
-        .mockReturnValue(
-          accountsApiMiddleware as never,
-        ) as unknown as MockInstance;
-
-      await withController(async ({ controller }) => {
-        await controller.addCustomAsset(MOCK_ACCOUNT_ID, mainnetToken);
-        await controller.addCustomAsset(MOCK_ACCOUNT_ID, polygonToken);
-
-        capturedCustomAssets.length = 0;
-        await controller.getAssets([createMockInternalAccount()], {
-          chainIds: ['eip155:1'],
-          forceUpdate: true,
-        });
-      });
-
-      expect(capturedCustomAssets.length).toBeGreaterThan(0);
-      for (const customAssets of capturedCustomAssets) {
-        expect(customAssets).toStrictEqual(
-          expect.arrayContaining([mainnetToken, polygonToken]),
-        );
-      }
-
-      middlewareGetter.mockRestore();
     });
 
     it('includes only pins on the requested chains as includeAssetIds', async () => {
@@ -2023,9 +1943,7 @@ describe('AssetsController', () => {
     });
 
     describe('pipeline splitting', () => {
-      it('returns from getAssets before background pipelines complete', async () => {
-        // Spy on handleAssetsUpdate to count how many times state is written.
-        // Fast pipeline commits once; background pipelines each commit once more.
+      it('writes a force update through #updateState, not handleAssetsUpdate', async () => {
         await withController(async ({ controller }) => {
           const updateSpy = vi.spyOn(controller, 'handleAssetsUpdate');
 
@@ -2033,11 +1951,10 @@ describe('AssetsController', () => {
             forceUpdate: true,
           });
 
-          // getAssets has returned — fast pipeline committed to state.
-          // Background pipelines are still in flight (fire-and-forget).
-          expect(updateSpy).not.toHaveBeenCalled(); // internal #updateState, not handleAssetsUpdate
+          // Both lanes commit with #updateState. handleAssetsUpdate is the
+          // subscription path.
+          expect(updateSpy).not.toHaveBeenCalled();
 
-          // Let all pending microtasks resolve so background pipelines finish.
           await flushPromises();
 
           updateSpy.mockRestore();
@@ -2099,7 +2016,7 @@ describe('AssetsController', () => {
         );
       });
 
-      it('falls back to RPC on the force-update fast path for unprocessed include asset ids', async () => {
+      it('does not call RPC on the v6 force-update fast path when include asset ids are unprocessed', async () => {
         const customToken =
           'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
 
@@ -2157,6 +2074,7 @@ describe('AssetsController', () => {
             await controller.addCustomAsset(MOCK_ACCOUNT_ID, customToken);
 
             rpcMiddleware.mockClear();
+            rpcRequests.length = 0;
             await controller.getAssets([createMockInternalAccount()], {
               chainIds: ['eip155:1'],
               forceUpdate: true,
@@ -2164,15 +2082,11 @@ describe('AssetsController', () => {
           },
         );
 
-        // RpcFallbackMiddleware retries the pin's chain; RPC reads native,
-        // balances, and pins from state rather than a scoped customAssets list.
-        expect(rpcMiddleware).toHaveBeenCalled();
+        // The v6 fast lane is only the Accounts API call. An unresolved pin
+        // fails its chain there and is not handed to RPC on that lane.
         expect(
           rpcRequests.some(({ chainIds }) => chainIds.includes('eip155:1')),
-        ).toBe(true);
-        expect(
-          rpcRequests.every(({ customAssets }) => customAssets === undefined),
-        ).toBe(true);
+        ).toBe(false);
 
         rpcMiddlewareGetter.mockRestore();
       });
@@ -2462,7 +2376,7 @@ describe('AssetsController', () => {
   });
 
   describe('handleAssetsUpdate', () => {
-    it('re-reads tracked assets an Accounts API poll left empty via the RPC fallback', async () => {
+    it('retries an errored chain on RPC and leaves a complete poll alone', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: { [MOCK_ASSET_ID]: { amount: '1000' } },
@@ -2493,11 +2407,25 @@ describe('AssetsController', () => {
           dataTypes: ['balance'],
         };
 
-        // The poll response omits MOCK_ASSET_ID even though state tracks it —
-        // the fallback must hand it to RPC for an on-chain re-read.
         await controller.handleAssetsUpdate(
           {
-            updateMode: 'merge',
+            updateMode: 'full',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'AccountsApiDataSource',
+          pollRequest,
+        );
+
+        expect(rpcMiddleware).not.toHaveBeenCalled();
+
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'full',
+            errors: { 'eip155:1': 'Unprocessed by Accounts API' },
             assetsBalance: {
               [MOCK_ACCOUNT_ID]: {
                 [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
@@ -2513,25 +2441,6 @@ describe('AssetsController', () => {
           { request: DataRequest },
         ];
         expect(rpcCtx.request.chainIds).toStrictEqual(['eip155:1']);
-        expect(rpcCtx.request.customAssets).toContain(MOCK_ASSET_ID);
-
-        // Same update from the WebSocket source must NOT trigger the
-        // fallback: its pushes are incremental single-asset updates, so an
-        // absent asset is not stale there.
-        rpcMiddleware.mockClear();
-        await controller.handleAssetsUpdate(
-          {
-            updateMode: 'merge',
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
-              },
-            },
-          },
-          'AccountActivityDataSource',
-          pollRequest,
-        );
-        expect(rpcMiddleware).not.toHaveBeenCalled();
       });
 
       rpcMiddlewareGetter.mockRestore();
@@ -2802,28 +2711,6 @@ describe('AssetsController', () => {
       expect(rpcMiddlewareGetter).not.toHaveBeenCalled();
 
       rpcMiddlewareGetter.mockRestore();
-    });
-  });
-
-  describe('getAssetsBalance', () => {
-    it('returns balance data for accounts', async () => {
-      await withController(async ({ controller }) => {
-        const accounts = [createMockInternalAccount()];
-        const balances = await controller.getAssetsBalance(accounts);
-
-        expect(Object.keys(balances[MOCK_ACCOUNT_ID])).toStrictEqual([]);
-      });
-    });
-  });
-
-  describe('getAssetsPrice', () => {
-    it('returns price data for assets', async () => {
-      await withController(async ({ controller }) => {
-        const accounts = [createMockInternalAccount()];
-        const prices = await controller.getAssetsPrice(accounts);
-
-        expect(prices).toStrictEqual({});
-      });
     });
   });
 
@@ -3304,7 +3191,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('adds default 0 balance for native tokens when missing from response', async () => {
+    it('does not invent a native balance when the response omits it', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
@@ -3324,29 +3211,7 @@ describe('AssetsController', () => {
           controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
             MOCK_NATIVE_ASSET_ID
           ],
-        ).toStrictEqual({ amount: '0' });
-      });
-    });
-
-    it('does not add default native balance for chains without a registered identifier', async () => {
-      await withController(async ({ controller }) => {
-        await controller.handleAssetsUpdate(
-          {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_ASSET_ID]: { amount: '1' },
-              },
-            },
-          },
-          'TestSource',
-        );
-
-        const accountBalances =
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID] ?? {};
-        const nativeIds = Object.keys(accountBalances).filter((id) =>
-          id.includes('/slip44:'),
-        );
-        expect(nativeIds).toStrictEqual([MOCK_NATIVE_ASSET_ID]);
+        ).toBeUndefined();
       });
     });
 
@@ -3599,9 +3464,6 @@ describe('AssetsController', () => {
           expect(
             controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
           ).toBeUndefined();
-          expect(
-            controller.getAccountAssetByID(MOCK_ACCOUNT_ID, MOCK_ASSET_ID),
-          ).toBeUndefined();
         },
       );
     });
@@ -3681,82 +3543,6 @@ describe('AssetsController', () => {
           ).toStrictEqual({ amount: '7' });
         },
       );
-    });
-
-    it('replaces covered-chain balances in merge mode when replaceCoveredChainBalances is set', async () => {
-      const initialState: Partial<AssetsControllerState> = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: {
-            [MOCK_ASSET_ID]: { amount: '1' },
-            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
-          },
-        },
-      };
-
-      await withController({ state: initialState }, async ({ controller }) => {
-        await controller.handleAssetsUpdate(
-          {
-            updateMode: 'merge',
-            replaceCoveredChainBalances: true,
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
-              },
-            },
-          },
-          'TestSource',
-        );
-
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-        ).toBeUndefined();
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-            MOCK_NATIVE_ASSET_ID
-          ],
-        ).toStrictEqual({ amount: '2' });
-      });
-    });
-
-    it('preserves existing staked balances when replaceCoveredChainBalances omits them', async () => {
-      const stakingAssetId =
-        'eip155:1/erc20:0x4FEF9D741011476750A243aC70b9789a63dd47Df' as Caip19AssetId;
-      const initialState: Partial<AssetsControllerState> = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: {
-            [MOCK_ASSET_ID]: { amount: '1' },
-            [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
-            [stakingAssetId]: { amount: '1.5' },
-          },
-        },
-      };
-
-      await withController({ state: initialState }, async ({ controller }) => {
-        await controller.handleAssetsUpdate(
-          {
-            updateMode: 'merge',
-            replaceCoveredChainBalances: true,
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_NATIVE_ASSET_ID]: { amount: '2' },
-              },
-            },
-          },
-          'AccountsApiDataSource',
-        );
-
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-        ).toBeUndefined();
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-            MOCK_NATIVE_ASSET_ID
-          ],
-        ).toStrictEqual({ amount: '2' });
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[stakingAssetId],
-        ).toStrictEqual({ amount: '1.5' });
-      });
     });
 
     it('preserves existing staked balances when a full update omits them', async () => {
@@ -4900,68 +4686,6 @@ describe('AssetsController', () => {
           clientControllerState: { isUiOpen: true },
           queryApiClient,
           remoteFeatureFlags: { assetsAccountsApiV6: true },
-          state: {
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_ASSET_ID]: { amount: '100' },
-                [MOCK_NATIVE_ASSET_ID]: { amount: '0.5' },
-              },
-            },
-          },
-        },
-        async ({ controller, messenger }) => {
-          (
-            messenger as unknown as {
-              publish: (topic: string, payload?: unknown) => void;
-            }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
-          messenger.publish('KeyringController:unlock');
-          (messenger as unknown as { publish: LifecyclePublish }).publish(
-            'AccountTreeController:initialized',
-            {},
-          );
-
-          await flushPromises();
-
-          expect(
-            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-          ).toBeUndefined();
-          expect(
-            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-              MOCK_NATIVE_ASSET_ID
-            ],
-          ).toStrictEqual({ amount: '2' });
-        },
-      );
-    });
-
-    it('replaces pre-lock balances on unlock via merge with covered-chain replacement', async () => {
-      const fetchV5MultiAccountBalances = vi.fn().mockResolvedValue({
-        balances: [
-          {
-            accountId: 'eip155:1:0x1234567890123456789012345678901234567890',
-            assetId: MOCK_NATIVE_ASSET_ID,
-            balance: '2',
-          },
-        ],
-        unprocessedNetworks: [],
-      });
-
-      const queryApiClient = {
-        ...createMockQueryApiClient(),
-        accounts: {
-          fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
-            fullSupport: [1],
-            partialSupport: [],
-          }),
-          fetchV5MultiAccountBalances,
-        },
-      } as unknown as ApiPlatformClient;
-
-      await withController(
-        {
-          clientControllerState: { isUiOpen: true },
-          queryApiClient,
           state: {
             assetsBalance: {
               [MOCK_ACCOUNT_ID]: {

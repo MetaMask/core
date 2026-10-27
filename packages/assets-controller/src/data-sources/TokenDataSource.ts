@@ -515,8 +515,8 @@ export class TokenDataSource {
    * Get the middleware for enriching responses with token metadata.
    *
    * This middleware:
-   * 1. Fetches metadata for state balances that are missing a field clients
-   *    or controller logic read, and for every balance on the current
+   * 1. Fetches metadata for state balances that are missing a symbol, name,
+   *    or decimals, and for every balance on the current
    *    response, excluding hidden assets
    * 2. Spam-filters balances that are new to state; balances already tracked
    *    are enriched without being removed

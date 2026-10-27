@@ -14,57 +14,27 @@ function stubSource(name: string): AssetsDataSource {
 function buildSources(): FastFetchSources {
   return {
     accountsApiDataSource: stubSource('AccountsApiDataSource'),
-    customAssetGraduationMiddleware: stubSource(
-      'CustomAssetGraduationMiddleware',
-    ),
-    rpcFallbackMiddleware: stubSource('RpcFallbackMiddleware'),
-    tokenDataSource: stubSource('TokenDataSource'),
-    priceDataSource: stubSource('PriceDataSource'),
   };
 }
 
 describe('buildFastFetchSources', () => {
   it.each([
     {
-      title:
-        'orders the lane balances → graduation → rpc fallback → enrichment',
+      title: 'is only the Accounts API call',
       isBasicFunctionality: true,
-      includeCustomAssetGraduation: true,
-      expected: [
-        'AccountsApiDataSource',
-        'CustomAssetGraduationMiddleware',
-        'RpcFallbackMiddleware',
-        'ParallelMiddleware',
-      ],
-    },
-    {
-      title: 'drops graduation from the lane',
-      isBasicFunctionality: true,
-      // The Accounts API v6 lane resolves pins through `includeAssetIds`.
-      includeCustomAssetGraduation: false,
-      expected: [
-        'AccountsApiDataSource',
-        'RpcFallbackMiddleware',
-        'ParallelMiddleware',
-      ],
+      expected: ['AccountsApiDataSource'],
     },
     {
       title: 'runs nothing',
       isBasicFunctionality: false,
-      includeCustomAssetGraduation: true,
-      // No balance source runs, so detection has nothing to scan and no
-      // token or price source to feed. The RPC background lane covers this.
+      // No balance source runs. The RPC background lane covers this.
       expected: [],
     },
-  ])(
-    '$title',
-    ({ isBasicFunctionality, includeCustomAssetGraduation, expected }) => {
-      const sources = buildFastFetchSources(buildSources(), {
-        isBasicFunctionality,
-        includeCustomAssetGraduation,
-      });
+  ])('$title', ({ isBasicFunctionality, expected }) => {
+    const sources = buildFastFetchSources(buildSources(), {
+      isBasicFunctionality,
+    });
 
-      expect(sources.map((source) => source.getName())).toStrictEqual(expected);
-    },
-  );
+    expect(sources.map((source) => source.getName())).toStrictEqual(expected);
+  });
 });

@@ -26,10 +26,7 @@ import type {
   AccountsApiDataSourceAllowedActions,
   AccountsApiDataSourceAllowedEvents,
 } from './AccountsApiDataSource.js';
-import {
-  AccountsApiDataSource,
-  filterResponseToKnownAssets,
-} from './AccountsApiDataSource.js';
+import { AccountsApiDataSource } from './AccountsApiDataSource.js';
 
 type AllActions = AccountsApiDataSourceAllowedActions;
 type AllEvents = AccountsApiDataSourceAllowedEvents;
@@ -47,16 +44,9 @@ function getNativeAssetForChain(chainId: ChainId): Caip19AssetId {
   return NATIVE_ASSETS[chainId] ?? `${chainId}/erc20:${ZERO_ADDRESS}`;
 }
 
-function isBalanceV6EnabledFromFlags(
-  remoteFeatureFlags: Record<string, unknown>,
-): boolean {
-  return remoteFeatureFlags.assetsAccountsApiV6 === true;
-}
-
 type MockApiClient = {
   accounts: {
     fetchV2SupportedNetworks: Mock;
-    fetchV5MultiAccountBalances: Mock;
     fetchV6MultiAccountBalances: Mock;
   };
 };
@@ -95,17 +85,26 @@ function createMockApiClient(
         fullSupport: supportedChains,
         partialSupport,
       }),
-      fetchV5MultiAccountBalances: vi.fn().mockResolvedValue({
-        balances,
-        unprocessedNetworks,
-      }),
       fetchV6MultiAccountBalances: vi.fn().mockResolvedValue({
-        balances: v6Balances,
+        balances: v6Balances.length > 0 ? v6Balances : v5BalancesAsV6(balances),
         unprocessedNetworks,
         unprocessedIncludeAssetIds,
       }),
     },
   };
+}
+
+function v5BalancesAsV6(balances: V5BalanceItem[]): V6BalanceItem[] {
+  return balances.map((item) =>
+    createMockV6BalanceItem(
+      item.accountId,
+      item.assetId,
+      item.balance,
+      'token',
+      item.assetId.includes('/slip44:') ? 'native' : 'erc20',
+      item.metadata as V6BalanceItem['metadata'],
+    ),
+  );
 }
 
 function createMockV6BalanceItem(
@@ -198,7 +197,6 @@ async function setupController(
     v6Balances?: V6BalanceItem[];
     remoteFeatureFlags?: Record<string, unknown>;
     getAssetsState?: () => AssetsControllerState;
-    tokenDetectionEnabled?: () => boolean;
   } = {},
 ): Promise<SetupResult> {
   const {
@@ -211,7 +209,6 @@ async function setupController(
     v6Balances = [],
     remoteFeatureFlags = {},
     getAssetsState = (): AssetsControllerState => createAssetsState(),
-    tokenDetectionEnabled,
   } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -263,8 +260,6 @@ async function setupController(
       apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
     onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
       activeChainsUpdateHandler(dataSourceName, chains, previousChains),
-    isBalanceV6Enabled: (): boolean =>
-      isBalanceV6EnabledFromFlags(remoteFeatureFlags),
     getAssetsState,
     getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
       getAssetVisibility({
@@ -274,7 +269,6 @@ async function setupController(
         getNativeAssetForChain,
       }),
     ...(fetchTimeoutMs === undefined ? {} : { fetchTimeoutMs }),
-    ...(tokenDetectionEnabled === undefined ? {} : { tokenDetectionEnabled }),
   });
 
   // Wait for async initialization
@@ -616,9 +610,9 @@ describe('AccountsApiDataSource', () => {
 
     await controller.fetch(createDataRequest());
 
-    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+    expect(apiClient.accounts.fetchV6MultiAccountBalances).toHaveBeenCalledWith(
       [`eip155:1:${MOCK_ADDRESS}`],
-      undefined,
+      { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
       undefined,
     );
 
@@ -630,9 +624,9 @@ describe('AccountsApiDataSource', () => {
 
     await controller.fetch(createDataRequest({ forceUpdate: true }));
 
-    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+    expect(apiClient.accounts.fetchV6MultiAccountBalances).toHaveBeenCalledWith(
       [`eip155:1:${MOCK_ADDRESS}`],
-      undefined,
+      { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
       { staleTime: 0, gcTime: 0 },
     );
 
@@ -646,9 +640,9 @@ describe('AccountsApiDataSource', () => {
       createDataRequest({ forceUpdate: true, bypassServerCache: true }),
     );
 
-    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+    expect(apiClient.accounts.fetchV6MultiAccountBalances).toHaveBeenCalledWith(
       [`eip155:1:${MOCK_ADDRESS}`],
-      undefined,
+      { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
       { staleTime: 0, gcTime: 0, bypassServerCache: true },
     );
 
@@ -660,9 +654,9 @@ describe('AccountsApiDataSource', () => {
 
     await controller.fetch(createDataRequest({ bypassServerCache: true }));
 
-    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+    expect(apiClient.accounts.fetchV6MultiAccountBalances).toHaveBeenCalledWith(
       [`eip155:1:${MOCK_ADDRESS}`],
-      undefined,
+      { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
       { staleTime: 0, gcTime: 0, bypassServerCache: true },
     );
 
@@ -814,7 +808,7 @@ describe('AccountsApiDataSource', () => {
   it('fetch handles API errors', async () => {
     const { controller, apiClient } = await setupController();
 
-    apiClient.accounts.fetchV5MultiAccountBalances.mockRejectedValueOnce(
+    apiClient.accounts.fetchV6MultiAccountBalances.mockRejectedValueOnce(
       new Error('API Error'),
     );
 
@@ -826,21 +820,6 @@ describe('AccountsApiDataSource', () => {
   });
 
   describe('assetsAccountsApiV6 feature flag', () => {
-    it('uses the v5 endpoint by default', async () => {
-      const { controller, apiClient } = await setupController();
-
-      await controller.fetch(createDataRequest());
-
-      expect(
-        apiClient.accounts.fetchV5MultiAccountBalances,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        apiClient.accounts.fetchV6MultiAccountBalances,
-      ).not.toHaveBeenCalled();
-
-      controller.destroy();
-    });
-
     it('uses the v6 endpoint when the assetsAccountsApiV6 remote flag is enabled', async () => {
       const { controller, apiClient } = await setupController({
         remoteFeatureFlags: { assetsAccountsApiV6: true },
@@ -851,9 +830,6 @@ describe('AccountsApiDataSource', () => {
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledTimes(1);
-      expect(
-        apiClient.accounts.fetchV5MultiAccountBalances,
-      ).not.toHaveBeenCalled();
 
       controller.destroy();
     });
@@ -866,23 +842,6 @@ describe('AccountsApiDataSource', () => {
       const response = await controller.fetch(createDataRequest());
 
       expect(response.updateMode).toBe('full');
-
-      controller.destroy();
-    });
-
-    it('uses the v5 endpoint when the assetsAccountsApiV6 remote flag is disabled', async () => {
-      const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: false },
-      });
-
-      await controller.fetch(createDataRequest());
-
-      expect(
-        apiClient.accounts.fetchV5MultiAccountBalances,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        apiClient.accounts.fetchV6MultiAccountBalances,
-      ).not.toHaveBeenCalled();
 
       controller.destroy();
     });
@@ -901,31 +860,6 @@ describe('AccountsApiDataSource', () => {
         { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
         undefined,
       );
-      expect(
-        apiClient.accounts.fetchV5MultiAccountBalances,
-      ).not.toHaveBeenCalled();
-
-      controller.destroy();
-    });
-
-    it('reads the flag per fetch so it can revert to v5 at runtime', async () => {
-      const remoteFeatureFlags = {
-        assetsAccountsApiV6: true,
-      };
-      const { controller, apiClient } = await setupController({
-        remoteFeatureFlags,
-      });
-
-      await controller.fetch(createDataRequest());
-      expect(
-        apiClient.accounts.fetchV6MultiAccountBalances,
-      ).toHaveBeenCalledTimes(1);
-
-      remoteFeatureFlags.assetsAccountsApiV6 = false;
-      await controller.fetch(createDataRequest());
-      expect(
-        apiClient.accounts.fetchV5MultiAccountBalances,
-      ).toHaveBeenCalledTimes(1);
 
       controller.destroy();
     });
@@ -951,6 +885,68 @@ describe('AccountsApiDataSource', () => {
         response.assetsBalance?.['mock-account-id']?.['eip155:1/slip44:60']
           ?.amount,
       ).toBe('1000000000000000000');
+
+      controller.destroy();
+    });
+
+    it('maps image, aggregators, occurrences, and pricePercentChange1d from the v6 row', async () => {
+      const accountId = `eip155:1:${MOCK_ADDRESS}`;
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        v6Balances: [
+          {
+            ...createMockV6BalanceItem(
+              accountId,
+              MAINNET_NATIVE,
+              '1000000000000000000',
+              'token',
+              'native',
+            ),
+            name: 'Ether',
+            symbol: 'ETH',
+            decimals: 18,
+            image: 'https://example.com/eth.png',
+            aggregators: ['uniswap', '1inch'],
+            occurrences: 12,
+            price: '2500.5',
+            pricePercentChange1d: 1.25,
+          },
+        ],
+      });
+
+      const next = vi.fn(async (ctx: Context) => ctx);
+      const context = createMiddlewareContext({
+        request: createDataRequest({
+          dataTypes: ['balance', 'metadata', 'price'],
+        }),
+      });
+      await controller.assetsMiddleware(context, next);
+
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        expect.objectContaining({
+          includePrices: true,
+          vsCurrency: 'usd',
+        }),
+        undefined,
+      );
+      expect(context.response.assetsInfo?.[MAINNET_NATIVE]).toMatchObject({
+        type: 'native',
+        name: 'Ether',
+        symbol: 'ETH',
+        decimals: 18,
+        image: 'https://example.com/eth.png',
+        aggregators: ['uniswap', '1inch'],
+        occurrences: 12,
+      });
+      expect(context.response.assetsPrice?.[MAINNET_NATIVE]).toMatchObject({
+        assetPriceType: 'fungible',
+        price: 2500.5,
+        usdPrice: 2500.5,
+        pricePercentChange1d: 1.25,
+      });
 
       controller.destroy();
     });
@@ -1681,7 +1677,7 @@ describe('AccountsApiDataSource', () => {
       fetchTimeoutMs: 10,
     });
 
-    apiClient.accounts.fetchV5MultiAccountBalances.mockImplementationOnce(
+    apiClient.accounts.fetchV6MultiAccountBalances.mockImplementationOnce(
       () => new Promise(() => undefined),
     );
 
@@ -1706,7 +1702,7 @@ describe('AccountsApiDataSource', () => {
     await controller.fetch(request);
 
     expect(
-      apiClient.accounts.fetchV5MultiAccountBalances,
+      apiClient.accounts.fetchV6MultiAccountBalances,
     ).not.toHaveBeenCalled();
 
     controller.destroy();
@@ -1777,7 +1773,7 @@ describe('AccountsApiDataSource', () => {
       fetchTimeoutMs: 10,
     });
 
-    apiClient.accounts.fetchV5MultiAccountBalances.mockImplementationOnce(
+    apiClient.accounts.fetchV6MultiAccountBalances.mockImplementationOnce(
       () => new Promise(() => undefined),
     );
 
@@ -1817,7 +1813,7 @@ describe('AccountsApiDataSource', () => {
       ],
     });
 
-    apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
+    apiClient.accounts.fetchV6MultiAccountBalances.mockClear();
 
     const next = vi.fn().mockResolvedValue(undefined);
     const context = createMiddlewareContext({
@@ -1827,7 +1823,7 @@ describe('AccountsApiDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(
-      apiClient.accounts.fetchV5MultiAccountBalances,
+      apiClient.accounts.fetchV6MultiAccountBalances,
     ).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(context);
 
@@ -1881,9 +1877,9 @@ describe('AccountsApiDataSource', () => {
       onAssetsUpdate: assetsUpdateHandler,
     });
 
-    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+    expect(apiClient.accounts.fetchV6MultiAccountBalances).toHaveBeenCalledWith(
       [`eip155:1:${MOCK_ADDRESS}`],
-      undefined,
+      { includeAssetIds: [MAINNET_NATIVE, MAINNET_MUSD] },
       { staleTime: 0, gcTime: 0 },
     );
 
@@ -1894,7 +1890,7 @@ describe('AccountsApiDataSource', () => {
     const { controller, assetsUpdateHandler, apiClient } =
       await setupController();
 
-    apiClient.accounts.fetchV5MultiAccountBalances.mockClear();
+    apiClient.accounts.fetchV6MultiAccountBalances.mockClear();
 
     await controller.subscribe({
       subscriptionId: 'sub-1',
@@ -1906,7 +1902,7 @@ describe('AccountsApiDataSource', () => {
 
     expect(assetsUpdateHandler).not.toHaveBeenCalled();
     expect(
-      apiClient.accounts.fetchV5MultiAccountBalances,
+      apiClient.accounts.fetchV6MultiAccountBalances,
     ).not.toHaveBeenCalled();
 
     controller.destroy();
@@ -1978,498 +1974,5 @@ describe('AccountsApiDataSource', () => {
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
 
     controller.destroy();
-  });
-
-  describe('tokenDetectionEnabled', () => {
-    async function setupControllerWithDetection(
-      options: {
-        supportedChains?: number[];
-        balances?: V5BalanceItem[];
-        unprocessedNetworks?: string[];
-        tokenDetectionEnabled?: boolean;
-        getAssetsState?: () => AssetsControllerState;
-        remoteFeatureFlags?: Record<string, unknown>;
-      } = {},
-    ): Promise<SetupResult> {
-      const {
-        supportedChains = [1, 137],
-        balances = [],
-        unprocessedNetworks = [],
-        tokenDetectionEnabled,
-        getAssetsState = (): AssetsControllerState => createAssetsState(),
-        remoteFeatureFlags = {},
-      } = options;
-
-      const rootMessenger = new Messenger<
-        MockAnyNamespace,
-        AllActions,
-        AllEvents
-      >({
-        namespace: MOCK_ANY_NAMESPACE,
-      });
-
-      const controllerMessenger = new Messenger<
-        'AccountsApiDataSource',
-        AllActions,
-        AllEvents,
-        RootMessenger
-      >({
-        namespace: 'AccountsApiDataSource',
-        parent: rootMessenger,
-      });
-
-      (
-        rootMessenger as unknown as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
-        }
-      ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
-        remoteFeatureFlags,
-        cacheTimestamp: 0,
-      }));
-
-      rootMessenger.delegate({
-        messenger: controllerMessenger,
-        actions: ['RemoteFeatureFlagController:getState'],
-        events: [],
-      });
-
-      const assetsUpdateHandler = vi.fn().mockResolvedValue(undefined);
-      const activeChainsUpdateHandler = vi.fn();
-
-      const apiClient = createMockApiClient(
-        supportedChains,
-        balances,
-        unprocessedNetworks,
-      );
-
-      const controllerOptions: AccountsApiDataSourceOptions = {
-        messenger:
-          controllerMessenger as unknown as AccountsApiDataSourceOptions['messenger'],
-        queryApiClient:
-          apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
-        onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
-          activeChainsUpdateHandler(dataSourceName, chains, previousChains),
-        isBalanceV6Enabled: (): boolean =>
-          isBalanceV6EnabledFromFlags(remoteFeatureFlags),
-        getAssetsState,
-        getAssetVisibility: (accountIds, chainIds): AssetVisibility =>
-          getAssetVisibility({
-            state: getAssetsState(),
-            accountIds,
-            chainIds,
-            getNativeAssetForChain,
-          }),
-      };
-
-      if (tokenDetectionEnabled !== undefined) {
-        controllerOptions.tokenDetectionEnabled = (): boolean =>
-          tokenDetectionEnabled;
-      }
-
-      const controller = new AccountsApiDataSource(controllerOptions);
-
-      // Wait for async initialization
-      await new Promise(process.nextTick);
-
-      return {
-        controller,
-        messenger: rootMessenger,
-        apiClient,
-        assetsUpdateHandler,
-        activeChainsUpdateHandler,
-      };
-    }
-
-    const KNOWN_ASSET =
-      'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
-    const UNKNOWN_ASSET =
-      'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7';
-    const ACCOUNT_ID = 'mock-account-id';
-
-    it('includes all tokens when tokenDetectionEnabled is true (default)', async () => {
-      const { controller, assetsUpdateHandler } =
-        await setupControllerWithDetection({
-          balances: [
-            createMockBalanceItem(
-              `eip155:1:${MOCK_ADDRESS}`,
-              KNOWN_ASSET,
-              '1000',
-            ),
-            createMockBalanceItem(
-              `eip155:1:${MOCK_ADDRESS}`,
-              UNKNOWN_ASSET,
-              '2000',
-            ),
-          ],
-        });
-
-      await controller.subscribe({
-        subscriptionId: 'sub-1',
-        request: createDataRequest(),
-        isUpdate: false,
-        onAssetsUpdate: assetsUpdateHandler,
-      });
-
-      expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
-      const response = assetsUpdateHandler.mock.calls[0][0];
-      // Both tokens should be included
-      expect(
-        Object.keys(response.assetsBalance?.[ACCOUNT_ID] ?? {}),
-      ).toHaveLength(2);
-
-      controller.destroy();
-    });
-
-    it('filters out unknown tokens when tokenDetectionEnabled is false', async () => {
-      const { controller, assetsUpdateHandler } =
-        await setupControllerWithDetection({
-          tokenDetectionEnabled: false,
-          balances: [
-            createMockBalanceItem(
-              `eip155:1:${MOCK_ADDRESS}`,
-              KNOWN_ASSET,
-              '1000',
-            ),
-            createMockBalanceItem(
-              `eip155:1:${MOCK_ADDRESS}`,
-              UNKNOWN_ASSET,
-              '2000',
-            ),
-          ],
-          getAssetsState: () =>
-            createAssetsState({
-              assetsBalance: {
-                [ACCOUNT_ID]: {
-                  [KNOWN_ASSET]: { amount: '500' },
-                },
-              },
-            }),
-        });
-
-      await controller.subscribe({
-        subscriptionId: 'sub-1',
-        request: createDataRequest(),
-        isUpdate: false,
-        onAssetsUpdate: assetsUpdateHandler,
-      });
-
-      expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
-      const response = assetsUpdateHandler.mock.calls[0][0];
-      // Only the known token should be included
-      const accountBalances = response.assetsBalance?.[ACCOUNT_ID] ?? {};
-      expect(Object.keys(accountBalances)).toHaveLength(1);
-      expect(accountBalances[KNOWN_ASSET]).toStrictEqual({ amount: '1000' });
-      expect(accountBalances[UNKNOWN_ASSET]).toBeUndefined();
-
-      controller.destroy();
-    });
-
-    it('returns empty balance when no tokens are known and tokenDetectionEnabled is false', async () => {
-      const { controller, assetsUpdateHandler } =
-        await setupControllerWithDetection({
-          tokenDetectionEnabled: false,
-          balances: [
-            createMockBalanceItem(
-              `eip155:1:${MOCK_ADDRESS}`,
-              UNKNOWN_ASSET,
-              '2000',
-            ),
-          ],
-          getAssetsState: () => createAssetsState(),
-        });
-
-      await controller.subscribe({
-        subscriptionId: 'sub-1',
-        request: createDataRequest(),
-        isUpdate: false,
-        onAssetsUpdate: assetsUpdateHandler,
-      });
-
-      expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
-      const response = assetsUpdateHandler.mock.calls[0][0];
-      // No balances should be returned
-      expect(response.assetsBalance).toBeUndefined();
-
-      controller.destroy();
-    });
-
-    it('filters unknown tokens in middleware when tokenDetectionEnabled is false', async () => {
-      const { controller } = await setupControllerWithDetection({
-        tokenDetectionEnabled: false,
-        balances: [
-          createMockBalanceItem(
-            `eip155:1:${MOCK_ADDRESS}`,
-            KNOWN_ASSET,
-            '1000',
-          ),
-          createMockBalanceItem(
-            `eip155:1:${MOCK_ADDRESS}`,
-            UNKNOWN_ASSET,
-            '2000',
-          ),
-        ],
-        getAssetsState: () =>
-          createAssetsState({
-            assetsBalance: {
-              [ACCOUNT_ID]: {
-                [KNOWN_ASSET]: { amount: '500' },
-              },
-            },
-          }),
-      });
-
-      const middleware = controller.assetsMiddleware;
-      const context = createMiddlewareContext();
-      const nextFn = vi.fn();
-
-      await middleware(context, nextFn);
-
-      // Verify only known asset is in the response
-      const accountBalances =
-        context.response.assetsBalance?.[ACCOUNT_ID] ?? {};
-      expect(accountBalances[KNOWN_ASSET as never]).toStrictEqual({
-        amount: '1000',
-      });
-      expect(accountBalances[UNKNOWN_ASSET as never]).toBeUndefined();
-
-      controller.destroy();
-    });
-
-    it('middleware does not remove chains when tokenDetectionEnabled is false and filter removes all balance data (bootstrap for RPC)', async () => {
-      const { controller } = await setupControllerWithDetection({
-        tokenDetectionEnabled: false,
-        supportedChains: [1, 137],
-        balances: [
-          createMockBalanceItem(
-            `eip155:1:${MOCK_ADDRESS}`,
-            'eip155:1/slip44:60',
-            '1000000000000000000',
-          ),
-        ],
-        getAssetsState: () => createAssetsState(),
-      });
-
-      const nextFn = vi.fn().mockResolvedValue(undefined);
-      const context = createMiddlewareContext({
-        request: createDataRequest({
-          chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
-        }),
-      });
-
-      await controller.assetsMiddleware(context, nextFn);
-
-      // All chains must still be passed to next middleware so RPC can fetch native balances
-      expect(nextFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          request: expect.objectContaining({
-            chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
-          }),
-        }),
-      );
-
-      controller.destroy();
-    });
-
-    it('does not filter unknown tokens on the v6 path when tokenDetectionEnabled is false', async () => {
-      const known = createMockV6BalanceItem(
-        `eip155:1:${MOCK_ADDRESS}`,
-        KNOWN_ASSET,
-        '1000',
-      );
-      const unknown = createMockV6BalanceItem(
-        `eip155:1:${MOCK_ADDRESS}`,
-        UNKNOWN_ASSET,
-        '2000',
-      );
-      const { controller } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: true },
-        tokenDetectionEnabled: (): boolean => false,
-        v6Balances: [known, unknown],
-        getAssetsState: () =>
-          createAssetsState({
-            assetsBalance: {
-              [ACCOUNT_ID]: {
-                [KNOWN_ASSET]: { amount: '500' },
-              },
-            },
-          }),
-      });
-
-      const response = await controller.fetch(createDataRequest());
-      const accountBalances = response.assetsBalance?.[ACCOUNT_ID] ?? {};
-      expect(Object.keys(accountBalances)).toHaveLength(2);
-      expect(accountBalances[KNOWN_ASSET as Caip19AssetId]).toBeDefined();
-      expect(accountBalances[UNKNOWN_ASSET as Caip19AssetId]).toBeDefined();
-
-      controller.destroy();
-    });
-
-    it('keeps requested chains on v6 when tokenDetectionEnabled is false', async () => {
-      const { controller } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: true },
-        tokenDetectionEnabled: (): boolean => false,
-        v6Balances: [
-          createMockV6BalanceItem(
-            `eip155:1:${MOCK_ADDRESS}`,
-            'eip155:1/slip44:60',
-            '1000000000000000000',
-            'token',
-            'native',
-          ),
-        ],
-        getAssetsState: () => createAssetsState(),
-      });
-
-      const nextFn = vi.fn().mockResolvedValue(undefined);
-      const context = createMiddlewareContext({
-        request: createDataRequest({
-          chainIds: [CHAIN_MAINNET],
-        }),
-      });
-
-      await controller.assetsMiddleware(context, nextFn);
-
-      expect(nextFn).toHaveBeenCalledWith(
-        expect.objectContaining({
-          request: expect.objectContaining({
-            chainIds: [CHAIN_MAINNET],
-          }),
-        }),
-      );
-
-      controller.destroy();
-    });
-  });
-});
-
-// =============================================================================
-// filterResponseToKnownAssets — standalone unit tests
-// =============================================================================
-
-describe('filterResponseToKnownAssets', () => {
-  const ACCOUNT_A = 'account-a';
-  const ACCOUNT_B = 'account-b';
-  const ASSET_1 = 'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
-  const ASSET_2 = 'eip155:1/erc20:0xdAC17F958D2ee523a2206206994597C13D831ec7';
-  const ASSET_3 = 'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F';
-
-  function buildState(
-    balances: Record<string, Record<string, { amount: string }>>,
-  ): AssetsControllerState {
-    return createAssetsState({ assetsBalance: balances });
-  }
-
-  it('returns response unchanged when assetsBalance is undefined', () => {
-    const response = { errors: { 'eip155:1': 'fail' } };
-    const state = buildState({});
-
-    expect(filterResponseToKnownAssets(response, state)).toStrictEqual(
-      response,
-    );
-  });
-
-  it('keeps only assets that exist in state', () => {
-    const response = {
-      assetsBalance: {
-        [ACCOUNT_A]: {
-          [ASSET_1]: { amount: '100' },
-          [ASSET_2]: { amount: '200' },
-        },
-      },
-    };
-    const state = buildState({
-      [ACCOUNT_A]: { [ASSET_1]: { amount: '50' } },
-    });
-
-    const result = filterResponseToKnownAssets(response, state);
-
-    expect(result.assetsBalance?.[ACCOUNT_A]).toStrictEqual({
-      [ASSET_1]: { amount: '100' },
-    });
-    expect(
-      result.assetsBalance?.[ACCOUNT_A]?.[ASSET_2 as never],
-    ).toBeUndefined();
-  });
-
-  it('drops accounts that have no balances in state', () => {
-    const response = {
-      assetsBalance: {
-        [ACCOUNT_A]: { [ASSET_1]: { amount: '100' } },
-        [ACCOUNT_B]: { [ASSET_2]: { amount: '200' } },
-      },
-    };
-    const state = buildState({
-      [ACCOUNT_A]: { [ASSET_1]: { amount: '10' } },
-      // ACCOUNT_B not in state
-    });
-
-    const result = filterResponseToKnownAssets(response, state);
-
-    expect(result.assetsBalance?.[ACCOUNT_A]).toBeDefined();
-    expect(result.assetsBalance?.[ACCOUNT_B]).toBeUndefined();
-  });
-
-  it('returns undefined assetsBalance when all assets are filtered out', () => {
-    const response = {
-      assetsBalance: {
-        [ACCOUNT_A]: { [ASSET_1]: { amount: '100' } },
-      },
-    };
-    const state = buildState({
-      [ACCOUNT_A]: { [ASSET_3]: { amount: '10' } },
-    });
-
-    const result = filterResponseToKnownAssets(response, state);
-
-    expect(result.assetsBalance).toBeUndefined();
-  });
-
-  it('preserves other response fields (errors, etc.)', () => {
-    const response = {
-      assetsBalance: {
-        [ACCOUNT_A]: { [ASSET_1]: { amount: '100' } },
-      },
-      errors: { 'eip155:137': 'Unprocessed by Accounts API' },
-    };
-    const state = buildState({
-      [ACCOUNT_A]: { [ASSET_1]: { amount: '50' } },
-    });
-
-    const result = filterResponseToKnownAssets(response, state);
-
-    expect(result.errors).toStrictEqual({
-      'eip155:137': 'Unprocessed by Accounts API',
-    });
-    expect(result.assetsBalance?.[ACCOUNT_A]).toStrictEqual({
-      [ASSET_1]: { amount: '100' },
-    });
-  });
-
-  it('handles multiple accounts with mixed known/unknown assets', () => {
-    const response = {
-      assetsBalance: {
-        [ACCOUNT_A]: {
-          [ASSET_1]: { amount: '100' },
-          [ASSET_2]: { amount: '200' },
-        },
-        [ACCOUNT_B]: {
-          [ASSET_2]: { amount: '300' },
-          [ASSET_3]: { amount: '400' },
-        },
-      },
-    };
-    const state = buildState({
-      [ACCOUNT_A]: { [ASSET_2]: { amount: '10' } },
-      [ACCOUNT_B]: { [ASSET_3]: { amount: '20' } },
-    });
-
-    const result = filterResponseToKnownAssets(response, state);
-
-    expect(result.assetsBalance?.[ACCOUNT_A]).toStrictEqual({
-      [ASSET_2]: { amount: '200' },
-    });
-    expect(result.assetsBalance?.[ACCOUNT_B]).toStrictEqual({
-      [ASSET_3]: { amount: '400' },
-    });
   });
 });

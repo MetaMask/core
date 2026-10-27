@@ -13,9 +13,6 @@ function stubSource(name: string): AssetsDataSource {
 
 function buildSources(): UpdateSources {
   return {
-    customAssetGraduationMiddleware: stubSource(
-      'CustomAssetGraduationMiddleware',
-    ),
     rpcFallbackMiddleware: stubSource('RpcFallbackMiddleware'),
     tokenDataSource: stubSource('TokenDataSource'),
     priceDataSource: stubSource('PriceDataSource'),
@@ -25,59 +22,29 @@ function buildSources(): UpdateSources {
 describe('buildUpdateSources', () => {
   it.each([
     {
-      title: 'v5 AccountsApi lane: graduation → RPC fallback → enrichment',
-      includeCustomAssetGraduation: true,
-      includeRpcFallback: true,
-      isBasicFunctionality: true,
-      expected: [
-        'CustomAssetGraduationMiddleware',
-        'RpcFallbackMiddleware',
-        'ParallelMiddleware',
-      ],
-    },
-    {
-      title: 'v5 AccountsApi lane: graduation → RPC fallback',
-      includeCustomAssetGraduation: true,
-      includeRpcFallback: true,
-      isBasicFunctionality: false,
-      expected: ['CustomAssetGraduationMiddleware', 'RpcFallbackMiddleware'],
-    },
-    {
-      title: 'v5 Snap/RPC lane: enrichment',
-      includeCustomAssetGraduation: false,
-      includeRpcFallback: false,
-      isBasicFunctionality: true,
-      expected: ['ParallelMiddleware'],
-    },
-    {
-      title: 'v6 lane: RPC fallback → enrichment',
-      includeCustomAssetGraduation: false,
+      title: 'RPC fallback then enrichment',
       includeRpcFallback: true,
       isBasicFunctionality: true,
       expected: ['RpcFallbackMiddleware', 'ParallelMiddleware'],
     },
     {
-      title: 'v6 lane: no enrichment when basic functionality is off',
-      includeCustomAssetGraduation: false,
+      title: 'enrichment when the RPC fallback is off',
+      includeRpcFallback: false,
+      isBasicFunctionality: true,
+      expected: ['ParallelMiddleware'],
+    },
+    {
+      title: 'runs nothing when basic functionality is off',
       includeRpcFallback: false,
       isBasicFunctionality: false,
       expected: [],
     },
-  ])(
-    '$title',
-    ({
-      includeCustomAssetGraduation,
-      includeRpcFallback,
+  ])('$title', ({ includeRpcFallback, isBasicFunctionality, expected }) => {
+    const sources = buildUpdateSources(buildSources(), {
       isBasicFunctionality,
-      expected,
-    }) => {
-      const sources = buildUpdateSources(buildSources(), {
-        isBasicFunctionality,
-        includeCustomAssetGraduation,
-        includeRpcFallback,
-      });
+      includeRpcFallback,
+    });
 
-      expect(sources.map((source) => source.getName())).toStrictEqual(expected);
-    },
-  );
+    expect(sources.map((source) => source.getName())).toStrictEqual(expected);
+  });
 });

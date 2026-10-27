@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Fetch token metadata again when stored metadata is missing a field that controller logic or a client reads (`symbol`, `name`, `decimals`, `image`, `aggregators`, or `occurrences`), instead of treating an `image` as complete
+- **BREAKING:** Balance fetches always use the Accounts API v6 path. Remove `isBalanceV6Enabled` from `AccountsApiDataSource`, `SnapDataSource`, `RpcDataSource`, `BalanceFetcher`, and `RpcFallbackMiddleware`, and remove the v5 fetch, stale-asset RPC re-read, and `customAssetsOnly` poll. The force-update fast lane is only the Accounts API call. `getAssets` then awaits the background lane for chains that call left unfinished. Compared with current main, the v6 row adds `pricePercentChange1d` ([#11096](https://github.com/MetaMask/core/pull/11096))
+- Keep the Accounts API v6 force-update fast lane to that single balances call. Metadata is fetched again only when `symbol`, `name`, or `decimals` is missing. The row's price, including `pricePercentChange1d`, is saved with the balance ([#11096](https://github.com/MetaMask/core/pull/11096))
 - **BREAKING:** Remove `DetectionMiddleware`. A balance refresh prices balances on the current response only when they have no stored price, and excludes hidden assets. The price poll still refreshes stored prices for held balances and custom assets, and does not price metadata that has no balance. `TokenDataSource` fetches metadata for state balances that have none and for response balances, and excludes hidden assets ([#10892](https://github.com/MetaMask/core/pull/10892))
 - **BREAKING:** Remove `assetsForPriceUpdate` from `getAssets` options. Refresh an explicit asset list with `syncAssetsPrices` instead ([#10892](https://github.com/MetaMask/core/pull/10892))
 - Bump `@metamask/account-tree-controller` from `^11.0.1` to `^11.2.0` ([#10891](https://github.com/MetaMask/core/pull/10891), [#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))
@@ -23,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **BREAKING:** Remove `getAssetsBalance`, `getAssetsPrice`, and `getCustomAssets`, and their messenger actions. Read balances, prices, and custom assets from controller state. Use `getAssets` for a combined refresh ([#11096](https://github.com/MetaMask/core/pull/11096))
+- **BREAKING:** Remove `CustomAssetGraduationMiddleware`. A balance update no longer unpins a token when Accounts API or the websocket reports it. Pins stay until `removeCustomAsset` ([#11096](https://github.com/MetaMask/core/pull/11096))
 - **BREAKING:** Remove the `AssetsController:assetsDetected` event and the `AssetsControllerAssetsDetectedEvent` type. No client subscribed to it ([#10892](https://github.com/MetaMask/core/pull/10892))
 - **BREAKING:** Remove `detectedAssets` from `DataResponse` and the unused `AssetsDetectedEvent` type. Newly detected tokens still arrive as balances and metadata ([#10892](https://github.com/MetaMask/core/pull/10892))
 

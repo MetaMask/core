@@ -110,9 +110,8 @@ async function fetchWallet(
         forceUpdate: true,
       });
 
-      // `getAssets` awaits the fast lane only; the slow lane is fire-and-forget
-      // and can still be writing. Let state settle so the assertions about CDOGE
-      // being absent cannot pass just because nothing has landed yet.
+      // Let any follow-up write settle so an assertion that CDOGE is absent
+      // cannot pass just because that write has not landed yet.
       await waitUntilStable(() => controller.state);
 
       return controller.state;
