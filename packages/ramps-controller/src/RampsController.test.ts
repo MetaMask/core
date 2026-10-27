@@ -10597,7 +10597,7 @@ describe('RampsController', () => {
           },
         },
         async ({ controller, rootMessenger }) => {
-          readRecord = () =>
+          readRecord = (): unknown =>
             controller.state.autorampTransactionRecords['ar-1'];
           const list = vi
             .fn()
