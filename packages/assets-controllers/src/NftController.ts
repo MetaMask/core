@@ -921,8 +921,6 @@ export class NftController extends BaseController<
             ];
           }
 
-          let sourceOnlyUpdate = false;
-
           const existingEntry = allNftsForUserPerChain[chainId].find(
             (nft) =>
               nft.address.toLowerCase() === checksumHexAddress.toLowerCase() &&
@@ -940,10 +938,6 @@ export class NftController extends BaseController<
               existingEntry,
             );
 
-            const isUnchanged =
-              !differentMetadata &&
-              Boolean(existingEntry.isCurrentlyOwned) &&
-              !hasNewFields;
             // Auto-detection never overwrites a stored source and nothing
             // overwrites a manual import.
             const needsSourceUpdate =
@@ -951,13 +945,14 @@ export class NftController extends BaseController<
               existingEntry.source !== Source.Custom &&
               existingEntry.source !== source;
 
-            if (isUnchanged && !needsSourceUpdate) {
+            if (
+              !differentMetadata &&
+              existingEntry.isCurrentlyOwned &&
+              !hasNewFields &&
+              !needsSourceUpdate
+            ) {
               continue;
             }
-
-            // The entry is only being updated to record its source, so it is
-            // not a newly added NFT.
-            sourceOnlyUpdate = isUnchanged && needsSourceUpdate;
 
             const indexToUpdate = allNftsForUserPerChain[chainId].findIndex(
               (nft) =>
@@ -987,7 +982,7 @@ export class NftController extends BaseController<
 
           modifiedChainIds.add(chainId);
 
-          if (this.#onNftAdded && !sourceOnlyUpdate) {
+          if (this.#onNftAdded) {
             pendingCallbacks.push({
               address: checksumHexAddress,
               symbol: nftContract.symbol,
