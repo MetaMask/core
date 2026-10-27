@@ -6083,7 +6083,9 @@ describe('KeyringController', () => {
     });
 
     it('drops a keyring created during a failed transaction even if its destruction fails, preserving the original error', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       try {
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
@@ -6612,7 +6614,9 @@ describe('KeyringController', () => {
     });
 
     it('leaves unsupported keyrings untouched by the rollback', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       try {
         await withController(
           {
@@ -6717,7 +6721,9 @@ describe('KeyringController', () => {
     });
 
     it('parks keyrings as unsupported when their recreation fails, without failing the rollback', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       try {
         await withController(async ({ controller, encryptor }) => {
           const importedAccount = await controller.importAccountWithStrategy(
@@ -6770,7 +6776,9 @@ describe('KeyringController', () => {
     });
 
     it('parks a mutated keyring as unsupported when its rebuild fails, without failing the rollback', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       try {
         await withController(async ({ controller }) => {
           // Make the rollback's rebuild of the mutated HD keyring fail.
@@ -6833,7 +6841,9 @@ describe('KeyringController', () => {
     });
 
     it('completes the rollback and preserves the original error if destroying a discarded keyring fails', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       try {
         await withController(async ({ controller }) => {
           const importedAccount = await controller.importAccountWithStrategy(
@@ -7281,7 +7291,9 @@ describe('KeyringController', () => {
     });
 
     it('parks the drained operated keyring as unsupported when its recreation fails', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       try {
         await withController(async ({ controller, encryptor }) => {
           const importedAccount = await controller.importAccountWithStrategy(
