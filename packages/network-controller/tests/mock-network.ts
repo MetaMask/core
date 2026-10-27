@@ -1,4 +1,3 @@
-import { assert } from '@metamask/utils';
 import type { JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
 import nock from 'nock';
 
@@ -50,6 +49,24 @@ export type JsonRpcRequestMock = {
       error: unknown;
     }
 );
+
+/**
+ * Reads the JSON body of a request from the arguments that Nock passes to a
+ * reply function. Depending on the version of Nock, these are either `(uri,
+ * body)` or a Fetch API `Request`.
+ *
+ * @param replyArgs - The arguments that Nock passed to the reply function.
+ * @returns The parsed request body.
+ */
+export async function getNockRequestBody<Body>(
+  replyArgs: unknown[],
+): Promise<Body> {
+  const [first, second] = replyArgs;
+  if (typeof second === 'object' && second !== null) {
+    return second as Body;
+  }
+  return (await (first as Request).clone().json()) as Body;
+}
 
 /**
  * Type guard for determining whether the given value is an error object with a
@@ -145,45 +162,33 @@ class MockedNetwork {
         ? `/v3/${this.#networkClientConfiguration.infuraProjectId}`
         : new RegExp(`^${new URL(this.#rpcUrl).pathname}$`, 'u');
 
-    // nock 15 does not pass the request body to reply callbacks, so remember
-    // the body that the matcher accepted for the reply to use.
-    let matchedRequestBody: JsonRpcRequest | undefined;
-
-    const matchesRequest = (requestBody: Record<string, unknown>): boolean => {
-      if (
-        typeof requestBody !== 'object' ||
-        requestBody === null ||
-        !('jsonrpc' in requestBody) ||
-        !('method' in requestBody) ||
-        requestBody.jsonrpc !== '2.0' ||
-        requestBody.method !== method
-      ) {
-        return false;
-      }
-
-      if (
-        Object.entries(rest).some(([key, value]) => {
-          return JSON.stringify(requestBody[key]) !== JSON.stringify(value);
-        })
-      ) {
-        return false;
-      }
-
-      if (!('params' in requestBody) || requestBody.params === undefined) {
-        return params.length === 0;
-      }
-
-      return JSON.stringify(requestBody.params) === JSON.stringify(params);
-    };
-
     let nockInterceptor = this.#nockScope.post(
       url,
       (requestBody: Record<string, unknown>) => {
-        const isMatch = matchesRequest(requestBody);
-        matchedRequestBody = isMatch
-          ? (requestBody as unknown as JsonRpcRequest)
-          : undefined;
-        return isMatch;
+        if (
+          typeof requestBody !== 'object' ||
+          requestBody === null ||
+          !('jsonrpc' in requestBody) ||
+          !('method' in requestBody) ||
+          requestBody.jsonrpc !== '2.0' ||
+          requestBody.method !== method
+        ) {
+          return false;
+        }
+
+        if (
+          Object.entries(rest).some(([key, value]) => {
+            return JSON.stringify(requestBody[key]) !== JSON.stringify(value);
+          })
+        ) {
+          return false;
+        }
+
+        if (!('params' in requestBody) || requestBody.params === undefined) {
+          return params.length === 0;
+        }
+
+        return JSON.stringify(requestBody.params) === JSON.stringify(params);
       },
     );
 
@@ -204,17 +209,9 @@ class MockedNetwork {
           : 200;
       newNockScope = nockInterceptor.reply(
         httpStatus,
-        // The rest parameter keeps the function length at 0, because nock 15
-        // treats a function with two parameters as a callback style reply.
-        (...args: unknown[]) => {
-          // nock 13 passes the body as the second argument, while nock 15
-          // passes a callback there instead.
-          const [, bodyOrCallback] = args;
-          const requestBody: JsonRpcRequest | undefined =
-            typeof bodyOrCallback === 'object' && bodyOrCallback !== null
-              ? (bodyOrCallback as JsonRpcRequest)
-              : matchedRequestBody;
-          assert(requestBody, 'Expected a request body');
+        async (...replyArgs: unknown[]) => {
+          const requestBody =
+            await getNockRequestBody<JsonRpcRequest>(replyArgs);
           const baseResponse = { id: requestBody.id, jsonrpc: '2.0' as const };
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
