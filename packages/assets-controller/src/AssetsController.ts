@@ -3225,13 +3225,42 @@ export class AssetsController extends BaseController<
               // known, the amount is left at its natural precision (only
               // exponent form is rewritten) so balances arriving before
               // their metadata aren't lossily truncated.
-              const assetDecimals = (
-                metadata[assetId] as { decimals?: number } | undefined
-              )?.decimals;
-              const newAmount = canonicalAmountFastPath(
-                (balance as { amount: unknown }).amount,
-                assetDecimals,
-              );
+              const previousAmount = (
+                previousBalance as { amount?: string } | undefined
+              )?.amount;
+              const rawAmount = (balance as { amount: unknown }).amount as string;
+              // Echo fast path: every writer of `assetsBalance` normalizes
+              // amounts (this loop) or writes the literal '0' (native/custom
+              // zero seeding), so a state amount is canonical by construction.
+              // When the response echoes it, normalization is provably a
+              // no-op unless the current metadata decimals would truncate it
+              // (fracLen > floor(decimals)) — integers and within-precision
+              // fractions skip the canonical-form machinery entirely, and
+              // integers skip even the decimals lookup.
+              let newAmount: string;
+              if (
+                previousAmount !== undefined &&
+                rawAmount === previousAmount
+              ) {
+                const decimals = rawAmount.includes('.')
+                  ? (
+                      metadata[assetId] as { decimals?: number } | undefined
+                    )?.decimals
+                  : undefined;
+                newAmount =
+                  decimals === undefined ||
+                  rawAmount.length - rawAmount.indexOf('.') - 1 <=
+                    Math.floor(decimals)
+                    ? previousAmount
+                    : canonicalAmountFastPath(rawAmount, decimals);
+              } else {
+                newAmount = canonicalAmountFastPath(
+                  rawAmount,
+                  (
+                    metadata[assetId] as { decimals?: number } | undefined
+                  )?.decimals,
+                );
+              }
               const newMetadata =
                 (balance as FungibleAssetBalance).metadata ??
                 (previousBalance as FungibleAssetBalance | undefined)?.metadata;
@@ -3240,9 +3269,6 @@ export class AssetsController extends BaseController<
               // previous object has exactly that shape. Avoids per-asset
               // object churn on unchanged polls and lets the per-account
               // isEqual comparison short-circuit on reference equality.
-              const previousAmount = (
-                previousBalance as { amount?: string } | undefined
-              )?.amount;
               const previousMetadata = (
                 previousBalance as FungibleAssetBalance | undefined
               )?.metadata;

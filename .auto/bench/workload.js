@@ -6175,17 +6175,34 @@ function updateStateProducer_CAND(
         effectiveAccountBalances,
       )) {
         const previousBalance = previousBalances[assetId];
-        const assetDecimals = metadata[assetId]?.decimals;
-        const newAmount = canonicalAmountFastPath(
-          balance.amount,
-          assetDecimals,
-        );
+        const previousAmount = previousBalance?.amount;
+        const rawAmount = balance.amount;
+        // Echo fast path: state amounts are canonical by construction, so an
+        // echoed amount needs no normalization unless the current metadata
+        // decimals would truncate it (fracLen > floor(decimals)); integers
+        // skip even the decimals lookup (mirror of the production edit).
+        let newAmount;
+        if (previousAmount !== undefined && rawAmount === previousAmount) {
+          const decimals = rawAmount.includes('.')
+            ? metadata[assetId]?.decimals
+            : undefined;
+          newAmount =
+            decimals === undefined ||
+            rawAmount.length - rawAmount.indexOf('.') - 1 <=
+              Math.floor(decimals)
+              ? previousAmount
+              : canonicalAmountFastPath(rawAmount, decimals);
+        } else {
+          newAmount = canonicalAmountFastPath(
+            rawAmount,
+            metadata[assetId]?.decimals,
+          );
+        }
         const newMetadata =
           balance.metadata ?? previousBalance?.metadata;
         // Reuse the previous balance object when the new {amount, metadata?}
         // would be content-identical and the previous object has exactly that
         // shape (mirror of the production edit).
-        const previousAmount = previousBalance?.amount;
         const previousMetadata = previousBalance?.metadata;
         const reusePreviousBalance =
           previousBalance !== undefined &&
@@ -6310,7 +6327,7 @@ function canonAmount(rnd) {
   const fracLen = Math.floor(rnd() * 6);
   let frac = '';
   for (let i = 0; i < fracLen; i++) frac += String(Math.floor(rnd() * 10));
-  if (frac.endsWith('0')) frac = frac.slice(0, -1); // canonical: no trailing zeros
+  while (frac.endsWith('0')) frac = frac.slice(0, -1); // canonical: no trailing zeros
   if (fracLen === 0 || frac.length === 0) return String(whole);
   return whole === 0 && frac[0] === '0' ? '0.' + frac : String(whole) + '.' + frac;
 }

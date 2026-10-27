@@ -57,7 +57,7 @@ function canonAmount(rnd) {
   const fracLen = Math.floor(rnd() * 6);
   let frac = '';
   for (let i = 0; i < fracLen; i++) frac += String(Math.floor(rnd() * 10));
-  if (frac.endsWith('0')) frac = frac.slice(0, -1); // canonical: no trailing zeros
+  while (frac.endsWith('0')) frac = frac.slice(0, -1); // canonical: no trailing zeros
   if (fracLen === 0 || frac.length === 0) return String(whole);
   return whole === 0 && frac[0] === '0' ? '0.' + frac : String(whole) + '.' + frac;
 }
