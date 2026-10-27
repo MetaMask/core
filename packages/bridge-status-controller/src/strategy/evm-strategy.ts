@@ -1,6 +1,10 @@
 /* eslint-disable consistent-return */
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { formatChainIdToHex, isEvmTxData } from '@metamask/bridge-controller';
+import {
+  formatChainIdToHex,
+  isEvmTxData,
+  getNetworkClientIdByChainId,
+} from '@metamask/bridge-controller';
 import type { TxData } from '@metamask/bridge-controller';
 import {
   TransactionMeta,
@@ -9,7 +13,6 @@ import {
 
 import { BridgeStatusControllerMessenger } from '../types.js';
 import { getAccountByAddress } from '../utils/accounts.js';
-import { getNetworkClientIdByChainId } from '../utils/network.js';
 import { getApprovalTraceParams } from '../utils/trace.js';
 import {
   addTransaction,

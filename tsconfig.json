@@ -349,6 +349,12 @@
     },
     {
       "path": "./packages/watch-only-account-service"
+    },
+    {
+      "path": "./packages/money-account-controller"
+    },
+    {
+      "path": "./packages/money-account-utils"
     }
   ],
   "files": [],

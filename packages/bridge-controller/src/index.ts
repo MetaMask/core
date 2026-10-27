@@ -291,3 +291,5 @@ export {
   fetchTokens,
   type SwapsToken,
 } from './utils/swaps.js';
+
+export { getNetworkClientIdByChainId } from './utils/controllers/network.js';

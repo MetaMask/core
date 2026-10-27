@@ -3,6 +3,7 @@ import {
   formatChainIdToHex,
   isEvmTxData,
   TxData,
+  getNetworkClientIdByChainId,
 } from '@metamask/bridge-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 
@@ -13,7 +14,6 @@ import {
   postSubmitOrder,
 } from '../utils/intent-api.js';
 import { signTypedMessage } from '../utils/keyring.js';
-import { getNetworkClientIdByChainId } from '../utils/network.js';
 import {
   addSyntheticTransaction,
   waitForTxConfirmation,

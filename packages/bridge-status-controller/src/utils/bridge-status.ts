@@ -19,7 +19,7 @@ import type {
   BridgeStatusControllerMessenger,
 } from '../types.js';
 import { isHistoryItemTooOld } from './history.js';
-import { getNetworkClientByChainId } from './network.js';
+import { getNetworkProviderByChainId } from './network.js';
 import { validateBridgeStatusResponse } from './validators.js';
 
 export const getBridgeStatusUrl = (bridgeApiBaseUrl: string): string =>
@@ -169,7 +169,7 @@ export const shouldWaitForFinalBridgeStatus = async (
 
   let provider: Provider;
   try {
-    provider = getNetworkClientByChainId(
+    provider = getNetworkProviderByChainId(
       messenger,
       historyItem.quote.srcChainId,
     );
