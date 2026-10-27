@@ -1,0 +1,1 @@
+{"type": "config", "name": "assets-controller-update-state-producer", "metricName": "primary_ms", "metricUnit": "ms", "bestDirection": "lower"}
