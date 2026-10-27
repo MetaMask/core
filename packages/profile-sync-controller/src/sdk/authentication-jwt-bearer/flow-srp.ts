@@ -11,7 +11,9 @@ import {
 } from '../utils/messaging-signing-snap-requests.js';
 import { validateLoginResponse } from '../utils/validate-login-response.js';
 import {
+  deleteMfaCredential,
   getMfaCredentials,
+  mfaApproval,
   mfaEnroll,
   mfaEnrollComplete,
   mfaVerify,
@@ -22,6 +24,8 @@ import type {
   EnrolledCredential,
   EnrollmentChallenge,
   EnrollmentProof,
+  MfaApproval,
+  MfaApprovalRequest,
   MfaCredentialType,
   VerificationChallenge,
   VerificationProof,
@@ -382,6 +386,46 @@ export class SRPJwtBearerAuth implements IBaseAuth {
         ? { passkey_assertion: proof.assertion }
         : { otp_code: proof.code }),
     });
+  }
+
+  /**
+   * Requests an approval bound to one request.
+   *
+   * @param body - Request digest, audiences and whether to list identifiers.
+   * @param options - Approval options.
+   * @param options.entropySourceId - Entropy source whose profile approves.
+   * @param options.accessToken - Bearer to use instead of the base session
+   * token, such as a verification token when the approval must prove a recent
+   * 2-step verification.
+   * @returns The approval, its lifetime and the recovery identifiers.
+   */
+  async requestMfaApproval(
+    body: MfaApprovalRequest,
+    options?: { entropySourceId?: string; accessToken?: string },
+  ): Promise<MfaApproval> {
+    const accessToken =
+      options?.accessToken ??
+      (await this.getAccessToken(options?.entropySourceId));
+    return await mfaApproval(this.#config.env, accessToken, body);
+  }
+
+  /**
+   * Removes a credential from the primary profile.
+   *
+   * @param credentialId - The credential's `id`.
+   * @param accessToken - Verification token proven with another type of
+   * credential.
+   * @returns The credentials left.
+   */
+  async deleteMfaCredential(
+    credentialId: string,
+    accessToken: string,
+  ): Promise<EnrolledCredential[]> {
+    return await deleteMfaCredential(
+      this.#config.env,
+      accessToken,
+      credentialId,
+    );
   }
 
   /**

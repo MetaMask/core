@@ -1,8 +1,8 @@
-import { basename, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { basename } from 'node:path';
 import { defineConfig, mergeConfig } from 'vitest/config';
 
-import baseConfig, { lowerDecorators } from '../../vitest.config.packages.js';
+import { lowerDecorators } from '../../scripts/vitest/lower-decorators.js';
+import baseConfig from '../../vitest.config.packages.js';
 
 export default mergeConfig(
   baseConfig,
@@ -10,7 +10,7 @@ export default mergeConfig(
     plugins: [lowerDecorators()],
 
     test: {
-      name: basename(dirname(fileURLToPath(import.meta.url))),
+      name: basename(import.meta.dirname),
 
       coverage: {
         thresholds: {
