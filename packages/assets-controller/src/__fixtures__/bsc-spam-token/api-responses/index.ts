@@ -3,6 +3,11 @@ import type { V3AssetResponse } from '@metamask/core-backend';
 import type { Json } from '@metamask/utils';
 import nock from 'nock';
 
+import {
+  checksumAssetId,
+  withChecksummedAssetId,
+  withChecksummedPrice,
+} from '../../checksumAssetId.js';
 import accountsV2SupportedNetworks from './accounts-api/v2-supportedNetworks.js';
 import v5MultiAccountBalances from './accounts-api/v5-multiaccount-balances.js';
 import v6MultiAccountBalances, {
@@ -98,9 +103,9 @@ function mockV5MultiAccountBalances(omitAssetIds: string[] = []): {
       requestedAccountIds.push(
         readListParam(uri, 'accountIds', API_URLS.ACCOUNTS),
       );
-      const balances = v5MultiAccountBalances.balances.filter(
-        (entry) => !omitted.has(entry.assetId.toLowerCase()),
-      );
+      const balances = v5MultiAccountBalances.balances
+        .filter((entry) => !omitted.has(entry.assetId.toLowerCase()))
+        .map((entry) => withChecksummedAssetId(entry));
       return { ...v5MultiAccountBalances, count: balances.length, balances };
     });
 
@@ -176,11 +181,13 @@ function mockV6MultiAccountBalances({
         excludeAssetIds.map((assetId) => assetId.toLowerCase()),
       );
 
-      const balances = v6MultiAccountBalances.balances.filter(
-        (row) =>
-          !omitted.has(row.assetId.toLowerCase()) &&
-          !excluded.has(row.assetId.toLowerCase()),
-      );
+      const balances = v6MultiAccountBalances.balances
+        .filter(
+          (row) =>
+            !omitted.has(row.assetId.toLowerCase()) &&
+            !excluded.has(row.assetId.toLowerCase()),
+        )
+        .map((row) => withChecksummedAssetId(row));
 
       const unprocessedIncludeAssetIds: string[] = [];
       for (const assetId of includeAssetIds) {
@@ -190,18 +197,18 @@ function mockV6MultiAccountBalances({
           continue;
         }
         if (unprocessable.has(lowerAssetId)) {
-          unprocessedIncludeAssetIds.push(assetId);
+          unprocessedIncludeAssetIds.push(checksumAssetId(assetId));
           continue;
         }
         const maliciousRow = maliciousByLowerAssetId.get(lowerAssetId);
         if (maliciousRow !== undefined && !omitted.has(lowerAssetId)) {
-          balances.push(maliciousRow);
+          balances.push(withChecksummedAssetId(maliciousRow));
         } else if (
           !capturedByLowerAssetId.has(lowerAssetId) &&
           !omitted.has(lowerAssetId)
         ) {
           // Pinned IDs the backend cannot resolve at all.
-          unprocessedIncludeAssetIds.push(assetId);
+          unprocessedIncludeAssetIds.push(checksumAssetId(assetId));
         }
       }
 
@@ -249,9 +256,9 @@ function mockSuggestedOccurrenceFloors(): nock.Scope {
 
 /**
  * Intercept `GET {TOKENS}/v3/assets`, answering each batch from the captured
- * per-asset entries and preserving the API's lower-case `assetId` echo. Assets
- * the API does not carry are answered as empty stubs, as it does for tokens on
- * chains it does not index.
+ * per-asset entries with a checksummed `assetId`. Assets the API does not
+ * carry are answered as empty stubs, as it does for tokens on chains it does
+ * not index.
  *
  * @returns The nock scope and the asset IDs each request asked about.
  */
@@ -286,8 +293,8 @@ function mockPricesSupportedNetworks(): nock.Scope {
 
 /**
  * Intercept `GET {PRICES}/v3/spot-prices`, answering from the captured prices
- * and keying the response lower-case as the live API does. Assets with no
- * captured price are simply absent, as they are upstream.
+ * and keying each entry by its checksummed asset ID. Assets with no captured
+ * price are simply absent, as they are upstream.
  *
  * @returns The nock scope and the asset IDs each request asked about.
  */
@@ -304,10 +311,12 @@ function mockV3SpotPrices(): BatchRecordingMock {
 
       const prices: Record<string, Json> = {};
       for (const assetId of assetIds) {
-        const lowerId = assetId.toLowerCase();
-        const captured = V3_SPOT_PRICES_BY_LOWER_ID[lowerId];
+        const captured = V3_SPOT_PRICES_BY_LOWER_ID[assetId.toLowerCase()];
         if (captured !== undefined) {
-          prices[lowerId] = captured;
+          prices[checksumAssetId(assetId)] = withChecksummedPrice(
+            captured,
+            assetId,
+          );
         }
       }
       return prices;
@@ -435,9 +444,12 @@ function readListParam(uri: string, param: string, base: string): string[] {
  * @returns The captured entry, or an empty stub.
  */
 function lookupAsset(assetId: string): V3AssetResponse {
+  const canonicalId = checksumAssetId(assetId);
   const captured = V3_ASSETS_BY_LOWER_ID[assetId.toLowerCase()];
   if (captured) {
-    return captured;
+    return captured.assetId === canonicalId
+      ? captured
+      : { ...captured, assetId: canonicalId };
   }
   return {
     symbol: '',
@@ -445,6 +457,6 @@ function lookupAsset(assetId: string): V3AssetResponse {
     decimals: null,
     address: assetId.split(':').pop() ?? assetId,
     type: 'erc20',
-    assetId: assetId.toLowerCase(),
+    assetId: canonicalId,
   } as unknown as V3AssetResponse;
 }

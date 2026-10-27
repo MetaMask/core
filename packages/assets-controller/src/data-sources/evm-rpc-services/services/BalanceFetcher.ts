@@ -174,15 +174,13 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
         return;
       }
 
-      const normalizedAssetId = assetId.toLowerCase();
-
-      if (assetsToFetch.has(normalizedAssetId)) {
+      if (assetsToFetch.has(assetId)) {
         return;
       }
 
       const isNative = this.#isNativeAsset(assetId);
 
-      assetsToFetch.set(normalizedAssetId, {
+      assetsToFetch.set(assetId, {
         assetId,
         address: isNative
           ? ZERO_ADDRESS
@@ -238,9 +236,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
       [accountId],
       [`eip155:${chainIdDecimal}` as Caip2ChainId],
     );
-    const hidden = new Set(
-      hiddenAssetIds.map((assetId) => assetId.toLowerCase()),
-    );
+    const hidden = new Set(hiddenAssetIds);
     const tracked = Object.keys(
       state?.assetsBalance?.[accountId] ?? {},
     ) as CaipAssetType[];
@@ -248,11 +244,9 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
     const assetsToFetch = new Map<string, AssetFetchEntry>();
 
     for (const assetId of [...visibleAssetIds, ...tracked]) {
-      const normalizedAssetId = assetId.toLowerCase();
-
       if (
-        assetsToFetch.has(normalizedAssetId) ||
-        hidden.has(normalizedAssetId) ||
+        assetsToFetch.has(assetId) ||
+        hidden.has(assetId) ||
         isStakingContractAssetId(assetId)
       ) {
         continue;
@@ -264,7 +258,7 @@ export class BalanceFetcher extends StaticIntervalPollingControllerOnly<BalanceP
         continue;
       }
 
-      assetsToFetch.set(normalizedAssetId, {
+      assetsToFetch.set(assetId, {
         assetId,
         address: this.#isNativeAsset(assetId)
           ? ZERO_ADDRESS

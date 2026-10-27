@@ -787,10 +787,12 @@ describe('cleanSpamAssets', () => {
       removed: [MAINNET_USDT],
     },
     {
-      // State keys are EIP-55 checksummed; the API answers in lowercase.
+      // State keys are EIP-55 checksummed; this case still answers in lowercase
+      // so the sweep keeps matching an older Tokens API body.
       description: 'matches the API response to state keys case-insensitively',
       held: [OPTIMISM_USDC],
       removed: [],
+      casing: 'lowercase',
     },
     {
       // State keys are lowercase; the API answers in EIP-55 checksummed.

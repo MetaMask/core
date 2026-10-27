@@ -9,8 +9,6 @@ import type {
   Caip19AssetId,
   Middleware,
 } from '../types.js';
-import { safeNormalizeAssetId } from '../utils/index.js';
-
 const CONTROLLER_NAME = 'CustomAssetGraduationMiddleware';
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
@@ -87,28 +85,22 @@ export class CustomAssetGraduationMiddleware {
         return next(ctx);
       }
 
-      // customAssets state is stored with checksummed/normalized asset IDs.
-      // AccountsApiDataSource normalizes its response IDs, but
-      // AccountActivityDataSource does not — so we normalize the response
-      // side here to make the comparison robust to lower-case addresses
-      // delivered over the websocket.
       const customSet = new Set(customForAccount);
-      for (const rawAssetId of returnedAssetIds) {
-        if (!isEvmAssetId(rawAssetId)) {
+      for (const assetId of returnedAssetIds) {
+        if (!isEvmAssetId(assetId)) {
           continue;
         }
-        if (!hasPositiveBalance(returnedBalances[rawAssetId])) {
+        if (!hasPositiveBalance(returnedBalances[assetId])) {
           continue;
         }
-        const normalizedAssetId = safeNormalizeAssetId(rawAssetId);
-        if (!customSet.has(normalizedAssetId)) {
+        if (!customSet.has(assetId)) {
           continue;
         }
         log('Graduating custom asset', {
           accountId,
-          assetId: normalizedAssetId,
+          assetId,
         });
-        this.#removeCustomAsset(accountId, normalizedAssetId);
+        this.#removeCustomAsset(accountId, assetId);
       }
 
       return next(ctx);

@@ -1,3 +1,4 @@
+import { toChecksumAddress } from '@ethereumjs/util';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
@@ -10,6 +11,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
+import { parseCaipAssetType } from '@metamask/utils';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance, MockedFunction } from 'vitest';
 
@@ -44,10 +46,7 @@ import type {
   FungibleAssetMetadata,
   Middleware,
 } from './types.js';
-import {
-  formatExchangeRatesForBridge,
-  normalizeAssetId,
-} from './utils/index.js';
+import { formatExchangeRatesForBridge } from './utils/index.js';
 
 vi.mock(import('./utils/index.js'), async (importOriginal) => {
   const actual = await importOriginal();
@@ -467,7 +466,7 @@ describe('AssetsController', () => {
     it('pre-seeds assetsInfo with EIP-55 checksummed CAIP-19 keys', () => {
       // Regression: MUSD_ADDRESS was previously all-lowercase, so
       // buildDefaultAssetsInfo() produced lowercase CAIP-19 keys while data
-      // sources (which call normalizeAssetId) wrote checksummed keys.
+      // sources wrote the asset IDs they return.
       // After the first balance poll both keys existed in assetsInfo.
       const defaultState = getDefaultAssetsControllerState();
       const assetIds = Object.keys(defaultState.assetsInfo);
@@ -475,7 +474,8 @@ describe('AssetsController', () => {
       const erc20Ids = assetIds.filter((id) => id.includes('/erc20:'));
       expect(erc20Ids.length).toBeGreaterThan(0);
       for (const id of erc20Ids) {
-        expect(id).toBe(normalizeAssetId(id as Caip19AssetId));
+        const { assetReference } = parseCaipAssetType(id);
+        expect(assetReference).toBe(toChecksumAddress(assetReference));
       }
     });
   });
@@ -784,15 +784,17 @@ describe('AssetsController', () => {
       });
     });
 
-    it('normalizes asset IDs by checksumming addresses', async () => {
+    it('stores the asset ID as given', async () => {
       await withController(async ({ controller }) => {
         await controller.addCustomAsset(
           MOCK_ACCOUNT_ID,
           MOCK_ASSET_ID_LOWERCASE,
         );
 
-        // The stored asset ID should be checksummed
         expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).toContain(
+          MOCK_ASSET_ID_LOWERCASE,
+        );
+        expect(controller.state.customAssets[MOCK_ACCOUNT_ID]).not.toContain(
           MOCK_ASSET_ID,
         );
       });
@@ -1210,7 +1212,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('normalizes a lowercase EVM asset ID before lookup', async () => {
+    it('does not match a different casing of the same asset ID', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsInfo: { [MOCK_ASSET_ID]: metadata },
         assetsBalance: {
@@ -1220,12 +1222,12 @@ describe('AssetsController', () => {
       };
 
       await withController({ state: initialState }, ({ controller }) => {
-        const asset = controller.getAccountAssetByID(
-          MOCK_ACCOUNT_ID,
-          MOCK_ASSET_ID_LOWERCASE,
-        );
-
-        expect(asset?.id).toBe(MOCK_ASSET_ID);
+        expect(
+          controller.getAccountAssetByID(
+            MOCK_ACCOUNT_ID,
+            MOCK_ASSET_ID_LOWERCASE,
+          ),
+        ).toBeUndefined();
       });
     });
 
@@ -1402,7 +1404,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('normalizes lowercase EVM asset IDs before lookup', async () => {
+    it('omits an asset ID whose casing does not match state', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsInfo: { [MOCK_ASSET_ID]: metadata },
         assetsBalance: {
@@ -1415,8 +1417,7 @@ describe('AssetsController', () => {
           MOCK_ASSET_ID_LOWERCASE,
         ]);
 
-        expect(Object.keys(assets)).toStrictEqual([MOCK_ASSET_ID]);
-        expect(assets[MOCK_ASSET_ID]?.id).toBe(MOCK_ASSET_ID);
+        expect(Object.keys(assets)).toStrictEqual([]);
       });
     });
 
@@ -3158,7 +3159,7 @@ describe('AssetsController', () => {
       );
     });
 
-    it('reconciles type when assetsInfo response uses a non-checksummed asset ID', async () => {
+    it('reconciles type on the asset ID the response returns', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsInfo: {
           [MOCK_ASSET_ID]: {
@@ -3187,12 +3188,12 @@ describe('AssetsController', () => {
             'TestSource',
           );
 
-          expect(controller.state.assetsInfo[MOCK_ASSET_ID]?.type).toBe(
-            'erc20',
-          );
           expect(
-            controller.state.assetsInfo[MOCK_ASSET_ID_LOWERCASE],
-          ).toBeUndefined();
+            controller.state.assetsInfo[MOCK_ASSET_ID_LOWERCASE]?.type,
+          ).toBe('erc20');
+          expect(controller.state.assetsInfo[MOCK_ASSET_ID]?.type).toBe(
+            'native',
+          );
         },
       );
     });
@@ -3222,7 +3223,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('normalizes asset IDs in response', async () => {
+    it('stores the asset ID the response returns', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
@@ -3235,9 +3236,10 @@ describe('AssetsController', () => {
           'TestSource',
         );
 
-        // Should be stored with checksummed address
         expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            MOCK_ASSET_ID_LOWERCASE
+          ],
         ).toStrictEqual({ amount: '1000000' });
       });
     });

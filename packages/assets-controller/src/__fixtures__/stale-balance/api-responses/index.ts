@@ -3,6 +3,11 @@ import type { V3AssetResponse } from '@metamask/core-backend';
 import type { Json } from '@metamask/utils';
 import nock from 'nock';
 
+import {
+  checksumAssetId,
+  withChecksummedAssetId,
+  withChecksummedPrice,
+} from '../../checksumAssetId.js';
 import accountsV2SupportedNetworks from './accounts-api/v2-supportedNetworks.js';
 import v6MultiAccountBalancesBsc from './accounts-api/v6-multiaccount-balances-bsc.js';
 import v6MultiAccountBalancesMainnet from './accounts-api/v6-multiaccount-balances-mainnet.js';
@@ -165,7 +170,8 @@ export function mockV3Assets(): {
 }
 
 /**
- * Intercept `GET {PRICES}/v3/spot-prices`, answering from the captured prices.
+ * Intercept `GET {PRICES}/v3/spot-prices`, answering from the captured prices
+ * and keying each entry by its checksummed asset ID.
  *
  * @returns The nock scope and the asset IDs each request asked about.
  */
@@ -185,10 +191,12 @@ export function mockV3SpotPrices(): {
 
       const prices: Record<string, Json> = {};
       for (const assetId of assetIds) {
-        const lowerId = assetId.toLowerCase();
-        const captured = V3_SPOT_PRICES_BY_LOWER_ID[lowerId];
+        const captured = V3_SPOT_PRICES_BY_LOWER_ID[assetId.toLowerCase()];
         if (captured !== undefined) {
-          prices[lowerId] = captured;
+          prices[checksumAssetId(assetId)] = withChecksummedPrice(
+            captured,
+            assetId,
+          );
         }
       }
       return prices;
@@ -258,9 +266,11 @@ export function mockV6MultiAccountBalances({
           }
           const replacement = replacements.get(entry.assetId.toLowerCase());
           balances.push(
-            replacement === undefined
-              ? entry
-              : { ...entry, balance: replacement },
+            withChecksummedAssetId(
+              replacement === undefined
+                ? entry
+                : { ...entry, balance: replacement },
+            ),
           );
           coveredLowerIds.add(entry.assetId.toLowerCase());
         }
@@ -286,7 +296,7 @@ export function mockV6MultiAccountBalances({
           accountId,
           object: 'token',
           type: 'erc20',
-          assetId: lowerId,
+          assetId: checksumAssetId(assetId),
           name: '',
           symbol: '',
           decimals: 18,
@@ -367,9 +377,12 @@ function readListParam(uri: string, param: string, base: string): string[] {
  * @returns The captured entry, or an empty stub.
  */
 function lookupAsset(assetId: string): V3AssetResponse {
+  const canonicalId = checksumAssetId(assetId);
   const captured = V3_ASSETS_BY_LOWER_ID[assetId.toLowerCase()];
   if (captured) {
-    return captured;
+    return captured.assetId === canonicalId
+      ? captured
+      : { ...captured, assetId: canonicalId };
   }
   return {
     symbol: '',
@@ -377,6 +390,6 @@ function lookupAsset(assetId: string): V3AssetResponse {
     decimals: null,
     address: assetId.split(':').pop() ?? assetId,
     type: 'erc20',
-    assetId: assetId.toLowerCase(),
+    assetId: canonicalId,
   } as unknown as V3AssetResponse;
 }

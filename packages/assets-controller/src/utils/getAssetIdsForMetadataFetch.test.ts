@@ -124,7 +124,7 @@ describe('getAssetIdsForMetadataFetch', () => {
       TOKEN_MAINNET,
     ]);
     expect(sortedIds(result.balanceHealAssetIds)).toStrictEqual([
-      TOKEN_MAINNET.toLowerCase(),
+      TOKEN_MAINNET,
     ]);
   });
 
@@ -164,7 +164,7 @@ describe('getAssetIdsForMetadataFetch', () => {
       TOKEN_MAINNET,
     ]);
     expect(sortedIds(result.balanceHealAssetIds)).toStrictEqual([
-      TOKEN_MAINNET.toLowerCase(),
+      TOKEN_MAINNET,
     ]);
   });
 
@@ -185,7 +185,7 @@ describe('getAssetIdsForMetadataFetch', () => {
       TOKEN_MAINNET,
     ]);
     expect(sortedIds(result.balanceHealAssetIds)).toStrictEqual([
-      TOKEN_MAINNET.toLowerCase(),
+      TOKEN_MAINNET,
     ]);
   });
 
@@ -248,7 +248,7 @@ describe('getAssetIdsForMetadataFetch', () => {
         TOKEN_MAINNET,
       ]);
       expect(sortedIds(result.balanceHealAssetIds)).toStrictEqual([
-        TOKEN_MAINNET.toLowerCase(),
+        TOKEN_MAINNET,
       ]);
     },
   );
@@ -276,7 +276,7 @@ describe('getAssetIdsForMetadataFetch', () => {
       NATIVE_MAINNET,
     ]);
     expect(sortedIds(result.balanceHealAssetIds)).toStrictEqual([
-      NATIVE_MAINNET.toLowerCase(),
+      NATIVE_MAINNET,
     ]);
   });
 
@@ -315,7 +315,7 @@ describe('getAssetIdsForMetadataFetch', () => {
       NATIVE_MAINNET,
     ]);
     expect(sortedIds(result.balanceHealAssetIds)).toStrictEqual([
-      NATIVE_MAINNET.toLowerCase(),
+      NATIVE_MAINNET,
     ]);
   });
 
@@ -337,7 +337,7 @@ describe('getAssetIdsForMetadataFetch', () => {
       NATIVE_MAINNET,
     ]);
     expect(sortedIds(result.balanceHealAssetIds)).toStrictEqual([
-      NATIVE_MAINNET.toLowerCase(),
+      NATIVE_MAINNET,
     ]);
   });
 
@@ -411,7 +411,7 @@ describe('getAssetIdsForMetadataFetch', () => {
       [NATIVE_MAINNET, TOKEN_POLYGON].sort(),
     );
     expect(sortedIds(result.balanceHealAssetIds)).toStrictEqual(
-      [NATIVE_MAINNET.toLowerCase(), TOKEN_POLYGON.toLowerCase()].sort(),
+      [NATIVE_MAINNET, TOKEN_POLYGON].sort(),
     );
   });
 });

@@ -14,8 +14,6 @@ import {
   getResponseAssetIdsForPriceFetch,
   getUnpricedResponseAssetIds,
 } from './getAssetIdsForPriceFetch.js';
-import { normalizeAssetId } from './normalizeAssetId.js';
-
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
 const ACCOUNT_A = 'account-a';
 const ACCOUNT_B = 'account-b';
@@ -113,7 +111,7 @@ describe('getAssetIdsForPriceFetch', () => {
       state: emptyState({
         customAssets: { [ACCOUNT_A]: [CUSTOM_MAINNET] },
       }),
-      expected: [normalizeAssetId(CUSTOM_MAINNET)],
+      expected: [CUSTOM_MAINNET],
     },
     {
       name: 'union of state balance and custom assets',
@@ -124,7 +122,7 @@ describe('getAssetIdsForPriceFetch', () => {
         customAssets: { [ACCOUNT_A]: [CUSTOM_MAINNET] },
         assetsInfo: { [METADATA_MAINNET]: TOKEN_METADATA },
       }),
-      expected: [NATIVE_MAINNET, normalizeAssetId(CUSTOM_MAINNET)].sort(),
+      expected: [NATIVE_MAINNET, CUSTOM_MAINNET].sort(),
     },
   ])('includes $name', ({ state, expected }) => {
     const result = getAssetIdsForPriceFetch({
@@ -189,7 +187,7 @@ describe('getAssetIdsForPriceFetch', () => {
     });
 
     expect(sortedIds(result)).toStrictEqual(
-      [NATIVE_MAINNET, normalizeAssetId(CUSTOM_MAINNET)].sort(),
+      [NATIVE_MAINNET, CUSTOM_MAINNET].sort(),
     );
   });
 
@@ -214,7 +212,7 @@ describe('getAssetIdsForPriceFetch', () => {
     });
 
     expect(sortedIds(result)).toStrictEqual(
-      [NATIVE_MAINNET, normalizeAssetId(CUSTOM_MAINNET)].sort(),
+      [NATIVE_MAINNET, CUSTOM_MAINNET].sort(),
     );
   });
 
@@ -230,7 +228,7 @@ describe('getAssetIdsForPriceFetch', () => {
       request: createRequest(),
     });
 
-    expect([...result]).toStrictEqual([normalizeAssetId(TOKEN_MAINNET)]);
+    expect([...result]).toStrictEqual([TOKEN_MAINNET]);
   });
 
   it('skips malformed asset IDs and keeps valid ones', () => {
@@ -265,8 +263,8 @@ describe('getAssetIdsForPriceFetch', () => {
     expect(sortedIds(result)).toStrictEqual(
       [
         NATIVE_MAINNET,
-        normalizeAssetId(TOKEN_MAINNET),
-        normalizeAssetId(TOKEN_POLYGON),
+        TOKEN_MAINNET,
+        TOKEN_POLYGON,
       ].sort(),
     );
   });
@@ -291,7 +289,7 @@ describe('getAssetIdsForPriceFetch', () => {
       getSupportedNetworks: async () => new Set([CHAIN_MAINNET]),
     });
 
-    expect(result).toStrictEqual([normalizeAssetId(TOKEN_MAINNET)]);
+    expect(result).toStrictEqual([TOKEN_MAINNET]);
   });
 
   it('skips hidden response balances', async () => {

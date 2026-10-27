@@ -7,7 +7,6 @@ import {
   isNativeAssetId,
   NATIVE_ASSETS,
 } from './native-assets.js';
-import { normalizeAssetId } from './normalizeAssetId.js';
 
 vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -17,11 +16,11 @@ vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
 const fetchWithErrorHandlingMock = vi.mocked(fetchWithErrorHandling);
 
 describe('buildNativeAssetsFromConstant', () => {
-  it('includes a normalized entry for every NATIVE_ASSETS chain', () => {
+  it('includes an entry for every NATIVE_ASSETS chain', () => {
     const result = buildNativeAssetsFromConstant();
 
     for (const [chainId, assetId] of Object.entries(NATIVE_ASSETS)) {
-      expect(result[chainId]).toBe(normalizeAssetId(assetId));
+      expect(result[chainId]).toBe(assetId);
     }
 
     expect(result['bip122:000000000019d6689c085ae165831e93']).toBe(

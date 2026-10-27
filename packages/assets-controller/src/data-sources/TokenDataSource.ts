@@ -52,7 +52,7 @@ export enum CaipAssetNamespace {
   Token = 'token',
 }
 
-const MUSD_ADDRESS_LOWERCASE = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
+const MUSD_ADDRESS = '0xacA92E438df0B2401fF60dA7E4337B687a2435DA';
 
 // ============================================================================
 // OPTIONS
@@ -151,23 +151,19 @@ function cleanResponseSpam(
   spamAssetIds: Set<string>,
   response: DataResponse,
 ): void {
-  const spamLowerIds = new Set([...spamAssetIds].map((id) => id.toLowerCase()));
-
-  // Correctly clean assetsBalance by its own Ids
   if (response.assetsBalance) {
     for (const accountBalances of Object.values(response.assetsBalance)) {
       for (const assetId of Object.keys(accountBalances)) {
-        if (spamLowerIds.has(assetId.toLowerCase())) {
+        if (spamAssetIds.has(assetId)) {
           delete (accountBalances as Record<string, unknown>)[assetId];
         }
       }
     }
   }
 
-  // Correctly clean assetsInfo by its own Ids
   if (response.assetsInfo) {
     for (const assetId of Object.keys(response.assetsInfo)) {
-      if (spamLowerIds.has(assetId.toLowerCase())) {
+      if (spamAssetIds.has(assetId)) {
         delete response.assetsInfo[assetId as Caip19AssetId];
       }
     }
@@ -403,39 +399,25 @@ export class TokenDataSource {
         customAssets,
       } = this.#getAssetsState();
 
-      const customAssetIds = new Set(
-        Object.values(customAssets ?? {})
-          .flat()
-          .map((id) => id.toLowerCase()),
-      );
-
-      // State keys are checksummed, but AccountActivity delivers lower-case
-      // ERC-20 IDs, so every lookup below compares lower-cased IDs. Matching
-      // case-sensitively would classify existing holdings as new and delete
-      // the very balance update this pipeline pass is meant to persist.
-      const knownMetadataIds = new Set(
-        Object.keys(stateMetadata).map((id) => id.toLowerCase()),
-      );
+      const customAssetIds = new Set(Object.values(customAssets ?? {}).flat());
+      const knownMetadataIds = new Set(Object.keys(stateMetadata));
 
       // Candidates: EVM ERC-20s that are genuinely new (absent from state
       // balances and metadata).
-      const candidateByLowerId = new Map<string, string>();
+      const candidateIds = new Set<string>();
       for (const [accountId, accountBalances] of Object.entries(
         response.assetsBalance ?? {},
       )) {
         const knownBalanceIds = new Set(
-          Object.keys(stateBalances[accountId] ?? {}).map((id) =>
-            id.toLowerCase(),
-          ),
+          Object.keys(stateBalances[accountId] ?? {}),
         );
         for (const assetId of Object.keys(accountBalances)) {
           const caipAssetId = assetId as Caip19AssetId;
-          const lowerId = assetId.toLowerCase();
           if (
-            knownBalanceIds.has(lowerId) ||
-            knownMetadataIds.has(lowerId) ||
-            customAssetIds.has(lowerId) ||
-            lowerId.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`)
+            knownBalanceIds.has(assetId) ||
+            knownMetadataIds.has(assetId) ||
+            customAssetIds.has(assetId) ||
+            assetId.includes(`/erc20:${MUSD_ADDRESS}`)
           ) {
             continue;
           }
@@ -445,7 +427,7 @@ export class TokenDataSource {
               assetNamespace === CaipAssetNamespace.Erc20 &&
               chain.namespace === KnownCaipNamespace.Eip155
             ) {
-              candidateByLowerId.set(lowerId, assetId);
+              candidateIds.add(assetId);
             }
           } catch {
             // Unparseable IDs are left for downstream middleware to handle.
@@ -453,7 +435,7 @@ export class TokenDataSource {
         }
       }
 
-      if (candidateByLowerId.size === 0) {
+      if (candidateIds.size === 0) {
         return next(ctx);
       }
 
@@ -461,7 +443,7 @@ export class TokenDataSource {
         const [occurrenceResponse, suggestedOccurrenceFloors] =
           await Promise.all([
             reduceInBatchesSerially<string, V3AssetResponse[]>({
-              values: [...candidateByLowerId.values()],
+              values: [...candidateIds],
               batchSize: TOKENS_API_BATCH_SIZE,
               eachBatch: async (workingResult, batch) => {
                 const batchResponse = await fetchWithTimeout(
@@ -484,15 +466,15 @@ export class TokenDataSource {
         // Only assets the API knows can be judged; missing ones are kept.
         const spamAssetIds = new Set<string>();
         for (const assetData of occurrenceResponse) {
-          const candidateId = candidateByLowerId.get(
-            assetData.assetId.toLowerCase(),
-          );
           if (
-            candidateId !== undefined &&
+            candidateIds.has(assetData.assetId) &&
             (assetData.occurrences ?? 0) <
-              getOccurrenceFloorForAsset(candidateId, suggestedOccurrenceFloors)
+              getOccurrenceFloorForAsset(
+                assetData.assetId,
+                suggestedOccurrenceFloors,
+              )
           ) {
-            spamAssetIds.add(candidateId);
+            spamAssetIds.add(assetData.assetId);
           }
         }
 
@@ -539,19 +521,12 @@ export class TokenDataSource {
         });
 
       // Custom assets are user-imported — exempt from spam filtering.
-      // State stores asset IDs in their normalized (checksummed) form, but the
-      // V3 Tokens API can return them lower-cased. Lowercase both sides so the
-      // bypass is robust to address-case differences across data sources.
       const customAssetIds = new Set<string>(
-        Object.values(customAssets ?? {})
-          .flat()
-          .map((id) => id.toLowerCase()),
+        Object.values(customAssets ?? {}).flat(),
       );
 
       // Natives in the metadata response are kept even at zero occurrences.
-      const nativeAssetIds = new Set(
-        nativeAssetIdsList.map((id) => id.toLowerCase()),
-      );
+      const nativeAssetIds = new Set(nativeAssetIdsList);
 
       if (assetIdsNeedingMetadata.size === 0) {
         return next(ctx);
@@ -611,7 +586,7 @@ export class TokenDataSource {
         for (const assetData of metadataResponse) {
           const assetId = assetData.assetId as Caip19AssetId;
           const { assetNamespace, chain } = parseCaipAssetType(assetId);
-          if (nativeAssetIds.has(assetId.toLowerCase())) {
+          if (nativeAssetIds.has(assetId)) {
             // Native assets are always kept — no filtering.
           } else if (
             assetNamespace === CaipAssetNamespace.Erc20 &&
@@ -634,11 +609,11 @@ export class TokenDataSource {
         const allowedEvmIds = new Set(
           evmErc20Ids.filter(
             (id) =>
-              customAssetIds.has(id.toLowerCase()) ||
-              balanceHealAssetIds.has(id.toLowerCase()) ||
+              customAssetIds.has(id) ||
+              balanceHealAssetIds.has(id) ||
               (occurrencesByAssetId.get(id) ?? 0) >=
                 getOccurrenceFloorForAsset(id, suggestedOccurrenceFloors) ||
-              id.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`),
+              id.includes(`/erc20:${MUSD_ADDRESS}`),
           ),
         );
 
@@ -646,14 +621,12 @@ export class TokenDataSource {
         // Custom assets and balance-only heals bypass Blockaid filtering.
         const nonEvmToScan = nonEvmTokenIds.filter(
           (id) =>
-            !customAssetIds.has(id.toLowerCase()) &&
-            !balanceHealAssetIds.has(id.toLowerCase()),
+            !customAssetIds.has(id) && !balanceHealAssetIds.has(id),
         );
         const allowedNonEvmIds = new Set([
           ...nonEvmTokenIds.filter(
             (id) =>
-              customAssetIds.has(id.toLowerCase()) ||
-              balanceHealAssetIds.has(id.toLowerCase()),
+              customAssetIds.has(id) || balanceHealAssetIds.has(id),
           ),
           ...(await this.#filterBlockaidSpamTokens(nonEvmToScan)),
         ]);

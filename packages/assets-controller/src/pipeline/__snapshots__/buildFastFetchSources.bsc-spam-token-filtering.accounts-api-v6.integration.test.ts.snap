@@ -55,7 +55,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
     },
   },
   "assetsInfo": {
-    "eip155:56/erc20:0x003d87d02a2a01e9e8a20f507c83e15dd83a33d1": {
+    "eip155:56/erc20:0x003d87d02A2A01E9E8a20f507C83E15DD83A33d1": {
       "aggregators": [
         "pancakeExtended",
         "rubic",
@@ -87,7 +87,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "GTAI",
       "type": "erc20",
     },
-    "eip155:56/erc20:0x0ccd575bf9378c06f6dca82f8122f570769f00c2": {
+    "eip155:56/erc20:0x0cCD575bf9378c06f6DCa82f8122F570769F00C2": {
       "aggregators": [
         "pancakeCoinMarketCap",
         "rango",
@@ -118,7 +118,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "KING",
       "type": "erc20",
     },
-    "eip155:56/erc20:0x2b72867c32cf673f7b02d208b26889fed353b1f8": {
+    "eip155:56/erc20:0x2B72867c32CF673F7b02d208B26889fEd353B1f8": {
       "aggregators": [
         "pancakeCoinMarketCap",
         "oneInch",
@@ -148,7 +148,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "SQR",
       "type": "erc20",
     },
-    "eip155:56/erc20:0x4f0ed527e8a95ecaa132af214dfd41f30b361600": {
+    "eip155:56/erc20:0x4f0ed527e8A95ecAA132Af214dFd41F30b361600": {
       "aggregators": [
         "pancakeCoinMarketCap",
         "oneInch",
@@ -182,7 +182,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "VBSWAP",
       "type": "erc20",
     },
-    "eip155:56/erc20:0x55d398326f99059ff775485246999027b3197955": {
+    "eip155:56/erc20:0x55d398326f99059fF775485246999027B3197955": {
       "aggregators": [
         "pancakeExtended",
         "liFi",
@@ -222,7 +222,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "USDT",
       "type": "erc20",
     },
-    "eip155:56/erc20:0x69b14e8d3cebfdd8196bfe530954a0c226e5008e": {
+    "eip155:56/erc20:0x69b14e8D3CEBfDD8196Bfe530954A0C226E5008E": {
       "aggregators": [
         "pancakeCoinMarketCap",
         "oneInch",
@@ -253,7 +253,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "SPACEPI",
       "type": "erc20",
     },
-    "eip155:56/erc20:0x77087ab5df23cfb52449a188e80e9096201c2097": {
+    "eip155:56/erc20:0x77087aB5Df23cFB52449A188e80e9096201c2097": {
       "aggregators": [
         "pancakeCoinMarketCap",
         "oneInch",
@@ -288,7 +288,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "HI",
       "type": "erc20",
     },
-    "eip155:56/erc20:0x8899ec96ed8c96b5c86c23c3f069c3def75b6d97": {
+    "eip155:56/erc20:0x8899eC96ed8C96b5C86C23c3f069c3dEf75b6d97": {
       "aggregators": [
         "pancakeCoinMarketCap",
         "rubic",
@@ -318,7 +318,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "OFN",
       "type": "erc20",
     },
-    "eip155:56/erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d": {
+    "eip155:56/erc20:0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d": {
       "aggregators": [
         "pancakeExtended",
         "liFi",
@@ -355,7 +355,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "USDC",
       "type": "erc20",
     },
-    "eip155:56/erc20:0x94a8b4ee5cd64c79d0ee816f467ea73009f51aa0": {
+    "eip155:56/erc20:0x94a8b4EE5CD64C79D0Ee816f467EA73009f51aA0": {
       "aggregators": [
         "coinGecko",
         "rubic",
@@ -387,7 +387,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "RIO",
       "type": "erc20",
     },
-    "eip155:56/erc20:0xbb7d61d2511fd2e63f02178ca9b663458af9fc63": {
+    "eip155:56/erc20:0xBb7D61D2511fD2e63F02178ca9B663458Af9FC63": {
       "aggregators": [
         "pancakeCoinMarketCap",
         "rango",
@@ -418,7 +418,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "EXVG",
       "type": "erc20",
     },
-    "eip155:56/erc20:0xbbcf57177d8752b21d080bf30a06ce20ad6333f8": {
+    "eip155:56/erc20:0xBbcF57177D8752B21d080bf30a06CE20aD6333F8": {
       "aggregators": [
         "pancakeCoinMarketCap",
         "rango",
@@ -450,7 +450,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "ZAM",
       "type": "erc20",
     },
-    "eip155:56/erc20:0xddc0dbd7dc799ae53a98a60b54999cb6ebb3abf0": {
+    "eip155:56/erc20:0xDdC0dBd7dC799ae53A98a60b54999cb6eBb3Abf0": {
       "aggregators": [
         "pancakeCoinMarketCap",
         "rango",
@@ -483,7 +483,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "BLAST",
       "type": "erc20",
     },
-    "eip155:56/erc20:0xe57f73eb27da9d17f90c994744d842e95700c100": {
+    "eip155:56/erc20:0xe57F73EB27Da9D17f90C994744D842e95700C100": {
       "aggregators": [
         "pancakeCoinGecko",
         "rango",
@@ -512,7 +512,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "symbol": "PEPEAI",
       "type": "erc20",
     },
-    "eip155:56/erc20:0xe9e7cea3dedca5984780bafc599bd69add087d56": {
+    "eip155:56/erc20:0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56": {
       "aggregators": [
         "pancakeExtended",
         "liFi",
@@ -572,14 +572,14 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
     },
   },
   "assetsPrice": {
-    "eip155:56/erc20:0x003d87d02a2a01e9e8a20f507c83e15dd83a33d1": {
+    "eip155:56/erc20:0x003d87d02A2A01E9E8a20f507C83E15DD83A33d1": {
       "allTimeHigh": 5.46,
       "allTimeLow": 0.00604714,
       "assetPriceType": "fungible",
       "circulatingSupply": 69880943.68552426,
       "dilutedMarketCap": 540387,
       "high1d": 0.00721852,
-      "id": "eip155:56/erc20:0x003d87d02a2a01e9e8a20f507c83e15dd83a33d1",
+      "id": "eip155:56/erc20:0x003d87d02A2A01E9E8a20f507C83E15DD83A33d1",
       "lastUpdated": 0,
       "low1d": 0.00714369,
       "marketCap": 503504,
@@ -596,7 +596,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 185919,
       "usdPrice": 0.00720484,
     },
-    "eip155:56/erc20:0x2aa504586d6cab3c59fa629f74c586d78b93a025": {
+    "eip155:56/erc20:0x2AA504586d6CaB3C59Fa629f74c586d78b93A025": {
       "allTimeHigh": null,
       "allTimeLow": null,
       "assetPriceType": "fungible",
@@ -604,7 +604,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "circulatingSupply": null,
       "dilutedMarketCap": 109800.696381147,
       "high1d": null,
-      "id": "eip155:56/erc20:0x2aa504586d6cab3c59fa629f74c586d78b93a025",
+      "id": "eip155:56/erc20:0x2AA504586d6CaB3C59Fa629f74c586d78b93A025",
       "lastUpdated": 0,
       "liquidity": 87007.28289524098,
       "low1d": null,
@@ -623,14 +623,14 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 0,
       "usdPrice": 0.001430968154,
     },
-    "eip155:56/erc20:0x2b72867c32cf673f7b02d208b26889fed353b1f8": {
+    "eip155:56/erc20:0x2B72867c32CF673F7b02d208B26889fEd353B1f8": {
       "allTimeHigh": 0.775708,
       "allTimeLow": 0.00006158,
       "assetPriceType": "fungible",
       "circulatingSupply": 719255546.828825,
       "dilutedMarketCap": 80567,
       "high1d": 0.00009934,
-      "id": "eip155:56/erc20:0x2b72867c32cf673f7b02d208b26889fed353b1f8",
+      "id": "eip155:56/erc20:0x2B72867c32CF673F7b02d208B26889fEd353B1f8",
       "lastUpdated": 0,
       "low1d": 0.00008185,
       "marketCap": 61019,
@@ -647,7 +647,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 92771,
       "usdPrice": 0.00008501,
     },
-    "eip155:56/erc20:0x4f0ed527e8a95ecaa132af214dfd41f30b361600": {
+    "eip155:56/erc20:0x4f0ed527e8A95ecAA132Af214dFd41F30b361600": {
       "allTimeHigh": null,
       "allTimeLow": null,
       "assetPriceType": "fungible",
@@ -655,7 +655,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "circulatingSupply": null,
       "dilutedMarketCap": 140814.349477256,
       "high1d": null,
-      "id": "eip155:56/erc20:0x4f0ed527e8a95ecaa132af214dfd41f30b361600",
+      "id": "eip155:56/erc20:0x4f0ed527e8A95ecAA132Af214dFd41F30b361600",
       "lastUpdated": 0,
       "liquidity": 3706.966847093036,
       "low1d": null,
@@ -674,14 +674,14 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 66.0330720783275,
       "usdPrice": 14.6695460693,
     },
-    "eip155:56/erc20:0x55d398326f99059ff775485246999027b3197955": {
+    "eip155:56/erc20:0x55d398326f99059fF775485246999027B3197955": {
       "allTimeHigh": 1.85,
       "allTimeLow": 0.941022,
       "assetPriceType": "fungible",
       "circulatingSupply": 9184991905.680809,
       "dilutedMarketCap": 9181946768,
       "high1d": 0.999919,
-      "id": "eip155:56/erc20:0x55d398326f99059ff775485246999027b3197955",
+      "id": "eip155:56/erc20:0x55d398326f99059fF775485246999027B3197955",
       "lastUpdated": 0,
       "liquidity": 613589475.6193123,
       "low1d": 0.999558,
@@ -699,7 +699,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 1252391401,
       "usdPrice": 0.9997597462199397,
     },
-    "eip155:56/erc20:0x69b14e8d3cebfdd8196bfe530954a0c226e5008e": {
+    "eip155:56/erc20:0x69b14e8D3CEBfDD8196Bfe530954A0C226E5008E": {
       "allTimeHigh": null,
       "allTimeLow": null,
       "assetPriceType": "fungible",
@@ -707,7 +707,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "circulatingSupply": null,
       "dilutedMarketCap": 1197830.38634154,
       "high1d": null,
-      "id": "eip155:56/erc20:0x69b14e8d3cebfdd8196bfe530954a0c226e5008e",
+      "id": "eip155:56/erc20:0x69b14e8D3CEBfDD8196Bfe530954A0C226E5008E",
       "lastUpdated": 0,
       "liquidity": 701831.6721570174,
       "low1d": null,
@@ -726,14 +726,14 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 443.901054517397,
       "usdPrice": 6.24277267e-10,
     },
-    "eip155:56/erc20:0x77087ab5df23cfb52449a188e80e9096201c2097": {
+    "eip155:56/erc20:0x77087aB5Df23cFB52449A188e80e9096201c2097": {
       "allTimeHigh": 1.57,
       "allTimeLow": 0.00001497,
       "assetPriceType": "fungible",
       "circulatingSupply": 65859645815,
       "dilutedMarketCap": 2196653,
       "high1d": 0.00002244,
-      "id": "eip155:56/erc20:0x77087ab5df23cfb52449a188e80e9096201c2097",
+      "id": "eip155:56/erc20:0x77087aB5Df23cFB52449A188e80e9096201c2097",
       "lastUpdated": 0,
       "liquidity": 14473.719381952691,
       "low1d": 0.00002161,
@@ -751,7 +751,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 45.05,
       "usdPrice": 0.00002197,
     },
-    "eip155:56/erc20:0x8632055b9caeebef7c7dccd95461608ca5378839": {
+    "eip155:56/erc20:0x8632055b9CAeebEf7C7DccD95461608ca5378839": {
       "allTimeHigh": null,
       "allTimeLow": null,
       "assetPriceType": "fungible",
@@ -759,7 +759,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "circulatingSupply": null,
       "dilutedMarketCap": 3569.9739533813,
       "high1d": null,
-      "id": "eip155:56/erc20:0x8632055b9caeebef7c7dccd95461608ca5378839",
+      "id": "eip155:56/erc20:0x8632055b9CAeebEf7C7DccD95461608ca5378839",
       "lastUpdated": 0,
       "liquidity": 0.5992849636201593,
       "low1d": null,
@@ -778,14 +778,14 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 0,
       "usdPrice": 0.00001784990067,
     },
-    "eip155:56/erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d": {
+    "eip155:56/erc20:0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d": {
       "allTimeHigh": 1.54,
       "allTimeLow": 0.107192,
       "assetPriceType": "fungible",
       "circulatingSupply": 1588999877.439803,
       "dilutedMarketCap": 1588817061,
       "high1d": 1,
-      "id": "eip155:56/erc20:0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+      "id": "eip155:56/erc20:0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
       "lastUpdated": 0,
       "liquidity": 48479575.53997608,
       "low1d": 0.999718,
@@ -803,7 +803,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 1092971528,
       "usdPrice": 0.9999793058607263,
     },
-    "eip155:56/erc20:0x9452d45d33490234b8c96f42342f1be28c0fe097": {
+    "eip155:56/erc20:0x9452D45d33490234B8C96f42342F1Be28c0FE097": {
       "allTimeHigh": null,
       "allTimeLow": null,
       "assetPriceType": "fungible",
@@ -812,7 +812,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "dilutedMarketCap": 131202.663241936,
       "high1d": null,
       "holderCount": null,
-      "id": "eip155:56/erc20:0x9452d45d33490234b8c96f42342f1be28c0fe097",
+      "id": "eip155:56/erc20:0x9452D45d33490234B8C96f42342F1Be28c0FE097",
       "isMutable": null,
       "lastUpdated": 0,
       "liquidity": 3620.847652722667,
@@ -832,14 +832,14 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 45.1025528431,
       "usdPrice": 0.0006560735838,
     },
-    "eip155:56/erc20:0x94a8b4ee5cd64c79d0ee816f467ea73009f51aa0": {
+    "eip155:56/erc20:0x94a8b4EE5CD64C79D0Ee816f467EA73009f51aA0": {
       "allTimeHigh": 5.12,
       "allTimeLow": 0.01342772,
       "assetPriceType": "fungible",
       "circulatingSupply": 330500000,
       "dilutedMarketCap": 16183936,
       "high1d": 0.05071,
-      "id": "eip155:56/erc20:0x94a8b4ee5cd64c79d0ee816f467ea73009f51aa0",
+      "id": "eip155:56/erc20:0x94a8b4EE5CD64C79D0Ee816f467EA73009f51aA0",
       "lastUpdated": 0,
       "liquidity": 286952.55296101805,
       "low1d": 0.04844582,
@@ -857,7 +857,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 204638,
       "usdPrice": 0.04897826,
     },
-    "eip155:56/erc20:0xb0eb3e295b44d7d405ba8026a9734a9ab354a8b2": {
+    "eip155:56/erc20:0xB0eB3e295B44d7D405ba8026A9734A9ab354a8B2": {
       "allTimeHigh": null,
       "allTimeLow": null,
       "assetPriceType": "fungible",
@@ -865,7 +865,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "circulatingSupply": null,
       "dilutedMarketCap": 18403.4899850297,
       "high1d": null,
-      "id": "eip155:56/erc20:0xb0eb3e295b44d7d405ba8026a9734a9ab354a8b2",
+      "id": "eip155:56/erc20:0xB0eB3e295B44d7D405ba8026A9734A9ab354a8B2",
       "lastUpdated": 0,
       "liquidity": 1187.8332805053717,
       "low1d": null,
@@ -884,7 +884,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 0,
       "usdPrice": 0.0001841583888,
     },
-    "eip155:56/erc20:0xbb7d61d2511fd2e63f02178ca9b663458af9fc63": {
+    "eip155:56/erc20:0xBb7D61D2511fD2e63F02178ca9B663458Af9FC63": {
       "allTimeHigh": null,
       "allTimeLow": null,
       "assetPriceType": "fungible",
@@ -893,7 +893,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "dilutedMarketCap": 26277.6103202188,
       "high1d": null,
       "holderCount": null,
-      "id": "eip155:56/erc20:0xbb7d61d2511fd2e63f02178ca9b663458af9fc63",
+      "id": "eip155:56/erc20:0xBb7D61D2511fD2e63F02178ca9B663458Af9FC63",
       "isMutable": null,
       "lastUpdated": 0,
       "liquidity": 1101.8053137481395,
@@ -913,14 +913,14 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 0,
       "usdPrice": 0.00006569537134,
     },
-    "eip155:56/erc20:0xddc0dbd7dc799ae53a98a60b54999cb6ebb3abf0": {
+    "eip155:56/erc20:0xDdC0dBd7dC799ae53A98a60b54999cb6eBb3Abf0": {
       "allTimeHigh": 0.00032667,
       "allTimeLow": 8.9e-17,
       "assetPriceType": "fungible",
       "circulatingSupply": 0,
       "dilutedMarketCap": 2871530,
       "high1d": 3.006e-9,
-      "id": "eip155:56/erc20:0xddc0dbd7dc799ae53a98a60b54999cb6ebb3abf0",
+      "id": "eip155:56/erc20:0xDdC0dBd7dC799ae53A98a60b54999cb6eBb3Abf0",
       "lastUpdated": 0,
       "low1d": 2.863e-9,
       "marketCap": 0,
@@ -937,55 +937,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalVolume": 5.65,
       "usdPrice": 2.871e-9,
     },
-    "eip155:56/erc20:0xdf9e1a85db4f985d5bb5644ad07d9d7ee5673b5e": {
-      "allTimeHigh": 0.00502433,
-      "allTimeLow": 3.9844e-8,
-      "assetPriceType": "fungible",
-      "circulatingSupply": 87999997928.97575,
-      "dilutedMarketCap": 37045,
-      "high1d": 3.90567e-7,
-      "id": "eip155:56/erc20:0xdf9e1a85db4f985d5bb5644ad07d9d7ee5673b5e",
-      "lastUpdated": 0,
-      "low1d": 3.69265e-7,
-      "marketCap": 32600,
-      "marketCapPercentChange1d": -4.25951,
-      "price": 3.70568e-7,
-      "priceChange1d": -1.6367479209e-8,
-      "pricePercentChange14d": -0.7,
-      "pricePercentChange1d": -3.89934,
-      "pricePercentChange1h": -0.1,
-      "pricePercentChange1y": -91.6,
-      "pricePercentChange200d": -34.1,
-      "pricePercentChange30d": -0.9,
-      "pricePercentChange7d": 4.4,
-      "totalVolume": 194.16,
-      "usdPrice": 3.70568e-7,
-    },
-    "eip155:56/erc20:0xe9e7cea3dedca5984780bafc599bd69add087d56": {
-      "allTimeHigh": 1.86,
-      "allTimeLow": 0.462821,
-      "assetPriceType": "fungible",
-      "circulatingSupply": 283188732.4703792,
-      "dilutedMarketCap": null,
-      "high1d": 1.018440961950845,
-      "id": "eip155:56/erc20:0xe9e7cea3dedca5984780bafc599bd69add087d56",
-      "lastUpdated": 0,
-      "low1d": 0.995524765786234,
-      "marketCap": 283296437.81903726,
-      "marketCapPercentChange1d": null,
-      "price": 1.000380330628689,
-      "priceChange1d": null,
-      "pricePercentChange14d": null,
-      "pricePercentChange1d": -0.06,
-      "pricePercentChange1h": -0.03,
-      "pricePercentChange1y": null,
-      "pricePercentChange200d": null,
-      "pricePercentChange30d": null,
-      "pricePercentChange7d": null,
-      "totalVolume": 1031780.8750981385,
-      "usdPrice": 1.000380330628689,
-    },
-    "eip155:56/erc20:0xfaa0fc7b803919b091dbe5ff709b2dabb61b93d9": {
+    "eip155:56/erc20:0xFAA0fC7B803919B091dBe5FF709b2dAbb61b93d9": {
       "allTimeHigh": null,
       "allTimeLow": null,
       "assetPriceType": "fungible",
@@ -993,7 +945,7 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "circulatingSupply": null,
       "dilutedMarketCap": 103785.929891558,
       "high1d": null,
-      "id": "eip155:56/erc20:0xfaa0fc7b803919b091dbe5ff709b2dabb61b93d9",
+      "id": "eip155:56/erc20:0xFAA0fC7B803919B091dBe5FF709b2dAbb61b93d9",
       "lastUpdated": 0,
       "liquidity": 15553.255162248859,
       "low1d": null,
@@ -1011,6 +963,54 @@ exports[`assets pipeline (Accounts API v6): BNB Chain spam token (CDOGE) > gener
       "totalSupply": 100000000,
       "totalVolume": 18.5327447356,
       "usdPrice": 0.001037859309,
+    },
+    "eip155:56/erc20:0xdF9e1A85dB4f985D5BB5644aD07d9D7EE5673B5E": {
+      "allTimeHigh": 0.00502433,
+      "allTimeLow": 3.9844e-8,
+      "assetPriceType": "fungible",
+      "circulatingSupply": 87999997928.97575,
+      "dilutedMarketCap": 37045,
+      "high1d": 3.90567e-7,
+      "id": "eip155:56/erc20:0xdF9e1A85dB4f985D5BB5644aD07d9D7EE5673B5E",
+      "lastUpdated": 0,
+      "low1d": 3.69265e-7,
+      "marketCap": 32600,
+      "marketCapPercentChange1d": -4.25951,
+      "price": 3.70568e-7,
+      "priceChange1d": -1.6367479209e-8,
+      "pricePercentChange14d": -0.7,
+      "pricePercentChange1d": -3.89934,
+      "pricePercentChange1h": -0.1,
+      "pricePercentChange1y": -91.6,
+      "pricePercentChange200d": -34.1,
+      "pricePercentChange30d": -0.9,
+      "pricePercentChange7d": 4.4,
+      "totalVolume": 194.16,
+      "usdPrice": 3.70568e-7,
+    },
+    "eip155:56/erc20:0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56": {
+      "allTimeHigh": 1.86,
+      "allTimeLow": 0.462821,
+      "assetPriceType": "fungible",
+      "circulatingSupply": 283188732.4703792,
+      "dilutedMarketCap": null,
+      "high1d": 1.018440961950845,
+      "id": "eip155:56/erc20:0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56",
+      "lastUpdated": 0,
+      "low1d": 0.995524765786234,
+      "marketCap": 283296437.81903726,
+      "marketCapPercentChange1d": null,
+      "price": 1.000380330628689,
+      "priceChange1d": null,
+      "pricePercentChange14d": null,
+      "pricePercentChange1d": -0.06,
+      "pricePercentChange1h": -0.03,
+      "pricePercentChange1y": null,
+      "pricePercentChange200d": null,
+      "pricePercentChange30d": null,
+      "pricePercentChange7d": null,
+      "totalVolume": 1031780.8750981385,
+      "usdPrice": 1.000380330628689,
     },
     "eip155:56/slip44:714": {
       "allTimeHigh": 1369.99,

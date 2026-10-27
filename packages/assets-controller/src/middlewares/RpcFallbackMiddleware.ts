@@ -282,8 +282,7 @@ function collectStaleTrackedAssets(
 /**
  * Whether a balance response carries no positive amount for an asset. A
  * returned `0` cannot be distinguished from "not indexed", so both count as
- * empty. Asset IDs are matched case-insensitively: state keys ERC-20 assets by
- * checksummed address, while some data sources return them lower-cased.
+ * empty.
  *
  * @param balances - Balance map for a single account from the response.
  * @param assetId - Asset ID to check.
@@ -293,13 +292,7 @@ function isBalanceEmpty(
   balances: Record<string, AssetBalance> | undefined,
   assetId: Caip19AssetId,
 ): boolean {
-  let amount = balances?.[assetId]?.amount;
-  if (amount === undefined && balances) {
-    const lowerCasedAssetId = assetId.toLowerCase();
-    amount = Object.entries(balances).find(
-      ([id]) => id.toLowerCase() === lowerCasedAssetId,
-    )?.[1]?.amount;
-  }
+  const amount = balances?.[assetId]?.amount;
   return !(Number(amount) > 0);
 }
 

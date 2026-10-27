@@ -375,7 +375,7 @@ describe('AccountActivityDataSource', () => {
       cleanup();
     });
 
-    it('checksums the lower-case ERC-20 asset IDs the websocket delivers', async () => {
+    it('keeps the ERC-20 asset ID the websocket delivers', async () => {
       const account = createMockAccount();
       const { onAssetsUpdate, triggerBalanceUpdated, cleanup } = setup({
         groupAccounts: [account],
@@ -397,10 +397,10 @@ describe('AccountActivityDataSource', () => {
       });
       const [response] = onAssetsUpdate.mock.calls[0];
       expect(response.assetsBalance[account.id]).toHaveProperty(
-        USDC_ASSET_CHECKSUMMED,
+        USDC_ASSET_LOWERCASE,
       );
       expect(response.assetsBalance[account.id]).not.toHaveProperty(
-        USDC_ASSET_LOWERCASE,
+        USDC_ASSET_CHECKSUMMED,
       );
       expect(response.assetsInfo).toBeUndefined();
 

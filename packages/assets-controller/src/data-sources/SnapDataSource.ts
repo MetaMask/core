@@ -670,21 +670,16 @@ export class SnapDataSource extends AbstractDataSource<
     visibleAssetIds: Caip19AssetId[],
     accountBalances: Record<string, AssetBalance>,
   ): void {
-    const previousByKey = new Map(
-      Object.entries(this.#getAssetsState().assetsBalance[accountId] ?? {}).map(
-        ([assetId, balance]) => [assetId.toLowerCase(), balance],
-      ),
-    );
-    const presentKeys = new Set(
-      Object.keys(accountBalances).map((assetId) => assetId.toLowerCase()),
-    );
+    const previousBalances =
+      this.#getAssetsState().assetsBalance[accountId] ?? {};
+    const presentKeys = new Set(Object.keys(accountBalances));
 
     for (const assetId of visibleAssetIds) {
-      if (presentKeys.has(assetId.toLowerCase())) {
+      if (presentKeys.has(assetId)) {
         continue;
       }
 
-      const previous = previousByKey.get(assetId.toLowerCase());
+      const previous = previousBalances[assetId];
       if (previous) {
         accountBalances[assetId] = { ...previous };
         continue;
@@ -712,17 +707,11 @@ export class SnapDataSource extends AbstractDataSource<
     hiddenAssetIds: Caip19AssetId[],
   ): CaipAssetType[] {
     const supportedChains = new Set(supportedChainIds);
-    const hidden = new Set(
-      hiddenAssetIds.map((assetId) => assetId.toLowerCase()),
-    );
+    const hidden = new Set(hiddenAssetIds);
     const assetsToFetch = new Map<string, CaipAssetType>();
 
     for (const assetId of [...accountAssets, ...visibleAssetIds]) {
-      const normalizedAssetId = assetId.toLowerCase();
-      if (
-        assetsToFetch.has(normalizedAssetId) ||
-        hidden.has(normalizedAssetId)
-      ) {
+      if (assetsToFetch.has(assetId) || hidden.has(assetId)) {
         continue;
       }
 
@@ -735,7 +724,7 @@ export class SnapDataSource extends AbstractDataSource<
         continue;
       }
 
-      assetsToFetch.set(normalizedAssetId, assetId as CaipAssetType);
+      assetsToFetch.set(assetId, assetId as CaipAssetType);
     }
 
     return Array.from(assetsToFetch.values());
@@ -771,19 +760,14 @@ export class SnapDataSource extends AbstractDataSource<
     hiddenAssetIds: Caip19AssetId[],
   ): void {
     const supportedChains = new Set(supportedChainIds);
-    const hidden = new Set(
-      hiddenAssetIds.map((assetId) => assetId.toLowerCase()),
-    );
-    const present = new Set(
-      assetsToFetch.map((assetId) => assetId.toLowerCase()),
-    );
+    const hidden = new Set(hiddenAssetIds);
+    const present = new Set(assetsToFetch);
     const balanceAssetIds = Object.keys(
       this.#getAssetsState().assetsBalance[accountId] ?? {},
     );
 
     for (const assetId of balanceAssetIds) {
-      const normalizedAssetId = assetId.toLowerCase();
-      if (present.has(normalizedAssetId) || hidden.has(normalizedAssetId)) {
+      if (present.has(assetId) || hidden.has(assetId)) {
         continue;
       }
 
@@ -791,7 +775,7 @@ export class SnapDataSource extends AbstractDataSource<
         continue;
       }
 
-      present.add(normalizedAssetId);
+      present.add(assetId);
       assetsToFetch.push(assetId as CaipAssetType);
     }
   }

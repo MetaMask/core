@@ -9,12 +9,11 @@ import type {
   Caip19AssetId,
   ChainId,
 } from '../types.js';
-import { normalizeAssetId } from './normalizeAssetId.js';
 
 export type AssetVisibility = {
-  /** Checksum-normalized CAIP-19 IDs (native, pins, default tracked). */
+  /** CAIP-19 IDs (native, pins, default tracked). */
   visibleAssetIds: Caip19AssetId[];
-  /** Checksum-normalized CAIP-19 IDs the user hid. */
+  /** CAIP-19 IDs the user hid. */
   hiddenAssetIds: Caip19AssetId[];
 };
 
@@ -42,7 +41,7 @@ export type GetAssetVisibilityOptions = {
  * @param options.chainIds - Chains to scope native, default, and hidden IDs.
  * @param options.getNativeAssetForChain - Resolves each chain's native ID;
  * returns `undefined` when the chain has no resolvable native.
- * @returns Deduplicated, normalized visible and hidden asset IDs.
+ * @returns Deduplicated visible and hidden asset IDs.
  */
 export function getAssetVisibility({
   state,
@@ -55,15 +54,15 @@ export function getAssetVisibility({
   const visibleByKey = new Map<string, Caip19AssetId>();
 
   const addVisible = (assetId: Caip19AssetId): void => {
-    const normalized = normalizeInScope(assetId, chainSet);
+    const inScope = assetIdInScope(assetId, chainSet);
     if (
-      !normalized ||
-      hiddenByKey.has(normalized.toLowerCase()) ||
-      isStakingContractAssetId(normalized)
+      !inScope ||
+      hiddenByKey.has(inScope) ||
+      isStakingContractAssetId(inScope)
     ) {
       return;
     }
-    visibleByKey.set(normalized.toLowerCase(), normalized);
+    visibleByKey.set(inScope, inScope);
   };
 
   for (const chainId of chainIds) {
@@ -71,7 +70,7 @@ export function getAssetVisibility({
       if (!shouldSkipNativeForCaipChainId(chainId)) {
         const nativeAssetId = getNativeAssetForChain(chainId);
         if (nativeAssetId) {
-          addVisible(normalizeAssetId(nativeAssetId));
+          addVisible(nativeAssetId);
         }
       }
     } catch {
@@ -103,15 +102,15 @@ function collectHiddenAssets(
     if (!preferences.hidden) {
       continue;
     }
-    const normalized = normalizeInScope(assetId as Caip19AssetId, chainSet);
-    if (normalized) {
-      hiddenByKey.set(normalized.toLowerCase(), normalized);
+    const inScope = assetIdInScope(assetId as Caip19AssetId, chainSet);
+    if (inScope) {
+      hiddenByKey.set(inScope, inScope);
     }
   }
   return hiddenByKey;
 }
 
-function normalizeInScope(
+function assetIdInScope(
   assetId: Caip19AssetId,
   chainSet: Set<ChainId>,
 ): Caip19AssetId | undefined {
@@ -120,7 +119,7 @@ function normalizeInScope(
     if (!chainSet.has(parsed.chainId)) {
       return undefined;
     }
-    return normalizeAssetId(assetId);
+    return assetId;
   } catch {
     return undefined;
   }

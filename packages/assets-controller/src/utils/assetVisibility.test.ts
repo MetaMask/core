@@ -7,7 +7,6 @@ import type {
   ChainId,
 } from '../types.js';
 import { getAssetVisibility } from './assetVisibility.js';
-import { normalizeAssetId } from './normalizeAssetId.js';
 
 const MAINNET = 'eip155:1' as ChainId;
 const GNOSIS = 'eip155:100' as ChainId;
@@ -16,8 +15,6 @@ const GNOSIS_NATIVE =
   'eip155:100/erc20:0x0000000000000000000000000000000000000000' as Caip19AssetId;
 const PIN =
   'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' as Caip19AssetId;
-const PIN_MIXED_CASE =
-  'eip155:1/erc20:0xA0b86991c6218b36c1d19d4a2e9eB0cE3606eB48' as Caip19AssetId;
 const OUT_OF_SCOPE_PIN =
   'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
 const STAKING_ASSET =
@@ -49,7 +46,7 @@ function getNativeAssetForChain(chainId: ChainId): Caip19AssetId {
 }
 
 describe('getAssetVisibility', () => {
-  it('returns normalized native, pinned, and default tracked assets', () => {
+  it('returns native, pinned, and default tracked assets', () => {
     const state = createState({
       customAssets: {
         account1: [PIN, PIN, OUT_OF_SCOPE_PIN],
@@ -67,8 +64,8 @@ describe('getAssetVisibility', () => {
     expect(result.visibleAssetIds).toStrictEqual([
       MAINNET_NATIVE,
       MAINNET_DEFAULT,
-      normalizeAssetId(GNOSIS_NATIVE),
-      normalizeAssetId(PIN),
+      GNOSIS_NATIVE,
+      PIN,
     ]);
     expect(result.hiddenAssetIds).toStrictEqual([]);
   });
@@ -78,7 +75,7 @@ describe('getAssetVisibility', () => {
       customAssets: { account1: [PIN] },
       assetPreferences: {
         [MAINNET_NATIVE]: { hidden: true },
-        [PIN_MIXED_CASE]: { hidden: true },
+        [PIN]: { hidden: true },
         [MAINNET_DEFAULT]: { hidden: true },
       },
     });
@@ -93,7 +90,7 @@ describe('getAssetVisibility', () => {
     expect(result.visibleAssetIds).toStrictEqual([]);
     expect(result.hiddenAssetIds).toStrictEqual([
       MAINNET_NATIVE,
-      normalizeAssetId(PIN_MIXED_CASE),
+      PIN,
       MAINNET_DEFAULT,
     ]);
   });
@@ -113,7 +110,7 @@ describe('getAssetVisibility', () => {
       getNativeAssetForChain,
     });
 
-    expect(result.hiddenAssetIds).toStrictEqual([normalizeAssetId(PIN)]);
+    expect(result.hiddenAssetIds).toStrictEqual([PIN]);
   });
 
   it('skips the native for a chain whose native ID cannot be resolved', () => {
@@ -130,7 +127,7 @@ describe('getAssetVisibility', () => {
 
     expect(result.visibleAssetIds).toStrictEqual([
       MAINNET_DEFAULT,
-      normalizeAssetId(PIN),
+      PIN,
     ]);
   });
 
@@ -173,7 +170,7 @@ describe('getAssetVisibility', () => {
       getNativeAssetForChain: () => tempoNative,
     });
 
-    expect(result.visibleAssetIds).toStrictEqual([normalizeAssetId(tempoPin)]);
+    expect(result.visibleAssetIds).toStrictEqual([tempoPin]);
     expect(result.hiddenAssetIds).toStrictEqual([]);
   });
 });

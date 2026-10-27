@@ -11,7 +11,6 @@ import type {
   Caip19AssetId,
   AssetsControllerState,
 } from '../types.js';
-import { normalizeAssetId } from '../utils/index.js';
 import type { PriceDataSourceOptions } from './PriceDataSource.js';
 import { PriceDataSource } from './PriceDataSource.js';
 
@@ -284,7 +283,7 @@ describe('PriceDataSource', () => {
     await controller.assetsMiddleware(context, vi.fn());
 
     const assetsCalled = apiClient.prices.fetchV3SpotPrices.mock.calls[0][0];
-    expect(assetsCalled).toStrictEqual([normalizeAssetId(MOCK_TOKEN_ASSET)]);
+    expect(assetsCalled).toStrictEqual([MOCK_TOKEN_ASSET]);
 
     controller.destroy();
   });
@@ -1046,7 +1045,7 @@ describe('PriceDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
-      [normalizeAssetId(MOCK_TOKEN_ASSET)],
+      [MOCK_TOKEN_ASSET],
       { currency: 'usd', includeMarketData: true },
     );
     expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
@@ -1074,7 +1073,7 @@ describe('PriceDataSource', () => {
             },
           },
           assetsPrice: {
-            [normalizeAssetId(MOCK_TOKEN_ASSET)]: {
+            [MOCK_TOKEN_ASSET]: {
               assetPriceType: 'fungible',
               price: 1,
               usdPrice: 1,
@@ -1136,7 +1135,7 @@ describe('PriceDataSource', () => {
     await controller.fetch(createDataRequest());
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
-      [normalizeAssetId(MOCK_TOKEN_ASSET)],
+      [MOCK_TOKEN_ASSET],
       { currency: 'usd', includeMarketData: true },
     );
 
@@ -1458,7 +1457,7 @@ describe('PriceDataSource', () => {
     // Only MOCK_TOKEN_ASSET should be sent to the API (MOCK_NATIVE_ASSET is fresh)
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenLastCalledWith(
-      [normalizeAssetId(MOCK_TOKEN_ASSET)],
+      [MOCK_TOKEN_ASSET],
       expect.anything(),
     );
 

@@ -25,7 +25,7 @@ import type {
 } from '../types.js';
 import type { GetAssetVisibility } from '../utils/assetVisibility.js';
 import { filterFailedChainBalances } from '../utils/filterFailedChainBalances.js';
-import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
+import { fetchWithTimeout } from '../utils/index.js';
 import {
   getMigrationStages,
   shouldSupportChain,
@@ -812,19 +812,18 @@ export class AccountsApiDataSource extends AbstractDataSource<
         assetsBalance[accountId] = {};
       }
 
-      // Normalize asset ID (checksum EVM addresses for ERC20 tokens)
-      const normalizedAssetId = normalizeAssetId(item.assetId as Caip19AssetId);
+      const assetId = item.assetId as Caip19AssetId;
 
       // Staked balances are owned by StakedBalanceDataSource. Accounts API may
       // return the vault share token as a normal ERC-20 (often 0 or stale),
       // which would overwrite or wipe the on-chain staked amount on merge.
-      if (isStakingContractAssetId(normalizedAssetId)) {
+      if (isStakingContractAssetId(assetId)) {
         continue;
       }
 
       // Store balance as returned by API, along with any network-specific
       // metadata (e.g. Stellar trustline / native reserve fields).
-      assetsBalance[accountId][normalizedAssetId] = {
+      assetsBalance[accountId][assetId] = {
         amount: item.balance,
         ...(item.metadata ? { metadata: item.metadata } : {}),
       };
@@ -884,19 +883,18 @@ export class AccountsApiDataSource extends AbstractDataSource<
         >;
       }
 
-      // Normalize asset ID (checksum EVM addresses for ERC20 tokens)
-      const normalizedAssetId = normalizeAssetId(item.assetId as Caip19AssetId);
+      const assetId = item.assetId as Caip19AssetId;
 
       // Staked balances are owned by StakedBalanceDataSource. Accounts API may
       // return the vault share token as a normal ERC-20 (often 0 or stale),
       // which would overwrite or wipe the on-chain staked amount on merge.
-      if (isStakingContractAssetId(normalizedAssetId)) {
+      if (isStakingContractAssetId(assetId)) {
         continue;
       }
 
       // Store balance as returned by API, along with any network-specific
       // metadata (e.g. Stellar trustline / native reserve fields).
-      assetsBalance[accountId][normalizedAssetId] = {
+      assetsBalance[accountId][assetId] = {
         amount: item.balance,
         ...(item.metadata ? { metadata: item.metadata as Json } : {}),
       };

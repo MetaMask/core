@@ -2,6 +2,7 @@ import { API_URLS, ApiPlatformClient } from '@metamask/core-backend';
 import type { Json } from '@metamask/utils';
 import nock, { pendingMocks } from 'nock';
 
+import { checksumAssetId } from './checksumAssetId.js';
 import {
   ARBITRUM_GMX,
   BASE_FARTCOIN,
@@ -104,7 +105,7 @@ export type V3AssetsMock = {
  * the API does for chains it does not serve.
  * @param options.status - HTTP status to answer with. Defaults to 200.
  * @param options.times - How many requests to intercept. Defaults to 1.
- * @param options.casing - The casing to answer with. Defaults to 'lowercase'.
+ * @param options.casing - The casing to answer with. Defaults to 'checksum'.
  * @returns The nock scope alongside the asset IDs each request asked about.
  */
 export function mockV3Assets({
@@ -112,7 +113,7 @@ export function mockV3Assets({
   omit = [],
   status = 200,
   times = 1,
-  casing = 'lowercase',
+  casing = 'checksum',
 }: {
   occurrences?: Record<string, number | undefined>;
   omit?: string[];
@@ -185,7 +186,7 @@ function readAssetIds(uri: string): string[] {
 function buildAssetResponse(
   assetId: string,
   occurrences: Record<string, number | undefined>,
-  casing: 'lowercase' | 'checksum' = 'lowercase',
+  casing: 'lowercase' | 'checksum' = 'checksum',
 ): Json {
   const lowerId = assetId.toLowerCase();
   const knownId = Object.keys(occurrences).find(
@@ -195,7 +196,7 @@ function buildAssetResponse(
     knownId === undefined ? undefined : findTokenMetadata(knownId);
 
   const responseAssetId =
-    casing === 'checksum' && knownId !== undefined ? knownId : lowerId;
+    casing === 'checksum' ? checksumAssetId(assetId) : lowerId;
 
   if (knownId === undefined || metadata === undefined) {
     return {
