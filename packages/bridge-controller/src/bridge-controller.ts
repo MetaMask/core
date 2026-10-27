@@ -1072,6 +1072,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const pendingFeeAppendPromises = new Set<Promise<void>>();
 
     await fetchBridgeQuoteStream(
+      this.messenger,
       this.#fetchFn,
       quoteRequests,
       signal,

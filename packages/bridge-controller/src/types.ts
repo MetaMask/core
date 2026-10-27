@@ -15,6 +15,7 @@ import type {
 import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
+import type { MoneyAccountControllerGetMoneyAccountAction } from '@metamask/money-account-controller';
 import type { Infer } from '@metamask/superstruct';
 import type {
   CaipAccountId,
@@ -394,20 +395,20 @@ export type BridgeControllerStateChangeEvent = ControllerStateChangeEvent<
 >;
 
 export type BridgeControllerActions =
-  | BridgeControllerGetStateAction
-  | BridgeControllerMethodActions;
+  BridgeControllerGetStateAction | BridgeControllerMethodActions;
 
 export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
 
 export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
+  | AssetsControllerGetExchangeRatesForBridgeAction
   | AuthenticationControllerGetBearerTokenAction
   | CurrencyRateControllerGetStateAction
-  | SnapControllerHandleRequestAction
+  | MoneyAccountControllerGetMoneyAccountAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction
-  | AssetsControllerGetExchangeRatesForBridgeAction;
+  | SnapControllerHandleRequestAction;
 export type AllowedEvents = never;
 
 /**

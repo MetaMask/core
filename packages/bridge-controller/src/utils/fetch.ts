@@ -13,6 +13,7 @@ import type {
   QuoteStreamCompleteData,
   BatchSellTradesRequest,
   BatchSellTradesResponse,
+  BridgeControllerMessenger,
 } from '../types.js';
 import { validateBatchSellTradesResponse } from '../validators/batch-sell.js';
 import type { BridgeAsset } from '../validators/bridge-asset.js';
@@ -34,6 +35,7 @@ import {
 import { fetchServerEvents } from './fetch-server-events.js';
 import type { QuoteMetadata } from './quote-metadata/types.js';
 import { formatStructErrors } from './struct-error.js';
+import { getMoneyAccountDepositSetup } from './controllers/money-account.js';
 
 export const getClientHeaders = ({
   clientId,
@@ -349,6 +351,7 @@ const getQuoteResponseId = ({
  * @returns A list of bridge tx quote promises
  */
 export async function fetchBridgeQuoteStream(
+  messenger: BridgeControllerMessenger,
   fetchFn: FetchFunction,
   quoteRequests: GenericQuoteRequest[],
   signal: AbortSignal | undefined,
@@ -408,6 +411,12 @@ export async function fetchBridgeQuoteStream(
             : undefined,
         ...(isBatchSellRequest && {
           quoteRequestIndex: matchedQuoteRequestIdx,
+        }),
+        ...(matchingQuoteRequest.isMoneyAccount && {
+          depositConfig: await getMoneyAccountDepositSetup({
+            messenger,
+            quoteRequest: matchingQuoteRequest,
+          }),
         }),
       });
     } catch (error) {
