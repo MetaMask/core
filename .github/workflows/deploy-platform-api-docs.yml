@@ -13,7 +13,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
+        uses: MetaMask/action-checkout-and-setup@efa9e71306596d391c3a5aca4309b21fe3fbc133
         with:
           is-high-risk-environment: true
           persist-credentials: false
