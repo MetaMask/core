@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.1.1]
+
 ### Changed
 
+- Bump `@metamask/chomp-api-service` from `^6.0.1` to `^7.0.0` ([#11120](https://github.com/MetaMask/core/pull/11120))
+- Bump `@metamask/money-account-upgrade-controller` from `^5.1.0` to `^6.0.0` ([#11120](https://github.com/MetaMask/core/pull/11120))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [15.1.0]
@@ -684,7 +688,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.1.1...HEAD
+[15.1.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.1.0...@metamask/subscription-controller@15.1.1
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.0.0...@metamask/subscription-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.2...@metamask/subscription-controller@15.0.0
 [14.0.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.1...@metamask/subscription-controller@14.0.2
