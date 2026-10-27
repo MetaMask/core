@@ -139,7 +139,7 @@ type AssertNoDuplicateAccountsMock = Mock<
 >;
 
 /** A mocked `VaultOperations.updateVault`. */
-type UpdateVaultMock = jest.Mock<Promise<boolean>, []>;
+type UpdateVaultMock = Mock<() => Promise<boolean>>;
 
 /**
  * The pieces a test needs to drive a transaction: the transaction itself,
@@ -190,7 +190,7 @@ const buildMockOperations = (
     async (_keyrings: EthKeyring[]): Promise<void> => undefined,
   );
 
-  const updateVault: UpdateVaultMock = jest.fn(
+  const updateVault: UpdateVaultMock = vi.fn(
     async (): Promise<boolean> => true,
   );
 
@@ -1181,7 +1181,7 @@ describe('VaultTransaction', () => {
       });
 
       it('does not evaluate the session change when the policy ignores it', async () => {
-        const serializeA = jest.fn(async (): Promise<Json> => ({ a: true }));
+        const serializeA = vi.fn(async (): Promise<Json> => ({ a: true }));
         const entryA = buildEntry(
           buildFakeKeyring({ type: 'A', serialize: serializeA }),
         );
@@ -1257,7 +1257,7 @@ describe('VaultTransaction', () => {
 
   describe('remove', () => {
     it('removes a registered entry from the session, destroying it', async () => {
-      const destroy = jest.fn(async () => undefined);
+      const destroy = vi.fn(async () => undefined);
       const entry = buildEntry(
         buildFakeKeyring({ type: 'A', destroy }),
         undefined,
@@ -1278,7 +1278,7 @@ describe('VaultTransaction', () => {
     });
 
     it('is a no-op for an unregistered entry, destroying nothing', async () => {
-      const destroy = jest.fn(async () => undefined);
+      const destroy = vi.fn(async () => undefined);
       const entry = buildEntry(
         buildFakeKeyring({ type: 'A', destroy }),
         undefined,
