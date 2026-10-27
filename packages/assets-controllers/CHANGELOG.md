@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/snaps-utils` from `^12.1.2` to `^12.6.1` ([#11095](https://github.com/MetaMask/core/pull/11095))
 
 ## [112.2.0]
 
