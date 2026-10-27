@@ -366,8 +366,8 @@ describe('parseRealtimeFeedItem', () => {
     expect(normalizeRealtimeFeedItem(value)?.authorComment).toBeNull();
   });
 
-  it('copies position flags from a hydrated feed event', () => {
-    const fromMetadata = normalizeRealtimeFeedItem({
+  it('copies position flags from the hydrated card and ignores metadata', () => {
+    const fromMetadataOnly = normalizeRealtimeFeedItem({
       ...fullHydratedPosition,
       metadata: {
         ...fullHydratedPosition.metadata,
@@ -376,16 +376,16 @@ describe('parseRealtimeFeedItem', () => {
     });
     const fromCard = normalizeRealtimeFeedItem({
       ...fullHydratedPosition,
-      flags: ['insider', 'developer', 'future-flag'],
+      metadata: {
+        ...fullHydratedPosition.metadata,
+        flags: ['insider'],
+      },
+      flags: ['developer', 'future-flag'],
     });
     const absent = normalizeRealtimeFeedItem(fullHydratedPosition);
 
-    expect(fromMetadata?.flags).toStrictEqual(['insider']);
-    expect(fromCard?.flags).toStrictEqual([
-      'insider',
-      'developer',
-      'future-flag',
-    ]);
+    expect(fromMetadataOnly?.flags).toBeUndefined();
+    expect(fromCard?.flags).toStrictEqual(['developer', 'future-flag']);
     expect(absent?.flags).toBeUndefined();
   });
 
