@@ -1980,7 +1980,8 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          readFinalStatus = () => controller.state.sessionStatus?.finalStatus;
+          readFinalStatus = (): string | undefined =>
+            controller.state.sessionStatus?.finalStatus;
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('approved'),
           );
@@ -2055,9 +2056,7 @@ describe('KycController', () => {
         async ({ controller, launcher }) => {
           launcher.launch.mockResolvedValue({ status: 'Incomplete' });
 
-          await expect(controller.launchProviderFlow({})).resolves.toBe(
-            'abandoned',
-          );
+          expect(await controller.launchProviderFlow({})).toBe('abandoned');
         },
       );
     });
