@@ -28,7 +28,10 @@ import {
   createAutorampAccount,
   markAutorampNotified,
 } from './autorampAccount.js';
-import type { AutorampTransactionRecords } from './diffAutorampTransactions.js';
+import type {
+  AutorampTransactionChange,
+  AutorampTransactionRecords,
+} from './diffAutorampTransactions.js';
 import { diffAutorampTransactions } from './diffAutorampTransactions.js';
 import {
   getHeadlessProviderAllowlist,
@@ -4617,7 +4620,8 @@ export class RampsController extends BaseController<
    * nothing. When this autoramp was on the cursor at the start of the fetch
    * and was removed before the response is applied (`removeAutoramp`, a cursor
    * replace that drops the id, or a foreign VBA session discard), the record
-   * is not restored and the callback is not called.
+   * is not restored and the callback is not called. A callback that throws
+   * is ignored, so one failing change does not drop the rest of the batch.
    *
    * @param autorampId - MoonPay autoramp id.
    * @returns Transaction summaries from the newest page.
@@ -4674,6 +4678,28 @@ export class RampsController extends BaseController<
     });
 
     for (const change of changes) {
+      this.#trackAutorampTransactionChange(autorampId, change);
+    }
+
+    return fetched;
+  }
+
+  /**
+   * Reports one transaction change through
+   * `trackAutorampTransactionStatusChanged`.
+   *
+   * A callback exception is ignored. The record already says this status was
+   * seen, so rethrowing would drop every later change in the same batch and
+   * none of them would ever be reported again.
+   *
+   * @param autorampId - MoonPay autoramp id.
+   * @param change - The new transaction or status change to report.
+   */
+  #trackAutorampTransactionChange(
+    autorampId: string,
+    change: AutorampTransactionChange,
+  ): void {
+    try {
       this.#trackAutorampTransactionStatusChanged?.({
         autorampId,
         transaction: change.transaction,
@@ -4681,9 +4707,9 @@ export class RampsController extends BaseController<
           ? {}
           : { previousStatus: change.previousStatus }),
       });
+    } catch {
+      // The host's tracker failed. The written record stays as it is.
     }
-
-    return fetched;
   }
 
   /**

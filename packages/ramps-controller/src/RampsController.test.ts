@@ -10709,6 +10709,59 @@ describe('RampsController', () => {
       );
     });
 
+    it('keeps reporting the rest of the batch when the tracker throws', async () => {
+      const tracked: string[] = [];
+      const record = ({
+        transaction,
+      }: AutorampTransactionStatusChangedPayload): void => {
+        tracked.push(transaction.id);
+      };
+      await withController(
+        {
+          options: {
+            trackAutorampTransactionStatusChanged: vi
+              .fn()
+              .mockImplementationOnce(
+                (payload: AutorampTransactionStatusChangedPayload) => {
+                  record(payload);
+                  throw new Error('analytics down');
+                },
+              )
+              .mockImplementation(record),
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const list = vi
+            .fn()
+            .mockResolvedValueOnce([fetchedTransaction('tx-1', 'Completed')])
+            .mockResolvedValueOnce([
+              fetchedTransaction('tx-1', 'Completed'),
+              fetchedTransaction('tx-2', 'FundsReviewInProgress'),
+              fetchedTransaction('tx-3', 'FundsReviewInProgress'),
+            ]);
+          rootMessenger.registerActionHandler(
+            'NeoBankService:listAutorampTransactions',
+            list,
+          );
+
+          await controller.refreshAutorampTransactions('ar-1');
+
+          expect(
+            await controller.refreshAutorampTransactions('ar-1'),
+          ).toHaveLength(3);
+
+          expect(tracked).toStrictEqual(['tx-2', 'tx-3']);
+          expect(
+            controller.state.autorampTransactionRecords['ar-1']?.statuses,
+          ).toStrictEqual({
+            'tx-1': 'Completed',
+            'tx-2': 'FundsReviewInProgress',
+            'tx-3': 'FundsReviewInProgress',
+          });
+        },
+      );
+    });
+
     it('shares one request across concurrent refreshes for the same autoramp', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         let resolveList: (

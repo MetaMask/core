@@ -538,7 +538,8 @@ export type RampsControllerRefreshAutorampsAction = {
  * nothing. When this autoramp was on the cursor at the start of the fetch
  * and was removed before the response is applied (`removeAutoramp`, a cursor
  * replace that drops the id, or a foreign VBA session discard), the record
- * is not restored and the callback is not called.
+ * is not restored and the callback is not called. A callback that throws
+ * is ignored, so one failing change does not drop the rest of the batch.
  *
  * @param autorampId - MoonPay autoramp id.
  * @returns Transaction summaries from the newest page.
