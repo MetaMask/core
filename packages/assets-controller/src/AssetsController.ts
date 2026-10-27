@@ -561,6 +561,44 @@ function normalizeResponse(response: DataResponse): DataResponse {
 }
 
 /**
+ * Returns `amount` unchanged when it is provably already the exact string
+ * `normalizeAmountString(amount, decimals)` would return — a canonical plain
+ * decimal (no leading zeros beyond "0", no sign, no exponent, no trailing
+ * fractional zeros) whose fractional length fits within `decimals`. This
+ * skips the `BigNumber` construction + `toFixed` + trim work for the common
+ * warm-poll case where data sources already send canonical decimals, which
+ * dominates the `#updateState` balance loop.
+ *
+ * Anything else (odd forms like "1.500", "00.5", "1e-18", non-strings,
+ * truncating `decimals`, negative values, ...) falls back to the original
+ * `normalizeAmountString`.
+ */
+function canonicalAmountFastPath(
+  amount: unknown,
+  decimals: number | undefined,
+): string {
+  if (typeof amount === 'string' && /^(?:0|[1-9][0-9]*)(?:\.[0-9]*[1-9])?$/.test(amount)) {
+    if (
+      decimals === undefined ||
+      !Number.isFinite(decimals) ||
+      decimals < 0
+    ) {
+      // Natural-precision mode: toFixed() returns this exact string.
+      return amount;
+    }
+    const dotIdx = amount.indexOf('.');
+    const fracLen = dotIdx === -1 ? 0 : amount.length - dotIdx - 1;
+    // toFixed(floor(decimals), ROUND_DOWN) pads/truncates, then the
+    // trailing-zero trim restores the original string exactly when the
+    // fraction already fits.
+    if (fracLen <= Math.floor(decimals)) {
+      return amount;
+    }
+  }
+  return normalizeAmountString(amount, decimals);
+}
+
+/**
  * Compute the effective account balances from a data-source response and prior state.
  *
  * @param previousBalances - Balances already in state for this account.
@@ -3103,7 +3141,7 @@ export class AssetsController extends BaseController<
               const assetDecimals = (
                 metadata[assetId] as { decimals?: number } | undefined
               )?.decimals;
-              const newAmount = normalizeAmountString(
+              const newAmount = canonicalAmountFastPath(
                 (balance as { amount: unknown }).amount,
                 assetDecimals,
               );

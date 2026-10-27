@@ -31,6 +31,26 @@ function normalizeAmountString_CAND(amount, decimals) {
   return result === '-0' ? '0' : result;
 }
 
+// --- canonicalAmountFastPath (module-local to AssetsController.ts, mirror) ---
+// Returns amount unchanged when provably equal to normalizeAmountString's
+// result; otherwise falls back to normalizeAmountString_CAND.
+function canonicalAmountFastPath(amount, decimals) {
+  if (
+    typeof amount === 'string' &&
+    /^(?:0|[1-9][0-9]*)(?:\.[0-9]*[1-9])?$/.test(amount)
+  ) {
+    if (decimals === undefined || !Number.isFinite(decimals) || decimals < 0) {
+      return amount;
+    }
+    const dotIdx = amount.indexOf('.');
+    const fracLen = dotIdx === -1 ? 0 : amount.length - dotIdx - 1;
+    if (fracLen <= Math.floor(decimals)) {
+      return amount;
+    }
+  }
+  return normalizeAmountString_CAND(amount, decimals);
+}
+
 // --- effectiveAccountBalancesV5 (AssetsController.ts:574, verbatim) ---
 function effectiveAccountBalancesV5_CAND(
   previousBalances,
@@ -179,7 +199,7 @@ function updateStateProducer_CAND(
       )) {
         const previousBalance = previousBalances[assetId];
         const assetDecimals = metadata[assetId]?.decimals;
-        const newAmount = normalizeAmountString_CAND(
+        const newAmount = canonicalAmountFastPath(
           balance.amount,
           assetDecimals,
         );

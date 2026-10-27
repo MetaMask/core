@@ -1,1 +1,2 @@
 {"type": "config", "name": "assets-controller-update-state-producer", "metricName": "primary_ms", "metricUnit": "ms", "bestDirection": "lower"}
+{"run": 0, "commit": "8178879", "metric": 110.0, "metrics": {"orig_ms": 105.0}, "status": "keep", "description": "baseline: unmodified producer", "timestamp": 1793093739, "segment": 0, "confidence": null}
