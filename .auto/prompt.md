@@ -144,6 +144,49 @@ sanctioned edit of 05-harness.js, and only for the sweep, restored afterwards.
 
 - Baseline (no code change): `primary_ms` ≈ 110, `orig_ms` ≈ 110.
   reps stable ±4 ms across process runs (2026-10-27).
+- **E1 KEEP (110→56)**: `canonicalAmountFastPath` module-local helper — returns
+  canonical plain-decimal amounts unchanged (regex + fracLen ≤ floor(decimals) or
+  natural precision), else falls back to the imported `normalizeAmountString`.
+  Kills `new BigNumber`+`toFixed` for warm-poll entries.
+- **E2 KEEP (56→49, conf 8.7×)**: reuse `previousBalance` reference when content-
+  identical (amount equal + exact key-shape 1/2 guard). Kills per-asset object
+  churn; makes the per-account `isEqual` mostly reference-short-circuit.
+- **E3 DISCARD (49→50, no gain)**: account-level changed-flag replacing the
+  per-account `isEqual` (incl. `droppedPreviousKey` reporting from
+  `effectiveAccountBalancesV5`). After E2 the compare is already cheap; the
+  signature change wasn't worth it. Bench mirror had to be reverted by hand
+  (discard reverts production only — 04-candidate.js lives under `.auto/`).
+- **E4 KEEP (43ms, conf 11.2×)**: memoize `#getAssetType` in an instance cache
+  keyed by native-asset-map identity (QueryClient refetch ⇒ new map object ⇒
+  cache invalidated; no staleness). The type-fix loop re-parses every tracked id
+  every poll. Bench mirror: `ctx.__typeMemo` (bench native set is static).
+- **E5 PROBED FLAT (no experiment)**: for-in iteration + allocation-free shape
+  count in the balance loop — no measurable gain at 32-43ms (Hermes hidden-class
+  fast paths already handle Object.entries/keys). Discarded without production edit.
+- **E6 KEEP (38ms, conf 11.2×)**: `jsonFlatEqual` — JSON-specialized exact deep-
+  equal (SameValueZero, strict key-set, array/object type split) replacing lodash
+  `isEqual` in the metadata and price loops. Cross-validated identical to lodash
+  on 20k randomized JSON cases (incl. undefined/NaN/-0/null/nested).
+- **E7 KEEP (33ms, conf 11.1×)**: echo-amount skip — when the response echoes the
+  exact amount string already in state, skip normalize + decimals lookup entirely
+  (state amounts are canonical by construction: every `assetsBalance` writer
+  normalizes or writes literal '0'; no migrations; guard handles decimals-shrink
+  via fracLen vs floor(decimals); integers skip the decimals lookup).
+  Harness fix shipped with it: `canonAmount` now strips ALL trailing zeros
+  (`while` not `if`) — its single-strip bug seeded non-production-representative
+  trailing-zero amounts.
+- **E8 KEEP (32ms, conf 11.0×)**: type-fix `Set` built by direct insertion
+  instead of spread + `flatMap` (same membership + insertion order; kills
+  intermediate arrays).
+- **Phase probes** (measure-only): applyV5 dominates (~37ms/rep at E4 state);
+  typefix ~10ms; metadata+prices compares ~6-8ms. noNorm probe showed normalize
+  ≈ 14ms even WITH the fast path; noDec probe ≈ 6ms.
+- **Scaling sweep (after E8, PASS)**: 15/10 ⇒ 9 vs 24 (2.6×); 30/30 ⇒ 33 vs 113
+  (3.4×); 60/10 ⇒ 21.5 vs 77.5 (3.6×); 60/30 ⇒ 60 vs 214.5 (3.6×). Wins hold
+  and improve with state size (original cost is dominated by per-entry BigNumber
+  normalize, which the candidate eliminates).
+- **Final**: 110 → 32 ms (−70.9%, 3.4×) at the profiled scale; parity + 231
+  tests + type check green throughout; every keep ≥ 11× confidence.
 
 ## Resume Instructions
 
