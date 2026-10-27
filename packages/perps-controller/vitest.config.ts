@@ -9,6 +9,8 @@ export default mergeConfig(
     test: {
       name: basename(import.meta.dirname),
 
+      setupFiles: ['./tests/setup.ts'],
+
       coverage: {
         thresholds: {
           branches: 72.76,
