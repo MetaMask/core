@@ -92,10 +92,7 @@ import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
 import { isStakingContractAssetId } from './data-sources/evm-rpc-services/index.js';
 import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
-import {
-  isPriceableAsset,
-  PriceDataSource,
-} from './data-sources/PriceDataSource.js';
+import { PriceDataSource } from './data-sources/PriceDataSource.js';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource.js';
 import { RpcDataSource } from './data-sources/RpcDataSource.js';
 import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sources/SnapDataSource.js';
@@ -114,7 +111,6 @@ import {
 } from './defaults.js';
 import { projectLogger, createModuleLogger } from './logger.js';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware.js';
-import { DetectionMiddleware } from './middlewares/DetectionMiddleware.js';
 import {
   createParallelBalanceMiddleware,
   createParallelMiddleware,
@@ -218,6 +214,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAccountAssetsByIDs',
   'getAccountAssetsByScope',
   'getAssetsPrice',
+  'syncAssetsPrices',
   'getExchangeRatesForBridge',
   'getStateForTransactionPay',
   'addCustomAsset',
@@ -311,16 +308,10 @@ export type AssetsControllerPriceChangedEvent = {
   payload: [{ prices: Record<Caip19AssetId, AssetPrice> }];
 };
 
-export type AssetsControllerAssetsDetectedEvent = {
-  type: `${typeof CONTROLLER_NAME}:assetsDetected`;
-  payload: [{ accountId: AccountId; assetIds: Caip19AssetId[] }];
-};
-
 export type AssetsControllerEvents =
   | AssetsControllerStateChangeEvent
   | AssetsControllerBalanceChangedEvent
-  | AssetsControllerPriceChangedEvent
-  | AssetsControllerAssetsDetectedEvent;
+  | AssetsControllerPriceChangedEvent;
 
 type AllowedActions =
   // AssetsController
@@ -550,18 +541,6 @@ function normalizeResponse(response: DataResponse): DataResponse {
         const normalizedId = normalizeAssetId(assetId as Caip19AssetId);
         normalized.assetsBalance[accountId][normalizedId] = balance;
       }
-    }
-  }
-
-  // Preserve detectedAssets with normalized asset IDs
-  if (response.detectedAssets) {
-    normalized.detectedAssets = {};
-    for (const [accountId, assetIds] of Object.entries(
-      response.detectedAssets,
-    )) {
-      normalized.detectedAssets[accountId] = assetIds.map((assetId) =>
-        normalizeAssetId(assetId),
-      );
     }
   }
 
@@ -916,8 +895,6 @@ export class AssetsController extends BaseController<
 
   readonly #priceDataSource: PriceDataSource;
 
-  readonly #detectionMiddleware: DetectionMiddleware;
-
   readonly #customAssetGraduationMiddleware: CustomAssetGraduationMiddleware;
 
   readonly #rpcFallbackMiddleware: RpcFallbackMiddleware;
@@ -1059,9 +1036,6 @@ export class AssetsController extends BaseController<
       getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
       getAssetsState: (): AssetsControllerState => this.state,
       ...priceDataSourceConfig,
-    });
-    this.#detectionMiddleware = new DetectionMiddleware({
-      getAssetsState: (): AssetsControllerState => this.state,
     });
     this.#customAssetGraduationMiddleware = new CustomAssetGraduationMiddleware(
       {
@@ -1503,13 +1477,11 @@ export class AssetsController extends BaseController<
       this.#ensureDefaultTrackedAssetsSeeded();
       // Balances were just force-fetched — skip AccountsApi's subscribe-time poll.
       this.#subscribeAssets({ skipInitialFetch: true });
-      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } catch (error) {
       log('Failed to fetch assets on startup', error);
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
       this.#subscribeAssets({ skipInitialFetch: true });
-      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } finally {
       releaseLock();
     }
@@ -1634,8 +1606,6 @@ export class AssetsController extends BaseController<
        */
       bypassServerCache?: boolean;
       dataTypes?: DataType[];
-      /** Specific CAIP-19 asset IDs whose prices should be refreshed. */
-      assetsForPriceUpdate?: Caip19AssetId[];
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
@@ -1647,40 +1617,97 @@ export class AssetsController extends BaseController<
     }
 
     if (options?.forceUpdate) {
-      const pipelineTrace = this.#firstInitFetchReported
-        ? undefined
-        : this.#trace;
-      const requestOptions = {
-        assetTypes,
-        dataTypes,
-        forceUpdate: true as const,
-        bypassServerCache: options?.bypassServerCache,
-        assetsForPriceUpdate: options?.assetsForPriceUpdate,
-      };
-
-      if (this.#isBalanceV6Enabled()) {
-        await this.#forceUpdateAssetsV6({
-          accounts,
-          chainIds,
-          request: this.#buildDataRequest(accounts, chainIds, requestOptions),
-          pipelineTrace,
-        });
-      } else {
-        await this.#forceUpdateAssetsV5({
-          accounts,
-          chainIds,
-          request: this.#buildForceUpdateRequestV5(
-            accounts,
-            chainIds,
-            requestOptions,
-          ),
-          pipelineTrace,
-        });
-      }
+      await this.#forceUpdateAssets({
+        accounts,
+        chainIds,
+        requestOptions: {
+          assetTypes,
+          dataTypes,
+          forceUpdate: true,
+          bypassServerCache: options.bypassServerCache,
+        },
+      });
     }
 
     const result = this.#getAssetsFromState(accounts, chainIds, assetTypes);
     return result;
+  }
+
+  /**
+   * Force-fetch spot prices for an explicit asset list.
+   *
+   * Calls `PriceDataSource` directly and merges the result into `assetsPrice`.
+   * Prices are shared across accounts, so this does not take an account or
+   * chain scope and does not run the balance pipeline.
+   *
+   * Returns without calling the Price API when basic functionality is off.
+   * That matches the asset pipeline, which drops the price source in RPC-only
+   * mode, and `setSelectedCurrency`, which skips its price refresh.
+   *
+   * @param assetIds - CAIP-19 asset IDs to sync.
+   */
+  async syncAssetsPrices(assetIds: Caip19AssetId[]): Promise<void> {
+    if (!this.#isBasicFunctionality() || assetIds.length === 0) {
+      return;
+    }
+
+    const assetsPrice = await this.#priceDataSource.fetchAssetPrices(assetIds);
+    if (Object.keys(assetsPrice).length === 0) {
+      return;
+    }
+
+    await this.#updateState({
+      assetsPrice,
+      updateMode: 'merge',
+    });
+  }
+
+  /**
+   * Run a forced fetch on the v5 or v6 pipeline.
+   *
+   * @param params - Accounts, chains, and request fields for this fetch.
+   * @param params.accounts - Accounts in this fetch.
+   * @param params.chainIds - Chains in this fetch.
+   * @param params.requestOptions - Shared force-update request fields.
+   */
+  async #forceUpdateAssets({
+    accounts,
+    chainIds,
+    requestOptions,
+  }: {
+    accounts: InternalAccount[];
+    chainIds: ChainId[];
+    requestOptions: {
+      assetTypes: AssetType[];
+      dataTypes: DataType[];
+      forceUpdate: true;
+      bypassServerCache?: boolean;
+    };
+  }): Promise<void> {
+    const pipelineTrace = this.#firstInitFetchReported
+      ? undefined
+      : this.#trace;
+
+    if (this.#isBalanceV6Enabled()) {
+      await this.#forceUpdateAssetsV6({
+        accounts,
+        chainIds,
+        request: this.#buildDataRequest(accounts, chainIds, requestOptions),
+        pipelineTrace,
+      });
+      return;
+    }
+
+    await this.#forceUpdateAssetsV5({
+      accounts,
+      chainIds,
+      request: this.#buildForceUpdateRequestV5(
+        accounts,
+        chainIds,
+        requestOptions,
+      ),
+      pipelineTrace,
+    });
   }
 
   /**
@@ -1694,7 +1721,6 @@ export class AssetsController extends BaseController<
    * @param requestOptions.dataTypes - Data types to fetch.
    * @param requestOptions.forceUpdate - Always `true` to bypass caches.
    * @param requestOptions.bypassServerCache - Also bypass server-side HTTP caches.
-   * @param requestOptions.assetsForPriceUpdate - Assets to refresh prices for.
    * @returns The v5 data request.
    */
   #buildForceUpdateRequestV5(
@@ -1705,7 +1731,6 @@ export class AssetsController extends BaseController<
       dataTypes: DataType[];
       forceUpdate: true;
       bypassServerCache?: boolean;
-      assetsForPriceUpdate?: Caip19AssetId[];
     },
   ): DataRequest {
     const customAssets: Caip19AssetId[] = [];
@@ -1736,7 +1761,6 @@ export class AssetsController extends BaseController<
         accountsApiDataSource: this.#accountsApiDataSource,
         customAssetGraduationMiddleware: this.#customAssetGraduationMiddleware,
         rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
-        detectionMiddleware: this.#detectionMiddleware,
         tokenDataSource: this.#tokenDataSource,
         priceDataSource: this.#priceDataSource,
       },
@@ -1779,7 +1803,6 @@ export class AssetsController extends BaseController<
         accountsApiDataSource: this.#accountsApiDataSource,
         customAssetGraduationMiddleware: this.#customAssetGraduationMiddleware,
         rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
-        detectionMiddleware: this.#detectionMiddleware,
         tokenDataSource: this.#tokenDataSource,
         priceDataSource: this.#priceDataSource,
       },
@@ -1938,7 +1961,6 @@ export class AssetsController extends BaseController<
         const { response } = await this.#executeMiddlewares({
           sources: [
             createParallelBalanceMiddleware(slowSources),
-            this.#detectionMiddleware,
             ...(isBasicFunctionality
               ? [
                   createParallelMiddleware([
@@ -2537,71 +2559,12 @@ export class AssetsController extends BaseController<
     // Currency changed — old cached prices are in the wrong currency.
     this.#priceDataSource.invalidatePriceCache();
 
-    this.getAssets(this.#getSelectedAccounts(), {
-      forceUpdate: true,
-      dataTypes: ['price'],
-      assetsForPriceUpdate: Object.values(this.state.assetsBalance).flatMap(
+    this.syncAssetsPrices(
+      Object.values(this.state.assetsBalance).flatMap(
         (balances) => Object.keys(balances) as Caip19AssetId[],
       ),
-    }).catch((error) => {
+    ).catch((error) => {
       log('Failed to fetch asset prices after current currency change', error);
-    });
-  }
-
-  /**
-   * Fetch spot prices (bypassing deduper cache) for held assets that have no
-   * entry in `assetsPrice` yet. Used when switching or adding a network.
-   *
-   * @param accounts - Accounts whose held assets should be priced.
-   * @param chainIds - Chains to scope the check and fetch.
-   */
-  #fetchMissingPricesWithoutCache(
-    accounts: InternalAccount[],
-    chainIds: ChainId[],
-  ): void {
-    if (!this.#isBasicFunctionality() || accounts.length === 0) {
-      return;
-    }
-
-    const accountIds = new Set(accounts.map((account) => account.id));
-    const chainFilter = new Set(chainIds);
-    const assetsForPriceUpdate: Caip19AssetId[] = [];
-    const prices = this.state.assetsPrice as Record<string, AssetPrice>;
-
-    for (const [accountId, accountBalances] of Object.entries(
-      this.state.assetsBalance,
-    )) {
-      if (!accountIds.has(accountId)) {
-        continue;
-      }
-      for (const assetId of Object.keys(accountBalances)) {
-        if (!chainFilter.has(assetId.split('/')[0] as ChainId)) {
-          continue;
-        }
-        const normalizedAssetId = normalizeAssetId(assetId as Caip19AssetId);
-        if (prices[normalizedAssetId] ?? prices[assetId]) {
-          continue;
-        }
-        if (!isPriceableAsset(normalizedAssetId)) {
-          continue;
-        }
-        assetsForPriceUpdate.push(normalizedAssetId);
-      }
-    }
-
-    if (assetsForPriceUpdate.length === 0) {
-      return;
-    }
-
-    this.#priceDataSource.invalidatePriceCache();
-
-    this.getAssets(accounts, {
-      forceUpdate: true,
-      dataTypes: ['price'],
-      chainIds,
-      assetsForPriceUpdate,
-    }).catch((error: unknown) => {
-      log('Failed to fetch missing prices', { error });
     });
   }
 
@@ -3006,9 +2969,6 @@ export class AssetsController extends BaseController<
     try {
       const previousState = this.state;
       const previousPrices = { ...this.state.assetsPrice };
-      // Use detectedAssets from response (assets without metadata)
-      const detectedAssets: Record<AccountId, Caip19AssetId[]> =
-        normalizedResponse.detectedAssets ?? {};
 
       // Track actual changes for logging
       const changedBalances: {
@@ -3294,13 +3254,6 @@ export class AssetsController extends BaseController<
             changedMetadata.length > 0 ? changedMetadata : undefined,
           changedPrices:
             changedPriceAssets.length > 0 ? changedPriceAssets : undefined,
-          newAssets:
-            Object.keys(detectedAssets).length > 0
-              ? Object.entries(detectedAssets).map(([accountId, assets]) => ({
-                  accountId,
-                  assets,
-                }))
-              : undefined,
         });
       }
 
@@ -3328,16 +3281,6 @@ export class AssetsController extends BaseController<
         this.messenger.publish('AssetsController:priceChanged', {
           prices: changedPrices,
         });
-      }
-
-      // Publish assets detected events
-      for (const [accountId, assetIds] of Object.entries(detectedAssets)) {
-        if (assetIds.length > 0) {
-          this.messenger.publish('AssetsController:assetsDetected', {
-            accountId,
-            assetIds,
-          });
-        }
       }
     } finally {
       releaseLock();
@@ -4042,6 +3985,8 @@ export class AssetsController extends BaseController<
 
     const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
+      this.#ensureNativeBalancesDefaultZero();
+      this.#ensureDefaultTrackedAssetsSeeded();
       if (accounts.length > 0) {
         await this.getAssets(accounts, {
           chainIds: [...this.#enabledChains],
@@ -4049,10 +3994,7 @@ export class AssetsController extends BaseController<
         });
       }
 
-      this.#ensureNativeBalancesDefaultZero();
-      this.#ensureDefaultTrackedAssetsSeeded();
       this.#subscribeAssets({ skipInitialFetch: true });
-      this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
     } finally {
       releaseLock();
     }
@@ -4091,27 +4033,23 @@ export class AssetsController extends BaseController<
     // Users may want to see historical balances even if the network is currently disabled.
     // The data will simply not be updated until the network is re-enabled.
 
+    const accounts = this.#getSelectedAccounts();
+    this.#ensureNativeBalancesDefaultZero();
+    if (addedChains.length > 0) {
+      this.#ensureDefaultTrackedAssetsSeeded(addedChains);
+    }
+
     // Refresh subscriptions for new chain set
     this.#subscribeAssets();
 
     // One-time fetch for newly enabled chains. v6 `full` replace is scoped to
     // those chains; existing balances on other chains are left untouched.
-    const accounts = this.#getSelectedAccounts();
     if (addedChains.length > 0 && accounts.length > 0) {
       await this.getAssets(accounts, {
         chainIds: addedChains,
         forceUpdate: true,
       });
     }
-
-    this.#ensureNativeBalancesDefaultZero();
-    // Seed default tracked assets (mUSD) for any chain the user has
-    // *just* enabled. This is what makes mUSD appear on Monad after
-    // the user finally adds it to NetworkEnablementController.
-    if (addedChains.length > 0) {
-      this.#ensureDefaultTrackedAssetsSeeded(addedChains);
-    }
-    this.#fetchMissingPricesWithoutCache(accounts, [...this.#enabledChains]);
   }
 
   /**
@@ -4143,8 +4081,6 @@ export class AssetsController extends BaseController<
     });
 
     this.#ensureDefaultTrackedAssetsSeeded([caipChainId]);
-    const accounts = this.#getSelectedAccounts();
-    this.#fetchMissingPricesWithoutCache(accounts, [caipChainId]);
   }
 
   /**
@@ -4211,6 +4147,7 @@ export class AssetsController extends BaseController<
     try {
       await this.#refreshActiveChainsOnNetworkSwitch();
 
+      this.#ensureNativeBalancesDefaultZero();
       this.#subscribeAssets();
 
       await this.getAssets(accounts, {
@@ -4218,9 +4155,6 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
         dataTypes: ['balance', 'metadata', 'price'],
       });
-
-      this.#ensureNativeBalancesDefaultZero();
-      this.#fetchMissingPricesWithoutCache(accounts, [selectedChainId]);
     } finally {
       releaseLock();
     }
@@ -4261,13 +4195,12 @@ export class AssetsController extends BaseController<
       return;
     }
 
+    this.#ensureNativeBalancesDefaultZero();
     await this.getAssets(accounts, {
       chainIds: [caipChainId],
       forceUpdate: true,
       dataTypes: ['balance', 'metadata', 'price'],
     });
-    this.#ensureNativeBalancesDefaultZero();
-    this.#fetchMissingPricesWithoutCache(accounts, [caipChainId]);
   }
 
   /**
@@ -4322,7 +4255,6 @@ export class AssetsController extends BaseController<
                   customAssetGraduationMiddleware:
                     this.#customAssetGraduationMiddleware,
                   rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
-                  detectionMiddleware: this.#detectionMiddleware,
                   tokenDataSource: this.#tokenDataSource,
                   priceDataSource: this.#priceDataSource,
                 },
@@ -4333,7 +4265,6 @@ export class AssetsController extends BaseController<
                   customAssetGraduationMiddleware:
                     this.#customAssetGraduationMiddleware,
                   rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
-                  detectionMiddleware: this.#detectionMiddleware,
                   tokenDataSource: this.#tokenDataSource,
                   priceDataSource: this.#priceDataSource,
                 },
@@ -4391,7 +4322,6 @@ export class AssetsController extends BaseController<
                   customAssetGraduationMiddleware:
                     this.#customAssetGraduationMiddleware,
                   rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
-                  detectionMiddleware: this.#detectionMiddleware,
                   tokenDataSource: this.#tokenDataSource,
                   priceDataSource: this.#priceDataSource,
                 },
@@ -4402,7 +4332,6 @@ export class AssetsController extends BaseController<
                   customAssetGraduationMiddleware:
                     this.#customAssetGraduationMiddleware,
                   rpcFallbackMiddleware: this.#rpcFallbackMiddleware,
-                  detectionMiddleware: this.#detectionMiddleware,
                   tokenDataSource: this.#tokenDataSource,
                   priceDataSource: this.#priceDataSource,
                 },
@@ -4533,6 +4462,7 @@ export class AssetsController extends BaseController<
       'AssetsController:getAccountAssetsByScope',
     );
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
+    this.messenger.unregisterActionHandler('AssetsController:syncAssetsPrices');
     this.messenger.unregisterActionHandler(
       'AssetsController:getExchangeRatesForBridge',
     );

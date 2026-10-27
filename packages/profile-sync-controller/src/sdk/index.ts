@@ -19,6 +19,7 @@ export type {
   MfaApproval,
   MfaApprovalIdentifier,
   RequestMfaApprovalRequest,
+  RemoveCredentialRequest,
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
   RegistrationResponseJSON,

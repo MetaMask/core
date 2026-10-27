@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [112.2.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -16,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `NftDetectionController` constructor now requires a `removeNft` option (type `NftController['removeNft']`); during detection, any NFT already in state that the API now returns as spam (`isSpam: true`) is automatically removed ([#8237](https://github.com/MetaMask/core/pull/8237))
   - Callers must pass `removeNft: nftController.removeNft.bind(nftController)` (or equivalent) when constructing `NftDetectionController`
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@metamask/account-tree-controller` from `^11.1.1` to `^11.2.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
 
 ## [112.1.3]
 
@@ -3605,7 +3609,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.2.0...HEAD
+[112.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.3...@metamask/assets-controllers@112.2.0
 [112.1.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.2...@metamask/assets-controllers@112.1.3
 [112.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.1...@metamask/assets-controllers@112.1.2
 [112.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.0...@metamask/assets-controllers@112.1.1

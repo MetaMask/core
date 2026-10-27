@@ -19,7 +19,6 @@ import nock, { cleanAll } from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
-import { advanceTime } from '../../../tests/vitest/helpers.js';
 import {
   buildCustomNetworkClientConfiguration,
   buildInfuraNetworkClientConfiguration,
@@ -1128,7 +1127,7 @@ describe('TokenListController', () => {
       });
 
       const resolveMockWaitForInit = async (): Promise<void> => {
-        await advanceTime({ duration: 50 });
+        await vi.advanceTimersByTimeAsync(50);
       };
 
       return {
@@ -1205,7 +1204,7 @@ describe('TokenListController', () => {
       });
 
       controller.startPolling({ chainId: ChainId.sepolia });
-      await advanceTime({ duration: 0 });
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(fetchTokenListByChainIdSpy.mock.calls[0]).toStrictEqual(
         expect.arrayContaining([ChainId.sepolia]),
@@ -1270,7 +1269,7 @@ describe('TokenListController', () => {
       });
 
       // wait a polling interval
-      await advanceTime({ duration: pollingIntervalTime });
+      await vi.advanceTimersByTimeAsync(pollingIntervalTime);
 
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
 
@@ -1286,7 +1285,7 @@ describe('TokenListController', () => {
       controller.startPolling({
         chainId: '0x38',
       });
-      await advanceTime({ duration: pollingIntervalTime });
+      await vi.advanceTimersByTimeAsync(pollingIntervalTime);
 
       // expect fetchTokenListByChain to be called for binance, but not for sepolia
       // because the cache for the recently fetched sepolia token list is still valid

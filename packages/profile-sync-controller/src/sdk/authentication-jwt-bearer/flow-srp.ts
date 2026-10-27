@@ -11,6 +11,7 @@ import {
 } from '../utils/messaging-signing-snap-requests.js';
 import { validateLoginResponse } from '../utils/validate-login-response.js';
 import {
+  deleteMfaCredential,
   getMfaCredentials,
   mfaApproval,
   mfaEnroll,
@@ -406,6 +407,25 @@ export class SRPJwtBearerAuth implements IBaseAuth {
       options?.accessToken ??
       (await this.getAccessToken(options?.entropySourceId));
     return await mfaApproval(this.#config.env, accessToken, body);
+  }
+
+  /**
+   * Removes a credential from the primary profile.
+   *
+   * @param credentialId - The credential's `id`.
+   * @param accessToken - Verification token proven with another type of
+   * credential.
+   * @returns The credentials left.
+   */
+  async deleteMfaCredential(
+    credentialId: string,
+    accessToken: string,
+  ): Promise<EnrolledCredential[]> {
+    return await deleteMfaCredential(
+      this.#config.env,
+      accessToken,
+      credentialId,
+    );
   }
 
   /**
