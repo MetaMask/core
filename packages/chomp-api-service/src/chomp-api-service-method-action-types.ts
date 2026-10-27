@@ -48,6 +48,24 @@ export type ChompApiServiceAssociateAddressV2Action = {
 };
 
 /**
+ * Removes an address association from the authenticated profile.
+ * When called with an addresses that is linked as successors it will only succeed
+ * if the chomp migration has not yet created a funds-transfer request. Otherwise
+ * CHOMP will reject the request with `LINK_COMPLETE`
+ *
+ * DELETE /v1/auth/address
+ *
+ * Executed as a mutation so it is never retried: a retry after a lost
+ * response would hit an already-removed address and fail with a 404.
+ *
+ * @param address - The address to disassociate.
+ */
+export type ChompApiServiceDisassociateAddressAction = {
+  type: `ChompApiService:disassociateAddress`;
+  handler: ChompApiService['disassociateAddress'];
+};
+
+/**
  * Fetches the addresses associated with the authenticated profile.
  *
  * GET /v1/auth/address
@@ -170,11 +188,49 @@ export type ChompApiServiceGetServiceDetailsAction = {
 };
 
 /**
+ * Fetches the Money Account identities of the authenticated profile, including
+ * status and migration steps information. Calling this will start migrations.
+ *
+ * GET /v1/money-account/identities
+ *
+ * Profile-scoped and used to drive migrations, so it is always fetched
+ * fresh and keyed by a digest of the bearer token, like
+ * {@link ChompApiService.getAssociatedAddresses}.
+ *
+ * @returns The identities; empty when the profile has no Money Account.
+ * Addresses are lowercased.
+ */
+export type ChompApiServiceGetDerivedIdentitiesAction = {
+  type: `ChompApiService:getDerivedIdentities`;
+  handler: ChompApiService['getDerivedIdentities'];
+};
+
+/**
+ * Fetches the identity containing an address, along with where the address
+ * sits in it.
+ *
+ * GET /v1/money-account/identities/address/:address
+ *
+ * Always fetched fresh and keyed by a digest of the bearer token.
+ *
+ * @param address - The address to look up.
+ * @returns The identity and address details, or `null` when CHOMP responds
+ * with `ADDRESS_NOT_ASSOCIATED`
+ *
+ * Addresses are lowercased.
+ */
+export type ChompApiServiceGetDerivedIdentityByAddressAction = {
+  type: `ChompApiService:getDerivedIdentityByAddress`;
+  handler: ChompApiService['getDerivedIdentityByAddress'];
+};
+
+/**
  * Union of all ChompApiService action types.
  */
 export type ChompApiServiceMethodActions =
   | ChompApiServiceCreateAddressChallengeAction
   | ChompApiServiceAssociateAddressV2Action
+  | ChompApiServiceDisassociateAddressAction
   | ChompApiServiceGetAssociatedAddressesAction
   | ChompApiServiceCreateUpgradeAction
   | ChompApiServiceGetUpgradesAction
@@ -182,4 +238,6 @@ export type ChompApiServiceMethodActions =
   | ChompApiServiceCreateIntentsAction
   | ChompApiServiceGetIntentsByAddressAction
   | ChompApiServiceCreateWithdrawalAction
-  | ChompApiServiceGetServiceDetailsAction;
+  | ChompApiServiceGetServiceDetailsAction
+  | ChompApiServiceGetDerivedIdentitiesAction
+  | ChompApiServiceGetDerivedIdentityByAddressAction;

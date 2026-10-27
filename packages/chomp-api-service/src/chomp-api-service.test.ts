@@ -13,6 +13,13 @@ import { ChompApiError, ChompApiService } from './chomp-api-service.js';
 
 const BASE_URL = 'https://api.chomp.example.com';
 const MOCK_TOKEN = 'mock-jwt-token';
+const ADDRESS_A = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+const ADDRESS_B = '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+const ADDRESS_C = '0xcccccccccccccccccccccccccccccccccccccccc';
+const ADDRESS_D = '0xdddddddddddddddddddddddddddddddddddddddd';
+
+const checksumLike = (address: string): string =>
+  `0x${address.slice(2).toUpperCase()}`;
 
 describe('ChompApiService', () => {
   describe('createAddressChallenge', () => {
@@ -183,6 +190,73 @@ describe('ChompApiService', () => {
       await expect(service.associateAddressV2(associateParams)).rejects.toThrow(
         'At path: address',
       );
+    });
+  });
+
+  describe('disassociateAddress', () => {
+    it('sends a DELETE with auth headers and the address', async () => {
+      const scope = nock(BASE_URL)
+        .delete('/v1/auth/address', { address: '0xabc' })
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .matchHeader('Content-Type', 'application/json')
+        .reply(200);
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call('ChompApiService:disassociateAddress', '0xabc');
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('throws a ChompApiError carrying the CHOMP error code', async () => {
+      nock(BASE_URL)
+        .delete('/v1/auth/address')
+        .reply(409, { code: 'LINK_COMPLETE' });
+      const { service } = createService();
+
+      await expect(service.disassociateAddress('0xabc')).rejects.toMatchObject({
+        httpStatus: 409,
+        code: 'LINK_COMPLETE',
+        message: "DELETE /v1/auth/address failed with status '409'",
+      });
+    });
+
+    it('throws when the address is not associated with the profile', async () => {
+      nock(BASE_URL).delete('/v1/auth/address').reply(404);
+      const { service } = createService();
+
+      await expect(service.disassociateAddress('0xabc')).rejects.toMatchObject({
+        httpStatus: 404,
+      });
+    });
+
+    it('does not retry a failed request', async () => {
+      let attempts = 0;
+      nock(BASE_URL)
+        .delete('/v1/auth/address')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(() => {
+          attempts += 1;
+          return [500];
+        });
+      const { service } = createService();
+
+      await expect(service.disassociateAddress('0xabc')).rejects.toThrow(
+        "DELETE /v1/auth/address failed with status '500'",
+      );
+      expect(attempts).toBe(1);
+    });
+
+    it('does not retry after a network failure', async () => {
+      const scope = nock(BASE_URL)
+        .delete('/v1/auth/address')
+        .times(2)
+        .replyWithError('network down');
+      const { service } = createService();
+
+      await expect(service.disassociateAddress('0xabc')).rejects.toThrow(
+        'network down',
+      );
+      expect(scope.pendingMocks()).toHaveLength(1);
     });
   });
 
@@ -740,6 +814,26 @@ describe('ChompApiService', () => {
       );
     });
 
+    it.each([
+      'cash-migration-root',
+      'cash-migration-transfer',
+      'cash-migration-premium-transfer',
+    ])('omits "%s" migration intents', async (type) => {
+      const migrationIntent = {
+        ...intentsResponse[0],
+        delegationHash: '0x456',
+        metadata: { ...intentsResponse[0].metadata, type },
+      };
+      nock(BASE_URL)
+        .get('/v1/intent/account/0xabc')
+        .reply(200, [migrationIntent, ...intentsResponse]);
+      const { service } = createService();
+
+      expect(await service.getIntentsByAddress('0xabc')).toStrictEqual(
+        intentsResponse,
+      );
+    });
+
     it('throws when an intent type is not a string', async () => {
       nock(BASE_URL)
         .get('/v1/intent/account/0xabc')
@@ -954,6 +1048,345 @@ describe('ChompApiService', () => {
       await expect(service.getServiceDetails(['0xa4b1'])).rejects.toThrow(
         'At path: auth -- Expected an object',
       );
+    });
+  });
+
+  describe('getDerivedIdentities', () => {
+    const settledIdentity = {
+      currentAddress: ADDRESS_B,
+      previousAddresses: [ADDRESS_A],
+      status: 'DONE',
+      migration: null,
+    };
+    const migratingIdentity = {
+      currentAddress: ADDRESS_B,
+      previousAddresses: [ADDRESS_A],
+      status: 'MIGRATING',
+      migration: {
+        from: ADDRESS_B,
+        to: ADDRESS_C,
+        steps: [
+          { step: 'SUCCESSOR_DEPOSIT_INTENT', completed: true },
+          { step: 'ROOT_DELEGATION', completed: false },
+          { step: 'FUNDS_TRANSFERRED', completed: false },
+        ],
+        transfer: null,
+        premiumTransfer: null,
+      },
+    };
+
+    it('sends a GET with auth headers and returns the identities', async () => {
+      nock(BASE_URL)
+        .get('/v1/money-account/identities')
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, { identities: [settledIdentity, migratingIdentity] });
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:getDerivedIdentities',
+      );
+
+      expect(result).toStrictEqual({
+        identities: [settledIdentity, migratingIdentity],
+      });
+    });
+
+    it('returns no identities when the profile has no Money Account', async () => {
+      nock(BASE_URL)
+        .get('/v1/money-account/identities')
+        .reply(200, { identities: [] });
+      const { service } = createService();
+
+      expect(await service.getDerivedIdentities()).toStrictEqual({
+        identities: [],
+      });
+    });
+
+    it('returns the funds-transfer requests of a migration', async () => {
+      const transferringIdentity = {
+        ...migratingIdentity,
+        migration: {
+          ...migratingIdentity.migration,
+          transfer: {
+            requestId: 'chomp_22222222-2222-4222-8222-222222222222',
+            status: 'PENDING',
+          },
+          premiumTransfer: {
+            requestId: 'chomp_33333333-3333-4333-8333-333333333333',
+            status: 'COMPLETED',
+          },
+        },
+      };
+      nock(BASE_URL)
+        .get('/v1/money-account/identities')
+        .reply(200, { identities: [transferringIdentity] });
+      const { service } = createService();
+
+      expect(await service.getDerivedIdentities()).toStrictEqual({
+        identities: [transferringIdentity],
+      });
+    });
+
+    it('lowercases returned addresses', async () => {
+      nock(BASE_URL)
+        .get('/v1/money-account/identities')
+        .reply(200, {
+          identities: [
+            {
+              ...migratingIdentity,
+              currentAddress: checksumLike(ADDRESS_B),
+              previousAddresses: [checksumLike(ADDRESS_A)],
+              migration: {
+                ...migratingIdentity.migration,
+                from: checksumLike(ADDRESS_B),
+                to: checksumLike(ADDRESS_C),
+              },
+            },
+          ],
+        });
+      const { service } = createService();
+
+      expect(await service.getDerivedIdentities()).toStrictEqual({
+        identities: [migratingIdentity],
+      });
+    });
+
+    it('does not serve results from cache', async () => {
+      nock(BASE_URL)
+        .get('/v1/money-account/identities')
+        .reply(200, { identities: [migratingIdentity] });
+      nock(BASE_URL)
+        .get('/v1/money-account/identities')
+        .reply(200, { identities: [settledIdentity] });
+      const { service } = createService();
+
+      const first = await service.getDerivedIdentities();
+      const second = await service.getDerivedIdentities();
+
+      expect(first).toStrictEqual({ identities: [migratingIdentity] });
+      expect(second).toStrictEqual({ identities: [settledIdentity] });
+    });
+
+    it('does not share an in-flight request across different bearer tokens', async () => {
+      const { service } = createService({
+        getBearerToken: vi
+          .fn()
+          .mockResolvedValueOnce('profile-a-token')
+          .mockResolvedValueOnce('profile-b-token'),
+      });
+      nock(BASE_URL)
+        .get('/v1/money-account/identities')
+        .matchHeader('Authorization', 'Bearer profile-a-token')
+        .delay(100)
+        .reply(200, { identities: [] });
+      nock(BASE_URL)
+        .get('/v1/money-account/identities')
+        .matchHeader('Authorization', 'Bearer profile-b-token')
+        .reply(200, { identities: [settledIdentity] });
+
+      const [first, second] = await Promise.all([
+        service.getDerivedIdentities(),
+        service.getDerivedIdentities(),
+      ]);
+
+      expect(first).toStrictEqual({ identities: [] });
+      expect(second).toStrictEqual({ identities: [settledIdentity] });
+    });
+
+    it('throws on non-OK status', async () => {
+      nock(BASE_URL)
+        .get('/v1/money-account/identities')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { service } = createService();
+
+      await expect(service.getDerivedIdentities()).rejects.toThrow(
+        "GET /v1/money-account/identities failed with status '500'",
+      );
+    });
+
+    it('throws on an unknown migration step', async () => {
+      nock(BASE_URL)
+        .get('/v1/money-account/identities')
+        .reply(200, {
+          identities: [
+            {
+              ...migratingIdentity,
+              migration: {
+                ...migratingIdentity.migration,
+                steps: [{ step: 'UNKNOWN', completed: false }],
+              },
+            },
+          ],
+        });
+      const { service } = createService();
+
+      await expect(service.getDerivedIdentities()).rejects.toThrow(
+        'At path: identities.0.migration.steps.0.step',
+      );
+    });
+  });
+
+  describe('getDerivedIdentityByAddress', () => {
+    const addressIdentity = {
+      identity: {
+        currentAddress: ADDRESS_B,
+        previousAddresses: [ADDRESS_A],
+        status: 'MIGRATING',
+        migration: {
+          from: ADDRESS_B,
+          to: ADDRESS_C,
+          steps: [{ step: 'ROOT_DELEGATION', completed: false }],
+          transfer: null,
+          premiumTransfer: null,
+        },
+      },
+      address: {
+        address: ADDRESS_B,
+        role: 'CURRENT',
+        predecessor: ADDRESS_A,
+        successor: ADDRESS_C,
+      },
+    };
+
+    it('sends a GET with auth headers and returns the identity containing the address', async () => {
+      nock(BASE_URL)
+        .get(`/v1/money-account/identities/address/${ADDRESS_B}`)
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, addressIdentity);
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:getDerivedIdentityByAddress',
+        ADDRESS_B,
+      );
+
+      expect(result).toStrictEqual(addressIdentity);
+    });
+
+    it('returns a pending successor with no successor of its own', async () => {
+      const pendingSuccessor = {
+        identity: addressIdentity.identity,
+        address: {
+          address: ADDRESS_C,
+          role: 'PENDING_SUCCESSOR',
+          predecessor: ADDRESS_B,
+          successor: null,
+        },
+      };
+      nock(BASE_URL)
+        .get(`/v1/money-account/identities/address/${ADDRESS_C}`)
+        .reply(200, pendingSuccessor);
+      const { service } = createService();
+
+      expect(
+        await service.getDerivedIdentityByAddress(ADDRESS_C),
+      ).toStrictEqual(pendingSuccessor);
+    });
+
+    it('lowercases returned addresses', async () => {
+      nock(BASE_URL)
+        .get(`/v1/money-account/identities/address/${ADDRESS_B}`)
+        .reply(200, {
+          ...addressIdentity,
+          address: {
+            address: checksumLike(ADDRESS_B),
+            role: 'CURRENT',
+            predecessor: checksumLike(ADDRESS_A),
+            successor: checksumLike(ADDRESS_C),
+          },
+        });
+      const { service } = createService();
+
+      expect(
+        await service.getDerivedIdentityByAddress(ADDRESS_B),
+      ).toStrictEqual(addressIdentity);
+    });
+
+    it('returns null when CHOMP reports the address has no identity', async () => {
+      nock(BASE_URL)
+        .get(`/v1/money-account/identities/address/${ADDRESS_D}`)
+        .reply(404, { code: 'ADDRESS_NOT_ASSOCIATED' });
+      const { service } = createService();
+
+      expect(await service.getDerivedIdentityByAddress(ADDRESS_D)).toBeNull();
+    });
+
+    it('throws on a 404 without the not-associated code', async () => {
+      nock(BASE_URL)
+        .get(`/v1/money-account/identities/address/${ADDRESS_D}`)
+        .reply(404);
+      const { service } = createService();
+
+      await expect(
+        service.getDerivedIdentityByAddress(ADDRESS_D),
+      ).rejects.toMatchObject({ httpStatus: 404, code: undefined });
+    });
+
+    it('does not serve results from cache', async () => {
+      nock(BASE_URL)
+        .get(`/v1/money-account/identities/address/${ADDRESS_B}`)
+        .reply(404, { code: 'ADDRESS_NOT_ASSOCIATED' });
+      nock(BASE_URL)
+        .get(`/v1/money-account/identities/address/${ADDRESS_B}`)
+        .reply(200, addressIdentity);
+      const { service } = createService();
+
+      const first = await service.getDerivedIdentityByAddress(ADDRESS_B);
+      const second = await service.getDerivedIdentityByAddress(ADDRESS_B);
+
+      expect(first).toBeNull();
+      expect(second).toStrictEqual(addressIdentity);
+    });
+
+    it('throws on non-OK status', async () => {
+      nock(BASE_URL)
+        .get(`/v1/money-account/identities/address/${ADDRESS_B}`)
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { service } = createService();
+
+      await expect(
+        service.getDerivedIdentityByAddress(ADDRESS_B),
+      ).rejects.toThrow(
+        `GET /v1/money-account/identities/address/${ADDRESS_B} failed with status '500'`,
+      );
+    });
+
+    it('throws on an unknown role', async () => {
+      nock(BASE_URL)
+        .get(`/v1/money-account/identities/address/${ADDRESS_B}`)
+        .reply(200, {
+          ...addressIdentity,
+          address: { ...addressIdentity.address, role: 'UNKNOWN' },
+        });
+      const { service } = createService();
+
+      await expect(
+        service.getDerivedIdentityByAddress(ADDRESS_B),
+      ).rejects.toThrow('At path: address.role');
+    });
+  });
+
+  describe('error codes', () => {
+    it('leaves the code undefined when the error body has no code', async () => {
+      nock(BASE_URL).post('/v1/intent').reply(400, { message: 'Bad request' });
+      const { service } = createService();
+
+      await expect(service.createIntents([])).rejects.toMatchObject({
+        httpStatus: 400,
+        code: undefined,
+      });
+    });
+
+    it('leaves the code undefined when the error body is not JSON', async () => {
+      nock(BASE_URL).post('/v1/intent').reply(400, 'Bad request');
+      const { service } = createService();
+
+      await expect(service.createIntents([])).rejects.toMatchObject({
+        httpStatus: 400,
+        code: undefined,
+      });
     });
   });
 
