@@ -267,6 +267,7 @@ export const getInitialHistoryItem = (
     accountAddress: selectedAddress,
     originalTransactionId,
     actionId,
+    depositConfig,
     tokenSecurityTypeDestination,
     inputPrimaryDenomination,
     batchSellData,
@@ -327,6 +328,10 @@ export const getInitialHistoryItem = (
       inputPrimaryDenomination,
     }),
   };
+
+  if (depositConfig) {
+    txHistoryItem.depositConfig = depositConfig;
+  }
 
   if (batchSellData) {
     txHistoryItem.batchSellData = batchSellData;

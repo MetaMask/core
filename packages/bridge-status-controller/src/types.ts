@@ -17,7 +17,9 @@ import type {
   BatchSellTradesResponse,
   BridgeControllerGetStateAction,
   InputPrimaryDenomination,
+  QuoteResponse,
 } from '@metamask/bridge-controller';
+import type { MoneyAccountControllerGetMoneyAccountAction } from '@metamask/money-account-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -46,6 +48,7 @@ import type { BridgeStatusControllerMethodActions } from './bridge-status-contro
 import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants.js';
 import { QuoteStatusState } from './quote-status-manager/constants.js';
 import { StatusResponseSchema } from './utils/validators.js';
+import type { getMoneyAccountDepositSetup } from '../../bridge-controller/src/utils/controllers/money-account.js';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
@@ -231,6 +234,10 @@ export type BridgeHistoryItem = {
    * swap/bridge was submitted.
    */
   inputPrimaryDenomination?: InputPrimaryDenomination;
+  /**
+   * Whether the destWalletAddress is a money account deposit
+   */
+  depositConfig?: QuoteResponse['depositConfig'];
 };
 
 /**
@@ -314,6 +321,7 @@ export type StartPollingForBridgeTxStatusArgs = {
   tokenSecurityTypeDestination?: BridgeHistoryItem['tokenSecurityTypeDestination'];
   // Primary denomination at submission time, persisted for post-submit analytics.
   inputPrimaryDenomination?: BridgeHistoryItem['inputPrimaryDenomination'];
+  depositConfig?: BridgeHistoryItem['depositConfig'];
 };
 
 /**
@@ -351,8 +359,7 @@ export type BridgeStatusControllerGetStateAction = ControllerGetStateAction<
 >;
 
 export type BridgeStatusControllerActions =
-  | BridgeStatusControllerGetStateAction
-  | BridgeStatusControllerMethodActions;
+  BridgeStatusControllerGetStateAction | BridgeStatusControllerMethodActions;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -391,7 +398,8 @@ type AllowedActions =
   | BridgeControllerGetStateAction
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
-  | KeyringControllerSignTypedMessageAction;
+  | KeyringControllerSignTypedMessageAction
+  | MoneyAccountControllerGetMoneyAccountAction;
 
 /**
  * The external events available to the BridgeStatusController.
