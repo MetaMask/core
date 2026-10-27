@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `NetworkEnablementController` to the default initialization configurations ([#10997](https://github.com/MetaMask/core/pull/10997))
   - Delegates `MultichainNetworkController:getState`. `Wallet` does not construct `MultichainNetworkController`. Clients must register that action on the wallet messenger before calling `wallet.init()`. `NetworkEnablementController.init()` reads it during `Wallet.init()`, and `enableAllPopularNetworks` and `listPopularMultichainNetworks` read it later.
   - Also delegates `ConfigRegistryController:getState`, `NetworkController:getState`, `NetworkController:networkAdded`, `NetworkController:networkRemoved`, `NetworkController:stateChange`, and `TransactionController:transactionSubmitted`. `Wallet` constructs those controllers during default initialization.
-  - Export `networkEnablementController` so clients can pass it through `initializationConfigurations` before `assetsController`. Additional configurations initialize before defaults, and `AssetsController` reads `NetworkEnablementController:getState` during construction.
 
 ### Changed
 

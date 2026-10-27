@@ -3,7 +3,6 @@ import { NetworkEnablementController } from '@metamask/network-enablement-contro
 import type { NetworkEnablementControllerState } from '@metamask/network-enablement-controller';
 import { describe, expect, it, vi } from 'vitest';
 
-import * as walletExports from '../../../index.js';
 import { defaultConfigurations } from '../../defaults.js';
 import type {
   DefaultActions,
@@ -39,12 +38,6 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
 describe('networkEnablementController', () => {
   it('is registered as a default initialization configuration', () => {
     expect(Object.values(defaultConfigurations)).toContain(
-      networkEnablementController,
-    );
-  });
-
-  it('is exported from the package entry point', () => {
-    expect(walletExports.networkEnablementController).toBe(
       networkEnablementController,
     );
   });
