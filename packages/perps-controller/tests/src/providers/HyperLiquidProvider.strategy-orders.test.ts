@@ -110,7 +110,6 @@ vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
 });
 
 // Mock TradingReadinessCache - global singleton for signing operation caching
-// Use jest.createMockFromModule for proper mock creation
 vi.mock('../../../src/services/TradingReadinessCache');
 
 class TestApiRequestError extends HyperliquidError {

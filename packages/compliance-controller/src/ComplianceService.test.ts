@@ -17,7 +17,9 @@ const MOCK_CONFIGURED_API_URL = 'https://configured-compliance.example.com';
 
 describe('ComplianceService', () => {
   beforeEach(() => {
-    vi.useFakeTimers({ toNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers({
+      toNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'],
+    });
   });
 
   afterEach(() => {
