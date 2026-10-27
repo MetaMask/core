@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/chomp-api-service` from `^6.0.1` to `^7.0.0` ([#11120](https://github.com/MetaMask/core/pull/11120))
+- Bump `@metamask/money-account-upgrade-controller` from `^5.1.0` to `^6.0.0` ([#11120](https://github.com/MetaMask/core/pull/11120))
 
 ## [15.1.0]
 
