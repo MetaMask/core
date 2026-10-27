@@ -205,11 +205,25 @@ function updateStateProducer_CAND(
         );
         const newMetadata =
           balance.metadata ?? previousBalance?.metadata;
-        effectiveAccountBalances[assetId] = {
-          amount: newAmount,
-          ...(newMetadata === undefined ? {} : { metadata: newMetadata }),
-        };
-        const oldAmount = previousBalance?.amount;
+        // Reuse the previous balance object when the new {amount, metadata?}
+        // would be content-identical and the previous object has exactly that
+        // shape (mirror of the production edit).
+        const previousAmount = previousBalance?.amount;
+        const previousMetadata = previousBalance?.metadata;
+        const reusePreviousBalance =
+          previousBalance !== undefined &&
+          previousAmount === newAmount &&
+          (newMetadata === undefined
+            ? Object.keys(previousBalance).length === 1
+            : previousMetadata === newMetadata &&
+              Object.keys(previousBalance).length === 2);
+        effectiveAccountBalances[assetId] = reusePreviousBalance
+          ? previousBalance
+          : {
+              amount: newAmount,
+              ...(newMetadata === undefined ? {} : { metadata: newMetadata }),
+            };
+        const oldAmount = previousAmount;
         const isNewSeededZero =
           oldAmount === undefined &&
           newAmount === '0' &&

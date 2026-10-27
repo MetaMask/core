@@ -3148,11 +3148,33 @@ export class AssetsController extends BaseController<
               const newMetadata =
                 (balance as FungibleAssetBalance).metadata ??
                 (previousBalance as FungibleAssetBalance | undefined)?.metadata;
-              effectiveAccountBalances[assetId] = {
-                amount: newAmount,
-                ...(newMetadata === undefined ? {} : { metadata: newMetadata }),
-              };
-              const oldAmount = previousBalance?.amount;
+              // Reuse the previous balance object when the new
+              // { amount, metadata? } would be content-identical and the
+              // previous object has exactly that shape. Avoids per-asset
+              // object churn on unchanged polls and lets the per-account
+              // isEqual comparison short-circuit on reference equality.
+              const previousAmount = (
+                previousBalance as { amount?: string } | undefined
+              )?.amount;
+              const previousMetadata = (
+                previousBalance as FungibleAssetBalance | undefined
+              )?.metadata;
+              const reusePreviousBalance =
+                previousBalance !== undefined &&
+                previousAmount === newAmount &&
+                (newMetadata === undefined
+                  ? Object.keys(previousBalance).length === 1
+                  : previousMetadata === newMetadata &&
+                    Object.keys(previousBalance).length === 2);
+              effectiveAccountBalances[assetId] = reusePreviousBalance
+                ? previousBalance
+                : {
+                    amount: newAmount,
+                    ...(newMetadata === undefined
+                      ? {}
+                      : { metadata: newMetadata }),
+                  };
+              const oldAmount = previousAmount;
               const isNewSeededZero =
                 oldAmount === undefined &&
                 newAmount === '0' &&
