@@ -33,7 +33,7 @@ export default mergeConfig(
             lines: 100,
             statements: 100,
           },
-          branches: 96.5,
+          branches: 96.61,
           functions: 98.88,
           lines: 99.78,
           statements: 99.78,
