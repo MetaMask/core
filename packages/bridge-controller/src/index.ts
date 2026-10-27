@@ -291,3 +291,5 @@ export {
   fetchTokens,
   type SwapsToken,
 } from './utils/swaps.js';
+
+export { getAccountByAddress } from './utils/controllers/accounts.js';

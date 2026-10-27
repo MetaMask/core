@@ -6,6 +6,7 @@ import {
   isEvmTxData,
   FeeType,
   BatchSellTransactionType,
+  getAccountByAddress,
 } from '@metamask/bridge-controller';
 import type {
   BatchSellTradesResponse,
@@ -35,7 +36,6 @@ import type { Hex } from '@metamask/utils';
 import { APPROVAL_DELAY_MS } from '../constants.js';
 import type { BridgeStatusControllerMessenger } from '../types.js';
 import type { QuoteAndTxMetadata } from '../types.js';
-import { getAccountByAddress } from './accounts.js';
 import { getNetworkClientIdByChainId } from './network.js';
 
 export const isApprovalTx = (type: TransactionType) =>
