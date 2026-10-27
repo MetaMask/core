@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.1]
+
 ### Uncategorized
 
 - test: run network-controller on Vitest ([#10873](https://github.com/MetaMask/core/pull/10873))
@@ -73,4 +75,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Narrow byte helper return types to `Uint8Array<ArrayBuffer>` ([#10617](https://github.com/MetaMask/core/pull/10617))
   - These functions already returned a `Uint8Array` backed by an `ArrayBuffer`, but were typed as returning `Uint8Array<ArrayBufferLike>`.
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/utils@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/releases/tag/@metamask/utils@12.0.1

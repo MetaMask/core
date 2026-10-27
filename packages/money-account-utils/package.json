@@ -54,7 +54,7 @@
     "@ethersproject/abstract-provider": "^5.8.0",
     "@ethersproject/contracts": "^5.7.0",
     "@metamask/transaction-controller": "^72.2.1",
-    "@metamask/utils": "^12.0.0"
+    "@metamask/utils": "^12.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",

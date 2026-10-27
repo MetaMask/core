@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test(perps-controller): run tests on fake time and split the largest test files ([#11087](https://github.com/MetaMask/core/pull/11087))
-- Release 1363.0.0 ([#11092](https://github.com/MetaMask/core/pull/11092))
-- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
-- test: stub globals and use fake timers instead of replacing them directly ([#11064](https://github.com/MetaMask/core/pull/11064))
-- test: remove stale Jest comments from perps tests ([#11067](https://github.com/MetaMask/core/pull/11067))
-- test: run perps-controller on Vitest ([#10980](https://github.com/MetaMask/core/pull/10980))
-
 ### Added
 
 - Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets ([#11030](https://github.com/MetaMask/core/pull/11030))
