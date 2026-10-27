@@ -234,7 +234,7 @@ function parseGeolocationResponse(raw: string): GeolocationData {
  * Options accepted by {@link GeolocationApiService.fetchGeolocation}.
  */
 export type FetchGeolocationOptions = {
-  /** When true, the TTL cache is invalidated so the next request fetches fresh data. */
+  /** When true, ignores any cached result and fetches fresh data. */
   bypassCache?: boolean;
 };
 
@@ -304,9 +304,8 @@ export class GeolocationApiService extends BaseDataService<
    * expired, otherwise performs a network fetch.
    *
    * @param options - Optional fetch options.
-   * @param options.bypassCache - When true, invalidates the cache first. If a
-   * request is already in-flight it will be reused (deduplication always
-   * applies).
+   * @param options.bypassCache - When true, ignores any cached result and
+   * fetches fresh data.
    * @returns An ISO 3166-2 location code (e.g. `US`, `US-NY`, `CA-ON`), or
    * {@link UNKNOWN_LOCATION} when the API returns an empty or invalid body.
    */
@@ -320,9 +319,8 @@ export class GeolocationApiService extends BaseDataService<
    * fetch.
    *
    * @param options - Optional fetch options.
-   * @param options.bypassCache - When true, invalidates the cache first. If a
-   * request is already in-flight it will be reused (deduplication always
-   * applies).
+   * @param options.bypassCache - When true, ignores any cached result and
+   * fetches fresh data.
    * @returns The geolocation data, where each field is `null` when the API
    * omits it or returns a value that fails validation.
    */
@@ -332,16 +330,14 @@ export class GeolocationApiService extends BaseDataService<
     const queryKey = [`${this.name}:fetchGeolocationData`] as const;
 
     if (options?.bypassCache) {
-      // Invalidation (rather than `staleTime: 0`) keeps the query stale even if
-      // this refresh fails, so the next plain call refetches too.
+      // The query stays stale if the refresh fails, so the next call refetches.
       await this.invalidateQueries({ queryKey, refetchType: 'none' });
     }
 
     const geolocation = await this.fetchQuery({
       queryKey,
       staleTime: this.#ttlMs,
-      // Keep the entry at least as long as it is fresh. The default 5 minute
-      // GC would otherwise evict it early in browser runtimes.
+      // Retain the result for as long as it is considered fresh.
       gcTime: this.#ttlMs,
       queryFn: async () => {
         const response = await this.#fetch(this.#url);
