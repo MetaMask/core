@@ -228,8 +228,7 @@ function setupController({
   getAccount?: Mock<
     (
       ...args:
-        | Parameters<AccountsControllerGetAccountAction['handler']>
-        | [null]
+        Parameters<AccountsControllerGetAccountAction['handler']> | [null]
     ) => ReturnType<AccountsControllerGetAccountAction['handler']>
   >;
   getSelectedAccount?: Mock<
@@ -1501,6 +1500,7 @@ describe('NftController', () => {
         standard: 'standard',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         collection: {
           tokenCount: '0',
           image: 'url',
@@ -1633,6 +1633,7 @@ describe('NftController', () => {
         tokenId: '1234',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
       });
     });
 
@@ -1663,6 +1664,7 @@ describe('NftController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
       });
 
       await nftController.addNft('0x01', '1', 'mainnet', {
@@ -1687,6 +1689,7 @@ describe('NftController', () => {
         standard: 'standard',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
       });
     });
     it('should update NFT collection field if new nft metadata has new keys', async () => {
@@ -1717,6 +1720,7 @@ describe('NftController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
       });
 
       await nftController.addNft('0x01', '1', 'mainnet', {
@@ -1746,6 +1750,7 @@ describe('NftController', () => {
         standard: 'standard',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         collection: {
           id: 'address',
           openseaVerificationStatus: 'verified',
@@ -1791,6 +1796,7 @@ describe('NftController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         collection: {
           id: 'address',
           openseaVerificationStatus: 'verified',
@@ -1829,6 +1835,7 @@ describe('NftController', () => {
         standard: 'standard',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         collection: {
           id: 'address',
           openseaVerificationStatus: 'verified',
@@ -1897,6 +1904,7 @@ describe('NftController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI: '',
         creator: 'Oxaddress',
         collection: {
@@ -1967,6 +1975,7 @@ describe('NftController', () => {
         standard: ERC721,
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI:
           'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
         collection: {
@@ -2039,6 +2048,7 @@ describe('NftController', () => {
         standard: ERC721,
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI:
           'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
         collection: {
@@ -2098,6 +2108,7 @@ describe('NftController', () => {
         standard: ERC1155,
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI:
           'https://api.opensea.io/api/v1/metadata/0x495f947276749Ce646f68AC8c248420045cb7b5e/0x5a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d000000000000010000000001',
       });
@@ -2147,6 +2158,7 @@ describe('NftController', () => {
         standard: ERC721,
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI:
           'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
       });
@@ -2188,6 +2200,7 @@ describe('NftController', () => {
         standard: ERC721,
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI: testTokenUriEncoded,
       });
     });
@@ -2221,6 +2234,7 @@ describe('NftController', () => {
         tokenId: '1234',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI,
       });
     });
@@ -2274,6 +2288,7 @@ describe('NftController', () => {
               tokenURI,
               favorite: false,
               isCurrentlyOwned: true,
+              isManualImport: true,
             },
           ],
         },
@@ -2286,6 +2301,51 @@ describe('NftController', () => {
         symbol: undefined,
         source: Source.Custom,
       });
+    });
+
+    it('should mark NFT as manually imported only when source is custom', async () => {
+      const { nftController } = setupController({
+        options: {},
+      });
+
+      // Manually imported (defaults to Source.Custom).
+      await nftController.addNft('0x01', '1', 'mainnet', {
+        nftMetadata: {
+          name: 'manual',
+          image: 'image',
+          description: 'description',
+          standard: ERC721,
+        },
+      });
+
+      // Auto-detected.
+      await nftController.addNft('0x02', '2', 'mainnet', {
+        nftMetadata: {
+          name: 'detected',
+          image: 'image',
+          description: 'description',
+          standard: ERC721,
+        },
+        source: Source.Detected,
+      });
+
+      // Suggested by a dapp.
+      await nftController.addNft('0x03', '3', 'mainnet', {
+        nftMetadata: {
+          name: 'dapp',
+          image: 'image',
+          description: 'description',
+          standard: ERC721,
+        },
+        source: Source.Dapp,
+      });
+
+      const [manual, detected, dapp] =
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet];
+
+      expect(manual.isManualImport).toBe(true);
+      expect(detected.isManualImport).toBeUndefined();
+      expect(dapp.isManualImport).toBeUndefined();
     });
 
     it('should add an nft and nftContract to state when all contract information is falsy and the source is "dapp"', async () => {
@@ -2727,6 +2787,7 @@ describe('NftController', () => {
         standard: ERC721,
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI:
           'https://bafybeidf7aw7bmnmewwj4ayq3she2jfk5jrdpp24aaucf6fddzb3cfhrvm.ipfs.cloudflare-ipfs.com',
       });
@@ -2754,6 +2815,7 @@ describe('NftController', () => {
         standard: null,
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI: null,
       });
     });
@@ -2836,6 +2898,7 @@ describe('NftController', () => {
           standard: ERC721,
           tokenURI: 'https://testtokenuri-1.com',
           isCurrentlyOwned: true,
+          isManualImport: true,
         },
       ]);
 
@@ -2853,6 +2916,7 @@ describe('NftController', () => {
           standard: ERC721,
           tokenURI: 'https://testtokenuri-2.com',
           isCurrentlyOwned: true,
+          isManualImport: true,
         },
       ]);
 
@@ -2868,6 +2932,7 @@ describe('NftController', () => {
           standard: ERC1155,
           tokenURI: 'https://testtokenuri-3.com',
           isCurrentlyOwned: true,
+          isManualImport: true,
         },
       ]);
     });
@@ -2952,6 +3017,7 @@ describe('NftController', () => {
           standard: ERC721,
           tokenURI: 'https://testtokenuri-1.com',
           isCurrentlyOwned: true,
+          isManualImport: true,
         },
       ]);
       expect(
@@ -2968,6 +3034,7 @@ describe('NftController', () => {
           standard: ERC721,
           tokenURI: 'https://testtokenuri-2.com',
           isCurrentlyOwned: true,
+          isManualImport: true,
         },
       ]);
       expect(
@@ -2984,6 +3051,7 @@ describe('NftController', () => {
           standard: ERC1155,
           tokenURI: 'https://testtokenuri-3.com',
           isCurrentlyOwned: true,
+          isManualImport: true,
         },
       ]);
     });
@@ -3066,6 +3134,7 @@ describe('NftController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
       });
       expect(
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][1],
@@ -3079,6 +3148,7 @@ describe('NftController', () => {
         standard: 'ERC721',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
       });
     });
 
@@ -3350,6 +3420,7 @@ describe('NftController', () => {
         tokenURI,
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
       });
     });
 
@@ -3438,6 +3509,7 @@ describe('NftController', () => {
         tokenId: '1234',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI,
       });
       expect(
@@ -3452,6 +3524,7 @@ describe('NftController', () => {
         tokenId: '4321',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI,
       });
     });
@@ -3505,6 +3578,7 @@ describe('NftController', () => {
         favorite: false,
         standard: ERC721,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI,
       });
       expect(
@@ -3519,6 +3593,7 @@ describe('NftController', () => {
         standard: ERC721,
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI,
       });
     });
@@ -3641,6 +3716,7 @@ describe('NftController', () => {
         tokenId: '4321',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI,
         standard: ERC721,
       });
@@ -3677,6 +3753,7 @@ describe('NftController', () => {
         tokenId: '4321',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI,
         standard: ERC721,
       });
@@ -3729,6 +3806,7 @@ describe('NftController', () => {
         tokenId: '1',
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
       });
 
       mockGetAccount.mockReturnValue(userAccount2);
@@ -3913,6 +3991,7 @@ describe('NftController', () => {
         standard: ERC1155,
         favorite: false,
         isCurrentlyOwned: true,
+        isManualImport: true,
         tokenURI: 'ipfs://*',
       });
     });
@@ -4893,6 +4972,7 @@ describe('NftController', () => {
         favorite: false,
         image: 'image.png',
         isCurrentlyOwned: true,
+        isManualImport: true,
         name: 'toto',
         standard: ERC721,
         tokenId: '3',

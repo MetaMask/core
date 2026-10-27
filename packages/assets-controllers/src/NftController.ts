@@ -112,11 +112,13 @@ type SuggestedNftMeta = {
  * creator - The NFT owner information object
  * isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
  * transactionId - Transaction Id associated with the NFT
+ * isManualImport - Boolean indicating whether the NFT was manually imported by the user
  */
 export type Nft = {
   tokenId: string;
   address: string;
   isCurrentlyOwned?: boolean;
+  isManualImport?: boolean;
 } & NftMetadata;
 
 type NftUpdate = {
@@ -954,6 +956,7 @@ export class NftController extends BaseController<
               allNftsForUserPerChain[chainId][indexToUpdate] = {
                 ...existingEntry,
                 ...nftMetadata,
+                ...(source === Source.Custom && { isManualImport: true }),
               };
             }
           } else {
@@ -962,6 +965,7 @@ export class NftController extends BaseController<
               tokenId,
               favorite: false,
               isCurrentlyOwned: true,
+              ...(source === Source.Custom && { isManualImport: true }),
               ...nftMetadata,
             };
 
