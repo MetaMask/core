@@ -1,5 +1,6 @@
 import nock from 'nock';
 
+import { mockPutWithBodyCallback } from '../../../sdk/__fixtures__/userstorage.js';
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema.js';
 import type {
   UserStorageGenericPathWithFeatureAndKey,
@@ -65,26 +66,26 @@ export const mockEndpointUpsertUserStorage = (
   expectCallback?: (requestBody: nock.Body) => Promise<void>,
 ) => {
   const mockResponse = getMockUserStoragePutResponse(path);
-  const mockEndpoint = nock(mockResponse.url)
-    .put('')
-    .reply(mockReply?.status ?? 204, async (_, requestBody) => {
-      await expectCallback?.(requestBody);
-    });
-  return mockEndpoint;
+  return mockPutWithBodyCallback(
+    mockResponse.url,
+    mockReply?.status ?? 204,
+    expectCallback,
+    { path: '', persist: false },
+  );
 };
 
 export const mockEndpointBatchUpsertUserStorage = (
   path: UserStorageGenericPathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
   mockReply?: Pick<MockReply, 'status'>,
-  callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
+  callback?: (requestBody: nock.Body) => Promise<void>,
 ) => {
   const mockResponse = getMockUserStorageBatchPutResponse(path);
-  const mockEndpoint = nock(mockResponse.url)
-    .put('')
-    .reply(mockReply?.status ?? 204, async (uri, requestBody) => {
-      return await callback?.(uri, requestBody);
-    });
-  return mockEndpoint;
+  return mockPutWithBodyCallback(
+    mockResponse.url,
+    mockReply?.status ?? 204,
+    callback,
+    { path: '', persist: false },
+  );
 };
 
 export const mockEndpointDeleteUserStorage = (
@@ -118,13 +119,13 @@ export const mockEndpointDeleteUserStorageAllFeatureEntries = (
 export const mockEndpointBatchDeleteUserStorage = (
   path: UserStorageGenericPathWithFeatureOnly = 'notifications',
   mockReply?: Pick<MockReply, 'status'>,
-  callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
+  callback?: (requestBody: nock.Body) => Promise<void>,
 ) => {
   const mockResponse = getMockUserStorageBatchDeleteResponse(path);
-  const mockEndpoint = nock(mockResponse.url)
-    .put('')
-    .reply(mockReply?.status ?? 204, async (uri, requestBody) => {
-      return await callback?.(uri, requestBody);
-    });
-  return mockEndpoint;
+  return mockPutWithBodyCallback(
+    mockResponse.url,
+    mockReply?.status ?? 204,
+    callback,
+    { path: '', persist: false },
+  );
 };
