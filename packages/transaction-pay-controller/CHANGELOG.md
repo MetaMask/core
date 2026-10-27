@@ -9,13 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [30.3.0]
 
-### Uncategorized
-
-- test: move the decorator plugin out of the shared Vitest config ([#11060](https://github.com/MetaMask/core/pull/11060))
-- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
-- test: run assets-controller on Vitest ([#11038](https://github.com/MetaMask/core/pull/11038))
-- test: run confirmations packages on Vitest ([#10978](https://github.com/MetaMask/core/pull/10978))
-
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
