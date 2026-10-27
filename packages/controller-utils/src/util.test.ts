@@ -562,7 +562,6 @@ describe('util', () => {
     });
 
     it('should fail fetch with timeout', async () => {
-      // A reply that never resolves, since `.delay()` is not honored by every
       // fetch implementation.
       nock(SOME_API)
         .get(/.+/u)
