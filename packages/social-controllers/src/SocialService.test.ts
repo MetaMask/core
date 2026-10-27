@@ -1668,6 +1668,40 @@ describe('SocialService', () => {
       ).toStrictEqual([{ emotion: '🔥', count: 3, profiles: [] }]);
     });
 
+    it('keeps sourceLanguage and translations on authorComment', async () => {
+      const withTranslation = {
+        ...mockFeedItem,
+        authorComment: {
+          uid: 'comment-1',
+          text: '이 콘텐츠는 한국어로 되어 있습니다.',
+          timestamp: 1700000000,
+          sourceLanguage: 'ko',
+          translations: { en: 'This content is in Korean.' },
+          engagement: {
+            reactions: [],
+            userReaction: null,
+          },
+        },
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [withTranslation],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items[0]?.authorComment?.sourceLanguage).toBe('ko');
+      expect(result.items[0]?.authorComment?.translations).toStrictEqual({
+        en: 'This content is in Korean.',
+      });
+    });
+
     it('accepts feed-card stats and still accepts items that omit them', async () => {
       const withStats = {
         ...mockFeedItem,
@@ -3116,6 +3150,74 @@ describe('SocialService', () => {
       const result = await messenger.call('SocialService:fetchBlockedContent');
 
       expect(result).toStrictEqual(mockBlockedContentResponse);
+    });
+  });
+
+  describe('translateComment', () => {
+    const mockTranslation = {
+      sourceLanguage: 'ko',
+      translations: { en: 'This content is in Korean.' },
+    };
+
+    it('sends POST with targetLanguage to /swap-comment/:id/translate', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockTranslation),
+      });
+
+      const service = createService();
+      const result = await service.translateComment({
+        commentId: 'comment-1',
+        targetLanguage: 'en',
+      });
+
+      expect(result).toStrictEqual(mockTranslation);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/swap-comment/comment-1/translate`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${MOCK_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ targetLanguage: 'en' }),
+        },
+      );
+    });
+
+    it('throws HttpError when the translation endpoint does not exist', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = createService();
+
+      await expect(
+        service.translateComment({
+          commentId: 'comment-1',
+          targetLanguage: 'en',
+        }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}: 404`,
+      );
+    });
+
+    it('throws when the translation response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ translations: [] }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.translateComment({
+          commentId: 'comment-1',
+          targetLanguage: 'en',
+        }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.TRANSLATE_COMMENT_INVALID_RESPONSE,
+      );
     });
   });
 });
