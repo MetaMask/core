@@ -94,6 +94,21 @@ function effectiveAccountBalancesV5_CAND(
   return next;
 }
 
+// --- getAssetType memo (mirror of production #assetTypeCache; the bench's
+// native asset set is static, so a single version suffices) ---
+function getAssetTypeCachedForCtx(assetId, ctx) {
+  let m = ctx.__typeMemo;
+  if (m === undefined) {
+    m = ctx.__typeMemo = new Map();
+  }
+  let t = m.get(assetId);
+  if (t === undefined) {
+    t = getAssetType(assetId);
+    m.set(assetId, t);
+  }
+  return t;
+}
+
 // -+ #updateState producer body (AssetsController.ts:2982-3243, mirrored) -+
 // Signature carries the closure variables of #updateState. `state` is the
 // immer-draft stand-in (a fresh clone the producer mutates).
@@ -149,7 +164,7 @@ function updateStateProducer_CAND(
     if (!entry) {
       continue;
     }
-    const correctType = getAssetType(assetId);
+    const correctType = getAssetTypeCachedForCtx(assetId, ctx);
     if (entry.type !== correctType) {
       metadata[assetId] = { ...entry, type: correctType };
       if (!changedMetadata.includes(assetId)) {

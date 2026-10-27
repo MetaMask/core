@@ -2792,26 +2792,50 @@ export class AssetsController extends BaseController<
   }
 
   /**
+   * Memoized asset types, keyed by native-asset-map version. Invalidated
+   * whenever the QueryClient's native asset map is replaced (stable identity
+   * per fetch), so results can never go stale. CAIP parsing and native-map
+   * scanning dominate this call inside the #updateState type-reconciliation
+   * loop, which re-processes every tracked asset on every poll.
+   */
+  #assetTypeCache: {
+    nativeAssetMap: Record<ChainId, Caip19AssetId> | null;
+    types: Map<Caip19AssetId, 'native' | 'erc20' | 'spl'>;
+  } = { nativeAssetMap: null, types: new Map() };
+
+  /**
    * Determines the asset type for a given CAIP-19 asset ID.
    *
    * @param assetId - The CAIP-19 asset ID.
    * @returns The asset type: 'native', 'erc20', or 'spl'.
    */
   #getAssetType(assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' {
+    const nativeAssetMap = this.#getNativeAssetMap();
+    const cache = this.#assetTypeCache;
+    if (cache.nativeAssetMap !== nativeAssetMap) {
+      cache.nativeAssetMap = nativeAssetMap;
+      cache.types.clear();
+    }
+    const cached = cache.types.get(assetId);
+    if (cached !== undefined) {
+      return cached;
+    }
     const parsed = parseCaipAssetType(assetId);
 
+    let result: 'native' | 'erc20' | 'spl';
     if (this.#isNativeAsset(assetId)) {
-      return 'native';
-    }
-
-    if (
+      result = 'native';
+    } else if (
       parsed.chain.namespace === KnownCaipNamespace.Solana &&
       parsed.assetNamespace === CaipAssetNamespace.Token
     ) {
-      return 'spl';
+      result = 'spl';
+    } else {
+      result = 'erc20';
     }
 
-    return 'erc20';
+    cache.types.set(assetId, result);
+    return result;
   }
 
   /**
