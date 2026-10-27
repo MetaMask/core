@@ -94,6 +94,7 @@ function buildMockApiServiceHandler(overrides?: {
           chains: [],
         },
       },
+      etag: null,
       modified: true,
     };
   };
@@ -431,6 +432,8 @@ describe('ConfigRegistryController', () => {
 
           mockApiServiceHandler.mockResolvedValue({
             modified: false,
+            etag: null,
+            data: null,
           });
 
           const beforeTimestamp = Date.now();
@@ -439,50 +442,6 @@ describe('ConfigRegistryController', () => {
           const afterTimestamp = Date.now();
 
           expect(controller.state.etag).toBe('"existing-etag"');
-          expect(controller.state.lastFetched).not.toBeNull();
-          expect(controller.state.lastFetched).toBeGreaterThanOrEqual(
-            beforeTimestamp,
-          );
-          expect(controller.state.lastFetched).toBeLessThanOrEqual(
-            afterTimestamp,
-          );
-        },
-      );
-    });
-
-    it('handles unmodified response and sets etag to null when explicitly null', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              etag: '"existing-etag"',
-            },
-          },
-        },
-        async ({
-          controller,
-          rootMessenger,
-          mockRemoteFeatureFlagGetState,
-          mockApiServiceHandler,
-        }) => {
-          mockRemoteFeatureFlagGetState.mockReturnValue({
-            remoteFeatureFlags: {
-              configRegistryApiEnabled: true,
-            },
-            cacheTimestamp: Date.now(),
-          });
-
-          mockApiServiceHandler.mockResolvedValue({
-            modified: false,
-            etag: null,
-          });
-
-          const beforeTimestamp = Date.now();
-          rootMessenger.call('ConfigRegistryController:startPolling', null);
-          await vi.advanceTimersByTimeAsync(0);
-          const afterTimestamp = Date.now();
-
-          expect(controller.state.etag).toBeNull();
           expect(controller.state.lastFetched).not.toBeNull();
           expect(controller.state.lastFetched).toBeGreaterThanOrEqual(
             beforeTimestamp,
@@ -922,6 +881,7 @@ describe('ConfigRegistryController', () => {
             'ConfigRegistryApiService:fetchEventsConfig',
             vi.fn().mockResolvedValue({
               modified: true,
+              etag: null,
               data: { data: eventsConfig },
             }),
           );
