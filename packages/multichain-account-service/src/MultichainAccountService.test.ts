@@ -105,7 +105,7 @@ vi.mock('./providers/XlmAccountProvider', async (importOriginal) => ({
   ...(await importOriginal<
     typeof import('./providers/XlmAccountProvider.js')
   >()),
-  TrxAccountProvider: vi.fn(),
+  XlmAccountProvider: vi.fn(),
 }));
 
 type Mocks = {
