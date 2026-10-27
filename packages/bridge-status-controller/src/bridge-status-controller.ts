@@ -1494,17 +1494,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   /**
    * Submits a cross-chain swap transaction
    *
-   * @param accountAddress - The address of the account to submit the transaction for
-   * @param maybeQuoteResponses - A single quote response or an array of quote responses
-   * @param isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
-   * @param quotesReceivedContext - The context for the QuotesReceived event
-   * @param location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
-   * @param abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
-   * @param activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
-   * @param tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
-   * @param batchSellTrades - Contains transaction data for the quotes, provided by the obtainGaslessBatch API
-   * @param inputPrimaryDenomination - The denomination shown as the primary source amount input at submission time.
-   * @param migrationPhase - The active migration phase for the quote response
+   * @param params - Object containing transaction submission parameters
+   * @param params.accountAddress - The address of the account to submit the transaction for
+   * @param params.quoteResponses - A single quote response or an array of quote responses
+   * @param params.isStxEnabled - Whether smart transactions are enabled on the client, for example the getSmartTransactionsEnabled selector value from the extension
+   * @param params.quotesReceivedContext - The context for the QuotesReceived event
+   * @param params.location - The entry point from which the user initiated the swap or bridge (e.g. Main View, Token View, Trending Explore)
+   * @param params.abTests - Legacy A/B test context for `ab_tests` (backward compatibility)
+   * @param params.activeAbTests - New A/B test context for `active_ab_tests` (migration target). Attributes events to specific experiments.
+   * @param params.tokenSecurityTypeDestination - The security classification of the destination token, supplied by the client (e.g. from token security/scanning data). Pass `null` when no security data is available.
+   * @param params.batchSellTrades - Contains transaction data for the quotes, provided by the obtainGaslessBatch API
+   * @param params.inputPrimaryDenomination - The denomination shown as the primary source amount input at submission time.
+   * @param params.migrationPhase - The active migration phase for the quote response
    * @returns The transaction meta
    * @throws An error if transaction submission fails before it gets published
    */
@@ -1523,7 +1524,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   }: {
     accountAddress: string;
     quoteResponses:
-      QuoteResponse[] | (QuoteResponseV1<Trade, Trade> & QuoteMetadata)[];
+      | QuoteResponse[]
+      | (QuoteResponseV1<Trade, Trade> & QuoteMetadata)[];
     isStxEnabled: boolean;
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
     location?: MetaMetricsSwapsEventSource;
@@ -1826,10 +1828,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyItem?.featureId ??
       FeatureId.UNIFIED_SWAP_BRIDGE;
 
-    if (!(
-      ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
-      eventName === UnifiedSwapBridgeEventName.StatusValidationFailed
-    )) {
+    if (
+      !(
+        ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
+        eventName === UnifiedSwapBridgeEventName.StatusValidationFailed
+      )
+    ) {
       return;
     }
 
