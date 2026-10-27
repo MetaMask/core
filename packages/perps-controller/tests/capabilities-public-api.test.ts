@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { HYPERLIQUID_ORDER_CAPABILITIES as subpathCapabilities } from '../src/constants/hyperLiquidConfig.js';
 import { HYPERLIQUID_ORDER_CAPABILITIES } from '../src/constants/index.js';
 import { PerpsController } from '../src/index.js';
@@ -7,7 +9,7 @@ import type {
   PerpsOrderCapabilities,
 } from '../src/index.js';
 
-jest.mock('@nktkas/hyperliquid', () => ({
+vi.mock('@nktkas/hyperliquid', () => ({
   HyperliquidError: class MockHyperliquidError extends Error {},
 }));
 

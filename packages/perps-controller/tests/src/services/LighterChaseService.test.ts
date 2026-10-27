@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import {
   LighterChaseService,
   LighterChaseObservationPendingError,
@@ -43,8 +46,8 @@ type TestEnvironment = {
   service: LighterChaseService;
   io: LighterChaseIo;
   storage: {
-    getItem: jest.Mock<Promise<string | null>, [string]>;
-    setItem: jest.Mock<Promise<void>, [string, string]>;
+    getItem: Mock<(...args: [string]) => Promise<string | null>>;
+    setItem: Mock<(...args: [string, string]) => Promise<void>>;
   };
   disk: Map<string, string>;
   observed: Map<string, LighterChaseChildObservation>;
@@ -57,8 +60,8 @@ const setup = (): TestEnvironment => {
   let quote = '100000';
   const disk = new Map<string, string>();
   const storage = {
-    getItem: jest.fn(async (key: string) => disk.get(key) ?? null),
-    setItem: jest.fn(async (key: string, value: string) => {
+    getItem: vi.fn(async (key: string) => disk.get(key) ?? null),
+    setItem: vi.fn(async (key: string, value: string) => {
       disk.set(key, value);
     }),
   };
@@ -81,14 +84,14 @@ const setup = (): TestEnvironment => {
     await hooks.beforeDispatch();
   };
   const io: LighterChaseIo = {
-    assertCurrent: jest.fn(),
+    assertCurrent: vi.fn(),
     now: () => now,
     allocateClientId: () => {
       nextId += 1;
       return String(nextId);
     },
-    quote: jest.fn(async () => quote),
-    place: jest.fn(async (child, hooks) => {
+    quote: vi.fn(async () => quote),
+    place: vi.fn<LighterChaseIo['place']>(async (child, hooks) => {
       await sign(hooks);
       observed.set(child.clientOrderId, {
         orderId: `9${child.clientOrderId}`,
@@ -98,7 +101,7 @@ const setup = (): TestEnvironment => {
         remainingSize: child.size,
       });
     }),
-    cancel: jest.fn(async (child, hooks) => {
+    cancel: vi.fn<LighterChaseIo['cancel']>(async (child, hooks) => {
       await sign(hooks);
       const row = observed.get(child.clientOrderId);
       if (!row) {
@@ -106,7 +109,7 @@ const setup = (): TestEnvironment => {
       }
       observed.set(child.clientOrderId, { ...row, terminal: true });
     }),
-    observe: jest.fn(async (child) => {
+    observe: vi.fn<LighterChaseIo['observe']>(async (child) => {
       const row = observed.get(child.clientOrderId);
       if (!row) {
         throw new Error('child visibility uncertain');
@@ -185,7 +188,7 @@ describe('Lighter bounded Chase lifecycle', () => {
       const env = setup();
       let completionError: unknown;
       let savedAfterCompletion: string | undefined;
-      jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+      vi.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
         await hooks.signed({ nonce: 8, txHash: 'deadbeef', expiresAt: 110000 });
         await hooks.beforeDispatch();
         const key = [...env.disk.keys()][0];
@@ -258,8 +261,8 @@ describe('Lighter bounded Chase lifecycle', () => {
   )(
     'keeps accepted $operation readable after completion $failure failure and restart',
     async ({ operation, failure }) => {
-      jest.useFakeTimers();
-      jest.setSystemTime(100000);
+      vi.useFakeTimers();
+      vi.setSystemTime(100000);
       try {
         const env = setup();
         env.io.now = (): number => Date.now();
@@ -291,15 +294,15 @@ describe('Lighter bounded Chase lifecycle', () => {
         };
         if (operation === 'cancel') {
           await env.service.start(intent, env.io);
-          jest.mocked(env.io.cancel).mockImplementation(send);
+          vi.mocked(env.io.cancel).mockImplementation(send);
         } else {
-          jest.mocked(env.io.place).mockImplementation(send);
+          vi.mocked(env.io.place).mockImplementation(send);
         }
         const pending =
           operation === 'place'
             ? env.service.start(intent, env.io)
             : env.service.stop(owner, intent.handle, env.io, 'canceled');
-        await jest.advanceTimersByTimeAsync(10000);
+        await vi.advanceTimersByTimeAsync(10000);
         expect((await pending).status).toBe('termination_pending');
         const expectedDispatch = {
           phase: 'acknowledged',
@@ -326,21 +329,21 @@ describe('Lighter bounded Chase lifecycle', () => {
           operation === 'cancel' ? 1 : 0,
         );
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     },
   );
   describe('bounded Chase cancellation settlement', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
-      jest.setSystemTime(100000);
+      vi.useFakeTimers();
+      vi.setSystemTime(100000);
     });
-    afterEach(() => jest.useRealTimers());
+    afterEach(() => vi.useRealTimers());
 
     const pendingCancel = async (env: TestEnvironment): Promise<void> => {
       env.io.now = (): number => Date.now();
       await env.service.start(intent, env.io);
-      jest.mocked(env.io.cancel).mockImplementation(async (_child, hooks) => {
+      vi.mocked(env.io.cancel).mockImplementation(async (_child, hooks) => {
         await hooks.signed({
           nonce: 202,
           txHash: 'cdefcdef',
@@ -372,13 +375,12 @@ describe('Lighter bounded Chase lifecycle', () => {
       async (visibility) => {
         const env = setup();
         await pendingCancel(env);
-        const observe = jest.mocked(env.io.observe).getMockImplementation();
+        const observe = vi.mocked(env.io.observe).getMockImplementation();
         if (!observe) {
           throw new Error('Missing observation implementation');
         }
-        jest
-          .mocked(env.io.observe)
-          .mockImplementation(async (child, recordEvidence) => {
+        vi.mocked(env.io.observe).mockImplementation(
+          async (child, recordEvidence) => {
             if (
               visibility === 'missing' &&
               child.cancellations.length > 0 &&
@@ -389,7 +391,8 @@ describe('Lighter bounded Chase lifecycle', () => {
               );
             }
             return await observe(child, recordEvidence);
-          });
+          },
+        );
         const stopping = env.service.stop(
           owner,
           intent.handle,
@@ -397,7 +400,7 @@ describe('Lighter bounded Chase lifecycle', () => {
           'canceled',
         );
         setTimeout(() => terminal(env), 2000);
-        await jest.advanceTimersByTimeAsync(2500);
+        await vi.advanceTimersByTimeAsync(2500);
         const result = await stopping;
         expect(result.status).toBe('canceled');
         expect(result.children[0].cancellations).toStrictEqual([
@@ -418,13 +421,12 @@ describe('Lighter bounded Chase lifecycle', () => {
         const env = setup();
         await pendingCancel(env);
         if (visibility === 'missing') {
-          const observe = jest.mocked(env.io.observe).getMockImplementation();
+          const observe = vi.mocked(env.io.observe).getMockImplementation();
           if (!observe) {
             throw new Error('Missing observation implementation');
           }
-          jest
-            .mocked(env.io.observe)
-            .mockImplementation(async (child, recordEvidence) => {
+          vi.mocked(env.io.observe).mockImplementation(
+            async (child, recordEvidence) => {
               if (
                 child.cancellations.length > 0 &&
                 !env.observed.get('101')?.terminal
@@ -434,7 +436,8 @@ describe('Lighter bounded Chase lifecycle', () => {
                 );
               }
               return await observe(child, recordEvidence);
-            });
+            },
+          );
         }
         let finished = false;
         const stopping = env.service
@@ -443,9 +446,9 @@ describe('Lighter bounded Chase lifecycle', () => {
             finished = true;
             return result;
           });
-        await jest.advanceTimersByTimeAsync(9999);
+        await vi.advanceTimersByTimeAsync(9999);
         expect(finished).toBe(false);
-        await jest.advanceTimersByTimeAsync(1);
+        await vi.advanceTimersByTimeAsync(1);
         expect((await stopping).status).toBe('termination_pending');
         const retrying = env.service.stop(
           owner,
@@ -454,7 +457,7 @@ describe('Lighter bounded Chase lifecycle', () => {
           'canceled',
         );
         setTimeout(() => terminal(env), 2000);
-        await jest.advanceTimersByTimeAsync(2500);
+        await vi.advanceTimersByTimeAsync(2500);
         expect((await retrying).status).toBe('canceled');
         expect(env.io.cancel).toHaveBeenCalledTimes(1);
         expect(env.io.place).toHaveBeenCalledTimes(1);
@@ -464,11 +467,11 @@ describe('Lighter bounded Chase lifecycle', () => {
     it('settles delayed terminal evidence after cancellation response loss without replay', async () => {
       const env = setup();
       await pendingCancel(env);
-      const cancel = jest.mocked(env.io.cancel).getMockImplementation();
+      const cancel = vi.mocked(env.io.cancel).getMockImplementation();
       if (!cancel) {
         throw new Error('Missing cancellation implementation');
       }
-      jest.mocked(env.io.cancel).mockImplementation(async (child, hooks) => {
+      vi.mocked(env.io.cancel).mockImplementation(async (child, hooks) => {
         await cancel(child, hooks);
         throw new Error('cancel response lost');
       });
@@ -479,7 +482,7 @@ describe('Lighter bounded Chase lifecycle', () => {
         'canceled',
       );
       setTimeout(() => terminal(env), 2000);
-      await jest.advanceTimersByTimeAsync(2500);
+      await vi.advanceTimersByTimeAsync(2500);
       const result = await stopping;
       expect(result.status).toBe('canceled');
       expect(result.children[0].cancellations).toStrictEqual([
@@ -503,10 +506,10 @@ describe('Lighter bounded Chase lifecycle', () => {
             finished = true;
             return result;
           });
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
         expect(finished).toBe(false);
         injectedNow = change === 'deadline' ? 110000 : 99999;
-        await jest.advanceTimersByTimeAsync(250);
+        await vi.advanceTimersByTimeAsync(250);
         expect(finished).toBe(true);
         expect((await stopping).status).toBe('termination_pending');
         expect(env.io.cancel).toHaveBeenCalledTimes(1);
@@ -531,11 +534,11 @@ describe('Lighter bounded Chase lifecycle', () => {
         }
       }, 1000);
       setTimeout(() => terminal(env, '0.00005', '5'), 2000);
-      await jest.advanceTimersByTimeAsync(1250);
+      await vi.advanceTimersByTimeAsync(1250);
       expect([...env.disk.values()].join(' ')).toContain(
         '"executedSize":"0.00005"',
       );
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       expect(await stopping).toMatchObject({
         status: 'canceled',
         executedSize: '0.00005',
@@ -551,13 +554,13 @@ describe('Lighter bounded Chase lifecycle', () => {
       const stopping = env.service
         .stop(owner, intent.handle, env.io, 'canceled')
         .catch((error: unknown) => error);
-      await jest.advanceTimersByTimeAsync(1000);
+      await vi.advanceTimersByTimeAsync(1000);
       const disk = [...env.disk.entries()];
-      const reads = jest.mocked(env.io.observe).mock.calls.length;
-      jest.mocked(env.io.assertCurrent).mockImplementation(() => {
+      const reads = vi.mocked(env.io.observe).mock.calls.length;
+      vi.mocked(env.io.assertCurrent).mockImplementation(() => {
         throw new Error('owner changed');
       });
-      await jest.advanceTimersByTimeAsync(250);
+      await vi.advanceTimersByTimeAsync(250);
       expect(await stopping).toMatchObject({ message: 'owner changed' });
       expect([...env.disk.entries()]).toStrictEqual(disk);
       expect(env.io.observe).toHaveBeenCalledTimes(reads);
@@ -567,18 +570,18 @@ describe('Lighter bounded Chase lifecycle', () => {
     it('retains foreign identity failures instead of retrying them as visibility lag', async () => {
       const env = setup();
       await pendingCancel(env);
-      const observe = jest.mocked(env.io.observe).getMockImplementation();
+      const observe = vi.mocked(env.io.observe).getMockImplementation();
       if (!observe) {
         throw new Error('Missing observation implementation');
       }
-      jest
-        .mocked(env.io.observe)
-        .mockImplementation(async (child, recordEvidence) => {
+      vi.mocked(env.io.observe).mockImplementation(
+        async (child, recordEvidence) => {
           if (child.cancellations.length > 0) {
             throw new Error('foreign child identity');
           }
           return await observe(child, recordEvidence);
-        });
+        },
+      );
       const result = await env.service.stop(
         owner,
         intent.handle,
@@ -589,8 +592,8 @@ describe('Lighter bounded Chase lifecycle', () => {
         status: 'termination_pending',
         error: 'foreign child identity',
       });
-      const reads = jest.mocked(env.io.observe).mock.calls.length;
-      await jest.advanceTimersByTimeAsync(10000);
+      const reads = vi.mocked(env.io.observe).mock.calls.length;
+      await vi.advanceTimersByTimeAsync(10000);
       expect(env.io.observe).toHaveBeenCalledTimes(reads);
       expect(env.io.cancel).toHaveBeenCalledTimes(1);
     });
@@ -600,11 +603,11 @@ describe('Lighter bounded Chase lifecycle', () => {
     it('persists a fresh bounded price after slow preparation without changing the original intent', async () => {
       const env = setup();
       const initial = structuredClone(intent);
-      const place = jest.mocked(env.io.place).getMockImplementation();
+      const place = vi.mocked(env.io.place).getMockImplementation();
       if (!place) {
         throw new Error('Missing placement implementation');
       }
-      jest.mocked(env.io.place).mockImplementation(async (child, hooks) => {
+      vi.mocked(env.io.place).mockImplementation(async (child, hooks) => {
         const { clientOrderId } = child;
         env.setNow(106000);
         await hooks.prepareQuote('99999.9');
@@ -639,7 +642,7 @@ describe('Lighter bounded Chase lifecycle', () => {
             refusal = error;
           }
         };
-        jest.mocked(env.io.place).mockImplementation(async (child, hooks) => {
+        vi.mocked(env.io.place).mockImplementation(async (child, hooks) => {
           retained = hooks;
           await hooks.prepareQuote('99999.9');
           await hooks.signed({
@@ -687,7 +690,7 @@ describe('Lighter bounded Chase lifecycle', () => {
       { now: 160000, error: 'duration elapsed' },
     ])('refuses a fresh quote with $error', async ({ now, error }) => {
       const env = setup();
-      jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+      vi.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
         env.setNow(now);
         await hooks.prepareQuote('99999.9');
       });
@@ -712,8 +715,8 @@ describe('Lighter bounded Chase lifecycle', () => {
           }
           env.disk.set(key, value);
         });
-        const signed = jest.fn();
-        jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+        const signed = vi.fn();
+        vi.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
           await hooks.prepareQuote('99999.9');
           signed();
           await hooks.signed({
@@ -737,9 +740,9 @@ describe('Lighter bounded Chase lifecycle', () => {
   it('cancels the exact owned child despite unavailable fill reconciliation and retains pending termination', async () => {
     const env = setup();
     await env.service.start(intent, env.io);
-    jest
-      .mocked(env.io.observe)
-      .mockRejectedValue(new Error('fill history unavailable'));
+    vi.mocked(env.io.observe).mockRejectedValue(
+      new Error('fill history unavailable'),
+    );
     const result = await env.service.stop(
       owner,
       intent.handle,
@@ -766,7 +769,7 @@ describe('Lighter bounded Chase lifecycle', () => {
     'rejects invalid exact signed hash %s before transport',
     async (txHash) => {
       const env = setup();
-      jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+      vi.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
         await hooks.signed({ nonce: 8, txHash, expiresAt: 110000 });
       });
       const result = await env.service.start(intent, env.io);
@@ -777,7 +780,7 @@ describe('Lighter bounded Chase lifecycle', () => {
   it('persists immutable child ownership before sign and attempt before transport', async () => {
     const env = setup();
     const submitted: LighterChaseChild[] = [];
-    jest.mocked(env.io.place).mockImplementation(async (child, hooks) => {
+    vi.mocked(env.io.place).mockImplementation(async (child, hooks) => {
       expect([...env.disk.values()].join(' ')).toContain(child.clientOrderId);
       await hooks.signed({ nonce: 8, txHash: 'abcdabcd', expiresAt: 110000 });
       expect([...env.disk.values()].join(' ')).toContain('signed');
@@ -798,7 +801,7 @@ describe('Lighter bounded Chase lifecycle', () => {
   it('subtracts authoritative partial fills during cancellation before replacement', async () => {
     const env = setup();
     await env.service.start(intent, env.io);
-    jest.mocked(env.io.cancel).mockImplementation(async (child, hooks) => {
+    vi.mocked(env.io.cancel).mockImplementation(async (child, hooks) => {
       await hooks.signed({ nonce: 9, txHash: 'cdefcdef', expiresAt: 111000 });
       await hooks.beforeDispatch();
       env.observed.set(child.clientOrderId, {
@@ -820,30 +823,30 @@ describe('Lighter bounded Chase lifecycle', () => {
     expect(result.executedSize).toBe('0.00005');
   });
   it('never replaces an acknowledged cancel whose child remains live', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     try {
       const env = setup();
       await env.service.start(intent, env.io);
-      jest.mocked(env.io.cancel).mockImplementation(async (_child, hooks) => {
+      vi.mocked(env.io.cancel).mockImplementation(async (_child, hooks) => {
         await hooks.signed({ nonce: 9, txHash: 'cdefcdef', expiresAt: 111000 });
         await hooks.beforeDispatch();
       });
       env.setNow(101000);
       env.setQuote('99999');
       const ticking = env.service.tick(owner, intent.handle, env.io);
-      await jest.advanceTimersByTimeAsync(10000);
+      await vi.advanceTimersByTimeAsync(10000);
       const result = await ticking;
       expect(result.status).toBe('active');
       expect(env.io.place).toHaveBeenCalledTimes(1);
       await env.service.tick(owner, intent.handle, env.io);
       expect(env.io.cancel).toHaveBeenCalledTimes(1);
     } finally {
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
   it('preserves response loss across restart without creating or resuming a child', async () => {
     const env = setup();
-    jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+    vi.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
       await hooks.signed({ nonce: 8, txHash: 'deadbeef', expiresAt: 110000 });
       await hooks.beforeDispatch();
       throw new Error('response lost');
@@ -888,7 +891,7 @@ describe('Lighter bounded Chase lifecycle', () => {
   });
   it('releases a signed child refused before transport so stop needs no cancel', async () => {
     const env = setup();
-    jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+    vi.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
       await hooks.signed({ nonce: 8, txHash: 'abcdabcd', expiresAt: 110000 });
       throw new Error('nonce ledger full');
     });
@@ -971,10 +974,8 @@ describe('Lighter bounded Chase lifecycle', () => {
     const env = setup();
     await env.service.start(intent, env.io);
     env.setNow(101000);
-    jest.mocked(env.io.quote).mockRejectedValue(new Error('stale book'));
-    jest
-      .mocked(env.io.cancel)
-      .mockRejectedValue(new Error('cancel unavailable'));
+    vi.mocked(env.io.quote).mockRejectedValue(new Error('stale book'));
+    vi.mocked(env.io.cancel).mockRejectedValue(new Error('cancel unavailable'));
     expect((await env.service.tick(owner, intent.handle, env.io)).status).toBe(
       'termination_pending',
     );
@@ -984,7 +985,7 @@ describe('Lighter bounded Chase lifecycle', () => {
     const env = setup();
     const pending = createDeferred<void>();
     const signed = createDeferred<void>();
-    jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+    vi.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
       await hooks.signed({ nonce: 8, txHash: 'abcdabcd', expiresAt: 110000 });
       signed.resolve();
       await pending.promise;
@@ -999,24 +1000,24 @@ describe('Lighter bounded Chase lifecycle', () => {
   });
   it('does not report an active session when interrupted after an accepted child', async () => {
     const env = setup();
-    const original = jest.mocked(env.io.observe).getMockImplementation();
+    const original = vi.mocked(env.io.observe).getMockImplementation();
     if (!original) {
       throw new Error('Missing observation implementation');
     }
-    jest
-      .mocked(env.io.observe)
-      .mockImplementation(async (child, recordEvidence) => {
+    vi.mocked(env.io.observe).mockImplementation(
+      async (child, recordEvidence) => {
         const result = await original(child, recordEvidence);
         env.service.interrupt();
         return result;
-      });
+      },
+    );
     expect((await env.service.start(intent, env.io)).status).toBe(
       'termination_pending',
     );
   });
   it('refuses a financial continuation whose quote aged during signing', async () => {
     const env = setup();
-    jest.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
+    vi.mocked(env.io.place).mockImplementation(async (_child, hooks) => {
       await hooks.signed({ nonce: 8, txHash: 'abcddcba', expiresAt: 120000 });
       env.setNow(106000);
       await hooks.beforeDispatch();
@@ -1028,7 +1029,7 @@ describe('Lighter bounded Chase lifecycle', () => {
   });
   it('refuses stale account/network authority before signing and during reads', async () => {
     const env = setup();
-    jest.mocked(env.io.assertCurrent).mockImplementation(() => {
+    vi.mocked(env.io.assertCurrent).mockImplementation(() => {
       throw new Error('owner changed');
     });
     await expect(env.service.start(intent, env.io)).rejects.toThrow(
@@ -1121,7 +1122,7 @@ describe('Lighter bounded Chase lifecycle', () => {
       return env.disk.get(key) ?? null;
     });
     const writes = env.storage.setItem.mock.calls.length;
-    const reads = jest.mocked(env.io.observe).mock.calls.length;
+    const reads = vi.mocked(env.io.observe).mock.calls.length;
     const stopping = env.service.stopLocally(
       owner,
       intent.handle,
@@ -1136,7 +1137,7 @@ describe('Lighter bounded Chase lifecycle', () => {
     await expect(stopping).rejects.toThrow('session changed');
 
     expect(env.storage.setItem).toHaveBeenCalledTimes(writes);
-    expect(jest.mocked(env.io.observe)).toHaveBeenCalledTimes(reads);
+    expect(vi.mocked(env.io.observe)).toHaveBeenCalledTimes(reads);
     expect(env.io.cancel).not.toHaveBeenCalled();
     expect((await env.service.list(owner, env.io))[0].children).toStrictEqual(
       retained.children,
@@ -1185,7 +1186,7 @@ describe('Lighter bounded Chase lifecycle', () => {
     const env = setup();
     await env.service.start(intent, env.io);
     env.setNow(159000);
-    jest.mocked(env.io.quote).mockImplementation(async () => {
+    vi.mocked(env.io.quote).mockImplementation(async () => {
       env.setNow(160000);
       return '99999';
     });
@@ -1218,7 +1219,7 @@ describe('Lighter bounded Chase lifecycle', () => {
   it('preserves the first stop reason while cleanup remains uncertain', async () => {
     const env = setup();
     await env.service.start(intent, env.io);
-    jest.mocked(env.io.cancel).mockRejectedValue(new Error('unavailable'));
+    vi.mocked(env.io.cancel).mockRejectedValue(new Error('unavailable'));
     await env.service.stop(owner, intent.handle, env.io, 'canceled');
     const result = await env.service.stop(
       owner,
@@ -1235,7 +1236,7 @@ describe('Lighter bounded Chase lifecycle', () => {
     env.setNow(101000);
     const quoted = createDeferred<void>();
     const pending = createDeferred<string>();
-    jest.mocked(env.io.quote).mockImplementation(async () => {
+    vi.mocked(env.io.quote).mockImplementation(async () => {
       quoted.resolve();
       return await pending.promise;
     });

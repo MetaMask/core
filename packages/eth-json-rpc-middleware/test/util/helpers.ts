@@ -9,6 +9,8 @@ import type {
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import { klona } from 'klona/full';
 import { isDeepStrictEqual } from 'util';
+import { expect, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
 import type { WalletMiddlewareKeyValues } from '../../src/wallet.js';
 
@@ -86,14 +88,14 @@ export type ProviderRequestStub<
 /**
  * Creates a middleware function that ends the request, but not before ensuring
  * that the result has been filled with something. Additionally this function
- * is a Jest mock function so that you can make assertions on it.
+ * is a mock function so that you can make assertions on it.
  *
  * @template Params - The type that represents the request params.
  * @template Result - The type that represents the result.
  * @returns The created middleware, as a mock function.
  */
 export function createFinalMiddlewareWithDefaultResult(): JsonRpcMiddleware<JsonRpcRequest> {
-  return jest.fn(async ({ next }) => {
+  return vi.fn(async ({ next }) => {
     // Not a Node.js callback
     // eslint-disable-next-line n/callback-return
     const result = await next();
@@ -249,7 +251,7 @@ export function createStubForGenericRequest<
  * `provider.request`.
  */
 export function expectProviderRequestNotToHaveBeenMade(
-  requestSpy: jest.SpyInstance,
+  requestSpy: MockInstance,
   requestMatcher: Partial<JsonRpcRequest>,
 ): void {
   expect(
@@ -281,10 +283,10 @@ export function stubProviderRequests<
 >(
   provider: InternalProvider,
   stubs: ProviderRequestStub<Params, Result>[],
-): jest.SpyInstance<Promise<Json>, Parameters<InternalProvider['request']>> {
+): MockInstance<InternalProvider['request']> {
   const remainingStubs = klona(stubs);
   const callNumbersByRequest = new Map<Partial<JsonRpcRequest>, number>();
-  return jest.spyOn(provider, 'request').mockImplementation(async (request) => {
+  return vi.spyOn(provider, 'request').mockImplementation(async (request) => {
     const stubIndex = remainingStubs.findIndex((stub) =>
       requestMatches(stub.request, request),
     );

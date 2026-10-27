@@ -2,6 +2,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import nock from 'nock';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { ERC721Standard } from './ERC721Standard.js';
 

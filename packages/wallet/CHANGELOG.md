@@ -7,9 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/claims-controller` from `^1.0.4` to `^1.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/shield-controller` from `^7.0.5` to `^7.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/subscription-controller` from `^15.0.0` to `^15.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [20.0.0]
+
+### Added
+
+- **BREAKING:** Add `GeolocationController` and `GeolocationApiService` to the default initialization configurations ([#11058](https://github.com/MetaMask/core/pull/11058))
+  - Optional `instanceOptions.geolocationApiService` accepts `env`, `fetch`, `ttlMs`, and `policyOptions`. Defaults to production and `globalThis.fetch`.
+  - `GeolocationController` delegates `GeolocationApiService:fetchGeolocationData`.
+  - Hosts that already register `GeolocationController` or `GeolocationApiService` on the wallet root messenger must remove them before upgrading, or messenger registration will collide.
+  - Hosts no longer need to register `GeolocationController` when `AnalyticsController` `isGeolocationEnabled` is `true`.
+
+### Changed
+
+- Add `@metamask/geolocation-controller` as a dependency ([#11058](https://github.com/MetaMask/core/pull/11058))
+- Bump `@metamask/analytics-controller` from `^4.0.0` to `^4.1.0` ([#11072](https://github.com/MetaMask/core/pull/11072))
+
+## [19.1.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Fixed
+
+- Fall back to `options.analyticsId` when persisted `analyticsId` is null, undefined, or empty ([#11025](https://github.com/MetaMask/core/pull/11025))
 
 ## [19.0.0]
 
@@ -403,7 +430,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.1.0...@metamask/wallet@20.0.0
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.0...@metamask/wallet@19.1.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.1...@metamask/wallet@19.0.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@18.0.0...@metamask/wallet@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@17.1.0...@metamask/wallet@18.0.0

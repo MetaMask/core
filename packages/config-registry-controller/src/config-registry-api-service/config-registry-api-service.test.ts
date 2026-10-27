@@ -195,9 +195,8 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('does not include If-None-Match header when etag is undefined', async () => {
-      const scope = nock(UAT_ORIGIN)
+      const scope = nock(UAT_ORIGIN, { badheaders: ['If-None-Match'] })
         .get(CONFIG_PATH)
-        .matchHeader('If-None-Match', (val) => val === undefined)
         .reply(200, MOCK_API_RESPONSE);
 
       const service = createService();

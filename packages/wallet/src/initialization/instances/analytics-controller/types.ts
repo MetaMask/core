@@ -23,8 +23,8 @@ export type AnalyticsControllerInstanceOptions = {
 
   /**
    * First-run analytics identifier. Must be a valid UUIDv4 unless the adapter
-   * sets `skipUUIDv4Check`. Persisted controller state overrides this value
-   * when present.
+   * sets `skipUUIDv4Check`. A non-empty persisted `analyticsId` overrides this
+   * value. `null`, `undefined`, or `''` in persisted state do not override it.
    */
   analyticsId: string;
 
@@ -38,8 +38,8 @@ export type AnalyticsControllerInstanceOptions = {
   isPreConsentQueueEnabled?: AnalyticsControllerOptions['isPreConsentQueueEnabled'];
 
   /**
-   * When omitted, the controller defaults to `false`. When enabled, hosts must
-   * register `GeolocationController` on the wallet root messenger.
+   * When omitted, the controller defaults to `false`. When enabled, wallet
+   * resolves location through the default `GeolocationController`.
    */
   isGeolocationEnabled?: AnalyticsControllerOptions['isGeolocationEnabled'];
 
