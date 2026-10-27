@@ -1,7 +1,6 @@
 import { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { setImmediate as realSetImmediate } from 'node:timers';
-import { vi } from 'vitest';
 
 /**
  * Resolve all pending promises.
@@ -14,33 +13,6 @@ import { vi } from 'vitest';
 export const flushPromises = async () => {
   return new Promise(realSetImmediate);
 };
-
-/**
- * Advances Vitest's fake timer by a specified duration in incremental steps.
- * Between each step, any enqueued promises are processed. Fake timers in testing libraries
- * allow simulation of time without actually waiting. However, they don't always account for
- * promises or other asynchronous operations that may get enqueued during the timer's duration.
- * By advancing time in incremental steps and flushing promises between each step,
- * this function ensures that both timers and promises are comprehensively processed.
- *
- * @param options - The options object.
- * @param options.duration - The total amount of time (in milliseconds) to advance the timer by.
- * @param options.stepSize - The incremental step size (in milliseconds) by which the timer is advanced in each iteration. Default is 1/4 of the duration.
- */
-export async function advanceTime({
-  duration,
-  stepSize = Math.floor(duration / 4),
-}: {
-  duration: number;
-  stepSize?: number;
-}): Promise<void> {
-  do {
-    await vi.advanceTimersByTimeAsync(stepSize);
-    await flushPromises();
-    // eslint-disable-next-line no-param-reassign
-    duration -= stepSize;
-  } while (duration > 0);
-}
 
 export function getFakeProvider() {
   return new InternalProvider({ engine: new JsonRpcEngine() });

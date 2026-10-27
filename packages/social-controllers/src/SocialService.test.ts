@@ -4,7 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SocialServiceErrorMessage, serviceName } from './social-constants.js';
 import type { SocialServiceMessenger } from './SocialService.js';
@@ -130,15 +130,10 @@ function createService(
 
 describe('SocialService', () => {
   const mockFetch = vi.fn();
-  const originalFetch = global.fetch;
 
   beforeEach(() => {
-    global.fetch = mockFetch;
+    vi.stubGlobal('fetch', mockFetch);
     mockFetch.mockReset();
-  });
-
-  afterAll(() => {
-    global.fetch = originalFetch;
   });
 
   describe('fetchLeaderboard', () => {
@@ -1354,6 +1349,50 @@ describe('SocialService', () => {
       expect(calledUrl).toContain('limit=25');
       expect(calledUrl).toContain('olderThan=older-cursor');
       expect(calledUrl).toContain('newerThan=newer-cursor');
+    });
+
+    it('appends repeated assetIds, profileId, and commentedOnly', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchFeed({
+        assetIds: [
+          'eip155:8453/erc20:0x532f27101965dd16442e59d40670faf5ebb142e4',
+          'eip155:999/perp:BTC',
+        ],
+        profileId: 'b9636944-7454-4339-8e54-647f5e6650fb',
+        commentedOnly: true,
+      });
+
+      const calledUrl = new URL(mockFetch.mock.calls[0][0] as string);
+      expect(calledUrl.searchParams.getAll('assetIds')).toStrictEqual([
+        'eip155:8453/erc20:0x532f27101965dd16442e59d40670faf5ebb142e4',
+        'eip155:999/perp:BTC',
+      ]);
+      expect(calledUrl.searchParams.get('profileId')).toBe(
+        'b9636944-7454-4339-8e54-647f5e6650fb',
+      );
+      expect(calledUrl.searchParams.get('commentedOnly')).toBe('true');
+    });
+
+    it('omits commentedOnly when it is false or unset', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchFeed({ commentedOnly: false });
+
+      const calledUrl = new URL(mockFetch.mock.calls[0][0] as string);
+      expect(calledUrl.searchParams.has('commentedOnly')).toBe(false);
+      expect(calledUrl.searchParams.has('assetIds')).toBe(false);
+      expect(calledUrl.searchParams.has('profileId')).toBe(false);
     });
 
     it('fetches the shared all scope with projection metadata', async () => {

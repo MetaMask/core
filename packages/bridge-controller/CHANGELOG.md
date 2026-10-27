@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [83.1.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -14,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@metamask/assets-controllers` from `^112.1.3` to `^112.2.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
 
 ## [83.0.0]
 
@@ -2169,7 +2173,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.0...HEAD
+[83.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.0.0...@metamask/bridge-controller@83.1.0
 [83.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.3...@metamask/bridge-controller@83.0.0
 [82.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.2...@metamask/bridge-controller@82.0.3
 [82.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.1...@metamask/bridge-controller@82.0.2
