@@ -12,9 +12,16 @@ MetaMask Mobile Hermes profile **run 39731720623** (main @ `9b830f28`,
 **1.86× regression** tracked in mobile issue #37813 (owner:
 assets-dev-team). The hottest assets-owned path is the
 `AssetsController` **`#updateState` producer** — the V5 balance
-reconciliation loop (`applyV5AccountBalanceUpdate`, ~258 ms self time in
-the warm-start scenario): every poll it re-normalizes every tracked
-balance through `new BigNumber(...).toFixed(...)` (imported
+reconciliation loop (`applyV5AccountBalanceUpdate`), whose subtree costs
+**≈166 ms of JS work in the "Measure Warm Start: Login To Wallet Screen"
+scenario** (≈101 ms in the sibling "Warm Start to Login Screen"; the
+function's own self time is small — the cost is in work it re-executes
+on every poll): the amount-normalize machinery (`regExpPrototypeTest` +
+`normalizeAmountString` + BigNumber `format`, ≈61 ms),
+`effectiveAccountBalancesV5` (≈23 ms), the type-fix `Set` construction
+(≈22 ms), `Object.keys` (≈20 ms), and native-asset id resolution
+(≈24 ms). In short: every poll it re-normalizes every tracked balance
+through `new BigNumber(...).toFixed(...)` (imported
 `normalizeAmountString`), rebuilds every balance object, re-parses every
 asset id for type reconciliation, and deep-compares metadata/prices with
 the fully general lodash `isEqual`.
