@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Uncategorized
 
 - test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
@@ -43,5 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
 - Bump `@metamask/perps-controller` from `^20.1.0` to `^21.0.0` ([#10988](https://github.com/MetaMask/core/pull/10988))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-middleware@1.0.0...@metamask/transaction-pay-middleware@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/transaction-pay-middleware@1.0.0
