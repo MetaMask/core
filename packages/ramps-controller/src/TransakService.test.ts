@@ -704,7 +704,6 @@ describe('TransakService', () => {
 
       const promise = service.verifyUserOtp('a@b.com', '000000', 'st');
       promise.catch(() => undefined);
-      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -986,7 +985,6 @@ describe('TransakService', () => {
       const promise = service.patchUser({
         personalDetails: { firstName: 'Fail' },
       });
-      promise.catch(() => undefined);
       promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
@@ -1332,7 +1330,6 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.getTranslation({ fiatCurrencyId: 'USD' });
-      promise.catch(() => undefined);
       promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
@@ -1893,7 +1890,6 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.getOrder(depositOrderId, '0x1234');
-      promise.catch(() => undefined);
       promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
