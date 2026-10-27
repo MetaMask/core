@@ -1,6 +1,7 @@
 import type { BalanceUpdate } from '@metamask/core-backend';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { cleanAll } from 'nock';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import { stateBalancesSurface } from './__fixtures__/assetSurfaces.js';
 import { createMockMessengers } from './__fixtures__/MockAssetControllerMessenger.js';

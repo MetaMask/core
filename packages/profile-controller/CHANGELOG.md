@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+## [1.2.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
 
 ## [1.1.1]
 
@@ -52,7 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `ProfileController` for managing user profile state, exposing `getMetaMaskProfile`, `getXprofile`, `createProfile`, `replaceProfile`, `updateProfile`, `deleteProfile`, `checkUsernameAvailability`, `getXAuthUrl`, `connectX`, and `getXAccount` via the messenger ([#10558](https://github.com/MetaMask/core/pull/10558))
 - Add `ProfileService` for communicating with the MetaMask Profile API, exposing `getProfile`, `createProfile`, `replaceProfile`, `updateProfile`, `deleteProfile`, `checkUsernameAvailability`, `getXAuthUrl`, `connectX`, and `getXAccount` via the messenger, with superstruct validation on all inputs and responses ([#10558](https://github.com/MetaMask/core/pull/10558))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.2.0...HEAD
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.1.1...@metamask/profile-controller@1.2.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.1.0...@metamask/profile-controller@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.0.1...@metamask/profile-controller@1.1.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-controller@1.0.0...@metamask/profile-controller@1.0.1

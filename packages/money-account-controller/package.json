@@ -1,6 +1,6 @@
 {
   "name": "@metamask/money-account-controller",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "MetaMask Money account controller",
   "keywords": [
     "Ethereum",
@@ -61,7 +61,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
     "@metamask/keyring-utils": "^5.0.0",
-    "@metamask/utils": "^12.0.0",
+    "@metamask/utils": "^12.0.1",
     "@typescript/native": "npm:typescript@^7.0.2",
     "rimraf": "^6.1.3",
     "typedoc": "^0.28.20",

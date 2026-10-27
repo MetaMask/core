@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { PerpsControllerMessenger } from '../../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { LighterWalletService } from '../../../src/services/LighterWalletService.js';

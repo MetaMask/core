@@ -1,19 +1,14 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AiDigestControllerErrorMessage } from './ai-digest-constants.js';
 import { AiDigestService } from './index.js';
 
 describe('AiDigestService', () => {
   const mockFetch = vi.fn();
-  const originalFetch = global.fetch;
 
   beforeEach(() => {
-    global.fetch = mockFetch;
+    vi.stubGlobal('fetch', mockFetch);
     mockFetch.mockReset();
-  });
-
-  afterAll(() => {
-    global.fetch = originalFetch;
   });
 
   describe('searchDigest', () => {

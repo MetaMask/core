@@ -2,6 +2,7 @@ import { toHex } from '@metamask/controller-utils';
 import type { CaipChainId } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 import nock, { cleanAll } from 'nock';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { SortTrendingBy } from './token-service.js';
 import {

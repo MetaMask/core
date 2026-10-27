@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { executeWithRetry } from './network-utils.js';
 
@@ -8,6 +8,10 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
   });
 
   describe('executeWithRetry', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('returns result on successful operation', async () => {
       const mockOperation = vi.fn().mockResolvedValue('success');
 
@@ -45,30 +49,19 @@ describe('BackupAndSync - UserStorage - NetworkUtils', () => {
     });
 
     it('uses default parameters', async () => {
+      vi.useFakeTimers();
       const mockOperation = vi
         .fn()
         .mockRejectedValueOnce(new Error('First failure'))
         .mockResolvedValueOnce('success on retry');
 
-      // Mock setTimeout to avoid actual delays but verify default parameters are used
-      const originalSetTimeout = setTimeout;
-      const mockSetTimeout = vi.fn().mockImplementation((callback) => {
-        callback(); // Execute immediately
-        return 'timeout-id';
-      });
-      /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-      global.setTimeout = mockSetTimeout as any;
+      const promise = executeWithRetry(mockOperation);
+      await vi.advanceTimersByTimeAsync(999);
+      expect(mockOperation).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
 
-      try {
-        const result = await executeWithRetry(mockOperation);
-
-        expect(result).toBe('success on retry');
-        expect(mockOperation).toHaveBeenCalledTimes(2);
-        // Verify default delay (1000ms) was used
-        expect(mockSetTimeout).toHaveBeenCalledWith(expect.any(Function), 1000);
-      } finally {
-        global.setTimeout = originalSetTimeout;
-      }
+      expect(await promise).toBe('success on retry');
+      expect(mockOperation).toHaveBeenCalledTimes(2);
     });
 
     it('works with custom parameters', async () => {

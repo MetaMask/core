@@ -7,6 +7,7 @@ import {
   string,
   type as structType,
 } from '@metamask/superstruct';
+import type { CaipAssetTypeOrId } from '@metamask/utils';
 
 // ---------------------------------------------------------------------------
 // Shared sub-types
@@ -38,6 +39,10 @@ export type FeedActorSummary = ProfileSummary & {
   winRate30d?: number | null;
   /** 30-day realized PnL in USD. */
   pnl30d?: number | null;
+  /** 30-day trading volume in USD, totaled across all chains. */
+  volumeUsd30d?: number | null;
+  /** 7-day trading volume in USD, totaled across all chains. */
+  volumeUsd7d?: number | null;
   /** 30-day sell count behind `winRate30d`. */
   tradeCount30d?: number | null;
   /** Profiles following this trader. */
@@ -116,6 +121,16 @@ export type LeaderboardEntry = {
   winRate7d?: number | null;
   roiPercent7d?: number | null;
   tradeCount7d?: number | null;
+  /**
+   * 30-day trading volume in USD. When the request includes `chains`, this is
+   * the sum of those chains; otherwise it is the all-chain total.
+   */
+  volumeUsd30d?: number | null;
+  /**
+   * 7-day trading volume in USD. When the request includes `chains`, this is
+   * the sum of those chains; otherwise it is the all-chain total.
+   */
+  volumeUsd7d?: number | null;
   pnlPerChain: Record<string, number>;
   followerCount: number;
   socialHandles: SocialHandles;
@@ -131,6 +146,17 @@ export type LeaderboardResponse = {
 // ---------------------------------------------------------------------------
 // Trader profile
 // ---------------------------------------------------------------------------
+
+/**
+ * Position flag for a wallet/token pair Codex marked as an insider.
+ *
+ * Those positions are excluded from the trader's realized PnL, and clients
+ * must not offer copy-trade on them.
+ */
+export const INSIDER_POSITION_FLAG = 'insider' as const;
+
+/** Known position flag value `developer`. */
+export const DEVELOPER_POSITION_FLAG = 'developer' as const;
 
 /** Values for `TraderProfileResponse.rankingTag` from social-api. */
 export const TRADER_RANKING_TAGS = ['shrimp', 'dolphin', 'whale'] as const;
@@ -269,6 +295,15 @@ export type Position = {
    * `costBasis`). Hyperliquid/perp positions only; absent for spot.
    */
   positionAmountWithLeverage?: number | null;
+  /**
+   * Server flags for this position. {@link INSIDER_POSITION_FLAG} means Codex
+   * marked this wallet and token as an insider pair, so the position is
+   * excluded from the trader's realized PnL and must not be copy-traded.
+   * {@link DEVELOPER_POSITION_FLAG} is the other known value. The list is
+   * open: unrecognized strings are preserved. Absent on older social-api
+   * builds; `null` when the deployment sends an explicit empty mark.
+   */
+  flags?: string[] | null;
 };
 
 export type Pagination = {
@@ -704,9 +739,25 @@ export type FetchFeedOptions = {
   scope?: FeedScope;
   /**
    * Filter by one or more chains, given as CAIP-2 chain ids (e.g.
-   * `eip155:8453`). Omit for the server defaults.
+   * `eip155:8453`). Omit for the server defaults. A set that excludes the chain
+   * of an asset in `assetIds` is rejected with a 400.
    */
   chains?: string[];
+  /**
+   * Only items in any of these assets, given as 1–10 CAIP-19 asset id (e.g.
+   * `eip155:8453/erc20:0x…`). Matches ANY of them. Invalid or unsupported asset
+   * ids (for example, ones with a token id) are rejected with a 400.
+   */
+  assetIds?: CaipAssetTypeOrId[];
+  /**
+   * Only this trader's items. A Clicker profile ID (UUID), not a wallet address.
+   */
+  profileId?: string;
+  /**
+   * When true, return only items that carry an author comment. Omitted from
+   * the request when false or unset.
+   */
+  commentedOnly?: boolean;
   /** Number of results to return. */
   limit?: number;
   /** Cursor for older items (infinite scroll). Use `pagination.olderCursor`. */

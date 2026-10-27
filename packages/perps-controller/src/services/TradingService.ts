@@ -2584,12 +2584,14 @@ export class TradingService {
     } finally {
       const completionDuration = this.#deps.performance.now() - startTime;
 
-      // Track batch close event (success or failure)
+      // Track batch close event (success or failure). A batch close always
+      // submits market orders, on both the provider and fallback paths.
       const batchCloseProps: PerpsAnalyticsProperties = {
         [PERPS_EVENT_PROPERTY.STATUS]:
           operationResult?.success && operationResult.successCount > 0
             ? PERPS_EVENT_VALUE.STATUS.EXECUTED
             : PERPS_EVENT_VALUE.STATUS.FAILED,
+        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: PERPS_EVENT_VALUE.ORDER_TYPE.MARKET,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
         [PERPS_EVENT_PROPERTY.NUMBER_POSITIONS_CLOSED]:

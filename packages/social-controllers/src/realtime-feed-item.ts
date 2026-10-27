@@ -92,6 +92,7 @@ const RawHydratedPositionStruct = structType({
   firstTradeAt: optional(nullable(number())),
   holdTimeMs: optional(nullable(number())),
   entryPriceUsd: optional(nullable(number())),
+  flags: optional(nullable(array(string()))),
 });
 
 export type RealtimeFeedEventData = FeedItem;
@@ -219,6 +220,8 @@ const toActor = (actor: {
   imageUrl: actor.images.sm ?? actor.images.raw,
   winRate30d: readNullableNumber(actor.profile.metadata.winRate30d),
   pnl30d: readNullableNumber(actor.profile.metadata.pnl30d),
+  volumeUsd30d: readNullableNumber(actor.profile.metadata.volumeUsd30d),
+  volumeUsd7d: readNullableNumber(actor.profile.metadata.volumeUsd7d),
   tradeCount30d: readNullableNumber(actor.profile.metadata.tradeCount30d),
   ...(actor.followerCount === undefined
     ? {}
@@ -295,6 +298,9 @@ export const normalizeRealtimeFeedItem = (
     firstTradeAt: value.firstTradeAt ?? null,
     holdTimeMs: value.holdTimeMs ?? null,
     entryPriceUsd: value.entryPriceUsd ?? null,
+    // `flags` lives on the hydrated card, beside `metadata`. The server does
+    // not set `metadata.flags`.
+    ...(value.flags === undefined ? {} : { flags: value.flags }),
   };
 };
 

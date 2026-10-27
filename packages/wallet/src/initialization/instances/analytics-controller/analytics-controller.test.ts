@@ -7,6 +7,8 @@ import type {
   AnalyticsTrackingEvent,
 } from '@metamask/analytics-controller';
 import { Messenger } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {
@@ -30,10 +32,10 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
 }
 
 type StubPlatformAdapter = AnalyticsPlatformAdapter & {
-  track: jest.Mock;
-  identify: jest.Mock;
-  view: jest.Mock;
-  onSetupCompleted: jest.Mock;
+  track: Mock;
+  identify: Mock;
+  view: Mock;
+  onSetupCompleted: Mock;
 };
 
 /**
@@ -43,10 +45,10 @@ type StubPlatformAdapter = AnalyticsPlatformAdapter & {
  */
 function createStubPlatformAdapter(): StubPlatformAdapter {
   return {
-    track: jest.fn(),
-    identify: jest.fn(),
-    view: jest.fn(),
-    onSetupCompleted: jest.fn(),
+    track: vi.fn(),
+    identify: vi.fn(),
+    view: vi.fn(),
+    onSetupCompleted: vi.fn(),
   };
 }
 
@@ -88,7 +90,7 @@ describe('analyticsController', () => {
     });
   });
 
-  it('lets persisted state override the supplied analyticsId', () => {
+  it('lets a non-empty persisted analyticsId override the supplied analyticsId', () => {
     const messenger = analyticsController.getMessenger(getRootMessenger());
 
     const instance = analyticsController.init({
@@ -102,6 +104,25 @@ describe('analyticsController', () => {
 
     expect(instance.state.analyticsId).toBe(PERSISTED_ANALYTICS_ID);
   });
+
+  it.each([null, undefined, ''])(
+    'falls back to options.analyticsId when persisted analyticsId is %p',
+    (persistedAnalyticsId) => {
+      const messenger = analyticsController.getMessenger(getRootMessenger());
+
+      const instance = analyticsController.init({
+        state: {
+          // @ts-expect-error: Intentionally using invalid values.
+          analyticsId: persistedAnalyticsId,
+          optedIn: false,
+        },
+        messenger,
+        options: getAnalyticsOptions(),
+      });
+
+      expect(instance.state.analyticsId).toBe(TEST_ANALYTICS_ID);
+    },
+  );
 
   it('forwards isPreConsentQueueEnabled so undecided track events are queued', () => {
     const messenger = analyticsController.getMessenger(getRootMessenger());
@@ -162,7 +183,7 @@ describe('analyticsController', () => {
 
   it('delegates ConfigRegistryController and GeolocationController actions', () => {
     const parent = getRootMessenger();
-    const delegateSpy = jest.spyOn(parent, 'delegate');
+    const delegateSpy = vi.spyOn(parent, 'delegate');
     const messenger = analyticsController.getMessenger(parent);
 
     expect(delegateSpy).toHaveBeenCalledWith({

@@ -3,82 +3,81 @@
  * Shared provider mocks for Perps tests
  * Provides reusable mock implementations for HyperLiquidProvider and related interfaces
  */
-import { type HyperLiquidProvider } from '@metamask/perps-controller';
+import type { HyperLiquidProvider } from '@metamask/perps-controller';
+import { vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
 
 import { REFERRAL_CONFIG } from '../../src/constants/hyperLiquidConfig.js';
 
-export const createMockHyperLiquidProvider =
-  (): jest.Mocked<HyperLiquidProvider> =>
-    ({
-      protocolId: 'hyperliquid',
-      initialize: jest.fn(),
-      isReadyToTrade: jest.fn(),
-      toggleTestnet: jest.fn(),
-      getPositions: jest.fn(),
-      getAccountState: jest.fn(),
-      getHistoricalPortfolio: jest.fn().mockResolvedValue({
-        totalBalance24hAgo: '10000',
-        totalBalance7dAgo: '9500',
-        totalBalance30dAgo: '9000',
-      }),
-      getMarkets: jest.fn(),
-      getOrderCapabilities: jest.fn().mockResolvedValue({
-        status: 'ready',
-        providerId: 'hyperliquid',
-        supportedStrategies: ['twap', 'scale', 'chase'],
-      }),
-      getScalePriceLadder: jest.fn().mockResolvedValue({
-        status: 'ready',
-        providerId: 'hyperliquid',
-        prices: ['100', '150', '200'],
-      }),
-      placeOrder: jest.fn(),
-      editOrder: jest.fn(),
-      cancelOrder: jest.fn(),
-      cancelOrders: jest.fn(),
-      getTwapOrders: jest.fn().mockResolvedValue([]),
-      getChaseOrders: jest.fn().mockResolvedValue([]),
-      suspendChaseOrders: jest.fn().mockResolvedValue([]),
-      closePosition: jest.fn(),
-      closePositions: jest.fn(),
-      withdraw: jest.fn(),
-      getDepositRoutes: jest.fn(),
-      getWithdrawalRoutes: jest.fn(),
-      validateDeposit: jest.fn().mockResolvedValue({ isValid: true }),
-      validateOrder: jest.fn().mockResolvedValue({ isValid: true }),
-      validateClosePosition: jest.fn().mockResolvedValue({ isValid: true }),
-      validateWithdrawal: jest.fn().mockResolvedValue({ isValid: true }),
-      subscribeToPrices: jest.fn(),
-      subscribeToPositions: jest.fn(),
-      subscribeToOrderFills: jest.fn(),
-      setLiveDataConfig: jest.fn(),
-      disconnect: jest.fn(),
-      updatePositionTPSL: jest.fn(),
-      calculateLiquidationPrice: jest.fn(),
-      calculateMaintenanceMargin: jest.fn(),
-      getMaxLeverage: jest.fn(),
-      calculateFees: jest.fn(),
-      previewPositionModify: jest.fn(),
-      getMarketDataWithPrices: jest.fn(),
-      getBlockExplorerUrl: jest.fn(),
-      getOrderFills: jest.fn(),
-      getOrders: jest.fn(),
-      getFunding: jest.fn(),
-      getCurrentAccountId: jest
-        .fn()
-        .mockResolvedValue(
-          'eip155:1:0x0000000000000000000000000000000000000001',
-        ),
-      getIsFirstTimeUser: jest.fn(),
-      getOpenOrders: jest.fn(),
-      subscribeToOrders: jest.fn(),
-      subscribeToAccount: jest.fn(),
-      setUserFeeDiscount: jest.fn(),
-      // WebSocket connection state methods
-      getWebSocketConnectionState: jest.fn(),
-      subscribeToConnectionState: jest.fn().mockReturnValue(() => undefined),
-      reconnect: jest.fn().mockResolvedValue(undefined),
-    }) as unknown as jest.Mocked<HyperLiquidProvider>;
+export const createMockHyperLiquidProvider = (): Mocked<HyperLiquidProvider> =>
+  ({
+    protocolId: 'hyperliquid',
+    initialize: vi.fn(),
+    isReadyToTrade: vi.fn(),
+    toggleTestnet: vi.fn(),
+    getPositions: vi.fn(),
+    getAccountState: vi.fn(),
+    getHistoricalPortfolio: vi.fn().mockResolvedValue({
+      totalBalance24hAgo: '10000',
+      totalBalance7dAgo: '9500',
+      totalBalance30dAgo: '9000',
+    }),
+    getMarkets: vi.fn(),
+    getOrderCapabilities: vi.fn().mockResolvedValue({
+      status: 'ready',
+      providerId: 'hyperliquid',
+      supportedStrategies: ['twap', 'scale', 'chase'],
+    }),
+    getScalePriceLadder: vi.fn().mockResolvedValue({
+      status: 'ready',
+      providerId: 'hyperliquid',
+      prices: ['100', '150', '200'],
+    }),
+    placeOrder: vi.fn(),
+    editOrder: vi.fn(),
+    cancelOrder: vi.fn(),
+    cancelOrders: vi.fn(),
+    getTwapOrders: vi.fn().mockResolvedValue([]),
+    getChaseOrders: vi.fn().mockResolvedValue([]),
+    suspendChaseOrders: vi.fn().mockResolvedValue([]),
+    closePosition: vi.fn(),
+    closePositions: vi.fn(),
+    withdraw: vi.fn(),
+    getDepositRoutes: vi.fn(),
+    getWithdrawalRoutes: vi.fn(),
+    validateDeposit: vi.fn().mockResolvedValue({ isValid: true }),
+    validateOrder: vi.fn().mockResolvedValue({ isValid: true }),
+    validateClosePosition: vi.fn().mockResolvedValue({ isValid: true }),
+    validateWithdrawal: vi.fn().mockResolvedValue({ isValid: true }),
+    subscribeToPrices: vi.fn(),
+    subscribeToPositions: vi.fn(),
+    subscribeToOrderFills: vi.fn(),
+    setLiveDataConfig: vi.fn(),
+    disconnect: vi.fn(),
+    updatePositionTPSL: vi.fn(),
+    calculateLiquidationPrice: vi.fn(),
+    calculateMaintenanceMargin: vi.fn(),
+    getMaxLeverage: vi.fn(),
+    calculateFees: vi.fn(),
+    previewPositionModify: vi.fn(),
+    getMarketDataWithPrices: vi.fn(),
+    getBlockExplorerUrl: vi.fn(),
+    getOrderFills: vi.fn(),
+    getOrders: vi.fn(),
+    getFunding: vi.fn(),
+    getCurrentAccountId: vi
+      .fn()
+      .mockResolvedValue('eip155:1:0x0000000000000000000000000000000000000001'),
+    getIsFirstTimeUser: vi.fn(),
+    getOpenOrders: vi.fn(),
+    subscribeToOrders: vi.fn(),
+    subscribeToAccount: vi.fn(),
+    setUserFeeDiscount: vi.fn(),
+    // WebSocket connection state methods
+    getWebSocketConnectionState: vi.fn(),
+    subscribeToConnectionState: vi.fn().mockReturnValue(() => undefined),
+    reconnect: vi.fn().mockResolvedValue(undefined),
+  }) as unknown as Mocked<HyperLiquidProvider>;
 
 export const createMockOrder = (overrides = {}) => ({
   orderId: 'order-1',
@@ -153,9 +152,9 @@ export function createFrontendOpenOrder(
 }
 
 export const createMockInfoClient = (
-  overrides: Record<string, unknown> = {},
-) => ({
-  clearinghouseState: jest.fn().mockResolvedValue({
+  overrides: Record<string, Mock> = {},
+): Record<string, Mock> => ({
+  clearinghouseState: vi.fn().mockResolvedValue({
     marginSummary: {
       totalMarginUsed: '500',
       accountValue: '10500',
@@ -200,22 +199,22 @@ export const createMockInfoClient = (
       totalMarginUsed: '5000',
     },
   }),
-  spotClearinghouseState: jest.fn().mockResolvedValue({
+  spotClearinghouseState: vi.fn().mockResolvedValue({
     balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
   }),
   // Mode-aware fold gate reads userAbstraction; default to unifiedAccount
   // so tests that predated the gate still see spot folded into spendable/withdrawable.
-  userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
+  userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
   // Single-signer account by default; Hyperliquid returns null when the user
   // has no multi-sig signer set.
-  userToMultiSigSigners: jest.fn().mockResolvedValue(null),
-  meta: jest.fn().mockResolvedValue({
+  userToMultiSigSigners: vi.fn().mockResolvedValue(null),
+  meta: vi.fn().mockResolvedValue({
     universe: [
       { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
       { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
     ],
   }),
-  metaAndAssetCtxs: jest.fn().mockResolvedValue([
+  metaAndAssetCtxs: vi.fn().mockResolvedValue([
     {
       universe: [
         { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
@@ -243,17 +242,17 @@ export const createMockInfoClient = (
       },
     ],
   ]),
-  perpDexs: jest.fn().mockResolvedValue([null]),
-  allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
-  frontendOpenOrders: jest.fn().mockResolvedValue([]),
-  referral: jest.fn().mockResolvedValue({
+  perpDexs: vi.fn().mockResolvedValue([null]),
+  allMids: vi.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
+  frontendOpenOrders: vi.fn().mockResolvedValue([]),
+  referral: vi.fn().mockResolvedValue({
     referrerState: {
       stage: 'ready',
       data: { code: REFERRAL_CONFIG.MainnetCode },
     },
   }),
-  maxBuilderFee: jest.fn().mockResolvedValue(1),
-  userFees: jest.fn().mockResolvedValue({
+  maxBuilderFee: vi.fn().mockResolvedValue(1),
+  userFees: vi.fn().mockResolvedValue({
     feeSchedule: {
       cross: '0.00030',
       add: '0.00010',
@@ -262,7 +261,7 @@ export const createMockInfoClient = (
     },
     dailyUserVlm: [],
   }),
-  userNonFundingLedgerUpdates: jest.fn().mockResolvedValue([
+  userNonFundingLedgerUpdates: vi.fn().mockResolvedValue([
     {
       delta: { type: 'deposit', usdc: '100' },
       time: Date.now(),
@@ -274,7 +273,7 @@ export const createMockInfoClient = (
       hash: '0x456def',
     },
   ]),
-  portfolio: jest.fn().mockResolvedValue([
+  portfolio: vi.fn().mockResolvedValue([
     null,
     [
       null,
@@ -287,54 +286,54 @@ export const createMockInfoClient = (
       },
     ],
   ]),
-  spotMeta: jest.fn().mockResolvedValue({
+  spotMeta: vi.fn().mockResolvedValue({
     tokens: [
       { name: 'USDC', tokenId: '0xdef456', index: 0 },
       { name: 'USDT', tokenId: '0x789abc', index: 1 },
     ],
     universe: [],
   }),
-  historicalOrders: jest.fn().mockResolvedValue([]),
-  userFills: jest.fn().mockResolvedValue([]),
-  userFillsByTime: jest.fn().mockResolvedValue([]),
-  userFunding: jest.fn().mockResolvedValue([]),
+  historicalOrders: vi.fn().mockResolvedValue([]),
+  userFills: vi.fn().mockResolvedValue([]),
+  userFillsByTime: vi.fn().mockResolvedValue([]),
+  userFunding: vi.fn().mockResolvedValue([]),
   ...overrides,
 });
 
 export const createMockExchangeClient = (
-  overrides: Record<string, unknown> = {},
-) => ({
-  order: jest.fn().mockResolvedValue({
+  overrides: Record<string, Mock> = {},
+): Record<string, Mock> => ({
+  order: vi.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: 123 } }] } },
   }),
-  modify: jest.fn().mockResolvedValue({
+  modify: vi.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: '123' } }] } },
   }),
-  cancel: jest.fn().mockResolvedValue({
+  cancel: vi.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: ['success'] } },
   }),
-  withdraw3: jest.fn().mockResolvedValue({
+  withdraw3: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  updateLeverage: jest.fn().mockResolvedValue({
+  updateLeverage: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  updateIsolatedMargin: jest.fn().mockResolvedValue({
+  updateIsolatedMargin: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  approveBuilderFee: jest.fn().mockResolvedValue({
+  approveBuilderFee: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  setReferrer: jest.fn().mockResolvedValue({
+  setReferrer: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  sendAsset: jest.fn().mockResolvedValue({
+  sendAsset: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  agentSetAbstraction: jest.fn().mockResolvedValue({
+  agentSetAbstraction: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
   ...overrides,

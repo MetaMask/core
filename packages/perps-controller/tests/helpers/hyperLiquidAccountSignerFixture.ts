@@ -9,13 +9,15 @@
  * SDK, it signs through the wallet the provider initialized it with.
  *
  * Every test file that uses it must mock both services itself, since
- * jest.mock is hoisted per file:
+ * vi.mock is hoisted per file:
  *
- * jest.mock('../../../src/services/HyperLiquidClientService');
- * jest.mock('../../../src/services/HyperLiquidSubscriptionService');
+ * vi.mock('../../../src/services/HyperLiquidClientService');
+ * vi.mock('../../../src/services/HyperLiquidSubscriptionService');
  */
 import type { Hex } from '@metamask/utils';
 import { HyperliquidError } from '@nktkas/hyperliquid';
+import { vi } from 'vitest';
+import type { Mock, MockInstance, Mocked, MockedClass } from 'vitest';
 
 import {
   BUILDER_FEE_CONFIG,
@@ -60,10 +62,11 @@ import {
 
 const CACHED_PRICES: Record<string, string> = { BTC: '50000', ETH: '3000' };
 
-const MockedHyperLiquidClientService =
-  HyperLiquidClientService as jest.MockedClass<typeof HyperLiquidClientService>;
+const MockedHyperLiquidClientService = HyperLiquidClientService as MockedClass<
+  typeof HyperLiquidClientService
+>;
 const MockedHyperLiquidSubscriptionService =
-  HyperLiquidSubscriptionService as jest.MockedClass<
+  HyperLiquidSubscriptionService as MockedClass<
     typeof HyperLiquidSubscriptionService
   >;
 
@@ -215,13 +218,13 @@ export function referralAttempted(): boolean {
  * @returns The resolver mock, its answer and the "asked" signal.
  */
 export function createPendingResolver(): {
-  getAgentSigner: jest.Mock;
+  getAgentSigner: Mock;
   answer: ReturnType<typeof createDeferred<PerpsAgentSigner | null>>;
   asked: Promise<void>;
 } {
   const answer = createDeferred<PerpsAgentSigner | null>();
   const asked = createDeferred<void>();
-  const getAgentSigner = jest.fn(async () => {
+  const getAgentSigner = vi.fn(async () => {
     asked.resolve();
     return await answer.promise;
   });
@@ -248,14 +251,14 @@ export function bind(
 }
 
 type AccountSignerSuite = {
-  mockClientService: jest.Mocked<HyperLiquidClientService>;
-  loggerError: jest.SpyInstance;
-  trackPerpsEvent: jest.SpyInstance;
+  mockClientService: Mocked<HyperLiquidClientService>;
+  loggerError: MockInstance;
+  trackPerpsEvent: MockInstance;
 };
 
 let suite:
   | {
-      mockClientService: jest.Mocked<HyperLiquidClientService>;
+      mockClientService: Mocked<HyperLiquidClientService>;
       mockPlatformDependencies: PerpsPlatformDependencies;
     }
   | undefined;
@@ -269,53 +272,55 @@ let suite:
 export function setUpAccountSignerSuite(): AccountSignerSuite {
   TradingReadinessCache.clearAll();
   const mockPlatformDependencies = createMockInfrastructure();
-  const loggerError = jest.spyOn(mockPlatformDependencies.logger, 'error');
-  const trackPerpsEvent = jest.spyOn(
+  const loggerError = vi.spyOn(mockPlatformDependencies.logger, 'error');
+  const trackPerpsEvent = vi.spyOn(
     mockPlatformDependencies.metrics,
     'trackPerpsEvent',
   );
   const mockClientService = {
-    initialize: jest.fn(),
-    isInitialized: jest.fn().mockReturnValue(true),
-    isTestnetMode: jest.fn().mockReturnValue(false),
-    ensureInitialized: jest.fn(),
-    getExchangeClient: jest.fn().mockReturnValue(createMockExchangeClient()),
-    getInfoClient: jest.fn().mockReturnValue(createMockInfoClient()),
-    fetchHistoricalOrders: jest.fn().mockResolvedValue([]),
-    disconnect: jest.fn().mockResolvedValue(undefined),
-    toggleTestnet: jest.fn(),
-    setTestnetMode: jest.fn(),
-    getNetwork: jest.fn().mockReturnValue('mainnet'),
-    ensureSubscriptionClient: jest.fn().mockResolvedValue(undefined),
-    getSubscriptionClient: jest.fn(),
-    setOnReconnectCallback: jest.fn(),
-    setOnTerminateCallback: jest.fn(),
-    getConnectionState: jest.fn().mockReturnValue('connected'),
-  } as Partial<HyperLiquidClientService> as jest.Mocked<HyperLiquidClientService>;
+    initialize: vi.fn(),
+    isInitialized: vi.fn().mockReturnValue(true),
+    isTestnetMode: vi.fn().mockReturnValue(false),
+    ensureInitialized: vi.fn(),
+    getExchangeClient: vi.fn().mockReturnValue(createMockExchangeClient()),
+    getInfoClient: vi.fn().mockReturnValue(createMockInfoClient()),
+    fetchHistoricalOrders: vi.fn().mockResolvedValue([]),
+    disconnect: vi.fn().mockResolvedValue(undefined),
+    toggleTestnet: vi.fn(),
+    setTestnetMode: vi.fn(),
+    getNetwork: vi.fn().mockReturnValue('mainnet'),
+    ensureSubscriptionClient: vi.fn().mockResolvedValue(undefined),
+    getSubscriptionClient: vi.fn(),
+    setOnReconnectCallback: vi.fn(),
+    setOnTerminateCallback: vi.fn(),
+    getConnectionState: vi.fn().mockReturnValue('connected'),
+  } as Partial<HyperLiquidClientService> as Mocked<HyperLiquidClientService>;
   const mockSubscriptionService = {
-    subscribeToPrices: jest.fn().mockResolvedValue(jest.fn()),
-    subscribeToPositions: jest.fn().mockReturnValue(jest.fn()),
-    subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()),
-    clearAll: jest.fn(),
-    isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
-    getCachedPositionsForDex: jest.fn().mockReturnValue(null),
-    getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
-    getCachedPositions: jest.fn().mockReturnValue([]),
-    updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
-    setDexMetaCache: jest.fn(),
-    setDexAssetCtxsCache: jest.fn(),
-    getDexAssetCtxsCache: jest.fn().mockReturnValue(undefined),
-    getCachedPrice: jest.fn((symbol: string) => CACHED_PRICES[symbol]),
-    getLastAllMidsSnapshot: jest.fn().mockReturnValue(null),
-    isOrdersCacheInitialized: jest.fn().mockReturnValue(false),
-    getCachedOrders: jest.fn().mockReturnValue([]),
-    getOrdersCacheIfInitialized: jest.fn().mockReturnValue(null),
-    setUserAbstractionMode: jest.fn(),
-  } as Partial<HyperLiquidSubscriptionService> as jest.Mocked<HyperLiquidSubscriptionService>;
-  MockedHyperLiquidClientService.mockImplementation(() => mockClientService);
-  MockedHyperLiquidSubscriptionService.mockImplementation(
-    () => mockSubscriptionService,
-  );
+    subscribeToPrices: vi.fn().mockResolvedValue(vi.fn()),
+    subscribeToPositions: vi.fn().mockReturnValue(vi.fn()),
+    subscribeToOrderFills: vi.fn().mockReturnValue(vi.fn()),
+    clearAll: vi.fn(),
+    isPositionsCacheInitialized: vi.fn().mockReturnValue(false),
+    getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+    getFreshPositionsForAllDexs: vi.fn().mockReturnValue(null),
+    getCachedPositions: vi.fn().mockReturnValue([]),
+    updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
+    setDexMetaCache: vi.fn(),
+    setDexAssetCtxsCache: vi.fn(),
+    getDexAssetCtxsCache: vi.fn().mockReturnValue(undefined),
+    getCachedPrice: vi.fn((symbol: string) => CACHED_PRICES[symbol]),
+    getLastAllMidsSnapshot: vi.fn().mockReturnValue(null),
+    isOrdersCacheInitialized: vi.fn().mockReturnValue(false),
+    getCachedOrders: vi.fn().mockReturnValue([]),
+    getOrdersCacheIfInitialized: vi.fn().mockReturnValue(null),
+    setUserAbstractionMode: vi.fn(),
+  } as Partial<HyperLiquidSubscriptionService> as Mocked<HyperLiquidSubscriptionService>;
+  MockedHyperLiquidClientService.mockImplementation(function () {
+    return mockClientService;
+  });
+  MockedHyperLiquidSubscriptionService.mockImplementation(function () {
+    return mockSubscriptionService;
+  });
   suite = { mockClientService, mockPlatformDependencies };
   return { mockClientService, loggerError, trackPerpsEvent };
 }
@@ -327,27 +332,27 @@ type AccountSignerOptions = {
   };
   abstraction?: 'default' | 'unifiedAccount';
   getAgentSigner?: HyperLiquidCredentials['getAgentSigner'];
-  onAgentRejected?: jest.Mock;
+  onAgentRejected?: Mock;
   // Sign through a KeyringController instead of accountSigner.
   keyring?: boolean;
   // Build the provider for testnet.
   isTestnet?: boolean;
   // Extra SDK client methods, for the strategy order endpoints.
-  exchange?: Record<string, jest.Mock>;
-  info?: Record<string, jest.Mock>;
+  exchange?: Record<string, Mock>;
+  info?: Record<string, Mock>;
 };
 
 export type AccountSignerFixture = {
   accountSignerProvider: HyperLiquidProvider;
   accountSigner: {
-    signTypedData: jest.Mock;
-    signPersonalMessage: jest.Mock;
+    signTypedData: Mock;
+    signPersonalMessage: Mock;
   };
-  agentSigner: { address: Hex; signTypedData: jest.Mock };
-  call: jest.SpyInstance;
+  agentSigner: { address: Hex; signTypedData: Mock };
+  call: MockInstance;
   exchangeClient: ReturnType<typeof createMockExchangeClient>;
   infoClient: ReturnType<typeof createMockInfoClient>;
-  initialize: jest.Mock<Promise<void>, [HyperLiquidWalletParams]>;
+  initialize: Mock<(...args: [HyperLiquidWalletParams]) => Promise<void>>;
   // The wallet the provider last initialized the SDK clients with.
   sdkWallet: () => HyperLiquidWalletParams;
   // Report an exchange request and the venue's answer (undefined when the
@@ -394,19 +399,19 @@ export function createAccountSignerProvider(
   }
   const { mockClientService, mockPlatformDependencies } = suite;
   const accountSigner = {
-    signTypedData: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
-    signPersonalMessage: jest.fn(),
+    signTypedData: vi.fn().mockResolvedValue(MAIN_SIGNATURE),
+    signPersonalMessage: vi.fn(),
     ...options.signer,
   };
   const agentSigner = {
     address: AGENT_ADDRESS,
-    signTypedData: jest.fn().mockResolvedValue(AGENT_SIGNATURE),
+    signTypedData: vi.fn().mockResolvedValue(AGENT_SIGNATURE),
   };
   const { messenger, call, selectAccount, deselectAccount } = options.keyring
     ? createKeyringMessenger(MAIN_SIGNATURE)
     : createKeyringlessMessenger();
   let wallet: HyperLiquidWalletParams | undefined;
-  const initialize = jest.fn(async (initialized: HyperLiquidWalletParams) => {
+  const initialize = vi.fn(async (initialized: HyperLiquidWalletParams) => {
     wallet = initialized;
   });
   const sdkWallet = (): HyperLiquidWalletParams => {
@@ -463,12 +468,10 @@ export function createAccountSignerProvider(
     async () =>
       await signAndSend(payload, response);
   const exchangeClient = createMockExchangeClient({
-    agentSetAbstraction: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
-    setReferrer: jest.fn(signThroughSdkWallet(L1_PAYLOAD)),
-    approveBuilderFee: jest.fn(
-      signThroughSdkWallet(APPROVE_BUILDER_FEE_PAYLOAD),
-    ),
-    order: jest.fn(
+    agentSetAbstraction: vi.fn(signThroughSdkWallet(L1_PAYLOAD)),
+    setReferrer: vi.fn(signThroughSdkWallet(L1_PAYLOAD)),
+    approveBuilderFee: vi.fn(signThroughSdkWallet(APPROVE_BUILDER_FEE_PAYLOAD)),
+    order: vi.fn(
       signThroughSdkWallet(L1_PAYLOAD, {
         status: 'ok',
         response: {
@@ -479,7 +482,7 @@ export function createAccountSignerProvider(
     ...options.exchange,
   });
   const infoClient = createMockInfoClient({
-    userAbstraction: jest
+    userAbstraction: vi
       .fn()
       .mockResolvedValue(options.abstraction ?? 'default'),
     ...options.info,
@@ -489,11 +492,11 @@ export function createAccountSignerProvider(
   const clientService = {
     ...mockClientService,
     initialize,
-    getExchangeClient: jest.fn().mockReturnValue(exchangeClient),
-    getInfoClient: jest.fn().mockReturnValue(infoClient),
-  } as Partial<HyperLiquidClientService> as jest.Mocked<HyperLiquidClientService>;
+    getExchangeClient: vi.fn().mockReturnValue(exchangeClient),
+    getInfoClient: vi.fn().mockReturnValue(infoClient),
+  } as Partial<HyperLiquidClientService> as Mocked<HyperLiquidClientService>;
   MockedHyperLiquidClientService.mockImplementationOnce(
-    (_deps, serviceOptions) => {
+    function (_deps, serviceOptions) {
       onExchangeRequest = serviceOptions?.onExchangeRequest;
       return clientService;
     },

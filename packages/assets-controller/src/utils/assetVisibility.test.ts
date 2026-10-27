@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { getDefaultTrackedAssetsForChain } from '../defaults.js';
 import type {
   AssetsControllerState,

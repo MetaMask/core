@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { FrontendOrder } from '../../../src/types/hyperliquid-types.js';
 import {
   adaptOrderFromSDK,

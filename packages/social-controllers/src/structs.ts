@@ -36,6 +36,8 @@ const FeedActorStruct = assign(
   structType({
     winRate30d: optional(nullable(number())),
     pnl30d: optional(nullable(number())),
+    volumeUsd30d: optional(nullable(number())),
+    volumeUsd7d: optional(nullable(number())),
     tradeCount30d: optional(nullable(number())),
     followerCount: optional(nullable(number())),
   }),
@@ -64,6 +66,8 @@ export const PositionStruct = structType({
   perpPositionType: optional(nullable(enums(['long', 'short']))),
   perpLeverage: optional(nullable(number())),
   positionAmountWithLeverage: optional(nullable(number())),
+  // Open set: a flag this package does not know yet must still validate.
+  flags: optional(nullable(array(string()))),
 });
 
 export const CommentReactionProfileStruct = structType({
@@ -254,6 +258,8 @@ const LeaderboardEntryStruct = structType({
   winRate7d: optional(nullable(number())),
   roiPercent7d: optional(nullable(number())),
   tradeCount7d: optional(nullable(number())),
+  volumeUsd30d: optional(nullable(number())),
+  volumeUsd7d: optional(nullable(number())),
   pnlPerChain: record(string(), number()),
   followerCount: number(),
   socialHandles: SocialHandlesStruct,

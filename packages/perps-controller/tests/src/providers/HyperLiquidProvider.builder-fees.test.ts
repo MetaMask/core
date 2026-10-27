@@ -1,7 +1,9 @@
 /* eslint-disable */
-jest.mock('@nktkas/hyperliquid', () => ({}));
+vi.mock('@nktkas/hyperliquid', () => ({}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
 
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
@@ -23,6 +25,7 @@ import type {
   LiveDataConfig,
   OrderParams,
 } from '../../../src/types/index.js';
+import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
 import {
   validateAssetSupport,
   validateBalance,
@@ -31,6 +34,7 @@ import {
   validateOrderParams,
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
+import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
 import {
   hasFeeReductionAppliedFlag,
@@ -41,45 +45,44 @@ import {
   createMockMessenger,
 } from '../../helpers/serviceMocks.js';
 
-jest.mock('../../../src/services/HyperLiquidClientService');
-jest.mock('../../../src/services/HyperLiquidWalletService');
-jest.mock('../../../src/services/HyperLiquidSubscriptionService');
+vi.mock('../../../src/services/HyperLiquidClientService');
+vi.mock('../../../src/services/HyperLiquidWalletService');
+vi.mock('../../../src/services/HyperLiquidSubscriptionService');
 // Mock stream manager - will be set up in test
 let mockStreamManagerInstance: any;
-const mockGetStreamManagerInstance = jest.fn(() => mockStreamManagerInstance);
-jest.mock(
-  '../../../../components/UI/Perps/providers/PerpsStreamManager',
-  () => ({
-    getStreamManagerInstance: mockGetStreamManagerInstance,
-  }),
-  { virtual: true },
-);
+const mockGetStreamManagerInstance = vi.fn(() => mockStreamManagerInstance);
+vi.mock('../../../../components/UI/Perps/providers/PerpsStreamManager', () => ({
+  getStreamManagerInstance: mockGetStreamManagerInstance,
+}));
 
 // Mock standalone info client for standalone mode tests
 let mockStandaloneInfoClient: any;
-jest.mock('../../../src/utils/standaloneInfoClient', () => ({
-  ...jest.requireActual('../../../src/utils/standaloneInfoClient'),
-  createStandaloneInfoClient: jest.fn(() => mockStandaloneInfoClient),
-}));
+vi.mock(
+  import('../../../src/utils/standaloneInfoClient'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    createStandaloneInfoClient: vi.fn(() => mockStandaloneInfoClient),
+  }),
+);
 
-jest.mock('../../../src/utils/hyperLiquidValidation', () => ({
-  validateOrderParams: jest.fn(),
-  validateWithdrawalParams: jest.fn(),
-  validateDepositParams: jest.fn(),
-  validateCoinExists: jest.fn(),
-  validateAssetSupport: jest.fn(),
-  validateBalance: jest.fn(),
-  getSupportedPaths: jest
+vi.mock('../../../src/utils/hyperLiquidValidation', () => ({
+  validateOrderParams: vi.fn(),
+  validateWithdrawalParams: vi.fn(),
+  validateDepositParams: vi.fn(),
+  validateCoinExists: vi.fn(),
+  validateAssetSupport: vi.fn(),
+  validateBalance: vi.fn(),
+  getSupportedPaths: vi
     .fn()
     .mockReturnValue([
       'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
       'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
     ]),
-  getBridgeInfo: jest.fn().mockReturnValue({
+  getBridgeInfo: vi.fn().mockReturnValue({
     chainId: 'eip155:42161',
     contractAddress: '0x1234567890123456789012345678901234567890',
   }),
-  createErrorResult: jest.fn((error, defaultResponse) => ({
+  createErrorResult: vi.fn((error, defaultResponse) => ({
     ...defaultResponse,
     success: false,
     error: error instanceof Error ? error.message : String(error),
@@ -87,11 +90,14 @@ jest.mock('../../../src/utils/hyperLiquidValidation', () => ({
 }));
 
 // Mock adapter functions
-jest.mock('../../../src/utils/hyperLiquidAdapter', () => {
-  const actual = jest.requireActual('../../../src/utils/hyperLiquidAdapter');
+vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import('../../../src/utils/hyperLiquidAdapter.js')
+    >();
   return {
     ...actual,
-    adaptHyperLiquidLedgerUpdateToUserHistoryItem: jest.fn((updates) => {
+    adaptHyperLiquidLedgerUpdateToUserHistoryItem: vi.fn((updates) => {
       // Return mock history items based on input
       if (!updates || !Array.isArray(updates) || updates.length === 0) {
         return [];
@@ -107,42 +113,42 @@ jest.mock('../../../src/utils/hyperLiquidAdapter', () => {
 });
 
 // Mock PerpsSigningCache (exported from TradingReadinessCache module) — global
-// singleton for signing operation caching. Use jest.createMockFromModule for
-// proper mock creation.
-jest.mock('../../../src/services/TradingReadinessCache');
+// singleton for signing operation caching.
+vi.mock('../../../src/services/TradingReadinessCache');
 
-const MockedHyperLiquidClientService =
-  HyperLiquidClientService as jest.MockedClass<typeof HyperLiquidClientService>;
-const MockedHyperLiquidWalletService =
-  HyperLiquidWalletService as jest.MockedClass<typeof HyperLiquidWalletService>;
+const MockedHyperLiquidClientService = HyperLiquidClientService as MockedClass<
+  typeof HyperLiquidClientService
+>;
+const MockedHyperLiquidWalletService = HyperLiquidWalletService as MockedClass<
+  typeof HyperLiquidWalletService
+>;
 const MockedHyperLiquidSubscriptionService =
-  HyperLiquidSubscriptionService as jest.MockedClass<
+  HyperLiquidSubscriptionService as MockedClass<
     typeof HyperLiquidSubscriptionService
   >;
-const mockValidateOrderParams = validateOrderParams as jest.MockedFunction<
+const mockValidateOrderParams = validateOrderParams as MockedFunction<
   typeof validateOrderParams
 >;
-const mockValidateWithdrawalParams =
-  validateWithdrawalParams as jest.MockedFunction<
-    typeof validateWithdrawalParams
-  >;
-const mockValidateDepositParams = validateDepositParams as jest.MockedFunction<
+const mockValidateWithdrawalParams = validateWithdrawalParams as MockedFunction<
+  typeof validateWithdrawalParams
+>;
+const mockValidateDepositParams = validateDepositParams as MockedFunction<
   typeof validateDepositParams
 >;
-const mockValidateCoinExists = validateCoinExists as jest.MockedFunction<
+const mockValidateCoinExists = validateCoinExists as MockedFunction<
   typeof validateCoinExists
 >;
-const mockValidateAssetSupport = validateAssetSupport as jest.MockedFunction<
+const mockValidateAssetSupport = validateAssetSupport as MockedFunction<
   typeof validateAssetSupport
 >;
-const mockValidateBalance = validateBalance as jest.MockedFunction<
+const mockValidateBalance = validateBalance as MockedFunction<
   typeof validateBalance
 >;
 
 // Mock factory functions - defined once, reused everywhere
 // These reduce duplication and make tests more maintainable
 const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
-  clearinghouseState: jest.fn().mockResolvedValue({
+  clearinghouseState: vi.fn().mockResolvedValue({
     marginSummary: {
       totalMarginUsed: '500',
       accountValue: '10500',
@@ -187,19 +193,19 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
       totalMarginUsed: '5000',
     },
   }),
-  spotClearinghouseState: jest.fn().mockResolvedValue({
+  spotClearinghouseState: vi.fn().mockResolvedValue({
     balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
   }),
   // Mode-aware fold gate reads userAbstraction; default to unifiedAccount
   // so tests that predated the gate still see spot folded into spendable/withdrawable.
-  userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
-  meta: jest.fn().mockResolvedValue({
+  userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+  meta: vi.fn().mockResolvedValue({
     universe: [
       { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
       { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
     ],
   }),
-  metaAndAssetCtxs: jest.fn().mockResolvedValue([
+  metaAndAssetCtxs: vi.fn().mockResolvedValue([
     {
       universe: [
         { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
@@ -227,17 +233,17 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
       },
     ],
   ]),
-  perpDexs: jest.fn().mockResolvedValue([null]),
-  allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
-  frontendOpenOrders: jest.fn().mockResolvedValue([]),
-  referral: jest.fn().mockResolvedValue({
+  perpDexs: vi.fn().mockResolvedValue([null]),
+  allMids: vi.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
+  frontendOpenOrders: vi.fn().mockResolvedValue([]),
+  referral: vi.fn().mockResolvedValue({
     referrerState: {
       stage: 'ready',
       data: { code: 'MMCSI' },
     },
   }),
-  maxBuilderFee: jest.fn().mockResolvedValue(1),
-  userFees: jest.fn().mockResolvedValue({
+  maxBuilderFee: vi.fn().mockResolvedValue(1),
+  userFees: vi.fn().mockResolvedValue({
     feeSchedule: {
       cross: '0.00030',
       add: '0.00010',
@@ -246,7 +252,7 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
     },
     dailyUserVlm: [],
   }),
-  userNonFundingLedgerUpdates: jest.fn().mockResolvedValue([
+  userNonFundingLedgerUpdates: vi.fn().mockResolvedValue([
     {
       delta: { type: 'deposit', usdc: '100' },
       time: Date.now(),
@@ -258,7 +264,7 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
       hash: '0x456def',
     },
   ]),
-  portfolio: jest.fn().mockResolvedValue([
+  portfolio: vi.fn().mockResolvedValue([
     null,
     [
       null,
@@ -271,49 +277,49 @@ const createMockInfoClient = (overrides: Record<string, unknown> = {}) => ({
       },
     ],
   ]),
-  spotMeta: jest.fn().mockResolvedValue({
+  spotMeta: vi.fn().mockResolvedValue({
     tokens: [
       { name: 'USDC', tokenId: '0xdef456', index: 0 },
       { name: 'USDT', tokenId: '0x789abc', index: 1 },
     ],
     universe: [],
   }),
-  historicalOrders: jest.fn().mockResolvedValue([]),
-  userFills: jest.fn().mockResolvedValue([]),
-  userFillsByTime: jest.fn().mockResolvedValue([]),
-  userFunding: jest.fn().mockResolvedValue([]),
+  historicalOrders: vi.fn().mockResolvedValue([]),
+  userFills: vi.fn().mockResolvedValue([]),
+  userFillsByTime: vi.fn().mockResolvedValue([]),
+  userFunding: vi.fn().mockResolvedValue([]),
   ...overrides,
 });
 
 const createMockExchangeClient = (overrides: Record<string, unknown> = {}) => ({
-  order: jest.fn().mockResolvedValue({
+  order: vi.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: 123 } }] } },
   }),
-  modify: jest.fn().mockResolvedValue({
+  modify: vi.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: [{ resting: { oid: '123' } }] } },
   }),
-  cancel: jest.fn().mockResolvedValue({
+  cancel: vi.fn().mockResolvedValue({
     status: 'ok',
     response: { data: { statuses: ['success'] } },
   }),
-  withdraw3: jest.fn().mockResolvedValue({
+  withdraw3: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  updateLeverage: jest.fn().mockResolvedValue({
+  updateLeverage: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  approveBuilderFee: jest.fn().mockResolvedValue({
+  approveBuilderFee: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  setReferrer: jest.fn().mockResolvedValue({
+  setReferrer: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  sendAsset: jest.fn().mockResolvedValue({
+  sendAsset: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
-  agentSetAbstraction: jest.fn().mockResolvedValue({
+  agentSetAbstraction: vi.fn().mockResolvedValue({
     status: 'ok',
   }),
   ...overrides,
@@ -354,122 +360,121 @@ const createTestProvider = (
 
 describe('HyperLiquidProvider', () => {
   let provider: HyperLiquidProvider;
-  let mockClientService: jest.Mocked<HyperLiquidClientService>;
-  let mockWalletService: jest.Mocked<HyperLiquidWalletService>;
-  let mockSubscriptionService: jest.Mocked<HyperLiquidSubscriptionService>;
+  let mockClientService: Mocked<HyperLiquidClientService>;
+  let mockWalletService: Mocked<HyperLiquidWalletService>;
+  let mockSubscriptionService: Mocked<HyperLiquidSubscriptionService>;
 
   beforeEach(() => {
     // Reset all mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     (
-      mockPlatformDependencies.marketDataFormatters.formatVolume as jest.Mock
+      mockPlatformDependencies.marketDataFormatters.formatVolume as Mock
     ).mockImplementation((value: number) => '$' + value.toFixed(0));
     (
-      mockPlatformDependencies.marketDataFormatters.formatPerpsFiat as jest.Mock
+      mockPlatformDependencies.marketDataFormatters.formatPerpsFiat as Mock
     ).mockImplementation((value: number) => '$' + value.toFixed(2));
     (
-      mockPlatformDependencies.marketDataFormatters
-        .formatPercentage as jest.Mock
+      mockPlatformDependencies.marketDataFormatters.formatPercentage as Mock
     ).mockImplementation((value: number) => `${value.toFixed(2)}%`);
     (
-      mockPlatformDependencies.featureFlags.validateVersionGated as jest.Mock
+      mockPlatformDependencies.featureFlags.validateVersionGated as Mock
     ).mockReturnValue(undefined);
-    (mockPlatformDependencies.metrics.isEnabled as jest.Mock).mockReturnValue(
-      true,
-    );
+    (mockPlatformDependencies.metrics.isEnabled as Mock).mockReturnValue(true);
 
     // Reset PerpsSigningCache mock state (using imported mocked module)
-    const mockedCache = PerpsSigningCache as jest.Mocked<
-      typeof PerpsSigningCache
-    >;
+    const mockedCache = PerpsSigningCache as Mocked<typeof PerpsSigningCache>;
     mockedCache.get.mockReturnValue(undefined);
     mockedCache.getBuilderFee.mockReturnValue(undefined);
     mockedCache.getReferral.mockReturnValue(undefined);
     mockedCache.isInFlight.mockReturnValue(undefined);
-    mockedCache.setInFlight.mockReturnValue(jest.fn());
+    mockedCache.setInFlight.mockReturnValue(vi.fn());
 
     // Initialize mock stream manager instance
     mockStreamManagerInstance = {
-      clearAllChannels: jest.fn(),
+      clearAllChannels: vi.fn(),
     };
 
     // Create mocked service instances using factory functions
     mockClientService = {
-      initialize: jest.fn(),
-      isInitialized: jest.fn().mockReturnValue(true),
-      isTestnetMode: jest.fn().mockReturnValue(false),
-      ensureInitialized: jest.fn(),
-      getExchangeClient: jest.fn().mockReturnValue(createMockExchangeClient()),
-      getInfoClient: jest.fn().mockReturnValue(createMockInfoClient()),
-      fetchHistoricalOrders: jest.fn().mockResolvedValue([]),
-      disconnect: jest.fn().mockResolvedValue(undefined),
-      toggleTestnet: jest.fn(),
-      setTestnetMode: jest.fn(),
-      getNetwork: jest.fn().mockReturnValue('mainnet'),
-      ensureSubscriptionClient: jest.fn().mockResolvedValue(undefined),
-      getSubscriptionClient: jest.fn(),
-      setOnReconnectCallback: jest.fn(),
-      setOnTerminateCallback: jest.fn(),
-      getConnectionState: jest.fn().mockReturnValue('connected'),
-    } as Partial<HyperLiquidClientService> as jest.Mocked<HyperLiquidClientService>;
+      initialize: vi.fn(),
+      isInitialized: vi.fn().mockReturnValue(true),
+      isTestnetMode: vi.fn().mockReturnValue(false),
+      ensureInitialized: vi.fn(),
+      getExchangeClient: vi.fn().mockReturnValue(createMockExchangeClient()),
+      getInfoClient: vi.fn().mockReturnValue(createMockInfoClient()),
+      fetchHistoricalOrders: vi.fn().mockResolvedValue([]),
+      disconnect: vi.fn().mockResolvedValue(undefined),
+      toggleTestnet: vi.fn(),
+      setTestnetMode: vi.fn(),
+      getNetwork: vi.fn().mockReturnValue('mainnet'),
+      ensureSubscriptionClient: vi.fn().mockResolvedValue(undefined),
+      getSubscriptionClient: vi.fn(),
+      setOnReconnectCallback: vi.fn(),
+      setOnTerminateCallback: vi.fn(),
+      getConnectionState: vi.fn().mockReturnValue('connected'),
+    } as Partial<HyperLiquidClientService> as Mocked<HyperLiquidClientService>;
 
     mockWalletService = {
-      setTestnetMode: jest.fn(),
-      getCurrentAccountId: jest
+      setTestnetMode: vi.fn(),
+      getCurrentAccountId: vi
         .fn()
         .mockReturnValue(
           'eip155:42161:0x1234567890123456789012345678901234567890',
         ),
-      createWalletAdapter: jest.fn().mockReturnValue({
-        request: jest
+      createWalletAdapter: vi.fn().mockReturnValue({
+        request: vi
           .fn()
           .mockResolvedValue(['0x1234567890123456789012345678901234567890']),
       }),
-      getUserAddress: jest
+      getUserAddress: vi
         .fn()
         .mockReturnValue('0x1234567890123456789012345678901234567890'),
-      getUserAddressWithDefault: jest
+      getUserAddressWithDefault: vi
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890'),
-      isMainAccountSignerReady: jest.fn().mockReturnValue(true),
-      requiresSignatureConfirmation: jest.fn().mockReturnValue(false),
-    } as Partial<HyperLiquidWalletService> as jest.Mocked<HyperLiquidWalletService>;
+      isMainAccountSignerReady: vi.fn().mockReturnValue(true),
+      requiresSignatureConfirmation: vi.fn().mockReturnValue(false),
+    } as Partial<HyperLiquidWalletService> as Mocked<HyperLiquidWalletService>;
 
     mockSubscriptionService = {
-      subscribeToPrices: jest.fn().mockResolvedValue(jest.fn()), // Returns Promise
-      subscribeToPositions: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
-      subscribeToOrderFills: jest.fn().mockReturnValue(jest.fn()), // Returns function directly
-      clearAll: jest.fn(),
-      isPositionsCacheInitialized: jest.fn().mockReturnValue(false),
-      getCachedPositions: jest.fn().mockReturnValue([]),
-      getFreshPositionsForAllDexs: jest.fn().mockReturnValue(null),
-      getCachedPositionsForDex: jest.fn().mockReturnValue(null),
-      updateFeatureFlags: jest.fn().mockResolvedValue(undefined),
+      subscribeToPrices: vi.fn().mockResolvedValue(vi.fn()), // Returns Promise
+      subscribeToPositions: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
+      subscribeToOrderFills: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
+      clearAll: vi.fn(),
+      isPositionsCacheInitialized: vi.fn().mockReturnValue(false),
+      getCachedPositions: vi.fn().mockReturnValue([]),
+      getFreshPositionsForAllDexs: vi.fn().mockReturnValue(null),
+      getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+      updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
       // Cache methods used by buildAssetMapping optimization
-      setDexMetaCache: jest.fn(),
-      setDexAssetCtxsCache: jest.fn(),
-      getDexAssetCtxsCache: jest.fn().mockReturnValue(undefined),
+      setDexMetaCache: vi.fn(),
+      setDexAssetCtxsCache: vi.fn(),
+      getDexAssetCtxsCache: vi.fn().mockReturnValue(undefined),
       // Price cache used by placeOrder, editOrder, closePosition optimizations
-      getCachedPrice: jest.fn().mockImplementation((symbol: string) => {
+      getCachedPrice: vi.fn().mockImplementation((symbol: string) => {
         const prices: Record<string, string> = { BTC: '50000', ETH: '3000' };
         return prices[symbol];
       }),
-      getLastAllMidsSnapshot: jest.fn().mockReturnValue(null),
+      getLastAllMidsSnapshot: vi.fn().mockReturnValue(null),
       // Orders cache used by updatePositionTPSL and getOpenOrders
-      isOrdersCacheInitialized: jest.fn().mockReturnValue(false),
-      getCachedOrders: jest.fn().mockReturnValue([]),
+      isOrdersCacheInitialized: vi.fn().mockReturnValue(false),
+      getCachedOrders: vi.fn().mockReturnValue([]),
       // Atomic getter - returns null when cache not initialized (prevents race condition)
-      getOrdersCacheIfInitialized: jest.fn().mockReturnValue(null),
+      getOrdersCacheIfInitialized: vi.fn().mockReturnValue(null),
       // Abstraction-mode resolved-mode setter (unified account migration)
-      setUserAbstractionMode: jest.fn(),
-    } as Partial<HyperLiquidSubscriptionService> as jest.Mocked<HyperLiquidSubscriptionService>;
+      setUserAbstractionMode: vi.fn(),
+    } as Partial<HyperLiquidSubscriptionService> as Mocked<HyperLiquidSubscriptionService>;
 
     // Mock constructors
-    MockedHyperLiquidClientService.mockImplementation(() => mockClientService);
-    MockedHyperLiquidWalletService.mockImplementation(() => mockWalletService);
-    MockedHyperLiquidSubscriptionService.mockImplementation(
-      () => mockSubscriptionService,
-    );
+    MockedHyperLiquidClientService.mockImplementation(function () {
+      return mockClientService;
+    });
+    MockedHyperLiquidWalletService.mockImplementation(function () {
+      return mockWalletService;
+    });
+    MockedHyperLiquidSubscriptionService.mockImplementation(function () {
+      return mockSubscriptionService;
+    });
 
     // Mock validation
     mockValidateOrderParams.mockReturnValue({ isValid: true });
@@ -478,9 +483,8 @@ describe('HyperLiquidProvider', () => {
     mockValidateCoinExists.mockReturnValue({ isValid: true });
     mockValidateAssetSupport.mockReturnValue({ isValid: true });
     mockValidateBalance.mockReturnValue({ isValid: true });
-    const hyperLiquidValidation = jest.requireMock(
-      '../../../src/utils/hyperLiquidValidation',
-    );
+    const hyperLiquidValidation =
+      hyperLiquidValidationModule as unknown as Record<string, Mock>;
     hyperLiquidValidation.getSupportedPaths.mockReturnValue([
       'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
       'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
@@ -496,9 +500,10 @@ describe('HyperLiquidProvider', () => {
         error: error instanceof Error ? error.message : String(error),
       }),
     );
-    const hyperLiquidAdapter = jest.requireMock(
-      '../../../src/utils/hyperLiquidAdapter',
-    );
+    const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
+      string,
+      Mock
+    >;
     hyperLiquidAdapter.adaptHyperLiquidLedgerUpdateToUserHistoryItem.mockImplementation(
       (updates: unknown[]) => {
         if (!updates || !Array.isArray(updates) || updates.length === 0) {
@@ -523,9 +528,9 @@ describe('HyperLiquidProvider', () => {
   describe('Builder Fee and Referral Integration', () => {
     beforeEach(() => {
       // Mock with maxBuilderFee: 0 to trigger approval calls
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(0), // Not approved yet
+          maxBuilderFee: vi.fn().mockResolvedValue(0), // Not approved yet
         }),
       );
 
@@ -534,8 +539,8 @@ describe('HyperLiquidProvider', () => {
         '0x1234567890123456789012345678901234567890', // Different from builder
       );
 
-      mockClientService.getExchangeClient = jest.fn().mockReturnValue({
-        order: jest.fn().mockImplementation((request: { orders: unknown[] }) =>
+      mockClientService.getExchangeClient = vi.fn().mockReturnValue({
+        order: vi.fn().mockImplementation((request: { orders: unknown[] }) =>
           Promise.resolve({
             status: 'ok',
             response: {
@@ -547,24 +552,24 @@ describe('HyperLiquidProvider', () => {
             },
           }),
         ),
-        modify: jest.fn().mockResolvedValue({
+        modify: vi.fn().mockResolvedValue({
           status: 'ok',
           response: { data: { statuses: [{ resting: { oid: '123' } }] } },
         }),
-        cancel: jest.fn().mockResolvedValue({
+        cancel: vi.fn().mockResolvedValue({
           status: 'ok',
           response: { data: { statuses: ['success'] } },
         }),
-        withdraw3: jest.fn().mockResolvedValue({
+        withdraw3: vi.fn().mockResolvedValue({
           status: 'ok',
         }),
-        updateLeverage: jest.fn().mockResolvedValue({
+        updateLeverage: vi.fn().mockResolvedValue({
           status: 'ok',
         }),
-        approveBuilderFee: jest.fn().mockResolvedValue({
+        approveBuilderFee: vi.fn().mockResolvedValue({
           status: 'ok',
         }),
-        setReferrer: jest.fn().mockResolvedValue({
+        setReferrer: vi.fn().mockResolvedValue({
           status: 'ok',
         }),
       });
@@ -572,19 +577,19 @@ describe('HyperLiquidProvider', () => {
 
     it('includes builder fee and referral setup in order placement', async () => {
       // Mock builder fee not approved to trigger approval call
-      mockClientService.getInfoClient = jest.fn().mockReturnValue({
-        maxBuilderFee: jest
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        maxBuilderFee: vi
           .fn()
           .mockResolvedValueOnce(0) // First call: not approved
           .mockResolvedValueOnce(0.001), // Second call: approved after approval
-        referral: jest.fn().mockResolvedValue({
+        referral: vi.fn().mockResolvedValue({
           referrerState: {
             stage: 'ready',
             data: { code: REFERRAL_CONFIG.MainnetCode },
           },
           referredBy: null, // User has no referral set
         }),
-        clearinghouseState: jest.fn().mockResolvedValue({
+        clearinghouseState: vi.fn().mockResolvedValue({
           marginSummary: {
             totalMarginUsed: '500',
             accountValue: '10500',
@@ -613,17 +618,17 @@ describe('HyperLiquidProvider', () => {
             },
           ],
         }),
-        spotClearinghouseState: jest.fn().mockResolvedValue({
+        spotClearinghouseState: vi.fn().mockResolvedValue({
           balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
         }),
-        userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
-        meta: jest.fn().mockResolvedValue({
+        userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+        meta: vi.fn().mockResolvedValue({
           universe: [
             { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
             { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
           ],
         }),
-        metaAndAssetCtxs: jest.fn().mockResolvedValue([
+        metaAndAssetCtxs: vi.fn().mockResolvedValue([
           {
             universe: [
               { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
@@ -651,9 +656,9 @@ describe('HyperLiquidProvider', () => {
             },
           ],
         ]),
-        perpDexs: jest.fn().mockResolvedValue([null]),
-        allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
-        frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        perpDexs: vi.fn().mockResolvedValue([null]),
+        allMids: vi.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
+        frontendOpenOrders: vi.fn().mockResolvedValue([]),
       });
 
       const orderParams: OrderParams = {
@@ -682,7 +687,7 @@ describe('HyperLiquidProvider', () => {
 
       // Place a second order to verify caching (should NOT call builder fee approval again)
       const mockExchangeClient = mockClientService.getExchangeClient();
-      (mockExchangeClient.approveBuilderFee as jest.Mock).mockClear();
+      (mockExchangeClient.approveBuilderFee as Mock).mockClear();
 
       const result2 = await provider.placeOrder(orderParams);
 
@@ -705,9 +710,9 @@ describe('HyperLiquidProvider', () => {
     it('keeps the standard builder address when subscription wins', async () => {
       // ADR 0064 replaced the dedicated subscription builder with cloid
       // marking, so even an approved subscription builder must not be selected.
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
+          maxBuilderFee: vi.fn().mockResolvedValue(0.001),
         }),
       );
       const orderParams: OrderParams = {
@@ -740,7 +745,7 @@ describe('HyperLiquidProvider', () => {
         true,
       );
 
-      (exchangeClient.order as jest.Mock).mockClear();
+      (exchangeClient.order as Mock).mockClear();
       provider.setUserFeeResolution({
         feeBips: 0,
         discountBips: 10000,
@@ -769,9 +774,9 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('charges a blended subscription fee on the standard builder', async () => {
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
+          maxBuilderFee: vi.fn().mockResolvedValue(0.001),
         }),
       );
       const exchangeClient = mockClientService.getExchangeClient();
@@ -805,9 +810,9 @@ describe('HyperLiquidProvider', () => {
 
     it('initializes clients before approving the subscription builder', async () => {
       const subscriptionBuilder = '0x2222222222222222222222222222222222222222';
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
+          maxBuilderFee: vi.fn().mockResolvedValue(0.001),
         }),
       );
       provider = createTestProvider({
@@ -834,14 +839,14 @@ describe('HyperLiquidProvider', () => {
       const initialReadStarted = new Promise<void>((resolve) => {
         markInitialReadStarted = resolve;
       });
-      const maxBuilderFee = jest
+      const maxBuilderFee = vi
         .fn()
         .mockImplementationOnce(() => {
           markInitialReadStarted();
           return initialRead;
         })
         .mockResolvedValueOnce(0.001);
-      mockClientService.getInfoClient = jest
+      mockClientService.getInfoClient = vi
         .fn()
         .mockReturnValue(createMockInfoClient({ maxBuilderFee }));
       mockWalletService.getUserAddressWithDefault.mockResolvedValue(accountA);
@@ -883,7 +888,7 @@ describe('HyperLiquidProvider', () => {
       const newReadStarted = new Promise<void>((resolve) => {
         markNewReadStarted = resolve;
       });
-      const maxBuilderFee = jest
+      const maxBuilderFee = vi
         .fn()
         .mockImplementationOnce(() => {
           markOldReadStarted();
@@ -894,7 +899,7 @@ describe('HyperLiquidProvider', () => {
           return newRead;
         })
         .mockResolvedValue(0.001);
-      mockClientService.getInfoClient = jest
+      mockClientService.getInfoClient = vi
         .fn()
         .mockReturnValue(createMockInfoClient({ maxBuilderFee }));
       provider = createTestProvider({
@@ -927,19 +932,19 @@ describe('HyperLiquidProvider', () => {
 
     it('includes builder fee and referral setup in TP/SL updates', async () => {
       // Mock builder fee not approved to trigger approval call
-      mockClientService.getInfoClient = jest.fn().mockReturnValue({
-        maxBuilderFee: jest
+      mockClientService.getInfoClient = vi.fn().mockReturnValue({
+        maxBuilderFee: vi
           .fn()
           .mockResolvedValueOnce(0) // First call: not approved
           .mockResolvedValueOnce(0.001), // Second call: approved after approval
-        referral: jest.fn().mockResolvedValue({
+        referral: vi.fn().mockResolvedValue({
           referrerState: {
             stage: 'ready',
             data: { code: REFERRAL_CONFIG.MainnetCode },
           },
           referredBy: null, // User has no referral set
         }),
-        clearinghouseState: jest.fn().mockResolvedValue({
+        clearinghouseState: vi.fn().mockResolvedValue({
           marginSummary: {
             totalMarginUsed: '500',
             accountValue: '10500',
@@ -968,17 +973,17 @@ describe('HyperLiquidProvider', () => {
             },
           ],
         }),
-        spotClearinghouseState: jest.fn().mockResolvedValue({
+        spotClearinghouseState: vi.fn().mockResolvedValue({
           balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
         }),
-        userAbstraction: jest.fn().mockResolvedValue('unifiedAccount'),
-        meta: jest.fn().mockResolvedValue({
+        userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+        meta: vi.fn().mockResolvedValue({
           universe: [
             { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
             { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
           ],
         }),
-        metaAndAssetCtxs: jest.fn().mockResolvedValue([
+        metaAndAssetCtxs: vi.fn().mockResolvedValue([
           {
             universe: [
               { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
@@ -1006,9 +1011,9 @@ describe('HyperLiquidProvider', () => {
             },
           ],
         ]),
-        perpDexs: jest.fn().mockResolvedValue([null]),
-        allMids: jest.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
-        frontendOpenOrders: jest.fn().mockResolvedValue([]),
+        perpDexs: vi.fn().mockResolvedValue([null]),
+        allMids: vi.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
+        frontendOpenOrders: vi.fn().mockResolvedValue([]),
       });
 
       const updateParams = {
@@ -1049,7 +1054,7 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('uses HTTP for builder fee reads during a cold-start TP/SL update', async () => {
-      const webSocketMaxBuilderFee = jest
+      const webSocketMaxBuilderFee = vi
         .fn()
         .mockRejectedValue(
           Object.assign(
@@ -1059,7 +1064,7 @@ describe('HyperLiquidProvider', () => {
             { name: 'WebSocketRequestError' },
           ),
         );
-      const httpMaxBuilderFee = jest
+      const httpMaxBuilderFee = vi
         .fn()
         .mockResolvedValue(BUILDER_FEE_CONFIG.MaxFeeDecimal);
       const webSocketInfoClient = createMockInfoClient({
@@ -1093,9 +1098,7 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('uses a builder approval completed while acquiring the global lock', async () => {
-      const mockedCache = PerpsSigningCache as jest.Mocked<
-        typeof PerpsSigningCache
-      >;
+      const mockedCache = PerpsSigningCache as Mocked<typeof PerpsSigningCache>;
       mockedCache.getBuilderFee
         .mockReturnValueOnce(undefined)
         .mockReturnValueOnce({ attempted: true, success: true });
@@ -1128,9 +1131,9 @@ describe('HyperLiquidProvider', () => {
       );
 
       // When user IS the builder, maxBuilderFee should already be approved
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(1), // Already approved
+          maxBuilderFee: vi.fn().mockResolvedValue(1), // Already approved
         }),
       );
 
@@ -1154,16 +1157,16 @@ describe('HyperLiquidProvider', () => {
 
     it('handles builder fee approval failure (non-blocking)', async () => {
       // Mock builder fee not approved to trigger approval call
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(0), // Not approved - triggers approval
+          maxBuilderFee: vi.fn().mockResolvedValue(0), // Not approved - triggers approval
         }),
       );
 
       // Mock builder fee approval to fail
-      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+      mockClientService.getExchangeClient = vi.fn().mockReturnValue(
         createMockExchangeClient({
-          approveBuilderFee: jest
+          approveBuilderFee: vi
             .fn()
             .mockRejectedValue(new Error('Builder fee approval failed')),
         }),
@@ -1187,14 +1190,12 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('retries builder fee approval after a previous attempt failed', async () => {
-      const mockedCache = PerpsSigningCache as jest.Mocked<
-        typeof PerpsSigningCache
-      >;
+      const mockedCache = PerpsSigningCache as Mocked<typeof PerpsSigningCache>;
 
       // First order: builder fee approval fails
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest
+          maxBuilderFee: vi
             .fn()
             .mockResolvedValueOnce(0) // first order: check — not approved
             .mockResolvedValueOnce(0) // second order: check — cached failure prevents retry
@@ -1202,12 +1203,12 @@ describe('HyperLiquidProvider', () => {
         }),
       );
 
-      const mockApproveBuilderFee = jest
+      const mockApproveBuilderFee = vi
         .fn()
         .mockRejectedValueOnce(new Error('Network timeout'))
         .mockResolvedValueOnce({ status: 'ok' });
 
-      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+      mockClientService.getExchangeClient = vi.fn().mockReturnValue(
         createMockExchangeClient({
           approveBuilderFee: mockApproveBuilderFee,
         }),
@@ -1242,9 +1243,7 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('skips builder fee retry when previous attempt succeeded', async () => {
-      const mockedCache = PerpsSigningCache as jest.Mocked<
-        typeof PerpsSigningCache
-      >;
+      const mockedCache = PerpsSigningCache as Mocked<typeof PerpsSigningCache>;
 
       // Simulate successful cache
       mockedCache.getBuilderFee.mockReturnValue({
@@ -1252,12 +1251,12 @@ describe('HyperLiquidProvider', () => {
         success: true,
       });
 
-      mockClientService.getInfoClient = jest
+      mockClientService.getInfoClient = vi
         .fn()
         .mockReturnValue(createMockInfoClient());
 
-      const mockApproveBuilderFee = jest.fn();
-      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+      const mockApproveBuilderFee = vi.fn();
+      mockClientService.getExchangeClient = vi.fn().mockReturnValue(
         createMockExchangeClient({
           approveBuilderFee: mockApproveBuilderFee,
         }),
@@ -1283,14 +1282,14 @@ describe('HyperLiquidProvider', () => {
         new Error('Failed to sign typed data with viem wallet'),
         { cause: new Error('KEYRING_LOCKED') },
       );
-      const mockCompleteInFlight = jest.fn();
+      const mockCompleteInFlight = vi.fn();
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(0),
-          referral: jest.fn().mockResolvedValue({
+          maxBuilderFee: vi.fn().mockResolvedValue(0),
+          referral: vi.fn().mockResolvedValue({
             referrerState: {
               stage: 'not_ready',
               data: null,
@@ -1298,9 +1297,9 @@ describe('HyperLiquidProvider', () => {
           }),
         }),
       );
-      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+      mockClientService.getExchangeClient = vi.fn().mockReturnValue(
         createMockExchangeClient({
-          approveBuilderFee: jest
+          approveBuilderFee: vi
             .fn()
             .mockRejectedValue(wrappedKeyringLockedError),
         }),
@@ -1318,31 +1317,30 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(true);
       expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
-          .setBuilderFee,
+        (PerpsSigningCache as Mocked<typeof PerpsSigningCache>).setBuilderFee,
       ).not.toHaveBeenCalled();
       expect(mockCompleteInFlight).toHaveBeenCalled();
     });
 
     it('handles referral code setup failure (non-blocking)', async () => {
       // Mock builder fee already approved
-      mockClientService.getInfoClient = jest
+      mockClientService.getInfoClient = vi
         .fn()
         .mockReturnValue(createMockInfoClient());
 
       // Mock referral code setup to fail
-      mockClientService.getExchangeClient = jest.fn().mockReturnValue({
-        approveBuilderFee: jest.fn().mockResolvedValue({
+      mockClientService.getExchangeClient = vi.fn().mockReturnValue({
+        approveBuilderFee: vi.fn().mockResolvedValue({
           status: 'ok',
         }),
-        setReferrer: jest
+        setReferrer: vi
           .fn()
           .mockRejectedValue(new Error('Referral code setup failed')),
-        order: jest.fn().mockResolvedValue({
+        order: vi.fn().mockResolvedValue({
           status: 'ok',
           response: { data: { statuses: [{ resting: { oid: '123' } }] } },
         }),
-        updateLeverage: jest.fn().mockResolvedValue({
+        updateLeverage: vi.fn().mockResolvedValue({
           status: 'ok',
         }),
       });
@@ -1367,14 +1365,14 @@ describe('HyperLiquidProvider', () => {
         new Error('Failed to sign typed data with viem wallet'),
         { cause: new Error('KEYRING_LOCKED') },
       );
-      const mockCompleteInFlight = jest.fn();
+      const mockCompleteInFlight = vi.fn();
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(1),
-          referral: jest.fn().mockResolvedValue({
+          maxBuilderFee: vi.fn().mockResolvedValue(1),
+          referral: vi.fn().mockResolvedValue({
             referrerState: {
               stage: 'ready',
               data: { code: REFERRAL_CONFIG.MainnetCode },
@@ -1383,9 +1381,9 @@ describe('HyperLiquidProvider', () => {
           }),
         }),
       );
-      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+      mockClientService.getExchangeClient = vi.fn().mockReturnValue(
         createMockExchangeClient({
-          setReferrer: jest.fn().mockRejectedValue(wrappedKeyringLockedError),
+          setReferrer: vi.fn().mockRejectedValue(wrappedKeyringLockedError),
         }),
       );
 
@@ -1403,17 +1401,16 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(true);
       expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
-          .setReferral,
+        (PerpsSigningCache as Mocked<typeof PerpsSigningCache>).setReferral,
       ).not.toHaveBeenCalled();
       expect(mockCompleteInFlight).toHaveBeenCalled();
     });
 
     it('skips referral setup when referral code is not ready', async () => {
       // Mock referral code not ready
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          referral: jest.fn().mockResolvedValue({
+          referral: vi.fn().mockResolvedValue({
             referrerState: {
               stage: 'not_ready', // Not ready
               data: null,
@@ -1442,9 +1439,9 @@ describe('HyperLiquidProvider', () => {
 
     it('skips referral setup when user already has a referral', async () => {
       // Mock user already has a referral by setting referredBy.code
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          referral: jest.fn().mockResolvedValue({
+          referral: vi.fn().mockResolvedValue({
             referrerState: {
               stage: 'ready',
               data: { code: 'MMCSI' },
@@ -1478,9 +1475,9 @@ describe('HyperLiquidProvider', () => {
       // Arrange — flip to testnet mode
       mockClientService.isTestnetMode.mockReturnValue(true);
 
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(1), // Already approved
+          maxBuilderFee: vi.fn().mockResolvedValue(1), // Already approved
         }),
       );
 
@@ -1518,7 +1515,7 @@ describe('HyperLiquidProvider', () => {
 
     beforeEach(() => {
       testableProvider = provider as unknown as ProviderWithBuilderFee;
-      mockWalletService.getUserAddressWithDefault = jest
+      mockWalletService.getUserAddressWithDefault = vi
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890');
     });
@@ -1526,7 +1523,7 @@ describe('HyperLiquidProvider', () => {
     it('returns early when global cache indicates already attempted', async () => {
       // Arrange - simulate cached state
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).getBuilderFee.mockReturnValue({
         attempted: true,
         success: true,
@@ -1542,7 +1539,7 @@ describe('HyperLiquidProvider', () => {
     it('waits for in-flight operation instead of duplicating request', async () => {
       // Arrange - ensure getBuilderFee returns undefined (not cached)
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).getBuilderFee.mockReturnValue(undefined);
 
       // Simulate in-flight operation from another provider
@@ -1551,7 +1548,7 @@ describe('HyperLiquidProvider', () => {
         resolveInFlight = resolve;
       });
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).isInFlight.mockReturnValue(inFlightPromise);
 
       // Act
@@ -1563,7 +1560,7 @@ describe('HyperLiquidProvider', () => {
 
       // Verify it called isInFlight to check for concurrent operations
       expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>).isInFlight,
+        (PerpsSigningCache as Mocked<typeof PerpsSigningCache>).isInFlight,
       ).toHaveBeenCalledWith(
         'builderFee',
         'mainnet',
@@ -1572,20 +1569,19 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - should not have set its own in-flight lock
       expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
-          .setInFlight,
+        (PerpsSigningCache as Mocked<typeof PerpsSigningCache>).setInFlight,
       ).not.toHaveBeenCalled();
     });
 
     it('caches success after successful approval', async () => {
       // Arrange
-      const mockCompleteInFlight = jest.fn();
+      const mockCompleteInFlight = vi.fn();
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest
+          maxBuilderFee: vi
             .fn()
             .mockResolvedValueOnce(0) // First call: not approved
             .mockResolvedValueOnce(0.001), // Second call: approved after approval
@@ -1597,8 +1593,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert
       expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
-          .setBuilderFee,
+        (PerpsSigningCache as Mocked<typeof PerpsSigningCache>).setBuilderFee,
       ).toHaveBeenCalledWith(
         'mainnet',
         '0x1234567890123456789012345678901234567890',
@@ -1609,18 +1604,18 @@ describe('HyperLiquidProvider', () => {
 
     it('caches failure to prevent repeated signing requests', async () => {
       // Arrange
-      const mockCompleteInFlight = jest.fn();
+      const mockCompleteInFlight = vi.fn();
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(0),
+          maxBuilderFee: vi.fn().mockResolvedValue(0),
         }),
       );
-      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+      mockClientService.getExchangeClient = vi.fn().mockReturnValue(
         createMockExchangeClient({
-          approveBuilderFee: jest
+          approveBuilderFee: vi
             .fn()
             .mockRejectedValue(new Error('User rejected')),
         }),
@@ -1633,8 +1628,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - failure should be cached
       expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
-          .setBuilderFee,
+        (PerpsSigningCache as Mocked<typeof PerpsSigningCache>).setBuilderFee,
       ).toHaveBeenCalledWith(
         'mainnet',
         '0x1234567890123456789012345678901234567890',
@@ -1645,18 +1639,18 @@ describe('HyperLiquidProvider', () => {
 
     it('skips cache and rethrows when KEYRING_LOCKED error is thrown', async () => {
       // Arrange
-      const mockCompleteInFlight = jest.fn();
+      const mockCompleteInFlight = vi.fn();
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(0),
+          maxBuilderFee: vi.fn().mockResolvedValue(0),
         }),
       );
-      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+      mockClientService.getExchangeClient = vi.fn().mockReturnValue(
         createMockExchangeClient({
-          approveBuilderFee: jest
+          approveBuilderFee: vi
             .fn()
             .mockRejectedValue(new Error(PERPS_ERROR_CODES.KEYRING_LOCKED)),
         }),
@@ -1669,8 +1663,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - cache should NOT be set (so it retries when unlocked)
       expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
-          .setBuilderFee,
+        (PerpsSigningCache as Mocked<typeof PerpsSigningCache>).setBuilderFee,
       ).not.toHaveBeenCalled();
       // Assert - in-flight lock should be released
       expect(mockCompleteInFlight).toHaveBeenCalled();
@@ -1687,7 +1680,7 @@ describe('HyperLiquidProvider', () => {
 
     beforeEach(() => {
       testableProvider = provider as unknown as ProviderWithReferral;
-      mockWalletService.getUserAddressWithDefault = jest
+      mockWalletService.getUserAddressWithDefault = vi
         .fn()
         .mockResolvedValue('0x1234567890123456789012345678901234567890');
     });
@@ -1695,7 +1688,7 @@ describe('HyperLiquidProvider', () => {
     it('returns early when global cache indicates already attempted', async () => {
       // Arrange - simulate cached state
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).getReferral.mockReturnValue({
         attempted: true,
         success: true,
@@ -1710,13 +1703,13 @@ describe('HyperLiquidProvider', () => {
 
     it('caches success after successful referral setup', async () => {
       // Arrange
-      const mockCompleteInFlight = jest.fn();
+      const mockCompleteInFlight = vi.fn();
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          referral: jest.fn().mockResolvedValue({
+          referral: vi.fn().mockResolvedValue({
             referrerState: {
               stage: 'ready',
               data: { code: 'MMCSI' },
@@ -1731,8 +1724,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert
       expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
-          .setReferral,
+        (PerpsSigningCache as Mocked<typeof PerpsSigningCache>).setReferral,
       ).toHaveBeenCalledWith(
         'mainnet',
         '0x1234567890123456789012345678901234567890',
@@ -1743,13 +1735,13 @@ describe('HyperLiquidProvider', () => {
 
     it('caches failure to prevent repeated signing requests', async () => {
       // Arrange
-      const mockCompleteInFlight = jest.fn();
+      const mockCompleteInFlight = vi.fn();
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          referral: jest.fn().mockResolvedValue({
+          referral: vi.fn().mockResolvedValue({
             referrerState: {
               stage: 'ready',
               data: { code: 'MMCSI' },
@@ -1758,9 +1750,9 @@ describe('HyperLiquidProvider', () => {
           }),
         }),
       );
-      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+      mockClientService.getExchangeClient = vi.fn().mockReturnValue(
         createMockExchangeClient({
-          setReferrer: jest.fn().mockRejectedValue(new Error('User rejected')),
+          setReferrer: vi.fn().mockRejectedValue(new Error('User rejected')),
         }),
       );
 
@@ -1769,8 +1761,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - failure should be cached
       expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
-          .setReferral,
+        (PerpsSigningCache as Mocked<typeof PerpsSigningCache>).setReferral,
       ).toHaveBeenCalledWith(
         'mainnet',
         '0x1234567890123456789012345678901234567890',
@@ -1781,13 +1772,13 @@ describe('HyperLiquidProvider', () => {
 
     it('caches success when user already has referral on-chain', async () => {
       // Arrange
-      const mockCompleteInFlight = jest.fn();
+      const mockCompleteInFlight = vi.fn();
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          referral: jest.fn().mockResolvedValue({
+          referral: vi.fn().mockResolvedValue({
             referrerState: {
               stage: 'ready',
               data: { code: 'MMCSI' },
@@ -1802,8 +1793,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - should cache success without calling setReferrer
       expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
-          .setReferral,
+        (PerpsSigningCache as Mocked<typeof PerpsSigningCache>).setReferral,
       ).toHaveBeenCalledWith(
         'mainnet',
         '0x1234567890123456789012345678901234567890',
@@ -1816,13 +1806,13 @@ describe('HyperLiquidProvider', () => {
 
     it('skips cache and Sentry when KEYRING_LOCKED error is thrown', async () => {
       // Arrange
-      const mockCompleteInFlight = jest.fn();
+      const mockCompleteInFlight = vi.fn();
       (
-        PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>
+        PerpsSigningCache as Mocked<typeof PerpsSigningCache>
       ).setInFlight.mockReturnValue(mockCompleteInFlight);
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          referral: jest.fn().mockResolvedValue({
+          referral: vi.fn().mockResolvedValue({
             referrerState: {
               stage: 'ready',
               data: { code: 'MMCSI' },
@@ -1831,9 +1821,9 @@ describe('HyperLiquidProvider', () => {
           }),
         }),
       );
-      mockClientService.getExchangeClient = jest.fn().mockReturnValue(
+      mockClientService.getExchangeClient = vi.fn().mockReturnValue(
         createMockExchangeClient({
-          setReferrer: jest.fn().mockRejectedValue(new Error('KEYRING_LOCKED')),
+          setReferrer: vi.fn().mockRejectedValue(new Error('KEYRING_LOCKED')),
         }),
       );
 
@@ -1842,8 +1832,7 @@ describe('HyperLiquidProvider', () => {
 
       // Assert - cache should NOT be set (so it retries when unlocked)
       expect(
-        (PerpsSigningCache as jest.Mocked<typeof PerpsSigningCache>)
-          .setReferral,
+        (PerpsSigningCache as Mocked<typeof PerpsSigningCache>).setReferral,
       ).not.toHaveBeenCalled();
       // Assert - ensureReferralSet's catch does NOT call logger.error for KEYRING_LOCKED.
       // Note: setReferralCode() internally logs to Sentry before rethrowing, so
@@ -1893,17 +1882,17 @@ describe('HyperLiquidProvider', () => {
      * @returns Every order payload submitted through `order`.
      */
     const submittedOrders = (exchangeClient: {
-      order: jest.Mock;
+      order: Mock;
     }): { c?: string }[] =>
       exchangeClient.order.mock.calls.flatMap(
         (call) => (call[0] as { orders: { c?: string }[] }).orders,
       );
 
     beforeEach(() => {
-      mockClientService.getInfoClient = jest.fn().mockReturnValue(
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(
         createMockInfoClient({
-          maxBuilderFee: jest.fn().mockResolvedValue(0.001),
-          frontendOpenOrders: jest.fn().mockResolvedValue([]),
+          maxBuilderFee: vi.fn().mockResolvedValue(0.001),
+          frontendOpenOrders: vi.fn().mockResolvedValue([]),
         }),
       );
     });

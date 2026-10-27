@@ -9,6 +9,8 @@ import EthQuery from '@metamask/eth-query';
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 import nock, { isDone as nockIsDone } from 'nock';
 import type { Scope as NockScope } from 'nock';
+import { setTimeout as realSetTimeout } from 'node:timers';
+import { vi } from 'vitest';
 
 import { createNetworkClient } from '../../src/create-network-client.js';
 import type {
@@ -53,7 +55,6 @@ const DEFAULT_LATEST_BLOCK_NUMBER = '0x42';
  * @param args - The arguments that `console.log` takes.
  */
 function debug(...args: unknown[]): void {
-  /* eslint-disable-next-line n/no-process-env */
   if (process.env.DEBUG_PROVIDER_TESTS === '1') {
     console.log(...args);
   }
@@ -453,7 +454,8 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers<Type>(
   // `hasPromiseBeenFulfilled` is modified asynchronously.
   /* eslint-disable-next-line no-unmodified-loop-condition */
   while (!hasPromiseBeenFulfilled && numTimesClockHasBeenAdvanced < 30) {
-    await jest.runAllTimersAsync();
+    await new Promise((resolve) => realSetTimeout(resolve, 0));
+    await vi.runAllTimersAsync();
     numTimesClockHasBeenAdvanced += 1;
   }
 
@@ -511,7 +513,7 @@ export async function withNetworkClient<Type>(
   // request the latest block) set up in `eth-json-rpc-middleware`
   // 2. Halting the retry logic in `@metamask/eth-json-rpc-infura` (which also
   // depends on `setTimeout`)
-  jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+  vi.useFakeTimers();
 
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
 
@@ -519,9 +521,7 @@ export async function withNetworkClient<Type>(
   // than it usually would to complete. Or at least it should — this doesn't
   // appear to be working correctly. Unset `IN_TEST` on `process.env` to prevent
   // this behavior.
-  /* eslint-disable-next-line n/no-process-env */
   const inTest = process.env.IN_TEST;
-  /* eslint-disable-next-line n/no-process-env */
   delete process.env.IN_TEST;
   const networkClientConfiguration: NetworkClientConfiguration =
     providerType === 'infura'
@@ -556,7 +556,6 @@ export async function withNetworkClient<Type>(
     messenger: networkControllerMessenger,
     rpcFailoverMode,
   });
-  /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;
 
   const { provider, blockTracker } = networkClient;
@@ -589,7 +588,7 @@ export async function withNetworkClient<Type>(
   } finally {
     await blockTracker.destroy();
 
-    jest.useRealTimers();
+    vi.useRealTimers();
   }
 }
 
