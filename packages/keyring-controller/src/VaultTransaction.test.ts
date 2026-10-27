@@ -13,18 +13,28 @@ const buildFakeKeyring = ({
   destroy,
 }: FakeKeyringOptions = {}): EthKeyring => ({
   type: 'Fake Keyring',
-  getAccounts: async (): Promise<Hex[]> => [],
-  serialize: async (): Promise<Json> => ({}),
   ...(destroy ? { destroy } : {}),
+  serialize: async (): Promise<Json> => ({}),
+  deserialize: async (): Promise<void> => undefined,
+  getAccounts: async (): Promise<Hex[]> => [],
+  addAccounts: async (): Promise<Hex[]> => [],
 });
 
 const buildFakeKeyringV2 = ({
   destroy,
 }: FakeKeyringOptions = {}): KeyringV2 => ({
-  type: 'Fake Keyring V2',
-  getAccounts: async (): Promise<Hex[]> => [],
-  serialize: async (): Promise<Json> => ({}),
+  type: 'hd',
+  capabilities: { scopes: ['eip155:1'] },
   ...(destroy ? { destroy } : {}),
+  serialize: async (): Promise<Json> => ({}),
+  deserialize: async (): Promise<void> => undefined,
+  getAccounts: async () => [],
+  getAccount: async () => {
+    throw new Error('Not implemented');
+  },
+  createAccounts: async () => [],
+  deleteAccount: async (): Promise<void> => undefined,
+  submitRequest: async (): Promise<Json> => ({}),
 });
 
 const buildEntry = (
