@@ -238,6 +238,38 @@ describe('PhishingController - Bulk Token Scanning', () => {
     });
 
     describe('successful API responses', () => {
+      it('should scan tokens on Arc', async () => {
+        const token = '0x1234567890123456789012345678901234567890';
+        const mockApiResponse: TokenScanApiResponse = {
+          results: {
+            [token]: {
+              result_type: TokenScanResultType.Benign,
+            },
+          },
+        };
+
+        const scope = nock(SECURITY_ALERTS_BASE_URL)
+          .post(TOKEN_BULK_SCANNING_ENDPOINT, {
+            chain: 'arc',
+            tokens: [token],
+          })
+          .reply(200, mockApiResponse);
+
+        const result = await controller.bulkScanTokens({
+          chainId: '0x13b2',
+          tokens: [token],
+        });
+
+        expect(scope.isDone()).toBe(true);
+        expect(result).toStrictEqual({
+          [token]: {
+            result_type: TokenScanResultType.Benign,
+            chain: '0x13b2',
+            address: token,
+          },
+        });
+      });
+
       it('should return scan results for valid tokens', async () => {
         const tokens = [
           '0x1234567890123456789012345678901234567890',
