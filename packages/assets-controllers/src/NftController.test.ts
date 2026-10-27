@@ -3085,6 +3085,162 @@ describe('NftController', () => {
     });
   });
 
+  describe('isManualImport flag', () => {
+    const metadata = {
+      name: 'name',
+      image: 'image',
+      description: 'description',
+      standard: ERC721,
+    };
+
+    type Adder = (
+      controller: NftController,
+      source: Source | undefined,
+      nftMetadata?: typeof metadata,
+    ) => Promise<void>;
+
+    const adders: [string, Adder][] = [
+      [
+        'addNft',
+        async (controller, source, nftMetadata = metadata): Promise<void> => {
+          await controller.addNft('0x01', '1', 'mainnet', {
+            nftMetadata,
+            ...(source && { source }),
+          });
+        },
+      ],
+      [
+        'addNfts',
+        async (controller, source, nftMetadata = metadata): Promise<void> => {
+          await controller.addNfts(
+            [
+              {
+                tokenAddress: '0x01',
+                tokenId: '1',
+                nftMetadata: { ...nftMetadata, chainId: 1 },
+              },
+            ],
+            OWNER_ACCOUNT.address,
+            source,
+          );
+        },
+      ],
+    ];
+
+    const getNft = (controller: NftController): Nft =>
+      controller.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0];
+
+    describe.each(adders)('%s', (_name, add) => {
+      it('flags a new manual import and not a new detected or dapp NFT', async () => {
+        const manual = setupController({ options: {} }).nftController;
+        await add(manual, Source.Custom);
+        expect(getNft(manual).isManualImport).toBe(true);
+
+        const detected = setupController({ options: {} }).nftController;
+        await add(detected, Source.Detected);
+        expect(getNft(detected).isManualImport).toBeUndefined();
+
+        const dapp = setupController({ options: {} }).nftController;
+        await add(dapp, Source.Dapp);
+        expect(getNft(dapp).isManualImport).toBeUndefined();
+      });
+
+      it('flags a detected NFT that is later manually imported with changed metadata and still calls onNftAdded', async () => {
+        const mockOnNftAdded = vi.fn();
+        const { nftController } = setupController({
+          options: { onNftAdded: mockOnNftAdded },
+        });
+        await add(nftController, Source.Detected);
+        mockOnNftAdded.mockClear();
+
+        await add(nftController, Source.Custom, {
+          ...metadata,
+          image: 'new-image',
+        });
+
+        expect(getNft(nftController).isManualImport).toBe(true);
+        expect(mockOnNftAdded).toHaveBeenCalledTimes(1);
+      });
+
+      it('flags a detected NFT that is later manually imported with identical metadata without calling onNftAdded', async () => {
+        const mockOnNftAdded = vi.fn();
+        const { nftController } = setupController({
+          options: { onNftAdded: mockOnNftAdded },
+        });
+        await add(nftController, Source.Detected);
+        expect(getNft(nftController).isManualImport).toBeUndefined();
+        mockOnNftAdded.mockClear();
+
+        await add(nftController, Source.Custom);
+
+        expect(getNft(nftController).isManualImport).toBe(true);
+        expect(mockOnNftAdded).not.toHaveBeenCalled();
+      });
+
+      it('does not update state or call onNftAdded when an already flagged NFT is re-imported with identical metadata', async () => {
+        const mockOnNftAdded = vi.fn();
+        const { nftController } = setupController({
+          options: { onNftAdded: mockOnNftAdded },
+        });
+        await add(nftController, Source.Custom);
+        const stateBefore = nftController.state.allNfts;
+        mockOnNftAdded.mockClear();
+
+        await add(nftController, Source.Custom);
+
+        expect(nftController.state.allNfts).toBe(stateBefore);
+        expect(mockOnNftAdded).not.toHaveBeenCalled();
+      });
+
+      it('keeps the flag when a manually imported NFT is later detected or suggested by a dapp', async () => {
+        const { nftController } = setupController({ options: {} });
+        await add(nftController, Source.Custom);
+
+        await add(nftController, Source.Detected, {
+          ...metadata,
+          image: 'detected-image',
+        });
+        expect(getNft(nftController).isManualImport).toBe(true);
+
+        await add(nftController, Source.Dapp, {
+          ...metadata,
+          image: 'dapp-image',
+        });
+        expect(getNft(nftController).isManualImport).toBe(true);
+      });
+
+      it('leaves an unflagged NFT unflagged and untouched when re-detected with identical metadata', async () => {
+        const { nftController } = setupController({ options: {} });
+        await add(nftController, Source.Detected);
+        const stateBefore = nftController.state.allNfts;
+
+        await add(nftController, Source.Detected);
+
+        expect(nftController.state.allNfts).toBe(stateBefore);
+        expect(getNft(nftController).isManualImport).toBeUndefined();
+      });
+
+      it('keeps an ignored NFT in ignoredNfts when it is manually imported', async () => {
+        const { nftController } = setupController({ options: {} });
+        await add(nftController, Source.Detected);
+        nftController.removeAndIgnoreNft('0x01', '1', 'mainnet');
+        const ignoredBefore = nftController.state.ignoredNfts;
+        expect(ignoredBefore).toHaveLength(1);
+
+        await add(nftController, Source.Custom);
+
+        expect(getNft(nftController).isManualImport).toBe(true);
+        expect(nftController.state.ignoredNfts).toStrictEqual(ignoredBefore);
+      });
+    });
+
+    it('exports Source from the package root', async () => {
+      const root = await import('./index.js');
+
+      expect(root.Source).toBe(Source);
+    });
+  });
+
   describe('addNfts', () => {
     it('should add multiple NFTs and NFT contracts at once', async () => {
       const { nftController } = setupController({
