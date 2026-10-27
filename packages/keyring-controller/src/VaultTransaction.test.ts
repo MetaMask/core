@@ -2,6 +2,7 @@ import type { Keyring as KeyringV2 } from '@metamask/keyring-api/v2';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { Hex, Json } from '@metamask/utils';
 import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type {
   CachedEncryptionKey,
@@ -124,19 +125,21 @@ type MockOperationsOptions = {
 };
 
 /** A mocked `VaultOperations.createKeyring`. */
-type CreateKeyringMock = jest.Mock<
-  Promise<KeyringEntry>,
-  [type: string, data?: unknown, metadata?: KeyringMetadata]
+type CreateKeyringMock = Mock<
+  (
+    type: string,
+    data?: unknown,
+    metadata?: KeyringMetadata,
+  ) => Promise<KeyringEntry>
 >;
 
 /** A mocked `VaultOperations.assertNoDuplicateAccounts`. */
-type AssertNoDuplicateAccountsMock = jest.Mock<
-  Promise<void>,
-  [keyrings: EthKeyring[]]
+type AssertNoDuplicateAccountsMock = Mock<
+  (keyrings: EthKeyring[]) => Promise<void>
 >;
 
 /** A mocked `VaultOperations.updateVault`. */
-type UpdateVaultMock = jest.Mock<Promise<boolean>, []>;
+type UpdateVaultMock = Mock<() => Promise<boolean>>;
 
 /**
  * The pieces a test needs to drive a transaction: the transaction itself,
@@ -163,7 +166,7 @@ const buildMockOperations = (
 } => {
   const observedKeyrings: KeyringEntry[][] = [];
 
-  const createKeyring: CreateKeyringMock = jest.fn(
+  const createKeyring: CreateKeyringMock = vi.fn(
     async (
       type: string,
       _data?: unknown,
@@ -183,11 +186,11 @@ const buildMockOperations = (
     },
   );
 
-  const assertNoDuplicateAccounts: AssertNoDuplicateAccountsMock = jest.fn(
+  const assertNoDuplicateAccounts: AssertNoDuplicateAccountsMock = vi.fn(
     async (_keyrings: EthKeyring[]): Promise<void> => undefined,
   );
 
-  const updateVault: UpdateVaultMock = jest.fn(
+  const updateVault: UpdateVaultMock = vi.fn(
     async (): Promise<boolean> => true,
   );
 
@@ -425,8 +428,8 @@ describe('VaultTransaction', () => {
 
   describe('begin', () => {
     it('snapshots every keyring of the wallet scope', async () => {
-      const serializeA = jest.fn(async (): Promise<Json> => ({ a: true }));
-      const serializeB = jest.fn(async (): Promise<Json> => ({ b: true }));
+      const serializeA = vi.fn(async (): Promise<Json> => ({ a: true }));
+      const serializeB = vi.fn(async (): Promise<Json> => ({ b: true }));
       const entryA = buildEntry(
         buildFakeKeyring({ type: 'A', serialize: serializeA }),
       );
@@ -444,7 +447,7 @@ describe('VaultTransaction', () => {
     });
 
     it('does not serialize the operated keyring when the keyring-scope transaction created it', async () => {
-      const serialize = jest.fn(async (): Promise<Json> => ({}));
+      const serialize = vi.fn(async (): Promise<Json> => ({}));
       const entry = buildEntry(buildFakeKeyring({ serialize }));
       const { transaction } = buildTransaction({
         type: 'keyring',
@@ -510,7 +513,7 @@ describe('VaultTransaction', () => {
 
     it('rebuilds mutated keyrings in place, destroying the stale instance first', async () => {
       const aData: Json = { a: true };
-      const destroyA = jest.fn(async () => undefined);
+      const destroyA = vi.fn(async () => undefined);
       const entryA = buildEntry(
         buildFakeKeyring({
           type: 'A',
@@ -542,7 +545,7 @@ describe('VaultTransaction', () => {
     });
 
     it('rebuilds keyrings destroyed by the failed transaction, even when their serialized state is unchanged', async () => {
-      const destroyA = jest.fn(async () => undefined);
+      const destroyA = vi.fn(async () => undefined);
       const entryA = buildEntry(
         buildFakeKeyring({
           type: 'A',
@@ -593,8 +596,8 @@ describe('VaultTransaction', () => {
     });
 
     it('destroys and drops keyrings created by the failed transaction', async () => {
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
-      const destroyC = jest.fn(async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const destroyC = vi.fn(async () => {
         throw new Error('destroy failed');
       });
       const entryA = buildEntry(
@@ -618,7 +621,7 @@ describe('VaultTransaction', () => {
     });
 
     it('restores the unsupported keyrings wholesale, parking the keyrings it fails to recreate', async () => {
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
       const entryA = buildEntry(
         buildFakeKeyring({ type: 'A', serialize: async () => ({ a: true }) }),
       );
@@ -731,9 +734,9 @@ describe('VaultTransaction', () => {
       await transaction.begin();
 
       // The failed transaction mutates B; A is kept as-is by the walk.
-      jest
-        .spyOn(entryB.keyring, 'serialize')
-        .mockImplementation(async () => ({ b: false }));
+      vi.spyOn(entryB.keyring, 'serialize').mockImplementation(async () => ({
+        b: false,
+      }));
 
       await transaction.rollback();
 
@@ -759,8 +762,8 @@ describe('VaultTransaction', () => {
     });
 
     it('destroys and drops a keyring the transaction created, even when destruction fails', async () => {
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
-      const destroy = jest.fn(async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const destroy = vi.fn(async () => {
         throw new Error('destroy failed');
       });
       const entry = buildEntry(
@@ -810,7 +813,7 @@ describe('VaultTransaction', () => {
     });
 
     it('always rebuilds the operated keyring on failure, even when unchanged, in place', async () => {
-      const destroy = jest.fn(async () => undefined);
+      const destroy = vi.fn(async () => undefined);
       const entry = buildEntry(
         buildFakeKeyring({
           type: 'A',
@@ -859,7 +862,7 @@ describe('VaultTransaction', () => {
     });
 
     it('parks the keyring as unsupported when its recreation fails', async () => {
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
       const entry = buildEntry(
         buildFakeKeyring({ type: 'A', serialize: async () => ({ a: true }) }),
         undefined,
@@ -1178,7 +1181,7 @@ describe('VaultTransaction', () => {
       });
 
       it('does not evaluate the session change when the policy ignores it', async () => {
-        const serializeA = jest.fn(async (): Promise<Json> => ({ a: true }));
+        const serializeA = vi.fn(async (): Promise<Json> => ({ a: true }));
         const entryA = buildEntry(
           buildFakeKeyring({ type: 'A', serialize: serializeA }),
         );
@@ -1254,7 +1257,7 @@ describe('VaultTransaction', () => {
 
   describe('remove', () => {
     it('removes a registered entry from the session, destroying it', async () => {
-      const destroy = jest.fn(async () => undefined);
+      const destroy = vi.fn(async () => undefined);
       const entry = buildEntry(
         buildFakeKeyring({ type: 'A', destroy }),
         undefined,
@@ -1275,7 +1278,7 @@ describe('VaultTransaction', () => {
     });
 
     it('is a no-op for an unregistered entry, destroying nothing', async () => {
-      const destroy = jest.fn(async () => undefined);
+      const destroy = vi.fn(async () => undefined);
       const entry = buildEntry(
         buildFakeKeyring({ type: 'A', destroy }),
         undefined,
