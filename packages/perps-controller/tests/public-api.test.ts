@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   LIGHTER_MAX_WIRE_PRICE,
   LIGHTER_GROUPING_ONE_TRIGGERS_THE_OTHER,

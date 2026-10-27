@@ -1,5 +1,6 @@
 import { createDeferredPromise } from '@metamask/utils';
 import nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RpcServiceChain } from './rpc-service-chain.js';
 import type { RpcServiceOptions } from './rpc-service.js';
@@ -14,18 +15,15 @@ describe('RpcService request timeout', () => {
   };
 
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('rejects a stalled fetch after five seconds even if fetch ignores cancellation', async () => {
-    const mockFetch = jest.fn<
-      ReturnType<typeof fetch>,
-      Parameters<typeof fetch>
-    >(() => new Promise(() => undefined));
+    const mockFetch = vi.fn<typeof fetch>(() => new Promise(() => undefined));
     const service = new RpcService({
       fetch: mockFetch,
       btoa,
@@ -33,26 +31,26 @@ describe('RpcService request timeout', () => {
       isOffline: (): boolean => false,
       policyOptions: { maxRetries: 0 },
     });
-    const rejected = jest.fn();
+    const rejected = vi.fn();
     const request = service.request(jsonRpcRequest).catch(rejected);
 
-    await jest.advanceTimersByTimeAsync(4_999);
+    await vi.advanceTimersByTimeAsync(4_999);
     expect(rejected).not.toHaveBeenCalled();
-    await jest.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(rejected).toHaveBeenCalledWith(
       expect.objectContaining({ code: 'ETIMEDOUT' }),
     );
     await request;
     expect(mockFetch.mock.calls[0][1]?.signal?.aborted).toBe(true);
-    expect(jest.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('also bounds the time spent reading the response body', async () => {
     const response = new Response('', { status: 200 });
-    jest
-      .spyOn(response, 'json')
-      .mockImplementation(() => new Promise(() => undefined));
+    vi.spyOn(response, 'json').mockImplementation(
+      () => new Promise(() => undefined),
+    );
     const service = new RpcService({
       fetch: async (): Promise<Response> => response,
       btoa,
@@ -60,16 +58,16 @@ describe('RpcService request timeout', () => {
       isOffline: (): boolean => false,
       policyOptions: { maxRetries: 0 },
     });
-    const rejected = jest.fn();
+    const rejected = vi.fn();
     const request = service.request(jsonRpcRequest).catch(rejected);
 
-    await jest.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(5_000);
 
     expect(rejected).toHaveBeenCalledWith(
       expect.objectContaining({ code: 'ETIMEDOUT' }),
     );
     await request;
-    expect(jest.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   const responseBody = { id: 1, jsonrpc: '2.0', result: '0x1' };
@@ -86,11 +84,11 @@ describe('RpcService request timeout', () => {
       fetch: (): Promise<Response> => new Promise(() => undefined),
       requestTimeout: 100,
     });
-    const rejected = jest.fn();
+    const rejected = vi.fn();
     const request = service.request(jsonRpcRequest).catch(rejected);
-    await jest.advanceTimersByTimeAsync(99);
+    await vi.advanceTimersByTimeAsync(99);
     expect(rejected).not.toHaveBeenCalled();
-    await jest.advanceTimersByTimeAsync(1);
+    await vi.advanceTimersByTimeAsync(1);
     expect(rejected).toHaveBeenCalledWith(
       expect.objectContaining({ code: 'ETIMEDOUT' }),
     );
@@ -106,37 +104,66 @@ describe('RpcService request timeout', () => {
     },
   );
 
-  it.each(['request', 'default', 'authenticated default'])(
-    'preserves cancellation from the %s fetch options',
-    async (source) => {
+  it.each([
+    {
+      source: 'request',
+      endpointUrl: options.endpointUrl,
+      configure: (
+        signal: AbortSignal,
+      ): {
+        fetchOptions: { signal?: AbortSignal };
+        requestOptions: { signal?: AbortSignal };
+      } => ({
+        fetchOptions: {},
+        requestOptions: { signal },
+      }),
+    },
+    {
+      source: 'default',
+      endpointUrl: options.endpointUrl,
+      configure: (
+        signal: AbortSignal,
+      ): {
+        fetchOptions: { signal?: AbortSignal };
+        requestOptions: { signal?: AbortSignal };
+      } => ({
+        fetchOptions: { signal },
+        requestOptions: {},
+      }),
+    },
+    {
+      source: 'authenticated default',
+      endpointUrl: 'https://user:password@rpc.example.chain',
+      configure: (
+        signal: AbortSignal,
+      ): {
+        fetchOptions: { signal?: AbortSignal };
+        requestOptions: { signal?: AbortSignal };
+      } => ({
+        fetchOptions: { signal },
+        requestOptions: {},
+      }),
+    },
+  ])(
+    'preserves cancellation from the $source fetch options',
+    async ({ endpointUrl, configure }) => {
       const controller = new AbortController();
-      const addListener = jest.spyOn(controller.signal, 'addEventListener');
-      const removeListener = jest.spyOn(
-        controller.signal,
-        'removeEventListener',
-      );
-      const mockFetch = jest.fn<
-        ReturnType<typeof fetch>,
-        Parameters<typeof fetch>
-      >(() => new Promise(() => undefined));
+      const addListener = vi.spyOn(controller.signal, 'addEventListener');
+      const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
+      const mockFetch = vi.fn<typeof fetch>(() => new Promise(() => undefined));
+      const { fetchOptions, requestOptions } = configure(controller.signal);
       const service = new RpcService({
         ...options,
-        endpointUrl:
-          source === 'authenticated default'
-            ? 'https://user:password@rpc.example.chain'
-            : options.endpointUrl,
+        endpointUrl,
         fetch: mockFetch,
-        fetchOptions: source === 'request' ? {} : { signal: controller.signal },
+        fetchOptions,
       });
-      const rejected = jest.fn();
+      const rejected = vi.fn();
       const request = service
-        .request(
-          jsonRpcRequest,
-          source === 'request' ? { signal: controller.signal } : {},
-        )
+        .request(jsonRpcRequest, requestOptions)
         .catch(rejected);
       controller.abort();
-      await jest.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(rejected).toHaveBeenCalledWith(controller.signal.reason);
       await request;
@@ -145,42 +172,41 @@ describe('RpcService request timeout', () => {
         'abort',
         addListener.mock.calls[0][1],
       );
-      expect(jest.getTimerCount()).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
     },
   );
 
   it('does not start fetch when the caller has already cancelled', async () => {
     const controller = new AbortController();
     controller.abort();
-    const mockFetch = jest.fn(fetch);
+    const mockFetch = vi.fn(fetch);
     const service = new RpcService({ ...options, fetch: mockFetch });
     await expect(
       service.request(jsonRpcRequest, { signal: controller.signal }),
     ).rejects.toBe(controller.signal.reason);
     expect(mockFetch).not.toHaveBeenCalled();
-    expect(jest.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('cleans up after a successful request without aborting it later', async () => {
     const controller = new AbortController();
-    const removeListener = jest.spyOn(controller.signal, 'removeEventListener');
-    const mockFetch = jest.fn<
-      ReturnType<typeof fetch>,
-      Parameters<typeof fetch>
-    >(async () => new Response(JSON.stringify(responseBody)));
+    const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
+    const mockFetch = vi.fn<typeof fetch>(
+      async () => new Response(JSON.stringify(responseBody)),
+    );
     const service = new RpcService({ ...options, fetch: mockFetch });
     expect(
       await service.request(jsonRpcRequest, { signal: controller.signal }),
     ).toStrictEqual(responseBody);
-    expect(jest.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
     expect(removeListener).toHaveBeenCalledTimes(1);
-    await jest.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(5_000);
     expect(mockFetch.mock.calls[0][1]?.signal?.aborted).toBe(false);
   });
 
   it('retries a timeout with a fresh signal and can recover', async () => {
-    const mockFetch = jest
-      .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+    const mockFetch = vi
+      .fn<typeof fetch>()
       .mockImplementationOnce(() => new Promise(() => undefined))
       .mockImplementationOnce(
         async () => new Response(JSON.stringify(responseBody)),
@@ -191,12 +217,12 @@ describe('RpcService request timeout', () => {
       requestTimeout: 100,
       policyOptions: { maxRetries: 1 },
     });
-    const retried = jest.fn();
+    const retried = vi.fn();
     service.onRetry(retried);
     const request = service.request(jsonRpcRequest);
-    await jest.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(100);
     expect(retried).toHaveBeenCalledTimes(1);
-    await jest.runAllTimersAsync();
+    await vi.runAllTimersAsync();
     expect(await request).toStrictEqual(responseBody);
     const firstSignal = mockFetch.mock.calls[0][1]?.signal;
     const secondSignal = mockFetch.mock.calls[1][1]?.signal;
@@ -204,13 +230,13 @@ describe('RpcService request timeout', () => {
     expect(secondSignal?.aborted).toBe(false);
     expect(secondSignal).not.toBe(firstSignal);
     expect(service.lastError).toBeUndefined();
-    expect(jest.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('keeps concurrent request deadlines independent', async () => {
     const pending = createDeferredPromise<Response>();
-    const mockFetch = jest
-      .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+    const mockFetch = vi
+      .fn<typeof fetch>()
       .mockImplementationOnce(() => new Promise(() => undefined))
       .mockReturnValueOnce(pending.promise);
     const service = new RpcService({
@@ -218,28 +244,26 @@ describe('RpcService request timeout', () => {
       fetch: mockFetch,
       requestTimeout: 100,
     });
-    const rejected = jest.fn();
+    const rejected = vi.fn();
     const first = service.request(jsonRpcRequest).catch(rejected);
-    await jest.advanceTimersByTimeAsync(50);
+    await vi.advanceTimersByTimeAsync(50);
     const second = service.request({ ...jsonRpcRequest, id: 2 });
-    await jest.advanceTimersByTimeAsync(50);
+    await vi.advanceTimersByTimeAsync(50);
     expect(rejected).toHaveBeenCalledTimes(1);
     expect(mockFetch.mock.calls[1][1]?.signal?.aborted).toBe(false);
     pending.resolve(new Response(JSON.stringify({ ...responseBody, id: 2 })));
     expect(await second).toStrictEqual({ ...responseBody, id: 2 });
     await first;
-    expect(jest.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('switches to a backup after timeouts open the primary circuit', async () => {
-    const primaryFetch = jest.fn<
-      ReturnType<typeof fetch>,
-      Parameters<typeof fetch>
-    >(() => new Promise(() => undefined));
-    const backupFetch = jest.fn<
-      ReturnType<typeof fetch>,
-      Parameters<typeof fetch>
-    >(async () => new Response(JSON.stringify(responseBody)));
+    const primaryFetch = vi.fn<typeof fetch>(
+      () => new Promise(() => undefined),
+    );
+    const backupFetch = vi.fn<typeof fetch>(
+      async () => new Response(JSON.stringify(responseBody)),
+    );
     const configuration: RpcServiceOptions = {
       ...options,
       fetch: primaryFetch,
@@ -255,11 +279,11 @@ describe('RpcService request timeout', () => {
       },
     ]);
     const request = chain.request(jsonRpcRequest);
-    await jest.runAllTimersAsync();
+    await vi.runAllTimersAsync();
     expect(await request).toStrictEqual(responseBody);
     expect(primaryFetch).toHaveBeenCalledTimes(1);
     expect(backupFetch).toHaveBeenCalledTimes(1);
-    expect(jest.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('aborts a real fetch implementation when the server is slow', async () => {
@@ -268,9 +292,9 @@ describe('RpcService request timeout', () => {
       .delayConnection(200)
       .reply(200, responseBody);
     const service = new RpcService({ ...options, fetch, requestTimeout: 100 });
-    const rejected = jest.fn();
+    const rejected = vi.fn();
     const request = service.request(jsonRpcRequest).catch(rejected);
-    await jest.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(100);
     expect(rejected).toHaveBeenCalledWith(
       expect.objectContaining({ code: 'ETIMEDOUT' }),
     );
@@ -296,12 +320,12 @@ describe('RpcService request timeout', () => {
     expect(
       await service.request(jsonRpcRequest, { signal: null }),
     ).toStrictEqual(responseBody);
-    expect(jest.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('cleans up the deadline and cancellation listener after an HTTP error', async () => {
     const controller = new AbortController();
-    const removeListener = jest.spyOn(controller.signal, 'removeEventListener');
+    const removeListener = vi.spyOn(controller.signal, 'removeEventListener');
     const service = new RpcService({
       ...options,
       fetch: async (): Promise<Response> => new Response('', { status: 401 }),
@@ -310,16 +334,16 @@ describe('RpcService request timeout', () => {
       service.request(jsonRpcRequest, { signal: controller.signal }),
     ).rejects.toThrow('Unauthorized.');
     expect(removeListener).toHaveBeenCalledTimes(1);
-    expect(jest.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('does not let a late response change the trace ID of a retried request', async () => {
     const firstResponse = createDeferredPromise<Response>();
     const secondBody = createDeferredPromise<never>();
     const response = new Response('', { headers: { 'X-Trace-Id': 'second' } });
-    jest.spyOn(response, 'json').mockReturnValue(secondBody.promise);
-    const mockFetch = jest
-      .fn<ReturnType<typeof fetch>, Parameters<typeof fetch>>()
+    vi.spyOn(response, 'json').mockReturnValue(secondBody.promise);
+    const mockFetch = vi
+      .fn<typeof fetch>()
       .mockReturnValueOnce(firstResponse.promise)
       .mockResolvedValueOnce(response);
     const service = new RpcService({
@@ -328,19 +352,19 @@ describe('RpcService request timeout', () => {
       requestTimeout: 100,
       policyOptions: { maxRetries: 1 },
     });
-    const degraded = jest.fn();
+    const degraded = vi.fn();
     service.onDegraded(degraded);
-    const rejected = jest.fn();
+    const rejected = vi.fn();
     const request = service.request(jsonRpcRequest).catch(rejected);
-    await jest.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(100);
     // Advance only the backoff timer, leaving the next attempt's timeout pending.
-    await jest.advanceTimersToNextTimerAsync();
+    await vi.advanceTimersToNextTimerAsync();
     expect(mockFetch).toHaveBeenCalledTimes(2);
     firstResponse.resolve(
       new Response('{}', { headers: { 'X-Trace-Id': 'first' } }),
     );
-    await jest.advanceTimersByTimeAsync(0);
-    await jest.advanceTimersByTimeAsync(100);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(100);
     expect(rejected).toHaveBeenCalledWith(
       expect.objectContaining({ code: 'ETIMEDOUT' }),
     );
@@ -348,6 +372,6 @@ describe('RpcService request timeout', () => {
     expect(degraded).toHaveBeenCalledWith(
       expect.objectContaining({ traceId: 'second' }),
     );
-    expect(jest.getTimerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

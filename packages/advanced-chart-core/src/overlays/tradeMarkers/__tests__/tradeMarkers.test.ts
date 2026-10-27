@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   _resetDataLifecycleForTests,
   notifyDataLifecycle,
@@ -266,7 +268,7 @@ describe('placeTradeMarkers', () => {
 
 describe('scheduleTradeMarkerRefresh', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     _resetStateForTests();
     _resetTradeMarkerStateForTests();
     _resetTradeMarkerRefreshForTests();
@@ -275,13 +277,13 @@ describe('scheduleTradeMarkerRefresh', () => {
     setTheme(theme);
   });
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('no-ops when no markers are cached', () => {
     expect(() => {
       scheduleTradeMarkerRefresh();
-      jest.runAllTimers();
+      vi.runAllTimers();
     }).not.toThrow();
   });
 
@@ -300,14 +302,14 @@ describe('scheduleTradeMarkerRefresh', () => {
     // With markers matching drawn set placement is a no-op (dedup check),
     // but scheduling itself should have run its debounced callback once
     // without throwing and left the cached markers intact.
-    expect(() => jest.advanceTimersByTime(200)).not.toThrow();
+    expect(() => vi.advanceTimersByTime(200)).not.toThrow();
     expect(getMarkers()).toStrictEqual([entryMarker('a', 2_000)]);
   });
 });
 
 describe('registerTradeMarkerOverlay lifecycle hooks', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     _resetStateForTests();
     _resetTradeMarkerStateForTests();
     _resetTradeMarkerRefreshForTests();
@@ -316,7 +318,7 @@ describe('registerTradeMarkerOverlay lifecycle hooks', () => {
     setTheme(theme);
   });
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('clears shape tracking on ohlcvReset and re-schedules refresh', () => {
@@ -336,7 +338,7 @@ describe('registerTradeMarkerOverlay lifecycle hooks', () => {
     notifyDataLifecycle('ohlcvReset');
     expect(getShapesByMarkerId().size).toBe(0);
     // Refresh is debounced; advance timers to let it run.
-    jest.advanceTimersByTime(200);
+    vi.advanceTimersByTime(200);
   });
 
   it('clearTradeMarkers is safe when no widget is bound', () => {
@@ -364,7 +366,7 @@ describe('registerTradeMarkerOverlay lifecycle hooks', () => {
         new Promise<string>((resolve) => {
           createShapeCalls.push({ point, options, resolveWith: resolve });
         }),
-      removeEntity: jest.fn(),
+      removeEntity: vi.fn(),
     } as unknown as TVActiveChart;
     installWidget(chart);
     setOhlcvData(sampleBars);
@@ -376,7 +378,7 @@ describe('registerTradeMarkerOverlay lifecycle hooks', () => {
   });
 
   it('reports error when widget.activeChart() throws in placeTradeMarkers', () => {
-    const bridge = { postMessage: jest.fn() };
+    const bridge = { postMessage: vi.fn() };
     window.ReactNativeWebView = bridge;
     const widget = {
       activeChart: () => {

@@ -91,7 +91,6 @@ function buildPackageRules(
     { pattern: `${workspacePath}/package.json`, owners: releaseOwners },
     { pattern: `${workspacePath}/tsconfig.*`, owners: releaseOwners },
     { pattern: `${workspacePath}/typedoc.json`, owners: releaseOwners },
-    { pattern: `${workspacePath}/jest.config.*`, owners: releaseOwners },
     { pattern: `${workspacePath}/vitest.config.*`, owners: releaseOwners },
   );
 

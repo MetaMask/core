@@ -1,3 +1,6 @@
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
+
 import { getProcessingPollConfig } from './defi-controller-v2-feature-flag.js';
 
 /** Mirrors the internal defaults in `defi-controller-v2-feature-flag.ts`. */
@@ -10,10 +13,10 @@ const DEFI_CONTROLLER_V2_FEATURE_FLAG = 'defiControllerV2';
  * @returns A minimal messenger stub for `getProcessingPollConfig`.
  */
 function buildMessenger(remoteFeatureFlags: Record<string, unknown>): {
-  call: jest.Mock;
+  call: Mock;
 } {
   return {
-    call: jest.fn().mockReturnValue({
+    call: vi.fn().mockReturnValue({
       remoteFeatureFlags,
       cacheTimestamp: 0,
     }),

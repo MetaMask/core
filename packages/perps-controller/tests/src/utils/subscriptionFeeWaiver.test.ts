@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   SUBSCRIPTION_CLOID_CONFIG,
   SUBSCRIPTION_CLOID_FLAGS,

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
 - **BREAKING:** Limit each RPC HTTP attempt, including reading its response body, to 5 seconds by default ([#10854](https://github.com/MetaMask/core/pull/10854))

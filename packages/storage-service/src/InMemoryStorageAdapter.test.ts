@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { InMemoryStorageAdapter } from './InMemoryStorageAdapter.js';
 
 describe('InMemoryStorageAdapter', () => {
@@ -119,7 +121,9 @@ describe('InMemoryStorageAdapter', () => {
 
     it('returns { error } when stored data is corrupted', async () => {
       const adapter = new InMemoryStorageAdapter();
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
       const parseError = new SyntaxError('Unexpected token');
 
       // Store valid data first
@@ -127,7 +131,7 @@ describe('InMemoryStorageAdapter', () => {
 
       // Mock JSON.parse to throw on the next call (simulating corruption)
       const originalParse = JSON.parse;
-      jest.spyOn(JSON, 'parse').mockImplementationOnce(() => {
+      vi.spyOn(JSON, 'parse').mockImplementationOnce(() => {
         throw parseError;
       });
 

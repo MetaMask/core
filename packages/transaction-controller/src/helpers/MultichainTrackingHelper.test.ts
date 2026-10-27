@@ -6,15 +6,17 @@ import type {
 } from '@metamask/network-controller';
 import type { NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
+import type { Mock, Mocked } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { jestAdvanceTime } from '../../../../tests/helpers.js';
+import { advanceTime } from '../../../../tests/vitest/helpers.js';
 import {
   MultichainTrackingHelper,
   MultichainTrackingHelperOptions,
 } from './MultichainTrackingHelper.js';
 import type { PendingTransactionTracker } from './PendingTransactionTracker.js';
 
-jest.mock(
+vi.mock(
   '@metamask/eth-query',
   () =>
     function (provider: Provider): { provider: Provider } {
@@ -76,15 +78,15 @@ function newMultichainTrackingHelper(
   opts: any = {},
 ): {
   helper: MultichainTrackingHelper;
-  options: jest.Mocked<MultichainTrackingHelperOptions>;
-  mockNonceLock: { releaseLock: jest.Mock };
-  mockNonceTrackers: Record<Hex, jest.Mocked<NonceTracker>>;
+  options: Mocked<MultichainTrackingHelperOptions>;
+  mockNonceLock: { releaseLock: Mock };
+  mockNonceTrackers: Record<Hex, Mocked<NonceTracker>>;
   mockPendingTransactionTrackers: Record<
     NetworkClientId,
-    jest.Mocked<PendingTransactionTracker>
+    Mocked<PendingTransactionTracker>
   >;
 } {
-  const mockGetNetworkClientById = jest
+  const mockGetNetworkClientById = vi
     .fn()
     .mockImplementation((networkClientId) => {
       switch (networkClientId) {
@@ -125,7 +127,7 @@ function newMultichainTrackingHelper(
       }
     });
 
-  const mockFindNetworkClientIdByChainId = jest
+  const mockFindNetworkClientIdByChainId = vi
     .fn()
     .mockImplementation((chainId) => {
       switch (chainId) {
@@ -142,7 +144,7 @@ function newMultichainTrackingHelper(
       }
     });
 
-  const mockGetNetworkClientRegistry = jest.fn().mockReturnValue({
+  const mockGetNetworkClientRegistry = vi.fn().mockReturnValue({
     mainnet: {
       configuration: {
         chainId: '0x1',
@@ -165,30 +167,30 @@ function newMultichainTrackingHelper(
     },
   });
 
-  const mockNonceLock = { releaseLock: jest.fn() };
-  const mockNonceTrackers: Record<Hex, jest.Mocked<NonceTracker>> = {};
-  const mockCreateNonceTracker = jest
+  const mockNonceLock = { releaseLock: vi.fn() };
+  const mockNonceTrackers: Record<Hex, Mocked<NonceTracker>> = {};
+  const mockCreateNonceTracker = vi
     .fn()
     .mockImplementation(({ chainId }: { chainId: Hex }) => {
       const mockNonceTracker = {
-        getNonceLock: jest.fn().mockResolvedValue(mockNonceLock),
-      } as unknown as jest.Mocked<NonceTracker>;
+        getNonceLock: vi.fn().mockResolvedValue(mockNonceLock),
+      } as unknown as Mocked<NonceTracker>;
       mockNonceTrackers[chainId] = mockNonceTracker;
       return mockNonceTracker;
     });
 
   const mockPendingTransactionTrackers: Record<
     NetworkClientId,
-    jest.Mocked<PendingTransactionTracker>
+    Mocked<PendingTransactionTracker>
   > = {};
-  const mockCreatePendingTransactionTracker = jest
+  const mockCreatePendingTransactionTracker = vi
     .fn()
     .mockImplementation(
       ({ networkClientId }: { networkClientId: NetworkClientId }) => {
         const mockPendingTransactionTracker = {
-          start: jest.fn(),
-          stop: jest.fn(),
-        } as unknown as jest.Mocked<PendingTransactionTracker>;
+          start: vi.fn(),
+          stop: vi.fn(),
+        } as unknown as Mocked<PendingTransactionTracker>;
 
         mockPendingTransactionTrackers[networkClientId] =
           mockPendingTransactionTracker;
@@ -200,16 +202,16 @@ function newMultichainTrackingHelper(
     isMultichainEnabled: true,
     provider: MOCK_PROVIDERS.mainnet,
     nonceTracker: {
-      getNonceLock: jest.fn().mockResolvedValue(mockNonceLock),
+      getNonceLock: vi.fn().mockResolvedValue(mockNonceLock),
     },
     findNetworkClientIdByChainId: mockFindNetworkClientIdByChainId,
     getNetworkClientById: mockGetNetworkClientById,
     getNetworkClientRegistry: mockGetNetworkClientRegistry,
-    removePendingTransactionTrackerListeners: jest.fn(),
+    removePendingTransactionTrackerListeners: vi.fn(),
     createNonceTracker: mockCreateNonceTracker,
     createPendingTransactionTracker: mockCreatePendingTransactionTracker,
-    onNetworkStateChange: jest.fn(),
-    onInitialized: jest.fn(),
+    onNetworkStateChange: vi.fn(),
+    onInitialized: vi.fn(),
     ...opts,
   };
 
@@ -226,7 +228,7 @@ function newMultichainTrackingHelper(
 
 describe('MultichainTrackingHelper', () => {
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers();
 
     for (const network of [
       'mainnet',
@@ -240,14 +242,14 @@ describe('MultichainTrackingHelper', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('onNetworkStateChange', () => {
     it('refreshes the tracking map', async () => {
       const { options, helper } = newMultichainTrackingHelper();
 
-      await jestAdvanceTime({ duration: 10 });
+      await advanceTime({ duration: 10 });
       options.onNetworkStateChange.mock.calls[0][0]({} as NetworkState, []);
 
       expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(2);
@@ -260,7 +262,7 @@ describe('MultichainTrackingHelper', () => {
     it('refreshes the tracking map and excludes removed networkClientIds in the patches', async () => {
       const { options, helper } = newMultichainTrackingHelper();
 
-      await jestAdvanceTime({ duration: 10 });
+      await advanceTime({ duration: 10 });
       options.onNetworkStateChange.mock.calls[0][0]({} as NetworkState, [
         {
           op: 'remove',
@@ -281,7 +283,7 @@ describe('MultichainTrackingHelper', () => {
     it('initializes the tracking map', async () => {
       const { options, helper } = newMultichainTrackingHelper();
 
-      await jestAdvanceTime({ duration: 10 });
+      await advanceTime({ duration: 10 });
 
       expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
       expect(helper.has('mainnet')).toBe(true);
@@ -295,7 +297,7 @@ describe('MultichainTrackingHelper', () => {
     it('clears the tracking map', async () => {
       const { helper } = newMultichainTrackingHelper();
 
-      await jestAdvanceTime({ duration: 10 });
+      await advanceTime({ duration: 10 });
 
       expect(helper.has('mainnet')).toBe(true);
       expect(helper.has('goerli')).toBe(true);
@@ -314,7 +316,7 @@ describe('MultichainTrackingHelper', () => {
   describe('#startTrackingByNetworkClientId', () => {
     it('instantiates trackers and adds them to the tracking map', async () => {
       const { options, helper } = newMultichainTrackingHelper({
-        getNetworkClientRegistry: jest.fn().mockReturnValue({
+        getNetworkClientRegistry: vi.fn().mockReturnValue({
           mainnet: {
             configuration: {
               chainId: '0x1',
@@ -323,7 +325,7 @@ describe('MultichainTrackingHelper', () => {
         }),
       });
 
-      await jestAdvanceTime({ duration: 10 });
+      await advanceTime({ duration: 10 });
 
       expect(options.createNonceTracker).toHaveBeenCalledTimes(1);
       expect(options.createNonceTracker).toHaveBeenCalledWith({
@@ -346,7 +348,7 @@ describe('MultichainTrackingHelper', () => {
     it('stops trackers and removes them from the tracking map', async () => {
       const { options, mockPendingTransactionTrackers, helper } =
         newMultichainTrackingHelper({
-          getNetworkClientRegistry: jest.fn().mockReturnValue({
+          getNetworkClientRegistry: vi.fn().mockReturnValue({
             mainnet: {
               configuration: {
                 chainId: '0x1',
@@ -355,7 +357,7 @@ describe('MultichainTrackingHelper', () => {
           }),
         });
 
-      await jestAdvanceTime({ duration: 10 });
+      await advanceTime({ duration: 10 });
 
       expect(helper.has('mainnet')).toBe(true);
 
@@ -374,11 +376,11 @@ describe('MultichainTrackingHelper', () => {
       it('gets the shared nonce lock by chainId for the networkClientId', async () => {
         const { helper } = newMultichainTrackingHelper();
 
-        const mockAcquireNonceLockForChainIdKey = jest
+        const mockAcquireNonceLockForChainIdKey = vi
           .spyOn(helper, 'acquireNonceLockForChainIdKey')
-          .mockResolvedValue(jest.fn());
+          .mockResolvedValue(vi.fn());
 
-        await jestAdvanceTime({ duration: 10 });
+        await advanceTime({ duration: 10 });
 
         await helper.getNonceLock('0xdeadbeef', 'mainnet');
 
@@ -391,11 +393,11 @@ describe('MultichainTrackingHelper', () => {
       it('gets the nonce lock from the NonceTracker for the networkClientId', async () => {
         const { mockNonceTrackers, helper } = newMultichainTrackingHelper({});
 
-        jest
-          .spyOn(helper, 'acquireNonceLockForChainIdKey')
-          .mockResolvedValue(jest.fn());
+        vi.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(
+          vi.fn(),
+        );
 
-        await jestAdvanceTime({ duration: 10 });
+        await advanceTime({ duration: 10 });
 
         await helper.getNonceLock('0xdeadbeef', 'mainnet');
 
@@ -407,12 +409,12 @@ describe('MultichainTrackingHelper', () => {
       it('merges the nonce lock by chainId release with the NonceTracker releaseLock function', async () => {
         const { mockNonceLock, helper } = newMultichainTrackingHelper({});
 
-        const releaseLockForChainIdKey = jest.fn();
-        jest
-          .spyOn(helper, 'acquireNonceLockForChainIdKey')
-          .mockResolvedValue(releaseLockForChainIdKey);
+        const releaseLockForChainIdKey = vi.fn();
+        vi.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(
+          releaseLockForChainIdKey,
+        );
 
-        await jestAdvanceTime({ duration: 10 });
+        await advanceTime({ duration: 10 });
 
         const nonceLock = await helper.getNonceLock('0xdeadbeef', 'mainnet');
 
@@ -427,12 +429,12 @@ describe('MultichainTrackingHelper', () => {
 
       it('throws an error if the networkClientId does not exist in the tracking map', async () => {
         const { helper } = newMultichainTrackingHelper({
-          getNetworkClientRegistry: jest.fn().mockReturnValue({}),
+          getNetworkClientRegistry: vi.fn().mockReturnValue({}),
         });
 
-        jest
-          .spyOn(helper, 'acquireNonceLockForChainIdKey')
-          .mockResolvedValue(jest.fn());
+        vi.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(
+          vi.fn(),
+        );
 
         await expect(
           helper.getNonceLock('0xdeadbeef', 'mainnet'),
@@ -446,12 +448,12 @@ describe('MultichainTrackingHelper', () => {
       it('throws an error and releases nonce lock by chainId if unable to acquire nonce lock from the NonceTracker', async () => {
         const { mockNonceTrackers, helper } = newMultichainTrackingHelper({});
 
-        const releaseLockForChainIdKey = jest.fn();
-        jest
-          .spyOn(helper, 'acquireNonceLockForChainIdKey')
-          .mockResolvedValue(releaseLockForChainIdKey);
+        const releaseLockForChainIdKey = vi.fn();
+        vi.spyOn(helper, 'acquireNonceLockForChainIdKey').mockResolvedValue(
+          releaseLockForChainIdKey,
+        );
 
-        await jestAdvanceTime({ duration: 10 });
+        await advanceTime({ duration: 10 });
 
         mockNonceTrackers['0x1'].getNonceLock.mockRejectedValue(
           'failed to acquire lock from nonceTracker',
@@ -472,7 +474,7 @@ describe('MultichainTrackingHelper', () => {
 
   describe('acquireNonceLockForChainIdKey', () => {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line jest/expect-expect
+    // eslint-disable-next-line vitest/expect-expect
     it('returns a unqiue mutex for each chainId and key combination', async () => {
       const { helper } = newMultichainTrackingHelper();
 
@@ -503,7 +505,7 @@ describe('MultichainTrackingHelper', () => {
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
         new Promise<null>(async (resolve) => {
-          await jestAdvanceTime({ duration: 100 });
+          await advanceTime({ duration: 100 });
           resolve(null);
         });
 
@@ -516,14 +518,16 @@ describe('MultichainTrackingHelper', () => {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/await-thenable
       await firstReleaseLock();
-      await jestAdvanceTime({ duration: 1 });
+      await advanceTime({ duration: 1 });
 
+      const secondDelay = delay();
       secondReleaseLockIfAcquired = await Promise.race([
         secondReleaseLockPromise,
-        delay(),
+        secondDelay,
       ]);
 
       expect(secondReleaseLockIfAcquired).toStrictEqual(expect.any(Function));
+      await secondDelay;
     });
   });
 

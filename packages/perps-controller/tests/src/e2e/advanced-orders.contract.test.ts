@@ -9,6 +9,8 @@
  * If this test and the e2e script ever disagree, they are wrong together —
  * both import the matrix from `e2e/lib/advancedOrders.ts`.
  */
+import { beforeAll, describe, expect, it } from 'vitest';
+
 import {
   buildCases,
   caseContext,

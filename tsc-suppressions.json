@@ -89,11 +89,6 @@
       "count": 2
     }
   },
-  "packages/analytics-controller/src/AnalyticsController.test.ts": {
-    "TS2741": {
-      "count": 6
-    }
-  },
   "packages/approval-controller/src/ApprovalController.test.ts": {
     "TS6307": {
       "count": 1
@@ -103,11 +98,8 @@
     "TS2322": {
       "count": 12
     },
-    "TS2339": {
-      "count": 3
-    },
     "TS2345": {
-      "count": 2
+      "count": 1
     },
     "TS2352": {
       "count": 2
@@ -274,11 +266,6 @@
     },
     "TS2353": {
       "count": 1
-    }
-  },
-  "packages/assets-controllers/src/rpc-service/rpc-balance-fetcher.test.ts": {
-    "TS7031": {
-      "count": 2
     }
   },
   "packages/assets-controllers/src/selectors/token-selectors.test.ts": {
@@ -752,7 +739,7 @@
     }
   },
   "packages/perps-controller/tests/src/providers/HyperLiquidProvider.account-mode.test.ts": {
-    "TS2345": {
+    "TS2322": {
       "count": 1
     }
   },
@@ -762,7 +749,7 @@
     }
   },
   "packages/perps-controller/tests/src/providers/HyperLiquidProvider.builder-fees.test.ts": {
-    "TS2345": {
+    "TS2740": {
       "count": 1
     }
   },
@@ -785,13 +772,13 @@
       "count": 1
     },
     "TS2322": {
-      "count": 35
+      "count": 36
     },
     "TS2339": {
       "count": 1
     },
     "TS2345": {
-      "count": 3
+      "count": 2
     },
     "TS7006": {
       "count": 2
@@ -1062,9 +1049,6 @@
     }
   },
   "packages/transaction-controller/src/utils/batch.test.ts": {
-    "TS2322": {
-      "count": 1
-    },
     "TS2345": {
       "count": 2
     }
@@ -1210,9 +1194,6 @@
   "packages/transaction-pay-controller/src/strategy/relay/relay-validation.test.ts": {
     "TS2352": {
       "count": 4
-    },
-    "TS2835": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/ServerStrategy.test.ts": {
@@ -1266,64 +1247,6 @@
       "count": 1
     }
   },
-  "packages/wallet-cli/src/commands/daemon/call.test.ts": {
-    "TS2345": {
-      "count": 12
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/list.test.ts": {
-    "TS2345": {
-      "count": 14
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/purge.test.ts": {
-    "TS2345": {
-      "count": 7
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/start.test.ts": {
-    "TS2345": {
-      "count": 4
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/status.test.ts": {
-    "TS2345": {
-      "count": 10
-    }
-  },
-  "packages/wallet-cli/src/commands/daemon/stop.test.ts": {
-    "TS2345": {
-      "count": 5
-    }
-  },
-  "packages/wallet-cli/src/commands/wallet/send.test.ts": {
-    "TS2345": {
-      "count": 18
-    }
-  },
-  "packages/wallet-cli/src/commands/wallet/unlock.test.ts": {
-    "TS2345": {
-      "count": 20
-    }
-  },
-  "packages/wallet-cli/src/daemon/daemon-client.test.ts": {
-    "TS2339": {
-      "count": 2
-    }
-  },
-  "packages/wallet-cli/src/daemon/rpc-socket-server.test.ts": {
-    "TS2322": {
-      "count": 2
-    }
-  },
-  "packages/wallet-cli/src/persistence/persistence.test.ts": {
-    "TS2314": {
-      "count": 1
-    },
-    "TS2578": {
-      "count": 1
-    }
-  },
   "packages/wallet-framework-docs/content/data-services/writing-data-services/01-getting-started/orders-service.ts": {
     "TS1479": {
       "count": 1
@@ -1365,9 +1288,6 @@
       "count": 1
     },
     "TS2741": {
-      "count": 1
-    },
-    "TS2769": {
       "count": 1
     }
   },

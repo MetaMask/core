@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { assertIsError, graphQL } from './util.js';
 
 describe('Utils', () => {
@@ -12,7 +14,7 @@ describe('Utils', () => {
     const RESPONSE_MOCK = { ok: true, json: () => JSON_MOCK } as any;
 
     it('fetches URL with graphQL body', async () => {
-      const mockFetch = jest.spyOn(global, 'fetch');
+      const mockFetch = vi.spyOn(global, 'fetch');
 
       mockFetch.mockResolvedValueOnce(RESPONSE_MOCK);
 
@@ -29,7 +31,7 @@ describe('Utils', () => {
     });
 
     it('returns undefined if no response', async () => {
-      const mockFetch = jest.spyOn(global, 'fetch');
+      const mockFetch = vi.spyOn(global, 'fetch');
 
       mockFetch.mockResolvedValueOnce({
         ...RESPONSE_MOCK,
@@ -42,7 +44,7 @@ describe('Utils', () => {
     });
 
     it('throws if response is not ok', async () => {
-      const mockFetch = jest.spyOn(global, 'fetch');
+      const mockFetch = vi.spyOn(global, 'fetch');
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

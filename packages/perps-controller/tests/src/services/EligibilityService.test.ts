@@ -1,19 +1,22 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
+
 import { EligibilityService } from '../../../src/services/EligibilityService.js';
 import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
 import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 describe('EligibilityService', () => {
-  let mockDeps: jest.Mocked<PerpsPlatformDependencies>;
+  let mockDeps: Mocked<PerpsPlatformDependencies>;
   let service: EligibilityService;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockDeps = createMockInfrastructure();
     service = new EligibilityService(mockDeps);
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('checkEligibility', () => {
@@ -88,7 +91,7 @@ describe('EligibilityService', () => {
             throw new Error('Logging failure');
           },
         },
-      } as unknown as jest.Mocked<PerpsPlatformDependencies>;
+      } as unknown as Mocked<PerpsPlatformDependencies>;
 
       const brokenService = new EligibilityService(brokenDeps);
 

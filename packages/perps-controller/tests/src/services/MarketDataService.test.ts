@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
+
 import type { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import { MarketDataService } from '../../../src/services/MarketDataService.js';
 import type { ServiceContext } from '../../../src/services/ServiceContext.js';
@@ -32,30 +35,30 @@ import {
   createMockInfrastructure,
 } from '../../helpers/serviceMocks.js';
 
-jest.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
+vi.mock('uuid', () => ({ v4: () => 'mock-trace-id' }));
 
 describe('MarketDataService', () => {
-  let mockProvider: jest.Mocked<PerpsProvider>;
+  let mockProvider: Mocked<PerpsProvider>;
   let mockContext: ServiceContext;
-  let mockDeps: jest.Mocked<PerpsPlatformDependencies>;
+  let mockDeps: Mocked<PerpsPlatformDependencies>;
   let marketDataService: MarketDataService;
 
   beforeEach(() => {
     mockProvider =
-      createMockHyperLiquidProvider() as unknown as jest.Mocked<PerpsProvider>;
+      createMockHyperLiquidProvider() as unknown as Mocked<PerpsProvider>;
     mockDeps = createMockInfrastructure();
     marketDataService = new MarketDataService(mockDeps);
     mockContext = createMockServiceContext({
       errorContext: { controller: 'MarketDataService', method: 'test' },
     });
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // REST coalesce cache is module-scoped and persists across tests; reset
     // so each test starts from a clean slate.
     resetPerpsRestCacheForTests();
   });
 
   afterEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
   });
 
   describe('getPositions', () => {
@@ -335,7 +338,7 @@ describe('MarketDataService', () => {
 
   describe('REST request coalesce', () => {
     beforeEach(() => {
-      jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
     });
 
     it('dedupes concurrent getOrderFills calls with identical params', async () => {
@@ -445,7 +448,7 @@ describe('MarketDataService', () => {
       mockProvider.getOrders.mockResolvedValue([]);
 
       // Caller A — resolved account 0x...001
-      (mockProvider.getCurrentAccountId as jest.Mock).mockResolvedValueOnce(
+      (mockProvider.getCurrentAccountId as Mock).mockResolvedValueOnce(
         'eip155:1:0x0000000000000000000000000000000000000001',
       );
       await marketDataService.getOrders({
@@ -454,7 +457,7 @@ describe('MarketDataService', () => {
       });
 
       // Caller B — resolved account 0x...002 (user switched accounts)
-      (mockProvider.getCurrentAccountId as jest.Mock).mockResolvedValueOnce(
+      (mockProvider.getCurrentAccountId as Mock).mockResolvedValueOnce(
         'eip155:1:0x0000000000000000000000000000000000000002',
       );
       await marketDataService.getOrders({
@@ -660,7 +663,7 @@ describe('MarketDataService', () => {
       const mockDexs = ['hyperliquid', 'vertex'];
       const providerWithDexs = {
         ...mockProvider,
-        getAvailableDexs: jest.fn().mockResolvedValue(mockDexs),
+        getAvailableDexs: vi.fn().mockResolvedValue(mockDexs),
       };
 
       const result = await marketDataService.getAvailableDexs({
@@ -1262,7 +1265,7 @@ describe('MarketDataService', () => {
     };
 
     it('fetches historical candles successfully', async () => {
-      mockProvider.fetchHistoricalCandles = jest
+      mockProvider.fetchHistoricalCandles = vi
         .fn()
         .mockResolvedValue(mockCandleData);
 
@@ -1314,7 +1317,7 @@ describe('MarketDataService', () => {
 
     it('updates error state on failure', async () => {
       const mockError = new Error('Network timeout');
-      mockProvider.fetchHistoricalCandles = jest
+      mockProvider.fetchHistoricalCandles = vi
         .fn()
         .mockRejectedValue(mockError);
 
@@ -1333,7 +1336,7 @@ describe('MarketDataService', () => {
     it('skips Sentry logging for abort errors', async () => {
       const abortError = new Error('The operation was aborted');
       abortError.name = 'AbortError';
-      mockProvider.fetchHistoricalCandles = jest
+      mockProvider.fetchHistoricalCandles = vi
         .fn()
         .mockRejectedValue(abortError);
 
@@ -1352,7 +1355,7 @@ describe('MarketDataService', () => {
 
     it('logs to Sentry for real fetch failures', async () => {
       const networkError = new Error('Network timeout');
-      mockProvider.fetchHistoricalCandles = jest
+      mockProvider.fetchHistoricalCandles = vi
         .fn()
         .mockRejectedValue(networkError);
 
@@ -1370,7 +1373,7 @@ describe('MarketDataService', () => {
   });
 
   describe('Terminal API integration', () => {
-    let mockTerminalService: jest.Mocked<PerpsTerminalMarketService>;
+    let mockTerminalService: Mocked<PerpsTerminalMarketService>;
     let serviceWithTerminal: MarketDataService;
 
     const terminalMarkets: MarketInfo[] = [
@@ -1404,10 +1407,10 @@ describe('MarketDataService', () => {
         marketDataUrl: 'https://terminal.test/v1/perpetuals',
       };
       mockTerminalService = {
-        fetchMarkets: jest.fn(),
-        fetchGlobalSnapshot: jest.fn(),
-        clearCache: jest.fn(),
-        logError: jest.fn(),
+        fetchMarkets: vi.fn(),
+        fetchGlobalSnapshot: vi.fn(),
+        clearCache: vi.fn(),
+        logError: vi.fn(),
       };
 
       serviceWithTerminal = new MarketDataService({
@@ -1504,7 +1507,7 @@ describe('MarketDataService', () => {
         const lighterProvider = {
           ...mockProvider,
           protocolId: 'lighter',
-          getMarkets: jest.fn().mockResolvedValue(providerMarkets),
+          getMarkets: vi.fn().mockResolvedValue(providerMarkets),
         };
 
         const result = await serviceWithTerminal.getMarkets({
@@ -1538,7 +1541,7 @@ describe('MarketDataService', () => {
         const aggregatedProvider = {
           ...mockProvider,
           protocolId: 'aggregated',
-          getMarkets: jest.fn().mockResolvedValue(providerMarkets),
+          getMarkets: vi.fn().mockResolvedValue(providerMarkets),
         };
 
         const result = await serviceWithTerminal.getMarkets({
@@ -1622,7 +1625,7 @@ describe('MarketDataService', () => {
         { name: 'xyz:TSLA', szDecimals: 2, maxLeverage: 10, marginTableId: 0 },
       ];
 
-      let fetchGlobalSnapshot: jest.Mock;
+      let fetchGlobalSnapshot: Mock;
 
       const snapshotContext = ({
         isCurrent = () => true,
@@ -1648,7 +1651,7 @@ describe('MarketDataService', () => {
           mockDeps.terminalApi.globalSnapshotUrl =
             'https://terminal.test/v4/perpetuals';
         }
-        fetchGlobalSnapshot = jest.fn().mockResolvedValue({
+        fetchGlobalSnapshot = vi.fn().mockResolvedValue({
           markets: [],
           marketInfos: snapshotInfos,
           expiresAt: Date.now() + 30_000,
@@ -1809,7 +1812,7 @@ describe('MarketDataService', () => {
       });
 
       it('rejects when the snapshot context is already stale', async () => {
-        const isCurrent = jest.fn((): boolean => false);
+        const isCurrent = vi.fn((): boolean => false);
 
         await expect(
           serviceWithTerminal.getMarkets({
@@ -1824,7 +1827,7 @@ describe('MarketDataService', () => {
       });
 
       it('rejects a snapshot context race without calling the provider', async () => {
-        const isCurrent = jest
+        const isCurrent = vi
           .fn()
           .mockReturnValueOnce(true)
           .mockReturnValueOnce(false);
@@ -1844,7 +1847,7 @@ describe('MarketDataService', () => {
         fetchGlobalSnapshot.mockRejectedValue(
           new Error('snapshot network failure'),
         );
-        const isCurrent = jest
+        const isCurrent = vi
           .fn()
           .mockReturnValueOnce(true)
           .mockReturnValueOnce(false);
@@ -1902,7 +1905,7 @@ describe('MarketDataService', () => {
               }),
           );
         });
-        const isCurrent = jest
+        const isCurrent = vi
           .fn()
           .mockReturnValueOnce(true)
           .mockReturnValueOnce(true)
@@ -1981,7 +1984,7 @@ describe('MarketDataService', () => {
           markets: snapshotMarkets,
           expiresAt: Date.now() + 30_000,
         });
-        const isCurrent = jest.fn(() => true);
+        const isCurrent = vi.fn(() => true);
 
         const result = await serviceWithTerminal.getMarketDataWithPrices({
           provider: mockProvider,
@@ -2054,7 +2057,7 @@ describe('MarketDataService', () => {
         mockProvider.getMarketDataWithPrices.mockResolvedValue(
           providerMarketData,
         );
-        const isCurrent = jest
+        const isCurrent = vi
           .fn()
           .mockReturnValueOnce(true)
           .mockReturnValueOnce(false);
@@ -2074,7 +2077,7 @@ describe('MarketDataService', () => {
         mockTerminalService.fetchGlobalSnapshot?.mockRejectedValue(
           new Error('snapshot network failure'),
         );
-        const isCurrent = jest
+        const isCurrent = vi
           .fn()
           .mockReturnValueOnce(true)
           .mockReturnValueOnce(false);
@@ -2155,7 +2158,7 @@ describe('MarketDataService', () => {
               }),
           );
         });
-        const isCurrent = jest
+        const isCurrent = vi
           .fn()
           .mockReturnValueOnce(true)
           .mockReturnValueOnce(true)
@@ -2292,7 +2295,7 @@ describe('MarketDataService', () => {
         const aggregatedProvider = {
           ...mockProvider,
           protocolId: 'aggregated',
-          getMarketDataWithPrices: jest
+          getMarketDataWithPrices: vi
             .fn()
             .mockResolvedValue(aggregatedMarketData),
         };

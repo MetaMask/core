@@ -248,9 +248,7 @@ export type SocialServiceRemoveCommentReactionAction = {
  * `https://static.klipy.com/...gif` file URL; social-api rejects other links.
  * @param options.source - Free-form origin label stored on the comment.
  * @param options.positionUid - Position UUID (`positionId` / feed item id).
- * @param options.tradeInFlight - Hash, chain, and token of a swap in flight,
- * or a Hyperliquid `orderId`, chain, and coin when the fill hash does not
- * exist yet. Provide exactly one of `transactionHash` or `orderId`.
+ * @param options.tradeInFlight - Hash, chain, and token of a swap in flight.
  * @returns The created swap comment.
  */
 export type SocialServiceCreateSwapCommentAction = {

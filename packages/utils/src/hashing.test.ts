@@ -1,8 +1,8 @@
+import { bytesToHex, stringToBytes } from '@metamask/byte-utils';
 import * as nobleHashes256 from '@noble/hashes/sha256';
 import * as nobleHashes512 from '@noble/hashes/sha512';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { bytesToHex, stringToBytes } from './bytes.js';
 import { sha256, sha512, sha384 } from './hashing.js';
 
 // The modules are ESM, so their exports cannot be spied on in place. Mocking
