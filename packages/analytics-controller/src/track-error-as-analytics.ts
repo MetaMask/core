@@ -50,7 +50,7 @@ export type TrackErrorVolumeControls = {
 };
 
 /**
- * Fields that identify a caught error on an `Error Occurred` event.
+ * Options for reporting a caught error as an `Error Occurred` event.
  */
 export type TrackErrorAsAnalyticsOptions = {
   /**
