@@ -9163,6 +9163,7 @@ __metadata:
     "@metamask/logging-controller": "npm:^10.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^37.1.1"
+    "@metamask/network-enablement-controller": "npm:^7.0.2"
     "@metamask/passkey-controller": "npm:^4.1.0"
     "@metamask/permission-controller": "npm:^14.0.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
