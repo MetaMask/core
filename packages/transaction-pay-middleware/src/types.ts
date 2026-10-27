@@ -1,3 +1,8 @@
+import type { AccountTreeControllerSetSelectedAccountGroupByAccountIdAction } from '@metamask/account-tree-controller';
+import type {
+  AccountsControllerGetAccountByAddressAction,
+  AccountsControllerGetSelectedAccountAction,
+} from '@metamask/accounts-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type {
@@ -25,6 +30,9 @@ import { HexChecksumAddressStruct } from '@metamask/utils';
 import type { RemoteFeatureFlags } from './utils/feature-flags.js';
 
 type AllowedActions =
+  | AccountTreeControllerSetSelectedAccountGroupByAccountIdAction
+  | AccountsControllerGetAccountByAddressAction
+  | AccountsControllerGetSelectedAccountAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | PerpsControllerGetStateAction
   | PerpsControllerRefreshEligibilityAction

@@ -80,6 +80,7 @@ The messenger must allow:
 - `RemoteFeatureFlagController:getState`: `wallet_pay` is enabled per site and per type by the `confirmations_pay_rpc` flag, and `perpsWithdraw` also requires the in-wallet withdraw flag, `confirmations_pay_post_quote`.
 - `TransactionController:addTransaction` and `NetworkController:findNetworkClientIdByChainId`: the transaction is added for the requesting site. Its chain must already be configured; the dapp is expected to add it first.
 - `PerpsController:getState` and `PerpsController:refreshEligibility`: perps types check the user's eligibility.
+- `AccountsController:getAccountByAddress`, `AccountsController:getSelectedAccount` and `AccountTreeController:setSelectedAccountGroupByAccountId`: once the request passes every check, the requested account is selected, so the confirmation shows that account's balances. It is not switched back afterwards.
 
 ## Contributing
 

@@ -8977,6 +8977,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-pay-middleware@workspace:packages/transaction-pay-middleware"
   dependencies:
+    "@metamask/account-tree-controller": "npm:^11.2.0"
+    "@metamask/accounts-controller": "npm:^40.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
