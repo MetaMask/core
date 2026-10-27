@@ -9073,6 +9073,7 @@ describe('TransactionController', () => {
         estimateGasBatchMock.mockResolvedValueOnce({
           totalGasLimit: totalGasLimitMock,
           gasLimits: gasLimitsMock,
+          mode: 'separate',
         });
 
         const result = await messenger.call(
@@ -9098,6 +9099,7 @@ describe('TransactionController', () => {
         expect(result).toStrictEqual({
           totalGasLimit: totalGasLimitMock,
           gasLimits: gasLimitsMock,
+          mode: 'separate',
         });
 
         expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);

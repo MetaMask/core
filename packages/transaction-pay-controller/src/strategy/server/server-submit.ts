@@ -951,8 +951,13 @@ async function submitViaTransactionController(
         // params.gas was already resolved correctly by buildStepTransaction
         // (indexed by quote-step position), so use it directly. Indexing
         // the step position into gasLimits would be wrong when payment-
-        // override or post-quote transactions are prepended.
-        const gas = (gasLimit7702 ?? params.gas) as Hex | undefined;
+        // override or post-quote transactions are prepended. In an EIP-7702
+        // batch, the outer limit is passed as gasLimit7702 and nested gas is
+        // not supported, so it is omitted.
+        const gas =
+          gasLimit7702 === undefined
+            ? (params.gas as Hex | undefined)
+            : undefined;
 
         return {
           params: {
