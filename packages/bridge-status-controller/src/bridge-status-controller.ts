@@ -1508,31 +1508,32 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @returns The transaction meta
    * @throws An error if transaction submission fails before it gets published
    */
-  submitTx = async (
-    accountAddress: string,
-    maybeQuoteResponses:
-      | QuoteResponse
-      | QuoteResponse[]
-      | (QuoteResponseV1<Trade, Trade> & QuoteMetadata)
-      | (QuoteResponseV1<Trade, Trade> & QuoteMetadata)[],
-    isStxEnabled: boolean,
-    quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
-    location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.Unknown,
-    abTests?: Record<string, string>,
-    activeAbTests?: { key: string; value: string }[],
-    tokenSecurityTypeDestination?: string | null,
-    batchSellTrades?: BatchSellTradesResponse | null,
-    inputPrimaryDenomination?: InputPrimaryDenomination,
-    migrationPhase?: QuoteMetadataMigrationPhase,
-  ): Promise<TransactionMeta> => {
-    /**
-     * If there are multiple quote responses, we assume that they all originate from the same src chain
-     * and the same account. In this case its safe to use the first quote response's properties for
-     * metrics and other pre-submission logic
-     */
-    const quoteResponsesV1orV2 = Array.isArray(maybeQuoteResponses)
-      ? maybeQuoteResponses
-      : [maybeQuoteResponses];
+  submitTx = async ({
+    accountAddress,
+    quoteResponses: quoteResponsesV1orV2,
+    isStxEnabled,
+    quotesReceivedContext,
+    location = MetaMetricsSwapsEventSource.Unknown,
+    abTests,
+    activeAbTests,
+    tokenSecurityTypeDestination,
+    batchSellTrades,
+    inputPrimaryDenomination,
+    migrationPhase,
+  }: {
+    accountAddress: string;
+    quoteResponses:
+      QuoteResponse[] | (QuoteResponseV1<Trade, Trade> & QuoteMetadata)[];
+    isStxEnabled: boolean;
+    quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
+    location?: MetaMetricsSwapsEventSource;
+    abTests?: Record<string, string>;
+    activeAbTests?: { key: string; value: string }[];
+    tokenSecurityTypeDestination?: string | null;
+    batchSellTrades?: BatchSellTradesResponse | null;
+    inputPrimaryDenomination?: InputPrimaryDenomination;
+    migrationPhase?: QuoteMetadataMigrationPhase;
+  }): Promise<TransactionMeta> => {
     // Convert quote responses to V1 format and preserve metadata for consistency
     const quoteResponses = quoteResponsesV1orV2.map((quote) => {
       if (!isQuoteResponseV2(quote)) {
@@ -1578,6 +1579,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ? generateBatchId()
       : undefined;
 
+    /**
+     * If there are multiple quote responses, we assume that they all originate from the same src chain
+     * and the same account. In this case its safe to use the first quote response's properties for
+     * metrics and other pre-submission logic
+     */
     const preConfirmationProperties = getPreConfirmationPropertiesFromQuote(
       quoteResponse,
       isStxEnabled,
@@ -1720,19 +1726,19 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       quotesReceivedContext,
     } = params;
 
-    return await this.submitTx(
+    return await this.submitTx({
       accountAddress,
-      quoteResponse,
+      quoteResponses: [quoteResponse],
       isStxEnabled,
       quotesReceivedContext,
       location,
       abTests,
       activeAbTests,
       tokenSecurityTypeDestination,
-      undefined,
+      batchSellTrades: undefined,
       inputPrimaryDenomination,
       migrationPhase,
-    );
+    });
   };
 
   submitBatchSell = async (params: {
@@ -1751,22 +1757,22 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
      * the original response data from the bridge-api
      */
     const batchSellTrades = getBatchSellTrades(this.messenger);
-    return await this.submitTx(
-      params.accountAddress,
-      params.quoteResponses.filter(
+    return await this.submitTx({
+      accountAddress: params.accountAddress,
+      quoteResponses: params.quoteResponses.filter(
         (quoteResponse): quoteResponse is QuoteResponse & QuoteMetadata =>
           quoteResponse !== null,
       ),
-      params.isStxEnabled ?? false,
-      params.quotesReceivedContext,
-      params.location,
-      params.abTests,
-      params.activeAbTests,
-      params.tokenSecurityTypeDestination,
+      isStxEnabled: params.isStxEnabled ?? false,
+      quotesReceivedContext: params.quotesReceivedContext,
+      location: params.location ?? MetaMetricsSwapsEventSource.Unknown,
+      abTests: params.abTests,
+      activeAbTests: params.activeAbTests,
+      tokenSecurityTypeDestination: params.tokenSecurityTypeDestination,
       batchSellTrades,
-      undefined,
-      params.migrationPhase,
-    );
+      inputPrimaryDenomination: undefined,
+      migrationPhase: params.migrationPhase,
+    });
   };
 
   readonly #trackPollingStatusUpdatedEvent = (
@@ -1820,12 +1826,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       historyItem?.featureId ??
       FeatureId.UNIFIED_SWAP_BRIDGE;
 
-    if (
-      !(
-        ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
-        eventName === UnifiedSwapBridgeEventName.StatusValidationFailed
-      )
-    ) {
+    if (!(
+      ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS.includes(featureId) ||
+      eventName === UnifiedSwapBridgeEventName.StatusValidationFailed
+    )) {
       return;
     }
 
