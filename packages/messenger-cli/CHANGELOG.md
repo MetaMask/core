@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Replace `@metamask/utils` dependency with `@metamask/error-utils`, `@metamask/node-utils`, and `@metamask/type-utils` ([#10998](https://github.com/MetaMask/core/pull/10998))
 - Bump `yargs` from `^17.7.2` to `^17.7.3` ([#10446](https://github.com/MetaMask/core/pull/10446))
+- Bump `@metamask/error-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/node-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/type-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [1.0.0]
 

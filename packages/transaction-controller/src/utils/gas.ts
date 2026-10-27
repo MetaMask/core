@@ -15,6 +15,7 @@ import {
 import { BigNumber } from 'bignumber.js';
 
 import { simulateTransactions } from '../api/simulation-api.js';
+import type { SimulationRequestTransaction } from '../api/simulation-api.js';
 import { projectLogger } from '../logger.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import { TransactionEnvelopeType } from '../types.js';
@@ -33,6 +34,9 @@ import {
   DELEGATION_PREFIX,
   doesAccountSupportEIP7702,
   generateEIP7702BatchTransaction,
+  getAuthorizationAuthority,
+  getDelegationAddress,
+  isAuthorizationSigned,
 } from './eip7702.js';
 import {
   getGasEstimateBuffer,
@@ -49,9 +53,24 @@ export type UpdateGasRequest = {
   txMeta: TransactionMeta;
 };
 
+/**
+ * How the gas limits of a batch are applied.
+ * - `eip7702` - A single gas limit for the outer EIP-7702 transaction.
+ * - `separate` - One gas limit per transaction, submitted separately.
+ */
+export type EstimateGasBatchMode = 'eip7702' | 'separate';
+
 export type EstimateGasBatchResult = {
+  /** Gas limits, with a single entry if `mode` is `eip7702`. */
   gasLimits: number[];
+
+  /** How the gas limits are applied. */
+  mode: EstimateGasBatchMode;
+
+  /** Whether the outer EIP-7702 transaction upgrades the sender. */
   requiresAuthorizationList?: true;
+
+  /** Total of all gas limits. */
   totalGasLimit: number;
 };
 
@@ -59,10 +78,39 @@ export const log = createModuleLogger(projectLogger, 'gas');
 
 export const DEFAULT_GAS_MULTIPLIER = 1.5;
 export const MAX_GAS_BLOCK_PERCENT = 90;
-export const INTRINSIC_GAS = 21000;
 
 export const DUMMY_AUTHORIZATION_SIGNATURE =
   '0x1111111111111111111111111111111111111111111111111111111111111111';
+
+/**
+ * EIP-2780 state gas charged at runtime when a valid authorization sets a
+ * delegation indicator for an authority that had none at the start of the
+ * transaction, at most once per authority.
+ *
+ * When the authority is the sender, this is the only runtime authorization
+ * charge: `ACCOUNT_WRITE` is covered by the transaction base cost, and the
+ * sender always exists in state as its nonce is incremented first.
+ */
+export const EIP_2780_AUTHORIZATION_GAS = 35190;
+
+/**
+ * Intrinsic gas cost for each authorization omitted from the node estimate.
+ */
+export const EIP7280_AUTHORIZATION_INTRINSIC_GAS = 7816;
+
+/**
+ * Gas for the upgrade authorization of the sender that is not included in the
+ * sum of the provided gas values of a batch: the EIP-7280 intrinsic cost of an
+ * authorization plus the delegation indicator charge.
+ */
+export const UPGRADE_AUTHORIZATION_GAS =
+  EIP7280_AUTHORIZATION_INTRINSIC_GAS + EIP_2780_AUTHORIZATION_GAS;
+
+/**
+ * Error for a simulated transaction that failed, as opposed to the simulation
+ * itself being unavailable.
+ */
+class SimulatedTransactionError extends Error {}
 
 /**
  * Populate the gas properties of the provided transaction meta.
@@ -186,15 +234,23 @@ export async function estimateGas({
     Boolean(data) &&
     data !== '0x';
 
+  const type4AuthorizationList =
+    txParams.type === TransactionEnvelopeType.setCode &&
+    authorizationList?.length
+      ? authorizationList
+      : undefined;
+
   try {
-    if (isSimulationEnabled && isUpgradeWithData) {
-      estimatedGas = await estimateGasUpgradeWithDataToSelf(
-        request,
-        messenger,
-        networkClientId,
+    if (type4AuthorizationList) {
+      estimatedGas = await estimateGasType4({
+        authorizationList: type4AuthorizationList,
         chainId,
         getSimulationConfig,
-      );
+        isSimulationEnabled,
+        messenger,
+        networkClientId,
+        txParams: request,
+      });
     } else if (ignoreDelegationSignatures && isSimulationEnabled) {
       estimatedGas = await simulateGas({
         chainId,
@@ -242,7 +298,10 @@ export async function estimateGas({
  *   standalone (e.g. predict-withdraw, where the batch's first sub-call
  *   provides source-token balance to subsequent sub-calls). When 7702
  *   simulation succeeds it is preferred since the bundled call has no per-tx
- *   intrinsic gas cost and produces a tighter estimate.
+ *   intrinsic gas cost and produces a tighter estimate. If the sender requires
+ *   an upgrade, the fallback adds the authorization intrinsic gas and, if no
+ *   delegation exists yet, the delegation indicator charge. The provided gas
+ *   values do not include these authorization costs.
  *
  * @param transactions - Batch transactions to inspect.
  * @returns Parsed gas limits and total when every transaction has gas; otherwise `undefined`.
@@ -330,15 +389,24 @@ export async function estimateGasBatch({
     });
 
     if (simulationFails && providedBatchGasLimits) {
+      const upgradeGas = chainResult.delegationAddress
+        ? EIP7280_AUTHORIZATION_INTRINSIC_GAS
+        : UPGRADE_AUTHORIZATION_GAS;
+      const fallbackGasLimit =
+        providedBatchGasLimits.totalGasLimit +
+        (isUpgradeRequired ? upgradeGas : 0);
+
       log(
         'EIP-7702 estimation failed, using batch parameter gas limits',
-        providedBatchGasLimits,
+        { fallbackGasLimit },
         simulationFails,
       );
+
       return {
-        gasLimits: [providedBatchGasLimits.totalGasLimit],
+        gasLimits: [fallbackGasLimit],
+        mode: 'eip7702',
         ...(isUpgradeRequired ? { requiresAuthorizationList: true } : {}),
-        totalGasLimit: providedBatchGasLimits.totalGasLimit,
+        totalGasLimit: fallbackGasLimit,
       };
     }
 
@@ -348,6 +416,7 @@ export async function estimateGasBatch({
 
     return {
       gasLimits: [totalGasLimit],
+      mode: 'eip7702',
       ...(isUpgradeRequired ? { requiresAuthorizationList: true } : {}),
       totalGasLimit,
     };
@@ -356,7 +425,7 @@ export async function estimateGasBatch({
   const providedBatchGasLimits = getProvidedBatchGasLimits(transactions);
   if (providedBatchGasLimits) {
     log('Using batch parameter gas limits', providedBatchGasLimits);
-    return providedBatchGasLimits;
+    return { ...providedBatchGasLimits, mode: 'separate' };
   }
 
   const { gasLimits: gasLimitsHex } = await simulateGasBatch({
@@ -378,7 +447,7 @@ export async function estimateGasBatch({
 
   log('Simulated batch gas limits', { totalGasLimit, gasLimits });
 
-  return { totalGasLimit, gasLimits };
+  return { gasLimits, mode: 'separate', totalGasLimit };
 }
 
 /**
@@ -583,97 +652,188 @@ async function getLatestBlock(
 }
 
 /**
- * Estimate the gas for a type 4 transaction.
+ * Estimate the gas for a type 4 transaction as one outer transaction.
  *
- * @param txParams - The transaction parameters.
- * @param messenger - The messenger instance for communication.
- * @param networkClientId - The network client ID.
- * @param chainId - The chain ID of the transaction.
- * @param getSimulationConfig - The function to get the simulation configuration.
+ * - If all authorizations are signed, the selected node estimates the exact
+ * transaction.
+ * - Otherwise, the Simulation API estimates the exact transaction, with the
+ * authority of each authorization so that it can apply any EIP-2780 runtime
+ * authorization charges.
+ * - If the Simulation API is disabled, unsupported or unavailable, the selected
+ * node estimates the transaction without unsigned authorizations and with the
+ * delegation of the sender overridden. Intrinsic gas is added for each omitted
+ * authorization, plus the EIP-2780 delegation charge if the sender is not yet
+ * delegated. A simulated transaction error is not retried using the node.
+ *
+ * @param options - The options object.
+ * @param options.authorizationList - The original authorization list of the transaction.
+ * @param options.chainId - The chain ID of the transaction.
+ * @param options.getSimulationConfig - The function to get the simulation configuration.
+ * @param options.isSimulationEnabled - Whether the simulation is enabled.
+ * @param options.messenger - The messenger instance for communication.
+ * @param options.networkClientId - The network client ID.
+ * @param options.txParams - The normalized transaction parameters.
  * @returns The estimated gas.
  */
-async function estimateGasUpgradeWithDataToSelf(
-  txParams: TransactionParams,
-  messenger: TransactionControllerMessenger,
-  networkClientId: NetworkClientId,
-  chainId: Hex,
-  getSimulationConfig: GetSimulationConfig,
-): Promise<Hex> {
-  const upgradeGas = (await rpcRequest({
+async function estimateGasType4({
+  authorizationList,
+  chainId,
+  getSimulationConfig,
+  isSimulationEnabled,
+  messenger,
+  networkClientId,
+  txParams,
+}: {
+  authorizationList: AuthorizationList;
+  chainId: Hex;
+  getSimulationConfig: GetSimulationConfig;
+  isSimulationEnabled: boolean;
+  messenger: TransactionControllerMessenger;
+  networkClientId: NetworkClientId;
+  txParams: TransactionParams;
+}): Promise<Hex> {
+  if (authorizationList.every(isAuthorizationSigned)) {
+    log('Estimating type 4 gas using node as all authorizations signed');
+    return await estimateGasNode(messenger, networkClientId, txParams);
+  }
+
+  if (isSimulationEnabled) {
+    const simulationAuthorizationList = authorizationList.map(
+      (authorization) => {
+        const authority = getAuthorizationAuthority(
+          authorization,
+          txParams.from,
+        );
+
+        if (!authority) {
+          throw new Error('Cannot determine authority of signed authorization');
+        }
+
+        return { address: authorization.address, from: authority };
+      },
+    );
+
+    log('Estimating type 4 gas using simulation', simulationAuthorizationList);
+
+    try {
+      return await simulateGas({
+        authorizationList: simulationAuthorizationList,
+        chainId,
+        getSimulationConfig,
+        transaction: txParams,
+      });
+    } catch (error) {
+      if (error instanceof SimulatedTransactionError) {
+        throw error;
+      }
+
+      log('Simulation unavailable, estimating type 4 gas using node', error);
+    }
+  }
+
+  return await estimateGasType4Node({
+    authorizationList,
     messenger,
     networkClientId,
-    method: 'eth_estimateGas',
-    params: [
-      {
-        ...txParams,
-        to: txParams.from,
-        data: '0x',
-      },
-    ],
-  })) as Hex;
+    txParams,
+  });
+}
 
-  log('Upgrade only gas', upgradeGas);
-
-  const delegationAddress = txParams.authorizationList?.[0].address as Hex;
-
-  let executeGas: Hex | undefined;
-
-  try {
-    executeGas = await simulateGas({
-      chainId,
-      delegationAddress,
-      getSimulationConfig,
-      transaction: txParams,
-    });
-  } catch (error: unknown) {
-    log('Error while simulating data portion of upgrade', error);
-  }
-
-  if (executeGas === undefined) {
-    try {
-      executeGas = await estimateGasNode(
-        messenger,
-        networkClientId,
-        { ...txParams, authorizationList: undefined, type: undefined },
-        delegationAddress,
-      );
-    } catch (error: unknown) {
-      log('Error while estimating data portion of upgrade', error);
-      throw error;
-    }
-
-    log('Success estimating data portion of upgrade', executeGas);
-  }
-
-  log('Execute gas', executeGas);
-
-  const total = BNToHex(
-    hexToBN(upgradeGas).add(hexToBN(executeGas)).subn(INTRINSIC_GAS),
+/**
+ * Estimate the gas for a type 4 transaction with unsigned authorizations using
+ * the selected node.
+ *
+ * Unsigned authorizations are omitted from the node request and their intrinsic
+ * gas is added manually per entry. Their authority is the sender, so the
+ * delegation of the sender is set with a state override, and the EIP-2780 charge
+ * for a new delegation indicator is added once if the sender is not yet
+ * delegated. Signed authorizations remain in the request and are charged by the
+ * node.
+ *
+ * @param options - The options object.
+ * @param options.authorizationList - The original authorization list of the transaction.
+ * @param options.messenger - The messenger instance for communication.
+ * @param options.networkClientId - The network client ID.
+ * @param options.txParams - The normalized transaction parameters.
+ * @returns The estimated gas including omitted authorization costs.
+ */
+async function estimateGasType4Node({
+  authorizationList,
+  messenger,
+  networkClientId,
+  txParams,
+}: {
+  authorizationList: AuthorizationList;
+  messenger: TransactionControllerMessenger;
+  networkClientId: NetworkClientId;
+  txParams: TransactionParams;
+}): Promise<Hex> {
+  const unsignedAuthorizations = authorizationList.filter(
+    (authorization) => !isAuthorizationSigned(authorization),
   );
+  const signedAuthorizations = authorizationList.filter(isAuthorizationSigned);
+  const nodeTxParams = {
+    ...txParams,
+    authorizationList: signedAuthorizations.length
+      ? signedAuthorizations
+      : undefined,
+    type: signedAuthorizations.length ? txParams.type : undefined,
+  };
 
-  log('Total type 4 gas', total);
+  // Unsigned authorizations are signed by the sender, and the last valid
+  // authorization for an authority sets its delegation.
+  const delegationAddress =
+    unsignedAuthorizations[unsignedAuthorizations.length - 1].address;
 
-  return total;
+  const [nodeGas, currentDelegationAddress] = await Promise.all([
+    estimateGasNode(
+      messenger,
+      networkClientId,
+      nodeTxParams,
+      delegationAddress,
+    ),
+    getDelegationAddress(txParams.from as Hex, messenger, networkClientId),
+  ]);
+
+  const intrinsicGas =
+    unsignedAuthorizations.length * EIP7280_AUTHORIZATION_INTRINSIC_GAS;
+  const delegationGas = currentDelegationAddress
+    ? 0
+    : EIP_2780_AUTHORIZATION_GAS;
+
+  log('Type 4 gas using node', {
+    currentDelegationAddress,
+    delegationGas,
+    intrinsicGas,
+    nodeGas,
+  });
+
+  return BNToHex(hexToBN(nodeGas).addn(intrinsicGas + delegationGas));
 }
 
 /**
  * Simulate the required gas using the simulation API.
  *
+ * If an authorization list is provided, it is included in the simulated
+ * transaction, a simulated transaction error is thrown as a
+ * `SimulatedTransactionError`, and the response must include a non-zero gas
+ * limit.
+ *
  * @param options - The options object.
+ * @param options.authorizationList - The authorization list with the authority of each entry.
  * @param options.chainId - The chain ID of the transaction.
- * @param options.delegationAddress - The delegation address of the sender to mock.
  * @param options.getSimulationConfig - The function to get the simulation configuration.
  * @param options.transaction - The transaction parameters.
  * @returns The simulated gas.
  */
 async function simulateGas({
+  authorizationList,
   chainId,
-  delegationAddress,
   getSimulationConfig,
   transaction,
 }: {
+  authorizationList?: SimulationRequestTransaction['authorizationList'];
   chainId: Hex;
-  delegationAddress?: Hex;
   getSimulationConfig: GetSimulationConfig;
   transaction: TransactionParams;
 }): Promise<Hex> {
@@ -681,24 +841,25 @@ async function simulateGas({
     getSimulationConfig,
     transactions: [
       {
+        ...(authorizationList ? { authorizationList } : {}),
         to: transaction.to as Hex,
         from: transaction.from as Hex,
         data: transaction.data as Hex,
         value: transaction.value as Hex,
       },
     ],
-    overrides: {
-      [transaction.from]: {
-        code:
-          delegationAddress &&
-          ((DELEGATION_PREFIX + remove0x(delegationAddress)) as Hex),
-      },
-    },
   });
 
-  const gasLimit = response?.transactions?.[0].gasLimit;
+  const simulatedTransaction = response?.transactions?.[0];
+  const gasLimit = simulatedTransaction?.gasLimit;
 
-  if (!gasLimit) {
+  if (authorizationList && simulatedTransaction?.error) {
+    throw new SimulatedTransactionError(
+      `Simulation failed: ${simulatedTransaction.error}`,
+    );
+  }
+
+  if (!gasLimit || (authorizationList && hexToBN(gasLimit).isZero())) {
     throw new Error('No simulated gas returned');
   }
 

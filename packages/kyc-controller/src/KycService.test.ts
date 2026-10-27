@@ -598,9 +598,8 @@ describe('KycService', () => {
 
     it('does not send a Content-Type header since it has no body', async () => {
       const response = { status: 'ok', applicantAccessToken: 'aat' };
-      nock(MOCK_API_URL)
+      nock(MOCK_API_URL, { badheaders: ['content-type'] })
         .post('/sessions/sid/journey')
-        .matchHeader('content-type', (value) => value === undefined)
         .reply(200, response);
       const { service } = getService();
 
