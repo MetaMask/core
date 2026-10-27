@@ -32,6 +32,7 @@ import type {
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import assert from 'assert';
+import nock from 'nock';
 import { v4 as uuidV4 } from 'uuid';
 import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -93,6 +94,31 @@ async function advanceTime({
     await new Promise((resolve) => realSetTimeout(resolve, 0));
     value -= stepSize;
   } while (value > 0);
+}
+
+/**
+ * Advances the fake timers until the given promise settles, then awaits it.
+ * Native `fetch` needs more event loop turns per request than `node-fetch`
+ * did, so a fixed number of `advanceTime` calls is not always enough.
+ *
+ * @param promise - The promise to wait for.
+ * @param maxSteps - The maximum number of times to advance the timers.
+ * @returns The result of the promise.
+ */
+async function advanceUntilSettled<Result>(
+  promise: Promise<Result>,
+  maxSteps = 20,
+): Promise<Result> {
+  const state = { isSettled: false };
+  const tracked = promise.finally(() => {
+    state.isSettled = true;
+  });
+
+  for (let step = 0; step < maxSteps && !state.isSettled; step++) {
+    await advanceTime({ duration: 1 });
+  }
+
+  return await tracked;
 }
 
 vi.mock(import('uuid'), async (importOriginal) => {
@@ -398,6 +424,7 @@ describe('TransactionController Integration', () => {
   });
 
   afterEach(() => {
+    nock.cleanAll();
     vi.useRealTimers();
   });
 
@@ -1084,7 +1111,7 @@ describe('TransactionController Integration', () => {
         await advanceTime({ duration: 1 });
         await advanceTime({ duration: 1 });
 
-        await Promise.all([addTx1.result, addTx2.result]);
+        await advanceUntilSettled(Promise.all([addTx1.result, addTx2.result]));
 
         const nonces = transactionController.state.transactions
           .map((tx) => tx.txParams.nonce)
@@ -1164,7 +1191,7 @@ describe('TransactionController Integration', () => {
         await advanceTime({ duration: 1 });
         await advanceTime({ duration: 1 });
 
-        await Promise.all([addTx1.result, addTx2.result]);
+        await advanceUntilSettled(Promise.all([addTx1.result, addTx2.result]));
 
         const nonces = transactionController.state.transactions
           .map((tx) => tx.txParams.nonce)
