@@ -317,6 +317,29 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result.error).toContain('Insufficient margin');
     });
 
+    it('surfaces a minimum-value rejection without resubmitting', async () => {
+      const { exchangeClient } = useStrategyClients({
+        exchange: {
+          twapOrder: vi
+            .fn()
+            .mockRejectedValue(
+              new Error('Order must have minimum value of $10'),
+            ),
+        },
+      });
+
+      const result = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'twap',
+        twapDuration: 30,
+      } satisfies OrderParams);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('minimum value of $10');
+      expect(exchangeClient.twapOrder).toHaveBeenCalledTimes(1);
+      expect(exchangeClient.order).not.toHaveBeenCalled();
+    });
+
     it.each(['987', Number.NaN, Number.POSITIVE_INFINITY, -1, 1.5])(
       'rejects malformed TWAP response id %p',
       async (twapId) => {
