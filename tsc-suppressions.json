@@ -640,6 +640,11 @@
       "count": 2
     }
   },
+  "packages/perps-controller/tests/helpers/lighterProvider.ts": {
+    "TS2339": {
+      "count": 1
+    }
+  },
   "packages/perps-controller/tests/helpers/serviceMocks.ts": {
     "TS2322": {
       "count": 1
@@ -752,21 +757,42 @@
       "count": 6
     }
   },
-  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-orders.test.ts": {
-    "TS18048": {
-      "count": 1
-    },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-capabilities-and-chase-races.test.ts": {
     "TS2322": {
-      "count": 36
+      "count": 16
     },
     "TS2339": {
       "count": 1
     },
     "TS2345": {
-      "count": 2
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-chase-placement.test.ts": {
+    "TS2322": {
+      "count": 9
     },
     "TS7006": {
-      "count": 2
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-scale-ladder-and-fee-quotes.test.ts": {
+    "TS18048": {
+      "count": 1
+    },
+    "TS2322": {
+      "count": 6
+    },
+    "TS2345": {
+      "count": 1
+    },
+    "TS7006": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-twap-and-scale.test.ts": {
+    "TS2322": {
+      "count": 5
     }
   },
   "packages/perps-controller/tests/src/providers/HyperLiquidProvider.trading.test.ts": {
@@ -774,15 +800,24 @@
       "count": 1
     }
   },
-  "packages/perps-controller/tests/src/providers/LighterProvider.test.ts": {
+  "packages/perps-controller/tests/src/providers/LighterProvider.order-validation.test.ts": {
     "TS2322": {
-      "count": 5
-    },
-    "TS2339": {
-      "count": 1
-    },
-    "TS2739": {
       "count": 2
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.reads-and-orders.test.ts": {
+    "TS2322": {
+      "count": 3
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.recovery-journals.test.ts": {
+    "TS2739": {
+      "count": 1
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.settlement-recovery.test.ts": {
+    "TS2739": {
+      "count": 1
     }
   },
   "packages/perps-controller/tests/src/services/HyperLiquidClientService.test.ts": {
