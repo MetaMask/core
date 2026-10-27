@@ -1,5 +1,6 @@
 import { toHex } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionMeta } from '../index.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
@@ -9,8 +10,8 @@ import {
 } from './balance.js';
 import { rpcRequest } from './provider.js';
 
-jest.mock('./provider', () => ({
-  rpcRequest: jest.fn(),
+vi.mock('./provider', () => ({
+  rpcRequest: vi.fn(),
 }));
 
 const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
@@ -26,10 +27,10 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 describe('Balance Utils', () => {
-  const rpcRequestMock = jest.mocked(rpcRequest);
+  const rpcRequestMock = vi.mocked(rpcRequest);
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     rpcRequestMock.mockResolvedValue(toHex(BALANCE_MOCK));
   });

@@ -7,9 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.2.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [27.1.0]
+
+### Added
+
+- Add `NeoBankService.getDepositInstructions`, exposed on the messenger, which returns an autoramp's PIX or US bank deposit details discriminated by `type` ([#10878](https://github.com/MetaMask/core/pull/10878))
+- Add `extractUsBankDepositInstructions` and the `UsBankDepositInstructions`, `UsBankDepositRail`, and `AutorampDepositInstructions` types for `ACH`, `Wire`, `RTP`, and `FedNow` rails ([#10878](https://github.com/MetaMask/core/pull/10878))
+
+### Changed
+
+- `mapNeoBankAutorampToRemoteSnapshot` sets `depositRailsSummary.currency` from the first complete deposit rail: BRL for PIX, USD for US rails, and EUR for SEPA. An incomplete rail does not set it ([#10878](https://github.com/MetaMask/core/pull/10878))
+
+### Fixed
+
+- A PIX rail with an empty `instruction` is not treated as complete, so it cannot label the autoramp BRL or hide a complete US rail ([#10878](https://github.com/MetaMask/core/pull/10878))
+- Applying an autoramp snapshot keeps a previously stored `depositRailsSummary.currency` when the new snapshot omits it ([#10878](https://github.com/MetaMask/core/pull/10878))
+- Add missing `@metamask/utils` dependency ([#10926](https://github.com/MetaMask/core/pull/10926))
+
+## [27.0.2]
+
 ### Changed
 
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
 
 ## [27.0.1]
 
@@ -729,7 +759,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.2.0...HEAD
+[27.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.1.0...@metamask/ramps-controller@27.2.0
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.2...@metamask/ramps-controller@27.1.0
+[27.0.2]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.1...@metamask/ramps-controller@27.0.2
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.0...@metamask/ramps-controller@27.0.1
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.3.0...@metamask/ramps-controller@27.0.0
 [26.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.2.0...@metamask/ramps-controller@26.3.0

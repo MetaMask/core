@@ -34,6 +34,7 @@ import type {
   AssetRoute,
   PerpsPlatformDependencies,
   PerpsMarketData,
+  PerpsGlobalSnapshotResult,
   PerpsProviderType,
   TerminalAssetMetadata,
 } from '../types/index.js';
@@ -715,10 +716,90 @@ export class MarketDataService {
   }
 
   /**
+   * Apply the same allowlist, DEX, and symbol filters the legacy market list uses.
+   *
+   * @param markets - Candidate markets.
+   * @param params - Caller filters. `skipFilters` skips only the allowlist.
+   * @param isMarketAllowed - Allowlist and blocklist predicate.
+   * @returns The filtered list, which may be empty.
+   */
+  #filterMarketInfos(
+    markets: MarketInfo[],
+    params: GetMarketsParams | undefined,
+    isMarketAllowed: ((symbol: string) => boolean) | undefined,
+  ): MarketInfo[] {
+    let filtered = markets;
+    if (!params?.skipFilters && isMarketAllowed) {
+      filtered = filtered.filter((market) => isMarketAllowed(market.name));
+    }
+    if (params?.dex !== undefined) {
+      const dexPrefix = params.dex ? `${params.dex}:` : '';
+      filtered = filtered.filter((market) =>
+        dexPrefix
+          ? market.name.startsWith(dexPrefix)
+          : !market.name.includes(':'),
+      );
+    }
+    const symbols = params?.symbols;
+    if (symbols?.length) {
+      filtered = filtered.filter((market) =>
+        symbols.some(
+          (symbol) => market.name.toLowerCase() === symbol.toLowerCase(),
+        ),
+      );
+    }
+    return filtered;
+  }
+
+  /**
+   * Read the snapshot for the caller's current identity.
+   * A context change throws. Expiry and every other snapshot failure are
+   * logged, then returned as undefined so the caller falls back once.
+   *
+   * @param globalSnapshot - Identity and race guard for this call.
+   * @param logMethod - Log label for a rejected snapshot.
+   * @returns The current snapshot, or undefined when the caller should fall back.
+   */
+  async #readCurrentGlobalSnapshot(
+    globalSnapshot: NonNullable<ServiceContext['globalSnapshot']>,
+    logMethod: string,
+  ): Promise<PerpsGlobalSnapshotResult | undefined> {
+    const { terminalMarketService } = this.#deps;
+    if (!terminalMarketService?.fetchGlobalSnapshot) {
+      return undefined;
+    }
+    if (!globalSnapshot.isCurrent()) {
+      throw new Error('Terminal global snapshot context changed');
+    }
+    try {
+      const snapshot = await terminalMarketService.fetchGlobalSnapshot(
+        globalSnapshot.request,
+      );
+      if (!globalSnapshot.isCurrent()) {
+        throw new Error('Terminal global snapshot context changed');
+      }
+      if (Date.now() >= snapshot.expiresAt) {
+        throw new Error('Terminal global snapshot expired');
+      }
+      return snapshot;
+    } catch (snapshotError) {
+      if (!globalSnapshot.isCurrent()) {
+        throw new Error('Terminal global snapshot context changed');
+      }
+      terminalMarketService.logError(snapshotError, logMethod);
+      return undefined;
+    }
+  }
+
+  /**
    * Get available markets
    * Handles full orchestration: tracing, error logging, state management, and provider delegation.
-   * When `useTerminalApi` is true, attempts the Terminal API first; on failure or empty
-   * response, falls back silently to the provider path.
+   * A configured global snapshot is the market list, whether or not
+   * `useTerminalApi` is set. A rejected snapshot falls back to the provider.
+   * `skipFilters` uses provider discovery because the snapshot DEX set is
+   * restricted to the configured allowlist.
+   * Without a snapshot URL, `useTerminalApi` still reads the legacy Terminal
+   * list and falls back to the provider on failure.
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
@@ -764,56 +845,73 @@ export class MarketDataService {
         },
       });
 
-      // Terminal API path: attempt first when flag is enabled
-      if (useTerminalApi && this.#deps.terminalMarketService) {
+      const recordSuccess = (markets: MarketInfo[]): MarketInfo[] => {
+        if (context.stateManager) {
+          context.stateManager.update((state) => {
+            state.lastError = null;
+            state.lastUpdateTimestamp = Date.now();
+          });
+        }
+        traceData = { success: true };
+        return markets;
+      };
+
+      // A configured snapshot URL is the list. Do not follow a rejected
+      // snapshot with the legacy /v1 market request. `useTerminalApi` does
+      // not choose this path.
+      const { globalSnapshot } = context;
+      const snapshotUrlConfigured = Boolean(
+        this.#deps.terminalApi?.globalSnapshotUrl,
+      );
+      let snapshotAttempted = false;
+      if (
+        snapshotUrlConfigured &&
+        !params?.skipFilters &&
+        globalSnapshot &&
+        this.#deps.terminalMarketService?.fetchGlobalSnapshot
+      ) {
+        snapshotAttempted = true;
+        const snapshot = await this.#readCurrentGlobalSnapshot(
+          globalSnapshot,
+          'getMarkets.globalSnapshot',
+        );
+        if (snapshot && Array.isArray(snapshot.marketInfos)) {
+          return recordSuccess(
+            this.#filterMarketInfos(
+              snapshot.marketInfos,
+              params,
+              isMarketAllowed,
+            ),
+          );
+        }
+        if (snapshot) {
+          this.#deps.terminalMarketService?.logError(
+            new Error('Terminal global snapshot has no market list'),
+            'getMarkets.globalSnapshot',
+          );
+        }
+      } else if (
+        !snapshotUrlConfigured &&
+        useTerminalApi &&
+        this.#deps.terminalMarketService
+      ) {
         try {
           const { markets: terminalMarkets } =
             await this.#deps.terminalMarketService.fetchMarkets();
           if (terminalMarkets.length > 0) {
-            let filtered = terminalMarkets;
+            const filtered = this.#filterMarketInfos(
+              terminalMarkets,
+              params,
+              isMarketAllowed,
+            );
 
-            // Apply allowlist/blocklist filtering (same as provider path)
-            if (!params?.skipFilters && isMarketAllowed) {
-              filtered = filtered.filter((market) =>
-                isMarketAllowed(market.name),
-              );
-            }
-
-            // Filter by specific DEX when requested
-            if (params?.dex !== undefined) {
-              const dexPrefix = params.dex ? `${params.dex}:` : '';
-              filtered = filtered.filter((market) =>
-                dexPrefix
-                  ? market.name.startsWith(dexPrefix)
-                  : !market.name.includes(':'),
-              );
-            }
-
-            // Filter by symbols when requested
-            if (params?.symbols?.length) {
-              filtered = filtered.filter((market) =>
-                (params.symbols as string[]).some(
-                  (sym) => market.name.toLowerCase() === sym.toLowerCase(),
-                ),
-              );
-            }
-
-            // Fall back to provider when a constrained query (symbols or dex)
-            // yields no matches — Terminal partial coverage should not hide
-            // valid provider-backed markets.
+            // A constrained /v1 miss falls through to the provider. That list
+            // is partial, so an empty symbol or DEX filter must not hide a
+            // market the provider still has.
             const isConstrainedQuery =
               (params?.symbols?.length ?? 0) > 0 || params?.dex !== undefined;
-            if (filtered.length === 0 && isConstrainedQuery) {
-              // Let execution continue to the provider path below.
-            } else {
-              if (context.stateManager) {
-                context.stateManager.update((state) => {
-                  state.lastError = null;
-                  state.lastUpdateTimestamp = Date.now();
-                });
-              }
-              traceData = { success: true };
-              return filtered;
+            if (!(filtered.length === 0 && isConstrainedQuery)) {
+              return recordSuccess(filtered);
             }
           }
         } catch (terminalError) {
@@ -825,6 +923,9 @@ export class MarketDataService {
       }
 
       const markets = await provider.getMarkets(params);
+      if (snapshotAttempted && globalSnapshot && !globalSnapshot.isCurrent()) {
+        throw new Error('Terminal global snapshot context changed');
+      }
 
       if (context.stateManager) {
         context.stateManager.update((state) => {
@@ -934,35 +1035,16 @@ export class MarketDataService {
         this.#deps.terminalMarketService?.fetchGlobalSnapshot
       ) {
         snapshotAttempted = true;
-        if (!globalSnapshot.isCurrent()) {
-          throw new Error('Terminal global snapshot context changed');
-        }
-        try {
-          const snapshot =
-            await this.#deps.terminalMarketService.fetchGlobalSnapshot(
-              globalSnapshot.request,
-            );
-          if (!globalSnapshot.isCurrent()) {
-            throw new Error('Terminal global snapshot context changed');
-          }
-          if (Date.now() >= snapshot.expiresAt) {
-            throw new Error('Terminal global snapshot expired');
-          }
-          if (snapshot.markets.length > 0) {
-            traceData = { success: true };
-            const allowedMarkets = snapshot.markets.filter((market) =>
-              globalSnapshot.isMarketAllowed(market.symbol),
-            );
-            return applyMarketFilters(allowedMarkets, params);
-          }
-        } catch (snapshotError) {
-          if (!globalSnapshot.isCurrent()) {
-            throw new Error('Terminal global snapshot context changed');
-          }
-          this.#deps.terminalMarketService.logError(
-            snapshotError,
-            'getMarketDataWithPrices.globalSnapshot',
+        const snapshot = await this.#readCurrentGlobalSnapshot(
+          globalSnapshot,
+          'getMarketDataWithPrices.globalSnapshot',
+        );
+        if (snapshot && snapshot.markets.length > 0) {
+          traceData = { success: true };
+          const allowedMarkets = snapshot.markets.filter((market) =>
+            globalSnapshot.isMarketAllowed(market.symbol),
           );
+          return applyMarketFilters(allowedMarkets, params);
         }
       }
 
@@ -1351,12 +1433,12 @@ export class MarketDataService {
         chargesBuilderFee: fees.chargesMetamaskBuilderFee,
       });
 
-      // Read-only preview of the same cached benefits snapshot the fee resolver
-      // reads. Surfacing eligibility and the remaining notional must not mutate
-      // the cap or the cache.
-      return context.subscriptionFeeWaiver
-        ? { ...priced, subscription: context.subscriptionFeeWaiver }
-        : priced;
+      return {
+        ...priced,
+        ...(context.subscriptionFeeWaiver && {
+          subscription: context.subscriptionFeeWaiver,
+        }),
+      };
     } catch (error) {
       this.#deps.logger.error(
         ensureError(error, 'MarketDataService.calculateFees'),

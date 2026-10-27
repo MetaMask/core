@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `SeedlessOnboardingControllerErrorMessage.OperationInProgress` and
   `InvalidPasswordSyncCheckpoint` for lifecycle conflicts and invalid recovery
   checkpoints ([#10148](https://github.com/MetaMask/core/pull/10148))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
@@ -38,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace JS AES implementation with `@metamask/cryptography` ([#10659](https://github.com/MetaMask/core/pull/10659))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/analytics-controller` from `^4.0.0` to `^4.1.0` ([#11072](https://github.com/MetaMask/core/pull/11072))
 
 ### Removed
 

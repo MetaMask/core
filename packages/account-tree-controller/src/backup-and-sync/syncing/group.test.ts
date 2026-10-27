@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockedFunction } from 'vitest';
+
 import type { AccountGroupMultichainAccountObject } from '../../group.js';
 import type { AccountWalletEntropyObject } from '../../wallet.js';
 import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
@@ -17,29 +20,30 @@ import {
 } from './group.js';
 import * as metadataExports from './metadata.js';
 
-jest.mock('./metadata');
-jest.mock('../user-storage/network-operations');
-jest.mock('../utils', () => ({
-  ...jest.requireActual('../utils'),
-  getLocalGroupsForEntropyWallet: jest.fn(),
+vi.mock('./metadata');
+vi.mock('../user-storage/network-operations');
+vi.mock(import('../utils/index.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getLocalGroupsForEntropyWallet: vi.fn(),
 }));
 
-jest.mock('../../logger', () => ({
-  backupAndSyncLogger: jest.fn(),
+vi.mock('../../logger', () => ({
+  backupAndSyncLogger: vi.fn(),
 }));
 
 const mockCompareAndSyncMetadata =
-  metadataExports.compareAndSyncMetadata as jest.MockedFunction<
+  metadataExports.compareAndSyncMetadata as MockedFunction<
     typeof metadataExports.compareAndSyncMetadata
   >;
-const mockPushGroupToUserStorage =
-  pushGroupToUserStorage as jest.MockedFunction<typeof pushGroupToUserStorage>;
+const mockPushGroupToUserStorage = pushGroupToUserStorage as MockedFunction<
+  typeof pushGroupToUserStorage
+>;
 const mockPushGroupToUserStorageBatch =
-  pushGroupToUserStorageBatch as jest.MockedFunction<
+  pushGroupToUserStorageBatch as MockedFunction<
     typeof pushGroupToUserStorageBatch
   >;
 const mockGetLocalGroupsForEntropyWallet =
-  getLocalGroupsForEntropyWallet as jest.MockedFunction<
+  getLocalGroupsForEntropyWallet as MockedFunction<
     typeof getLocalGroupsForEntropyWallet
   >;
 
@@ -47,11 +51,11 @@ describe('BackupAndSync - Syncing - Group', () => {
   let mockContext: BackupAndSyncContext;
   let mockLocalGroup: AccountGroupMultichainAccountObject;
   let mockWallet: AccountWalletEntropyObject;
-  let mockSetLocalWrite: jest.Mock;
+  let mockSetLocalWrite: Mock;
 
   beforeEach(() => {
     mockGetLocalGroupsForEntropyWallet.mockReturnValue([]);
-    mockSetLocalWrite = jest.fn();
+    mockSetLocalWrite = vi.fn();
 
     mockContext = {
       controller: {
@@ -65,14 +69,14 @@ describe('BackupAndSync - Syncing - Group', () => {
           },
           accountGroupsMetadata: {},
         },
-        setAccountGroupName: jest.fn(),
-        setAccountGroupPinned: jest.fn(),
-        setAccountGroupHidden: jest.fn(),
+        setAccountGroupName: vi.fn(),
+        setAccountGroupPinned: vi.fn(),
+        setAccountGroupHidden: vi.fn(),
       },
       messenger: {
-        call: jest.fn(),
+        call: vi.fn(),
       },
-      emitAnalyticsEventFn: jest.fn(),
+      emitAnalyticsEventFn: vi.fn(),
       mutationTracker: {
         setLocalWrite: mockSetLocalWrite,
       },
@@ -91,7 +95,7 @@ describe('BackupAndSync - Syncing - Group', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('createLocalGroupsFromUserStorage', () => {
@@ -104,7 +108,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       const mockGroups = Array.from({ length: 5 }, (_, i) => ({
         id: `group-${i}`,
       }));
-      jest.spyOn(mockContext.messenger, 'call').mockResolvedValue(mockGroups);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue(mockGroups);
 
       await createLocalGroupsFromUserStorage(
         mockContext,
@@ -126,9 +130,9 @@ describe('BackupAndSync - Syncing - Group', () => {
         { groupIndex: 1 },
       ];
 
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockRejectedValueOnce(new Error('Batch creation failed'));
+      vi.spyOn(mockContext.messenger, 'call').mockRejectedValueOnce(
+        new Error('Batch creation failed'),
+      );
 
       await createLocalGroupsFromUserStorage(
         mockContext,
@@ -145,9 +149,9 @@ describe('BackupAndSync - Syncing - Group', () => {
     it('emits analytics events for successful creations', async () => {
       const groups: UserStorageSyncedWalletGroup[] = [{ groupIndex: 0 }];
 
-      jest
-        .spyOn(mockContext.messenger, 'call')
-        .mockResolvedValue([{ id: 'group-0', groupIndex: 0 }]);
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue([
+        { id: 'group-0', groupIndex: 0 },
+      ]);
 
       await createLocalGroupsFromUserStorage(
         mockContext,
@@ -180,7 +184,7 @@ describe('BackupAndSync - Syncing - Group', () => {
       ]);
 
       // Batch returns all 3 groups (existing + newly created).
-      jest.spyOn(mockContext.messenger, 'call').mockResolvedValue([
+      vi.spyOn(mockContext.messenger, 'call').mockResolvedValue([
         { id: 'entropy:test-entropy/0', groupIndex: 0 },
         { id: 'entropy:test-entropy/1', groupIndex: 1 },
         { id: 'entropy:test-entropy/2', groupIndex: 2 },
@@ -288,7 +292,7 @@ describe('BackupAndSync - Syncing - Group', () => {
 
       expect(validateNameFunction).toBeDefined();
       expect(applyNameUpdate).toBeDefined();
-      /* eslint-disable jest/no-conditional-expect */
+      /* eslint-disable vitest/no-conditional-expect */
       if (validateNameFunction) {
         expect(validateNameFunction('New Name')).toBe(true);
         expect(validateNameFunction('Local Name')).toBe(true);
@@ -303,7 +307,7 @@ describe('BackupAndSync - Syncing - Group', () => {
           true,
         );
       }
-      /* eslint-enable jest/no-conditional-expect */
+      /* eslint-enable vitest/no-conditional-expect */
     });
 
     it('handles pinned metadata validation and apply local update', async () => {
@@ -350,7 +354,7 @@ describe('BackupAndSync - Syncing - Group', () => {
 
       expect(validatePinnedFunction).toBeDefined();
       expect(applyPinnedUpdate).toBeDefined();
-      /* eslint-disable jest/no-conditional-expect */
+      /* eslint-disable vitest/no-conditional-expect */
       if (validatePinnedFunction) {
         expect(validatePinnedFunction(true)).toBe(true);
         expect(validatePinnedFunction(false)).toBe(true);
@@ -364,7 +368,7 @@ describe('BackupAndSync - Syncing - Group', () => {
           mockContext.controller.setAccountGroupPinned,
         ).toHaveBeenCalledWith(mockLocalGroup.id, true);
       }
-      /* eslint-enable jest/no-conditional-expect */
+      /* eslint-enable vitest/no-conditional-expect */
     });
 
     it('handles hidden metadata validation and apply local update', async () => {
@@ -411,7 +415,7 @@ describe('BackupAndSync - Syncing - Group', () => {
 
       expect(validateHiddenFunction).toBeDefined();
       expect(applyHiddenUpdate).toBeDefined();
-      /* eslint-disable jest/no-conditional-expect */
+      /* eslint-disable vitest/no-conditional-expect */
       if (validateHiddenFunction) {
         expect(validateHiddenFunction(true)).toBe(true);
         expect(validateHiddenFunction(false)).toBe(true);
@@ -425,7 +429,7 @@ describe('BackupAndSync - Syncing - Group', () => {
           mockContext.controller.setAccountGroupHidden,
         ).toHaveBeenCalledWith(mockLocalGroup.id, false);
       }
-      /* eslint-enable jest/no-conditional-expect */
+      /* eslint-enable vitest/no-conditional-expect */
     });
   });
 
@@ -577,9 +581,10 @@ describe('BackupAndSync - Syncing - Group', () => {
     it('calls applyLocalUpdate when metadata sync requires local update', async () => {
       const testGroupName = 'Updated Name';
       const testContext = { ...mockContext };
-      jest
-        .spyOn(testContext.controller, 'setAccountGroupName')
-        .mockImplementation();
+      vi.spyOn(
+        testContext.controller,
+        'setAccountGroupName',
+      ).mockImplementation(() => undefined);
 
       testContext.controller.state.accountGroupsMetadata = {
         [mockLocalGroup.id]: {

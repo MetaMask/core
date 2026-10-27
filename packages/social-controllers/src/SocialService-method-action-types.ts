@@ -23,6 +23,9 @@ export type SocialServiceFetchLeaderboardAction = {
  *
  * Calls `GET ${baseUrl}/traders/${addressOrId}/profile`.
  *
+ * `profile.createdAt` is optional. When present it is an ISO-8601 timestamp
+ * for when the social-api profile row was inserted.
+ *
  * @param options - Options bag.
  * @param options.addressOrId - Wallet address or Clicker profile ID.
  * @returns The trader profile response.
@@ -129,8 +132,13 @@ export type SocialServiceFetchPositionByIdAction = {
  * `pagination.newerCursor` as `newerThan` to fetch newer items.
  *
  * @param options - Options bag.
- * @param options.scope - `following` (default) or `leaderboard`.
+ * @param options.scope - `following` (default), `leaderboard`, `all`, or
+ * `trending`.
  * @param options.chains - Filter by one or more chains.
+ * @param options.assetIds - Only items in any of these CAIP-19 assets. Invalid
+ * or unsupported asset ids are rejected with a 400.
+ * @param options.profileId - Only this trader's items.
+ * @param options.commentedOnly - When true, only items with an author comment.
  * @param options.limit - Number of results per page.
  * @param options.olderThan - Cursor for older items (scroll down).
  * @param options.newerThan - Cursor for newer items (refresh).

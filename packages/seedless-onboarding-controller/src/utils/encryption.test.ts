@@ -1,6 +1,8 @@
 import { IV_LENGTH } from '@metamask/cryptography/aes-gcm';
 import { base64ToBytes, stringToBytes } from '@metamask/utils';
 
+import { describe, expect, it } from 'vitest';
+
 import { decryptStringWithKey, encryptStringWithKey } from './encryption.js';
 
 const encryptionKey = stringToBytes('01234567890123456789012345678901');

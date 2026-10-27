@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { makeRequest } from '../../tests/utils.js';
 import { createOriginMiddleware } from './createOriginMiddleware.js';
 import { JsonRpcEngineV2 } from './JsonRpcEngineV2.js';

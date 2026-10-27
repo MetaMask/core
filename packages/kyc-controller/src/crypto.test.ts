@@ -4,6 +4,7 @@ import { hkdf } from '@noble/hashes/hkdf';
 import { sha256 } from '@noble/hashes/sha2';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
 import { base64 } from '@scure/base';
+import { describe, expect, it } from 'vitest';
 
 import type { EncryptedCredentialsEnvelope } from './crypto.js';
 import { decryptCredentials, generateKeyPair } from './crypto.js';

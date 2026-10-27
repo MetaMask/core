@@ -1,5 +1,7 @@
 import type { TxData } from '@metamask/bridge-controller';
+import { generateBatchId } from '@metamask/transaction-controller';
 
+import type { QuoteAndTxMetadata } from '../types.js';
 import {
   findAllTransactionsInBatch,
   getAddTransactionBatchParams,
@@ -34,6 +36,19 @@ export async function* submitBatchHandler(
     isBridgeTx,
   });
 
+  const batchId = generateBatchId();
+
+  yield {
+    type: SubmitStep.AddHistoryItem,
+    payload: {
+      historyKey: batchId,
+      quoteResponse,
+      bridgeTxMeta: {
+        batchId,
+      },
+    },
+  };
+
   const transactionParams = await getAddTransactionBatchParams({
     tradeData,
     requireApproval,
@@ -47,15 +62,28 @@ export async function* submitBatchHandler(
     ),
     isGasFeeSponsored: Boolean(quoteResponse.quote.gasSponsored),
     isGasFeeIncluded: Boolean(quoteResponse.quote.gasIncluded7702),
-  });
-
-  const { batchId } = await addTransactionBatchFn(transactionParams);
-
-  const quoteAndTxMetas = findAllTransactionsInBatch({
-    messenger,
     batchId,
-    tradeData,
   });
+
+  let quoteAndTxMetas: QuoteAndTxMetadata[] = [];
+  try {
+    await addTransactionBatchFn(transactionParams);
+    quoteAndTxMetas = findAllTransactionsInBatch({
+      messenger,
+      batchId,
+      tradeData,
+    });
+  } catch (error) {
+    quoteAndTxMetas = findAllTransactionsInBatch({
+      messenger,
+      batchId,
+      tradeData,
+    });
+    // If txMeta has not been added to the TransactionController, propagate the error
+    if (!quoteAndTxMetas.some(({ txMeta }) => txMeta)) {
+      throw error;
+    }
+  }
 
   yield {
     type: SubmitStep.UpdateBatchTransactions,
@@ -84,16 +112,14 @@ export async function* submitBatchHandler(
   };
 
   yield {
-    type: SubmitStep.AddHistoryItem,
+    type: SubmitStep.RekeyHistoryItem,
     payload: {
-      historyKey: tradeMeta.id,
-      approvalTxId: approvalMeta?.id,
-      bridgeTxMeta: {
-        id: tradeMeta.id,
-        hash: tradeMeta.hash,
-        batchId: tradeMeta.batchId,
+      oldHistoryKey: batchId,
+      newHistoryKey: tradeMeta.id,
+      historyItemOverrides: {
+        approvalTxId: approvalMeta?.id,
       },
-      quoteResponse,
+      tradeMeta,
     },
   };
 }

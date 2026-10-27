@@ -1,5 +1,6 @@
 import { BatchSellTradesResponse, TxData } from '@metamask/bridge-controller';
 import {
+  generateBatchId,
   TransactionMeta,
   TransactionType,
 } from '@metamask/transaction-controller';
@@ -51,6 +52,21 @@ export async function* submitBatchSellHandler(
     ({ type }) => type === TransactionType.tokenMethodTransfer,
   )?.tx.to;
 
+  const batchId = batchIdParam ?? generateBatchId();
+
+  // Create 1 history item for the parent tx or first quote, keyed by the batchId
+  yield {
+    type: SubmitStep.AddHistoryItem,
+    payload: {
+      historyKey: batchId,
+      quoteResponse: tradeData[0].quoteResponse,
+      batchSellData: batchSellTrades,
+      bridgeTxMeta: {
+        batchId,
+      },
+    },
+  };
+
   const transactionParams = await getAddTransactionBatchParams({
     messenger,
     tradeData,
@@ -65,7 +81,7 @@ export async function* submitBatchSellHandler(
     ),
     isGasFeeSponsored: gasSponsored,
     isGasFeeIncluded: Boolean(gasIncluded7702),
-    batchId: batchIdParam,
+    batchId,
     skipInitialGasEstimate: gasIncluded7702
       ? isDelegatedAccount
       : Boolean(gasFeeToken),
@@ -73,7 +89,19 @@ export async function* submitBatchSellHandler(
   });
 
   // Submit the batch to the TransactionController
-  const { batchId } = await addTransactionBatchFn(transactionParams);
+  try {
+    await addTransactionBatchFn(transactionParams);
+  } catch (error) {
+    const allTradesInBatch = findAllTransactionsInBatch({
+      messenger,
+      batchId,
+      tradeData,
+    });
+    // Propagate the error if tx has not been added to the TransactionController
+    if (!allTradesInBatch.some(({ txMeta }) => txMeta)) {
+      throw error;
+    }
+  }
 
   // Find all batch transaction metas and add them to history
   const allTradesInBatch = findAllTransactionsInBatch({
@@ -114,52 +142,50 @@ export async function* submitBatchSellHandler(
   // batches), so count the unique txs instead.
   const isSingleBatchTx =
     new Set(allTradesInBatch.map(({ txMeta }) => txMeta.id)).size === 1;
-
-  // Nested/7702 batch
-  if (
+  const isNested7702BatchTx =
     isSingleBatchTx &&
-    (is7702Tx(firstTradeMeta) || hasNestedSwapTransactions(firstTradeMeta))
-  ) {
-    const quoteIds = Array.from(
-      new Set(allTradesInBatch.map(getHistoryKeyForQuote)),
-    );
+    (is7702Tx(firstTradeMeta) || hasNestedSwapTransactions(firstTradeMeta));
 
-    // Create 1 history item for the parent tx, keyed by the txMeta.id
-    yield {
-      type: SubmitStep.AddHistoryItem,
-      payload: {
-        historyKey: firstTradeMeta.id,
-        quoteResponse: firstTradeWithMetadata.quoteResponse,
-        batchSellData: batchSellTrades,
-        quoteIds,
-        bridgeTxMeta: firstTradeMeta,
-      },
-    };
-    // Then create a new history item for each nested trade, keyed by quoteId/requestId
-    for (const tradeWithMetadata of allTradesInBatch) {
-      const { quoteResponse } = tradeWithMetadata;
-
+  // Each trade has its own txMeta if not submitted via 7702
+  // Create a new history item for each one, keyed by txMeta.id
+  // Note that the approvalTxId is not tracked in history
+  for (const [index, tradeWithMetadata] of allTradesInBatch.entries()) {
+    // Rekey the initial trade
+    if (index === 0) {
+      const quoteIds = isNested7702BatchTx
+        ? Array.from(new Set(allTradesInBatch.map(getHistoryKeyForQuote)))
+        : undefined;
+      const initialTrade = isNested7702BatchTx
+        ? firstTradeWithMetadata
+        : tradeWithMetadata;
       yield {
-        type: SubmitStep.AddHistoryItem,
+        type: SubmitStep.RekeyHistoryItem,
         payload: {
-          historyKey: getHistoryKeyForQuote(tradeWithMetadata),
-          quoteResponse,
-          batchSellData: batchSellTrades,
+          oldHistoryKey: batchId,
+          newHistoryKey: initialTrade.txMeta.id,
+          historyItemOverrides: {
+            quote: initialTrade.quoteResponse.quote,
+            quoteIds,
+          },
+          tradeMeta: initialTrade.txMeta,
         },
       };
     }
-  } else {
-    // Each trade has its own txMeta if not submitted via 7702
-    // Create a new history item for each one, keyed by txMeta.id
-    // Note that the approvalTxId is not tracked in history
-    for (const { txMeta, quoteResponse } of allTradesInBatch) {
+    // Create a new history item for each trade, keyed by quoteId or txMetaId
+    if (index > 0 || isNested7702BatchTx) {
+      const historyKey = isNested7702BatchTx
+        ? getHistoryKeyForQuote(tradeWithMetadata)
+        : tradeWithMetadata.txMeta.id;
+      const bridgeTxMeta = isNested7702BatchTx
+        ? undefined
+        : tradeWithMetadata.txMeta;
       yield {
         type: SubmitStep.AddHistoryItem,
         payload: {
-          historyKey: txMeta.id,
-          quoteResponse,
+          historyKey,
+          quoteResponse: tradeWithMetadata.quoteResponse,
           batchSellData: batchSellTrades,
-          bridgeTxMeta: txMeta,
+          bridgeTxMeta,
         },
       };
     }

@@ -17,6 +17,8 @@ import {
   type PerpsControllerMessenger,
   type PerpsPlatformDependencies,
 } from '@metamask/perps-controller';
+import { vi } from 'vitest';
+import type { Mock, MockInstance, Mocked } from 'vitest';
 
 /** A fixed clock, in milliseconds, for tests that pin `Date.now()`. */
 export const NOW = 1_700_000_000_000;
@@ -61,8 +63,8 @@ export const createMockEvmAccount = () => ({
 
 /**
  * Create a mock PerpsPlatformDependencies instance.
- * Returns a type-safe mock with jest.Mock functions for all methods.
- * Uses `as unknown as jest.Mocked<PerpsPlatformDependencies>` pattern
+ * Returns a type-safe mock with Mock functions for all methods.
+ * Uses `as unknown as Mocked<PerpsPlatformDependencies>` pattern
  * to ensure compatibility with both the interface contract and Jest mock APIs.
  *
  * Architecture:
@@ -70,89 +72,89 @@ export const createMockEvmAccount = () => ({
  * - Platform: streamManager (mobile/extension specific capabilities)
  * - Controllers: consolidated access to all external controllers
  */
-export const createMockInfrastructure =
-  (): jest.Mocked<PerpsPlatformDependencies> =>
-    ({
-      // === Observability (stateless utilities) ===
-      logger: {
-        error: jest.fn(),
-      },
-      debugLogger: {
-        log: jest.fn(),
-      },
-      metrics: {
-        trackEvent: jest.fn(),
-        isEnabled: jest.fn(() => true),
-        trackPerpsEvent: jest.fn(),
-      },
-      performance: {
-        now: jest.fn(() => Date.now()),
-      },
-      tracer: {
-        trace: jest.fn(() => undefined),
-        endTrace: jest.fn(),
-        setMeasurement: jest.fn(),
-        addBreadcrumb: jest.fn(),
-      },
+export const createMockInfrastructure = (): Mocked<PerpsPlatformDependencies> =>
+  ({
+    // === Observability (stateless utilities) ===
+    logger: {
+      error: vi.fn(),
+    },
+    debugLogger: {
+      log: vi.fn(),
+    },
+    metrics: {
+      trackEvent: vi.fn(),
+      isEnabled: vi.fn(() => true),
+      trackPerpsEvent: vi.fn(),
+    },
+    performance: {
+      now: vi.fn(() => Date.now()),
+    },
+    tracer: {
+      trace: vi.fn(() => undefined),
+      endTrace: vi.fn(),
+      setMeasurement: vi.fn(),
+      addBreadcrumb: vi.fn(),
+    },
 
-      // === Platform Services ===
-      streamManager: {
-        pauseChannel: jest.fn(),
-        resumeChannel: jest.fn(),
-        clearAllChannels: jest.fn(),
-      },
+    // === Platform Services ===
+    streamManager: {
+      pauseChannel: vi.fn(),
+      resumeChannel: vi.fn(),
+      clearAllChannels: vi.fn(),
+    },
 
-      // === Feature Flags (platform-specific version gating) ===
-      featureFlags: {
-        validateVersionGated: jest.fn().mockReturnValue(undefined),
-      },
+    // === Feature Flags (platform-specific version gating) ===
+    featureFlags: {
+      validateVersionGated: vi.fn().mockReturnValue(undefined),
+    },
 
-      // === Market Data Formatting ===
-      marketDataFormatters: {
-        formatVolume: jest.fn((v: number) => `$${v.toFixed(0)}`),
-        formatPerpsFiat: jest.fn((v: number) => `$${v.toFixed(2)}`),
-        formatPercentage: jest.fn((p: number) => `${p.toFixed(2)}%`),
-        priceRangesUniversal: [],
-      },
+    // === Market Data Formatting ===
+    marketDataFormatters: {
+      formatVolume: vi.fn((v: number) => `$${v.toFixed(0)}`),
+      formatPerpsFiat: vi.fn((v: number) => `$${v.toFixed(2)}`),
+      formatPercentage: vi.fn((p: number) => `${p.toFixed(2)}%`),
+      priceRangesUniversal: [],
+    },
 
-      // === Cache Invalidation ===
-      cacheInvalidator: {
-        invalidate: jest.fn(),
-        invalidateAll: jest.fn(),
-      },
+    // === Cache Invalidation ===
+    cacheInvalidator: {
+      invalidate: vi.fn(),
+      invalidateAll: vi.fn(),
+    },
 
-      // === Terminal API ===
-      terminalApiUrl: 'https://terminal.test-api.cx.metamask.io/v1/perpetuals',
+    // === Terminal API ===
+    terminalApiUrl: 'https://terminal.test-api.cx.metamask.io/v1/perpetuals',
 
-      // === Rewards (DI — no RewardsController in Core yet) ===
-      rewards: {
-        getPerpsDiscountForAccount: jest.fn().mockResolvedValue(0),
-      },
+    // === Rewards (DI — no RewardsController in Core yet) ===
+    rewards: {
+      getPerpsDiscountForAccount: vi.fn().mockResolvedValue(0),
+      getPerpsTradingFeeGrant: vi.fn().mockResolvedValue(null),
+    },
 
-      // === Disk Cache (cold-start persistence) ===
-      // FUNCTIONAL in-memory disk cache: durable-state code treats disk
-      // absence as authoritative, so the default mock must actually
-      // store — a null-only stub would silently erase obligations.
-      diskCache: (() => {
-        const store = new Map<string, string>();
-        return {
-          getItem: jest
-            .fn()
-            .mockImplementation(async (key: string) => store.get(key) ?? null),
-          getItemSync: jest
-            .fn()
-            .mockImplementation((key: string) => store.get(key) ?? null),
-          setItem: jest
-            .fn()
-            .mockImplementation(async (key: string, value: string) => {
-              store.set(key, value);
-            }),
-          removeItem: jest.fn().mockImplementation(async (key: string) => {
-            store.delete(key);
+    // === Disk Cache (cold-start persistence) ===
+    // FUNCTIONAL in-memory disk cache: durable-state code treats disk
+    // absence as authoritative, so the default mock must actually
+    // store — a null-only stub would silently erase obligations.
+    diskCache: (() => {
+      const store = new Map<string, string>();
+      return {
+        getItem: vi
+          .fn()
+          .mockImplementation(async (key: string) => store.get(key) ?? null),
+        getItemSync: vi
+          .fn()
+          .mockImplementation((key: string) => store.get(key) ?? null),
+        setItem: vi
+          .fn()
+          .mockImplementation(async (key: string, value: string) => {
+            store.set(key, value);
           }),
-        };
-      })(),
-    }) as unknown as jest.Mocked<PerpsPlatformDependencies>;
+        removeItem: vi.fn().mockImplementation(async (key: string) => {
+          store.delete(key);
+        }),
+      };
+    })(),
+  }) as unknown as Mocked<PerpsPlatformDependencies>;
 
 /**
  * Create a mock PerpsControllerState
@@ -228,8 +230,8 @@ export const createMockServiceContext = (
     method: 'testMethod',
   },
   stateManager: {
-    update: jest.fn(),
-    getState: jest.fn(() => createMockPerpsControllerState()),
+    update: vi.fn(),
+    getState: vi.fn(() => createMockPerpsControllerState()),
   },
   ...overrides,
 });
@@ -249,10 +251,10 @@ export const createMockServiceContext = (
  */
 export const createMockMessenger = (
   overrides?: Partial<PerpsControllerMessenger>,
-): jest.Mocked<PerpsControllerMessenger> => {
+): Mocked<PerpsControllerMessenger> => {
   const mockEvmAccount = createMockEvmAccount();
   const base = {
-    call: jest.fn().mockImplementation((action: string) => {
+    call: vi.fn().mockImplementation((action: string) => {
       // Default implementations for common actions
       if (
         action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
@@ -276,22 +278,22 @@ export const createMockMessenger = (
       }
       return undefined;
     }),
-    publish: jest.fn(),
-    subscribe: jest.fn(),
-    unsubscribe: jest.fn(),
-    registerActionHandler: jest.fn(),
-    registerMethodActionHandlers: jest.fn(),
-    unregisterActionHandler: jest.fn(),
+    publish: vi.fn(),
+    subscribe: vi.fn(),
+    unsubscribe: vi.fn(),
+    registerActionHandler: vi.fn(),
+    registerMethodActionHandlers: vi.fn(),
+    unregisterActionHandler: vi.fn(),
     // Additional methods used by PerpsController
-    registerEventHandler: jest.fn(),
-    registerInitialEventPayload: jest.fn(),
-    unregisterEventHandler: jest.fn(),
-    clearEventSubscriptions: jest.fn(),
+    registerEventHandler: vi.fn(),
+    registerInitialEventPayload: vi.fn(),
+    unregisterEventHandler: vi.fn(),
+    clearEventSubscriptions: vi.fn(),
   };
   return {
     ...base,
     ...overrides,
-  } as unknown as jest.Mocked<PerpsControllerMessenger>;
+  } as unknown as Mocked<PerpsControllerMessenger>;
 };
 
 // The keyring type of a software (non-hardware) account.
@@ -307,7 +309,7 @@ type AccountMessenger = {
   messenger: PerpsControllerMessenger;
   // The host side, to answer and delegate more of the host's actions.
   rootMessenger: RootMessenger;
-  call: jest.SpyInstance;
+  call: MockInstance;
   selectAccount: (address: `0x${string}`) => void;
   // Leave no account selected.
   deselectAccount: () => void;
@@ -379,7 +381,7 @@ const createAccountMessenger = (
   return {
     messenger,
     rootMessenger: root,
-    call: jest.spyOn(messenger, 'call'),
+    call: vi.spyOn(messenger, 'call'),
     selectAccount: (address): void => {
       selectedAddress = address;
     },
@@ -423,9 +425,9 @@ export const createKeyringMessenger = (
  * @param call - Spy on a messenger's `call`.
  * @returns The KeyringController action names, in call order.
  */
-export const keyringCalls = (call: jest.SpyInstance): string[] =>
+export const keyringCalls = (call: MockInstance): string[] =>
   call.mock.calls
-    .map(([action]: [unknown]) => String(action))
+    .map(([action]: unknown[]) => String(action))
     .filter((action) => action.startsWith('KeyringController:'));
 
 /**

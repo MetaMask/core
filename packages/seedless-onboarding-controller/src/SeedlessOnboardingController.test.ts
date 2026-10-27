@@ -44,6 +44,8 @@ import { utf8ToBytes } from '@noble/ciphers/utils';
 import { managedNonce } from '@noble/ciphers/webcrypto';
 import { Mutex } from 'async-mutex';
 import type { webcrypto } from 'node:crypto';
+import type { Mock, MockInstance } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   MockKeyringControllerMessenger,
@@ -149,9 +151,9 @@ type WithControllerCallback<ReturnValue, EKey, SupportedKeyDerivationOptions> =
     baseMessenger: RootMessenger;
     keyringControllerMessenger: MockKeyringControllerMessenger;
     toprfClient: ToprfSecureBackup;
-    mockRefreshJWTToken: jest.Mock;
-    mockRevokeRefreshToken: jest.Mock;
-    mockRenewRefreshToken: jest.Mock;
+    mockRefreshJWTToken: Mock;
+    mockRevokeRefreshToken: Mock;
+    mockRenewRefreshToken: Mock;
   }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions<EKey, SupportedKeyDerivationParams> = Partial<
@@ -226,27 +228,28 @@ async function withController<ReturnValue>(
   const { messenger, baseMessenger, keyringControllerMessenger } =
     mockSeedlessOnboardingMessenger();
 
-  const mockRefreshJWTToken = jest.fn().mockResolvedValue({
+  const mockRefreshJWTToken = vi.fn().mockResolvedValue({
     idTokens: ['newIdToken'],
     metadataAccessToken: 'mock-metadata-access-token',
     accessToken,
   });
-  const mockRevokeRefreshToken = jest.fn().mockResolvedValue(undefined);
-  const mockRenewRefreshToken = jest.fn().mockResolvedValue({
+  const mockRevokeRefreshToken = vi.fn().mockResolvedValue(undefined);
+  const mockRenewRefreshToken = vi.fn().mockResolvedValue({
     newRevokeToken: 'newRevokeToken',
     newRefreshToken: 'newRefreshToken',
   });
 
   // In the withController function, before creating the controller:
   const originalFetchMetadataAccessCreds =
-    // eslint-disable-next-line jest/unbound-method -- testing mock
+    // eslint-disable-next-line vitest/unbound-method -- testing mock
     SeedlessOnboardingController.prototype.fetchMetadataAccessCreds;
 
-  jest
-    .spyOn(SeedlessOnboardingController.prototype, 'fetchMetadataAccessCreds')
-    .mockResolvedValue({
-      metadataAccessToken: 'mock-metadata-access-token',
-    });
+  vi.spyOn(
+    SeedlessOnboardingController.prototype,
+    'fetchMetadataAccessCreds',
+  ).mockResolvedValue({
+    metadataAccessToken: 'mock-metadata-access-token',
+  });
 
   const controller = new SeedlessOnboardingController({
     encryptor,
@@ -262,11 +265,11 @@ async function withController<ReturnValue>(
     originalFetchMetadataAccessCreds;
 
   // default node auth token not expired for testing
-  jest.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(false);
-  jest
-    .spyOn(controller, 'checkMetadataAccessTokenExpired')
-    .mockReturnValue(false);
-  jest.spyOn(controller, 'checkAccessTokenExpired').mockReturnValue(false);
+  vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(false);
+  vi.spyOn(controller, 'checkMetadataAccessTokenExpired').mockReturnValue(
+    false,
+  );
+  vi.spyOn(controller, 'checkAccessTokenExpired').mockReturnValue(false);
 
   const { toprfClient } = controller;
   return await fn({
@@ -320,7 +323,7 @@ function mockcreateLocalKey(
   authKeyPair: KeyPair;
   oprfKey: bigint;
   seed: Uint8Array;
-  createLocalKeySpy: jest.SpyInstance;
+  createLocalKeySpy: MockInstance;
 } {
   const mockToprfEncryptor = createMockToprfEncryptor();
 
@@ -330,7 +333,7 @@ function mockcreateLocalKey(
   const oprfKey = BigInt(0);
   const seed = stringToBytes(password);
 
-  const createLocalKeySpy = jest
+  const createLocalKeySpy = vi
     .spyOn(toprfClient, 'createLocalKey')
     .mockResolvedValueOnce({
       encKey,
@@ -364,7 +367,7 @@ function mockFetchAuthPubKey(
   authPubKey: SEC1EncodedPublicKey = base64ToBytes(MOCK_AUTH_PUB_KEY),
   keyIndex: number = 1,
 ): FetchAuthPubKeyResult {
-  jest.spyOn(toprfClient, 'fetchAuthPubKey').mockResolvedValue({
+  vi.spyOn(toprfClient, 'fetchAuthPubKey').mockResolvedValue({
     authPubKey,
     keyIndex,
   });
@@ -391,7 +394,7 @@ function mockRecoverEncKey(
   options?: {
     mockRejectOnceWithTokenError?: unknown;
   },
-): RecoverEncryptionKeyResult & { recoverEncKeySpy: jest.SpyInstance } {
+): RecoverEncryptionKeyResult & { recoverEncKeySpy: MockInstance } {
   const mockToprfEncryptor = createMockToprfEncryptor();
 
   const encKey = mockToprfEncryptor.deriveEncKey(password);
@@ -399,10 +402,10 @@ function mockRecoverEncKey(
   const authKeyPair = mockToprfEncryptor.deriveAuthKeyPair(password);
   const rateLimitResetResult = Promise.resolve();
 
-  let recoverEncKeySpy: jest.SpyInstance;
+  let recoverEncKeySpy: MockInstance;
 
   if (options?.mockRejectOnceWithTokenError) {
-    recoverEncKeySpy = jest
+    recoverEncKeySpy = vi
       .spyOn(toprfClient, 'recoverEncKey')
       .mockRejectedValueOnce(
         new TOPRFError(TOPRFErrorCode.AuthTokenExpired, 'Auth token expired'),
@@ -415,7 +418,7 @@ function mockRecoverEncKey(
         keyShareIndex: 1,
       });
   } else {
-    recoverEncKeySpy = jest
+    recoverEncKeySpy = vi
       .spyOn(toprfClient, 'recoverEncKey')
       .mockResolvedValueOnce({
         encKey,
@@ -454,7 +457,7 @@ function mockChangeEncKey(
   const pwEncKey = mockToprfEncryptor.derivePwEncKey(newPassword);
   const authKeyPair = mockToprfEncryptor.deriveAuthKeyPair(newPassword);
 
-  jest.spyOn(toprfClient, 'changeEncKey').mockResolvedValueOnce({
+  vi.spyOn(toprfClient, 'changeEncKey').mockResolvedValueOnce({
     encKey,
     pwEncKey,
     authKeyPair,
@@ -512,12 +515,12 @@ async function mockCreateToprfKeyAndBackupSeedPhrase<
 ): Promise<void> {
   mockcreateLocalKey(toprfClient, password);
 
-  jest.spyOn(controller, 'fetchMetadataAccessCreds').mockResolvedValueOnce({
+  vi.spyOn(controller, 'fetchMetadataAccessCreds').mockResolvedValueOnce({
     metadataAccessToken: 'mock-metadata-access-token',
   });
 
   // persist the local enc key
-  jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+  vi.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
   // encrypt and store the secret data
   handleMockSecretDataAdd();
   await baseMessenger.call(
@@ -767,11 +770,11 @@ function getLifecyclePhase(
 describe('SeedlessOnboardingController', () => {
   describe('constructor', () => {
     it('should be able to instantiate', () => {
-      const mockRefreshJWTToken = jest.fn().mockResolvedValue({
+      const mockRefreshJWTToken = vi.fn().mockResolvedValue({
         idTokens: ['newIdToken'],
       });
-      const mockRevokeRefreshToken = jest.fn().mockResolvedValue(undefined);
-      const mockRenewRefreshToken = jest.fn().mockResolvedValue({
+      const mockRevokeRefreshToken = vi.fn().mockResolvedValue(undefined);
+      const mockRenewRefreshToken = vi.fn().mockResolvedValue({
         newRevokeToken: 'newRevokeToken',
         newRefreshToken: 'newRefreshToken',
       });
@@ -790,11 +793,11 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should be able to instantiate with an encryptor', () => {
-      const mockRefreshJWTToken = jest.fn().mockResolvedValue({
+      const mockRefreshJWTToken = vi.fn().mockResolvedValue({
         idTokens: ['newIdToken'],
       });
-      const mockRevokeRefreshToken = jest.fn().mockResolvedValue(undefined);
-      const mockRenewRefreshToken = jest.fn().mockResolvedValue({
+      const mockRevokeRefreshToken = vi.fn().mockResolvedValue(undefined);
+      const mockRenewRefreshToken = vi.fn().mockResolvedValue({
         newRevokeToken: 'newRevokeToken',
         newRefreshToken: 'newRefreshToken',
       });
@@ -814,7 +817,7 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should be able to instantiate with a toprfKeyDeriver', async () => {
-      const deriveKeySpy = jest.fn();
+      const deriveKeySpy = vi.fn();
       const MOCK_PASSWORD = 'mock-password';
 
       const keyDeriver = {
@@ -836,7 +839,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ toprfClient, baseMessenger }) => {
           // persist the local enc key
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+          vi.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
 
@@ -854,11 +857,11 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should be able to instantiate with an authenticated user', () => {
-      const mockRefreshJWTToken = jest.fn().mockResolvedValue({
+      const mockRefreshJWTToken = vi.fn().mockResolvedValue({
         idTokens: ['newIdToken'],
       });
-      const mockRevokeRefreshToken = jest.fn().mockResolvedValue(undefined);
-      const mockRenewRefreshToken = jest.fn().mockResolvedValue({
+      const mockRevokeRefreshToken = vi.fn().mockResolvedValue(undefined);
+      const mockRenewRefreshToken = vi.fn().mockResolvedValue({
         newRevokeToken: 'newRevokeToken',
         newRefreshToken: 'newRefreshToken',
       });
@@ -888,11 +891,11 @@ describe('SeedlessOnboardingController', () => {
     });
 
     it('should throw an error if the password outdated cache TTL is not a valid number', () => {
-      const mockRefreshJWTToken = jest.fn().mockResolvedValue({
+      const mockRefreshJWTToken = vi.fn().mockResolvedValue({
         idTokens: ['newIdToken'],
       });
-      const mockRevokeRefreshToken = jest.fn().mockResolvedValue(undefined);
-      const mockRenewRefreshToken = jest.fn().mockResolvedValue({
+      const mockRevokeRefreshToken = vi.fn().mockResolvedValue(undefined);
+      const mockRenewRefreshToken = vi.fn().mockResolvedValue({
         newRevokeToken: 'newRevokeToken',
         newRefreshToken: 'newRefreshToken',
       });
@@ -917,7 +920,7 @@ describe('SeedlessOnboardingController', () => {
   describe('fetchNodeDetails', () => {
     it('should be able to fetch the node details', async () => {
       await withController(async ({ toprfClient, baseMessenger }) => {
-        const getNodeDetailsSpy = jest
+        const getNodeDetailsSpy = vi
           .spyOn(toprfClient, 'getNodeDetails')
           .mockResolvedValue({
             // @ts-expect-error - test node details
@@ -934,7 +937,7 @@ describe('SeedlessOnboardingController', () => {
 
     it('should not throw an error if the node details fetch fails', async () => {
       await withController(async ({ toprfClient, baseMessenger }) => {
-        const getNodeDetailsSpy = jest
+        const getNodeDetailsSpy = vi
           .spyOn(toprfClient, 'getNodeDetails')
           .mockRejectedValueOnce(new Error('Failed to fetch node details'));
         await baseMessenger.call(
@@ -949,7 +952,7 @@ describe('SeedlessOnboardingController', () => {
     it('should be able to register a new user', async () => {
       await withController(
         async ({ controller, toprfClient, baseMessenger }) => {
-          jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
             nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
             isNewUser: true,
           });
@@ -991,7 +994,7 @@ describe('SeedlessOnboardingController', () => {
     it('should be able to authenticate an existing user', async () => {
       await withController(
         async ({ controller, toprfClient, baseMessenger }) => {
-          jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
             nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
             isNewUser: false,
           });
@@ -1034,7 +1037,7 @@ describe('SeedlessOnboardingController', () => {
       await withController(
         async ({ controller, toprfClient, baseMessenger }) => {
           // mock the authentication method
-          jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
             nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
             isNewUser: true,
           });
@@ -1125,7 +1128,7 @@ describe('SeedlessOnboardingController', () => {
     it('should skip the controller lock when skipLock is true', async () => {
       await withController(
         async ({ controller, toprfClient, baseMessenger }) => {
-          jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
             nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
             isNewUser: false,
           });
@@ -1167,7 +1170,7 @@ describe('SeedlessOnboardingController', () => {
           },
         },
         async ({ controller, toprfClient, baseMessenger }) => {
-          jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
             nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
             isNewUser: false,
           });
@@ -1202,7 +1205,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ toprfClient, baseMessenger }) => {
-          const spy = jest.spyOn(toprfClient, 'fetchAuthPubKey');
+          const spy = vi.spyOn(toprfClient, 'fetchAuthPubKey');
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
@@ -1228,7 +1231,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ toprfClient, baseMessenger }) => {
-          const spy = jest.spyOn(toprfClient, 'fetchAuthPubKey');
+          const spy = vi.spyOn(toprfClient, 'fetchAuthPubKey');
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
@@ -1254,7 +1257,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ toprfClient, baseMessenger }) => {
-          const spy = jest.spyOn(toprfClient, 'fetchAuthPubKey');
+          const spy = vi.spyOn(toprfClient, 'fetchAuthPubKey');
           mockFetchAuthPubKey(toprfClient, base64ToBytes(MOCK_AUTH_PUB_KEY));
           const result = await baseMessenger.call(
             'SeedlessOnboardingController:resolvePasswordSyncState',
@@ -1324,9 +1327,9 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ toprfClient, baseMessenger }) => {
           // Mock fetchAuthPubKey to reject with an error
-          jest
-            .spyOn(toprfClient, 'fetchAuthPubKey')
-            .mockRejectedValueOnce(new Error('Network error'));
+          vi.spyOn(toprfClient, 'fetchAuthPubKey').mockRejectedValueOnce(
+            new Error('Network error'),
+          );
 
           await expect(
             baseMessenger.call(
@@ -1426,7 +1429,7 @@ describe('SeedlessOnboardingController', () => {
           );
 
           // persist the local enc key
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+          vi.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await baseMessenger.call(
@@ -1498,7 +1501,7 @@ describe('SeedlessOnboardingController', () => {
             seed: stringToBytes('retry-password'),
           });
 
-          const persistLocalKeySpy = jest
+          const persistLocalKeySpy = vi
             .spyOn(toprfClient, 'persistLocalKey')
             .mockResolvedValue();
 
@@ -1507,9 +1510,9 @@ describe('SeedlessOnboardingController', () => {
           // again using the newly generated TOPRF key.
           const firstMockSecretDataAdd = handleMockSecretDataAdd();
           const retryMockSecretDataAdd = handleMockSecretDataAdd();
-          jest
-            .spyOn(encryptor, 'encryptWithDetail')
-            .mockRejectedValueOnce(new Error('Failed to create vault'));
+          vi.spyOn(encryptor, 'encryptWithDetail').mockRejectedValueOnce(
+            new Error('Failed to create vault'),
+          );
 
           await expect(
             baseMessenger.call(
@@ -1585,7 +1588,7 @@ describe('SeedlessOnboardingController', () => {
         async ({ controller, toprfClient, encryptor, baseMessenger }) => {
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+          vi.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           await baseMessenger.call(
             'SeedlessOnboardingController:createToprfKeyAndBackupSeedPhrase',
             MOCK_PASSWORD,
@@ -1632,7 +1635,7 @@ describe('SeedlessOnboardingController', () => {
             mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
           // persist the local enc key
-          const persistLocalKeySpy = jest
+          const persistLocalKeySpy = vi
             .spyOn(toprfClient, 'persistLocalKey')
             .mockRejectedValueOnce(
               new TOPRFError(
@@ -1645,7 +1648,7 @@ describe('SeedlessOnboardingController', () => {
           const mockSecretDataAdd = handleMockSecretDataAdd();
           const retryMockSecretDataAdd = handleMockSecretDataAdd();
 
-          const authenticateSpy = jest
+          const authenticateSpy = vi
             .spyOn(toprfClient, 'authenticate')
             .mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
@@ -1711,7 +1714,7 @@ describe('SeedlessOnboardingController', () => {
           initialState,
           baseMessenger,
         }) => {
-          jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+          vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
             nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
             isNewUser: false,
           });
@@ -1737,7 +1740,7 @@ describe('SeedlessOnboardingController', () => {
           );
 
           // persist the local enc key
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+          vi.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           // encrypt and store the secret data
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await baseMessenger.call(
@@ -1796,7 +1799,7 @@ describe('SeedlessOnboardingController', () => {
           mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
           // persist the local enc key
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+          vi.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
 
           // encrypt and store the secret data
           handleMockSecretDataAdd();
@@ -1822,7 +1825,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, toprfClient, initialState, baseMessenger }) => {
-          jest.spyOn(toprfClient, 'createLocalKey').mockImplementation(() => {
+          vi.spyOn(toprfClient, 'createLocalKey').mockImplementation(() => {
             throw new Error('Failed to create local encryption key');
           });
 
@@ -1942,11 +1945,9 @@ describe('SeedlessOnboardingController', () => {
         async ({ toprfClient, baseMessenger }) => {
           mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
-          jest
-            .spyOn(toprfClient, 'persistLocalKey')
-            .mockRejectedValueOnce(
-              new Error('Failed to persist local encryption key'),
-            );
+          vi.spyOn(toprfClient, 'persistLocalKey').mockRejectedValueOnce(
+            new Error('Failed to persist local encryption key'),
+          );
 
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await expect(
@@ -1975,11 +1976,11 @@ describe('SeedlessOnboardingController', () => {
         async ({ toprfClient, baseMessenger }) => {
           mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+          vi.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
 
-          jest
-            .spyOn(toprfClient, 'addSecretDataItem')
-            .mockRejectedValueOnce(new Error('Failed to add secret data item'));
+          vi.spyOn(toprfClient, 'addSecretDataItem').mockRejectedValueOnce(
+            new Error('Failed to add secret data item'),
+          );
 
           await expect(
             baseMessenger.call(
@@ -2462,7 +2463,7 @@ describe('SeedlessOnboardingController', () => {
             base64ToBytes(controller.state.authPubKey as string),
           );
 
-          const fetchAllSecretDataSpy = jest.spyOn(
+          const fetchAllSecretDataSpy = vi.spyOn(
             toprfClient,
             'fetchAllSecretDataItems',
           );
@@ -2499,7 +2500,7 @@ describe('SeedlessOnboardingController', () => {
           // Return items in shuffled order to test sorting
           // v1 items have no dataType and no createdAt (legacy)
           // v2 items have both dataType and createdAt
-          jest.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
+          vi.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
             // Private key (v1 legacy, needs migration)
             {
               data: stringToBytes(
@@ -2607,7 +2608,7 @@ describe('SeedlessOnboardingController', () => {
             },
           ]);
 
-          const batchUpdateSpy = jest
+          const batchUpdateSpy = vi
             .spyOn(toprfClient, 'batchUpdateSecretDataItems')
             .mockResolvedValue();
 
@@ -2657,7 +2658,7 @@ describe('SeedlessOnboardingController', () => {
           );
 
           // All items already have dataType
-          jest.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
+          vi.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
             {
               data: stringToBytes(
                 JSON.stringify({
@@ -2674,8 +2675,8 @@ describe('SeedlessOnboardingController', () => {
             },
           ]);
 
-          const updateSpy = jest.spyOn(toprfClient, 'updateSecretDataItem');
-          const batchUpdateSpy = jest.spyOn(
+          const updateSpy = vi.spyOn(toprfClient, 'updateSecretDataItem');
+          const batchUpdateSpy = vi.spyOn(
             toprfClient,
             'batchUpdateSecretDataItems',
           );
@@ -2713,9 +2714,9 @@ describe('SeedlessOnboardingController', () => {
             base64ToBytes(controller.state.authPubKey as string),
           );
 
-          jest
-            .spyOn(toprfClient, 'fetchAllSecretDataItems')
-            .mockResolvedValue([]);
+          vi.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue(
+            [],
+          );
 
           const result = await controller.runMigrations();
 
@@ -2749,7 +2750,7 @@ describe('SeedlessOnboardingController', () => {
           );
 
           // Only one item needs migration
-          jest.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
+          vi.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
             {
               data: stringToBytes(
                 JSON.stringify({
@@ -2766,10 +2767,10 @@ describe('SeedlessOnboardingController', () => {
             },
           ]);
 
-          const updateSpy = jest
+          const updateSpy = vi
             .spyOn(toprfClient, 'updateSecretDataItem')
             .mockResolvedValue();
-          const batchUpdateSpy = jest.spyOn(
+          const batchUpdateSpy = vi.spyOn(
             toprfClient,
             'batchUpdateSecretDataItems',
           );
@@ -2810,9 +2811,9 @@ describe('SeedlessOnboardingController', () => {
             base64ToBytes(controller.state.authPubKey as string),
           );
 
-          jest
-            .spyOn(toprfClient, 'fetchAllSecretDataItems')
-            .mockRejectedValue(new Error('Network error'));
+          vi.spyOn(toprfClient, 'fetchAllSecretDataItems').mockRejectedValue(
+            new Error('Network error'),
+          );
 
           await expect(controller.runMigrations()).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToFetchSecretMetadata,
@@ -2844,7 +2845,7 @@ describe('SeedlessOnboardingController', () => {
           );
 
           // Simulate inconsistent state: dataType is PrimarySrp but storageVersion is 'v1'
-          jest.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
+          vi.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
             {
               data: stringToBytes(
                 JSON.stringify({
@@ -2873,7 +2874,7 @@ describe('SeedlessOnboardingController', () => {
             },
           ]);
 
-          const batchUpdateSpy = jest
+          const batchUpdateSpy = vi
             .spyOn(toprfClient, 'batchUpdateSecretDataItems')
             .mockResolvedValue();
 
@@ -3204,7 +3205,7 @@ describe('SeedlessOnboardingController', () => {
             ),
           });
 
-          const authenticateSpy = jest
+          const authenticateSpy = vi
             .spyOn(toprfClient, 'authenticate')
             .mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
@@ -3284,17 +3285,18 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ baseMessenger, toprfClient }) => {
-          jest
-            .spyOn(toprfClient, 'fetchAllSecretDataItems')
-            .mockImplementationOnce(() => {
-              // Mock the recover enc key for second time
-              mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
-              // First call fails with token expired error
-              throw new TOPRFError(
-                TOPRFErrorCode.AuthTokenExpired,
-                'Auth token expired',
-              );
-            });
+          vi.spyOn(
+            toprfClient,
+            'fetchAllSecretDataItems',
+          ).mockImplementationOnce(() => {
+            // Mock the recover enc key for second time
+            mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+            // First call fails with token expired error
+            throw new TOPRFError(
+              TOPRFErrorCode.AuthTokenExpired,
+              'Auth token expired',
+            );
+          });
           await baseMessenger.call(
             'SeedlessOnboardingController:submitPassword',
             MOCK_PASSWORD,
@@ -3342,11 +3344,9 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ toprfClient, baseMessenger }) => {
-          jest
-            .spyOn(toprfClient, 'recoverEncKey')
-            .mockRejectedValueOnce(
-              new Error('Failed to recover encryption key'),
-            );
+          vi.spyOn(toprfClient, 'recoverEncKey').mockRejectedValueOnce(
+            new Error('Failed to recover encryption key'),
+          );
 
           await expect(
             baseMessenger.call(
@@ -3370,9 +3370,10 @@ describe('SeedlessOnboardingController', () => {
         async ({ toprfClient, baseMessenger }) => {
           mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
-          jest
-            .spyOn(toprfClient, 'fetchAllSecretDataItems')
-            .mockRejectedValueOnce(new Error('Failed to decrypt data'));
+          vi.spyOn(
+            toprfClient,
+            'fetchAllSecretDataItems',
+          ).mockRejectedValueOnce(new Error('Failed to decrypt data'));
 
           await expect(
             baseMessenger.call(
@@ -3396,15 +3397,16 @@ describe('SeedlessOnboardingController', () => {
         async ({ toprfClient, baseMessenger }) => {
           mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
           // mock the incorrect data shape
-          jest
-            .spyOn(toprfClient, 'fetchAllSecretDataItems')
-            .mockResolvedValueOnce([
-              {
-                data: stringToBytes(JSON.stringify({ key: 'value' })),
-                itemId: 'test-item-id',
-                version: 'v2',
-              },
-            ]);
+          vi.spyOn(
+            toprfClient,
+            'fetchAllSecretDataItems',
+          ).mockResolvedValueOnce([
+            {
+              data: stringToBytes(JSON.stringify({ key: 'value' })),
+              itemId: 'test-item-id',
+              version: 'v2',
+            },
+          ]);
           await expect(
             baseMessenger.call(
               'SeedlessOnboardingController:fetchAllSecretData',
@@ -3425,7 +3427,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ toprfClient, baseMessenger }) => {
-          jest.spyOn(toprfClient, 'recoverEncKey').mockRejectedValueOnce(
+          vi.spyOn(toprfClient, 'recoverEncKey').mockRejectedValueOnce(
             new TOPRFError(1009, 'Rate limit exceeded', {
               rateLimitDetails: {
                 remainingTime: 250,
@@ -3462,11 +3464,9 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ toprfClient, baseMessenger }) => {
-          jest
-            .spyOn(toprfClient, 'recoverEncKey')
-            .mockRejectedValueOnce(
-              new TOPRFError(1006, 'Could not derive encryption key'),
-            );
+          vi.spyOn(toprfClient, 'recoverEncKey').mockRejectedValueOnce(
+            new TOPRFError(1006, 'Could not derive encryption key'),
+          );
 
           await expect(
             baseMessenger.call(
@@ -3490,11 +3490,9 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ toprfClient, baseMessenger }) => {
-          jest
-            .spyOn(toprfClient, 'recoverEncKey')
-            .mockRejectedValueOnce(
-              new TOPRFError(1004, 'Insufficient valid responses'),
-            );
+          vi.spyOn(toprfClient, 'recoverEncKey').mockRejectedValueOnce(
+            new TOPRFError(1004, 'Insufficient valid responses'),
+          );
 
           await expect(
             baseMessenger.call(
@@ -3853,10 +3851,8 @@ describe('SeedlessOnboardingController', () => {
           },
         },
         async ({ baseMessenger, toprfClient }) => {
-          const exportSeedPhrase = jest
-            .fn()
-            .mockResolvedValue(MOCK_SEED_PHRASE);
-          const trackEvent = jest.fn();
+          const exportSeedPhrase = vi.fn().mockResolvedValue(MOCK_SEED_PHRASE);
+          const trackEvent = vi.fn();
 
           baseMessenger.registerActionHandler(
             'KeyringController:exportSeedPhrase',
@@ -3866,7 +3862,7 @@ describe('SeedlessOnboardingController', () => {
             'AnalyticsController:trackEvent',
             trackEvent,
           );
-          const fetchAllSecretDataSpy = jest
+          const fetchAllSecretDataSpy = vi
             .spyOn(toprfClient, 'fetchAllSecretDataItems')
             .mockResolvedValue([
               {
@@ -3941,9 +3937,9 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ encryptor, baseMessenger }) => {
-          jest
-            .spyOn(encryptor, 'decryptWithKey')
-            .mockResolvedValueOnce(mockVault);
+          vi.spyOn(encryptor, 'decryptWithKey').mockResolvedValueOnce(
+            mockVault,
+          );
           await expect(
             baseMessenger.call(
               'SeedlessOnboardingController:submitPassword',
@@ -3967,7 +3963,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ encryptor, baseMessenger }) => {
-          jest.spyOn(encryptor, 'decryptWithDetail').mockResolvedValueOnce({
+          vi.spyOn(encryptor, 'decryptWithDetail').mockResolvedValueOnce({
             vault: mockVault,
             exportedKeyString: 'mock-encryption-key',
             salt: 'mock-salt',
@@ -3981,7 +3977,7 @@ describe('SeedlessOnboardingController', () => {
             SeedlessOnboardingControllerErrorMessage.VaultDataError,
           );
 
-          jest.spyOn(encryptor, 'decryptWithDetail').mockResolvedValueOnce({
+          vi.spyOn(encryptor, 'decryptWithDetail').mockResolvedValueOnce({
             vault: null,
             exportedKeyString: 'mock-encryption-key',
             salt: 'mock-salt',
@@ -4055,7 +4051,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ encryptor, baseMessenger }) => {
-          jest.spyOn(encryptor, 'decrypt').mockResolvedValueOnce('MOCK_VAULT');
+          vi.spyOn(encryptor, 'decrypt').mockResolvedValueOnce('MOCK_VAULT');
 
           expect(async () => {
             await baseMessenger.call(
@@ -4076,9 +4072,9 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ encryptor, baseMessenger }) => {
-          jest
-            .spyOn(encryptor, 'decrypt')
-            .mockRejectedValueOnce(new Error('Incorrect password'));
+          vi.spyOn(encryptor, 'decrypt').mockRejectedValueOnce(
+            new Error('Incorrect password'),
+          );
 
           await expect(
             baseMessenger.call(
@@ -4664,11 +4660,9 @@ describe('SeedlessOnboardingController', () => {
           // mock the recover enc key
           mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
-          jest
-            .spyOn(toprfClient, 'changeEncKey')
-            .mockRejectedValueOnce(
-              new Error('Failed to change encryption key'),
-            );
+          vi.spyOn(toprfClient, 'changeEncKey').mockRejectedValueOnce(
+            new Error('Failed to change encryption key'),
+          );
 
           await expect(
             baseMessenger.call(
@@ -4719,11 +4713,11 @@ describe('SeedlessOnboardingController', () => {
             LATEST_KEY_INDEX,
           );
 
-          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+          const recoverEncKeySpy = vi.spyOn(toprfClient, 'recoverEncKey');
 
           mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
 
-          const changeEncKeySpy = jest.spyOn(toprfClient, 'changeEncKey');
+          const changeEncKeySpy = vi.spyOn(toprfClient, 'changeEncKey');
 
           // Call changePassword (now without keyIndex parameter)
           await baseMessenger.call(
@@ -4771,7 +4765,7 @@ describe('SeedlessOnboardingController', () => {
 
           mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
 
-          const changeEncKeySpy = jest.spyOn(toprfClient, 'changeEncKey');
+          const changeEncKeySpy = vi.spyOn(toprfClient, 'changeEncKey');
 
           await baseMessenger.call(
             'SeedlessOnboardingController:changePassword',
@@ -4878,12 +4872,12 @@ describe('SeedlessOnboardingController', () => {
 
           // Mock fetchAuthPubKey to return falsy keyIndex (simulating missing latestKeyIndex)
           // This will cause newKeyShareIndex to be falsy, triggering the recovery path
-          jest.spyOn(toprfClient, 'fetchAuthPubKey').mockResolvedValueOnce({
+          vi.spyOn(toprfClient, 'fetchAuthPubKey').mockResolvedValueOnce({
             authPubKey: base64ToBytes(controller.state.authPubKey as string),
             keyIndex: 0, // This is falsy and will trigger the recovery path
           });
 
-          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
+          const recoverEncKeySpy = vi.spyOn(toprfClient, 'recoverEncKey');
           const { encKey, pwEncKey, authKeyPair } = mockRecoverEncKey(
             toprfClient,
             MOCK_PASSWORD,
@@ -4891,7 +4885,7 @@ describe('SeedlessOnboardingController', () => {
 
           mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
 
-          const changeEncKeySpy = jest.spyOn(toprfClient, 'changeEncKey');
+          const changeEncKeySpy = vi.spyOn(toprfClient, 'changeEncKey');
 
           // Call changePassword
           await baseMessenger.call(
@@ -4939,9 +4933,9 @@ describe('SeedlessOnboardingController', () => {
           );
 
           // Mock fetchAuthPubKey to reject with an error
-          jest
-            .spyOn(toprfClient, 'fetchAuthPubKey')
-            .mockRejectedValueOnce(new Error('Network error'));
+          vi.spyOn(toprfClient, 'fetchAuthPubKey').mockRejectedValueOnce(
+            new Error('Network error'),
+          );
 
           await expect(
             baseMessenger.call(
@@ -5260,7 +5254,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ toprfClient, controller }) => {
-          jest
+          vi
             .spyOn(toprfClient, 'fetchAuthPubKey')
             .mockRejectedValueOnce(new Error('network failure'));
           await expect(controller.resolvePasswordSyncState()).rejects.toThrow(
@@ -5279,7 +5273,7 @@ describe('SeedlessOnboardingController', () => {
     const NEW_PASSWORD = 'new-mock-password';
 
     beforeEach(() => {
-      jest
+      vi
         .spyOn(ToprfSecureBackup.prototype, 'fetchAuthPubKey')
         .mockResolvedValue({
           authPubKey: base64ToBytes(MOCK_AUTH_PUB_KEY),
@@ -5348,8 +5342,8 @@ describe('SeedlessOnboardingController', () => {
           );
           await controller.setLocked();
 
-          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
-          const recoverPwEncKeySpy = jest.spyOn(toprfClient, 'recoverPwEncKey');
+          const recoverEncKeySpy = vi.spyOn(toprfClient, 'recoverEncKey');
+          const recoverPwEncKeySpy = vi.spyOn(toprfClient, 'recoverPwEncKey');
 
           const result = await controller.reconcilePassword({
             globalPassword: NEW_PASSWORD,
@@ -5390,8 +5384,8 @@ describe('SeedlessOnboardingController', () => {
           );
           await controller.setLocked();
 
-          const recoverEncKeySpy = jest.spyOn(toprfClient, 'recoverEncKey');
-          const recoverPwEncKeySpy = jest.spyOn(toprfClient, 'recoverPwEncKey');
+          const recoverEncKeySpy = vi.spyOn(toprfClient, 'recoverEncKey');
+          const recoverPwEncKeySpy = vi.spyOn(toprfClient, 'recoverPwEncKey');
 
           const result = await controller.reconcilePassword({
             globalPassword: NEW_PASSWORD,
@@ -5465,7 +5459,7 @@ describe('SeedlessOnboardingController', () => {
           const pwEncKey = mockToprfEncryptor.derivePwEncKey(NEW_PASSWORD);
           const authKeyPair =
             mockToprfEncryptor.deriveAuthKeyPair(NEW_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
+          vi.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
             encKey,
             authKeyPair,
             pwEncKey,
@@ -5474,7 +5468,7 @@ describe('SeedlessOnboardingController', () => {
           });
           // recoverPwEncKey recovers the vault key the existing vault was
           // encrypted with, so it must return the OLD password's pwEncKey.
-          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+          vi.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
             pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
           });
 
@@ -5547,7 +5541,7 @@ describe('SeedlessOnboardingController', () => {
           const pwEncKey = mockToprfEncryptor.derivePwEncKey(NEW_PASSWORD);
           const authKeyPair =
             mockToprfEncryptor.deriveAuthKeyPair(NEW_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
+          vi.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
             encKey,
             authKeyPair,
             pwEncKey,
@@ -5556,7 +5550,7 @@ describe('SeedlessOnboardingController', () => {
           });
           // recoverPwEncKey recovers the vault key the existing vault was
           // encrypted with, so it must return the OLD password's pwEncKey.
-          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+          vi.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
             pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
           });
 
@@ -5619,14 +5613,14 @@ describe('SeedlessOnboardingController', () => {
           const newPwEncKey = mockToprfEncryptor.derivePwEncKey(NEW_PASSWORD);
           const newAuthKeyPair =
             mockToprfEncryptor.deriveAuthKeyPair(NEW_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
+          vi.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
             encKey: newEncKey,
             authKeyPair: newAuthKeyPair,
             pwEncKey: newPwEncKey,
             rateLimitResetResult: Promise.resolve(),
             keyShareIndex: 1,
           });
-          jest
+          vi
             .spyOn(toprfClient, 'recoverPwEncKey')
             .mockResolvedValueOnce({
               // The first attempt unlocks the old local vault.
@@ -5642,7 +5636,7 @@ describe('SeedlessOnboardingController', () => {
             update: (...args: unknown[]) => unknown;
           };
           const originalUpdate = controllerWithUpdate.update.bind(controller);
-          jest
+          vi
             .spyOn(controllerWithUpdate, 'update')
             .mockImplementation((...args: unknown[]) => {
               const result = originalUpdate(...args) as {
@@ -5745,7 +5739,7 @@ describe('SeedlessOnboardingController', () => {
           );
 
           // Make the password-sync flow fail.
-          jest
+          vi
             .spyOn(toprfClient, 'recoverPwEncKey')
             .mockRejectedValueOnce(new Error('recover failed'));
 
@@ -5806,7 +5800,7 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           );
           mockRecoverEncKey(toprfClient, NEW_PASSWORD);
-          jest
+          vi
             .spyOn(toprfClient, 'recoverPwEncKey')
             .mockRejectedValueOnce(
               new TOPRFError(
@@ -5864,7 +5858,7 @@ describe('SeedlessOnboardingController', () => {
           });
 
           mockRecoverEncKey(toprfClient, NEW_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+          vi.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
             pwEncKey: createMockToprfEncryptor().derivePwEncKey(OLD_PASSWORD),
           });
 
@@ -5907,7 +5901,7 @@ describe('SeedlessOnboardingController', () => {
             delete state.encryptedSeedlessEncryptionKey;
           });
           mockRecoverEncKey(toprfClient, NEW_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+          vi.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
             pwEncKey: createMockToprfEncryptor().derivePwEncKey(OLD_PASSWORD),
           });
 
@@ -5942,7 +5936,7 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           );
           mockRecoverEncKey(toprfClient, NEW_PASSWORD);
-          jest
+          vi
             .spyOn(toprfClient, 'recoverPwEncKey')
             .mockRejectedValueOnce(
               new TOPRFError(
@@ -5987,7 +5981,7 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           );
           mockRecoverEncKey(toprfClient, NEW_PASSWORD);
-          jest
+          vi
             .spyOn(toprfClient, 'recoverPwEncKey')
             .mockRejectedValueOnce(
               new TOPRFError(
@@ -6111,7 +6105,7 @@ describe('SeedlessOnboardingController', () => {
           // create the local enc key
           mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
           // persist the local enc key
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+          vi.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           // mock the secret data add
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await expect(
@@ -6141,7 +6135,7 @@ describe('SeedlessOnboardingController', () => {
           // create the local enc key
           mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
           // persist the local enc key
-          jest.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
+          vi.spyOn(toprfClient, 'persistLocalKey').mockResolvedValueOnce();
           // mock the secret data add
           const mockSecretDataAdd = handleMockSecretDataAdd();
           await expect(
@@ -6166,9 +6160,9 @@ describe('SeedlessOnboardingController', () => {
     const MOCK_PASSWORD = 'mock-password';
 
     it('should lock the controller', async () => {
-      const mutexAcquireSpy = jest
+      const mutexAcquireSpy = vi
         .spyOn(Mutex.prototype, 'acquire')
-        .mockResolvedValueOnce(jest.fn());
+        .mockResolvedValueOnce(vi.fn());
 
       await withController(
         {
@@ -6609,7 +6603,7 @@ describe('SeedlessOnboardingController', () => {
           const pwEncKey = mockToprfEncryptor.derivePwEncKey(GLOBAL_PASSWORD);
           const authKeyPair =
             mockToprfEncryptor.deriveAuthKeyPair(GLOBAL_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
+          vi.spyOn(toprfClient, 'recoverEncKey').mockResolvedValue({
             encKey,
             authKeyPair,
             pwEncKey,
@@ -6619,14 +6613,14 @@ describe('SeedlessOnboardingController', () => {
 
           const recoveredPwEncKey =
             mockToprfEncryptor.derivePwEncKey(RECOVERED_PASSWORD);
-          jest.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
+          vi.spyOn(toprfClient, 'recoverPwEncKey').mockResolvedValueOnce({
             pwEncKey: recoveredPwEncKey,
           });
 
-          const exportSeedPhrase = jest
+          const exportSeedPhrase = vi
             .fn()
             .mockResolvedValue(MOCK_SEED_PHRASE);
-          const trackEvent = jest.fn();
+          const trackEvent = vi.fn();
           baseMessenger.registerActionHandler(
             'KeyringController:exportSeedPhrase',
             exportSeedPhrase,
@@ -6635,7 +6629,7 @@ describe('SeedlessOnboardingController', () => {
             'AnalyticsController:trackEvent',
             trackEvent,
           );
-          jest
+          vi
             .spyOn(toprfClient, 'fetchAllSecretDataItems')
             .mockResolvedValueOnce([
               {
@@ -6800,21 +6794,20 @@ describe('SeedlessOnboardingController', () => {
           await baseMessenger.call('SeedlessOnboardingController:setLocked');
 
           // Mock fetchAuthPubKey to return a valid response
-          jest.spyOn(toprfClient, 'fetchAuthPubKey').mockResolvedValue({
+          vi.spyOn(toprfClient, 'fetchAuthPubKey').mockResolvedValue({
             authPubKey: base64ToBytes(MOCK_AUTH_PUB_KEY),
             keyIndex: 1,
           });
 
           // Mock the token expiration checks
-          jest
-            .spyOn(controller, 'checkNodeAuthTokenExpired')
-            .mockReturnValue(false);
-          jest
-            .spyOn(controller, 'checkMetadataAccessTokenExpired')
-            .mockReturnValue(false);
-          jest
-            .spyOn(controller, 'checkAccessTokenExpired')
-            .mockReturnValue(true);
+          vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValue(
+            false,
+          );
+          vi.spyOn(
+            controller,
+            'checkMetadataAccessTokenExpired',
+          ).mockReturnValue(false);
+          vi.spyOn(controller, 'checkAccessTokenExpired').mockReturnValue(true);
 
           // This should not trigger token refresh since access token check is skipped when locked
           await baseMessenger.call(
@@ -6837,9 +6830,9 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ toprfClient, baseMessenger }) => {
           // Mock fetchAuthPubKey to throw a non-token-related error
-          jest
-            .spyOn(toprfClient, 'fetchAuthPubKey')
-            .mockRejectedValue(new Error('Network error'));
+          vi.spyOn(toprfClient, 'fetchAuthPubKey').mockRejectedValue(
+            new Error('Network error'),
+          );
 
           // This should throw without retrying (non-token error).
           await expect(
@@ -6949,7 +6942,7 @@ describe('SeedlessOnboardingController', () => {
             },
           },
           async ({ controller, baseMessenger }) => {
-            jest.spyOn(controller, 'checkNodeAuthTokenExpired').mockRestore();
+            vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockRestore();
 
             const isExpired = baseMessenger.call(
               'SeedlessOnboardingController:checkNodeAuthTokenExpired',
@@ -6977,7 +6970,7 @@ describe('SeedlessOnboardingController', () => {
             },
           },
           async ({ controller, baseMessenger }) => {
-            jest.spyOn(controller, 'checkNodeAuthTokenExpired').mockRestore();
+            vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockRestore();
 
             const isExpired = baseMessenger.call(
               'SeedlessOnboardingController:checkNodeAuthTokenExpired',
@@ -7016,10 +7009,10 @@ describe('SeedlessOnboardingController', () => {
               base64ToBytes(controller.state.authPubKey as string),
             );
 
-            jest.spyOn(controller, 'checkNodeAuthTokenExpired').mockRestore();
+            vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockRestore();
 
             // Mock authenticate for token refresh
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -7075,8 +7068,7 @@ describe('SeedlessOnboardingController', () => {
             const newAuthKeyPair =
               mockToprfEncryptor.deriveAuthKeyPair(NEW_MOCK_PASSWORD);
 
-            jest
-              .spyOn(toprfClient, 'changeEncKey')
+            vi.spyOn(toprfClient, 'changeEncKey')
               .mockImplementationOnce(() => {
                 // Mock the recover enc key for second time
                 mockRecoverEncKey(toprfClient, NEW_MOCK_PASSWORD);
@@ -7094,7 +7086,7 @@ describe('SeedlessOnboardingController', () => {
               });
 
             // Mock authenticate for token refresh
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -7152,14 +7144,12 @@ describe('SeedlessOnboardingController', () => {
             mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
             // Mock changeEncKey to always fail with token expired error
-            jest
-              .spyOn(toprfClient, 'changeEncKey')
-              .mockImplementationOnce(() => {
-                throw new TOPRFError(
-                  TOPRFErrorCode.AuthTokenExpired,
-                  'Auth token expired',
-                );
-              });
+            vi.spyOn(toprfClient, 'changeEncKey').mockImplementationOnce(() => {
+              throw new TOPRFError(
+                TOPRFErrorCode.AuthTokenExpired,
+                'Auth token expired',
+              );
+            });
 
             // Mock getNewRefreshToken to fail
             mockRefreshJWTToken.mockRejectedValueOnce(
@@ -7214,9 +7204,9 @@ describe('SeedlessOnboardingController', () => {
             mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
             // Mock changeEncKey to fail with a non-token error
-            jest
-              .spyOn(toprfClient, 'changeEncKey')
-              .mockRejectedValue(new Error('Some other error'));
+            vi.spyOn(toprfClient, 'changeEncKey').mockRejectedValue(
+              new Error('Some other error'),
+            );
 
             await expect(
               baseMessenger.call(
@@ -7281,8 +7271,7 @@ describe('SeedlessOnboardingController', () => {
               MOCK_PASSWORD,
             );
 
-            jest
-              .spyOn(toprfClient, 'addSecretDataItem')
+            vi.spyOn(toprfClient, 'addSecretDataItem')
               .mockImplementationOnce(() => {
                 // First call fails with token expired error
                 throw new TOPRFError(
@@ -7293,7 +7282,7 @@ describe('SeedlessOnboardingController', () => {
               .mockResolvedValueOnce();
 
             // Mock authenticate for token refresh
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -7348,8 +7337,7 @@ describe('SeedlessOnboardingController', () => {
             // Mock recoverEncKey
             mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
-            jest
-              .spyOn(toprfClient, 'fetchAllSecretDataItems')
+            vi.spyOn(toprfClient, 'fetchAllSecretDataItems')
               .mockImplementationOnce(() => {
                 // Mock the recover enc key for second time
                 mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
@@ -7362,7 +7350,7 @@ describe('SeedlessOnboardingController', () => {
               .mockResolvedValueOnce([]);
 
             // Mock authenticate for token refresh
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -7398,8 +7386,7 @@ describe('SeedlessOnboardingController', () => {
             mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
             // Mock addSecretDataItem
-            jest
-              .spyOn(toprfClient, 'addSecretDataItem')
+            vi.spyOn(toprfClient, 'addSecretDataItem')
               .mockImplementationOnce(() => {
                 // First call fails with token expired error
                 throw new TOPRFError(
@@ -7410,12 +7397,12 @@ describe('SeedlessOnboardingController', () => {
               .mockResolvedValueOnce();
 
             // persist the local enc key
-            const persistLocalKeySpy = jest
+            const persistLocalKeySpy = vi
               .spyOn(toprfClient, 'persistLocalKey')
               .mockResolvedValueOnce();
 
             // Mock authenticate for token refresh
-            const authenticateSpy = jest
+            const authenticateSpy = vi
               .spyOn(toprfClient, 'authenticate')
               .mockResolvedValueOnce({
                 nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
@@ -7449,7 +7436,7 @@ describe('SeedlessOnboardingController', () => {
             mockcreateLocalKey(toprfClient, MOCK_PASSWORD);
 
             // persist the local enc key
-            const persistLocalKeySpy = jest
+            const persistLocalKeySpy = vi
               .spyOn(toprfClient, 'persistLocalKey')
               .mockImplementationOnce(() => {
                 // First call fails with token expired error
@@ -7461,12 +7448,12 @@ describe('SeedlessOnboardingController', () => {
               .mockResolvedValueOnce();
 
             // Mock addSecretDataItem
-            const addSecretDataItemSpy = jest
+            const addSecretDataItemSpy = vi
               .spyOn(toprfClient, 'addSecretDataItem')
               .mockResolvedValue();
 
             // Mock authenticate for token refresh
-            const authenticateSpy = jest
+            const authenticateSpy = vi
               .spyOn(toprfClient, 'authenticate')
               .mockResolvedValueOnce({
                 nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
@@ -7542,7 +7529,7 @@ describe('SeedlessOnboardingController', () => {
             const originalRefreshToken = controller.state.refreshToken;
 
             // Mock authenticate for token refresh
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -7675,9 +7662,9 @@ describe('SeedlessOnboardingController', () => {
             });
 
             // Mock authenticate to fail
-            jest
-              .spyOn(toprfClient, 'authenticate')
-              .mockRejectedValueOnce(new Error('Authentication failed'));
+            vi.spyOn(toprfClient, 'authenticate').mockRejectedValueOnce(
+              new Error('Authentication failed'),
+            );
 
             // Call refreshAuthTokens and expect it to throw
             await expect(
@@ -7714,7 +7701,7 @@ describe('SeedlessOnboardingController', () => {
             encryptor,
             baseMessenger,
           }) => {
-            const encryptWithKeySpy = jest.spyOn(encryptor, 'encryptWithKey');
+            const encryptWithKeySpy = vi.spyOn(encryptor, 'encryptWithKey');
             await baseMessenger.call(
               'SeedlessOnboardingController:submitPassword',
               MOCK_PASSWORD,
@@ -7728,7 +7715,7 @@ describe('SeedlessOnboardingController', () => {
             });
 
             // Mock authenticate for token refresh
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -7773,7 +7760,7 @@ describe('SeedlessOnboardingController', () => {
             });
 
             // Mock authenticate for token refresh
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -7821,7 +7808,7 @@ describe('SeedlessOnboardingController', () => {
             });
 
             // Mock authenticate for token refresh
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -7869,7 +7856,7 @@ describe('SeedlessOnboardingController', () => {
               };
             });
 
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -7900,7 +7887,7 @@ describe('SeedlessOnboardingController', () => {
             }),
           },
           async ({ controller, toprfClient, mockRefreshJWTToken }) => {
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -7950,7 +7937,7 @@ describe('SeedlessOnboardingController', () => {
             // After failure the field must be cleared so the next independent
             // call starts a fresh HTTP request rather than re-returning the
             // already-rejected promise.
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -8021,7 +8008,7 @@ describe('SeedlessOnboardingController', () => {
               accessToken,
             });
 
-            const toprfAuthSpy = jest
+            const toprfAuthSpy = vi
               .spyOn(toprfClient, 'authenticate')
               .mockResolvedValue({
                 nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
@@ -8068,7 +8055,7 @@ describe('SeedlessOnboardingController', () => {
               accessToken,
             });
 
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -8090,7 +8077,7 @@ describe('SeedlessOnboardingController', () => {
             }),
           },
           async ({ toprfClient, mockRenewRefreshToken, baseMessenger }) => {
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -8131,7 +8118,7 @@ describe('SeedlessOnboardingController', () => {
               accessToken,
             });
 
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -8181,7 +8168,7 @@ describe('SeedlessOnboardingController', () => {
               accessToken,
             });
 
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -8233,7 +8220,7 @@ describe('SeedlessOnboardingController', () => {
               accessToken,
             });
 
-            jest.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
               isNewUser: false,
             });
@@ -8262,13 +8249,13 @@ describe('SeedlessOnboardingController', () => {
       const controller = new SeedlessOnboardingController({
         messenger,
         encryptor: createMockVaultEncryptor(),
-        refreshJWTToken: jest.fn(),
-        revokeRefreshToken: jest.fn(),
+        refreshJWTToken: vi.fn(),
+        revokeRefreshToken: vi.fn(),
         state: getMockInitialControllerState({
           withMockAuthenticatedUser: true,
           metadataAccessToken: validToken,
         }),
-        renewRefreshToken: jest.fn(),
+        renewRefreshToken: vi.fn(),
       });
       expect(controller).toBeDefined();
 
@@ -8290,10 +8277,10 @@ describe('SeedlessOnboardingController', () => {
       const controller = new SeedlessOnboardingController({
         messenger,
         encryptor: createMockVaultEncryptor(),
-        refreshJWTToken: jest.fn(),
-        revokeRefreshToken: jest.fn(),
+        refreshJWTToken: vi.fn(),
+        revokeRefreshToken: vi.fn(),
         state,
-        renewRefreshToken: jest.fn(),
+        renewRefreshToken: vi.fn(),
       });
       expect(controller).toBeDefined();
 
@@ -8313,17 +8300,17 @@ describe('SeedlessOnboardingController', () => {
       const controller = new SeedlessOnboardingController({
         messenger,
         encryptor: createMockVaultEncryptor(),
-        refreshJWTToken: jest.fn(),
-        revokeRefreshToken: jest.fn(),
+        refreshJWTToken: vi.fn(),
+        revokeRefreshToken: vi.fn(),
         state: getMockInitialControllerState({
           withMockAuthenticatedUser: true,
           metadataAccessToken: expiredToken,
         }),
-        renewRefreshToken: jest.fn(),
+        renewRefreshToken: vi.fn(),
       });
 
       // mock refreshAuthTokens to return a new token
-      jest.spyOn(controller, 'refreshAuthTokens').mockResolvedValue();
+      vi.spyOn(controller, 'refreshAuthTokens').mockResolvedValue();
 
       await baseMessenger.call(
         'SeedlessOnboardingController:fetchMetadataAccessCreds',
@@ -8343,16 +8330,16 @@ describe('SeedlessOnboardingController', () => {
       const controller = new SeedlessOnboardingController({
         messenger,
         encryptor: createMockVaultEncryptor(),
-        refreshJWTToken: jest.fn(),
-        revokeRefreshToken: jest.fn(),
+        refreshJWTToken: vi.fn(),
+        revokeRefreshToken: vi.fn(),
         state: getMockInitialControllerState({
           withMockAuthenticatedUser: true,
           metadataAccessToken: nearExpiryToken,
         }),
-        renewRefreshToken: jest.fn(),
+        renewRefreshToken: vi.fn(),
       });
 
-      jest.spyOn(controller, 'refreshAuthTokens').mockResolvedValue();
+      vi.spyOn(controller, 'refreshAuthTokens').mockResolvedValue();
 
       await baseMessenger.call(
         'SeedlessOnboardingController:fetchMetadataAccessCreds',
@@ -8372,16 +8359,16 @@ describe('SeedlessOnboardingController', () => {
       const controller = new SeedlessOnboardingController({
         messenger,
         encryptor: createMockVaultEncryptor(),
-        refreshJWTToken: jest.fn(),
-        revokeRefreshToken: jest.fn(),
+        refreshJWTToken: vi.fn(),
+        revokeRefreshToken: vi.fn(),
         state: getMockInitialControllerState({
           withMockAuthenticatedUser: true,
           metadataAccessToken: freshToken,
         }),
-        renewRefreshToken: jest.fn(),
+        renewRefreshToken: vi.fn(),
       });
 
-      jest.spyOn(controller, 'refreshAuthTokens').mockResolvedValue();
+      vi.spyOn(controller, 'refreshAuthTokens').mockResolvedValue();
 
       const result = await baseMessenger.call(
         'SeedlessOnboardingController:fetchMetadataAccessCreds',
@@ -8411,9 +8398,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller, baseMessenger }) => {
           // Restore the original implementation to test the real logic
-          jest
-            .spyOn(controller, 'checkMetadataAccessTokenExpired')
-            .mockRestore();
+          vi.spyOn(controller, 'checkMetadataAccessTokenExpired').mockRestore();
 
           const result = baseMessenger.call(
             'SeedlessOnboardingController:checkMetadataAccessTokenExpired',
@@ -8439,9 +8424,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller, baseMessenger }) => {
           // Restore the original implementation to test the real logic
-          jest
-            .spyOn(controller, 'checkMetadataAccessTokenExpired')
-            .mockRestore();
+          vi.spyOn(controller, 'checkMetadataAccessTokenExpired').mockRestore();
 
           const result = baseMessenger.call(
             'SeedlessOnboardingController:checkMetadataAccessTokenExpired',
@@ -8467,9 +8450,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, baseMessenger }) => {
-          jest
-            .spyOn(controller, 'checkMetadataAccessTokenExpired')
-            .mockRestore();
+          vi.spyOn(controller, 'checkMetadataAccessTokenExpired').mockRestore();
 
           const result = baseMessenger.call(
             'SeedlessOnboardingController:checkMetadataAccessTokenExpired',
@@ -8495,9 +8476,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, baseMessenger }) => {
-          jest
-            .spyOn(controller, 'checkMetadataAccessTokenExpired')
-            .mockRestore();
+          vi.spyOn(controller, 'checkMetadataAccessTokenExpired').mockRestore();
 
           const result = baseMessenger.call(
             'SeedlessOnboardingController:checkMetadataAccessTokenExpired',
@@ -8524,9 +8503,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, baseMessenger }) => {
-          jest
-            .spyOn(controller, 'checkMetadataAccessTokenExpired')
-            .mockRestore();
+          vi.spyOn(controller, 'checkMetadataAccessTokenExpired').mockRestore();
 
           const result = baseMessenger.call(
             'SeedlessOnboardingController:checkMetadataAccessTokenExpired',
@@ -8539,7 +8516,7 @@ describe('SeedlessOnboardingController', () => {
     it('should return true if user is not authenticated', async () => {
       await withController(async ({ controller, baseMessenger }) => {
         // Restore the original implementation to test the real logic
-        jest.spyOn(controller, 'checkMetadataAccessTokenExpired').mockRestore();
+        vi.spyOn(controller, 'checkMetadataAccessTokenExpired').mockRestore();
 
         const result = baseMessenger.call(
           'SeedlessOnboardingController:checkMetadataAccessTokenExpired',
@@ -8558,9 +8535,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller, baseMessenger }) => {
           // Restore the original implementation to test the real logic
-          jest
-            .spyOn(controller, 'checkMetadataAccessTokenExpired')
-            .mockRestore();
+          vi.spyOn(controller, 'checkMetadataAccessTokenExpired').mockRestore();
 
           const result = baseMessenger.call(
             'SeedlessOnboardingController:checkMetadataAccessTokenExpired',
@@ -8588,7 +8563,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller, baseMessenger }) => {
           // Restore the original implementation to test the real logic
-          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+          vi.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
 
           const result = baseMessenger.call(
             'SeedlessOnboardingController:checkAccessTokenExpired',
@@ -8614,7 +8589,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller, baseMessenger }) => {
           // Restore the original implementation to test the real logic
-          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+          vi.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
 
           const result = baseMessenger.call(
             'SeedlessOnboardingController:checkAccessTokenExpired',
@@ -8640,7 +8615,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, baseMessenger }) => {
-          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+          vi.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
 
           const result = baseMessenger.call(
             'SeedlessOnboardingController:checkAccessTokenExpired',
@@ -8666,7 +8641,7 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, baseMessenger }) => {
-          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+          vi.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
 
           const result = baseMessenger.call(
             'SeedlessOnboardingController:checkAccessTokenExpired',
@@ -8679,7 +8654,7 @@ describe('SeedlessOnboardingController', () => {
     it('should return true if user is not authenticated', async () => {
       await withController(async ({ controller, baseMessenger }) => {
         // Restore the original implementation to test the real logic
-        jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+        vi.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
 
         const result = baseMessenger.call(
           'SeedlessOnboardingController:checkAccessTokenExpired',
@@ -8698,7 +8673,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller, baseMessenger }) => {
           // Restore the original implementation to test the real logic
-          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+          vi.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
 
           const result = baseMessenger.call(
             'SeedlessOnboardingController:checkAccessTokenExpired',
@@ -8718,7 +8693,7 @@ describe('SeedlessOnboardingController', () => {
         },
         async ({ controller, baseMessenger }) => {
           // Restore the original implementation to test the real logic
-          jest.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
+          vi.spyOn(controller, 'checkAccessTokenExpired').mockRestore();
 
           const result = baseMessenger.call(
             'SeedlessOnboardingController:checkAccessTokenExpired',
@@ -8833,16 +8808,14 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ controller, baseMessenger }) => {
-          jest
-            .spyOn(controller, 'checkNodeAuthTokenExpired')
-            .mockReturnValueOnce(true);
-          jest
-            .spyOn(controller, 'authenticate')
-            .mockRejectedValueOnce(
-              new Error(
-                SeedlessOnboardingControllerErrorMessage.AuthenticationError,
-              ),
-            );
+          vi.spyOn(controller, 'checkNodeAuthTokenExpired').mockReturnValueOnce(
+            true,
+          );
+          vi.spyOn(controller, 'authenticate').mockRejectedValueOnce(
+            new Error(
+              SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+            ),
+          );
 
           await expect(
             baseMessenger.call('SeedlessOnboardingController:getAccessToken'),
@@ -8878,9 +8851,9 @@ describe('SeedlessOnboardingController', () => {
           mockRefreshJWTToken,
           toprfClient,
         }) => {
-          jest
-            .spyOn(controller, 'checkAccessTokenExpired')
-            .mockReturnValueOnce(true);
+          vi.spyOn(controller, 'checkAccessTokenExpired').mockReturnValueOnce(
+            true,
+          );
 
           // Mock the token refresh to return a new access token
           mockRefreshJWTToken.mockResolvedValueOnce({
@@ -8889,7 +8862,7 @@ describe('SeedlessOnboardingController', () => {
             metadataAccessToken: 'newMetadataAccessToken',
           });
 
-          const authenticateSpy = jest
+          const authenticateSpy = vi
             .spyOn(toprfClient, 'authenticate')
             .mockResolvedValueOnce({
               nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
@@ -8951,38 +8924,39 @@ describe('SeedlessOnboardingController', () => {
           mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
           // mock the secret data get
-          jest
-            .spyOn(toprfClient, 'fetchAllSecretDataItems')
-            .mockResolvedValueOnce([
-              {
-                data: stringToBytes(
-                  JSON.stringify({
-                    data: bytesToBase64(MOCK_SEED_PHRASE),
-                    timestamp: 1234567890,
-                    type: SecretType.Mnemonic,
-                    version: 'v1',
-                  }),
-                ),
-                itemId: 'primary-srp-id',
-                version: 'v2',
-                dataType: EncAccountDataType.PrimarySrp,
-                createdAt: '00000001-0000-1000-8000-000000000001',
-              },
-              {
-                data: stringToBytes(
-                  JSON.stringify({
-                    data: bytesToBase64(MOCK_PRIVATE_KEY),
-                    timestamp: 1234567890,
-                    type: SecretType.PrivateKey,
-                    version: 'v1',
-                  }),
-                ),
-                itemId: 'pk-id',
-                version: 'v2',
-                dataType: EncAccountDataType.ImportedPrivateKey,
-                createdAt: '00000002-0000-1000-8000-000000000002',
-              },
-            ]);
+          vi.spyOn(
+            toprfClient,
+            'fetchAllSecretDataItems',
+          ).mockResolvedValueOnce([
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(MOCK_SEED_PHRASE),
+                  timestamp: 1234567890,
+                  type: SecretType.Mnemonic,
+                  version: 'v1',
+                }),
+              ),
+              itemId: 'primary-srp-id',
+              version: 'v2',
+              dataType: EncAccountDataType.PrimarySrp,
+              createdAt: '00000001-0000-1000-8000-000000000001',
+            },
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: bytesToBase64(MOCK_PRIVATE_KEY),
+                  timestamp: 1234567890,
+                  type: SecretType.PrivateKey,
+                  version: 'v1',
+                }),
+              ),
+              itemId: 'pk-id',
+              version: 'v2',
+              dataType: EncAccountDataType.ImportedPrivateKey,
+              createdAt: '00000002-0000-1000-8000-000000000002',
+            },
+          ]);
 
           const secretData = await baseMessenger.call(
             'SeedlessOnboardingController:fetchAllSecretData',
@@ -9025,22 +8999,23 @@ describe('SeedlessOnboardingController', () => {
           // fetch and decrypt the secret data
           mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
-          jest
-            .spyOn(toprfClient, 'fetchAllSecretDataItems')
-            .mockResolvedValueOnce([
-              {
-                data: stringToBytes(
-                  JSON.stringify({
-                    data: 'value',
-                    timestamp: 1234567890,
-                    type: 'mnemonic',
-                    version: 'v1',
-                  }),
-                ),
-                itemId: 'test-item-id',
-                version: 'v2',
-              },
-            ]);
+          vi.spyOn(
+            toprfClient,
+            'fetchAllSecretDataItems',
+          ).mockResolvedValueOnce([
+            {
+              data: stringToBytes(
+                JSON.stringify({
+                  data: 'value',
+                  timestamp: 1234567890,
+                  type: 'mnemonic',
+                  version: 'v1',
+                }),
+              ),
+              itemId: 'test-item-id',
+              version: 'v2',
+            },
+          ]);
 
           await expect(
             baseMessenger.call(
@@ -9257,11 +9232,9 @@ describe('SeedlessOnboardingController', () => {
           // Fail the vault update (new revokeToken inside rotateRefreshToken).
           const originalEncryptWithKey =
             encryptor.encryptWithKey.bind(encryptor);
-          jest
-            .spyOn(encryptor, 'encryptWithKey')
-            .mockImplementation(async () => {
-              throw new Error('Storage full');
-            });
+          vi.spyOn(encryptor, 'encryptWithKey').mockImplementation(async () => {
+            throw new Error('Storage full');
+          });
 
           // rotateRefreshToken should throw since the vault update failed.
           await expect(
@@ -9271,9 +9244,9 @@ describe('SeedlessOnboardingController', () => {
           ).rejects.toThrow('Storage full');
 
           // Restore encryptor so we can verify state
-          jest
-            .spyOn(encryptor, 'encryptWithKey')
-            .mockImplementation(originalEncryptWithKey);
+          vi.spyOn(encryptor, 'encryptWithKey').mockImplementation(
+            originalEncryptWithKey,
+          );
 
           // The old token must NOT be in pendingToBeRevokedTokens.
           expect(controller.state.pendingToBeRevokedTokens ?? []).toHaveLength(

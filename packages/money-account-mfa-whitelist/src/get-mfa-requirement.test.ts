@@ -10,6 +10,7 @@ import {
 import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
 import { bytesToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { describe, it, expect } from 'vitest';
 
 import {
   CARD_SIGN_IN_DOMAIN,

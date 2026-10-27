@@ -5,6 +5,7 @@ import {
   HttpError,
 } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
+import { describe, expect, it, vi } from 'vitest';
 
 import { buildRootMessenger } from '../../tests/helpers.js';
 import {
@@ -65,7 +66,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     });
 
                     const messenger = buildRootMessenger();
-                    const rpcEndpointChainUnavailableEventHandler = jest.fn();
+                    const rpcEndpointChainUnavailableEventHandler = vi.fn();
                     messenger.subscribe(
                       'NetworkController:rpcEndpointChainUnavailable',
                       rpcEndpointChainUnavailableEventHandler,
@@ -93,7 +94,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                           () => {
                             // Ensure that we advance to the next RPC request
                             // retry, not the next block tracker request.
-                            jest.advanceTimersByTime(backoffDuration);
+                            vi.advanceTimersByTime(backoffDuration);
                           },
                         );
 
@@ -182,7 +183,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     });
 
                     const messenger = buildRootMessenger();
-                    const rpcEndpointUnavailableEventHandler = jest.fn();
+                    const rpcEndpointUnavailableEventHandler = vi.fn();
                     messenger.subscribe(
                       'NetworkController:rpcEndpointUnavailable',
                       rpcEndpointUnavailableEventHandler,
@@ -210,7 +211,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                           () => {
                             // Ensure that we advance to the next RPC request
                             // retry, not the next block tracker request.
-                            jest.advanceTimersByTime(backoffDuration);
+                            vi.advanceTimersByTime(backoffDuration);
                           },
                         );
 
@@ -300,7 +301,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       connectivityStatus: CONNECTIVITY_STATUSES.Offline,
                     });
 
-                    const rpcEndpointRetriedEventHandler = jest.fn();
+                    const rpcEndpointRetriedEventHandler = vi.fn();
                     rootMessenger.subscribe(
                       'NetworkController:rpcEndpointRetried',
                       rpcEndpointRetriedEventHandler,
@@ -383,7 +384,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       connectivityStatus: CONNECTIVITY_STATUSES.Offline,
                     });
 
-                    const rpcEndpointUnavailableEventHandler = jest.fn();
+                    const rpcEndpointUnavailableEventHandler = vi.fn();
                     rootMessenger.subscribe(
                       'NetworkController:rpcEndpointUnavailable',
                       rpcEndpointUnavailableEventHandler,
@@ -408,7 +409,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                           () => {
                             // Ensure that we advance to the next RPC request
                             // retry, not the next block tracker request.
-                            jest.advanceTimersByTime(backoffDuration);
+                            vi.advanceTimersByTime(backoffDuration);
                           },
                         );
 
@@ -456,7 +457,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   },
                   async (failoverComms) => {
                     const messenger = buildRootMessenger();
-                    const rpcEndpointChainDegradedEventHandler = jest.fn();
+                    const rpcEndpointChainDegradedEventHandler = vi.fn();
                     messenger.subscribe(
                       'NetworkController:rpcEndpointChainDegraded',
                       rpcEndpointChainDegradedEventHandler,
@@ -508,7 +509,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                           () => {
                             // Ensure that we advance to the next RPC request
                             // retry, not the next block tracker request.
-                            jest.advanceTimersByTime(backoffDuration);
+                            vi.advanceTimersByTime(backoffDuration);
                           },
                         );
 
@@ -569,7 +570,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   },
                   async (failoverComms) => {
                     const messenger = buildRootMessenger();
-                    const rpcEndpointChainDegradedEventHandler = jest.fn();
+                    const rpcEndpointChainDegradedEventHandler = vi.fn();
                     messenger.subscribe(
                       'NetworkController:rpcEndpointChainDegraded',
                       rpcEndpointChainDegradedEventHandler,
@@ -611,7 +612,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                             params: [],
                           },
                           response: () => {
-                            jest.advanceTimersByTime(
+                            vi.advanceTimersByTime(
                               DEFAULT_DEGRADED_THRESHOLD + 1,
                             );
                             return {
@@ -622,7 +623,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         failoverComms.mockRpcCall({
                           request,
                           response: () => {
-                            jest.advanceTimersByTime(
+                            vi.advanceTimersByTime(
                               DEFAULT_DEGRADED_THRESHOLD + 1,
                             );
                             return {
@@ -636,7 +637,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                           () => {
                             // Ensure that we advance to the next RPC request
                             // retry, not the next block tracker request.
-                            jest.advanceTimersByTime(backoffDuration);
+                            vi.advanceTimersByTime(backoffDuration);
                           },
                         );
 
@@ -694,7 +695,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   },
                   async (failoverComms) => {
                     const messenger = buildRootMessenger();
-                    const rpcEndpointDegradedEventHandler = jest.fn();
+                    const rpcEndpointDegradedEventHandler = vi.fn();
                     messenger.subscribe(
                       'NetworkController:rpcEndpointDegraded',
                       rpcEndpointDegradedEventHandler,
@@ -746,7 +747,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                           () => {
                             // Ensure that we advance to the next RPC request
                             // retry, not the next block tracker request.
-                            jest.advanceTimersByTime(backoffDuration);
+                            vi.advanceTimersByTime(backoffDuration);
                           },
                         );
 
@@ -837,7 +838,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   },
                   async (failoverComms) => {
                     const messenger = buildRootMessenger();
-                    const rpcEndpointDegradedEventHandler = jest.fn();
+                    const rpcEndpointDegradedEventHandler = vi.fn();
                     messenger.subscribe(
                       'NetworkController:rpcEndpointDegraded',
                       rpcEndpointDegradedEventHandler,
@@ -879,7 +880,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                             params: [],
                           },
                           response: () => {
-                            jest.advanceTimersByTime(
+                            vi.advanceTimersByTime(
                               DEFAULT_DEGRADED_THRESHOLD + 1,
                             );
                             return {
@@ -890,7 +891,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                         failoverComms.mockRpcCall({
                           request,
                           response: () => {
-                            jest.advanceTimersByTime(
+                            vi.advanceTimersByTime(
                               DEFAULT_DEGRADED_THRESHOLD + 1,
                             );
                             return {
@@ -904,7 +905,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                           () => {
                             // Ensure that we advance to the next RPC request
                             // retry, not the next block tracker request.
-                            jest.advanceTimersByTime(backoffDuration);
+                            vi.advanceTimersByTime(backoffDuration);
                           },
                         );
 
@@ -1032,7 +1033,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     });
 
                     const messenger = buildRootMessenger();
-                    const rpcEndpointChainAvailableEventHandler = jest.fn();
+                    const rpcEndpointChainAvailableEventHandler = vi.fn();
                     messenger.subscribe(
                       'NetworkController:rpcEndpointChainAvailable',
                       rpcEndpointChainAvailableEventHandler,
@@ -1060,7 +1061,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                           () => {
                             // Ensure that we advance to the next RPC request
                             // retry, not the next block tracker request.
-                            jest.advanceTimersByTime(backoffDuration);
+                            vi.advanceTimersByTime(backoffDuration);
                           },
                         );
 
@@ -1122,7 +1123,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
               });
 
               const messenger = buildRootMessenger();
-              const rpcEndpointChainDegradedEventHandler = jest.fn();
+              const rpcEndpointChainDegradedEventHandler = vi.fn();
               messenger.subscribe(
                 'NetworkController:rpcEndpointChainDegraded',
                 rpcEndpointChainDegradedEventHandler,
@@ -1148,7 +1149,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     () => {
                       // Ensure that we advance to the next RPC request
                       // retry, not the next block tracker request.
-                      jest.advanceTimersByTime(backoffDuration);
+                      vi.advanceTimersByTime(backoffDuration);
                     },
                   );
 
@@ -1197,7 +1198,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
             { providerType: networkClientType },
             async (comms) => {
               const messenger = buildRootMessenger();
-              const rpcEndpointChainDegradedEventHandler = jest.fn();
+              const rpcEndpointChainDegradedEventHandler = vi.fn();
               messenger.subscribe(
                 'NetworkController:rpcEndpointChainDegraded',
                 rpcEndpointChainDegradedEventHandler,
@@ -1227,7 +1228,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       params: [],
                     },
                     response: () => {
-                      jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+                      vi.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
                       return {
                         result: '0x1',
                       };
@@ -1236,7 +1237,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   comms.mockRpcCall({
                     request,
                     response: () => {
-                      jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+                      vi.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
                       return {
                         result: 'ok',
                       };
@@ -1293,7 +1294,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
               });
 
               const messenger = buildRootMessenger();
-              const rpcEndpointDegradedEventHandler = jest.fn();
+              const rpcEndpointDegradedEventHandler = vi.fn();
               messenger.subscribe(
                 'NetworkController:rpcEndpointDegraded',
                 rpcEndpointDegradedEventHandler,
@@ -1319,7 +1320,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     () => {
                       // Ensure that we advance to the next RPC request
                       // retry, not the next block tracker request.
-                      jest.advanceTimersByTime(backoffDuration);
+                      vi.advanceTimersByTime(backoffDuration);
                     },
                   );
 
@@ -1406,7 +1407,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 connectivityStatus: CONNECTIVITY_STATUSES.Offline,
               });
 
-              const rpcEndpointRetriedEventHandler = jest.fn();
+              const rpcEndpointRetriedEventHandler = vi.fn();
               rootMessenger.subscribe(
                 'NetworkController:rpcEndpointRetried',
                 rpcEndpointRetriedEventHandler,
@@ -1466,7 +1467,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                 connectivityStatus: CONNECTIVITY_STATUSES.Offline,
               });
 
-              const rpcEndpointDegradedEventHandler = jest.fn();
+              const rpcEndpointDegradedEventHandler = vi.fn();
               rootMessenger.subscribe(
                 'NetworkController:rpcEndpointDegraded',
                 rpcEndpointDegradedEventHandler,
@@ -1489,7 +1490,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                     () => {
                       // Ensure that we advance to the next RPC request
                       // retry, not the next block tracker request.
-                      jest.advanceTimersByTime(backoffDuration);
+                      vi.advanceTimersByTime(backoffDuration);
                     },
                   );
 
@@ -1526,7 +1527,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
             { providerType: networkClientType },
             async (comms) => {
               const messenger = buildRootMessenger();
-              const rpcEndpointDegradedEventHandler = jest.fn();
+              const rpcEndpointDegradedEventHandler = vi.fn();
               messenger.subscribe(
                 'NetworkController:rpcEndpointDegraded',
                 rpcEndpointDegradedEventHandler,
@@ -1559,7 +1560,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                       params: [],
                     },
                     response: () => {
-                      jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+                      vi.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
                       return {
                         result: '0x1',
                       };
@@ -1568,7 +1569,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
                   comms.mockRpcCall({
                     request,
                     response: () => {
-                      jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+                      vi.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
                       return {
                         result: 'ok',
                       };
@@ -1631,7 +1632,7 @@ describe('createNetworkClient - RPC endpoint events', () => {
               });
 
               const messenger = buildRootMessenger();
-              const rpcEndpointChainAvailableEventHandler = jest.fn();
+              const rpcEndpointChainAvailableEventHandler = vi.fn();
               messenger.subscribe(
                 'NetworkController:rpcEndpointChainAvailable',
                 rpcEndpointChainAvailableEventHandler,

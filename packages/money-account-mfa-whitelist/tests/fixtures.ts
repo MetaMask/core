@@ -29,6 +29,7 @@ import {
   hashMessage,
 } from 'ethers';
 import type { TypedDataField } from 'ethers';
+import { vi } from 'vitest';
 
 import type {
   DelegationFrameworkContracts,
@@ -366,7 +367,7 @@ export async function getDelegationTypedData(
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
-  const signTypedMessage = jest.fn().mockResolvedValue('0x');
+  const signTypedMessage = vi.fn().mockResolvedValue('0x');
   rootMessenger.registerActionHandler(
     'KeyringController:signTypedMessage',
     signTypedMessage,

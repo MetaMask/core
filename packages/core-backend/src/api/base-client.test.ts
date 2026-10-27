@@ -3,10 +3,12 @@
  */
 
 import { QueryClient } from '@tanstack/query-core';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
+import { createMockResponse, mockFetch } from '../../tests/test-utils.js';
 import { AccountsApiClient } from './accounts/index.js';
 import { authQueryKeys } from './base-client.js';
-import { createMockResponse, mockFetch } from './test-utils.js';
 
 /**
  * Reads the Authorization header from a recorded fetch call.
@@ -23,9 +25,13 @@ function authorizationHeaderOfCall(callIndex: number): string | undefined {
 }
 
 describe('BaseApiClient', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', mockFetch);
+  });
+
   describe('invalidateAuthToken', () => {
     it('calls resetQueries on the query client with auth bearer token key', async () => {
-      const mockResetQueries = jest.fn().mockResolvedValue(undefined);
+      const mockResetQueries = vi.fn().mockResolvedValue(undefined);
       const queryClient = {
         resetQueries: mockResetQueries,
       } as unknown as QueryClient;
@@ -119,13 +125,13 @@ describe('BaseApiClient', () => {
      */
     function setup(authTokenTimeout?: number): {
       client: AccountsApiClient;
-      getBearerToken: jest.Mock<Promise<string>, []>;
+      getBearerToken: Mock<(...args: []) => Promise<string>>;
       resolveToken: (token: string) => void;
     } {
       let resolvedToken: string | undefined;
       let pending: Promise<string> | undefined;
       let settleToken: (token: string) => void = () => undefined;
-      const getBearerToken = jest.fn(async (): Promise<string> => {
+      const getBearerToken = vi.fn(async (): Promise<string> => {
         if (resolvedToken !== undefined) {
           return resolvedToken;
         }

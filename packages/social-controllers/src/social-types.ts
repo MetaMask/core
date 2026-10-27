@@ -7,6 +7,7 @@ import {
   string,
   type as structType,
 } from '@metamask/superstruct';
+import type { CaipAssetTypeOrId } from '@metamask/utils';
 
 // ---------------------------------------------------------------------------
 // Shared sub-types
@@ -38,6 +39,10 @@ export type FeedActorSummary = ProfileSummary & {
   winRate30d?: number | null;
   /** 30-day realized PnL in USD. */
   pnl30d?: number | null;
+  /** 30-day trading volume in USD, totaled across all chains. */
+  volumeUsd30d?: number | null;
+  /** 7-day trading volume in USD, totaled across all chains. */
+  volumeUsd7d?: number | null;
   /** 30-day sell count behind `winRate30d`. */
   tradeCount30d?: number | null;
   /** Profiles following this trader. */
@@ -116,6 +121,16 @@ export type LeaderboardEntry = {
   winRate7d?: number | null;
   roiPercent7d?: number | null;
   tradeCount7d?: number | null;
+  /**
+   * 30-day trading volume in USD. When the request includes `chains`, this is
+   * the sum of those chains; otherwise it is the all-chain total.
+   */
+  volumeUsd30d?: number | null;
+  /**
+   * 7-day trading volume in USD. When the request includes `chains`, this is
+   * the sum of those chains; otherwise it is the all-chain total.
+   */
+  volumeUsd7d?: number | null;
   pnlPerChain: Record<string, number>;
   followerCount: number;
   socialHandles: SocialHandles;
@@ -143,6 +158,12 @@ export type TraderProfile = {
   allAddresses: string[];
   name: string;
   imageUrl?: string | null;
+  /**
+   * When the social-api profile row was created, as an ISO-8601 timestamp.
+   * Omitted on older social-api builds. This is the row insert time, which can
+   * predate the trader claiming a username and avatar.
+   */
+  createdAt?: string | null;
 };
 
 export type TraderStats = {
@@ -383,12 +404,29 @@ export type RemoveCommentReactionOptions = {
 /**
  * Identifies a swap that may not be indexed yet. Prefer {@link CreateSwapCommentOptions.positionUid}
  * when the client already has a feed or positions `positionId`.
+ *
+ * A spot swap sends `transactionHash`. A Hyperliquid order that has not
+ * settled sends `orderId` (the exchange `oid`) instead: the fill hash does not
+ * exist yet, and social-api rejects a body that names both. For Hyperliquid,
+ * `tokenAddress` is the coin (for example `BTC`), not a contract address.
  */
-export type TradeInFlight = {
-  transactionHash: string;
-  chain: string;
-  tokenAddress: string;
-};
+export type TradeInFlight =
+  | {
+      transactionHash: string;
+      chain: string;
+      /** Contract address of the token traded. */
+      tokenAddress: string;
+    }
+  | {
+      /**
+       * Hyperliquid order id (`oid`) of an order just submitted. Digits only.
+       * The comment attaches once the fill is indexed.
+       */
+      orderId: string;
+      chain: 'hyperliquid';
+      /** Hyperliquid coin, for example `BTC`. */
+      tokenAddress: string;
+    };
 
 /**
  * Options for `POST /v1/swap-comments`. Provide exactly one of `positionUid`
@@ -429,6 +467,10 @@ export type SwapCommentAuthor = {
 
 /**
  * Response from `POST /v1/swap-comments`.
+ *
+ * `transactionHash` is empty when the comment was saved against a Hyperliquid
+ * `orderId` whose fill is not indexed yet. Social-api stamps the hash once the
+ * order settles.
  */
 export type SwapCommentResponse = {
   uid: string;
@@ -677,9 +719,25 @@ export type FetchFeedOptions = {
   scope?: FeedScope;
   /**
    * Filter by one or more chains, given as CAIP-2 chain ids (e.g.
-   * `eip155:8453`). Omit for the server defaults.
+   * `eip155:8453`). Omit for the server defaults. A set that excludes the chain
+   * of an asset in `assetIds` is rejected with a 400.
    */
   chains?: string[];
+  /**
+   * Only items in any of these assets, given as 1–10 CAIP-19 asset id (e.g.
+   * `eip155:8453/erc20:0x…`). Matches ANY of them. Invalid or unsupported asset
+   * ids (for example, ones with a token id) are rejected with a 400.
+   */
+  assetIds?: CaipAssetTypeOrId[];
+  /**
+   * Only this trader's items. A Clicker profile ID (UUID), not a wallet address.
+   */
+  profileId?: string;
+  /**
+   * When true, return only items that carry an author comment. Omitted from
+   * the request when false or unset.
+   */
+  commentedOnly?: boolean;
   /** Number of results to return. */
   limit?: number;
   /** Cursor for older items (infinite scroll). Use `pagination.olderCursor`. */
@@ -688,7 +746,7 @@ export type FetchFeedOptions = {
   newerThan?: string;
 };
 
-export type FeedScope = 'following' | 'leaderboard' | 'all';
+export type FeedScope = 'following' | 'leaderboard' | 'all' | 'trending';
 
 export type FetchPositionByIdOptions = {
   /** Unique position ID (UUID). */

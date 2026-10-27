@@ -533,7 +533,6 @@ function createBlockTracker({
   const defaultOptions = {
     pollingInterval:
       // Needed for testing.
-      // eslint-disable-next-line no-restricted-globals
       process.env.IN_TEST && networkClientType === NetworkClientType.Custom
         ? inMilliseconds(1, Duration.Second)
         : inMilliseconds(20, Duration.Second),
@@ -636,7 +635,6 @@ function createCustomNetworkMiddleware({
   MiddlewareContext<{ origin: string; skipCache: boolean }>
 > {
   // Needed for testing.
-  // eslint-disable-next-line no-restricted-globals
   const testMiddlewares = process.env.IN_TEST
     ? [createEstimateGasDelayTestMiddleware()]
     : [];

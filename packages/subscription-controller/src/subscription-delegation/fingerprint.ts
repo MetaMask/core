@@ -21,17 +21,44 @@ export type SubscriptionDelegationFingerprint = {
   periodAmount: bigint;
   periodDuration: number;
   /**
-   * Current unix timestamp in seconds. Used to classify a stored period
-   * `startDate` as immediately redeemable (`<= now`) vs trial-deferred (`> now`).
+   * Current unix timestamp in seconds. Used for the trial floor so a live
+   * permission cannot satisfy a checkout whose start date is still in the future.
    */
   nowSeconds: number;
   /**
-   * When true, only a still-deferred period start (`> nowSeconds`) matches.
-   * When false, only an immediately redeemable start (`<= nowSeconds`) matches.
+   * Unix start date this checkout would sign. A stored permission is reusable
+   * only when its period `startDate` is inside the Subscription API window
+   * around this value.
    */
-  isTrialDeferred: boolean;
+  expectedStartDate: number;
   enforcers: SubscriptionDelegationEnforcers;
 };
+
+/** Must match va-mmcx-subscription-api START_DATE_PAST_SKEW_SECONDS. */
+const START_DATE_PAST_SKEW_SECONDS = 14 * 24 * 60 * 60;
+
+/** Must match va-mmcx-subscription-api START_DATE_FUTURE_SKEW_SECONDS. */
+const START_DATE_FUTURE_SKEW_SECONDS = 5 * 60;
+
+function isStartDateInsideApiWindow(
+  storedStartDate: number,
+  expectedStartDate: number,
+  nowSeconds: number,
+): boolean {
+  if (storedStartDate <= 0) {
+    return false;
+  }
+
+  const retryMinimumStartDate =
+    expectedStartDate - START_DATE_PAST_SKEW_SECONDS;
+  const trialLiveFloor = expectedStartDate > nowSeconds ? nowSeconds + 1 : 0;
+  const minimumStartDate = Math.max(retryMinimumStartDate, trialLiveFloor);
+  const maximumStartDate = expectedStartDate + START_DATE_FUTURE_SKEW_SECONDS;
+
+  return (
+    storedStartDate >= minimumStartDate && storedStartDate <= maximumStartDate
+  );
+}
 
 /**
  * Case-insensitive hex equality.
@@ -47,9 +74,9 @@ export function equalsIgnoreCase(left: string, right: string): boolean {
 /**
  * Builds a predicate that matches a stored AUS delegation to the semantic
  * cash-subscription fingerprint. Salt is ignored so a previously signed
- * equivalent permission can be reused. Period `startDate` is compared only
- * as trial-deferred (`> nowSeconds`) vs immediately redeemable (`<= nowSeconds`)
- * so a positive-length trial cannot reuse a live permission and vice versa.
+ * equivalent permission can be reused. Period `startDate` must fall inside the
+ * Subscription API window around `expectedStartDate` so stored permissions are
+ * rejected when they are too old or too far in the future for the checkout.
  *
  * @param expected - Semantic fields that must match.
  * @returns Predicate over {@link DelegationResponse}.
@@ -122,8 +149,13 @@ export function makeMatchesSubscriptionDelegation(
         periodCaveat.terms,
       );
       const storedStartDate = Number(periodTerms.startDate);
-      const isStoredDeferred = storedStartDate > expected.nowSeconds;
-      if (expected.isTrialDeferred !== isStoredDeferred) {
+      if (
+        !isStartDateInsideApiWindow(
+          storedStartDate,
+          expected.expectedStartDate,
+          expected.nowSeconds,
+        )
+      ) {
         return false;
       }
       return (

@@ -74,6 +74,9 @@ const config = {
     'build-utils': {
       teams: ['@MetaMask/core-platform'],
     },
+    'byte-utils': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'chain-agnostic-permission': {
       teams: ['@MetaMask/core-platform'],
     },
@@ -136,6 +139,9 @@ const config = {
     'eip1193-permission-middleware': {
       teams: ['@MetaMask/core-platform'],
     },
+    'error-utils': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'eth-block-tracker': {
       teams: ['@MetaMask/core-platform'],
     },
@@ -191,6 +197,9 @@ const config = {
       teams: ['@MetaMask/confirmations'],
       initializationPath: 'logging-controller',
     },
+    'marketing-consent-controller': {
+      teams: ['@MetaMask/engagement'],
+    },
     'message-manager': {
       teams: ['@MetaMask/confirmations'],
     },
@@ -199,6 +208,9 @@ const config = {
     },
     'messenger-cli': {
       teams: ['@MetaMask/core-platform'],
+    },
+    'mfa-recovery-controller': {
+      teams: ['@MetaMask/web3auth'],
     },
     'money-account-api-data-service': {
       teams: ['@MetaMask/earn'],
@@ -246,6 +258,9 @@ const config = {
     },
     'network-enablement-controller': {
       teams: ['@MetaMask/metamask-assets'],
+    },
+    'node-utils': {
+      teams: ['@MetaMask/core-platform'],
     },
     'notification-services-controller': {
       teams: ['@MetaMask/engagement'],
@@ -378,6 +393,9 @@ const config = {
     'transaction-pay-middleware': {
       teams: ['@MetaMask/confirmations'],
     },
+    'type-utils': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'user-operation-controller': {
       teams: ['@MetaMask/confirmations'],
     },
@@ -387,11 +405,11 @@ const config = {
     wallet: {
       teams: ['@MetaMask/core-platform'],
     },
-    'wallet-cli': {
-      teams: ['@MetaMask/core-platform'],
-    },
     'wallet-framework-docs': {
       teams: ['@MetaMask/core-platform'],
+    },
+    'watch-only-account-service': {
+      teams: ['@MetaMask/accounts-engineers'],
     },
   },
   overrides: [

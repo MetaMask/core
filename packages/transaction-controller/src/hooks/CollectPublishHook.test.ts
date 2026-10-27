@@ -1,6 +1,7 @@
 import { noop } from 'lodash-es';
+import { describe, expect, it } from 'vitest';
 
-import { flushPromises } from '../../../../tests/helpers.js';
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import type { TransactionMeta } from '../index.js';
 import { CollectPublishHook } from './CollectPublishHook.js';
 

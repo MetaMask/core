@@ -1,58 +1,21 @@
 import { string, assert as superstructAssert } from '@metamask/superstruct';
+import type { MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  assert,
-  assertExhaustive,
-  AssertionError,
-  assertStruct,
-} from './assert.js';
+import { assertStruct } from './assert.js';
 
-jest.mock('@metamask/superstruct', () => ({
-  ...jest.requireActual('@metamask/superstruct'),
-  assert: jest.fn(),
+vi.mock(import('@metamask/superstruct'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  assert: vi.fn(),
 }));
 
-describe('assert', () => {
-  it('succeeds', () => {
-    expect(() => assert(true)).not.toThrow();
-  });
-
-  it('narrows type scope', () => {
-    const item: { foo: 1 } | undefined = { foo: 1 };
-
-    assert(item !== undefined);
-
-    // This will fail to compile otherwise
-    expect(item.foo).toBe(1);
-  });
-
-  it('throws', () => {
-    expect(() => assert(false, 'Thrown')).toThrow(AssertionError);
-  });
-
-  it('throws with default message', () => {
-    expect(() => assert(false)).toThrow('Assertion failed.');
-  });
-
-  it('throws a custom error', () => {
-    class MyError extends Error {}
-    expect(() => assert(false, new MyError('Thrown'))).toThrow(MyError);
-  });
-});
-
-describe('assertExhaustive', () => {
-  it('throws', () => {
-    expect(() => assertExhaustive('foo' as never)).toThrow(
-      'Invalid branch reached. Should be detected during compilation.',
-    );
-  });
-});
-
 describe('assertStruct', () => {
-  beforeEach(() => {
-    const actual = jest.requireActual('@metamask/superstruct');
+  beforeEach(async () => {
+    const actual = await vi.importActual<
+      typeof import('@metamask/superstruct')
+    >('@metamask/superstruct');
     (
-      superstructAssert as jest.MockedFunction<typeof superstructAssert>
+      superstructAssert as MockedFunction<typeof superstructAssert>
     ).mockImplementation(actual.assert);
   });
 
@@ -110,9 +73,9 @@ describe('assertStruct', () => {
 
   it('includes the value thrown in the message if it is not an error', () => {
     (
-      superstructAssert as jest.MockedFunction<typeof superstructAssert>
+      superstructAssert as MockedFunction<typeof superstructAssert>
     ).mockImplementation(() => {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      // oxlint-disable-next-line no-throw-literal, typescript/only-throw-error
       throw 'foo.';
     });
 

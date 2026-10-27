@@ -1,14 +1,14 @@
 {
   "extends": "../../tsconfig.packages.json",
-  "compilerOptions": {
-    "types": ["jest"]
-  },
   "references": [
     {
       "path": "../accounts-controller"
     },
     {
       "path": "../address-book-controller"
+    },
+    {
+      "path": "../analytics-controller"
     },
     {
       "path": "../approval-controller"
@@ -75,6 +75,9 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../geolocation-controller"
     }
   ],
   "include": ["../../types", "./src"]
