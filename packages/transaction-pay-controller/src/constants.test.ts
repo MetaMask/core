@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   CHAIN_ID_POLYGON,
   POLYGON_PUSD_ADDRESS,

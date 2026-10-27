@@ -1,22 +1,24 @@
-import { flushPromises } from '../../../../tests/helpers.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import { timeoutWithRetry } from './timeout-with-retry.js';
 
 describe('timeoutWithRetry', () => {
   const timeout = 1000;
 
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('returns the result when call completes before timeout', async () => {
-    const mockCall = jest.fn(async () => 'success');
+    const mockCall = vi.fn(async () => 'success');
 
     const resultPromise = timeoutWithRetry(mockCall, timeout, 0);
-    jest.runAllTimers();
+    vi.runAllTimers();
     const result = await resultPromise;
 
     expect(result).toBe('success');
@@ -25,7 +27,7 @@ describe('timeoutWithRetry', () => {
 
   describe('retry behaviour', () => {
     it('throws when maxRetries is negative', async () => {
-      const mockCall = jest.fn(async () => 'success');
+      const mockCall = vi.fn(async () => 'success');
 
       await expect(() =>
         timeoutWithRetry(mockCall, timeout, -1),
@@ -36,7 +38,7 @@ describe('timeoutWithRetry', () => {
       const mockCall = createMockCallWithRetries(timeout, 0);
 
       const resultPromise = timeoutWithRetry(mockCall, timeout, 0);
-      jest.runAllTimers();
+      vi.runAllTimers();
       const result = await resultPromise;
 
       expect(result).toBe('success');
@@ -47,9 +49,9 @@ describe('timeoutWithRetry', () => {
       const mockCall = createMockCallWithRetries(timeout, 2);
 
       const resultPromise = timeoutWithRetry(mockCall, timeout, 3);
-      jest.runAllTimers();
+      vi.runAllTimers();
       await flushPromises();
-      jest.runAllTimers();
+      vi.runAllTimers();
       const result = await resultPromise;
 
       expect(result).toBe('success');
@@ -60,9 +62,9 @@ describe('timeoutWithRetry', () => {
       const mockCall = createMockCallWithRetries(timeout, 2);
 
       const resultPromise = timeoutWithRetry(mockCall, timeout, 1);
-      jest.runAllTimers();
+      vi.runAllTimers();
       await flushPromises();
-      jest.runAllTimers();
+      vi.runAllTimers();
 
       await expect(resultPromise).rejects.toThrow('timeout');
       expect(mockCall).toHaveBeenCalledTimes(2);
@@ -72,12 +74,12 @@ describe('timeoutWithRetry', () => {
   describe('non-timeout errors', () => {
     it('throws immediately on non-timeout error without retrying', async () => {
       const customError = new Error('custom error');
-      const mockCall = jest.fn(async () => {
+      const mockCall = vi.fn(async () => {
         throw customError;
       });
 
       const resultPromise = timeoutWithRetry(mockCall, timeout, 0);
-      jest.runAllTimers();
+      vi.runAllTimers();
 
       await expect(resultPromise).rejects.toThrow('custom error');
       expect(mockCall).toHaveBeenCalledTimes(1);
@@ -95,7 +97,7 @@ function createMockCallWithRetries(
   timeoutsBeforeSuccess: number,
 ) {
   let callCount = 0;
-  const mockCall = jest.fn(async () => {
+  const mockCall = vi.fn(async () => {
     callCount += 1;
 
     if (callCount < timeoutsBeforeSuccess + 1) {

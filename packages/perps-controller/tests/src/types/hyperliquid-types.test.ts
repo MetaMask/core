@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { hyperLiquidModeFoldsSpot } from '../../../src/types/hyperliquid-types.js';
 
 describe('hyperLiquidModeFoldsSpot', () => {

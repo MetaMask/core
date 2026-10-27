@@ -11,7 +11,6 @@
 
 /** @type {import('@yarnpkg/types')} */
 const { defineConfig } = require('@yarnpkg/types');
-const { PACKAGES_ON_JEST } = require('./test-runner-package-map.cjs');
 const { readFile } = require('fs/promises');
 const { get } = require('lodash');
 const { basename, resolve } = require('path');
@@ -54,7 +53,6 @@ const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 const TOOLS = [
   '@metamask/foundryup',
   '@metamask/messenger-cli',
-  '@metamask/wallet-cli',
   '@metamask/wallet-framework-docs',
   '@metamask/platform-api-docs',
 ];
@@ -66,12 +64,8 @@ const DOCSITE_PACKAGES = ['@metamask/wallet-framework-docs'];
 
 /**
  * We don't check that test scripts are defined for these packages.
- *
- * Here we exclude `@metamask/wallet-cli`: it prepends a `better-sqlite3`
- * prebuild fetch to its "test" script, as the native addon isn't built
- * during `yarn install` (Yarn runs with `enableScripts: false`).
  */
-const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = ['@metamask/wallet-cli'];
+const PACKAGES_WITH_CUSTOM_TEST_SCRIPTS = [];
 
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
@@ -239,12 +233,12 @@ module.exports = defineConfig({
         expectWorkspaceField(
           workspace,
           'scripts.lint:tsconfigs',
-          'node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts',
+          'node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts',
         );
         expectWorkspaceField(
           workspace,
           'scripts.lint:tsconfigs:fix',
-          'node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
+          'node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix',
         );
       }
 
@@ -306,7 +300,7 @@ module.exports = defineConfig({
       }
 
       // All packages must specify a minimum Node.js version of 22.
-      expectWorkspaceField(workspace, 'engines.node', '^22.14.0 || ^24');
+      expectWorkspaceField(workspace, 'engines.node', '^22.14.0 || ^24 || ^26');
 
       // All non-root public packages should be published to the NPM registry;
       // all non-root private packages should not.
@@ -696,65 +690,6 @@ function expectCorrectWorkspaceChangelogScripts(workspace) {
  * @param {Workspace} workspace - The workspace to check.
  */
 function expectTestScripts(workspace) {
-  // Delete this block, and PACKAGES_ON_JEST, once no package is on Jest.
-  if (PACKAGES_ON_JEST.has(workspace.ident)) {
-    expectWorkspaceField(
-      workspace,
-      'scripts.test:watch',
-      'NODE_OPTIONS=--experimental-vm-modules jest --watch',
-    );
-
-    if (workspace.manifest.scripts['test:types'] === undefined) {
-      expectWorkspaceField(
-        workspace,
-        'scripts.test',
-        'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:clean',
-        'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:verbose',
-        'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
-      );
-    } else {
-      expectWorkspaceField(
-        workspace,
-        'scripts.test',
-        'yarn test:unit && yarn test:types',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:clean',
-        'yarn test:unit:clean && yarn test:types',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:verbose',
-        'yarn test:unit:verbose && yarn test:types',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:unit',
-        'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:unit:clean',
-        'NODE_OPTIONS=--experimental-vm-modules jest --clearCache',
-      );
-      expectWorkspaceField(
-        workspace,
-        'scripts.test:unit:verbose',
-        'NODE_OPTIONS=--experimental-vm-modules jest --verbose',
-      );
-    }
-    return;
-  }
-
   expectWorkspaceField(workspace, 'scripts.test:watch', 'vitest --watch');
 
   if (workspace.manifest.scripts['test:types'] === undefined) {

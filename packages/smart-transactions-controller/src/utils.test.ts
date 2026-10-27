@@ -3,6 +3,7 @@ import { keccak256 } from '@ethersproject/keccak256';
 import { ChainId, NetworkType } from '@metamask/controller-utils';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import packageJson from '../package.json';
 import { SENTINEL_API_BASE_URL_MAP } from './constants.js';
@@ -564,7 +565,7 @@ describe('src/utils.js', () => {
     };
 
     it('fails the transaction with a SmartTransactionFailed error', () => {
-      const failTransactionMock = jest.fn();
+      const failTransactionMock = vi.fn();
 
       utils.markRegularTransactionsAsFailed({
         smartTransaction: createSmartTransaction(
@@ -584,7 +585,7 @@ describe('src/utils.js', () => {
     });
 
     it('includes originalTransactionStatus in error message when available', () => {
-      const failTransactionMock = jest.fn();
+      const failTransactionMock = vi.fn();
       const smartTransaction = {
         ...createSmartTransaction(SmartTransactionStatuses.CANCELLED),
         statusMetadata: {
@@ -615,8 +616,8 @@ describe('src/utils.js', () => {
     });
 
     it('throws error if original transaction cannot be found', () => {
-      const failTransactionMock = jest.fn();
-      const getRegularTransactionsMock = jest.fn(() => []);
+      const failTransactionMock = vi.fn();
+      const getRegularTransactionsMock = vi.fn(() => []);
 
       expect(() =>
         utils.markRegularTransactionsAsFailed({
@@ -632,7 +633,7 @@ describe('src/utils.js', () => {
     });
 
     it('does not fail the transaction if status is already failed', () => {
-      const failTransactionMock = jest.fn();
+      const failTransactionMock = vi.fn();
       const failedTransaction = {
         ...mockTransaction,
         status: TransactionStatus.failed,
@@ -654,7 +655,7 @@ describe('src/utils.js', () => {
     });
 
     it('fails multiple transactions when txHashes match', () => {
-      const failTransactionMock = jest.fn();
+      const failTransactionMock = vi.fn();
       const transaction1: TransactionMeta = {
         ...mockTransaction,
         id: '456',
@@ -750,7 +751,7 @@ describe('src/utils.js', () => {
   describe('handleFetch', () => {
     it('returns the response from the fetch', async () => {
       const response = { transactions: [{ id: '123' }] };
-      jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce({
         json: () => Promise.resolve(response),
         ok: true,
         status: 200,
@@ -761,19 +762,17 @@ describe('src/utils.js', () => {
     });
 
     it('throws an error if the fetch fails', async () => {
-      jest
-        .spyOn(global, 'fetch')
-        .mockRejectedValueOnce(new Error('Fetch error'));
+      vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('Fetch error'));
       await expect(utils.handleFetch('https://example.com')).rejects.toThrow(
         'Fetch error',
       );
     });
 
     it('throws an error if the response is not ok', async () => {
-      const consoleLogSpy = jest
+      const consoleLogSpy = vi
         .spyOn(console, 'log')
-        .mockImplementationOnce(jest.fn());
-      jest.spyOn(global, 'fetch').mockResolvedValueOnce({
+        .mockImplementationOnce(vi.fn());
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce({
         json: () =>
           Promise.resolve({
             data: { error: 'too_cheap', details: 'insufficient funds' },

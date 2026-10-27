@@ -7,6 +7,7 @@ import {
 } from '@metamask/controller-utils';
 import { add0x } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as assetsUtil from './assetsUtil.js';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil.js';
@@ -588,9 +589,9 @@ describe('assetsUtil', () => {
       const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
       const mockPriceService = createMockPriceService();
 
-      jest
-        .spyOn(mockPriceService, 'validateChainIdSupported')
-        .mockReturnValue(false);
+      vi.spyOn(mockPriceService, 'validateChainIdSupported').mockReturnValue(
+        false,
+      );
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,
@@ -605,9 +606,9 @@ describe('assetsUtil', () => {
     it('should return empty object when nativeCurrency not supported', async () => {
       const testTokenAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
       const mockPriceService = createMockPriceService();
-      jest
-        .spyOn(mockPriceService, 'validateCurrencySupported')
-        .mockReturnValue(false);
+      vi.spyOn(mockPriceService, 'validateCurrencySupported').mockReturnValue(
+        false,
+      );
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,
@@ -625,7 +626,7 @@ describe('assetsUtil', () => {
       const testChainId = '0x1';
       const mockPriceService = createMockPriceService();
 
-      jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue([
+      vi.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue([
         {
           tokenAddress: testTokenAddress,
           chainId: testChainId,
@@ -672,7 +673,7 @@ describe('assetsUtil', () => {
       const testNativeCurrency = 'ETH';
       const testChainId = '0x1';
 
-      const fetchTokenPricesSpy = jest.spyOn(
+      const fetchTokenPricesSpy = vi.spyOn(
         mockPriceService,
         'fetchTokenPrices',
       );
@@ -721,7 +722,7 @@ describe('assetsUtil', () => {
       const testNativeCurrency = 'ETH';
       const testChainId = '0x1';
 
-      const fetchTokenPricesSpy = jest.spyOn(
+      const fetchTokenPricesSpy = vi.spyOn(
         mockPriceService,
         'fetchTokenPrices',
       );
@@ -793,11 +794,9 @@ describe('assetsUtil', () => {
         pricePercentChange1d: 100,
       };
 
-      jest
-        .spyOn(mockPriceService, 'fetchTokenPrices')
-        .mockResolvedValue([
-          mockMarketData as unknown as EvmAssetWithMarketData,
-        ]);
+      vi.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue([
+        mockMarketData as unknown as EvmAssetWithMarketData,
+      ]);
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,

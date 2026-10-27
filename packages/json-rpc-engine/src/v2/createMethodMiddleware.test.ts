@@ -1,4 +1,5 @@
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
 import { makeRequest } from '../../tests/utils.js';
 import {

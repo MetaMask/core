@@ -6,20 +6,63 @@
 import type { ChompApiService } from './chomp-api-service.js';
 
 /**
- * Associates an address with a CHOMP profile.
+ * Requests a single-use challenge for associating an address through the v2
+ * flow. Sign the returned `message` exactly as received, using
+ * `personal_sign` with the address being associated, then submit it with
+ * {@link ChompApiService.associateAddressV2} before `expiresAt`. Requesting
+ * a new challenge for the same address replaces the previous one.
  *
- * POST /v1/auth/address
+ * POST /v2/auth/address/challenge
  *
- * @param params - The association params containing signature, timestamp,
- * and address.
- * @returns The profile association result: `status: 'created'` for a new
- * association, `status: 'active'` when the address was already associated
- * with the authenticated profile. Throws on 409, which indicates the
- * address is associated with a different profile.
+ * Each call issues a new challenge, so the result is never cached.
+ *
+ * @param params - The address to associate and the association purpose.
+ * `ASSOCIATE_SUCCESSOR` also requires the predecessor address.
+ * @returns The challenge ID, the message to sign, and when it expires.
  */
-export type ChompApiServiceAssociateAddressAction = {
-  type: `ChompApiService:associateAddress`;
-  handler: ChompApiService['associateAddress'];
+export type ChompApiServiceCreateAddressChallengeAction = {
+  type: `ChompApiService:createAddressChallenge`;
+  handler: ChompApiService['createAddressChallenge'];
+};
+
+/**
+ * Associates an address with a CHOMP profile by submitting the signature of
+ * a challenge from {@link ChompApiService.createAddressChallenge}. The
+ * address, purpose and predecessor come from the challenge. For
+ * `ASSOCIATE_SUCCESSOR`, the association and the link to the predecessor
+ * are written atomically.
+ *
+ * POST /v2/auth/address
+ *
+ * @param params - The challenge ID and its signature.
+ * @returns The profile association result: `status: 'created'` when the
+ * association or link was written, `status: 'active'` when the address was
+ * already associated with the authenticated profile. Throws on 400
+ * `CHALLENGE_INVALID_OR_EXPIRED` (request a new challenge), on 409 when the
+ * address is associated with a different profile, and on link validation
+ * errors.
+ */
+export type ChompApiServiceAssociateAddressV2Action = {
+  type: `ChompApiService:associateAddressV2`;
+  handler: ChompApiService['associateAddressV2'];
+};
+
+/**
+ * Removes an address association from the authenticated profile.
+ * When called with an addresses that is linked as successors it will only succeed
+ * if the chomp migration has not yet created a funds-transfer request. Otherwise
+ * CHOMP will reject the request with `LINK_COMPLETE`
+ *
+ * DELETE /v1/auth/address
+ *
+ * Executed as a mutation so it is never retried: a retry after a lost
+ * response would hit an already-removed address and fail with a 404.
+ *
+ * @param address - The address to disassociate.
+ */
+export type ChompApiServiceDisassociateAddressAction = {
+  type: `ChompApiService:disassociateAddress`;
+  handler: ChompApiService['disassociateAddress'];
 };
 
 /**
@@ -107,7 +150,8 @@ export type ChompApiServiceCreateIntentsAction = {
  * is always fetched fresh (`staleTime: 0`).
  *
  * @param address - The address to look up intents for.
- * @returns The array of intents for the address.
+ * @returns The array of intents for the address, omitting any with an
+ * intent type this service does not recognise.
  */
 export type ChompApiServiceGetIntentsByAddressAction = {
   type: `ChompApiService:getIntentsByAddress`;
@@ -144,10 +188,49 @@ export type ChompApiServiceGetServiceDetailsAction = {
 };
 
 /**
+ * Fetches the Money Account identities of the authenticated profile, including
+ * status and migration steps information. Calling this will start migrations.
+ *
+ * GET /v1/money-account/identities
+ *
+ * Profile-scoped and used to drive migrations, so it is always fetched
+ * fresh and keyed by a digest of the bearer token, like
+ * {@link ChompApiService.getAssociatedAddresses}.
+ *
+ * @returns The identities; empty when the profile has no Money Account.
+ * Addresses are lowercased.
+ */
+export type ChompApiServiceGetDerivedIdentitiesAction = {
+  type: `ChompApiService:getDerivedIdentities`;
+  handler: ChompApiService['getDerivedIdentities'];
+};
+
+/**
+ * Fetches the identity containing an address, along with where the address
+ * sits in it.
+ *
+ * GET /v1/money-account/identities/address/:address
+ *
+ * Always fetched fresh and keyed by a digest of the bearer token.
+ *
+ * @param address - The address to look up.
+ * @returns The identity and address details, or `null` when CHOMP responds
+ * with `ADDRESS_NOT_ASSOCIATED`
+ *
+ * Addresses are lowercased.
+ */
+export type ChompApiServiceGetDerivedIdentityByAddressAction = {
+  type: `ChompApiService:getDerivedIdentityByAddress`;
+  handler: ChompApiService['getDerivedIdentityByAddress'];
+};
+
+/**
  * Union of all ChompApiService action types.
  */
 export type ChompApiServiceMethodActions =
-  | ChompApiServiceAssociateAddressAction
+  | ChompApiServiceCreateAddressChallengeAction
+  | ChompApiServiceAssociateAddressV2Action
+  | ChompApiServiceDisassociateAddressAction
   | ChompApiServiceGetAssociatedAddressesAction
   | ChompApiServiceCreateUpgradeAction
   | ChompApiServiceGetUpgradesAction
@@ -155,4 +238,6 @@ export type ChompApiServiceMethodActions =
   | ChompApiServiceCreateIntentsAction
   | ChompApiServiceGetIntentsByAddressAction
   | ChompApiServiceCreateWithdrawalAction
-  | ChompApiServiceGetServiceDetailsAction;
+  | ChompApiServiceGetServiceDetailsAction
+  | ChompApiServiceGetDerivedIdentitiesAction
+  | ChompApiServiceGetDerivedIdentityByAddressAction;

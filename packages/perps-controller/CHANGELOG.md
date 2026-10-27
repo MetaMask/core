@@ -7,9 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets ([#11030](https://github.com/MetaMask/core/pull/11030))
+  - Snapshots without these fields, or with `null` values, still validate. An unrecognized `marginMode` rejects the snapshot, so snapshot-backed reads fall back to the provider.
+
 ### Changed
 
+- Bump `@metamask/subscription-controller` from `^15.1.0` to `^15.1.1` ([#11120](https://github.com/MetaMask/core/pull/11120))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+### Fixed
+
+- Lighter `Position.returnOnEquity` is now a fraction (`-0.107` for -10.7%), the same unit as Hyperliquid positions, instead of a percent, so clients that multiply it by 100 no longer show Lighter position PnL % 100x too large ([#11080](https://github.com/MetaMask/core/pull/11080))
+  - Lighter `AccountState.returnOnEquity` is unchanged: it stays a percent, like Hyperliquid's.
+
+## [22.0.0]
+
+### Added
+
+- Accept an optional `environmentType` string on `TrackingData`, `TPSLTrackingData`, and `WithdrawParams`. ([#10899](https://github.com/MetaMask/core/pull/10899))
+  - Trade, close, cancel, order, flip, and TP/SL events that already copy attribution include `environment_type` when the field is set.
+  - An order edit includes only `environment_type` from `newOrder.trackingData`.
+  - The withdrawal `executed` and `failed` events emitted by `withdraw()` include `environment_type` the same way. Withdrawal events from `updateWithdrawalStatus` and `completeWithdrawalFromHistory` do not.
+  - The key is omitted when `environmentType` is absent.
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add the `@metamask/perps-controller/providers/lighter` export and optional `LighterCredentials.loadProvider`, so a web client whose bundler cannot load the controller's own Lighter import (such as Next.js) passes `loadProvider: () => import('@metamask/perps-controller/providers/lighter')` and bundles Lighter itself ([#10996](https://github.com/MetaMask/core/pull/10996))
+  - Without `loadProvider` the controller keeps its bundler-ignored import, so clients that do not pass it, such as the extension, still bundle no Lighter code.
+
+### Changed
+
+- `switchProvider('lighter')` returns why the Lighter provider failed to load instead of only `Provider lighter not available`, and points to `providerCredentials.lighter.loadProvider` when the client passed none ([#10996](https://github.com/MetaMask/core/pull/10996))
+
+### Fixed
+
+- **BREAKING:** Set `USDC_ARBITRUM_TESTNET_ADDRESS` and `HYPERLIQUID_ASSET_CONFIGS.usdc.testnet` to USDC2 (`0x1baAbB04529D43a73232B713C0FE471f7c7334d5`), the token the Arbitrum Sepolia bridge credits, so testnet deposit and withdrawal routes name the token that is deposited and paid out ([#10991](https://github.com/MetaMask/core/pull/10991))
+  - The exported literal type of `USDC_ARBITRUM_TESTNET_ADDRESS` changes to the USDC2 address. Code typed against `typeof USDC_ARBITRUM_TESTNET_ADDRESS` with the previous value no longer compiles.
+  - On testnet, `withdraw` rejects the previous asset ID (`0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d`). Read `HYPERLIQUID_ASSET_CONFIGS.usdc.testnet` or `getWithdrawalRoutes()` instead of hardcoding it, and update test fixtures that pin the previous asset ID.
+- On a testnet session, `depositWithConfirmation` now prepares an Arbitrum Sepolia transfer to the Hyperliquid testnet bridge instead of an Arbitrum One transfer to the mainnet bridge; `DepositService.prepareTransaction` takes deposit routes for the provider's own network instead of forcing mainnet ([#10991](https://github.com/MetaMask/core/pull/10991))
+- The `Perp Position Close Transaction` summary event that `closePositions` emits now includes `order_type: 'market'`, so close-all events no longer report an unset order type ([#11027](https://github.com/MetaMask/core/pull/11027))
+- Treat a Lighter provider module that cannot be fetched (`Failed to fetch dynamically imported module` and its Firefox and Safari equivalents) or resolved (`ERR_MODULE_NOT_FOUND`) like `MODULE_NOT_FOUND`: debug-logged instead of reported through `logger.error`. Other Lighter load failures are still reported through `logger.error`. ([#10996](https://github.com/MetaMask/core/pull/10996))
+
+## [21.0.0]
+
+### Added
+
+- Add optional `change5m`, `changePercent5m`, `change1h`, and `changePercent1h` on `PerpsMarketData`, mapped from the v4 Terminal global snapshot. A null wire pair is `--` and `--%`, which means that window is unavailable. Disk hydration replaces a stored rolling change with those same placeholders, as it already does for the 24h change. ([#10855](https://github.com/MetaMask/core/pull/10855))
+- Add the optional route-aware `PerpsPlatformDependencies.rewards.getPerpsTradingFeeGrant(scope)` integration and exported `PerpsTradingFeeGrant` type for independent, expiring fee candidates. Candidates carry `providerId` and `isTestnet`; Core accepts only an exact match for the routed resolver scope. The corresponding Mobile integration supplies Hyperliquid mainnet candidates, while Core remains provider-agnostic for future routes such as Lighter. ([#10664](https://github.com/MetaMask/core/pull/10664))
+- Add optional `FeeCalculationResult.feeSource`, reporting the winning source (`default`, `rewards`, `grant`, or `subscription`) from the same operation that repriced a fee preview. It is absent when no resolution applies or the placement carries no MetaMask builder fee; submission resolves again against its actual provider route. ([#10664](https://github.com/MetaMask/core/pull/10664))
+
+### Changed
+
+- **BREAKING:** `TerminalMarketService.fetchGlobalSnapshot` requires Terminal global snapshot schema version 4 and rejects schema version 3 ([#10855](https://github.com/MetaMask/core/pull/10855))
+  - Point `terminalApi.globalSnapshotUrl` at `GET /v4/perpetuals` before upgrading. A v3 URL fails validation on every request and falls back to the provider path.
+- **BREAKING:** `PerpsGlobalSnapshotResult.marketInfos` is required ([#10855](https://github.com/MetaMask/core/pull/10855))
+  - `fetchGlobalSnapshot` must return `marketInfos` with `markets`, in the same order. `getMarkets` reads that trading-rule list from the snapshot.
+- Ignore unknown fields on the Terminal global snapshot envelope and on each market instead of rejecting the snapshot ([#10855](https://github.com/MetaMask/core/pull/10855))
+- When `terminalApi.globalSnapshotUrl` is set, `getMarkets` builds its list from the same global snapshot fetch and cache as `getMarketDataWithPrices` and does not call `GET /v1/perpetuals`. `useTerminalApi` does not gate that list. A rejected or unavailable snapshot falls back to the provider. Without a snapshot URL, `getMarkets` still uses the legacy Terminal `/v1` path ([#10855](https://github.com/MetaMask/core/pull/10855))
+  - Snapshot list rows omit `marginMode`, `onlyIsolated`, and `isDelisted`, and set `marginTableId` to `0`. The v4 market payload has no margin table.
+  - `skipFilters: true` uses provider discovery to include markets on DEXes outside the snapshot's configured set.
+- **BREAKING:** Add `'grant'` to `PerpsFeeSource`; exhaustive consumers must handle the new winner. Keep `getPerpsDiscountForAccount` as `Promise<number | null>` for VIP/season and retrieve grants independently through optional `getPerpsTradingFeeGrant`. ([#10664](https://github.com/MetaMask/core/pull/10664))
+  - Clients that expose grants return the requested `providerId` and `isTestnet` with an absolute `feeBips` and Unix-millisecond `expiresAt`. Core retrieves both rewards candidates concurrently, validates fee, expiry, and exact route scope after they settle, selects the lowest valid fee after venue quantization, and does not cache grants.
+- Restrict grant retrieval to explicitly scoped previews and submissions. Calls without provider scope retain VIP/season, subscription, and default resolution without invoking the optional grant dependency; scoped calls are provider-agnostic and reject mismatched candidates. ([#10664](https://github.com/MetaMask/core/pull/10664))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/subscription-controller` from `^14.0.0` to `^14.0.1` ([#10896](https://github.com/MetaMask/core/pull/10896))
+
+### Fixed
+
+- Resolve submission fees only after acquiring the serialized provider fee context, preventing a grant from expiring while its order waits behind another submission and then being applied stale. ([#10664](https://github.com/MetaMask/core/pull/10664))
+- Route `flipPosition` through `position.providerId` so the fee grant and the flip `placeOrder` use the same venue. Aggregated providers otherwise resolve the grant for the position's venue and submit the order to the default provider.
 
 ## [20.1.0]
 
@@ -1235,7 +1301,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.0.0...HEAD
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@21.0.0...@metamask/perps-controller@22.0.0
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.1.0...@metamask/perps-controller@21.0.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.0.0...@metamask/perps-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@19.0.0...@metamask/perps-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@18.0.1...@metamask/perps-controller@19.0.0

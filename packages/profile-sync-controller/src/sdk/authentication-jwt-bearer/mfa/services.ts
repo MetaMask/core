@@ -23,6 +23,7 @@ import { asRecord } from '../../utils/as-record.js';
 import { toErrorMessage } from '../../utils/to-error-message.js';
 import {
   AuthenticationResponseJSONStruct,
+  MfaApprovalResponseStruct,
   MfaCredentialsResponseStruct,
   MfaEnrollCompleteResponseStruct,
   MfaEnrollResponseStruct,
@@ -38,6 +39,8 @@ import {
 import type {
   AuthenticationResponseJSON,
   EnrolledCredential,
+  MfaApproval,
+  MfaApprovalRequest,
   MfaCredential,
   MfaCredentialStatus,
   MfaCredentialType,
@@ -65,11 +68,60 @@ export const MFA_VERIFY_COMPLETE_URL = (env: Env): string =>
 export const MFA_CREDENTIALS_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/mfa/credentials`;
 
+export const MFA_APPROVALS_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/mfa/approvals`;
+
+export const MFA_CREDENTIAL_URL = (env: Env, credentialId: string): string =>
+  `${MFA_CREDENTIALS_URL(env)}/${encodeURIComponent(credentialId)}`;
+
 type EnrollmentServiceResult = {
   flowId: string;
   expiresAt: number;
   publicKey?: PasskeyCreationOptions;
+  totp?: { secret: string; qrCode: string; setupUri: string };
 };
+
+/**
+ * Name an authenticator app shows for the account added from `setupUri`.
+ *
+ * The server's QR code names the account after its own Kratos config (issuer
+ * "MetaMask Identity", account "MetaMask <8 hex>" from the identity's
+ * username), which is not sent in the enrollment response. A different name
+ * is harmless: users add the account once, through either the QR code or this
+ * link, and the codes only depend on the secret and `TOTP_SETTINGS`.
+ */
+const TOTP_SETUP_LABEL = 'MetaMask';
+
+/**
+ * Settings Kratos uses for every TOTP key: its `NewKey` hard-codes 6 digits
+ * and a 30-second period, and leaves the algorithm at the library default,
+ * SHA1. They are not part of the server's configuration, and changing them
+ * would break every authenticator app already set up, so they are stable
+ * enough to copy here.
+ */
+const TOTP_SETTINGS = { algorithm: 'SHA1', digits: '6', period: '30' };
+
+/**
+ * Builds the `otpauth://` link that opens an authenticator app with the
+ * account to add, for devices that cannot scan their own screen.
+ *
+ * It is built here rather than sent by the server because Kratos does not
+ * expose it: its settings flow returns only the secret and the QR code image,
+ * and keeps the link in internal flow data that its API never returns. The
+ * server could only rebuild it the same way, from the same fixed settings, or
+ * by decoding its own QR code.
+ *
+ * @param secret - Base32 secret from the enrollment response.
+ * @returns The setup link. It contains the secret: never log or persist it.
+ */
+export function buildTotpSetupUri(secret: string): string {
+  const params = new URLSearchParams({
+    secret,
+    issuer: TOTP_SETUP_LABEL,
+    ...TOTP_SETTINGS,
+  });
+  return `otpauth://totp/${encodeURIComponent(TOTP_SETUP_LABEL)}?${params.toString()}`;
+}
 
 type VerificationServiceResult = {
   flowId: string;
@@ -107,23 +159,27 @@ type VerificationCompletionParams = {
 };
 
 /**
- * Reads a credential's enrollment date. Unlike flow deadlines, this is display
- * metadata, so an unparsable value is dropped instead of rejecting the whole
- * credential list.
+ * Reads a credential date (`enrolled_at`, `last_used_at`). Unlike flow
+ * deadlines, these are display metadata, so an unparsable value is dropped
+ * instead of rejecting the whole credential list.
  *
- * @param value - The raw `enrolled_at` value, if the server sent one.
+ * @param field - The field name, for the log.
+ * @param value - The raw value, if the server sent one.
  * @returns The epoch milliseconds, or undefined when absent or unparsable.
  */
-function parseEnrolledAt(value: string | undefined): number | undefined {
+function parseCredentialDate(
+  field: string,
+  value: string | undefined,
+): number | undefined {
   if (!value) {
     return undefined;
   }
-  const enrolledAt = Date.parse(value);
-  if (Number.isNaN(enrolledAt)) {
-    log.warn(`Ignoring unparsable MFA credential enrolled_at: ${value}`);
+  const date = Date.parse(value);
+  if (Number.isNaN(date)) {
+    log.warn(`Ignoring unparsable MFA credential ${field}: ${value}`);
     return undefined;
   }
-  return enrolledAt;
+  return date;
 }
 
 function parseExpiresAt(value: string): number {
@@ -267,11 +323,18 @@ async function throwMfaError(
   switch (code) {
     case 'credential_already_enrolled':
     case 'email_already_enrolled':
+    case 'totp_already_enrolled':
     case 'email_socially_verified':
+    case 'email_claimed':
       throw new CredentialAlreadyEnrolledError(code, message, status);
     case 'credential_not_enrolled':
       throw new CredentialNotEnrolledError(message, status);
+    // With a body code, `authentication_required` is not a 401 (handled
+    // above): the session is valid, but the verification behind it is too old
+    // for the request (approvals answer 403). Verifying again fixes it, while
+    // `authentication_required` would end the session.
     case 'aal2_required':
+    case 'authentication_required':
       throw new StepUpRequiredError(message, status);
     case 'flow_expired':
     case 'invalid_flow':
@@ -323,7 +386,7 @@ async function throwMfaError(
 async function requestJson(
   url: string,
   accessToken: string,
-  init?: { method?: 'GET' | 'POST'; body?: Json },
+  init?: { method?: 'GET' | 'POST' | 'DELETE'; body?: Json },
 ): Promise<Json> {
   let response: Response;
   try {
@@ -380,6 +443,15 @@ export async function mfaEnroll(
     expiresAt: parseExpiresAt(json.expires_at),
     ...(json.passkey_create_data
       ? { publicKey: parsePasskeyCreateData(json.passkey_create_data) }
+      : {}),
+    ...(json.totp_secret && json.totp_qr
+      ? {
+          totp: {
+            secret: json.totp_secret,
+            qrCode: json.totp_qr,
+            setupUri: buildTotpSetupUri(json.totp_secret),
+          },
+        }
       : {}),
   };
 }
@@ -503,16 +575,22 @@ function isSupportedStatus(status: string): status is MfaCredentialStatus {
 export function toEnrolledCredential(
   credential: MfaCredential,
 ): EnrolledCredential | null {
-  const { credential_type: type, status } = credential;
+  const { credential_id: id, credential_type: type, status } = credential;
   if (!isSupportedStatus(status)) {
     log.warn(`Ignoring MFA credential with unsupported status: ${status}`);
     return null;
   }
 
-  const enrolledAt = parseEnrolledAt(credential.enrolled_at);
+  const enrolledAt = parseCredentialDate('enrolled_at', credential.enrolled_at);
+  const lastUsedAt = parseCredentialDate(
+    'last_used_at',
+    credential.last_used_at,
+  );
   const base = {
+    id,
     status,
     ...(enrolledAt === undefined ? {} : { enrolledAt }),
+    ...(lastUsedAt === undefined ? {} : { lastUsedAt }),
   };
 
   if (type === 'passkey') {
@@ -537,6 +615,10 @@ export function toEnrolledCredential(
     };
   }
 
+  if (type === 'totp') {
+    return { type, ...base };
+  }
+
   log.warn(`Ignoring unsupported or incomplete MFA credential: ${type}`);
   return null;
 }
@@ -552,11 +634,70 @@ export async function getMfaCredentials(
   env: Env,
   accessToken: string,
 ): Promise<EnrolledCredential[]> {
-  const json = await requestJson(MFA_CREDENTIALS_URL(env), accessToken);
+  return toEnrolledCredentials(
+    await requestJson(MFA_CREDENTIALS_URL(env), accessToken),
+  );
+}
+
+/**
+ * Removes a credential from the canonical profile. The server requires a
+ * verification token proven with another type of credential, and refuses to
+ * remove the last one.
+ *
+ * @param env - Authentication environment.
+ * @param accessToken - Verification token.
+ * @param credentialId - The credential's `id`.
+ * @returns The credentials left.
+ */
+export async function deleteMfaCredential(
+  env: Env,
+  accessToken: string,
+  credentialId: string,
+): Promise<EnrolledCredential[]> {
+  return toEnrolledCredentials(
+    await requestJson(MFA_CREDENTIAL_URL(env, credentialId), accessToken, {
+      method: 'DELETE',
+    }),
+  );
+}
+
+/**
+ * Validates a credential list response and keeps the supported credentials.
+ *
+ * @param json - The response body.
+ * @returns Supported enrolled credentials.
+ */
+function toEnrolledCredentials(json: Json): EnrolledCredential[] {
   assertValidMfaResponse(json, MfaCredentialsResponseStruct);
   return json.credentials
     .map(toEnrolledCredential)
     .filter((credential): credential is EnrolledCredential =>
       Boolean(credential),
     );
+}
+
+/**
+ * Requests an approval bound to one request, for the services in `audiences`.
+ *
+ * @param env - Authentication environment.
+ * @param accessToken - Base session token, or a verification token when the
+ * approval must prove a recent 2-step verification.
+ * @param body - Request digest, audiences and whether to list identifiers.
+ * @returns The approval, its lifetime and the recovery identifiers.
+ */
+export async function mfaApproval(
+  env: Env,
+  accessToken: string,
+  body: MfaApprovalRequest,
+): Promise<MfaApproval> {
+  const json = await requestJson(MFA_APPROVALS_URL(env), accessToken, {
+    method: 'POST',
+    body,
+  });
+  assertValidMfaResponse(json, MfaApprovalResponseStruct);
+  return {
+    approval: json.approval,
+    expiresIn: json.expires_in,
+    ...(json.identifiers ? { identifiers: json.identifiers } : {}),
+  };
 }

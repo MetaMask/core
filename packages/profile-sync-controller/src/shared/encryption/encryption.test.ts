@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { MAX_KDF_PROMISE_CACHE_SIZE } from './constants.js';
 import encryption, { createSHA256Hash } from './encryption.js';
 

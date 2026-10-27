@@ -1,4 +1,6 @@
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
 import {
   BUILDER_FEE_CONFIG,
@@ -152,7 +154,7 @@ class MockExchangeClient {
 // service and subscription service; only the SDK is faked. Nothing in these
 // flows subscribes, so the fake SubscriptionClient has no methods. Jest
 // hoists this above the imports; the fakes are only built once a test runs.
-jest.mock('@nktkas/hyperliquid', () => ({
+vi.mock('@nktkas/hyperliquid', () => ({
   // The provider tells SDK errors apart with instanceof.
   HyperliquidError: class HyperliquidError extends Error {},
   HttpTransport: function HttpTransport(options: {
@@ -180,14 +182,14 @@ jest.mock('@nktkas/hyperliquid', () => ({
 
 describe('PerpsController agent signing with a real HyperLiquid provider', () => {
   let accountSigner: {
-    signTypedData: jest.Mock;
-    signPersonalMessage: jest.Mock;
+    signTypedData: Mock;
+    signPersonalMessage: Mock;
   };
-  let agentSigner: PerpsAgentSigner & { signTypedData: jest.Mock };
-  let getAgentSigner: jest.Mock;
-  let onAgentRejected: jest.Mock;
+  let agentSigner: PerpsAgentSigner & { signTypedData: Mock };
+  let getAgentSigner: Mock;
+  let onAgentRejected: Mock;
   let infrastructure: ReturnType<typeof createMockInfrastructure>;
-  let loggerError: jest.SpyInstance;
+  let loggerError: MockInstance;
 
   beforeEach(() => {
     TradingReadinessCache.clearAll();
@@ -195,7 +197,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     // approved and the referral set, so only the tested write signs.
     mockVenue.infoClient = createMockInfoClient({
       // MetaMask's referral code is ready on each network.
-      referral: jest.fn(async ({ user }: { user: string }) => ({
+      referral: vi.fn(async ({ user }: { user: string }) => ({
         referredBy: { code: REFERRAL_CONFIG.MainnetCode },
         referrerState: {
           stage: 'ready',
@@ -212,14 +214,14 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     mockVenue.writes = [];
     mockVenue.revokedAgents.clear();
     accountSigner = {
-      signTypedData: jest.fn().mockResolvedValue(MAIN_SIGNATURE),
-      signPersonalMessage: jest.fn(),
+      signTypedData: vi.fn().mockResolvedValue(MAIN_SIGNATURE),
+      signPersonalMessage: vi.fn(),
     };
     agentSigner = createAgent(AGENT_ADDRESS, AGENT_SIGNATURE);
-    getAgentSigner = jest.fn().mockResolvedValue(agentSigner);
-    onAgentRejected = jest.fn();
+    getAgentSigner = vi.fn().mockResolvedValue(agentSigner);
+    onAgentRejected = vi.fn();
     infrastructure = createMockInfrastructure();
-    loggerError = jest.spyOn(infrastructure.logger, 'error');
+    loggerError = vi.spyOn(infrastructure.logger, 'error');
   });
 
   /**
@@ -236,7 +238,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
    */
   function createHost(keyring?: { isUnlocked: boolean }): {
     messenger: PerpsControllerMessenger;
-    call: jest.SpyInstance;
+    call: MockInstance;
   } {
     const { messenger, rootMessenger, call } = keyring
       ? createKeyringMessenger(MAIN_SIGNATURE, keyring.isUnlocked)
@@ -247,11 +249,11 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     );
     rootMessenger.registerActionHandler(
       'NetworkController:getState',
-      jest.fn().mockReturnValue({ selectedNetworkClientId: 'mainnet' }),
+      vi.fn().mockReturnValue({ selectedNetworkClientId: 'mainnet' }),
     );
     rootMessenger.registerActionHandler(
       'NetworkController:getNetworkClientById',
-      jest.fn().mockReturnValue({ configuration: { chainId: '0x1' } }),
+      vi.fn().mockReturnValue({ configuration: { chainId: '0x1' } }),
     );
     rootMessenger.registerActionHandler(
       'AuthenticatedUserStorageService:getNotificationPreferences',
@@ -298,7 +300,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     signer?: PerpsAccountSigner | null;
     hyperliquid?: HyperLiquidCredentials;
     host?: ReturnType<typeof createHost>;
-  } = {}): { controller: PerpsController; call: jest.SpyInstance } {
+  } = {}): { controller: PerpsController; call: MockInstance } {
     const controller = new PerpsController({
       messenger: host.messenger,
       state: getDefaultPerpsControllerState(),
@@ -320,7 +322,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
    * an account signer has none.
    */
   function expectQuietHost(
-    call: jest.SpyInstance,
+    call: MockInstance,
     keyringActions: string[] = [],
   ): void {
     expect(keyringCalls(call)).toStrictEqual(keyringActions);
@@ -342,7 +344,7 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
    * host with an account signer has none.
    */
   function expectHostSaw(
-    call: jest.SpyInstance,
+    call: MockInstance,
     {
       agentRequests,
       rejectedAgents = [],
@@ -370,10 +372,10 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
   function createAgent(
     address: Hex,
     signature: Hex,
-  ): PerpsAgentSigner & { signTypedData: jest.Mock } {
+  ): PerpsAgentSigner & { signTypedData: Mock } {
     return {
       address,
-      signTypedData: jest.fn().mockResolvedValue(signature),
+      signTypedData: vi.fn().mockResolvedValue(signature),
     };
   }
 
@@ -777,8 +779,8 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
     // A legacy account with no referral that has not approved the builder
     // fee yet.
     mockVenue.infoClient = createMockInfoClient({
-      userAbstraction: jest.fn().mockResolvedValue('default'),
-      maxBuilderFee: jest.fn().mockResolvedValueOnce(0).mockResolvedValue(1),
+      userAbstraction: vi.fn().mockResolvedValue('default'),
+      maxBuilderFee: vi.fn().mockResolvedValueOnce(0).mockResolvedValue(1),
     });
     const { controller, call } = createController();
     await controller.init();

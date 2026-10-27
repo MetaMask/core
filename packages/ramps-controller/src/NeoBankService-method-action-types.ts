@@ -51,6 +51,22 @@ export type NeoBankServiceGetPixDepositInstructionsAction = {
 };
 
 /**
+ * Loads deposit details for an autoramp, whichever rail it has.
+ *
+ * Calls `GET /neobank/autoramps/{id}` and reads the PIX rail, or else a US
+ * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`). Returns null until MoonPay
+ * has attached a supported rail. MoonPay only verifies the rail at
+ * `Approved`, so callers should not show these details before then.
+ *
+ * @param autorampId - MoonPay autoramp id.
+ * @returns Deposit details discriminated by `type`, or null.
+ */
+export type NeoBankServiceGetDepositInstructionsAction = {
+  type: `NeoBankService:getDepositInstructions`;
+  handler: NeoBankService['getDepositInstructions'];
+};
+
+/**
  * Lists the newest page of transactions for one autoramp via
  * `GET /neobank/autoramp-transactions?autoramp_id=&sort_order=desc`.
  *
@@ -58,6 +74,9 @@ export type NeoBankServiceGetPixDepositInstructionsAction = {
  * (`Completed`, `Failed`, …). The deprecated `state` field is ignored.
  *
  * @param autorampId - MoonPay autoramp id.
+ * @param options - Optional page size. Omitted requests use the API default.
+ * @param options.pageSize - `page_size` query value. Callers that diff
+ * status pass 50.
  * @returns Transaction summaries from the newest page.
  */
 export type NeoBankServiceListAutorampTransactionsAction = {
@@ -185,6 +204,7 @@ export type NeoBankServiceMethodActions =
   | NeoBankServiceGetAutorampAction
   | NeoBankServiceGetAutorampsAction
   | NeoBankServiceGetPixDepositInstructionsAction
+  | NeoBankServiceGetDepositInstructionsAction
   | NeoBankServiceListAutorampTransactionsAction
   | NeoBankServiceRegisterPixAddressAction
   | NeoBankServiceGetAutorampQuoteAction

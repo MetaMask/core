@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `GeolocationApiServiceInvalidateQueriesAction`, `GeolocationApiServiceCacheUpdatedEvent` and `GeolocationApiServiceGranularCacheUpdatedEvent`, also included in `GeolocationApiServiceActions` and `GeolocationApiServiceEvents` ([#10881](https://github.com/MetaMask/core/pull/10881))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 

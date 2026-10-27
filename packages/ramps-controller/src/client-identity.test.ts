@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { addRampsClientIdentityParams } from './client-identity.js';
 
 describe('addRampsClientIdentityParams', () => {

@@ -7,6 +7,8 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   DEFAULT_INITIAL_DELAY_DURATION,
@@ -63,8 +65,8 @@ function createMockAccount(
 
 describe('ProfileMetricsController', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.useFakeTimers();
+    vi.clearAllMocks();
+    vi.useFakeTimers();
   });
 
   describe('constructor subscriptions', () => {
@@ -73,7 +75,7 @@ describe('ProfileMetricsController', () => {
         await withController(
           { options: { assertUserOptedIn: () => true } },
           async ({ controller, rootMessenger }) => {
-            const pollSpy = jest.spyOn(controller, 'startPolling');
+            const pollSpy = vi.spyOn(controller, 'startPolling');
 
             rootMessenger.publish('KeyringController:unlock');
 
@@ -435,7 +437,7 @@ describe('ProfileMetricsController', () => {
     describe('when KeyringController:lock is published', () => {
       it('stops polling', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          const pollSpy = jest.spyOn(controller, 'stopAllPolling');
+          const pollSpy = vi.spyOn(controller, 'stopAllPolling');
 
           rootMessenger.publish('KeyringController:lock');
 
@@ -606,9 +608,9 @@ describe('ProfileMetricsController', () => {
           });
 
           it('adds the new account to the sync queue as-is and logs when its address cannot be canonicalized', async () => {
-            const consoleErrorSpy = jest
+            const consoleErrorSpy = vi
               .spyOn(console, 'error')
-              .mockImplementation();
+              .mockImplementation(() => undefined);
             await withController(
               { options: { assertUserOptedIn: () => assertUserOptedIn } },
               async ({ controller, rootMessenger }) => {
@@ -636,9 +638,9 @@ describe('ProfileMetricsController', () => {
           });
 
           it('adds the new account to the sync queue as-is without logging when its namespace is unsupported', async () => {
-            const consoleErrorSpy = jest
+            const consoleErrorSpy = vi
               .spyOn(console, 'error')
-              .mockImplementation();
+              .mockImplementation(() => undefined);
             await withController(
               { options: { assertUserOptedIn: () => assertUserOptedIn } },
               async ({ controller, rootMessenger }) => {
@@ -950,7 +952,7 @@ describe('ProfileMetricsController', () => {
               },
             },
             async ({ controller, messenger, mockSubmitMetrics }) => {
-              const callSpy = jest.spyOn(messenger, 'call');
+              const callSpy = vi.spyOn(messenger, 'call');
 
               await controller._executePoll();
 
@@ -1038,7 +1040,7 @@ describe('ProfileMetricsController', () => {
               },
             },
             async ({ controller, getMetaMetricsId, mockSubmitMetrics }) => {
-              const consoleErrorSpy = jest.spyOn(console, 'error');
+              const consoleErrorSpy = vi.spyOn(console, 'error');
               mockSubmitMetrics.mockImplementationOnce(() => {
                 throw new Error('Network error');
               });
@@ -1363,9 +1365,9 @@ describe('ProfileMetricsController', () => {
                 mockFetchNonces,
                 registerAccounts,
               }) => {
-                const consoleErrorSpy = jest
+                const consoleErrorSpy = vi
                   .spyOn(console, 'error')
-                  .mockImplementation();
+                  .mockImplementation(() => undefined);
                 registerAccounts([
                   {
                     ...createMockAccount(address),
@@ -1450,9 +1452,9 @@ describe('ProfileMetricsController', () => {
                 mockSignProof,
                 registerAccounts,
               }) => {
-                const consoleErrorSpy = jest
+                const consoleErrorSpy = vi
                   .spyOn(console, 'error')
-                  .mockImplementation();
+                  .mockImplementation(() => undefined);
                 registerAccounts([createMockAccount(address.toLowerCase())]);
                 mockFetchNonces.mockRejectedValueOnce(
                   new Error('auth API 503'),
@@ -1534,9 +1536,9 @@ describe('ProfileMetricsController', () => {
                 mockSignProof,
                 registerAccounts,
               }) => {
-                const consoleErrorSpy = jest
+                const consoleErrorSpy = vi
                   .spyOn(console, 'error')
-                  .mockImplementation();
+                  .mockImplementation(() => undefined);
                 registerAccounts([
                   createMockAccount(goodLower),
                   createMockAccount(badLower),
@@ -1592,7 +1594,7 @@ describe('ProfileMetricsController', () => {
                 mockSignProof,
                 registerAccounts,
               }) => {
-                jest.spyOn(console, 'error').mockImplementation();
+                vi.spyOn(console, 'error').mockImplementation(() => undefined);
                 registerAccounts([createMockAccount(address.toLowerCase())]);
                 mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
                 mockSignProof.mockResolvedValueOnce({
@@ -1734,9 +1736,9 @@ describe('ProfileMetricsController', () => {
               }) => {
                 // Cover the defensive guard that fires when a live account
                 // ends up with an empty scopes array between enqueue and poll.
-                const consoleErrorSpy = jest
+                const consoleErrorSpy = vi
                   .spyOn(console, 'error')
-                  .mockImplementation();
+                  .mockImplementation(() => undefined);
                 registerAccounts([
                   {
                     ...createMockAccount(address),
@@ -1777,9 +1779,9 @@ describe('ProfileMetricsController', () => {
                 },
               },
               async ({ controller, registerAccounts }) => {
-                const consoleErrorSpy = jest
+                const consoleErrorSpy = vi
                   .spyOn(console, 'error')
-                  .mockImplementation();
+                  .mockImplementation(() => undefined);
                 registerAccounts([
                   {
                     ...createMockAccount(cosmosAddress),
@@ -1906,19 +1908,18 @@ type WithControllerCallback<ReturnValue> = (payload: {
   controller: ProfileMetricsController;
   rootMessenger: RootMessenger;
   messenger: ProfileMetricsControllerMessenger;
-  assertUserOptedIn: jest.Mock<boolean, []>;
-  getMetaMetricsId: jest.Mock<string, []>;
-  mockSubmitMetrics: jest.Mock<
-    Promise<void>,
-    [ProfileMetricsSubmitMetricsRequest]
+  assertUserOptedIn: Mock<() => boolean>;
+  getMetaMetricsId: Mock<() => string>;
+  mockSubmitMetrics: Mock<
+    (request: ProfileMetricsSubmitMetricsRequest) => Promise<void>
   >;
-  mockFetchNonces: jest.Mock<
-    Promise<Record<string, string>>,
-    [ProfileMetricsFetchNoncesRequest]
+  mockFetchNonces: Mock<
+    (
+      request: ProfileMetricsFetchNoncesRequest,
+    ) => Promise<Record<string, string>>
   >;
-  mockSignProof: jest.Mock<
-    Promise<AccountOwnershipProof>,
-    [ProofOfOwnershipSignRequest]
+  mockSignProof: Mock<
+    (request: ProofOfOwnershipSignRequest) => Promise<AccountOwnershipProof>
   >;
   registerAccounts: (accounts: InternalAccount[]) => void;
 }) => Promise<ReturnValue> | ReturnValue;
@@ -1991,13 +1992,13 @@ async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const [{ options = {} }, testFunction] =
     args.length === 2 ? args : [{}, args[0]];
-  const mockSubmitMetrics = jest.fn().mockResolvedValue(undefined);
-  const mockFetchNonces = jest.fn().mockResolvedValue({});
-  const mockSignProof = jest
+  const mockSubmitMetrics = vi.fn().mockResolvedValue(undefined);
+  const mockFetchNonces = vi.fn().mockResolvedValue({});
+  const mockSignProof = vi
     .fn()
     .mockRejectedValue(new Error('mockSignProof not configured for this test'));
-  const mockAssertUserOptedIn = jest.fn().mockReturnValue(true);
-  const mockGetMetaMetricsId = jest.fn().mockReturnValue('test-metrics-id');
+  const mockAssertUserOptedIn = vi.fn().mockReturnValue(true);
+  const mockGetMetaMetricsId = vi.fn().mockReturnValue('test-metrics-id');
 
   // Default to an empty `AccountsController` state so existing tests that
   // do not exercise the proof-signing path keep the no-proof, submit-raw
