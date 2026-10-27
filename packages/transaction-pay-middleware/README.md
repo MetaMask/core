@@ -20,7 +20,7 @@ Asks the user to confirm a MetaMask Pay transaction of the given type, and resol
 
 - `type` (string): The transaction type. Supported: `perpsDeposit`, `perpsWithdraw`.
 - `from` (string): The account to use. Must be connected to the requesting site.
-- `amount` (string, optional): The amount to prefill, as a decimal string with up to 6 decimals (for example `"10"` or `"12.5"`).
+- `amount` (string, optional): The amount to prefill, as a decimal string with up to 6 decimals (for example `"10"` or `"12.5"`). Must be positive, except for `perpsWithdraw`, where `"0"` is accepted and, like omitting `amount`, opens the confirmation without a prefilled amount.
 
 Unknown fields are rejected.
 
