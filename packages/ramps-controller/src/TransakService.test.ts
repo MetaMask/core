@@ -4,7 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll, isDone } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
@@ -310,7 +310,7 @@ describe('TransakService', () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe('constructor', () => {
@@ -341,7 +341,7 @@ describe('TransakService', () => {
       await vi.runAllTimersAsync();
       await flushPromises();
       await promise;
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('uses production URLs when environment is Production', async () => {
@@ -359,7 +359,7 @@ describe('TransakService', () => {
       await vi.runAllTimersAsync();
       await flushPromises();
       await promise;
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('stores the initial API key when provided', () => {
@@ -2505,7 +2505,7 @@ describe('TransakService', () => {
       await flushPromises();
 
       expect(await promise).toStrictEqual([]);
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('collects individual cancel errors instead of throwing', async () => {
