@@ -559,8 +559,8 @@ export function adaptPositionFromLighter(
         ? null
         : position.liquidationPrice,
     maxLeverage,
-    returnOnEquity:
-      marginUsed > 0 ? String((unrealizedPnl / marginUsed) * 100) : '0',
+    // A fraction (0.1 = 10%), the unit Hyperliquid positions use.
+    returnOnEquity: marginUsed > 0 ? String(unrealizedPnl / marginUsed) : '0',
     cumulativeFunding: {
       allTime: '0',
       sinceOpen: '0',
