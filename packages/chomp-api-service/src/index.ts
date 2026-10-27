@@ -47,6 +47,8 @@ export type {
   IntentMetadataParams,
   IntentMetadataResponse,
   MigrationStep,
+  MigrationStepState,
+  MigrationTransfer,
   ProfileAddressEntry,
   SendIntentParams,
   SendIntentResponse,

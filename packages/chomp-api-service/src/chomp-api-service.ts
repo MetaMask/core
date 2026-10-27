@@ -62,8 +62,6 @@ const CHOMP_INTENT_TYPES: ChompIntentType[] = [
   'cash-deposit-premium',
   'cash-withdrawal-premium',
   'cash-subscription',
-  'cash-migration-root',
-  'cash-migration-transfer',
 ];
 
 const MIGRATION_STEPS: MigrationStep[] = [
@@ -75,6 +73,7 @@ const MIGRATION_STEPS: MigrationStep[] = [
   'TRANSFER_INTENT_MUSD',
   'TRANSFER_INTENT_VMUSD',
   'TRANSFER_INTENT_PVMUSD',
+  'FUNDS_TRANSFERRED',
 ];
 
 function isChompIntentType(value: string): value is ChompIntentType {
@@ -245,7 +244,12 @@ const ProfileAddressEntryArrayStruct = array(
   }),
 );
 
-const MigrationStepArrayStruct = array(enums(MIGRATION_STEPS));
+const MigrationTransferStruct = nullable(
+  type({
+    requestId: string(),
+    status: string(),
+  }),
+);
 
 const DerivedIdentityStruct = type({
   currentAddress: LowercaseHexAddressStruct,
@@ -255,9 +259,14 @@ const DerivedIdentityStruct = type({
     type({
       from: LowercaseHexAddressStruct,
       to: LowercaseHexAddressStruct,
-      requiredSteps: MigrationStepArrayStruct,
-      completedSteps: MigrationStepArrayStruct,
-      missingSteps: MigrationStepArrayStruct,
+      steps: array(
+        type({
+          step: enums(MIGRATION_STEPS),
+          completed: boolean(),
+        }),
+      ),
+      transfer: MigrationTransferStruct,
+      premiumTransfer: MigrationTransferStruct,
     }),
   ),
 });
@@ -601,18 +610,21 @@ export class ChompApiService extends BaseDataService<
   /**
    * Removes an address association from the authenticated profile. For an
    * address linked as a successor, this cancels the migration and unfreezes
-   * its predecessor, which is only allowed while the migration is not `DONE`.
+   * its predecessor. CHOMP rejects the cancellation with `LINK_COMPLETE` once
+   * a funds-transfer request exists for the link, which can happen before
+   * the migration is `DONE`.
    *
    * DELETE /v1/auth/address
+   *
+   * Executed as a mutation so it is never retried: a retry after a lost
+   * response would hit an already-removed address and fail with a 404.
    *
    * @param address - The address to disassociate.
    */
   async disassociateAddress(address: Hex): Promise<void> {
-    await this.fetchQuery({
-      queryKey: [`${this.name}:disassociateAddress`, address],
-      staleTime: 0,
-      gcTime: 0,
-      queryFn: async () => {
+    await this.executeMutation({
+      mutationKey: [`${this.name}:disassociateAddress`],
+      mutationFn: async () => {
         const headers = await this.#authHeaders();
         const response = await fetch(
           new URL('/v1/auth/address', this.#baseUrl),
@@ -939,7 +951,9 @@ export class ChompApiService extends BaseDataService<
 
   /**
    * Fetches the Money Account identities of the authenticated profile, with
-   * the status and migration steps CHOMP derives on every read.
+   * the status and migration steps CHOMP derives on every read. When funds
+   * transfer is the only missing step, CHOMP creates the transfer request as
+   * part of the read, after which the migration can no longer be cancelled.
    *
    * GET /v1/money-account/identities
    *
@@ -979,7 +993,9 @@ export class ChompApiService extends BaseDataService<
 
   /**
    * Fetches the identity containing an address, along with where the address
-   * sits in it. The identity's `status` describes the whole chain.
+   * sits in it. The identity's `status` describes the whole chain. Like
+   * {@link ChompApiService.getDerivedIdentities}, this read can create the
+   * migration's funds-transfer request.
    *
    * GET /v1/money-account/identities/address/:address
    *
@@ -987,8 +1003,10 @@ export class ChompApiService extends BaseDataService<
    * {@link ChompApiService.getDerivedIdentities}.
    *
    * @param address - The address to look up.
-   * @returns The identity and address details, or `null` when the address is
-   * not associated with the authenticated profile. Addresses are lowercased.
+   * @returns The identity and address details, or `null` when CHOMP responds
+   * with `ADDRESS_NOT_ASSOCIATED`: the address is not associated with the
+   * authenticated profile, or it is but belongs to no Money Account.
+   * Addresses are lowercased.
    */
   async getDerivedIdentityByAddress(
     address: Hex,
@@ -1012,15 +1030,15 @@ export class ChompApiService extends BaseDataService<
           { headers: this.#headersForToken(token) },
         );
 
-        if (response.status === 404) {
-          return null;
-        }
-
         if (!response.ok) {
-          throw await createChompApiError(
+          const error = await createChompApiError(
             response,
             `GET /v1/money-account/identities/address/${address} failed with status '${response.status}'`,
           );
+          if (error.code === 'ADDRESS_NOT_ASSOCIATED') {
+            return null;
+          }
+          throw error;
         }
 
         return response.json();

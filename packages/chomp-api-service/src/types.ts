@@ -5,18 +5,15 @@ import type { Hex } from '@metamask/utils';
 /**
  * The CHOMP intent metadata `type` discriminator, covering the base vault
  * (`cash-deposit`, `cash-withdrawal`), the premium vault
- * (`cash-deposit-premium`, `cash-withdrawal-premium`), the recurring
- * subscription payment (`cash-subscription`), and Money Account migration
- * (`cash-migration-root`, `cash-migration-transfer`).
+ * (`cash-deposit-premium`, `cash-withdrawal-premium`), and the recurring
+ * subscription payment (`cash-subscription`).
  */
 export type ChompIntentType =
   | 'cash-deposit'
   | 'cash-withdrawal'
   | 'cash-deposit-premium'
   | 'cash-withdrawal-premium'
-  | 'cash-subscription'
-  | 'cash-migration-root'
-  | 'cash-migration-transfer';
+  | 'cash-subscription';
 
 export type DelegationCaveat = {
   enforcer: Hex;
@@ -226,7 +223,7 @@ export type CreateWithdrawalResponse = {
 // === DERIVED IDENTITY TYPES ===
 
 /**
- * A step that must exist before a migration link counts as complete.
+ * A step that must be completed before a migration link counts as complete.
  * `SUCCESSOR_SUBSCRIPTION_INTENT` and `TRANSFER_INTENT_PVMUSD` are only
  * required for premium subscribers.
  */
@@ -238,7 +235,8 @@ export type MigrationStep =
   | 'ROOT_DELEGATION'
   | 'TRANSFER_INTENT_MUSD'
   | 'TRANSFER_INTENT_VMUSD'
-  | 'TRANSFER_INTENT_PVMUSD';
+  | 'TRANSFER_INTENT_PVMUSD'
+  | 'FUNDS_TRANSFERRED';
 
 /**
  * The settlement status of a Money Account identity chain. `NONE` is never
@@ -246,15 +244,31 @@ export type MigrationStep =
  */
 export type DerivedIdentityStatus = 'NONE' | 'MIGRATING' | 'DONE';
 
+export type MigrationStepState = {
+  step: MigrationStep;
+  completed: boolean;
+};
+
+/**
+ * A funds-transfer execution request that CHOMP creates once every other
+ * migration step is complete.
+ */
+export type MigrationTransfer = {
+  requestId: string;
+  status: string;
+};
+
 /**
  * The latest link of an identity chain while it is migrating.
  */
 export type DerivedIdentityMigration = {
   from: Hex;
   to: Hex;
-  requiredSteps: MigrationStep[];
-  completedSteps: MigrationStep[];
-  missingSteps: MigrationStep[];
+  /** The steps required for the link's tier, in canonical order. */
+  steps: MigrationStepState[];
+  transfer: MigrationTransfer | null;
+  /** Stays `null` for a standard link, which never needs one. */
+  premiumTransfer: MigrationTransfer | null;
 };
 
 /**
