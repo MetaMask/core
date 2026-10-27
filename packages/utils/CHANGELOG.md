@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.1]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -36,10 +38,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@types/lodash` from `^4.17.20` to `^4.17.27` ([#10435](https://github.com/MetaMask/core/pull/10435), [#10832](https://github.com/MetaMask/core/pull/10832), [#11081](https://github.com/MetaMask/core/pull/11081))
 - Bump `lodash` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `debug` from `^4.3.4` to `^4.4.3` ([#10523](https://github.com/MetaMask/core/pull/10523))
+- Bump `@metamask/byte-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/error-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/node-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/type-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ### Fixed
 
 - Narrow byte helper return types to `Uint8Array<ArrayBuffer>` ([#10617](https://github.com/MetaMask/core/pull/10617))
   - These functions already returned a `Uint8Array` backed by an `ArrayBuffer`, but were typed as returning `Uint8Array<ArrayBufferLike>`.
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/utils@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/releases/tag/@metamask/utils@12.0.1

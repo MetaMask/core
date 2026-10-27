@@ -1878,10 +1878,10 @@
   },
   "packages/chomp-api-service/src/chomp-api-service.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 10
+      "count": 12
     },
     "typescript/no-unsafe-return": {
-      "count": 10
+      "count": 12
     }
   },
   "packages/claims-controller/src/ClaimsService.test.ts": {
@@ -5308,10 +5308,10 @@
       "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 30
+      "count": 32
     },
     "typescript/no-unsafe-member-access": {
-      "count": 28
+      "count": 30
     }
   },
   "packages/transaction-pay-controller/src/strategy/across/transactions.test.ts": {
@@ -5553,10 +5553,10 @@
   },
   "packages/transaction-pay-controller/src/utils/quote-gas.test.ts": {
     "typescript/no-unsafe-call": {
-      "count": 8
+      "count": 11
     },
     "typescript/no-unsafe-member-access": {
-      "count": 8
+      "count": 11
     }
   },
   "packages/transaction-pay-controller/src/utils/quotes.test.ts": {

@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Set when the NFT is created. Auto-detection never overwrites it, a dapp suggestion upgrades `detected`, and a manual import overrides any other source. NFTs added before this change have no `source`.
   - `Source.Custom` is the default `source` of `addNft`, `addNfts` and `addNftVerifyOwnership`; pass `Source.Detected` when refreshing existing NFTs.
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
 ## [112.2.0]
 
 ### Added

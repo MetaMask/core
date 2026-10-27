@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0]
+
 ### Added
 
-- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Initial release ([#11107](https://github.com/MetaMask/core/pull/11107))
 - Add `Bytes`, `Hex`, `HEX_REGEX`, `STRICT_HEX_REGEX`, `add0x`, `areUint8ArraysEqual`, `assertIsBytes`, `assertIsHexString`, `assertIsStrictHexString`, `base64ToBytes`, `bigIntToBytes`, `bigIntToHex`, `bytesToBase64`, `bytesToBigInt`, `bytesToHex`, `bytesToNumber`, `bytesToSignedBigInt`, `bytesToString`, `concatBytes`, `createDataView`, `hexToBigInt`, `hexToBytes`, `hexToNumber`, `isBytes`, `isHexString`, `isStrictHexString`, `numberToBytes`, `numberToHex`, `remove0x`, `signedBigIntToBytes`, `stringToBytes`, and `valueToBytes`, moved from `@metamask/utils` ([#11037](https://github.com/MetaMask/core/pull/11037))
 
-[Unreleased]: https://github.com/MetaMask/core/
+### Changed
+
+- Bump `@metamask/type-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/byte-utils@0.1.0...HEAD
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/byte-utils@0.1.0

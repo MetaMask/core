@@ -147,6 +147,17 @@ export type LeaderboardResponse = {
 // Trader profile
 // ---------------------------------------------------------------------------
 
+/**
+ * Position flag for a wallet/token pair Codex marked as an insider.
+ *
+ * Those positions are excluded from the trader's realized PnL, and clients
+ * must not offer copy-trade on them.
+ */
+export const INSIDER_POSITION_FLAG = 'insider' as const;
+
+/** Known position flag value `developer`. */
+export const DEVELOPER_POSITION_FLAG = 'developer' as const;
+
 /** Values for `TraderProfileResponse.rankingTag` from social-api. */
 export const TRADER_RANKING_TAGS = ['shrimp', 'dolphin', 'whale'] as const;
 
@@ -284,6 +295,15 @@ export type Position = {
    * `costBasis`). Hyperliquid/perp positions only; absent for spot.
    */
   positionAmountWithLeverage?: number | null;
+  /**
+   * Server flags for this position. {@link INSIDER_POSITION_FLAG} means Codex
+   * marked this wallet and token as an insider pair, so the position is
+   * excluded from the trader's realized PnL and must not be copy-traded.
+   * {@link DEVELOPER_POSITION_FLAG} is the other known value. The list is
+   * open: unrecognized strings are preserved. Absent on older social-api
+   * builds; `null` when the deployment sends an explicit empty mark.
+   */
+  flags?: string[] | null;
 };
 
 export type Pagination = {

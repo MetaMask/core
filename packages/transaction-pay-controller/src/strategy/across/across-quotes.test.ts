@@ -1198,7 +1198,7 @@ describe('Across Quotes', () => {
       );
     });
 
-    it('uses relaxed per-transaction gas estimates for prefunded post-quote predict withdraws', async () => {
+    it('uses relaxed separate gas estimates for prefunded post-quote predict withdraws', async () => {
       const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
 
       estimateGasBatchMock.mockRejectedValueOnce(
@@ -2562,7 +2562,7 @@ describe('Across Quotes', () => {
       ).toBeUndefined();
     });
 
-    it('returns per-transaction gas limits when account does not support 7702', async () => {
+    it('returns separate gas limits when account does not support 7702', async () => {
       estimateGasBatchMock.mockResolvedValue({
         totalGasLimit: 42000,
         gasLimits: [21000, 21000],
