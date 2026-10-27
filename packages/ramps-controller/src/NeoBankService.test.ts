@@ -2,7 +2,7 @@ import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { ConstantBackoff } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -101,7 +101,7 @@ function createService(options?: {
 
 describe('NeoBankService', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe('mapNeoBankAutorampToRemoteSnapshot', () => {

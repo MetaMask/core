@@ -4,7 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
@@ -26,7 +26,7 @@ describe('RampsService', () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe('RampsService:getGeolocation', () => {
@@ -2701,7 +2701,7 @@ describe('RampsService', () => {
         }),
       ).rejects.toThrow('Wallet is locked');
       expect(interceptor.isDone()).toBe(false);
-      cleanAll();
+      nock.cleanAll();
     });
   });
 
@@ -2852,7 +2852,7 @@ describe('RampsService', () => {
         ),
       ).rejects.toThrow('Wallet is locked');
       expect(interceptor.isDone()).toBe(false);
-      cleanAll();
+      nock.cleanAll();
     });
   });
 
