@@ -3243,7 +3243,7 @@ describe('NftController', () => {
         [Source.Detected, Source.Custom],
         [Source.Dapp, Source.Custom],
       ])(
-        'upgrades %s to %s with identical metadata without calling onNftAdded',
+        'upgrades %s to %s with identical metadata and calls onNftAdded',
         async (initial, next) => {
           const onNftAdded = vi.fn();
           const { nftController } = setupController({
@@ -3255,7 +3255,7 @@ describe('NftController', () => {
           await add(nftController, next);
 
           expect(getNft(nftController).source).toBe(next);
-          expect(onNftAdded).not.toHaveBeenCalled();
+          expect(onNftAdded).toHaveBeenCalledTimes(1);
         },
       );
 
@@ -3294,7 +3294,7 @@ describe('NftController', () => {
           await add(nftController, source);
 
           expect(getNft(nftController).source).toBe(source);
-          expect(onNftAdded).not.toHaveBeenCalled();
+          expect(onNftAdded).toHaveBeenCalledTimes(1);
         },
       );
 
