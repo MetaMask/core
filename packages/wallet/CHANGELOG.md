@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+
 ### Changed
 
 - Bump `@metamask/claims-controller` from `^1.0.4` to `^1.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))

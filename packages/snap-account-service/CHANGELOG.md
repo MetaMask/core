@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: run accounts packages on Vitest ([#10974](https://github.com/MetaMask/core/pull/10974))
+- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
+- chore(deps): update dependency typedoc-plugin-missing-exports to v4 ([#10762](https://github.com/MetaMask/core/pull/10762))
+- chore(deps): update dependency typedoc-plugin-missing-exports to ^2.3.0 ([#10710](https://github.com/MetaMask/core/pull/10710))
+- chore(deps): update dependency typedoc to ^0.28.20 ([#10731](https://github.com/MetaMask/core/pull/10731))
+- chore: replace `tsx` with plain Node ([#10564](https://github.com/MetaMask/core/pull/10564))
+- refactor: rewrite `.js` imports in `scripts` folder to `.ts` ([#10537](https://github.com/MetaMask/core/pull/10537))
+- chore(deps): update jestjs-jest to ^30.5.2 ([#10514](https://github.com/MetaMask/core/pull/10514))
+- chore(deps): update dependency ts-jest to ^29.4.14 ([#10509](https://github.com/MetaMask/core/pull/10509))
+- chore(lint): apply automatic lint fixes ([#10346](https://github.com/MetaMask/core/pull/10346))
+- fix(deps): update dependency deepmerge to ^4.3.1 ([#10437](https://github.com/MetaMask/core/pull/10437))
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -27,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `SnapAccountService` now reads `AccountsController` state to filter account data update events by Snap ownership ([#10057](https://github.com/MetaMask/core/pull/10057)).
+- **BREAKING:** `SnapAccountService` now reads `AccountsController` state to filter account data update events by Snap ownership. ([#10057](https://github.com/MetaMask/core/pull/10057))
   - Filter account data update events (`notify:accountTransactionsUpdated`, `notify:accountBalancesUpdated`, and `notify:accountAssetListUpdated`) to the accounts that the originating Snap actually owns before republishing them.
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `@metamask/account-api` from `^2.0.0` to `^2.1.0` ([#10263](https://github.com/MetaMask/core/pull/10263))
