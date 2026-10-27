@@ -2,15 +2,7 @@ import type { V5BalanceItem, V6BalanceItem } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { getDefaultTrackedAssetsForChain } from '../defaults.js';
@@ -298,34 +290,32 @@ async function setupController(
 }
 
 describe('AccountsApiDataSource', () => {
-  const originalSetInterval = global.setInterval;
-  const originalClearInterval = global.clearInterval;
+  const originalSetInterval = globalThis.setInterval;
+  const originalClearInterval = globalThis.clearInterval;
   const activeTimers = new Set<ReturnType<typeof originalSetInterval>>();
 
-  beforeAll(() => {
-    global.setInterval = ((callback: () => void, ms: number) => {
+  beforeEach(() => {
+    vi.stubGlobal('setInterval', (callback: () => void, ms: number) => {
       const timer = originalSetInterval(callback, ms);
       timer.unref();
       activeTimers.add(timer);
       return timer;
-    }) as typeof global.setInterval;
+    });
 
-    global.clearInterval = ((timer: ReturnType<typeof originalSetInterval>) => {
-      activeTimers.delete(timer);
-      return originalClearInterval(timer);
-    }) as typeof global.clearInterval;
+    vi.stubGlobal(
+      'clearInterval',
+      (timer: ReturnType<typeof originalSetInterval>) => {
+        activeTimers.delete(timer);
+        return originalClearInterval(timer);
+      },
+    );
   });
 
-  afterAll(() => {
+  afterEach(() => {
     for (const timer of activeTimers) {
       originalClearInterval(timer);
     }
     activeTimers.clear();
-    global.setInterval = originalSetInterval;
-    global.clearInterval = originalClearInterval;
-  });
-
-  afterEach(() => {
     vi.clearAllMocks();
   });
 

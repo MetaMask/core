@@ -180,6 +180,7 @@ export const MfaCredentialStruct = type({
   // Intentionally accepts strings so future server credential types and
   // statuses can be ignored without making the complete response invalid.
 
+  credential_id: string(),
   credential_type: string(),
   status: string(),
 
@@ -288,6 +289,11 @@ export const RequestMfaApprovalRequestStruct = object({
   audiences: size(array(size(string(), 1, Infinity)), 1, Infinity),
   requireVerification: optional(boolean()),
   includeIdentifiers: optional(boolean()),
+  reason: TokenReasonStruct,
+});
+
+export const RemoveCredentialRequestStruct = object({
+  credentialId: size(string(), 1, Infinity),
   reason: TokenReasonStruct,
 });
 

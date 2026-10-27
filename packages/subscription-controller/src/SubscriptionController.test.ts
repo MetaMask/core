@@ -14,7 +14,6 @@ import type { Hex } from '@metamask/utils';
 import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { advanceTime } from '../../../tests/vitest/helpers.js';
 import { generateMockTxMeta } from '../tests/utils.js';
 import {
   CANCELLATION_REASONS,
@@ -4166,7 +4165,7 @@ describe('SubscriptionController', () => {
       await withController(async ({ controller }) => {
         const getSubscriptionsSpy = vi.spyOn(controller, 'getSubscriptions');
         controller.startPolling({});
-        await advanceTime({ duration: 0 });
+        await vi.advanceTimersByTimeAsync(0);
         expect(getSubscriptionsSpy).toHaveBeenCalledTimes(1);
       });
     });
@@ -4181,7 +4180,7 @@ describe('SubscriptionController', () => {
           'triggerAccessTokenRefresh',
         );
         controller.startPolling({});
-        await advanceTime({ duration: 0 });
+        await vi.advanceTimersByTimeAsync(0);
         expect(triggerAccessTokenRefreshSpy).toHaveBeenCalledTimes(1);
       });
     });
@@ -4202,7 +4201,7 @@ describe('SubscriptionController', () => {
           mockService.getBenefits.mockResolvedValue(MOCK_BENEFITS_RESPONSE);
 
           controller.startPolling({});
-          await advanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
           expect(controller.state.benefits).toStrictEqual(MOCK_BENEFITS_STATE);
           expect(mockService.getBenefits).toHaveBeenCalledTimes(1);

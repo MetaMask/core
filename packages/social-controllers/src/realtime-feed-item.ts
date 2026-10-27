@@ -92,6 +92,7 @@ const RawHydratedPositionStruct = structType({
   firstTradeAt: optional(nullable(number())),
   holdTimeMs: optional(nullable(number())),
   entryPriceUsd: optional(nullable(number())),
+  flags: optional(nullable(array(string()))),
 });
 
 export type RealtimeFeedEventData = FeedItem;
@@ -297,6 +298,9 @@ export const normalizeRealtimeFeedItem = (
     firstTradeAt: value.firstTradeAt ?? null,
     holdTimeMs: value.holdTimeMs ?? null,
     entryPriceUsd: value.entryPriceUsd ?? null,
+    // `flags` lives on the hydrated card, beside `metadata`. The server does
+    // not set `metadata.flags`.
+    ...(value.flags === undefined ? {} : { flags: value.flags }),
   };
 };
 

@@ -22,7 +22,7 @@ import type nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 
-import { advanceTime, flushPromises } from '../../../tests/vitest/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import type { RpcEndpoint } from '../../network-controller/src/NetworkController.js';
 import { mockAPI_accountsAPI_MultichainAccountBalances as mockAPIAccountsAPIMultichainAccountBalancesCamelCase } from './__fixtures__/account-api-v4-mocks.js';
@@ -750,11 +750,11 @@ describe('TokenBalancesController', () => {
 
       controller.startPolling({ chainIds: ['0x1'] });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
       expect(pollSpy).toHaveBeenCalled();
       expect(pollSpy).not.toHaveBeenCalledTimes(2);
 
-      await advanceTime({ duration: interval * 1.5 });
+      await vi.advanceTimersByTimeAsync(interval * 1.5);
       expect(pollSpy).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
@@ -3286,13 +3286,13 @@ describe('TokenBalancesController', () => {
           [],
         );
 
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
 
         // Verify updateBalances was called
         expect(updateBalancesSpy).toHaveBeenCalled();
 
         // Wait a bit more for the catch block to execute
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
 
         // Verify the error was logged
         expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -3998,7 +3998,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
       // Initial polls should happen immediately for both chains
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
@@ -4006,14 +4006,14 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Advance by Ethereum interval (1000ms) - only Ethereum should poll
-      await advanceTime({ duration: ethInterval });
+      await vi.advanceTimersByTimeAsync(ethInterval);
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
 
       pollSpy.mockClear();
 
       // Advance by another 1000ms (total 2000ms) - both should poll
-      await advanceTime({ duration: ethInterval });
+      await vi.advanceTimersByTimeAsync(ethInterval);
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] }); // Ethereum again
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] }); // Polygon first repeat
@@ -4057,12 +4057,12 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
       // Initial polls
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
       expect(pollSpy).toHaveBeenCalledTimes(2);
       pollSpy.mockClear();
 
       // Advance 1500ms - only Ethereum should poll
-      await advanceTime({ duration: ethInterval });
+      await vi.advanceTimersByTimeAsync(ethInterval);
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
 
@@ -4074,7 +4074,7 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Advance 1500ms - both should poll now (same interval, grouped together)
-      await advanceTime({ duration: ethInterval });
+      await vi.advanceTimersByTimeAsync(ethInterval);
       expect(pollSpy).toHaveBeenCalledTimes(1); // Now grouped together
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0x89'] }); // Both chains in one call
 
@@ -4122,7 +4122,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89', '0xa4b1'] });
 
       // Initial polls - should group efficiently
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
       expect(pollSpy).toHaveBeenCalledTimes(2); // Two groups: fast (ETH + ARB) and slow (MATIC)
 
       // Verify Ethereum and Arbitrum are grouped together (same interval)
@@ -4133,14 +4133,14 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Advance by fast interval (1200ms) - only fast group should poll
-      await advanceTime({ duration: fastInterval });
+      await vi.advanceTimersByTimeAsync(fastInterval);
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0xa4b1'] });
 
       pollSpy.mockClear();
 
       // Advance by another 1200ms (total 2400ms) - both groups should poll
-      await advanceTime({ duration: fastInterval });
+      await vi.advanceTimersByTimeAsync(fastInterval);
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0xa4b1'] }); // Fast group again
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] }); // Slow group first repeat
@@ -4185,7 +4185,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
       // Initial polls
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
@@ -4193,14 +4193,14 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Advance 800ms - only Ethereum should poll (configured interval)
-      await advanceTime({ duration: ethInterval });
+      await vi.advanceTimersByTimeAsync(ethInterval);
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
 
       pollSpy.mockClear();
 
       // Advance another 800ms (total 1600ms) - both should poll
-      await advanceTime({ duration: ethInterval });
+      await vi.advanceTimersByTimeAsync(ethInterval);
       expect(pollSpy).toHaveBeenCalledTimes(2);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] }); // Ethereum again
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] }); // Polygon using default interval
@@ -4241,12 +4241,12 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
       // Initial polls
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
       expect(pollSpy).toHaveBeenCalledTimes(2);
       pollSpy.mockClear();
 
       // Let some polling happen
-      await advanceTime({ duration: 1000 }); // Ethereum polls
+      await vi.advanceTimersByTimeAsync(1000); // Ethereum polls
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
 
@@ -4259,7 +4259,7 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // Both should now poll every 500ms (regrouped)
-      await advanceTime({ duration: 500 });
+      await vi.advanceTimersByTimeAsync(500);
       expect(pollSpy).toHaveBeenCalledTimes(1);
       expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1', '0x89'] }); // Now grouped together
 
@@ -4301,7 +4301,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89', '0xa4b1'] });
 
       // Initial polls - all 3 chains should be polled despite only Ethereum having tokens
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
       expect(pollSpy).toHaveBeenCalledTimes(3); // All three chains polled
 
       // Verify all originally requested chains are being polled
@@ -4318,7 +4318,7 @@ describe('TokenBalancesController', () => {
 
       // All originally requested chains should still be polled (not just chains with tokens)
       // Wait for the longest interval (3000ms) to ensure all interval groups have polled
-      await advanceTime({ duration: 3000 });
+      await vi.advanceTimersByTimeAsync(3000);
 
       // ✅ KEY VERIFICATION: All originally requested chains are still being polled,
       // including Polygon and Arbitrum which have NO tokens!
@@ -4366,7 +4366,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1', '0x89', '0xa4b1'] });
 
       // Initial state: all 3 chains polled (they use default interval so grouped together)
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
       expect(pollSpy).toHaveBeenCalledTimes(1); // All chains use same default interval, so grouped
       expect(pollSpy).toHaveBeenCalledWith({
         chainIds: ['0x1', '0x89', '0xa4b1'],
@@ -4397,7 +4397,7 @@ describe('TokenBalancesController', () => {
       pollSpy.mockClear();
 
       // After token change, should still poll all originally requested chains
-      await advanceTime({ duration: 1000 });
+      await vi.advanceTimersByTimeAsync(1000);
 
       // ✅ KEY VERIFICATION: All originally requested chains are still being polled
       // even after token state changes (not filtered by chainIdsWithTokens)
@@ -4447,7 +4447,7 @@ describe('TokenBalancesController', () => {
         controller.startPolling({ chainIds: [chainId] });
 
         // Wait for initial poll
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         expect(pollSpy).toHaveBeenCalledTimes(1);
         pollSpy.mockClear();
 
@@ -4457,14 +4457,14 @@ describe('TokenBalancesController', () => {
         });
 
         // Should trigger immediate polling by default
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         expect(pollSpy).toHaveBeenCalledTimes(1);
         expect(pollSpy).toHaveBeenCalledWith({ chainIds: [chainId] });
 
         pollSpy.mockClear();
 
         // And should continue polling on the new interval
-        await advanceTime({ duration: 15000 });
+        await vi.advanceTimersByTimeAsync(15000);
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
         controller.stopAllPolling();
@@ -4501,7 +4501,7 @@ describe('TokenBalancesController', () => {
         controller.startPolling({ chainIds: [chainId] });
 
         // Wait for initial poll
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         expect(pollSpy).toHaveBeenCalledTimes(1);
         pollSpy.mockClear();
 
@@ -4517,7 +4517,7 @@ describe('TokenBalancesController', () => {
         expect(pollSpy).not.toHaveBeenCalled();
 
         // But should poll on the new interval
-        await advanceTime({ duration: 15000 });
+        await vi.advanceTimersByTimeAsync(15000);
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
         controller.stopAllPolling();
@@ -4554,7 +4554,7 @@ describe('TokenBalancesController', () => {
         controller.startPolling({ chainIds: [chainId] });
 
         // Wait for initial poll
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         expect(pollSpy).toHaveBeenCalledTimes(1);
         pollSpy.mockClear();
 
@@ -4567,14 +4567,14 @@ describe('TokenBalancesController', () => {
         );
 
         // Should trigger immediate polling
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         expect(pollSpy).toHaveBeenCalledTimes(1);
         expect(pollSpy).toHaveBeenCalledWith({ chainIds: [chainId] });
 
         pollSpy.mockClear();
 
         // And should continue polling on the new interval
-        await advanceTime({ duration: 15000 });
+        await vi.advanceTimersByTimeAsync(15000);
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
         controller.stopAllPolling();
@@ -4658,7 +4658,7 @@ describe('TokenBalancesController', () => {
         controller.startPolling({ chainIds: ['0x1', '0x89'] });
 
         // Wait for initial polls
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         expect(pollSpy).toHaveBeenCalledTimes(1); // Both chains use default interval
         pollSpy.mockClear();
 
@@ -4672,7 +4672,7 @@ describe('TokenBalancesController', () => {
         );
 
         // Should trigger immediate polling for all chains
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         expect(pollSpy).toHaveBeenCalledTimes(2); // Now different intervals, so separate calls
         expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x1'] });
         expect(pollSpy).toHaveBeenCalledWith({ chainIds: ['0x89'] });
@@ -4719,10 +4719,10 @@ describe('TokenBalancesController', () => {
         controller.startPolling({ chainIds: ['0x1'] });
 
         // Wait for initial poll and error
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
 
         // Wait for interval poll and error
-        await advanceTime({ duration: 100 });
+        await vi.advanceTimersByTimeAsync(100);
 
         // Should have attempted polls despite errors
         expect(pollSpy).toHaveBeenCalledTimes(2);
@@ -4792,7 +4792,7 @@ describe('TokenBalancesController', () => {
         ]);
 
         // Wait for async error handling
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
 
         expect(updateBalancesSpy).toHaveBeenCalled();
         expect(consoleSpy).toHaveBeenCalledWith(
@@ -4838,7 +4838,7 @@ describe('TokenBalancesController', () => {
         controller.startPolling({ chainIds: ['0x1'] });
 
         // Wait for any immediate polling to complete
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
 
         // Clean up
         controller.stopAllPolling();
@@ -5277,8 +5277,7 @@ describe('TokenBalancesController', () => {
         ok: true,
         json: () => Promise.resolve([]),
       });
-      const originalFetch = global.fetch;
-      global.fetch = mockGlobalFetch;
+      vi.stubGlobal('fetch', mockGlobalFetch);
 
       // Create controller with accountsApiChainIds to enable AccountsApi fetcher; tokens so we fetch for chainId1
       const tokenAddress = '0x0000000000000000000000000000000000000001';
@@ -5327,8 +5326,6 @@ describe('TokenBalancesController', () => {
       supportsSpy.mockRestore();
       fetchSpy.mockRestore();
       mockedSafelyExecuteWithTimeout.mockRestore();
-      (global as unknown as { fetch: typeof originalFetch }).fetch =
-        originalFetch;
     });
   });
 
@@ -7050,7 +7047,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Wait for initial poll
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Start polling again - this goes through #startIntervalGroupPolling
       // which clears existing timers at line 564
@@ -7083,7 +7080,7 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Advance timer to trigger the interval callback
-      await advanceTime({ duration: 35000 });
+      await vi.advanceTimersByTimeAsync(35000);
 
       // Wait for the promise to reject
       await flushPromises();
@@ -7309,14 +7306,14 @@ describe('TokenBalancesController', () => {
       controller.startPolling({ chainIds: ['0x1'] });
 
       // Wait for immediate poll
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
       const initialCallCount = multicallSpy.mock.calls.length;
 
       // Lock the controller (sets #isControllerPollingActive to false)
       messenger.publish('KeyringController:lock');
 
       // Advance time to trigger the interval poll
-      await advanceTime({ duration: 35000 });
+      await vi.advanceTimersByTimeAsync(35000);
 
       // The poll function should have returned early without calling multicall
       expect(multicallSpy.mock.calls).toHaveLength(initialCallCount);

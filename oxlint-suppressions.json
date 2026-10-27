@@ -100,11 +100,6 @@
       "count": 4
     }
   },
-  "packages/account-tree-controller/src/backup-and-sync/user-storage/network-utils.test.ts": {
-    "typescript/no-unsafe-call": {
-      "count": 1
-    }
-  },
   "packages/account-tree-controller/src/backup-and-sync/user-storage/network-utils.ts": {
     "id-length": {
       "count": 1
@@ -1883,10 +1878,10 @@
   },
   "packages/chomp-api-service/src/chomp-api-service.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 9
+      "count": 10
     },
     "typescript/no-unsafe-return": {
-      "count": 9
+      "count": 10
     }
   },
   "packages/claims-controller/src/ClaimsService.test.ts": {
@@ -2856,9 +2851,6 @@
   "packages/messenger-cli/src/cli.test.ts": {
     "jsdoc/require-param": {
       "count": 1
-    },
-    "n/no-unsupported-features/node-builtins": {
-      "count": 1
     }
   },
   "packages/messenger-cli/src/parse-source.ts": {
@@ -3756,21 +3748,77 @@
       "count": 4
     }
   },
-  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-orders.test.ts": {
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-capabilities-and-chase-races.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 4
+      "count": 3
     },
     "typescript/no-unsafe-call": {
-      "count": 16
+      "count": 2
     },
     "typescript/no-unsafe-member-access": {
-      "count": 62
+      "count": 14
     },
     "typescript/no-unsafe-return": {
-      "count": 5
+      "count": 2
     },
     "vitest/no-conditional-in-test": {
-      "count": 98
+      "count": 8
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-chase-placement.test.ts": {
+    "typescript/no-unsafe-call": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 12
+    },
+    "typescript/no-unsafe-return": {
+      "count": 4
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 7
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-margin-and-builder-fees.test.ts": {
+    "typescript/no-unsafe-member-access": {
+      "count": 4
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 67
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-scale-ladder-and-fee-quotes.test.ts": {
+    "typescript/no-unsafe-call": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 15
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 7
+    }
+  },
+  "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-twap-and-scale.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-call": {
+      "count": 12
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 17
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 9
     }
   },
   "packages/perps-controller/tests/src/providers/LighterProvider.account-signer.test.ts": {
@@ -3778,9 +3826,64 @@
       "count": 26
     }
   },
-  "packages/perps-controller/tests/src/providers/LighterProvider.test.ts": {
+  "packages/perps-controller/tests/src/providers/LighterProvider.attached-placement.test.ts": {
     "vitest/no-conditional-in-test": {
-      "count": 1450
+      "count": 152
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.chase.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 292
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.edit-and-scale.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 193
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.market-boundary.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 2
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.order-validation.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 31
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.post-only.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 5
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.reads-and-orders.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 38
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.recovery-journals.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 160
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.recovery-reconciliation.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 125
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.settlement-recovery.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 155
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.streaming-and-session.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 23
+    }
+  },
+  "packages/perps-controller/tests/src/providers/LighterProvider.tpsl-lifecycle.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 274
     }
   },
   "packages/perps-controller/tests/src/services/AggregatedOrderBookConnection.test.ts": {
@@ -3964,11 +4067,6 @@
   "packages/phishing-controller/tests/utils.ts": {
     "typescript/explicit-function-return-type": {
       "count": 2
-    }
-  },
-  "packages/platform-api-docs/src/cli.test.ts": {
-    "n/no-unsupported-features/node-builtins": {
-      "count": 1
     }
   },
   "packages/platform-api-docs/src/cli.ts": {
