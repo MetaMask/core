@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.3.0]
+
 ### Uncategorized
 
 - test: move the decorator plugin out of the shared Vitest config ([#11060](https://github.com/MetaMask/core/pull/11060))
@@ -1746,7 +1748,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.3.0...HEAD
+[30.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.2.0...@metamask/transaction-pay-controller@30.3.0
 [30.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.1.0...@metamask/transaction-pay-controller@30.2.0
 [30.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.3...@metamask/transaction-pay-controller@30.1.0
 [30.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.2...@metamask/transaction-pay-controller@30.0.3
