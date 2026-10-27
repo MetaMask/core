@@ -293,3 +293,4 @@ export {
 } from './utils/swaps.js';
 
 export { getAccountByAddress } from './utils/controllers/accounts.js';
+export { getFeatureFlags } from './utils/controllers/remote-feature-flags.js';

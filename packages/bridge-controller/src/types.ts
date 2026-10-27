@@ -397,13 +397,13 @@ export type BridgeControllerEvents = BridgeControllerStateChangeEvent;
 
 export type AllowedActions =
   | AccountsControllerGetAccountByAddressAction
+  | AssetsControllerGetExchangeRatesForBridgeAction
   | AuthenticationControllerGetBearerTokenAction
   | CurrencyRateControllerGetStateAction
-  | SnapControllerHandleRequestAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
   | RemoteFeatureFlagControllerGetStateAction
-  | AssetsControllerGetExchangeRatesForBridgeAction;
+  | SnapControllerHandleRequestAction;
 export type AllowedEvents = never;
 
 /**

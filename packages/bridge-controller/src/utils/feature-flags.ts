@@ -10,6 +10,7 @@ import type {
 } from '../types.js';
 import { validateFeatureFlagsResponse } from '../validators/feature-flags.js';
 import { formatChainIdToCaip } from './caip-formatters.js';
+import { getFeatureFlags } from './controllers/remote-feature-flags.js';
 
 export const formatFeatureFlags = (
   bridgeFeatureFlags: FeatureFlagsPlatformConfig,
@@ -65,21 +66,17 @@ export const getBridgeFeatureFlags = <
   messenger: T,
 ): FeatureFlagsPlatformConfig => {
   // This will return the bridgeConfig for the current platform even without specifying the platform
-  const remoteFeatureFlagControllerState = messenger.call(
-    'RemoteFeatureFlagController:getState',
-  );
+  const remoteFeatureFlagControllerState = getFeatureFlags(messenger);
 
   // bridgeConfigV2 is the feature flag for the mobile app
   // bridgeConfig for Mobile has been deprecated since release of bridge and Solana in 7.46.0 was pushed back
   // and there's no way to turn on bridgeConfig for 7.47.0 without affecting 7.46.0 as well.
   // You will still get bridgeConfig returned from remoteFeatureFlagControllerState but you should use bridgeConfigV2 instead
   // Mobile's bridgeConfig will be permanently serving the disabled variation, so falling back to it in Mobile will be ok
-  const rawMobileFlags =
-    remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfigV2;
+  const rawMobileFlags = remoteFeatureFlagControllerState?.bridgeConfigV2;
 
   // Extension LaunchDarkly will not have the bridgeConfigV2 field, so we'll continue to use bridgeConfig
-  const rawBridgeConfig =
-    remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfig;
+  const rawBridgeConfig = remoteFeatureFlagControllerState?.bridgeConfig;
 
   return processFeatureFlags(rawMobileFlags || rawBridgeConfig);
 };
