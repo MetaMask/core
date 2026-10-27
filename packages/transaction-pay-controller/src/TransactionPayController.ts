@@ -134,6 +134,7 @@ export class TransactionPayController extends BaseController<
 
     // eslint-disable-next-line no-new
     new QuoteRefresher({
+      getBalance: this.#getBalance,
       getStrategies: this.#getStrategiesWithFallback.bind(this),
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),

@@ -8,7 +8,10 @@ import type {
   TransactionPayControllerState,
 } from '../index.js';
 import { projectLogger } from '../logger.js';
-import type { UpdateTransactionDataCallback } from '../types.js';
+import type {
+  GetBalanceCallback,
+  UpdateTransactionDataCallback,
+} from '../types.js';
 import { refreshQuotes } from '../utils/quotes.js';
 
 const CHECK_INTERVAL = 1000; // 1 Second
@@ -28,17 +31,22 @@ export class QuoteRefresher {
     transaction: TransactionMeta,
   ) => TransactionPayStrategy[];
 
+  readonly #getBalance?: GetBalanceCallback;
+
   readonly #updateTransactionData: UpdateTransactionDataCallback;
 
   constructor({
+    getBalance,
     getStrategies,
     messenger,
     updateTransactionData,
   }: {
+    getBalance?: GetBalanceCallback;
     getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
     messenger: TransactionPayControllerMessenger;
     updateTransactionData: UpdateTransactionDataCallback;
   }) {
+    this.#getBalance = getBalance;
     this.#getStrategies = getStrategies;
     this.#messenger = messenger;
     this.#isRunning = false;
@@ -81,6 +89,7 @@ export class QuoteRefresher {
         this.#messenger,
         this.#updateTransactionData,
         this.#getStrategies,
+        this.#getBalance,
       );
     } catch (error) {
       log('Error refreshing quotes', error);

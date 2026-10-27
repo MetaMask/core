@@ -9,6 +9,7 @@ import { getMessengerMock } from '../tests/messenger-mock.js';
 import { updateFiatPayment } from './actions/update-fiat-payment.js';
 import { updatePaymentToken } from './actions/update-payment-token.js';
 import { PaymentOverride, TransactionPayStrategy } from './constants.js';
+import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import { TransactionPayController } from './index.js';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils.js';
 import type {
@@ -30,6 +31,7 @@ import {
 vi.mock(import('./actions/update-fiat-payment.js'));
 vi.mock(import('./actions/update-payment-token.js'));
 vi.mock(import('./strategy/fiat/utils.js'));
+vi.mock(import('./helpers/QuoteRefresher.js'));
 vi.mock(import('./utils/source-amounts.js'));
 vi.mock(import('./utils/quotes.js'));
 vi.mock(import('./utils/transaction.js'));
@@ -44,6 +46,7 @@ const PAYMENT_TOKEN_MOCK = {
   balanceRaw: '0',
   chainId: CHAIN_ID_MOCK,
 } as TransactionPaymentToken;
+
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = vi.mocked(updateFiatPayment);
   const updatePaymentTokenMock = vi.mocked(updatePaymentToken);
@@ -58,6 +61,7 @@ describe('TransactionPayController', () => {
   );
   const subscribeAssetChangesMock = vi.mocked(subscribeAssetChanges);
   const getStrategyOrderMock = vi.mocked(getStrategyOrder);
+  const QuoteRefresherMock = vi.mocked(QuoteRefresher);
   let messenger: TransactionPayControllerMessenger;
   let getKeyringControllerStateMock: Mock;
 
@@ -111,6 +115,27 @@ describe('TransactionPayController', () => {
 
       const getControllerState = subscribeAssetChangesMock.mock.calls[0][1];
       expect(getControllerState()).toBe(controller.state);
+    });
+
+    it('wires QuoteRefresher with getBalance when provided', () => {
+      const getBalance = vi.fn();
+      createController({ getBalance });
+
+      expect(QuoteRefresherMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          getBalance,
+        }),
+      );
+    });
+
+    it('wires QuoteRefresher without getBalance when it is absent', () => {
+      createController();
+
+      expect(QuoteRefresherMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          getBalance: undefined,
+        }),
+      );
     });
   });
 
