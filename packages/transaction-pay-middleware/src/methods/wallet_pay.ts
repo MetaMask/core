@@ -1,6 +1,7 @@
 import type { StructError } from '@metamask/superstruct';
 import { validate } from '@metamask/superstruct';
 import type { Hex, PendingJsonRpcResponse } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
 import { walletPayErrors } from '../errors.js';
 import { getWalletPayFlow } from '../flows/index.js';
@@ -38,6 +39,8 @@ export async function walletPay(
   const request = validateRequest(req.params);
   const flow = getAllowedFlow(messenger, req.origin, request.type);
 
+  assertAmountAllowed(flow, request.amount);
+
   await assertPermittedAccount(hooks, request.from);
   await flow.assertPreconditions?.(messenger);
 
@@ -69,6 +72,19 @@ function validateRequest(params: unknown): WalletPayRequest {
   }
 
   return validated[0];
+}
+
+function assertAmountAllowed(
+  flow: WalletPayFlow,
+  amount: string | undefined,
+): void {
+  if (
+    amount !== undefined &&
+    !flow.allowZeroAmount &&
+    new BigNumber(amount).isZero()
+  ) {
+    throw walletPayErrors.invalidParams('amount - Expected a positive amount');
+  }
 }
 
 function getAllowedFlow(

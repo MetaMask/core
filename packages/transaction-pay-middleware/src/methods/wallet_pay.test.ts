@@ -150,7 +150,7 @@ describe('walletPay', () => {
       expect(error.message).toContain(field);
     });
 
-    it.each(['-1', '0', '0.000', '1.1234567', 'abc', '1e3', ''])(
+    it.each(['-1', '1.1234567', 'abc', '1e3', '', '0.'])(
       'rejects amount "%s"',
       async (amount) => {
         const error = await runError({
@@ -160,6 +160,38 @@ describe('walletPay', () => {
         expect(error.code).toBe(errorCodes.rpc.invalidParams);
       },
     );
+
+    it.each(['0', '0.000', '00'])(
+      'rejects a zero amount "%s" for perpsDeposit',
+      async (amount) => {
+        const error = await runError({
+          params: [{ type: 'perpsDeposit', from: FROM, amount }],
+        });
+
+        expect(error.code).toBe(errorCodes.rpc.invalidParams);
+        expect(error.message).toContain('amount');
+      },
+    );
+
+    it.each(['0', '0.000'])(
+      'accepts a zero amount "%s" for perpsWithdraw',
+      async (amount) => {
+        const { mocks, response } = await run({
+          params: [{ type: 'perpsWithdraw', from: FROM, amount }],
+        });
+
+        expect(response.result).toStrictEqual({ transactionHash: HASH });
+        expect(mocks.addTransaction).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('accepts a perpsWithdraw without an amount', async () => {
+      const { response } = await run({
+        params: [{ type: 'perpsWithdraw', from: FROM }],
+      });
+
+      expect(response.result).toStrictEqual({ transactionHash: HASH });
+    });
 
     it.each(['10', '0.5', '12.123456'])('accepts amount %s', async (amount) => {
       const { response } = await run({
