@@ -38,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@types/lodash` from `^4.17.20` to `^4.17.27` ([#10435](https://github.com/MetaMask/core/pull/10435), [#10832](https://github.com/MetaMask/core/pull/10832), [#11081](https://github.com/MetaMask/core/pull/11081))
 - Bump `lodash` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `debug` from `^4.3.4` to `^4.4.3` ([#10523](https://github.com/MetaMask/core/pull/10523))
+- Bump `@metamask/byte-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/error-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/node-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/type-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ### Fixed
 
