@@ -19,6 +19,7 @@ import {
 } from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
+  AutorampTransactionStatusChangedPayload,
   RampsControllerMessenger,
   RampsControllerState,
   ResourceState,
@@ -10582,78 +10583,130 @@ describe('RampsController', () => {
       createdAt: '2026-06-01T00:00:00.000Z',
     });
 
-    it('writes the record before publishing a status change', async () => {
-      await withController(async ({ controller, rootMessenger, messenger }) => {
-        const list = vi
-          .fn()
-          .mockResolvedValueOnce([
-            fetchedTransaction('tx-1', 'FundsReviewInProgress'),
-          ])
-          .mockResolvedValueOnce([fetchedTransaction('tx-1', 'Completed')]);
-        rootMessenger.registerActionHandler(
-          'NeoBankService:listAutorampTransactions',
-          list,
-        );
-        const recordAtPublish: unknown[] = [];
-        messenger.subscribe(
-          'RampsController:autorampTransactionStatusChanged',
-          () => {
-            recordAtPublish.push(
-              controller.state.autorampTransactionRecords['ar-1'],
-            );
+    it('writes the record before tracking a status change', async () => {
+      const recordAtTrack: unknown[] = [];
+      const tracked: AutorampTransactionStatusChangedPayload[] = [];
+      let readRecord: () => unknown = () => undefined;
+      await withController(
+        {
+          options: {
+            trackAutorampTransactionStatusChanged: (payload) => {
+              tracked.push(payload);
+              recordAtTrack.push(readRecord());
+            },
           },
-        );
+        },
+        async ({ controller, rootMessenger }) => {
+          readRecord = () =>
+            controller.state.autorampTransactionRecords['ar-1'];
+          const list = vi
+            .fn()
+            .mockResolvedValueOnce([
+              fetchedTransaction('tx-1', 'FundsReviewInProgress'),
+            ])
+            .mockResolvedValueOnce([fetchedTransaction('tx-1', 'Completed')]);
+          rootMessenger.registerActionHandler(
+            'NeoBankService:listAutorampTransactions',
+            list,
+          );
 
-        await controller.refreshAutorampTransactions('ar-1');
-        expect(recordAtPublish).toHaveLength(0);
-        expect(
-          controller.state.autorampTransactionRecords['ar-1'],
-        ).toMatchObject({
-          statuses: { 'tx-1': 'FundsReviewInProgress' },
-        });
+          await controller.refreshAutorampTransactions('ar-1');
+          expect(recordAtTrack).toHaveLength(0);
+          expect(
+            controller.state.autorampTransactionRecords['ar-1'],
+          ).toMatchObject({
+            statuses: { 'tx-1': 'FundsReviewInProgress' },
+          });
 
-        await controller.refreshAutorampTransactions('ar-1');
+          await controller.refreshAutorampTransactions('ar-1');
 
-        expect(recordAtPublish).toStrictEqual([
-          {
-            syncedAt: expect.any(Number),
-            statuses: { 'tx-1': 'Completed' },
+          expect(recordAtTrack).toStrictEqual([
+            {
+              syncedAt: expect.any(Number),
+              statuses: { 'tx-1': 'Completed' },
+            },
+          ]);
+          expect(tracked).toStrictEqual([
+            {
+              autorampId: 'ar-1',
+              transaction: fetchedTransaction('tx-1', 'Completed'),
+              previousStatus: 'FundsReviewInProgress',
+            },
+          ]);
+          expect(list).toHaveBeenCalledWith('ar-1', { pageSize: 50 });
+        },
+      );
+    });
+
+    it('tracks a new transaction without a previous status', async () => {
+      const tracked: AutorampTransactionStatusChangedPayload[] = [];
+      await withController(
+        {
+          options: {
+            trackAutorampTransactionStatusChanged: (payload) => {
+              tracked.push(payload);
+            },
           },
-        ]);
-        expect(list).toHaveBeenCalledWith('ar-1', { pageSize: 50 });
-      });
+        },
+        async ({ controller, rootMessenger }) => {
+          const list = vi
+            .fn()
+            .mockResolvedValueOnce([fetchedTransaction('tx-1', 'Completed')])
+            .mockResolvedValueOnce([
+              fetchedTransaction('tx-1', 'Completed'),
+              fetchedTransaction('tx-2', 'FundsReviewInProgress'),
+            ]);
+          rootMessenger.registerActionHandler(
+            'NeoBankService:listAutorampTransactions',
+            list,
+          );
+
+          await controller.refreshAutorampTransactions('ar-1');
+          await controller.refreshAutorampTransactions('ar-1');
+
+          expect(tracked).toStrictEqual([
+            {
+              autorampId: 'ar-1',
+              transaction: fetchedTransaction('tx-2', 'FundsReviewInProgress'),
+            },
+          ]);
+        },
+      );
     });
 
     it('leaves the record untouched when the fetch fails', async () => {
-      await withController(async ({ controller, rootMessenger, messenger }) => {
-        const list = vi
-          .fn()
-          .mockResolvedValueOnce([fetchedTransaction('tx-1', 'Completed')])
-          .mockRejectedValueOnce(new Error('transactions unavailable'));
-        rootMessenger.registerActionHandler(
-          'NeoBankService:listAutorampTransactions',
-          list,
-        );
-        const events: unknown[] = [];
-        messenger.subscribe(
-          'RampsController:autorampTransactionStatusChanged',
-          (payload) => {
-            events.push(payload);
+      const tracked: AutorampTransactionStatusChangedPayload[] = [];
+      await withController(
+        {
+          options: {
+            trackAutorampTransactionStatusChanged: (payload) => {
+              tracked.push(payload);
+            },
           },
-        );
+        },
+        async ({ controller, rootMessenger }) => {
+          const list = vi
+            .fn()
+            .mockResolvedValueOnce([fetchedTransaction('tx-1', 'Completed')])
+            .mockRejectedValueOnce(new Error('transactions unavailable'));
+          rootMessenger.registerActionHandler(
+            'NeoBankService:listAutorampTransactions',
+            list,
+          );
 
-        await controller.refreshAutorampTransactions('ar-1');
-        const seeded = controller.state.autorampTransactionRecords['ar-1'];
+          await controller.refreshAutorampTransactions('ar-1');
+          const seeded = controller.state.autorampTransactionRecords['ar-1'];
 
-        await expect(
-          controller.refreshAutorampTransactions('ar-1'),
-        ).rejects.toThrow('transactions unavailable');
+          await expect(
+            controller.refreshAutorampTransactions('ar-1'),
+          ).rejects.toThrow('transactions unavailable');
 
-        expect(controller.state.autorampTransactionRecords['ar-1']).toBe(
-          seeded,
-        );
-        expect(events).toHaveLength(0);
-      });
+          expect(controller.state.autorampTransactionRecords['ar-1']).toBe(
+            seeded,
+          );
+          expect(tracked).toHaveLength(0);
+        },
+      );
     });
 
     it('shares one request across concurrent refreshes for the same autoramp', async () => {
@@ -10690,63 +10743,66 @@ describe('RampsController', () => {
       });
     });
 
-    it('does not restore a record or publish when the autoramp is removed during the fetch', async () => {
-      await withController(async ({ controller, rootMessenger, messenger }) => {
-        controller.addAutoramp({
-          id: 'ar-1',
-          customerId: 'cust-1',
-          walletAddress: '0xabc',
-          status: AutorampStatus.Approved,
-        });
-        controller.addAutoramp({
-          id: 'ar-2',
-          customerId: 'cust-1',
-          walletAddress: '0xdef',
-          status: AutorampStatus.Approved,
-        });
-        let resolveList: (
-          transactions: ReturnType<typeof fetchedTransaction>[],
-        ) => void = () => undefined;
-        const pending = new Promise<ReturnType<typeof fetchedTransaction>[]>(
-          (resolve) => {
-            resolveList = resolve;
+    it('does not restore a record or track when the autoramp is removed during the fetch', async () => {
+      const tracked: AutorampTransactionStatusChangedPayload[] = [];
+      await withController(
+        {
+          options: {
+            trackAutorampTransactionStatusChanged: (payload) => {
+              tracked.push(payload);
+            },
           },
-        );
-        const list = vi
-          .fn()
-          .mockResolvedValueOnce([
-            fetchedTransaction('tx-1', 'FundsReviewInProgress'),
-          ])
-          .mockImplementation(() => pending);
-        rootMessenger.registerActionHandler(
-          'NeoBankService:listAutorampTransactions',
-          list,
-        );
-        const events: unknown[] = [];
-        messenger.subscribe(
-          'RampsController:autorampTransactionStatusChanged',
-          (payload) => {
-            events.push(payload);
-          },
-        );
+        },
+        async ({ controller, rootMessenger }) => {
+          controller.addAutoramp({
+            id: 'ar-1',
+            customerId: 'cust-1',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Approved,
+          });
+          controller.addAutoramp({
+            id: 'ar-2',
+            customerId: 'cust-1',
+            walletAddress: '0xdef',
+            status: AutorampStatus.Approved,
+          });
+          let resolveList: (
+            transactions: ReturnType<typeof fetchedTransaction>[],
+          ) => void = () => undefined;
+          const pending = new Promise<ReturnType<typeof fetchedTransaction>[]>(
+            (resolve) => {
+              resolveList = resolve;
+            },
+          );
+          const list = vi
+            .fn()
+            .mockResolvedValueOnce([
+              fetchedTransaction('tx-1', 'FundsReviewInProgress'),
+            ])
+            .mockImplementation(() => pending);
+          rootMessenger.registerActionHandler(
+            'NeoBankService:listAutorampTransactions',
+            list,
+          );
 
-        await controller.refreshAutorampTransactions('ar-1');
-        const removedRefresh = controller.refreshAutorampTransactions('ar-1');
-        const keptRefresh = controller.refreshAutorampTransactions('ar-2');
-        controller.removeAutoramp('ar-1');
-        const page = [fetchedTransaction('tx-1', 'Completed')];
-        resolveList(page);
+          await controller.refreshAutorampTransactions('ar-1');
+          const removedRefresh = controller.refreshAutorampTransactions('ar-1');
+          const keptRefresh = controller.refreshAutorampTransactions('ar-2');
+          controller.removeAutoramp('ar-1');
+          const page = [fetchedTransaction('tx-1', 'Completed')];
+          resolveList(page);
 
-        expect(await removedRefresh).toStrictEqual(page);
-        expect(await keptRefresh).toStrictEqual(page);
-        expect(
-          controller.state.autorampTransactionRecords['ar-1'],
-        ).toBeUndefined();
-        expect(
-          controller.state.autorampTransactionRecords['ar-2']?.statuses,
-        ).toStrictEqual({ 'tx-1': 'Completed' });
-        expect(events).toHaveLength(0);
-      });
+          expect(await removedRefresh).toStrictEqual(page);
+          expect(await keptRefresh).toStrictEqual(page);
+          expect(
+            controller.state.autorampTransactionRecords['ar-1'],
+          ).toBeUndefined();
+          expect(
+            controller.state.autorampTransactionRecords['ar-2']?.statuses,
+          ).toStrictEqual({ 'tx-1': 'Completed' });
+          expect(tracked).toHaveLength(0);
+        },
+      );
     });
 
     it('clears the record when that autoramp is removed', async () => {

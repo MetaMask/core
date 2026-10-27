@@ -38,7 +38,7 @@ export type AutorampTransactionChange = {
  * @param record - Stored record for this autoramp, if any.
  * @param fetched - Newest page from the autoramp transactions API.
  * @param now - Epoch ms used as `syncedAt` on the first successful sync.
- * @returns The changes to publish and the record to persist.
+ * @returns The changes to report and the record to persist.
  */
 export function diffAutorampTransactions(
   record: AutorampTransactionRecord | undefined,

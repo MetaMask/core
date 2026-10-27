@@ -1210,19 +1210,14 @@ export type RampsControllerAutorampStatusChangedEvent = {
 };
 
 /**
- * Published after a display fetch writes a new or changed autoramp transaction
- * status. One event per change. `previousStatus` is omitted for a new id.
- * State is updated before these events are published.
+ * One autoramp transaction that is new or whose status changed.
+ * Passed to {@link RampsControllerOptions.trackAutorampTransactionStatusChanged}
+ * after the record is written. `previousStatus` is omitted for a new id.
  */
-export type RampsControllerAutorampTransactionStatusChangedEvent = {
-  type: `${typeof controllerName}:autorampTransactionStatusChanged`;
-  payload: [
-    {
-      autorampId: string;
-      transaction: AutorampTransactionSummary;
-      previousStatus?: string;
-    },
-  ];
+export type AutorampTransactionStatusChangedPayload = {
+  autorampId: string;
+  transaction: AutorampTransactionSummary;
+  previousStatus?: string;
 };
 
 /**
@@ -1231,8 +1226,7 @@ export type RampsControllerAutorampTransactionStatusChangedEvent = {
 export type RampsControllerEvents =
   | RampsControllerStateChangeEvent
   | RampsControllerOrderStatusChangedEvent
-  | RampsControllerAutorampStatusChangedEvent
-  | RampsControllerAutorampTransactionStatusChangedEvent;
+  | RampsControllerAutorampStatusChangedEvent;
 
 /**
  * Events from other messengers that {@link RampsController} subscribes to.
@@ -1273,6 +1267,14 @@ export type RampsControllerOptions = {
    * Optional performance tracing callback used by order sync operations.
    */
   trace?: TraceCallback;
+  /**
+   * Optional callback for a new autoramp transaction or a status change.
+   * Called after the transaction record is written. Omitted clients record
+   * nothing.
+   */
+  trackAutorampTransactionStatusChanged?: (
+    payload: AutorampTransactionStatusChangedPayload,
+  ) => void;
 };
 
 // === HELPER FUNCTIONS ===
@@ -1540,6 +1542,10 @@ export class RampsController extends BaseController<
 
   readonly #trace?: TraceCallback;
 
+  readonly #trackAutorampTransactionStatusChanged?: (
+    payload: AutorampTransactionStatusChangedPayload,
+  ) => void;
+
   /**
    * Map of pending requests for deduplication.
    * Key is the cache key, value is the pending request with abort controller.
@@ -1698,6 +1704,7 @@ export class RampsController extends BaseController<
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
    * @param args.onOrderSyncErroneousSituation - Optional order-sync error reporter.
    * @param args.trace - Optional performance tracing callback for order sync.
+   * @param args.trackAutorampTransactionStatusChanged - Optional callback for a new autoramp transaction or a status change.
    */
   constructor({
     messenger,
@@ -1706,6 +1713,7 @@ export class RampsController extends BaseController<
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
     onOrderSyncErroneousSituation,
     trace,
+    trackAutorampTransactionStatusChanged,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -1723,6 +1731,8 @@ export class RampsController extends BaseController<
     this.#requestCacheMaxSize = requestCacheMaxSize;
     this.#onOrderSyncErroneousSituation = onOrderSyncErroneousSituation;
     this.#trace = trace;
+    this.#trackAutorampTransactionStatusChanged =
+      trackAutorampTransactionStatusChanged;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -4598,16 +4608,16 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Fetches the newest page of transactions for one autoramp and publishes
-   * `autorampTransactionStatusChanged` for each new id or status change.
+   * Fetches the newest page of transactions for one autoramp and calls
+   * `trackAutorampTransactionStatusChanged` for each new id or status change.
    *
-   * The updated record is written before any event is published. A failed
-   * fetch leaves the record untouched. Concurrent calls for the same autoramp
-   * share one request. The first successful fetch seeds the record and
-   * publishes nothing. When this autoramp was on the cursor at the start of
-   * the fetch and was removed before the response is applied
-   * (`removeAutoramp`, a cursor replace that drops the id, or a foreign VBA
-   * session discard), the record is not restored and no event is published.
+   * The updated record is written before the callback runs. A failed fetch
+   * leaves the record untouched. Concurrent calls for the same autoramp share
+   * one request. The first successful fetch seeds the record and calls
+   * nothing. When this autoramp was on the cursor at the start of the fetch
+   * and was removed before the response is applied (`removeAutoramp`, a cursor
+   * replace that drops the id, or a foreign VBA session discard), the record
+   * is not restored and the callback is not called.
    *
    * @param autorampId - MoonPay autoramp id.
    * @returns Transaction summaries from the newest page.
@@ -4664,16 +4674,13 @@ export class RampsController extends BaseController<
     });
 
     for (const change of changes) {
-      this.messenger.publish(
-        'RampsController:autorampTransactionStatusChanged',
-        {
-          autorampId,
-          transaction: change.transaction,
-          ...(change.previousStatus === undefined
-            ? {}
-            : { previousStatus: change.previousStatus }),
-        },
-      );
+      this.#trackAutorampTransactionStatusChanged?.({
+        autorampId,
+        transaction: change.transaction,
+        ...(change.previousStatus === undefined
+          ? {}
+          : { previousStatus: change.previousStatus }),
+      });
     }
 
     return fetched;

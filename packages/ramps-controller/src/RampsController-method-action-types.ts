@@ -529,16 +529,16 @@ export type RampsControllerRefreshAutorampsAction = {
 };
 
 /**
- * Fetches the newest page of transactions for one autoramp and publishes
- * `autorampTransactionStatusChanged` for each new id or status change.
+ * Fetches the newest page of transactions for one autoramp and calls
+ * `trackAutorampTransactionStatusChanged` for each new id or status change.
  *
- * The updated record is written before any event is published. A failed
- * fetch leaves the record untouched. Concurrent calls for the same autoramp
- * share one request. The first successful fetch seeds the record and
- * publishes nothing. When this autoramp was on the cursor at the start of
- * the fetch and was removed before the response is applied
- * (`removeAutoramp`, a cursor replace that drops the id, or a foreign VBA
- * session discard), the record is not restored and no event is published.
+ * The updated record is written before the callback runs. A failed fetch
+ * leaves the record untouched. Concurrent calls for the same autoramp share
+ * one request. The first successful fetch seeds the record and calls
+ * nothing. When this autoramp was on the cursor at the start of the fetch
+ * and was removed before the response is applied (`removeAutoramp`, a cursor
+ * replace that drops the id, or a foreign VBA session discard), the record
+ * is not restored and the callback is not called.
  *
  * @param autorampId - MoonPay autoramp id.
  * @returns Transaction summaries from the newest page.

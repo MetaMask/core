@@ -7,7 +7,7 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
   RampsControllerAutorampStatusChangedEvent,
-  RampsControllerAutorampTransactionStatusChangedEvent,
+  AutorampTransactionStatusChangedPayload,
   RampsControllerOptions,
   PaymentMethodsForContextResponse,
   UserRegion,
