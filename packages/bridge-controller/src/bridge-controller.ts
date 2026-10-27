@@ -40,6 +40,7 @@ import type {
 } from './types.js';
 import { getAssetIdsForToken, toExchangeRates } from './utils/assets.js';
 import { hasSufficientBalance } from './utils/balance.js';
+import { getAccountByAddress } from './utils/controllers/accounts.js';
 import {
   getDefaultBridgeControllerState,
   isCrossChain,
@@ -1184,10 +1185,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     if (!addressToUse) {
       throw new Error('Account address is required');
     }
-    const selectedAccount = this.messenger.call(
-      'AccountsController:getAccountByAddress',
-      addressToUse,
-    );
+    const selectedAccount = getAccountByAddress(this.messenger, addressToUse);
     return selectedAccount;
   }
 

@@ -4,6 +4,7 @@ import {
   formatChainIdToHex,
   isEvmTxData,
   getNetworkClientIdByChainId,
+  getAccountByAddress,
 } from '@metamask/bridge-controller';
 import type { TxData } from '@metamask/bridge-controller';
 import {
@@ -12,7 +13,6 @@ import {
 } from '@metamask/transaction-controller';
 
 import { BridgeStatusControllerMessenger } from '../types.js';
-import { getAccountByAddress } from '../utils/accounts.js';
 import { getApprovalTraceParams } from '../utils/trace.js';
 import {
   addTransaction,
