@@ -734,22 +734,32 @@ export class KycController extends BaseController<
   /**
    * Reports one SumSub launch outcome through `trackKycAnalytics`.
    *
+   * A callback exception is ignored. The KYC outcome is already stored, and
+   * analytics must not replace it or skip the polling that follows a submit.
+   *
    * @param status - The launch outcome.
    */
   #trackAnalyticsVerificationOutcome(
     status: KycAnalyticsVerificationOutcomePayload['status'],
   ): void {
-    this.#trackKycAnalytics?.verificationOutcome({
-      status,
-      kycStatus: this.#getKycAnalyticsStatus(),
-      providerFlowStatus: this.state.providerFlowStatus,
-      vendor: this.state.vendor,
-    });
+    try {
+      this.#trackKycAnalytics?.verificationOutcome({
+        status,
+        kycStatus: this.#getKycAnalyticsStatus(),
+        providerFlowStatus: this.state.providerFlowStatus,
+        vendor: this.state.vendor,
+      });
+    } catch {
+      // The host's tracker failed. The launch outcome stays as written.
+    }
   }
 
   /**
    * Reports an analytics KYC status change when it differs from the status
    * before the causing write.
+   *
+   * A callback exception is ignored, so a tracker failure cannot keep a
+   * finished session polling.
    *
    * @param previousAnalyticsStatus - Analytics KYC status before the causing write.
    */
@@ -760,14 +770,18 @@ export class KycController extends BaseController<
     if (kycStatus === previousAnalyticsStatus) {
       return;
     }
-    this.#trackKycAnalytics?.statusChanged({
-      ...(previousAnalyticsStatus === 'none'
-        ? {}
-        : { previousKycStatus: previousAnalyticsStatus }),
-      kycStatus,
-      providerFlowStatus: this.state.providerFlowStatus,
-      vendor: this.state.vendor,
-    });
+    try {
+      this.#trackKycAnalytics?.statusChanged({
+        ...(previousAnalyticsStatus === 'none'
+          ? {}
+          : { previousKycStatus: previousAnalyticsStatus }),
+        kycStatus,
+        providerFlowStatus: this.state.providerFlowStatus,
+        vendor: this.state.vendor,
+      });
+    } catch {
+      // The host's tracker failed. The stored session stays as written.
+    }
   }
 
   /**

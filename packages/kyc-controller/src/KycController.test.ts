@@ -1992,6 +1992,63 @@ describe('KycController', () => {
       );
     });
 
+    it('keeps a submitted launch when the analytics callbacks throw', async () => {
+      await withController(
+        {
+          options: {
+            state: { vendor: 'iron', sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: {
+              verificationOutcome: () => {
+                throw new Error('analytics down');
+              },
+              statusChanged: () => {
+                throw new Error('analytics down');
+              },
+            },
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Completed' });
+          handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('submitted');
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+          expect(handlers.getSessionStatus).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('stops polling an approval when the analytics callback throws', async () => {
+      vi.useFakeTimers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('pending') },
+            trackKycAnalytics: {
+              verificationOutcome: vi.fn(),
+              statusChanged: () => {
+                throw new Error('analytics down');
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          controller.startSessionStatusPolling();
+          await vi.advanceTimersByTimeAsync(60_000);
+
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+          expect(handlers.getSessionStatus).toHaveBeenCalledOnce();
+        },
+      );
+    });
+
     it('leaves KYC behavior unchanged when no tracker is passed', async () => {
       await withController(
         { options: { state: { sessionStatus: sessionStatus('new') } } },
