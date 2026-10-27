@@ -80,7 +80,7 @@ class SpikeAssetsService extends BaseDataService<
 }
 
 const jsonRoundTrip = <Value>(value: Value): Value =>
-  value === undefined ? value : JSON.parse(JSON.stringify(value));
+  value === undefined ? value : (JSON.parse(JSON.stringify(value)) as Value);
 
 /**
  * Builds a background service and a UI client connected by an adapter that
@@ -145,15 +145,30 @@ function setup(): {
 
 const queryKey = [`${serviceName}:fetchAccountAssets`, 'account-1'];
 
+type ProjectedStatus = {
+  status: 'pending' | 'success' | 'error';
+  fetchStatus: 'fetching' | 'paused' | 'idle';
+  error: string | null;
+  updatedAt: number;
+};
+
+const projectQueryStatus = (query: Query): ProjectedStatus => ({
+  status: query.state.status,
+  fetchStatus: query.state.fetchStatus,
+  error: query.state.error?.message ?? null,
+  updatedAt: Math.max(query.state.dataUpdatedAt, query.state.errorUpdatedAt),
+});
+
 const flush = async (): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
 describe('ASSETS-4065 spike: loading state across the bridge', () => {
-  it('UI-initiated fetches expose accurate loading and error state in the UI', async () => {
+  it('ui-initiated fetches expose accurate loading and error state in the UI', async () => {
     const { service, uiClient } = setup();
     const deferred = createDeferredPromise<SpikeAssetsResponse>();
-    service.handler = async () => deferred.promise;
+    service.handler = async (): Promise<SpikeAssetsResponse> =>
+      deferred.promise;
 
     const observer = new QueryObserver(uiClient, { queryKey, retry: false });
     const unsubscribe = observer.subscribe(() => undefined);
@@ -173,7 +188,8 @@ describe('ASSETS-4065 spike: loading state across the bridge', () => {
   it('background-initiated fetches are invisible to UI fetchStatus', async () => {
     const { service, uiClient, listenerErrors, payloads } = setup();
     const deferred = createDeferredPromise<SpikeAssetsResponse>();
-    service.handler = async () => deferred.promise;
+    service.handler = async (): Promise<SpikeAssetsResponse> =>
+      deferred.promise;
 
     // Observing (but not fetching) subscribes the UI to `cacheUpdated`.
     const observer = new QueryObserver(uiClient, { queryKey, enabled: false });
@@ -216,7 +232,10 @@ describe('ASSETS-4065 spike: loading state across the bridge', () => {
 
   it('a background refetch failure after a success never reaches the UI', async () => {
     const { service, uiClient, payloads } = setup();
-    service.handler = async () => ({ balances: { a: '1' }, errors: {} });
+    service.handler = async (): Promise<SpikeAssetsResponse> => ({
+      balances: { a: '1' },
+      errors: {},
+    });
 
     const observer = new QueryObserver(uiClient, { queryKey, enabled: false });
     const unsubscribe = observer.subscribe(() => undefined);
@@ -224,7 +243,7 @@ describe('ASSETS-4065 spike: loading state across the bridge', () => {
     await flush();
     expect(observer.getCurrentResult().status).toBe('success');
 
-    service.handler = async () => {
+    service.handler = async (): Promise<SpikeAssetsResponse> => {
       throw new Error('RPC fetch failed');
     };
     await service.invalidate();
@@ -247,7 +266,7 @@ describe('ASSETS-4065 spike: loading state across the bridge', () => {
 
   it('a query "succeeds" even when some chains failed (partial failure is data, not query state)', async () => {
     const { uiClient, service } = setup();
-    service.handler = async () => ({
+    service.handler = async (): Promise<SpikeAssetsResponse> => ({
       balances: { 'eip155:1/slip44:60': '1' },
       errors: { 'eip155:56': 'Unprocessed by Accounts API' },
     });
@@ -261,35 +280,17 @@ describe('ASSETS-4065 spike: loading state across the bridge', () => {
   });
 
   it('option (a) prototype: projecting background query status into JSON state captures everything', async () => {
-    type ProjectedStatus = {
-      status: 'pending' | 'success' | 'error';
-      fetchStatus: 'fetching' | 'paused' | 'idle';
-      error: string | null;
-      updatedAt: number;
-    };
     const backgroundClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
     // Stand-in for `AssetsController.update(...)`: JSON-only, patch-friendly.
     let controllerState: Record<string, ProjectedStatus> = {};
-    const project = (query: Query): void => {
+    backgroundClient.getQueryCache().subscribe(({ query }) => {
       controllerState = jsonRoundTrip({
         ...controllerState,
-        [JSON.stringify(query.queryKey)]: {
-          status: query.state.status,
-          fetchStatus: query.state.fetchStatus,
-          error:
-            query.state.error instanceof Error
-              ? query.state.error.message
-              : null,
-          updatedAt: Math.max(
-            query.state.dataUpdatedAt,
-            query.state.errorUpdatedAt,
-          ),
-        },
+        [JSON.stringify(query.queryKey)]: projectQueryStatus(query as Query),
       });
-    };
-    backgroundClient.getQueryCache().subscribe(({ query }) => project(query));
+    });
 
     const key = ['assets', 'account-1', 'eip155:56'];
     const deferred = createDeferredPromise<Json>();
