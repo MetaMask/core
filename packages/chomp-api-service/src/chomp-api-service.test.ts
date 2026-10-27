@@ -15,7 +15,7 @@ const BASE_URL = 'https://api.chomp.example.com';
 const MOCK_TOKEN = 'mock-jwt-token';
 
 describe('ChompApiService', () => {
-   afterEach(() => {
+  afterEach(() => {
     nock.cleanAll();
   });
 
