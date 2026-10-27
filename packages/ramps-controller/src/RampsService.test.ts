@@ -26,6 +26,7 @@ describe('RampsService', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    cleanAll();
   });
 
   describe('RampsService:getGeolocation', () => {
@@ -184,6 +185,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
+      geolocationPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
       await expect(geolocationPromise).rejects.toThrow(
@@ -203,12 +205,13 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(() => undefined);
+        vi.runOnlyPendingTimersAsync().catch(() => undefined);
       });
 
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
+      geolocationPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
       await expect(geolocationPromise).rejects.toThrow(
@@ -260,12 +263,13 @@ describe('RampsService', () => {
         .reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(() => undefined);
+        vi.runOnlyPendingTimersAsync().catch(() => undefined);
       });
 
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
+      geolocationPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
       await expect(geolocationPromise).rejects.toThrow(
@@ -290,7 +294,7 @@ describe('RampsService', () => {
         },
       });
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(() => undefined);
+        vi.runOnlyPendingTimersAsync().catch(() => undefined);
       });
 
       await expect(
@@ -617,10 +621,11 @@ describe('RampsService', () => {
         .reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(() => undefined);
+        vi.runOnlyPendingTimersAsync().catch(() => undefined);
       });
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
+      countriesPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
       await expect(countriesPromise).rejects.toThrow(
@@ -640,6 +645,7 @@ describe('RampsService', () => {
       const { rootMessenger } = getService();
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
+      countriesPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
       await expect(countriesPromise).rejects.toThrow(
@@ -659,6 +665,7 @@ describe('RampsService', () => {
       const { rootMessenger } = getService();
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
+      countriesPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
       await expect(countriesPromise).rejects.toThrow(
@@ -1061,6 +1068,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us', 'buy');
+      tokensPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1090,6 +1098,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us', 'buy');
+      tokensPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1119,6 +1128,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us', 'buy');
+      tokensPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1148,6 +1158,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us', 'buy');
+      tokensPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1241,10 +1252,11 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(() => undefined);
+        vi.runOnlyPendingTimersAsync().catch(() => undefined);
       });
 
       const tokensPromise = service.getTokens('us', 'buy');
+      tokensPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1652,6 +1664,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us');
+      providersPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1672,6 +1685,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us');
+      providersPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1692,6 +1706,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us');
+      providersPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1712,10 +1727,11 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(() => undefined);
+        vi.runOnlyPendingTimersAsync().catch(() => undefined);
       });
 
       const providersPromise = service.getProviders('us');
+      providersPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1851,6 +1867,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
+      paymentMethodsPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1877,6 +1894,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
+      paymentMethodsPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1903,6 +1921,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
+      paymentMethodsPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1925,7 +1944,7 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(() => undefined);
+        vi.runOnlyPendingTimersAsync().catch(() => undefined);
       });
 
       const paymentMethodsPromise = service.getPaymentMethods({
@@ -1933,6 +1952,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
+      paymentMethodsPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2314,6 +2334,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
+      quotesPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2348,6 +2369,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
+      quotesPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2382,6 +2404,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
+      quotesPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2421,6 +2444,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
+      quotesPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2460,6 +2484,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
+      quotesPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2499,6 +2524,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
+      quotesPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2526,7 +2552,7 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(() => undefined);
+        vi.runOnlyPendingTimersAsync().catch(() => undefined);
       });
 
       const quotesPromise = service.getQuotes({
@@ -2537,6 +2563,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
+      quotesPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2729,12 +2756,13 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(() => undefined);
+        vi.runOnlyPendingTimersAsync().catch(() => undefined);
       });
 
       const buyWidgetPromise = service.getBuyWidgetUrl(
         'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
       );
+      buyWidgetPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2765,6 +2793,7 @@ describe('RampsService', () => {
         'RampsService:getBuyWidgetUrl',
         'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
       );
+      buyWidgetPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2934,7 +2963,7 @@ describe('RampsService', () => {
         .reply(404, 'Not Found');
       const { service } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(() => undefined);
+        vi.runOnlyPendingTimersAsync().catch(() => undefined);
       });
 
       const orderPromise = service.getOrder(
@@ -2942,6 +2971,7 @@ describe('RampsService', () => {
         'abc-123',
         '0xabc',
       );
+      orderPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2966,6 +2996,7 @@ describe('RampsService', () => {
         'abc-123',
         '0xabc',
       );
+      orderPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -3171,6 +3202,7 @@ describe('RampsService', () => {
         'https://metamask.app.link/on-ramp?orderId=abc-123',
         '0xabc',
       );
+      orderPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -3192,7 +3224,7 @@ describe('RampsService', () => {
         .reply(500, 'Internal Server Error');
       const { service } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(() => undefined);
+        vi.runOnlyPendingTimersAsync().catch(() => undefined);
       });
 
       const orderPromise = service.getOrderFromCallback(
@@ -3200,6 +3232,7 @@ describe('RampsService', () => {
         'https://metamask.app.link/on-ramp?orderId=abc-123',
         '0xabc',
       );
+      orderPromise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
