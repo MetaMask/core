@@ -1902,7 +1902,7 @@ describe('KycController', () => {
       );
     });
 
-    it('tracks a KYC status change without a previous status when the session is first created', async () => {
+    it('tracks a KYC status change with a none previous status when the session is first created', async () => {
       const analytics = createAnalyticsTrackers();
       await withController(
         { options: { trackKycAnalytics: analytics.trackKycAnalytics } },
@@ -1916,9 +1916,38 @@ describe('KycController', () => {
 
           expect(analytics.status).toStrictEqual([
             {
+              previousKycStatus: 'none',
               kycStatus: 'new',
               providerFlowStatus: 'not_started',
               vendor: 'iron',
+            },
+          ]);
+        },
+      );
+    });
+
+    it('reports none rather than omitting the previous status when the stored status was unrecognized', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('mystery') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(analytics.status).toStrictEqual([
+            {
+              previousKycStatus: 'none',
+              kycStatus: 'approved',
+              providerFlowStatus: 'not_started',
+              vendor: null,
             },
           ]);
         },

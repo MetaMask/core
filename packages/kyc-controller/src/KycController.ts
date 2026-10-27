@@ -772,9 +772,7 @@ export class KycController extends BaseController<
     }
     try {
       this.#trackKycAnalytics?.statusChanged({
-        ...(previousAnalyticsStatus === 'none'
-          ? {}
-          : { previousKycStatus: previousAnalyticsStatus }),
+        previousKycStatus: previousAnalyticsStatus,
         kycStatus,
         providerFlowStatus: this.state.providerFlowStatus,
         vendor: this.state.vendor,

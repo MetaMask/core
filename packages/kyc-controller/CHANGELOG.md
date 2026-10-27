@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add an optional `trackKycAnalytics` constructor option for KYC analytics ([#11041](https://github.com/MetaMask/core/pull/11041))
   - `verificationOutcome` is called after the state write for each SumSub launch attempt (`submitted`, `abandoned`, `failed`), including a repeat of the previous outcome and the failures that leave state unchanged. The payload is `status`, `kycStatus`, `providerFlowStatus` and `vendor`
-  - `statusChanged` is called after any state write that changes the analytics KYC status (for example `new` to `pending`, `pending` to `approved`, or `pending` to `retry`). The payload is `previousKycStatus` (absent when the session was just created), `kycStatus`, `providerFlowStatus` and `vendor`
+  - `statusChanged` is called after any state write that changes the analytics KYC status (for example `new` to `pending`, `pending` to `approved`, or `pending` to `retry`). The payload is `previousKycStatus`, `kycStatus`, `providerFlowStatus` and `vendor`. `previousKycStatus` is always present and is `none` when nothing was stored before, which covers both a session that was just created and a stored `finalStatus` outside `KYC_ANALYTICS_STATUSES`, so an absent field never has to be read as "first observation"
   - Loading a session into an empty slot (for example after a reinstall) calls neither callback
   - Neither payload carries session id, email, disclaimer or token data
   - A callback that throws leaves the stored KYC outcome unchanged. `launchProviderFlow` still returns the outcome it wrote, and polling still stops when a session reaches `approved`, `rejected`, or `retry`

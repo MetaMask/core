@@ -53,10 +53,13 @@ export type KycAnalyticsVerificationOutcomePayload = {
  */
 export type KycAnalyticsStatusChangedPayload = {
   /**
-   * Analytics KYC status before the change. Absent when no status was stored
-   * before (the session was just created).
+   * Analytics KYC status before the change. `'none'` when no status was
+   * stored before, which covers both a session that was just created and a
+   * stored `finalStatus` outside {@link KYC_ANALYTICS_STATUSES}. Always
+   * present, so a consumer never has to read an absent field as "first
+   * observation".
    */
-  previousKycStatus?: KycAnalyticsStatus;
+  previousKycStatus: KycAnalyticsStatus;
   /** Analytics KYC status after the change. */
   kycStatus: KycAnalyticsStatus;
   providerFlowStatus: KycProviderFlowStatus;
