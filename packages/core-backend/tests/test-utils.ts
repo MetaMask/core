@@ -8,9 +8,10 @@ import type { Mock } from 'vitest';
 
 import { ApiPlatformClient } from '../src/api/ApiPlatformClient.js';
 
-// Mock fetch globally
+// Mock for the global `fetch`. Call `setupTestEnvironment` (or stub it with
+// `vi.stubGlobal`) in a `beforeEach`, because `unstubGlobals` undoes the stub
+// after each test.
 export const mockFetch: Mock = vi.fn();
-(globalThis as typeof globalThis & { fetch: Mock }).fetch = mockFetch;
 
 /**
  * Helper to create a mock Response.
@@ -72,5 +73,6 @@ export function createTestClient(): ApiPlatformClient {
 export function setupTestEnvironment(): { client: ApiPlatformClient } {
   vi.clearAllMocks();
   mockFetch.mockReset();
+  vi.stubGlobal('fetch', mockFetch);
   return { client: createTestClient() };
 }

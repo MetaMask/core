@@ -7,7 +7,6 @@ import type {
 } from '@metamask/messenger';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { advanceTime } from '../../../../tests/vitest/helpers.js';
 import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service/index.js';
 import {
   Cryptocurrency,
@@ -175,7 +174,7 @@ describe('RatesController', () => {
         `${ratesControllerName}:pollingStarted`,
       );
 
-      await advanceTime({ duration: 200 });
+      await vi.advanceTimersByTimeAsync(200);
 
       const ratesPosUpdate = ratesController.state.rates;
 
@@ -240,7 +239,7 @@ describe('RatesController', () => {
 
       await ratesController.start();
 
-      await advanceTime({ duration: 200 });
+      await vi.advanceTimersByTimeAsync(200);
 
       const { rates } = ratesController.state;
       expect(fetchExchangeRateStub).toHaveBeenCalled();
@@ -293,7 +292,7 @@ describe('RatesController', () => {
         `${ratesControllerName}:pollingStarted`,
       );
 
-      await advanceTime({ duration: 200 });
+      await vi.advanceTimersByTimeAsync(200);
 
       expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 
@@ -305,7 +304,7 @@ describe('RatesController', () => {
         `${ratesControllerName}:pollingStopped`,
       );
 
-      await advanceTime({ duration: 200 });
+      await vi.advanceTimersByTimeAsync(200);
 
       expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
 

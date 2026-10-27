@@ -26,7 +26,6 @@ import BN from 'bn.js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
-import { advanceTime } from '../../../tests/vitest/helpers.js';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
   buildCustomNetworkClientConfiguration,
@@ -1923,15 +1922,15 @@ describe('AccountTrackerController', () => {
           networkClientIds: ['networkClientId1'],
           queryAllAccounts: true,
         });
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
 
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
-        await advanceTime({ duration: 50 });
+        await vi.advanceTimersByTimeAsync(50);
 
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
-        await advanceTime({ duration: 50 });
+        await vi.advanceTimersByTimeAsync(50);
 
         expect(pollSpy).toHaveBeenCalledTimes(2);
       },
@@ -1956,12 +1955,12 @@ describe('AccountTrackerController', () => {
           queryAllAccounts: true,
         });
 
-        await advanceTime({ duration: 0 });
+        await vi.advanceTimersByTimeAsync(0);
         expect(refreshSpy).toHaveBeenNthCalledWith(1, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(1);
-        await advanceTime({ duration: 50 });
+        await vi.advanceTimersByTimeAsync(50);
         expect(refreshSpy).toHaveBeenCalledTimes(1);
-        await advanceTime({ duration: 50 });
+        await vi.advanceTimersByTimeAsync(50);
         expect(refreshSpy).toHaveBeenNthCalledWith(2, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(2);
 
@@ -1970,23 +1969,23 @@ describe('AccountTrackerController', () => {
           queryAllAccounts: true,
         });
 
-        await advanceTime({ duration: 0 });
+        await vi.advanceTimersByTimeAsync(0);
         expect(refreshSpy).toHaveBeenNthCalledWith(3, [networkClientId2], true);
         expect(refreshSpy).toHaveBeenCalledTimes(3);
-        await advanceTime({ duration: 100 });
+        await vi.advanceTimersByTimeAsync(100);
         expect(refreshSpy).toHaveBeenNthCalledWith(4, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenNthCalledWith(5, [networkClientId2], true);
         expect(refreshSpy).toHaveBeenCalledTimes(5);
 
         controller.stopPollingByPollingToken(pollToken);
 
-        await advanceTime({ duration: 100 });
+        await vi.advanceTimersByTimeAsync(100);
         expect(refreshSpy).toHaveBeenNthCalledWith(6, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(6);
 
         controller.stopAllPolling();
 
-        await advanceTime({ duration: 100 });
+        await vi.advanceTimersByTimeAsync(100);
 
         expect(refreshSpy).toHaveBeenCalledTimes(6);
       },
@@ -2007,7 +2006,7 @@ describe('AccountTrackerController', () => {
           queryAllAccounts: true,
         });
 
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         expect(refreshSpy).toHaveBeenCalledTimes(1);
       },
     );

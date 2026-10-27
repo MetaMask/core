@@ -259,7 +259,8 @@ const flushPromises = async (): Promise<void> => {
 type Mocks = {
   getServiceDetails: Mock;
   signPersonalMessage: Mock;
-  associateAddress: Mock;
+  createAddressChallenge: Mock;
+  associateAddressV2: Mock;
   getAssociatedAddresses: Mock;
   createUpgrade: Mock;
   signEip7702Authorization: Mock;
@@ -347,7 +348,12 @@ function setup({
   const mocks: Mocks = {
     getServiceDetails: vi.fn().mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE),
     signPersonalMessage: vi.fn().mockResolvedValue('0xdeadbeef'),
-    associateAddress: vi.fn().mockResolvedValue({
+    createAddressChallenge: vi.fn().mockResolvedValue({
+      challengeId: '7b1e6f0c-1f3a-4d2b-9c8e-2a4b6c8d0e1f',
+      message: 'chomp.example.com wants you to sign in',
+      expiresAt: '2026-04-21T12:05:00.000Z',
+    }),
+    associateAddressV2: vi.fn().mockResolvedValue({
       profileId: 'profile-1',
       address: MOCK_ACCOUNT_ADDRESS,
       status: 'created',
@@ -416,8 +422,12 @@ function setup({
     mocks.signPersonalMessage,
   );
   rootMessenger.registerActionHandler(
-    'ChompApiService:associateAddress',
-    mocks.associateAddress,
+    'ChompApiService:createAddressChallenge',
+    mocks.createAddressChallenge,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:associateAddressV2',
+    mocks.associateAddressV2,
   );
   rootMessenger.registerActionHandler(
     'ChompApiService:getAssociatedAddresses',
@@ -474,7 +484,8 @@ function setup({
       'ChompApiService:getServiceDetails',
       'KeyringController:getState',
       'KeyringController:signPersonalMessage',
-      'ChompApiService:associateAddress',
+      'ChompApiService:createAddressChallenge',
+      'ChompApiService:associateAddressV2',
       'ChompApiService:getAssociatedAddresses',
       'ChompApiService:createUpgrade',
       'KeyringController:signEip7702Authorization',
@@ -1231,7 +1242,7 @@ describe('MoneyAccountUpgradeController', () => {
         await bootstrap();
 
         let releaseAssociate: () => void = () => undefined;
-        mocks.associateAddress.mockImplementationOnce(
+        mocks.associateAddressV2.mockImplementationOnce(
           async () =>
             new Promise((resolve) => {
               releaseAssociate = (): void =>
@@ -1244,7 +1255,7 @@ describe('MoneyAccountUpgradeController', () => {
         );
         const upgrade = controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
         await flushPromises();
-        expect(mocks.associateAddress).toHaveBeenCalled();
+        expect(mocks.associateAddressV2).toHaveBeenCalled();
 
         await triggerKeyringChange();
         expect(mocks.getServiceDetails).toHaveBeenCalledTimes(2);
@@ -1594,7 +1605,7 @@ describe('MoneyAccountUpgradeController', () => {
       expect(mocks.signPersonalMessage).toHaveBeenCalledWith(
         expect.objectContaining({ from: MOCK_ACCOUNT_ADDRESS }),
       );
-      expect(mocks.associateAddress).toHaveBeenCalledWith(
+      expect(mocks.createAddressChallenge).toHaveBeenCalledWith(
         expect.objectContaining({ address: MOCK_ACCOUNT_ADDRESS }),
       );
       expect(mocks.signEip7702Authorization).toHaveBeenCalledWith(
