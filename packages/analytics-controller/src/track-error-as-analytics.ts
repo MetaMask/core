@@ -186,7 +186,8 @@ function resolveNonNegativeNumber(
  * Applies volume controls and reserves session budget when the error should
  * be emitted.
  *
- * The signature is the event name, source, and sanitized message.
+ * The signature is an unambiguous JSON encoding of the event name, source,
+ * and sanitized message, so values that contain `:` cannot collide.
  * Call {@link releaseErrorTrackingReservation} if delivery throws, so a
  * failed report does not consume the cap or suppress the next attempt.
  *
@@ -232,7 +233,11 @@ export function reserveErrorOccurredEvent(
   }
 
   const errorMessage = normalizeError(error);
-  const signature = [ERROR_OCCURRED_EVENT_NAME, source, errorMessage].join(':');
+  const signature = JSON.stringify([
+    ERROR_OCCURRED_EVENT_NAME,
+    source,
+    errorMessage,
+  ]);
   const lastEmittedAt = session.lastEmittedAtBySignature.get(signature);
   if (lastEmittedAt !== undefined && now - lastEmittedAt < dedupWindowMs) {
     return undefined;

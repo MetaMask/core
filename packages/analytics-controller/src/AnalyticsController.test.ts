@@ -6634,6 +6634,19 @@ describe('AnalyticsController', () => {
         expect(platformAdapter.track).toHaveBeenCalledTimes(2);
       });
 
+      it('does not collide when source and message contain colon delimiters', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(new Error('failed'), {
+          source: 'rpc:request',
+        });
+        controller.trackErrorAsAnalytics(new Error('request:failed'), {
+          source: 'rpc',
+        });
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(2);
+      });
+
       it('suppresses all events once the session cap is reached', async () => {
         const { controller, platformAdapter } = await setupTrackingController();
         const options = {
