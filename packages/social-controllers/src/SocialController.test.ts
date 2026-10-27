@@ -5,7 +5,6 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import debug from 'debug';
 import type { Mock } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -689,8 +688,8 @@ describe('SocialController', () => {
 
     beforeEach(() => {
       logged.length = 0;
-      debug.enable('metamask:social-controllers:social-controller');
-      log.log = (...args: unknown[]) => {
+      log.enabled = true;
+      log.log = (...args: unknown[]): void => {
         logged.push(args);
       };
     });
@@ -710,12 +709,12 @@ describe('SocialController', () => {
       );
       const { controller } = createController({ rootMessenger });
 
-      await expect(
-        controller.translateComment({
+      expect(
+        await controller.translateComment({
           commentId: 'comment-1',
           targetLanguage: 'en',
         }),
-      ).resolves.toStrictEqual(translation);
+      ).toStrictEqual(translation);
       expect(translateComment).toHaveBeenCalledWith({
         commentId: 'comment-1',
         targetLanguage: 'en',
@@ -747,7 +746,7 @@ describe('SocialController', () => {
       ).rejects.toThrow(
         `${SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}: 404`,
       );
-      expect(logged[0]?.[0]).toEqual(
+      expect(logged[0]?.[0]).toStrictEqual(
         expect.stringContaining('Translation endpoint does not exist yet'),
       );
     });
@@ -768,7 +767,7 @@ describe('SocialController', () => {
           targetLanguage: 'en',
         }),
       ).rejects.toThrow('translation unavailable');
-      expect(logged[0]?.[0]).toEqual(
+      expect(logged[0]?.[0]).toStrictEqual(
         expect.stringContaining('translation unavailable'),
       );
     });

@@ -153,6 +153,28 @@ const toCommentEngagement = (value: unknown): CommentEngagement => {
   };
 };
 
+const readSourceLanguage = (value: unknown): string | null | undefined => {
+  if (value === null || typeof value === 'string') {
+    return value;
+  }
+  return undefined;
+};
+
+const readTranslations = (
+  value: unknown,
+): Record<string, string> | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const translations: Record<string, string> = {};
+  for (const [language, text] of Object.entries(value)) {
+    if (typeof text === 'string') {
+      translations[language] = text;
+    }
+  }
+  return translations;
+};
+
 const toAuthorComment = (value: unknown): AuthorComment | null => {
   if (!isRecord(value)) {
     return null;
@@ -183,28 +205,6 @@ const toAuthorComment = (value: unknown): AuthorComment | null => {
       ...(engagement.replyCount === undefined ? { replyCount } : {}),
     },
   };
-};
-
-const readSourceLanguage = (value: unknown): string | null | undefined => {
-  if (value === null || typeof value === 'string') {
-    return value;
-  }
-  return undefined;
-};
-
-const readTranslations = (
-  value: unknown,
-): Record<string, string> | undefined => {
-  if (!isRecord(value)) {
-    return undefined;
-  }
-  const translations: Record<string, string> = {};
-  for (const [language, text] of Object.entries(value)) {
-    if (typeof text === 'string') {
-      translations[language] = text;
-    }
-  }
-  return translations;
 };
 
 const toLatestAuthorComment = (
