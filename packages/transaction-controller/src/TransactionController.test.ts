@@ -44,7 +44,7 @@ import { v1 as uuidV1 } from 'uuid';
 import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flushPromises, advanceTime } from '../../../tests/vitest/helpers.js';
+import { flushPromises } from '../../../tests/vitest/helpers.js';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockFindNetworkClientIdByChainId,
@@ -2275,7 +2275,7 @@ describe('TransactionController', () => {
           updateToInitialState: true,
         });
 
-        await advanceTime({ duration: RESIMULATE_INTERVAL_MS });
+        await vi.advanceTimersByTimeAsync(RESIMULATE_INTERVAL_MS);
 
         expect(getBalanceChangesMock).not.toHaveBeenCalled();
         expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
