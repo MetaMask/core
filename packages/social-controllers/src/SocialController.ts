@@ -308,6 +308,7 @@ export class SocialController extends BaseController<
   async translateComment(
     options: TranslateCommentOptions,
   ): Promise<CommentTranslation> {
+    // TODO: Remove this try/catch once the translation endpoint is ready.
     try {
       return await this.messenger.call(
         'SocialService:translateComment',
