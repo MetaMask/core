@@ -7156,7 +7156,7 @@ describe('KeyringController', () => {
         async ({ controller }) => {
           await controller.submitPassword(password);
 
-          const hdGetAccounts = jest.spyOn(HdKeyring.prototype, 'getAccounts');
+          const hdGetAccounts = vi.spyOn(HdKeyring.prototype, 'getAccounts');
           hdGetAccounts.mockClear();
 
           await expect(
@@ -7390,14 +7390,14 @@ describe('KeyringController', () => {
 
     it('drops the operated keyring created and drained by the same transaction when its destruction fails, preserving the original error', async () => {
       await withController(async ({ controller }) => {
-        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        vi.spyOn(console, 'error').mockImplementation(() => undefined);
         const accountsBefore = await controller.getAccounts();
 
         await expect(
           controller.withKeyring(
             { type: KeyringTypes.simple },
             async ({ keyring }) => {
-              const destroy = jest
+              const destroy = vi
                 .fn()
                 .mockRejectedValue(new Error('Cannot destroy'));
               (

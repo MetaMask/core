@@ -2569,7 +2569,7 @@
       "count": 1
     },
     "vitest/no-conditional-in-test": {
-      "count": 4
+      "count": 5
     }
   },
   "packages/keyring-controller/src/KeyringController.ts": {
