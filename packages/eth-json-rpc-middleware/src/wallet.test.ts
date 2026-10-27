@@ -1,6 +1,7 @@
 import { MessageTypes, TypedMessage } from '@metamask/eth-sig-util';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import type { Hex, Json } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createHandleParams, createRequest } from '../test/util/helpers.js';
 import type {
@@ -108,7 +109,7 @@ describe('wallet', () => {
     });
 
     it('uses the chain ID of the transaction as the scope', async () => {
-      const getAccounts = jest.fn().mockResolvedValue(testAddresses.slice());
+      const getAccounts = vi.fn().mockResolvedValue(testAddresses.slice());
       const processTransaction = async (): Promise<string> => testTxHash;
       const engine = JsonRpcEngineV2.create({
         middleware: [
@@ -130,8 +131,8 @@ describe('wallet', () => {
     });
 
     it('uses the chain ID of the network client as the scope if the transaction has no chain ID and the context has no scope', async () => {
-      const getAccounts = jest.fn().mockResolvedValue(testAddresses.slice());
-      const getNetworkClientByIdMock = jest.fn(getNetworkClientById);
+      const getAccounts = vi.fn().mockResolvedValue(testAddresses.slice());
+      const getNetworkClientByIdMock = vi.fn(getNetworkClientById);
       const processTransaction = async (): Promise<string> => testTxHash;
       const engine = JsonRpcEngineV2.create({
         middleware: [
@@ -587,7 +588,7 @@ describe('wallet', () => {
       await expect(
         engine.handle(...createHandleParams(payload)),
       ).rejects.toThrow(
-        new Error('Invalid parameters: must provide an Ethereum address.'),
+        'Invalid parameters: must provide an Ethereum address.',
       );
     });
 
@@ -1120,7 +1121,7 @@ describe('wallet', () => {
       await expect(
         engine.handle(...createHandleParams(payload)),
       ).rejects.toThrow(
-        new Error('Invalid parameters: must provide an Ethereum address.'),
+        'Invalid parameters: must provide an Ethereum address.',
       );
     });
 

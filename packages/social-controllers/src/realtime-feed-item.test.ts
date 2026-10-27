@@ -19,6 +19,8 @@ const fullHydratedPosition = {
       metadata: {
         winRate30d: 0.75,
         pnl30d: 120,
+        volumeUsd30d: 45000,
+        volumeUsd7d: 8000,
         tradeCount30d: 8,
       },
     },
@@ -164,6 +166,8 @@ describe('parseRealtimeFeedItem', () => {
         profileId: 'profile-1',
         imageUrl: 'small-avatar',
         winRate30d: 0.75,
+        volumeUsd30d: 45000,
+        volumeUsd7d: 8000,
       },
       authorComment: {
         uid: 'comment-1',
@@ -296,6 +300,8 @@ describe('parseRealtimeFeedItem', () => {
       actor: {
         imageUrl: null,
         winRate30d: null,
+        volumeUsd30d: null,
+        volumeUsd7d: null,
       },
       copyCount: 0,
       firstTradeAt: null,
@@ -358,5 +364,38 @@ describe('parseRealtimeFeedItem', () => {
     };
 
     expect(normalizeRealtimeFeedItem(value)?.authorComment).toBeNull();
+  });
+
+  it('copies position flags from the hydrated card and ignores metadata', () => {
+    const fromMetadataOnly = normalizeRealtimeFeedItem({
+      ...fullHydratedPosition,
+      metadata: {
+        ...fullHydratedPosition.metadata,
+        flags: ['insider'],
+      },
+    });
+    const fromCard = normalizeRealtimeFeedItem({
+      ...fullHydratedPosition,
+      metadata: {
+        ...fullHydratedPosition.metadata,
+        flags: ['insider'],
+      },
+      flags: ['developer', 'future-flag'],
+    });
+    const absent = normalizeRealtimeFeedItem(fullHydratedPosition);
+
+    expect(fromMetadataOnly?.flags).toBeUndefined();
+    expect(fromCard?.flags).toStrictEqual(['developer', 'future-flag']);
+    expect(absent?.flags).toBeUndefined();
+  });
+
+  it('keeps flags on an already normalized feed item', () => {
+    const normalized = normalizeRealtimeFeedItem(fullHydratedPosition);
+    const flagged = { ...normalized, flags: ['insider'] };
+
+    expect(parseRealtimeFeedItem(flagged)?.flags).toStrictEqual(['insider']);
+    expect(
+      parseRealtimeFeedItem({ ...normalized, flags: 'insider' }),
+    ).toBeUndefined();
   });
 });

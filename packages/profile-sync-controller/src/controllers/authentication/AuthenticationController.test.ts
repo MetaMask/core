@@ -3025,6 +3025,7 @@ describe('MFA credential enrollment', () => {
     });
     const existing = [
       {
+        id: 'existing-passkey-id',
         type: 'passkey',
         status: 'active',
         displayName: 'Existing passkey',
@@ -3067,6 +3068,7 @@ describe('MFA credential enrollment', () => {
         ...mockSignedInState(),
         enrolledCredentials: [
           {
+            id: 'email_otp',
             type: 'email_otp',
             status: 'active',
             email: 'user@example.com',
@@ -4188,6 +4190,292 @@ describe('MFA credential verification', () => {
       }
     });
   });
+
+  describe('requestMfaApproval', () => {
+    const request = {
+      requestHash: `0x${'a'.repeat(64)}`,
+      audiences: ['escrow'],
+      reason: { operation: 'recovery.approve' },
+    };
+
+    /**
+     * Answers the next request with an approval and returns the fetch spy.
+     *
+     * @returns The fetch spy.
+     */
+    function mockApproval(): MockInstance {
+      return vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValueOnce(
+          new globalThis.Response(
+            JSON.stringify({ approval: 'approval-jwt', expires_in: 300 }),
+            { status: 200 },
+          ),
+        );
+    }
+
+    /**
+     * Reads the bearer and body of the approval request.
+     *
+     * @param fetchSpy - The fetch spy.
+     * @returns The bearer and the parsed body.
+     */
+    function getSentRequest(fetchSpy: MockInstance): {
+      authorization: string | null;
+      body: unknown;
+    } {
+      const init = fetchSpy.mock.calls[0][1] as RequestInit;
+      return {
+        authorization: new globalThis.Headers(init.headers).get(
+          'Authorization',
+        ),
+        body: JSON.parse(init.body as string),
+      };
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('requests an approval with the base session token', async () => {
+      const setAttribute = vi.fn();
+      const trace = vi.fn(
+        (
+          _request: unknown,
+          fn?: (context?: unknown) => unknown,
+        ): Promise<unknown> => Promise.resolve(fn?.({ setAttribute })),
+      ) as unknown as TraceCallback;
+      const { controller } = createController({ trace });
+      const fetchSpy = mockApproval();
+
+      expect(
+        await controller.requestMfaApproval({
+          ...request,
+          includeIdentifiers: false,
+        }),
+      ).toStrictEqual({ approval: 'approval-jwt', expiresIn: 300 });
+
+      const base =
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].token
+          .accessToken;
+      expect(getSentRequest(fetchSpy)).toStrictEqual({
+        authorization: `Bearer ${base}`,
+        body: {
+          request_hash: request.requestHash,
+          audiences: ['escrow'],
+          include_identifiers: false,
+        },
+      });
+      expect(trace).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'MFA Approval',
+          tags: { operation: 'recovery.approve', credentialType: 'none' },
+        }),
+        expect.any(Function),
+      );
+    });
+
+    it('proves a recent verification with the verification token', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const verificationToken = controller.getVerificationToken()?.accessToken;
+      const fetchSpy = mockApproval();
+
+      await controller.requestMfaApproval({
+        ...request,
+        requireVerification: true,
+      });
+
+      expect(getSentRequest(fetchSpy)).toStrictEqual({
+        authorization: `Bearer ${verificationToken}`,
+        body: { request_hash: request.requestHash, audiences: ['escrow'] },
+      });
+    });
+
+    it('asks to verify first when there is no verification session', async () => {
+      const { controller } = createController();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      await expect(
+        controller.requestMfaApproval({
+          ...request,
+          requireVerification: true,
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'aal2_required' });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('keeps the session when the server finds the verification too old', async () => {
+      const { controller } = createController();
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify({
+            code: 'authentication_required',
+            message: 'stale auth_time',
+          }),
+          { status: 403 },
+        ),
+      );
+
+      await expect(
+        controller.requestMfaApproval(request),
+      ).rejects.toMatchObject({ mfaCode: 'aal2_required' });
+      expect(
+        controller.state.srpSessionData?.[MOCK_ENTROPY_SOURCE_IDS[0]].profile
+          .canonicalProfileId,
+      ).not.toBe('');
+    });
+
+    it('drops a verification session the server finds too old', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify({
+            code: 'authentication_required',
+            message: 'stale auth_time',
+          }),
+          { status: 403 },
+        ),
+      );
+
+      await expect(
+        controller.requestMfaApproval({
+          ...request,
+          requireVerification: true,
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'aal2_required' });
+      expect(controller.getVerificationToken()).toBeNull();
+    });
+
+    it('keeps the verification session on other failures', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify({ code: 'invalid_request', message: 'bad hash' }),
+          { status: 400 },
+        ),
+      );
+
+      await expect(
+        controller.requestMfaApproval({
+          ...request,
+          requireVerification: true,
+        }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+      expect(controller.getVerificationToken()).not.toBeNull();
+    });
+
+    it('rejects an invalid request without calling the server', async () => {
+      const { controller } = createController();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      await expect(
+        controller.requestMfaApproval({ ...request, requestHash: '0x1234' }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+      await expect(
+        controller.requestMfaApproval({ ...request, audiences: [] }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removeCredential', () => {
+    const request = {
+      credentialId: 'totp',
+      reason: { operation: 'settings.removeAuthenticatorApp' },
+    };
+    const credentialsLeft = {
+      credentials: [
+        {
+          credential_id: 'email_otp',
+          credential_type: 'email_otp',
+          status: 'active',
+          email: { address: 'user@example.com', verified: true },
+        },
+      ],
+    };
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('removes a credential with the verification token and caches the ones left', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const verificationToken = controller.getVerificationToken()?.accessToken;
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new globalThis.Response(JSON.stringify(credentialsLeft), {
+          status: 200,
+        }),
+      );
+
+      const credentials = await controller.removeCredential(request);
+
+      expect(credentials).toStrictEqual([
+        {
+          id: 'email_otp',
+          type: 'email_otp',
+          status: 'active',
+          email: 'user@example.com',
+          verified: true,
+        },
+      ]);
+      expect(controller.state.enrolledCredentials).toStrictEqual(credentials);
+      const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url.endsWith('/api/v2/mfa/credentials/totp')).toBe(true);
+      expect(init.method).toBe('DELETE');
+      expect(new globalThis.Headers(init.headers).get('Authorization')).toBe(
+        `Bearer ${verificationToken}`,
+      );
+    });
+
+    it('asks to verify first without a verification session', async () => {
+      const { controller } = createController();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      await expect(controller.removeCredential(request)).rejects.toMatchObject({
+        mfaCode: 'aal2_required',
+      });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('passes the server refusal through and keeps the cache', async () => {
+      mockSuccessfulCompletion();
+      const { controller } = createController();
+      await completeCredentialVerification(controller);
+      const before = controller.state.enrolledCredentials;
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new globalThis.Response(
+          JSON.stringify({
+            code: 'last_credential',
+            message: 'cannot remove the last MFA credential',
+          }),
+          { status: 409 },
+        ),
+      );
+
+      await expect(controller.removeCredential(request)).rejects.toMatchObject({
+        mfaCode: 'last_credential',
+      });
+      expect(controller.state.enrolledCredentials).toBe(before);
+    });
+
+    it('rejects an invalid request without calling the server', async () => {
+      const { controller } = createController();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+      await expect(
+        controller.removeCredential({ ...request, credentialId: '' }),
+      ).rejects.toMatchObject({ mfaCode: 'invalid_request' });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('metadata', () => {
@@ -4223,12 +4511,14 @@ describe('metadata', () => {
           ...mockSignedInState(),
           enrolledCredentials: [
             {
+              id: 'passkey-id',
               type: 'passkey',
               status: 'active',
               enrolledAt: 1_000,
               displayName: 'My iPhone',
             },
             {
+              id: 'email_otp',
               type: 'email_otp',
               status: 'pending',
               enrolledAt: 2_000,

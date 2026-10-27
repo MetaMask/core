@@ -1,8 +1,7 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
-const monorepoRoot = path.dirname(fileURLToPath(import.meta.url));
+const monorepoRoot = import.meta.dirname;
 
 /**
  * This configuration is extended by the `vitest.config.ts` configuration in
@@ -38,6 +37,8 @@ export default defineConfig({
     // one test into the next.
     mockReset: true,
     restoreMocks: true,
+
+    unstubGlobals: true,
 
     typecheck: {
       enabled: true,

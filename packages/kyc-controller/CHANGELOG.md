@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A callback that throws leaves the stored KYC outcome unchanged. `launchProviderFlow` still returns the outcome it wrote, and polling still stops when a session reaches `approved`, `rejected`, or `retry`
 - Export `getKycAnalyticsStatus`, `KYC_ANALYTICS_STATUSES` and the `KycAnalyticsTrackers`, `KycAnalyticsStatus`, `KycAnalyticsVerificationOutcome`, `KycAnalyticsVerificationOutcomePayload` and `KycAnalyticsStatusChangedPayload` types
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+## [0.12.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
 ## [0.12.0]
 
 ### Added
@@ -204,7 +214,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.1...HEAD
+[0.12.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.0...@metamask/kyc-controller@0.12.1
 [0.12.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.11.0...@metamask/kyc-controller@0.12.0
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.10.0...@metamask/kyc-controller@0.11.0
 [0.10.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.9.0...@metamask/kyc-controller@0.10.0

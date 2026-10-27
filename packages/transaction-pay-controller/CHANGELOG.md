@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^27.1.0` to `^27.2.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
 ## [30.2.0]
 
 ### Added
