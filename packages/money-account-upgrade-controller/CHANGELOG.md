@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+
 ### Uncategorized
 
 - test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
@@ -263,7 +265,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.1.0...@metamask/money-account-upgrade-controller@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.0.0...@metamask/money-account-upgrade-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@4.0.0...@metamask/money-account-upgrade-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.2...@metamask/money-account-upgrade-controller@4.0.0
