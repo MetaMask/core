@@ -3151,12 +3151,18 @@ export class AssetsController extends BaseController<
 
         // Reconcile & self-heal stale asset "types" (e.g. erc20 -> native)
         // using IDs from new response assetInfo and assetBalance
-        const assetsInfoAssetIdsSet = new Set<Caip19AssetId>([
-          ...Object.keys(normalizedResponse.assetsInfo ?? {}),
-          ...Object.values(normalizedResponse.assetsBalance ?? {}).flatMap(
-            (accountBalances) => Object.keys(accountBalances),
-          ),
-        ] as Caip19AssetId[]);
+        const assetsInfoAssetIdsSet = new Set<Caip19AssetId>(
+          Object.keys(normalizedResponse.assetsInfo ?? {}) as Caip19AssetId[],
+        );
+        for (const accountBalances of Object.values(
+          normalizedResponse.assetsBalance ?? {},
+        )) {
+          for (const assetId of Object.keys(
+            accountBalances,
+          ) as Caip19AssetId[]) {
+            assetsInfoAssetIdsSet.add(assetId);
+          }
+        }
         for (const assetId of assetsInfoAssetIdsSet) {
           const entry = metadata[assetId] as FungibleAssetMetadata | undefined;
           if (!entry) {

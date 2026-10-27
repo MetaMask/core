@@ -200,12 +200,16 @@ function updateStateProducer_CAND(
   }
 
   // Reconcile & self-heal stale asset "types" (e.g. erc20 -> native)
-  const assetsInfoAssetIdsSet = new Set([
-    ...Object.keys(normalizedResponse.assetsInfo ?? {}),
-    ...Object.values(normalizedResponse.assetsBalance ?? {}).flatMap(
-      (accountBalances) => Object.keys(accountBalances),
-    ),
-  ]);
+  const assetsInfoAssetIdsSet = new Set(
+    Object.keys(normalizedResponse.assetsInfo ?? {}),
+  );
+  for (const accountBalances of Object.values(
+    normalizedResponse.assetsBalance ?? {},
+  )) {
+    for (const assetId of Object.keys(accountBalances)) {
+      assetsInfoAssetIdsSet.add(assetId);
+    }
+  }
   for (const assetId of assetsInfoAssetIdsSet) {
     const entry = metadata[assetId];
     if (!entry) {
