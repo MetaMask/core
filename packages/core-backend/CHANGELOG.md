@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add optional `image`, `aggregators`, `occurrences`, and `pricePercentChange1d` to `V6BalanceItem` so a v6 balances response can carry the token metadata and 1-day price change the client fast lane reads
+- Add optional `image`, `aggregators`, `occurrences`, and `pricePercentChange1d` to `V6BalanceItem` so a v6 balances response can carry the token metadata and 1-day price change the client fast lane reads ([#11096](https://github.com/MetaMask/core/pull/11096))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
