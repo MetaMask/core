@@ -5,7 +5,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll as nockCleanAll } from 'nock';
+import nock from 'nock';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
@@ -323,7 +323,7 @@ function createService(
 
 describe('MoneyAccountApiDataService', () => {
   afterEach(() => {
-    nockCleanAll();
+    nock.cleanAll();
   });
 
   describe('constructor', () => {

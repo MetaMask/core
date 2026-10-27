@@ -1,5 +1,5 @@
 import { parseCaipAssetType } from '@metamask/utils';
-import { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -193,7 +193,7 @@ const WALLET_PASSES = [
     pass: 'second pass over the wallet the first pass left behind',
     run: async (): Promise<DataResponse> => {
       const firstPass = await runPipeline(buildEmptyAssetsState());
-      cleanAll();
+      nock.cleanAll();
 
       return runPipeline(
         buildEmptyAssetsState({
@@ -208,7 +208,7 @@ const WALLET_PASSES = [
 
 describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe.each(WALLET_PASSES)('$pass', ({ pass, run }) => {
@@ -258,7 +258,7 @@ describe('assets pipeline: BNB Chain spam token (CDOGE)', () => {
 
 describe('assets pipeline (without graduation middleware only on v6 integration): BNB Chain spam token (CDOGE) imported as a custom asset', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   const pipelineOpts = {

@@ -4,16 +4,20 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
+import { log } from './logger.js';
 import { controllerName } from './social-constants.js';
 import type {
+  CommentTranslation,
   FetchLeaderboardOptions,
   FollowOptions,
   FollowResponse,
   FollowingResponse,
   LeaderboardResponse,
   SocialControllerState,
+  TranslateCommentOptions,
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types.js';
@@ -24,6 +28,7 @@ import type {
   SocialServiceFollowAction,
   SocialServiceOptInToLeaderboardAction,
   SocialServiceOptOutOfLeaderboardAction,
+  SocialServiceTranslateCommentAction,
   SocialServiceUnfollowAction,
 } from './SocialService-method-action-types.js';
 
@@ -36,6 +41,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateFollowing',
   'optOutOfLeaderboard',
   'optInToLeaderboard',
+  'translateComment',
 ] as const;
 
 // === ACTION TYPES ===
@@ -66,7 +72,8 @@ type AllowedActions =
   | SocialServiceUnfollowAction
   | SocialServiceFetchFollowingAction
   | SocialServiceOptOutOfLeaderboardAction
-  | SocialServiceOptInToLeaderboardAction;
+  | SocialServiceOptInToLeaderboardAction
+  | SocialServiceTranslateCommentAction;
 
 type AllowedEvents = never;
 
@@ -283,5 +290,37 @@ export class SocialController extends BaseController<
    */
   async optInToLeaderboard(): Promise<void> {
     await this.messenger.call('SocialService:optInToLeaderboard');
+  }
+
+  /**
+   * Requests a translation of a swap comment (Call).
+   *
+   * Calls `POST ${baseUrl}/swap-comment/${commentId}/translate` through
+   * SocialService. social-api does not expose this route yet: a 404 is logged
+   * and rethrown.
+   *
+   * @param options - Options bag.
+   * @param options.commentId - `authorComment.uid` from a feed item.
+   * @param options.targetLanguage - AWS language code to translate into, for
+   * example `en`.
+   * @returns The detected source language and stored translations.
+   */
+  async translateComment(
+    options: TranslateCommentOptions,
+  ): Promise<CommentTranslation> {
+    // TODO: Remove this try/catch once the translation endpoint is ready.
+    try {
+      return await this.messenger.call(
+        'SocialService:translateComment',
+        options,
+      );
+    } catch (error) {
+      if (error instanceof HttpError && error.httpStatus === 404) {
+        log('Translation endpoint does not exist yet');
+      } else {
+        log(error);
+      }
+      throw error;
+    }
   }
 }
