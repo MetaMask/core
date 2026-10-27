@@ -340,6 +340,9 @@ export class GeolocationApiService extends BaseDataService<
     const geolocation = await this.fetchQuery({
       queryKey,
       staleTime: this.#ttlMs,
+      // Keep the entry at least as long as it is fresh. The default 5 minute
+      // GC would otherwise evict it early in browser runtimes.
+      gcTime: this.#ttlMs,
       queryFn: async () => {
         const response = await this.#fetch(this.#url);
         if (!response.ok) {
