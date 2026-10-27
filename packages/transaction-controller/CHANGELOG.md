@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `daFootprintGasScalar`, `operatorFeeScalar`, `operatorFeeConstant`, and `tokenRatio` fields to `TransactionReceipt` for OP Stack / Mantle Arsia receipts ([#9630](https://github.com/MetaMask/core/pull/9630))
+- Estimate type-4 transactions with an authorization list as one outer transaction, instead of combining separate upgrade and execution estimates and subtracting 21,000 intrinsic gas, so the estimate includes the EIP-2780 runtime authorization charges ([#10783](https://github.com/MetaMask/core/pull/10783))
+  - If all authorizations are signed, use `eth_estimateGas` on the selected network for the exact transaction.
+  - Otherwise, send one Simulation API request with an `authorizationList` containing the authority of each entry: the sender for unsigned entries, and the recovered signer for pre-signed entries. Estimation fails if a signer cannot be recovered.
+  - If simulation is disabled, the chain is not supported by the Simulation API, or the simulation request fails or returns no gas limit, use `eth_estimateGas` on the selected network with unsigned authorizations omitted and the delegation of the sender set with a state override. Add 7,816 intrinsic gas per omitted authorization and, if the sender is not yet delegated, 35,190 gas once for the EIP-2780 delegation indicator charge. Keep pre-signed authorizations in the node request so their costs are included in its estimate.
+  - A simulated transaction error is recorded as `simulationFails` without falling back to the selected network.
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
