@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `AssociationPurpose`, `CreateAddressChallengeParams`, `CreateAddressChallengeResponse`, `AssociateAddressV2Params`, `ChompApiServiceCreateAddressChallengeAction`, and `ChompApiServiceAssociateAddressV2Action` types ([#10687](https://github.com/MetaMask/core/pull/10687))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
 ### Removed
 
 - **BREAKING:** Remove the `associateAddress` method and `ChompApiService:associateAddress` messenger action (`POST /v1/auth/address`), along with the `AssociateAddressParams` and `ChompApiServiceAssociateAddressAction` types ([#10687](https://github.com/MetaMask/core/pull/10687))

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A request whose `from` is not a known account is rejected with `4100`.
 - Add dependencies `@metamask/accounts-controller` (`^40.1.0`) and `@metamask/account-tree-controller` (`^11.2.0`) ([#11109](https://github.com/MetaMask/core/pull/11109))
 - Bump `@metamask/perps-controller` from `^21.0.0` to `^22.0.0` ([#11029](https://github.com/MetaMask/core/pull/11029))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [1.0.0]
 

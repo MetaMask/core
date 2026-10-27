@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `react-dom` from `^19.0.0` to `^19.3.0` ([#10534](https://github.com/MetaMask/core/pull/10534))
 - Bump `@easyops-cn/docusaurus-search-local` from `^0.55.1` to `^0.55.3` ([#10713](https://github.com/MetaMask/core/pull/10713))
 - Replace `@metamask/utils` dependency with `@metamask/node-utils` ([#10970](https://github.com/MetaMask/core/pull/10970))
+- Bump `@metamask/node-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [0.2.1]
 

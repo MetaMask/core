@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets ([#11030](https://github.com/MetaMask/core/pull/11030))
   - Snapshots without these fields, or with `null` values, still validate. An unrecognized `marginMode` rejects the snapshot, so snapshot-backed reads fall back to the provider.
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
 ### Fixed
 
 - Lighter `Position.returnOnEquity` is now a fraction (`-0.107` for -10.7%), the same unit as Hyperliquid positions, instead of a percent, so clients that multiply it by 100 no longer show Lighter position PnL % 100x too large ([#11080](https://github.com/MetaMask/core/pull/11080))
