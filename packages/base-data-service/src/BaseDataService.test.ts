@@ -11,7 +11,7 @@ import {
 } from '@metamask/storage-service';
 import { CancelledError, hashKey, QueryClient } from '@tanstack/query-core';
 import { BrokenCircuitError } from 'cockatiel';
-import { cleanAll } from 'nock';
+import nock from 'nock';
 import {
   afterAll,
   beforeAll,
@@ -616,7 +616,7 @@ describe('BaseDataService', () => {
     });
 
     beforeEach(() => {
-      cleanAll();
+      nock.cleanAll();
     });
 
     it('throws when query response fails struct validation', async () => {
@@ -661,7 +661,7 @@ describe('BaseDataService', () => {
     });
 
     beforeEach(() => {
-      cleanAll();
+      nock.cleanAll();
     });
 
     it('retries failed queries using the service policy', async () => {

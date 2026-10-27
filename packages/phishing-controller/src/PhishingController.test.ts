@@ -12,7 +12,7 @@ import {
 } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 import { strict as assert } from 'assert';
-import nock, { cleanAll, isDone, pendingMocks } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
@@ -196,7 +196,7 @@ function getPhishingController(options?: Partial<PhishingControllerOptions>): {
 describe('PhishingController', () => {
   afterEach(() => {
     vi.useRealTimers();
-    cleanAll();
+    nock.cleanAll();
   });
 
   it('should have no default phishing lists', () => {
@@ -585,7 +585,7 @@ describe('PhishingController', () => {
         },
       });
 
-      cleanAll();
+      nock.cleanAll();
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
@@ -2478,7 +2478,7 @@ describe('PhishingController', () => {
 
   describe('PhishingController - isBlockedRequest', () => {
     afterEach(() => {
-      cleanAll();
+      nock.cleanAll();
     });
 
     it('should return false if c2DomainBlocklist is not defined or empty', async () => {
@@ -3780,7 +3780,7 @@ describe('PhishingController', () => {
         label: '',
       });
       expect(scope.isDone()).toBe(false);
-      cleanAll();
+      nock.cleanAll();
     });
 
     it('will normalize address to lowercase', async () => {
@@ -4089,7 +4089,7 @@ describe('URL Scan Cache', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
-    cleanAll();
+    nock.cleanAll();
   });
 
   it('should cache scan results and return them on subsequent calls', async () => {
@@ -4171,7 +4171,7 @@ describe('URL Scan Cache', () => {
       'PhishingController:scanUrl',
       `https://${testDomain}`,
     );
-    expect(pendingMocks()).toHaveLength(1); // One mock remaining
+    expect(nock.pendingMocks()).toHaveLength(1); // One mock remaining
 
     // After TTL expires, should fetch again
     vi.advanceTimersByTime(11 * 1000);
@@ -4179,7 +4179,7 @@ describe('URL Scan Cache', () => {
       'PhishingController:scanUrl',
       `https://${testDomain}`,
     );
-    expect(pendingMocks()).toHaveLength(0); // All mocks used
+    expect(nock.pendingMocks()).toHaveLength(0); // All mocks used
   });
 
   it('should evict oldest entries when cache exceeds max size', async () => {
@@ -4239,7 +4239,7 @@ describe('URL Scan Cache', () => {
     );
 
     // All mocks should be used
-    expect(isDone()).toBe(true);
+    expect(nock.isDone()).toBe(true);
   });
 
   it('should handle fetch errors and not cache them', async () => {
@@ -4279,7 +4279,7 @@ describe('URL Scan Cache', () => {
     expect(result2.recommendedAction).toBe(RecommendedAction.None);
 
     // All mocks should be used
-    expect(isDone()).toBe(true);
+    expect(nock.isDone()).toBe(true);
   });
 
   it('should handle timeout errors and not cache them', async () => {
@@ -4320,7 +4320,7 @@ describe('URL Scan Cache', () => {
     expect(result2.recommendedAction).toBe(RecommendedAction.None);
 
     // All mocks should be used
-    expect(isDone()).toBe(true);
+    expect(nock.isDone()).toBe(true);
   });
 
   it('should handle invalid URLs and not cache them', async () => {
