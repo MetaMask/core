@@ -1,6 +1,7 @@
 import type { Keyring as KeyringV2 } from '@metamask/keyring-api/v2';
 import type { EthKeyring } from '@metamask/keyring-internal-api';
 import type { Hex, Json } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { KeyringEntry } from './KeyringController.js';
 import { VaultTransaction } from './VaultTransaction.js';
@@ -72,8 +73,8 @@ describe('VaultTransaction', () => {
 
   describe('destroy', () => {
     it('destroys the keyring and its V2 instance', async () => {
-      const keyringDestroy = jest.fn(async () => undefined);
-      const keyringV2Destroy = jest.fn(async () => undefined);
+      const keyringDestroy = vi.fn(async () => undefined);
+      const keyringV2Destroy = vi.fn(async () => undefined);
       const entry = buildEntry(
         buildFakeKeyring({ destroy: keyringDestroy }),
         buildFakeKeyringV2({ destroy: keyringV2Destroy }),
@@ -121,7 +122,7 @@ describe('VaultTransaction', () => {
     });
 
     it('marks the entry as destroyed when the V1 destruction succeeds but the V2 one throws', async () => {
-      const keyringDestroy = jest.fn(async () => undefined);
+      const keyringDestroy = vi.fn(async () => undefined);
       const entry = buildEntry(
         buildFakeKeyring({ destroy: keyringDestroy }),
         buildFakeKeyringV2({
@@ -140,7 +141,7 @@ describe('VaultTransaction', () => {
     });
 
     it('propagates destruction errors', async () => {
-      const destroy = jest.fn(async () => {
+      const destroy = vi.fn(async () => {
         throw new Error('destroy failed');
       });
       const entry = buildEntry(buildFakeKeyring({ destroy }));
@@ -153,10 +154,10 @@ describe('VaultTransaction', () => {
     });
 
     it('logs instead of throwing when errors are ignored', async () => {
-      const consoleErrorSpy = jest
+      const consoleErrorSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => undefined);
-      const destroy = jest.fn(async () => {
+      const destroy = vi.fn(async () => {
         throw new Error('destroy failed');
       });
       const entry = buildEntry(buildFakeKeyring({ destroy }));
@@ -171,7 +172,7 @@ describe('VaultTransaction', () => {
     });
 
     it('marks the entry as destroyed when destruction throws and errors are ignored', async () => {
-      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
       const entry = buildEntry(
         buildFakeKeyring({
           destroy: async () => {
