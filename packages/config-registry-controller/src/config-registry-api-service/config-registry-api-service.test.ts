@@ -17,7 +17,9 @@ import type {
 
 function createMockServiceMessenger(): ConfigRegistryApiServiceMessenger {
   return {
+    registerActionHandler: vi.fn(),
     registerMethodActionHandlers: vi.fn(),
+    publish: vi.fn(),
   } as unknown as ConfigRegistryApiServiceMessenger;
 }
 
@@ -129,7 +131,7 @@ describe('ConfigRegistryApiService', () => {
       const result = await service.fetchConfig();
 
       expect(result).toMatchObject({ modified: true, data: MOCK_API_RESPONSE });
-      expect(result.etag).toBeUndefined();
+      expect(result.etag).toBeNull();
       expect(scope.isDone()).toBe(true);
     });
 
@@ -144,7 +146,7 @@ describe('ConfigRegistryApiService', () => {
       const result = await service.fetchConfig({ etag });
 
       expect(result.modified).toBe(false);
-      expect(result.data).toBeUndefined();
+      expect(result.data).toBeNull();
       expect(scope.isDone()).toBe(true);
     });
 
@@ -177,7 +179,7 @@ describe('ConfigRegistryApiService', () => {
       const result = await service.fetchConfig();
 
       expect(result.modified).toBe(false);
-      expect(result.etag).toBeUndefined();
+      expect(result.etag).toBeNull();
       expect(scope.isDone()).toBe(true);
     });
 
@@ -394,7 +396,7 @@ describe('ConfigRegistryApiService - fetchEventsConfig', () => {
     const result = await service.fetchEventsConfig({ etag });
 
     expect(result.modified).toBe(false);
-    expect(result.data).toBeUndefined();
+    expect(result.data).toBeNull();
   });
 
   it('returns cached data when 304 is received and service has prior successful response', async () => {
