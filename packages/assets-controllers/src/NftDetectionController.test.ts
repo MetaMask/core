@@ -1194,7 +1194,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
 
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         mockAddNfts.mockReset();
         mockRemoveNft.mockReset();
 
@@ -1210,6 +1210,100 @@ describe('NftDetectionController', () => {
           [],
           selectedAddress,
           Source.Detected,
+        );
+      },
+    );
+  });
+
+  it('should only remove spam NFTs that were not manually imported', async () => {
+    const mockAddNfts = vi.fn();
+    const mockRemoveNft = vi.fn();
+    const selectedAddress = '0xSpamDetectManual';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = vi.fn().mockReturnValue(selectedAccount);
+
+    const manualContract = '0xManualContract';
+    const detectedContract = '0xDetectedContract';
+
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: manualContract,
+              tokenId: '1',
+              isSpam: true,
+            },
+          },
+          {
+            token: {
+              chainId: 1,
+              contract: detectedContract,
+              tokenId: '2',
+              isSpam: true,
+            },
+          },
+        ],
+      });
+
+    const mockGetNftState = vi.fn().mockReturnValue({
+      ...getDefaultNftControllerState(),
+      allNfts: {
+        [selectedAddress]: {
+          '0x1': [
+            {
+              address: manualContract,
+              tokenId: '1',
+              name: 'Manual NFT',
+              favorite: false,
+              isCurrentlyOwned: true,
+              isManualImport: true,
+            },
+            {
+              address: detectedContract,
+              tokenId: '2',
+              name: 'Detected NFT',
+              favorite: false,
+              isCurrentlyOwned: true,
+            },
+          ],
+        },
+      },
+    });
+
+    await withController(
+      {
+        options: {
+          addNfts: mockAddNfts,
+          removeNft: mockRemoveNft,
+          getNftState: mockGetNftState,
+        },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+        mockRemoveNft.mockReset();
+
+        await controller.detectNfts(['0x1']);
+
+        expect(mockRemoveNft).toHaveBeenCalledTimes(1);
+        expect(mockRemoveNft).toHaveBeenCalledWith(
+          detectedContract,
+          '2',
+          'mainnet',
+          { userAddress: selectedAddress },
         );
       },
     );
@@ -1257,7 +1351,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
 
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         mockRemoveNft.mockReset();
 
         await controller.detectNfts(['0x1']);
@@ -1355,7 +1449,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
 
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         mockRemoveNft.mockReset();
 
         await controller.detectNfts(['0x1']);
@@ -1429,7 +1523,7 @@ describe('NftDetectionController', () => {
           useNftDetection: true,
         });
 
-        await advanceTime({ duration: 1 });
+        await vi.advanceTimersByTimeAsync(1);
         mockRemoveNft.mockReset();
 
         await controller.detectNfts(['0xdead']);

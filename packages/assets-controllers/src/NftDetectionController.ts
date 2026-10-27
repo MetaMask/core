@@ -635,12 +635,13 @@ export class NftDetectionController extends BaseController<
           const { allNfts } = this.#getNftState();
           const nftsForChain = allNfts[userAddress]?.[hexChainId] ?? [];
           const checksumAddress = toChecksumHexAddress(contract);
-          const existsInState = nftsForChain.some(
+          const existingNft = nftsForChain.find(
             (nft) =>
               nft.address.toLowerCase() === checksumAddress.toLowerCase() &&
               nft.tokenId === tokenId,
           );
-          if (existsInState) {
+          // NFTs the user imported manually are never auto-removed.
+          if (existingNft && !existingNft.isManualImport) {
             try {
               const networkClientId = this.messenger.call(
                 'NetworkController:findNetworkClientIdByChainId',
