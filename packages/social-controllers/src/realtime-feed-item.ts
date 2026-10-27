@@ -169,16 +169,42 @@ const toAuthorComment = (value: unknown): AuthorComment | null => {
 
   const replyCount = Array.isArray(replies) ? replies.length : 0;
   const engagement = toCommentEngagement(value.metrics);
+  const sourceLanguage = readSourceLanguage(value.sourceLanguage);
+  const translations = readTranslations(value.translations);
 
   return {
     uid,
     text,
     timestamp,
+    ...(sourceLanguage === undefined ? {} : { sourceLanguage }),
+    ...(translations === undefined ? {} : { translations }),
     engagement: {
       ...engagement,
       ...(engagement.replyCount === undefined ? { replyCount } : {}),
     },
   };
+};
+
+const readSourceLanguage = (value: unknown): string | null | undefined => {
+  if (value === null || typeof value === 'string') {
+    return value;
+  }
+  return undefined;
+};
+
+const readTranslations = (
+  value: unknown,
+): Record<string, string> | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const translations: Record<string, string> = {};
+  for (const [language, text] of Object.entries(value)) {
+    if (typeof text === 'string') {
+      translations[language] = text;
+    }
+  }
+  return translations;
 };
 
 const toLatestAuthorComment = (
