@@ -29,6 +29,7 @@ import {
   MetaMetricsSwapsEventSource,
   PollingStatus,
   formatChainIdToHex,
+  getAccountByAddress,
 } from '@metamask/bridge-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import {
@@ -72,7 +73,6 @@ import type {
 } from './types.js';
 import type { BridgeStatusControllerMessenger } from './types.js';
 import { BridgeClientId } from './types.js';
-import { getAccountByAddress } from './utils/accounts.js';
 import { getJwt } from './utils/authentication.js';
 import {
   fetchBridgeTxStatus,
