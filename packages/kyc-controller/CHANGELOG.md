@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test(kyc-controller): make nock tests independent of node-fetch ([#11103](https://github.com/MetaMask/core/pull/11103))
+
 ## [0.12.1]
 
 ### Changed

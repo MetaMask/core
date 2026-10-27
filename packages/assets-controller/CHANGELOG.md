@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: move the decorator plugin out of the shared Vitest config ([#11060](https://github.com/MetaMask/core/pull/11060))
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: stub globals and use fake timers instead of replacing them directly ([#11064](https://github.com/MetaMask/core/pull/11064))
+- test: run assets-controller on Vitest ([#11038](https://github.com/MetaMask/core/pull/11038))
+
 ### Added
 
 - Add `syncAssetsPrices(assetIds)`, exposed as the `AssetsController:syncAssetsPrices` messenger action. It force-fetches spot prices for an explicit CAIP-19 asset list through `PriceDataSource` and merges them into state ([#10892](https://github.com/MetaMask/core/pull/10892))
