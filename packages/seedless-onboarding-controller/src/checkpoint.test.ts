@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { getPasswordSyncInstruction } from './checkpoint.js';
 import {
   PasswordSyncInstruction,

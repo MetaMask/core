@@ -4495,10 +4495,7 @@
       "count": 17
     },
     "vitest/no-conditional-in-test": {
-      "count": 5
-    },
-    "typescript/unbound-method": {
-      "count": 12
+      "count": 14
     }
   },
   "packages/seedless-onboarding-controller/src/SeedlessOnboardingController.ts": {

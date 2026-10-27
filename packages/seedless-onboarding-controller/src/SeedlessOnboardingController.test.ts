@@ -5254,9 +5254,9 @@ describe('SeedlessOnboardingController', () => {
           }),
         },
         async ({ toprfClient, controller }) => {
-          vi
-            .spyOn(toprfClient, 'fetchAuthPubKey')
-            .mockRejectedValueOnce(new Error('network failure'));
+          vi.spyOn(toprfClient, 'fetchAuthPubKey').mockRejectedValueOnce(
+            new Error('network failure'),
+          );
           await expect(controller.resolvePasswordSyncState()).rejects.toThrow(
             SeedlessOnboardingControllerErrorMessage.FailedToFetchAuthPubKey,
           );
@@ -5273,12 +5273,13 @@ describe('SeedlessOnboardingController', () => {
     const NEW_PASSWORD = 'new-mock-password';
 
     beforeEach(() => {
-      vi
-        .spyOn(ToprfSecureBackup.prototype, 'fetchAuthPubKey')
-        .mockResolvedValue({
-          authPubKey: base64ToBytes(MOCK_AUTH_PUB_KEY),
-          keyIndex: 1,
-        });
+      vi.spyOn(
+        ToprfSecureBackup.prototype,
+        'fetchAuthPubKey',
+      ).mockResolvedValue({
+        authPubKey: base64ToBytes(MOCK_AUTH_PUB_KEY),
+        keyIndex: 1,
+      });
     });
 
     it('returns in-sync when no phase is set and the password is in sync', async () => {
@@ -5620,8 +5621,7 @@ describe('SeedlessOnboardingController', () => {
             rateLimitResetResult: Promise.resolve(),
             keyShareIndex: 1,
           });
-          vi
-            .spyOn(toprfClient, 'recoverPwEncKey')
+          vi.spyOn(toprfClient, 'recoverPwEncKey')
             .mockResolvedValueOnce({
               // The first attempt unlocks the old local vault.
               pwEncKey: mockToprfEncryptor.derivePwEncKey(OLD_PASSWORD),
@@ -5636,9 +5636,8 @@ describe('SeedlessOnboardingController', () => {
             update: (...args: unknown[]) => unknown;
           };
           const originalUpdate = controllerWithUpdate.update.bind(controller);
-          vi
-            .spyOn(controllerWithUpdate, 'update')
-            .mockImplementation((...args: unknown[]) => {
+          vi.spyOn(controllerWithUpdate, 'update').mockImplementation(
+            (...args: unknown[]) => {
               const result = originalUpdate(...args) as {
                 nextState: SeedlessOnboardingControllerState;
               };
@@ -5650,7 +5649,8 @@ describe('SeedlessOnboardingController', () => {
                 throw new Error('simulated persistence interruption');
               }
               return result;
-            });
+            },
+          );
 
           await expect(
             controller.reconcilePassword({
@@ -5739,9 +5739,9 @@ describe('SeedlessOnboardingController', () => {
           );
 
           // Make the password-sync flow fail.
-          vi
-            .spyOn(toprfClient, 'recoverPwEncKey')
-            .mockRejectedValueOnce(new Error('recover failed'));
+          vi.spyOn(toprfClient, 'recoverPwEncKey').mockRejectedValueOnce(
+            new Error('recover failed'),
+          );
 
           await expect(
             controller.reconcilePassword({
@@ -5800,14 +5800,12 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           );
           mockRecoverEncKey(toprfClient, NEW_PASSWORD);
-          vi
-            .spyOn(toprfClient, 'recoverPwEncKey')
-            .mockRejectedValueOnce(
-              new TOPRFError(
-                TOPRFErrorCode.MaxKeyChainLengthExceeded,
-                'Max key chain length exceeded',
-              ),
-            );
+          vi.spyOn(toprfClient, 'recoverPwEncKey').mockRejectedValueOnce(
+            new TOPRFError(
+              TOPRFErrorCode.MaxKeyChainLengthExceeded,
+              'Max key chain length exceeded',
+            ),
+          );
 
           await expect(
             controller.reconcilePassword({
@@ -5936,14 +5934,12 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           );
           mockRecoverEncKey(toprfClient, NEW_PASSWORD);
-          vi
-            .spyOn(toprfClient, 'recoverPwEncKey')
-            .mockRejectedValueOnce(
-              new TOPRFError(
-                TOPRFErrorCode.CouldNotFetchPassword,
-                'Could not fetch password',
-              ),
-            );
+          vi.spyOn(toprfClient, 'recoverPwEncKey').mockRejectedValueOnce(
+            new TOPRFError(
+              TOPRFErrorCode.CouldNotFetchPassword,
+              'Could not fetch password',
+            ),
+          );
 
           await expect(
             controller.reconcilePassword({
@@ -5981,14 +5977,12 @@ describe('SeedlessOnboardingController', () => {
             MOCK_KEYRING_ID,
           );
           mockRecoverEncKey(toprfClient, NEW_PASSWORD);
-          vi
-            .spyOn(toprfClient, 'recoverPwEncKey')
-            .mockRejectedValueOnce(
-              new TOPRFError(
-                TOPRFErrorCode.AuthTokenExpired,
-                'Auth token expired',
-              ),
-            );
+          vi.spyOn(toprfClient, 'recoverPwEncKey').mockRejectedValueOnce(
+            new TOPRFError(
+              TOPRFErrorCode.AuthTokenExpired,
+              'Auth token expired',
+            ),
+          );
           mockRefreshJWTToken.mockRejectedValueOnce(
             new Error('Failed to refresh token'),
           );
@@ -6617,9 +6611,7 @@ describe('SeedlessOnboardingController', () => {
             pwEncKey: recoveredPwEncKey,
           });
 
-          const exportSeedPhrase = vi
-            .fn()
-            .mockResolvedValue(MOCK_SEED_PHRASE);
+          const exportSeedPhrase = vi.fn().mockResolvedValue(MOCK_SEED_PHRASE);
           const trackEvent = vi.fn();
           baseMessenger.registerActionHandler(
             'KeyringController:exportSeedPhrase',
@@ -6629,18 +6621,19 @@ describe('SeedlessOnboardingController', () => {
             'AnalyticsController:trackEvent',
             trackEvent,
           );
-          vi
-            .spyOn(toprfClient, 'fetchAllSecretDataItems')
-            .mockResolvedValueOnce([
-              {
-                data: new SecretMetadata(stringToBytes('remote primary srp'), {
-                  timestamp: 1,
-                  type: SecretType.Mnemonic,
-                }).toBytes(),
-                itemId: 'remote-primary-srp',
-                version: 'v1',
-              },
-            ]);
+          vi.spyOn(
+            toprfClient,
+            'fetchAllSecretDataItems',
+          ).mockResolvedValueOnce([
+            {
+              data: new SecretMetadata(stringToBytes('remote primary srp'), {
+                timestamp: 1,
+                type: SecretType.Mnemonic,
+              }).toBytes(),
+              itemId: 'remote-primary-srp',
+              version: 'v1',
+            },
+          ]);
 
           await baseMessenger.call('SeedlessOnboardingController:setLocked');
           mockFetchAuthPubKey(
