@@ -228,7 +228,8 @@ function setupController({
   getAccount?: Mock<
     (
       ...args:
-        Parameters<AccountsControllerGetAccountAction['handler']> | [null]
+        | Parameters<AccountsControllerGetAccountAction['handler']>
+        | [null]
     ) => ReturnType<AccountsControllerGetAccountAction['handler']>
   >;
   getSelectedAccount?: Mock<
