@@ -166,7 +166,8 @@ export type ChompApiServiceInvalidateQueriesAction =
  * Actions that {@link ChompApiService} exposes to other consumers.
  */
 export type ChompApiServiceActions =
-  ChompApiServiceMethodActions | ChompApiServiceInvalidateQueriesAction;
+  | ChompApiServiceMethodActions
+  | ChompApiServiceInvalidateQueriesAction;
 
 /**
  * Actions from other messengers that {@link ChompApiService} calls.
@@ -193,7 +194,8 @@ export type ChompApiServiceGranularCacheUpdatedEvent =
  * Events that {@link ChompApiService} exposes to other consumers.
  */
 export type ChompApiServiceEvents =
-  ChompApiServiceCacheUpdatedEvent | ChompApiServiceGranularCacheUpdatedEvent;
+  | ChompApiServiceCacheUpdatedEvent
+  | ChompApiServiceGranularCacheUpdatedEvent;
 
 /**
  * Events from other messengers that {@link ChompApiService} subscribes to.
