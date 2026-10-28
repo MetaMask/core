@@ -504,6 +504,26 @@ describe('NftDetectionController', () => {
     );
   });
 
+  it('should not call the NFT API when every chain id is filtered out', async () => {
+    const mockAddNfts = vi.fn();
+    const selectedAddress = '0xNonEvm';
+
+    await withController(
+      {
+        options: { addNfts: mockAddNfts, disabled: false },
+      },
+      async ({ controller }) => {
+        await controller.detectNfts(['0x0'], { userAddress: selectedAddress });
+
+        expect(mockAddNfts).toHaveBeenCalledWith(
+          [],
+          selectedAddress,
+          Source.Detected,
+        );
+      },
+    );
+  });
+
   it('should detect and add NFTs correctly when blockaid result is not included in response', async () => {
     const mockAddNfts = vi.fn();
     const selectedAddress = '0x1';
@@ -1112,6 +1132,440 @@ describe('NftDetectionController', () => {
     );
   });
 
+  it('should remove NFTs from state when the API now marks them as spam', async () => {
+    const mockAddNfts = vi.fn();
+    const mockRemoveNft = vi.fn();
+    const selectedAddress = '0xSpamDetect';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = vi.fn().mockReturnValue(selectedAccount);
+
+    const spamContract = '0xSpamContract';
+    const spamTokenId = '42';
+
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: spamContract,
+              tokenId: spamTokenId,
+              isSpam: true,
+            },
+          },
+        ],
+      });
+
+    const mockGetNftState = vi.fn().mockReturnValue({
+      ...getDefaultNftControllerState(),
+      allNfts: {
+        [selectedAddress]: {
+          '0x1': [
+            {
+              address: spamContract,
+              tokenId: spamTokenId,
+              name: 'Spam NFT',
+              favorite: false,
+              isCurrentlyOwned: true,
+            },
+          ],
+        },
+      },
+    });
+
+    await withController(
+      {
+        options: {
+          addNfts: mockAddNfts,
+          removeNft: mockRemoveNft,
+          getNftState: mockGetNftState,
+        },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+        mockAddNfts.mockReset();
+        mockRemoveNft.mockReset();
+
+        await controller.detectNfts(['0x1']);
+
+        expect(mockRemoveNft).toHaveBeenCalledWith(
+          spamContract,
+          spamTokenId,
+          'mainnet',
+          { userAddress: selectedAddress },
+        );
+        expect(mockAddNfts).toHaveBeenCalledWith(
+          [],
+          selectedAddress,
+          Source.Detected,
+        );
+      },
+    );
+  });
+
+  describe('spam removal by stored source', () => {
+    const selectedAddress = '0xSpamDetectBySource';
+
+    const mockSpamApi = (contracts: string[]): void => {
+      nock(NFT_API_BASE_URL)
+        .get(
+          `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+        )
+        .reply(200, {
+          tokens: contracts.map((contract, index) => ({
+            token: {
+              chainId: 1,
+              contract,
+              tokenId: String(index + 1),
+              isSpam: true,
+            },
+          })),
+        });
+    };
+
+    const runSpamDetection = async (
+      stored: { contract: string; source?: Source }[],
+    ): Promise<ReturnType<typeof vi.fn>> => {
+      const mockRemoveNft = vi.fn();
+      mockSpamApi(stored.map(({ contract }) => contract));
+
+      const mockGetNftState = vi.fn().mockReturnValue({
+        ...getDefaultNftControllerState(),
+        allNfts: {
+          [selectedAddress]: {
+            '0x1': stored.map(({ contract, source }, index) => ({
+              address: contract,
+              tokenId: String(index + 1),
+              name: 'Spam NFT',
+              favorite: false,
+              isCurrentlyOwned: true,
+              ...(source && { source }),
+            })),
+          },
+        },
+      });
+
+      await withController(
+        {
+          options: {
+            addNfts: vi.fn(),
+            removeNft: mockRemoveNft,
+            getNftState: mockGetNftState,
+          },
+          mockPreferencesState: {},
+          mockGetSelectedAccount: vi
+            .fn()
+            .mockReturnValue(
+              createMockInternalAccount({ address: selectedAddress }),
+            ),
+        },
+        async ({ controller, controllerEvents }) => {
+          controllerEvents.triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useNftDetection: true,
+          });
+
+          await vi.advanceTimersByTimeAsync(1);
+          mockRemoveNft.mockReset();
+
+          await controller.detectNfts(['0x1']);
+        },
+      );
+
+      return mockRemoveNft;
+    };
+
+    it.each([Source.Custom, Source.Dapp])(
+      'does not remove a spam NFT whose stored source is %s',
+      async (source) => {
+        const mockRemoveNft = await runSpamDetection([
+          { contract: '0xSpamContract', source },
+        ]);
+
+        expect(mockRemoveNft).not.toHaveBeenCalled();
+      },
+    );
+
+    it('removes a spam NFT whose stored source is detected', async () => {
+      const mockRemoveNft = await runSpamDetection([
+        { contract: '0xSpamContract', source: Source.Detected },
+      ]);
+
+      expect(mockRemoveNft).toHaveBeenCalledWith(
+        '0xSpamContract',
+        '1',
+        'mainnet',
+        { userAddress: selectedAddress },
+      );
+    });
+
+    it('removes a spam NFT that has no stored source', async () => {
+      const mockRemoveNft = await runSpamDetection([
+        { contract: '0xSpamContract' },
+      ]);
+
+      expect(mockRemoveNft).toHaveBeenCalledWith(
+        '0xSpamContract',
+        '1',
+        'mainnet',
+        { userAddress: selectedAddress },
+      );
+    });
+
+    it('only removes the spam NFTs that are detected or have no source', async () => {
+      const mockRemoveNft = await runSpamDetection([
+        { contract: '0xCustom', source: Source.Custom },
+        { contract: '0xDapp', source: Source.Dapp },
+        { contract: '0xDetected', source: Source.Detected },
+        { contract: '0xLegacy' },
+      ]);
+
+      expect(mockRemoveNft).toHaveBeenCalledTimes(2);
+      expect(mockRemoveNft).toHaveBeenCalledWith('0xDetected', '3', 'mainnet', {
+        userAddress: selectedAddress,
+      });
+      expect(mockRemoveNft).toHaveBeenCalledWith('0xLegacy', '4', 'mainnet', {
+        userAddress: selectedAddress,
+      });
+    });
+  });
+
+  it('should not remove NFTs from state when spam NFT does not exist in state', async () => {
+    const mockRemoveNft = vi.fn();
+    const selectedAddress = '0xSpamDetectNoState';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = vi.fn().mockReturnValue(selectedAccount);
+
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 1,
+              contract: '0xSpamContract',
+              kind: 'erc721',
+              name: 'Spam NFT',
+              tokenId: '42',
+              isSpam: true,
+            },
+          },
+        ],
+      });
+
+    await withController(
+      {
+        options: {
+          removeNft: mockRemoveNft,
+          getNftState: getDefaultNftControllerState,
+        },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+        mockRemoveNft.mockReset();
+
+        await controller.detectNfts(['0x1']);
+
+        expect(mockRemoveNft).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it('should skip spam NFTs with no chain id or that do not match an NFT in state', async () => {
+    const mockRemoveNft = vi.fn();
+    const selectedAddress = '0xSpamDetectPartialMatch';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = vi.fn().mockReturnValue(selectedAccount);
+    const knownContract = '0xKnownContract';
+
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              contract: '0xNoChainContract',
+              tokenId: '1',
+              isSpam: true,
+            },
+          },
+          {
+            token: {
+              chainId: 1,
+              contract: '0xMissingContract',
+              tokenId: '1',
+              isSpam: true,
+            },
+          },
+          {
+            token: {
+              chainId: 1,
+              contract: knownContract,
+              tokenId: '2',
+              isSpam: true,
+            },
+          },
+          {
+            token: {
+              chainId: 137,
+              contract: '0xPolygonSpam',
+              tokenId: '5',
+              isSpam: true,
+            },
+          },
+        ],
+      });
+
+    const mockGetNftState = vi.fn().mockReturnValue({
+      ...getDefaultNftControllerState(),
+      allNfts: {
+        [selectedAddress]: {
+          '0x1': [
+            {
+              address: knownContract,
+              tokenId: '1',
+              name: 'Known NFT',
+              favorite: false,
+              isCurrentlyOwned: true,
+            },
+            {
+              address: '0xOtherContract',
+              tokenId: '999',
+              name: 'Other NFT',
+              favorite: false,
+              isCurrentlyOwned: true,
+            },
+          ],
+        },
+      },
+    });
+
+    await withController(
+      {
+        options: {
+          removeNft: mockRemoveNft,
+          getNftState: mockGetNftState,
+        },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+        mockRemoveNft.mockReset();
+
+        await controller.detectNfts(['0x1']);
+
+        expect(mockRemoveNft).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it('should not remove spam NFT when the network client cannot be resolved for its chain', async () => {
+    const mockRemoveNft = vi.fn();
+    const selectedAddress = '0xSpamUnknownChain';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = vi.fn().mockReturnValue(selectedAccount);
+
+    const spamContract = '0xSpamContractUnknownChain';
+    const spamTokenId = '99';
+
+    // chainId 0xdead is not registered in the default mock, so findNetworkClientIdByChainId
+    // will throw, and the NFT removal should be silently skipped.
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/users/${selectedAddress}/tokens?chainIds=57005&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              chainId: 57005,
+              contract: spamContract,
+              kind: 'erc721',
+              name: 'Spam NFT on Unknown Chain',
+              tokenId: spamTokenId,
+              isSpam: true,
+            },
+          },
+        ],
+      });
+
+    const mockGetNftState = vi.fn().mockReturnValue({
+      ...getDefaultNftControllerState(),
+      allNfts: {
+        [selectedAddress]: {
+          '0xdead': [
+            {
+              address: spamContract,
+              tokenId: spamTokenId,
+              name: 'Spam NFT on Unknown Chain',
+              favorite: false,
+              isCurrentlyOwned: true,
+            },
+          ],
+        },
+      },
+    });
+
+    await withController(
+      {
+        options: {
+          removeNft: mockRemoveNft,
+          getNftState: mockGetNftState,
+        },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+
+        await vi.advanceTimersByTimeAsync(1);
+        mockRemoveNft.mockReset();
+
+        await controller.detectNfts(['0xdead']);
+
+        expect(mockRemoveNft).not.toHaveBeenCalled();
+      },
+    );
+  });
+
   it('should stop pagination when signal is aborted', async () => {
     const mockAddNfts = vi.fn();
     const selectedAddress = '0xAbortSignal';
@@ -1356,6 +1810,7 @@ async function withController<ReturnValue>(
     messenger: nftDetectionControllerMessenger,
     disabled: true,
     addNfts: vi.fn(),
+    removeNft: vi.fn(),
     getNftState: getDefaultNftControllerState,
     ...options,
   });
