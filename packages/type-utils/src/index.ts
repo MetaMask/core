@@ -1,5 +1,12 @@
 export type { NonEmptyArray } from './array.js';
 export { isNonEmptyArray } from './array.js';
+export type { AssertionErrorConstructor } from './assert.js';
+export {
+  AssertionError,
+  assert,
+  assertExhaustive,
+  getAssertionError,
+} from './assert.js';
 export type { Json } from './json.js';
 export type { Mutable, PartialOrAbsent, RuntimeObject } from './object.js';
 export {

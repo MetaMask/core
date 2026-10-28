@@ -425,15 +425,27 @@ export type AnalyticsControllerMessenger = Messenger<
 // === CONTROLLER DEFINITION ===
 
 /**
+ * Initial state accepted by {@link AnalyticsController}.
+ *
+ * `analyticsId` is required. All other fields are optional and filled from
+ * {@link getDefaultAnalyticsControllerState} when omitted.
+ */
+export type AnalyticsControllerInitialState =
+  Partial<AnalyticsControllerState> &
+    Pick<AnalyticsControllerState, 'analyticsId'>;
+
+/**
  * The options that AnalyticsController takes.
  */
 export type AnalyticsControllerOptions = {
   /**
    * Initial controller state. Must include a valid UUIDv4 `analyticsId`.
-   * The platform is responsible for generating the ID on first run.
-   * It is then persisted with controller state when using a persisted store.
+   * Other fields are optional; defaults come from
+   * {@link getDefaultAnalyticsControllerState}. The platform is responsible
+   * for generating the ID on first run. It is then persisted with controller
+   * state when using a persisted store.
    */
-  state: AnalyticsControllerState;
+  state: AnalyticsControllerInitialState;
   /**
    * Messenger used to communicate with BaseController and other controllers.
    */
@@ -766,7 +778,7 @@ export class AnalyticsController extends BaseController<
    *
    * @param options - Controller options
    * @param options.state - Initial controller state. Must include a valid UUIDv4 `analyticsId`.
-   * Use `getDefaultAnalyticsControllerState()` for default opt-in preferences.
+   * Other fields are optional and default via `getDefaultAnalyticsControllerState()`.
    * @param options.messenger - Messenger used to communicate with BaseController
    * @param options.platformAdapter - Platform adapter implementation for tracking
    * @param options.isAnonymousEventsFeatureEnabled - Whether the anonymous events feature is enabled

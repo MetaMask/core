@@ -4,6 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ProfileService,
@@ -94,16 +95,11 @@ function createService(
 }
 
 describe('ProfileService', () => {
-  const mockFetch = jest.fn();
-  const originalFetch = global.fetch;
+  const mockFetch = vi.fn();
 
   beforeEach(() => {
-    global.fetch = mockFetch;
+    vi.stubGlobal('fetch', mockFetch);
     mockFetch.mockReset();
-  });
-
-  afterAll(() => {
-    global.fetch = originalFetch;
   });
 
   describe('getProfile', () => {

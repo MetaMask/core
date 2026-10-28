@@ -9,6 +9,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { noop } from 'lodash-es';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { NATIVE_TOKEN_ADDRESS } from '../constants.js';
@@ -29,7 +30,7 @@ import {
   waitForTransactionConfirmed,
 } from './transaction.js';
 
-jest.mock('./required-tokens');
+vi.mock(import('./required-tokens.js'));
 
 const TRANSACTION_ID_MOCK = '123-456';
 const ERROR_MESSAGE_MOCK = 'Test error';
@@ -52,7 +53,7 @@ const TRANSCTION_TOKEN_REQUIRED_MOCK = {
 } as TransactionPayRequiredToken;
 
 describe('Transaction Utils', () => {
-  const parseRequiredTokensMock = jest.mocked(parseRequiredTokens);
+  const parseRequiredTokensMock = vi.mocked(parseRequiredTokens);
   const {
     messenger,
     getTransactionControllerStateMock,
@@ -61,7 +62,7 @@ describe('Transaction Utils', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [] as TransactionMeta[],
@@ -90,7 +91,7 @@ describe('Transaction Utils', () => {
 
   describe('subscribeTransactionChanges', () => {
     it('updates state for new transactions', () => {
-      const updateTransactionDataMock = jest.fn();
+      const updateTransactionDataMock = vi.fn();
 
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
 
@@ -115,7 +116,7 @@ describe('Transaction Utils', () => {
     });
 
     it('updates state for updated transactions', () => {
-      const updateTransactionDataMock = jest.fn();
+      const updateTransactionDataMock = vi.fn();
 
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
 
@@ -143,7 +144,7 @@ describe('Transaction Utils', () => {
     });
 
     it('updates state when txParams.to changes', () => {
-      const updateTransactionDataMock = jest.fn();
+      const updateTransactionDataMock = vi.fn();
 
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
 
@@ -177,7 +178,7 @@ describe('Transaction Utils', () => {
     });
 
     it('updates state when requiredAssets changes', () => {
-      const updateTransactionDataMock = jest.fn();
+      const updateTransactionDataMock = vi.fn();
 
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
 
@@ -208,7 +209,7 @@ describe('Transaction Utils', () => {
     });
 
     it('does not update state when txParams.data, txParams.to, and requiredAssets are unchanged', () => {
-      const updateTransactionDataMock = jest.fn();
+      const updateTransactionDataMock = vi.fn();
 
       subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
 
@@ -240,7 +241,7 @@ describe('Transaction Utils', () => {
     it.each(FINALIZED_STATUSES)(
       'removes state if transaction status is %s',
       (status) => {
-        const removeTransactionDataMock = jest.fn();
+        const removeTransactionDataMock = vi.fn();
 
         subscribeTransactionChanges(messenger, noop, removeTransactionDataMock);
 
@@ -267,7 +268,7 @@ describe('Transaction Utils', () => {
     );
 
     it('removes state if transaction is deleted', () => {
-      const removeTransactionDataMock = jest.fn();
+      const removeTransactionDataMock = vi.fn();
 
       subscribeTransactionChanges(messenger, noop, removeTransactionDataMock);
 
@@ -327,7 +328,7 @@ describe('Transaction Utils', () => {
     });
 
     it('subscribes to AssetsController state changes', () => {
-      const updateTransactionDataMock = jest.fn();
+      const updateTransactionDataMock = vi.fn();
 
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
       isolatedGetTransactionControllerStateMock.mockReturnValue({
@@ -352,7 +353,7 @@ describe('Transaction Utils', () => {
     });
 
     it('skips transactions whose tokens are already populated', () => {
-      const updateTransactionDataMock = jest.fn();
+      const updateTransactionDataMock = vi.fn();
 
       isolatedGetTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK],
@@ -376,7 +377,7 @@ describe('Transaction Utils', () => {
     it.each(FINALIZED_STATUSES)(
       'skips transactions whose status is %s',
       (status) => {
-        const updateTransactionDataMock = jest.fn();
+        const updateTransactionDataMock = vi.fn();
 
         isolatedGetTransactionControllerStateMock.mockReturnValue({
           transactions: [{ ...TRANSACTION_META_MOCK, status }],
@@ -395,7 +396,7 @@ describe('Transaction Utils', () => {
     );
 
     it('skips transactions that no longer exist in TransactionController state', () => {
-      const updateTransactionDataMock = jest.fn();
+      const updateTransactionDataMock = vi.fn();
 
       isolatedGetTransactionControllerStateMock.mockReturnValue({
         transactions: [] as TransactionMeta[],
@@ -546,7 +547,7 @@ describe('Transaction Utils', () => {
 
   describe('collectTransactionIds', () => {
     it('collects transaction IDs from unapproved events matching from and chain ID', () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       collectTransactionIds(CHAIN_ID_MOCK, FROM_MOCK, messenger, mockCallback);
 
@@ -580,7 +581,7 @@ describe('Transaction Utils', () => {
     });
 
     it('stops collecting transaction IDs after end is called', () => {
-      const mockCallback = jest.fn();
+      const mockCallback = vi.fn();
 
       const { end } = collectTransactionIds(
         CHAIN_ID_MOCK,
@@ -616,7 +617,7 @@ const ERC20_ADDRESS_RECEIPT_MOCK =
   '0x2222222222222222222222222222222222222222' as Hex;
 const CHAIN_ID_RECEIPT_MOCK = '0x1' as Hex;
 const NETWORK_CLIENT_ID_RECEIPT_MOCK = 'net-client-1';
-const PROVIDER_RECEIPT_MOCK = { request: jest.fn() };
+const PROVIDER_RECEIPT_MOCK = { request: vi.fn() };
 
 const TRANSFER_EVENT_TOPIC =
   '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
@@ -655,7 +656,7 @@ describe('getTransferredAmountFromTxHash', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     receiptFindNetworkMock.mockReturnValue(NETWORK_CLIENT_ID_RECEIPT_MOCK);
     receiptGetNetworkMock.mockReturnValue({

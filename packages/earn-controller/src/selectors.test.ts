@@ -1,4 +1,5 @@
 import type { LendingMarket } from '@metamask/stake-sdk';
+import { describe, it, expect } from 'vitest';
 
 import type {
   EarnControllerState,

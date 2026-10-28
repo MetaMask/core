@@ -1,3 +1,5 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { Env, Platform } from '../../shared/env.js';
 import {
   NonceRetrievalError,
@@ -34,8 +36,7 @@ import {
 import { AuthType } from './types.js';
 
 // Mock global fetch
-const mockFetch = jest.fn();
-global.fetch = mockFetch;
+const mockFetch = vi.fn();
 
 // Store original Response
 const OriginalResponse = global.Response;
@@ -100,7 +101,8 @@ const createMockResponse = (
 
 describe('services', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.stubGlobal('fetch', mockFetch);
+    vi.clearAllMocks();
   });
 
   describe('URL builders', () => {
@@ -535,7 +537,7 @@ describe('services', () => {
       mockFetch.mockResolvedValue(mockResponse);
 
       const mockMetametrics = {
-        getMetaMetricsId: jest.fn().mockResolvedValue('mm-id'),
+        getMetaMetricsId: vi.fn().mockResolvedValue('mm-id'),
         agent: Platform.EXTENSION as Platform.EXTENSION,
       };
 
@@ -568,7 +570,7 @@ describe('services', () => {
       mockFetch.mockResolvedValue(mockResponse);
 
       const mockMetametrics = {
-        getMetaMetricsId: jest.fn().mockResolvedValue('mm-id'),
+        getMetaMetricsId: vi.fn().mockResolvedValue('mm-id'),
         agent: Platform.EXTENSION as Platform.EXTENSION,
       };
 
@@ -601,8 +603,8 @@ describe('services', () => {
       const mockResponse = createMockResponse(mockAuthResponse);
       mockFetch.mockResolvedValue(mockResponse);
 
-      const getAppVersion = jest.fn().mockResolvedValue('12.34.5');
-      const getMetaMetricsId = jest.fn().mockResolvedValue('mm-id');
+      const getAppVersion = vi.fn().mockResolvedValue('12.34.5');
+      const getMetaMetricsId = vi.fn().mockResolvedValue('mm-id');
       const mockMetametrics = {
         getMetaMetricsId,
         getAppVersion,
@@ -641,8 +643,8 @@ describe('services', () => {
       mockFetch.mockResolvedValue(mockResponse);
 
       const mockMetametrics = {
-        getMetaMetricsId: jest.fn().mockResolvedValue('mm-id'),
-        getAppVersion: jest.fn().mockResolvedValue(undefined),
+        getMetaMetricsId: vi.fn().mockResolvedValue('mm-id'),
+        getAppVersion: vi.fn().mockResolvedValue(undefined),
         agent: Platform.EXTENSION as Platform.EXTENSION,
       };
 

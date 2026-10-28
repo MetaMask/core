@@ -10,7 +10,6 @@
 /packages/account-tree-controller/package.json       @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/account-tree-controller/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/account-tree-controller/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/account-tree-controller/jest.config.*      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/account-tree-controller/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ### accounts-controller
@@ -19,7 +18,6 @@
 /packages/accounts-controller/package.json       @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/accounts-controller/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/accounts-controller/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/accounts-controller/jest.config.*      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/accounts-controller/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ### address-book-controller
@@ -28,7 +26,6 @@
 /packages/address-book-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/address-book-controller/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform
 /packages/address-book-controller/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform
-/packages/address-book-controller/jest.config.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/address-book-controller/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform
 
 ### advanced-chart-core
@@ -37,7 +34,6 @@
 /packages/advanced-chart-core/package.json       @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps
 /packages/advanced-chart-core/tsconfig.*         @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps
 /packages/advanced-chart-core/typedoc.json       @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps
-/packages/advanced-chart-core/jest.config.*      @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps
 /packages/advanced-chart-core/vitest.config.*    @MetaMask/core-platform @MetaMask/metamask-assets @MetaMask/perps
 
 ### ai-controllers
@@ -46,7 +42,6 @@
 /packages/ai-controllers/package.json       @MetaMask/core-platform @MetaMask/social-ai
 /packages/ai-controllers/tsconfig.*         @MetaMask/core-platform @MetaMask/social-ai
 /packages/ai-controllers/typedoc.json       @MetaMask/core-platform @MetaMask/social-ai
-/packages/ai-controllers/jest.config.*      @MetaMask/core-platform @MetaMask/social-ai
 /packages/ai-controllers/vitest.config.*    @MetaMask/core-platform @MetaMask/social-ai
 
 ### analytics-controller
@@ -55,7 +50,6 @@
 /packages/analytics-controller/package.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/analytics-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/analytics-controller/typedoc.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/analytics-controller/jest.config.*      @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/analytics-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ### analytics-data-regulation-controller
@@ -64,7 +58,6 @@
 /packages/analytics-data-regulation-controller/package.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/analytics-data-regulation-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/analytics-data-regulation-controller/typedoc.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/analytics-data-regulation-controller/jest.config.*      @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/analytics-data-regulation-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ### announcement-controller
@@ -73,7 +66,6 @@
 /packages/announcement-controller/package.json       @MetaMask/core-extension-ux @MetaMask/core-platform @MetaMask/mobile-core-ux
 /packages/announcement-controller/tsconfig.*         @MetaMask/core-extension-ux @MetaMask/core-platform @MetaMask/mobile-core-ux
 /packages/announcement-controller/typedoc.json       @MetaMask/core-extension-ux @MetaMask/core-platform @MetaMask/mobile-core-ux
-/packages/announcement-controller/jest.config.*      @MetaMask/core-extension-ux @MetaMask/core-platform @MetaMask/mobile-core-ux
 /packages/announcement-controller/vitest.config.*    @MetaMask/core-extension-ux @MetaMask/core-platform @MetaMask/mobile-core-ux
 
 ### app-metadata-controller
@@ -82,7 +74,6 @@
 /packages/app-metadata-controller/package.json       @MetaMask/core-platform @MetaMask/mobile-platform
 /packages/app-metadata-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/mobile-platform
 /packages/app-metadata-controller/typedoc.json       @MetaMask/core-platform @MetaMask/mobile-platform
-/packages/app-metadata-controller/jest.config.*      @MetaMask/core-platform @MetaMask/mobile-platform
 /packages/app-metadata-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/mobile-platform
 
 ### approval-controller
@@ -91,7 +82,6 @@
 /packages/approval-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/approval-controller/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform
 /packages/approval-controller/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform
-/packages/approval-controller/jest.config.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/approval-controller/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform
 
 ### assets-controller
@@ -100,7 +90,6 @@
 /packages/assets-controller/package.json       @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/assets-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/assets-controller/typedoc.json       @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/assets-controller/jest.config.*      @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/assets-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/metamask-assets
 
 ### assets-controllers
@@ -109,7 +98,6 @@
 /packages/assets-controllers/package.json       @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/assets-controllers/tsconfig.*         @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/assets-controllers/typedoc.json       @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/assets-controllers/jest.config.*      @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/assets-controllers/vitest.config.*    @MetaMask/core-platform @MetaMask/metamask-assets
 
 ### authenticated-user-storage
@@ -118,7 +106,6 @@
 /packages/authenticated-user-storage/package.json       @MetaMask/auth-engineers @MetaMask/core-platform
 /packages/authenticated-user-storage/tsconfig.*         @MetaMask/auth-engineers @MetaMask/core-platform
 /packages/authenticated-user-storage/typedoc.json       @MetaMask/auth-engineers @MetaMask/core-platform
-/packages/authenticated-user-storage/jest.config.*      @MetaMask/auth-engineers @MetaMask/core-platform
 /packages/authenticated-user-storage/vitest.config.*    @MetaMask/auth-engineers @MetaMask/core-platform
 
 ### base-controller
@@ -127,7 +114,6 @@
 /packages/base-controller/package.json       @MetaMask/core-platform
 /packages/base-controller/tsconfig.*         @MetaMask/core-platform
 /packages/base-controller/typedoc.json       @MetaMask/core-platform
-/packages/base-controller/jest.config.*      @MetaMask/core-platform
 /packages/base-controller/vitest.config.*    @MetaMask/core-platform
 
 ### base-data-service
@@ -136,7 +122,6 @@
 /packages/base-data-service/package.json       @MetaMask/core-platform
 /packages/base-data-service/tsconfig.*         @MetaMask/core-platform
 /packages/base-data-service/typedoc.json       @MetaMask/core-platform
-/packages/base-data-service/jest.config.*      @MetaMask/core-platform
 /packages/base-data-service/vitest.config.*    @MetaMask/core-platform
 
 ### bitcoin-regtest-up
@@ -145,7 +130,6 @@
 /packages/bitcoin-regtest-up/package.json       @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/bitcoin-regtest-up/tsconfig.*         @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/bitcoin-regtest-up/typedoc.json       @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
-/packages/bitcoin-regtest-up/jest.config.*      @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/bitcoin-regtest-up/vitest.config.*    @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 
 ### bridge-controller
@@ -154,7 +138,6 @@
 /packages/bridge-controller/package.json       @MetaMask/core-platform @MetaMask/swaps-engineers
 /packages/bridge-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/swaps-engineers
 /packages/bridge-controller/typedoc.json       @MetaMask/core-platform @MetaMask/swaps-engineers
-/packages/bridge-controller/jest.config.*      @MetaMask/core-platform @MetaMask/swaps-engineers
 /packages/bridge-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/swaps-engineers
 
 ### bridge-status-controller
@@ -163,7 +146,6 @@
 /packages/bridge-status-controller/package.json       @MetaMask/core-platform @MetaMask/swaps-engineers
 /packages/bridge-status-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/swaps-engineers
 /packages/bridge-status-controller/typedoc.json       @MetaMask/core-platform @MetaMask/swaps-engineers
-/packages/bridge-status-controller/jest.config.*      @MetaMask/core-platform @MetaMask/swaps-engineers
 /packages/bridge-status-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/swaps-engineers
 
 ### build-utils
@@ -172,8 +154,15 @@
 /packages/build-utils/package.json       @MetaMask/core-platform
 /packages/build-utils/tsconfig.*         @MetaMask/core-platform
 /packages/build-utils/typedoc.json       @MetaMask/core-platform
-/packages/build-utils/jest.config.*      @MetaMask/core-platform
 /packages/build-utils/vitest.config.*    @MetaMask/core-platform
+
+### byte-utils
+/packages/byte-utils                    @MetaMask/core-platform
+/packages/byte-utils/CHANGELOG.md       @MetaMask/core-platform
+/packages/byte-utils/package.json       @MetaMask/core-platform
+/packages/byte-utils/tsconfig.*         @MetaMask/core-platform
+/packages/byte-utils/typedoc.json       @MetaMask/core-platform
+/packages/byte-utils/vitest.config.*    @MetaMask/core-platform
 
 ### chain-agnostic-permission
 /packages/chain-agnostic-permission                    @MetaMask/core-platform
@@ -181,7 +170,6 @@
 /packages/chain-agnostic-permission/package.json       @MetaMask/core-platform
 /packages/chain-agnostic-permission/tsconfig.*         @MetaMask/core-platform
 /packages/chain-agnostic-permission/typedoc.json       @MetaMask/core-platform
-/packages/chain-agnostic-permission/jest.config.*      @MetaMask/core-platform
 /packages/chain-agnostic-permission/vitest.config.*    @MetaMask/core-platform
 
 ### chomp-api-service
@@ -190,7 +178,6 @@
 /packages/chomp-api-service/package.json       @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
 /packages/chomp-api-service/tsconfig.*         @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
 /packages/chomp-api-service/typedoc.json       @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
-/packages/chomp-api-service/jest.config.*      @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
 /packages/chomp-api-service/vitest.config.*    @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
 
 ### claims-controller
@@ -199,7 +186,6 @@
 /packages/claims-controller/package.json       @MetaMask/core-platform @MetaMask/web3auth
 /packages/claims-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/web3auth
 /packages/claims-controller/typedoc.json       @MetaMask/core-platform @MetaMask/web3auth
-/packages/claims-controller/jest.config.*      @MetaMask/core-platform @MetaMask/web3auth
 /packages/claims-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/web3auth
 
 ### claims-service
@@ -208,7 +194,6 @@
 /packages/claims-service/package.json       @MetaMask/core-platform @MetaMask/web3auth
 /packages/claims-service/tsconfig.*         @MetaMask/core-platform @MetaMask/web3auth
 /packages/claims-service/typedoc.json       @MetaMask/core-platform @MetaMask/web3auth
-/packages/claims-service/jest.config.*      @MetaMask/core-platform @MetaMask/web3auth
 /packages/claims-service/vitest.config.*    @MetaMask/core-platform @MetaMask/web3auth
 
 ### client-controller
@@ -217,7 +202,6 @@
 /packages/client-controller/package.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/client-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/client-controller/typedoc.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/client-controller/jest.config.*      @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/client-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ### client-utils
@@ -226,7 +210,6 @@
 /packages/client-utils/package.json       @MetaMask/core-extension-ux @MetaMask/core-platform @MetaMask/mobile-core-ux
 /packages/client-utils/tsconfig.*         @MetaMask/core-extension-ux @MetaMask/core-platform @MetaMask/mobile-core-ux
 /packages/client-utils/typedoc.json       @MetaMask/core-extension-ux @MetaMask/core-platform @MetaMask/mobile-core-ux
-/packages/client-utils/jest.config.*      @MetaMask/core-extension-ux @MetaMask/core-platform @MetaMask/mobile-core-ux
 /packages/client-utils/vitest.config.*    @MetaMask/core-extension-ux @MetaMask/core-platform @MetaMask/mobile-core-ux
 
 ### compliance-controller
@@ -235,7 +218,6 @@
 /packages/compliance-controller/package.json       @MetaMask/core-platform @MetaMask/perps
 /packages/compliance-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/perps
 /packages/compliance-controller/typedoc.json       @MetaMask/core-platform @MetaMask/perps
-/packages/compliance-controller/jest.config.*      @MetaMask/core-platform @MetaMask/perps
 /packages/compliance-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/perps
 
 ### composable-controller
@@ -244,7 +226,6 @@
 /packages/composable-controller/package.json       @MetaMask/core-platform
 /packages/composable-controller/tsconfig.*         @MetaMask/core-platform
 /packages/composable-controller/typedoc.json       @MetaMask/core-platform
-/packages/composable-controller/jest.config.*      @MetaMask/core-platform
 /packages/composable-controller/vitest.config.*    @MetaMask/core-platform
 
 ### config-registry-controller
@@ -253,7 +234,6 @@
 /packages/config-registry-controller/package.json       @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/networks
 /packages/config-registry-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/networks
 /packages/config-registry-controller/typedoc.json       @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/networks
-/packages/config-registry-controller/jest.config.*      @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/networks
 /packages/config-registry-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/networks
 
 ### connectivity-controller
@@ -262,7 +242,6 @@
 /packages/connectivity-controller/package.json       @MetaMask/core-platform
 /packages/connectivity-controller/tsconfig.*         @MetaMask/core-platform
 /packages/connectivity-controller/typedoc.json       @MetaMask/core-platform
-/packages/connectivity-controller/jest.config.*      @MetaMask/core-platform
 /packages/connectivity-controller/vitest.config.*    @MetaMask/core-platform
 
 ### controller-utils
@@ -271,7 +250,6 @@
 /packages/controller-utils/package.json       @MetaMask/core-platform
 /packages/controller-utils/tsconfig.*         @MetaMask/core-platform
 /packages/controller-utils/typedoc.json       @MetaMask/core-platform
-/packages/controller-utils/jest.config.*      @MetaMask/core-platform
 /packages/controller-utils/vitest.config.*    @MetaMask/core-platform
 
 ### core-backend
@@ -280,7 +258,6 @@
 /packages/core-backend/package.json       @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/core-backend/tsconfig.*         @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/core-backend/typedoc.json       @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/core-backend/jest.config.*      @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/core-backend/vitest.config.*    @MetaMask/core-platform @MetaMask/metamask-assets
 
 ### cryptography
@@ -289,7 +266,6 @@
 /packages/cryptography/package.json       @MetaMask/core-platform
 /packages/cryptography/tsconfig.*         @MetaMask/core-platform
 /packages/cryptography/typedoc.json       @MetaMask/core-platform
-/packages/cryptography/jest.config.*      @MetaMask/core-platform
 /packages/cryptography/vitest.config.*    @MetaMask/core-platform
 
 ### delegation-controller
@@ -298,7 +274,6 @@
 /packages/delegation-controller/package.json       @MetaMask/core-platform @MetaMask/delegation
 /packages/delegation-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/delegation
 /packages/delegation-controller/typedoc.json       @MetaMask/core-platform @MetaMask/delegation
-/packages/delegation-controller/jest.config.*      @MetaMask/core-platform @MetaMask/delegation
 /packages/delegation-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/delegation
 
 ### earn-controller
@@ -307,7 +282,6 @@
 /packages/earn-controller/package.json       @MetaMask/core-platform @MetaMask/earn
 /packages/earn-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/earn
 /packages/earn-controller/typedoc.json       @MetaMask/core-platform @MetaMask/earn
-/packages/earn-controller/jest.config.*      @MetaMask/core-platform @MetaMask/earn
 /packages/earn-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/earn
 
 ### eip-5792-middleware
@@ -316,7 +290,6 @@
 /packages/eip-5792-middleware/package.json       @MetaMask/core-platform
 /packages/eip-5792-middleware/tsconfig.*         @MetaMask/core-platform
 /packages/eip-5792-middleware/typedoc.json       @MetaMask/core-platform
-/packages/eip-5792-middleware/jest.config.*      @MetaMask/core-platform
 /packages/eip-5792-middleware/vitest.config.*    @MetaMask/core-platform
 
 ### eip-7702-internal-rpc-middleware
@@ -325,7 +298,6 @@
 /packages/eip-7702-internal-rpc-middleware/package.json       @MetaMask/core-platform @MetaMask/delegation
 /packages/eip-7702-internal-rpc-middleware/tsconfig.*         @MetaMask/core-platform @MetaMask/delegation
 /packages/eip-7702-internal-rpc-middleware/typedoc.json       @MetaMask/core-platform @MetaMask/delegation
-/packages/eip-7702-internal-rpc-middleware/jest.config.*      @MetaMask/core-platform @MetaMask/delegation
 /packages/eip-7702-internal-rpc-middleware/vitest.config.*    @MetaMask/core-platform @MetaMask/delegation
 
 ### eip1193-permission-middleware
@@ -334,7 +306,6 @@
 /packages/eip1193-permission-middleware/package.json       @MetaMask/core-platform
 /packages/eip1193-permission-middleware/tsconfig.*         @MetaMask/core-platform
 /packages/eip1193-permission-middleware/typedoc.json       @MetaMask/core-platform
-/packages/eip1193-permission-middleware/jest.config.*      @MetaMask/core-platform
 /packages/eip1193-permission-middleware/vitest.config.*    @MetaMask/core-platform
 
 ### error-utils
@@ -343,7 +314,6 @@
 /packages/error-utils/package.json       @MetaMask/core-platform
 /packages/error-utils/tsconfig.*         @MetaMask/core-platform
 /packages/error-utils/typedoc.json       @MetaMask/core-platform
-/packages/error-utils/jest.config.*      @MetaMask/core-platform
 /packages/error-utils/vitest.config.*    @MetaMask/core-platform
 
 ### eth-block-tracker
@@ -352,7 +322,6 @@
 /packages/eth-block-tracker/package.json       @MetaMask/core-platform
 /packages/eth-block-tracker/tsconfig.*         @MetaMask/core-platform
 /packages/eth-block-tracker/typedoc.json       @MetaMask/core-platform
-/packages/eth-block-tracker/jest.config.*      @MetaMask/core-platform
 /packages/eth-block-tracker/vitest.config.*    @MetaMask/core-platform
 
 ### eth-json-rpc-middleware
@@ -361,7 +330,6 @@
 /packages/eth-json-rpc-middleware/package.json       @MetaMask/core-platform
 /packages/eth-json-rpc-middleware/tsconfig.*         @MetaMask/core-platform
 /packages/eth-json-rpc-middleware/typedoc.json       @MetaMask/core-platform
-/packages/eth-json-rpc-middleware/jest.config.*      @MetaMask/core-platform
 /packages/eth-json-rpc-middleware/vitest.config.*    @MetaMask/core-platform
 
 ### eth-json-rpc-provider
@@ -370,7 +338,6 @@
 /packages/eth-json-rpc-provider/package.json       @MetaMask/core-platform
 /packages/eth-json-rpc-provider/tsconfig.*         @MetaMask/core-platform
 /packages/eth-json-rpc-provider/typedoc.json       @MetaMask/core-platform
-/packages/eth-json-rpc-provider/jest.config.*      @MetaMask/core-platform
 /packages/eth-json-rpc-provider/vitest.config.*    @MetaMask/core-platform
 
 ### foundryup
@@ -379,7 +346,6 @@
 /packages/foundryup/package.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/foundryup/tsconfig.*         @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/foundryup/typedoc.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/foundryup/jest.config.*      @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/foundryup/vitest.config.*    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ### gas-fee-controller
@@ -388,7 +354,6 @@
 /packages/gas-fee-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform
-/packages/gas-fee-controller/jest.config.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform
 
 ### gator-permissions-controller
@@ -397,7 +362,6 @@
 /packages/gator-permissions-controller/package.json       @MetaMask/core-platform @MetaMask/delegation
 /packages/gator-permissions-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/delegation
 /packages/gator-permissions-controller/typedoc.json       @MetaMask/core-platform @MetaMask/delegation
-/packages/gator-permissions-controller/jest.config.*      @MetaMask/core-platform @MetaMask/delegation
 /packages/gator-permissions-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/delegation
 
 ### geolocation-controller
@@ -406,7 +370,6 @@
 /packages/geolocation-controller/package.json       @MetaMask/core-platform @MetaMask/mobile-platform
 /packages/geolocation-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/mobile-platform
 /packages/geolocation-controller/typedoc.json       @MetaMask/core-platform @MetaMask/mobile-platform
-/packages/geolocation-controller/jest.config.*      @MetaMask/core-platform @MetaMask/mobile-platform
 /packages/geolocation-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/mobile-platform
 
 ### java-tron-up
@@ -415,7 +378,6 @@
 /packages/java-tron-up/package.json       @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/java-tron-up/tsconfig.*         @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/java-tron-up/typedoc.json       @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
-/packages/java-tron-up/jest.config.*      @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/java-tron-up/vitest.config.*    @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 
 ### json-rpc-engine
@@ -424,7 +386,6 @@
 /packages/json-rpc-engine/package.json       @MetaMask/core-platform
 /packages/json-rpc-engine/tsconfig.*         @MetaMask/core-platform
 /packages/json-rpc-engine/typedoc.json       @MetaMask/core-platform
-/packages/json-rpc-engine/jest.config.*      @MetaMask/core-platform
 /packages/json-rpc-engine/vitest.config.*    @MetaMask/core-platform
 
 ### json-rpc-middleware-stream
@@ -433,7 +394,6 @@
 /packages/json-rpc-middleware-stream/package.json       @MetaMask/core-platform
 /packages/json-rpc-middleware-stream/tsconfig.*         @MetaMask/core-platform
 /packages/json-rpc-middleware-stream/typedoc.json       @MetaMask/core-platform
-/packages/json-rpc-middleware-stream/jest.config.*      @MetaMask/core-platform
 /packages/json-rpc-middleware-stream/vitest.config.*    @MetaMask/core-platform
 
 ### keyring-controller
@@ -442,7 +402,6 @@
 /packages/keyring-controller/package.json       @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/keyring-controller/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/keyring-controller/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/keyring-controller/jest.config.*      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/keyring-controller/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ### kyc-controller
@@ -451,7 +410,6 @@
 /packages/kyc-controller/package.json       @MetaMask/core-platform @MetaMask/universal-kyc
 /packages/kyc-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/universal-kyc
 /packages/kyc-controller/typedoc.json       @MetaMask/core-platform @MetaMask/universal-kyc
-/packages/kyc-controller/jest.config.*      @MetaMask/core-platform @MetaMask/universal-kyc
 /packages/kyc-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/universal-kyc
 
 ### local-node-utils
@@ -460,7 +418,6 @@
 /packages/local-node-utils/package.json       @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/local-node-utils/tsconfig.*         @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/local-node-utils/typedoc.json       @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
-/packages/local-node-utils/jest.config.*      @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/local-node-utils/vitest.config.*    @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 
 ### logging-controller
@@ -469,7 +426,6 @@
 /packages/logging-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/logging-controller/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform
 /packages/logging-controller/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform
-/packages/logging-controller/jest.config.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/logging-controller/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform
 
 ### marketing-consent-controller
@@ -478,7 +434,6 @@
 /packages/marketing-consent-controller/package.json       @MetaMask/core-platform @MetaMask/engagement
 /packages/marketing-consent-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/engagement
 /packages/marketing-consent-controller/typedoc.json       @MetaMask/core-platform @MetaMask/engagement
-/packages/marketing-consent-controller/jest.config.*      @MetaMask/core-platform @MetaMask/engagement
 /packages/marketing-consent-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/engagement
 
 ### message-manager
@@ -487,7 +442,6 @@
 /packages/message-manager/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/message-manager/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform
 /packages/message-manager/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform
-/packages/message-manager/jest.config.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/message-manager/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform
 
 ### messenger
@@ -496,7 +450,6 @@
 /packages/messenger/package.json       @MetaMask/core-platform
 /packages/messenger/tsconfig.*         @MetaMask/core-platform
 /packages/messenger/typedoc.json       @MetaMask/core-platform
-/packages/messenger/jest.config.*      @MetaMask/core-platform
 /packages/messenger/vitest.config.*    @MetaMask/core-platform
 
 ### messenger-cli
@@ -505,7 +458,6 @@
 /packages/messenger-cli/package.json       @MetaMask/core-platform
 /packages/messenger-cli/tsconfig.*         @MetaMask/core-platform
 /packages/messenger-cli/typedoc.json       @MetaMask/core-platform
-/packages/messenger-cli/jest.config.*      @MetaMask/core-platform
 /packages/messenger-cli/vitest.config.*    @MetaMask/core-platform
 
 ### mfa-recovery-controller
@@ -514,7 +466,6 @@
 /packages/mfa-recovery-controller/package.json       @MetaMask/core-platform @MetaMask/web3auth
 /packages/mfa-recovery-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/web3auth
 /packages/mfa-recovery-controller/typedoc.json       @MetaMask/core-platform @MetaMask/web3auth
-/packages/mfa-recovery-controller/jest.config.*      @MetaMask/core-platform @MetaMask/web3auth
 /packages/mfa-recovery-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/web3auth
 
 ### money-account-api-data-service
@@ -523,7 +474,6 @@
 /packages/money-account-api-data-service/package.json       @MetaMask/core-platform @MetaMask/earn
 /packages/money-account-api-data-service/tsconfig.*         @MetaMask/core-platform @MetaMask/earn
 /packages/money-account-api-data-service/typedoc.json       @MetaMask/core-platform @MetaMask/earn
-/packages/money-account-api-data-service/jest.config.*      @MetaMask/core-platform @MetaMask/earn
 /packages/money-account-api-data-service/vitest.config.*    @MetaMask/core-platform @MetaMask/earn
 
 ### money-account-balance-service
@@ -532,7 +482,6 @@
 /packages/money-account-balance-service/package.json       @MetaMask/core-platform @MetaMask/earn
 /packages/money-account-balance-service/tsconfig.*         @MetaMask/core-platform @MetaMask/earn
 /packages/money-account-balance-service/typedoc.json       @MetaMask/core-platform @MetaMask/earn
-/packages/money-account-balance-service/jest.config.*      @MetaMask/core-platform @MetaMask/earn
 /packages/money-account-balance-service/vitest.config.*    @MetaMask/core-platform @MetaMask/earn
 
 ### money-account-controller
@@ -541,7 +490,6 @@
 /packages/money-account-controller/package.json       @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/money-account-controller/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/money-account-controller/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/money-account-controller/jest.config.*      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/money-account-controller/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ### money-account-mfa-whitelist
@@ -550,7 +498,6 @@
 /packages/money-account-mfa-whitelist/package.json       @MetaMask/core-platform @MetaMask/earn
 /packages/money-account-mfa-whitelist/tsconfig.*         @MetaMask/core-platform @MetaMask/earn
 /packages/money-account-mfa-whitelist/typedoc.json       @MetaMask/core-platform @MetaMask/earn
-/packages/money-account-mfa-whitelist/jest.config.*      @MetaMask/core-platform @MetaMask/earn
 /packages/money-account-mfa-whitelist/vitest.config.*    @MetaMask/core-platform @MetaMask/earn
 
 ### money-account-upgrade-controller
@@ -559,7 +506,6 @@
 /packages/money-account-upgrade-controller/package.json       @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
 /packages/money-account-upgrade-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
 /packages/money-account-upgrade-controller/typedoc.json       @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
-/packages/money-account-upgrade-controller/jest.config.*      @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
 /packages/money-account-upgrade-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/delegation @MetaMask/earn
 
 ### money-account-utils
@@ -568,7 +514,6 @@
 /packages/money-account-utils/package.json       @MetaMask/core-platform @MetaMask/earn
 /packages/money-account-utils/tsconfig.*         @MetaMask/core-platform @MetaMask/earn
 /packages/money-account-utils/typedoc.json       @MetaMask/core-platform @MetaMask/earn
-/packages/money-account-utils/jest.config.*      @MetaMask/core-platform @MetaMask/earn
 /packages/money-account-utils/vitest.config.*    @MetaMask/core-platform @MetaMask/earn
 
 ### multichain-account-service
@@ -577,7 +522,6 @@
 /packages/multichain-account-service/package.json       @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-account-service/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-account-service/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/multichain-account-service/jest.config.*      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-account-service/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ### multichain-api-middleware
@@ -586,7 +530,6 @@
 /packages/multichain-api-middleware/package.json       @MetaMask/core-platform
 /packages/multichain-api-middleware/tsconfig.*         @MetaMask/core-platform
 /packages/multichain-api-middleware/typedoc.json       @MetaMask/core-platform
-/packages/multichain-api-middleware/jest.config.*      @MetaMask/core-platform
 /packages/multichain-api-middleware/vitest.config.*    @MetaMask/core-platform
 
 ### multichain-network-controller
@@ -595,7 +538,6 @@
 /packages/multichain-network-controller/package.json       @MetaMask/accounts-engineers @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/multichain-network-controller/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/multichain-network-controller/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/multichain-network-controller/jest.config.*      @MetaMask/accounts-engineers @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/multichain-network-controller/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform @MetaMask/metamask-assets
 
 ### multichain-transactions-controller
@@ -604,7 +546,6 @@
 /packages/multichain-transactions-controller/package.json       @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-transactions-controller/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-transactions-controller/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/multichain-transactions-controller/jest.config.*      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-transactions-controller/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ### name-controller
@@ -613,7 +554,6 @@
 /packages/name-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/name-controller/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform
 /packages/name-controller/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform
-/packages/name-controller/jest.config.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/name-controller/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform
 
 ### network-connection-banner-controller
@@ -622,7 +562,6 @@
 /packages/network-connection-banner-controller/package.json       @MetaMask/core-platform
 /packages/network-connection-banner-controller/tsconfig.*         @MetaMask/core-platform
 /packages/network-connection-banner-controller/typedoc.json       @MetaMask/core-platform
-/packages/network-connection-banner-controller/jest.config.*      @MetaMask/core-platform
 /packages/network-connection-banner-controller/vitest.config.*    @MetaMask/core-platform
 
 ### network-controller
@@ -631,7 +570,6 @@
 /packages/network-controller/package.json       @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/network-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/network-controller/typedoc.json       @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/network-controller/jest.config.*      @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/network-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/metamask-assets
 
 ### network-enablement-controller
@@ -640,7 +578,6 @@
 /packages/network-enablement-controller/package.json       @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/network-enablement-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/network-enablement-controller/typedoc.json       @MetaMask/core-platform @MetaMask/metamask-assets
-/packages/network-enablement-controller/jest.config.*      @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/network-enablement-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/metamask-assets
 
 ### node-utils
@@ -649,7 +586,6 @@
 /packages/node-utils/package.json       @MetaMask/core-platform
 /packages/node-utils/tsconfig.*         @MetaMask/core-platform
 /packages/node-utils/typedoc.json       @MetaMask/core-platform
-/packages/node-utils/jest.config.*      @MetaMask/core-platform
 /packages/node-utils/vitest.config.*    @MetaMask/core-platform
 
 ### notification-services-controller
@@ -658,7 +594,6 @@
 /packages/notification-services-controller/package.json       @MetaMask/core-platform @MetaMask/engagement
 /packages/notification-services-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/engagement
 /packages/notification-services-controller/typedoc.json       @MetaMask/core-platform @MetaMask/engagement
-/packages/notification-services-controller/jest.config.*      @MetaMask/core-platform @MetaMask/engagement
 /packages/notification-services-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/engagement
 
 ### passkey-controller
@@ -667,7 +602,6 @@
 /packages/passkey-controller/package.json       @MetaMask/core-platform @MetaMask/web3auth
 /packages/passkey-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/web3auth
 /packages/passkey-controller/typedoc.json       @MetaMask/core-platform @MetaMask/web3auth
-/packages/passkey-controller/jest.config.*      @MetaMask/core-platform @MetaMask/web3auth
 /packages/passkey-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/web3auth
 
 ### permission-controller
@@ -676,7 +610,6 @@
 /packages/permission-controller/package.json       @MetaMask/core-platform
 /packages/permission-controller/tsconfig.*         @MetaMask/core-platform
 /packages/permission-controller/typedoc.json       @MetaMask/core-platform
-/packages/permission-controller/jest.config.*      @MetaMask/core-platform
 /packages/permission-controller/vitest.config.*    @MetaMask/core-platform
 
 ### permission-log-controller
@@ -685,7 +618,6 @@
 /packages/permission-log-controller/package.json       @MetaMask/core-platform
 /packages/permission-log-controller/tsconfig.*         @MetaMask/core-platform
 /packages/permission-log-controller/typedoc.json       @MetaMask/core-platform
-/packages/permission-log-controller/jest.config.*      @MetaMask/core-platform
 /packages/permission-log-controller/vitest.config.*    @MetaMask/core-platform
 
 ### perps-controller
@@ -694,7 +626,6 @@
 /packages/perps-controller/package.json       @MetaMask/core-platform @MetaMask/perps
 /packages/perps-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/perps
 /packages/perps-controller/typedoc.json       @MetaMask/core-platform @MetaMask/perps
-/packages/perps-controller/jest.config.*      @MetaMask/core-platform @MetaMask/perps
 /packages/perps-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/perps
 
 ### phishing-controller
@@ -703,7 +634,6 @@
 /packages/phishing-controller/package.json       @MetaMask/core-platform @MetaMask/product-safety
 /packages/phishing-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/product-safety
 /packages/phishing-controller/typedoc.json       @MetaMask/core-platform @MetaMask/product-safety
-/packages/phishing-controller/jest.config.*      @MetaMask/core-platform @MetaMask/product-safety
 /packages/phishing-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/product-safety
 
 ### platform-api-docs
@@ -712,7 +642,6 @@
 /packages/platform-api-docs/package.json       @MetaMask/core-platform
 /packages/platform-api-docs/tsconfig.*         @MetaMask/core-platform
 /packages/platform-api-docs/typedoc.json       @MetaMask/core-platform
-/packages/platform-api-docs/jest.config.*      @MetaMask/core-platform
 /packages/platform-api-docs/vitest.config.*    @MetaMask/core-platform
 
 ### polling-controller
@@ -721,7 +650,6 @@
 /packages/polling-controller/package.json       @MetaMask/core-platform
 /packages/polling-controller/tsconfig.*         @MetaMask/core-platform
 /packages/polling-controller/typedoc.json       @MetaMask/core-platform
-/packages/polling-controller/jest.config.*      @MetaMask/core-platform
 /packages/polling-controller/vitest.config.*    @MetaMask/core-platform
 
 ### preferences-controller
@@ -730,7 +658,6 @@
 /packages/preferences-controller/package.json       @MetaMask/core-platform
 /packages/preferences-controller/tsconfig.*         @MetaMask/core-platform
 /packages/preferences-controller/typedoc.json       @MetaMask/core-platform
-/packages/preferences-controller/jest.config.*      @MetaMask/core-platform
 /packages/preferences-controller/vitest.config.*    @MetaMask/core-platform
 
 ### profile-controller
@@ -739,7 +666,6 @@
 /packages/profile-controller/package.json       @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/profile-controller/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/profile-controller/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/profile-controller/jest.config.*      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/profile-controller/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ### profile-metrics-controller
@@ -748,7 +674,6 @@
 /packages/profile-metrics-controller/package.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/profile-metrics-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/profile-metrics-controller/typedoc.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/profile-metrics-controller/jest.config.*      @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/profile-metrics-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ### profile-sync-controller
@@ -757,7 +682,6 @@
 /packages/profile-sync-controller/package.json       @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/profile-sync-controller/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/profile-sync-controller/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/profile-sync-controller/jest.config.*      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/profile-sync-controller/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ### ramps-controller
@@ -766,7 +690,6 @@
 /packages/ramps-controller/package.json       @MetaMask/core-platform @MetaMask/money-movement
 /packages/ramps-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/money-movement
 /packages/ramps-controller/typedoc.json       @MetaMask/core-platform @MetaMask/money-movement
-/packages/ramps-controller/jest.config.*      @MetaMask/core-platform @MetaMask/money-movement
 /packages/ramps-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/money-movement
 
 ### rate-limit-controller
@@ -775,7 +698,6 @@
 /packages/rate-limit-controller/package.json       @MetaMask/core-platform
 /packages/rate-limit-controller/tsconfig.*         @MetaMask/core-platform
 /packages/rate-limit-controller/typedoc.json       @MetaMask/core-platform
-/packages/rate-limit-controller/jest.config.*      @MetaMask/core-platform
 /packages/rate-limit-controller/vitest.config.*    @MetaMask/core-platform
 
 ### react-data-query
@@ -784,7 +706,6 @@
 /packages/react-data-query/package.json       @MetaMask/core-platform
 /packages/react-data-query/tsconfig.*         @MetaMask/core-platform
 /packages/react-data-query/typedoc.json       @MetaMask/core-platform
-/packages/react-data-query/jest.config.*      @MetaMask/core-platform
 /packages/react-data-query/vitest.config.*    @MetaMask/core-platform
 
 ### remote-feature-flag-controller
@@ -793,7 +714,6 @@
 /packages/remote-feature-flag-controller/package.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/remote-feature-flag-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/remote-feature-flag-controller/typedoc.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/remote-feature-flag-controller/jest.config.*      @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/remote-feature-flag-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ### sample-controllers
@@ -802,7 +722,6 @@
 /packages/sample-controllers/package.json       @MetaMask/core-platform
 /packages/sample-controllers/tsconfig.*         @MetaMask/core-platform
 /packages/sample-controllers/typedoc.json       @MetaMask/core-platform
-/packages/sample-controllers/jest.config.*      @MetaMask/core-platform
 /packages/sample-controllers/vitest.config.*    @MetaMask/core-platform
 
 ### seedless-onboarding-controller
@@ -811,7 +730,6 @@
 /packages/seedless-onboarding-controller/package.json       @MetaMask/core-platform @MetaMask/web3auth
 /packages/seedless-onboarding-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/web3auth
 /packages/seedless-onboarding-controller/typedoc.json       @MetaMask/core-platform @MetaMask/web3auth
-/packages/seedless-onboarding-controller/jest.config.*      @MetaMask/core-platform @MetaMask/web3auth
 /packages/seedless-onboarding-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/web3auth
 
 ### selected-network-controller
@@ -820,7 +738,6 @@
 /packages/selected-network-controller/package.json       @MetaMask/core-platform
 /packages/selected-network-controller/tsconfig.*         @MetaMask/core-platform
 /packages/selected-network-controller/typedoc.json       @MetaMask/core-platform
-/packages/selected-network-controller/jest.config.*      @MetaMask/core-platform
 /packages/selected-network-controller/vitest.config.*    @MetaMask/core-platform
 
 ### sentinel-api-service
@@ -829,7 +746,6 @@
 /packages/sentinel-api-service/package.json       @MetaMask/confirmations @MetaMask/core-platform @MetaMask/transactions
 /packages/sentinel-api-service/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform @MetaMask/transactions
 /packages/sentinel-api-service/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform @MetaMask/transactions
-/packages/sentinel-api-service/jest.config.*      @MetaMask/confirmations @MetaMask/core-platform @MetaMask/transactions
 /packages/sentinel-api-service/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform @MetaMask/transactions
 
 ### shield-api-service
@@ -838,7 +754,6 @@
 /packages/shield-api-service/package.json       @MetaMask/core-platform @MetaMask/web3auth
 /packages/shield-api-service/tsconfig.*         @MetaMask/core-platform @MetaMask/web3auth
 /packages/shield-api-service/typedoc.json       @MetaMask/core-platform @MetaMask/web3auth
-/packages/shield-api-service/jest.config.*      @MetaMask/core-platform @MetaMask/web3auth
 /packages/shield-api-service/vitest.config.*    @MetaMask/core-platform @MetaMask/web3auth
 
 ### shield-controller
@@ -847,7 +762,6 @@
 /packages/shield-controller/package.json       @MetaMask/core-platform @MetaMask/web3auth
 /packages/shield-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/web3auth
 /packages/shield-controller/typedoc.json       @MetaMask/core-platform @MetaMask/web3auth
-/packages/shield-controller/jest.config.*      @MetaMask/core-platform @MetaMask/web3auth
 /packages/shield-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/web3auth
 
 ### signature-controller
@@ -856,7 +770,6 @@
 /packages/signature-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/signature-controller/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform
 /packages/signature-controller/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform
-/packages/signature-controller/jest.config.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/signature-controller/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform
 
 ### smart-transactions-controller
@@ -865,7 +778,6 @@
 /packages/smart-transactions-controller/package.json       @MetaMask/core-platform @MetaMask/transactions
 /packages/smart-transactions-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/transactions
 /packages/smart-transactions-controller/typedoc.json       @MetaMask/core-platform @MetaMask/transactions
-/packages/smart-transactions-controller/jest.config.*      @MetaMask/core-platform @MetaMask/transactions
 /packages/smart-transactions-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/transactions
 
 ### snap-account-service
@@ -874,7 +786,6 @@
 /packages/snap-account-service/package.json       @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/snap-account-service/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/snap-account-service/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform
-/packages/snap-account-service/jest.config.*      @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/snap-account-service/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 ### social-controllers
@@ -883,7 +794,6 @@
 /packages/social-controllers/package.json       @MetaMask/core-platform @MetaMask/social-ai
 /packages/social-controllers/tsconfig.*         @MetaMask/core-platform @MetaMask/social-ai
 /packages/social-controllers/typedoc.json       @MetaMask/core-platform @MetaMask/social-ai
-/packages/social-controllers/jest.config.*      @MetaMask/core-platform @MetaMask/social-ai
 /packages/social-controllers/vitest.config.*    @MetaMask/core-platform @MetaMask/social-ai
 
 ### solana-test-validator-up
@@ -892,7 +802,6 @@
 /packages/solana-test-validator-up/package.json       @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/solana-test-validator-up/tsconfig.*         @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/solana-test-validator-up/typedoc.json       @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
-/packages/solana-test-validator-up/jest.config.*      @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/solana-test-validator-up/vitest.config.*    @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 
 ### stellar-quickstart-up
@@ -901,7 +810,6 @@
 /packages/stellar-quickstart-up/package.json       @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/stellar-quickstart-up/tsconfig.*         @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/stellar-quickstart-up/typedoc.json       @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
-/packages/stellar-quickstart-up/jest.config.*      @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 /packages/stellar-quickstart-up/vitest.config.*    @MetaMask/core-platform @MetaMask/emerging-opportunities @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/networks
 
 ### storage-service
@@ -910,7 +818,6 @@
 /packages/storage-service/package.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/storage-service/tsconfig.*         @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/storage-service/typedoc.json       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
-/packages/storage-service/jest.config.*      @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/storage-service/vitest.config.*    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 
 ### subscription-controller
@@ -919,7 +826,6 @@
 /packages/subscription-controller/package.json       @MetaMask/core-platform @MetaMask/web3auth
 /packages/subscription-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/web3auth
 /packages/subscription-controller/typedoc.json       @MetaMask/core-platform @MetaMask/web3auth
-/packages/subscription-controller/jest.config.*      @MetaMask/core-platform @MetaMask/web3auth
 /packages/subscription-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/web3auth
 
 ### subscription-service
@@ -928,7 +834,6 @@
 /packages/subscription-service/package.json       @MetaMask/core-platform @MetaMask/web3auth
 /packages/subscription-service/tsconfig.*         @MetaMask/core-platform @MetaMask/web3auth
 /packages/subscription-service/typedoc.json       @MetaMask/core-platform @MetaMask/web3auth
-/packages/subscription-service/jest.config.*      @MetaMask/core-platform @MetaMask/web3auth
 /packages/subscription-service/vitest.config.*    @MetaMask/core-platform @MetaMask/web3auth
 
 ### transaction-controller
@@ -937,7 +842,6 @@
 /packages/transaction-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform
-/packages/transaction-controller/jest.config.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform
 
 ### transaction-pay-controller
@@ -946,7 +850,6 @@
 /packages/transaction-pay-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-controller/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-controller/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform
-/packages/transaction-pay-controller/jest.config.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-controller/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform
 
 ### transaction-pay-middleware
@@ -955,7 +858,6 @@
 /packages/transaction-pay-middleware/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-middleware/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-middleware/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform
-/packages/transaction-pay-middleware/jest.config.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-middleware/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform
 
 ### type-utils
@@ -964,7 +866,6 @@
 /packages/type-utils/package.json       @MetaMask/core-platform
 /packages/type-utils/tsconfig.*         @MetaMask/core-platform
 /packages/type-utils/typedoc.json       @MetaMask/core-platform
-/packages/type-utils/jest.config.*      @MetaMask/core-platform
 /packages/type-utils/vitest.config.*    @MetaMask/core-platform
 
 ### user-operation-controller
@@ -973,7 +874,6 @@
 /packages/user-operation-controller/package.json       @MetaMask/confirmations @MetaMask/core-platform
 /packages/user-operation-controller/tsconfig.*         @MetaMask/confirmations @MetaMask/core-platform
 /packages/user-operation-controller/typedoc.json       @MetaMask/confirmations @MetaMask/core-platform
-/packages/user-operation-controller/jest.config.*      @MetaMask/confirmations @MetaMask/core-platform
 /packages/user-operation-controller/vitest.config.*    @MetaMask/confirmations @MetaMask/core-platform
 
 ### utils
@@ -982,7 +882,6 @@
 /packages/utils/package.json       @MetaMask/core-platform
 /packages/utils/tsconfig.*         @MetaMask/core-platform
 /packages/utils/typedoc.json       @MetaMask/core-platform
-/packages/utils/jest.config.*      @MetaMask/core-platform
 /packages/utils/vitest.config.*    @MetaMask/core-platform
 
 ### wallet
@@ -998,6 +897,7 @@
 /packages/wallet/src/initialization/instances/keyring-controller/                @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/logging-controller/                @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/network-controller/                @MetaMask/core-platform @MetaMask/metamask-assets
+/packages/wallet/src/initialization/instances/network-enablement-controller/     @MetaMask/metamask-assets
 /packages/wallet/src/initialization/instances/passkey-controller/                @MetaMask/web3auth
 /packages/wallet/src/initialization/instances/permission-controller/             @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/remote-feature-flag-controller/    @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
@@ -1013,17 +913,7 @@
 /packages/wallet/package.json                                                    @MetaMask/core-platform
 /packages/wallet/tsconfig.*                                                      @MetaMask/core-platform
 /packages/wallet/typedoc.json                                                    @MetaMask/core-platform
-/packages/wallet/jest.config.*                                                   @MetaMask/core-platform
 /packages/wallet/vitest.config.*                                                 @MetaMask/core-platform
-
-### wallet-cli
-/packages/wallet-cli                    @MetaMask/core-platform
-/packages/wallet-cli/CHANGELOG.md       @MetaMask/core-platform
-/packages/wallet-cli/package.json       @MetaMask/core-platform
-/packages/wallet-cli/tsconfig.*         @MetaMask/core-platform
-/packages/wallet-cli/typedoc.json       @MetaMask/core-platform
-/packages/wallet-cli/jest.config.*      @MetaMask/core-platform
-/packages/wallet-cli/vitest.config.*    @MetaMask/core-platform
 
 ### wallet-framework-docs
 /packages/wallet-framework-docs                    @MetaMask/core-platform
@@ -1031,8 +921,15 @@
 /packages/wallet-framework-docs/package.json       @MetaMask/core-platform
 /packages/wallet-framework-docs/tsconfig.*         @MetaMask/core-platform
 /packages/wallet-framework-docs/typedoc.json       @MetaMask/core-platform
-/packages/wallet-framework-docs/jest.config.*      @MetaMask/core-platform
 /packages/wallet-framework-docs/vitest.config.*    @MetaMask/core-platform
+
+### watch-only-account-service
+/packages/watch-only-account-service                    @MetaMask/accounts-engineers
+/packages/watch-only-account-service/CHANGELOG.md       @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/watch-only-account-service/package.json       @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/watch-only-account-service/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/watch-only-account-service/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/watch-only-account-service/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform
 
 # Overrides
 # ---------

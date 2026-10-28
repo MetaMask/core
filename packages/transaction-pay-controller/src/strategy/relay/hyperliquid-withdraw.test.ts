@@ -1,6 +1,8 @@
 import { successfulFetch } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import type { TransactionPayQuote } from '../../types.js';
@@ -8,9 +10,9 @@ import { RELAY_AUTHORIZE_URL, HYPERLIQUID_EXCHANGE_URL } from './constants.js';
 import { submitHyperliquidWithdraw } from './hyperliquid-withdraw.js';
 import type { RelayQuote, RelaySignatureStep } from './types.js';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  successfulFetch: jest.fn(),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  successfulFetch: vi.fn(),
 }));
 
 const FROM_MOCK = '0xabc123' as Hex;
@@ -90,15 +92,15 @@ function buildQuote(
 }
 
 describe('submitHyperliquidWithdraw', () => {
-  const successfulFetchMock = jest.mocked(successfulFetch);
+  const successfulFetchMock = vi.mocked(successfulFetch);
   const { messenger } = getMessengerMock();
 
-  let signTypedMessageMock: jest.Mock;
+  let signTypedMessageMock: Mock;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
-    signTypedMessageMock = jest.fn().mockResolvedValue(SIGNATURE_MOCK);
+    signTypedMessageMock = vi.fn().mockResolvedValue(SIGNATURE_MOCK);
 
     messenger.registerActionHandler(
       'KeyringController:signTypedMessage',

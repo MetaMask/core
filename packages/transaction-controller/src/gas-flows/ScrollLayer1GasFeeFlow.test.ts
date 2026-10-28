@@ -1,4 +1,5 @@
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { CHAIN_IDS } from '../constants.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';

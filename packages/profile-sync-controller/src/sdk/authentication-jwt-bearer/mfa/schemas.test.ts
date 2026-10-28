@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   AuthenticationResponseJSONStruct,
   BeginEnrollmentRequestStruct,
@@ -52,6 +54,7 @@ describe('MFA schemas', () => {
     const credentials = {
       credentials: [
         {
+          credential_id: 'passkey',
           credential_type: 'passkey',
           status: 'active',
           passkey: {
@@ -61,6 +64,7 @@ describe('MFA schemas', () => {
           future_field: true,
         },
         {
+          credential_id: 'email_otp',
           credential_type: 'email_otp',
           status: 'pending',
           email: { address: 'user@example.com', verified: false },
@@ -89,6 +93,7 @@ describe('MFA schemas', () => {
         {
           credentials: [
             {
+              credential_id: 'email_otp',
               credential_type: 'email_otp',
               status: 'pending',
               email: {},
@@ -285,7 +290,13 @@ describe('MFA schemas', () => {
     expect(() =>
       assertValidMfaResponse(
         {
-          credentials: [{ credential_type: 'passkey', status: 'revoked' }],
+          credentials: [
+            {
+              credential_id: 'passkey',
+              credential_type: 'passkey',
+              status: 'revoked',
+            },
+          ],
         },
         MfaCredentialsResponseStruct,
       ),

@@ -7,6 +7,7 @@ import {
 } from '@metamask/account-api';
 import { EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { describe, expect, it } from 'vitest';
 
 import type { RootMessenger, MockAccountProvider } from '../tests/index.js';
 import {

@@ -318,10 +318,10 @@
       "path": "./packages/wallet/tsconfig.lint.json"
     },
     {
-      "path": "./packages/wallet-cli/tsconfig.lint.json"
+      "path": "./packages/wallet-framework-docs/tsconfig.lint.json"
     },
     {
-      "path": "./packages/wallet-framework-docs/tsconfig.lint.json"
+      "path": "./packages/watch-only-account-service/tsconfig.lint.json"
     },
     {
       "path": "./packages/package-template/tsconfig.lint.json"
@@ -337,6 +337,9 @@
     },
     {
       "path": "./packages/node-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/byte-utils/tsconfig.lint.json"
     }
   ]
 }

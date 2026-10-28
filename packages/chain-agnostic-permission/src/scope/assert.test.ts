@@ -1,4 +1,5 @@
 import * as Utils from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   assertScopeSupported,
@@ -11,21 +12,21 @@ import { Caip25Errors } from './errors.js';
 import * as Supported from './supported.js';
 import type { NormalizedScopeObject } from './types.js';
 
-jest.mock('./supported', () => ({
-  isSupportedScopeString: jest.fn(),
-  isSupportedNotification: jest.fn(),
-  isSupportedMethod: jest.fn(),
+vi.mock('./supported', () => ({
+  isSupportedScopeString: vi.fn(),
+  isSupportedNotification: vi.fn(),
+  isSupportedMethod: vi.fn(),
 }));
 
-jest.mock('@metamask/utils', () => ({
-  ...jest.requireActual('@metamask/utils'),
-  isCaipChainId: jest.fn(),
-  isCaipReference: jest.fn(),
-  isCaipAccountId: jest.fn(),
+vi.mock('@metamask/utils', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@metamask/utils')>()),
+  isCaipChainId: vi.fn(),
+  isCaipReference: vi.fn(),
+  isCaipAccountId: vi.fn(),
 }));
 
-const MockSupported = jest.mocked(Supported);
-const MockUtils = jest.mocked(Utils);
+const MockSupported = vi.mocked(Supported);
+const MockUtils = vi.mocked(Utils);
 
 const validScopeObject: NormalizedScopeObject = {
   methods: [],
@@ -41,13 +42,13 @@ describe('Scope Assert', () => {
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('assertScopeSupported', () => {
-    const isEvmChainIdSupported = jest.fn();
-    const isNonEvmScopeSupported = jest.fn();
-    const getNonEvmSupportedMethods = jest.fn();
+    const isEvmChainIdSupported = vi.fn();
+    const isNonEvmScopeSupported = vi.fn();
+    const getNonEvmSupportedMethods = vi.fn();
 
     describe('scopeString', () => {
       it('checks if the scopeString is supported', () => {
@@ -196,9 +197,9 @@ describe('Scope Assert', () => {
   });
 
   describe('assertScopesSupported', () => {
-    const isEvmChainIdSupported = jest.fn();
-    const isNonEvmScopeSupported = jest.fn();
-    const getNonEvmSupportedMethods = jest.fn();
+    const isEvmChainIdSupported = vi.fn();
+    const isNonEvmScopeSupported = vi.fn();
+    const getNonEvmSupportedMethods = vi.fn();
 
     it('does not throw an error if no scopes are defined', () => {
       expect(
@@ -327,9 +328,9 @@ describe('Scope Assert', () => {
           rpcEndpoints: ['endpoint1'],
         },
       };
-      jest
-        .spyOn(Utils, 'isCaipReference')
-        .mockImplementation((ref) => ref !== 'invalidRef');
+      vi.spyOn(Utils, 'isCaipReference').mockImplementation(
+        (ref) => ref !== 'invalidRef',
+      );
 
       expect(() =>
         assertIsExternalScopesObject(invalidExternalScopeObject),

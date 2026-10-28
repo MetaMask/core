@@ -1,26 +1,22 @@
-import { jest } from '@jest/globals';
+import { describe, expect, it, vi } from 'vitest';
 import type { Arguments } from 'yargs';
 
+import { createPackageHandler } from './commands.ts';
 import type { CreatePackageOptions } from './commands.ts';
+import * as utils from './utils.ts';
 
-// `jest.mock` does not apply to ES modules, so the module registry is stubbed
-// with `jest.unstable_mockModule` and the modules under test are imported
-// dynamically afterwards.
-jest.unstable_mockModule('./utils.js', () => ({
-  finalizeAndWriteData: jest.fn(),
-  readMonorepoFiles: jest.fn(),
+vi.mock(import('./utils.ts'), () => ({
+  finalizeAndWriteData: vi.fn(),
+  readMonorepoFiles: vi.fn(),
 }));
 
-const utils = await import('./utils.js');
-const { createPackageHandler } = await import('./commands.js');
-
 // January 2 to avoid time zone issues.
-jest.useFakeTimers().setSystemTime(new Date('2023-01-02'));
+vi.useFakeTimers().setSystemTime(new Date('2023-01-02'));
 
 describe('create-package/commands', () => {
   describe('createPackageHandler', () => {
     it('should create the expected package', async () => {
-      jest.mocked(utils.readMonorepoFiles).mockResolvedValue({
+      vi.mocked(utils.readMonorepoFiles).mockResolvedValue({
         tsConfig: {
           references: [{ path: '../packages/foo' }],
         },

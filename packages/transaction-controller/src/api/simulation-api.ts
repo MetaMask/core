@@ -266,6 +266,9 @@ export type SimulationResponse = {
 
     /** Error message for the determination of sponsorship. */
     error: string | null;
+
+    /** Name of the party paying the gas fee, such as `Uniswap` or `MetaMask`. */
+    sponsor?: string;
   };
 };
 

@@ -1,5 +1,6 @@
 import { hexToBytes, stringToBytes } from '@metamask/utils';
 import { ed25519 } from '@noble/curves/ed25519';
+import { describe, expect, it } from 'vitest';
 
 import { base64UrlToBytes } from '../encoding.js';
 import {

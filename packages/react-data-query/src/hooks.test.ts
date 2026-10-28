@@ -3,13 +3,14 @@ import {
   useInfiniteQuery as useInfiniteQueryFromTanStack,
   useMutation as useMutationFromTanStack,
 } from '@tanstack/react-query';
+import { describe, expect, it, vi } from 'vitest';
 
 import { useInfiniteQuery, useMutation, useQuery } from './hooks.js';
 
-jest.mock('@tanstack/react-query', () => ({
-  useQuery: jest.fn(),
-  useInfiniteQuery: jest.fn(),
-  useMutation: jest.fn(),
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: vi.fn(),
+  useInfiniteQuery: vi.fn(),
+  useMutation: vi.fn(),
 }));
 
 describe('useQuery', () => {

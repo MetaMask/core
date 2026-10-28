@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   _resetStateForTests,
   bumpOhlcvGeneration,
@@ -92,17 +94,17 @@ describe('slbCenterViewport', () => {
     setOhlcvData(bars);
     setSlbMode(true);
     setSlbCenteringPending(true);
-    jest.useFakeTimers();
-    jest
-      .spyOn(window, 'requestAnimationFrame')
-      .mockImplementation((callback: FrameRequestCallback) => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (callback: FrameRequestCallback) => {
         setTimeout(() => callback(Date.now()), 16);
         return 0;
-      });
+      },
+    );
   });
   afterEach(() => {
-    jest.useRealTimers();
-    jest.restoreAllMocks();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('no-ops when slbMode is off', () => {
@@ -144,7 +146,7 @@ describe('slbCenterViewport', () => {
     expect(stub.setRangeCalls).toHaveLength(0); // waits for onDataLoaded
 
     stub.fireDataLoaded();
-    jest.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(1000);
 
     // Exactly one call, anchored with percentRightMargin: 0, and no hold loop.
     expect(stub.setRangeCalls).toHaveLength(1);
@@ -165,7 +167,7 @@ describe('slbCenterViewport', () => {
 
     // First assertion fires synchronously; more arrive across the hold window.
     expect(stub.setRangeCalls.length).toBeGreaterThanOrEqual(1);
-    jest.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(1000);
     expect(stub.setRangeCalls.length).toBeGreaterThan(1);
 
     // The historical-frame path must NOT pass percentRightMargin (it would
@@ -189,9 +191,9 @@ describe('slbCenterViewport', () => {
 
     slbCenterViewport(stub.chart);
     stub.fireDataLoaded();
-    jest.advanceTimersByTime(2000);
+    vi.advanceTimersByTime(2000);
     const settled = stub.setRangeCalls.length;
-    jest.advanceTimersByTime(2000);
+    vi.advanceTimersByTime(2000);
     expect(stub.setRangeCalls).toHaveLength(settled);
   });
 
@@ -207,7 +209,7 @@ describe('slbCenterViewport', () => {
 
     // A fresh series arrives mid-hold → the in-flight hold must stop.
     bumpOhlcvGeneration();
-    jest.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(1000);
     expect(stub.setRangeCalls).toHaveLength(before);
   });
 
@@ -220,7 +222,7 @@ describe('slbCenterViewport', () => {
     slbCenterViewport(stub.chart);
     bumpOhlcvGeneration(); // superseded before onDataLoaded fires
     stub.fireDataLoaded();
-    jest.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(1000);
     expect(stub.setRangeCalls).toHaveLength(0);
   });
 
@@ -247,7 +249,7 @@ describe('slbCenterViewport', () => {
     slbCenterViewport(stub.chart, { immediate: true });
     // First assertion fires synchronously from the hold loop.
     expect(stub.setRangeCalls.length).toBeGreaterThanOrEqual(1);
-    jest.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(1000);
     expect(stub.setRangeCalls.length).toBeGreaterThan(1);
 
     const first = stub.setRangeCalls[0].range;
@@ -268,7 +270,7 @@ describe('slbCenterViewport', () => {
     stub.setRangeCalls.length = 0;
     slbCenterViewport(stub.chart);
     stub.fireDataLoaded();
-    jest.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(1000);
     expect(stub.setRangeCalls).toHaveLength(0);
   });
 });
@@ -280,7 +282,7 @@ describe('slbScheduleInitialCentering', () => {
     setOhlcvData(bars);
   });
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('no-ops when slbMode is off', () => {
@@ -302,14 +304,14 @@ describe('slbHandleGetBars', () => {
 
   it('returns false and does not respond when slbMode is off', () => {
     setSlbMode(false);
-    const onResult = jest.fn();
+    const onResult = vi.fn();
     expect(slbHandleGetBars(onResult)).toBe(false);
     expect(onResult).not.toHaveBeenCalled();
   });
 
   it('signals noData and returns true when slbMode is on', () => {
     setSlbMode(true);
-    const onResult = jest.fn();
+    const onResult = vi.fn();
     expect(slbHandleGetBars(onResult)).toBe(true);
     expect(onResult).toHaveBeenCalledWith([], { noData: true });
   });

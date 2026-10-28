@@ -27,8 +27,8 @@ import type {
 } from '@metamask/superstruct';
 import type { Json } from '@metamask/type-utils';
 import { hasProperty } from '@metamask/type-utils';
+import type { AssertionErrorConstructor } from '@metamask/type-utils';
 
-import type { AssertionErrorConstructor } from './assert.js';
 import { assertStruct } from './assert.js';
 
 /**

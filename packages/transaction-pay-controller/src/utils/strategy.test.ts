@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { TransactionPayStrategy } from '../constants.js';
 import { AcrossStrategy } from '../strategy/across/AcrossStrategy.js';
 import { FiatStrategy } from '../strategy/fiat/FiatStrategy.js';
@@ -61,7 +63,7 @@ describe('Strategy Utils', () => {
     });
 
     it('skips unknown strategies and calls callback', () => {
-      const onUnknownStrategy = jest.fn();
+      const onUnknownStrategy = vi.fn();
 
       const strategies = getStrategiesByName(
         [
@@ -85,9 +87,9 @@ describe('Strategy Utils', () => {
 
     it('uses supports when available', async () => {
       const strategy = {
-        getQuotes: jest.fn(),
-        execute: jest.fn(),
-        supports: jest.fn().mockReturnValue(true),
+        getQuotes: vi.fn(),
+        execute: vi.fn(),
+        supports: vi.fn().mockReturnValue(true),
       };
 
       expect(await checkStrategySupport(strategy, request)).toBe(true);
@@ -96,9 +98,9 @@ describe('Strategy Utils', () => {
 
     it('supports async supports checks', async () => {
       const strategy = {
-        getQuotes: jest.fn(),
-        execute: jest.fn(),
-        supports: jest.fn().mockResolvedValue(false),
+        getQuotes: vi.fn(),
+        execute: vi.fn(),
+        supports: vi.fn().mockResolvedValue(false),
       };
 
       expect(await checkStrategySupport(strategy, request)).toBe(false);
@@ -107,8 +109,8 @@ describe('Strategy Utils', () => {
 
     it('defaults to supported when no support check is provided', async () => {
       const strategy = {
-        getQuotes: jest.fn(),
-        execute: jest.fn(),
+        getQuotes: vi.fn(),
+        execute: vi.fn(),
       };
 
       expect(await checkStrategySupport(strategy, request)).toBe(true);
@@ -122,9 +124,9 @@ describe('Strategy Utils', () => {
 
     it('returns false when checkQuoteSupport returns false', async () => {
       const strategy = {
-        checkQuoteSupport: jest.fn().mockReturnValue(false),
-        getQuotes: jest.fn(),
-        execute: jest.fn(),
+        checkQuoteSupport: vi.fn().mockReturnValue(false),
+        getQuotes: vi.fn(),
+        execute: vi.fn(),
       };
 
       expect(await checkStrategyQuoteSupport(strategy, request)).toBe(false);
@@ -132,9 +134,9 @@ describe('Strategy Utils', () => {
 
     it('returns true when checkQuoteSupport returns true', async () => {
       const strategy = {
-        checkQuoteSupport: jest.fn().mockReturnValue(true),
-        getQuotes: jest.fn(),
-        execute: jest.fn(),
+        checkQuoteSupport: vi.fn().mockReturnValue(true),
+        getQuotes: vi.fn(),
+        execute: vi.fn(),
       };
 
       expect(await checkStrategyQuoteSupport(strategy, request)).toBe(true);
@@ -142,8 +144,8 @@ describe('Strategy Utils', () => {
 
     it('defaults to supported when no post-quote support check is provided', async () => {
       const strategy = {
-        getQuotes: jest.fn(),
-        execute: jest.fn(),
+        getQuotes: vi.fn(),
+        execute: vi.fn(),
       };
 
       expect(await checkStrategyQuoteSupport(strategy, request)).toBe(true);

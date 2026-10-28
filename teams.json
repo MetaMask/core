@@ -66,7 +66,6 @@
   "metamask/react-data-query": "team-core-platform",
   "metamask/profile-metrics-controller": "team-mobile-platform,team-extension-platform",
   "metamask/wallet": "team-core-platform",
-  "metamask/wallet-cli": "team-core-platform",
   "metamask/passkey-controller": "team-onboarding",
   "metamask/mfa-recovery-controller": "team-onboarding",
   "metamask/seedless-onboarding-controller": "team-onboarding",
@@ -100,6 +99,7 @@
   "metamask/money-account-controller": "team-accounts-framework",
   "metamask/money-account-upgrade-controller": "team-earn",
   "metamask/snap-account-service": "team-accounts-framework",
+  "metamask/watch-only-account-service": "team-accounts-framework",
   "metamask/platform-api-docs": "team-core-platform",
   "metamask/smart-transactions-controller": "team-transactions",
   "metamask/kyc-controller": "team-universal-kyc",
@@ -107,5 +107,6 @@
   "metamask/package-template": "team-core-platform",
   "metamask/type-utils": "team-core-platform",
   "metamask/error-utils": "team-core-platform",
-  "metamask/node-utils": "team-core-platform"
+  "metamask/node-utils": "team-core-platform",
+  "metamask/byte-utils": "team-core-platform"
 }

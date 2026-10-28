@@ -74,6 +74,9 @@ const config = {
     'build-utils': {
       teams: ['@MetaMask/core-platform'],
     },
+    'byte-utils': {
+      teams: ['@MetaMask/core-platform'],
+    },
     'chain-agnostic-permission': {
       teams: ['@MetaMask/core-platform'],
     },
@@ -255,6 +258,7 @@ const config = {
     },
     'network-enablement-controller': {
       teams: ['@MetaMask/metamask-assets'],
+      initializationPath: 'network-enablement-controller',
     },
     'node-utils': {
       teams: ['@MetaMask/core-platform'],
@@ -402,11 +406,11 @@ const config = {
     wallet: {
       teams: ['@MetaMask/core-platform'],
     },
-    'wallet-cli': {
-      teams: ['@MetaMask/core-platform'],
-    },
     'wallet-framework-docs': {
       teams: ['@MetaMask/core-platform'],
+    },
+    'watch-only-account-service': {
+      teams: ['@MetaMask/accounts-engineers'],
     },
   },
   overrides: [

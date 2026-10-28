@@ -1,5 +1,6 @@
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { perpsWithdrawFlow } from './withdraw.js';
 
@@ -24,6 +25,22 @@ describe('perpsWithdrawFlow', () => {
       type: TransactionType.perpsWithdraw,
       skipInitialGasEstimate: true,
     });
+  });
+
+  it.each([
+    ['no amount', undefined],
+    ['a zero amount', '0'],
+  ])('encodes a zero amount for %s', (_label, amount) => {
+    expect(
+      perpsWithdrawFlow.build({ type: 'perpsWithdraw', from: FROM, amount })
+        .transactionParams.data,
+    ).toBe(
+      `0xa9059cbb${FROM.slice(2).padStart(64, '0')}${'0'.padStart(64, '0')}`,
+    );
+  });
+
+  it('allows a zero amount', () => {
+    expect(perpsWithdrawFlow.allowZeroAmount).toBe(true);
   });
 
   it('is enabled only when the in-wallet withdraw flow is', () => {

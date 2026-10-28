@@ -18,6 +18,9 @@
       "path": "../address-book-controller/tsconfig.lint.json"
     },
     {
+      "path": "../analytics-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../approval-controller/tsconfig.lint.json"
     },
     {
@@ -51,6 +54,9 @@
       "path": "../network-controller/tsconfig.lint.json"
     },
     {
+      "path": "../network-enablement-controller/tsconfig.lint.json"
+    },
+    {
       "path": "../passkey-controller/tsconfig.lint.json"
     },
     {
@@ -76,6 +82,9 @@
     },
     {
       "path": "../utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../geolocation-controller/tsconfig.lint.json"
     }
   ]
 }

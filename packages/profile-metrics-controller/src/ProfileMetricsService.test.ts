@@ -7,6 +7,8 @@ import type {
 } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
 import nock from 'nock';
+import { isDeepStrictEqual } from 'node:util';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProfileMetricsService } from './index.js';
 import type {
@@ -39,11 +41,14 @@ function createMockRequest(
 
 describe('ProfileMetricsService', () => {
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers({
+      toNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'],
+    });
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    nock.cleanAll();
+    vi.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -90,7 +95,7 @@ describe('ProfileMetricsService', () => {
     });
 
     it('sends fetch requests with credentials omitted', async () => {
-      const mockFetch = jest.fn().mockResolvedValue(
+      const mockFetch = vi.fn().mockResolvedValue(
         // eslint-disable-next-line no-restricted-globals
         new Response(JSON.stringify({ data: { success: true } }), {
           status: 200,
@@ -135,7 +140,7 @@ describe('ProfileMetricsService', () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')
         .reply(200, () => {
-          jest.advanceTimersByTime(6000);
+          vi.advanceTimersByTime(6000);
           return {
             data: {
               success: true,
@@ -143,7 +148,7 @@ describe('ProfileMetricsService', () => {
           };
         });
       const { service, rootMessenger } = getService();
-      const onDegradedListener = jest.fn();
+      const onDegradedListener = vi.fn();
       service.onDegraded(onDegradedListener);
 
       await rootMessenger.call(
@@ -158,7 +163,7 @@ describe('ProfileMetricsService', () => {
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')
         .reply(200, () => {
-          jest.advanceTimersByTime(1000);
+          vi.advanceTimersByTime(1000);
           return {
             data: {
               success: true,
@@ -170,7 +175,7 @@ describe('ProfileMetricsService', () => {
           policyOptions: { degradedThreshold: 500 },
         },
       });
-      const onDegradedListener = jest.fn();
+      const onDegradedListener = vi.fn();
       service.onDegraded(onDegradedListener);
 
       await rootMessenger.call(
@@ -201,7 +206,7 @@ describe('ProfileMetricsService', () => {
         options: { policyOptions: RETRY_POLICY },
       });
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
 
       await expect(
@@ -220,9 +225,9 @@ describe('ProfileMetricsService', () => {
         options: { policyOptions: RETRY_POLICY },
       });
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
-      const onDegradedListener = jest.fn();
+      const onDegradedListener = vi.fn();
       service.onDegraded(onDegradedListener);
 
       await expect(
@@ -242,9 +247,9 @@ describe('ProfileMetricsService', () => {
         options: { policyOptions: RETRY_POLICY },
       });
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
-      const onBreakListener = jest.fn();
+      const onBreakListener = vi.fn();
       service.onBreak(onBreakListener);
 
       // Should make 4 requests
@@ -310,7 +315,7 @@ describe('ProfileMetricsService', () => {
         },
       });
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
 
       await expect(
@@ -345,7 +350,7 @@ describe('ProfileMetricsService', () => {
       ).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
-      jest.advanceTimersByTime(circuitBreakDuration);
+      vi.advanceTimersByTime(circuitBreakDuration);
       const submitMetricsResponse =
         await service.submitMetrics(createMockRequest());
       expect(submitMetricsResponse).toBeUndefined();
@@ -370,7 +375,7 @@ describe('ProfileMetricsService', () => {
     });
 
     it('serializes the optional proof and account source for each account that has them and omits them for those that do not', async () => {
-      const mockFetch = jest.fn().mockResolvedValue(
+      const mockFetch = vi.fn().mockResolvedValue(
         // eslint-disable-next-line no-restricted-globals
         new Response(JSON.stringify({ data: { success: true } }), {
           status: 200,
@@ -508,7 +513,7 @@ describe('ProfileMetricsService', () => {
     });
 
     it('forwards the entropy source ID to the bearer token resolver and omits credentials', async () => {
-      const mockFetch = jest.fn().mockResolvedValue(
+      const mockFetch = vi.fn().mockResolvedValue(
         // eslint-disable-next-line no-restricted-globals
         new Response(
           JSON.stringify([
@@ -521,8 +526,8 @@ describe('ProfileMetricsService', () => {
           { status: 200 },
         ),
       );
-      const bearerTokenHandler = jest
-        .fn<Promise<string>, [string | undefined]>()
+      const bearerTokenHandler = vi
+        .fn<(entropySourceId: string | undefined) => Promise<string>>()
         .mockResolvedValue('mock-bearer-token');
       const { rootMessenger } = getService({
         options: { fetch: mockFetch },
@@ -548,10 +553,10 @@ describe('ProfileMetricsService', () => {
     });
 
     it('omits the entropy source ID when none is provided', async () => {
-      const bearerTokenHandler = jest
-        .fn<Promise<string>, [string | undefined]>()
+      const bearerTokenHandler = vi
+        .fn<(entropySourceId: string | undefined) => Promise<string>>()
         .mockResolvedValue('mock-bearer-token');
-      const mockFetch = jest.fn().mockResolvedValue(
+      const mockFetch = vi.fn().mockResolvedValue(
         // eslint-disable-next-line no-restricted-globals
         new Response(
           JSON.stringify([
@@ -597,19 +602,24 @@ describe('ProfileMetricsService', () => {
       // The chunker slices into 50 + 50 + 20. Order of completion across
       // chunks is not guaranteed (Promise.all), so we match every chunk by
       // its request body and respond with a one-to-one nonce per identifier.
-      scope
-        .post('/nonce/batch')
-        .times(3)
-        .reply(200, (_uri, requestBody) => {
-          const { identifiers: chunkIdentifiers } = requestBody as {
-            identifiers: string[];
-          };
-          return chunkIdentifiers.map((identifier) => ({
-            expires_in: 300,
-            identifier,
-            nonce: `nonce-for-${identifier}`,
-          }));
-        });
+      [
+        identifiers.slice(0, 50),
+        identifiers.slice(50, 100),
+        identifiers.slice(100),
+      ].forEach((chunk) => {
+        scope
+          .post('/nonce/batch', (body: { identifiers: string[] }) =>
+            isDeepStrictEqual(body.identifiers, chunk),
+          )
+          .reply(
+            200,
+            chunk.map((identifier) => ({
+              expires_in: 300,
+              identifier,
+              nonce: `nonce-for-${identifier}`,
+            })),
+          );
+      });
       const { rootMessenger } = getService();
 
       const nonces = await rootMessenger.call(
@@ -638,7 +648,7 @@ describe('ProfileMetricsService', () => {
         ]);
       const { service, rootMessenger } = getService();
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
 
       await expect(
@@ -669,7 +679,7 @@ describe('ProfileMetricsService', () => {
         ]);
       const { service, rootMessenger } = getService();
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
 
       await expect(
@@ -700,7 +710,7 @@ describe('ProfileMetricsService', () => {
         ]);
       const { service, rootMessenger } = getService();
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
 
       await expect(
@@ -736,7 +746,7 @@ describe('ProfileMetricsService', () => {
         ]);
       const { service, rootMessenger } = getService();
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
 
       await expect(
@@ -756,7 +766,7 @@ describe('ProfileMetricsService', () => {
         .reply(200, { error: 'oops' });
       const { service, rootMessenger } = getService();
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
 
       await expect(
@@ -776,7 +786,7 @@ describe('ProfileMetricsService', () => {
         .reply(200, [{ expires_in: 300, identifier: '0xAddressOne' }]);
       const { service, rootMessenger } = getService();
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
 
       await expect(
@@ -802,7 +812,7 @@ describe('ProfileMetricsService', () => {
         ]);
       const { service, rootMessenger } = getService();
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
 
       await expect(
@@ -818,7 +828,7 @@ describe('ProfileMetricsService', () => {
       nock(defaultBaseEndpoint).post('/nonce/batch').times(4).reply(500);
       const { service, rootMessenger } = getService();
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
 
       await expect(
@@ -834,7 +844,7 @@ describe('ProfileMetricsService', () => {
       nock(defaultBaseEndpoint).post('/nonce/batch').times(4).reply(400);
       const { service, rootMessenger } = getService();
       service.onRetry(({ delay }: { delay: number }) => {
-        jest.advanceTimersByTime(delay);
+        vi.advanceTimersByTime(delay);
       });
 
       await expect(

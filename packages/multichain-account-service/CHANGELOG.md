@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Register `XlmAccountProvider` in `MultichainAccountService` built-in providers and accept `providerConfigs[XLM_ACCOUNT_PROVIDER_NAME]` ([#10867](https://github.com/MetaMask/core/pull/10867))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
 - Stop publishing the `tests` directory, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))
@@ -19,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/account-api` from `^2.1.0` to `^2.2.0` ([#10694](https://github.com/MetaMask/core/pull/10694))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [14.1.0]
 
