@@ -10,7 +10,13 @@ import {
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
 import type { Json } from '@metamask/utils';
-import { CancelledError, hashKey, QueryClient } from '@tanstack/query-core';
+import {
+  CancelledError,
+  hashKey,
+  hydrate,
+  QueryClient,
+} from '@tanstack/query-core';
+import type { DehydratedState } from '@tanstack/query-core';
 import { BrokenCircuitError } from 'cockatiel';
 import nock from 'nock';
 import {
@@ -834,6 +840,55 @@ describe('BaseDataService', () => {
 
       service.destroy();
     });
+
+    it('omits the pending `promise` from `:cacheUpdated` payloads so they survive JSON', async () => {
+      mockAssets();
+      const messenger = createServiceMessenger();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      const service = new ExampleDataService(messenger);
+
+      const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS] as const;
+      const firstLoad = service.getAssets(MOCK_ASSETS);
+      await service.invalidateQueries({ queryKey });
+      await firstLoad;
+
+      const hash = hashKey(queryKey);
+      const payloads = publishSpy.mock.calls
+        .filter(
+          ([event]) => event === `ExampleDataService:cacheUpdated:${hash}`,
+        )
+        .map(([, payload]) => payload as RoundTrippedPayload);
+
+      // The invalidation is published while the first load is still pending.
+      expect(payloads).toStrictEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'updated',
+            state: expect.objectContaining({
+              queries: [
+                expect.objectContaining({
+                  state: expect.objectContaining({
+                    status: 'pending',
+                    fetchStatus: 'fetching',
+                    isInvalidated: true,
+                  }),
+                }),
+              ],
+            }),
+          }),
+        ]),
+      );
+      for (const payload of payloads) {
+        expect(payload.state.queries[0]).not.toHaveProperty('promise');
+        const roundTripped = roundTrip(payload);
+        expect(roundTripped.state.queries[0]).not.toHaveProperty('promise');
+        expect(() =>
+          hydrate(new QueryClient(), roundTripped.state as DehydratedState),
+        ).not.toThrow();
+      }
+
+      service.destroy();
+    });
   });
 
   describe('fetchQuery with onQueryStateChange', () => {
@@ -1395,7 +1450,9 @@ function createServiceMessenger(
 
 type RoundTrippedPayload = {
   state: {
-    queries: { state: { status: string; error: unknown } }[];
+    queries: {
+      state: { status: string; error: unknown };
+    }[];
   };
 };
 

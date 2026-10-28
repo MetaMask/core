@@ -90,10 +90,11 @@ export type SerializedQueryError = { name: string; message: string };
 
 /**
  * The dehydrated state published in `:cacheUpdated` payloads, where query
- * errors are serialized so they survive JSON round trips.
+ * errors are serialized and the in flight `promise` is omitted so the payload
+ * survives JSON round trips.
  */
 export type CacheUpdatedState = Omit<DehydratedState, 'queries'> & {
-  queries: (Omit<DehydratedState['queries'][number], 'state'> & {
+  queries: (Omit<DehydratedState['queries'][number], 'state' | 'promise'> & {
     state: DataServiceQueryState;
   })[];
 };
@@ -772,7 +773,8 @@ export class BaseDataService<
         : null;
     const state = dehydrated && {
       ...dehydrated,
-      queries: dehydrated.queries.map((query) => ({
+      // The in flight `promise` is not JSON safe, so it is left out.
+      queries: dehydrated.queries.map(({ promise: _promise, ...query }) => ({
         ...query,
         state: serializeQueryState(query.state),
       })),
