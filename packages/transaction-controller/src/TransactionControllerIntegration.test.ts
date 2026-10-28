@@ -32,6 +32,7 @@ import type {
 } from '@metamask/network-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import assert from 'assert';
+import nock from 'nock';
 import { v4 as uuidV4 } from 'uuid';
 import type { Mock } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -66,11 +67,14 @@ import { TransactionStatus, TransactionType } from './types.js';
 const realSetTimeout = globalThis.setTimeout;
 
 /**
- * Advances the fake timers like `advanceTime` from `tests/vitest/helpers`,
- * but also yields a real macrotask after each step. nock replies on the real
- * event loop, and Jest yielded through the real `setTimeout` between fake
- * timers (its environment has no `setImmediate`), so replies landed in time.
+ * Advances the fake timers in steps, and yields a real macrotask after each
+ * step. nock replies on the real event loop, and Jest yielded through the
+ * real `setTimeout` between fake timers (its environment has no
+ * `setImmediate`), so replies landed in time.
  * Vitest yields through `setImmediate`, which is not always long enough.
+ * A single `vi.advanceTimersByTimeAsync` call is not enough either: without
+ * this flush, 'should be able to get to confirmed state' (and eight other
+ * multichain and `getNonceLock` tests) fail.
  *
  * @param options - The options object.
  * @param options.duration - The total time to advance by, in milliseconds.
@@ -90,6 +94,31 @@ async function advanceTime({
     await new Promise((resolve) => realSetTimeout(resolve, 0));
     value -= stepSize;
   } while (value > 0);
+}
+
+/**
+ * Advances the fake timers until the given promise settles, then awaits it.
+ * Native `fetch` needs more event loop turns per request than `node-fetch`
+ * did, so a fixed number of `advanceTime` calls is not always enough.
+ *
+ * @param promise - The promise to wait for.
+ * @param maxSteps - The maximum number of times to advance the timers.
+ * @returns The result of the promise.
+ */
+async function advanceUntilSettled<Result>(
+  promise: Promise<Result>,
+  maxSteps = 20,
+): Promise<Result> {
+  const state = { isSettled: false };
+  const tracked = promise.finally(() => {
+    state.isSettled = true;
+  });
+
+  for (let step = 0; step < maxSteps && !state.isSettled; step++) {
+    await advanceTime({ duration: 1 });
+  }
+
+  return await tracked;
 }
 
 vi.mock(import('uuid'), async (importOriginal) => {
@@ -395,6 +424,7 @@ describe('TransactionController Integration', () => {
   });
 
   afterEach(() => {
+    nock.cleanAll();
     vi.useRealTimers();
   });
 
@@ -1081,7 +1111,7 @@ describe('TransactionController Integration', () => {
         await advanceTime({ duration: 1 });
         await advanceTime({ duration: 1 });
 
-        await Promise.all([addTx1.result, addTx2.result]);
+        await advanceUntilSettled(Promise.all([addTx1.result, addTx2.result]));
 
         const nonces = transactionController.state.transactions
           .map((tx) => tx.txParams.nonce)
@@ -1161,7 +1191,7 @@ describe('TransactionController Integration', () => {
         await advanceTime({ duration: 1 });
         await advanceTime({ duration: 1 });
 
-        await Promise.all([addTx1.result, addTx2.result]);
+        await advanceUntilSettled(Promise.all([addTx1.result, addTx2.result]));
 
         const nonces = transactionController.state.transactions
           .map((tx) => tx.txParams.nonce)

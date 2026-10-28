@@ -1,7 +1,7 @@
 import type { Dir } from 'fs';
 import { readFileSync } from 'fs';
 import fs from 'fs/promises';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 // The module is mocked below, so `exit` must come from it rather than the global.
 // eslint-disable-next-line n/prefer-global/process
 import { exit } from 'node:process';
@@ -277,13 +277,13 @@ describe('foundryup', () => {
 
     beforeEach(() => {
       vi.clearAllMocks();
-      cleanAll();
+      nock.cleanAll();
     });
 
     it('handles download errors gracefully', async () => {
       (fs.opendir as Mock).mockRejectedValue({ code: 'ENOENT' });
 
-      cleanAll();
+      nock.cleanAll();
       nock('https://example.com')
         .head('/binaries.zip')
         .reply(500, 'Internal Server Error')
@@ -298,7 +298,7 @@ describe('foundryup', () => {
         Architecture.Amd64,
       );
       await expect(result).rejects.toThrow(
-        'Request to https://example.com/binaries.zip failed. Status Code: 500 - null',
+        /^Request to https:\/\/example\.com\/binaries\.zip failed\. Status Code: 500 - (null|Internal Server Error)$/u,
       );
     });
 

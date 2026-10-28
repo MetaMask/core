@@ -21,6 +21,7 @@ export type {
   KycControllerClearStateAction,
   KycControllerFetchSessionDisclaimersAction,
   KycControllerFetchVendorDisclaimersAction,
+  KycControllerGetDataSharesAction,
   KycControllerGetProviderFlowStatusAction,
   KycControllerGetSessionStatusForVendorAction,
   KycControllerHasCompletedSessionDisclaimersAction,
@@ -36,6 +37,15 @@ export type {
   KycControllerStartSessionStatusPollingAction,
 } from './KycController-method-action-types.js';
 
+export { KYC_ANALYTICS_STATUSES, getKycAnalyticsStatus } from './analytics.js';
+export type {
+  KycAnalyticsStatus,
+  KycAnalyticsStatusChangedPayload,
+  KycAnalyticsTrackers,
+  KycAnalyticsVerificationOutcome,
+  KycAnalyticsVerificationOutcomePayload,
+} from './analytics.js';
+
 export { KycService, serviceName } from './KycService.js';
 export type {
   ApplicantAccessTokenResponse,
@@ -46,6 +56,7 @@ export type {
   EncryptionSchema,
   FetchSessionDisclaimersByCountryParams,
   FetchSessionDisclaimersBySessionIdParams,
+  GetDataSharesParams,
   GetSessionStatusParams,
   ResetWrappingKeysParams,
   VendorCustomerResponse,
@@ -72,6 +83,7 @@ export type {
   KycServiceFetchSessionDisclaimersByCountryAction,
   KycServiceFetchSessionDisclaimersBySessionIdAction,
   KycServiceFetchVendorDisclaimersAction,
+  KycServiceGetDataSharesAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetSessionStatusForVendorAction,
@@ -97,6 +109,7 @@ export type {
   KycCatalogDocument,
   KycConsentDocument,
   KycConsentRecord,
+  KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
   KycPhase,

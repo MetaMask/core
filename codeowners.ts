@@ -258,6 +258,7 @@ const config = {
     },
     'network-enablement-controller': {
       teams: ['@MetaMask/metamask-assets'],
+      initializationPath: 'network-enablement-controller',
     },
     'node-utils': {
       teams: ['@MetaMask/core-platform'],

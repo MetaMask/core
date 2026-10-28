@@ -1081,7 +1081,15 @@ describe('submitServerQuotes', () => {
       expect(addTxBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           disable7702: false,
-          gasLimit7702: expect.any(String),
+          gasLimit7702: '0x5208',
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({ gas: undefined }),
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({ gas: undefined }),
+            }),
+          ],
         }),
       );
     });

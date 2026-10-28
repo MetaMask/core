@@ -523,7 +523,15 @@ async function estimateSubmitBatchGasLimit7702({
       },
     );
 
-    if (result.gasLimits.length !== 1) {
+    // Older TransactionController versions return no `mode`, so detect a
+    // combined EIP-7702 gas limit from the number of gas limits instead.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const is7702Result =
+      result.mode === undefined
+        ? result.gasLimits.length === 1
+        : result.mode === 'eip7702';
+
+    if (!is7702Result) {
       return undefined;
     }
 

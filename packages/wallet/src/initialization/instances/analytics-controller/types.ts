@@ -38,8 +38,8 @@ export type AnalyticsControllerInstanceOptions = {
   isPreConsentQueueEnabled?: AnalyticsControllerOptions['isPreConsentQueueEnabled'];
 
   /**
-   * When omitted, the controller defaults to `false`. When enabled, hosts must
-   * register `GeolocationController` on the wallet root messenger.
+   * When omitted, the controller defaults to `false`. When enabled, wallet
+   * resolves location through the default `GeolocationController`.
    */
   isGeolocationEnabled?: AnalyticsControllerOptions['isGeolocationEnabled'];
 

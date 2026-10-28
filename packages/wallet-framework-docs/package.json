@@ -41,7 +41,7 @@
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^12.0.0",
+    "@metamask/utils": "^12.0.1",
     "@tanstack/query-core": "^5.103.2"
   },
   "devDependencies": {
@@ -55,7 +55,7 @@
     "@metamask/auto-changelog": "^6.2.1",
     "@types/react": "^19.0.0",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "nock": "^13.5.6",
+    "nock": "^15.0.5",
     "prism-react-renderer": "^2.4.1",
     "raw-loader": "^4.0.2",
     "react": "^19.3.0",

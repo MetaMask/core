@@ -217,6 +217,35 @@ describe('SubjectMetadataController', () => {
       });
     });
 
+    it('does not update state if the subject metadata is identical to the existing entry', () => {
+      const [messenger] = getSubjectMetadataControllerMessenger();
+      const controller = new SubjectMetadataController({
+        messenger,
+        subjectCacheLimit: 10,
+      });
+
+      const stateChangedListener = vi.fn();
+      messenger.subscribe(
+        'SubjectMetadataController:stateChange',
+        stateChangedListener,
+      );
+
+      controller.addSubjectMetadata(getSubjectMetadata('foo.com', 'foo'));
+      expect(stateChangedListener).toHaveBeenCalledTimes(1);
+
+      controller.addSubjectMetadata(getSubjectMetadata('foo.com', 'foo'));
+      expect(stateChangedListener).toHaveBeenCalledTimes(1);
+      expect(controller.state).toStrictEqual({
+        subjectMetadata: { 'foo.com': getSubjectMetadata('foo.com', 'foo') },
+      });
+
+      controller.addSubjectMetadata(getSubjectMetadata('foo.com', 'bar'));
+      expect(stateChangedListener).toHaveBeenCalledTimes(2);
+      expect(controller.state).toStrictEqual({
+        subjectMetadata: { 'foo.com': getSubjectMetadata('foo.com', 'bar') },
+      });
+    });
+
     it('does not delete metadata for subjects with permissions if cache size is exceeded', () => {
       const [messenger, hasPermissionsSpy] =
         getSubjectMetadataControllerMessenger();

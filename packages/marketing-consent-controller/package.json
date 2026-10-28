@@ -1,6 +1,6 @@
 {
   "name": "@metamask/marketing-consent-controller",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Keeps marketing consent in sync with Authenticated User Storage",
   "keywords": [
     "Ethereum",
@@ -50,17 +50,17 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/analytics-controller": "^4.0.0",
+    "@metamask/analytics-controller": "^4.1.0",
     "@metamask/authenticated-user-storage": "^4.1.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/keyring-controller": "^28.2.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/profile-sync-controller": "^35.0.0"
+    "@metamask/profile-sync-controller": "^36.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "@vitest/coverage-istanbul": "^5.0.0",
+    "@vitest/coverage-istanbul": "^5.0.5",
     "rimraf": "^6.1.3",
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",

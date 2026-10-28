@@ -26,7 +26,6 @@ import type { CaipChainId, CaipNamespace, Hex } from '@metamask/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockedFunction } from 'vitest';
 
-import { advanceTime } from '../../../tests/vitest/helpers.js';
 import { POPULAR_NETWORKS } from './constants.js';
 import { NetworkEnablementController } from './NetworkEnablementController.js';
 import type {
@@ -350,7 +349,7 @@ describe('NetworkEnablementController', () => {
       ],
     });
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(controller.state).toStrictEqual({
       enabledNetworkMap: {
@@ -412,7 +411,7 @@ describe('NetworkEnablementController', () => {
       ],
     });
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     // Create expected nativeAssetIdentifiers without Linea
     const expectedNativeAssetIdentifiers = {
@@ -479,7 +478,7 @@ describe('NetworkEnablementController', () => {
       } as TransactionMeta, // Simplified structure for testing
     });
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     // State should remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -496,7 +495,7 @@ describe('NetworkEnablementController', () => {
       // Missing transactionMeta entirely
     });
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     // State should remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -513,7 +512,7 @@ describe('NetworkEnablementController', () => {
       transactionMeta: null,
     });
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     // State should remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -524,7 +523,7 @@ describe('NetworkEnablementController', () => {
       transactionMeta: undefined,
     });
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     // State should still remain unchanged
     expect(controller.state).toStrictEqual(initialState);
@@ -559,7 +558,7 @@ describe('NetworkEnablementController', () => {
       ],
     });
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     // Create expected nativeAssetIdentifiers without Linea
     const expectedNativeAssetIdentifiersForFallback = {
@@ -1700,7 +1699,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // The added network should be enabled (exclusive behavior of network addition)
       expect(controller.isNetworkEnabled('0x2')).toBe(true);
@@ -1862,7 +1861,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
@@ -2107,7 +2106,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state).toStrictEqual({
         enabledNetworkMap: {
@@ -2332,7 +2331,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.isNetworkEnabled('0x999')).toBe(true);
       expect(controller.isNetworkEnabled('0x1')).toBe(false);
@@ -2477,7 +2476,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Now it should be added but not enabled (keeps current selection in popular mode)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
@@ -2518,7 +2517,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Bitcoin should be enabled, all others should be disabled due to exclusive behavior
       expect(
@@ -2842,7 +2841,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Bitcoin testnet should be enabled, others should be disabled (exclusive behavior across all namespaces)
       expect(controller.isNetworkEnabled(BtcScope.Testnet)).toBe(true);
@@ -3076,7 +3075,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Tron Nile should be enabled, others should be disabled (exclusive behavior across all namespaces)
       expect(controller.isNetworkEnabled(TrxScope.Nile)).toBe(true);
@@ -3452,7 +3451,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Should switch to Avalanche (disable all others, enable Avalanche)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
@@ -3485,7 +3484,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Should switch to the non-popular network (disable all others, enable new one)
       expect(controller.isNetworkEnabled('0x999')).toBe(true);
@@ -3518,7 +3517,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Should keep current selection (add Polygon but don't enable it)
       expect(controller.isNetworkEnabled('0x89')).toBe(true); // Polygon enabled
@@ -3552,7 +3551,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Should switch to Avalanche since we're not in popular networks mode (2 ≤ 2, not >2)
       expect(controller.isNetworkEnabled('0xa86a')).toBe(true);
@@ -3607,7 +3606,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.isNetworkEnabled('0x13b2')).toBe(false);
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
@@ -3666,7 +3665,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.isNetworkEnabled('0x13b2')).toBe(false);
       expect(controller.isNetworkEnabled('0x1')).toBe(true);
@@ -3728,7 +3727,7 @@ describe('NetworkEnablementController', () => {
         ],
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.isNetworkEnabled('0x13b2')).toBe(true);
       expect(controller.isNetworkEnabled('0x1')).toBe(true);

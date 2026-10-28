@@ -9,7 +9,6 @@ import type { Hex } from '@metamask/utils';
 import type { Mock, Mocked } from 'vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { advanceTime } from '../../../../tests/vitest/helpers.js';
 import {
   MultichainTrackingHelper,
   MultichainTrackingHelperOptions,
@@ -249,7 +248,7 @@ describe('MultichainTrackingHelper', () => {
     it('refreshes the tracking map', async () => {
       const { options, helper } = newMultichainTrackingHelper();
 
-      await advanceTime({ duration: 10 });
+      await vi.advanceTimersByTimeAsync(10);
       options.onNetworkStateChange.mock.calls[0][0]({} as NetworkState, []);
 
       expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(2);
@@ -262,7 +261,7 @@ describe('MultichainTrackingHelper', () => {
     it('refreshes the tracking map and excludes removed networkClientIds in the patches', async () => {
       const { options, helper } = newMultichainTrackingHelper();
 
-      await advanceTime({ duration: 10 });
+      await vi.advanceTimersByTimeAsync(10);
       options.onNetworkStateChange.mock.calls[0][0]({} as NetworkState, [
         {
           op: 'remove',
@@ -283,7 +282,7 @@ describe('MultichainTrackingHelper', () => {
     it('initializes the tracking map', async () => {
       const { options, helper } = newMultichainTrackingHelper();
 
-      await advanceTime({ duration: 10 });
+      await vi.advanceTimersByTimeAsync(10);
 
       expect(options.getNetworkClientRegistry).toHaveBeenCalledTimes(1);
       expect(helper.has('mainnet')).toBe(true);
@@ -297,7 +296,7 @@ describe('MultichainTrackingHelper', () => {
     it('clears the tracking map', async () => {
       const { helper } = newMultichainTrackingHelper();
 
-      await advanceTime({ duration: 10 });
+      await vi.advanceTimersByTimeAsync(10);
 
       expect(helper.has('mainnet')).toBe(true);
       expect(helper.has('goerli')).toBe(true);
@@ -325,7 +324,7 @@ describe('MultichainTrackingHelper', () => {
         }),
       });
 
-      await advanceTime({ duration: 10 });
+      await vi.advanceTimersByTimeAsync(10);
 
       expect(options.createNonceTracker).toHaveBeenCalledTimes(1);
       expect(options.createNonceTracker).toHaveBeenCalledWith({
@@ -357,7 +356,7 @@ describe('MultichainTrackingHelper', () => {
           }),
         });
 
-      await advanceTime({ duration: 10 });
+      await vi.advanceTimersByTimeAsync(10);
 
       expect(helper.has('mainnet')).toBe(true);
 
@@ -380,7 +379,7 @@ describe('MultichainTrackingHelper', () => {
           .spyOn(helper, 'acquireNonceLockForChainIdKey')
           .mockResolvedValue(vi.fn());
 
-        await advanceTime({ duration: 10 });
+        await vi.advanceTimersByTimeAsync(10);
 
         await helper.getNonceLock('0xdeadbeef', 'mainnet');
 
@@ -397,7 +396,7 @@ describe('MultichainTrackingHelper', () => {
           vi.fn(),
         );
 
-        await advanceTime({ duration: 10 });
+        await vi.advanceTimersByTimeAsync(10);
 
         await helper.getNonceLock('0xdeadbeef', 'mainnet');
 
@@ -414,7 +413,7 @@ describe('MultichainTrackingHelper', () => {
           releaseLockForChainIdKey,
         );
 
-        await advanceTime({ duration: 10 });
+        await vi.advanceTimersByTimeAsync(10);
 
         const nonceLock = await helper.getNonceLock('0xdeadbeef', 'mainnet');
 
@@ -453,7 +452,7 @@ describe('MultichainTrackingHelper', () => {
           releaseLockForChainIdKey,
         );
 
-        await advanceTime({ duration: 10 });
+        await vi.advanceTimersByTimeAsync(10);
 
         mockNonceTrackers['0x1'].getNonceLock.mockRejectedValue(
           'failed to acquire lock from nonceTracker',
@@ -505,7 +504,7 @@ describe('MultichainTrackingHelper', () => {
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
         new Promise<null>(async (resolve) => {
-          await advanceTime({ duration: 100 });
+          await vi.advanceTimersByTimeAsync(100);
           resolve(null);
         });
 
@@ -518,7 +517,7 @@ describe('MultichainTrackingHelper', () => {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/await-thenable
       await firstReleaseLock();
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       const secondDelay = delay();
       secondReleaseLockIfAcquired = await Promise.race([
