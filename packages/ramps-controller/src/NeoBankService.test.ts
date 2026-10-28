@@ -1152,13 +1152,16 @@ describe('NeoBankService', () => {
       nock(STAGING_BASE).get(CUSTOMER_PATH).once().reply(500, 'boom');
       const service = createService();
 
-      const error = await service.getMicrodeposits().catch((caught) => caught);
+      const error = await service
+        .getMicrodeposits()
+        .catch((caught: unknown) => caught);
 
       expect(error).toBeInstanceOf(HttpError);
-      expect(error.httpStatus).toBe(500);
-      expect(error.message).toBe(
-        "Fetching neo-bank customer lookup failed with status '500' - boom",
-      );
+      expect(error).toMatchObject({
+        httpStatus: 500,
+        message:
+          "Fetching neo-bank customer lookup failed with status '500' - boom",
+      });
 
       mockCustomerLookup();
       nock(STAGING_BASE).get(MICRODEPOSITS_PATH).query(true).reply(200, []);
