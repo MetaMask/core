@@ -14,6 +14,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type {
+  CreateMoneyAccountParams,
   GetMoneyAccountSelector,
   MoneyAccount,
 } from '@metamask/money-account-controller';
@@ -54,6 +55,11 @@ const MFA_IDENTITY: DerivedIdentity = {
 };
 
 const MFA_ACCOUNT_ADDRESS = '0x00000000000000000000000000000000000000Dd';
+
+const MFA_MONEY_ACCOUNT = {
+  id: MPC_ACCOUNT_ID,
+  address: MFA_ACCOUNT_ADDRESS,
+} as MoneyAccount;
 
 const MIGRATING_IDENTITY: DerivedIdentity & {
   migration: DerivedIdentityMigration;
@@ -993,7 +999,7 @@ describe('MoneyAccountLifecycleController', () => {
   });
 
   describe('startMigration', () => {
-    it('creates an MFA account and stops at the unimplemented migration once the pre-checks pass', async () => {
+    it('creates the MPC Money Account and stops at the unimplemented migration once the pre-checks pass', async () => {
       await withController(async ({ rootMessenger, mocks }) => {
         await expect(
           rootMessenger.call('MoneyAccountLifecycleController:startMigration'),
@@ -1002,7 +1008,8 @@ describe('MoneyAccountLifecycleController', () => {
         );
 
         expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
-        expect(mocks.createMfaAccount).toHaveBeenCalledTimes(1);
+        expect(mocks.createMoneyAccount).toHaveBeenCalledTimes(1);
+        expect(mocks.createMoneyAccount).toHaveBeenCalledWith({ type: 'mpc' });
         expect(mocks.getIntentsByAddress).toHaveBeenCalledWith(
           MFA_ACCOUNT_ADDRESS,
         );
@@ -1064,7 +1071,7 @@ describe('MoneyAccountLifecycleController', () => {
           await expect(controller.startMigration()).rejects.toThrow(
             'A Money Account identity is already migrating',
           );
-          expect(mocks.createMfaAccount).not.toHaveBeenCalled();
+          expect(mocks.createMoneyAccount).not.toHaveBeenCalled();
         });
       },
     );
@@ -1083,7 +1090,7 @@ describe('MoneyAccountLifecycleController', () => {
           await expect(controller.startMigration()).rejects.toThrow(
             `Money Account ${MONEY_ACCOUNT_ADDRESS} cannot be migrated while it is '${type}'`,
           );
-          expect(mocks.createMfaAccount).not.toHaveBeenCalled();
+          expect(mocks.createMoneyAccount).not.toHaveBeenCalled();
         });
       },
     );
@@ -1170,20 +1177,20 @@ describe('MoneyAccountLifecycleController', () => {
 
     it('does not start a migration while another is in flight, and allows one once it settles', async () => {
       await withController(async ({ controller, mocks }) => {
-        const { promise, resolve } = createDeferredPromise<Hex>();
-        mocks.createMfaAccount.mockReturnValueOnce(promise);
+        const { promise, resolve } = createDeferredPromise<MoneyAccount>();
+        mocks.createMoneyAccount.mockReturnValueOnce(promise);
 
         const first = controller.startMigration();
         await expect(controller.startMigration()).rejects.toThrow(
           'A Money Account migration is already in progress',
         );
-        resolve(MFA_ACCOUNT_ADDRESS);
+        resolve(MFA_MONEY_ACCOUNT);
         await expect(first).rejects.toThrow('is not implemented yet');
 
         await expect(controller.startMigration()).rejects.toThrow(
           'is not implemented yet',
         );
-        expect(mocks.createMfaAccount).toHaveBeenCalledTimes(2);
+        expect(mocks.createMoneyAccount).toHaveBeenCalledTimes(2);
       });
     });
   });
@@ -1283,7 +1290,9 @@ type Gates = {
 type Mocks = {
   getDerivedIdentities: Mock<() => Promise<DerivedIdentitiesResponse>>;
   getIntentsByAddress: Mock<(address: Hex) => Promise<IntentEntry[]>>;
-  createMfaAccount: Mock<() => Promise<Hex>>;
+  createMoneyAccount: Mock<
+    (params: CreateMoneyAccountParams) => Promise<MoneyAccount>
+  >;
   getMoneyAccount: Mock<
     (selector?: GetMoneyAccountSelector) => MoneyAccount | undefined
   >;
@@ -1363,7 +1372,7 @@ function getMessenger(
       'ChompApiService:getDerivedIdentities',
       'ChompApiService:getIntentsByAddress',
       'KeyringController:getState',
-      'MfaMigrationController:createMfaAccount',
+      'MoneyAccountController:createMoneyAccount',
       'MoneyAccountController:getMoneyAccount',
       'MoneyAccountController:setDefaultMoneyAccount',
       'MoneyAccountUpgradeController:getRegistrationStatus',
@@ -1416,9 +1425,9 @@ async function withController<ReturnValue>(
     getIntentsByAddress: vi
       .fn<(address: Hex) => Promise<IntentEntry[]>>()
       .mockResolvedValue([]),
-    createMfaAccount: vi
-      .fn<() => Promise<Hex>>()
-      .mockResolvedValue(MFA_ACCOUNT_ADDRESS),
+    createMoneyAccount: vi
+      .fn<(params: CreateMoneyAccountParams) => Promise<MoneyAccount>>()
+      .mockResolvedValue(MFA_MONEY_ACCOUNT),
     getMoneyAccount: vi
       .fn<(selector?: GetMoneyAccountSelector) => MoneyAccount | undefined>()
       .mockImplementation((selector) => {
@@ -1471,8 +1480,8 @@ async function withController<ReturnValue>(
     mocks.getIntentsByAddress,
   );
   rootMessenger.registerActionHandler(
-    'MfaMigrationController:createMfaAccount',
-    mocks.createMfaAccount,
+    'MoneyAccountController:createMoneyAccount',
+    mocks.createMoneyAccount,
   );
   rootMessenger.registerActionHandler('KeyringController:getState', () =>
     buildKeyringControllerState(gates),

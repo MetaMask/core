@@ -17,6 +17,7 @@ import type {
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
+  MoneyAccountControllerCreateMoneyAccountAction,
   MoneyAccountControllerGetMoneyAccountAction,
   MoneyAccountControllerSetDefaultMoneyAccountAction,
   MoneyAccountControllerStateChangeEvent,
@@ -32,7 +33,6 @@ import deepEqual from 'fast-deep-equal';
 
 import { getMoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
-import type { MfaMigrationControllerCreateMfaAccountAction } from './mfa-migration-controller-create-mfa-account.js';
 import type { MoneyAccountLifecycleControllerMethodActions } from './money-account-lifecycle-controller-method-action-types.js';
 import type { MoneyAccountUpgradeControllerGetRegistrationStatusAction } from './money-account-upgrade-controller-registration-status.js';
 
@@ -98,7 +98,7 @@ type AllowedActions =
   | ChompApiServiceGetDerivedIdentitiesAction
   | ChompApiServiceGetIntentsByAddressAction
   | KeyringControllerGetStateAction
-  | MfaMigrationControllerCreateMfaAccountAction
+  | MoneyAccountControllerCreateMoneyAccountAction
   | MoneyAccountControllerGetMoneyAccountAction
   | MoneyAccountControllerSetDefaultMoneyAccountAction
   | MoneyAccountUpgradeControllerGetRegistrationStatusAction
@@ -262,9 +262,9 @@ export class MoneyAccountLifecycleController extends BaseController<
    *
    * Reads the profile's identities fresh from CHOMP and records them, then
    * only proceeds when no identity is migrating and the Money Account is a
-   * valid SFA. Asks the MFA Migration Controller to create the MFA account,
-   * and checks that its address is fresh for CHOMP: not part of any identity,
-   * and without intents.
+   * valid SFA. Asks `MoneyAccountController` to create the MPC Money Account,
+   * or returns the one an earlier attempt created, and checks that its address
+   * is fresh for CHOMP: not part of any identity, and without intents.
    *
    * Linking the MFA address to the Money Account and completing the migration
    * steps are not implemented yet, so this always throws once the checks
@@ -325,9 +325,11 @@ export class MoneyAccountLifecycleController extends BaseController<
       );
     }
 
-    const mfaAddress = await this.messenger.call(
-      'MfaMigrationController:createMfaAccount',
+    const mpcMoneyAccount = await this.messenger.call(
+      'MoneyAccountController:createMoneyAccount',
+      { type: 'mpc' },
     );
+    const mfaAddress = mpcMoneyAccount.address as Hex;
     await this.#assertFreshForChomp(mfaAddress, identities);
 
     // TODO: Link the MFA address to the Money Account and drive the migration

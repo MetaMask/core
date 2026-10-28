@@ -53,9 +53,9 @@ export type MoneyAccountLifecycleControllerGetMoneyAccountIdentityAction = {
  *
  * Reads the profile's identities fresh from CHOMP and records them, then
  * only proceeds when no identity is migrating and the Money Account is a
- * valid SFA. Asks the MFA Migration Controller to create the MFA account,
- * and checks that its address is fresh for CHOMP: not part of any identity,
- * and without intents.
+ * valid SFA. Asks `MoneyAccountController` to create the MPC Money Account,
+ * or returns the one an earlier attempt created, and checks that its address
+ * is fresh for CHOMP: not part of any identity, and without intents.
  *
  * Linking the MFA address to the Money Account and completing the migration
  * steps are not implemented yet, so this always throws once the checks

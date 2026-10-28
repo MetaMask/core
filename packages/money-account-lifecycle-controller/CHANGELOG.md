@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `startMigration` method, also exposed through the messenger as `MoneyAccountLifecycleController:startMigration`, as a stub for migrating the primary Money Account from its SFA address to a new MFA address
     - Throws unless the feature is enabled, the wallet is unlocked with an HD keyring, and there is a Money Account
     - Reads the profile's derived identities fresh from CHOMP and records them, then throws when any identity is `MIGRATING` or the Money Account is not a valid `sfa`
-    - Creates the MFA account through `MfaMigrationController:createMfaAccount`, then throws when its address is already part of an identity or has CHOMP intents
+    - Creates the MPC Money Account through `MoneyAccountController:createMoneyAccount`, reusing one an earlier attempt created, then throws when its address is already part of an identity or has CHOMP intents
     - Linking the MFA address and completing the migration are not implemented yet, so it throws once these checks pass
     - Rejects a call made while another is in flight
   - Record the primary Money Account's lifecycle in the persisted `moneyAccounts` state, keyed by lowercased Money Account address
