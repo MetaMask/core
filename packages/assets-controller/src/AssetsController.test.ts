@@ -816,7 +816,7 @@ describe('AssetsController', () => {
             eip155: { '0x1': true },
           },
           nativeAssetIdentifiers: {
-            'eip155:1': MOCK_NATIVE_ASSET_ID,
+            'eip155:1': 'eip155:1/slip44:60',
           },
         }),
       );
@@ -834,11 +834,10 @@ describe('AssetsController', () => {
             eip155: { '0x1': true, '0x89': true },
           },
           nativeAssetIdentifiers: {
-            'eip155:1': MOCK_NATIVE_ASSET_ID,
-            'eip155:137': polygonNativeAssetId,
+            'eip155:1': 'eip155:1/slip44:60',
+            'eip155:137': 'eip155:137/slip44:966',
           },
         },
-        [],
       );
       await new Promise(process.nextTick);
 
