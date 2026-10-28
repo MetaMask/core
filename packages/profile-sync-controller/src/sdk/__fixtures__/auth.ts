@@ -115,7 +115,7 @@ export const handleMockSocialLogin = (
   // Body and header matchers capture the request, because the arguments
   // passed to `.reply()` callbacks differ between nock versions.
   let requestBody: unknown;
-  let authorization: string | undefined;
+  let authorization: string | null | undefined;
   const interceptor = nock(MOCK_SOCIAL_LOGIN_URL)
     .persist()
     .post('', (body) => {

@@ -71,7 +71,12 @@ function buildScopeForMockingRequests(
   rpcUrl: string,
   headers: Record<string, string>,
 ): nock.Scope {
-  return nock(rpcUrl, { reqheaders: headers }).filteringRequestBody((body) => {
+  // The types for nock 15 only declare the form of `filteringRequestBody` that
+  // takes no arguments, although it still accepts a function at runtime.
+  const scope = nock(rpcUrl, { reqheaders: headers }) as unknown as {
+    filteringRequestBody: (filter: (body: string) => string) => nock.Scope;
+  };
+  return scope.filteringRequestBody((body) => {
     debug('Nock Received Request: ', body);
     return body;
   });
