@@ -1,5 +1,6 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
 import type {
+  AddressIdentityResponse,
   ChompApiServiceVerifyDelegationAction,
   IntentEntry,
 } from '@metamask/chomp-api-service';
@@ -36,6 +37,8 @@ const MOCK_CHAIN_ID = '0x1' as Hex; // mainnet, supported in delegation-deployme
 const UNSUPPORTED_CHAIN_ID = '0x539' as Hex; // 1337 — local dev, not in registry
 const MOCK_ACCOUNT_ADDRESS =
   '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
+const MOCK_PREDECESSOR_ADDRESS =
+  '0xfedcba0987654321fedcba0987654321fedcba09' as Hex;
 const MOCK_BORING_VAULT_ADDRESS =
   '0xA20f97813014129E7609171d2D3AA3da5206259e' as Hex;
 
@@ -262,6 +265,7 @@ type Mocks = {
   createAddressChallenge: Mock;
   associateAddressV2: Mock;
   getAssociatedAddresses: Mock;
+  getDerivedIdentityByAddress: Mock;
   createUpgrade: Mock;
   signEip7702Authorization: Mock;
   findNetworkClientIdByChainId: Mock;
@@ -359,6 +363,7 @@ function setup({
       status: 'created',
     }),
     getAssociatedAddresses: vi.fn().mockResolvedValue([]),
+    getDerivedIdentityByAddress: vi.fn().mockResolvedValue(null),
     createUpgrade: vi.fn().mockResolvedValue({
       signerAddress: MOCK_ACCOUNT_ADDRESS,
       address: MAINNET_CONTRACTS.EIP7702StatelessDeleGatorImpl,
@@ -430,6 +435,10 @@ function setup({
     mocks.associateAddressV2,
   );
   rootMessenger.registerActionHandler(
+    'ChompApiService:getDerivedIdentityByAddress',
+    mocks.getDerivedIdentityByAddress,
+  );
+  rootMessenger.registerActionHandler(
     'ChompApiService:getAssociatedAddresses',
     mocks.getAssociatedAddresses,
   );
@@ -486,6 +495,7 @@ function setup({
       'KeyringController:signPersonalMessage',
       'ChompApiService:createAddressChallenge',
       'ChompApiService:associateAddressV2',
+      'ChompApiService:getDerivedIdentityByAddress',
       'ChompApiService:getAssociatedAddresses',
       'ChompApiService:createUpgrade',
       'KeyringController:signEip7702Authorization',
@@ -2053,6 +2063,218 @@ describe('MoneyAccountUpgradeController', () => {
       );
 
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('upgradeSuccessorAccount', () => {
+    it('throws when no bootstrap has been scheduled', async () => {
+      const { controller } = setup({ isEnabled: false });
+      controller.init();
+
+      await expect(
+        controller.upgradeSuccessorAccount(
+          MOCK_ACCOUNT_ADDRESS,
+          MOCK_PREDECESSOR_ADDRESS,
+        ),
+      ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
+    });
+
+    it('links the address to its predecessor when associating it', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+
+      await controller.upgradeSuccessorAccount(
+        MOCK_ACCOUNT_ADDRESS,
+        MOCK_PREDECESSOR_ADDRESS,
+      );
+
+      expect(mocks.createAddressChallenge).toHaveBeenCalledWith({
+        address: MOCK_ACCOUNT_ADDRESS,
+        purpose: 'ASSOCIATE_SUCCESSOR',
+        predecessorAddress: MOCK_PREDECESSOR_ADDRESS,
+      });
+      expect(mocks.associateAddressV2).toHaveBeenCalled();
+    });
+
+    it('runs the remaining upgrade steps and records the upgrade', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      makeAusAndChompWritable(mocks);
+
+      await controller.upgradeSuccessorAccount(
+        MOCK_ACCOUNT_ADDRESS,
+        MOCK_PREDECESSOR_ADDRESS,
+      );
+
+      expect(mocks.createUpgrade).toHaveBeenCalled();
+      expect(mocks.signDelegation).toHaveBeenCalledTimes(2);
+      expect(mocks.createIntents).toHaveBeenCalledTimes(1);
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toBeDefined();
+    });
+
+    it('does not trust a recorded upgrade: the link is still made', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      clearMockCalls(mocks);
+
+      await controller.upgradeSuccessorAccount(
+        MOCK_ACCOUNT_ADDRESS,
+        MOCK_PREDECESSOR_ADDRESS,
+      );
+
+      expect(mocks.createAddressChallenge).toHaveBeenCalledWith(
+        expect.objectContaining({ purpose: 'ASSOCIATE_SUCCESSOR' }),
+      );
+    });
+
+    it('does not pass the predecessor to a later plain upgrade', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      await controller.upgradeSuccessorAccount(
+        MOCK_ACCOUNT_ADDRESS,
+        MOCK_PREDECESSOR_ADDRESS,
+      );
+      clearMockCalls(mocks);
+
+      await controller.forceUpgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.createAddressChallenge).toHaveBeenCalledWith({
+        address: MOCK_ACCOUNT_ADDRESS,
+        purpose: 'ASSOCIATE',
+      });
+    });
+
+    it('wraps a terminal link rejection in a terminal MoneyAccountUpgradeStepError', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      mocks.associateAddressV2.mockRejectedValue(
+        Object.assign(new Error('conflict'), {
+          httpStatus: 409,
+          code: 'SUCCESSOR_ALREADY_MONEY_ACCOUNT',
+        }),
+      );
+
+      const error = await controller
+        .upgradeSuccessorAccount(MOCK_ACCOUNT_ADDRESS, MOCK_PREDECESSOR_ADDRESS)
+        .catch((thrown: unknown) => thrown);
+
+      expect(isMoneyAccountUpgradeStepError(error)).toBe(true);
+      expect(isTerminalMoneyAccountUpgradeError(error)).toBe(true);
+      expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
+    });
+
+    it('surfaces open predecessor withdrawals as a non-terminal step error carrying the CHOMP code', async () => {
+      const { controller, mocks, bootstrap } = setup();
+      await bootstrap();
+      mocks.associateAddressV2.mockRejectedValue(
+        Object.assign(new Error('conflict'), {
+          httpStatus: 409,
+          code: 'PREDECESSOR_HAS_OPEN_WITHDRAWALS',
+        }),
+      );
+
+      const error = await controller
+        .upgradeSuccessorAccount(MOCK_ACCOUNT_ADDRESS, MOCK_PREDECESSOR_ADDRESS)
+        .catch((thrown: unknown) => thrown);
+
+      expect(isMoneyAccountUpgradeStepError(error)).toBe(true);
+      expect(isTerminalMoneyAccountUpgradeError(error)).toBe(false);
+      expect(error).toMatchObject({
+        step: 'associate-address',
+        cause: { code: 'PREDECESSOR_HAS_OPEN_WITHDRAWALS' },
+      });
+    });
+
+    it('is callable via the messenger', async () => {
+      const { rootMessenger, mocks, bootstrap } = setup();
+      await bootstrap();
+
+      const result = await rootMessenger.call(
+        'MoneyAccountUpgradeController:upgradeSuccessorAccount',
+        MOCK_ACCOUNT_ADDRESS,
+        MOCK_PREDECESSOR_ADDRESS,
+      );
+
+      expect(result).toBeUndefined();
+      expect(mocks.createAddressChallenge).toHaveBeenCalledWith(
+        expect.objectContaining({ purpose: 'ASSOCIATE_SUCCESSOR' }),
+      );
+    });
+  });
+
+  describe('getRegistrationStatus', () => {
+    const identityResponse: AddressIdentityResponse = {
+      identity: {
+        currentAddress: MOCK_ACCOUNT_ADDRESS,
+        previousAddresses: [],
+        status: 'DONE',
+        migration: null,
+      },
+      address: {
+        address: MOCK_ACCOUNT_ADDRESS,
+        role: 'CURRENT',
+        predecessor: null,
+        successor: null,
+      },
+    };
+
+    it('reports the address as registered when CHOMP has an identity for it', async () => {
+      const { controller, mocks } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(identityResponse);
+
+      const status =
+        await controller.getRegistrationStatus(MOCK_ACCOUNT_ADDRESS);
+
+      expect(status).toStrictEqual({ isRegistered: true });
+      expect(mocks.getDerivedIdentityByAddress).toHaveBeenCalledWith(
+        MOCK_ACCOUNT_ADDRESS,
+      );
+    });
+
+    it('reports the address as not registered when CHOMP has no identity for it', async () => {
+      const { controller, mocks } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(null);
+
+      const status =
+        await controller.getRegistrationStatus(MOCK_ACCOUNT_ADDRESS);
+
+      expect(status).toStrictEqual({ isRegistered: false });
+    });
+
+    it('does not require a bootstrap', async () => {
+      const { controller, mocks } = setup({ isEnabled: false });
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(identityResponse);
+
+      const status =
+        await controller.getRegistrationStatus(MOCK_ACCOUNT_ADDRESS);
+
+      expect(status).toStrictEqual({ isRegistered: true });
+    });
+
+    it('propagates a failed CHOMP lookup', async () => {
+      const { controller, mocks } = setup();
+      mocks.getDerivedIdentityByAddress.mockRejectedValue(
+        new Error('CHOMP unavailable'),
+      );
+
+      await expect(
+        controller.getRegistrationStatus(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('CHOMP unavailable');
+    });
+
+    it('is exposed through the messenger', async () => {
+      const { rootMessenger, mocks } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(identityResponse);
+
+      const status = await rootMessenger.call(
+        'MoneyAccountUpgradeController:getRegistrationStatus',
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(status).toStrictEqual({ isRegistered: true });
     });
   });
 });

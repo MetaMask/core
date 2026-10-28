@@ -18,6 +18,7 @@ import type {
   GetMoneyAccountSelector,
   MoneyAccount,
 } from '@metamask/money-account-controller';
+import type { MoneyAccountRegistrationStatus } from '@metamask/money-account-upgrade-controller';
 import type {
   FeatureFlags,
   RemoteFeatureFlagControllerState,
@@ -30,7 +31,6 @@ import type { Mock } from 'vitest';
 import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import { MoneyAccountLifecycleController } from './money-account-lifecycle-controller.js';
 import type { MoneyAccountLifecycleControllerMessenger } from './money-account-lifecycle-controller.js';
-import type { RegistrationStatus } from './money-account-upgrade-controller-registration-status.js';
 
 const SFA_ACCOUNT_ID = 'sfa-account-id';
 const MPC_ACCOUNT_ID = 'mpc-account-id';
@@ -817,7 +817,7 @@ describe('MoneyAccountLifecycleController', () => {
     it('does not register the money account when it has started migrating by the time its registration status arrives', async () => {
       await withController(async ({ mocks, init, refetch }) => {
         const { promise, resolve } =
-          createDeferredPromise<RegistrationStatus>();
+          createDeferredPromise<MoneyAccountRegistrationStatus>();
         mocks.getDerivedIdentities
           .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
           .mockResolvedValueOnce({ identities: [MIGRATING_IDENTITY] });
@@ -837,7 +837,7 @@ describe('MoneyAccountLifecycleController', () => {
     it('does not register the money account when it has become an MFA by the time its registration status arrives', async () => {
       await withController(async ({ mocks, init, refetch }) => {
         const { promise, resolve } =
-          createDeferredPromise<RegistrationStatus>();
+          createDeferredPromise<MoneyAccountRegistrationStatus>();
         mocks.getDerivedIdentities
           .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
           .mockResolvedValueOnce({ identities: [MFA_IDENTITY] });
@@ -1296,7 +1296,9 @@ type Mocks = {
   getMoneyAccount: Mock<
     (selector?: GetMoneyAccountSelector) => MoneyAccount | undefined
   >;
-  getRegistrationStatus: Mock<(address: string) => Promise<RegistrationStatus>>;
+  getRegistrationStatus: Mock<
+    (address: Hex) => Promise<MoneyAccountRegistrationStatus>
+  >;
   upgradeAccount: Mock<(address: Hex) => Promise<void>>;
   setDefaultMoneyAccount: Mock<(id: string) => void>;
   isEnabled: Mock<(remoteFeatureFlags: FeatureFlags) => boolean>;
@@ -1454,7 +1456,7 @@ async function withController<ReturnValue>(
           : sfaAccount;
       }),
     getRegistrationStatus: vi
-      .fn<(address: string) => Promise<RegistrationStatus>>()
+      .fn<(address: Hex) => Promise<MoneyAccountRegistrationStatus>>()
       .mockResolvedValue({ isRegistered: true }),
     upgradeAccount: vi
       .fn<(address: Hex) => Promise<void>>()

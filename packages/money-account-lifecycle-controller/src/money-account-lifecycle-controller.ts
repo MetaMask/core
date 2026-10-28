@@ -22,7 +22,10 @@ import type {
   MoneyAccountControllerSetDefaultMoneyAccountAction,
   MoneyAccountControllerStateChangeEvent,
 } from '@metamask/money-account-controller';
-import type { MoneyAccountUpgradeControllerUpgradeAccountAction } from '@metamask/money-account-upgrade-controller';
+import type {
+  MoneyAccountUpgradeControllerGetRegistrationStatusAction,
+  MoneyAccountUpgradeControllerUpgradeAccountAction,
+} from '@metamask/money-account-upgrade-controller';
 import type {
   FeatureFlags,
   RemoteFeatureFlagControllerGetStateAction,
@@ -34,7 +37,6 @@ import deepEqual from 'fast-deep-equal';
 import { getMoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycleControllerMethodActions } from './money-account-lifecycle-controller-method-action-types.js';
-import type { MoneyAccountUpgradeControllerGetRegistrationStatusAction } from './money-account-upgrade-controller-registration-status.js';
 
 const CONTROLLER_NAME = 'MoneyAccountLifecycleController';
 
@@ -457,7 +459,7 @@ export class MoneyAccountLifecycleController extends BaseController<
         return;
       }
 
-      this.#fetchRegistrationStatus(moneyAccount.address, {
+      this.#fetchRegistrationStatus(moneyAccount.address as Hex, {
         shouldReconcile: true,
       });
       if (lifecycle.type === 'mfa') {
@@ -490,7 +492,7 @@ export class MoneyAccountLifecycleController extends BaseController<
   }
 
   #fetchRegistrationStatus(
-    address: string,
+    address: Hex,
     { shouldReconcile }: { shouldReconcile: boolean },
   ): void {
     const addressKey = address.toLowerCase();
@@ -513,7 +515,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       .catch((error: unknown) => this.#reportError(error));
   }
 
-  #registerAddress(address: string): void {
+  #registerAddress(address: Hex): void {
     const addressKey = address.toLowerCase();
     if (this.#registrationsInFlight.has(addressKey)) {
       return;
@@ -521,7 +523,7 @@ export class MoneyAccountLifecycleController extends BaseController<
     this.#registrationsInFlight.add(addressKey);
 
     this.messenger
-      .call('MoneyAccountUpgradeController:upgradeAccount', address as Hex)
+      .call('MoneyAccountUpgradeController:upgradeAccount', address)
       .then(() =>
         this.#fetchRegistrationStatus(address, { shouldReconcile: false }),
       )

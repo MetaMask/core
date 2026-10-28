@@ -18,9 +18,12 @@ export type {
   MoneyAccountUpgradeControllerStateChangedEvent,
   MoneyAccountUpgradeControllerEvents,
   MoneyAccountUpgradeControllerMessenger,
+  MoneyAccountRegistrationStatus,
   MoneyAccountUpgradeStatus,
 } from './MoneyAccountUpgradeController.js';
 export type {
   MoneyAccountUpgradeControllerUpgradeAccountAction,
   MoneyAccountUpgradeControllerForceUpgradeAccountAction,
+  MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction,
+  MoneyAccountUpgradeControllerGetRegistrationStatusAction,
 } from './MoneyAccountUpgradeController-method-action-types.js';
