@@ -113,7 +113,7 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vite": "^8.0.8",
     "vitest": "^5.0.0",
-    "yargs": "^17.7.3"
+    "yargs": "^18.2.0"
   },
   "resolutions": {
     "@typescript/old": "patch:typescript@npm%3A6.0.3#~/.yarn/patches/typescript-npm-6.0.3-585eecd158.patch",
