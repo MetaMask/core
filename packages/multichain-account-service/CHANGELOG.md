@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `MultichainAccountService` now throws if two providers share the same `getName()` value (including a custom `providers` entry that reuses a built-in name such as Stellar) ([#11161](https://github.com/MetaMask/core/pull/10981))
 - Stop publishing the `tests` directory, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.2` ([#10733](https://github.com/MetaMask/core/pull/10733), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
@@ -27,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/account-api` from `^2.1.0` to `^2.2.0` ([#10694](https://github.com/MetaMask/core/pull/10694))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+### Fixed 
+
+- Now throws if two providers share the same `getName()` value ([#11161](https://github.com/MetaMask/core/pull/10981))
+  - This verification is run on both default and custom providers, enforcing name uniqueness.
 
 ## [14.1.0]
 
