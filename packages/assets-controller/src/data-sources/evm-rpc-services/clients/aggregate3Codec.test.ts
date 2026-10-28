@@ -404,3 +404,50 @@ describe('random comparison with Ethers', () => {
     }
   });
 });
+
+describe('production batch cap', () => {
+  // MulticallClient batches at most 300 calls. These widths sit on the
+  // 32-byte padding boundaries the offset table has to accumulate.
+  const callDataByWidth: Hex[] = [
+    '0x',
+    '0xaa',
+    `0x${'11'.repeat(32)}`,
+    `0x${'22'.repeat(33)}`,
+    `0x${'33'.repeat(36)}`,
+  ];
+  const returnDataByWidth: Hex[] = [
+    '0x',
+    '0xaa',
+    `0x${'ab'.repeat(32)}`,
+    `0x${'cd'.repeat(33)}`,
+  ];
+  const targets = [ACCOUNT, USDC, USDT, MULTICALL];
+
+  it('encodes 300 calls byte-identically to Ethers', () => {
+    const calls: Aggregate3Call[] = [];
+    for (let index = 0; index < 300; index++) {
+      calls.push({
+        target: targets[index % targets.length],
+        allowFailure: index % 2 === 0,
+        callData: callDataByWidth[index % callDataByWidth.length],
+      });
+    }
+
+    expect(encodeAggregate3(calls)).toBe(encodeAggregate3WithEthers(calls));
+  });
+
+  it('decodes 300 results identically to Ethers', () => {
+    const results: [boolean, Hex][] = [];
+    for (let index = 0; index < 300; index++) {
+      results.push([
+        index % 2 === 0,
+        returnDataByWidth[index % returnDataByWidth.length],
+      ]);
+    }
+    const response = encodeResults(results);
+
+    expect(decodeAggregate3Response(response, results.length)).toStrictEqual(
+      decodeAggregate3ResponseWithEthers(response, results.length),
+    );
+  });
+});
