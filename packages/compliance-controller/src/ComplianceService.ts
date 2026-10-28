@@ -245,7 +245,6 @@ export class ComplianceService extends BaseDataService<
             `Fetching '${url.toString()}' failed with status '${response.status}'`,
           );
         }
-        // Validated against `responseStruct` by `BaseDataService`.
         return (await response.json()) as WalletCheckResponse;
       },
     });
@@ -278,7 +277,6 @@ export class ComplianceService extends BaseDataService<
             `Fetching '${url.toString()}' failed with status '${response.status}'`,
           );
         }
-        // Validated against `responseStruct` by `BaseDataService`.
         return (await response.json()) as BatchWalletCheckResponseItem[];
       },
     });
