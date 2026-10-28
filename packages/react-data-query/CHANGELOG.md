@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
 - Bump `@tanstack/react-query` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
 
+### Fixed
+
+- UI queries now reflect `fetchStatus` and errors from fetches the data service starts in the background ([#NNNNN](https://github.com/MetaMask/core/pull/NNNNN))
+  - While the data service refetches a query, the UI query is now `fetching` instead of staying `idle`, unless the UI is running its own fetch for that query.
+  - When a background refetch fails, the UI query now moves to `error` with an `Error` built from the serialized error, keeping its existing data.
+  - A UI query that mirrors a background fetch goes back to `idle` when its last observer is removed or when the data service removes the query.
+
 ## [2.0.0]
 
 ### Changed

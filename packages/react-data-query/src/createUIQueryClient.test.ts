@@ -1,6 +1,7 @@
 import {
   DataServiceGranularCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedPayload,
+  DataServiceQueryState,
 } from '@metamask/base-data-service';
 import {
   MOCK_ANY_NAMESPACE,
@@ -1123,5 +1124,372 @@ describe('createUIQueryClient', () => {
 
     expect(callSpy).not.toHaveBeenCalled();
     expect(subscribeSpy).not.toHaveBeenCalled();
+  });
+
+  describe('background fetch state', () => {
+    const queryHash = hashKey(getAssetsQueryKey);
+    const cacheUpdatedEvent =
+      `ExampleDataService:cacheUpdated:${queryHash}` as const;
+    // The service expects a tuple, while `getAssetsQueryKey` is inferred as a
+    // plain array.
+    const serviceQueryKey = getAssetsQueryKey as [string, string[]];
+
+    beforeEach(() => {
+      // These tests rely on TanStack's batched notifications, which are
+      // flushed with `setTimeout`.
+      vi.useRealTimers();
+    });
+
+    /**
+     * Copy a value the way the extension port does, so that anything that is
+     * not JSON safe (such as `Error` instances) is lost.
+     *
+     * @param value - The value to copy.
+     * @returns The copied value.
+     */
+    function roundTrip<Value>(value: Value): Value {
+      return JSON.parse(JSON.stringify(value)) as Value;
+    }
+
+    /**
+     * Create a data service and a UI query client whose messenger adapter
+     * passes every `:cacheUpdated` payload through a JSON round trip.
+     *
+     * @returns The service, the UI query client, and the service messenger.
+     */
+    function createRoundTripClient(): {
+      service: ExampleDataService;
+      client: QueryClient;
+      messenger: ExampleMessenger;
+    } {
+      const serviceMessenger = createServiceMessenger();
+      const service = new ExampleDataService(serviceMessenger);
+      const wrappedHandlers = new Map<
+        DataServiceGranularCacheUpdatedHandler,
+        DataServiceGranularCacheUpdatedHandler
+      >();
+
+      const client = createUIQueryClient(DATA_SERVICES, {
+        call: (actionType, ...params) =>
+          // @ts-expect-error TypeScript cannot unify template literals with
+          // strings. Every action here is prefixed with "ExampleDataService:".
+          serviceMessenger.call(actionType, ...params),
+        subscribe: (eventType, handler) => {
+          const wrappedHandler: DataServiceGranularCacheUpdatedHandler = (
+            payload,
+          ) => handler(roundTrip(payload));
+          wrappedHandlers.set(handler, wrappedHandler);
+          serviceMessenger.subscribe(eventType, wrappedHandler);
+        },
+        unsubscribe: (eventType, handler) => {
+          const wrappedHandler = wrappedHandlers.get(handler);
+          assert(wrappedHandler);
+          wrappedHandlers.delete(handler);
+          serviceMessenger.unsubscribe(eventType, wrappedHandler);
+        },
+      });
+
+      return { service, client, messenger: serviceMessenger };
+    }
+
+    /**
+     * Build an `updated` payload for the `getAssets` query, as a data service
+     * would publish it.
+     *
+     * @param state - The parts of the query state to set.
+     * @returns The payload.
+     */
+    function buildQueryPayload(
+      state: Partial<DataServiceQueryState>,
+    ): DataServiceGranularCacheUpdatedPayload {
+      return {
+        type: 'updated',
+        objectType: 'query',
+        state: {
+          mutations: [],
+          queries: [
+            {
+              queryKey: getAssetsQueryKey,
+              queryHash,
+              dehydratedAt: Date.now(),
+              state: {
+                data: undefined,
+                dataUpdateCount: 0,
+                dataUpdatedAt: 0,
+                error: null,
+                errorUpdateCount: 0,
+                errorUpdatedAt: 0,
+                fetchFailureCount: 0,
+                fetchFailureReason: null,
+                fetchMeta: null,
+                isInvalidated: false,
+                status: 'pending',
+                fetchStatus: 'idle',
+                ...state,
+              },
+            },
+          ],
+        },
+      };
+    }
+
+    /**
+     * Subscribe an observer and wait until it has data and is idle.
+     *
+     * @param observer - The observer.
+     * @returns The fetch statuses the observer reports from then on.
+     */
+    async function subscribeUntilSettled(
+      observer: Pick<QueryObserver, 'subscribe'>,
+    ): Promise<string[]> {
+      const fetchStatuses: string[] = [];
+      let settled = false;
+      await new Promise<void>((resolve) => {
+        observer.subscribe((result) => {
+          if (settled) {
+            fetchStatuses.push(result.fetchStatus);
+          } else if (
+            result.status === 'success' &&
+            result.fetchStatus === 'idle'
+          ) {
+            settled = true;
+            resolve();
+          }
+        });
+      });
+      return fetchStatuses;
+    }
+
+    it('shows a background fetch as fetching', async () => {
+      const { client, service } = createRoundTripClient();
+      const observer = new QueryObserver(client, {
+        queryKey: getAssetsQueryKey,
+      });
+      const fetchStatuses = await subscribeUntilSettled(observer);
+
+      mockAssets({ status: 200, body: [] });
+      await service.invalidateQueries({
+        queryKey: serviceQueryKey,
+        refetchType: 'all',
+      });
+
+      // The observer can report several results in a row with the same fetch
+      // status (for example new data arriving while still fetching), so only
+      // look at the transitions.
+      await vi.waitFor(() =>
+        expect(
+          fetchStatuses.filter(
+            (fetchStatus, index) => fetchStatus !== fetchStatuses[index - 1],
+          ),
+        ).toStrictEqual(['fetching', 'idle']),
+      );
+      expect(observer.getCurrentResult().data).toStrictEqual([]);
+
+      observer.destroy();
+      service.destroy();
+    });
+
+    it('applies a background error after a success', async () => {
+      const { client, messenger, service } = createRoundTripClient();
+      const observer = new QueryObserver(client, {
+        queryKey: getAssetsQueryKey,
+      });
+      await subscribeUntilSettled(observer);
+      const uiQuery = client.getQueryCache().get(queryHash);
+      assert(uiQuery);
+      const { data, dataUpdatedAt } = uiQuery.state;
+      const errorUpdatedAt = Date.now();
+
+      messenger.publish(
+        cacheUpdatedEvent,
+        buildQueryPayload({
+          data,
+          dataUpdatedAt,
+          status: 'error',
+          error: { name: 'Error', message: 'boom' },
+          errorUpdatedAt,
+        }),
+      );
+
+      expect(uiQuery.state.status).toBe('error');
+      expect(uiQuery.state.error).toBeInstanceOf(Error);
+      expect(uiQuery.state.error?.message).toBe('boom');
+      expect(uiQuery.state.errorUpdatedAt).toBe(errorUpdatedAt);
+      expect(uiQuery.state.data).toBe(data);
+      expect(observer.getCurrentResult().error?.message).toBe('boom');
+
+      observer.destroy();
+      service.destroy();
+    });
+
+    it('applies an error from a failed background refetch', async () => {
+      const { client, service } = createRoundTripClient();
+      const observer = new QueryObserver(client, {
+        queryKey: getAssetsQueryKey,
+      });
+      await subscribeUntilSettled(observer);
+      const { data } = observer.getCurrentResult();
+
+      mockAssets({ status: 500 });
+      mockAssets({ status: 500 });
+      mockAssets({ status: 500 });
+      await service.invalidateQueries({
+        queryKey: serviceQueryKey,
+        refetchType: 'all',
+      });
+
+      await vi.waitFor(() =>
+        expect(observer.getCurrentResult()).toMatchObject({
+          status: 'error',
+          fetchStatus: 'idle',
+        }),
+      );
+      expect(observer.getCurrentResult().error?.message).toBe(
+        'Query failed with status code: 500.',
+      );
+      expect(observer.getCurrentResult().data).toBe(data);
+
+      observer.destroy();
+      service.destroy();
+    });
+
+    it('does not override a UI fetch in flight', async () => {
+      const { client, messenger, service } = createRoundTripClient();
+      const { promise, resolve } = createDeferredPromise<string[]>();
+      const observer = new QueryObserver(client, {
+        queryKey: getAssetsQueryKey,
+        queryFn: async (): Promise<string[]> => promise,
+      });
+      observer.subscribe(() => undefined);
+      const uiQuery = client.getQueryCache().get(queryHash);
+      assert(uiQuery);
+      expect(uiQuery.state.fetchStatus).toBe('fetching');
+
+      messenger.publish(
+        cacheUpdatedEvent,
+        buildQueryPayload({
+          status: 'error',
+          error: { name: 'Error', message: 'boom' },
+          errorUpdatedAt: Date.now(),
+        }),
+      );
+
+      expect(uiQuery.state.fetchStatus).toBe('fetching');
+      expect(uiQuery.state.status).toBe('pending');
+      expect(uiQuery.state.error).toBeNull();
+
+      resolve(['data']);
+      await vi.waitFor(() =>
+        expect(uiQuery.state).toMatchObject({
+          status: 'success',
+          fetchStatus: 'idle',
+          data: ['data'],
+        }),
+      );
+
+      observer.destroy();
+      service.destroy();
+    });
+
+    it('resets a query to idle when its last observer leaves mid fetch', async () => {
+      const { client, messenger, service } = createRoundTripClient();
+      const observer = new QueryObserver(client, {
+        queryKey: getAssetsQueryKey,
+      });
+      await subscribeUntilSettled(observer);
+      const uiQuery = client.getQueryCache().get(queryHash);
+      assert(uiQuery);
+
+      messenger.publish(
+        cacheUpdatedEvent,
+        buildQueryPayload({
+          data: uiQuery.state.data,
+          dataUpdatedAt: uiQuery.state.dataUpdatedAt,
+          status: 'success',
+          fetchStatus: 'fetching',
+        }),
+      );
+      expect(uiQuery.state.fetchStatus).toBe('fetching');
+      expect(uiQuery.promise).toBeUndefined();
+
+      observer.destroy();
+
+      expect(uiQuery.state.fetchStatus).toBe('idle');
+      service.destroy();
+    });
+
+    it('keeps a UI fetch going when its last observer leaves mid fetch', async () => {
+      const { client, service } = createRoundTripClient();
+      const { promise, resolve } = createDeferredPromise<string[]>();
+      const observer = new QueryObserver(client, {
+        queryKey: getAssetsQueryKey,
+        queryFn: async (): Promise<string[]> => promise,
+      });
+      observer.subscribe(() => undefined);
+      const uiQuery = client.getQueryCache().get(queryHash);
+      assert(uiQuery);
+
+      observer.destroy();
+
+      expect(uiQuery.state.fetchStatus).toBe('fetching');
+
+      resolve(['data']);
+      await vi.waitFor(() => expect(uiQuery.state.fetchStatus).toBe('idle'));
+      expect(uiQuery.promise).toBeUndefined();
+      service.destroy();
+    });
+
+    it('resets a query to idle when the service removes it mid fetch', async () => {
+      const { client, messenger, service } = createRoundTripClient();
+      const observer = new QueryObserver(client, {
+        queryKey: getAssetsQueryKey,
+      });
+      await subscribeUntilSettled(observer);
+      const uiQuery = client.getQueryCache().get(queryHash);
+      assert(uiQuery);
+
+      messenger.publish(
+        cacheUpdatedEvent,
+        buildQueryPayload({
+          data: uiQuery.state.data,
+          dataUpdatedAt: uiQuery.state.dataUpdatedAt,
+          status: 'success',
+          fetchStatus: 'fetching',
+        }),
+      );
+      expect(uiQuery.state.fetchStatus).toBe('fetching');
+
+      messenger.publish(cacheUpdatedEvent, {
+        type: 'removed',
+        objectType: 'query',
+        state: null,
+      });
+
+      expect(uiQuery.state.fetchStatus).toBe('idle');
+      expect(uiQuery.state.status).toBe('success');
+
+      observer.destroy();
+      service.destroy();
+    });
+
+    it('ignores a removed event for a query the UI no longer has', async () => {
+      const { client, messenger, service } = createRoundTripClient();
+      const observer = new QueryObserver(client, {
+        queryKey: getAssetsQueryKey,
+      });
+      await subscribeUntilSettled(observer);
+      client.removeQueries({ queryKey: getAssetsQueryKey });
+
+      messenger.publish(cacheUpdatedEvent, {
+        type: 'removed',
+        objectType: 'query',
+        state: null,
+      });
+
+      expect(client.getQueryCache().get(queryHash)).toBeUndefined();
+
+      observer.destroy();
+      service.destroy();
+    });
   });
 });

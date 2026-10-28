@@ -1,6 +1,7 @@
 import type {
   DataServiceGranularCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedPayload,
+  SerializedQueryError,
 } from '@metamask/base-data-service';
 import { Json, assert } from '@metamask/utils';
 import {
@@ -29,6 +30,21 @@ const log = createModuleLogger(projectLogger, 'createUIQueryClient');
 type DataServiceGranularCacheUpdatedHandler = (
   payload: DataServiceGranularCacheUpdatedPayload,
 ) => void;
+
+/**
+ * Turn an error that came through a `:cacheUpdated` payload back into an
+ * `Error`, so UI code can treat it like any other query error.
+ *
+ * @param serializedError - The serialized error.
+ * @param serializedError.name - The name of the original error.
+ * @param serializedError.message - The message of the original error.
+ * @returns The error.
+ */
+function deserializeQueryError({ name, message }: SerializedQueryError): Error {
+  const error = new Error(message);
+  error.name = name;
+  return error;
+}
 
 /**
  * A narrower subset of the `Messenger` type, tailored to the messenger
@@ -217,6 +233,26 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
   });
 
   const queryCache = client.getQueryCache();
+
+  /**
+   * Set a UI query back to `idle` if it is marked as fetching only because it
+   * mirrors a fetch that the data service runs in the background. A fetch
+   * that the UI started itself (and so has a promise) is left alone.
+   *
+   * @param hash - The hash of the query.
+   */
+  function resetBackgroundFetchStatus(hash: string): void {
+    const uiQuery = queryCache.get(hash);
+
+    if (
+      uiQuery &&
+      uiQuery.state.fetchStatus !== 'idle' &&
+      uiQuery.promise === undefined
+    ) {
+      uiQuery.setState({ fetchStatus: 'idle' });
+    }
+  }
+
   queryCache.subscribe((event) => {
     const { query } = event;
 
@@ -239,11 +275,43 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
         payload,
       ) => {
         if (payload.type === 'removed') {
+          // No more updates will arrive for this query, so a background fetch
+          // we were mirroring will never be reported as finished.
+          resetBackgroundFetchStatus(hash);
           return;
         }
 
         log('Hydrating with', payload.state);
         hydrate(client, payload.state);
+
+        // `hydrate` leaves `fetchStatus` alone and only copies state when the
+        // data is newer, so fetches and errors the service runs on its own
+        // never show up. Mirror them here, unless the UI is running its own
+        // fetch, which always wins.
+        for (const { queryHash, state } of payload.state.queries) {
+          const uiQuery = queryCache.get(queryHash);
+
+          // `hydrate` builds any query that is missing, so this is a check
+          // to appease TypeScript.
+          // istanbul ignore next
+          if (!uiQuery) {
+            continue;
+          }
+
+          if (uiQuery.promise !== undefined) {
+            continue;
+          }
+
+          uiQuery.setState({
+            fetchStatus: state.fetchStatus,
+            ...(state.status === 'error' &&
+              state.error && {
+                status: 'error',
+                error: deserializeQueryError(state.error),
+                errorUpdatedAt: state.errorUpdatedAt,
+              }),
+          });
+        }
       };
 
       subscriptions.set(hash, cacheListener);
@@ -265,6 +333,10 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
         );
       }
       subscriptions.delete(hash);
+
+      // We stop listening here, so a background fetch we were mirroring would
+      // otherwise stay `fetching` forever.
+      resetBackgroundFetchStatus(hash);
     }
   });
 
