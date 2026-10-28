@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
-- chore: use TypeScript for Vitest configs ([#10921](https://github.com/MetaMask/core/pull/10921))
-- test: correct the Vitest lint directives in migrated packages ([#10868](https://github.com/MetaMask/core/pull/10868))
-
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))

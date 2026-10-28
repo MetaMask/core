@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(deps): bump the external-non-major group across 1 directory with 2 updates ([#11081](https://github.com/MetaMask/core/pull/11081))
-
 ## [1.1.0]
 
 ### Added
