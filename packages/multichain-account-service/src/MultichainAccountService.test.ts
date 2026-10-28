@@ -545,9 +545,7 @@ describe('MultichainAccountService', () => {
       await expect(
         setup({
           accounts: [MOCK_HD_ACCOUNT_1],
-          providers: [
-            duplicateProvider as unknown as Bip44AccountProvider,
-          ],
+          providers: [duplicateProvider as unknown as Bip44AccountProvider],
         }),
       ).rejects.toThrow(
         `Duplicate account provider name "${XLM_ACCOUNT_PROVIDER_NAME}". Custom providers must not reuse a built-in or already-registered provider name.`,
