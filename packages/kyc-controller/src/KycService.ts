@@ -1021,7 +1021,7 @@ export class KycService extends BaseDataService<
       DataSharesResponseStruct,
       'data shares',
     );
-    return shares as KycDataShare[];
+    return shares;
   }
 
   /**
