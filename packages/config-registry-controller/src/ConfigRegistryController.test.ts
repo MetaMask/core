@@ -856,6 +856,45 @@ describe('ConfigRegistryController', () => {
       );
     });
 
+    it('preserves the existing events etag when an unmodified events config response has no etag', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              eventsConfigEtag: '"events-etag-1"',
+            },
+          },
+        },
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+        }) => {
+          mockRemoteFeatureFlagGetState.mockReturnValue({
+            remoteFeatureFlags: { configRegistryApiEnabled: true },
+            cacheTimestamp: Date.now(),
+          });
+
+          rootMessenger.unregisterActionHandler(
+            'ConfigRegistryApiService:fetchEventsConfig',
+          );
+          rootMessenger.registerActionHandler(
+            'ConfigRegistryApiService:fetchEventsConfig',
+            vi.fn().mockResolvedValue({
+              modified: false,
+              etag: null,
+              data: null,
+            }),
+          );
+
+          rootMessenger.call('ConfigRegistryController:startPolling', null);
+          await vi.advanceTimersByTimeAsync(0);
+
+          expect(controller.state.eventsConfigEtag).toBe('"events-etag-1"');
+        },
+      );
+    });
+
     it('updates eventsConfig when events config fetch returns modified without etag', async () => {
       await withController(
         async ({
