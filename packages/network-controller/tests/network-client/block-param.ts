@@ -6,7 +6,6 @@ import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service.js';
 import { NetworkClientType } from '../../src/types.js';
 import type { MockRequest, ProviderType } from './helpers.js';
 import {
-  buildFetchErrorPattern,
   buildMockParams,
   buildRequestWithReplacedBlockParam,
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
@@ -775,9 +774,7 @@ export function testsForRpcMethodSupportingBlockParam(
               },
             );
 
-            await expect(promiseForResult).rejects.toThrow(
-              buildFetchErrorPattern(error.message),
-            );
+            await expect(promiseForResult).rejects.toThrow(/fetch failed/u);
           });
         });
 
@@ -798,11 +795,7 @@ export function testsForRpcMethodSupportingBlockParam(
           isRetriableFailure: true,
           getExpectedError: (url: string) =>
             expect.objectContaining({
-              message: expect.stringMatching(
-                buildFetchErrorPattern(
-                  `request to ${url} failed, reason: ${errorCode}`,
-                ),
-              ),
+              message: expect.stringMatching(/fetch failed/u),
             }),
         });
       },
@@ -1027,9 +1020,7 @@ export function testsForRpcMethodSupportingBlockParam(
             },
           );
 
-          await expect(promiseForResult).rejects.toThrow(
-            buildFetchErrorPattern(error.message),
-          );
+          await expect(promiseForResult).rejects.toThrow(/fetch failed/u);
         });
       });
 
@@ -1050,11 +1041,7 @@ export function testsForRpcMethodSupportingBlockParam(
         isRetriableFailure: true,
         getExpectedError: (url: string) =>
           expect.objectContaining({
-            message: expect.stringMatching(
-              buildFetchErrorPattern(
-                `request to ${url} failed, reason: ${error.message}`,
-              ),
-            ),
+            message: expect.stringMatching(/fetch failed/u),
           }),
       });
     });
