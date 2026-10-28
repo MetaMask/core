@@ -6,6 +6,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
+import { bytesToHex, stringToBytes } from '@metamask/utils';
 import { describe, it, expect, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
@@ -241,13 +242,13 @@ describe('associateAddressStep', () => {
       });
     });
 
-    it('signs the challenge message exactly as returned, with the given address', async () => {
+    it('signs the challenge message exactly as returned, hex-encoded as UTF-8, with the given address', async () => {
       const { messenger, mocks } = setup();
 
       await run(messenger);
 
       expect(mocks.signPersonalMessage).toHaveBeenCalledWith({
-        data: MOCK_CHALLENGE.message,
+        data: bytesToHex(stringToBytes(MOCK_CHALLENGE.message)),
         from: MOCK_ADDRESS,
       });
     });
@@ -309,7 +310,7 @@ describe('associateAddressStep', () => {
 
       expect(result).toBe('completed');
       expect(mocks.signPersonalMessage).toHaveBeenLastCalledWith({
-        data: MOCK_SECOND_CHALLENGE.message,
+        data: bytesToHex(stringToBytes(MOCK_SECOND_CHALLENGE.message)),
         from: MOCK_ADDRESS,
       });
       expect(mocks.associateAddressV2).toHaveBeenLastCalledWith({
@@ -502,7 +503,7 @@ describe('associateAddressStep', () => {
 
       expect(result).toBe('completed');
       expect(mocks.signPersonalMessage).toHaveBeenCalledWith({
-        data: MOCK_CHALLENGE.message,
+        data: bytesToHex(stringToBytes(MOCK_CHALLENGE.message)),
         from: MOCK_ADDRESS,
       });
       expect(mocks.associateAddressV2).toHaveBeenCalledWith({

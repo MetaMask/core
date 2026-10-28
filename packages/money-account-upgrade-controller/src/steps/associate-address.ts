@@ -3,7 +3,7 @@ import type {
   CreateAddressChallengeParams,
 } from '@metamask/chomp-api-service';
 import type { Hex } from '@metamask/utils';
-import { hasProperty } from '@metamask/utils';
+import { bytesToHex, hasProperty, stringToBytes } from '@metamask/utils';
 
 import { TerminalUpgradeError } from '../errors.js';
 import { equalsIgnoreCase } from './delegation-matchers.js';
@@ -165,10 +165,10 @@ function successorAssociation(
  * submission below, which is authoritative.
  *
  * Otherwise, requests a single-use SIWE challenge, signs its message exactly
- * as returned with the account's key, and submits the signature. CHOMP
- * responds with `status: 'created'` when it wrote the association or link,
- * and `status: 'active'` when it was already in place, so the latter reports
- * `'already-done'`. A challenge that expired or was replaced while signing
+ * as returned (hex-encoded as UTF-8) with the account's key, and submits the
+ * signature. CHOMP responds with `status: 'created'` when it wrote the
+ * association or link, and `status: 'active'` when it was already in place,
+ * so the latter reports `'already-done'`. A challenge that expired or was replaced while signing
  * (`CHALLENGE_INVALID_OR_EXPIRED`) is retried once with a fresh challenge.
  *
  * Link validation failures that cannot resolve on their own are thrown as a
@@ -209,7 +209,8 @@ export const associateAddressStep: Step = {
       );
       const signature = (await messenger.call(
         'KeyringController:signPersonalMessage',
-        { data: message, from: address },
+        // Keyrings like the MPC Money keyring only accept hex-encoded data.
+        { data: bytesToHex(stringToBytes(message)), from: address },
       )) as Hex;
       return messenger.call('ChompApiService:associateAddressV2', {
         challengeId,

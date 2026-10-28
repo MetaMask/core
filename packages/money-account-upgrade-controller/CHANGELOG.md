@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** The `MoneyAccountUpgradeControllerMessenger` must now also allow the `ChompApiService:getDerivedIdentityByAddress` action ([#10697](https://github.com/MetaMask/core/pull/10697))
 
+### Fixed
+
+- Hex-encode the CHOMP challenge message before signing it in the `associate-address` step, so keyrings that only accept hex-encoded personal messages, such as the MPC Money keyring, can sign it ([#10697](https://github.com/MetaMask/core/pull/10697))
+
 ## [6.0.0]
 
 ### Added
