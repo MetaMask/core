@@ -4,7 +4,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { EncryptionSchema, KycServiceMessenger } from './KycService.js';
@@ -21,7 +21,7 @@ const services: KycService[] = [];
 
 describe('KycService', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
     for (const service of services) {
       service.destroy();
     }
@@ -598,9 +598,8 @@ describe('KycService', () => {
 
     it('does not send a Content-Type header since it has no body', async () => {
       const response = { status: 'ok', applicantAccessToken: 'aat' };
-      nock(MOCK_API_URL)
+      nock(MOCK_API_URL, { badheaders: ['content-type'] })
         .post('/sessions/sid/journey')
-        .matchHeader('content-type', (value) => value === undefined)
         .reply(200, response);
       const { service } = getService();
 
@@ -786,6 +785,105 @@ describe('KycService', () => {
       await expect(service.getSessionStatusForVendor('iron')).rejects.toThrow(
         /failed with status '500'/u,
       );
+    });
+  });
+
+  describe('getDataShares', () => {
+    const shares = [
+      {
+        kycSessionId: '11111111-2222-3333-4444-555555555555',
+        vendor: 'moonpay',
+        sharedAt: '2026-02-02T00:00:00.000Z',
+      },
+      {
+        kycSessionId: '66666666-7777-8888-9999-000000000000',
+        vendor: 'iron',
+        sharedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ];
+
+    it('unwraps the shares envelope from the idOS relay', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/api/kyc/external-user-id/ext-1/shares')
+        .matchHeader('authorization', 'Bearer test-bearer')
+        .reply(200, { shares });
+      const { service } = getService();
+
+      expect(
+        await service.getDataShares({ externalUserId: 'ext-1' }),
+      ).toStrictEqual(shares);
+    });
+
+    it('returns an empty array when no data has been shared', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/api/kyc/external-user-id/ext-1/shares')
+        .reply(200, { shares: [] });
+      const { service } = getService();
+
+      expect(
+        await service.getDataShares({ externalUserId: 'ext-1' }),
+      ).toStrictEqual([]);
+    });
+
+    it('keeps shares for vendors this package does not model', async () => {
+      const relayShares = [
+        {
+          kycSessionId: '11111111-2222-3333-4444-555555555555',
+          vendor: 'kraken',
+          sharedAt: '2026-02-02T00:00:00.000Z',
+        },
+      ];
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/api/kyc/external-user-id/ext-1/shares')
+        .reply(200, { shares: relayShares });
+      const { service } = getService();
+
+      expect(
+        await service.getDataShares({ externalUserId: 'ext-1' }),
+      ).toStrictEqual(relayShares);
+    });
+
+    it('encodes the external user id in the path', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/api/kyc/external-user-id/ext%2F1/shares')
+        .reply(200, { shares: [] });
+      const { service } = getService();
+
+      expect(
+        await service.getDataShares({ externalUserId: 'ext/1' }),
+      ).toStrictEqual([]);
+    });
+
+    it('throws when no idOS relay base URL is configured', async () => {
+      const { service } = getService({ idosRelayBaseUrl: null });
+
+      await expect(
+        service.getDataShares({ externalUserId: 'ext-1' }),
+      ).rejects.toThrow(
+        /idosRelayBaseUrl is not configured; cannot fetch data shares/u,
+      );
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/api/kyc/external-user-id/ext-1/shares')
+        .reply(200, { shares: [{ kycSessionId: 'sid' }] });
+      const { service } = getService();
+
+      await expect(
+        service.getDataShares({ externalUserId: 'ext-1' }),
+      ).rejects.toThrow(/Malformed response received from data shares API/u);
+    });
+
+    it('throws an HttpError on a non-ok response', async () => {
+      nock(MOCK_IDOS_RELAY_URL)
+        .get('/api/kyc/external-user-id/ext-1/shares')
+        .reply(500);
+      const { service } = getService();
+
+      await expect(
+        service.getDataShares({ externalUserId: 'ext-1' }),
+      ).rejects.toThrow(/failed with status '500'/u);
     });
   });
 

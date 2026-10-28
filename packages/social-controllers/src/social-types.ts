@@ -147,6 +147,17 @@ export type LeaderboardResponse = {
 // Trader profile
 // ---------------------------------------------------------------------------
 
+/**
+ * Position flag for a wallet/token pair Codex marked as an insider.
+ *
+ * Those positions are excluded from the trader's realized PnL, and clients
+ * must not offer copy-trade on them.
+ */
+export const INSIDER_POSITION_FLAG = 'insider' as const;
+
+/** Known position flag value `developer`. */
+export const DEVELOPER_POSITION_FLAG = 'developer' as const;
+
 /** Values for `TraderProfileResponse.rankingTag` from social-api. */
 export const TRADER_RANKING_TAGS = ['shrimp', 'dolphin', 'whale'] as const;
 
@@ -284,6 +295,15 @@ export type Position = {
    * `costBasis`). Hyperliquid/perp positions only; absent for spot.
    */
   positionAmountWithLeverage?: number | null;
+  /**
+   * Server flags for this position. {@link INSIDER_POSITION_FLAG} means Codex
+   * marked this wallet and token as an insider pair, so the position is
+   * excluded from the trader's realized PnL and must not be copy-traded.
+   * {@link DEVELOPER_POSITION_FLAG} is the other known value. The list is
+   * open: unrecognized strings are preserved. Absent on older social-api
+   * builds; `null` when the deployment sends an explicit empty mark.
+   */
+  flags?: string[] | null;
 };
 
 export type Pagination = {
@@ -341,6 +361,16 @@ export type AuthorComment = {
   text: string;
   /** Unix timestamp (seconds) when the comment was created. */
   timestamp: number;
+  /**
+   * AWS language code of the comment text, for example `en` or `pt`. `null`
+   * when detection has not run. Absent on older social-api builds.
+   */
+  sourceLanguage?: string | null;
+  /**
+   * Stored translations keyed by AWS language code. Empty when none are
+   * stored. Absent on older social-api builds.
+   */
+  translations?: Record<string, string>;
   engagement: CommentEngagement;
 };
 
@@ -399,6 +429,27 @@ export type ReactToCommentOptions = {
 
 export type RemoveCommentReactionOptions = {
   commentId: string;
+};
+
+/**
+ * Options for `POST /v1/swap-comment/:commentId/translate`.
+ */
+export type TranslateCommentOptions = {
+  /** `authorComment.uid` from a feed item. */
+  commentId: string;
+  /** AWS language code to translate into, for example `en`. */
+  targetLanguage: string;
+};
+
+/**
+ * Translation stored for a swap comment. Returned by
+ * `POST /v1/swap-comment/:commentId/translate` once that route exists.
+ */
+export type CommentTranslation = {
+  /** Detected source language. `null` when detection has not run. */
+  sourceLanguage: string | null;
+  /** Translations keyed by AWS language code. */
+  translations: Record<string, string>;
 };
 
 /**
@@ -790,6 +841,14 @@ export type BlockOptions =
       /** Free-form reason stored on the block. Max 1000 characters. */
       reason?: string;
     };
+
+/**
+ * Options for `DELETE /v1/moderation/blocks/profiles/:profileId`.
+ */
+export type UnblockProfileOptions = {
+  /** Profile id (UUID) of the trader to unblock. */
+  profileId: string;
+};
 
 /**
  * Options for the cursor-paginated moderation list endpoints. Omit `cursor`

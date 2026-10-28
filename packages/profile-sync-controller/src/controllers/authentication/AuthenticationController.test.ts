@@ -7,7 +7,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import { cleanAll as cleanAllNock } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 
@@ -3311,7 +3311,7 @@ describe('MFA credential verification', () => {
       publicKey: expect.objectContaining({ challenge: expect.any(String) }),
     });
 
-    cleanAllNock();
+    nock.cleanAll();
     mockEndpointMfaVerify({
       status: 200,
       body: {
@@ -3698,14 +3698,14 @@ describe('MFA credential verification', () => {
     first.baseMessenger.publish('KeyringController:unlock');
     expect(first.controller.getVerificationToken()).toBeNull();
 
-    cleanAllNock();
+    nock.cleanAll();
     mockSuccessfulCompletion();
     const second = createController();
     await completeCredentialVerification(second.controller);
     second.controller.performSignOut();
     expect(second.controller.getVerificationToken()).toBeNull();
 
-    cleanAllNock();
+    nock.cleanAll();
     mockSuccessfulCompletion();
     const third = createController();
     await completeCredentialVerification(third.controller);
@@ -4081,7 +4081,7 @@ describe('MFA credential verification', () => {
       mockSuccessfulCompletion();
       const { controller } = createController();
       await completeCredentialVerification(controller);
-      cleanAllNock();
+      nock.cleanAll();
       mockEndpointMfaEnrollComplete();
       mockEndpointAccessToken({
         status: 200,
@@ -4115,7 +4115,7 @@ describe('MFA credential verification', () => {
         const { controller } = createController();
         await completeCredentialVerification(controller);
         const earlier = controller.getVerificationToken()?.accessToken;
-        cleanAllNock();
+        nock.cleanAll();
         mockEndpointMfaEnrollComplete();
         mockEndpointAccessToken(exchangeReply);
         mockEndpointMfaCredentials();

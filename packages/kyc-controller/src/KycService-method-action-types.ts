@@ -252,6 +252,23 @@ export type KycServiceGetSessionStatusForVendorAction = {
 };
 
 /**
+ * Fetches the vendors the customer's verified identity data has been shared
+ * with (`GET /api/kyc/external-user-id/{externalUserId}/shares` on the idOS
+ * relay), newest first.
+ *
+ * Reads metadata only, so shares remain listed after the relay redacts the
+ * underlying session (14 days).
+ *
+ * @param params - The parameters.
+ * @param params.externalUserId - The vendor-agnostic external user id.
+ * @returns The data shares, newest first.
+ */
+export type KycServiceGetDataSharesAction = {
+  type: `KycService:getDataShares`;
+  handler: KycService['getDataShares'];
+};
+
+/**
  * Union of all KycService action types.
  */
 export type KycServiceMethodActions =
@@ -270,4 +287,5 @@ export type KycServiceMethodActions =
   | KycServiceSetAuthorizationsAction
   | KycServiceCreateJourneyAction
   | KycServiceGetSessionStatusAction
-  | KycServiceGetSessionStatusForVendorAction;
+  | KycServiceGetSessionStatusForVendorAction
+  | KycServiceGetDataSharesAction;

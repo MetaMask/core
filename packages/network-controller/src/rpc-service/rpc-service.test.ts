@@ -19,7 +19,9 @@ import {
 
 describe('RpcService', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({
+      toNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'],
+    });
   });
 
   afterEach(() => {
@@ -57,7 +59,7 @@ describe('RpcService', () => {
         isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
 
       const jsonRpcRequest = {
@@ -108,7 +110,7 @@ describe('RpcService', () => {
         isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
 
       const jsonRpcRequest = {
@@ -175,7 +177,7 @@ describe('RpcService', () => {
         isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       service.onAvailable(onAvailableListener);
 
@@ -229,7 +231,7 @@ describe('RpcService', () => {
         isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
 
       const jsonRpcRequest = {
@@ -278,7 +280,7 @@ describe('RpcService', () => {
         isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       service.onBreak(onBreakListener);
 
@@ -326,7 +328,7 @@ describe('RpcService', () => {
         isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
 
       expect(service.getCircuitState()).toBe(CircuitState.Closed);
@@ -506,7 +508,26 @@ describe('RpcService', () => {
 
     describe('if the endpoint URL was not mocked via Nock', () => {
       testsForNonRetriableErrors({
-        expectedError: 'Nock: Disallowed net connect',
+        createService: ({ endpointUrl }) => {
+          return new RpcService({
+            fetch: async (
+              ...args: Parameters<typeof fetch>
+            ): Promise<Response> => {
+              try {
+                return await fetch(...args);
+              } catch (error) {
+                // Native `fetch` wraps the error that Nock throws in a
+                // `TypeError`, which the service would retry. Unwrap it so that
+                // it looks the same as it does with `node-fetch`.
+                throw (error as { cause?: unknown }).cause ?? error;
+              }
+            },
+            btoa,
+            endpointUrl,
+            isOffline: (): boolean => false,
+          });
+        },
+        expectedError: /Nock: Disallowed net connect/u,
       });
     });
 
@@ -523,7 +544,8 @@ describe('RpcService', () => {
             .reply(500);
         },
         rpcMethod: 'eth_chainId',
-        expectedError: 'Nock: No match for request',
+        expectedError:
+          /Nock: No match for request|RPC endpoint not found or unavailable/u,
       });
     });
 
@@ -672,7 +694,7 @@ describe('RpcService', () => {
             message: 'RPC endpoint did not return JSON.',
           }),
           expectedOnBreakError: expect.objectContaining({
-            message: expect.stringContaining('invalid json'),
+            message: expect.stringMatching(/invalid json|JSON/iu),
           }),
         });
       },
@@ -691,7 +713,7 @@ describe('RpcService', () => {
           isOffline: (): boolean => true,
         });
         service.onRetry(() => {
-          vi.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
 
         const jsonRpcRequest = {
@@ -721,7 +743,7 @@ describe('RpcService', () => {
           isOffline: (): boolean => true,
         });
         service.onRetry(() => {
-          vi.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         service.onDegraded(onDegradedListener);
 
@@ -753,7 +775,7 @@ describe('RpcService', () => {
           isOffline: (): boolean => true,
         });
         service.onRetry(() => {
-          vi.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         service.onBreak(onBreakListener);
 
@@ -837,8 +859,14 @@ describe('RpcService', () => {
           result: '0x1',
         });
       const promiseForRequestUrl = new Promise<string>((resolve) => {
-        scope.on('request', (request) => {
-          resolve(request.options.href);
+        scope.on('request', (request: unknown) => {
+          // Depending on the version of Nock, this is either a Node.js request
+          // (with `options.href`) or a Fetch API `Request` (with `url`).
+          const { options, url } = request as {
+            options?: { href: string };
+            url?: string;
+          };
+          resolve([options?.href, url].find(Boolean) as string);
         });
       });
       const service = new RpcService({
@@ -1228,7 +1256,7 @@ describe('RpcService', () => {
         isOffline: (): boolean => false,
       });
       service.onRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       service.onDegraded(onDegradedListener);
 
@@ -1574,7 +1602,7 @@ function testsForRetriableFetchErrors({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
 
     const jsonRpcRequest = {
@@ -1602,7 +1630,7 @@ function testsForRetriableFetchErrors({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
 
     service.onDegraded(onDegradedListener);
@@ -1637,7 +1665,7 @@ function testsForRetriableFetchErrors({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
 
     const jsonRpcRequest = {
@@ -1667,7 +1695,7 @@ function testsForRetriableFetchErrors({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
     service.onBreak(onBreakListener);
 
@@ -1703,7 +1731,7 @@ function testsForRetriableFetchErrors({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
 
     const jsonRpcRequest = {
@@ -1743,7 +1771,7 @@ function testsForRetriableFetchErrors({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
 
     const jsonRpcRequest = {
@@ -1790,7 +1818,7 @@ function testsForRetriableFetchErrors({
     });
     service.onAvailable(onAvailableListener);
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
 
     const jsonRpcRequest = {
@@ -1847,7 +1875,7 @@ function testsForRetriableResponses({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
 
     const jsonRpcRequest = {
@@ -1881,7 +1909,7 @@ function testsForRetriableResponses({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
 
     service.onDegraded(onDegradedListener);
@@ -1924,7 +1952,7 @@ function testsForRetriableResponses({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
 
     service.onDegraded(onDegradedListener);
@@ -1979,7 +2007,7 @@ function testsForRetriableResponses({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
 
     service.onDegraded(onDegradedListener);
@@ -1996,7 +2024,7 @@ function testsForRetriableResponses({
     expect(onDegradedListener).toHaveBeenCalledWith({
       endpointUrl: `${endpointUrl}/`,
       error: expect.objectContaining({
-        message: expect.stringContaining('Connection refused'),
+        message: expect.stringMatching(/fetch failed/u),
       }),
       rpcMethodName: 'eth_chainId',
       duration: undefined,
@@ -2021,7 +2049,7 @@ function testsForRetriableResponses({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
 
     const jsonRpcRequest = {
@@ -2057,7 +2085,7 @@ function testsForRetriableResponses({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
     service.onBreak(onBreakListener);
 
@@ -2098,7 +2126,7 @@ function testsForRetriableResponses({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
     service.onBreak(onBreakListener);
 
@@ -2146,7 +2174,7 @@ function testsForRetriableResponses({
       isOffline: (): boolean => false,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
     service.onBreak(onBreakListener);
 
@@ -2185,7 +2213,7 @@ function testsForRetriableResponses({
       isOffline: (): boolean => true,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
 
     const jsonRpcRequest = {
@@ -2220,7 +2248,7 @@ function testsForRetriableResponses({
       isOffline: (): boolean => true,
     });
     service.onRetry(() => {
-      vi.advanceTimersToNextTimer();
+      vi.runOnlyPendingTimersAsync().catch(console.error);
     });
     service.onBreak(onBreakListener);
 
