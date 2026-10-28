@@ -11,7 +11,7 @@ import type {
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
 import { Struct } from '@metamask/superstruct';
-import { Duration, inMilliseconds } from '@metamask/utils';
+import { Duration, getErrorMessage, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import {
   DefaultError,
@@ -83,10 +83,43 @@ export type BaseMessenger<Namespace extends string> = Messenger<
   any
 >;
 
+/**
+ * A JSON safe representation of an error thrown by a query.
+ */
+export type SerializedQueryError = { name: string; message: string };
+
+/**
+ * The dehydrated state published in `:cacheUpdated` payloads, where query
+ * errors are serialized so they survive JSON round trips.
+ */
+export type CacheUpdatedState = Omit<DehydratedState, 'queries'> & {
+  queries: (Omit<DehydratedState['queries'][number], 'state'> & {
+    state: Omit<DehydratedState['queries'][number]['state'], 'error'> & {
+      error: SerializedQueryError | null;
+    };
+  })[];
+};
+
+/**
+ * Convert a thrown value into a JSON safe error.
+ *
+ * @param error - The raw error stored on a query, if any.
+ * @returns The serialized error, or null if there is no error.
+ */
+function serializeQueryError(error: unknown): SerializedQueryError | null {
+  if (error === null) {
+    return null;
+  }
+  return {
+    name: error instanceof Error ? error.name : 'Error',
+    message: getErrorMessage(error),
+  };
+}
+
 export type DataServiceGranularCacheUpdatedPayload = {
   objectType: 'query' | 'mutation';
 } & (
-  | { type: 'added' | 'updated'; state: DehydratedState }
+  | { type: 'added' | 'updated'; state: CacheUpdatedState }
   | {
       type: 'removed';
       state: null;
@@ -597,7 +630,7 @@ export class BaseDataService<
     eventType: CacheUpdatedType,
     hash: string,
   ): void {
-    const state =
+    const dehydrated =
       eventType === 'added' || eventType === 'updated'
         ? dehydrate(this.#queryClient, {
             shouldDehydrateQuery: (query) =>
@@ -608,6 +641,16 @@ export class BaseDataService<
               hashKey(mutation.options.mutationKey) === hash,
           })
         : null;
+    const state = dehydrated && {
+      ...dehydrated,
+      queries: dehydrated.queries.map((query) => ({
+        ...query,
+        state: {
+          ...query.state,
+          error: serializeQueryError(query.state.error),
+        },
+      })),
+    };
 
     this.#messenger.publish(
       `${this.name}:cacheUpdated` as const,

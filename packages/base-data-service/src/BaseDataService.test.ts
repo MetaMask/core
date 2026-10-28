@@ -731,6 +731,104 @@ describe('BaseDataService', () => {
 
       service.destroy();
     });
+
+    it('serializes query errors in `:cacheUpdated` payloads so they survive JSON', async () => {
+      const messenger = createServiceMessenger();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      const service = new ExampleDataService(messenger);
+
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+
+      await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
+        'Query failed with status code: 500.',
+      );
+
+      const hash = hashKey(['ExampleDataService:getAssets', MOCK_ASSETS]);
+      const payloads = publishSpy.mock.calls
+        .filter(
+          ([event]) => event === `ExampleDataService:cacheUpdated:${hash}`,
+        )
+        .map(([, payload]) => payload);
+      const last = roundTrip(payloads.at(-1));
+
+      expect(last.state.queries[0].state.status).toBe('error');
+      expect(last.state.queries[0].state.error).toStrictEqual({
+        name: 'Error',
+        message: 'Query failed with status code: 500.',
+      });
+
+      const globalPayloads = publishSpy.mock.calls
+        .filter(([event]) => event === 'ExampleDataService:cacheUpdated')
+        .map(([, payload]) => roundTrip(payload));
+      expect(globalPayloads.at(-1)?.state.queries[0].state.error).toStrictEqual(
+        {
+          name: 'Error',
+          message: 'Query failed with status code: 500.',
+        },
+      );
+
+      service.destroy();
+    });
+
+    it('serializes non Error query failures with the name `Error`', async () => {
+      class ThrowingService extends ExampleDataService {
+        async failWithString(): Promise<unknown> {
+          return this.fetchQuery({
+            queryKey: [`${this.name}:failWithString`],
+            queryFn: async () => {
+              // eslint-disable-next-line no-throw-literal, @typescript-eslint/only-throw-error
+              throw 'plain string failure';
+            },
+          });
+        }
+      }
+      const messenger = createServiceMessenger();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      const service = new ThrowingService(messenger);
+
+      await expect(service.failWithString()).rejects.toBe(
+        'plain string failure',
+      );
+
+      const hash = hashKey([`ExampleDataService:failWithString`]);
+      const payloads = publishSpy.mock.calls
+        .filter(
+          ([event]) => event === `ExampleDataService:cacheUpdated:${hash}`,
+        )
+        .map(([, payload]) => payload);
+      const last = roundTrip(payloads.at(-1));
+
+      expect(last.state.queries[0].state.error).toStrictEqual({
+        name: 'Error',
+        message: 'plain string failure',
+      });
+
+      service.destroy();
+    });
+
+    it('publishes `error: null` for queries that have not failed', async () => {
+      mockAssets();
+      const messenger = createServiceMessenger();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      const service = new ExampleDataService(messenger);
+
+      await service.getAssets(MOCK_ASSETS);
+
+      const hash = hashKey(['ExampleDataService:getAssets', MOCK_ASSETS]);
+      const payloads = publishSpy.mock.calls
+        .filter(
+          ([event]) => event === `ExampleDataService:cacheUpdated:${hash}`,
+        )
+        .map(([, payload]) => payload);
+      const last = roundTrip(payloads.at(-1));
+
+      expect(last.state.queries[0].state.status).toBe('success');
+      expect(last.state.queries[0].state.error).toBeNull();
+
+      service.destroy();
+    });
   });
 
   describe('persistence', () => {
@@ -1047,4 +1145,21 @@ function createServiceMessenger(
     messenger,
   });
   return messenger;
+}
+
+type RoundTrippedPayload = {
+  state: {
+    queries: { state: { status: string; error: unknown } }[];
+  };
+};
+
+/**
+ * Pass a payload through JSON, as a client on the other side of a serialization
+ * boundary would see it.
+ *
+ * @param payload - The published payload.
+ * @returns The payload after a JSON round trip.
+ */
+function roundTrip(payload: unknown): RoundTrippedPayload {
+  return JSON.parse(JSON.stringify(payload)) as RoundTrippedPayload;
 }
