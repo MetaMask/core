@@ -5463,7 +5463,7 @@ __metadata:
     "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/utils": "npm:^12.0.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    nanoid: "npm:^3.3.19"
+    nanoid: "npm:^6.0.2"
     rimraf: "npm:^6.1.3"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -6523,7 +6523,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     ethers: "npm:^6.17.0"
     lodash-es: "npm:^4.18.1"
-    nanoid: "npm:^3.3.19"
+    nanoid: "npm:^6.0.2"
     rimraf: "npm:^6.1.3"
     typedoc: "npm:^0.28.20"
     typescript: "npm:@typescript/typescript6@^6.0.2"
@@ -7968,7 +7968,7 @@ __metadata:
     "@typescript/native": "npm:typescript@^7.0.2"
     deep-freeze-strict: "npm:^1.1.1"
     immer: "npm:^11.1.18"
-    nanoid: "npm:^3.3.19"
+    nanoid: "npm:^6.0.2"
     rimraf: "npm:^6.1.3"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -7989,7 +7989,7 @@ __metadata:
     "@types/deep-freeze-strict": "npm:^1.1.0"
     "@typescript/native": "npm:typescript@^7.0.2"
     deep-freeze-strict: "npm:^1.1.1"
-    nanoid: "npm:^3.3.19"
+    nanoid: "npm:^6.0.2"
     rimraf: "npm:^6.1.3"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -21088,6 +21088,15 @@ __metadata:
   bin:
     nanoid: bin/nanoid.cjs
   checksum: 10/a330adb28dad63eccb0a0c95a2a61353e84b7e067061fff94167803d94be8eef0f7b75cf2da1bece06e8b7afb892abbe52cf0ec33298c817a083eedccd7656e4
+  languageName: node
+  linkType: hard
+
+"nanoid@npm:^6.0.2":
+  version: 6.0.2
+  resolution: "nanoid@npm:6.0.2"
+  bin:
+    nanoid: bin/nanoid.js
+  checksum: 10/c555e99171c0988195d71ba22a7acd96f18c767b4a1db5c2a3d75ebf9c302a269fcda3c22e2d6022f3e5a345dcf7188a36f88c6d5fffc2828c68a1b7f9996daf
   languageName: node
   linkType: hard
 
