@@ -6180,11 +6180,11 @@ __metadata:
     "@metamask/error-utils": "npm:^0.1.0"
     "@metamask/network-controller": "npm:^37.1.1"
     "@metamask/node-utils": "npm:^0.1.0"
-    "@metamask/oxlint-config": "npm:^0.1.1"
-    "@metamask/oxlint-config-commonjs": "npm:^0.1.1"
-    "@metamask/oxlint-config-nodejs": "npm:^0.1.1"
-    "@metamask/oxlint-config-typescript": "npm:^0.1.1"
-    "@metamask/oxlint-config-vitest": "npm:^0.1.1"
+    "@metamask/oxlint-config": "npm:^0.2.0"
+    "@metamask/oxlint-config-commonjs": "npm:^0.2.0"
+    "@metamask/oxlint-config-nodejs": "npm:^0.2.0"
+    "@metamask/oxlint-config-typescript": "npm:^0.2.0"
+    "@metamask/oxlint-config-vitest": "npm:^0.2.0"
     "@metamask/skills": "npm:^0.3.1"
     "@metamask/type-utils": "npm:^0.1.0"
     "@types/lodash": "npm:^4.17.27"
@@ -7824,56 +7824,56 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/oxlint-config-commonjs@npm:^0.1.1":
-  version: 0.1.1
-  resolution: "@metamask/oxlint-config-commonjs@npm:0.1.1"
+"@metamask/oxlint-config-commonjs@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@metamask/oxlint-config-commonjs@npm:0.2.0"
   peerDependencies:
-    "@metamask/oxlint-config": ^0.1.1
+    "@metamask/oxlint-config": ^0.2.0
     oxlint: ^1.82.0
-  checksum: 10/a71463fa249362903a8111f64b31fb6746ef1ba1b90a79b2fe85bf71bb1ac1be3d940b04294c4924261dbdffc23c3753eddc136bc324c4b9d8f7ffdd168a9cd1
+  checksum: 10/a7c02a26b028fd2b261db3039f2cbf886f68906152655b519b7ae5e7abd88d0c1de4f756bdedc0c831cad5aecb55ec54f03fa98079f4e4cabe3d706a8e02728f
   languageName: node
   linkType: hard
 
-"@metamask/oxlint-config-nodejs@npm:^0.1.1":
-  version: 0.1.1
-  resolution: "@metamask/oxlint-config-nodejs@npm:0.1.1"
+"@metamask/oxlint-config-nodejs@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@metamask/oxlint-config-nodejs@npm:0.2.0"
   peerDependencies:
-    "@metamask/oxlint-config": ^0.1.1
+    "@metamask/oxlint-config": ^0.2.0
     eslint-plugin-n: ^18.3.0
     oxlint: ^1.82.0
-  checksum: 10/ee9a2c17e6d40f51c6160df5d05f305fa186c4251858f92c2f514fd22c85e8c54f02bc23add1397ffb60f82f16235efdc807bcae46154247e37db87c5eafba36
+  checksum: 10/7612257133eee1ce18ab1e7d184a53f1db45f61d775fab27c927548d87edb0928d752f77a1c67cf4b7ed9206dc9c5473fa45ac9a81b9087145a6325b04f4c3c9
   languageName: node
   linkType: hard
 
-"@metamask/oxlint-config-typescript@npm:^0.1.1":
-  version: 0.1.1
-  resolution: "@metamask/oxlint-config-typescript@npm:0.1.1"
+"@metamask/oxlint-config-typescript@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@metamask/oxlint-config-typescript@npm:0.2.0"
   peerDependencies:
-    "@metamask/oxlint-config": ^0.1.1
+    "@metamask/oxlint-config": ^0.2.0
     oxlint: ^1.82.0
     oxlint-tsgolint: ^7.0.2001
-  checksum: 10/5f0a4d47388a65b3f70f0af032cc4606aef233d5ccf763979b82ee5769b792e7447430e3dbf19e2be19594415fdaf9f49d4c43a8b8b524414d5e013604ab4bd4
+  checksum: 10/f42066d11b08520c53848cb94256392c7f152cae1d5e92f35a7e52608ad2c1a18128c8c025fd9781ceb53a515df8874c3112549ab42a0a04e99c79ed7d1def2e
   languageName: node
   linkType: hard
 
-"@metamask/oxlint-config-vitest@npm:^0.1.1":
-  version: 0.1.1
-  resolution: "@metamask/oxlint-config-vitest@npm:0.1.1"
+"@metamask/oxlint-config-vitest@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@metamask/oxlint-config-vitest@npm:0.2.0"
   peerDependencies:
-    "@metamask/oxlint-config": ^0.1.1
+    "@metamask/oxlint-config": ^0.2.0
     oxlint: ^1.82.0
-  checksum: 10/b5e7afe061ecd9348b2ebf0228f1c1ffc4898f586413c8177e620dcf280bdcf9b5cceabfc78a2b06496c2be3b52eaddac85ff27bab16e6b538da14e8c9c7e9b4
+  checksum: 10/0600c1aa74e259544a2c987e1975ec27f82ba1ed69e8ff012aaa2ea7f81257c232b118c560add714aa8b2455d10ad67fe20ead834010404560e897027f8bde9e
   languageName: node
   linkType: hard
 
-"@metamask/oxlint-config@npm:^0.1.1":
-  version: 0.1.1
-  resolution: "@metamask/oxlint-config@npm:0.1.1"
+"@metamask/oxlint-config@npm:^0.2.0":
+  version: 0.2.0
+  resolution: "@metamask/oxlint-config@npm:0.2.0"
   dependencies:
     deepmerge: "npm:^4.3.1"
   peerDependencies:
     oxlint: ^1.82.0
-  checksum: 10/06c708cf970cb677d53fb352565b82188edb27fd8c49b9c38d7fc35e1bd781cec90cbe1f6e1ef1d437b25a0c5d91eafed086fc1e27c7fbc874c479f3dda72454
+  checksum: 10/b176f95f8794a60bcd2337143e55dc92befbec35101dd66cb42487edb420b59537d209d90964dddf320b50ab508e97def7d14b61154379521bd606a9ee8b0e51
   languageName: node
   linkType: hard
 
