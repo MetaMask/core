@@ -793,7 +793,7 @@ export function testsForRpcMethodSupportingBlockParam(
           },
           failure: error,
           isRetriableFailure: true,
-          getExpectedError: (url: string) =>
+          getExpectedError: () =>
             expect.objectContaining({
               message: expect.stringMatching(/fetch failed/u),
             }),
@@ -1039,7 +1039,7 @@ export function testsForRpcMethodSupportingBlockParam(
         },
         failure: error,
         isRetriableFailure: true,
-        getExpectedError: (url: string) =>
+        getExpectedError: () =>
           expect.objectContaining({
             message: expect.stringMatching(/fetch failed/u),
           }),
