@@ -24,7 +24,10 @@ import type {
 } from './autoramp-types.js';
 import type { NeoBankServiceMethodActions } from './NeoBankService-method-action-types.js';
 import { RAMPS_SDK_VERSION, RampsEnvironment } from './RampsService.js';
-import { WalletRegistrationService } from './wallet-registration-service.js';
+import {
+  WalletRegistrationError,
+  WalletRegistrationService,
+} from './wallet-registration-service.js';
 import type {
   RegistrationOutcome,
   RegistrationStatus,
@@ -68,6 +71,12 @@ const AutorampResponseStruct = type({ id: size(string(), 1, Infinity) });
  * `deposit_rails`.
  */
 const PixAutorampResponseStruct = type({});
+
+/**
+ * Minimal shape check for the microdeposits list: an array of objects. The
+ * items are returned unmodified.
+ */
+const MicrodepositListResponseStruct = array(type({}));
 
 /**
  * Minimal shape check for one autoramp transaction. Other fields are read
@@ -142,6 +151,25 @@ export type NeoBankAutorampResponse = {
 };
 
 /**
+ * A MoonPay microdeposit: a small test credit a bank sends when a user links
+ * their account. Shape mirrors MoonPay `GET /api/customers/{id}/microdeposits`
+ * and is returned unmodified. There is no id field, so consumers derive their
+ * own key.
+ */
+export type NeoBankMicrodeposit = {
+  /** Decimal string, e.g. `"0.34"`. */
+  amount: string;
+  /** Currency code, e.g. `"USD"`. */
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  currency_code: string;
+  /** ISO-8601 datetime. */
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  created_at: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  counterparty_name?: string;
+};
+
+/**
  * Optional headers for neo-bank mutating requests.
  */
 export type NeoBankRequestOptions = {
@@ -187,6 +215,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'attachAutorampQuote',
   'getCustomerByExternalId',
   'getMoonpayCustomerId',
+  'getMicrodeposits',
   'getWalletRegistrationStatus',
   'registerSelfHostedWallet',
   'getPixDepositInstructions',
@@ -544,6 +573,8 @@ export class NeoBankService extends BaseDataService<
   readonly #baseUrlOverride?: string;
 
   #walletRegistrationService: WalletRegistrationService | undefined;
+
+  #customerIdPromise: Promise<string> | undefined;
 
   constructor({
     messenger,
@@ -1051,6 +1082,59 @@ export class NeoBankService extends BaseDataService<
    */
   async getMoonpayCustomerId(): Promise<string> {
     return await this.#getWalletRegistrationService().getMoonpayCustomerId();
+  }
+
+  /**
+   * Lists the customer's bank-link microdeposits via neobank-proxy
+   * `GET /neobank/customers/{customer_id}/microdeposits` (MoonPay
+   * `GET /api/customers/{id}/microdeposits`).
+   *
+   * The customer id is resolved through {@link getMoonpayCustomerId} at most
+   * once per service instance; concurrent callers share the in-flight lookup
+   * and a failed lookup is retried by the next call. A 404 (from the customer
+   * lookup or the list) means there is no customer or no deposits yet and
+   * resolves `[]`. Any other non-2xx response throws an {@link HttpError}. The
+   * customer lookup is a single attempt: it does not go through the retry
+   * policy.
+   *
+   * @returns MoonPay microdeposits, unmodified.
+   */
+  async getMicrodeposits(): Promise<NeoBankMicrodeposit[]> {
+    let response: Infer<typeof MicrodepositListResponseStruct>;
+    try {
+      this.#customerIdPromise ??= this.getMoonpayCustomerId().catch(
+        (error: unknown) => {
+          this.#customerIdPromise = undefined;
+          // The lookup runs outside the service policy and throws
+          // WalletRegistrationError; surface HTTP failures as HttpError like
+          // every other method.
+          if (error instanceof WalletRegistrationError && error.httpStatus) {
+            throw new HttpError(
+              error.httpStatus,
+              `Fetching neo-bank customer lookup failed with status '${error.httpStatus}'${error.body ? ` - ${error.body}` : ''}`,
+            );
+          }
+          throw error;
+        },
+      );
+      const customerId = await this.#customerIdPromise;
+      response = await this.fetchQuery({
+        queryKey: [`${this.name}:getMicrodeposits`, customerId],
+        staleTime: 0,
+        gcTime: 0,
+        responseStruct: MicrodepositListResponseStruct,
+        queryFn: async () =>
+          this.#getJson<Infer<typeof MicrodepositListResponseStruct>>(
+            `customers/${encodeURIComponent(customerId)}/microdeposits`,
+          ),
+      });
+    } catch (error) {
+      if ((error as { httpStatus?: unknown }).httpStatus === 404) {
+        return [];
+      }
+      throw error;
+    }
+    return response as NeoBankMicrodeposit[];
   }
 
   /**

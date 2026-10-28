@@ -324,6 +324,7 @@ export type {
   NeoBankServiceInvalidateQueriesAction,
   NeoBankServiceMessenger,
   NeoBankAutorampResponse,
+  NeoBankMicrodeposit,
   NeoBankRequestOptions,
   NeoBankQueryParams,
   GetWalletRegistrationStatusParams,
@@ -342,6 +343,7 @@ export type {
   NeoBankServiceAttachAutorampQuoteAction,
   NeoBankServiceGetCustomerByExternalIdAction,
   NeoBankServiceGetMoonpayCustomerIdAction,
+  NeoBankServiceGetMicrodepositsAction,
   NeoBankServiceGetWalletRegistrationStatusAction,
   NeoBankServiceRegisterSelfHostedWalletAction,
 } from './NeoBankService-method-action-types.js';
