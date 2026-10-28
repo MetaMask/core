@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test: use the nock default export instead of named imports ([#11138](https://github.com/MetaMask/core/pull/11138))
-- test(assets-controller): make nock tests independent of node-fetch ([#11128](https://github.com/MetaMask/core/pull/11128))
-
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.2.1` to `^72.3.0` ([#11154](https://github.com/MetaMask/core/pull/11154))
