@@ -756,14 +756,20 @@ describe('AssetsController', () => {
       );
       (
         messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
+          registerActionHandler: (
+            action: string,
+            handler: () => unknown,
+          ) => void;
         }
       ).registerActionHandler('AccountsController:getSelectedAccount', () =>
         createMockInternalAccount(),
       );
       (
         messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
+          registerActionHandler: (
+            action: string,
+            handler: () => unknown,
+          ) => void;
         }
       ).registerActionHandler('NetworkController:getState', () => ({
         networkConfigurationsByChainId: {},
@@ -771,7 +777,10 @@ describe('AssetsController', () => {
       }));
       (
         messenger as {
-          registerActionHandler: (a: string, h: () => unknown) => void;
+          registerActionHandler: (
+            action: string,
+            handler: () => unknown,
+          ) => void;
         }
       ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
         provider: {},
@@ -807,7 +816,7 @@ describe('AssetsController', () => {
 
       const account = createMockInternalAccount();
       const beforeInit = await controller.getAssets([account]);
-      expect(Object.keys(beforeInit[MOCK_ACCOUNT_ID] ?? {})).toStrictEqual([]);
+      expect(Object.keys(beforeInit[MOCK_ACCOUNT_ID])).toStrictEqual([]);
 
       messenger.registerActionHandler(
         'NetworkEnablementController:getState',
@@ -823,7 +832,7 @@ describe('AssetsController', () => {
       await controller.init();
 
       const afterInit = await controller.getAssets([account]);
-      expect(Object.keys(afterInit[MOCK_ACCOUNT_ID] ?? {})).toStrictEqual([
+      expect(Object.keys(afterInit[MOCK_ACCOUNT_ID])).toStrictEqual([
         MOCK_NATIVE_ASSET_ID,
       ]);
 
@@ -842,9 +851,9 @@ describe('AssetsController', () => {
       await new Promise(process.nextTick);
 
       const afterStateChange = await controller.getAssets([account]);
-      expect(
-        Object.keys(afterStateChange[MOCK_ACCOUNT_ID] ?? {}).sort(),
-      ).toStrictEqual([MOCK_NATIVE_ASSET_ID, polygonNativeAssetId].sort());
+      expect(Object.keys(afterStateChange[MOCK_ACCOUNT_ID]).sort()).toStrictEqual(
+        [MOCK_NATIVE_ASSET_ID, polygonNativeAssetId].sort(),
+      );
     });
 
     it('accepts isBasicFunctionality option and exposes handleBasicFunctionalityChange', async () => {

@@ -264,7 +264,7 @@ describe('assetsController', () => {
       { id: accountId } as Parameters<AssetsController['getAssets']>[0][number],
     ]);
 
-    expect(Object.keys(assets[accountId] ?? {})).toStrictEqual([nativeAssetId]);
+    expect(Object.keys(assets[accountId])).toStrictEqual([nativeAssetId]);
   });
 
   it('is initialized by the Wallet when passed as an initialization configuration', async () => {
