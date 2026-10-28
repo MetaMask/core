@@ -173,7 +173,8 @@ Auth approvals:
   `updateIdentifiers` send them to every escrow, which checks them against
   `identifiers_hash` and rejects payload identifiers outside them. Hashing
   sorts object keys, not arrays.
-- A 403 from Auth means MFA is missing or stale (`authentication_required`).
+- Missing or stale MFA rejects with `AuthenticationController`'s
+  `StepUpRequiredError`.
 - Escrows verify signatures. The controller decodes claims only for pending-state
   validation and expiry-based refresh.
 

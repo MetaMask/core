@@ -7,16 +7,17 @@ Pending mutations are encrypted in controller state. `resume()` completes them;
 
 ## Auth API Integration
 
-Configure `AuthApiRecoveryAuthProvider` with the Auth API base URL, profile id,
-and a callback that supplies a Hydra bearer with recent MFA when requested.
-It posts `{ request_hash, audiences }` to `/api/v2/mfa/approvals` and returns
-`{ approval, identifiers }`. Writes and reads require a request-bound AAL2
-approval; updates and reads also require an identifier proof.
+Configure `AuthApiRecoveryAuthProvider` with a messenger that can call
+`AuthenticationController:getSessionProfile` and
+`AuthenticationController:requestMfaApproval`. It uses the canonical profile id
+and requests approvals from `/api/v2/mfa/approvals`. Writes and reads require a
+request-bound AAL2 approval; updates and reads also require an identifier proof.
+Without a recent MFA verification, approvals reject with `StepUpRequiredError`:
+verify, then call `resume()` or retry the read.
 
 `register` and `updateIdentifiers` send the approval's `identifiers` to each
 escrow as `approvedIdentifiers`; the escrow rejects payload identifiers outside
-that list. A 403 from Auth throws `authentication_required`: prompt for MFA
-again. Set `CubistEscrowProviderOptions.authAudience` to the escrow's
+that list. Set `CubistEscrowProviderOptions.authAudience` to the escrow's
 `AUTH_CONTROLLER_AUDIENCE`.
 
 ## Installation

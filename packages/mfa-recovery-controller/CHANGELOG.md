@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Requires recent, request-bound AAL2 approvals for writes and reads.
   - Sends the approval's identifiers to escrows as `approvedIdentifiers` with `register` and `updateIdentifiers` mutations ([#10883](https://github.com/MetaMask/core/pull/10883))
   - Exports `MfaRecoveryController`, `getDefaultMfaRecoveryControllerState`, and the controller's action, event, messenger, state, and options types.
-  - Exports `AuthApiRecoveryAuthProvider` and `AuthApiRecoveryAuthProviderOptions` for requesting approvals from the Authentication API; a 403 response throws `authentication_required` ([#10883](https://github.com/MetaMask/core/pull/10883))
+  - Exports `AuthApiRecoveryAuthProvider`, `AuthApiRecoveryAuthProviderOptions` and `AuthApiRecoveryAuthProviderMessenger` for requesting approvals through `AuthenticationController:requestMfaApproval` ([#10883](https://github.com/MetaMask/core/pull/10883))
   - Exports `CubistEscrowProvider` and `CubistEscrowProviderOptions` for storing recovery secrets with CubeSigner.
   - Exports `MfaRecoveryError`, `IncompleteMutationError`, and `MutationRejectedError`.
   - Exports `MIN_IDENTIFIERS`, `IDENTIFIER_AUTH_MODES`, and `getIdentifierAuthMode` for identifier authentication.

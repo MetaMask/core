@@ -1,38 +1,99 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
+import type { AuthApiRecoveryAuthProviderMessenger } from './auth-api-recovery-provider.js';
 import { AuthApiRecoveryAuthProvider } from './auth-api-recovery-provider.js';
 
-describe('AuthApiRecoveryAuthProvider', () => {
-  const getAccessToken =
-    vi.fn<(requireTwoFactor: boolean) => Promise<string>>();
-  const options = {
-    baseUrl: 'https://auth.example/',
-    profileId: 'profile-1',
-    getAccessToken,
-  };
-  const approval = {
-    approval: 'signed-approval',
-    identifiers: [
-      {
-        type: 'social',
-        namespace: 'https://accounts.google.com',
-        value: 'hash',
-      },
-      {
-        type: 'passkey',
-        namespace: 'metamask.io',
-        value: 'AQID',
-        verifier: {
-          publicKey: { cose: 'AQID' },
-          rpId: 'metamask.io',
-          origins: ['https://metamask.io'],
-        },
-      },
-    ],
-  };
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<AuthApiRecoveryAuthProviderMessenger>,
+  MessengerEvents<AuthApiRecoveryAuthProviderMessenger>
+>;
 
-  beforeEach(() => {
-    getAccessToken.mockResolvedValue('hydra-token');
+type Approval = {
+  approval: string;
+  expiresIn: number;
+  identifiers?: { type: string; namespace: string; value: string }[];
+};
+
+const APPROVAL = {
+  approval: 'signed-approval',
+  expiresIn: 300,
+  identifiers: [
+    {
+      type: 'social',
+      namespace: 'https://accounts.google.com',
+      value: 'hash',
+    },
+    {
+      type: 'passkey',
+      namespace: 'metamask.io',
+      value: 'AQID',
+      verifier: {
+        publicKey: { cose: 'AQID' },
+        rpId: 'metamask.io',
+        origins: ['https://metamask.io'],
+      },
+    },
+  ],
+};
+
+/**
+ * Builds a provider whose messenger is backed by mock AuthenticationController
+ * actions.
+ *
+ * @param approval - The approval `requestMfaApproval` resolves with.
+ * @returns The provider and the `requestMfaApproval` mock.
+ */
+function setup(approval: Approval = APPROVAL): {
+  provider: AuthApiRecoveryAuthProvider;
+  requestMfaApproval: ReturnType<typeof vi.fn>;
+} {
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+  const messenger: AuthApiRecoveryAuthProviderMessenger = new Messenger({
+    namespace: 'AuthApiRecoveryAuthProvider',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    actions: [
+      'AuthenticationController:getSessionProfile',
+      'AuthenticationController:requestMfaApproval',
+    ],
+    events: [],
+    messenger,
+  });
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getSessionProfile',
+    async () => ({
+      identifierId: 'srp-identifier',
+      profileId: 'srp-profile',
+      canonicalProfileId: 'profile-1',
+      metaMetricsId: 'metametrics-id',
+    }),
+  );
+  const requestMfaApproval = vi.fn().mockResolvedValue(approval);
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:requestMfaApproval',
+    requestMfaApproval,
+  );
+  return {
+    provider: new AuthApiRecoveryAuthProvider({ messenger }),
+    requestMfaApproval,
+  };
+}
+
+describe('AuthApiRecoveryAuthProvider', () => {
+  it('returns the canonical profile id', async () => {
+    expect(await setup().provider.getAuthenticatedProfileId()).toBe(
+      'profile-1',
+    );
   });
 
   it.each([
@@ -40,77 +101,34 @@ describe('AuthApiRecoveryAuthProvider', () => {
     [true, true],
   ])(
     'returns the approval and identifiers (requireTwoFactor: %s)',
-    async (requireTwoFactor, expectedTwoFactor) => {
-      const fetchMock = vi
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue(new Response(JSON.stringify(approval)));
-      const provider = new AuthApiRecoveryAuthProvider(options);
-      expect(await provider.getAuthenticatedProfileId()).toBe('profile-1');
+    async (requireTwoFactor, requireVerification) => {
+      const { provider, requestMfaApproval } = setup();
       expect(
         await provider.authorizeRecoveryRequest({
           requestHash: '0xrequest',
           audiences: ['cubist-audience'],
           requireTwoFactor,
         }),
-      ).toStrictEqual(approval);
-      expect(getAccessToken).toHaveBeenCalledWith(expectedTwoFactor);
-      expect(fetchMock.mock.contexts[0] === globalThis).toBe(true);
-      expect(fetchMock.mock.calls).toStrictEqual([
-        [
-          'https://auth.example/api/v2/mfa/approvals',
-          {
-            method: 'POST',
-            headers: {
-              Authorization: 'Bearer hydra-token',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              request_hash: '0xrequest',
-              audiences: ['cubist-audience'],
-            }),
-          },
-        ],
-      ]);
+      ).toStrictEqual({
+        approval: APPROVAL.approval,
+        identifiers: APPROVAL.identifiers,
+      });
+      expect(requestMfaApproval).toHaveBeenCalledWith({
+        requestHash: '0xrequest',
+        audiences: ['cubist-audience'],
+        requireVerification,
+        reason: { operation: 'mfa_recovery' },
+      });
     },
   );
 
-  it.each([
-    [403, 'authentication_required'],
-    [500, 'auth_api_error'],
-  ])('surfaces an Auth API %i as %s', async (status, code) => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValue(new Response(null, { status }));
-    await expect(
-      new AuthApiRecoveryAuthProvider({
-        ...options,
-        fetch: fetchMock,
-      }).authorizeRecoveryRequest({
+  it('returns no identifiers when Auth omits them', async () => {
+    const { provider } = setup({ approval: 'signed-approval', expiresIn: 300 });
+    expect(
+      await provider.authorizeRecoveryRequest({
         requestHash: '0xrequest',
         audiences: ['cubist-audience'],
       }),
-    ).rejects.toMatchObject({
-      message: `Authentication API returned ${status}`,
-      code,
-    });
-  });
-
-  it.each([
-    null,
-    {},
-    { ...approval, approval: 1 },
-    { ...approval, approval: '' },
-    { ...approval, identifiers: null },
-    { ...approval, identifiers: [{}] },
-  ])('rejects a malformed approval response: %j', async (response) => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify(response)),
-    );
-    await expect(
-      new AuthApiRecoveryAuthProvider(options).authorizeRecoveryRequest({
-        requestHash: '0xrequest',
-        audiences: ['cubist-audience'],
-      }),
-    ).rejects.toThrow('Invalid Auth approval');
+    ).toStrictEqual({ approval: 'signed-approval', identifiers: [] });
   });
 });

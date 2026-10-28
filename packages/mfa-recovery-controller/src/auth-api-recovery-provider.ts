@@ -1,42 +1,43 @@
-import { array, is, size, string, type } from '@metamask/superstruct';
+import type { Messenger } from '@metamask/messenger';
+import type {
+  AuthenticationControllerGetSessionProfileAction,
+  AuthenticationControllerRequestMfaApprovalAction,
+} from '@metamask/profile-sync-controller/auth';
 
-import { MfaRecoveryError } from './errors.js';
 import type { RecoveryApproval, RecoveryAuthProvider } from './types.js';
 
-const RecoveryApprovalStruct = type({
-  approval: size(string(), 1, Infinity),
-  identifiers: array(
-    type({ type: string(), namespace: string(), value: string() }),
-  ),
-});
+export type AuthApiRecoveryAuthProviderMessenger = Messenger<
+  'AuthApiRecoveryAuthProvider',
+  | AuthenticationControllerGetSessionProfileAction
+  | AuthenticationControllerRequestMfaApprovalAction
+>;
 
 export type AuthApiRecoveryAuthProviderOptions = {
-  /** Auth API origin, without /api/v2. */
-  baseUrl: string;
-  /** Profile id for the authenticated session. */
-  profileId: string;
-  /** Returns a Hydra bearer; true requires recent MFA. */
-  getAccessToken: (requireTwoFactor: boolean) => Promise<string>;
-  fetch?: typeof globalThis.fetch;
+  messenger: AuthApiRecoveryAuthProviderMessenger;
 };
 
-/** Requests Auth API approvals using an authenticated Hydra session. */
+/**
+ * Requests Auth API approvals through `AuthenticationController`. A missing or
+ * stale MFA verification rejects with its `StepUpRequiredError`.
+ */
 export class AuthApiRecoveryAuthProvider implements RecoveryAuthProvider {
-  readonly #options: AuthApiRecoveryAuthProviderOptions;
-
-  readonly #fetch: typeof globalThis.fetch;
+  readonly #messenger: AuthApiRecoveryAuthProviderMessenger;
 
   /**
-   * @param options - Auth API URL, profile, and Hydra token source.
+   * @param options - Provider options.
+   * @param options.messenger - Messenger with the AuthenticationController
+   * actions.
    */
-  constructor(options: AuthApiRecoveryAuthProviderOptions) {
-    this.#options = options;
-    this.#fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+  constructor({ messenger }: AuthApiRecoveryAuthProviderOptions) {
+    this.#messenger = messenger;
   }
 
-  /** @returns The authenticated profile id. */
+  /** @returns The canonical profile id, which approvals use as `sub`. */
   async getAuthenticatedProfileId(): Promise<string> {
-    return this.#options.profileId;
+    const { canonicalProfileId } = await this.#messenger.call(
+      'AuthenticationController:getSessionProfile',
+    );
+    return canonicalProfileId;
   }
 
   /**
@@ -46,37 +47,15 @@ export class AuthApiRecoveryAuthProvider implements RecoveryAuthProvider {
   async authorizeRecoveryRequest(
     params: Parameters<RecoveryAuthProvider['authorizeRecoveryRequest']>[0],
   ): Promise<RecoveryApproval> {
-    const token = await this.#options.getAccessToken(
-      params.requireTwoFactor === true,
-    );
-    const response = await this.#fetch(
-      `${this.#options.baseUrl.replace(/\/$/u, '')}/api/v2/mfa/approvals`,
+    const { approval, identifiers = [] } = await this.#messenger.call(
+      'AuthenticationController:requestMfaApproval',
       {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          request_hash: params.requestHash,
-          audiences: params.audiences,
-        }),
+        requestHash: params.requestHash,
+        audiences: params.audiences,
+        requireVerification: params.requireTwoFactor === true,
+        reason: { operation: 'mfa_recovery' },
       },
     );
-    if (!response.ok) {
-      throw new MfaRecoveryError(
-        `Authentication API returned ${response.status}`,
-        // 403 means the session's MFA is missing or stale; prompt it again.
-        response.status === 403 ? 'authentication_required' : 'auth_api_error',
-      );
-    }
-    const result: unknown = await response.json();
-    if (!is(result, RecoveryApprovalStruct)) {
-      throw new MfaRecoveryError(
-        'Invalid Auth approval',
-        'auth_api_response_invalid',
-      );
-    }
-    return { approval: result.approval, identifiers: result.identifiers };
+    return { approval, identifiers };
   }
 }
