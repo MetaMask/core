@@ -106,6 +106,132 @@ const toBigNumberOrZero = (value: string): BigNumberJS => {
   return parsed.isNaN() || !parsed.isFinite() ? new BigNumberJS(0) : parsed;
 };
 
+// Exact-decimal amount arithmetic.
+//
+// Aggregation accumulates every amount as an exact [bigint mantissa, scale]
+// pair instead of a BigNumber: parsing a plain decimal string into a bigint
+// is an order of magnitude cheaper than constructing a BigNumber, and
+// integer addition is exact without any decimal-configuration surface.
+// Fractional and exponential strings are normalized to the same pair
+// representation with one regex exec; non-finite or unparseable strings
+// resolve to zero (skipped), exactly like `toBigNumberOrZero`.
+const INT_AMOUNT_RE = /^-?\d+$/u;
+const DEC_AMOUNT_RE = /^(-?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/u;
+const MAX_REASONABLE_EXP = 400;
+const POW10_CACHE: (bigint | undefined)[] = [];
+
+const pow10 = (exponent: number): bigint => {
+  let cached = POW10_CACHE[exponent];
+  if (cached === undefined) {
+    cached = BigInt(`1${'0'.repeat(exponent)}`);
+    POW10_CACHE[exponent] = cached;
+  }
+  return cached;
+};
+
+/**
+ * Parse a balance amount string into an exact `[mantissa, scale]` decimal.
+ * Returns `null` when the value resolves to zero (non-finite inputs such as
+ * `'NaN'` or `'Infinity'` resolve to zero, matching the BigNumber path's
+ * zero-skip semantics), otherwise a non-zero mantissa and a non-negative
+ * scale.
+ *
+ * @param str - The raw balance amount string (any shape `AssetBalance.amount`
+ * can hold).
+ * @returns The exact decimal pair, or `null` for zero/non-finite values.
+ */
+const parseAmount = (str: string): [bigint, number] | null => {
+  if (INT_AMOUNT_RE.test(str)) {
+    const mantissa = BigInt(str);
+    return mantissa === 0n ? null : [mantissa, 0];
+  }
+  const match = DEC_AMOUNT_RE.exec(str);
+  if (match) {
+    const intD = match[2] ?? '';
+    const fracD = match[3] ?? '';
+    if (intD !== '' || fracD !== '') {
+      const exp = match[4] === undefined ? 0 : Number(match[4]);
+      if (exp >= -MAX_REASONABLE_EXP && exp <= MAX_REASONABLE_EXP) {
+        let mantissa = BigInt(`${match[1] ?? ''}${intD}${fracD}`);
+        let scale = fracD.length - exp;
+        if (scale < 0) {
+          mantissa *= pow10(-scale);
+          scale = 0;
+        }
+        return mantissa === 0n ? null : [mantissa, scale];
+      }
+    }
+  }
+  // Rare shapes ('NaN', 'Infinity', '', '-1e999999', ...): resolve through
+  // BigNumber, which yields zero for non-finite values — skipped — and an
+  // exact plain-decimal string for finite oddities.
+  const bn = toBigNumberOrZero(str);
+  if (bn.isZero()) {
+    return null;
+  }
+  return [BigInt(bn.toFixed()), 0];
+};
+
+/**
+ * Parse a price number into an exact `[mantissa, scale]` decimal via its
+ * string representation — the same decimal `BigNumber#multipliedBy` uses
+ * when given a number. Zero stays `[0n, 0]` (zero is a valid price). Returns
+ * `null` for shapes that are not finite plain decimals so the caller can
+ * fall back to BigNumber for exact parity.
+ *
+ * @param price - The price as a JS number.
+ * @returns The exact decimal pair, or `null` for non-plain-decimal shapes.
+ */
+const parsePriceToDecimal = (price: number): [bigint, number] | null => {
+  const str = String(price);
+  if (INT_AMOUNT_RE.test(str)) {
+    return [BigInt(str), 0];
+  }
+  const match = DEC_AMOUNT_RE.exec(str);
+  if (match) {
+    const intD = match[2] ?? '';
+    const fracD = match[3] ?? '';
+    if (intD !== '' || fracD !== '') {
+      const exp = match[4] === undefined ? 0 : Number(match[4]);
+      if (exp >= -MAX_REASONABLE_EXP && exp <= MAX_REASONABLE_EXP) {
+        let mantissa = BigInt(`${match[1] ?? ''}${intD}${fracD}`);
+        let scale = fracD.length - exp;
+        if (scale < 0) {
+          mantissa *= pow10(-scale);
+          scale = 0;
+        }
+        return [mantissa, scale];
+      }
+    }
+  }
+  return null;
+};
+
+/**
+ * Materialize `[mantissa, scale]` as a plain decimal string identical to
+ * `BigNumber#toFixed()`: no exponent, no trailing fractional zeros.
+ */
+const CHAR_CODE_ZERO = 48;
+const mantissaToFixed = (mantissa: bigint, scale: number): string => {
+  if (scale === 0) {
+    return mantissa.toString();
+  }
+  const neg = mantissa < 0n;
+  let digits = (neg ? -mantissa : mantissa).toString();
+  while (digits.length <= scale) {
+    digits = `0${digits}`;
+  }
+  const cut = digits.length - scale;
+  const frac = digits.slice(cut);
+  let end = frac.length;
+  while (end > 0 && frac.charCodeAt(end - 1) === CHAR_CODE_ZERO) {
+    end -= 1;
+  }
+  const out =
+    digits.slice(0, cut) + (end > 0 ? `.${frac.slice(0, end)}` : '');
+  return neg ? `-${out}` : out;
+};
+
 const getPriceDatumFast = (
   assetsPrice: AssetsControllerState['assetsPrice'] | undefined,
   assetId: Caip19AssetId,
@@ -205,10 +331,11 @@ const getAssetInfo = (
 
 /**
  * Merge across accounts without building per-account entries arrays.
- * Uses BigNumber for amount accumulation to avoid float precision loss.
+ * Amounts accumulate as exact [bigint mantissa, scale] decimal pairs.
  */
 type AggRow = {
-  amount: BigNumberJS;
+  m: bigint;
+  s: number;
   decimals?: number;
   symbol?: string;
   name?: string;
@@ -221,6 +348,7 @@ function mergeBalancesIntoMap(args: {
   assetPreferences?: Record<Caip19AssetId, AssetPreferences>;
   enabledNetworkMap?: EnabledNetworkMap;
   assetInfoCache: Map<Caip19AssetId, AssetParseInfo>;
+  chainEnabledCache: Map<string, boolean>;
 }): void {
   const {
     out,
@@ -229,6 +357,7 @@ function mergeBalancesIntoMap(args: {
     assetPreferences,
     enabledNetworkMap,
     assetInfoCache,
+    chainEnabledCache,
   } = args;
 
   for (const assetId in accountBalances) {
@@ -249,24 +378,42 @@ function mergeBalancesIntoMap(args: {
     }
 
     const info = getAssetInfo(assetInfoCache, typedAssetId);
-    if (!isChainEnabledByMap(enabledNetworkMap, info.chainId)) {
+    // One enablement resolution per distinct chainId per aggregation
+    // instead of one per asset row (the map is fixed for the whole
+    // aggregation).
+    let enabled = chainEnabledCache.get(info.chainId);
+    if (enabled === undefined) {
+      enabled = isChainEnabledByMap(enabledNetworkMap, info.chainId);
+      chainEnabledCache.set(info.chainId, enabled);
+    }
+    if (!enabled) {
       continue;
     }
 
     const amountStr = getAmountFromBalance(accountBalances[typedAssetId]);
-    const amountBn = toBigNumberOrZero(amountStr);
-    if (amountBn.isZero()) {
+    const parsed = parseAmount(amountStr);
+    if (parsed === null) {
       continue; // skip zeros early to reduce map pressure
     }
+    const inM = parsed[0];
+    const inS = parsed[1];
 
     const existing = out.get(typedAssetId);
     if (existing) {
-      existing.amount = existing.amount.plus(amountBn);
+      if (existing.s === inS) {
+        existing.m += inM;
+      } else if (existing.s > inS) {
+        existing.m += inM * pow10(existing.s - inS);
+      } else {
+        existing.m = existing.m * pow10(inS - existing.s) + inM;
+        existing.s = inS;
+      }
       continue;
     }
 
     out.set(typedAssetId, {
-      amount: amountBn,
+      m: inM,
+      s: inS,
       decimals: meta.decimals,
       symbol: meta.symbol,
       name: meta.name,
@@ -479,6 +626,7 @@ function aggregateBalances(
   const accountsToAggregate = accounts;
 
   const assetInfoCache = makeAssetInfoCache();
+  const chainEnabledCache = new Map<string, boolean>();
   const merged = new Map<Caip19AssetId, AggRow>();
 
   for (const account of accountsToAggregate) {
@@ -492,6 +640,7 @@ function aggregateBalances(
       assetPreferences,
       enabledNetworkMap,
       assetInfoCache,
+      chainEnabledCache,
     });
   }
 
@@ -505,10 +654,10 @@ function aggregateBalances(
   let weightedNumerator = 0;
 
   for (const [assetId, row] of merged.entries()) {
-    const { amount } = row;
+    const amountString = mantissaToFixed(row.m, row.s);
     const entry: AggregatedBalanceEntry = {
       assetId,
-      amount: amount.toFixed(),
+      amount: amountString,
       ...(row.decimals === undefined ? {} : { decimals: row.decimals }),
       ...(row.symbol === undefined ? {} : { symbol: row.symbol }),
       ...(row.name === undefined ? {} : { name: row.name }),
@@ -521,7 +670,24 @@ function aggregateBalances(
         assetsPrice,
         assetId,
       );
-      const contribution = amount.multipliedBy(price).toNumber();
+      // Fiat contribution: exact decimal product via BigInt mantissa math
+      // (amount x price-as-decimal), converted to a number by parsing the
+      // plain-decimal product string. Falls back to BigNumber for price
+      // shapes that are not finite plain decimals.
+      let contribution: number;
+      const priceDecimal = parsePriceToDecimal(price);
+      if (priceDecimal === null) {
+        contribution = new BigNumberJS(amountString)
+          .multipliedBy(price)
+          .toNumber();
+      } else {
+        contribution = Number(
+          mantissaToFixed(
+            row.m * priceDecimal[0],
+            row.s + priceDecimal[1],
+          ),
+        );
+      }
       if (contribution > 0) {
         totalBalanceInFiat += contribution;
         weightedNumerator += contribution * pricePercentChange1d;

@@ -3563,8 +3563,8 @@ function calculateBalanceChangeForAccountGroup_ORIG(assetsControllerState, accou
 //    DO NOT EDIT. Parity vs CANDIDATE is enforced on every run.
 // ============================================================================
 
-const INT_AMOUNT_RE = /^-?\d+$/;
-const DEC_AMOUNT_RE = /^(-?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/;
+const INT_AMOUNT_RE = /^-?\d+$/u;
+const DEC_AMOUNT_RE = /^(-?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/u;
 const MAX_REASONABLE_EXP = 400;
 const POW10_CACHE = [];
 function pow10(k) {
