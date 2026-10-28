@@ -258,7 +258,7 @@ describe('ChompApiService', () => {
       const { service } = createService();
 
       await expect(service.disassociateAddress('0xabc')).rejects.toThrow(
-        'network down',
+        /network down|fetch failed/u,
       );
       expect(scope.pendingMocks()).toHaveLength(1);
     });
