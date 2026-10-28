@@ -1,0 +1,8 @@
+{
+  "status": "ready",
+  "source_file": "packages/assets-controller/src/AssetsController.ts",
+  "metric": "primary_ms",
+  "metric_unit": "ms",
+  "direction": "lower",
+  "checks_command": "yarn vitest run --coverage.enabled=false packages/assets-controller/src/AssetsController.test.ts packages/assets-controller/src/AssetsController.stale-balance-scenarios.integration.test.ts packages/assets-controller/src/AssetsController.spam-cleanup.test.ts packages/assets-controller/src/AssetsController.ws-price-updates.integration.test.ts"
+}

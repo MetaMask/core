@@ -561,6 +561,107 @@ function normalizeResponse(response: DataResponse): DataResponse {
 }
 
 /**
+ * Returns `amount` unchanged when it is provably already the exact string
+ * `normalizeAmountString(amount, decimals)` would return — a canonical plain
+ * decimal (no leading zeros beyond "0", no sign, no exponent, no trailing
+ * fractional zeros) whose fractional length fits within `decimals`. This
+ * skips the `BigNumber` construction + `toFixed` + trim work for the common
+ * warm-poll case where data sources already send canonical decimals, which
+ * dominates the `#updateState` balance loop.
+ *
+ * Anything else (odd forms like "1.500", "00.5", "1e-18", non-strings,
+ * truncating `decimals`, negative values, ...) falls back to the original
+ * `normalizeAmountString`.
+ */
+/**
+ * Exact deep-equality for plain JSON values (objects, arrays, and
+ * primitives), mirroring lodash `isEqual` semantics on JSON-shaped inputs:
+ * - SameValueZero for primitives (NaN equals NaN, 0 equals -0)
+ * - strict key-set comparison (an undefined-valued key never matches a
+ *   missing key)
+ * - top-level type mismatch (array vs object) is never equal
+ *
+ * It exists because the #updateState metadata and price loops deep-compare
+ * every entry of every poll, and this JSON-specialized comparison is
+ * significantly cheaper than lodash's fully general deep-equal (which must
+ * sort key arrays, handle exotic types, and construct comparison machinery).
+ * Both operands there are API JSON payloads (FungibleAssetMetadata /
+ * AssetPrice), so the general fallbacks can never be hit.
+ */
+function jsonFlatEqual(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
+  }
+  const typeofA = typeof a;
+  const typeofB = typeof b;
+  if (typeofA !== 'object' || typeofB !== 'object' || a === null || b === null) {
+    if (typeofA !== 'object' && typeofB !== 'object') {
+      return a === b || (a !== a && b !== b);
+    }
+    return false;
+  }
+  const aIsArray = Array.isArray(a);
+  const bIsArray = Array.isArray(b);
+  if (aIsArray !== bIsArray) {
+    return false;
+  }
+  if (aIsArray) {
+    const arrA = a as unknown[];
+    const arrB = b as unknown[];
+    if (arrA.length !== arrB.length) {
+      return false;
+    }
+    for (let i = 0; i < arrA.length; i++) {
+      if (!jsonFlatEqual(arrA[i], arrB[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  const objA = a as Record<string, unknown>;
+  const objB = b as Record<string, unknown>;
+  const keysA = Object.keys(objA);
+  const keysB = Object.keys(objB);
+  if (keysA.length !== keysB.length) {
+    return false;
+  }
+  for (const key of keysA) {
+    if (!Object.prototype.hasOwnProperty.call(objB, key)) {
+      return false;
+    }
+    if (!jsonFlatEqual(objA[key], objB[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function canonicalAmountFastPath(
+  amount: unknown,
+  decimals: number | undefined,
+): string {
+  if (typeof amount === 'string' && /^(?:0|[1-9][0-9]*)(?:\.[0-9]*[1-9])?$/.test(amount)) {
+    if (
+      decimals === undefined ||
+      !Number.isFinite(decimals) ||
+      decimals < 0
+    ) {
+      // Natural-precision mode: toFixed() returns this exact string.
+      return amount;
+    }
+    const dotIdx = amount.indexOf('.');
+    const fracLen = dotIdx === -1 ? 0 : amount.length - dotIdx - 1;
+    // toFixed(floor(decimals), ROUND_DOWN) pads/truncates, then the
+    // trailing-zero trim restores the original string exactly when the
+    // fraction already fits.
+    if (fracLen <= Math.floor(decimals)) {
+      return amount;
+    }
+  }
+  return normalizeAmountString(amount, decimals);
+}
+
+/**
  * Compute the effective account balances from a data-source response and prior state.
  *
  * @param previousBalances - Balances already in state for this account.
@@ -2754,26 +2855,50 @@ export class AssetsController extends BaseController<
   }
 
   /**
+   * Memoized asset types, keyed by native-asset-map version. Invalidated
+   * whenever the QueryClient's native asset map is replaced (stable identity
+   * per fetch), so results can never go stale. CAIP parsing and native-map
+   * scanning dominate this call inside the #updateState type-reconciliation
+   * loop, which re-processes every tracked asset on every poll.
+   */
+  #assetTypeCache: {
+    nativeAssetMap: Record<ChainId, Caip19AssetId> | null;
+    types: Map<Caip19AssetId, 'native' | 'erc20' | 'spl'>;
+  } = { nativeAssetMap: null, types: new Map() };
+
+  /**
    * Determines the asset type for a given CAIP-19 asset ID.
    *
    * @param assetId - The CAIP-19 asset ID.
    * @returns The asset type: 'native', 'erc20', or 'spl'.
    */
   #getAssetType(assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' {
+    const nativeAssetMap = this.#getNativeAssetMap();
+    const cache = this.#assetTypeCache;
+    if (cache.nativeAssetMap !== nativeAssetMap) {
+      cache.nativeAssetMap = nativeAssetMap;
+      cache.types.clear();
+    }
+    const cached = cache.types.get(assetId);
+    if (cached !== undefined) {
+      return cached;
+    }
     const parsed = parseCaipAssetType(assetId);
 
+    let result: 'native' | 'erc20' | 'spl';
     if (this.#isNativeAsset(assetId)) {
-      return 'native';
-    }
-
-    if (
+      result = 'native';
+    } else if (
       parsed.chain.namespace === KnownCaipNamespace.Solana &&
       parsed.assetNamespace === CaipAssetNamespace.Token
     ) {
-      return 'spl';
+      result = 'spl';
+    } else {
+      result = 'erc20';
     }
 
-    return 'erc20';
+    cache.types.set(assetId, result);
+    return result;
   }
 
   /**
@@ -3013,7 +3138,7 @@ export class AssetsController extends BaseController<
                 : value;
 
             if (
-              !isEqual(
+              !jsonFlatEqual(
                 previousState.assetsInfo[key as Caip19AssetId],
                 nextValue,
               )
@@ -3026,12 +3151,18 @@ export class AssetsController extends BaseController<
 
         // Reconcile & self-heal stale asset "types" (e.g. erc20 -> native)
         // using IDs from new response assetInfo and assetBalance
-        const assetsInfoAssetIdsSet = new Set<Caip19AssetId>([
-          ...Object.keys(normalizedResponse.assetsInfo ?? {}),
-          ...Object.values(normalizedResponse.assetsBalance ?? {}).flatMap(
-            (accountBalances) => Object.keys(accountBalances),
-          ),
-        ] as Caip19AssetId[]);
+        const assetsInfoAssetIdsSet = new Set<Caip19AssetId>(
+          Object.keys(normalizedResponse.assetsInfo ?? {}) as Caip19AssetId[],
+        );
+        for (const accountBalances of Object.values(
+          normalizedResponse.assetsBalance ?? {},
+        )) {
+          for (const assetId of Object.keys(
+            accountBalances,
+          ) as Caip19AssetId[]) {
+            assetsInfoAssetIdsSet.add(assetId);
+          }
+        }
         for (const assetId of assetsInfoAssetIdsSet) {
           const entry = metadata[assetId] as FungibleAssetMetadata | undefined;
           if (!entry) {
@@ -3100,21 +3231,69 @@ export class AssetsController extends BaseController<
               // known, the amount is left at its natural precision (only
               // exponent form is rewritten) so balances arriving before
               // their metadata aren't lossily truncated.
-              const assetDecimals = (
-                metadata[assetId] as { decimals?: number } | undefined
-              )?.decimals;
-              const newAmount = normalizeAmountString(
-                (balance as { amount: unknown }).amount,
-                assetDecimals,
-              );
+              const previousAmount = (
+                previousBalance as { amount?: string } | undefined
+              )?.amount;
+              const rawAmount = (balance as { amount: unknown }).amount as string;
+              // Echo fast path: every writer of `assetsBalance` normalizes
+              // amounts (this loop) or writes the literal '0' (native/custom
+              // zero seeding), so a state amount is canonical by construction.
+              // When the response echoes it, normalization is provably a
+              // no-op unless the current metadata decimals would truncate it
+              // (fracLen > floor(decimals)) — integers and within-precision
+              // fractions skip the canonical-form machinery entirely, and
+              // integers skip even the decimals lookup.
+              let newAmount: string;
+              if (
+                previousAmount !== undefined &&
+                rawAmount === previousAmount
+              ) {
+                const decimals = rawAmount.includes('.')
+                  ? (
+                      metadata[assetId] as { decimals?: number } | undefined
+                    )?.decimals
+                  : undefined;
+                newAmount =
+                  decimals === undefined ||
+                  rawAmount.length - rawAmount.indexOf('.') - 1 <=
+                    Math.floor(decimals)
+                    ? previousAmount
+                    : canonicalAmountFastPath(rawAmount, decimals);
+              } else {
+                newAmount = canonicalAmountFastPath(
+                  rawAmount,
+                  (
+                    metadata[assetId] as { decimals?: number } | undefined
+                  )?.decimals,
+                );
+              }
               const newMetadata =
                 (balance as FungibleAssetBalance).metadata ??
                 (previousBalance as FungibleAssetBalance | undefined)?.metadata;
-              effectiveAccountBalances[assetId] = {
-                amount: newAmount,
-                ...(newMetadata === undefined ? {} : { metadata: newMetadata }),
-              };
-              const oldAmount = previousBalance?.amount;
+              // Reuse the previous balance object when the new
+              // { amount, metadata? } would be content-identical and the
+              // previous object has exactly that shape. Avoids per-asset
+              // object churn on unchanged polls and lets the per-account
+              // isEqual comparison short-circuit on reference equality.
+              const previousMetadata = (
+                previousBalance as FungibleAssetBalance | undefined
+              )?.metadata;
+              const reusePreviousBalance =
+                previousBalance !== undefined &&
+                previousAmount === newAmount &&
+                (newMetadata === undefined
+                  ? Object.keys(previousBalance).length === 1
+                  : previousMetadata === newMetadata &&
+                    Object.keys(previousBalance).length === 2);
+              effectiveAccountBalances[assetId] = reusePreviousBalance
+                ? previousBalance
+                : {
+                    amount: newAmount,
+                    ...(newMetadata === undefined
+                      ? {}
+                      : { metadata: newMetadata }),
+                  };
+              const oldAmount = previousAmount;
               const isNewSeededZero =
                 oldAmount === undefined &&
                 newAmount === '0' &&
@@ -3220,7 +3399,7 @@ export class AssetsController extends BaseController<
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsPrice,
           )) {
-            if (!isEqual(previousPrices[key as Caip19AssetId], value)) {
+            if (!jsonFlatEqual(previousPrices[key as Caip19AssetId], value)) {
               prices[key] = value;
             }
           }
