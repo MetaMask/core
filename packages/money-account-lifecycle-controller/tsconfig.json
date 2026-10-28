@@ -26,5 +26,5 @@
       "path": "../money-account-upgrade-controller"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "./tests"]
 }
