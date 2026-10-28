@@ -31,6 +31,7 @@ import type {
 import { getStrategyOrder } from './utils/feature-flags.js';
 import { updateQuotes } from './utils/quotes.js';
 import { updateSourceAmounts } from './utils/source-amounts.js';
+import { isNonEvmPaymentToken, isSamePaymentToken } from './utils/token.js';
 import {
   subscribeAssetChanges,
   subscribeTransactionChanges,
@@ -351,10 +352,10 @@ export class TransactionPayController extends BaseController<
 
       fn(current);
 
-      const isPaymentTokenUpdated =
-        current.paymentToken?.address?.toLowerCase() !==
-          originalPaymentToken?.address?.toLowerCase() ||
-        current.paymentToken?.chainId !== originalPaymentToken?.chainId;
+      const isPaymentTokenUpdated = !isSamePaymentToken(
+        current.paymentToken,
+        originalPaymentToken,
+      );
 
       const isPaymentTokenBalanceUpdated =
         current.paymentToken?.balanceRaw !== originalPaymentToken?.balanceRaw;
@@ -442,11 +443,15 @@ export class TransactionPayController extends BaseController<
     }
 
     const paymentToken = transactionData?.paymentToken;
+    const evmPaymentToken =
+      paymentToken && !isNonEvmPaymentToken(paymentToken)
+        ? paymentToken
+        : undefined;
 
     return getStrategyOrder(
       this.messenger,
-      paymentToken?.chainId,
-      paymentToken?.address,
+      evmPaymentToken?.chainId,
+      evmPaymentToken?.address,
       transaction.type,
       transactionData?.fiatPayment?.selectedPaymentMethodId,
     );

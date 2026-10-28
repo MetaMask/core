@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add chain-agnostic Pay source metadata using CAIP-10 account and CAIP-19 asset identifiers without changing legacy EVM Pay fields ([#10272](https://github.com/MetaMask/core/pull/10272))
+
 ## [72.3.0]
 
 ### Added

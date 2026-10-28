@@ -17,13 +17,20 @@ import type {
 import { TransactionPayStrategy } from '../index.js';
 import { projectLogger } from '../logger.js';
 import type {
+  EvmPaymentToken,
+  FiatRates,
   GetBalanceCallback,
   GetBalanceResponse,
   TransactionPaySourceAmount,
   TransactionData,
   TransactionPayRequiredToken,
 } from '../types.js';
-import { getTokenFiatRate, isSameToken } from './token.js';
+import {
+  getAssetFiatRate,
+  getTokenFiatRate,
+  isNonEvmPaymentToken,
+  isSameToken,
+} from './token.js';
 import { getTransaction } from './transaction.js';
 
 const log = createModuleLogger(projectLogger, 'source-amounts');
@@ -66,6 +73,15 @@ export function updateSourceAmounts(
   // For post-quote flows, source amounts are calculated differently
   // The source is the transaction's required token, not the selected token
   if (isPostQuote) {
+    // A non-EVM destination token in a post-quote flow is out of scope.
+    if (isNonEvmPaymentToken(paymentToken)) {
+      log('Skipping post-quote source amounts for non-EVM token', {
+        transactionId,
+      });
+      transactionData.sourceAmounts = [];
+      return;
+    }
+
     const { isHyperliquidSource, isPolymarketDepositWallet, paymentOverride } =
       transactionData;
     const sourceAmounts = calculatePostQuoteSourceAmounts(
@@ -119,7 +135,7 @@ export function updateSourceAmounts(
  */
 function calculatePostQuoteSourceAmounts(
   tokens: TransactionPayRequiredToken[],
-  paymentToken: TransactionPaymentToken,
+  paymentToken: EvmPaymentToken,
   isMaxAmount: boolean,
   isHyperliquidSource?: boolean,
   isPolymarketDepositWallet?: boolean,
@@ -210,11 +226,7 @@ function calculateSourceAmount(
   isQuoteRequired?: boolean,
   balanceOverride?: GetBalanceResponse,
 ): TransactionPaySourceAmount | undefined {
-  const paymentTokenFiatRate = getTokenFiatRate(
-    messenger,
-    paymentToken.address,
-    paymentToken.chainId,
-  );
+  const paymentTokenFiatRate = getPaymentTokenFiatRate(messenger, paymentToken);
 
   if (!paymentTokenFiatRate) {
     return undefined;
@@ -240,7 +252,11 @@ function calculateSourceAmount(
     isQuoteRequired,
   );
 
-  if (isSameToken(token, paymentToken) && !isAlwaysRequired) {
+  if (
+    !isNonEvmPaymentToken(paymentToken) &&
+    isSameToken(token, paymentToken) &&
+    !isAlwaysRequired
+  ) {
     log('Skipping token as same as payment token');
     return undefined;
   }
@@ -331,4 +347,26 @@ function getStrategyContext(
       transaction,
     ),
   };
+}
+
+/**
+ * Get the fiat rates for an EVM or non-EVM payment token.
+ *
+ * @param messenger - Controller messenger.
+ * @param paymentToken - Selected payment token.
+ * @returns The USD and fiat rates, or undefined if rates are not available.
+ */
+function getPaymentTokenFiatRate(
+  messenger: TransactionPayControllerMessenger,
+  paymentToken: TransactionPaymentToken,
+): FiatRates | undefined {
+  if (isNonEvmPaymentToken(paymentToken)) {
+    return getAssetFiatRate(messenger, paymentToken.assetId);
+  }
+
+  return getTokenFiatRate(
+    messenger,
+    paymentToken.address,
+    paymentToken.chainId,
+  );
 }

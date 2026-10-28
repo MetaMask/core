@@ -1,5 +1,6 @@
 /* eslint-disable no-new */
 
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,6 +14,7 @@ import { TransactionPayController } from './index.js';
 import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils.js';
 import type {
   TransactionPayControllerMessenger,
+  NonEvmPaymentToken,
   TransactionPayControllerOptions,
   TransactionPaySourceAmount,
   TransactionPaymentToken,
@@ -44,6 +46,21 @@ const PAYMENT_TOKEN_MOCK = {
   balanceRaw: '0',
   chainId: CHAIN_ID_MOCK,
 } as TransactionPaymentToken;
+const NON_EVM_PAYMENT_TOKEN_MOCK: NonEvmPaymentToken = {
+  accountId:
+    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+  assetId:
+    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  balanceFiat: '0',
+  balanceHuman: '0',
+  balanceRaw: '0',
+  balanceUsd: '0',
+  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+  decimals: 6,
+  symbol: 'USDC',
+  walletAccountId: 'solana-account-uuid',
+};
+
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = vi.mocked(updateFiatPayment);
   const updatePaymentTokenMock = vi.mocked(updatePaymentToken);
@@ -112,6 +129,27 @@ describe('TransactionPayController', () => {
       const getControllerState = subscribeAssetChangesMock.mock.calls[0][1];
       expect(getControllerState()).toBe(controller.state);
     });
+
+    it('keeps ordinary Pay selection state transient', () => {
+      const controller = createController({
+        state: {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              isLoading: true,
+              tokens: [],
+            },
+          },
+        },
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toStrictEqual({});
+    });
   });
 
   describe('updatePaymentToken', () => {
@@ -127,6 +165,28 @@ describe('TransactionPayController', () => {
           transactionId: TRANSACTION_ID_MOCK,
           tokenAddress: TOKEN_ADDRESS_MOCK,
           chainId: CHAIN_ID_MOCK,
+        },
+        {
+          messenger,
+          updateTransactionData: expect.any(Function),
+        },
+      );
+    });
+
+    it('calls util with a non-EVM asset via messenger action handler', () => {
+      createController();
+
+      messenger.call('TransactionPayController:updatePaymentToken', {
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+        walletAccountId: NON_EVM_PAYMENT_TOKEN_MOCK.walletAccountId,
+      });
+
+      expect(updatePaymentTokenMock).toHaveBeenCalledWith(
+        {
+          transactionId: TRANSACTION_ID_MOCK,
+          assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+          walletAccountId: NON_EVM_PAYMENT_TOKEN_MOCK.walletAccountId,
         },
         {
           messenger,
@@ -837,6 +897,35 @@ describe('TransactionPayController', () => {
       );
     });
 
+    it('passes no payment token route args into feature flag fallback for a non-EVM payment token', async () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+        walletAccountId: NON_EVM_PAYMENT_TOKEN_MOCK.walletAccountId,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = NON_EVM_PAYMENT_TOKEN_MOCK;
+      });
+
+      messenger.call(
+        'TransactionPayController:getStrategy',
+        TRANSACTION_META_MOCK,
+      );
+
+      expect(getStrategyOrderMock).toHaveBeenCalledWith(
+        messenger,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+      );
+    });
+
     it('passes fiat payment method ID into getStrategyOrder', async () => {
       const controller = createController();
 
@@ -993,6 +1082,61 @@ describe('TransactionPayController', () => {
 
       expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
       expect(updateQuotesMock).not.toHaveBeenCalled();
+    });
+
+    it('updates source amounts and quotes when switching from a non-EVM to an EVM payment token', () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+        walletAccountId: NON_EVM_PAYMENT_TOKEN_MOCK.walletAccountId,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = NON_EVM_PAYMENT_TOKEN_MOCK;
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = PAYMENT_TOKEN_MOCK;
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('updates source amounts and quotes when the non-EVM payment token account changes', () => {
+      const controller = createController();
+
+      controller.updatePaymentToken({
+        transactionId: TRANSACTION_ID_MOCK,
+        assetId: NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+        walletAccountId: NON_EVM_PAYMENT_TOKEN_MOCK.walletAccountId,
+      });
+
+      const { updateTransactionData } = updatePaymentTokenMock.mock.calls[0][1];
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = NON_EVM_PAYMENT_TOKEN_MOCK;
+      });
+
+      updateSourceAmountsMock.mockClear();
+      updateQuotesMock.mockClear();
+
+      updateTransactionData(TRANSACTION_ID_MOCK, (data) => {
+        data.paymentToken = {
+          ...NON_EVM_PAYMENT_TOKEN_MOCK,
+          walletAccountId: 'other-account-uuid',
+        };
+      });
+
+      expect(updateSourceAmountsMock).toHaveBeenCalledTimes(1);
+      expect(updateQuotesMock).toHaveBeenCalledTimes(1);
     });
 
     it('ignores payment token balance change when not max amount', () => {

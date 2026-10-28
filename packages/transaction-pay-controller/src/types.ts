@@ -40,7 +40,13 @@ import type {
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipAssetType,
+  CaipChainId,
+  Hex,
+  Json,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type {
@@ -299,7 +305,7 @@ export type TransactionPayControllerOptions = {
 
 /** State of the TransactionPayController. */
 export type TransactionPayControllerState = {
-  /** State relating to each transaction, keyed by transaction ID. */
+  /** Transient state relating to each transaction, keyed by transaction ID. */
   transactionData: Record<string, TransactionData>;
 };
 
@@ -504,11 +510,8 @@ export type QuoteErrorInfo = {
   detail?: string[];
 };
 
-/** Source token used to pay for required tokens. */
-export type TransactionPaymentToken = {
-  /** Address of the payment token. */
-  address: Hex;
-
+/** Balance and display fields shared by every payment token. */
+type PaymentTokenAmounts = {
   /** Balance of the payment token in the selected currency. */
   balanceFiat: string;
 
@@ -521,15 +524,46 @@ export type TransactionPaymentToken = {
   /** Balance of the payment token in USD. */
   balanceUsd: string;
 
-  /** Chain ID of the payment token. */
-  chainId: Hex;
-
   /** Decimals of the payment token. */
   decimals: number;
 
   /** Symbol of the payment token. */
   symbol: string;
 };
+
+/** Payment token on an EVM chain, identified by Hex chain ID and token address. */
+export type EvmPaymentToken = PaymentTokenAmounts & {
+  /** Address of the payment token. */
+  address: Hex;
+
+  /** CAIP-19 asset type of the payment token, if known. */
+  assetId?: CaipAssetType;
+
+  /** Chain ID of the payment token. */
+  chainId: Hex;
+};
+
+/** Payment token on a non-EVM chain, identified by CAIP identifiers. */
+export type NonEvmPaymentToken = PaymentTokenAmounts & {
+  /** CAIP-10 account ID of the source account on the token chain. */
+  accountId: CaipAccountId;
+
+  /** CAIP-19 asset type of the payment token. */
+  assetId: CaipAssetType;
+
+  /** CAIP-2 chain ID of the payment token. */
+  chainId: CaipChainId;
+
+  /** ID of the `InternalAccount` that holds the payment token. */
+  walletAccountId: string;
+};
+
+/**
+ * Source token used to pay for required tokens.
+ *
+ * Use `isNonEvmPaymentToken` to narrow to the EVM or non-EVM member.
+ */
+export type TransactionPaymentToken = EvmPaymentToken | NonEvmPaymentToken;
 
 /** Callback to update state for a single transaction. */
 export type UpdateTransactionDataCallback = (
@@ -618,6 +652,54 @@ export type QuoteRequest = {
    * for the fee, and the amount is surfaced as part of the provider fee.
    */
   hyperliquidActivationFeeUsd?: string;
+};
+
+/**
+ * Request for a quote to retrieve a required token using a non-EVM payment
+ * token.
+ */
+export type NonEvmQuoteRequest = {
+  /**
+   * Whether the target transaction is executed atomically with the quote.
+   * See {@link TransactionConfig.atomic}.
+   */
+  atomic?: boolean;
+
+  /** Address of the user's EVM account that receives the required token. */
+  from: Hex;
+
+  /** Whether the transaction is a maximum amount transaction. */
+  isMaxAmount?: boolean;
+
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
+
+  /** CAIP-10 account ID of the source account. */
+  sourceAccountId: CaipAccountId;
+
+  /** CAIP-19 asset type of the source token. */
+  sourceAssetId: CaipAssetType;
+
+  /** Balance of the source token in atomic format without factoring token decimals. */
+  sourceBalanceRaw: string;
+
+  /** CAIP-2 chain ID of the source token. */
+  sourceChainId: CaipChainId;
+
+  /** Amount of the source token in atomic format without factoring token decimals. */
+  sourceTokenAmount: string;
+
+  /** ID of the `InternalAccount` that holds the source token. */
+  sourceWalletAccountId: string;
+
+  /** Minimum amount required of the target token in atomic format without factoring token decimals. */
+  targetAmountMinimum: string;
+
+  /** Chain ID of the target token. */
+  targetChainId: Hex;
+
+  /** Address of the target token. */
+  targetTokenAddress: Hex;
 };
 
 /** Fees associated with a transaction pay quote. */
@@ -709,7 +791,13 @@ export type PayStrategyGetQuotesRequest = {
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
-  /** Quote requests for required tokens. */
+  /**
+   * Quote requests for required tokens using a non-EVM payment token.
+   * Set instead of `requests` when the payment token is non-EVM.
+   */
+  nonEvmRequests?: NonEvmQuoteRequest[];
+
+  /** Quote requests for required tokens. Empty when the payment token is non-EVM. */
   requests: QuoteRequest[];
 
   /**
@@ -854,16 +942,27 @@ export type TransactionPayTotals = {
 };
 
 /** Request to update the payment token for a transaction. */
-export type UpdatePaymentTokenRequest = {
-  /** ID of the transaction to update. */
-  transactionId: string;
+export type UpdatePaymentTokenRequest =
+  | {
+      /** ID of the transaction to update. */
+      transactionId: string;
 
-  /** Address of the new payment token. */
-  tokenAddress: Hex;
+      /** Address of the new EVM payment token. */
+      tokenAddress: Hex;
 
-  /** Chain ID of the new payment token. */
-  chainId: Hex;
-};
+      /** Chain ID of the new EVM payment token. */
+      chainId: Hex;
+    }
+  | {
+      /** ID of the transaction to update. */
+      transactionId: string;
+
+      /** CAIP-19 asset type of the new non-EVM payment token. */
+      assetId: CaipAssetType;
+
+      /** ID of the `InternalAccount` that holds the new non-EVM payment token. */
+      walletAccountId: string;
+    };
 
 /** Request to update fiat payment state for a transaction. */
 export type UpdateFiatPaymentRequest = {

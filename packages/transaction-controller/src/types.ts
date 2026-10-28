@@ -4,7 +4,7 @@ import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type { CaipAccountId, CaipAssetType, Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
 import type { TransactionControllerMessenger } from './TransactionController.js';
@@ -2201,6 +2201,15 @@ export type AssetsFiatValues = {
   sending?: string;
 };
 
+/** Chain-agnostic source metadata for a MetaMask Pay transaction. */
+export type MetamaskPaySource = {
+  /** Canonical CAIP-10 identity of the source account. */
+  sourceAccountId: CaipAccountId;
+
+  /** Canonical CAIP-19 identity of the source asset. */
+  sourceAssetId: CaipAssetType;
+};
+
 /** Metadata specific to the MetaMask Pay feature. */
 export type MetamaskPayMetadata = {
   /** Total fee from any bridge transactions, in fiat currency. */
@@ -2222,6 +2231,9 @@ export type MetamaskPayMetadata = {
    * When true, the token represents the destination rather than source.
    */
   isPostQuote?: boolean;
+
+  /** Chain-agnostic payment source metadata. */
+  source?: MetamaskPaySource;
 
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;

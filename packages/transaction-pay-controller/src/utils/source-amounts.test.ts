@@ -8,14 +8,15 @@ import {
   PaymentOverride,
 } from '../constants.js';
 import { TransactionPayStrategy } from '../index.js';
-import type { TransactionPaymentToken } from '../index.js';
+import type { NonEvmPaymentToken, TransactionPaymentToken } from '../index.js';
 import type { TransactionData, TransactionPayRequiredToken } from '../types.js';
 import { updateSourceAmounts } from './source-amounts.js';
-import { getTokenFiatRate } from './token.js';
+import { getAssetFiatRate, getTokenFiatRate } from './token.js';
 import { getTransaction } from './transaction.js';
 
 vi.mock(import('./token.js'), async (importOriginal) => ({
   ...(await importOriginal()),
+  getAssetFiatRate: vi.fn(),
   getTokenFiatRate: vi.fn(),
 }));
 vi.mock(import('./transaction.js'));
@@ -48,9 +49,24 @@ const TRANSACTION_TOKEN_MOCK: TransactionPayRequiredToken = {
   symbol: 'TST2',
 };
 
+const NON_EVM_PAYMENT_TOKEN_MOCK: NonEvmPaymentToken = {
+  accountId:
+    'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+  assetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+  balanceFiat: '170',
+  balanceHuman: '2',
+  balanceRaw: '2000000000',
+  balanceUsd: '200',
+  chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+  decimals: 9,
+  symbol: 'SOL',
+  walletAccountId: 'solana-account-uuid',
+};
+
 const TRANSACTION_ID_MOCK = '123-456';
 
 describe('Source Amounts Utils', () => {
+  const getAssetFiatRateMock = vi.mocked(getAssetFiatRate);
   const getTokenFiatRateMock = vi.mocked(getTokenFiatRate);
   const getTransactionMock = vi.mocked(getTransaction);
   const { messenger, getStrategyMock } = getMessengerMock();
@@ -575,6 +591,84 @@ describe('Source Amounts Utils', () => {
     // eslint-disable-next-line vitest/expect-expect
     it('does nothing if no transaction data', () => {
       updateSourceAmounts(TRANSACTION_ID_MOCK, undefined, messenger);
+    });
+
+    describe('non-EVM payment token', () => {
+      beforeEach(() => {
+        getAssetFiatRateMock.mockReturnValue({
+          fiatRate: '85',
+          usdRate: '100',
+        });
+      });
+
+      it('calculates source amounts using the asset fiat rate', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          paymentToken: NON_EVM_PAYMENT_TOKEN_MOCK,
+          tokens: [TRANSACTION_TOKEN_MOCK],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(getAssetFiatRateMock).toHaveBeenCalledWith(
+          messenger,
+          NON_EVM_PAYMENT_TOKEN_MOCK.assetId,
+        );
+        expect(getTokenFiatRateMock).not.toHaveBeenCalled();
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: '0.06',
+            sourceAmountRaw: '60000000',
+            targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
+
+      it('uses the payment token balance if isMaxAmount is true', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isMaxAmount: true,
+          paymentToken: NON_EVM_PAYMENT_TOKEN_MOCK,
+          tokens: [TRANSACTION_TOKEN_MOCK],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([
+          {
+            sourceAmountHuman: NON_EVM_PAYMENT_TOKEN_MOCK.balanceHuman,
+            sourceAmountRaw: NON_EVM_PAYMENT_TOKEN_MOCK.balanceRaw,
+            targetTokenAddress: TRANSACTION_TOKEN_MOCK.address,
+          },
+        ]);
+      });
+
+      it('returns empty array if no asset fiat rate', () => {
+        getAssetFiatRateMock.mockReturnValue(undefined);
+
+        const transactionData: TransactionData = {
+          isLoading: false,
+          paymentToken: NON_EVM_PAYMENT_TOKEN_MOCK,
+          tokens: [TRANSACTION_TOKEN_MOCK],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
+      });
+
+      it('returns empty array in post-quote flows', () => {
+        const transactionData: TransactionData = {
+          isLoading: false,
+          isPostQuote: true,
+          paymentToken: NON_EVM_PAYMENT_TOKEN_MOCK,
+          tokens: [TRANSACTION_TOKEN_MOCK],
+        };
+
+        updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+        expect(transactionData.sourceAmounts).toStrictEqual([]);
+      });
     });
 
     describe('post-quote (withdrawal) flow', () => {
