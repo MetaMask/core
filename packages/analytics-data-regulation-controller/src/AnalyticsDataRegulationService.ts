@@ -311,8 +311,6 @@ export class AnalyticsDataRegulationService extends BaseDataService<
           );
         }
 
-        // The body is validated against `CreateRegulationResponseStruct`
-        // before it is returned to the caller.
         return (await response.json()) as CreateRegulationResponse;
       },
     });
