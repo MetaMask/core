@@ -1061,8 +1061,10 @@ export class AssetsController extends BaseController<
       defaultUpdateInterval: this.#defaultUpdateInterval,
     });
 
-    this.#initializeState();
+    // Subscribe before the first read so a stateChange published while
+    // NetworkEnablementController is still starting is not missed.
     this.#subscribeToEvents();
+    this.#initializeState();
     this.#registerActionHandlers();
     // Subscriptions start only when both UI is open and keyring unlocked -> #updateActive().
 
@@ -1110,10 +1112,36 @@ export class AssetsController extends BaseController<
     );
   }
 
+  /**
+   * Read the current enabled chains from NetworkEnablementController.
+   *
+   * `Wallet` constructs additional controllers before default ones, so this
+   * controller can be constructed before `NetworkEnablementController:getState`
+   * is registered. `Wallet.init()` calls `init()` after that controller
+   * exists. Later enablement changes arrive on
+   * `NetworkEnablementController:stateChange`.
+   */
+  async init(): Promise<void> {
+    this.#initializeState();
+  }
+
   #initializeState(): void {
-    const { enabledNetworkMap } = this.messenger.call(
-      'NetworkEnablementController:getState',
-    );
+    let enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'];
+    try {
+      ({ enabledNetworkMap } = this.messenger.call(
+        'NetworkEnablementController:getState',
+      ));
+    } catch (error) {
+      if (!isUnregisteredActionError(error)) {
+        throw error;
+      }
+      log(
+        'NetworkEnablementController:getState is not registered yet. Enabled chains are applied from NetworkEnablementController:stateChange.',
+        { error },
+      );
+      return;
+    }
+
     this.#enabledChains = this.#extractEnabledChains(enabledNetworkMap);
 
     log('Initialized state', {
@@ -4480,4 +4508,16 @@ export class AssetsController extends BaseController<
       'AssetsController:setSelectedCurrency',
     );
   }
+}
+
+/**
+ * Whether a messenger call failed because no controller has registered the action yet.
+ *
+ * @param error - The error thrown by `messenger.call`.
+ * @returns True when the action handler is not registered.
+ */
+function isUnregisteredActionError(error: unknown): boolean {
+  return (
+    error instanceof Error && error.message.includes('has not been registered')
+  );
 }

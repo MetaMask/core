@@ -746,6 +746,108 @@ describe('AssetsController', () => {
       ).not.toThrow();
     });
 
+    it('reads enabled chains from init and from NetworkEnablementController state changes when getState is not registered at construction', async () => {
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      messenger.registerActionHandler(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        () => [],
+      );
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('AccountsController:getSelectedAccount', () =>
+        createMockInternalAccount(),
+      );
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getState', () => ({
+        networkConfigurationsByChainId: {},
+        networksMetadata: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
+        provider: {},
+      }));
+
+      const polygonNativeAssetId = 'eip155:137/slip44:966' as Caip19AssetId;
+      const nativeMetadata = {
+        type: 'native' as const,
+        symbol: 'ETH',
+        name: 'Ether',
+        decimals: 18,
+      };
+      const controller = new AssetsController({
+        messenger: messenger as unknown as AssetsControllerMessenger,
+        queryApiClient: createMockQueryApiClient(),
+        state: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_NATIVE_ASSET_ID]: { amount: '1' },
+              [polygonNativeAssetId]: { amount: '2' },
+            },
+          },
+          assetsInfo: {
+            [MOCK_NATIVE_ASSET_ID]: nativeMetadata,
+            [polygonNativeAssetId]: {
+              ...nativeMetadata,
+              symbol: 'POL',
+              name: 'Polygon',
+            },
+          },
+        },
+      });
+
+      const account = createMockInternalAccount();
+      const beforeInit = await controller.getAssets([account]);
+      expect(Object.keys(beforeInit[MOCK_ACCOUNT_ID] ?? {})).toStrictEqual([]);
+
+      messenger.registerActionHandler(
+        'NetworkEnablementController:getState',
+        () => ({
+          enabledNetworkMap: {
+            eip155: { '0x1': true },
+          },
+          nativeAssetIdentifiers: {
+            'eip155:1': MOCK_NATIVE_ASSET_ID,
+          },
+        }),
+      );
+      await controller.init();
+
+      const afterInit = await controller.getAssets([account]);
+      expect(Object.keys(afterInit[MOCK_ACCOUNT_ID] ?? {})).toStrictEqual([
+        MOCK_NATIVE_ASSET_ID,
+      ]);
+
+      (messenger as unknown as { publish: LifecyclePublish }).publish(
+        'NetworkEnablementController:stateChange',
+        {
+          enabledNetworkMap: {
+            eip155: { '0x1': true, '0x89': true },
+          },
+          nativeAssetIdentifiers: {
+            'eip155:1': MOCK_NATIVE_ASSET_ID,
+            'eip155:137': polygonNativeAssetId,
+          },
+        },
+        [],
+      );
+      await new Promise(process.nextTick);
+
+      const afterStateChange = await controller.getAssets([account]);
+      expect(
+        Object.keys(afterStateChange[MOCK_ACCOUNT_ID] ?? {}).sort(),
+      ).toStrictEqual([MOCK_NATIVE_ASSET_ID, polygonNativeAssetId].sort());
+    });
+
     it('accepts isBasicFunctionality option and exposes handleBasicFunctionalityChange', async () => {
       await withController(async ({ controller }) => {
         expect(controller.handleBasicFunctionalityChange).toBeDefined();

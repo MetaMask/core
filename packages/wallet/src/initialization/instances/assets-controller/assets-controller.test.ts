@@ -222,6 +222,51 @@ describe('assetsController', () => {
     expect(listener).toHaveBeenCalledWith('payload');
   });
 
+  it('is constructed before the default NetworkEnablementController and reads its state during wallet init', async () => {
+    const accountId = 'account-1';
+    const nativeAssetId = 'eip155:1/slip44:60';
+    const wallet = new Wallet({
+      state: {
+        AssetsController: {
+          assetsBalance: {
+            [accountId]: {
+              [nativeAssetId]: { amount: '1' },
+            },
+          },
+          assetsInfo: {
+            [nativeAssetId]: {
+              type: 'native',
+              symbol: 'ETH',
+              name: 'Ether',
+              decimals: 18,
+            },
+          },
+        },
+      },
+      initializationConfigurations: [assetsController],
+      instanceOptions: {
+        ...getInstanceOptions(),
+        assetsController: { queryApiClient: createMockQueryApiClient() },
+      },
+    });
+    wallets.push(wallet);
+
+    const instance = wallet.getInstance(
+      'AssetsController',
+    ) as unknown as AssetsController;
+    expect(instance).toBeInstanceOf(AssetsController);
+
+    await instance.init();
+
+    // Default NetworkEnablementController state enables Ethereum mainnet.
+    // init() reads that state even though this controller was constructed first.
+    const assets = await instance.getAssets([
+      { id: accountId } as Parameters<AssetsController['getAssets']>[0][number],
+    ]);
+
+    expect(Object.keys(assets[accountId] ?? {})).toStrictEqual([nativeAssetId]);
+  });
+
   it('is initialized by the Wallet when passed as an initialization configuration', async () => {
     const wallet = new Wallet({
       initializationConfigurations: [

@@ -13,11 +13,11 @@ export type { AssetsControllerInstanceOptions } from './types.js';
  * This is not part of the default initialization configurations because the
  * Wallet does not yet initialize several of the controllers it depends on
  * (e.g. `AccountTreeController`, `SnapController`). Clients pass it through
- * `initializationConfigurations`, after the configurations that register those
- * dependencies. `NetworkEnablementController:getState` must be registered
- * before this configuration is initialized, as the controller reads it on
- * construction. Additional configurations initialize before defaults, so the
- * default `NetworkEnablementController` is not constructed yet.
+ * `initializationConfigurations`. Those configurations are constructed before
+ * the default `NetworkEnablementController`. `AssetsController` reads
+ * `NetworkEnablementController:getState` from `init()`, which `Wallet.init()`
+ * calls after every controller exists, and applies later enablement from
+ * `NetworkEnablementController:stateChange`.
  */
 export const assetsController: InitializationConfiguration<
   AssetsController,
