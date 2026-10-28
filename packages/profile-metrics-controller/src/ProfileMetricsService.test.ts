@@ -7,6 +7,7 @@ import type {
 } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
 import nock from 'nock';
+import { isDeepStrictEqual } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ProfileMetricsService } from './index.js';
@@ -40,10 +41,13 @@ function createMockRequest(
 
 describe('ProfileMetricsService', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({
+      toNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'],
+    });
   });
 
   afterEach(() => {
+    nock.cleanAll();
     vi.useRealTimers();
   });
 
@@ -598,19 +602,24 @@ describe('ProfileMetricsService', () => {
       // The chunker slices into 50 + 50 + 20. Order of completion across
       // chunks is not guaranteed (Promise.all), so we match every chunk by
       // its request body and respond with a one-to-one nonce per identifier.
-      scope
-        .post('/nonce/batch')
-        .times(3)
-        .reply(200, (_uri, requestBody) => {
-          const { identifiers: chunkIdentifiers } = requestBody as {
-            identifiers: string[];
-          };
-          return chunkIdentifiers.map((identifier) => ({
-            expires_in: 300,
-            identifier,
-            nonce: `nonce-for-${identifier}`,
-          }));
-        });
+      [
+        identifiers.slice(0, 50),
+        identifiers.slice(50, 100),
+        identifiers.slice(100),
+      ].forEach((chunk) => {
+        scope
+          .post('/nonce/batch', (body: { identifiers: string[] }) =>
+            isDeepStrictEqual(body.identifiers, chunk),
+          )
+          .reply(
+            200,
+            chunk.map((identifier) => ({
+              expires_in: 300,
+              identifier,
+              nonce: `nonce-for-${identifier}`,
+            })),
+          );
+      });
       const { rootMessenger } = getService();
 
       const nonces = await rootMessenger.call(

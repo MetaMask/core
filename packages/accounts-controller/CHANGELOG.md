@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.1` ([#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/keyring-sdk` from `^4.0.0` to `^4.1.0` ([#11113](https://github.com/MetaMask/core/pull/11113))
+  - Detect v1 adapters of v2 keyrings structurally via `isKeyringV1Adapter` instead of `instanceof KeyringV1Adapter`
+  - Adapters built from a different copy of `@metamask/keyring-sdk` in the dependency tree will now be recognized.
+- Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
 
 ## [40.1.0]
 

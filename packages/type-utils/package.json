@@ -1,6 +1,6 @@
 {
   "name": "@metamask/type-utils",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Type guards and helper types for runtime type checking",
   "keywords": [
     "Ethereum",

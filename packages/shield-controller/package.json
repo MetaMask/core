@@ -1,6 +1,6 @@
 {
   "name": "@metamask/shield-controller",
-  "version": "7.0.5",
+  "version": "7.1.0",
   "description": "Controller handling shield transaction coverage logic",
   "keywords": [
     "Ethereum",
@@ -55,10 +55,10 @@
     "@metamask/base-data-service": "^2.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/profile-sync-controller": "^35.0.0",
+    "@metamask/profile-sync-controller": "^36.0.0",
     "@metamask/signature-controller": "^40.0.0",
-    "@metamask/transaction-controller": "^72.2.1",
-    "@metamask/utils": "^12.0.0",
+    "@metamask/transaction-controller": "^72.3.0",
+    "@metamask/utils": "^12.0.1",
     "@tanstack/query-core": "^5.103.2",
     "cockatiel": "^3.2.1"
   },
@@ -73,7 +73,7 @@
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "uuid": "^11.1.1",
+    "uuid": "^14.0.0",
     "vitest": "^5.0.0"
   },
   "engines": {

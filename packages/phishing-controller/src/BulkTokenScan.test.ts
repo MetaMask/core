@@ -5,7 +5,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance, MockedFunction } from 'vitest';
 
@@ -124,7 +124,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
   });
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
   });
@@ -203,7 +203,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           'Unsupported chain ID: 0x64',
         );
-        cleanAll();
+        nock.cleanAll();
       });
 
       it('should handle case insensitive chainId', async () => {
@@ -238,6 +238,38 @@ describe('PhishingController - Bulk Token Scanning', () => {
     });
 
     describe('successful API responses', () => {
+      it('scans tokens on Arc', async () => {
+        const token = '0x1234567890123456789012345678901234567890';
+        const mockApiResponse: TokenScanApiResponse = {
+          results: {
+            [token]: {
+              result_type: TokenScanResultType.Benign,
+            },
+          },
+        };
+
+        const scope = nock(SECURITY_ALERTS_BASE_URL)
+          .post(TOKEN_BULK_SCANNING_ENDPOINT, {
+            chain: 'arc',
+            tokens: [token],
+          })
+          .reply(200, mockApiResponse);
+
+        const result = await controller.bulkScanTokens({
+          chainId: '0x13b2',
+          tokens: [token],
+        });
+
+        expect(scope.isDone()).toBe(true);
+        expect(result).toStrictEqual({
+          [token]: {
+            result_type: TokenScanResultType.Benign,
+            chain: '0x13b2',
+            address: token,
+          },
+        });
+      });
+
       it('should return scan results for valid tokens', async () => {
         const tokens = [
           '0x1234567890123456789012345678901234567890',

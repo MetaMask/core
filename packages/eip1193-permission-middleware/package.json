@@ -52,8 +52,8 @@
     "@metamask/chain-agnostic-permission": "^2.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/json-rpc-engine": "^11.0.0",
-    "@metamask/permission-controller": "^14.0.0",
-    "@metamask/utils": "^12.0.0",
+    "@metamask/permission-controller": "^14.1.0",
+    "@metamask/utils": "^12.0.1",
     "lodash-es": "^4.18.1"
   },
   "devDependencies": {

@@ -51,6 +51,24 @@ export type JsonRpcRequestMock = {
 );
 
 /**
+ * Reads the JSON body of a request from the arguments that Nock passes to a
+ * reply function. Depending on the version of Nock, these are either `(uri,
+ * body)` or a Fetch API `Request`.
+ *
+ * @param replyArgs - The arguments that Nock passed to the reply function.
+ * @returns The parsed request body.
+ */
+export async function getNockRequestBody<Body>(
+  replyArgs: unknown[],
+): Promise<Body> {
+  const [first, second] = replyArgs;
+  if (typeof second === 'object' && second !== null) {
+    return second as Body;
+  }
+  return (await (first as Request).clone().json()) as Body;
+}
+
+/**
  * Type guard for determining whether the given value is an error object with a
  * `message` property, such as an instance of Error.
  *
@@ -191,9 +209,9 @@ class MockedNetwork {
           : 200;
       newNockScope = nockInterceptor.reply(
         httpStatus,
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (_uri: any, requestBody: JsonRpcRequest<any>) => {
+        async (...replyArgs: unknown[]) => {
+          const requestBody =
+            await getNockRequestBody<JsonRpcRequest>(replyArgs);
           const baseResponse = { id: requestBody.id, jsonrpc: '2.0' as const };
           // TODO: Replace `any` with type
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

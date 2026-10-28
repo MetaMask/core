@@ -92,7 +92,6 @@ describe('BlockTrackerPollingController', () => {
     it('should call _executePoll on "latest" block events emitted by blockTrackers for each networkClientId passed to startPolling', async () => {
       controller.startPolling({ networkClientId: 'mainnet' });
       controller.startPolling({ networkClientId: 'goerli' });
-      // await advanceTime({ clock, duration: 5 });
       mainnetBlockTracker.emitBlockEvent();
 
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
@@ -158,7 +157,6 @@ describe('BlockTrackerPollingController', () => {
         networkClientId: 'mainnet',
       });
 
-      // await advanceTime({ clock, duration: 5 });
       mainnetBlockTracker.emitBlockEvent();
 
       expect(controller._executePoll).toHaveBeenCalledTimes(1);

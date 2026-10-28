@@ -33,7 +33,6 @@ import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
-import { advanceTime } from '../../../tests/vitest/helpers.js';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks.js';
 import {
   buildCustomRpcEndpoint,
@@ -284,7 +283,7 @@ describe('TokenDetectionController', () => {
           await controller.start();
 
           expect(mockTokens).not.toHaveBeenCalled();
-          await advanceTime({ duration: 15 });
+          await vi.advanceTimersByTimeAsync(15);
           expect(mockTokens).not.toHaveBeenCalled();
         },
       );
@@ -307,7 +306,7 @@ describe('TokenDetectionController', () => {
           await controller.start();
           triggerKeyringUnlock();
 
-          await advanceTime({ duration: DEFAULT_INTERVAL * 1.5 });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL * 1.5);
           expect(mockTokens).not.toHaveBeenCalledTimes(2);
         },
       );
@@ -346,7 +345,7 @@ describe('TokenDetectionController', () => {
           triggerKeyringLock();
 
           expect(mockTokens).toHaveBeenCalledTimes(1);
-          await advanceTime({ duration: 15 });
+          await vi.advanceTimersByTimeAsync(15);
           expect(mockTokens).toHaveBeenCalledTimes(1);
         },
       );
@@ -369,7 +368,7 @@ describe('TokenDetectionController', () => {
           await controller.start();
 
           expect(mockTokens).toHaveBeenCalledTimes(1);
-          await advanceTime({ duration: 15 });
+          await vi.advanceTimersByTimeAsync(15);
           expect(mockTokens).toHaveBeenCalledTimes(2);
         },
       );
@@ -661,7 +660,7 @@ describe('TokenDetectionController', () => {
             iconUrl: sampleTokenB.image,
           };
           mockTokenListGetState(tokenListState);
-          await advanceTime({ duration: interval });
+          await vi.advanceTimersByTimeAsync(interval);
 
           expect(callActionSpy).toHaveBeenCalledWith(
             'TokensController:addTokens',
@@ -840,7 +839,7 @@ describe('TokenDetectionController', () => {
 
             mockGetAccount(secondSelectedAccount);
             triggerSelectedAccountChange(secondSelectedAccount);
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).toHaveBeenCalledWith(
               'TokensController:addTokens',
@@ -896,7 +895,7 @@ describe('TokenDetectionController', () => {
             triggerSelectedAccountChange({
               address: selectedAccount.address,
             } as InternalAccount);
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -955,7 +954,7 @@ describe('TokenDetectionController', () => {
               triggerSelectedAccountChange({
                 address: secondSelectedAccount.address,
               } as InternalAccount);
-              await advanceTime({ duration: 1 });
+              await vi.advanceTimersByTimeAsync(1);
 
               expect(callActionSpy).not.toHaveBeenCalledWith(
                 'TokensController:addDetectedTokens',
@@ -1015,7 +1014,7 @@ describe('TokenDetectionController', () => {
             triggerSelectedAccountChange({
               address: secondSelectedAccount.address,
             } as InternalAccount);
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1110,7 +1109,7 @@ describe('TokenDetectionController', () => {
             });
             mockGetAccount(secondSelectedAccount);
             triggerSelectedAccountChange(secondSelectedAccount);
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).toHaveBeenLastCalledWith(
               'TokensController:addTokens',
@@ -1182,7 +1181,7 @@ describe('TokenDetectionController', () => {
             mockGetAccount(secondSelectedAccount);
             triggerSelectedAccountChange(secondSelectedAccount);
 
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             // detectTokens is called once when account changes
             // (preference change doesn't trigger since useTokenDetection was already true by default)
@@ -1245,13 +1244,13 @@ describe('TokenDetectionController', () => {
               ...getDefaultPreferencesState(),
               useTokenDetection: false,
             });
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
               useTokenDetection: true,
             });
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).toHaveBeenCalledWith(
               'TokensController:addTokens',
@@ -1316,7 +1315,7 @@ describe('TokenDetectionController', () => {
             });
             mockGetAccount(secondSelectedAccount);
             triggerSelectedAccountChange(secondSelectedAccount);
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1372,7 +1371,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultPreferencesState(),
               useTokenDetection: true,
             });
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1438,7 +1437,7 @@ describe('TokenDetectionController', () => {
             });
             mockGetAccount(secondSelectedAccount);
             triggerSelectedAccountChange(secondSelectedAccount);
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1495,13 +1494,13 @@ describe('TokenDetectionController', () => {
               ...getDefaultPreferencesState(),
               useTokenDetection: false,
             });
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
               useTokenDetection: true,
             });
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1566,7 +1565,7 @@ describe('TokenDetectionController', () => {
             });
             mockGetAccount(secondSelectedAccount);
             triggerSelectedAccountChange(secondSelectedAccount);
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1622,13 +1621,13 @@ describe('TokenDetectionController', () => {
               ...getDefaultPreferencesState(),
               useTokenDetection: false,
             });
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
               useTokenDetection: true,
             });
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1696,7 +1695,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultNetworkControllerState(),
               selectedNetworkClientId: NetworkType.sepolia,
             });
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1752,7 +1751,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultNetworkControllerState(),
               selectedNetworkClientId: 'avalanche',
             });
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1810,7 +1809,7 @@ describe('TokenDetectionController', () => {
                 ...getDefaultNetworkControllerState(),
                 selectedNetworkClientId: 'avalanche',
               });
-              await advanceTime({ duration: 1 });
+              await vi.advanceTimersByTimeAsync(1);
 
               expect(callActionSpy).not.toHaveBeenCalledWith(
                 'TokensController:addDetectedTokens',
@@ -1869,7 +1868,7 @@ describe('TokenDetectionController', () => {
               ...getDefaultNetworkControllerState(),
               selectedNetworkClientId: 'avalanche',
             });
-            await advanceTime({ duration: 1 });
+            await vi.advanceTimersByTimeAsync(1);
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
@@ -1945,7 +1944,7 @@ describe('TokenDetectionController', () => {
             chainIds: ['0x5'],
             address: '0x3',
           });
-          await advanceTime({ duration: 0 });
+          await vi.advanceTimersByTimeAsync(0);
 
           expect(spy.mock.calls).toMatchObject([
             [{ chainIds: ['0xa86a'], selectedAddress: '0x1' }],
@@ -1953,7 +1952,7 @@ describe('TokenDetectionController', () => {
             [{ chainIds: ['0x5'], selectedAddress: '0x3' }],
           ]);
 
-          await advanceTime({ duration: DEFAULT_INTERVAL });
+          await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
           expect(spy.mock.calls).toMatchObject([
             [{ chainIds: ['0xa86a'], selectedAddress: '0x1' }],
             [{ chainIds: ['0xa86a'], selectedAddress: '0xdeadbeef' }],
@@ -4331,7 +4330,7 @@ describe('TokenDetectionController', () => {
           mockGetBalancesInSingleCall.mockClear();
 
           detectTokensSpy.mockClear();
-          await advanceTime({ duration: 15 });
+          await vi.advanceTimersByTimeAsync(15);
           expect(detectTokensSpy).toHaveBeenCalled();
           expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
         },

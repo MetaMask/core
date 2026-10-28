@@ -27,7 +27,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
-import { advanceTime } from '../../../../tests/vitest/helpers.js';
 import {
   getDefaultMultichainAssetsControllerState,
   MultichainAssetsController,
@@ -393,7 +392,7 @@ describe('MultichainAssetsController', () => {
 
     messenger.publish('AccountsController:accountAdded', mockEthAccount);
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {},
@@ -421,7 +420,7 @@ describe('MultichainAssetsController', () => {
 
     messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
@@ -482,7 +481,7 @@ describe('MultichainAssetsController', () => {
 
     messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(mockSnapHandleRequest).toHaveBeenCalledTimes(3);
 
@@ -537,7 +536,7 @@ describe('MultichainAssetsController', () => {
 
     messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(mockSnapHandleRequest).toHaveBeenCalledTimes(3);
 
@@ -572,7 +571,7 @@ describe('MultichainAssetsController', () => {
     // Add a solana account first
     messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
@@ -585,7 +584,7 @@ describe('MultichainAssetsController', () => {
     // Remove an EVM account
     messenger.publish('AccountsController:accountRemoved', mockEthAccount.id);
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
@@ -617,7 +616,7 @@ describe('MultichainAssetsController', () => {
     // Add a solana account first
     messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {
@@ -633,7 +632,7 @@ describe('MultichainAssetsController', () => {
       mockSolanaAccount.id,
     );
 
-    await advanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(controller.state).toStrictEqual({
       accountsAssets: {},
@@ -709,7 +708,7 @@ describe('MultichainAssetsController', () => {
         updatedAssetsList,
       );
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state.accountsAssets).toStrictEqual({
         [mockSolanaAccountId1]: [
@@ -770,7 +769,7 @@ describe('MultichainAssetsController', () => {
         'AccountsController:accountAssetListUpdated',
         updatedAssetsList,
       );
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state.accountsAssets).toStrictEqual({
         [mockSolanaAccountId1]: [
@@ -814,7 +813,7 @@ describe('MultichainAssetsController', () => {
         'AccountsController:accountAssetListUpdated',
         updatedAssetsList,
       );
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state.accountsAssets).toStrictEqual({
         [mockSolanaAccountId1]: [
@@ -1287,7 +1286,7 @@ describe('MultichainAssetsController', () => {
       });
 
       // Wait for async processing (including Blockaid scan)
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Only the non-ignored asset should be added
       expect(
@@ -1323,7 +1322,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Ignored asset should remain filtered out and stay in ignored list
       expect(
@@ -1353,7 +1352,7 @@ describe('MultichainAssetsController', () => {
       // Simulate account being added
       messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // All assets should be added to active list (no ignored assets for new account)
       expect(
@@ -1392,7 +1391,7 @@ describe('MultichainAssetsController', () => {
       );
 
       // Wait for async processing
-      await advanceTime({ duration: 0 });
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(
         controller.state.accountsAssets[mockSolanaAccount.id],
@@ -1432,7 +1431,7 @@ describe('MultichainAssetsController', () => {
 
       messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Native token (slip44) should pass through unfiltered
       // Benign token should be kept
@@ -1490,7 +1489,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Malicious token should be filtered out
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
@@ -1518,7 +1517,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
         token,
@@ -1546,7 +1545,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // With fail-open blacklist approach, no result means not rejected
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
@@ -1572,7 +1571,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Native token should pass through without scan call
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
@@ -1611,7 +1610,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // With fail-open blacklist approach, tokens without results are not rejected
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
@@ -1657,7 +1656,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
         warningToken,
@@ -1732,7 +1731,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       // Should have been called twice: once with 100 tokens, once with 50
       expect(mockBulkScanTokens).toHaveBeenCalledTimes(2);
@@ -1801,7 +1800,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       const storedAssets = controller.state.accountsAssets[mockAccountId];
 
@@ -1845,7 +1844,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([]);
       expect(controller.state.allIgnoredAssets[mockAccountId]).toStrictEqual([
@@ -1870,7 +1869,7 @@ describe('MultichainAssetsController', () => {
 
       mockBulkScanTokens.mockRejectedValue(new Error('network error'));
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
         token,
@@ -1892,7 +1891,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(mockBulkScanTokens).not.toHaveBeenCalled();
       expect(controller.state.accountsAssets[mockAccountId]).toStrictEqual([
@@ -1915,7 +1914,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(mockBulkScanTokens).not.toHaveBeenCalled();
 
@@ -1952,7 +1951,7 @@ describe('MultichainAssetsController', () => {
         'publish',
       );
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(
         publishSpy.mock.calls.filter(
@@ -2088,7 +2087,7 @@ describe('MultichainAssetsController', () => {
 
       messenger.publish('AccountsController:accountAdded', mockSolanaAccount);
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state).toStrictEqual(emptyState);
       expect(mockSnapHandleRequest).not.toHaveBeenCalled();
@@ -2110,7 +2109,7 @@ describe('MultichainAssetsController', () => {
         deprecatedAccountId,
       );
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state).toStrictEqual(emptyState);
     });
@@ -2136,7 +2135,7 @@ describe('MultichainAssetsController', () => {
         },
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(controller.state).toStrictEqual(emptyState);
       expect(mockSnapHandleRequest).not.toHaveBeenCalled();
@@ -2149,7 +2148,7 @@ describe('MultichainAssetsController', () => {
         isDeprecated: () => true,
       });
 
-      await advanceTime({ duration: 1 });
+      await vi.advanceTimersByTimeAsync(1);
 
       expect(mockBulkScanTokens).not.toHaveBeenCalled();
       expect(controller.state).toStrictEqual(emptyState);

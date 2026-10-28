@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "@metamask/messenger": "^3.0.0",
-    "@metamask/utils": "^12.0.0"
+    "@metamask/utils": "^12.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",

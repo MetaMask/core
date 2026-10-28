@@ -1,6 +1,6 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
 import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
-import { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -142,7 +142,7 @@ async function runWsEvent({
   event: BalanceUpdatedEventPayload;
   remoteFeatureFlags?: FeatureFlags;
 }): Promise<WsEventResult> {
-  cleanAll();
+  nock.cleanAll();
   const { accountsSupportedNetworks, assets, prices } = mockWsApis();
   const queryApiClient = createTestApiClient();
 
@@ -182,7 +182,7 @@ async function runWsEvent({
 
 describe('AssetsController: websocket price updates', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe.each(UPDATE_LANES)(
@@ -318,7 +318,7 @@ describe('AssetsController: websocket price updates', () => {
 
     it('did not refetch metadata for the enriched token', () => {
       expect(askedAbout(result.mocks.tokenAPI.assetBatches)).toStrictEqual(
-        new Set([ETH_ASSET_ID]),
+        new Set(),
       );
     });
   });

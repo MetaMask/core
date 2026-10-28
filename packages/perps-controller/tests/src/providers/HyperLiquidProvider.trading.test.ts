@@ -117,7 +117,6 @@ vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
 });
 
 // Mock TradingReadinessCache - global singleton for signing operation caching
-// Use jest.createMockFromModule for proper mock creation
 vi.mock('../../../src/services/TradingReadinessCache');
 
 const MockedHyperLiquidClientService = HyperLiquidClientService as MockedClass<
@@ -1079,7 +1078,7 @@ describe('HyperLiquidProvider', () => {
       expect(result.error).toContain('Insufficient margin');
     });
 
-    it('retries USD-based order when rejected for $10 minimum with adjusted amount', async () => {
+    it('returns ORDER_SIZE_MIN instead of resubmitting a USD-based order rejected for the $10 minimum', async () => {
       // Create provider with PUMP in the asset mapping
       provider = createTestProvider({
         initialAssetMapping: [
@@ -1159,13 +1158,17 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.placeOrder(orderParams);
 
-      expect(result.success).toBe(true);
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        errorCode: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+      });
       expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
-        2,
+        1,
       );
     });
 
-    it('retries a size-based order without applying its stale calculation snapshot to the synthesized USD amount', async () => {
+    it('returns ORDER_SIZE_MIN instead of resubmitting a larger exact-size order rejected for the venue minimum', async () => {
       // Create provider with PUMP in the asset mapping
       provider = createTestProvider({
         initialAssetMapping: [
@@ -1227,10 +1230,6 @@ describe('HyperLiquidProvider', () => {
         size: '2553',
         orderType: 'market',
         currentPrice: 0.003918,
-        // Exact-size orders do not derive their size from this snapshot. The
-        // minimum-order retry synthesizes a USD amount from currentPrice, so it
-        // must not turn this stale snapshot into a PRICE_MOVED rejection.
-        priceAtCalculation: 0.003,
         maxSlippageBps: 300,
       };
 
@@ -1249,82 +1248,13 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.placeOrder(orderParams);
 
-      expect(result.success).toBe(true);
+      expect(result).toMatchObject({
+        success: false,
+        errorCode: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+      });
       const orderMock = mockClientService.getExchangeClient().order as Mock;
-      expect(orderMock).toHaveBeenCalledTimes(2);
-
-      // submittedSize must reflect the retried (second) submission — the size
-      // the exchange actually accepted after the $10-minimum bump — not the
-      // first rejected attempt, so partial-fill classification uses the real
-      // submitted size.
-      const firstSubmittedSize = orderMock.mock.calls[0][0].orders[0].s;
-      const secondSubmittedSize = orderMock.mock.calls[1][0].orders[0].s;
-      expect(secondSubmittedSize).not.toBe(firstSubmittedSize);
-      expect(result.submittedSize).toBe(secondSubmittedSize);
-    });
-
-    it('retries with adjusted USD when price-less order hits $10 minimum (uses fetched price from allMids)', async () => {
-      // Create provider with PUMP in the asset mapping
-      provider = createTestProvider({
-        initialAssetMapping: [
-          ['BTC', 0],
-          ['ETH', 1],
-          ['PUMP', 2],
-        ],
-      });
-
-      mockClientService.getInfoClient = vi.fn().mockReturnValue(
-        createMockInfoClient({
-          meta: vi.fn().mockResolvedValue({
-            universe: [
-              { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
-              { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
-              { name: 'PUMP', szDecimals: 2, maxLeverage: 20 },
-            ],
-          }),
-          allMids: vi
-            .fn()
-            .mockResolvedValue({ BTC: '50000', ETH: '3000', PUMP: '0.003918' }),
-        }),
-      );
-
-      const orderParams: OrderParams = {
-        symbol: 'PUMP',
-        isBuy: true,
-        size: '2553',
-        orderType: 'market',
-        // No currentPrice: provider fetches live price (0.003918) and uses it
-        // for both validation and the $10-minimum retry path.
-      };
-
-      const mockOrder = vi
-        .fn()
-        .mockRejectedValueOnce(
-          new Error('Order must have minimum value of $10'),
-        )
-        .mockResolvedValueOnce({
-          status: 'ok',
-          response: {
-            data: {
-              statuses: [
-                { filled: { oid: 123, totalSz: '2553', avgPx: '0.004' } },
-              ],
-            },
-          },
-        });
-
-      mockClientService.getExchangeClient = vi.fn().mockReturnValue({
-        ...createMockExchangeClient(),
-        order: mockOrder,
-      });
-
-      const result = await provider.placeOrder(orderParams);
-
-      // The live price is fetched → validation passes → order is submitted →
-      // first call hits $10 minimum → retry uses fetched price to compute
-      // adjusted usdAmount → second call succeeds.
-      expect(result.success).toBe(true);
-      expect(mockOrder).toHaveBeenCalledTimes(2);
+      expect(orderMock).toHaveBeenCalledTimes(1);
+      expect(orderMock.mock.calls[0][0].orders[0].s).toBe('2553');
     });
 
     it('closes a position successfully', async () => {
@@ -3011,9 +2941,8 @@ describe('HyperLiquidProvider', () => {
     });
 
     it('does not retry a close rejected for the $10 minimum with a larger size', async () => {
-      // Growing a close by 1.5% would exceed the position (full close) or the
-      // size the caller asked to close (partial close), so the minimum-value
-      // error must surface instead of being masked by a reduce-only rejection.
+      // A close keeps the venue's minimum-value error: it is neither
+      // resubmitted nor retyped.
       primePositionsCache([createPositionSnapshot({ size: '0.1' })]);
       mockClientService.getExchangeClient = vi.fn().mockReturnValue({
         ...createMockExchangeClient(),
@@ -3030,15 +2959,15 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('minimum value of $10');
+      expect(result.errorCode).toBeUndefined();
       expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
         1,
       );
     });
 
     it('does not retry a partial close rejected for the $10 minimum either', async () => {
-      // The retry only grows the order, and a partial close is capped at the size
-      // the caller asked to close, so a retry could not change the submitted
-      // size. Surface the minimum-value error rather than resubmitting.
+      // A partial close is capped at the size the caller asked to close, so it
+      // surfaces the venue's minimum-value error rather than resubmitting.
       primePositionsCache([
         createPositionSnapshot({ symbol: 'ETH', size: '1.5' }),
       ]);
@@ -3060,6 +2989,7 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('minimum value of $10');
+      expect(result.errorCode).toBeUndefined();
       expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
         1,
       );

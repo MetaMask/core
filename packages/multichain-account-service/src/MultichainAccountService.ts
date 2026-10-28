@@ -30,10 +30,13 @@ import {
   EVM_ACCOUNT_PROVIDER_NAME,
   BtcAccountProviderConfig,
   TrxAccountProviderConfig,
+  XlmAccountProviderConfig,
   BTC_ACCOUNT_PROVIDER_NAME,
   TRX_ACCOUNT_PROVIDER_NAME,
+  XLM_ACCOUNT_PROVIDER_NAME,
   BtcAccountProvider,
   TrxAccountProvider,
+  XlmAccountProvider,
 } from './providers/index.js';
 import { SolAccountProvider } from './providers/SolAccountProvider.js';
 import {
@@ -67,6 +70,7 @@ export type MultichainAccountServiceOptions = {
     [SOL_ACCOUNT_PROVIDER_NAME]?: SolAccountProviderConfig;
     [BTC_ACCOUNT_PROVIDER_NAME]?: BtcAccountProviderConfig;
     [TRX_ACCOUNT_PROVIDER_NAME]?: TrxAccountProviderConfig;
+    [XLM_ACCOUNT_PROVIDER_NAME]?: XlmAccountProviderConfig;
   };
   config?: MultichainAccountServiceConfig;
 };
@@ -207,14 +211,46 @@ export class MultichainAccountService {
           trace,
         ),
       ),
+      new AccountProviderWrapper(
+        this.#messenger,
+        new XlmAccountProvider(
+          this.#messenger,
+          providerConfigs?.[XLM_ACCOUNT_PROVIDER_NAME],
+          trace,
+        ),
+      ),
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
     ];
+    this.#assertUniqueProviderNames(this.#providers);
 
     this.#messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Assert that every registered provider has a unique name.
+   *
+   * Duplicate names break group state (keyed by provider name), alignment, and
+   * resync. This commonly happens when a client passes a custom provider that
+   * reuses a built-in name (e.g. registering Stellar both as a default and via
+   * `providers`).
+   *
+   * @param providers - The providers to validate.
+   * @throws If two providers share the same {@link Bip44AccountProvider.getName}.
+   */
+  #assertUniqueProviderNames(providers: Bip44AccountProvider[]): void {
+    const seenNames = new Set<string>();
+    for (const provider of providers) {
+      const name = provider.getName();
+      assert(
+        !seenNames.has(name),
+        `Duplicate account provider name "${name}". Custom providers must not reuse a built-in or already-registered provider name.`,
+      );
+      seenNames.add(name);
+    }
   }
 
   /**
