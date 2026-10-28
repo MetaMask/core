@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `marketingConsentSyncPending` state to `AnalyticsController` to record a marketing consent choice made on this device that has not been saved to the user's account yet
+  - The field is persisted, defaults to `false`, and can be read with the new `selectMarketingConsentSyncPending` selector.
+- Add `applyRemoteMarketingConsent` method and `AnalyticsController:applyRemoteMarketingConsent` action
+  - Applies a marketing consent value read from the user's account, with the same side effects as `optInToMarketing` / `optOutOfMarketing`, without marking it as waiting to be saved.
+  - Does nothing while a local choice is waiting to be saved, or if the same value is already decided.
+- Add `clearPendingMarketingConsent` method and `AnalyticsController:clearPendingMarketingConsent` action
+  - Clears `marketingConsentSyncPending` if local marketing consent still matches the given value, so a newer local choice stays pending.
+
 ### Changed
 
+- `optInToMarketing` and `optOutOfMarketing` now set `marketingConsentSyncPending` to `true` in the same state update as the consent change
+- `resetMarketingConsentDecision` now sets `marketingConsentSyncPending` to `false`
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [4.1.0]

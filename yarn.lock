@@ -7170,9 +7170,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/marketing-consent-controller@workspace:packages/marketing-consent-controller":
+"@metamask/marketing-consent-sync-service@workspace:packages/marketing-consent-sync-service":
   version: 0.0.0-use.local
-  resolution: "@metamask/marketing-consent-controller@workspace:packages/marketing-consent-controller"
+  resolution: "@metamask/marketing-consent-sync-service@workspace:packages/marketing-consent-sync-service"
   dependencies:
     "@metamask/analytics-controller": "npm:^4.1.0"
     "@metamask/authenticated-user-storage": "npm:^4.1.0"

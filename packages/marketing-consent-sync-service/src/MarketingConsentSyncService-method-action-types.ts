@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { MarketingConsentController } from './MarketingConsentController.js';
+import type { MarketingConsentSyncService } from './MarketingConsentSyncService.js';
 
 /**
  * Sets the user's marketing consent and saves it to AUS.
@@ -23,23 +23,23 @@ import type { MarketingConsentController } from './MarketingConsentController.js
  * @throws If AUS did not save the change. AUS is the source of truth, so
  * the change is then dropped and local consent is re-read from AUS.
  */
-export type MarketingConsentControllerSetMarketingConsentAction = {
-  type: `MarketingConsentController:setMarketingConsent`;
-  handler: MarketingConsentController['setMarketingConsent'];
+export type MarketingConsentSyncServiceSetMarketingConsentAction = {
+  type: `MarketingConsentSyncService:setMarketingConsent`;
+  handler: MarketingConsentSyncService['setMarketingConsent'];
 };
 
 /**
  * Re-reads consent from AUS, e.g. when the wallet UI opens or the app
  * returns to the foreground.
  */
-export type MarketingConsentControllerRefreshAction = {
-  type: `MarketingConsentController:refresh`;
-  handler: MarketingConsentController['refresh'];
+export type MarketingConsentSyncServiceRefreshAction = {
+  type: `MarketingConsentSyncService:refresh`;
+  handler: MarketingConsentSyncService['refresh'];
 };
 
 /**
- * Union of all MarketingConsentController action types.
+ * Union of all MarketingConsentSyncService action types.
  */
-export type MarketingConsentControllerMethodActions =
-  | MarketingConsentControllerSetMarketingConsentAction
-  | MarketingConsentControllerRefreshAction;
+export type MarketingConsentSyncServiceMethodActions =
+  | MarketingConsentSyncServiceSetMarketingConsentAction
+  | MarketingConsentSyncServiceRefreshAction;
