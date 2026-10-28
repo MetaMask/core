@@ -851,9 +851,9 @@ describe('AssetsController', () => {
       await new Promise(process.nextTick);
 
       const afterStateChange = await controller.getAssets([account]);
-      expect(Object.keys(afterStateChange[MOCK_ACCOUNT_ID]).sort()).toStrictEqual(
-        [MOCK_NATIVE_ASSET_ID, polygonNativeAssetId].sort(),
-      );
+      expect(
+        Object.keys(afterStateChange[MOCK_ACCOUNT_ID]).sort(),
+      ).toStrictEqual([MOCK_NATIVE_ASSET_ID, polygonNativeAssetId].sort());
     });
 
     it('accepts isBasicFunctionality option and exposes handleBasicFunctionalityChange', async () => {

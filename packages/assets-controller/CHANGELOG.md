@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `init()`, which reads enabled chains from `NetworkEnablementController:getState`. Construction no longer requires that action to be registered. Later enablement changes still arrive on `NetworkEnablementController:stateChange` ([#10885](https://github.com/MetaMask/core/pull/10885))
+
 ## [20.0.0]
 
 ### Added
 
-- Add `init()`, which reads enabled chains from `NetworkEnablementController:getState`. Construction no longer requires that action to be registered. Later enablement changes still arrive on `NetworkEnablementController:stateChange` ([#10885](https://github.com/MetaMask/core/pull/10885))
 - Add `syncAssetsPrices(assetIds)`, exposed as the `AssetsController:syncAssetsPrices` messenger action. It force-fetches spot prices for an explicit CAIP-19 asset list through `PriceDataSource` and merges them into state ([#10892](https://github.com/MetaMask/core/pull/10892))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
