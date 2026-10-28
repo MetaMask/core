@@ -8,9 +8,6 @@
     /**
      * Here we ensure that TypeScript resolves `@metamask/*` imports to the
      * uncompiled source code for packages that live in this repo.
-     *
-     * NOTE: This must be synchronized with the `moduleNameMapper` option in
-     * `jest.config.packages.cjs`.
      */
     "paths": {
       "@metamask/perps-controller/constants/*": [

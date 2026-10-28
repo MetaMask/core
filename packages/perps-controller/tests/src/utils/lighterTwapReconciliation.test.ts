@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { LighterTwapRecord } from '../../../src/services/LighterTwapService.js';
 import type {
   LighterApiOrder,

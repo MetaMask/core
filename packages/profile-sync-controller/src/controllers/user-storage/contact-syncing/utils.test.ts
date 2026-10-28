@@ -1,4 +1,5 @@
 import type { AddressBookEntry } from '@metamask/address-book-controller';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants.js';
 import type { UserStorageContactEntry } from './types.js';
@@ -19,11 +20,11 @@ describe('user-storage/contact-syncing/utils', () => {
 
   beforeEach(() => {
     // Mock Date.now() to return a fixed timestamp for consistent testing
-    jest.spyOn(Date, 'now').mockImplementation(() => mockTimestamp);
+    vi.spyOn(Date, 'now').mockImplementation(() => mockTimestamp);
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('mapAddressBookEntryToUserStorageEntry', () => {

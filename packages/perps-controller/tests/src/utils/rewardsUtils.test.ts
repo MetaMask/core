@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import type { PerpsLogger } from '../../../src/types/index.js';
 /* eslint-disable */
 import {
@@ -26,7 +28,7 @@ describe('rewardsUtils', () => {
 
     it('returns null for invalid chain ID (NaN) and logs error', () => {
       const mockLogger: PerpsLogger = {
-        error: jest.fn(),
+        error: vi.fn(),
       };
 
       const result = formatAccountToCaipAccountId(
@@ -46,7 +48,7 @@ describe('rewardsUtils', () => {
 
     it('returns null for empty chain ID and logs error', () => {
       const mockLogger: PerpsLogger = {
-        error: jest.fn(),
+        error: vi.fn(),
       };
 
       const result = formatAccountToCaipAccountId(
@@ -95,7 +97,7 @@ describe('rewardsUtils', () => {
     });
 
     it('logs error when logger is provided', () => {
-      const mockLogger: PerpsLogger = { error: jest.fn() };
+      const mockLogger: PerpsLogger = { error: vi.fn() };
       handleRewardsError(new Error('test'), mockLogger, { key: 'value' });
       expect(mockLogger.error).toHaveBeenCalled();
     });

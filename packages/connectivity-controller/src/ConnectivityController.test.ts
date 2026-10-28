@@ -5,6 +5,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { ConnectivityControllerMessenger } from './ConnectivityController.js';
 import { ConnectivityController } from './ConnectivityController.js';
@@ -15,9 +16,9 @@ describe('ConnectivityController', () => {
   describe('constructor', () => {
     it('initializes with default state (online)', async () => {
       const mockAdapter: ConnectivityAdapter = {
-        getStatus: jest.fn().mockResolvedValue(CONNECTIVITY_STATUSES.Online),
-        onConnectivityChange: jest.fn(),
-        destroy: jest.fn(),
+        getStatus: vi.fn().mockResolvedValue(CONNECTIVITY_STATUSES.Online),
+        onConnectivityChange: vi.fn(),
+        destroy: vi.fn(),
       };
 
       await withController(
@@ -33,9 +34,9 @@ describe('ConnectivityController', () => {
 
     it('subscribes to connectivity changes from adapter', async () => {
       const mockAdapter: ConnectivityAdapter = {
-        getStatus: jest.fn().mockResolvedValue(CONNECTIVITY_STATUSES.Online),
-        onConnectivityChange: jest.fn(),
-        destroy: jest.fn(),
+        getStatus: vi.fn().mockResolvedValue(CONNECTIVITY_STATUSES.Online),
+        onConnectivityChange: vi.fn(),
+        destroy: vi.fn(),
       };
 
       await withController(
@@ -115,9 +116,9 @@ describe('ConnectivityController', () => {
   describe('init', () => {
     it('fetches initial status from adapter and updates state', async () => {
       const mockAdapter: ConnectivityAdapter = {
-        getStatus: jest.fn().mockResolvedValue(CONNECTIVITY_STATUSES.Offline),
-        onConnectivityChange: jest.fn(),
-        destroy: jest.fn(),
+        getStatus: vi.fn().mockResolvedValue(CONNECTIVITY_STATUSES.Offline),
+        onConnectivityChange: vi.fn(),
+        destroy: vi.fn(),
       };
 
       await withController(
@@ -139,12 +140,12 @@ describe('ConnectivityController', () => {
 
     it('can be called multiple times to refresh status', async () => {
       const mockAdapter: ConnectivityAdapter = {
-        getStatus: jest
+        getStatus: vi
           .fn()
           .mockResolvedValueOnce(CONNECTIVITY_STATUSES.Online)
           .mockResolvedValueOnce(CONNECTIVITY_STATUSES.Offline),
-        onConnectivityChange: jest.fn(),
-        destroy: jest.fn(),
+        onConnectivityChange: vi.fn(),
+        destroy: vi.fn(),
       };
 
       await withController(
@@ -172,13 +173,13 @@ describe('ConnectivityController', () => {
         connectivityStatus: ConnectivityStatus,
       ) => void;
       const mockAdapter: ConnectivityAdapter = {
-        getStatus: jest.fn().mockResolvedValue(CONNECTIVITY_STATUSES.Online),
+        getStatus: vi.fn().mockResolvedValue(CONNECTIVITY_STATUSES.Online),
         onConnectivityChange(
           callback: (connectivityStatus: ConnectivityStatus) => void,
         ) {
           onConnectivityChangeCallback = callback;
         },
-        destroy: jest.fn(),
+        destroy: vi.fn(),
       };
       await withController(
         { options: { connectivityAdapter: mockAdapter } },
@@ -200,13 +201,13 @@ describe('ConnectivityController', () => {
         connectivityStatus: ConnectivityStatus,
       ) => void;
       const mockAdapter: ConnectivityAdapter = {
-        getStatus: jest.fn().mockResolvedValue(CONNECTIVITY_STATUSES.Offline),
+        getStatus: vi.fn().mockResolvedValue(CONNECTIVITY_STATUSES.Offline),
         onConnectivityChange(
           callback: (connectivityStatus: ConnectivityStatus) => void,
         ) {
           onConnectivityChangeCallback = callback;
         },
-        destroy: jest.fn(),
+        destroy: vi.fn(),
       };
       await withController(
         { options: { connectivityAdapter: mockAdapter } },
@@ -379,9 +380,9 @@ async function withController<ReturnValue>(
   const rootMessenger = getRootMessenger();
   const controllerMessenger = getMessenger(rootMessenger);
   const defaultAdapter: ConnectivityAdapter = {
-    getStatus: jest.fn().mockResolvedValue(CONNECTIVITY_STATUSES.Online),
-    onConnectivityChange: jest.fn(),
-    destroy: jest.fn(),
+    getStatus: vi.fn().mockResolvedValue(CONNECTIVITY_STATUSES.Online),
+    onConnectivityChange: vi.fn(),
+    destroy: vi.fn(),
   };
   const controller = new ConnectivityController({
     messenger: controllerMessenger,

@@ -11,12 +11,24 @@
    * package needs: type tests, fixtures and mocks are not published.
    */
   "exclude": [
-    "./jest.config.packages.ts",
     "**/*.test.ts",
-    "**/*.tst.ts",
-    "**/jest.config.ts",
+    "**/*.test-d.ts",
     "./src/**/__fixtures__/**/*",
     "./src/**/__mocks__/**/*",
     "./src/**/__snapshots__/**/*"
+  ],
+  "references": [
+    {
+      "path": "../type-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../error-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../node-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../byte-utils/tsconfig.build.json"
+    }
   ]
 }

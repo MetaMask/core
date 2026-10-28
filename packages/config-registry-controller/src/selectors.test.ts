@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { createMockNetworkConfig } from '../tests/helpers.js';
 import { ConfigRegistryControllerState } from './ConfigRegistryController.js';
 import {

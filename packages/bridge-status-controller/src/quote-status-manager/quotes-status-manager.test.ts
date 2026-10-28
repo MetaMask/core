@@ -3,6 +3,8 @@ import {
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { BridgeClientId, BridgeStatusControllerMessenger } from '../types.js';
 import {
@@ -20,7 +22,7 @@ import type {
   QuoteStatusUpdateResponse,
 } from './types.js';
 
-jest.mock('./quote-status-api-service');
+vi.mock('./quote-status-api-service');
 
 const TTL_MS = 60_000;
 const UPDATE_INTERVAL_MS = 1000;
@@ -47,7 +49,7 @@ function deferred<Value>(): {
  * @returns A promise that resolves once queued callbacks have run.
  */
 async function flush(): Promise<void> {
-  await jest.advanceTimersByTimeAsync(0);
+  await vi.advanceTimersByTimeAsync(0);
 }
 
 /**
@@ -89,9 +91,9 @@ function createTxMeta(
 }
 
 describe('QuoteStatusUpdateManager', () => {
-  let mockUpdate: jest.Mock;
+  let mockUpdate: Mock;
 
-  let mockGetQuoteStatusWithRetry: jest.Mock;
+  let mockGetQuoteStatusWithRetry: Mock;
 
   /**
    * Builds a manager with stubbed callbacks and the mocked API service.
@@ -108,15 +110,15 @@ describe('QuoteStatusUpdateManager', () => {
     transactions: TransactionMeta[] = [],
   ): {
     manager: QuoteStatusManager;
-    onPersistUpdates: jest.Mock;
-    onError: jest.Mock;
-    isEnabled: jest.Mock;
-    messengerCall: jest.Mock;
+    onPersistUpdates: Mock;
+    onError: Mock;
+    isEnabled: Mock;
+    messengerCall: Mock;
   } {
-    const onPersistUpdates = jest.fn();
-    const onError = jest.fn();
-    const isEnabled = jest.fn().mockReturnValue(true);
-    const messengerCall = jest.fn((action: string) => {
+    const onPersistUpdates = vi.fn();
+    const onError = vi.fn();
+    const isEnabled = vi.fn().mockReturnValue(true);
+    const messengerCall = vi.fn((action: string) => {
       if (action === 'TransactionController:getState') {
         return { transactions };
       }
@@ -143,32 +145,34 @@ describe('QuoteStatusUpdateManager', () => {
   }
 
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
-    mockUpdate = jest
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+    mockUpdate = vi
       .fn()
       .mockResolvedValue(
         new QuoteStatusUpdateWithRetryOutcome(
           QuoteStatusFetchWithRetryOutcomeType.RetryableExhausted,
         ),
       );
-    mockGetQuoteStatusWithRetry = jest
+    mockGetQuoteStatusWithRetry = vi
       .fn()
       .mockResolvedValue(
         new QuoteStatusGetWithRetryOutcome(
           QuoteStatusFetchWithRetryOutcomeType.Accepted,
         ),
       );
-    (QuoteStatusApiService as unknown as jest.Mock).mockImplementation(() => ({
-      updateQuoteStatusWithRetry: mockUpdate,
-      getQuoteStatusWithRetry: mockGetQuoteStatusWithRetry,
-    }));
+    (QuoteStatusApiService as unknown as Mock).mockImplementation(function () {
+      return {
+        updateQuoteStatusWithRetry: mockUpdate,
+        getQuoteStatusWithRetry: mockGetQuoteStatusWithRetry,
+      };
+    });
   });
 
   afterEach(() => {
-    jest.clearAllTimers();
-    jest.useRealTimers();
-    jest.clearAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    vi.clearAllMocks();
   });
 
   describe('init', () => {
@@ -207,7 +211,7 @@ describe('QuoteStatusUpdateManager', () => {
         await flush();
         mockUpdate.mockClear();
 
-        await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
+        await vi.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
 
         expect(mockUpdate).not.toHaveBeenCalled();
       });
@@ -435,7 +439,7 @@ describe('QuoteStatusUpdateManager', () => {
   describe('enabled', () => {
     it('returns true when the isEnabled predicate returns true', () => {
       const { manager } = createManager({
-        isEnabled: jest.fn().mockReturnValue(true),
+        isEnabled: vi.fn().mockReturnValue(true),
       });
 
       expect(manager.enabled).toBe(true);
@@ -443,7 +447,7 @@ describe('QuoteStatusUpdateManager', () => {
 
     it('returns false when the isEnabled predicate returns false', () => {
       const { manager } = createManager({
-        isEnabled: jest.fn().mockReturnValue(false),
+        isEnabled: vi.fn().mockReturnValue(false),
       });
 
       expect(manager.enabled).toBe(false);
@@ -459,7 +463,7 @@ describe('QuoteStatusUpdateManager', () => {
   describe('getStatus', () => {
     it('does nothing when the manager is disabled', async () => {
       const { manager } = createManager({
-        isEnabled: jest.fn().mockReturnValue(false),
+        isEnabled: vi.fn().mockReturnValue(false),
       });
 
       const result = await manager.getStatus('quote-1');
@@ -518,7 +522,7 @@ describe('QuoteStatusUpdateManager', () => {
   describe('reportSubmitted', () => {
     it('does nothing when the manager is disabled', async () => {
       const { manager, onPersistUpdates } = createManager({
-        isEnabled: jest.fn().mockReturnValue(false),
+        isEnabled: vi.fn().mockReturnValue(false),
       });
 
       manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
@@ -557,7 +561,7 @@ describe('QuoteStatusUpdateManager', () => {
       onPersistUpdates.mockClear();
       mockUpdate.mockClear();
 
-      await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
+      await vi.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
 
       expect(mockUpdate).not.toHaveBeenCalled();
     });
@@ -643,7 +647,7 @@ describe('QuoteStatusUpdateManager', () => {
       await flush();
 
       // Move past the TTL so the entry transitions to Expired (but is retained).
-      jest.setSystemTime(new Date('2024-01-01T01:00:00Z'));
+      vi.setSystemTime(new Date('2024-01-01T01:00:00Z'));
       mockUpdate.mockClear();
 
       manager.reportSubmitted('quote-1', '0xnew', 'tx-2');
@@ -656,7 +660,7 @@ describe('QuoteStatusUpdateManager', () => {
   describe('reportFinalised', () => {
     it('does nothing when the manager is disabled', () => {
       const { manager, onError } = createManager({
-        isEnabled: jest.fn().mockReturnValue(false),
+        isEnabled: vi.fn().mockReturnValue(false),
       });
 
       manager.reportFinalised('tx-1', true);
@@ -920,7 +924,7 @@ describe('QuoteStatusUpdateManager', () => {
       mockUpdate.mockClear();
 
       manager.destroy();
-      await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 3);
+      await vi.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 3);
 
       expect(mockUpdate).not.toHaveBeenCalled();
     });
@@ -933,20 +937,20 @@ describe('QuoteStatusUpdateManager', () => {
       await flush();
       mockUpdate.mockClear();
 
-      await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS);
+      await vi.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS);
 
       expect(mockUpdate).toHaveBeenCalledTimes(1);
     });
 
     it('skips processing while the manager is disabled', async () => {
-      const isEnabled = jest.fn().mockReturnValue(true);
+      const isEnabled = vi.fn().mockReturnValue(true);
       const { manager } = createManager({ isEnabled });
       manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
       await flush();
       mockUpdate.mockClear();
       isEnabled.mockReturnValue(false);
 
-      await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS);
+      await vi.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS);
 
       expect(mockUpdate).not.toHaveBeenCalled();
     });
@@ -960,9 +964,9 @@ describe('QuoteStatusUpdateManager', () => {
       // First tick (at 1000ms) is past the 500ms TTL: the entry transitions to
       // the terminal Expired state (but is retained), so there is no pending work
       // left and the timer stops.
-      await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS);
+      await vi.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS);
       mockUpdate.mockClear();
-      await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
+      await vi.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
 
       expect(mockUpdate).not.toHaveBeenCalled();
     });
@@ -1206,7 +1210,7 @@ describe('QuoteStatusUpdateManager', () => {
       await flush();
       mockUpdate.mockClear();
 
-      await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
+      await vi.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
 
       expect(onError).not.toHaveBeenCalled();
       expect(mockUpdate).not.toHaveBeenCalled();
@@ -1249,7 +1253,7 @@ describe('QuoteStatusUpdateManager', () => {
       });
       onError.mockClear();
 
-      await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS);
+      await vi.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS);
       await flush();
 
       expect(onError).toHaveBeenCalledTimes(1);
@@ -1370,7 +1374,7 @@ describe('QuoteStatusUpdateManager', () => {
       await flush();
       mockUpdate.mockClear();
 
-      await jest.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
+      await vi.advanceTimersByTimeAsync(UPDATE_INTERVAL_MS * 2);
 
       expect(onError).not.toHaveBeenCalled();
       expect(mockUpdate).not.toHaveBeenCalled();

@@ -3,8 +3,10 @@ import type { AddResult } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
 import { cloneDeep } from 'lodash-es';
+import type { Mock, Mocked, MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { flushPromises } from '../../../../tests/helpers.js';
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow.js';
 import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook.js';
 import {
@@ -45,17 +47,17 @@ import { simulateGasBatch } from './gas.js';
 import { determineTransactionType } from './transaction-type.js';
 import { validateBatchRequest } from './validation.js';
 
-jest.mock('./eip7702');
-jest.mock('./feature-flags');
-jest.mock('./transaction-type');
+vi.mock('./eip7702');
+vi.mock('./feature-flags');
+vi.mock('./transaction-type');
 
-jest.mock('./validation', () => ({
-  ...jest.requireActual('./validation'),
-  validateBatchRequest: jest.fn(),
+vi.mock(import('./validation.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  validateBatchRequest: vi.fn(),
 }));
 
-jest.mock('../hooks/SequentialPublishBatchHook');
-jest.mock('./gas');
+vi.mock('../hooks/SequentialPublishBatchHook');
+vi.mock('./gas');
 
 type AddBatchTransactionOptions = Parameters<typeof addTransactionBatch>[0];
 
@@ -77,8 +79,8 @@ type StateChangeEntry = {
 const stateChangeEntries: StateChangeEntry[] = [];
 
 const MESSENGER_MOCK = {
-  call: jest.fn(),
-  subscribe: jest.fn(
+  call: vi.fn(),
+  subscribe: vi.fn(
     (
       _event: string,
       handler: (value: unknown) => void,
@@ -87,7 +89,7 @@ const MESSENGER_MOCK = {
       stateChangeEntries.push({ handler, selector });
     },
   ),
-  unsubscribe: jest.fn((_event: string, handler: (value: unknown) => void) => {
+  unsubscribe: vi.fn((_event: string, handler: (value: unknown) => void) => {
     const index = stateChangeEntries.findIndex(
       (entry) => entry.handler === handler,
     );
@@ -101,7 +103,7 @@ const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const PUBLIC_KEY_MOCK = '0x112233';
 const BATCH_ID_MOCK = '0x654321';
 const BATCH_ID_CUSTOM_MOCK = '0x123456';
-const GET_INTERNAL_ACCOUNTS_MOCK = jest.fn().mockReturnValue([]);
+const GET_INTERNAL_ACCOUNTS_MOCK = vi.fn().mockReturnValue([]);
 const TRANSACTION_ID_MOCK = 'testTransactionId';
 const TRANSACTION_ID_2_MOCK = 'testTransactionId2';
 const TRANSACTION_HASH_MOCK = '0x123';
@@ -171,7 +173,7 @@ const PUBLISH_BATCH_HOOK_PARAMS = {
 };
 
 function mockMessengerNetworkCalls(): void {
-  const messengerCallMock = jest.mocked(MESSENGER_MOCK.call);
+  const messengerCallMock = vi.mocked(MESSENGER_MOCK.call);
 
   messengerCallMock.mockImplementation((...args: unknown[]) => {
     const [action] = args as [string];
@@ -219,10 +221,7 @@ function mockRequestApproval(
   promise: Promise<AddResult>;
   approve: (approvalResult?: Partial<AddResult>) => void;
   reject: (rejectionError: unknown) => void;
-  actionHandlerMock: jest.Mock<
-    ReturnType<typeof messenger.call>,
-    Parameters<typeof messenger.call>
-  >;
+  actionHandlerMock: Mock<typeof messenger.call>;
 } {
   let resolvePromise: (value: AddResult) => void;
   let rejectPromise: (reason?: unknown) => void;
@@ -253,7 +252,7 @@ function mockRequestApproval(
     rejectPromise(rejectionError);
   };
 
-  const actionHandlerMock = jest.fn().mockImplementation((action: string) => {
+  const actionHandlerMock = vi.fn().mockImplementation((action: string) => {
     if (action === 'ApprovalController:addRequest') {
       return promise;
     }
@@ -293,73 +292,69 @@ function mockRequestApproval(
  *
  * @returns The mock GasFeeFlow.
  */
-function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
+function createGasFeeFlowMock(): Mocked<GasFeeFlow> {
   return {
-    matchesTransaction: jest.fn(),
-    getGasFees: jest.fn(),
+    matchesTransaction: vi.fn(),
+    getGasFees: vi.fn(),
   };
 }
 
 describe('Batch Utils', () => {
-  const doesAccountSupportEIP7702Mock = jest.mocked(doesAccountSupportEIP7702);
-  const doesChainSupportEIP7702Mock = jest.mocked(doesChainSupportEIP7702);
-  const getEIP7702SupportedChainsMock = jest.mocked(getEIP7702SupportedChains);
-  const validateBatchRequestMock = jest.mocked(validateBatchRequest);
-  const determineTransactionTypeMock = jest.mocked(determineTransactionType);
-  const sequentialPublishBatchHookMock = jest.mocked(
-    SequentialPublishBatchHook,
-  );
+  const doesAccountSupportEIP7702Mock = vi.mocked(doesAccountSupportEIP7702);
+  const doesChainSupportEIP7702Mock = vi.mocked(doesChainSupportEIP7702);
+  const getEIP7702SupportedChainsMock = vi.mocked(getEIP7702SupportedChains);
+  const validateBatchRequestMock = vi.mocked(validateBatchRequest);
+  const determineTransactionTypeMock = vi.mocked(determineTransactionType);
+  const sequentialPublishBatchHookMock = vi.mocked(SequentialPublishBatchHook);
 
-  const isAccountUpgradedToEIP7702Mock = jest.mocked(
-    isAccountUpgradedToEIP7702,
-  );
+  const isAccountUpgradedToEIP7702Mock = vi.mocked(isAccountUpgradedToEIP7702);
 
-  const getEIP7702UpgradeContractAddressMock = jest.mocked(
+  const getEIP7702UpgradeContractAddressMock = vi.mocked(
     getEIP7702UpgradeContractAddress,
   );
 
-  const generateEIP7702BatchTransactionMock = jest.mocked(
+  const generateEIP7702BatchTransactionMock = vi.mocked(
     generateEIP7702BatchTransaction,
   );
 
-  const simulateGasBatchMock = jest.mocked(simulateGasBatch);
+  const simulateGasBatchMock = vi.mocked(simulateGasBatch);
 
   describe('addTransactionBatch', () => {
-    let addTransactionMock: jest.MockedFn<
+    let addTransactionMock: MockedFunction<
       AddBatchTransactionOptions['addTransaction']
     >;
 
-    let updateTransactionMock: jest.MockedFn<
+    let updateTransactionMock: MockedFunction<
       AddBatchTransactionOptions['updateTransaction']
     >;
 
-    let publishTransactionMock: jest.MockedFn<
+    let publishTransactionMock: MockedFunction<
       AddBatchTransactionOptions['publishTransaction']
     >;
 
-    let getPendingTransactionTrackerMock: jest.MockedFn<
+    let getPendingTransactionTrackerMock: MockedFunction<
       AddBatchTransactionOptions['getPendingTransactionTracker']
     >;
 
-    let updateMock: jest.MockedFn<AddBatchTransactionOptions['update']>;
+    let updateMock: MockedFunction<AddBatchTransactionOptions['update']>;
 
-    let getGasFeeEstimatesMock: jest.MockedFn<
+    let getGasFeeEstimatesMock: MockedFunction<
       AddBatchTransactionOptions['getGasFeeEstimates']
     >;
 
-    let getGasFeesMock: jest.Mock;
+    let getGasFeesMock: Mock;
 
-    let getTransactionMock: jest.MockedFn<
+    let getTransactionMock: MockedFunction<
       AddBatchTransactionOptions['getTransaction']
     >;
 
-    let signTransactionMock: jest.MockedFn<
+    let signTransactionMock: MockedFunction<
       AddBatchTransactionOptions['signTransaction']
     >;
 
     let request: AddBatchTransactionOptions;
 
-    const estimateGasMock = jest.fn();
+    const estimateGasMock = vi.fn();
 
     const SIGNATURES_BY_INDEX = [
       TRANSACTION_SIGNATURE_MOCK,
@@ -390,27 +385,27 @@ describe('Batch Utils', () => {
     }
 
     beforeEach(() => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
       stateChangeEntries.length = 0;
       mockMessengerNetworkCalls();
 
-      addTransactionMock = jest.fn();
-      getTransactionMock = jest.fn().mockImplementation((id: string) => ({
+      addTransactionMock = vi.fn();
+      getTransactionMock = vi.fn().mockImplementation((id: string) => ({
         id,
         status: TransactionStatus.signed,
         txParams: {},
       }));
-      updateTransactionMock = jest.fn();
-      publishTransactionMock = jest.fn();
-      getPendingTransactionTrackerMock = jest.fn();
-      updateMock = jest.fn();
-      signTransactionMock = jest.fn();
+      updateTransactionMock = vi.fn();
+      publishTransactionMock = vi.fn();
+      getPendingTransactionTrackerMock = vi.fn();
+      updateMock = vi.fn();
+      signTransactionMock = vi.fn();
 
-      getGasFeeEstimatesMock = jest
+      getGasFeeEstimatesMock = vi
         .fn()
         .mockResolvedValue(createGasFeeFlowMock());
 
-      getGasFeesMock = jest.fn().mockResolvedValue({
+      getGasFeesMock = vi.fn().mockResolvedValue({
         estimates: {
           type: GasFeeEstimateType.FeeMarket,
           [GasFeeEstimateLevel.Low]: {
@@ -428,9 +423,9 @@ describe('Batch Utils', () => {
         },
       });
 
-      jest
-        .spyOn(DefaultGasFeeFlow.prototype, 'getGasFees')
-        .mockImplementation(getGasFeesMock);
+      vi.spyOn(DefaultGasFeeFlow.prototype, 'getGasFees').mockImplementation(
+        getGasFeesMock,
+      );
 
       determineTransactionTypeMock.mockResolvedValue({
         type: TransactionType.simpleSend,
@@ -452,9 +447,9 @@ describe('Batch Utils', () => {
         getGasFeeEstimates: getGasFeeEstimatesMock,
         getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
         getPendingTransactionTracker: getPendingTransactionTrackerMock,
-        getSimulationConfig: jest.fn(),
+        getSimulationConfig: vi.fn(),
         getTransaction: getTransactionMock,
-        isSimulationEnabled: jest.fn().mockReturnValue(true),
+        isSimulationEnabled: vi.fn().mockReturnValue(true),
         messenger: MESSENGER_MOCK,
         publicKeyEIP7702: PUBLIC_KEY_MOCK,
         publishTransaction: publishTransactionMock,
@@ -543,7 +538,7 @@ describe('Batch Utils', () => {
       let resolvePublishBatch:
         | ((value: Awaited<ReturnType<PublishBatchHook>>) => void)
         | undefined;
-      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn(
+      const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn(
         () =>
           new Promise((resolve) => {
             resolvePublishBatch = resolve;
@@ -675,7 +670,7 @@ describe('Batch Utils', () => {
     });
 
     it('preserves nested transaction types when disable7702 is true', async () => {
-      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+      const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn();
       mockRequestApproval(MESSENGER_MOCK, {
         state: 'approved',
       });
@@ -726,7 +721,7 @@ describe('Batch Utils', () => {
     });
 
     it('preserves nested transaction types when disable7702 is false', async () => {
-      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+      const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn();
 
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,
@@ -772,7 +767,7 @@ describe('Batch Utils', () => {
     });
 
     it('throws if EIP-7702 is required but the account does not support it', async () => {
-      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+      const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn();
 
       doesAccountSupportEIP7702Mock.mockReturnValueOnce(false);
 
@@ -793,7 +788,7 @@ describe('Batch Utils', () => {
     });
 
     it('throws if EIP-7702 is required but the chain does not support it', async () => {
-      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+      const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn();
 
       doesChainSupportEIP7702Mock.mockReturnValueOnce(false);
 
@@ -879,7 +874,7 @@ describe('Batch Utils', () => {
         TRANSACTION_BATCH_PARAMS_MOCK,
       );
 
-      const onPublishMock = jest.fn();
+      const onPublishMock = vi.fn();
 
       request.request.transactions[0].existingTransaction = {
         id: TRANSACTION_ID_2_MOCK,
@@ -1538,7 +1533,7 @@ describe('Batch Utils', () => {
           TRANSACTION_BATCH_PARAMS_MOCK,
         );
 
-        const validateSecurityMock = jest.fn();
+        const validateSecurityMock = vi.fn();
         validateSecurityMock.mockResolvedValueOnce({});
 
         request.request.validateSecurity = validateSecurityMock;
@@ -1585,7 +1580,7 @@ describe('Batch Utils', () => {
           CONTRACT_ADDRESS_MOCK,
         );
 
-        const validateSecurityMock = jest.fn();
+        const validateSecurityMock = vi.fn();
         validateSecurityMock.mockResolvedValueOnce({});
 
         request.request.validateSecurity = validateSecurityMock;
@@ -1639,7 +1634,7 @@ describe('Batch Utils', () => {
 
         request.request.authorizationList = [providedAuthorization];
 
-        const validateSecurityMock = jest.fn();
+        const validateSecurityMock = vi.fn();
         validateSecurityMock.mockResolvedValueOnce({});
 
         request.request.validateSecurity = validateSecurityMock;
@@ -1664,7 +1659,7 @@ describe('Batch Utils', () => {
       });
 
       it('returns provided batch ID', async () => {
-        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+        const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn();
 
         mockAddTransactionWithAutoSign(
           {
@@ -1718,7 +1713,7 @@ describe('Batch Utils', () => {
       });
 
       it('adds each nested transaction', async () => {
-        const publishBatchHook = jest.fn();
+        const publishBatchHook = vi.fn();
 
         mockAddTransactionWithAutoSign(
           {
@@ -1788,7 +1783,7 @@ describe('Batch Utils', () => {
 
           addTransactionBatch({
             ...request,
-            publishBatchHook: jest.fn(),
+            publishBatchHook: vi.fn(),
             request: { ...request.request, origin, disable7702: true },
             messenger: MESSENGER_MOCK,
           }).catch(() => {
@@ -1808,7 +1803,7 @@ describe('Batch Utils', () => {
       );
 
       it('calls publish batch hook', async () => {
-        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+        const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn();
 
         mockAddTransactionWithAutoSign(
           {
@@ -1855,7 +1850,7 @@ describe('Batch Utils', () => {
       });
 
       it('resolves individual publish hooks with transaction hashes from publish batch hook', async () => {
-        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+        const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn();
         const publishHookPromises: (Promise<unknown> | undefined)[] = [];
 
         const txMeta1 = {
@@ -1922,8 +1917,8 @@ describe('Batch Utils', () => {
       });
 
       it('handles existing transactions', async () => {
-        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
-        const onPublish = jest.fn();
+        const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn();
+        const onPublish = vi.fn();
 
         const EXISTING_TRANSACTION_MOCK = {
           id: TRANSACTION_ID_2_MOCK,
@@ -2021,8 +2016,8 @@ describe('Batch Utils', () => {
       });
 
       it('adds batch ID to existing transaction without nonce', async () => {
-        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
-        const onPublish = jest.fn();
+        const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn();
+        const onPublish = vi.fn();
         const existingTransactionMock = {};
 
         simulateGasBatchMock.mockResolvedValueOnce({
@@ -2109,8 +2104,8 @@ describe('Batch Utils', () => {
       });
 
       it('re-signs transaction if existing transaction is not first in batch', async () => {
-        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
-        const onPublish = jest.fn();
+        const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn();
+        const onPublish = vi.fn();
 
         const EXISTING_TRANSACTION_MOCK = {
           id: TRANSACTION_ID_2_MOCK,
@@ -2243,10 +2238,12 @@ describe('Batch Utils', () => {
           },
         );
 
-        const publishBatchHookMock = jest.fn().mockResolvedValue(undefined);
-        sequentialPublishBatchHookMock.mockReturnValue({
-          getHook: () => publishBatchHookMock,
-        } as unknown as SequentialPublishBatchHook);
+        const publishBatchHookMock = vi.fn().mockResolvedValue(undefined);
+        sequentialPublishBatchHookMock.mockImplementation(function () {
+          return {
+            getHook: () => publishBatchHookMock,
+          } as unknown as SequentialPublishBatchHook;
+        });
 
         const resultPromise = addTransactionBatch({
           ...request,
@@ -2266,7 +2263,7 @@ describe('Batch Utils', () => {
       });
 
       it('rejects individual publish hooks if batch hook throws', async () => {
-        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+        const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn();
         const publishHookPromises: (Promise<unknown> | undefined)[] = [];
 
         const txMeta1 = {
@@ -2329,7 +2326,7 @@ describe('Batch Utils', () => {
       });
 
       it('rejects individual publish hooks if add transaction throws', async () => {
-        const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+        const publishBatchHook: MockedFunction<PublishBatchHook> = vi.fn();
 
         addTransactionMock
           .mockResolvedValueOnce({
@@ -2375,12 +2372,12 @@ describe('Batch Utils', () => {
     });
 
     describe('with sequential publish batch hook', () => {
-      let sequentialPublishBatchHook: jest.MockedFn<PublishBatchHook>;
+      let sequentialPublishBatchHook: MockedFunction<PublishBatchHook>;
 
       beforeEach(() => {
         doesChainSupportEIP7702Mock.mockReturnValue(false);
 
-        sequentialPublishBatchHook = jest.fn();
+        sequentialPublishBatchHook = vi.fn();
 
         mockAddTransactionWithAutoSign(
           {
@@ -2403,9 +2400,11 @@ describe('Batch Utils', () => {
       const setupSequentialPublishBatchHookMock = (
         hookImplementation: () => PublishBatchHook | undefined,
       ): void => {
-        sequentialPublishBatchHookMock.mockReturnValue({
-          getHook: hookImplementation,
-        } as unknown as SequentialPublishBatchHook);
+        sequentialPublishBatchHookMock.mockImplementation(function () {
+          return {
+            getHook: hookImplementation,
+          } as unknown as SequentialPublishBatchHook;
+        });
       };
 
       const executePublishHooks = async (): Promise<void> => {
@@ -2430,7 +2429,7 @@ describe('Batch Utils', () => {
       };
 
       it('throws if simulation is not supported', async () => {
-        const isSimulationSupportedMock = jest.fn().mockReturnValue(false);
+        const isSimulationSupportedMock = vi.fn().mockReturnValue(false);
         setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
 
         await expect(
@@ -2450,7 +2449,7 @@ describe('Batch Utils', () => {
       });
 
       it('throws if no supported methods found', async () => {
-        const isSimulationSupportedMock = jest.fn().mockReturnValue(false);
+        const isSimulationSupportedMock = vi.fn().mockReturnValue(false);
         setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
 
         await expect(
@@ -2558,7 +2557,7 @@ describe('Batch Utils', () => {
         });
         mockSequentialPublishBatchHookResults();
         setupSequentialPublishBatchHookMock(() => sequentialPublishBatchHook);
-        const publishBatchHookMock = jest.fn().mockResolvedValue(undefined);
+        const publishBatchHookMock = vi.fn().mockResolvedValue(undefined);
 
         const resultPromise = addTransactionBatch({
           ...request,
@@ -2722,7 +2721,7 @@ describe('Batch Utils', () => {
 
   describe('isAtomicBatchSupported', () => {
     beforeEach(() => {
-      jest.resetAllMocks();
+      vi.resetAllMocks();
       mockMessengerNetworkCalls();
     });
 
@@ -2823,7 +2822,7 @@ describe('Batch Utils', () => {
         delegationAddress: undefined,
       });
 
-      const messengerCallMock = jest.mocked(MESSENGER_MOCK.call);
+      const messengerCallMock = vi.mocked(MESSENGER_MOCK.call);
 
       messengerCallMock.mockImplementation((...args: unknown[]) => {
         const [, chainId] = args as [string, string?];

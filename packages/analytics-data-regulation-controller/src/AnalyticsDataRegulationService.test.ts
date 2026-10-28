@@ -4,7 +4,8 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll, disableNetConnect, enableNetConnect } from 'nock';
+import nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AnalyticsDataRegulationServiceMessenger } from './AnalyticsDataRegulationService.js';
 import { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService.js';
@@ -18,13 +19,13 @@ describe('AnalyticsDataRegulationService', () => {
   const segmentRegulationsEndpoint = 'https://proxy.example.com/v1beta';
 
   beforeEach(() => {
-    cleanAll();
-    disableNetConnect();
+    nock.cleanAll();
+    nock.disableNetConnect();
   });
 
   afterEach(() => {
-    cleanAll();
-    enableNetConnect();
+    nock.cleanAll();
+    nock.enableNetConnect();
   });
 
   describe('AnalyticsDataRegulationService:createDataDeletionTask', () => {
@@ -409,7 +410,7 @@ describe('AnalyticsDataRegulationService', () => {
         .get('/regulations/reg-1')
         .reply(200, statusBody(DATA_DELETE_STATUSES.Finished));
       const { service, messenger } = getService();
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      const publishSpy = vi.spyOn(messenger, 'publish');
 
       await service.checkDataDeleteStatus('reg-1');
 

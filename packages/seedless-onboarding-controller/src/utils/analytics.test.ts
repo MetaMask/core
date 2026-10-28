@@ -1,5 +1,7 @@
 import type { FetchedSecretDataItem } from '@metamask/toprf-secure-backup';
 import { stringToBytes } from '@metamask/utils';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   createFetchedSecretDataItem,
@@ -23,7 +25,7 @@ import {
 import { parseSecretMetadata } from './secret-data-utils.js';
 
 function expectTrackedEvent(
-  trackEvent: jest.Mock,
+  trackEvent: Mock,
   {
     name,
     properties,
@@ -44,18 +46,18 @@ function expectTrackedEvent(
 
 describe('identifyIncompleteMetadataBackup', () => {
   it('does not track an event when the legacy primary matches the local primary', async () => {
-    const fetchAllSecretDataFn = jest
+    const fetchAllSecretDataFn = vi
       .fn()
       .mockResolvedValue([
         createFetchedSecretDataItem(PrivateKey1),
         createFetchedSecretDataItem(SRP1),
         createFetchedSecretDataItem(SRP2),
       ]);
-    const getPrimaryKeyringSeedPhraseFn = jest
+    const getPrimaryKeyringSeedPhraseFn = vi
       .fn()
       .mockResolvedValue(stringToBytes(SRP1.data));
-    const trackEvent = jest.fn();
-    const logFn = jest.fn();
+    const trackEvent = vi.fn();
+    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
@@ -70,18 +72,18 @@ describe('identifyIncompleteMetadataBackup', () => {
   });
 
   it('tracks a mismatch when the earliest legacy SRP is not the local primary', async () => {
-    const fetchAllSecretDataFn = jest
+    const fetchAllSecretDataFn = vi
       .fn()
       .mockResolvedValue([
         createFetchedSecretDataItem(PrivateKey1),
         createFetchedSecretDataItem(SRP1),
         createFetchedSecretDataItem(SRP2),
       ]);
-    const getPrimaryKeyringSeedPhraseFn = jest
+    const getPrimaryKeyringSeedPhraseFn = vi
       .fn()
       .mockResolvedValue(stringToBytes('actual primary srp'));
-    const trackEvent = jest.fn();
-    const logFn = jest.fn();
+    const trackEvent = vi.fn();
+    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
@@ -102,17 +104,17 @@ describe('identifyIncompleteMetadataBackup', () => {
   });
 
   it('uses the explicitly tagged V2 primary when it matches the local primary', async () => {
-    const fetchAllSecretDataFn = jest
+    const fetchAllSecretDataFn = vi
       .fn()
       .mockResolvedValue([
         createFetchedSecretDataItem(ImportedSRP1),
         createFetchedSecretDataItem(PrimarySRP2),
       ]);
-    const getPrimaryKeyringSeedPhraseFn = jest
+    const getPrimaryKeyringSeedPhraseFn = vi
       .fn()
       .mockResolvedValue(stringToBytes(PrimarySRP2.data));
-    const trackEvent = jest.fn();
-    const logFn = jest.fn();
+    const trackEvent = vi.fn();
+    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
@@ -126,17 +128,17 @@ describe('identifyIncompleteMetadataBackup', () => {
   });
 
   it('tracks a mismatch when the explicitly tagged V2 primary differs', async () => {
-    const fetchAllSecretDataFn = jest
+    const fetchAllSecretDataFn = vi
       .fn()
       .mockResolvedValue([
         createFetchedSecretDataItem(ImportedSRP1),
         createFetchedSecretDataItem(PrimarySRP2),
       ]);
-    const getPrimaryKeyringSeedPhraseFn = jest
+    const getPrimaryKeyringSeedPhraseFn = vi
       .fn()
       .mockResolvedValue(stringToBytes('actual primary srp'));
-    const trackEvent = jest.fn();
-    const logFn = jest.fn();
+    const trackEvent = vi.fn();
+    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
@@ -187,10 +189,10 @@ describe('identifyIncompleteMetadataBackup', () => {
   ])(
     'tracks a missing-primary event for $description',
     async ({ secretDataItems, properties }) => {
-      const fetchAllSecretDataFn = jest.fn().mockResolvedValue(secretDataItems);
-      const getPrimaryKeyringSeedPhraseFn = jest.fn();
-      const trackEvent = jest.fn();
-      const logFn = jest.fn();
+      const fetchAllSecretDataFn = vi.fn().mockResolvedValue(secretDataItems);
+      const getPrimaryKeyringSeedPhraseFn = vi.fn();
+      const trackEvent = vi.fn();
+      const logFn = vi.fn();
 
       await trackIncompleteMetadataBackupEvents({
         fetchAllSecretDataFn,
@@ -210,13 +212,13 @@ describe('identifyIncompleteMetadataBackup', () => {
 
   it('logs fetch failures without tracking an affected-user event', async () => {
     const error = new Error('network failure');
-    const fetchAllSecretDataFn = jest.fn().mockRejectedValue(error);
-    const trackEvent = jest.fn();
-    const logFn = jest.fn();
+    const fetchAllSecretDataFn = vi.fn().mockRejectedValue(error);
+    const trackEvent = vi.fn();
+    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
-      getPrimaryKeyringSeedPhraseFn: jest.fn(),
+      getPrimaryKeyringSeedPhraseFn: vi.fn(),
       trackEvent,
       logFn,
     });
@@ -229,18 +231,18 @@ describe('identifyIncompleteMetadataBackup', () => {
   });
 
   it('logs malformed metadata without tracking an affected-user event', async () => {
-    const fetchAllSecretDataFn = jest.fn().mockResolvedValue([
+    const fetchAllSecretDataFn = vi.fn().mockResolvedValue([
       {
         data: stringToBytes('malformed metadata'),
         version: 'v1',
       } as FetchedSecretDataItem,
     ]);
-    const trackEvent = jest.fn();
-    const logFn = jest.fn();
+    const trackEvent = vi.fn();
+    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
-      getPrimaryKeyringSeedPhraseFn: jest.fn(),
+      getPrimaryKeyringSeedPhraseFn: vi.fn(),
       trackEvent,
       logFn,
     });
@@ -254,12 +256,12 @@ describe('identifyIncompleteMetadataBackup', () => {
 
   it('logs local keyring failures without tracking an affected-user event', async () => {
     const error = new Error('keyring unavailable');
-    const fetchAllSecretDataFn = jest
+    const fetchAllSecretDataFn = vi
       .fn()
       .mockResolvedValue([createFetchedSecretDataItem(SRP1)]);
-    const getPrimaryKeyringSeedPhraseFn = jest.fn().mockRejectedValue(error);
-    const trackEvent = jest.fn();
-    const logFn = jest.fn();
+    const getPrimaryKeyringSeedPhraseFn = vi.fn().mockRejectedValue(error);
+    const trackEvent = vi.fn();
+    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
@@ -276,14 +278,14 @@ describe('identifyIncompleteMetadataBackup', () => {
   });
 
   it('does not propagate analytics tracking failures', async () => {
-    const fetchAllSecretDataFn = jest.fn().mockResolvedValue([]);
+    const fetchAllSecretDataFn = vi.fn().mockResolvedValue([]);
     const trackError = new Error('analytics unavailable');
-    const trackEvent = jest.fn().mockRejectedValue(trackError);
-    const logFn = jest.fn();
+    const trackEvent = vi.fn().mockRejectedValue(trackError);
+    const logFn = vi.fn();
 
     await trackIncompleteMetadataBackupEvents({
       fetchAllSecretDataFn,
-      getPrimaryKeyringSeedPhraseFn: jest.fn(),
+      getPrimaryKeyringSeedPhraseFn: vi.fn(),
       trackEvent,
       logFn,
     });

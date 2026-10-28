@@ -1,0 +1,674 @@
+import { HyperliquidError } from '@nktkas/hyperliquid';
+import { vi } from 'vitest';
+import type { Mock, Mocked, MockedClass, MockedFunction } from 'vitest';
+
+import { PROVIDER_CONFIG } from '../../src/constants/perpsConfig.js';
+import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
+import { HyperLiquidClientService } from '../../src/services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../../src/services/HyperLiquidSubscriptionService.js';
+import { HyperLiquidWalletService } from '../../src/services/HyperLiquidWalletService.js';
+import { TradingReadinessCache } from '../../src/services/TradingReadinessCache.js';
+import type {
+  ChaseOrderMaxDistanceReached,
+  PerpsPlatformDependencies,
+} from '../../src/types/index.js';
+import * as hyperLiquidAdapterModule from '../../src/utils/hyperLiquidAdapter.js';
+import {
+  validateAssetSupport,
+  validateBalance,
+  validateCoinExists,
+  validateDepositParams,
+  validateOrderParams,
+  validateWithdrawalParams,
+} from '../../src/utils/hyperLiquidValidation.js';
+import * as hyperLiquidValidationModule from '../../src/utils/hyperLiquidValidation.js';
+import {
+  createMockInfrastructure,
+  createMockMessenger,
+} from './serviceMocks.js';
+
+export class TestApiRequestError extends HyperliquidError {
+  readonly response: unknown;
+
+  constructor(response: unknown, message?: string) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.response = response;
+  }
+}
+
+export const MockedHyperLiquidClientService =
+  HyperLiquidClientService as MockedClass<typeof HyperLiquidClientService>;
+export const MockedHyperLiquidWalletService =
+  HyperLiquidWalletService as MockedClass<typeof HyperLiquidWalletService>;
+export const MockedHyperLiquidSubscriptionService =
+  HyperLiquidSubscriptionService as MockedClass<
+    typeof HyperLiquidSubscriptionService
+  >;
+export const mockValidateOrderParams = validateOrderParams as MockedFunction<
+  typeof validateOrderParams
+>;
+export const mockValidateWithdrawalParams =
+  validateWithdrawalParams as MockedFunction<typeof validateWithdrawalParams>;
+export const mockValidateDepositParams =
+  validateDepositParams as MockedFunction<typeof validateDepositParams>;
+export const mockValidateCoinExists = validateCoinExists as MockedFunction<
+  typeof validateCoinExists
+>;
+export const mockValidateAssetSupport = validateAssetSupport as MockedFunction<
+  typeof validateAssetSupport
+>;
+export const mockValidateBalance = validateBalance as MockedFunction<
+  typeof validateBalance
+>;
+
+/** Every method on the mocked info and exchange clients is a Vitest mock. */
+export type MockClient = Record<string, Mock>;
+
+export type MockClearinghouseBalance = {
+  marginSummary: {
+    totalMarginUsed: string;
+    accountValue: string;
+  };
+  withdrawable: string;
+  assetPositions: never[];
+  crossMarginSummary: {
+    accountValue: string;
+    totalMarginUsed: string;
+  };
+};
+
+/**
+ * Build the read-side client the provider queries.
+ *
+ * @param overrides - Methods to replace or add for a single test.
+ * @returns The mock info client.
+ */
+export const createMockInfoClient = (
+  overrides: MockClient = {},
+): MockClient => ({
+  clearinghouseState: vi.fn().mockResolvedValue({
+    marginSummary: {
+      totalMarginUsed: '500',
+      accountValue: '10500',
+    },
+    withdrawable: '9500',
+    assetPositions: [
+      {
+        position: {
+          coin: 'BTC',
+          szi: '0.1',
+          entryPx: '50000',
+          positionValue: '5000',
+          unrealizedPnl: '100',
+          marginUsed: '500',
+          leverage: { type: 'cross', value: 10 },
+          liquidationPx: '45000',
+          maxLeverage: 50,
+          returnOnEquity: '20',
+          cumFunding: { allTime: '10', sinceOpen: '5', sinceChange: '2' },
+        },
+        type: 'oneWay',
+      },
+      {
+        position: {
+          coin: 'ETH',
+          szi: '1.5',
+          entryPx: '3000',
+          positionValue: '4500',
+          unrealizedPnl: '50',
+          marginUsed: '450',
+          leverage: { type: 'cross', value: 10 },
+          liquidationPx: '2700',
+          maxLeverage: 50,
+          returnOnEquity: '10',
+          cumFunding: { allTime: '5', sinceOpen: '2', sinceChange: '1' },
+        },
+        type: 'oneWay',
+      },
+    ],
+    crossMarginSummary: {
+      accountValue: '10000',
+      totalMarginUsed: '5000',
+    },
+  }),
+  spotClearinghouseState: vi.fn().mockResolvedValue({
+    balances: [{ coin: 'USDC', hold: '1000', total: '10000' }],
+  }),
+  // Mode-aware fold gate reads userAbstraction; default to unifiedAccount
+  // so tests that predated the gate still see spot folded into spendable/withdrawable.
+  userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+  meta: vi.fn().mockResolvedValue({
+    universe: [
+      { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+      { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+    ],
+  }),
+  metaAndAssetCtxs: vi.fn().mockResolvedValue([
+    {
+      universe: [
+        { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+        { name: 'ETH', szDecimals: 4, maxLeverage: 50 },
+      ],
+    },
+    [
+      {
+        funding: '0.0001',
+        openInterest: '1000',
+        prevDayPx: '49000',
+        dayNtlVlm: '1000000',
+        markPx: '50000',
+        midPx: '50000',
+        oraclePx: '50000',
+      },
+      {
+        funding: '0.0001',
+        openInterest: '500',
+        prevDayPx: '2900',
+        dayNtlVlm: '500000',
+        markPx: '3000',
+        midPx: '3000',
+        oraclePx: '3000',
+      },
+    ],
+  ]),
+  perpDexs: vi.fn().mockResolvedValue([null]),
+  allMids: vi.fn().mockResolvedValue({ BTC: '50000', ETH: '3000' }),
+  // editOrder verifies the resting order's placement type before modifying it,
+  // so the account lists the plain limit order the edit tests target.
+  frontendOpenOrders: vi.fn().mockResolvedValue([
+    {
+      coin: 'BTC',
+      side: 'B',
+      limitPx: '50000',
+      sz: '0.1',
+      origSz: '0.1',
+      oid: 123,
+      timestamp: 1_700_000_000_000,
+      isTrigger: false,
+      triggerCondition: 'N/A',
+      triggerPx: '0',
+      children: [],
+      isPositionTpsl: false,
+      reduceOnly: false,
+      orderType: 'Limit',
+    },
+  ]),
+  referral: vi.fn().mockResolvedValue({
+    referrerState: {
+      stage: 'ready',
+      data: { code: 'MMCSI' },
+    },
+  }),
+  maxBuilderFee: vi.fn().mockResolvedValue(1),
+  userFees: vi.fn().mockResolvedValue({
+    feeSchedule: {
+      cross: '0.00030',
+      add: '0.00010',
+      spotCross: '0.00040',
+      spotAdd: '0.00020',
+    },
+    dailyUserVlm: [],
+  }),
+  userNonFundingLedgerUpdates: vi.fn().mockResolvedValue([
+    {
+      delta: { type: 'deposit', usdc: '100' },
+      time: Date.now(),
+      hash: '0x123abc',
+    },
+    {
+      delta: { type: 'withdraw', usdc: '50' },
+      time: Date.now() - 3600000,
+      hash: '0x456def',
+    },
+  ]),
+  portfolio: vi.fn().mockResolvedValue([
+    null,
+    [
+      null,
+      {
+        accountValueHistory: [
+          [Date.now() - 86400000, '10000'], // 24h ago
+          [Date.now() - 172800000, '9500'], // 48h ago
+          [Date.now() - 259200000, '9000'], // 72h ago
+        ],
+      },
+    ],
+  ]),
+  spotMeta: vi.fn().mockResolvedValue({
+    tokens: [
+      { name: 'USDC', tokenId: '0xdef456', index: 0 },
+      { name: 'USDT', tokenId: '0x789abc', index: 1 },
+    ],
+    universe: [],
+  }),
+  historicalOrders: vi.fn().mockResolvedValue([]),
+  twapHistory: vi.fn().mockResolvedValue([]),
+  userFills: vi.fn().mockResolvedValue([]),
+  userFillsByTime: vi.fn().mockResolvedValue([]),
+  userFunding: vi.fn().mockResolvedValue([]),
+  userTwapSliceFills: vi.fn().mockResolvedValue([]),
+  ...overrides,
+});
+
+/**
+ * Build the write-side client the provider signs through.
+ *
+ * @param overrides - Methods to replace or add for a single test.
+ * @returns The mock exchange client.
+ */
+export const createMockExchangeClient = (
+  overrides: MockClient = {},
+): MockClient => ({
+  order: vi.fn().mockImplementation((request: { orders: unknown[] }) =>
+    Promise.resolve({
+      status: 'ok',
+      response: {
+        data: {
+          statuses: request.orders.map((_order, index) => ({
+            resting: { oid: 123 + index },
+          })),
+        },
+      },
+    }),
+  ),
+  modify: vi.fn().mockResolvedValue({
+    status: 'ok',
+    response: { data: { statuses: [{ resting: { oid: '123' } }] } },
+  }),
+  cancel: vi.fn().mockResolvedValue({
+    status: 'ok',
+    response: { data: { statuses: ['success'] } },
+  }),
+  cancelByCloid: vi.fn().mockImplementation((request: { cancels: unknown[] }) =>
+    Promise.resolve({
+      status: 'ok',
+      response: {
+        data: { statuses: request.cancels.map(() => 'success') },
+      },
+    }),
+  ),
+  withdraw3: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  updateLeverage: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  approveBuilderFee: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  setReferrer: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  sendAsset: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  agentSetAbstraction: vi.fn().mockResolvedValue({
+    status: 'ok',
+  }),
+  ...overrides,
+});
+
+// Create shared mock platform dependencies for provider tests
+export const mockPlatformDependencies: PerpsPlatformDependencies =
+  createMockInfrastructure();
+
+let mockMessenger = createMockMessenger();
+
+/**
+ * Build a provider backed by the mock services above.
+ *
+ * @param options - Provider construction options.
+ * @param options.isTestnet - Whether the provider runs against testnet.
+ * @param options.initialAssetMapping - Pre-seeded symbol-to-asset-ID entries.
+ * @param options.hip3Enabled - Whether HIP-3 routes are enabled.
+ * @param options.allowlistMarkets - HIP-3 market allowlist.
+ * @param options.blocklistMarkets - HIP-3 market blocklist.
+ * @param options.useUnifiedAccount - Whether HIP-3 orders use unified collateral.
+ * @param options.onChaseOrderMaxDistanceReached - Chase boundary callback.
+ * @returns The provider under test.
+ */
+export const createTestProvider = (
+  options: {
+    isTestnet?: boolean;
+    initialAssetMapping?: [string, number][];
+    hip3Enabled?: boolean;
+    allowlistMarkets?: string[];
+    blocklistMarkets?: string[];
+    useUnifiedAccount?: boolean;
+    onChaseOrderMaxDistanceReached?: (
+      event: ChaseOrderMaxDistanceReached,
+    ) => void;
+  } = {},
+): HyperLiquidProvider =>
+  new HyperLiquidProvider({
+    ...options,
+    platformDependencies: mockPlatformDependencies,
+    messenger: mockMessenger,
+  });
+
+/** The client service mock that the latest provider setup installed. */
+let currentClientService: Mocked<HyperLiquidClientService>;
+
+/**
+ * Reset the shared mocks and build the provider under test with fresh
+ * client, wallet and subscription service mocks.
+ *
+ * @returns The provider and the service mocks it was built with.
+ */
+export function setUpStrategyProvider(): {
+  provider: HyperLiquidProvider;
+  mockClientService: Mocked<HyperLiquidClientService>;
+  mockWalletService: Mocked<HyperLiquidWalletService>;
+  mockSubscriptionService: Mocked<HyperLiquidSubscriptionService>;
+} {
+  // Reset all mocks
+  vi.clearAllMocks();
+  mockMessenger = createMockMessenger();
+  (
+    mockPlatformDependencies.marketDataFormatters.formatVolume as Mock
+  ).mockImplementation((value: number) => `$${value.toFixed(0)}`);
+  (
+    mockPlatformDependencies.marketDataFormatters.formatPerpsFiat as Mock
+  ).mockImplementation((value: number) => `$${value.toFixed(2)}`);
+  (
+    mockPlatformDependencies.marketDataFormatters.formatPercentage as Mock
+  ).mockImplementation((value: number) => `${value.toFixed(2)}%`);
+  (
+    mockPlatformDependencies.featureFlags.validateVersionGated as Mock
+  ).mockReturnValue(undefined);
+  (mockPlatformDependencies.metrics.isEnabled as Mock).mockReturnValue(true);
+
+  // Reset TradingReadinessCache mock state (using imported mocked module)
+  const mockedCache = TradingReadinessCache as Mocked<
+    typeof TradingReadinessCache
+  >;
+  mockedCache.get.mockReturnValue(undefined);
+  mockedCache.getBuilderFee.mockReturnValue(undefined);
+  mockedCache.getReferral.mockReturnValue(undefined);
+  mockedCache.isInFlight.mockReturnValue(undefined);
+  mockedCache.setInFlight.mockReturnValue(vi.fn());
+
+  // Create mocked service instances using factory functions
+  const mockClientService = {
+    initialize: vi.fn(),
+    isInitialized: vi.fn().mockReturnValue(true),
+    isTestnetMode: vi.fn().mockReturnValue(false),
+    ensureInitialized: vi.fn(),
+    getExchangeClient: vi.fn().mockReturnValue(createMockExchangeClient()),
+    getInfoClient: vi.fn().mockReturnValue(createMockInfoClient()),
+    fetchHistoricalOrders: vi.fn().mockResolvedValue([]),
+    disconnect: vi.fn().mockResolvedValue(undefined),
+    toggleTestnet: vi.fn(),
+    setTestnetMode: vi.fn(),
+    getNetwork: vi.fn().mockReturnValue('mainnet'),
+    ensureSubscriptionClient: vi.fn().mockResolvedValue(undefined),
+    getSubscriptionClient: vi.fn(),
+    setOnReconnectCallback: vi.fn(),
+    setOnTerminateCallback: vi.fn(),
+    getConnectionState: vi.fn().mockReturnValue('connected'),
+  } as Partial<HyperLiquidClientService> as Mocked<HyperLiquidClientService>;
+
+  const mockWalletService = {
+    setTestnetMode: vi.fn(),
+    getCurrentAccountId: vi
+      .fn()
+      .mockReturnValue(
+        'eip155:42161:0x1234567890123456789012345678901234567890',
+      ),
+    createWalletAdapter: vi.fn().mockReturnValue({
+      request: vi
+        .fn()
+        .mockResolvedValue(['0x1234567890123456789012345678901234567890']),
+    }),
+    getUserAddress: vi
+      .fn()
+      .mockReturnValue('0x1234567890123456789012345678901234567890'),
+    getUserAddressWithDefault: vi
+      .fn()
+      .mockResolvedValue('0x1234567890123456789012345678901234567890'),
+    isMainAccountSignerReady: vi.fn().mockReturnValue(true),
+    requiresSignatureConfirmation: vi.fn().mockReturnValue(false),
+  } as Partial<HyperLiquidWalletService> as Mocked<HyperLiquidWalletService>;
+
+  const mockSubscriptionService = {
+    subscribeToPrices: vi.fn().mockResolvedValue(vi.fn()), // Returns Promise
+    subscribeToPositions: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
+    subscribeToOrderFills: vi.fn().mockReturnValue(vi.fn()), // Returns function directly
+    clearAll: vi.fn(),
+    isPositionsCacheInitialized: vi.fn().mockReturnValue(false),
+    getCachedPositionsForDex: vi.fn().mockReturnValue(null),
+    getFreshPositionsForAllDexs: vi.fn().mockReturnValue(null),
+    getCachedPositions: vi.fn().mockReturnValue([]),
+    updateFeatureFlags: vi.fn().mockResolvedValue(undefined),
+    // Cache methods used by buildAssetMapping optimization
+    setDexMetaCache: vi.fn(),
+    setDexAssetCtxsCache: vi.fn(),
+    getDexAssetCtxsCache: vi.fn().mockReturnValue(undefined),
+    // Price cache used by placeOrder, editOrder, closePosition optimizations
+    getCachedPrice: vi.fn().mockImplementation((symbol: string) => {
+      const prices: Record<string, string> = { BTC: '50000', ETH: '3000' };
+      return prices[symbol];
+    }),
+    getLastAllMidsSnapshot: vi.fn().mockReturnValue(null),
+    // Orders cache used by updatePositionTPSL and getOpenOrders
+    isOrdersCacheInitialized: vi.fn().mockReturnValue(false),
+    getCachedOrders: vi.fn().mockReturnValue([]),
+    // Atomic getter - returns null when cache not initialized (prevents race condition)
+    getOrdersCacheIfInitialized: vi.fn().mockReturnValue(null),
+    // Abstraction-mode resolved-mode setter (unified account migration)
+    setUserAbstractionMode: vi.fn(),
+  } as Partial<HyperLiquidSubscriptionService> as Mocked<HyperLiquidSubscriptionService>;
+
+  // Mock constructors
+  MockedHyperLiquidClientService.mockImplementation(function () {
+    return mockClientService;
+  });
+  MockedHyperLiquidWalletService.mockImplementation(function () {
+    return mockWalletService;
+  });
+  MockedHyperLiquidSubscriptionService.mockImplementation(function () {
+    return mockSubscriptionService;
+  });
+
+  // Mock validation
+  mockValidateOrderParams.mockReturnValue({ isValid: true });
+  mockValidateWithdrawalParams.mockReturnValue({ isValid: true });
+  mockValidateDepositParams.mockReturnValue({ isValid: true });
+  mockValidateCoinExists.mockReturnValue({ isValid: true });
+  mockValidateAssetSupport.mockReturnValue({ isValid: true });
+  mockValidateBalance.mockReturnValue({ isValid: true });
+  const hyperLiquidValidation =
+    hyperLiquidValidationModule as unknown as Record<string, Mock>;
+  hyperLiquidValidation.getSupportedPaths.mockReturnValue([
+    'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+    'eip155:1/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/default',
+  ]);
+  hyperLiquidValidation.getBridgeInfo.mockReturnValue({
+    chainId: 'eip155:42161',
+    contractAddress: '0x1234567890123456789012345678901234567890',
+  });
+  hyperLiquidValidation.createErrorResult.mockImplementation(
+    (error: unknown, defaultResponse: Record<string, unknown>) => ({
+      ...defaultResponse,
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    }),
+  );
+  const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
+    string,
+    Mock
+  >;
+  hyperLiquidAdapter.adaptHyperLiquidLedgerUpdateToUserHistoryItem.mockImplementation(
+    (updates: unknown[]) => {
+      if (!updates || !Array.isArray(updates) || updates.length === 0) {
+        return [];
+      }
+      return updates.map(() => ({
+        type: 'deposit' as const,
+        amount: '100',
+        timestamp: Date.now(),
+        hash: '0x123',
+      }));
+    },
+  );
+
+  const provider = createTestProvider({
+    initialAssetMapping: [
+      ['BTC', 0],
+      ['ETH', 1],
+    ],
+  });
+
+  currentClientService = mockClientService;
+  return {
+    provider,
+    mockClientService,
+    mockWalletService,
+    mockSubscriptionService,
+  };
+}
+
+/**
+ * Swap in exchange/info clients carrying the strategy endpoints, which the
+ * shared factories above do not define.
+ *
+ * @param overrides - Per-client method overrides.
+ * @param overrides.exchange - Exchange client overrides.
+ * @param overrides.info - Info client overrides.
+ * @returns The installed mock clients.
+ */
+export const useStrategyClients = (
+  overrides: { exchange?: MockClient; info?: MockClient } = {},
+): { exchangeClient: MockClient; infoClient: MockClient } => {
+  const exchangeClient = createMockExchangeClient({
+    twapOrder: vi.fn().mockResolvedValue({
+      status: 'ok',
+      response: {
+        type: 'twapOrder',
+        data: { status: { running: { twapId: 987 } } },
+      },
+    }),
+    twapCancel: vi.fn().mockResolvedValue({
+      status: 'ok',
+      response: { type: 'twapCancel', data: { status: 'success' } },
+    }),
+    ...overrides.exchange,
+  });
+  const infoClient = createMockInfoClient({
+    // A Chase reads liveness before re-pricing. Tests that cancel a child
+    // override this with the final canceled remainder when it matters.
+    orderStatus: vi.fn().mockResolvedValue({
+      status: 'order',
+      order: {
+        status: 'open',
+        order: {
+          coin: 'ETH',
+          side: 'B',
+          limitPx: '2999',
+          sz: '1',
+          origSz: '1',
+          oid: 55,
+          timestamp: 1_700_000_000_000,
+          isTrigger: false,
+          triggerCondition: 'N/A',
+          triggerPx: '0',
+          children: [],
+          isPositionTpsl: false,
+          reduceOnly: false,
+          orderType: 'Limit',
+        },
+      },
+    }),
+    l2Book: vi.fn().mockResolvedValue({
+      coin: 'ETH',
+      levels: [
+        [{ px: '2999', sz: '10', n: 1 }],
+        [{ px: '3001', sz: '10', n: 1 }],
+      ],
+    }),
+    ...overrides.info,
+  });
+
+  currentClientService.getExchangeClient.mockReturnValue(
+    exchangeClient as never,
+  );
+  currentClientService.getInfoClient.mockReturnValue(infoClient as never);
+
+  return { exchangeClient, infoClient };
+};
+
+export const useHip3Capabilities = (
+  infoOverrides: MockClient = {},
+  providerOptions: {
+    hip3Enabled?: boolean;
+    allowlistMarkets?: string[];
+    blocklistMarkets?: string[];
+  } = {},
+): {
+  capabilityProvider: HyperLiquidProvider;
+  infoClient: MockClient;
+} => {
+  const { infoClient } = useStrategyClients({
+    info: {
+      perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+      meta: vi.fn().mockResolvedValue({
+        universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+        collateralToken: 0,
+      }),
+      ...infoOverrides,
+    },
+  });
+  return {
+    capabilityProvider: createTestProvider({
+      hip3Enabled: true,
+      ...providerOptions,
+      allowlistMarkets: providerOptions.allowlistMarkets ?? ['xyz:*'],
+    }),
+    infoClient,
+  };
+};
+
+export const baseOrder = {
+  symbol: 'ETH',
+  isBuy: true,
+  size: '1',
+  usdAmount: '3000',
+  currentPrice: 3000,
+  providerId: PROVIDER_CONFIG.DefaultProvider,
+};
+
+export const activeEthTwapHistory = [
+  {
+    time: 1_700_000_030,
+    twapId: 987,
+    state: {
+      coin: 'ETH',
+      executedNtl: '0',
+      executedSz: '0',
+      minutes: 30,
+      randomize: false,
+      reduceOnly: false,
+      side: 'B',
+      sz: '1',
+      timestamp: 1_700_000_000_000,
+      user: '0x1234567890123456789012345678901234567890',
+    },
+    status: { status: 'activated' },
+  },
+];
+
+export const createClearinghouseBalance = (
+  withdrawable: string,
+): MockClearinghouseBalance => ({
+  marginSummary: {
+    totalMarginUsed: '0',
+    accountValue: withdrawable,
+  },
+  withdrawable,
+  assetPositions: [],
+  crossMarginSummary: {
+    accountValue: withdrawable,
+    totalMarginUsed: '0',
+  },
+});

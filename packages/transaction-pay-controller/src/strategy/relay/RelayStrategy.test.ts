@@ -1,4 +1,5 @@
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TransactionPayStrategy } from '../../constants.js';
 import type {
@@ -12,14 +13,14 @@ import { submitRelayQuotes } from './relay-submit.js';
 import { RelayStrategy } from './RelayStrategy.js';
 import type { RelayQuote } from './types.js';
 
-jest.mock('./relay-quotes');
-jest.mock('./relay-submit');
-jest.mock('../../utils/feature-flags');
+vi.mock(import('./relay-quotes.js'));
+vi.mock(import('./relay-submit.js'));
+vi.mock(import('../../utils/feature-flags.js'));
 
 describe('RelayStrategy', () => {
-  const getRelayQuotesMock = jest.mocked(getRelayQuotes);
-  const submitRelayQuotesMock = jest.mocked(submitRelayQuotes);
-  const getPayStrategiesConfigMock = jest.mocked(getPayStrategiesConfig);
+  const getRelayQuotesMock = vi.mocked(getRelayQuotes);
+  const submitRelayQuotesMock = vi.mocked(submitRelayQuotes);
+  const getPayStrategiesConfigMock = vi.mocked(getPayStrategiesConfig);
 
   const messenger = {} as never;
 
@@ -43,7 +44,7 @@ describe('RelayStrategy', () => {
   } as unknown as PayStrategyGetQuotesRequest;
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     getPayStrategiesConfigMock.mockReturnValue({
       across: {
@@ -104,7 +105,7 @@ describe('RelayStrategy', () => {
       messenger,
       quotes: [],
       transaction: request.transaction,
-      isSmartTransaction: jest.fn(),
+      isSmartTransaction: vi.fn(),
     } as PayStrategyExecuteRequest<RelayQuote>;
 
     submitRelayQuotesMock.mockResolvedValue({ transactionHash: '0xhash' });
@@ -121,7 +122,7 @@ describe('RelayStrategy', () => {
       messenger,
       quotes: [],
       transaction: request.transaction,
-      isSmartTransaction: jest.fn(),
+      isSmartTransaction: vi.fn(),
     } as PayStrategyExecuteRequest<RelayQuote>;
     const error = new Error('Insufficient liquidity');
 
@@ -141,7 +142,7 @@ describe('RelayStrategy', () => {
       messenger,
       quotes: [],
       transaction: request.transaction,
-      isSmartTransaction: jest.fn(),
+      isSmartTransaction: vi.fn(),
     } as PayStrategyExecuteRequest<RelayQuote>;
 
     submitRelayQuotesMock.mockRejectedValue(

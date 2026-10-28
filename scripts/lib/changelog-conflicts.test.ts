@@ -1,19 +1,17 @@
-import { jest } from '@jest/globals';
+import { execa } from 'execa';
 import { promises as fs } from 'fs';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-// `jest.mock` does not apply to ES modules, so the module registry is stubbed
-// with `jest.unstable_mockModule` and the modules under test are imported
-// dynamically afterwards.
-jest.unstable_mockModule('execa', () => ({ execa: jest.fn() }));
-
-const { execa } = await import('execa');
-const {
+import {
   findConflictingChangelogFiles,
   mergeChangelogs,
   readGitBlob,
   resolveChangelogConflicts,
   resolvePackageMetadata,
-} = await import('./changelog-conflicts.js');
+} from './changelog-conflicts.ts';
+
+vi.mock(import('execa'), () => ({ execa: vi.fn() }));
 
 const REPO_URL = 'https://github.com/MetaMask/core';
 const TAG_PREFIX = '@metamask/example@';
@@ -606,7 +604,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 describe('findConflictedChangelogFiles', () => {
   it('filters unmerged paths down to package changelogs', async () => {
     // @ts-expect-error: Partial mock.
-    jest.mocked(execa).mockResolvedValue({
+    vi.mocked(execa).mockResolvedValue({
       stdout: [
         'packages/foo/CHANGELOG.md',
         'packages/foo/package.json',
@@ -626,7 +624,7 @@ describe('findConflictedChangelogFiles', () => {
 
   it('returns an empty array when there are no unmerged paths', async () => {
     // @ts-expect-error: Partial mock.
-    jest.mocked(execa).mockResolvedValue({ stdout: '' });
+    vi.mocked(execa).mockResolvedValue({ stdout: '' });
 
     expect(await findConflictingChangelogFiles()).toStrictEqual([]);
   });
@@ -635,7 +633,7 @@ describe('findConflictedChangelogFiles', () => {
 describe('readGitBlob', () => {
   it('reads a file at the given ref', async () => {
     // @ts-expect-error: Partial mock.
-    jest.mocked(execa).mockResolvedValue({ stdout: 'content' });
+    vi.mocked(execa).mockResolvedValue({ stdout: 'content' });
 
     const result = await readGitBlob(':2', 'packages/foo/CHANGELOG.md');
 
@@ -650,7 +648,7 @@ describe('readGitBlob', () => {
 
 describe('resolvePackageMetadata', () => {
   it('resolves the package name, repo URL, and tag prefix from the working tree', async () => {
-    jest.spyOn(fs, 'readFile').mockResolvedValue(
+    vi.spyOn(fs, 'readFile').mockResolvedValue(
       JSON.stringify({
         name: '@metamask/example',
         repository: {
@@ -678,9 +676,9 @@ describe('resolvePackageMetadata', () => {
   });
 
   it('falls back to the "ours" conflict stage if package.json is not parseable in the working tree', async () => {
-    jest.spyOn(fs, 'readFile').mockResolvedValue('<<<<<<< HEAD\nconflict');
+    vi.spyOn(fs, 'readFile').mockResolvedValue('<<<<<<< HEAD\nconflict');
     // @ts-expect-error: Partial mock.
-    jest.mocked(execa).mockResolvedValue({
+    vi.mocked(execa).mockResolvedValue({
       stdout: JSON.stringify({
         name: '@metamask/example',
         repository: { url: 'https://github.com/MetaMask/core' },
@@ -705,9 +703,9 @@ describe('resolvePackageMetadata', () => {
   });
 
   it('throws if the package name or repository URL is missing', async () => {
-    jest
-      .spyOn(fs, 'readFile')
-      .mockResolvedValue(JSON.stringify({ name: '@metamask/example' }));
+    vi.spyOn(fs, 'readFile').mockResolvedValue(
+      JSON.stringify({ name: '@metamask/example' }),
+    );
 
     await expect(
       resolvePackageMetadata('packages/example/CHANGELOG.md'),
@@ -717,7 +715,7 @@ describe('resolvePackageMetadata', () => {
   });
 
   it('includes packageRename for a package known to have been renamed', async () => {
-    jest.spyOn(fs, 'readFile').mockResolvedValue(
+    vi.spyOn(fs, 'readFile').mockResolvedValue(
       JSON.stringify({
         name: '@metamask/json-rpc-engine',
         repository: { url: 'https://github.com/MetaMask/core.git' },
@@ -749,8 +747,7 @@ describe('resolveChangelogConflicts', () => {
 - Added theirs entry ([#11](${REPO_URL}/pull/11))`,
     );
 
-    jest
-      .mocked(execa)
+    vi.mocked(execa)
       // @ts-expect-error: Partial mock.
       .mockImplementation(async (command: string, args: string[]) => {
         if (args[0] === 'diff') {
@@ -771,13 +768,13 @@ describe('resolveChangelogConflicts', () => {
         throw new Error(`Unexpected execa call: ${command} ${args.join(' ')}`);
       });
 
-    jest.spyOn(fs, 'readFile').mockResolvedValue(
+    vi.spyOn(fs, 'readFile').mockResolvedValue(
       JSON.stringify({
         name: '@metamask/example',
         repository: { type: 'git', url: `${REPO_URL}.git` },
       }),
     );
-    jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    vi.spyOn(fs, 'writeFile').mockResolvedValue();
 
     const result = await resolveChangelogConflicts();
 
@@ -808,8 +805,7 @@ describe('resolveChangelogConflicts', () => {
     );
     const theirsContent = baseContent;
 
-    (execa as unknown as jest.Mock).mockImplementation(
-      // @ts-expect-error: Partial mock.
+    (execa as unknown as Mock).mockImplementation(
       async (command: string, args: string[]) => {
         if (args[0] === 'diff') {
           return { stdout: changelogPath };
@@ -830,20 +826,20 @@ describe('resolveChangelogConflicts', () => {
       },
     );
 
-    jest.spyOn(fs, 'readFile').mockResolvedValue(
+    vi.spyOn(fs, 'readFile').mockResolvedValue(
       JSON.stringify({
         name: '@metamask/example',
         repository: { type: 'git', url: `${REPO_URL}.git` },
       }),
     );
-    jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    vi.spyOn(fs, 'writeFile').mockResolvedValue();
 
     const result = await resolveChangelogConflicts();
 
     expect(result.resolved).toStrictEqual([
       { path: changelogPath, mergedEntryCount: 0 },
     ]);
-    const [, writtenContent] = jest.mocked(fs.writeFile).mock.calls[0] as [
+    const [, writtenContent] = vi.mocked(fs.writeFile).mock.calls[0] as [
       string,
       string,
     ];
@@ -860,8 +856,7 @@ describe('resolveChangelogConflicts', () => {
 - Added theirs entry ([#11](${REPO_URL}/pull/11))`,
     );
 
-    (execa as unknown as jest.Mock).mockImplementation(
-      // @ts-expect-error: Partial mock.
+    (execa as unknown as Mock).mockImplementation(
       async (command: string, args: string[]) => {
         if (args[0] === 'diff') {
           return { stdout: changelogPath };
@@ -884,13 +879,13 @@ describe('resolveChangelogConflicts', () => {
       },
     );
 
-    jest.spyOn(fs, 'readFile').mockResolvedValue(
+    vi.spyOn(fs, 'readFile').mockResolvedValue(
       JSON.stringify({
         name: '@metamask/example',
         repository: { type: 'git', url: `${REPO_URL}.git` },
       }),
     );
-    jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    vi.spyOn(fs, 'writeFile').mockResolvedValue();
 
     const result = await resolveChangelogConflicts();
 
@@ -907,7 +902,7 @@ describe('resolveChangelogConflicts', () => {
   it('skips a file that cannot be parsed and leaves it unresolved', async () => {
     const changelogPath = 'packages/example/CHANGELOG.md';
 
-    jest.mocked(execa).mockImplementation(
+    vi.mocked(execa).mockImplementation(
       // @ts-expect-error: Partial mock.
       async (command: string, args: string[]) => {
         if (args[0] === 'diff') {
@@ -926,13 +921,13 @@ describe('resolveChangelogConflicts', () => {
       },
     );
 
-    jest.spyOn(fs, 'readFile').mockResolvedValue(
+    vi.spyOn(fs, 'readFile').mockResolvedValue(
       JSON.stringify({
         name: '@metamask/example',
         repository: { type: 'git', url: `${REPO_URL}.git` },
       }),
     );
-    const writeFileSpy = jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    const writeFileSpy = vi.spyOn(fs, 'writeFile').mockResolvedValue();
 
     const result = await resolveChangelogConflicts();
 

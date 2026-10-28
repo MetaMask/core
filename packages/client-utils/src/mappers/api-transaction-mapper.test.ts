@@ -1,10 +1,12 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { apiTransactionFixtures } from '../../test/fixtures/api-transactions.js';
 import { mapApiTransaction } from './api-transaction-mapper.js';
 import { formatAddressToAssetId } from './helpers/caip.js';
 
 // Mock known-token lookup with the deterministic test table in `test/`.
-jest.mock('./helpers/token-metadata', () => ({
-  getKnownTokenMetadata: jest.requireActual('../../test/test-helpers')
+vi.mock(import('./helpers/token-metadata.js'), async () => ({
+  getKnownTokenMetadata: (await import('../../test/test-helpers.js'))
     .getKnownTokenMetadata,
 }));
 
@@ -796,6 +798,35 @@ describe('mapApiTransaction', () => {
     const token =
       item.type === 'contractInteraction' ? item.data.token : 'unset';
     expect(token).toBeUndefined();
+  });
+
+  it('maps a Polygon smart-account batch execute to a contractInteraction with fees', () => {
+    const item = mapApiTransaction(
+      apiTransactionFixtures.mapArgs.polygonSmartAccountBatchExecute,
+    );
+
+    expect(item).toMatchObject({
+      type: 'contractInteraction',
+      chainId: 'eip155:137',
+      status: 'success',
+      hash: '0xpolygonsmartaccountbatchexecute',
+      data: {
+        from: subjectAddress,
+        to: subjectAddress,
+        methodId: '0xe9ae5c53',
+        transactionCategory: 'WITHDRAW',
+        fees: [
+          {
+            type: 'base',
+            amount: '214819023645917287',
+            decimals: 18,
+            assetType: 'native',
+            symbol: 'POL',
+            assetId: 'eip155:137/slip44:966',
+          },
+        ],
+      },
+    });
   });
 
   it('maps the reported generic contract call to a contract interaction with its token amount', () => {

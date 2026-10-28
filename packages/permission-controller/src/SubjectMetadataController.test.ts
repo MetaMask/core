@@ -6,6 +6,8 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type {
   SubjectMetadata,
@@ -53,11 +55,11 @@ function getSubjectMetadataControllerMessenger(): readonly [
     AllSubjectMetadataControllerEvents,
     RootMessenger
   >,
-  jest.Mock,
+  Mock,
 ] {
   const rootMessenger = getRootMessenger();
 
-  const hasPermissionsSpy = jest.fn();
+  const hasPermissionsSpy = vi.fn();
   rootMessenger.registerActionHandler(
     'PermissionController:hasPermissions',
     hasPermissionsSpy,
@@ -212,6 +214,35 @@ describe('SubjectMetadataController', () => {
       controller.addSubjectMetadata({ origin: 'foo.com', name: 'foo' });
       expect(controller.state).toStrictEqual({
         subjectMetadata: { 'foo.com': getSubjectMetadata('foo.com', 'foo') },
+      });
+    });
+
+    it('does not update state if the subject metadata is identical to the existing entry', () => {
+      const [messenger] = getSubjectMetadataControllerMessenger();
+      const controller = new SubjectMetadataController({
+        messenger,
+        subjectCacheLimit: 10,
+      });
+
+      const stateChangedListener = vi.fn();
+      messenger.subscribe(
+        'SubjectMetadataController:stateChange',
+        stateChangedListener,
+      );
+
+      controller.addSubjectMetadata(getSubjectMetadata('foo.com', 'foo'));
+      expect(stateChangedListener).toHaveBeenCalledTimes(1);
+
+      controller.addSubjectMetadata(getSubjectMetadata('foo.com', 'foo'));
+      expect(stateChangedListener).toHaveBeenCalledTimes(1);
+      expect(controller.state).toStrictEqual({
+        subjectMetadata: { 'foo.com': getSubjectMetadata('foo.com', 'foo') },
+      });
+
+      controller.addSubjectMetadata(getSubjectMetadata('foo.com', 'bar'));
+      expect(stateChangedListener).toHaveBeenCalledTimes(2);
+      expect(controller.state).toStrictEqual({
+        subjectMetadata: { 'foo.com': getSubjectMetadata('foo.com', 'bar') },
       });
     });
 

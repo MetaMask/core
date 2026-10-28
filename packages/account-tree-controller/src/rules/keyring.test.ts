@@ -8,6 +8,7 @@ import { EthAccountType, EthMethod, EthScope } from '@metamask/keyring-api';
 import { KeyringType } from '@metamask/keyring-api/v2';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { describe, expect, it } from 'vitest';
 
 import {
   getAccountTreeControllerMessenger,

@@ -28,6 +28,9 @@ export type {
   GeolocationApiServiceMessenger,
   GeolocationApiServiceActions,
   GeolocationApiServiceEvents,
+  GeolocationApiServiceCacheUpdatedEvent,
+  GeolocationApiServiceGranularCacheUpdatedEvent,
+  GeolocationApiServiceInvalidateQueriesAction,
   FetchGeolocationOptions,
   GeolocationData,
 } from './geolocation-api-service/geolocation-api-service.js';

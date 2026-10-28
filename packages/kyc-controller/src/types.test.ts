@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   CAPABILITY_AUTHORIZATION_STATUSES,
   needsCapabilityAuthorizationRefresh,

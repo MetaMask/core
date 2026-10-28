@@ -1,4 +1,5 @@
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import type {
   DeFiProtocolPositionGroup,

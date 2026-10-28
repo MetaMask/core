@@ -12,8 +12,8 @@ import type {
 } from '@metamask/messenger';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { jestAdvanceTime } from '../../../tests/helpers.js';
 import type { CurrencyRateMessenger } from './CurrencyRateController.js';
 import { CurrencyRateController } from './CurrencyRateController.js';
 import type { AbstractTokenPricesService } from './token-prices-service/index.js';
@@ -68,7 +68,7 @@ function getCurrencyRateControllerMessenger(): CurrencyRateMessenger {
   });
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
-    jest.fn().mockImplementation((networkClientId) => {
+    vi.fn().mockImplementation((networkClientId) => {
       switch (networkClientId) {
         case 'mainnet':
           return {
@@ -123,7 +123,7 @@ function getCurrencyRateControllerMessengerWithNetworkState({
   });
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
-    jest.fn().mockImplementation((networkClientId) => {
+    vi.fn().mockImplementation((networkClientId) => {
       switch (networkClientId) {
         case 'mainnet':
           return {
@@ -148,7 +148,7 @@ function getCurrencyRateControllerMessengerWithNetworkState({
   );
   messenger.registerActionHandler(
     'NetworkController:getState',
-    jest.fn().mockReturnValue({ networkConfigurationsByChainId }),
+    vi.fn().mockReturnValue({ networkConfigurationsByChainId }),
   );
   const currencyRateControllerMessenger = new Messenger<
     typeof namespace,
@@ -174,11 +174,11 @@ const getStubbedDate = (): number => {
 
 describe('CurrencyRateController', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('should set default state', () => {
@@ -229,7 +229,7 @@ describe('CurrencyRateController', () => {
 
   it('should not poll before being started', async () => {
     const tokenPricesService = buildMockTokenPricesService();
-    const fetchExchangeRatesSpy = jest.spyOn(
+    const fetchExchangeRatesSpy = vi.spyOn(
       tokenPricesService,
       'fetchExchangeRates',
     );
@@ -240,7 +240,7 @@ describe('CurrencyRateController', () => {
       tokenPricesService,
     });
 
-    await jestAdvanceTime({ duration: 200 });
+    await vi.advanceTimersByTimeAsync(200);
 
     expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
 
@@ -250,13 +250,12 @@ describe('CurrencyRateController', () => {
   it('should poll and update state in the right interval', async () => {
     const currentCurrency = 'cad';
 
-    jest
-      .spyOn(global.Date, 'now')
+    vi.spyOn(global.Date, 'now')
       .mockReturnValueOnce(10000)
       .mockReturnValueOnce(20000);
     const tokenPricesService = buildMockTokenPricesService();
 
-    const fetchExchangeRatesSpy = jest
+    const fetchExchangeRatesSpy = vi
       .spyOn(tokenPricesService, 'fetchExchangeRates')
       .mockResolvedValue({
         eth: {
@@ -275,7 +274,7 @@ describe('CurrencyRateController', () => {
     });
 
     controller.startPolling({ nativeCurrencies: ['ETH'] });
-    await jestAdvanceTime({ duration: 0 });
+    await vi.advanceTimersByTimeAsync(0);
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
     expect(controller.state.currencyRates).toStrictEqual({
@@ -285,11 +284,11 @@ describe('CurrencyRateController', () => {
         usdConversionRate: null,
       },
     });
-    await jestAdvanceTime({ duration: 99 });
+    await vi.advanceTimersByTimeAsync(99);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
-    await jestAdvanceTime({ duration: 1 });
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(2);
     expect(controller.state.currencyRates).toStrictEqual({
@@ -306,7 +305,7 @@ describe('CurrencyRateController', () => {
   it('should not poll after being stopped', async () => {
     const tokenPricesService = buildMockTokenPricesService();
 
-    const fetchExchangeRatesSpy = jest
+    const fetchExchangeRatesSpy = vi
       .spyOn(tokenPricesService, 'fetchExchangeRates')
       .mockResolvedValue({
         eth: {
@@ -325,14 +324,14 @@ describe('CurrencyRateController', () => {
 
     controller.startPolling({ nativeCurrencies: ['ETH'] });
 
-    await jestAdvanceTime({ duration: 0 });
+    await vi.advanceTimersByTimeAsync(0);
 
     controller.stopAllPolling();
 
     // called once upon initial start
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
-    await jestAdvanceTime({ duration: 150, stepSize: 50 });
+    await vi.advanceTimersByTimeAsync(150);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
@@ -343,7 +342,7 @@ describe('CurrencyRateController', () => {
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
 
-    const fetchExchangeRatesSpy = jest
+    const fetchExchangeRatesSpy = vi
       .spyOn(tokenPricesService, 'fetchExchangeRates')
       .mockResolvedValue({
         eth: {
@@ -359,7 +358,7 @@ describe('CurrencyRateController', () => {
       tokenPricesService,
     });
     controller.startPolling({ nativeCurrencies: ['ETH'] });
-    await jestAdvanceTime({ duration: 0 });
+    await vi.advanceTimersByTimeAsync(0);
 
     controller.stopAllPolling();
 
@@ -367,11 +366,11 @@ describe('CurrencyRateController', () => {
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(1);
 
     controller.startPolling({ nativeCurrencies: ['ETH'] });
-    await jestAdvanceTime({ duration: 0 });
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(2);
 
-    await jestAdvanceTime({ duration: 100 });
+    await vi.advanceTimersByTimeAsync(100);
 
     expect(fetchExchangeRatesSpy).toHaveBeenCalledTimes(3);
   });
@@ -379,10 +378,10 @@ describe('CurrencyRateController', () => {
   it('should update exchange rate from price api', async () => {
     const currentCurrency = 'cad';
 
-    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+    vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
-    const fetchExchangeRatesSpy = jest
+    const fetchExchangeRatesSpy = vi
       .spyOn(tokenPricesService, 'fetchExchangeRates')
       .mockResolvedValue({
         eth: {
@@ -425,12 +424,12 @@ describe('CurrencyRateController', () => {
   it('should use the exchange rate for ETH when native currency is testnet ETH', async () => {
     const currentCurrency = 'cad';
 
-    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+    vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
 
-    const fetchExchangeRatesSpy = jest
+    const fetchExchangeRatesSpy = vi
       .spyOn(tokenPricesService, 'fetchExchangeRates')
       .mockResolvedValue({
         eth: {
@@ -476,10 +475,10 @@ describe('CurrencyRateController', () => {
 
   it('should update current currency then clear and refetch rates', async () => {
     const currentCurrency = 'cad';
-    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+    vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
-    jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
+    vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
       eth: {
         name: 'Ether',
         ticker: 'eth',
@@ -528,7 +527,7 @@ describe('CurrencyRateController', () => {
       },
     });
 
-    await jestAdvanceTime({ duration: 0 });
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(controller.state).toStrictEqual({
       currentCurrency,
@@ -551,7 +550,7 @@ describe('CurrencyRateController', () => {
   it('should add usd rate to state when includeUsdRate is configured true', async () => {
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
-    const fetchExchangeRatesSpy = jest
+    const fetchExchangeRatesSpy = vi
       .spyOn(tokenPricesService, 'fetchExchangeRates')
       .mockResolvedValue({
         eth: {
@@ -584,12 +583,12 @@ describe('CurrencyRateController', () => {
   });
 
   it('should default to fetching exchange rate from price api', async () => {
-    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+    vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
 
-    const fetchExchangeRatesSpy = jest
+    const fetchExchangeRatesSpy = vi
       .spyOn(tokenPricesService, 'fetchExchangeRates')
       .mockResolvedValue({
         eth: {
@@ -626,7 +625,7 @@ describe('CurrencyRateController', () => {
   it('should return null state when price api fails', async () => {
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
-    const fetchExchangeRatesSpy = jest
+    const fetchExchangeRatesSpy = vi
       .spyOn(tokenPricesService, 'fetchExchangeRates')
       .mockRejectedValue(new Error('Failed to fetch'));
     const controller = new CurrencyRateController({
@@ -665,9 +664,9 @@ describe('CurrencyRateController', () => {
     };
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
-    jest
-      .spyOn(tokenPricesService, 'fetchExchangeRates')
-      .mockRejectedValue(new Error('Failed to fetch'));
+    vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockRejectedValue(
+      new Error('Failed to fetch'),
+    );
     const controller = new CurrencyRateController({
       messenger,
       state,
@@ -692,12 +691,12 @@ describe('CurrencyRateController', () => {
   });
 
   it('fetches exchange rates for multiple native currencies from price api', async () => {
-    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+    vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
     const messenger = getCurrencyRateControllerMessenger();
     const tokenPricesService = buildMockTokenPricesService();
 
-    const fetchExchangeRatesSpy = jest
+    const fetchExchangeRatesSpy = vi
       .spyOn(tokenPricesService, 'fetchExchangeRates')
       .mockResolvedValue({
         eth: {
@@ -754,13 +753,13 @@ describe('CurrencyRateController', () => {
   });
 
   it('skips updating empty or undefined native currencies', async () => {
-    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+    vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
     const messenger = getCurrencyRateControllerMessenger();
 
     const tokenPricesService = buildMockTokenPricesService();
 
-    jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
+    vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
       eth: {
         name: 'Ethereum',
         ticker: 'eth',
@@ -795,13 +794,13 @@ describe('CurrencyRateController', () => {
   });
 
   it('skips updating empty or undefined native currencies when calling price api', async () => {
-    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+    vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
     const messenger = getCurrencyRateControllerMessenger();
 
     const tokenPricesService = buildMockTokenPricesService();
 
-    jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
+    vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
       eth: {
         name: 'Ether',
         ticker: 'eth',
@@ -835,14 +834,14 @@ describe('CurrencyRateController', () => {
   });
 
   it('should set conversionDate to null when currency not found in price api response (lines 201-202)', async () => {
-    jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+    vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
     const messenger = getCurrencyRateControllerMessenger();
 
     const tokenPricesService = buildMockTokenPricesService();
 
     // Mock price API response where BNB is not included
-    jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
+    vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
       eth: {
         name: 'Ether',
         ticker: 'eth',
@@ -908,7 +907,7 @@ describe('CurrencyRateController', () => {
     it('should not poll when useExternalServices is false', async () => {
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
-      const fetchExchangeRatesSpy = jest.spyOn(
+      const fetchExchangeRatesSpy = vi.spyOn(
         tokenPricesService,
         'fetchExchangeRates',
       );
@@ -921,11 +920,11 @@ describe('CurrencyRateController', () => {
       });
 
       controller.startPolling({ nativeCurrencies: ['ETH'] });
-      await jestAdvanceTime({ duration: 0 });
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
 
-      await jestAdvanceTime({ duration: 100 });
+      await vi.advanceTimersByTimeAsync(100);
 
       expect(fetchExchangeRatesSpy).not.toHaveBeenCalled();
 
@@ -1003,10 +1002,10 @@ describe('CurrencyRateController', () => {
     });
 
     it('should fetch exchange rates when useExternalServices is true (default behavior)', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
-      const fetchExchangeRatesSpy = jest
+      const fetchExchangeRatesSpy = vi
         .spyOn(tokenPricesService, 'fetchExchangeRates')
         .mockResolvedValue({
           eth: {
@@ -1044,11 +1043,11 @@ describe('CurrencyRateController', () => {
     });
 
     it('should default useExternalServices to true when not specified', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
 
-      const fetchExchangeRatesSpy = jest
+      const fetchExchangeRatesSpy = vi
         .spyOn(tokenPricesService, 'fetchExchangeRates')
         .mockResolvedValue({
           eth: {
@@ -1160,7 +1159,7 @@ describe('CurrencyRateController', () => {
     it('does not make any API calls when isDeprecated() returns true from construction', async () => {
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
-      const fetchExchangeRatesSpy = jest.spyOn(
+      const fetchExchangeRatesSpy = vi.spyOn(
         tokenPricesService,
         'fetchExchangeRates',
       );
@@ -1181,7 +1180,7 @@ describe('CurrencyRateController', () => {
       let deprecated = false;
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
-      const fetchExchangeRatesSpy = jest.spyOn(
+      const fetchExchangeRatesSpy = vi.spyOn(
         tokenPricesService,
         'fetchExchangeRates',
       );
@@ -1210,7 +1209,7 @@ describe('CurrencyRateController', () => {
       let deprecated = false;
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
-      const fetchExchangeRatesSpy = jest.spyOn(
+      const fetchExchangeRatesSpy = vi.spyOn(
         tokenPricesService,
         'fetchExchangeRates',
       );
@@ -1239,7 +1238,7 @@ describe('CurrencyRateController', () => {
       let deprecated = false;
       const messenger = getCurrencyRateControllerMessenger();
       const tokenPricesService = buildMockTokenPricesService();
-      const fetchExchangeRatesSpy = jest.spyOn(
+      const fetchExchangeRatesSpy = vi.spyOn(
         tokenPricesService,
         'fetchExchangeRates',
       );
@@ -1267,7 +1266,7 @@ describe('CurrencyRateController', () => {
 
   describe('fallback to token prices service (lines 233-316)', () => {
     it('should fallback to fetchTokenPrices when fetchExchangeRates fails and crypto compare fallback also fails', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
       const messenger = getCurrencyRateControllerMessengerWithNetworkState({
         networkConfigurationsByChainId: {
@@ -1293,14 +1292,13 @@ describe('CurrencyRateController', () => {
       const tokenPricesService = buildMockTokenPricesService();
 
       // Make fetchExchangeRates fail to trigger fallback
-      jest
-        .spyOn(tokenPricesService, 'fetchExchangeRates')
-        .mockRejectedValue(new Error('Price API failed'));
+      vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockRejectedValue(
+        new Error('Price API failed'),
+      );
 
       // Mock fetchTokenPrices to return token prices
-      jest
-        .spyOn(tokenPricesService, 'fetchTokenPrices')
-        .mockImplementation(async ({ assets }) => {
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices').mockImplementation(
+        async ({ assets }) => {
           if (assets.some((asset) => asset.chainId === '0x1')) {
             return [
               {
@@ -1359,7 +1357,8 @@ describe('CurrencyRateController', () => {
             ];
           }
           return [];
-        });
+        },
+      );
 
       // Make crypto compare also fail by not mocking it (no nock setup)
       const controller = new CurrencyRateController({
@@ -1391,7 +1390,7 @@ describe('CurrencyRateController', () => {
     });
 
     it('should map native currencies to correct chain IDs (lines 236-262)', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
       const messenger = getCurrencyRateControllerMessengerWithNetworkState({
         networkConfigurationsByChainId: {
@@ -1416,11 +1415,11 @@ describe('CurrencyRateController', () => {
 
       const tokenPricesService = buildMockTokenPricesService();
 
-      jest
-        .spyOn(tokenPricesService, 'fetchExchangeRates')
-        .mockRejectedValue(new Error('Price API failed'));
+      vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockRejectedValue(
+        new Error('Price API failed'),
+      );
 
-      const fetchTokenPricesSpy = jest
+      const fetchTokenPricesSpy = vi
         .spyOn(tokenPricesService, 'fetchTokenPrices')
         .mockImplementation(async ({ assets }) => {
           if (
@@ -1483,7 +1482,7 @@ describe('CurrencyRateController', () => {
     });
 
     it('should handle errors when fetchTokenPrices fails for a specific chain (lines 285-296)', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
       const messenger = getCurrencyRateControllerMessengerWithNetworkState({
         networkConfigurationsByChainId: {
@@ -1508,15 +1507,16 @@ describe('CurrencyRateController', () => {
 
       const tokenPricesService = buildMockTokenPricesService();
 
-      jest
-        .spyOn(tokenPricesService, 'fetchExchangeRates')
-        .mockRejectedValue(new Error('Price API failed'));
+      vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockRejectedValue(
+        new Error('Price API failed'),
+      );
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
-      jest
-        .spyOn(tokenPricesService, 'fetchTokenPrices')
-        .mockImplementation(async ({ assets }) => {
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices').mockImplementation(
+        async ({ assets }) => {
           if (assets.some((asset) => asset.chainId === '0x1')) {
             // ETH succeeds
             return [
@@ -1548,7 +1548,8 @@ describe('CurrencyRateController', () => {
           }
           // POL fails
           throw new Error('Failed to fetch POL price');
-        });
+        },
+      );
 
       const controller = new CurrencyRateController({
         messenger,
@@ -1585,7 +1586,7 @@ describe('CurrencyRateController', () => {
     });
 
     it('should set conversionDate to null when token price is not found (line 281)', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
       const messenger = getCurrencyRateControllerMessengerWithNetworkState({
         networkConfigurationsByChainId: {
@@ -1602,12 +1603,12 @@ describe('CurrencyRateController', () => {
 
       const tokenPricesService = buildMockTokenPricesService();
 
-      jest
-        .spyOn(tokenPricesService, 'fetchExchangeRates')
-        .mockRejectedValue(new Error('Price API failed'));
+      vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockRejectedValue(
+        new Error('Price API failed'),
+      );
 
       // Return empty object (no token price)
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices').mockResolvedValue([]);
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices').mockResolvedValue([]);
 
       const controller = new CurrencyRateController({
         messenger,
@@ -1632,7 +1633,7 @@ describe('CurrencyRateController', () => {
     });
 
     it('should set null state for currencies not found in network configurations (lines 252-257)', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
       const messenger = getCurrencyRateControllerMessengerWithNetworkState({
         networkConfigurationsByChainId: {
@@ -1649,11 +1650,11 @@ describe('CurrencyRateController', () => {
 
       const tokenPricesService = buildMockTokenPricesService();
 
-      jest
-        .spyOn(tokenPricesService, 'fetchExchangeRates')
-        .mockRejectedValue(new Error('Price API failed'));
+      vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockRejectedValue(
+        new Error('Price API failed'),
+      );
 
-      const fetchTokenPricesSpy = jest
+      const fetchTokenPricesSpy = vi
         .spyOn(tokenPricesService, 'fetchTokenPrices')
         .mockImplementation(async ({ assets }) => {
           if (assets.some((asset) => asset.chainId === '0x1')) {
@@ -1729,7 +1730,7 @@ describe('CurrencyRateController', () => {
     });
 
     it('should use correct native token address for Polygon (line 269)', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
       const messenger = getCurrencyRateControllerMessengerWithNetworkState({
         networkConfigurationsByChainId: {
@@ -1746,11 +1747,11 @@ describe('CurrencyRateController', () => {
 
       const tokenPricesService = buildMockTokenPricesService();
 
-      jest
-        .spyOn(tokenPricesService, 'fetchExchangeRates')
-        .mockRejectedValue(new Error('Price API failed'));
+      vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockRejectedValue(
+        new Error('Price API failed'),
+      );
 
-      const fetchTokenPricesSpy = jest
+      const fetchTokenPricesSpy = vi
         .spyOn(tokenPricesService, 'fetchTokenPrices')
         .mockResolvedValue([
           {
@@ -1803,7 +1804,7 @@ describe('CurrencyRateController', () => {
 
   describe('partial success with fallback', () => {
     it('should fallback only for currencies that failed in Price API response (partial success)', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
       const messenger = getCurrencyRateControllerMessengerWithNetworkState({
         networkConfigurationsByChainId: {
@@ -1829,7 +1830,7 @@ describe('CurrencyRateController', () => {
       const tokenPricesService = buildMockTokenPricesService();
 
       // Price API returns ETH but not POL (partial success)
-      jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
+      vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
         eth: {
           name: 'Ether',
           ticker: 'eth',
@@ -1840,7 +1841,7 @@ describe('CurrencyRateController', () => {
         // POL is missing - should trigger fallback
       });
 
-      const fetchTokenPricesSpy = jest
+      const fetchTokenPricesSpy = vi
         .spyOn(tokenPricesService, 'fetchTokenPrices')
         .mockResolvedValue([
           {
@@ -1909,7 +1910,7 @@ describe('CurrencyRateController', () => {
     });
 
     it('should not call fallback when all currencies succeed from Price API', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
       const messenger = getCurrencyRateControllerMessengerWithNetworkState({
         networkConfigurationsByChainId: {
@@ -1935,7 +1936,7 @@ describe('CurrencyRateController', () => {
       const tokenPricesService = buildMockTokenPricesService();
 
       // Price API returns both ETH and POL (full success)
-      jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
+      vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
         eth: {
           name: 'Ether',
           ticker: 'eth',
@@ -1952,7 +1953,7 @@ describe('CurrencyRateController', () => {
         },
       });
 
-      const fetchTokenPricesSpy = jest.spyOn(
+      const fetchTokenPricesSpy = vi.spyOn(
         tokenPricesService,
         'fetchTokenPrices',
       );
@@ -1989,7 +1990,7 @@ describe('CurrencyRateController', () => {
     });
 
     it('should preserve successful Price API rates even when fallback fails', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
       const messenger = getCurrencyRateControllerMessengerWithNetworkState({
         networkConfigurationsByChainId: {
@@ -2015,7 +2016,7 @@ describe('CurrencyRateController', () => {
       const tokenPricesService = buildMockTokenPricesService();
 
       // Price API returns ETH but not POL
-      jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
+      vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
         eth: {
           name: 'Ether',
           ticker: 'eth',
@@ -2026,11 +2027,13 @@ describe('CurrencyRateController', () => {
       });
 
       // Fallback also fails for POL
-      jest
-        .spyOn(tokenPricesService, 'fetchTokenPrices')
-        .mockRejectedValue(new Error('Token prices service failed'));
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices').mockRejectedValue(
+        new Error('Token prices service failed'),
+      );
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       const controller = new CurrencyRateController({
         messenger,
@@ -2064,7 +2067,7 @@ describe('CurrencyRateController', () => {
     });
 
     it('should handle multiple partial failures with mixed fallback results', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
       const messenger = getCurrencyRateControllerMessengerWithNetworkState({
         networkConfigurationsByChainId: {
@@ -2098,7 +2101,7 @@ describe('CurrencyRateController', () => {
       const tokenPricesService = buildMockTokenPricesService();
 
       // Price API returns only ETH
-      jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
+      vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
         eth: {
           name: 'Ether',
           ticker: 'eth',
@@ -2107,12 +2110,13 @@ describe('CurrencyRateController', () => {
         },
       });
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
 
       // Fallback succeeds for POL but fails for BNB
-      jest
-        .spyOn(tokenPricesService, 'fetchTokenPrices')
-        .mockImplementation(async ({ assets }) => {
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices').mockImplementation(
+        async ({ assets }) => {
           if (assets.some((asset) => asset.chainId === '0x89')) {
             return [
               {
@@ -2141,7 +2145,8 @@ describe('CurrencyRateController', () => {
             ];
           }
           throw new Error('Token prices service failed for BNB');
-        });
+        },
+      );
 
       const controller = new CurrencyRateController({
         messenger,
@@ -2181,7 +2186,7 @@ describe('CurrencyRateController', () => {
     });
 
     it('should handle Price API returning rate with no value (undefined rate)', async () => {
-      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      vi.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
 
       const messenger = getCurrencyRateControllerMessengerWithNetworkState({
         networkConfigurationsByChainId: {
@@ -2199,7 +2204,7 @@ describe('CurrencyRateController', () => {
       const tokenPricesService = buildMockTokenPricesService();
 
       // Price API returns ETH but with value: 0 (falsy)
-      jest.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
+      vi.spyOn(tokenPricesService, 'fetchExchangeRates').mockResolvedValue({
         eth: {
           name: 'Ether',
           ticker: 'eth',
@@ -2208,7 +2213,7 @@ describe('CurrencyRateController', () => {
         },
       });
 
-      jest.spyOn(tokenPricesService, 'fetchTokenPrices').mockResolvedValue([
+      vi.spyOn(tokenPricesService, 'fetchTokenPrices').mockResolvedValue([
         {
           currency: 'usd',
           tokenAddress: '0x0000000000000000000000000000000000000000',
