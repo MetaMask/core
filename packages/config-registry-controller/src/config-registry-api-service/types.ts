@@ -1,4 +1,4 @@
-import type { Infer, Struct } from '@metamask/superstruct';
+import type { Infer } from '@metamask/superstruct';
 import {
   array,
   boolean,
@@ -112,34 +112,37 @@ export type RegistryEventsConfigApiResponse = Infer<
 
 export type RegistryEventsConfig = RegistryEventsConfigApiResponse['data'];
 
-function createFetchResultStruct<Data>(dataStruct: Struct<Data, unknown>) {
-  return union([
-    type({
-      modified: literal(false),
-      etag: nullable(string()),
-      data: nullable(dataStruct),
-    }),
-    type({
-      modified: literal(true),
-      etag: nullable(string()),
-      data: dataStruct,
-    }),
-  ]);
-}
+export const FetchConfigResultStruct = union([
+  type({
+    modified: literal(false),
+    etag: nullable(string()),
+    data: nullable(RegistryConfigApiResponseSchema),
+  }),
+  type({
+    modified: literal(true),
+    etag: nullable(string()),
+    data: RegistryConfigApiResponseSchema,
+  }),
+]);
 
-export const FetchConfigResultStruct = createFetchResultStruct(
-  RegistryConfigApiResponseSchema,
-);
-
-export const FetchEventsConfigResultStruct = createFetchResultStruct(
-  RegistryEventsConfigApiResponseSchema,
-);
+export const FetchEventsConfigResultStruct = union([
+  type({
+    modified: literal(false),
+    etag: nullable(string()),
+    data: nullable(RegistryEventsConfigApiResponseSchema),
+  }),
+  type({
+    modified: literal(true),
+    etag: nullable(string()),
+    data: RegistryEventsConfigApiResponseSchema,
+  }),
+]);
 
 export type FetchConfigOptions = {
   etag?: string;
 };
 
-export type FetchConfigResult =
+type FetchResult<Data> =
   | {
       modified: false;
       etag: string | null;
@@ -147,22 +150,15 @@ export type FetchConfigResult =
        * Cached data from the service when available (e.g. after a previous
        * successful fetch). `null` when the service has no cache yet.
        */
-      data: RegistryConfigApiResponse | null;
+      data: Data | null;
     }
   | {
       modified: true;
-      data: RegistryConfigApiResponse;
       etag: string | null;
+      data: Data;
     };
 
+export type FetchConfigResult = FetchResult<RegistryConfigApiResponse>;
+
 export type FetchEventsConfigResult =
-  | {
-      modified: false;
-      etag: string | null;
-      data: RegistryEventsConfigApiResponse | null;
-    }
-  | {
-      modified: true;
-      data: RegistryEventsConfigApiResponse;
-      etag: string | null;
-    };
+  FetchResult<RegistryEventsConfigApiResponse>;

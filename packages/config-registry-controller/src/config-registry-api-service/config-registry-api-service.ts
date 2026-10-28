@@ -14,6 +14,8 @@ import type {
   FetchConfigOptions,
   FetchConfigResult,
   FetchEventsConfigResult,
+  RegistryConfigApiResponse,
+  RegistryEventsConfigApiResponse,
 } from './types.js';
 import {
   FetchConfigResultStruct,
@@ -202,7 +204,12 @@ export class ConfigRegistryApiService extends BaseDataService<
           );
         }
 
-        return { modified: true, etag, data: await res.json() };
+        return {
+          modified: true,
+          etag,
+          // Casting to satisfy linter, the struct will validate this is actually true.
+          data: (await res.json()) as RegistryConfigApiResponse,
+        };
       },
     });
   }
@@ -242,7 +249,12 @@ export class ConfigRegistryApiService extends BaseDataService<
           );
         }
 
-        return { modified: true, etag, data: await res.json() };
+        return {
+          modified: true,
+          etag,
+          // Casting to satisfy linter, the struct will validate this is actually true.
+          data: (await res.json()) as RegistryEventsConfigApiResponse,
+        };
       },
     });
   }
