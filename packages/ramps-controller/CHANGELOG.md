@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [28.1.0]
 
-### Uncategorized
-
-- test(ramps-controller): use the nock default export instead of named imports ([#11142](https://github.com/MetaMask/core/pull/11142))
-
 ### Added
 
 - Add `NeoBankService.getMicrodeposits`, exposed on the messenger, which returns the customer's bank-link microdeposits from neobank-proxy unmodified, and the `NeoBankMicrodeposit` type ([#11165](https://github.com/MetaMask/core/pull/11165))
