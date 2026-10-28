@@ -247,9 +247,7 @@ export class HyperLiquidSubscriptionService {
   readonly #orderFillSubscriptionGenerations = new Map<string, number>();
 
   #orderFillGeneration(normalizedAccountId: string): number {
-    return (
-      this.#orderFillSubscriptionGenerations.get(normalizedAccountId) ?? 0
-    );
+    return this.#orderFillSubscriptionGenerations.get(normalizedAccountId) ?? 0;
   }
 
   #bumpOrderFillGeneration(normalizedAccountId: string): void {
