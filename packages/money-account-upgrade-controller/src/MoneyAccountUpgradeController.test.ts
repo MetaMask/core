@@ -1,5 +1,6 @@
 import type { DelegationResponse } from '@metamask/authenticated-user-storage';
 import type {
+  AddressIdentityResponse,
   ChompApiServiceVerifyDelegationAction,
   IntentEntry,
 } from '@metamask/chomp-api-service';
@@ -2201,6 +2202,79 @@ describe('MoneyAccountUpgradeController', () => {
       expect(mocks.createAddressChallenge).toHaveBeenCalledWith(
         expect.objectContaining({ purpose: 'ASSOCIATE_SUCCESSOR' }),
       );
+    });
+  });
+
+  describe('getRegistrationStatus', () => {
+    const identityResponse: AddressIdentityResponse = {
+      identity: {
+        currentAddress: MOCK_ACCOUNT_ADDRESS,
+        previousAddresses: [],
+        status: 'DONE',
+        migration: null,
+      },
+      address: {
+        address: MOCK_ACCOUNT_ADDRESS,
+        role: 'CURRENT',
+        predecessor: null,
+        successor: null,
+      },
+    };
+
+    it('reports the address as registered when CHOMP has an identity for it', async () => {
+      const { controller, mocks } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(identityResponse);
+
+      const status =
+        await controller.getRegistrationStatus(MOCK_ACCOUNT_ADDRESS);
+
+      expect(status).toStrictEqual({ isRegistered: true });
+      expect(mocks.getDerivedIdentityByAddress).toHaveBeenCalledWith(
+        MOCK_ACCOUNT_ADDRESS,
+      );
+    });
+
+    it('reports the address as not registered when CHOMP has no identity for it', async () => {
+      const { controller, mocks } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(null);
+
+      const status =
+        await controller.getRegistrationStatus(MOCK_ACCOUNT_ADDRESS);
+
+      expect(status).toStrictEqual({ isRegistered: false });
+    });
+
+    it('does not require a bootstrap', async () => {
+      const { controller, mocks } = setup({ isEnabled: false });
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(identityResponse);
+
+      const status =
+        await controller.getRegistrationStatus(MOCK_ACCOUNT_ADDRESS);
+
+      expect(status).toStrictEqual({ isRegistered: true });
+    });
+
+    it('propagates a failed CHOMP lookup', async () => {
+      const { controller, mocks } = setup();
+      mocks.getDerivedIdentityByAddress.mockRejectedValue(
+        new Error('CHOMP unavailable'),
+      );
+
+      await expect(
+        controller.getRegistrationStatus(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('CHOMP unavailable');
+    });
+
+    it('is exposed through the messenger', async () => {
+      const { rootMessenger, mocks } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(identityResponse);
+
+      const status = await rootMessenger.call(
+        'MoneyAccountUpgradeController:getRegistrationStatus',
+        MOCK_ACCOUNT_ADDRESS,
+      );
+
+      expect(status).toStrictEqual({ isRegistered: true });
     });
   });
 });

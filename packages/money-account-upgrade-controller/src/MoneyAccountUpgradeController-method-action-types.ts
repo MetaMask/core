@@ -91,9 +91,25 @@ export type MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction = {
 };
 
 /**
+ * Looks up whether `address` is registered with CHOMP, meaning it is part of
+ * a Money Account identity of the authenticated profile in any role:
+ * current, previous, or pending successor.
+ *
+ * Unlike the upgrade methods, this does not require a bootstrap.
+ *
+ * @param address - The address to look up.
+ * @returns Whether the address is registered.
+ */
+export type MoneyAccountUpgradeControllerGetRegistrationStatusAction = {
+  type: `MoneyAccountUpgradeController:getRegistrationStatus`;
+  handler: MoneyAccountUpgradeController['getRegistrationStatus'];
+};
+
+/**
  * Union of all MoneyAccountUpgradeController action types.
  */
 export type MoneyAccountUpgradeControllerMethodActions =
   | MoneyAccountUpgradeControllerUpgradeAccountAction
   | MoneyAccountUpgradeControllerForceUpgradeAccountAction
-  | MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction;
+  | MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction
+  | MoneyAccountUpgradeControllerGetRegistrationStatusAction;

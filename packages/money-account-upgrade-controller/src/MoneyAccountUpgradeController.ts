@@ -122,10 +122,18 @@ export function getDefaultMoneyAccountUpgradeControllerState(): MoneyAccountUpgr
   };
 }
 
+/**
+ * Whether an address is registered with CHOMP as a Money Account address.
+ */
+export type MoneyAccountRegistrationStatus = {
+  isRegistered: boolean;
+};
+
 const MESSENGER_EXPOSED_METHODS = [
   'upgradeAccount',
   'forceUpgradeAccount',
   'upgradeSuccessorAccount',
+  'getRegistrationStatus',
 ] as const;
 
 export type MoneyAccountUpgradeControllerGetStateAction =
@@ -725,6 +733,26 @@ export class MoneyAccountUpgradeController extends BaseController<
   ): Promise<void> {
     const config = await this.#getArmedConfig();
     await this.#runSteps(address, config, predecessorAddress);
+  }
+
+  /**
+   * Looks up whether `address` is registered with CHOMP, meaning it is part of
+   * a Money Account identity of the authenticated profile in any role:
+   * current, previous, or pending successor.
+   *
+   * Unlike the upgrade methods, this does not require a bootstrap.
+   *
+   * @param address - The address to look up.
+   * @returns Whether the address is registered.
+   */
+  async getRegistrationStatus(
+    address: Hex,
+  ): Promise<MoneyAccountRegistrationStatus> {
+    const result = await this.messenger.call(
+      'ChompApiService:getDerivedIdentityByAddress',
+      address,
+    );
+    return { isRegistered: result !== null };
   }
 
   /**
