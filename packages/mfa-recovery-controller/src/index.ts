@@ -42,7 +42,7 @@ export {
 export type {
   AuthControllerToken,
   EncryptedPendingOperation,
-  EscrowIdentifiers,
+  GetIdentifiersResponse,
   Identifier,
   IdentifierAuthorization,
   IdentifierSession,

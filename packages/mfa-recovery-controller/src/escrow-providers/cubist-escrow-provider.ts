@@ -28,7 +28,7 @@ import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
 import { isMutationReceipt } from '../escrow-utils.js';
 import type {
   AuthControllerToken,
-  EscrowIdentifiers,
+  GetIdentifiersResponse,
   GetRecoverySecretResponse,
   Identifier,
   IdentifierAuthorization,
@@ -137,7 +137,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
    */
   async getIdentifiers(
     authControllerToken: AuthControllerToken,
-  ): Promise<EscrowIdentifiers> {
+  ): Promise<GetIdentifiersResponse> {
     return await this.#invoke(
       'getIdentifiers',
       { authControllerToken },
@@ -325,7 +325,7 @@ function parseChallenge(value: unknown): PoPChallenge {
   };
 }
 
-function parseIdentifiers(value: unknown): EscrowIdentifiers {
+function parseIdentifiers(value: unknown): GetIdentifiersResponse {
   if (!is(value, IdentifiersStruct)) {
     throw new MfaRecoveryError(
       'Invalid identifiers response',

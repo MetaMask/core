@@ -254,7 +254,7 @@ export type RecoveredSecret = {
 /**
  * One escrow's enrolled identifiers and record version.
  */
-export type EscrowIdentifiers = {
+export type GetIdentifiersResponse = {
   identifiers: Identifier[];
   version: number;
 };
@@ -321,7 +321,7 @@ export type RecoveryEscrowProvider = {
   ) => Promise<PoPChallenge>;
   getIdentifiers: (
     authControllerToken: AuthControllerToken,
-  ) => Promise<EscrowIdentifiers>;
+  ) => Promise<GetIdentifiersResponse>;
   getSecret: (
     authControllerToken: AuthControllerToken,
     authorization: IdentifierAuthorization,

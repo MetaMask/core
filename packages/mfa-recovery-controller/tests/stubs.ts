@@ -26,7 +26,7 @@ import {
 } from '../src/identifier-auth.js';
 import type {
   AuthControllerToken,
-  EscrowIdentifiers,
+  GetIdentifiersResponse,
   Identifier,
   IdentifierAuthorization,
   KeyBoundIdentifierToken,
@@ -234,7 +234,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
   async getIdentifiers(
     authControllerToken: AuthControllerToken,
-  ): Promise<EscrowIdentifiers> {
+  ): Promise<GetIdentifiersResponse> {
     const record = this.#records.get(
       this.#verifyProfileToken(authControllerToken),
     );
