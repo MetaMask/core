@@ -9,11 +9,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+
+## [83.1.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^72.2.1` to `^72.3.0` ([#11154](https://github.com/MetaMask/core/pull/11154))
+- Bump `@metamask/assets-controllers` from `^112.2.0` to `^113.0.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
+- Bump `@metamask/assets-controller` from `^20.0.0` to `^20.0.1` ([#11157](https://github.com/MetaMask/core/pull/11157))
+
+## [83.1.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/assets-controller` from `^19.1.0` to `^20.0.0` ([#11115](https://github.com/MetaMask/core/pull/11115))
+
+## [83.1.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add new entrypoint locations to `MetaMetricsSwapsEventSource` enum ([#11093](https://github.com/MetaMask/core/pull/11093))
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
+- Bump `@metamask/assets-controllers` from `^112.1.3` to `^112.2.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [83.0.0]
+
+### Added
+
+- Export trace-related constants and types to ensure client requests include required fields ([#10893](https://github.com/MetaMask/core/pull/10893))
+  - `SwapFeatureTag` and `BRIDGE_FEATURE_ID_TO_FEATURE_TAG` for supported features
+  - `SwapRelatedTraceName` filters Swap, Bridge and Batch Sell traces from client-defined `TraceName`
+  - `SwapTraceRequest` defines required request fields for swap trace calls
+  - `SwapTraceFunction` is the type-safe shared trace interface that works for mobile, extension and controller consumers
+- Populate the `tags` field with the active `feature` when tracing swap/bridge operations ([#10893](https://github.com/MetaMask/core/pull/10893))
+
+### Changed
+
+- **BREAKING:** Require `traceFn` when initializing the BridgeController ([#10893](https://github.com/MetaMask/core/pull/10893))
+- Bump `@metamask/keyring-api` from `^24.1.0` to `^24.3.0` ([#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
+- Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
+- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/assets-controller` from `^19.0.0` to `^19.1.0` ([#10876](https://github.com/MetaMask/core/pull/10876))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+- Bump `@metamask/assets-controllers` from `^112.1.2` to `^112.1.3` ([#10925](https://github.com/MetaMask/core/pull/10925))
+
+## [82.0.3]
+
+### Changed
+
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
 - Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
 - Bump `@metamask/keyring-api` from `^24.0.0` to `^24.1.0` ([#10717](https://github.com/MetaMask/core/pull/10717))
+- Bump `@metamask/assets-controller` from `^18.0.1` to `^19.0.0` ([#10788](https://github.com/MetaMask/core/pull/10788))
 
 ## [82.0.2]
 
@@ -2135,7 +2193,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.2...HEAD
+[83.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.1...@metamask/bridge-controller@83.1.2
+[83.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.0...@metamask/bridge-controller@83.1.1
+[83.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.0.0...@metamask/bridge-controller@83.1.0
+[83.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.3...@metamask/bridge-controller@83.0.0
+[82.0.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.2...@metamask/bridge-controller@82.0.3
 [82.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.1...@metamask/bridge-controller@82.0.2
 [82.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@82.0.0...@metamask/bridge-controller@82.0.1
 [82.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@81.4.0...@metamask/bridge-controller@82.0.0

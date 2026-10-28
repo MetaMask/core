@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.1.0]
+
+### Added
+
+- Add `NeoBankService.getMicrodeposits`, exposed on the messenger, which returns the customer's bank-link microdeposits from neobank-proxy unmodified, and the `NeoBankMicrodeposit` type ([#11165](https://github.com/MetaMask/core/pull/11165))
+  - The MoonPay customer id is resolved once per service instance. A 404 resolves `[]`; any other non-2xx response throws an `HttpError`.
+
+## [28.0.0]
+
+### Added
+
+- Add persisted `autorampTransactionRecords` on `RampsController`. Each autoramp stores `syncedAt` and the last seen status string per transaction id. The first successful fetch seeds the record and calls nothing ([#11017](https://github.com/MetaMask/core/pull/11017))
+- Add `diffAutorampTransactions`, which reports a transaction id that is new or whose status string changed. A transaction missing from the fetch stays in the record ([#11017](https://github.com/MetaMask/core/pull/11017))
+- Add an optional `trackAutorampTransactionStatusChanged` constructor callback. `refreshAutorampTransactions` loads the newest autoramp transaction page (`page_size` 50) and calls it after the record is written, once per new transaction id or status change. `previousStatus` is omitted for a new id. Overlapping calls for one autoramp share one request. A failed fetch writes nothing. Removing an autoramp, replacing the autoramp cursor, or discarding a foreign VBA session clears the matching records. A fetch still in flight when that autoramp leaves the cursor does not write the record or call the callback. A callback that throws is ignored, so one failing change does not drop the rest of the batch ([#11017](https://github.com/MetaMask/core/pull/11017))
+
+### Changed
+
+- **BREAKING:** `RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS` now includes `NeoBankService:listAutorampTransactions`. Hosts must delegate that action to `RampsController` ([#11017](https://github.com/MetaMask/core/pull/11017))
+- `NeoBankService.listAutorampTransactions` accepts an optional `pageSize`, sent as `page_size`. Omitting it keeps the previous query ([#11017](https://github.com/MetaMask/core/pull/11017))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+## [27.2.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [27.1.0]
+
+### Added
+
+- Add `NeoBankService.getDepositInstructions`, exposed on the messenger, which returns an autoramp's PIX or US bank deposit details discriminated by `type` ([#10878](https://github.com/MetaMask/core/pull/10878))
+- Add `extractUsBankDepositInstructions` and the `UsBankDepositInstructions`, `UsBankDepositRail`, and `AutorampDepositInstructions` types for `ACH`, `Wire`, `RTP`, and `FedNow` rails ([#10878](https://github.com/MetaMask/core/pull/10878))
+
+### Changed
+
+- `mapNeoBankAutorampToRemoteSnapshot` sets `depositRailsSummary.currency` from the first complete deposit rail: BRL for PIX, USD for US rails, and EUR for SEPA. An incomplete rail does not set it ([#10878](https://github.com/MetaMask/core/pull/10878))
+
+### Fixed
+
+- A PIX rail with an empty `instruction` is not treated as complete, so it cannot label the autoramp BRL or hide a complete US rail ([#10878](https://github.com/MetaMask/core/pull/10878))
+- Applying an autoramp snapshot keeps a previously stored `depositRailsSummary.currency` when the new snapshot omits it ([#10878](https://github.com/MetaMask/core/pull/10878))
+- Add missing `@metamask/utils` dependency ([#10926](https://github.com/MetaMask/core/pull/10926))
+
+## [27.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+
 ## [27.0.1]
 
 ### Changed
@@ -725,7 +780,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.1.0...HEAD
+[28.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@28.0.0...@metamask/ramps-controller@28.1.0
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.2.0...@metamask/ramps-controller@28.0.0
+[27.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.1.0...@metamask/ramps-controller@27.2.0
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.2...@metamask/ramps-controller@27.1.0
+[27.0.2]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.1...@metamask/ramps-controller@27.0.2
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@27.0.0...@metamask/ramps-controller@27.0.1
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.3.0...@metamask/ramps-controller@27.0.0
 [26.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@26.2.0...@metamask/ramps-controller@26.3.0

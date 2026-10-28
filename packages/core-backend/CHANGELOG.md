@@ -9,12 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `LaunchpadTokenDetailsService` for real-time launchpad token detail streaming over the shared backend WebSocket, exposing `subscribe`/`unsubscribe` by `assetId` and publishing `tokenUpdated`, `statusChanged`, and `subscriptionError` events, along with `LAUNCHPAD_TDP_SERVICE_ALLOWED_ACTIONS`/`LAUNCHPAD_TDP_SERVICE_ALLOWED_EVENTS` and launchpad event types/normalizers (`parseBatch`, `normalizeEvent`, `buildChannel`) ([#10884](https://github.com/MetaMask/core/pull/10884))
+- Add `ChannelSubscriptionManager`, a reusable per-channel WebSocket subscription lifecycle helper (reference counting, grace-period unsubscribe, unsubscribe retry, and resubscribe on reconnect) shared by `OHLCVService` and `LaunchpadTokenDetailsService` ([#10884](https://github.com/MetaMask/core/pull/10884))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- **BREAKING:** Remove the unused `BackendWebSocketService:getConnectionInfo` and `BackendWebSocketService:findSubscriptionsByChannelPrefix` actions from `OHLCV_SERVICE_ALLOWED_ACTIONS` ([#10884](https://github.com/MetaMask/core/pull/10884))
+  - `OHLCV_SERVICE_ALLOWED_ACTIONS` / `OHLCV_SERVICE_ALLOWED_EVENTS` and `LAUNCHPAD_TDP_SERVICE_ALLOWED_ACTIONS` / `LAUNCHPAD_TDP_SERVICE_ALLOWED_EVENTS` are now sourced from a single shared set (the `BackendWebSocketService` actions/events the `ChannelSubscriptionManager` actually calls), so both services grant identical, minimal permissions.
+  - If you build the `OHLCVService` restricted messenger from `OHLCV_SERVICE_ALLOWED_ACTIONS`, it will no longer be granted those two actions. Neither action was ever called by `OHLCVService`, so no runtime behavior changes; grant them explicitly only if your own code calls them through that messenger.
+- Refactor `OHLCVService` to delegate its subscription lifecycle to the shared `ChannelSubscriptionManager` via composition, with no change to its public methods or published events ([#10884](https://github.com/MetaMask/core/pull/10884))
+- Stop publishing the `api/test-utils` test helper, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))
+- Bump `@metamask/account-tree-controller` from `^11.0.1` to `^11.2.0` ([#10891](https://github.com/MetaMask/core/pull/10891), [#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^36.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+
+## [12.3.0]
+
+### Changed
+
+- Publish `AccountActivityService:statusChanged` with status `down` for every tracked chain when enabled chain prefixes change, matching WebSocket disconnect, so those chains are released for snaps feature flag changes ([#10819](https://github.com/MetaMask/core/pull/10819))
+
+## [12.2.0]
+
+### Added
+
+- Add optional `isBasicFunctionality` and `subscribeToBasicFunctionalityChange` options to `BackendWebSocketService`. When basic functionality is off, the service does not connect or reconnect, and an open socket is closed ([#10797](https://github.com/MetaMask/core/pull/10797))
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+
+## [12.1.0]
+
+### Added
+
 - Add `occurrenceFloor`, `includeNativeAssets`, and `includeRwaData` query options to `TokenApiClient.fetchTokenList` (`GET /tokens/{chainId}`) ([#10672](https://github.com/MetaMask/core/pull/10672))
 - Add `TokenApiClient.fetchV2SupportedNetworks` for Token API `GET /v2/supportedNetworks` ([#10672](https://github.com/MetaMask/core/pull/10672))
 
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
+- `BackendWebSocketService` routes notifications by exact channel name and `subscriptionId`. Account-activity chain-wildcard matching, stale-subscription channel fallback, and nested payload unwrapping have been removed ([#10754](https://github.com/MetaMask/core/pull/10754))
 
 ## [12.0.1]
 
@@ -492,7 +529,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.3.0...HEAD
+[12.3.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.2.0...@metamask/core-backend@12.3.0
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.1.0...@metamask/core-backend@12.2.0
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.1...@metamask/core-backend@12.1.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.0.0...@metamask/core-backend@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@11.0.0...@metamask/core-backend@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@10.0.1...@metamask/core-backend@11.0.0

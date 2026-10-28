@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
-- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.1.0` ([#10418](https://github.com/MetaMask/core/pull/10418))
+- Bump `@metamask/keyring-controller` from `^28.0.0` to `^28.2.0` ([#10418](https://github.com/MetaMask/core/pull/10418), [#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@noble/curves` from `^1.9.2` to `^1.9.7` ([#10720](https://github.com/MetaMask/core/pull/10720))
 - Bump `@levischuck/tiny-cbor` from `^0.3.3` to `^0.3.6` ([#10714](https://github.com/MetaMask/core/pull/10714))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [4.1.0]
 

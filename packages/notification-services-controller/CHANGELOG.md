@@ -9,10 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+
+## [30.1.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/analytics-controller` from `^4.0.0` to `^4.1.0` ([#11072](https://github.com/MetaMask/core/pull/11072))
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [30.0.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+
+## [30.0.0]
+
+### Added
+
+- Add `updateNotificationPreferences` method and `NotificationServicesController:updateNotificationPreferences` action, which save a change to notification preferences in Authenticated User Storage ([#10861](https://github.com/MetaMask/core/pull/10861))
+  - Takes a `NotificationPreferencesUpdate`: any sections, and any fields within a section. Fields left out keep their stored value; arrays and maps are replaced whole.
+  - Merges over a fresh read of the stored preferences, runs updates one at a time, and returns the saved preferences.
+  - Rejects updates that turn a marketing channel on without marketing consent with `MarketingConsentRequiredError`. Marketing channels already on in storage don't block other updates.
+  - Throws if notification preferences have not been set up yet, instead of creating them.
+- Add `MarketingConsentRequiredError` and its `code`, `MARKETING_CONSENT_REQUIRED_ERROR_CODE` ([#10861](https://github.com/MetaMask/core/pull/10861))
+
+### Changed
+
+- **BREAKING:** `NotificationServicesControllerMessenger` requires `AnalyticsController:getState` and `AuthenticatedUserStorageService:invalidateQueries` in its allowed actions ([#10861](https://github.com/MetaMask/core/pull/10861))
+- **BREAKING:** When notification preferences are created for the first time, both marketing channels (push, and in-app feature announcements) now follow `AnalyticsController` marketing consent; the `hasMarketingConsent` and `productAnnouncementEnabled` options of `createOnChainTriggers` and `enableMetamaskNotifications` are ignored. Users without marketing consent no longer start with feature announcements on ([#10861](https://github.com/MetaMask/core/pull/10861))
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
 - Bump `loglevel` from `^1.8.1` to `^1.9.2` ([#10724](https://github.com/MetaMask/core/pull/10724))
 - Bump `firebase` from `^11.10.0` to `^12.19.0` ([#10600](https://github.com/MetaMask/core/pull/10600))
 - Bump `@contentful/rich-text-html-renderer` from `^16.5.2` to `^16.6.10` ([#10712](https://github.com/MetaMask/core/pull/10712))
+- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+### Deprecated
+
+- Deprecate the `isFeatureAnnouncementsEnabled` state property, the `setFeatureAnnouncementsEnabled` method and its `NotificationServicesController:setFeatureAnnouncementsEnabled` action, and the `hasMarketingConsent` and `productAnnouncementEnabled` options. Feature announcements follow marketing consent through the Authenticated User Storage `marketing.inAppNotificationsEnabled` preference ([#10861](https://github.com/MetaMask/core/pull/10861))
 
 ## [29.0.3]
 
@@ -973,7 +1014,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.1.0...HEAD
+[30.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.1...@metamask/notification-services-controller@30.1.0
+[30.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.0...@metamask/notification-services-controller@30.0.1
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.3...@metamask/notification-services-controller@30.0.0
 [29.0.3]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.2...@metamask/notification-services-controller@29.0.3
 [29.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.1...@metamask/notification-services-controller@29.0.2
 [29.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.0...@metamask/notification-services-controller@29.0.1

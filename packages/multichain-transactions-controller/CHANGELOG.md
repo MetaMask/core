@@ -10,16 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `MultichainTransactionsController:transactionFailed` event, published when a non-EVM transaction reaches `TransactionStatus.Failed` ([#10611](https://github.com/MetaMask/core/pull/10611))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
 - Bump `@types/uuid` from `^8.3.0` to `^9.0.8` ([#10117](https://github.com/MetaMask/core/pull/10117))
-- Bump `uuid` from `^8.3.2` to `^11.1.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243))
-- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `uuid` from `^8.3.2` to `^14.0.0` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243), [#10941](https://github.com/MetaMask/core/pull/10941))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.1` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107))
 - Bump `immer` from `^9.0.6` to `^11.1.18` ([#10331](https://github.com/MetaMask/core/pull/10331), [#10382](https://github.com/MetaMask/core/pull/10382))
-- Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.0` ([#10733](https://github.com/MetaMask/core/pull/10733))
+- Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.2` ([#10733](https://github.com/MetaMask/core/pull/10733), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
-- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.1.0` ([#10717](https://github.com/MetaMask/core/pull/10717))
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.3.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
+- Bump `@metamask/keyring-snap-client` from `^10.0.0` to `^10.0.1` ([#10792](https://github.com/MetaMask/core/pull/10792))
+- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 
 ## [8.0.0]
 

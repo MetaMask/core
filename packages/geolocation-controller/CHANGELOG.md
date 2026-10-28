@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `GeolocationApiServiceInvalidateQueriesAction`, `GeolocationApiServiceCacheUpdatedEvent` and `GeolocationApiServiceGranularCacheUpdatedEvent`, also included in `GeolocationApiServiceActions` and `GeolocationApiServiceEvents` ([#10881](https://github.com/MetaMask/core/pull/10881))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- **BREAKING:** `GeolocationApiService` now extends `BaseDataService` from `@metamask/base-data-service` ([#10881](https://github.com/MetaMask/core/pull/10881))
+  - `GeolocationApiServiceMessenger` now includes the `GeolocationApiService:invalidateQueries` action and `GeolocationApiService:cacheUpdated` events. Messengers built from `GeolocationApiServiceActions` / `GeolocationApiServiceEvents` pick these up automatically.
+  - The hand-rolled TTL cache and in-flight deduplication are replaced by the `BaseDataService` query cache. `ttlMs` and `bypassCache` keep their existing behaviour.
+- Add dependency `@metamask/base-data-service` ([#10881](https://github.com/MetaMask/core/pull/10881))
+- Add dependency `@metamask/superstruct` ([#10881](https://github.com/MetaMask/core/pull/10881))
+- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+### Removed
+
+- **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `GeolocationApiService` ([#10881](https://github.com/MetaMask/core/pull/10881))
+
 ## [2.0.0]
 
 ### Changed
