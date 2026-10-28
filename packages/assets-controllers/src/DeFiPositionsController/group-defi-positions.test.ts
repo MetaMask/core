@@ -1,4 +1,5 @@
 import assert from 'assert';
+import { describe, expect, it } from 'vitest';
 
 import {
   MOCK_DEFI_RESPONSE_BORROW,

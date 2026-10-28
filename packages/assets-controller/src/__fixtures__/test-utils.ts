@@ -128,3 +128,19 @@ export const waitUntilStable = async (
     { intervalMs, timeoutMs },
   );
 };
+
+/**
+ * What nock hands to a `.reply()` callback: the request URI (path and query)
+ * in nock 13, a `Request` in nock 14 and later.
+ */
+export type NockRequestInfo = string | { url: string };
+
+/**
+ * Read the URL off whatever nock passes to a `.reply()` callback.
+ *
+ * @param request - The URI string or `Request` nock passed to the callback.
+ * @returns The request URL.
+ */
+export function getRequestUrl(request: NockRequestInfo): string {
+  return typeof request === 'string' ? request : request.url;
+}

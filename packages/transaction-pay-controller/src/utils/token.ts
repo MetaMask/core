@@ -418,8 +418,9 @@ export function normalizeTokenAddress(
  * its identifier would be spelled. That check is a keyed read, so the cache
  * saves the scan below without letting a stale identifier through.
  *
- * Only resolved identifiers are cached, so an asset missing at first lookup is
- * retried and picked up once `AssetsController` indexes it.
+ * Only resolved checksummed identifiers are cached, so an asset missing at
+ * first lookup, or resolved only to a lowercase duplicate, is retried and
+ * picked up once `AssetsController` indexes its checksummed entry.
  *
  * @param assetsInfo - Asset metadata keyed by CAIP-19 ID.
  * @param chainId - Hex chain ID.
@@ -441,7 +442,9 @@ function getControllerAssetId(
 
   const assetId = resolveControllerAssetId(assetsInfo, chainId, tokenAddress);
 
-  if (assetId) {
+  // Only cache checksummed (mixed-case) keys, so a lowercase duplicate seen
+  // before the canonical entry is indexed cannot stick for the session.
+  if (assetId && assetId !== assetId.toLowerCase()) {
     assetIds.set(cacheKey, assetId);
   }
 
@@ -451,11 +454,13 @@ function getControllerAssetId(
 /**
  * Locate an asset's key in `AssetsController` state.
  *
- * An ERC-20 identifier is fully derivable from the chain and address, so the
- * derived form is tried against state first — client-selected tokens are
- * already checksummed and hit immediately. Only addresses in another case, such
- * as those recovered from transaction calldata, fall through to a
- * case-insensitive search, which avoids paying for a checksum on the hot path.
+ * An ERC-20 identifier is fully derivable from the chain and address, so for a
+ * checksummed address the derived form is tried against state first —
+ * client-selected tokens are already checksummed and hit immediately. Other
+ * addresses, such as lowercase ones recovered from transaction calldata, fall
+ * through to a case-insensitive search, which avoids paying for a checksum on
+ * the hot path. That search prefers the checksummed key, since state may also
+ * hold a stale lowercase duplicate without price or balance data.
  *
  * A native identifier cannot be derived, because MetaMask keys natives
  * inconsistently across chains — `slip44:`, `erc20:` with the zero address, or
@@ -491,18 +496,27 @@ function resolveControllerAssetId(
   }
 
   const derivedAssetId = `${chainPrefix}erc20:${tokenAddress}` as CaipAssetType;
+  const target = derivedAssetId.toLowerCase();
 
-  if (assetsInfo[derivedAssetId]) {
+  // Mixed-case input is already checksummed, so an exact hit is canonical.
+  if (derivedAssetId !== target && assetsInfo[derivedAssetId]) {
     return derivedAssetId;
   }
 
-  const target = derivedAssetId.toLowerCase();
+  // Prefer the checksummed (mixed-case) key over a lowercase duplicate.
+  let lowercaseMatch: CaipAssetType | undefined;
 
   for (const key of Object.keys(assetsInfo)) {
-    if (key.toLowerCase() === target) {
+    if (key.toLowerCase() !== target) {
+      continue;
+    }
+
+    if (key !== target) {
       return key as CaipAssetType;
     }
+
+    lowercaseMatch = key as CaipAssetType;
   }
 
-  return undefined;
+  return lowercaseMatch;
 }

@@ -10,6 +10,8 @@ import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-
 import type { Json } from '@metamask/utils';
 import * as fs from 'fs';
 import * as path from 'path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import {
   AutorampStatus,
@@ -17,6 +19,7 @@ import {
 } from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
 import type {
+  AutorampTransactionStatusChangedPayload,
   RampsControllerMessenger,
   RampsControllerState,
   ResourceState,
@@ -145,6 +148,7 @@ describe('RampsController', () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           {
+            "autorampTransactionRecords": {},
             "autoramps": [],
             "countries": {
               "data": [],
@@ -224,6 +228,7 @@ describe('RampsController', () => {
       await withController({ options: { state: {} } }, ({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
           {
+            "autorampTransactionRecords": {},
             "autoramps": [],
             "countries": {
               "data": [],
@@ -556,7 +561,7 @@ describe('RampsController', () => {
     });
 
     it('requests the native quote in fee-on-top mode by default', async () => {
-      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+      const getBuyQuote = vi.fn().mockResolvedValue({ totalFee: 0.9 });
 
       await withController(async ({ messenger, rootMessenger }) => {
         rootMessenger.registerActionHandler(
@@ -582,7 +587,7 @@ describe('RampsController', () => {
     });
 
     it('forwards a fee-inclusive request when isFeeExcludedFromFiat is false', async () => {
-      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+      const getBuyQuote = vi.fn().mockResolvedValue({ totalFee: 0.9 });
 
       await withController(async ({ messenger, rootMessenger }) => {
         rootMessenger.registerActionHandler(
@@ -608,7 +613,7 @@ describe('RampsController', () => {
     });
 
     it('uses the resolved quote payment method for the native lookup, not the request list', async () => {
-      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+      const getBuyQuote = vi.fn().mockResolvedValue({ totalFee: 0.9 });
 
       await withController(async ({ messenger, rootMessenger }) => {
         const quotesResponse = buildQuotesResponse('/providers/transak-native');
@@ -638,7 +643,7 @@ describe('RampsController', () => {
     });
 
     it('leaves a non-native quote unchanged and does not fetch a native quote', async () => {
-      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+      const getBuyQuote = vi.fn().mockResolvedValue({ totalFee: 0.9 });
 
       await withController(async ({ messenger, rootMessenger }) => {
         rootMessenger.registerActionHandler(
@@ -743,7 +748,7 @@ describe('RampsController', () => {
     });
 
     it('does not treat the aggregator Transak provider as native', async () => {
-      const getBuyQuote = jest.fn().mockResolvedValue({ totalFee: 0.9 });
+      const getBuyQuote = vi.fn().mockResolvedValue({ totalFee: 0.9 });
 
       await withController(async ({ messenger, rootMessenger }) => {
         rootMessenger.registerActionHandler(
@@ -1198,7 +1203,7 @@ describe('RampsController', () => {
         },
         async ({ messenger, rootMessenger }) => {
           registerFeatureFlagState(rootMessenger);
-          const getQuotesMock = jest.fn();
+          const getQuotesMock = vi.fn();
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             getQuotesMock,
@@ -2598,6 +2603,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autorampTransactionRecords": {},
             "autoramps": [],
             "countries": {
               "data": [],
@@ -2667,6 +2673,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autorampTransactionRecords": {},
             "autoramps": [],
             "countries": {
               "data": [],
@@ -2711,6 +2718,7 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "autorampTransactionRecords": {},
             "autoramps": [],
             "moneyAccountWalletRegistrations": [],
             "orders": [],
@@ -3010,7 +3018,7 @@ describe('RampsController', () => {
 
     it('evaluates isResultCurrent on resource request errors', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        const isResultCurrent = jest.fn(() => true);
+        const isResultCurrent = vi.fn(() => true);
         const fetcher = async (): Promise<string> => {
           throw new Error('network failed');
         };
@@ -3903,11 +3911,11 @@ describe('RampsController', () => {
     });
 
     it('does not fetch tokens or providers when init() is called (client owns fetching)', async () => {
-      const getTokensSpy = jest.fn(async () => ({
+      const getTokensSpy = vi.fn(async () => ({
         topTokens: [],
         allTokens: [],
       }));
-      const getProvidersSpy = jest.fn(async () => ({ providers: [] }));
+      const getProvidersSpy = vi.fn(async () => ({ providers: [] }));
 
       await withController(
         {
@@ -5310,7 +5318,7 @@ describe('RampsController', () => {
         },
       };
 
-      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
+      const getPaymentMethodsMock = vi.fn(async () => ({ payments: [] }));
 
       await withController(
         {
@@ -5343,7 +5351,7 @@ describe('RampsController', () => {
       delete (providerWithoutField as Partial<Provider>)
         .supportedCryptoCurrencies;
 
-      const getPaymentMethodsMock = jest.fn(async () => ({ payments: [] }));
+      const getPaymentMethodsMock = vi.fn(async () => ({ payments: [] }));
 
       await withController(
         {
@@ -9609,7 +9617,7 @@ describe('RampsController', () => {
       });
 
       it('returns an empty response without calling the service when no native provider supports the asset', async () => {
-        const getQuotesHandler = jest.fn(async () => EMPTY_QUOTES_RESPONSE);
+        const getQuotesHandler = vi.fn(async () => EMPTY_QUOTES_RESPONSE);
 
         await withController(
           {
@@ -9681,7 +9689,7 @@ describe('RampsController', () => {
       });
 
       it('returns an empty response when the explicitly requested provider does not support the asset', async () => {
-        const getQuotesHandler = jest.fn(async () => EMPTY_QUOTES_RESPONSE);
+        const getQuotesHandler = vi.fn(async () => EMPTY_QUOTES_RESPONSE);
         const unsupported = createMockProvider({
           id: '/providers/banxa',
           name: 'Banxa',
@@ -9861,7 +9869,7 @@ describe('RampsController', () => {
 
     it('fetches the hosted widget for the fallback url', async () => {
       await withController(async ({ rootMessenger }) => {
-        const getBuyWidgetUrl = jest.fn(async () => ({
+        const getBuyWidgetUrl = vi.fn(async () => ({
           url: 'https://pay.coinbase.com/buy?sessionToken=abc',
           browser: 'IN_APP_OS_BROWSER' as const,
           orderId: '/providers/coinbase/orders/abc',
@@ -9887,7 +9895,7 @@ describe('RampsController', () => {
 
     it('sets redirectUrl on the fallback url, replacing an existing one', async () => {
       await withController(async ({ rootMessenger }) => {
-        const getBuyWidgetUrl = jest.fn(async (_buyUrl: string) => ({
+        const getBuyWidgetUrl = vi.fn(async (_buyUrl: string) => ({
           url: 'https://pay.coinbase.com/buy?sessionToken=abc',
         }));
         rootMessenger.registerActionHandler(
@@ -9911,7 +9919,7 @@ describe('RampsController', () => {
 
     it('returns null without calling the service when the fallback has no url', async () => {
       await withController(async ({ rootMessenger }) => {
-        const getBuyWidgetUrl = jest.fn();
+        const getBuyWidgetUrl = vi.fn();
         rootMessenger.registerActionHandler(
           'RampsService:getBuyWidgetUrl',
           getBuyWidgetUrl,
@@ -9929,7 +9937,7 @@ describe('RampsController', () => {
 
     it('throws without calling the service when the fallback url is malformed', async () => {
       await withController(async ({ rootMessenger }) => {
-        const getBuyWidgetUrl = jest.fn();
+        const getBuyWidgetUrl = vi.fn();
         rootMessenger.registerActionHandler(
           'RampsService:getBuyWidgetUrl',
           getBuyWidgetUrl,
@@ -10049,7 +10057,7 @@ describe('RampsController', () => {
   describe('destroy', () => {
     it('clears stateChange subscriptions so listeners stop firing', async () => {
       await withController(({ controller, rootMessenger, messenger }) => {
-        const listener = jest.fn();
+        const listener = vi.fn();
         messenger.subscribe('RampsController:stateChange', listener);
 
         controller.destroy();
@@ -10121,7 +10129,7 @@ describe('RampsController', () => {
 
     it('refreshes autoramps via NeoBankService', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        const getAutoramp = jest.fn().mockResolvedValue({
+        const getAutoramp = vi.fn().mockResolvedValue({
           id: 'ar-1',
           customerId: 'cust-1',
           walletAddress: '0xabc',
@@ -10164,7 +10172,7 @@ describe('RampsController', () => {
           'NeoBankService:getCustomerByExternalId',
           async () => ({ id: 'cust-99' }),
         );
-        const createAutoramp = jest.fn().mockResolvedValue({
+        const createAutoramp = vi.fn().mockResolvedValue({
           id: 'ar-new',
           customerId: 'cust-99',
           walletAddress: '0xabc',
@@ -10206,7 +10214,7 @@ describe('RampsController', () => {
           'NeoBankService:getCustomerByExternalId',
           async () => ({ id: 'cust-99' }),
         );
-        const createAutoramp = jest.fn().mockResolvedValue({
+        const createAutoramp = vi.fn().mockResolvedValue({
           id: 'ar-new',
           customerId: 'cust-99',
           walletAddress: '0xabc',
@@ -10272,14 +10280,14 @@ describe('RampsController', () => {
             metaMetricsId: 'mm-1',
           }),
         );
-        const getCustomerByExternalId = jest
+        const getCustomerByExternalId = vi
           .fn()
           .mockResolvedValue({ id: 'cust-canonical' });
         rootMessenger.registerActionHandler(
           'NeoBankService:getCustomerByExternalId',
           getCustomerByExternalId,
         );
-        const createAutoramp = jest.fn().mockResolvedValue({
+        const createAutoramp = vi.fn().mockResolvedValue({
           id: 'ar-new',
           customerId: 'cust-canonical',
           walletAddress: '0xabc',
@@ -10311,7 +10319,7 @@ describe('RampsController', () => {
           'NeoBankService:getCustomerByExternalId',
           async () => null,
         );
-        const createAutoramp = jest.fn();
+        const createAutoramp = vi.fn();
         rootMessenger.registerActionHandler(
           'NeoBankService:createAutoramp',
           createAutoramp,
@@ -10335,12 +10343,12 @@ describe('RampsController', () => {
             metaMetricsId: 'mm-1',
           }),
         );
-        const getCustomerByExternalId = jest.fn();
+        const getCustomerByExternalId = vi.fn();
         rootMessenger.registerActionHandler(
           'NeoBankService:getCustomerByExternalId',
           getCustomerByExternalId,
         );
-        const createAutoramp = jest.fn();
+        const createAutoramp = vi.fn();
         rootMessenger.registerActionHandler(
           'NeoBankService:createAutoramp',
           createAutoramp,
@@ -10365,7 +10373,7 @@ describe('RampsController', () => {
             metaMetricsId: 'mm-1',
           }),
         );
-        const getCustomerByExternalId = jest
+        const getCustomerByExternalId = vi
           .fn()
           .mockResolvedValue({ id: 'cust-profile' });
         rootMessenger.registerActionHandler(
@@ -10555,6 +10563,322 @@ describe('RampsController', () => {
     });
   });
 
+  describe('refreshAutorampTransactions', () => {
+    const fetchedTransaction = (
+      id: string,
+      status: string,
+    ): {
+      id: string;
+      autorampId: string;
+      status: string;
+      sourceAmount: string;
+      destinationAmount: string;
+      createdAt: string;
+    } => ({
+      id,
+      autorampId: 'ar-1',
+      status,
+      sourceAmount: '100.00',
+      destinationAmount: '18.00',
+      createdAt: '2026-06-01T00:00:00.000Z',
+    });
+
+    it('writes the record before tracking a status change', async () => {
+      const recordAtTrack: unknown[] = [];
+      const tracked: AutorampTransactionStatusChangedPayload[] = [];
+      let readRecord: () => unknown = () => undefined;
+      await withController(
+        {
+          options: {
+            trackAutorampTransactionStatusChanged: (payload) => {
+              tracked.push(payload);
+              recordAtTrack.push(readRecord());
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          readRecord = (): unknown =>
+            controller.state.autorampTransactionRecords['ar-1'];
+          const list = vi
+            .fn()
+            .mockResolvedValueOnce([
+              fetchedTransaction('tx-1', 'FundsReviewInProgress'),
+            ])
+            .mockResolvedValueOnce([fetchedTransaction('tx-1', 'Completed')]);
+          rootMessenger.registerActionHandler(
+            'NeoBankService:listAutorampTransactions',
+            list,
+          );
+
+          await controller.refreshAutorampTransactions('ar-1');
+          expect(recordAtTrack).toHaveLength(0);
+          expect(
+            controller.state.autorampTransactionRecords['ar-1'],
+          ).toMatchObject({
+            statuses: { 'tx-1': 'FundsReviewInProgress' },
+          });
+
+          await controller.refreshAutorampTransactions('ar-1');
+
+          expect(recordAtTrack).toStrictEqual([
+            {
+              syncedAt: expect.any(Number),
+              statuses: { 'tx-1': 'Completed' },
+            },
+          ]);
+          expect(tracked).toStrictEqual([
+            {
+              autorampId: 'ar-1',
+              transaction: fetchedTransaction('tx-1', 'Completed'),
+              previousStatus: 'FundsReviewInProgress',
+            },
+          ]);
+          expect(list).toHaveBeenCalledWith('ar-1', { pageSize: 50 });
+        },
+      );
+    });
+
+    it('tracks a new transaction without a previous status', async () => {
+      const tracked: AutorampTransactionStatusChangedPayload[] = [];
+      await withController(
+        {
+          options: {
+            trackAutorampTransactionStatusChanged: (payload) => {
+              tracked.push(payload);
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const list = vi
+            .fn()
+            .mockResolvedValueOnce([fetchedTransaction('tx-1', 'Completed')])
+            .mockResolvedValueOnce([
+              fetchedTransaction('tx-1', 'Completed'),
+              fetchedTransaction('tx-2', 'FundsReviewInProgress'),
+            ]);
+          rootMessenger.registerActionHandler(
+            'NeoBankService:listAutorampTransactions',
+            list,
+          );
+
+          await controller.refreshAutorampTransactions('ar-1');
+          await controller.refreshAutorampTransactions('ar-1');
+
+          expect(tracked).toStrictEqual([
+            {
+              autorampId: 'ar-1',
+              transaction: fetchedTransaction('tx-2', 'FundsReviewInProgress'),
+            },
+          ]);
+        },
+      );
+    });
+
+    it('leaves the record untouched when the fetch fails', async () => {
+      const tracked: AutorampTransactionStatusChangedPayload[] = [];
+      await withController(
+        {
+          options: {
+            trackAutorampTransactionStatusChanged: (payload) => {
+              tracked.push(payload);
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const list = vi
+            .fn()
+            .mockResolvedValueOnce([fetchedTransaction('tx-1', 'Completed')])
+            .mockRejectedValueOnce(new Error('transactions unavailable'));
+          rootMessenger.registerActionHandler(
+            'NeoBankService:listAutorampTransactions',
+            list,
+          );
+
+          await controller.refreshAutorampTransactions('ar-1');
+          const seeded = controller.state.autorampTransactionRecords['ar-1'];
+
+          await expect(
+            controller.refreshAutorampTransactions('ar-1'),
+          ).rejects.toThrow('transactions unavailable');
+
+          expect(controller.state.autorampTransactionRecords['ar-1']).toBe(
+            seeded,
+          );
+          expect(tracked).toHaveLength(0);
+        },
+      );
+    });
+
+    it('keeps reporting the rest of the batch when the tracker throws', async () => {
+      const tracked: string[] = [];
+      const record = ({
+        transaction,
+      }: AutorampTransactionStatusChangedPayload): void => {
+        tracked.push(transaction.id);
+      };
+      await withController(
+        {
+          options: {
+            trackAutorampTransactionStatusChanged: vi
+              .fn()
+              .mockImplementationOnce(
+                (payload: AutorampTransactionStatusChangedPayload) => {
+                  record(payload);
+                  throw new Error('analytics down');
+                },
+              )
+              .mockImplementation(record),
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          const list = vi
+            .fn()
+            .mockResolvedValueOnce([fetchedTransaction('tx-1', 'Completed')])
+            .mockResolvedValueOnce([
+              fetchedTransaction('tx-1', 'Completed'),
+              fetchedTransaction('tx-2', 'FundsReviewInProgress'),
+              fetchedTransaction('tx-3', 'FundsReviewInProgress'),
+            ]);
+          rootMessenger.registerActionHandler(
+            'NeoBankService:listAutorampTransactions',
+            list,
+          );
+
+          await controller.refreshAutorampTransactions('ar-1');
+
+          expect(
+            await controller.refreshAutorampTransactions('ar-1'),
+          ).toHaveLength(3);
+
+          expect(tracked).toStrictEqual(['tx-2', 'tx-3']);
+          expect(
+            controller.state.autorampTransactionRecords['ar-1']?.statuses,
+          ).toStrictEqual({
+            'tx-1': 'Completed',
+            'tx-2': 'FundsReviewInProgress',
+            'tx-3': 'FundsReviewInProgress',
+          });
+        },
+      );
+    });
+
+    it('shares one request across concurrent refreshes for the same autoramp', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        let resolveList: (
+          transactions: ReturnType<typeof fetchedTransaction>[],
+        ) => void = () => undefined;
+        const pending = new Promise<ReturnType<typeof fetchedTransaction>[]>(
+          (resolve) => {
+            resolveList = resolve;
+          },
+        );
+        const list = vi.fn(() => pending);
+        rootMessenger.registerActionHandler(
+          'NeoBankService:listAutorampTransactions',
+          list,
+        );
+
+        const first = controller.refreshAutorampTransactions('ar-1');
+        const second = controller.refreshAutorampTransactions('ar-1');
+        const other = controller.refreshAutorampTransactions('ar-2');
+        const page = [fetchedTransaction('tx-1', 'Completed')];
+
+        expect(list).toHaveBeenCalledTimes(2);
+        resolveList(page);
+        expect(await Promise.all([first, second, other])).toStrictEqual([
+          page,
+          page,
+          page,
+        ]);
+        expect(list).toHaveBeenCalledTimes(2);
+        expect(list).toHaveBeenNthCalledWith(1, 'ar-1', { pageSize: 50 });
+        expect(list).toHaveBeenNthCalledWith(2, 'ar-2', { pageSize: 50 });
+      });
+    });
+
+    it('does not restore a record or track when the autoramp is removed during the fetch', async () => {
+      const tracked: AutorampTransactionStatusChangedPayload[] = [];
+      await withController(
+        {
+          options: {
+            trackAutorampTransactionStatusChanged: (payload) => {
+              tracked.push(payload);
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          controller.addAutoramp({
+            id: 'ar-1',
+            customerId: 'cust-1',
+            walletAddress: '0xabc',
+            status: AutorampStatus.Approved,
+          });
+          controller.addAutoramp({
+            id: 'ar-2',
+            customerId: 'cust-1',
+            walletAddress: '0xdef',
+            status: AutorampStatus.Approved,
+          });
+          let resolveList: (
+            transactions: ReturnType<typeof fetchedTransaction>[],
+          ) => void = () => undefined;
+          const pending = new Promise<ReturnType<typeof fetchedTransaction>[]>(
+            (resolve) => {
+              resolveList = resolve;
+            },
+          );
+          const list = vi
+            .fn()
+            .mockResolvedValueOnce([
+              fetchedTransaction('tx-1', 'FundsReviewInProgress'),
+            ])
+            .mockImplementation(() => pending);
+          rootMessenger.registerActionHandler(
+            'NeoBankService:listAutorampTransactions',
+            list,
+          );
+
+          await controller.refreshAutorampTransactions('ar-1');
+          const removedRefresh = controller.refreshAutorampTransactions('ar-1');
+          const keptRefresh = controller.refreshAutorampTransactions('ar-2');
+          controller.removeAutoramp('ar-1');
+          const page = [fetchedTransaction('tx-1', 'Completed')];
+          resolveList(page);
+
+          expect(await removedRefresh).toStrictEqual(page);
+          expect(await keptRefresh).toStrictEqual(page);
+          expect(
+            controller.state.autorampTransactionRecords['ar-1'],
+          ).toBeUndefined();
+          expect(
+            controller.state.autorampTransactionRecords['ar-2']?.statuses,
+          ).toStrictEqual({ 'tx-1': 'Completed' });
+          expect(tracked).toHaveLength(0);
+        },
+      );
+    });
+
+    it('clears the record when that autoramp is removed', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        rootMessenger.registerActionHandler(
+          'NeoBankService:listAutorampTransactions',
+          async () => [fetchedTransaction('tx-1', 'Completed')],
+        );
+
+        await controller.refreshAutorampTransactions('ar-1');
+        await controller.refreshAutorampTransactions('ar-2');
+        controller.removeAutoramp('ar-1');
+
+        expect(
+          controller.state.autorampTransactionRecords['ar-1'],
+        ).toBeUndefined();
+        expect(
+          controller.state.autorampTransactionRecords['ar-2']?.statuses,
+        ).toStrictEqual({ 'tx-1': 'Completed' });
+      });
+    });
+  });
+
   describe('hydrateVbaOnboarding', () => {
     // A session's externalUserId is the canonical profile id that created it;
     // hydration only reuses a persisted session when it matches the signed-in
@@ -10570,17 +10894,17 @@ describe('RampsController', () => {
     };
 
     type KycHandlers = {
-      readSessionStatus: jest.Mock;
-      fetchSessionStatusOnce: jest.Mock;
-      getProviderFlowStatus: jest.Mock;
-      hasCompletedVendorDisclaimers: jest.Mock;
-      hasCompletedSessionDisclaimers: jest.Mock;
-      clearState: jest.Mock;
-      getSessionProfile: jest.Mock;
-      getCustomerByExternalId: jest.Mock;
-      getAutoramps: jest.Mock;
-      signPersonalMessage: jest.Mock;
-      registerSelfHostedWallet: jest.Mock;
+      readSessionStatus: Mock;
+      fetchSessionStatusOnce: Mock;
+      getProviderFlowStatus: Mock;
+      hasCompletedVendorDisclaimers: Mock;
+      hasCompletedSessionDisclaimers: Mock;
+      clearState: Mock;
+      getSessionProfile: Mock;
+      getCustomerByExternalId: Mock;
+      getAutoramps: Mock;
+      signPersonalMessage: Mock;
+      registerSelfHostedWallet: Mock;
     };
 
     type KycValues = {
@@ -10625,27 +10949,27 @@ describe('RampsController', () => {
       }
 
       const handlers: KycHandlers = {
-        readSessionStatus: jest.fn(() => values.session),
-        fetchSessionStatusOnce: jest.fn(async () => values.fetchedSession),
-        getProviderFlowStatus: jest
+        readSessionStatus: vi.fn(() => values.session),
+        fetchSessionStatusOnce: vi.fn(async () => values.fetchedSession),
+        getProviderFlowStatus: vi
           .fn()
           .mockReturnValue(values.providerFlowStatus),
-        hasCompletedVendorDisclaimers: jest
+        hasCompletedVendorDisclaimers: vi
           .fn()
           .mockResolvedValue(values.vendorDisclaimersCompleted),
-        hasCompletedSessionDisclaimers: jest
+        hasCompletedSessionDisclaimers: vi
           .fn()
           .mockResolvedValue(values.sessionDisclaimersCompleted),
-        clearState: jest.fn(),
-        getSessionProfile: jest
+        clearState: vi.fn(),
+        getSessionProfile: vi
           .fn()
           .mockResolvedValue({ canonicalProfileId: values.profileCanonicalId }),
-        getCustomerByExternalId: jest
+        getCustomerByExternalId: vi
           .fn()
           .mockResolvedValue({ id: 'customer-1', status: 'Active' }),
-        getAutoramps: jest.fn().mockResolvedValue([]),
-        signPersonalMessage: jest.fn().mockResolvedValue('0xsig'),
-        registerSelfHostedWallet: jest.fn(),
+        getAutoramps: vi.fn().mockResolvedValue([]),
+        signPersonalMessage: vi.fn().mockResolvedValue('0xsig'),
+        registerSelfHostedWallet: vi.fn(),
       };
 
       rootMessenger.registerActionHandler(
@@ -10791,11 +11115,11 @@ describe('RampsController', () => {
     ])('returns $name', async ({ overrides, expected }) => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger, overrides);
-        const registerWallet = jest.spyOn(
+        const registerWallet = vi.spyOn(
           controller,
           'registerMoneyAccountWallet',
         );
-        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+        const createAutoramp = vi.spyOn(controller, 'createAutoramp');
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
@@ -10811,11 +11135,11 @@ describe('RampsController', () => {
         const handlers = registerKycHandlers(rootMessenger, {
           session: sessionWithStatus('new'),
         });
-        const registerWallet = jest.spyOn(
+        const registerWallet = vi.spyOn(
           controller,
           'registerMoneyAccountWallet',
         );
-        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+        const createAutoramp = vi.spyOn(controller, 'createAutoramp');
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
@@ -10837,11 +11161,11 @@ describe('RampsController', () => {
           session: sessionWithStatus('pending'),
           fetchedSession: sessionWithStatus('approved'),
         });
-        const registerWallet = jest.spyOn(
+        const registerWallet = vi.spyOn(
           controller,
           'registerMoneyAccountWallet',
         );
-        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+        const createAutoramp = vi.spyOn(controller, 'createAutoramp');
 
         expect(
           await controller.hydrateVbaOnboarding({
@@ -10941,6 +11265,12 @@ describe('RampsController', () => {
               moneyAccountWalletRegistrations: [
                 { walletAddress: '0xabc', status: 'active', updatedAt: 1 },
               ],
+              autorampTransactionRecords: {
+                'autoramp-previous': {
+                  syncedAt: 1,
+                  statuses: { 'tx-1': 'Completed' },
+                },
+              },
               vbaAutorampListFetchedAt: 2,
             },
           },
@@ -10973,6 +11303,7 @@ describe('RampsController', () => {
             controller.state.moneyAccountWalletRegistrations,
           ).toStrictEqual([]);
           expect(controller.state.autoramps).toStrictEqual([]);
+          expect(controller.state.autorampTransactionRecords).toStrictEqual({});
           expect(controller.state.vbaAutorampListFetchedAt).toBeNull();
         },
       );
@@ -11081,11 +11412,11 @@ describe('RampsController', () => {
     it('returns needs_wallet_registration when KYC is approved and no registration row is stored', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger);
-        const registerWallet = jest.spyOn(
+        const registerWallet = vi.spyOn(
           controller,
           'registerMoneyAccountWallet',
         );
-        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+        const createAutoramp = vi.spyOn(controller, 'createAutoramp');
 
         expect(
           await controller.hydrateVbaOnboarding({
@@ -11167,8 +11498,8 @@ describe('RampsController', () => {
             vendorStatus: 'new',
           },
         });
-        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
-        const registerWallet = jest.spyOn(
+        const createAutoramp = vi.spyOn(controller, 'createAutoramp');
+        const registerWallet = vi.spyOn(
           controller,
           'registerMoneyAccountWallet',
         );
@@ -11202,7 +11533,7 @@ describe('RampsController', () => {
           },
           async ({ controller, rootMessenger }) => {
             const handlers = registerKycHandlers(rootMessenger);
-            const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+            const createAutoramp = vi.spyOn(controller, 'createAutoramp');
 
             expect(
               await controller.hydrateVbaOnboarding({
@@ -11227,8 +11558,8 @@ describe('RampsController', () => {
     );
 
     it('skips the autoramp GET when a usable autoramp is already stored', async () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2026-10-08T12:00:00.000Z'));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-08T12:00:00.000Z'));
       try {
         await withController(async ({ controller, rootMessenger }) => {
           const handlers = registerKycHandlers(rootMessenger);
@@ -11238,8 +11569,8 @@ describe('RampsController', () => {
             walletAddress: '0xAbC',
             status: AutorampStatus.Approved,
           });
-          const createAutoramp = jest.spyOn(controller, 'createAutoramp');
-          const registerWallet = jest.spyOn(
+          const createAutoramp = vi.spyOn(controller, 'createAutoramp');
+          const registerWallet = vi.spyOn(
             controller,
             'registerMoneyAccountWallet',
           );
@@ -11263,49 +11594,72 @@ describe('RampsController', () => {
           expect(controller.state.vbaAutorampListFetchedAt).toBeNull();
         });
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
     it('refreshes the autoramp cursor when refreshAutoramps is set and no usable route is stored', async () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2026-10-08T12:00:00.000Z'));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-08T12:00:00.000Z'));
       try {
-        await withController(async ({ controller, rootMessenger }) => {
-          const handlers = registerKycHandlers(rootMessenger);
-          handlers.getAutoramps.mockResolvedValue([
-            {
-              id: 'autoramp-1',
-              customerId: 'customer-1',
-              walletAddress: '0xAbC',
-              status: AutorampStatus.Approved,
+        await withController(
+          {
+            options: {
+              state: {
+                autorampTransactionRecords: {
+                  'stale-autoramp': {
+                    syncedAt: 1,
+                    statuses: { 'tx-stale': 'Failed' },
+                  },
+                  'autoramp-1': {
+                    syncedAt: 5,
+                    statuses: { 'tx-kept': 'Completed' },
+                  },
+                },
+              },
             },
-          ]);
-          const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+          },
+          async ({ controller, rootMessenger }) => {
+            const handlers = registerKycHandlers(rootMessenger);
+            handlers.getAutoramps.mockResolvedValue([
+              {
+                id: 'autoramp-1',
+                customerId: 'customer-1',
+                walletAddress: '0xAbC',
+                status: AutorampStatus.Approved,
+              },
+            ]);
+            const createAutoramp = vi.spyOn(controller, 'createAutoramp');
 
-          expect(
-            await controller.hydrateVbaOnboarding({
-              walletAddress: '0xabc',
-              refreshAutoramps: true,
-            }),
-          ).toStrictEqual(
-            factsSnapshot({
-              kycStatus: 'approved',
-              autorampStatus: 'ready',
-            }),
-          );
+            expect(
+              await controller.hydrateVbaOnboarding({
+                walletAddress: '0xabc',
+                refreshAutoramps: true,
+              }),
+            ).toStrictEqual(
+              factsSnapshot({
+                kycStatus: 'approved',
+                autorampStatus: 'ready',
+              }),
+            );
 
-          expect(handlers.getAutoramps).toHaveBeenCalledTimes(1);
-          expect(createAutoramp).not.toHaveBeenCalled();
-          expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
-          expect(controller.state.vbaAutorampListFetchedAt).toBe(
-            new Date('2026-10-08T12:00:00.000Z').getTime(),
-          );
-          expect(
-            controller.state.autoramps.map(
-              ({ updatedAt: _updatedAt, ...account }) => account,
-            ),
-          ).toMatchInlineSnapshot(`
+            expect(handlers.getAutoramps).toHaveBeenCalledTimes(1);
+            expect(createAutoramp).not.toHaveBeenCalled();
+            expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+            expect(controller.state.vbaAutorampListFetchedAt).toBe(
+              new Date('2026-10-08T12:00:00.000Z').getTime(),
+            );
+            expect(controller.state.autorampTransactionRecords).toStrictEqual({
+              'autoramp-1': {
+                syncedAt: 5,
+                statuses: { 'tx-kept': 'Completed' },
+              },
+            });
+            expect(
+              controller.state.autoramps.map(
+                ({ updatedAt: _updatedAt, ...account }) => account,
+              ),
+            ).toMatchInlineSnapshot(`
             [
               {
                 "customerId": "customer-1",
@@ -11317,9 +11671,10 @@ describe('RampsController', () => {
               },
             ]
           `);
-        });
+          },
+        );
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -11344,7 +11699,7 @@ describe('RampsController', () => {
               status: AutorampStatus.Rejected,
             },
           ]);
-          const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+          const createAutoramp = vi.spyOn(controller, 'createAutoramp');
 
           expect(
             await controller.hydrateVbaOnboarding({
@@ -11404,7 +11759,7 @@ describe('RampsController', () => {
         handlers.getAutoramps.mockRejectedValue(
           new Error('autoramp lookup failed'),
         );
-        const createAutoramp = jest.spyOn(controller, 'createAutoramp');
+        const createAutoramp = vi.spyOn(controller, 'createAutoramp');
 
         expect(
           await controller.hydrateVbaOnboarding({
@@ -11445,11 +11800,11 @@ describe('RampsController', () => {
     };
 
     type WalletRegistrationHandlers = {
-      getSessionProfile: jest.Mock;
-      getCustomerByExternalId: jest.Mock;
-      getWalletRegistrationStatus: jest.Mock;
-      registerSelfHostedWallet: jest.Mock;
-      signPersonalMessage: jest.Mock;
+      getSessionProfile: Mock;
+      getCustomerByExternalId: Mock;
+      getWalletRegistrationStatus: Mock;
+      registerSelfHostedWallet: Mock;
+      signPersonalMessage: Mock;
     };
 
     /**
@@ -11463,22 +11818,22 @@ describe('RampsController', () => {
       rootMessenger: RootMessenger,
     ): WalletRegistrationHandlers {
       const handlers: WalletRegistrationHandlers = {
-        getSessionProfile: jest.fn().mockResolvedValue({
+        getSessionProfile: vi.fn().mockResolvedValue({
           identifierId: 'id-1',
           profileId: 'profile-1',
           metaMetricsId: 'mm-1',
         }),
-        getCustomerByExternalId: jest
+        getCustomerByExternalId: vi
           .fn()
           .mockResolvedValue({ id: 'iron-customer-1', status: 'Active' }),
-        getWalletRegistrationStatus: jest
+        getWalletRegistrationStatus: vi
           .fn()
           .mockResolvedValue({ type: 'absent' }),
-        registerSelfHostedWallet: jest.fn().mockResolvedValue({
+        registerSelfHostedWallet: vi.fn().mockResolvedValue({
           type: 'registered',
           registration,
         }),
-        signPersonalMessage: jest.fn().mockResolvedValue('0xsig'),
+        signPersonalMessage: vi.fn().mockResolvedValue('0xsig'),
       };
       rootMessenger.registerActionHandler(
         'AuthenticationController:getSessionProfile',
@@ -11647,14 +12002,14 @@ describe('RampsController', () => {
     });
 
     it('rebuilds and re-signs after a UTC date rollover', async () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2026-08-12T23:59:59.999Z'));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-08-12T23:59:59.999Z'));
       try {
         await withController(async ({ controller, rootMessenger }) => {
           const handlers = registerWalletRegistrationHandlers(rootMessenger);
           handlers.registerSelfHostedWallet
             .mockImplementationOnce(async () => {
-              jest.setSystemTime(new Date('2026-08-13T00:00:00.000Z'));
+              vi.setSystemTime(new Date('2026-08-13T00:00:00.000Z'));
               throw new WalletRegistrationError('validation', {
                 httpStatus: 400,
               });
@@ -11675,7 +12030,7 @@ describe('RampsController', () => {
           );
         });
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
 
@@ -11779,8 +12134,8 @@ describe('RampsController', () => {
     });
 
     it('writes a registration row only after a successful register', async () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date('2026-10-08T12:00:00.000Z'));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-10-08T12:00:00.000Z'));
       try {
         await withController(async ({ controller, rootMessenger }) => {
           const handlers = registerWalletRegistrationHandlers(rootMessenger);
@@ -11852,7 +12207,7 @@ describe('RampsController', () => {
           `);
         });
       } finally {
-        jest.useRealTimers();
+        vi.useRealTimers();
       }
     });
   });
@@ -11894,7 +12249,7 @@ describe('RampsController', () => {
 
     it('adds a new order to state', async () => {
       await withController(({ controller, rootMessenger }) => {
-        jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_100);
+        vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_100);
         rootMessenger.call('RampsController:addOrder', mockOrder);
         expect(controller.state.orders).toHaveLength(1);
         expect(controller.state.orders[0]).toStrictEqual({
@@ -12016,7 +12371,7 @@ describe('RampsController', () => {
 
     it('clears polling metadata when removing by internal order code', async () => {
       await withController(async ({ rootMessenger }) => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
 
         const legacyOrder = createMockOrder({
           id: '/providers/transak/orders/internal-order-456',
@@ -12040,7 +12395,7 @@ describe('RampsController', () => {
         );
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
         expect(callCount).toBe(1);
 
         rootMessenger.call('RampsController:removeOrder', 'internal-order-456');
@@ -12060,11 +12415,11 @@ describe('RampsController', () => {
 
         callCount = 0;
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
         expect(callCount).toBe(1);
 
         rootMessenger.call('RampsController:stopOrderPolling');
-        jest.useRealTimers();
+        vi.useRealTimers();
       });
     });
   });
@@ -12402,11 +12757,11 @@ describe('RampsController', () => {
 
   describe('order polling', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('startOrderPolling polls pending orders immediately and on interval', async () => {
@@ -12432,7 +12787,7 @@ describe('RampsController', () => {
         );
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(controller.state.orders[0]?.status).toBe(
           RampsOrderStatus.Completed,
@@ -12444,7 +12799,7 @@ describe('RampsController', () => {
 
     it('startOrderPolling is idempotent', async () => {
       await withController(async ({ rootMessenger }) => {
-        const handler = jest.fn(async () =>
+        const handler = vi.fn(async () =>
           createMockOrder({
             providerOrderId: 'p1',
             status: RampsOrderStatus.Completed,
@@ -12503,14 +12858,14 @@ describe('RampsController', () => {
           async () => updatedOrder,
         );
 
-        const statusChangedListener = jest.fn();
+        const statusChangedListener = vi.fn();
         messenger.subscribe(
           'RampsController:orderStatusChanged',
           statusChangedListener,
         );
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(statusChangedListener).toHaveBeenCalledWith({
           order: {
@@ -12542,14 +12897,14 @@ describe('RampsController', () => {
           async () => pendingOrder,
         );
 
-        const statusChangedListener = jest.fn();
+        const statusChangedListener = vi.fn();
         messenger.subscribe(
           'RampsController:orderStatusChanged',
           statusChangedListener,
         );
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(statusChangedListener).not.toHaveBeenCalled();
 
@@ -12580,7 +12935,7 @@ describe('RampsController', () => {
         );
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(controller.state.orders[0]?.status).toBe(
           RampsOrderStatus.Completed,
@@ -12613,7 +12968,7 @@ describe('RampsController', () => {
         );
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(controller.state.orders[0]?.status).toBe(
           RampsOrderStatus.Unknown,
@@ -12644,7 +12999,7 @@ describe('RampsController', () => {
         );
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(controller.state.orders[0]?.status).toBe(
           RampsOrderStatus.Pending,
@@ -12664,11 +13019,11 @@ describe('RampsController', () => {
         });
         rootMessenger.call('RampsController:addOrder', orderWithoutProvider);
 
-        const handler = jest.fn();
+        const handler = vi.fn();
         rootMessenger.registerActionHandler('RampsService:getOrder', handler);
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(handler).not.toHaveBeenCalled();
 
@@ -12690,11 +13045,11 @@ describe('RampsController', () => {
         });
         rootMessenger.call('RampsController:addOrder', orderNoId);
 
-        const handler = jest.fn();
+        const handler = vi.fn();
         rootMessenger.registerActionHandler('RampsService:getOrder', handler);
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(handler).not.toHaveBeenCalled();
 
@@ -12715,11 +13070,11 @@ describe('RampsController', () => {
         });
         rootMessenger.call('RampsController:addOrder', orderNoWallet);
 
-        const handler = jest.fn();
+        const handler = vi.fn();
         rootMessenger.registerActionHandler('RampsService:getOrder', handler);
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(handler).not.toHaveBeenCalled();
 
@@ -12741,14 +13096,14 @@ describe('RampsController', () => {
         });
         rootMessenger.call('RampsController:addOrder', order);
 
-        const handler = jest.fn(async () => ({
+        const handler = vi.fn(async () => ({
           ...order,
           status: RampsOrderStatus.Completed,
         }));
         rootMessenger.registerActionHandler('RampsService:getOrder', handler);
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(handler).toHaveBeenCalledWith(
           '/providers/transak',
@@ -12783,10 +13138,10 @@ describe('RampsController', () => {
         );
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
         expect(callCount).toBe(1);
 
-        await jest.advanceTimersByTimeAsync(30_000);
+        await vi.advanceTimersByTimeAsync(30_000);
         expect(callCount).toBe(2);
 
         rootMessenger.call('RampsController:stopOrderPolling');
@@ -12817,13 +13172,13 @@ describe('RampsController', () => {
         );
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
         expect(callCount).toBe(1);
 
-        await jest.advanceTimersByTimeAsync(30_000);
+        await vi.advanceTimersByTimeAsync(30_000);
         expect(callCount).toBe(1);
 
-        await jest.advanceTimersByTimeAsync(90_000);
+        await vi.advanceTimersByTimeAsync(90_000);
         expect(callCount).toBe(2);
 
         rootMessenger.call('RampsController:stopOrderPolling');
@@ -12833,15 +13188,15 @@ describe('RampsController', () => {
     it('catches errors if poll cycle throws synchronously on initial call', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const realState = controller.state;
-        jest.spyOn(controller, 'state', 'get').mockReturnValue({
+        vi.spyOn(controller, 'state', 'get').mockReturnValue({
           ...realState,
           orders: null as unknown as RampsOrder[],
         });
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
         expect(controller.state.orders).toStrictEqual([]);
         rootMessenger.call('RampsController:stopOrderPolling');
       });
@@ -12850,17 +13205,17 @@ describe('RampsController', () => {
     it('catches errors if poll cycle throws on interval tick', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         const realState = controller.state;
-        jest.spyOn(controller, 'state', 'get').mockReturnValueOnce({
+        vi.spyOn(controller, 'state', 'get').mockReturnValueOnce({
           ...realState,
           orders: null as unknown as RampsOrder[],
         });
 
-        await jest.advanceTimersByTimeAsync(30_000);
+        await vi.advanceTimersByTimeAsync(30_000);
 
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
         expect(controller.state.orders).toStrictEqual([]);
         rootMessenger.call('RampsController:stopOrderPolling');
       });
@@ -12879,11 +13234,11 @@ describe('RampsController', () => {
         });
         rootMessenger.call('RampsController:addOrder', completedOrder);
 
-        const handler = jest.fn();
+        const handler = vi.fn();
         rootMessenger.registerActionHandler('RampsService:getOrder', handler);
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(handler).not.toHaveBeenCalled();
 
@@ -12917,13 +13272,13 @@ describe('RampsController', () => {
         );
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
         expect(callCount).toBe(1);
 
-        await jest.advanceTimersByTimeAsync(30_000);
+        await vi.advanceTimersByTimeAsync(30_000);
         expect(callCount).toBe(2);
 
-        await jest.advanceTimersByTimeAsync(30_000);
+        await vi.advanceTimersByTimeAsync(30_000);
         expect(callCount).toBe(3);
 
         rootMessenger.call('RampsController:stopOrderPolling');
@@ -12964,21 +13319,21 @@ describe('RampsController', () => {
             }),
         );
 
-        const statusChangedListener = jest.fn();
+        const statusChangedListener = vi.fn();
         messenger.subscribe(
           'RampsController:orderStatusChanged',
           statusChangedListener,
         );
 
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         rootMessenger.call('RampsController:stopOrderPolling');
         rootMessenger.call('RampsController:startOrderPolling');
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         resolveFirst(updatedOrder);
-        await jest.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(statusChangedListener).toHaveBeenCalledTimes(1);
 
@@ -12991,7 +13346,7 @@ describe('RampsController', () => {
     describe('transakSetApiKey', () => {
       it('calls messenger with the api key', async () => {
         await withController(async ({ rootMessenger }) => {
-          const handler = jest.fn();
+          const handler = vi.fn();
           rootMessenger.registerActionHandler(
             'TransakService:setApiKey',
             handler,
@@ -13008,7 +13363,7 @@ describe('RampsController', () => {
     describe('transakSetAccessToken', () => {
       it('calls messenger and sets authenticated to true', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          const handler = jest.fn();
+          const handler = vi.fn();
           rootMessenger.registerActionHandler(
             'TransakService:setAccessToken',
             handler,
@@ -13032,11 +13387,11 @@ describe('RampsController', () => {
         await withController(async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'TransakService:setAccessToken',
-            jest.fn(),
+            vi.fn(),
           );
           rootMessenger.registerActionHandler(
             'TransakService:clearAccessToken',
-            jest.fn(),
+            vi.fn(),
           );
           rootMessenger.call('RampsController:transakSetAccessToken', {
             accessToken: 'tok',
@@ -13077,9 +13432,9 @@ describe('RampsController', () => {
         await withController(async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'TransakService:setAccessToken',
-            jest.fn(),
+            vi.fn(),
           );
-          const clearAccessTokenHandler = jest.fn();
+          const clearAccessTokenHandler = vi.fn();
           rootMessenger.registerActionHandler(
             'TransakService:clearAccessToken',
             clearAccessTokenHandler,
@@ -13221,9 +13576,9 @@ describe('RampsController', () => {
         await withController(async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'TransakService:setAccessToken',
-            jest.fn(),
+            vi.fn(),
           );
-          const clearAccessTokenHandler = jest.fn();
+          const clearAccessTokenHandler = vi.fn();
           rootMessenger.registerActionHandler(
             'TransakService:clearAccessToken',
             clearAccessTokenHandler,
@@ -13260,9 +13615,9 @@ describe('RampsController', () => {
         await withController(async ({ controller, rootMessenger }) => {
           rootMessenger.registerActionHandler(
             'TransakService:setAccessToken',
-            jest.fn(),
+            vi.fn(),
           );
-          const clearAccessTokenHandler = jest.fn();
+          const clearAccessTokenHandler = vi.fn();
           rootMessenger.registerActionHandler(
             'TransakService:clearAccessToken',
             clearAccessTokenHandler,
@@ -13527,7 +13882,7 @@ describe('RampsController', () => {
 
       it('forwards fee-inclusive behavior when requested', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          const getBuyQuote = jest.fn().mockResolvedValue(mockBuyQuote);
+          const getBuyQuote = vi.fn().mockResolvedValue(mockBuyQuote);
           rootMessenger.registerActionHandler(
             'TransakService:getBuyQuote',
             getBuyQuote,
@@ -13555,7 +13910,7 @@ describe('RampsController', () => {
 
       it('defaults Unified Buy native quotes to fee exclusion', async () => {
         await withController(async ({ controller, rootMessenger }) => {
-          const getBuyQuote = jest.fn().mockResolvedValue(mockBuyQuote);
+          const getBuyQuote = vi.fn().mockResolvedValue(mockBuyQuote);
           rootMessenger.registerActionHandler(
             'TransakService:getBuyQuote',
             getBuyQuote,
@@ -13817,7 +14172,7 @@ describe('RampsController', () => {
       it('calls messenger with correct arguments and returns result', async () => {
         await withController(async ({ rootMessenger }) => {
           const mockOrder = createMockDepositOrder();
-          const handler = jest.fn().mockResolvedValue(mockOrder);
+          const handler = vi.fn().mockResolvedValue(mockOrder);
           rootMessenger.registerActionHandler(
             'TransakService:createOrder',
             handler,
@@ -13913,7 +14268,7 @@ describe('RampsController', () => {
               fields: [],
             },
           ];
-          const handler = jest.fn().mockResolvedValue(mockOrder);
+          const handler = vi.fn().mockResolvedValue(mockOrder);
           rootMessenger.registerActionHandler(
             'TransakService:getOrder',
             handler,
@@ -14094,9 +14449,7 @@ describe('RampsController', () => {
 
       it('passes optional extraParams to messenger', async () => {
         await withController(async ({ rootMessenger }) => {
-          const handler = jest
-            .fn()
-            .mockReturnValue('https://widget.transak.com');
+          const handler = vi.fn().mockReturnValue('https://widget.transak.com');
           rootMessenger.registerActionHandler(
             'TransakService:generatePaymentWidgetUrl',
             handler,
@@ -14144,7 +14497,7 @@ describe('RampsController', () => {
 
       it('calls messenger with correct arguments and returns the widget URL', async () => {
         await withController(async ({ rootMessenger }) => {
-          const handler = jest
+          const handler = vi
             .fn()
             .mockResolvedValue('https://global.transak.com?sessionId=sess-1');
           rootMessenger.registerActionHandler(
@@ -14191,7 +14544,7 @@ describe('RampsController', () => {
     describe('transakSubmitPurposeOfUsageForm', () => {
       it('calls messenger with purpose array', async () => {
         await withController(async ({ rootMessenger }) => {
-          const handler = jest.fn().mockResolvedValue(undefined);
+          const handler = vi.fn().mockResolvedValue(undefined);
           rootMessenger.registerActionHandler(
             'TransakService:submitPurposeOfUsageForm',
             handler,
@@ -14234,7 +14587,7 @@ describe('RampsController', () => {
           const data: PatchUserRequestBody = {
             personalDetails: { firstName: 'Jane', lastName: 'Doe' },
           };
-          const handler = jest.fn().mockResolvedValue({ success: true });
+          const handler = vi.fn().mockResolvedValue({ success: true });
           rootMessenger.registerActionHandler(
             'TransakService:patchUser',
             handler,
@@ -14274,7 +14627,7 @@ describe('RampsController', () => {
     describe('transakSubmitSsnDetails', () => {
       it('calls messenger with ssn and quoteId', async () => {
         await withController(async ({ rootMessenger }) => {
-          const handler = jest.fn().mockResolvedValue({ success: true });
+          const handler = vi.fn().mockResolvedValue({ success: true });
           rootMessenger.registerActionHandler(
             'TransakService:submitSsnDetails',
             handler,
@@ -14317,7 +14670,7 @@ describe('RampsController', () => {
     describe('transakConfirmPayment', () => {
       it('calls messenger with orderId and paymentMethodId', async () => {
         await withController(async ({ rootMessenger }) => {
-          const handler = jest.fn().mockResolvedValue({ success: true });
+          const handler = vi.fn().mockResolvedValue({ success: true });
           rootMessenger.registerActionHandler(
             'TransakService:confirmPayment',
             handler,
@@ -14457,7 +14810,7 @@ describe('RampsController', () => {
     describe('transakCancelOrder', () => {
       it('calls messenger with depositOrderId', async () => {
         await withController(async ({ rootMessenger }) => {
-          const handler = jest.fn().mockResolvedValue(undefined);
+          const handler = vi.fn().mockResolvedValue(undefined);
           rootMessenger.registerActionHandler(
             'TransakService:cancelOrder',
             handler,
@@ -14496,7 +14849,7 @@ describe('RampsController', () => {
     describe('transakCancelAllActiveOrders', () => {
       it('calls messenger and returns collected errors', async () => {
         await withController(async ({ rootMessenger }) => {
-          const handler = jest.fn().mockResolvedValue([]);
+          const handler = vi.fn().mockResolvedValue([]);
           rootMessenger.registerActionHandler(
             'TransakService:cancelAllActiveOrders',
             handler,
@@ -14875,8 +15228,8 @@ function getRootMessenger(): RootMessenger {
 function spyOnDefaultRedirectCallbackUrl(
   rootMessenger: RootMessenger,
   url: string = STAGING_REDIRECT_CALLBACK_URL,
-): jest.Mock<string, []> {
-  const handler = jest.fn<string, []>(() => url);
+): Mock<() => string> {
+  const handler = vi.fn<() => string>(() => url);
   rootMessenger.unregisterActionHandler(
     'RampsService:getDefaultRedirectCallbackUrl',
   );

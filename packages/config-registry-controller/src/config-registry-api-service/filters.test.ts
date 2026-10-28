@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { createMockNetworkConfig } from '../../tests/helpers.js';
 import { filterNetworks } from './filters.js';
 import type { RegistryNetworkConfig } from './types.js';

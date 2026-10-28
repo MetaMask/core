@@ -5,6 +5,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { ComplianceServiceMessenger } from './ComplianceService.js';
 import { ComplianceService } from './ComplianceService.js';
@@ -305,7 +306,7 @@ describe('ComplianceService', () => {
         .get('/v1/wallet/0xABC123')
         .reply(200, { address: '0xABC123', blocked: false });
       const { service, messenger } = getService();
-      const publishSpy = jest.spyOn(messenger, 'publish');
+      const publishSpy = vi.spyOn(messenger, 'publish');
 
       await service.checkWalletCompliance('0xABC123');
 

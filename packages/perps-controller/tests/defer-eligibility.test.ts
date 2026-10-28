@@ -4,12 +4,13 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
 import { PerpsController } from '../src/PerpsController.js';
 import type { PerpsControllerMessenger } from '../src/PerpsController.js';
 import type { PerpsPlatformDependencies } from '../src/types/index.js';
 
-jest.mock('@nktkas/hyperliquid', () => ({}));
+vi.mock('@nktkas/hyperliquid', () => ({}));
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -18,14 +19,14 @@ type RootMessenger = Messenger<
 >;
 
 const noopLogger = {
-  error: jest.fn(),
-  warn: jest.fn(),
+  error: vi.fn(),
+  warn: vi.fn(),
 };
 
 const noopDebugLogger = {
-  log: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
+  log: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
 };
 
 function buildMockInfrastructure(): PerpsPlatformDependencies {
@@ -33,36 +34,36 @@ function buildMockInfrastructure(): PerpsPlatformDependencies {
     logger: noopLogger,
     debugLogger: noopDebugLogger,
     metrics: {
-      trackEvent: jest.fn(),
+      trackEvent: vi.fn(),
     } as unknown as PerpsPlatformDependencies['metrics'],
     performance: {
-      startTrace: jest.fn(),
-      endTrace: jest.fn(),
+      startTrace: vi.fn(),
+      endTrace: vi.fn(),
     } as unknown as PerpsPlatformDependencies['performance'],
     tracer: {
-      trace: jest.fn(),
+      trace: vi.fn(),
     } as unknown as PerpsPlatformDependencies['tracer'],
     streamManager: {
-      subscribe: jest.fn(),
-      unsubscribe: jest.fn(),
-      pauseChannel: jest.fn(),
-      resumeChannel: jest.fn(),
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+      pauseChannel: vi.fn(),
+      resumeChannel: vi.fn(),
     } as unknown as PerpsPlatformDependencies['streamManager'],
-    featureFlags: { validateVersionGated: jest.fn() },
+    featureFlags: { validateVersionGated: vi.fn() },
     marketDataFormatters: {
-      formatPrice: jest.fn(),
-      formatSize: jest.fn(),
+      formatPrice: vi.fn(),
+      formatSize: vi.fn(),
     } as unknown as PerpsPlatformDependencies['marketDataFormatters'],
     cacheInvalidator: {
-      invalidate: jest.fn(),
+      invalidate: vi.fn(),
     } as unknown as PerpsPlatformDependencies['cacheInvalidator'],
     diskCache: {
-      getItem: jest.fn().mockResolvedValue(null),
-      getItemSync: jest.fn().mockReturnValue(null),
-      setItem: jest.fn().mockResolvedValue(undefined),
-      removeItem: jest.fn().mockResolvedValue(undefined),
+      getItem: vi.fn().mockResolvedValue(null),
+      getItemSync: vi.fn().mockReturnValue(null),
+      setItem: vi.fn().mockResolvedValue(undefined),
+      removeItem: vi.fn().mockResolvedValue(undefined),
     },
-    rewards: { getPerpsDiscountForAccount: jest.fn().mockResolvedValue(0) },
+    rewards: { getPerpsDiscountForAccount: vi.fn().mockResolvedValue(0) },
   };
 }
 
@@ -137,7 +138,7 @@ function buildController({
 describe('PerpsController - deferEligibilityCheck', () => {
   describe('when deferEligibilityCheck is true', () => {
     it('does not trigger a geolocation fetch during construction', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         text: () => Promise.resolve('US'),
       } as globalThis.Response);
 
@@ -151,7 +152,7 @@ describe('PerpsController - deferEligibilityCheck', () => {
     });
 
     it('does not trigger a geolocation fetch from subscription events', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         text: () => Promise.resolve('US'),
       } as globalThis.Response);
 
@@ -191,7 +192,7 @@ describe('PerpsController - deferEligibilityCheck', () => {
 
     it('reads current RemoteFeatureFlagController state', () => {
       const rootMessenger = getRootMessenger();
-      const getStateMock = jest
+      const getStateMock = vi
         .fn()
         .mockReturnValue(MOCK_REMOTE_FEATURE_FLAG_STATE);
 
@@ -215,7 +216,7 @@ describe('PerpsController - deferEligibilityCheck', () => {
     });
 
     it('unblocks future subscription-driven eligibility checks', () => {
-      const refreshSpy = jest.spyOn(
+      const refreshSpy = vi.spyOn(
         PerpsController.prototype as unknown as {
           refreshEligibilityOnFeatureFlagChange: (...args: unknown[]) => void;
         },
@@ -246,7 +247,7 @@ describe('PerpsController - deferEligibilityCheck', () => {
 
   describe('stopEligibilityMonitoring', () => {
     it('prevents geolocation calls after stop', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         text: () => Promise.resolve('US'),
       } as globalThis.Response);
 
@@ -284,7 +285,7 @@ describe('PerpsController - deferEligibilityCheck', () => {
 
     it('resumes monitoring when startEligibilityMonitoring is called again', () => {
       const rootMessenger = getRootMessenger();
-      const getStateMock = jest
+      const getStateMock = vi
         .fn()
         .mockReturnValue(MOCK_REMOTE_FEATURE_FLAG_STATE);
 
@@ -312,7 +313,7 @@ describe('PerpsController - deferEligibilityCheck', () => {
 
   describe('when deferEligibilityCheck is false (default)', () => {
     it('triggers eligibility processing during construction', () => {
-      const refreshSpy = jest.spyOn(
+      const refreshSpy = vi.spyOn(
         PerpsController.prototype as unknown as {
           refreshEligibilityOnFeatureFlagChange: (...args: unknown[]) => void;
         },

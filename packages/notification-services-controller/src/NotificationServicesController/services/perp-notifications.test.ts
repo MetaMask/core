@@ -1,3 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
+
 import { mockCreatePerpNotification } from '../__fixtures__/mockServices.js';
 import type { OrderInput } from '../types/perps/index.js';
 import { createPerpOrderNotification } from './perp-notifications.js';
@@ -11,15 +14,15 @@ const mockBearerToken = 'mock-jwt-token';
 
 describe('Perps Service - createPerpOrderNotification', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const arrangeMocks = (): {
-    consoleErrorSpy: jest.SpyInstance<void, Parameters<typeof console.error>>;
+    consoleErrorSpy: MockInstance<typeof console.error>;
   } => {
-    const consoleErrorSpy = jest
+    const consoleErrorSpy = vi
       .spyOn(console, 'error')
-      .mockImplementation(jest.fn());
+      .mockImplementation(vi.fn());
 
     return { consoleErrorSpy };
   };

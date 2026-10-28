@@ -3,6 +3,7 @@ import {
   MiddlewareContext,
 } from '@metamask/json-rpc-engine/v2';
 import type { Hex, Json } from '@metamask/utils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createProviderAndBlockTracker,
@@ -135,7 +136,7 @@ describe('block cache middleware', () => {
     });
 
     it('caches requests with cacheable method and valid blockTag', async () => {
-      const getLatestBlockSpy = jest.spyOn(blockTracker, 'getLatestBlock');
+      const getLatestBlockSpy = vi.spyOn(blockTracker, 'getLatestBlock');
       stubProviderRequests(provider, [
         {
           request: { method: 'eth_blockNumber' },
@@ -169,7 +170,7 @@ describe('block cache middleware', () => {
     });
 
     it('defaults cacheable request block tags to "latest"', async () => {
-      const getLatestBlockSpy = jest.spyOn(blockTracker, 'getLatestBlock');
+      const getLatestBlockSpy = vi.spyOn(blockTracker, 'getLatestBlock');
       stubProviderRequests(provider, [
         {
           request: { method: 'eth_blockNumber' },
@@ -203,7 +204,7 @@ describe('block cache middleware', () => {
     });
 
     it('caches requests with "earliest" block tag', async () => {
-      const getLatestBlockSpy = jest.spyOn(blockTracker, 'getLatestBlock');
+      const getLatestBlockSpy = vi.spyOn(blockTracker, 'getLatestBlock');
       stubProviderRequests(provider, [
         {
           request: { method: 'eth_blockNumber' },
@@ -237,7 +238,7 @@ describe('block cache middleware', () => {
     });
 
     it('caches requests with hex block tag', async () => {
-      const getLatestBlockSpy = jest.spyOn(blockTracker, 'getLatestBlock');
+      const getLatestBlockSpy = vi.spyOn(blockTracker, 'getLatestBlock');
       stubProviderRequests(provider, [
         {
           request: { method: 'eth_blockNumber' },
@@ -354,7 +355,7 @@ describe('block cache middleware', () => {
     );
 
     it('clears old block numbers from cache when handling "latest" requests', async () => {
-      const getLatestBlockSpy = jest
+      const getLatestBlockSpy = vi
         .spyOn(blockTracker, 'getLatestBlock')
         .mockResolvedValueOnce('0x1')
         .mockResolvedValueOnce('0x2');

@@ -15,6 +15,7 @@ import type {
   CaipChainId,
   CaipReference,
 } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import {
   toAllowedCaipAccountIds,

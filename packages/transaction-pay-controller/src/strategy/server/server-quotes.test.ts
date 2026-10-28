@@ -1,14 +1,17 @@
+import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
   PaymentOverride,
+  POLYGON_USDCE_ADDRESS,
   TransactionPayStrategy,
 } from '../../constants.js';
-import { getMessengerMock } from '../../tests/messenger-mock.js';
 import type {
   GetDelegationTransactionCallback,
   QuoteRequest,
@@ -20,7 +23,7 @@ import {
 } from '../../utils/feature-flags.js';
 import { resolveGasStationCost } from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
-import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
+import { estimateSourceGas } from '../../utils/quote-gas.js';
 import {
   getNativeToken,
   getTokenBalance,
@@ -30,23 +33,23 @@ import { TradeType } from '../../utils/trade-type.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
 
-jest.mock('../../utils/feature-flags', () => ({
-  ...jest.requireActual('../../utils/feature-flags'),
-  getFeatureFlags: jest.fn(),
-  getSlippage: jest.fn(),
-  isEIP7702Chain: jest.fn(),
+vi.mock(import('../../utils/feature-flags.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getFeatureFlags: vi.fn(),
+  getSlippage: vi.fn(),
+  isEIP7702Chain: vi.fn(),
 }));
-jest.mock('./server-api');
+vi.mock(import('./server-api.js'));
 // `resolveGasPayment` is a pure resolver, so keep the real implementation and
 // only stub the gas station lookup that performs network work. This lets the
 // sponsorship and gas-fee-token modes be exercised for real.
-jest.mock('../../utils/gas-payment', () => ({
-  ...jest.requireActual('../../utils/gas-payment'),
-  resolveGasStationCost: jest.fn(),
+vi.mock(import('../../utils/gas-payment.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  resolveGasStationCost: vi.fn(),
 }));
-jest.mock('../../utils/gas');
-jest.mock('../../utils/quote-gas');
-jest.mock('../../utils/token');
+vi.mock(import('../../utils/gas.js'));
+vi.mock(import('../../utils/quote-gas.js'));
+vi.mock(import('../../utils/token.js'));
 
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
 const SOURCE_TOKEN_ADDRESS_MOCK =
@@ -113,6 +116,39 @@ const FULFILLED_RESULT_MOCK = {
   },
 };
 
+const SAFE_MOCK = '0x5afe000000000000000000000000000000000001' as Hex;
+const DEPOSIT_WALLET_MOCK = '0xd000000000000000000000000000000000000001' as Hex;
+const OVERRIDE_RECIPIENT_MOCK =
+  '0xaaaa000000000000000000000000000000000002' as Hex;
+
+const PREDICT_WITHDRAW_TRANSACTION_MOCK = {
+  chainId: '0x1',
+  txParams: {
+    data: '0x6a761202',
+    from: FROM_MOCK,
+    gas: '0x186a0',
+    to: SAFE_MOCK,
+  },
+  type: TransactionType.predictWithdraw,
+} as unknown as TransactionMeta;
+
+const DEPOSIT_STEP_MOCK = {
+  chainId: 1,
+  data: `0xa9059cbb${'1'.padStart(64, '0')}${'2'.padStart(64, '0')}` as Hex,
+  to: SOURCE_TOKEN_ADDRESS_MOCK,
+  type: 'transaction' as const,
+  value: '0',
+};
+
+const NON_GASLESS_DEPOSIT_RESULT_MOCK = {
+  ...FULFILLED_RESULT_MOCK,
+  quote: {
+    ...FULFILLED_RESULT_MOCK.quote,
+    gasless: false,
+    steps: [DEPOSIT_STEP_MOCK],
+  },
+};
+
 const REJECTED_RESULT_MOCK = {
   error: { message: 'no route' },
   provider: 'relay',
@@ -143,18 +179,19 @@ const DELEGATION_RESULT_MOCK = {
 } as Awaited<ReturnType<GetDelegationTransactionCallback>>;
 
 describe('server-quotes', () => {
-  const fetchServerQuoteMock = jest.mocked(fetchServerQuote);
-  const getSlippageMock = jest.mocked(getSlippage);
-  const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
+  const fetchServerQuoteMock = vi.mocked(fetchServerQuote);
+  const getSlippageMock = vi.mocked(getSlippage);
+  const isEIP7702ChainMock = vi.mocked(isEIP7702Chain);
   const {
     getControllerStateMock,
     getDelegationTransactionMock,
     getPaymentOverrideDataMock,
     messenger,
+    polymarketGetDepositWalletAddressMock,
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     fetchServerQuoteMock.mockResolvedValue({
       results: [FULFILLED_RESULT_MOCK],
@@ -162,32 +199,31 @@ describe('server-quotes', () => {
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
     getSlippageMock.mockReturnValue(0.005);
     isEIP7702ChainMock.mockReturnValue(false);
-    jest.mocked(getFeatureFlags).mockReturnValue({
+    vi.mocked(getFeatureFlags).mockReturnValue({
       relayFallbackGas: '0x5208',
     } as never);
-    jest
-      .mocked(getNativeToken)
-      .mockReturnValue('0x0000000000000000000000000000000000000000');
-    jest.mocked(getTokenBalance).mockReturnValue('0');
-    jest.mocked(calculateGasCost).mockReturnValue({
+    vi.mocked(getNativeToken).mockReturnValue(
+      '0x0000000000000000000000000000000000000000',
+    );
+    vi.mocked(getTokenBalance).mockReturnValue('0');
+    vi.mocked(calculateGasCost).mockReturnValue({
       fiat: '0',
       human: '0',
       raw: '0',
       usd: '0',
     });
-    jest.mocked(getGasFee).mockReturnValue({
+    vi.mocked(getGasFee).mockReturnValue({
       estimatedBaseFee: undefined,
       maxFeePerGas: '1000000000',
       maxPriorityFeePerGas: '500000000',
     });
-    jest.mocked(estimateQuoteGasLimits).mockResolvedValue({
-      gasLimits: [{ estimate: 21000, max: 25000 }],
+    vi.mocked(estimateSourceGas).mockResolvedValue({
+      gasLimits: [25000],
+      is7702: false,
       totalGasEstimate: '0x5208',
       totalGasLimit: '0x7530',
     } as never);
-    jest
-      .mocked(resolveGasStationCost)
-      .mockResolvedValue({ isAvailable: false });
+    vi.mocked(resolveGasStationCost).mockResolvedValue({ isAvailable: false });
   });
 
   it('maps transactions without bundled calls to EXACT_INPUT quote requests', async () => {
@@ -534,7 +570,7 @@ describe('server-quotes', () => {
   });
 
   it('computes sourceAmount fiat and usd from token fiat rate when available', async () => {
-    jest.mocked(getTokenFiatRate).mockReturnValue({
+    vi.mocked(getTokenFiatRate).mockReturnValue({
       fiatRate: '2',
       usdRate: '1.5',
     });
@@ -557,7 +593,7 @@ describe('server-quotes', () => {
   });
 
   it('computes targetAmount fiat and usd from the target token fiat rate', async () => {
-    jest.mocked(getTokenFiatRate).mockReturnValue({
+    vi.mocked(getTokenFiatRate).mockReturnValue({
       fiatRate: '2',
       usdRate: '1.5',
     });
@@ -638,11 +674,9 @@ describe('server-quotes', () => {
     };
 
     beforeEach(() => {
-      jest.mocked(calculateGasCost).mockReturnValue(GAS_ESTIMATE_MOCK);
-      jest.mocked(getTokenBalance).mockReturnValue('999999999999999999999');
-      jest
-        .mocked(resolveGasStationCost)
-        .mockResolvedValue({ isAvailable: true });
+      vi.mocked(calculateGasCost).mockReturnValue(GAS_ESTIMATE_MOCK);
+      vi.mocked(getTokenBalance).mockReturnValue('999999999999999999999');
+      vi.mocked(resolveGasStationCost).mockResolvedValue({ isAvailable: true });
       fetchServerQuoteMock.mockResolvedValue({
         results: [NON_GASLESS_RESULT_MOCK],
       });
@@ -701,8 +735,8 @@ describe('server-quotes', () => {
           transaction: SPONSORED_TRANSACTION_MOCK,
         });
 
-        expect(jest.mocked(estimateQuoteGasLimits)).not.toHaveBeenCalled();
-        expect(jest.mocked(resolveGasStationCost)).not.toHaveBeenCalled();
+        expect(vi.mocked(estimateSourceGas)).not.toHaveBeenCalled();
+        expect(vi.mocked(resolveGasStationCost)).not.toHaveBeenCalled();
       });
 
       it('does not zero fees when the route is cross-chain', async () => {
@@ -743,7 +777,7 @@ describe('server-quotes', () => {
     });
 
     it('returns gas cost estimate and max when native balance is sufficient', async () => {
-      jest.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
+      vi.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -757,10 +791,10 @@ describe('server-quotes', () => {
     });
 
     it('returns estimate and max when gas station is not supported', async () => {
-      jest.mocked(getTokenBalance).mockReturnValue('0');
-      jest
-        .mocked(resolveGasStationCost)
-        .mockResolvedValue({ isAvailable: false });
+      vi.mocked(getTokenBalance).mockReturnValue('0');
+      vi.mocked(resolveGasStationCost).mockResolvedValue({
+        isAvailable: false,
+      });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -773,10 +807,11 @@ describe('server-quotes', () => {
     });
 
     it('returns estimate and max when gas station cost is unavailable', async () => {
-      jest.mocked(getTokenBalance).mockReturnValue('0');
-      jest
-        .mocked(resolveGasStationCost)
-        .mockResolvedValue({ amount: undefined, isAvailable: true });
+      vi.mocked(getTokenBalance).mockReturnValue('0');
+      vi.mocked(resolveGasStationCost).mockResolvedValue({
+        amount: undefined,
+        isAvailable: true,
+      });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -796,11 +831,12 @@ describe('server-quotes', () => {
         usd: '0',
       };
 
-      jest.mocked(getTokenBalance).mockReturnValue('0');
+      vi.mocked(getTokenBalance).mockReturnValue('0');
 
-      jest
-        .mocked(resolveGasStationCost)
-        .mockResolvedValue({ amount: GAS_FEE_TOKEN_COST, isAvailable: true });
+      vi.mocked(resolveGasStationCost).mockResolvedValue({
+        amount: GAS_FEE_TOKEN_COST,
+        isAvailable: true,
+      });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
@@ -839,7 +875,7 @@ describe('server-quotes', () => {
     });
 
     it('falls back to zero when step does not include gas fee fields', async () => {
-      jest.mocked(getTokenBalance).mockReturnValue('0');
+      vi.mocked(getTokenBalance).mockReturnValue('0');
       fetchServerQuoteMock.mockResolvedValue({
         results: [
           {
@@ -870,31 +906,31 @@ describe('server-quotes', () => {
       expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
     });
 
-    it('trims gasLimits to single entry when is7702 is true', async () => {
-      jest.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
-      jest.mocked(estimateQuoteGasLimits).mockResolvedValue({
-        gasLimits: [
-          { estimate: 21000, max: 25000 },
-          { estimate: 21000, max: 25000 },
-        ],
+    it('uses the combined gas limit when the batch is EIP-7702', async () => {
+      vi.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
+      vi.mocked(estimateSourceGas).mockResolvedValue({
+        gasLimits: [50000],
         is7702: true,
-        totalGasEstimate: '0x5208',
-        totalGasLimit: '0x7530',
-      } as never);
+        totalGasEstimate: 42000,
+        totalGasLimit: 50000,
+      });
 
       const result = await getServerQuotes({
         accountSupports7702: true,
+        from: FROM_MOCK,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
       });
 
-      expect(result[0].original.client.gasLimits).toHaveLength(1);
+      expect(result[0].original.client).toStrictEqual(
+        expect.objectContaining({ gasLimits: [50000], is7702: true }),
+      );
     });
 
     it('passes zero maxFeePerGas to calculateGasCost when gas fee estimate returns undefined', async () => {
-      jest.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
-      jest.mocked(getGasFee).mockReturnValue({
+      vi.mocked(getTokenBalance).mockReturnValue('9999999999999999999999');
+      vi.mocked(getGasFee).mockReturnValue({
         estimatedBaseFee: undefined,
         maxFeePerGas: undefined,
         maxPriorityFeePerGas: undefined,
@@ -927,7 +963,7 @@ describe('server-quotes', () => {
       });
 
       expect(result[0].fees.sourceNetwork.estimate).toBe(GAS_ESTIMATE_MOCK);
-      expect(jest.mocked(calculateGasCost)).toHaveBeenCalledWith(
+      expect(vi.mocked(calculateGasCost)).toHaveBeenCalledWith(
         expect.objectContaining({
           maxFeePerGas: '0',
           maxPriorityFeePerGas: '0',
@@ -1391,6 +1427,21 @@ describe('server-quotes', () => {
       expect(result[0].requiresSecondLeg).toBe(false);
     });
 
+    it('is true for non-atomic post-quote flows, whose override calls run after settlement', async () => {
+      getControllerStateMock.mockReturnValue({ transactionData: {} });
+      getPaymentOverrideDataMock.mockResolvedValue({ calls: [] });
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, atomic: false, isPostQuote: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].requiresSecondLeg).toBe(true);
+    });
+
     it('is true when the provider will not execute the embedded calls', async () => {
       fetchServerQuoteMock.mockResolvedValue({
         results: [
@@ -1518,5 +1569,443 @@ describe('server-quotes', () => {
         );
       },
     );
+  });
+
+  describe('refundTo', () => {
+    it('honours the caller refund address for post-quote flows', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [
+          { ...QUOTE_REQUEST_MOCK, isPostQuote: true, refundTo: SAFE_MOCK },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ refundTo: SAFE_MOCK }),
+        undefined,
+      );
+    });
+
+    it('ignores the caller refund address when the calls are embedded', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, refundTo: SAFE_MOCK }],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.not.objectContaining({ refundTo: expect.anything() }),
+        undefined,
+      );
+    });
+  });
+
+  describe('Polymarket deposit wallet', () => {
+    const DEPOSIT_WALLET_REQUEST_MOCK: QuoteRequest = {
+      ...QUOTE_REQUEST_MOCK,
+      isPolymarketDepositWallet: true,
+      isPostQuote: true,
+      refundTo: SAFE_MOCK,
+    };
+
+    beforeEach(() => {
+      polymarketGetDepositWalletAddressMock.mockResolvedValue(
+        DEPOSIT_WALLET_MOCK,
+      );
+      isEIP7702ChainMock.mockReturnValue(true);
+    });
+
+    it('quotes the USDC.e unwrapped from the deposit wallet to a deposit address', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [DEPOSIT_WALLET_REQUEST_MOCK],
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      expect(polymarketGetDepositWalletAddressMock).toHaveBeenCalledWith({
+        eoa: FROM_MOCK,
+      });
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          refundTo: DEPOSIT_WALLET_MOCK,
+          sender: DEPOSIT_WALLET_MOCK,
+          source: { chainId: 1, token: POLYGON_USDCE_ADDRESS },
+          supportsGasless: false,
+          useDepositAddress: true,
+        }),
+        undefined,
+      );
+    });
+
+    it('embeds no calls', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [{ ...DEPOSIT_WALLET_REQUEST_MOCK, isPostQuote: false }],
+        transaction: CONTRACT_CALL_TRANSACTION_MOCK,
+      });
+
+      expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.not.objectContaining({ calls: expect.anything() }),
+        undefined,
+      );
+    });
+
+    it('ignores quotes that do not fund the deposit address with a plain token transfer', async () => {
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...NON_GASLESS_DEPOSIT_RESULT_MOCK,
+            quote: {
+              ...NON_GASLESS_DEPOSIT_RESULT_MOCK.quote,
+              steps: [
+                {
+                  ...DEPOSIT_STEP_MOCK,
+                  data: `${DEPOSIT_STEP_MOCK.data}abcd` as Hex,
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [DEPOSIT_WALLET_REQUEST_MOCK],
+        transaction: { txParams: { from: FROM_MOCK } } as TransactionMeta,
+      });
+
+      expect(result).toStrictEqual([]);
+    });
+
+    it('does not charge source network fees, as the Polymarket relayer pays the gas', async () => {
+      vi.mocked(calculateGasCost).mockReturnValue({
+        fiat: '1',
+        human: '1',
+        raw: '1',
+        usd: '1',
+      });
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [NON_GASLESS_DEPOSIT_RESULT_MOCK],
+      });
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [DEPOSIT_WALLET_REQUEST_MOCK],
+        transaction: { txParams: { from: FROM_MOCK } } as TransactionMeta,
+      });
+
+      const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+      expect(result[0].fees.sourceNetwork).toStrictEqual({
+        estimate: zeroAmount,
+        max: zeroAmount,
+      });
+      expect(estimateSourceGas).not.toHaveBeenCalled();
+      expect(resolveGasStationCost).not.toHaveBeenCalled();
+    });
+
+    it('does not re-quote to reserve gas', async () => {
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [NON_GASLESS_DEPOSIT_RESULT_MOCK],
+      });
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [
+          {
+            ...DEPOSIT_WALLET_REQUEST_MOCK,
+            sourceBalanceRaw: DEPOSIT_WALLET_REQUEST_MOCK.sourceTokenAmount,
+          },
+        ],
+        transaction: { txParams: { from: FROM_MOCK } } as TransactionMeta,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('non-atomic Money Account post-quote', () => {
+    const NON_ATOMIC_REQUEST_MOCK: QuoteRequest = {
+      ...QUOTE_REQUEST_MOCK,
+      atomic: false,
+      isPostQuote: true,
+      paymentOverride: PaymentOverride.MoneyAccount,
+    };
+
+    beforeEach(() => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_META_MOCK.id]: {
+            tokens: [{ amountHuman: '1.5', amountRaw: '1500000' }],
+          },
+        },
+      });
+
+      getPaymentOverrideDataMock.mockResolvedValue({
+        calls: [
+          {
+            data: '0xoverride' as Hex,
+            to: '0xcccc000000000000000000000000000000000000' as Hex,
+          },
+        ],
+        recipient: OVERRIDE_RECIPIENT_MOCK,
+      });
+    });
+
+    it('settles on the Money Account without embedding the override calls', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [NON_ATOMIC_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ recipient: OVERRIDE_RECIPIENT_MOCK }),
+        undefined,
+      );
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.not.objectContaining({ calls: expect.anything() }),
+        undefined,
+      );
+      expect(result[0].request.recipient).toBe(OVERRIDE_RECIPIENT_MOCK);
+      expect(result[0].requiresSecondLeg).toBe(true);
+    });
+
+    it('settles on the payer when the override has no recipient', async () => {
+      getPaymentOverrideDataMock.mockResolvedValue({ calls: [] });
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [NON_ATOMIC_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({ recipient: FROM_MOCK }),
+        undefined,
+      );
+    });
+  });
+
+  describe('legacy Safe Predict withdraw source gas', () => {
+    const SAFE_REQUEST_MOCK: QuoteRequest = {
+      ...QUOTE_REQUEST_MOCK,
+      isPostQuote: true,
+      refundTo: SAFE_MOCK,
+    };
+
+    beforeEach(() => {
+      vi.mocked(calculateGasCost).mockReturnValue({
+        fiat: '0',
+        human: '0.001',
+        raw: '1000',
+        usd: '0',
+      });
+      vi.mocked(resolveGasStationCost).mockResolvedValue({
+        isAvailable: false,
+      });
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [NON_GASLESS_DEPOSIT_RESULT_MOCK],
+      });
+      vi.mocked(estimateSourceGas).mockResolvedValue({
+        gasLimits: [100000, 50000],
+        is7702: false,
+        totalGasEstimate: 130000,
+        totalGasLimit: 150000,
+      });
+    });
+
+    it('estimates gas for the original transaction and the quote steps', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [SAFE_REQUEST_MOCK],
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      const [{ request, transaction, transactions }] =
+        vi.mocked(estimateSourceGas).mock.calls[0];
+
+      expect(request.isPostQuote).toBe(true);
+      expect(transaction).toBe(PREDICT_WITHDRAW_TRANSACTION_MOCK);
+      expect(transactions.map((tx) => tx.to)).toStrictEqual([
+        DEPOSIT_STEP_MOCK.to,
+      ]);
+      expect(result[0].original.client.gasLimits).toStrictEqual([
+        100000, 50000,
+      ]);
+    });
+
+    it('estimates deposit routes from the Safe', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [SAFE_REQUEST_MOCK],
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      expect(estimateSourceGas).toHaveBeenCalledWith(
+        expect.objectContaining({ fromOverride: SAFE_MOCK }),
+      );
+    });
+
+    it('estimates swap routes from the sender', async () => {
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...NON_GASLESS_DEPOSIT_RESULT_MOCK,
+            quote: {
+              ...NON_GASLESS_DEPOSIT_RESULT_MOCK.quote,
+              steps: [{ ...DEPOSIT_STEP_MOCK, data: '0x12345678' }],
+            },
+          },
+        ],
+      });
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [SAFE_REQUEST_MOCK],
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      const [{ fromOverride, transactions }] =
+        vi.mocked(estimateSourceGas).mock.calls[0];
+
+      expect(fromOverride).toBeUndefined();
+      expect(transactions.map((tx) => tx.from)).toStrictEqual([FROM_MOCK]);
+    });
+
+    it('looks up gas fee tokens on the Safe', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [SAFE_REQUEST_MOCK],
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      expect(resolveGasStationCost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          feeTokenAccount: SAFE_MOCK,
+          totalItemCount: 2,
+        }),
+      );
+    });
+  });
+
+  describe('post-quote gas reservation', () => {
+    const GAS_FEE_TOKEN_COST_MOCK = {
+      fiat: '0.1',
+      human: '0.1',
+      raw: '100000000000000000',
+      usd: '0.1',
+    };
+
+    const POST_QUOTE_REQUEST_MOCK: QuoteRequest = {
+      ...QUOTE_REQUEST_MOCK,
+      isPostQuote: true,
+      sourceBalanceRaw: QUOTE_REQUEST_MOCK.sourceTokenAmount,
+    };
+
+    const REQUOTE_RESULT_MOCK = {
+      ...NON_GASLESS_DEPOSIT_RESULT_MOCK,
+      quote: { ...NON_GASLESS_DEPOSIT_RESULT_MOCK.quote, id: 'requote-id' },
+    };
+
+    beforeEach(() => {
+      vi.mocked(resolveGasStationCost).mockResolvedValue({
+        amount: GAS_FEE_TOKEN_COST_MOCK,
+        isAvailable: true,
+      });
+      fetchServerQuoteMock
+        .mockResolvedValueOnce({ results: [NON_GASLESS_DEPOSIT_RESULT_MOCK] })
+        .mockResolvedValueOnce({ results: [REQUOTE_RESULT_MOCK] });
+    });
+
+    it('re-quotes the same provider with gas reserved from the source amount', async () => {
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [POST_QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledTimes(2);
+      expect(fetchServerQuoteMock).toHaveBeenLastCalledWith(
+        messenger,
+        expect.objectContaining({
+          amount: '890000000000000000',
+          providers: [NON_GASLESS_DEPOSIT_RESULT_MOCK.provider],
+        }),
+        undefined,
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0].original.id).toBe('requote-id');
+    });
+
+    it('keeps the original quote when the provider does not re-quote', async () => {
+      fetchServerQuoteMock.mockReset();
+      fetchServerQuoteMock
+        .mockResolvedValueOnce({ results: [NON_GASLESS_DEPOSIT_RESULT_MOCK] })
+        .mockResolvedValueOnce({
+          results: [{ ...REQUOTE_RESULT_MOCK, provider: 'across' }],
+        });
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [POST_QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].original.id).toBe(
+        NON_GASLESS_DEPOSIT_RESULT_MOCK.quote.id,
+      );
+    });
+
+    it('does not re-quote flows that are not post-quote', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledTimes(1);
+    });
   });
 });

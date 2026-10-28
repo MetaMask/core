@@ -1,5 +1,7 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type { GetAccountUpgradeStatusParams } from './types.js';
 import { walletGetAccountUpgradeStatus } from './wallet_getAccountUpgradeStatus.js';
@@ -8,21 +10,21 @@ const TEST_ACCOUNT = '0x1234567890123456789012345678901234567890';
 const NETWORK_CLIENT_ID = 'mainnet';
 
 const createTestHooks = (): {
-  getCode: jest.Mock;
-  getCurrentChainIdForDomain: jest.Mock;
-  getSelectedNetworkClientIdForChain: jest.Mock;
-  getPermittedAccountsForOrigin: jest.Mock;
-  isEip7702Supported: jest.Mock;
+  getCode: Mock;
+  getCurrentChainIdForDomain: Mock;
+  getSelectedNetworkClientIdForChain: Mock;
+  getPermittedAccountsForOrigin: Mock;
+  isEip7702Supported: Mock;
 } => {
-  const getCode = jest.fn();
-  const getCurrentChainIdForDomain = jest.fn().mockReturnValue('0x1');
-  const getPermittedAccountsForOrigin = jest
+  const getCode = vi.fn();
+  const getCurrentChainIdForDomain = vi.fn().mockReturnValue('0x1');
+  const getPermittedAccountsForOrigin = vi
     .fn()
     .mockResolvedValue([TEST_ACCOUNT]);
-  const getSelectedNetworkClientIdForChain = jest
+  const getSelectedNetworkClientIdForChain = vi
     .fn()
     .mockReturnValue(NETWORK_CLIENT_ID);
-  const isEip7702Supported = jest.fn().mockResolvedValue({
+  const isEip7702Supported = vi.fn().mockResolvedValue({
     isSupported: true,
     upgradeContractAddress: '0x1234567890123456789012345678901234567890',
   });
@@ -54,7 +56,7 @@ const createTestResponse = (): PendingJsonRpcResponse => ({
 
 describe('walletGetAccountUpgradeStatus', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('returns non-upgraded account status with real data flow', async () => {

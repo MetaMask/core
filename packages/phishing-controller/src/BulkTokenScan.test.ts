@@ -5,7 +5,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance, MockedFunction } from 'vitest';
 
@@ -21,10 +21,8 @@ import type {
 import { TokenScanResultType } from './types.js';
 import type { BulkTokenScanRequest, TokenScanApiResponse } from './types.js';
 
-vi.mock('@metamask/controller-utils', async () => ({
-  ...(await vi.importActual<typeof import('@metamask/controller-utils')>(
-    '@metamask/controller-utils',
-  )),
+vi.mock(import('@metamask/controller-utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
   safelyExecuteWithTimeout: vi.fn(),
 }));
 
@@ -126,7 +124,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
   });
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
   });
@@ -205,7 +203,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           'Unsupported chain ID: 0x64',
         );
-        cleanAll();
+        nock.cleanAll();
       });
 
       it('should handle case insensitive chainId', async () => {

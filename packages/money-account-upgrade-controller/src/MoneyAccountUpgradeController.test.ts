@@ -16,6 +16,8 @@ import type { MoneyAccountVaultConfig } from '@metamask/money-account-utils';
 import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
+import { describe, it, expect, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type {
   MoneyAccountUpgradeControllerMessenger,
@@ -255,28 +257,26 @@ const flushPromises = async (): Promise<void> => {
 };
 
 type Mocks = {
-  getServiceDetails: jest.Mock;
-  signPersonalMessage: jest.Mock;
-  associateAddress: jest.Mock;
-  getAssociatedAddresses: jest.Mock;
-  createUpgrade: jest.Mock;
-  signEip7702Authorization: jest.Mock;
-  findNetworkClientIdByChainId: jest.Mock;
-  getNetworkClientById: jest.Mock;
-  providerRequest: jest.Mock;
-  listDelegations: jest.Mock;
-  createDelegation: jest.Mock;
-  signDelegation: jest.Mock;
-  verifyDelegation: jest.Mock<
-    ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
-    Parameters<ChompApiServiceVerifyDelegationAction['handler']>
-  >;
-  getIntentsByAddress: jest.Mock;
-  createIntents: jest.Mock;
-  isEnabled: jest.Mock;
-  isEligible: jest.Mock;
-  ensureChainConfigured: jest.Mock;
-  onBootstrapError: jest.Mock;
+  getServiceDetails: Mock;
+  signPersonalMessage: Mock;
+  createAddressChallenge: Mock;
+  associateAddressV2: Mock;
+  getAssociatedAddresses: Mock;
+  createUpgrade: Mock;
+  signEip7702Authorization: Mock;
+  findNetworkClientIdByChainId: Mock;
+  getNetworkClientById: Mock;
+  providerRequest: Mock;
+  listDelegations: Mock;
+  createDelegation: Mock;
+  signDelegation: Mock;
+  verifyDelegation: Mock<ChompApiServiceVerifyDelegationAction['handler']>;
+  getIntentsByAddress: Mock;
+  createIntents: Mock;
+  isEnabled: Mock;
+  isEligible: Mock;
+  ensureChainConfigured: Mock;
+  onBootstrapError: Mock;
 };
 
 /**
@@ -333,7 +333,7 @@ function setup({
   const signature = `0x${'1'.repeat(64)}${'2'.repeat(64)}1c`;
 
   // Default provider responses: account is a plain EOA with nonce 0.
-  const providerRequest = jest
+  const providerRequest = vi
     .fn()
     .mockImplementation(async ({ method }: { method: string }) => {
       if (method === 'eth_getCode') {
@@ -346,17 +346,20 @@ function setup({
     });
 
   const mocks: Mocks = {
-    getServiceDetails: jest
-      .fn()
-      .mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE),
-    signPersonalMessage: jest.fn().mockResolvedValue('0xdeadbeef'),
-    associateAddress: jest.fn().mockResolvedValue({
+    getServiceDetails: vi.fn().mockResolvedValue(MOCK_SERVICE_DETAILS_RESPONSE),
+    signPersonalMessage: vi.fn().mockResolvedValue('0xdeadbeef'),
+    createAddressChallenge: vi.fn().mockResolvedValue({
+      challengeId: '7b1e6f0c-1f3a-4d2b-9c8e-2a4b6c8d0e1f',
+      message: 'chomp.example.com wants you to sign in',
+      expiresAt: '2026-04-21T12:05:00.000Z',
+    }),
+    associateAddressV2: vi.fn().mockResolvedValue({
       profileId: 'profile-1',
       address: MOCK_ACCOUNT_ADDRESS,
       status: 'created',
     }),
-    getAssociatedAddresses: jest.fn().mockResolvedValue([]),
-    createUpgrade: jest.fn().mockResolvedValue({
+    getAssociatedAddresses: vi.fn().mockResolvedValue([]),
+    createUpgrade: vi.fn().mockResolvedValue({
       signerAddress: MOCK_ACCOUNT_ADDRESS,
       address: MAINNET_CONTRACTS.EIP7702StatelessDeleGatorImpl,
       chainId: MOCK_CHAIN_ID,
@@ -364,29 +367,24 @@ function setup({
       status: 'pending',
       createdAt: '2026-04-21T12:00:00.000Z',
     }),
-    signEip7702Authorization: jest.fn().mockResolvedValue(signature),
-    findNetworkClientIdByChainId: jest
-      .fn()
-      .mockReturnValue('network-client-id'),
-    getNetworkClientById: jest.fn().mockReturnValue({
+    signEip7702Authorization: vi.fn().mockResolvedValue(signature),
+    findNetworkClientIdByChainId: vi.fn().mockReturnValue('network-client-id'),
+    getNetworkClientById: vi.fn().mockReturnValue({
       provider: { request: providerRequest },
     }),
     providerRequest,
-    listDelegations: jest.fn().mockResolvedValue([]),
-    createDelegation: jest.fn().mockResolvedValue(undefined),
-    signDelegation: jest.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
-    verifyDelegation: jest
-      .fn<
-        ReturnType<ChompApiServiceVerifyDelegationAction['handler']>,
-        Parameters<ChompApiServiceVerifyDelegationAction['handler']>
-      >()
+    listDelegations: vi.fn().mockResolvedValue([]),
+    createDelegation: vi.fn().mockResolvedValue(undefined),
+    signDelegation: vi.fn().mockResolvedValue(`0x${'cd'.repeat(65)}`),
+    verifyDelegation: vi
+      .fn<ChompApiServiceVerifyDelegationAction['handler']>()
       .mockResolvedValue({ valid: true }),
-    getIntentsByAddress: jest.fn().mockResolvedValue([]),
-    createIntents: jest.fn().mockResolvedValue([]),
-    isEnabled: jest.fn().mockImplementation(() => config.isEnabled),
-    isEligible: jest.fn().mockImplementation(async () => config.isEligible),
-    ensureChainConfigured: jest.fn().mockResolvedValue(undefined),
-    onBootstrapError: jest.fn(),
+    getIntentsByAddress: vi.fn().mockResolvedValue([]),
+    createIntents: vi.fn().mockResolvedValue([]),
+    isEnabled: vi.fn().mockImplementation(() => config.isEnabled),
+    isEligible: vi.fn().mockImplementation(async () => config.isEligible),
+    ensureChainConfigured: vi.fn().mockResolvedValue(undefined),
+    onBootstrapError: vi.fn(),
   };
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -424,8 +422,12 @@ function setup({
     mocks.signPersonalMessage,
   );
   rootMessenger.registerActionHandler(
-    'ChompApiService:associateAddress',
-    mocks.associateAddress,
+    'ChompApiService:createAddressChallenge',
+    mocks.createAddressChallenge,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:associateAddressV2',
+    mocks.associateAddressV2,
   );
   rootMessenger.registerActionHandler(
     'ChompApiService:getAssociatedAddresses',
@@ -482,7 +484,8 @@ function setup({
       'ChompApiService:getServiceDetails',
       'KeyringController:getState',
       'KeyringController:signPersonalMessage',
-      'ChompApiService:associateAddress',
+      'ChompApiService:createAddressChallenge',
+      'ChompApiService:associateAddressV2',
       'ChompApiService:getAssociatedAddresses',
       'ChompApiService:createUpgrade',
       'KeyringController:signEip7702Authorization',
@@ -1239,7 +1242,7 @@ describe('MoneyAccountUpgradeController', () => {
         await bootstrap();
 
         let releaseAssociate: () => void = () => undefined;
-        mocks.associateAddress.mockImplementationOnce(
+        mocks.associateAddressV2.mockImplementationOnce(
           async () =>
             new Promise((resolve) => {
               releaseAssociate = (): void =>
@@ -1252,7 +1255,7 @@ describe('MoneyAccountUpgradeController', () => {
         );
         const upgrade = controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
         await flushPromises();
-        expect(mocks.associateAddress).toHaveBeenCalled();
+        expect(mocks.associateAddressV2).toHaveBeenCalled();
 
         await triggerKeyringChange();
         expect(mocks.getServiceDetails).toHaveBeenCalledTimes(2);
@@ -1602,7 +1605,7 @@ describe('MoneyAccountUpgradeController', () => {
       expect(mocks.signPersonalMessage).toHaveBeenCalledWith(
         expect.objectContaining({ from: MOCK_ACCOUNT_ADDRESS }),
       );
-      expect(mocks.associateAddress).toHaveBeenCalledWith(
+      expect(mocks.createAddressChallenge).toHaveBeenCalledWith(
         expect.objectContaining({ address: MOCK_ACCOUNT_ADDRESS }),
       );
       expect(mocks.signEip7702Authorization).toHaveBeenCalledWith(

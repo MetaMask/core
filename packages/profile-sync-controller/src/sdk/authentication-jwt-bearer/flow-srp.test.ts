@@ -1,3 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
+
 import { Env, Platform } from '../../shared/env.js';
 import { RateLimitedError } from '../errors.js';
 import { PAIR_DEDUPE_TTL_MS, SRPJwtBearerAuth } from './flow-srp.js';
@@ -5,35 +8,33 @@ import { AuthType } from './types.js';
 import type { AuthConfig, LoginResponse, UserProfile } from './types.js';
 import * as timeUtils from './utils/time.js';
 
-jest.setTimeout(15000);
+vi.setConfig({ testTimeout: 15000 });
 
 // Mock the time utilities to avoid real delays in tests
-jest.mock('./utils/time', () => ({
-  delay: jest.fn(),
+vi.mock('./utils/time', () => ({
+  delay: vi.fn(),
 }));
 
-const mockDelay = timeUtils.delay as jest.MockedFunction<
-  typeof timeUtils.delay
->;
+const mockDelay = timeUtils.delay as MockedFunction<typeof timeUtils.delay>;
 
 // Mock services
-const mockGetNonce = jest.fn();
-const mockAuthenticate = jest.fn();
-const mockAuthorizeOIDC = jest.fn();
-const mockPairProfiles = jest.fn();
-const mockGetCustomerServiceToken = jest.fn();
-const mockGetPartnerIdentityToken = jest.fn();
-const mockMfaEnroll = jest.fn();
-const mockMfaEnrollComplete = jest.fn();
-const mockMfaVerify = jest.fn();
-const mockMfaVerifyComplete = jest.fn();
-const mockGetMfaCredentials = jest.fn();
+const mockGetNonce = vi.fn();
+const mockAuthenticate = vi.fn();
+const mockAuthorizeOIDC = vi.fn();
+const mockPairProfiles = vi.fn();
+const mockGetCustomerServiceToken = vi.fn();
+const mockGetPartnerIdentityToken = vi.fn();
+const mockMfaEnroll = vi.fn();
+const mockMfaEnrollComplete = vi.fn();
+const mockMfaVerify = vi.fn();
+const mockMfaVerifyComplete = vi.fn();
+const mockGetMfaCredentials = vi.fn();
 
-jest.mock('./services', () => ({
+vi.mock('./services', () => ({
   authenticate: (...args: unknown[]): unknown => mockAuthenticate(...args),
   authorizeOIDC: (...args: unknown[]): unknown => mockAuthorizeOIDC(...args),
   getNonce: (...args: unknown[]): unknown => mockGetNonce(...args),
-  getUserProfileLineage: jest.fn(),
+  getUserProfileLineage: vi.fn(),
   getCustomerServiceToken: (...args: unknown[]): unknown =>
     mockGetCustomerServiceToken(...args),
   getPartnerIdentityToken: (...args: unknown[]): unknown =>
@@ -41,7 +42,7 @@ jest.mock('./services', () => ({
   pairProfiles: (...args: unknown[]): unknown => mockPairProfiles(...args),
 }));
 
-jest.mock('./mfa/services', () => ({
+vi.mock('./mfa/services', () => ({
   mfaEnroll: (...args: unknown[]): unknown => mockMfaEnroll(...args),
   mfaEnrollComplete: (...args: unknown[]): unknown =>
     mockMfaEnrollComplete(...args),
@@ -54,8 +55,8 @@ jest.mock('./mfa/services', () => ({
 
 // Mock computeIdentifierId
 const MOCK_COMPUTED_IDENTIFIER_ID = 'computed-identifier-hash';
-const mockComputeIdentifierId = jest.fn();
-jest.mock('./utils/identifier', () => ({
+const mockComputeIdentifierId = vi.fn();
+vi.mock('./utils/identifier', () => ({
   computeIdentifierId: (...args: unknown[]): unknown =>
     mockComputeIdentifierId(...args),
 }));
@@ -122,7 +123,7 @@ describe('SRPJwtBearerAuth rate limit handling', () => {
   };
 
   beforeEach((): void => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockGetNonce.mockResolvedValue(MOCK_NONCE_RESPONSE);
     mockAuthenticate.mockResolvedValue(MOCK_AUTH_RESPONSE);
     mockAuthorizeOIDC.mockResolvedValue(MOCK_OIDC_RESPONSE);
@@ -336,7 +337,7 @@ describe('SRP MFA methods', () => {
   }
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('begins passkey and email enrollment with the access token', async () => {
@@ -372,7 +373,7 @@ describe('SRP MFA methods', () => {
   });
 
   it('does not conflate email with entropySourceId', async () => {
-    const getLoginResponse = jest.fn(async (): Promise<LoginResponse> => ({
+    const getLoginResponse = vi.fn(async (): Promise<LoginResponse> => ({
       token: { accessToken, expiresIn: 3600, obtainedAt: Date.now() },
       profile: {
         profileId: 'profile-id',
@@ -413,6 +414,40 @@ describe('SRP MFA methods', () => {
     });
 
     await expect(auth.beginMfaEnrollment('passkey')).rejects.toMatchObject({
+      mfaCode: 'invalid_response',
+    });
+  });
+
+  it('begins authenticator app enrollment with its secret and QR code', async () => {
+    const auth = createAuth();
+    mockMfaEnroll.mockResolvedValue({
+      flowId: 'flow-id',
+      expiresAt: 1000,
+      totp: {
+        secret: 'SECRET',
+        qrCode: 'data:image/png;base64,QR',
+        setupUri: 'otpauth://totp/MetaMask?secret=SECRET',
+      },
+    });
+
+    expect(await auth.beginMfaEnrollment('totp')).toStrictEqual({
+      type: 'totp',
+      flowId: 'flow-id',
+      expiresAt: 1000,
+      secret: 'SECRET',
+      qrCode: 'data:image/png;base64,QR',
+      setupUri: 'otpauth://totp/MetaMask?secret=SECRET',
+    });
+    expect(mockMfaEnroll).toHaveBeenLastCalledWith(Env.DEV, accessToken, {
+      credential_type: 'totp',
+    });
+  });
+
+  it('rejects an authenticator app enrollment without its secret', async () => {
+    const auth = createAuth();
+    mockMfaEnroll.mockResolvedValue({ flowId: 'flow-id', expiresAt: 1000 });
+
+    await expect(auth.beginMfaEnrollment('totp')).rejects.toMatchObject({
       mfaCode: 'invalid_response',
     });
   });
@@ -480,6 +515,27 @@ describe('SRP MFA methods', () => {
     );
   });
 
+  it('uses a caller-supplied access token when completing enrollment', async () => {
+    const auth = createAuth();
+    mockMfaEnrollComplete.mockResolvedValueOnce({
+      token: 'assertion-jwt',
+      expiresIn: 900,
+    });
+
+    await auth.completeMfaEnrollment(
+      'flow-id',
+      { type: 'email_otp', code: '123456' },
+      undefined,
+      'verification-token',
+    );
+
+    expect(mockMfaEnrollComplete).toHaveBeenLastCalledWith(
+      Env.DEV,
+      'verification-token',
+      expect.anything(),
+    );
+  });
+
   it('begins passkey and email verification', async () => {
     const auth = createAuth();
     mockMfaVerify
@@ -502,6 +558,27 @@ describe('SRP MFA methods', () => {
       flowId: 'email-flow',
       expiresAt: 2000,
     });
+  });
+
+  it('begins and completes authenticator app verification with its code', async () => {
+    const auth = createAuth();
+    mockMfaVerify.mockResolvedValue({ flowId: 'totp-flow', expiresAt: 3000 });
+    mockMfaVerifyComplete.mockResolvedValue({ token: 'assertion' });
+
+    expect(await auth.beginMfaVerification('totp')).toStrictEqual({
+      type: 'totp',
+      flowId: 'totp-flow',
+      expiresAt: 3000,
+    });
+    await auth.completeMfaVerification('totp-flow', {
+      type: 'totp',
+      code: '123456',
+    });
+    expect(mockMfaVerifyComplete).toHaveBeenLastCalledWith(
+      Env.DEV,
+      accessToken,
+      { credential_type: 'totp', flow_id: 'totp-flow', otp_code: '123456' },
+    );
   });
 
   it('rejects passkey verification without request data', async () => {
@@ -617,7 +694,7 @@ describe('SRPJwtBearerAuth profileId resolution', () => {
   };
 
   beforeEach((): void => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockGetNonce.mockResolvedValue(MOCK_NONCE_RESPONSE);
     mockAuthorizeOIDC.mockResolvedValue(MOCK_OIDC_RESPONSE);
     mockComputeIdentifierId.mockReturnValue(MOCK_COMPUTED_IDENTIFIER_ID);
@@ -880,7 +957,7 @@ describe('SRPJwtBearerAuth pairSrpProfiles deduplication', () => {
   };
 
   beforeEach((): void => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockPairProfiles.mockResolvedValue(MOCK_PAIR_RESPONSE);
   });
 
@@ -918,18 +995,18 @@ describe('SRPJwtBearerAuth pairSrpProfiles deduplication', () => {
   });
 
   it('re-pairs once the cache TTL has expired', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     try {
       const { auth } = createAuth();
 
       await auth.pairSrpProfiles(['a', 'b'], 'a');
       // Advance just beyond the dedupe window.
-      jest.setSystemTime(Date.now() + PAIR_DEDUPE_TTL_MS + 1);
+      vi.setSystemTime(Date.now() + PAIR_DEDUPE_TTL_MS + 1);
       await auth.pairSrpProfiles(['a', 'b'], 'a');
 
       expect(mockPairProfiles).toHaveBeenCalledTimes(2);
     } finally {
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
 
@@ -973,7 +1050,7 @@ describe('SRPJwtBearerAuth login tag', () => {
   };
 
   beforeEach((): void => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockGetNonce.mockResolvedValue({
       nonce: 'nonce-1',
       identifier: 'identifier-1',
@@ -1016,7 +1093,7 @@ describe('SRPJwtBearerAuth login tag', () => {
   });
 
   it('appends the tag returned by getLoginTag', async () => {
-    const getLoginTag = jest.fn().mockResolvedValue('secondary');
+    const getLoginTag = vi.fn().mockResolvedValue('secondary');
     const auth = new SRPJwtBearerAuth(config, {
       storage: {
         getLoginResponse: async (): Promise<LoginResponse | null> => null,
@@ -1043,7 +1120,7 @@ describe('SRPJwtBearerAuth login tag', () => {
   });
 
   it('forwards getLoginIdentifierType without tagging when getLoginTag is omitted', async () => {
-    const getLoginIdentifierType = jest.fn().mockResolvedValue('GOOGLE');
+    const getLoginIdentifierType = vi.fn().mockResolvedValue('GOOGLE');
     const auth = new SRPJwtBearerAuth(config, {
       storage: {
         getLoginResponse: async (): Promise<LoginResponse | null> => null,

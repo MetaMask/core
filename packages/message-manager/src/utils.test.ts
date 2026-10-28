@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import * as util from './utils.js';
 
 describe('utils', () => {
