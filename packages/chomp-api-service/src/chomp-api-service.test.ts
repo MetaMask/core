@@ -1467,7 +1467,7 @@ describe('ChompApiService', () => {
       const { service } = createService();
 
       await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
-        /network down|fetch failed/u,
+        /fetch failed/u,
       );
       expect(scope.isDone()).toBe(true);
     });
