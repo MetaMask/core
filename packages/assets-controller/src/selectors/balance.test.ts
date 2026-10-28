@@ -429,6 +429,58 @@ describe('balance selectors', () => {
       expect(result.entries[0].amount).toBe('3');
     });
 
+    it('aggregates exotic amount shapes exactly as bignumber.js does', () => {
+      // Covers the fallback shapes: plus-signed fractions, whitespace-padded
+      // decimals, and exponents beyond the fast-path cap must all resolve
+      // through the same semantics as a direct BigNumber accumulation.
+      const state = arrangeAssetsControllerState({
+        assetsBalance: {
+          [accountId1]: {
+            [assetEth]: { amount: '+5.5' },
+            [assetUsdc]: { amount: '1e-500' },
+            [assetPolygon]: { amount: 'NaN' },
+          },
+          [accountId2]: {
+            [assetEth]: { amount: ' 1.25 ' },
+            [assetUsdc]: { amount: '0x10' },
+            [assetPolygon]: { amount: '1_000' },
+          },
+        },
+        assetsInfo: {
+          [assetEth]: assetInfoEth,
+          [assetUsdc]: assetInfoUsdc,
+          [assetPolygon]: assetInfoPolygon,
+        },
+        assetsPrice: {
+          [assetEth]: testFungibleAssetPrice(2),
+          [assetUsdc]: testFungibleAssetPrice(3),
+        },
+      });
+
+      const result = getAggregatedBalanceForAccount(
+        state,
+        selectedAccount,
+        undefined,
+        undefined,
+        [accountId1, accountId2],
+      );
+
+      // '+5.5' + ' 1.25 ' = 6.75 (whitespace trimmed, plus sign accepted).
+      // '1e-500' + '0x10' = 16.000...001 with 499 fractional zeros (hex is
+      // accepted by bignumber.js; the sub-cap exponent is exact).
+      // 'NaN' and '1_000' both resolve to zero and are skipped.
+      expect(
+        result.entries.map((entry) => [entry.assetId, entry.amount]),
+      ).toStrictEqual([
+        [assetEth, '6.75'],
+        [assetUsdc, `16.${'0'.repeat(499)}1`],
+      ]);
+      // 6.75 * 2 + 16.000...001 * 3 = 13.5 + 48.000...003, and the nearest
+      // JS number to that exact decimal is 61.5 — the same value a
+      // BigNumber#toNumber() of the exact sum produces.
+      expect(result.totalBalanceInFiat).toBe(61.5);
+    });
+
     it('uses only selected account when no optional params', () => {
       const state = arrangeAssetsControllerState({
         assetsBalance: {

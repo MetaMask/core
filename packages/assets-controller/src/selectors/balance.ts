@@ -162,14 +162,25 @@ const parseAmount = (str: string): [bigint, number] | null => {
       }
     }
   }
-  // Rare shapes ('NaN', 'Infinity', '', '-1e999999', ...): resolve through
-  // BigNumber, which yields zero for non-finite values — skipped — and an
-  // exact plain-decimal string for finite oddities.
+  // Rare shapes ('NaN', 'Infinity', '', '+5.5', '1e-500', '-1e999999', ...):
+  // resolve through BigNumber, which yields zero for non-finite values —
+  // skipped — and an exact plain-decimal string for finite oddities. The
+  // plain decimal is decomposed at its point (if any) into mantissa+scale,
+  // because a fractional plain decimal cannot be constructed as a BigInt
+  // directly.
   const bn = toBigNumberOrZero(str);
   if (bn.isZero()) {
     return null;
   }
-  return [BigInt(bn.toFixed()), 0];
+  const fixed = bn.toFixed();
+  const dot = fixed.indexOf('.');
+  if (dot === -1) {
+    return [BigInt(fixed), 0];
+  }
+  return [
+    BigInt(fixed.slice(0, dot) + fixed.slice(dot + 1)),
+    fixed.length - dot - 1,
+  ];
 };
 
 /**

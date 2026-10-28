@@ -3602,14 +3602,25 @@ function parseAmount(str) {
       }
     }
   }
-  // Rare shapes ('NaN', 'Infinity', '', '-1e999999', ...): resolve through
-  // BigNumber, which yields zero for non-finite values — skipped — and an
-  // exact plain-decimal string for finite oddities.
+  // Rare shapes ('NaN', 'Infinity', '', '+5.5', '1e-500', '-1e999999', ...):
+  // resolve through BigNumber, which yields zero for non-finite values —
+  // skipped — and an exact plain-decimal string for finite oddities. The
+  // plain decimal is decomposed at its point (if any) into mantissa+scale,
+  // because a fractional plain decimal cannot be constructed as a BigInt
+  // directly.
   const bn = toBigNumberOrZero_CAND(str);
   if (bn.isZero()) {
     return null;
   }
-  return [BigInt(bn.toFixed()), 0];
+  const fixed = bn.toFixed();
+  const dot = fixed.indexOf('.');
+  if (dot === -1) {
+    return [BigInt(fixed), 0];
+  }
+  return [
+    BigInt(fixed.slice(0, dot) + fixed.slice(dot + 1)),
+    fixed.length - dot - 1,
+  ];
 }
 // Parse a price (JS number, via its String() repr — the same decimal
 // BigNumber multiplies by) into an exact [mantissa, scale]. Zero stays
@@ -4764,6 +4775,90 @@ function edgeCases() {
       },
     ],
   });
+
+  // 13. amount-shape fuzz: deterministic pseudo-random amount strings across
+  // accounts (mixed scales collide -> rescale paths) with prices on. Covers
+  // the fallback shapes that crash naive BigInt conversions ('+5.5', '1e-500',
+  // whitespace-padded, hex, underscores) plus random digit/decimal/exponent
+  // combinations on both sides of the fast-path exponent cap.
+  var fuzzSeed = 0x2f6e2b1;
+  function fuzzNext() {
+    // LCG (glibc constants) — deterministic across runs.
+    fuzzSeed = (fuzzSeed * 1103515245 + 12345) & 0x7fffffff;
+    return fuzzSeed / 0x80000000;
+  }
+  function fuzzInt(lo, hi) {
+    return lo + Math.floor(fuzzNext() * (hi - lo + 1));
+  }
+  function fuzzDigits(n) {
+    var out = '';
+    for (var k = 0; k < n; k++) {
+      out += String(fuzzInt(0, 9));
+    }
+    return out;
+  }
+  var FUZZ_JUNK = ['', 'NaN', 'Infinity', '-Infinity', '.', '-', '+', '0x10', '0X1f', '0b101', '0o17', '1_000', ' 7', '7 ', ' +8 ', 'e', '1e', '1e+', '-e5'];
+  function fuzzAmount() {
+    var r = fuzzNext();
+    if (r < 0.1) {
+      return FUZZ_JUNK[fuzzInt(0, FUZZ_JUNK.length - 1)];
+    }
+    if (r < 0.18) {
+      return fuzzInt(0, 9); // numeric (non-string) amount -> '0'
+    }
+    var sign = '';
+    var sr = fuzzNext();
+    if (sr < 0.15) {
+      sign = '-';
+    } else if (sr < 0.25) {
+      sign = '+'; // accepted by BigNumber, rejected by the plain regexes
+    }
+    var intD = fuzzDigits(fuzzInt(1, 24));
+    if (fuzzNext() < 0.2) {
+      intD = '0' + intD; // leading zero
+    }
+    var body = intD;
+    if (fuzzNext() < 0.45) {
+      body += '.' + fuzzDigits(fuzzInt(0, 20));
+    }
+    if (fuzzNext() < 0.3) {
+      body += 'e' + (fuzzNext() < 0.5 ? '-' : '+') + String(fuzzInt(0, 600)); // both sides of the 400 cap
+    }
+    return sign + body;
+  }
+  var FUZZ_ASSETS = [];
+  for (i = 0; i < 12; i++) {
+    FUZZ_ASSETS.push('eip155:1/erc20:' + fakeAddress(700 + i));
+  }
+  var FUZZ_PRICES = [0, 100, 4500.25, 1e-7, 0.6625, 1e21, 12345.678901234567, undefined];
+  var fuzzCalls = [];
+  for (var stateIdx = 0; stateIdx < 6; stateIdx++) {
+    var fs = {
+      assetsBalance: {},
+      assetsInfo: {},
+      assetsPrice: {},
+      assetPreferences: {},
+      selectedCurrency: 'usd',
+    };
+    for (var acc = 0; acc < 6; acc++) {
+      var accId = 'f' + acc;
+      fs.assetsBalance[accId] = {};
+      for (var aIdx = 0; aIdx < FUZZ_ASSETS.length; aIdx++) {
+        fs.assetsBalance[accId][FUZZ_ASSETS[aIdx]] = { amount: fuzzAmount() };
+      }
+    }
+    for (aIdx = 0; aIdx < FUZZ_ASSETS.length; aIdx++) {
+      fs.assetsInfo[FUZZ_ASSETS[aIdx]] = { type: 'erc20', symbol: 'F' + aIdx, name: 'Fuzz ' + aIdx, decimals: 18 };
+      var price = FUZZ_PRICES[fuzzInt(0, FUZZ_PRICES.length - 1)];
+      if (price !== undefined) {
+        fs.assetsPrice[FUZZ_ASSETS[aIdx]] = { price: price, pricePercentChange1d: fuzzInt(-100, 100) };
+      }
+    }
+    var fuzzIds = ['f0', 'f1', 'f2', 'f3', 'f4', 'f5'];
+    fuzzCalls.push({ f: 'aggIds', state: fs, accountIds: fuzzIds, map: mapA });
+    fuzzCalls.push({ f: 'aggForAccount', state: fs, selected: { id: 'f0' }, map: mapA, tree: TREE, ids: fuzzIds, byId: undefined });
+  }
+  cases.push({ label: 'amount-shape-fuzz', calls: fuzzCalls });
 
   return cases;
 }

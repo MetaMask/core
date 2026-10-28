@@ -1,9 +1,8 @@
 {
-  "status": "done",
+  "status": "ready",
   "source_file": "packages/assets-controller/src/selectors/balance.ts",
   "metric": "primary_ms",
   "metric_unit": "ms",
   "direction": "lower",
-  "checks_command": "yarn vitest run --project assets-controller src/selectors/balance.test.ts",
-  "result": "win: 161ms -> 71ms (-56%) on the 20-account/57-asset/14-tick Hermes bench; parity battery + 40 vitest tests green; scaling sweep N=5/20/60 accounts: -45%/-57%/-64%"
+  "checks_command": "yarn vitest run --project assets-controller src/selectors/balance.test.ts"
 }
