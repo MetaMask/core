@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/money-account-utils` from `^2.1.0` to `^2.2.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
 - Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
 
+### Fixed
+
+- Hex-encode the CHOMP challenge message before signing it, so the MPC keyring can sign it ([#10697](https://github.com/MetaMask/core/pull/10697))
+
 ## [6.0.0]
 
 ### Added
