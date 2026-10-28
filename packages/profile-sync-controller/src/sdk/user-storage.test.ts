@@ -15,6 +15,7 @@ import {
   handleMockUserStorageDeleteAllFeatureEntries,
   handleMockUserStorageDelete,
   handleMockUserStorageBatchDelete,
+  parseRequestBodyObject,
 } from './__fixtures__/userstorage.js';
 import type { IBaseAuth } from './authentication-jwt-bearer/types.js';
 import { NotFoundError, UserStorageError } from './errors.js';
@@ -111,26 +112,21 @@ describe('User Storage', () => {
       status: 200,
       body: JSON.stringify(mockResponse),
     });
-    const mockPut = handleMockUserStoragePut(
-      undefined,
-      async (_, requestBody) => {
-        if (typeof requestBody === 'string') {
-          return;
-        }
-
-        const isEncryptedUsingSharedSalt =
-          encryption.getSalt(requestBody.data).toString() ===
-          SHARED_SALT.toString();
-
-        expect(isEncryptedUsingSharedSalt).toBe(true);
-      },
-    );
+    const mockPut = handleMockUserStoragePut();
 
     await userStorage.getItem(
       `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
     );
     expect(mockGet.isDone()).toBe(true);
     expect(mockPut.isDone()).toBe(true);
+    expect(mockPut.requestBodies).toHaveLength(1);
+
+    const requestBody = parseRequestBodyObject(mockPut.requestBodies[0]);
+    const isEncryptedUsingSharedSalt =
+      encryption.getSalt(requestBody.data).toString() ===
+      SHARED_SALT.toString();
+
+    expect(isEncryptedUsingSharedSalt).toBe(true);
   });
 
   it('gets all feature entries', async () => {
@@ -166,22 +162,18 @@ describe('User Storage', () => {
       metaMetricsId: 'mm-1',
     });
 
-    let capturedProfileHeader: string | undefined;
-    const mockGetAll = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+    const mockGetAll = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES, {
+      reqheaders: { 'x-profile-id': 'alias-profile-id' },
+    })
       .persist()
       .get('')
-      .reply(function () {
-        // eslint-disable-next-line no-invalid-this
-        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
-        return [200, JSON.stringify([])];
-      });
+      .reply(200, JSON.stringify([]));
 
     await userStorage.getAllFeatureItems(
       USER_STORAGE_FEATURE_NAMES.notifications,
     );
 
     expect(mockGetAll.isDone()).toBe(true);
-    expect(capturedProfileHeader).toBe('alias-profile-id');
   });
 
   it('does not send x-profile-id header on getAllFeatureItems when unpaired', async () => {
@@ -195,22 +187,18 @@ describe('User Storage', () => {
       metaMetricsId: 'mm-1',
     });
 
-    let capturedProfileHeader: string | undefined;
-    const mockGetAll = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+    const mockGetAll = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES, {
+      badheaders: ['x-profile-id'],
+    })
       .persist()
       .get('')
-      .reply(function () {
-        // eslint-disable-next-line no-invalid-this
-        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
-        return [200, JSON.stringify([])];
-      });
+      .reply(200, JSON.stringify([]));
 
     await userStorage.getAllFeatureItems(
       USER_STORAGE_FEATURE_NAMES.notifications,
     );
 
     expect(mockGetAll.isDone()).toBe(true);
-    expect(capturedProfileHeader).toBeUndefined();
   });
 
   it('skips x-profile-id header when useCanonicalScope is true', async () => {
@@ -224,15 +212,12 @@ describe('User Storage', () => {
       metaMetricsId: 'mm-1',
     });
 
-    let capturedProfileHeader: string | undefined;
-    const mockGetAll = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+    const mockGetAll = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES, {
+      badheaders: ['x-profile-id'],
+    })
       .persist()
       .get('')
-      .reply(function () {
-        // eslint-disable-next-line no-invalid-this
-        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
-        return [200, JSON.stringify([])];
-      });
+      .reply(200, JSON.stringify([]));
 
     await userStorage.getAllFeatureItems(
       USER_STORAGE_FEATURE_NAMES.notifications,
@@ -240,7 +225,6 @@ describe('User Storage', () => {
     );
 
     expect(mockGetAll.isDone()).toBe(true);
-    expect(capturedProfileHeader).toBeUndefined();
   });
 
   it('sends x-profile-id header on setItem when paired', async () => {
@@ -254,15 +238,12 @@ describe('User Storage', () => {
       metaMetricsId: 'mm-1',
     });
 
-    let capturedProfileHeader: string | undefined;
-    const mockPut = nock(MOCK_STORAGE_URL)
+    const mockPut = nock(MOCK_STORAGE_URL, {
+      reqheaders: { 'x-profile-id': 'alias-profile-id' },
+    })
       .persist()
       .put(/.*/u)
-      .reply(function () {
-        // eslint-disable-next-line no-invalid-this
-        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
-        return [200];
-      });
+      .reply(200);
 
     await userStorage.setItem(
       `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
@@ -270,7 +251,6 @@ describe('User Storage', () => {
     );
 
     expect(mockPut.isDone()).toBe(true);
-    expect(capturedProfileHeader).toBe('alias-profile-id');
   });
 
   it('does not send x-profile-id header on setItem when unpaired', async () => {
@@ -284,15 +264,10 @@ describe('User Storage', () => {
       metaMetricsId: 'mm-1',
     });
 
-    let capturedProfileHeader: string | undefined;
-    const mockPut = nock(MOCK_STORAGE_URL)
+    const mockPut = nock(MOCK_STORAGE_URL, { badheaders: ['x-profile-id'] })
       .persist()
       .put(/.*/u)
-      .reply(function () {
-        // eslint-disable-next-line no-invalid-this
-        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
-        return [200];
-      });
+      .reply(200);
 
     await userStorage.setItem(
       `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
@@ -300,7 +275,6 @@ describe('User Storage', () => {
     );
 
     expect(mockPut.isDone()).toBe(true);
-    expect(capturedProfileHeader).toBeUndefined();
   });
 
   it('skips x-profile-id header on setItem when useCanonicalScope is true', async () => {
@@ -314,15 +288,10 @@ describe('User Storage', () => {
       metaMetricsId: 'mm-1',
     });
 
-    let capturedProfileHeader: string | undefined;
-    const mockPut = nock(MOCK_STORAGE_URL)
+    const mockPut = nock(MOCK_STORAGE_URL, { badheaders: ['x-profile-id'] })
       .persist()
       .put(/.*/u)
-      .reply(function () {
-        // eslint-disable-next-line no-invalid-this
-        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
-        return [200];
-      });
+      .reply(200);
 
     await userStorage.setItem(
       `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
@@ -331,7 +300,6 @@ describe('User Storage', () => {
     );
 
     expect(mockPut.isDone()).toBe(true);
-    expect(capturedProfileHeader).toBeUndefined();
   });
 
   it('sends x-profile-id header on batchSetItems when paired', async () => {
@@ -345,22 +313,18 @@ describe('User Storage', () => {
       metaMetricsId: 'mm-1',
     });
 
-    let capturedProfileHeader: string | undefined;
-    const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+    const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES, {
+      reqheaders: { 'x-profile-id': 'alias-profile-id' },
+    })
       .persist()
       .put('')
-      .reply(function () {
-        // eslint-disable-next-line no-invalid-this
-        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
-        return [200];
-      });
+      .reply(200);
 
     await userStorage.batchSetItems(USER_STORAGE_FEATURE_NAMES.notifications, [
       ['notification_settings', 'data'],
     ]);
 
     expect(mockPut.isDone()).toBe(true);
-    expect(capturedProfileHeader).toBe('alias-profile-id');
   });
 
   it('does not send x-profile-id header on batchSetItems when unpaired', async () => {
@@ -374,22 +338,18 @@ describe('User Storage', () => {
       metaMetricsId: 'mm-1',
     });
 
-    let capturedProfileHeader: string | undefined;
-    const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+    const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES, {
+      badheaders: ['x-profile-id'],
+    })
       .persist()
       .put('')
-      .reply(function () {
-        // eslint-disable-next-line no-invalid-this
-        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
-        return [200];
-      });
+      .reply(200);
 
     await userStorage.batchSetItems(USER_STORAGE_FEATURE_NAMES.notifications, [
       ['notification_settings', 'data'],
     ]);
 
     expect(mockPut.isDone()).toBe(true);
-    expect(capturedProfileHeader).toBeUndefined();
   });
 
   it('skips x-profile-id header on batchSetItems when useCanonicalScope is true', async () => {
@@ -403,15 +363,12 @@ describe('User Storage', () => {
       metaMetricsId: 'mm-1',
     });
 
-    let capturedProfileHeader: string | undefined;
-    const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+    const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES, {
+      badheaders: ['x-profile-id'],
+    })
       .persist()
       .put('')
-      .reply(function () {
-        // eslint-disable-next-line no-invalid-this
-        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
-        return [200];
-      });
+      .reply(200);
 
     await userStorage.batchSetItems(
       USER_STORAGE_FEATURE_NAMES.notifications,
@@ -420,7 +377,6 @@ describe('User Storage', () => {
     );
 
     expect(mockPut.isDone()).toBe(true);
-    expect(capturedProfileHeader).toBeUndefined();
   });
 
   it('re-encryption upload in getAllFeatureItems sends x-profile-id when paired', async () => {
@@ -445,22 +401,18 @@ describe('User Storage', () => {
       .get('')
       .reply(200, JSON.stringify([randomSaltEntry]));
 
-    let capturedReuploadHeader: string | undefined;
-    const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+    const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES, {
+      reqheaders: { 'x-profile-id': 'alias-profile-id' },
+    })
       .persist()
       .put('')
-      .reply(function () {
-        // eslint-disable-next-line no-invalid-this
-        capturedReuploadHeader = this.req.getHeader('x-profile-id')?.toString();
-        return [200];
-      });
+      .reply(200);
 
     await userStorage.getAllFeatureItems(
       USER_STORAGE_FEATURE_NAMES.notifications,
     );
 
     expect(mockPut.isDone()).toBe(true);
-    expect(capturedReuploadHeader).toBe('alias-profile-id');
   });
 
   it('re-encrypts data if received entries were encrypted with random salts, and saves it back to user storage', async () => {
@@ -487,40 +439,36 @@ describe('User Storage', () => {
       body: mockResponse,
     });
 
-    const mockPut = handleMockUserStoragePut(
-      undefined,
-      async (_, requestBody) => {
-        if (typeof requestBody === 'string') {
-          return;
-        }
-
-        const doEntriesHaveDifferentSalts =
-          encryption.getIfEntriesHaveDifferentSalts(
-            Object.entries(requestBody.data).map((entry) => entry[1] as string),
-          );
-
-        expect(doEntriesHaveDifferentSalts).toBe(false);
-
-        const doEntriesUseSharedSalt = Object.entries(requestBody.data).every(
-          ([_entryKey, entryValue]) =>
-            encryption.getSalt(entryValue as string).toString() ===
-            SHARED_SALT.toString(),
-        );
-
-        expect(doEntriesUseSharedSalt).toBe(true);
-
-        const wereOnlyNonEmptySaltEntriesUploaded =
-          Object.entries(requestBody.data).length === 2;
-
-        expect(wereOnlyNonEmptySaltEntriesUploaded).toBe(true);
-      },
-    );
+    const mockPut = handleMockUserStoragePut();
 
     await userStorage.getAllFeatureItems(
       USER_STORAGE_FEATURE_NAMES.notifications,
     );
     expect(mockGetAll.isDone()).toBe(true);
     expect(mockPut.isDone()).toBe(true);
+    expect(mockPut.requestBodies).toHaveLength(1);
+
+    const requestBody = parseRequestBodyObject(mockPut.requestBodies[0]);
+
+    const doEntriesHaveDifferentSalts =
+      encryption.getIfEntriesHaveDifferentSalts(
+        Object.entries(requestBody.data).map((entry) => entry[1] as string),
+      );
+
+    expect(doEntriesHaveDifferentSalts).toBe(false);
+
+    const doEntriesUseSharedSalt = Object.entries(requestBody.data).every(
+      ([_entryKey, entryValue]) =>
+        encryption.getSalt(entryValue as string).toString() ===
+        SHARED_SALT.toString(),
+    );
+
+    expect(doEntriesUseSharedSalt).toBe(true);
+
+    const wereOnlyNonEmptySaltEntriesUploaded =
+      Object.entries(requestBody.data).length === 2;
+
+    expect(wereOnlyNonEmptySaltEntriesUploaded).toBe(true);
   });
 
   it('batch set items', async () => {
@@ -532,38 +480,33 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    const mockPut = handleMockUserStoragePut(
-      undefined,
-      async (_, requestBody) => {
-        if (typeof requestBody === 'string') {
-          return;
-        }
-
-        const decryptedBody = await Promise.all(
-          Object.entries<string>(requestBody.data).map(
-            async ([entryKey, entryValue]) => {
-              return [
-                entryKey,
-                await encryption.decryptString(entryValue, MOCK_STORAGE_KEY),
-              ];
-            },
-          ),
-        );
-
-        const expectedBody = dataToStore.map(([entryKey, entryValue]) => [
-          createSHA256Hash(String(entryKey) + MOCK_STORAGE_KEY),
-          entryValue,
-        ]);
-
-        expect(decryptedBody).toStrictEqual(expectedBody);
-      },
-    );
+    const mockPut = handleMockUserStoragePut();
 
     await userStorage.batchSetItems(
       USER_STORAGE_FEATURE_NAMES.accounts,
       dataToStore,
     );
     expect(mockPut.isDone()).toBe(true);
+    expect(mockPut.requestBodies).toHaveLength(1);
+
+    const requestBody = parseRequestBodyObject(mockPut.requestBodies[0]);
+    const decryptedBody = await Promise.all(
+      Object.entries<string>(requestBody.data).map(
+        async ([entryKey, entryValue]) => {
+          return [
+            entryKey,
+            await encryption.decryptString(entryValue, MOCK_STORAGE_KEY),
+          ];
+        },
+      ),
+    );
+
+    const expectedBody = dataToStore.map(([entryKey, entryValue]) => [
+      createSHA256Hash(String(entryKey) + MOCK_STORAGE_KEY),
+      entryValue,
+    ]);
+
+    expect(decryptedBody).toStrictEqual(expectedBody);
   });
 
   it('returns void when trying to batch set items with invalid data', async () => {
@@ -677,23 +620,18 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    const mockPut = handleMockUserStorageBatchDelete(
-      undefined,
-      async (_, requestBody) => {
-        if (typeof requestBody === 'string') {
-          return;
-        }
-
-        const expectedBody = keysToDelete.map((entryKey) =>
-          createSHA256Hash(String(entryKey) + MOCK_STORAGE_KEY),
-        );
-
-        expect(requestBody.batch_delete).toStrictEqual(expectedBody);
-      },
-    );
+    const mockPut = handleMockUserStorageBatchDelete();
 
     await userStorage.batchDeleteItems('accounts_v2', keysToDelete);
     expect(mockPut.isDone()).toBe(true);
+    expect(mockPut.requestBodies).toHaveLength(1);
+
+    const requestBody = parseRequestBodyObject(mockPut.requestBodies[0]);
+    const expectedBody = keysToDelete.map((entryKey) =>
+      createSHA256Hash(String(entryKey) + MOCK_STORAGE_KEY),
+    );
+
+    expect(requestBody.batch_delete).toStrictEqual(expectedBody);
   });
 
   it('returns void when trying to batch delete items with invalid data', async () => {

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.13.0]
+
 ### Added
 
 - Add optional `sourceLanguage` (`string | null`) and `translations` (`Record<string, string>`) to `AuthorComment` and `AuthorCommentStruct`. Feed validation and the realtime feed parser keep both when social-api sends them, and responses that omit them still validate ([#11137](https://github.com/MetaMask/core/pull/11137))
@@ -336,7 +338,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.12.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.13.0...HEAD
+[3.13.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.12.1...@metamask/social-controllers@3.13.0
 [3.12.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.12.0...@metamask/social-controllers@3.12.1
 [3.12.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.11.0...@metamask/social-controllers@3.12.0
 [3.11.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.10.0...@metamask/social-controllers@3.11.0
