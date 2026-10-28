@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `GeolocationApiService` now extends `BaseDataService` from `@metamask/base-data-service` ([#10881](https://github.com/MetaMask/core/pull/10881))
   - `GeolocationApiServiceMessenger` now includes the `GeolocationApiService:invalidateQueries` action and `GeolocationApiService:cacheUpdated` events. Messengers built from `GeolocationApiServiceActions` / `GeolocationApiServiceEvents` pick these up automatically.
   - The hand-rolled TTL cache and in-flight deduplication are replaced by the `BaseDataService` query cache. `ttlMs` and `bypassCache` keep their existing behaviour.
+- `GeolocationController` now derives `status`, `error` and `lastFetchedAt` from the state of the service's query ([#NNNNN](https://github.com/MetaMask/core/pull/NNNNN))
+  - `lastFetchedAt` is now the time the cached data was fetched rather than the time the controller received it.
+- Add `onQueryStateChange` to `FetchGeolocationOptions`, accepted by `GeolocationApiService:fetchGeolocation` and `GeolocationApiService:fetchGeolocationData` ([#NNNNN](https://github.com/MetaMask/core/pull/NNNNN))
 - Add dependency `@metamask/base-data-service` ([#10881](https://github.com/MetaMask/core/pull/10881))
 - Add dependency `@metamask/superstruct` ([#10881](https://github.com/MetaMask/core/pull/10881))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))

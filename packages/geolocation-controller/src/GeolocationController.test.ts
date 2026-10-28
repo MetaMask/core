@@ -6,13 +6,21 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import type { GeolocationData } from './geolocation-api-service/geolocation-api-service.js';
+import type {
+  GeolocationApiServiceMessenger,
+  GeolocationData,
+} from './geolocation-api-service/geolocation-api-service.js';
 import {
+  GeolocationApiService,
   getUnknownGeolocationData,
   UNKNOWN_LOCATION,
 } from './geolocation-api-service/geolocation-api-service.js';
-import type { GeolocationControllerMessenger } from './GeolocationController.js';
+import type {
+  GeolocationControllerMessenger,
+  GeolocationControllerState,
+} from './GeolocationController.js';
 import {
   GeolocationController,
   getDefaultGeolocationControllerState,
@@ -118,25 +126,31 @@ describe('GeolocationController', () => {
   });
 
   describe('getGeolocation', () => {
-    it('sets location, status to complete, and lastFetchedAt after fetch', async () => {
+    it('sets location, complete and lastFetchedAt from the query state', async () => {
       await withController(
-        { serviceResponse: { country: 'GB' } },
+        { mockFetch: createMockFetch({ country: 'GB' }) },
         async ({ controller }) => {
-          const now = Date.now();
+          vi.setSystemTime(1000);
+
           const result = await controller.getGeolocation();
 
           expect(result).toBe('GB');
-          expect(controller.state.location).toBe('GB');
-          expect(controller.state.status).toBe('complete');
-          expect(controller.state.lastFetchedAt).toBeGreaterThanOrEqual(now);
-          expect(controller.state.error).toBeNull();
+          expect(controller.state).toStrictEqual({
+            location: 'GB',
+            country: 'GB',
+            region: null,
+            timezone: null,
+            status: 'complete',
+            lastFetchedAt: 1000,
+            error: null,
+          });
         },
       );
     });
 
     it('joins the country and region into the location code', async () => {
       await withController(
-        { serviceResponse: { country: 'US', region: 'NY' } },
+        { mockFetch: createMockFetch({ country: 'US', region: 'NY' }) },
         async ({ controller }) => {
           const result = await controller.getGeolocation();
 
@@ -149,11 +163,11 @@ describe('GeolocationController', () => {
     it('stores the country, region, and timezone in state', async () => {
       await withController(
         {
-          serviceResponse: {
+          mockFetch: createMockFetch({
             country: 'US',
             region: 'WA',
             timezone: 'America/Los_Angeles',
-          },
+          }),
         },
         async ({ controller }) => {
           await controller.getGeolocation();
@@ -165,66 +179,147 @@ describe('GeolocationController', () => {
       );
     });
 
-    it('transitions status from idle to loading to complete', async () => {
-      const states: string[] = [];
-      let resolveService!: (value: GeolocationData) => void;
+    it('transitions idle, loading, complete', async () => {
+      const { promise: response, resolve: resolveResponse } =
+        createDeferredResponse();
 
       await withController(
-        {
-          serviceHandler: () =>
-            new Promise<GeolocationData>((resolve) => {
-              resolveService = resolve;
-            }),
-        },
+        { mockFetch: vi.fn().mockReturnValueOnce(response) },
         async ({ controller, rootMessenger }) => {
+          const states: string[] = [];
           rootMessenger.subscribe(
             'GeolocationController:stateChange',
             (state) => {
               states.push(state.status);
             },
           );
+          expect(controller.state.status).toBe('idle');
 
           const promise = controller.getGeolocation();
-          expect(controller.state.status).toBe('loading');
+          await vi.waitFor(() => expect(states).toStrictEqual(['loading']));
 
-          resolveService(buildGeolocationData({ country: 'DE' }));
+          resolveResponse(buildResponse({ country: 'DE' }));
           await promise;
 
           expect(states).toStrictEqual(['loading', 'complete']);
+          expect(controller.state.location).toBe('DE');
         },
       );
     });
 
-    describe('when the service throws', () => {
-      it('sets status to error with the error message', async () => {
-        await withController(
-          {
-            serviceHandler: () => {
-              throw new Error('Network error');
+    it('reflects a cache hit without a network call', async () => {
+      const mockFetch = createMockFetch({ country: 'US' });
+
+      await withController(
+        { mockFetch },
+        async ({ controller, rootMessenger }) => {
+          vi.setSystemTime(1000);
+          await controller.getGeolocation();
+
+          const states: GeolocationControllerState[] = [];
+          rootMessenger.subscribe(
+            'GeolocationController:stateChange',
+            (state) => {
+              states.push(state);
             },
+          );
+          vi.setSystemTime(2000);
+          const result = await controller.getGeolocation();
+
+          expect(result).toBe('US');
+          expect(mockFetch).toHaveBeenCalledTimes(1);
+          expect(states).toStrictEqual([]);
+          expect(controller.state.status).toBe('complete');
+          expect(controller.state.lastFetchedAt).toBe(1000);
+        },
+      );
+    });
+
+    it('reaches complete from a cache hit while the controller state is not idle', async () => {
+      const mockFetch = createMockFetch({ country: 'FR' });
+
+      await withController(
+        {
+          mockFetch,
+          options: {
+            state: { status: 'error', error: 'old error', lastFetchedAt: null },
           },
+        },
+        async ({ controller, rootMessenger }) => {
+          vi.setSystemTime(1000);
+          await rootMessenger.call(
+            'GeolocationApiService:fetchGeolocationData',
+          );
+          expect(controller.state.status).toBe('error');
+
+          vi.setSystemTime(5000);
+          const result = await controller.getGeolocation();
+
+          expect(result).toBe('FR');
+          expect(mockFetch).toHaveBeenCalledTimes(1);
+          expect(controller.state).toStrictEqual({
+            location: 'FR',
+            country: 'FR',
+            region: null,
+            timezone: null,
+            status: 'complete',
+            lastFetchedAt: 1000,
+            error: null,
+          });
+        },
+      );
+    });
+
+    describe('when the fetch fails', () => {
+      it('sets error from the serialized query error', async () => {
+        await withController(
+          { mockFetch: vi.fn().mockRejectedValue(new Error('boom')) },
           async ({ controller }) => {
             await controller.getGeolocation();
 
             expect(controller.state.status).toBe('error');
-            expect(controller.state.error).toBe('Network error');
+            expect(controller.state.error).toBe('boom');
+            expect(controller.state.lastFetchedAt).toBeNull();
+          },
+        );
+      });
+
+      it('clears error when a new fetch starts', async () => {
+        const mockFetch = vi
+          .fn()
+          .mockRejectedValueOnce(new Error('boom'))
+          .mockResolvedValueOnce(buildResponse({ country: 'US' }));
+
+        await withController(
+          { mockFetch },
+          async ({ controller, rootMessenger }) => {
+            await controller.getGeolocation();
+            expect(controller.state.error).toBe('boom');
+
+            const states: GeolocationControllerState[] = [];
+            rootMessenger.subscribe(
+              'GeolocationController:stateChange',
+              (state) => {
+                states.push(state);
+              },
+            );
+            await controller.getGeolocation();
+
+            expect(states[0]).toMatchObject({ status: 'loading', error: null });
+            expect(controller.state.status).toBe('complete');
+            expect(controller.state.error).toBeNull();
           },
         );
       });
 
       it('preserves the last known location', async () => {
-        let callCount = 0;
+        const mockFetch = vi
+          .fn()
+          .mockResolvedValueOnce(buildResponse({ country: 'US' }))
+          .mockRejectedValueOnce(new Error('Network error'));
 
         await withController(
-          {
-            serviceHandler: () => {
-              callCount += 1;
-              if (callCount === 1) {
-                return Promise.resolve(buildGeolocationData({ country: 'US' }));
-              }
-              throw new Error('Network error');
-            },
-          },
+          { mockFetch, serviceOptions: { ttlMs: 0 } },
           async ({ controller }) => {
             await controller.getGeolocation();
             expect(controller.state.location).toBe('US');
@@ -239,11 +334,7 @@ describe('GeolocationController', () => {
 
       it('returns UNKNOWN_LOCATION when no prior value exists', async () => {
         await withController(
-          {
-            serviceHandler: () => {
-              throw new Error('Network error');
-            },
-          },
+          { mockFetch: vi.fn().mockRejectedValue(new Error('Network error')) },
           async ({ controller }) => {
             const result = await controller.getGeolocation();
 
@@ -255,9 +346,7 @@ describe('GeolocationController', () => {
 
       it('stores string representation of non-Error thrown values', async () => {
         await withController(
-          {
-            serviceHandler: vi.fn().mockRejectedValue('string error'),
-          },
+          { mockFetch: vi.fn().mockRejectedValue('string error') },
           async ({ controller }) => {
             await controller.getGeolocation();
 
@@ -273,11 +362,11 @@ describe('GeolocationController', () => {
     it('returns the country, region, and timezone', async () => {
       await withController(
         {
-          serviceResponse: {
+          mockFetch: createMockFetch({
             country: 'FR',
             region: '75',
             timezone: 'Europe/Paris',
-          },
+          }),
         },
         async ({ controller }) => {
           const result = await controller.getGeolocationData();
@@ -292,25 +381,20 @@ describe('GeolocationController', () => {
       );
     });
 
-    it('rejects when the service throws instead of returning stale data', async () => {
-      let callCount = 0;
+    it('rejects when the fetch fails instead of returning stale data', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(
+          buildResponse({
+            country: 'US',
+            region: 'WA',
+            timezone: 'America/Los_Angeles',
+          }),
+        )
+        .mockRejectedValueOnce(new Error('Network error'));
 
       await withController(
-        {
-          serviceHandler: () => {
-            callCount += 1;
-            if (callCount === 1) {
-              return Promise.resolve(
-                buildGeolocationData({
-                  country: 'US',
-                  region: 'WA',
-                  timezone: 'America/Los_Angeles',
-                }),
-              );
-            }
-            throw new Error('Network error');
-          },
-        },
+        { mockFetch, serviceOptions: { ttlMs: 0 } },
         async ({ controller }) => {
           await controller.getGeolocationData();
 
@@ -323,13 +407,9 @@ describe('GeolocationController', () => {
       );
     });
 
-    it('rejects when the service throws and no prior value exists', async () => {
+    it('rejects when the fetch fails and no prior value exists', async () => {
       await withController(
-        {
-          serviceHandler: () => {
-            throw new Error('Network error');
-          },
-        },
+        { mockFetch: vi.fn().mockRejectedValue(new Error('Network error')) },
         async ({ controller }) => {
           await expect(controller.getGeolocationData()).rejects.toThrow(
             'Network error',
@@ -340,85 +420,115 @@ describe('GeolocationController', () => {
   });
 
   describe('refreshGeolocation', () => {
-    it('resets lastFetchedAt and calls service with bypassCache', async () => {
-      let callCount = 0;
-      const mockServiceHandler = vi.fn(
-        (_options?: { bypassCache?: boolean }) => {
-          callCount += 1;
-          return Promise.resolve(
-            buildGeolocationData({ country: callCount === 1 ? 'US' : 'GB' }),
-          );
-        },
-      );
+    it('resets lastFetchedAt and bypasses the service cache', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(buildResponse({ country: 'US' }))
+        .mockResolvedValueOnce(buildResponse({ country: 'GB' }));
+
+      await withController({ mockFetch }, async ({ controller }) => {
+        await controller.getGeolocation();
+        expect(controller.state.location).toBe('US');
+        expect(controller.state.lastFetchedAt).not.toBeNull();
+
+        const refreshPromise = controller.refreshGeolocation();
+        expect(controller.state.lastFetchedAt).toBeNull();
+
+        const result = await refreshPromise;
+        expect(result).toBe('GB');
+        expect(controller.state.location).toBe('GB');
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('keeps lastFetchedAt null until the refresh completes', async () => {
+      const { promise: refreshResponse, resolve: resolveRefreshResponse } =
+        createDeferredResponse();
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(buildResponse({ country: 'US' }))
+        .mockReturnValueOnce(refreshResponse);
 
       await withController(
-        { serviceHandler: mockServiceHandler },
-        async ({ controller }) => {
+        { mockFetch },
+        async ({ controller, rootMessenger }) => {
+          vi.setSystemTime(1000);
           await controller.getGeolocation();
-          expect(controller.state.location).toBe('US');
-          expect(controller.state.lastFetchedAt).not.toBeNull();
+          expect(controller.state.lastFetchedAt).toBe(1000);
+
+          const states: Pick<
+            GeolocationControllerState,
+            'status' | 'lastFetchedAt' | 'location'
+          >[] = [];
+          rootMessenger.subscribe(
+            'GeolocationController:stateChange',
+            (state) => {
+              states.push({
+                status: state.status,
+                lastFetchedAt: state.lastFetchedAt,
+                location: state.location,
+              });
+            },
+          );
 
           const refreshPromise = controller.refreshGeolocation();
+          await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+          expect(controller.state.status).toBe('loading');
           expect(controller.state.lastFetchedAt).toBeNull();
 
-          const result = await refreshPromise;
-          expect(result).toBe('GB');
-          expect(controller.state.location).toBe('GB');
-          expect(mockServiceHandler).toHaveBeenLastCalledWith({
-            bypassCache: true,
-          });
+          vi.setSystemTime(2000);
+          resolveRefreshResponse(buildResponse({ country: 'GB' }));
+          await refreshPromise;
+
+          // The cached `US` entry is reported as a snapshot before the refetch,
+          // but it must not bring back its old `dataUpdatedAt`.
+          expect(states).toStrictEqual([
+            { status: 'complete', lastFetchedAt: null, location: 'US' },
+            { status: 'loading', lastFetchedAt: null, location: 'US' },
+            { status: 'complete', lastFetchedAt: 2000, location: 'GB' },
+          ]);
         },
       );
     });
 
-    it('sets status to error when the service throws', async () => {
-      let callCount = 0;
+    it('sets status to error when the fetch fails', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(buildResponse({ country: 'US' }))
+        .mockRejectedValueOnce(new Error('Refresh failed'));
 
-      await withController(
-        {
-          serviceHandler: () => {
-            callCount += 1;
-            if (callCount === 1) {
-              return Promise.resolve(buildGeolocationData({ country: 'US' }));
-            }
-            throw new Error('Refresh failed');
-          },
-        },
-        async ({ controller }) => {
-          await controller.getGeolocation();
-          expect(controller.state.location).toBe('US');
+      await withController({ mockFetch }, async ({ controller }) => {
+        await controller.getGeolocation();
+        expect(controller.state.location).toBe('US');
 
-          const result = await controller.refreshGeolocation();
-          expect(result).toBe('US');
-          expect(controller.state.status).toBe('error');
-          expect(controller.state.error).toBe('Refresh failed');
-        },
-      );
+        const result = await controller.refreshGeolocation();
+        expect(result).toBe('US');
+        expect(controller.state.status).toBe('error');
+        expect(controller.state.error).toBe('Refresh failed');
+        expect(controller.state.lastFetchedAt).toBeNull();
+      });
     });
 
     it('stores string representation of non-Error thrown values', async () => {
-      await withController(
-        {
-          serviceHandler: vi
-            .fn()
-            .mockResolvedValueOnce(buildGeolocationData({ country: 'US' }))
-            .mockRejectedValueOnce('string refresh error'),
-        },
-        async ({ controller }) => {
-          await controller.getGeolocation();
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(buildResponse({ country: 'US' }))
+        .mockRejectedValueOnce('string refresh error');
 
-          await controller.refreshGeolocation();
-          expect(controller.state.status).toBe('error');
-          expect(controller.state.error).toBe('string refresh error');
-        },
-      );
+      await withController({ mockFetch }, async ({ controller }) => {
+        await controller.getGeolocation();
+
+        await controller.refreshGeolocation();
+        expect(controller.state.status).toBe('error');
+        expect(controller.state.error).toBe('string refresh error');
+      });
     });
   });
 
   describe('GeolocationController:getGeolocation', () => {
     it('resolves with the fetched country code', async () => {
       await withController(
-        { serviceResponse: { country: 'JP' } },
+        { mockFetch: createMockFetch({ country: 'JP' }) },
         async ({ rootMessenger }) => {
           const result = await rootMessenger.call(
             'GeolocationController:getGeolocation',
@@ -434,11 +544,11 @@ describe('GeolocationController', () => {
     it('resolves with the fetched country, region, and timezone', async () => {
       await withController(
         {
-          serviceResponse: {
+          mockFetch: createMockFetch({
             country: 'JP',
             region: '13',
             timezone: 'Asia/Tokyo',
-          },
+          }),
         },
         async ({ rootMessenger }) => {
           const result = await rootMessenger.call(
@@ -457,39 +567,34 @@ describe('GeolocationController', () => {
 
   describe('GeolocationController:refreshGeolocation', () => {
     it('resolves with the updated country code', async () => {
-      let callCount = 0;
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(buildResponse({ country: 'US' }))
+        .mockResolvedValueOnce(buildResponse({ country: 'CA' }));
 
-      await withController(
-        {
-          serviceHandler: () => {
-            callCount += 1;
-            return Promise.resolve(
-              buildGeolocationData({ country: callCount === 1 ? 'US' : 'CA' }),
-            );
-          },
-        },
-        async ({ rootMessenger }) => {
-          await rootMessenger.call('GeolocationController:getGeolocation');
+      await withController({ mockFetch }, async ({ rootMessenger }) => {
+        await rootMessenger.call('GeolocationController:getGeolocation');
 
-          const result = await rootMessenger.call(
-            'GeolocationController:refreshGeolocation',
-          );
+        const result = await rootMessenger.call(
+          'GeolocationController:refreshGeolocation',
+        );
 
-          expect(result).toBe('CA');
-        },
-      );
+        expect(result).toBe('CA');
+      });
     });
   });
 });
 
 /**
  * The type of the messenger populated with all external actions and events
- * required by the controller under test.
+ * required by the controller and the service under test.
  */
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  MessengerActions<GeolocationControllerMessenger>,
-  MessengerEvents<GeolocationControllerMessenger>
+  | MessengerActions<GeolocationControllerMessenger>
+  | MessengerActions<GeolocationApiServiceMessenger>,
+  | MessengerEvents<GeolocationControllerMessenger>
+  | MessengerEvents<GeolocationApiServiceMessenger>
 >;
 
 /**
@@ -497,6 +602,7 @@ type RootMessenger = Messenger<
  */
 type WithControllerCallback<ReturnValue> = (payload: {
   controller: GeolocationController;
+  service: GeolocationApiService;
   rootMessenger: RootMessenger;
   controllerMessenger: GeolocationControllerMessenger;
 }) => Promise<ReturnValue> | ReturnValue;
@@ -508,10 +614,13 @@ type WithControllerOptions = {
   options?: Partial<
     Omit<ConstructorParameters<typeof GeolocationController>[0], 'messenger'>
   >;
-  serviceResponse?: Partial<GeolocationData>;
-  serviceHandler?: (options?: {
-    bypassCache?: boolean;
-  }) => Promise<GeolocationData>;
+  mockFetch?: Mock<typeof globalThis.fetch>;
+  serviceOptions?: Partial<
+    Omit<
+      ConstructorParameters<typeof GeolocationApiService>[0],
+      'messenger' | 'fetch'
+    >
+  >;
 };
 
 /**
@@ -547,26 +656,70 @@ function getMessenger(
 }
 
 /**
- * Builds complete geolocation data from a partial fixture.
+ * Constructs the messenger for the geolocation service.
  *
- * @param data - The known geolocation fields.
- * @returns The geolocation data with unknown fields set to null.
+ * @param rootMessenger - The root messenger.
+ * @returns The service-specific messenger.
  */
-function buildGeolocationData(
-  data: Partial<GeolocationData> = {},
-): GeolocationData {
-  return { ...getUnknownGeolocationData(), ...data };
+function getServiceMessenger(
+  rootMessenger: RootMessenger,
+): GeolocationApiServiceMessenger {
+  return new Messenger({
+    namespace: 'GeolocationApiService',
+    parent: rootMessenger,
+  });
 }
 
 /**
- * Wrap tests for the controller under test by ensuring that the controller is
- * created ahead of time and then safely destroyed afterward as needed.
+ * Builds a successful geolocation API response.
+ *
+ * @param data - The known geolocation fields.
+ * @returns The response, with unknown fields set to null.
+ */
+function buildResponse(data: Partial<GeolocationData> = {}): Response {
+  return new Response(
+    JSON.stringify({ ...getUnknownGeolocationData(), ...data }),
+    { status: 200 },
+  );
+}
+
+/**
+ * Creates a response promise that the test resolves by hand.
+ *
+ * @returns The promise and the function that resolves it.
+ */
+function createDeferredResponse(): {
+  promise: Promise<Response>;
+  resolve: (response: Response) => void;
+} {
+  let resolve!: (response: Response) => void;
+  const promise = new Promise<Response>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
+/**
+ * Creates a fetch mock that answers every call with the given data.
+ *
+ * @param data - The known geolocation fields.
+ * @returns The fetch mock.
+ */
+function createMockFetch(
+  data: Partial<GeolocationData> = {},
+): Mock<typeof globalThis.fetch> {
+  return vi.fn<typeof globalThis.fetch>(async () => buildResponse(data));
+}
+
+/**
+ * Wrap tests for the controller under test by ensuring that the controller and
+ * a real {@link GeolocationApiService} are created ahead of time on the same
+ * root messenger, and then safely destroyed afterward.
  *
  * @param args - Either a function, or an options bag + a function. The options
- * bag contains arguments for the controller constructor and optionally a
- * `serviceResponse` fixture or a `serviceHandler` function to mock the
- * `GeolocationApiService:fetchGeolocationData` action. The function is called
- * with the instantiated controller, root messenger, and controller messenger.
+ * bag contains arguments for the controller constructor, a `mockFetch` used by
+ * the service, and extra service options. The function is called with the
+ * instantiated controller, service, root messenger, and controller messenger.
  * @returns The same return value as the given function.
  */
 async function withController<ReturnValue>(
@@ -574,26 +727,21 @@ async function withController<ReturnValue>(
     | [WithControllerCallback<ReturnValue>]
     | [WithControllerOptions, WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
-  const [{ options = {}, serviceResponse, serviceHandler } = {}, testFunction] =
-    args.length === 2 ? args : [{}, args[0]];
+  const [
+    { options = {}, mockFetch = createMockFetch(), serviceOptions = {} } = {},
+    testFunction,
+  ] = args.length === 2 ? args : [{}, args[0]];
 
-  vi.useFakeTimers();
+  vi.useFakeTimers({ toFake: ['Date'] });
 
   const rootMessenger = getRootMessenger();
+  const service = new GeolocationApiService({
+    messenger: getServiceMessenger(rootMessenger),
+    fetch: mockFetch,
+    policyOptions: { maxRetries: 0 },
+    ...serviceOptions,
+  });
   const controllerMessenger = getMessenger(rootMessenger);
-
-  const handler: (options?: {
-    bypassCache?: boolean;
-  }) => Promise<GeolocationData> =
-    serviceHandler ??
-    ((): Promise<GeolocationData> =>
-      Promise.resolve(buildGeolocationData(serviceResponse)));
-
-  rootMessenger.registerActionHandler(
-    'GeolocationApiService:fetchGeolocationData',
-    handler,
-  );
-
   const controller = new GeolocationController({
     messenger: controllerMessenger,
     ...options,
@@ -602,10 +750,12 @@ async function withController<ReturnValue>(
   try {
     return await testFunction({
       controller,
+      service,
       rootMessenger,
       controllerMessenger,
     });
   } finally {
+    service.destroy();
     vi.useRealTimers();
   }
 }

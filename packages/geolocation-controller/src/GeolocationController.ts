@@ -4,6 +4,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { DataServiceQueryState } from '@metamask/base-data-service';
 import type { Messenger } from '@metamask/messenger';
 
 import type { GeolocationApiServiceFetchGeolocationDataAction } from './geolocation-api-service/geolocation-api-service-method-action-types.js';
@@ -270,49 +271,63 @@ export class GeolocationController extends BaseController<
   }
 
   /**
-   * Calls the geolocation service and updates controller state with the
-   * result.
+   * Calls the geolocation service, deriving controller state from the state
+   * of the service's query as it changes.
    *
    * @param options - Options forwarded to the service.
    * @param options.bypassCache - When true, the service skips its TTL cache.
    * @returns The resolved geolocation data.
-   * @throws Re-throws the service error after recording it in state, so
+   * @throws Re-throws the service error (already recorded in state), so
    * callers can react to a failed lookup instead of receiving a stale value.
    */
   async #fetchAndUpdate(options?: {
     bypassCache?: boolean;
   }): Promise<GeolocationData> {
-    this.update((draft) => {
-      draft.status = 'loading';
-      draft.error = null;
-    });
+    return await this.messenger.call(
+      'GeolocationApiService:fetchGeolocationData',
+      {
+        ...options,
+        onQueryStateChange: (queryState) => this.#applyQueryState(queryState),
+      },
+    );
+  }
 
-    try {
-      const geolocation = await this.messenger.call(
-        'GeolocationApiService:fetchGeolocationData',
-        options,
-      );
+  /**
+   * Maps the state of the service's query onto controller state.
+   *
+   * @param queryState - The state of the geolocation query.
+   */
+  #applyQueryState(queryState: DataServiceQueryState): void {
+    if (queryState.fetchStatus === 'fetching') {
+      this.update((draft) => {
+        draft.status = 'loading';
+        draft.error = null;
+      });
+      return;
+    }
 
+    if (queryState.error) {
+      const { message } = queryState.error;
+      this.update((draft) => {
+        draft.status = 'error';
+        draft.error = message;
+      });
+      return;
+    }
+
+    // An invalidated entry is about to be refetched (for instance by
+    // `refreshGeolocation`), so its old data and `dataUpdatedAt` are skipped.
+    if (queryState.status === 'success' && !queryState.isInvalidated) {
+      const geolocation = queryState.data as GeolocationData;
       this.update((draft) => {
         draft.location = toLocationCode(geolocation);
         draft.country = geolocation.country;
         draft.region = geolocation.region;
         draft.timezone = geolocation.timezone;
         draft.status = 'complete';
-        draft.lastFetchedAt = Date.now();
+        draft.lastFetchedAt = queryState.dataUpdatedAt;
         draft.error = null;
       });
-
-      return geolocation;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-
-      this.update((draft) => {
-        draft.status = 'error';
-        draft.error = message;
-      });
-
-      throw error;
     }
   }
 }
