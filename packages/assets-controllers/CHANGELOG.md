@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [113.0.0]
+
 ### Added
 
 - Export the `Source` enum (`Custom`, `Dapp`, `Detected`) so consumers can pass it to `NftController.addNft` and related methods ([#11106](https://github.com/MetaMask/core/pull/11106))
@@ -21,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - NFTs whose stored `source` is `custom` (manual import) or `dapp` (approved dapp suggestion) are never auto-removed. Detected NFTs, and NFTs added before `source` was recorded, can be removed.
 - Bump `@metamask/transaction-controller` from `^72.2.1` to `^72.3.0` ([#11154](https://github.com/MetaMask/core/pull/11154))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/permission-controller` from `^14.0.0` to `^14.1.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
 
 ## [112.2.0]
 
@@ -3622,7 +3625,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.0.0...HEAD
+[113.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.2.0...@metamask/assets-controllers@113.0.0
 [112.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.3...@metamask/assets-controllers@112.2.0
 [112.1.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.2...@metamask/assets-controllers@112.1.3
 [112.1.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@112.1.1...@metamask/assets-controllers@112.1.2
