@@ -8,6 +8,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
+import type {
+  KycAnalyticsStatusChangedPayload,
+  KycAnalyticsTrackers,
+  KycAnalyticsVerificationOutcomePayload,
+} from './analytics.js';
+import { getKycAnalyticsStatus } from './analytics.js';
 import { toBase64Url } from './encoding.js';
 import {
   getDefaultKycControllerState,
@@ -1611,6 +1617,497 @@ describe('KycController', () => {
           expect(controller.getProviderFlowStatus()).toBe('abandoned');
         },
       );
+    });
+  });
+
+  describe('analytics', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /**
+     * Builds `trackKycAnalytics` and records each payload it receives.
+     *
+     * @returns The callbacks and the payloads they recorded.
+     */
+    function createAnalyticsTrackers(): {
+      trackKycAnalytics: KycAnalyticsTrackers;
+      verification: KycAnalyticsVerificationOutcomePayload[];
+      status: KycAnalyticsStatusChangedPayload[];
+    } {
+      const verification: KycAnalyticsVerificationOutcomePayload[] = [];
+      const status: KycAnalyticsStatusChangedPayload[] = [];
+      return {
+        verification,
+        status,
+        trackKycAnalytics: {
+          verificationOutcome: (payload) => {
+            verification.push(payload);
+          },
+          statusChanged: (payload) => {
+            status.push(payload);
+          },
+        },
+      };
+    }
+
+    it('tracks submitted and the move to pending after the SDK completes', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { vendor: 'iron', sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Completed' });
+          handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
+
+          await controller.launchProviderFlow({});
+
+          expect(analytics.verification).toStrictEqual([
+            {
+              status: 'submitted',
+              kycStatus: 'pending',
+              providerFlowStatus: 'submitted',
+              vendor: 'iron',
+            },
+          ]);
+          expect(analytics.status).toStrictEqual([
+            {
+              previousKycStatus: 'new',
+              kycStatus: 'pending',
+              providerFlowStatus: 'submitted',
+              vendor: 'iron',
+            },
+          ]);
+        },
+      );
+    });
+
+    it('tracks abandoned without a KYC status change', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Incomplete' });
+
+          await controller.launchProviderFlow({});
+
+          expect(analytics.verification).toStrictEqual([
+            {
+              status: 'abandoned',
+              kycStatus: 'new',
+              providerFlowStatus: 'abandoned',
+              vendor: null,
+            },
+          ]);
+          expect(analytics.status).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('tracks failed for each SDK failure path', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValueOnce({ status: 'Failed' });
+          await controller.launchProviderFlow({});
+          launcher.launch.mockRejectedValueOnce(new Error('launcher threw'));
+          await controller.launchProviderFlow({});
+          launcher.isAvailable.mockReturnValueOnce(false);
+          await controller.launchProviderFlow({});
+
+          expect(
+            analytics.verification.map((event) => event.status),
+          ).toStrictEqual(['failed', 'failed', 'failed']);
+          expect(analytics.status).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('tracks the same launch outcome again on a repeated attempt', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Incomplete' });
+
+          await controller.launchProviderFlow({});
+          await controller.launchProviderFlow({});
+
+          expect(
+            analytics.verification.map(({ status }) => status),
+          ).toStrictEqual(['abandoned', 'abandoned']);
+        },
+      );
+    });
+
+    it('tracks failed without writing state when the session changed during launch', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(async () => {
+            await controller.reset();
+            return { status: 'Completed' };
+          });
+
+          await controller.launchProviderFlow({});
+
+          expect(controller.state.providerFlowStatus).toBe('not_started');
+          expect(analytics.verification).toStrictEqual([
+            {
+              status: 'failed',
+              kycStatus: 'none',
+              providerFlowStatus: 'not_started',
+              vendor: null,
+            },
+          ]);
+          expect(analytics.status).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('tracks failed without writing state when the launcher throws after a reset', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockImplementation(async () => {
+            controller.clearState();
+            throw new Error('launcher unavailable');
+          });
+
+          await controller.launchProviderFlow({});
+
+          expect(
+            analytics.verification.map(({ status }) => status),
+          ).toStrictEqual(['failed']);
+        },
+      );
+    });
+
+    it('tracks one KYC status change when a poll newly approves the session', async () => {
+      vi.useFakeTimers();
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('pending') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          controller.startSessionStatusPolling();
+          await vi.advanceTimersByTimeAsync(60_000);
+
+          expect(analytics.status).toStrictEqual([
+            {
+              previousKycStatus: 'pending',
+              kycStatus: 'approved',
+              providerFlowStatus: 'not_started',
+              vendor: null,
+            },
+          ]);
+          expect(analytics.verification).toStrictEqual([]);
+        },
+      );
+    });
+
+    it.each([
+      ['rejected', 'rejected'],
+      ['retry', 'retry'],
+    ] as const)(
+      'tracks a KYC status change when fetchSessionStatusOnce moves the session to %s',
+      async (finalStatus, kycStatus) => {
+        const analytics = createAnalyticsTrackers();
+        await withController(
+          {
+            options: {
+              state: { sessionStatus: sessionStatus('pending') },
+              trackKycAnalytics: analytics.trackKycAnalytics,
+            },
+          },
+          async ({ controller, handlers }) => {
+            handlers.getSessionStatus.mockResolvedValue(
+              sessionStatus(finalStatus),
+            );
+
+            await controller.fetchSessionStatusOnce('sid');
+
+            expect(
+              analytics.status.map((event) => event.kycStatus),
+            ).toStrictEqual([kycStatus]);
+            expect(analytics.status[0].previousKycStatus).toBe('pending');
+          },
+        );
+      },
+    );
+
+    it('tracks a KYC status change when startSession refetches an existing session that is now approved', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: {
+              email: 'a@b.co',
+              sessionStatus: sessionStatus('pending'),
+            },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          await controller.startSession({ vendor: 'iron' });
+
+          expect(
+            analytics.status.map((event) => event.kycStatus),
+          ).toStrictEqual(['approved']);
+        },
+      );
+    });
+
+    it('tracks a KYC status change with a none previous status when the session is first created', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        { options: { trackKycAnalytics: analytics.trackKycAnalytics } },
+        async ({ controller, handlers }) => {
+          handlers.setAuthorizations.mockResolvedValue(sessionStatus('new'));
+
+          await controller.startSession({
+            vendor: 'iron',
+            aal2Token: AAL2_TOKEN,
+          });
+
+          expect(analytics.status).toStrictEqual([
+            {
+              previousKycStatus: 'none',
+              kycStatus: 'new',
+              providerFlowStatus: 'not_started',
+              vendor: 'iron',
+            },
+          ]);
+        },
+      );
+    });
+
+    it('reports none rather than omitting the previous status when the stored status was unrecognized', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('mystery') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(analytics.status).toStrictEqual([
+            {
+              previousKycStatus: 'none',
+              kycStatus: 'approved',
+              providerFlowStatus: 'not_started',
+              vendor: null,
+            },
+          ]);
+        },
+      );
+    });
+
+    it('does not track when an already-approved session is loaded into empty state', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        { options: { trackKycAnalytics: analytics.trackKycAnalytics } },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatusForVendor.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          await controller.startSession({ vendor: 'iron' });
+
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+          expect(analytics.status).toStrictEqual([]);
+          expect(analytics.verification).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('does not track when the derived status is unchanged', async () => {
+      const analytics = createAnalyticsTrackers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('approved') },
+            trackKycAnalytics: analytics.trackKycAnalytics,
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved', { vendorStatus: 'still-approved' }),
+          );
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(analytics.status).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('writes state before tracking', async () => {
+      const statusAtTrack: (string | undefined)[] = [];
+      let readFinalStatus: () => string | undefined = () => undefined;
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('pending') },
+            trackKycAnalytics: {
+              verificationOutcome: vi.fn(),
+              statusChanged: () => {
+                statusAtTrack.push(readFinalStatus());
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          readFinalStatus = (): string | undefined =>
+            controller.state.sessionStatus?.finalStatus;
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          await controller.fetchSessionStatusOnce('sid');
+
+          expect(statusAtTrack).toStrictEqual(['approved']);
+        },
+      );
+    });
+
+    it('keeps a submitted launch when the analytics callbacks throw', async () => {
+      await withController(
+        {
+          options: {
+            state: { vendor: 'iron', sessionStatus: sessionStatus('new') },
+            trackKycAnalytics: {
+              verificationOutcome: () => {
+                throw new Error('analytics down');
+              },
+              statusChanged: () => {
+                throw new Error('analytics down');
+              },
+            },
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Completed' });
+          handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
+
+          const result = await controller.launchProviderFlow({});
+
+          expect(result).toBe('submitted');
+          expect(controller.state.providerFlowStatus).toBe('submitted');
+          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+          expect(handlers.getSessionStatus).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('stops polling an approval when the analytics callback throws', async () => {
+      vi.useFakeTimers();
+      await withController(
+        {
+          options: {
+            state: { sessionStatus: sessionStatus('pending') },
+            trackKycAnalytics: {
+              verificationOutcome: vi.fn(),
+              statusChanged: () => {
+                throw new Error('analytics down');
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          handlers.getSessionStatus.mockResolvedValue(
+            sessionStatus('approved'),
+          );
+
+          controller.startSessionStatusPolling();
+          await vi.advanceTimersByTimeAsync(60_000);
+
+          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+          expect(handlers.getSessionStatus).toHaveBeenCalledOnce();
+        },
+      );
+    });
+
+    it('leaves KYC behavior unchanged when no tracker is passed', async () => {
+      await withController(
+        { options: { state: { sessionStatus: sessionStatus('new') } } },
+        async ({ controller, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Incomplete' });
+
+          expect(await controller.launchProviderFlow({})).toBe('abandoned');
+        },
+      );
+    });
+  });
+
+  describe('getKycAnalyticsStatus', () => {
+    it.each([
+      [null, 'none'],
+      [sessionStatus('new'), 'new'],
+      [sessionStatus('pending'), 'pending'],
+      [sessionStatus('approved'), 'approved'],
+      [sessionStatus('rejected'), 'rejected'],
+      [sessionStatus('retry'), 'retry'],
+      [sessionStatus('mystery'), 'none'],
+    ] as const)('maps %j to %s', (session, expected) => {
+      expect(getKycAnalyticsStatus(session)).toBe(expected);
+    });
+
+    it('ignores the relay kycStatus', () => {
+      expect(
+        getKycAnalyticsStatus(sessionStatus('new', { kycStatus: 'approved' })),
+      ).toBe('new');
     });
   });
 

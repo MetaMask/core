@@ -1,7 +1,7 @@
 import { toHex } from '@metamask/controller-utils';
 import type { CaipChainId } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { SortTrendingBy } from './token-service.js';
@@ -324,7 +324,7 @@ describe('Token service', () => {
     });
 
     afterEach(() => {
-      cleanAll();
+      nock.cleanAll();
       resetSuggestedOccurrenceFloorsCacheForTesting();
     });
 
@@ -361,7 +361,7 @@ describe('Token service', () => {
 
     it('should use occurrenceFloor from suggestedOccurrenceFloors for the chain', async () => {
       const { signal } = new AbortController();
-      cleanAll();
+      nock.cleanAll();
       resetSuggestedOccurrenceFloorsCacheForTesting();
       nockSuggestedOccurrenceFloors({ '1': 5 });
       nock(TOKEN_END_POINT_API)
@@ -377,7 +377,7 @@ describe('Token service', () => {
 
     it('should fall back to occurrenceFloor 3 when the chain is missing from suggestedOccurrenceFloors', async () => {
       const { signal } = new AbortController();
-      cleanAll();
+      nock.cleanAll();
       resetSuggestedOccurrenceFloorsCacheForTesting();
       nockSuggestedOccurrenceFloors({ '59144': 1 });
       nock(TOKEN_END_POINT_API)
@@ -393,7 +393,7 @@ describe('Token service', () => {
 
     it('should fall back to occurrenceFloor 3 when suggestedOccurrenceFloors fails', async () => {
       const { signal } = new AbortController();
-      cleanAll();
+      nock.cleanAll();
       resetSuggestedOccurrenceFloorsCacheForTesting();
       nock(TOKEN_END_POINT_API).get('/v1/suggestedOccurrenceFloors').reply(500);
       nock(TOKEN_END_POINT_API)
@@ -409,7 +409,7 @@ describe('Token service', () => {
 
     it('should cache suggestedOccurrenceFloors across token list fetches', async () => {
       const { signal } = new AbortController();
-      cleanAll();
+      nock.cleanAll();
       resetSuggestedOccurrenceFloorsCacheForTesting();
       const floorsScope = nock(TOKEN_END_POINT_API)
         .get('/v1/suggestedOccurrenceFloors')

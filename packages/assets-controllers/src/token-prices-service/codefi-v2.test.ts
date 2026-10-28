@@ -1,6 +1,6 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import nock, { isDone } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -2010,7 +2010,7 @@ describe('CodefiTokenPricesServiceV2', () => {
       });
 
       // Verify no pending mocks (i.e., only one request was made)
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
   });
 

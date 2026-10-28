@@ -361,6 +361,16 @@ export type AuthorComment = {
   text: string;
   /** Unix timestamp (seconds) when the comment was created. */
   timestamp: number;
+  /**
+   * AWS language code of the comment text, for example `en` or `pt`. `null`
+   * when detection has not run. Absent on older social-api builds.
+   */
+  sourceLanguage?: string | null;
+  /**
+   * Stored translations keyed by AWS language code. Empty when none are
+   * stored. Absent on older social-api builds.
+   */
+  translations?: Record<string, string>;
   engagement: CommentEngagement;
 };
 
@@ -419,6 +429,27 @@ export type ReactToCommentOptions = {
 
 export type RemoveCommentReactionOptions = {
   commentId: string;
+};
+
+/**
+ * Options for `POST /v1/swap-comment/:commentId/translate`.
+ */
+export type TranslateCommentOptions = {
+  /** `authorComment.uid` from a feed item. */
+  commentId: string;
+  /** AWS language code to translate into, for example `en`. */
+  targetLanguage: string;
+};
+
+/**
+ * Translation stored for a swap comment. Returned by
+ * `POST /v1/swap-comment/:commentId/translate` once that route exists.
+ */
+export type CommentTranslation = {
+  /** Detected source language. `null` when detection has not run. */
+  sourceLanguage: string | null;
+  /** Translations keyed by AWS language code. */
+  translations: Record<string, string>;
 };
 
 /**

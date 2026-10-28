@@ -1,5 +1,5 @@
 import { parseCaipAssetType } from '@metamask/utils';
-import { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -135,7 +135,7 @@ async function runWsUpdatePass({
   event: BalanceUpdatedEventPayload;
   lane?: UpdateLane;
 }): Promise<WsUpdatePassResult> {
-  cleanAll();
+  nock.cleanAll();
   const { assets, prices } = mockWsApis();
 
   const { rootMessenger, assetsControllerMessenger } = createMockMessengers({
@@ -227,7 +227,7 @@ async function runWsUpdatePass({
 
 describe('websocket update pipeline: prices for surfaced holdings', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe.each(LANES)(

@@ -7,8 +7,7 @@ import type {
 } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
-import nock, { isDone as nockIsDone } from 'nock';
-import type { Scope as NockScope } from 'nock';
+import nock from 'nock';
 import { setTimeout as realSetTimeout } from 'node:timers';
 import { vi } from 'vitest';
 
@@ -71,7 +70,7 @@ function debug(...args: unknown[]): void {
 function buildScopeForMockingRequests(
   rpcUrl: string,
   headers: Record<string, string>,
-): NockScope {
+): nock.Scope {
   return nock(rpcUrl, { reqheaders: headers }).filteringRequestBody((body) => {
     debug('Nock Received Request: ', body);
     return body;
@@ -240,7 +239,7 @@ type MockBlockTrackerRequestOptions = {
   /**
    * A nock scope (a set of mocked requests scoped to a certain base url).
    */
-  nockScope: NockScope;
+  nockScope: nock.Scope;
   /**
    * The block number that the block tracker should report, as a 0x-prefixed hex
    * string.
@@ -401,7 +400,7 @@ export async function withMockedCommunications(
   try {
     return await fn(comms);
   } finally {
-    nockIsDone();
+    nock.isDone();
   }
 }
 
