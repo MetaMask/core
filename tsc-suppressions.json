@@ -622,11 +622,6 @@
       "count": 3
     }
   },
-  "packages/notification-services-controller/src/NotificationServicesController/__fixtures__/mockServices.ts": {
-    "TS2769": {
-      "count": 3
-    }
-  },
   "packages/passkey-controller/tests/mocks/passkey-controller-messenger.ts": {
     "TS2322": {
       "count": 1
@@ -880,11 +875,6 @@
     },
     "TS2345": {
       "count": 7
-    }
-  },
-  "packages/profile-sync-controller/src/controllers/authentication/__fixtures__/mockServices.ts": {
-    "TS2769": {
-      "count": 3
     }
   },
   "packages/profile-sync-controller/src/controllers/user-storage/__fixtures__/mockMessenger.ts": {
@@ -1277,7 +1267,7 @@
   },
   "packages/wallet-framework-docs/content/data-services/writing-data-services/02-read-only-requests/orders-service.test.ts": {
     "TS1479": {
-      "count": 2
+      "count": 3
     },
     "TS1541": {
       "count": 1
