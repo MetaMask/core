@@ -1,11 +1,18 @@
 import type { DerivedIdentity } from '@metamask/chomp-api-service';
+import type { Hex } from '@metamask/utils';
 import { describe, it, expect } from 'vitest';
 
 import { getMoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 
-const MONEY_ACCOUNT_ADDRESS = '0x00000000000000000000000000000000000000Aa';
+const MONEY_ACCOUNT_ADDRESS: Hex = '0x00000000000000000000000000000000000000Aa';
 
-const SUCCESSOR_ADDRESS = '0x00000000000000000000000000000000000000Bb';
+const MONEY_ACCOUNT_ADDRESS_LOWERCASE: Hex =
+  '0x00000000000000000000000000000000000000aa';
+
+const SUCCESSOR_ADDRESS: Hex = '0x00000000000000000000000000000000000000Bb';
+
+const SUCCESSOR_ADDRESS_LOWERCASE: Hex =
+  '0x00000000000000000000000000000000000000bb';
 
 const UNRELATED_IDENTITY: DerivedIdentity = {
   currentAddress: '0x0000000000000000000000000000000000000001',
@@ -27,7 +34,7 @@ describe('getMoneyAccountLifecycle', () => {
     ).toStrictEqual({ type: 'notInIdentity' });
   });
 
-  it.each([MONEY_ACCOUNT_ADDRESS, MONEY_ACCOUNT_ADDRESS.toLowerCase()])(
+  it.each([MONEY_ACCOUNT_ADDRESS, MONEY_ACCOUNT_ADDRESS_LOWERCASE])(
     'returns sfa when the address is the current address %s of a settled identity',
     (currentAddress) => {
       const identity: DerivedIdentity = {
@@ -48,12 +55,12 @@ describe('getMoneyAccountLifecycle', () => {
 
   it('returns migrating when the address is the current address of an identity migrating away from it', () => {
     const identity: DerivedIdentity = {
-      currentAddress: MONEY_ACCOUNT_ADDRESS.toLowerCase(),
+      currentAddress: MONEY_ACCOUNT_ADDRESS_LOWERCASE,
       previousAddresses: [],
       status: 'MIGRATING',
       migration: {
-        from: MONEY_ACCOUNT_ADDRESS.toLowerCase(),
-        to: SUCCESSOR_ADDRESS.toLowerCase(),
+        from: MONEY_ACCOUNT_ADDRESS_LOWERCASE,
+        to: SUCCESSOR_ADDRESS_LOWERCASE,
         steps: [{ step: 'ROOT_DELEGATION', completed: false }],
         transfer: null,
         premiumTransfer: null,
@@ -71,7 +78,7 @@ describe('getMoneyAccountLifecycle', () => {
   it('returns mfa when the address is a previous address of a done identity, ignoring case', () => {
     const identity: DerivedIdentity = {
       currentAddress: SUCCESSOR_ADDRESS,
-      previousAddresses: [MONEY_ACCOUNT_ADDRESS.toLowerCase()],
+      previousAddresses: [MONEY_ACCOUNT_ADDRESS_LOWERCASE],
       status: 'DONE',
       migration: null,
     };

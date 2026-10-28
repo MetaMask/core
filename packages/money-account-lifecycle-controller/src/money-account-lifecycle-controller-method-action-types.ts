@@ -16,8 +16,10 @@ import type { MoneyAccountLifecycleController } from './money-account-lifecycle-
  * successor, or a valid MFA, along with its identity. After each fetch, or
  * when the recorded lifecycle changes, looks up whether the Money Account
  * address, and the identity's current address for a valid MFA, are
- * registered with CHOMP, and switches `MoneyAccountController` to the MPC
- * keyring for a valid MFA. Registers the Money Account address through
+ * registered with CHOMP. For a valid MFA, makes `MoneyAccountController`'s
+ * MPC money account its default once that account exists and matches the
+ * identity's current address; it never creates the MPC money account.
+ * Registers the Money Account address through
  * `MoneyAccountUpgradeController` when it is not registered and is either
  * not in an identity or a valid SFA. A migrating Money Account is frozen by
  * CHOMP, so it is never registered.

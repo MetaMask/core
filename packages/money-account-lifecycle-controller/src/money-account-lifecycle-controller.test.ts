@@ -2,6 +2,7 @@ import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   DerivedIdentitiesResponse,
   DerivedIdentity,
+  DerivedIdentityMigration,
 } from '@metamask/chomp-api-service';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
@@ -51,7 +52,9 @@ const MFA_IDENTITY: DerivedIdentity = {
   migration: null,
 };
 
-const MIGRATING_IDENTITY: DerivedIdentity = {
+const MIGRATING_IDENTITY: DerivedIdentity & {
+  migration: DerivedIdentityMigration;
+} = {
   currentAddress: MONEY_ACCOUNT_ADDRESS,
   previousAddresses: [],
   status: 'MIGRATING',
@@ -1299,7 +1302,7 @@ async function withController<ReturnValue>(
   const triggerMoneyAccountChange = async (): Promise<void> => {
     rootMessenger.publish(
       'MoneyAccountController:stateChange',
-      { moneyAccounts: {} },
+      { moneyAccounts: {}, defaultMoneyAccountId: null },
       [],
     );
     await flushPromises();
