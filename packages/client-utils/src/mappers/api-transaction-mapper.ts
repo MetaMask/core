@@ -406,6 +406,30 @@ export function mapApiTransaction({
     };
   }
 
+  // Relayed / sponsored (gasless) ERC-20 send: a relayer submits the call to a
+  // delegation contract, so the subject is neither the top-level `from` nor
+  // `to`. Their outgoing token transfer is the only evidence it is their send.
+  if (
+    transactionCategory === 'CONTRACT_CALL' &&
+    sentTransfer?.contractAddress &&
+    !receivedTransfer &&
+    !equalsIgnoreCase(from, subjectAddress) &&
+    !equalsIgnoreCase(transaction.to, subjectAddress)
+  ) {
+    return {
+      type: 'send',
+      ...common,
+      data: {
+        from: sentTransfer.from,
+        to: sentTransfer.to,
+        token: getToken(sentTransfer, 'out'),
+        // The relayer paid the gas, not the subject. Keep the field so
+        // hosts can attach their own (e.g. sponsored) fee marker.
+        fees: [],
+      },
+    };
+  }
+
   const token = getToken(
     sentTransfer ?? receivedTransfer,
     sentTransfer ? 'out' : 'in',
