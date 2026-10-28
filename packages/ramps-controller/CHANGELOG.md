@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Concurrent identical NeoBank reads (`getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `getDepositInstructions`, `listAutorampTransactions`, `getAutorampQuote`, `getAutorampQuoteForAutoramp`, `getCustomerByExternalId`) now share one request. Sequential reads still always hit the API ([#10882](https://github.com/MetaMask/core/pull/10882))
   - `getAutoramps` fetches each cursor page as its own query, so a failed page is retried on its own and concurrent calls with the same `customerId` share each page request.
 - Malformed NeoBank responses now throw `Query function for "NeoBankService:<method>" returned an unexpected response: …` (or `Mutation function for "NeoBankService:createAutoramp" …`) instead of `Malformed response received from neo-bank …` ([#10882](https://github.com/MetaMask/core/pull/10882))
-  - This applies to `getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `getDepositInstructions`, `listAutorampTransactions` and `createAutoramp`. Malformed responses are still not retried.
+  - This applies to `getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `getDepositInstructions`, `listAutorampTransactions` and `createAutoramp`. Responses that do not match the expected shape are still not retried.
 - Add dependencies `@metamask/base-data-service` and `@metamask/superstruct` ([#10882](https://github.com/MetaMask/core/pull/10882))
 
 ### Removed
