@@ -1679,11 +1679,6 @@
       "count": 9
     }
   },
-  "packages/base-data-service/tests/mocks.ts": {
-    "typescript/consistent-type-imports": {
-      "count": 1
-    }
-  },
   "packages/bitcoin-regtest-up/src/bin/bitcoin-regtest-up.ts": {
     "typescript/no-unsafe-argument": {
       "count": 2
@@ -4868,7 +4863,7 @@
       "count": 1
     },
     "typescript/return-await": {
-      "count": 10
+      "count": 9
     }
   },
   "packages/perps-controller/src/providers/LighterProvider.ts": {
@@ -6010,7 +6005,7 @@
   },
   "packages/react-data-query/src/createUIQueryClient.test.ts": {
     "typescript/consistent-type-imports": {
-      "count": 6
+      "count": 5
     },
     "vitest/no-conditional-in-test": {
       "count": 25
