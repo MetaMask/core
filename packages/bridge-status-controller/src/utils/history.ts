@@ -11,7 +11,7 @@ import type {
   BridgeHistoryItem,
   BridgeStatusControllerMessenger,
   BridgeStatusControllerState,
-  StartPollingForBridgeTxStatusArgsSerialized,
+  StartPollingForBridgeTxStatusArgs,
 } from '../types.js';
 import { getMaxPendingHistoryItemAgeMs } from './feature-flags.js';
 import { isApprovalTx, isAtomic7702BatchTx } from './transaction.js';
@@ -249,7 +249,7 @@ export function getHistoryKey(
 }
 
 export const getInitialHistoryItem = (
-  args: StartPollingForBridgeTxStatusArgsSerialized,
+  args: StartPollingForBridgeTxStatusArgs,
 ): BridgeHistoryItem => {
   const {
     bridgeTxMeta,
@@ -267,7 +267,6 @@ export const getInitialHistoryItem = (
     accountAddress: selectedAddress,
     originalTransactionId,
     actionId,
-    depositConfig,
     tokenSecurityTypeDestination,
     inputPrimaryDenomination,
     batchSellData,
@@ -329,8 +328,8 @@ export const getInitialHistoryItem = (
     }),
   };
 
-  if (depositConfig) {
-    txHistoryItem.depositConfig = depositConfig;
+  if (quoteResponse.depositConfig) {
+    txHistoryItem.depositConfig = quoteResponse.depositConfig;
   }
 
   if (batchSellData) {

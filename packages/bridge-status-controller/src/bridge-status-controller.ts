@@ -67,7 +67,7 @@ import { SubmitStep } from './strategy/types.js';
 import type { SubmitStrategyParams } from './strategy/types.js';
 import type {
   BridgeStatusControllerState,
-  StartPollingForBridgeTxStatusArgsSerialized,
+  StartPollingForBridgeTxStatusArgs,
   FetchFunction,
   BridgeHistoryItem,
 } from './types.js';
@@ -941,7 +941,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * @param txHistoryMeta - The parameters for creating the history item
    */
   startPollingForBridgeTxStatus = (
-    txHistoryMeta: StartPollingForBridgeTxStatusArgsSerialized,
+    txHistoryMeta: StartPollingForBridgeTxStatusArgs,
   ): void => {
     const { bridgeTxMeta } = txHistoryMeta;
 
@@ -1401,8 +1401,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       inputPrimaryDenomination?: InputPrimaryDenomination;
       customSlippage?: boolean;
       slippagePercentage?: number;
-      isMoneyAccountDeposit?: boolean;
-      depositConfig?: QuoteResponse['depositConfig'];
     },
   ): Promise<{
     txMeta?: TransactionMeta;
@@ -1456,7 +1454,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
               quoteResponse: payload.quoteResponse,
               accountAddress: params.selectedAccount.address,
               isStxEnabled: params.isStxEnabled,
-              depositConfig: sharedHistoryItemProperties.depositConfig,
               slippagePercentage:
                 sharedHistoryItemProperties.slippagePercentage ??
                 payload.quoteResponse.quote.slippage ??
@@ -1537,7 +1534,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     accountAddress,
     quoteResponses: quoteResponsesV1orV2,
     isStxEnabled,
-    isMoneyAccountDeposit,
     quotesReceivedContext,
     location = MetaMetricsSwapsEventSource.Unknown,
     abTests,
@@ -1551,7 +1547,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     quoteResponses:
       QuoteResponse[] | (QuoteResponseV1<Trade, Trade> & QuoteMetadata)[];
     isStxEnabled: boolean;
-    isMoneyAccountDeposit?: boolean;
     quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived];
     location?: MetaMetricsSwapsEventSource;
     abTests?: Record<string, string>;
@@ -1687,7 +1682,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             inputPrimaryDenomination,
             customSlippage: quotesReceivedContext?.custom_slippage,
             slippagePercentage: quotesReceivedContext?.slippage_limit,
-            isMoneyAccountDeposit,
           });
           historyKey = res.txHistoryKey;
           if (res.txMeta) {

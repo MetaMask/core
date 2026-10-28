@@ -29,7 +29,6 @@ export type {
   BridgeStatusControllerEvents,
   BridgeStatusControllerStateChangeEvent,
   StartPollingForBridgeTxStatusArgs,
-  StartPollingForBridgeTxStatusArgsSerialized,
   TokenAmountValuesSerialized,
   QuoteMetadataSerialized,
 } from './types.js';

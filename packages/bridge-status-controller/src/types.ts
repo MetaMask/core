@@ -302,7 +302,8 @@ export type StartPollingForBridgeTxStatusArgs = {
    * @deprecated the txMeta or orderUid should be used instead
    */
   originalTransactionId?: string;
-  quoteResponse: QuoteResponseV1 & QuoteMetadata;
+  quoteResponse: QuoteResponseV1 &
+    QuoteMetadata & { depositConfig?: QuoteResponse['depositConfig'] };
   startTime: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
   customSlippage?: BridgeHistoryItem['customSlippage'];
@@ -321,19 +322,6 @@ export type StartPollingForBridgeTxStatusArgs = {
   tokenSecurityTypeDestination?: BridgeHistoryItem['tokenSecurityTypeDestination'];
   // Primary denomination at submission time, persisted for post-submit analytics.
   inputPrimaryDenomination?: BridgeHistoryItem['inputPrimaryDenomination'];
-  depositConfig?: BridgeHistoryItem['depositConfig'];
-};
-
-/**
- * Chrome: The BigNumber values are automatically serialized to strings when sent to the background
- * Firefox: The BigNumber values are not serialized to strings when sent to the background,
- * so we force the ui to do it manually, by using StartPollingForBridgeTxStatusArgsSerialized type on the startPollingForBridgeTxStatus action
- */
-export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
-  StartPollingForBridgeTxStatusArgs,
-  'quoteResponse'
-> & {
-  quoteResponse: QuoteResponseV1 & QuoteMetadata;
 };
 
 export type SourceChainTxMetaId = string;
