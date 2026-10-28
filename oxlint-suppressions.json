@@ -1322,12 +1322,17 @@
       "count": 1
     }
   },
+  "packages/authenticated-user-storage/src/authenticated-user-storage.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    }
+  },
   "packages/authenticated-user-storage/src/authenticated-user-storage.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 5
+      "count": 6
     },
     "typescript/no-unsafe-return": {
-      "count": 5
+      "count": 6
     }
   },
   "packages/base-data-service/src/BaseDataService.ts": {
