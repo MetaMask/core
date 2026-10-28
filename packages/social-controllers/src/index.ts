@@ -15,6 +15,7 @@ export type {
   SocialControllerFollowTraderAction,
   SocialControllerOptInToLeaderboardAction,
   SocialControllerOptOutOfLeaderboardAction,
+  SocialControllerTranslateCommentAction,
   SocialControllerUnfollowTraderAction,
   SocialControllerUpdateFollowingAction,
   SocialControllerUpdateLeaderboardAction,
@@ -50,12 +51,18 @@ export type {
   SocialServiceReactToCommentAction,
   SocialServiceCreateCopyTradeIntentAction,
   SocialServiceCreateSwapCommentAction,
+  SocialServiceTranslateCommentAction,
   SocialServiceRefreshNotificationPreferencesCacheAction,
   SocialServiceRemoveCommentReactionAction,
   SocialServiceUnfollowAction,
 } from './SocialService-method-action-types.js';
 
-export { TRADER_RANKING_TAGS, TradeStruct } from './social-types.js';
+export {
+  DEVELOPER_POSITION_FLAG,
+  INSIDER_POSITION_FLAG,
+  TRADER_RANKING_TAGS,
+  TradeStruct,
+} from './social-types.js';
 export {
   SOCIAL_FEED_CHANNELS,
   SOCIAL_FEED_CHANNEL_TYPE,
@@ -80,6 +87,7 @@ export type {
   CommentEngagement,
   CommentReaction,
   CommentReactionProfile,
+  CommentTranslation,
   CopyTradeAccount,
   CopyTradeExecution,
   CopyTradeIntentResponse,
@@ -120,6 +128,7 @@ export type {
   SocialHandles,
   SwapCommentAuthor,
   SwapCommentResponse,
+  TranslateCommentOptions,
   TokenFeedChain,
   TokenFeedStatus,
   Trade,

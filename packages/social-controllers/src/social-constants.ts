@@ -58,6 +58,9 @@ export const SocialServiceErrorMessage = {
   CREATE_SWAP_COMMENT_FAILED: 'SocialService: Swap comment request failed',
   CREATE_SWAP_COMMENT_INVALID_RESPONSE:
     'SocialService: Swap comment returned invalid response',
+  TRANSLATE_COMMENT_FAILED: 'SocialService: Comment translation request failed',
+  TRANSLATE_COMMENT_INVALID_RESPONSE:
+    'SocialService: Comment translation returned invalid response',
   CREATE_COPY_TRADE_INTENT_FAILED:
     'SocialService: Copy-trade intent request failed',
   CREATE_COPY_TRADE_INTENT_INVALID_RESPONSE:

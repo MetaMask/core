@@ -7,6 +7,7 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
   RampsControllerAutorampStatusChangedEvent,
+  AutorampTransactionStatusChangedPayload,
   RampsControllerOptions,
   PaymentMethodsForContextResponse,
   UserRegion,
@@ -49,6 +50,7 @@ export type {
   RampsControllerApplyAutorampStatusFromPushAction,
   RampsControllerRefreshAutorampAction,
   RampsControllerRefreshAutorampsAction,
+  RampsControllerRefreshAutorampTransactionsAction,
   RampsControllerStartOrderPollingAction,
   RampsControllerStopOrderPollingAction,
   RampsControllerGetBuyWidgetDataAction,
@@ -299,6 +301,12 @@ export {
   buildBrazilMusdAutorampRequest,
 } from './autorampAccount.js';
 export { buildOwnershipMessage } from './ownership-message.js';
+export type {
+  AutorampTransactionRecord,
+  AutorampTransactionRecords,
+  AutorampTransactionChange,
+} from './diffAutorampTransactions.js';
+export { diffAutorampTransactions } from './diffAutorampTransactions.js';
 export type {
   AutorampDepositInstructions,
   AutorampDepositRailsSummary,

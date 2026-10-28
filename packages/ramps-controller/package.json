@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ramps-controller",
-  "version": "27.2.0",
+  "version": "28.0.0",
   "description": "A controller for managing cryptocurrency on/off ramps functionality",
   "keywords": [
     "Ethereum",
@@ -56,7 +56,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/profile-sync-controller": "^36.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
-    "@metamask/utils": "^12.0.0",
+    "@metamask/utils": "^12.0.1",
     "bignumber.js": "^9.1.2",
     "fast-deep-equal": "^3.1.3"
   },

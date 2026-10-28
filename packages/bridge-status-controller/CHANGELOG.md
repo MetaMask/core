@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [78.0.0]
+
+### Changed
+
+- **BREAKING:** Change `submitTx` args to a single object ([#11140](https://github.com/MetaMask/core/pull/11140))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/bridge-controller` from `^83.1.0` to `^83.1.1` ([#11115](https://github.com/MetaMask/core/pull/11115))
+
 ## [77.1.0]
 
 ### Added
@@ -1700,7 +1708,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@77.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.0...HEAD
+[78.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@77.1.0...@metamask/bridge-status-controller@78.0.0
 [77.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@77.0.0...@metamask/bridge-status-controller@77.1.0
 [77.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.4.0...@metamask/bridge-status-controller@77.0.0
 [76.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.5...@metamask/bridge-status-controller@76.4.0
