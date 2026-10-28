@@ -481,6 +481,6 @@ export class ProfileController extends BaseController<
    * Clears the controller state, including the profile and X profile.
    */
   clearState(): void {
-    this.update((state) => getDefaultProfileControllerState());
+    this.update(() => getDefaultProfileControllerState());
   }
 }
