@@ -38,6 +38,31 @@ const DEFAULT_GRACE_PERIOD_MS = 3_000;
 /** Default backoff delays between failed WebSocket unsubscribe attempts. */
 const DEFAULT_UNSUB_RETRY_DELAYS_MS = [1_000, 2_000, 4_000] as const;
 
+/**
+ * The `BackendWebSocketService:*` actions the manager calls through its host
+ * service's messenger. A domain service must grant (at least) these to its
+ * restricted messenger, since the manager borrows that messenger and performs
+ * all WebSocket calls on the service's behalf. Services should source their own
+ * `*_ALLOWED_ACTIONS` export from this list rather than re-declaring it.
+ */
+export const CHANNEL_SUBSCRIPTION_MANAGER_ALLOWED_ACTIONS = [
+  'BackendWebSocketService:connect',
+  'BackendWebSocketService:forceReconnection',
+  'BackendWebSocketService:subscribe',
+  'BackendWebSocketService:channelHasSubscription',
+  'BackendWebSocketService:getSubscriptionsByChannel',
+  'BackendWebSocketService:addChannelCallback',
+  'BackendWebSocketService:removeChannelCallback',
+] as const;
+
+/**
+ * The `BackendWebSocketService:*` events the manager subscribes to through its
+ * host service's messenger.
+ */
+export const CHANNEL_SUBSCRIPTION_MANAGER_ALLOWED_EVENTS = [
+  'BackendWebSocketService:connectionStateChanged',
+] as const;
+
 // =============================================================================
 // Types
 // =============================================================================

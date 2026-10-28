@@ -15,7 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Refactor `OHLCVService` to delegate its subscription lifecycle to the shared `ChannelSubscriptionManager` via composition, with no change to its public API or published events ([#10884](https://github.com/MetaMask/core/pull/10884))
+- **BREAKING:** Remove the unused `BackendWebSocketService:getConnectionInfo` and `BackendWebSocketService:findSubscriptionsByChannelPrefix` actions from `OHLCV_SERVICE_ALLOWED_ACTIONS` ([#10884](https://github.com/MetaMask/core/pull/10884))
+  - `OHLCV_SERVICE_ALLOWED_ACTIONS` / `OHLCV_SERVICE_ALLOWED_EVENTS` and `LAUNCHPAD_TDP_SERVICE_ALLOWED_ACTIONS` / `LAUNCHPAD_TDP_SERVICE_ALLOWED_EVENTS` are now sourced from a single shared set (the `BackendWebSocketService` actions/events the `ChannelSubscriptionManager` actually calls), so both services grant identical, minimal permissions.
+  - If you build the `OHLCVService` restricted messenger from `OHLCV_SERVICE_ALLOWED_ACTIONS`, it will no longer be granted those two actions. Neither action was ever called by `OHLCVService`, so no runtime behavior changes; grant them explicitly only if your own code calls them through that messenger.
+- Refactor `OHLCVService` to delegate its subscription lifecycle to the shared `ChannelSubscriptionManager` via composition, with no change to its public methods or published events ([#10884](https://github.com/MetaMask/core/pull/10884))
 - Stop publishing the `api/test-utils` test helper, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))
 - Bump `@metamask/account-tree-controller` from `^11.0.1` to `^11.2.0` ([#10891](https://github.com/MetaMask/core/pull/10891), [#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))
 - Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^36.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))

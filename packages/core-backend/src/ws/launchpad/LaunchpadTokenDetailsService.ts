@@ -26,7 +26,11 @@ import type {
   ServerNotificationMessage,
 } from '../BackendWebSocketService.js';
 import { WebSocketState } from '../BackendWebSocketService.js';
-import { ChannelSubscriptionManager } from '../ChannelSubscriptionManager.js';
+import {
+  ChannelSubscriptionManager,
+  CHANNEL_SUBSCRIPTION_MANAGER_ALLOWED_ACTIONS,
+  CHANNEL_SUBSCRIPTION_MANAGER_ALLOWED_EVENTS,
+} from '../ChannelSubscriptionManager.js';
 import type { LaunchpadTokenDetailsServiceMethodActions } from './LaunchpadTokenDetailsService-method-action-types.js';
 import {
   buildChannel,
@@ -83,19 +87,11 @@ export type LaunchpadTokenDetailsServiceActions =
   LaunchpadTokenDetailsServiceMethodActions;
 
 export const LAUNCHPAD_TDP_SERVICE_ALLOWED_ACTIONS = [
-  'BackendWebSocketService:connect',
-  'BackendWebSocketService:forceReconnection',
-  'BackendWebSocketService:subscribe',
-  'BackendWebSocketService:getConnectionInfo',
-  'BackendWebSocketService:channelHasSubscription',
-  'BackendWebSocketService:getSubscriptionsByChannel',
-  'BackendWebSocketService:findSubscriptionsByChannelPrefix',
-  'BackendWebSocketService:addChannelCallback',
-  'BackendWebSocketService:removeChannelCallback',
+  ...CHANNEL_SUBSCRIPTION_MANAGER_ALLOWED_ACTIONS,
 ] as const;
 
 export const LAUNCHPAD_TDP_SERVICE_ALLOWED_EVENTS = [
-  'BackendWebSocketService:connectionStateChanged',
+  ...CHANNEL_SUBSCRIPTION_MANAGER_ALLOWED_EVENTS,
 ] as const;
 
 export type AllowedActions = BackendWebSocketServiceMethodActions;
