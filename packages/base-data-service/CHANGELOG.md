@@ -10,9 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add `onQueryStateChange` option to the protected `fetchQuery` method ([#11162](https://github.com/MetaMask/core/pull/11162))
+  - The callback receives the query state with serialized errors, first with the cached state if one exists, then on every update until the fetch has settled and the query is idle.
+  - Errors thrown by the callback are logged and ignored.
+  - This option is not available on `fetchInfiniteQuery`.
+- Export `DataServiceQueryState`, `QueryStateChangeHandler` and `SerializedQueryError` types ([#11162](https://github.com/MetaMask/core/pull/11162))
 
 ### Changed
 
+- **BREAKING:** Serialize query errors in `:cacheUpdated` and `:cacheUpdated:${hash}` event payloads as `{ name, message }` objects instead of the thrown value ([#11162](https://github.com/MetaMask/core/pull/11162))
+  - This applies to both `error` and `fetchFailureReason` on each query state.
+  - Consumers that read properties other than `name` and `message` from these errors, or that relied on `instanceof Error`, must adapt.
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
