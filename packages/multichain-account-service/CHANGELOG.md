@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/account-api` from `^2.1.0` to `^2.2.0` ([#10694](https://github.com/MetaMask/core/pull/10694))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
-### Fixed 
+### Fixed
 
 - Now throws if two providers share the same `getName()` value ([#11161](https://github.com/MetaMask/core/pull/10981))
   - This verification is run on both default and custom providers, enforcing name uniqueness.
