@@ -1,0 +1,8 @@
+{
+  "status": "ready",
+  "source_file": "packages/assets-controller/src/selectors/balance.ts",
+  "metric": "primary_ms",
+  "metric_unit": "ms",
+  "direction": "lower",
+  "checks_command": "yarn vitest run --project assets-controller src/selectors/balance.test.ts"
+}
