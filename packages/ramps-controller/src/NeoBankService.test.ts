@@ -1,5 +1,5 @@
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
-import { ConstantBackoff } from '@metamask/controller-utils';
+import { ConstantBackoff, HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import nock from 'nock';
@@ -13,6 +13,7 @@ import {
 } from './NeoBankService.js';
 import type { NeoBankServiceMessenger } from './NeoBankService.js';
 import { RampsEnvironment } from './RampsService.js';
+import { WalletRegistrationError } from './wallet-registration-service.js';
 
 const STAGING_BASE = 'https://on-ramp.uat-api.cx.metamask.io';
 
@@ -1019,6 +1020,178 @@ describe('NeoBankService', () => {
 
       expect(scope.isDone()).toBe(true);
       expect(result).toMatchObject({ id: 'cust-1', external_id: 'ext-1' });
+    });
+  });
+
+  describe('getMicrodeposits', () => {
+    const CUSTOMER_PATH = '/neobank/customers/canonical-profile-1/external';
+    const MICRODEPOSITS_PATH =
+      '/neobank/customers/iron-customer-1/microdeposits';
+
+    /**
+     * Stubs the customer lookup that `getMicrodeposits` performs first.
+     *
+     * @returns The nock scope for the lookup.
+     */
+    function mockCustomerLookup(): nock.Scope {
+      return nock(STAGING_BASE)
+        .get(CUSTOMER_PATH)
+        .reply(200, { id: 'iron-customer-1' });
+    }
+
+    it('returns the microdeposit array unchanged', async () => {
+      const microdeposits = [
+        {
+          amount: '0.34',
+          currency_code: 'USD',
+          created_at: '2026-06-01T12:00:00Z',
+          counterparty_name: 'Test Bank',
+        },
+        {
+          amount: '0.12',
+          currency_code: 'USD',
+          created_at: '2026-06-01T12:01:00Z',
+        },
+      ];
+      const customerScope = mockCustomerLookup();
+      const scope = nock(STAGING_BASE)
+        .get(MICRODEPOSITS_PATH)
+        .query({ sdk: /.+/u, controller: /.+/u, context: 'test' })
+        .matchHeader('Authorization', 'Bearer test-token')
+        .reply(200, microdeposits);
+
+      const service = createService();
+
+      expect(await service.getMicrodeposits()).toStrictEqual(microdeposits);
+      expect(customerScope.isDone()).toBe(true);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('resolves an empty array when MoonPay has no deposits (404)', async () => {
+      mockCustomerLookup();
+      nock(STAGING_BASE)
+        .get(MICRODEPOSITS_PATH)
+        .query(true)
+        .reply(404, 'not found');
+
+      const service = createService();
+
+      expect(await service.getMicrodeposits()).toStrictEqual([]);
+    });
+
+    it('resolves an empty array when the customer does not exist yet (404)', async () => {
+      const scope = nock(STAGING_BASE)
+        .get(CUSTOMER_PATH)
+        .reply(404, 'customer not found');
+
+      const service = createService();
+
+      expect(await service.getMicrodeposits()).toStrictEqual([]);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('throws an HttpError carrying the upstream body on a 5xx', async () => {
+      mockCustomerLookup();
+      nock(STAGING_BASE)
+        .get(MICRODEPOSITS_PATH)
+        .query(true)
+        .reply(500, 'upstream exploded');
+
+      const service = createService();
+
+      await expect(service.getMicrodeposits()).rejects.toThrow(
+        /status '500' - upstream exploded/u,
+      );
+    });
+
+    it('does not retry a 4xx other than 404', async () => {
+      mockCustomerLookup();
+      const scope = nock(STAGING_BASE)
+        .get(MICRODEPOSITS_PATH)
+        .query(true)
+        .once()
+        .reply(403, 'Customer is not active');
+
+      const service = createService({ policyOptions: { maxRetries: 2 } });
+
+      await expect(service.getMicrodeposits()).rejects.toThrow(
+        /status '403' - Customer is not active/u,
+      );
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('throws when the body is not an array', async () => {
+      mockCustomerLookup();
+      nock(STAGING_BASE)
+        .get(MICRODEPOSITS_PATH)
+        .query(true)
+        .reply(200, { items: [] });
+
+      const service = createService();
+
+      await expect(service.getMicrodeposits()).rejects.toThrow(
+        'Malformed response received from neo-bank microdeposits API',
+      );
+    });
+
+    it('resolves the customer id once across sequential and concurrent calls', async () => {
+      const customerScope = nock(STAGING_BASE)
+        .get(CUSTOMER_PATH)
+        .once()
+        .reply(200, { id: 'iron-customer-1' });
+      nock(STAGING_BASE)
+        .get(MICRODEPOSITS_PATH)
+        .query(true)
+        .times(3)
+        .reply(200, []);
+
+      const service = createService();
+
+      await Promise.all([
+        service.getMicrodeposits(),
+        service.getMicrodeposits(),
+      ]);
+      await service.getMicrodeposits();
+
+      expect(customerScope.isDone()).toBe(true);
+    });
+
+    it('rethrows customer lookup errors that carry no HTTP status unchanged', async () => {
+      const service = createService({ canonicalProfileId: '' });
+
+      await expect(service.getMicrodeposits()).rejects.toThrow(
+        /Unable to resolve MetaMask canonical profile id/u,
+      );
+    });
+
+    it('rethrows a WalletRegistrationError without an HTTP status unchanged', async () => {
+      nock(STAGING_BASE).get(CUSTOMER_PATH).reply(200, {});
+      const service = createService();
+
+      await expect(service.getMicrodeposits()).rejects.toBeInstanceOf(
+        WalletRegistrationError,
+      );
+    });
+
+    it('retries the customer lookup after a failed resolution', async () => {
+      nock(STAGING_BASE).get(CUSTOMER_PATH).once().reply(500, 'boom');
+      const service = createService();
+
+      const error = await service
+        .getMicrodeposits()
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({
+        httpStatus: 500,
+        message:
+          "Fetching neo-bank customer lookup failed with status '500' - boom",
+      });
+
+      mockCustomerLookup();
+      nock(STAGING_BASE).get(MICRODEPOSITS_PATH).query(true).reply(200, []);
+
+      expect(await service.getMicrodeposits()).toStrictEqual([]);
     });
   });
 
