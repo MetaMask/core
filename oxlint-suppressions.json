@@ -3378,12 +3378,6 @@
     "jsdoc/require-returns": {
       "count": 1
     },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    },
     "vitest/no-conditional-in-test": {
       "count": 1
     }
