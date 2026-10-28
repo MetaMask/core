@@ -172,18 +172,18 @@ export class OHLCVService {
       messenger: this.#messenger,
       channelType: SUBSCRIPTION_NAMESPACE,
       logPrefix: 'OHLCV-WS',
-      onMessage: (channel, notification) =>
+      onMessage: (channel, notification): void =>
         this.#handleBarUpdate(channel, notification),
-      onSubscriptionError: (channel, error, operation) =>
+      onSubscriptionError: (channel, error, operation): void =>
         this.#messenger.publish('OHLCVService:subscriptionError', {
           channel,
           error,
           operation,
         }),
       systemNotificationsChannel: SYSTEM_NOTIFICATIONS_CHANNEL,
-      onSystemNotification: (notification) =>
+      onSystemNotification: (notification): void =>
         this.#handleSystemNotification(notification),
-      onConnectionStateChange: (connectionInfo) =>
+      onConnectionStateChange: (connectionInfo): void =>
         this.#handleConnectionStateChange(connectionInfo),
     });
 

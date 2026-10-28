@@ -52,7 +52,7 @@ function isRawLaunchpadTokenEvent(
   const candidate = value as Partial<RawLaunchpadTokenEvent>;
   return (
     typeof candidate.evt === 'string' &&
-    EVENT_TYPES.has(candidate.evt as LaunchpadEventType) &&
+    EVENT_TYPES.has(candidate.evt) &&
     typeof candidate.ts === 'number' &&
     typeof candidate.a === 'string'
   );

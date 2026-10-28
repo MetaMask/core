@@ -142,7 +142,7 @@ export class ChannelSubscriptionManager {
       projectLogger,
       'ChannelSubscriptionManager',
     );
-    this.#log = (message, data) =>
+    this.#log = (message, data): void =>
       data === undefined
         ? moduleLog(`${prefix}: ${message}`)
         : moduleLog(`${prefix}: ${message}`, data);

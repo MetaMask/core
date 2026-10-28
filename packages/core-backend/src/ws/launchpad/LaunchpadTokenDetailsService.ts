@@ -182,9 +182,9 @@ export class LaunchpadTokenDetailsService {
       messenger: this.#messenger,
       channelType: LAUNCHPAD_SUBSCRIPTION_NAMESPACE,
       logPrefix: 'Launchpad-WS',
-      onMessage: (channel, notification) =>
+      onMessage: (channel, notification): void =>
         this.#handleTokenUpdate(channel, notification),
-      onSubscriptionError: (channel, error, operation) =>
+      onSubscriptionError: (channel, error, operation): void =>
         this.#messenger.publish(
           'LaunchpadTokenDetailsService:subscriptionError',
           {
@@ -194,9 +194,9 @@ export class LaunchpadTokenDetailsService {
           },
         ),
       systemNotificationsChannel: SYSTEM_NOTIFICATIONS_CHANNEL,
-      onSystemNotification: (notification) =>
+      onSystemNotification: (notification): void =>
         this.#handleSystemNotification(notification),
-      onConnectionStateChange: (connectionInfo) =>
+      onConnectionStateChange: (connectionInfo): void =>
         this.#handleConnectionStateChange(connectionInfo),
     });
 
