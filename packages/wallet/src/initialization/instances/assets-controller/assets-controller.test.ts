@@ -6,6 +6,7 @@ import type { AssetsControllerGetStateAction } from '@metamask/assets-controller
 import { ConfigRegistryApiEnv } from '@metamask/config-registry-controller';
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import * as walletExports from '../../../index.js';
 import type { WalletOptions } from '../../../types.js';
@@ -96,8 +97,8 @@ describe('assetsController', () => {
   it('forwards the instance options to the controller', () => {
     const rootMessenger = getRootMessenger();
     const messenger = assetsController.getMessenger(rootMessenger);
-    const unsubscribe = jest.fn();
-    const subscribeToBasicFunctionalityChange = jest
+    const unsubscribe = vi.fn();
+    const subscribeToBasicFunctionalityChange = vi
       .fn()
       .mockReturnValue(unsubscribe);
 
@@ -170,7 +171,7 @@ describe('assetsController', () => {
     const rootMessenger = new Messenger<'Root', DefaultActions, DefaultEvents>({
       namespace: 'Root',
     });
-    const handler = jest.fn().mockReturnValue('result');
+    const handler = vi.fn().mockReturnValue('result');
     registerActionHandler(rootMessenger, actionType, handler);
     const messenger = assetsController.getMessenger(rootMessenger);
 
@@ -209,7 +210,7 @@ describe('assetsController', () => {
       namespace: 'Root',
     });
     const messenger = assetsController.getMessenger(rootMessenger);
-    const listener = jest.fn();
+    const listener = vi.fn();
     (
       messenger as unknown as {
         subscribe(type: string, handler: ActionHandler): void;
@@ -258,7 +259,7 @@ describe('assetsController', () => {
         assetsController: { queryApiClient: createMockQueryApiClient() },
       },
     });
-    const destroy = jest.spyOn(
+    const destroy = vi.spyOn(
       wallet.getInstance('AssetsController') as unknown as AssetsController,
       'destroy',
     );
@@ -278,12 +279,12 @@ describe('assetsController', () => {
 function createMockQueryApiClient(): AssetsControllerInstanceOptions['queryApiClient'] {
   const cache = new Map<string, unknown>();
   return {
-    getCachedData: jest.fn((key: string[]) => cache.get(JSON.stringify(key))),
-    setCachedData: jest.fn((key: string[], data: unknown) =>
+    getCachedData: vi.fn((key: string[]) => cache.get(JSON.stringify(key))),
+    setCachedData: vi.fn((key: string[], data: unknown) =>
       cache.set(JSON.stringify(key), data),
     ),
     queryClient: {
-      fetchQuery: jest.fn(
+      fetchQuery: vi.fn(
         async (opts: {
           queryKey: string[];
           queryFn: () => Promise<unknown>;
@@ -334,6 +335,15 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
 
 function getInstanceOptions(): WalletOptions['instanceOptions'] {
   return {
+    analyticsController: {
+      platformAdapter: {
+        track: vi.fn(),
+        identify: vi.fn(),
+        view: vi.fn(),
+        onSetupCompleted: vi.fn(),
+      },
+      analyticsId: '11111111-1111-4111-8111-111111111111',
+    },
     configRegistryApiService: { env: ConfigRegistryApiEnv.PRD },
     connectivityController: {
       connectivityAdapter: new AlwaysOnlineAdapter(),

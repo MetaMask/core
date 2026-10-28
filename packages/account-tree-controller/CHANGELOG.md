@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+## [11.2.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
 ## [11.1.1]
 
 ### Changed
@@ -768,7 +782,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.2.0...HEAD
+[11.2.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.1.1...@metamask/account-tree-controller@11.2.0
 [11.1.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.1.0...@metamask/account-tree-controller@11.1.1
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.0.1...@metamask/account-tree-controller@11.1.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.0.0...@metamask/account-tree-controller@11.0.1

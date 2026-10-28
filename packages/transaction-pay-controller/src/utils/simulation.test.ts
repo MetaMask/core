@@ -1,6 +1,7 @@
 import { SentinelChainNotSupportedError } from '@metamask/sentinel-api-service';
 import type { SentinelSimulationResponse } from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { simulateQuoteTransactions } from './simulation.js';
@@ -29,7 +30,7 @@ describe('simulateQuoteTransactions', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     messengerMock = getMessengerMock();
     messengerMock.simulateTransactionsMock.mockResolvedValue({
       transactions: [{}],

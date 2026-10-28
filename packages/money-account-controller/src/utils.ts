@@ -11,3 +11,13 @@ import { EthKeyring } from '@metamask/keyring-utils';
 export function isMoneyKeyring(keyring: EthKeyring): keyring is MoneyKeyring {
   return keyring.type === KeyringTypes.money;
 }
+
+/**
+ * Returns `true` if the given keyring is an MPC Money keyring.
+ *
+ * @param keyring - The keyring to check.
+ * @returns Whether the keyring is an MPC Money keyring.
+ */
+export function isMpcMoneyKeyring(keyring: EthKeyring): boolean {
+  return keyring.type === KeyringTypes.mpcMoney;
+}

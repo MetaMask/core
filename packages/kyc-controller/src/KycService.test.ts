@@ -4,7 +4,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { EncryptionSchema, KycServiceMessenger } from './KycService.js';
@@ -21,7 +21,7 @@ const services: KycService[] = [];
 
 describe('KycService', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
     for (const service of services) {
       service.destroy();
     }
@@ -45,31 +45,25 @@ describe('KycService', () => {
     });
 
     it('throws when fetch is not globally available and not provided', () => {
-      const savedFetch = globalThis.fetch;
-      try {
-        // @ts-expect-error - deliberately removing fetch for test
-        delete globalThis.fetch;
+      vi.stubGlobal('fetch', undefined);
 
-        const rootMessenger: RootMessenger = new Messenger({
-          namespace: MOCK_ANY_NAMESPACE,
-        });
-        const messenger: KycServiceMessenger = new Messenger({
-          namespace: 'KycService',
-          parent: rootMessenger,
-        });
+      const rootMessenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      const messenger: KycServiceMessenger = new Messenger({
+        namespace: 'KycService',
+        parent: rootMessenger,
+      });
 
-        expect(
-          () =>
-            new KycService({
-              messenger,
-              baseUrl: MOCK_API_URL,
-            }),
-        ).toThrow(
-          'fetch is not available globally and was not provided in options',
-        );
-      } finally {
-        globalThis.fetch = savedFetch;
-      }
+      expect(
+        () =>
+          new KycService({
+            messenger,
+            baseUrl: MOCK_API_URL,
+          }),
+      ).toThrow(
+        'fetch is not available globally and was not provided in options',
+      );
     });
   });
 
@@ -604,9 +598,8 @@ describe('KycService', () => {
 
     it('does not send a Content-Type header since it has no body', async () => {
       const response = { status: 'ok', applicantAccessToken: 'aat' };
-      nock(MOCK_API_URL)
+      nock(MOCK_API_URL, { badheaders: ['content-type'] })
         .post('/sessions/sid/journey')
-        .matchHeader('content-type', (value) => value === undefined)
         .reply(200, response);
       const { service } = getService();
 

@@ -31,7 +31,7 @@ import type {
   KeyringObject,
 } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { KeyringV1Adapter } from '@metamask/keyring-sdk/v2';
+import { isKeyringV1Adapter } from '@metamask/keyring-sdk/v2';
 import { isScopeEqualToAny } from '@metamask/keyring-utils';
 import type { Messenger, ExtractEventPayload } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
@@ -952,11 +952,10 @@ export class AccountsController extends BaseController<
     );
 
     for (const keyring of keyrings) {
-      if (keyring instanceof KeyringV1Adapter) {
+      if (isKeyringV1Adapter<KeyringV2WithLookup>(keyring)) {
         // NOTE: We are already filtering by `keyringType`, so we are sure that those adapters
         // are wrapping a keyring of that type.
-        const adapter = keyring as KeyringV1Adapter<KeyringV2WithLookup>;
-        const keyringV2 = adapter.unwrap();
+        const keyringV2 = keyring.unwrap();
 
         // We use the synchronous method here since this method is used during `:stateChange` that are
         // use synchronous handlers.

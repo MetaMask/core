@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { Json } from '@metamask/utils';
+import { describe, expect, it } from 'vitest';
 
 import { isPayFlowEnabled, isWalletPayTypeAllowed } from './feature-flags.js';
 

@@ -1,4 +1,3 @@
-import type { Infer } from '@metamask/superstruct';
 import {
   array,
   assign,
@@ -12,7 +11,6 @@ import {
   record,
   string,
   type as structType,
-  unknown as unknownStruct,
   union,
 } from '@metamask/superstruct';
 
@@ -38,6 +36,8 @@ const FeedActorStruct = assign(
   structType({
     winRate30d: optional(nullable(number())),
     pnl30d: optional(nullable(number())),
+    volumeUsd30d: optional(nullable(number())),
+    volumeUsd7d: optional(nullable(number())),
     tradeCount30d: optional(nullable(number())),
     followerCount: optional(nullable(number())),
   }),
@@ -66,6 +66,8 @@ export const PositionStruct = structType({
   perpPositionType: optional(nullable(enums(['long', 'short']))),
   perpLeverage: optional(nullable(number())),
   positionAmountWithLeverage: optional(nullable(number())),
+  // Open set: a flag this package does not know yet must still validate.
+  flags: optional(nullable(array(string()))),
 });
 
 export const CommentReactionProfileStruct = structType({
@@ -89,7 +91,14 @@ const AuthorCommentStruct = structType({
   uid: string(),
   text: string(),
   timestamp: number(),
+  sourceLanguage: optional(nullable(string())),
+  translations: optional(record(string(), string())),
   engagement: CommentEngagementStruct,
+});
+
+export const CommentTranslationStruct = structType({
+  sourceLanguage: nullable(string()),
+  translations: record(string(), string()),
 });
 
 const SwapCommentAuthorStruct = structType({
@@ -183,38 +192,11 @@ export const parseFeedResponse = (
   };
 };
 
-const RealtimeFeedTradeStruct = structType({
-  intent: enums(['enter', 'exit']),
-  comments: array(record(string(), unknownStruct())),
-});
-
-const RealtimeFeedItemStruct = structType({
-  itemId: string(),
-  timestamp: number(),
-  cardLatestTradeAt: number(),
-  actor: structType({
-    type: literal('user'),
-    address: string(),
-    name: string(),
-    images: record(string(), unknownStruct()),
-    profile: structType({
-      id: string(),
-      metadata: record(string(), unknownStruct()),
-    }),
-  }),
-  metadata: structType({
-    tokenChain: string(),
-    tokenAddress: string(),
-    trades: array(RealtimeFeedTradeStruct),
-  }),
-});
-
-export type SocialRealtimeFeedItem = Infer<typeof RealtimeFeedItemStruct>;
-
-export const parseSocialRealtimeFeedItem = (
-  value: unknown,
-): SocialRealtimeFeedItem | undefined =>
-  is(value, RealtimeFeedItemStruct) ? value : undefined;
+export {
+  normalizeRealtimeFeedItem,
+  parseRealtimeFeedItem,
+} from './realtime-feed-item.js';
+export type { RealtimeFeedEventData } from './realtime-feed-item.js';
 
 export const TraderProfileStruct = structType({
   profileId: string(),
@@ -283,6 +265,8 @@ const LeaderboardEntryStruct = structType({
   winRate7d: optional(nullable(number())),
   roiPercent7d: optional(nullable(number())),
   tradeCount7d: optional(nullable(number())),
+  volumeUsd30d: optional(nullable(number())),
+  volumeUsd7d: optional(nullable(number())),
   pnlPerChain: record(string(), number()),
   followerCount: number(),
   socialHandles: SocialHandlesStruct,

@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
+
 import { TERMINAL_API_CONFIG } from '../../../src/constants/perpsConfig.js';
 import { MarketDataService } from '../../../src/services/MarketDataService.js';
 import { TerminalMarketService } from '../../../src/services/TerminalMarketService.js';
@@ -73,7 +76,7 @@ const okJsonResponse = (body: unknown): Response =>
   }) as Response;
 
 describe('TerminalMarketService', () => {
-  let mockDeps: jest.Mocked<PerpsPlatformDependencies>;
+  let mockDeps: Mocked<PerpsPlatformDependencies>;
   let service: TerminalMarketService;
 
   const mockApiResponse = [
@@ -113,16 +116,16 @@ describe('TerminalMarketService', () => {
   beforeEach(() => {
     mockDeps = createMockInfrastructure();
     service = new TerminalMarketService(mockDeps);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('fetchMarkets', () => {
     it('fetches and maps markets successfully', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -180,7 +183,7 @@ describe('TerminalMarketService', () => {
         marketDataUrl: 'https://terminal.api.cx.metamask.io/v1/perpetuals',
       };
 
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -196,7 +199,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('throws on non-2xx response', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
@@ -209,7 +212,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('throws on non-array response body', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -222,9 +225,9 @@ describe('TerminalMarketService', () => {
     });
 
     it('throws on network error', async () => {
-      jest
-        .spyOn(globalThis, 'fetch')
-        .mockRejectedValue(new Error('Network request failed'));
+      vi.spyOn(globalThis, 'fetch').mockRejectedValue(
+        new Error('Network request failed'),
+      );
 
       await expect(service.fetchMarkets()).rejects.toThrow(
         'Network request failed',
@@ -232,9 +235,9 @@ describe('TerminalMarketService', () => {
     });
 
     it('aborts fetch when timeout elapses', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
 
-      jest.spyOn(globalThis, 'fetch').mockImplementation(
+      vi.spyOn(globalThis, 'fetch').mockImplementation(
         (_url, init) =>
           new Promise((_resolve, reject) => {
             (init?.signal as AbortSignal)?.addEventListener('abort', () => {
@@ -248,15 +251,15 @@ describe('TerminalMarketService', () => {
 
       const promise = service.fetchMarkets();
 
-      jest.advanceTimersByTime(TERMINAL_API_CONFIG.FetchTimeoutMs);
+      vi.advanceTimersByTime(TERMINAL_API_CONFIG.FetchTimeoutMs);
 
       await expect(promise).rejects.toThrow('Terminal API fetch timed out');
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('returns empty arrays for empty API response', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -270,7 +273,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('filters out items with missing or empty symbol', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -290,7 +293,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('filters out items that fail schema validation and logs errors', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -323,7 +326,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('accepts items with extra properties returned by the backend', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -359,7 +362,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('accepts only known MarketCategory values as marketType', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -381,7 +384,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('uses defaults for missing numeric fields', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -399,7 +402,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('omits name from metadata when Terminal does not supply one', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -412,7 +415,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('captures description when Terminal supplies one', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -434,7 +437,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('omits description when Terminal supplies null or empty', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -456,7 +459,7 @@ describe('TerminalMarketService', () => {
     describe('listedAt handling', () => {
       it('passes through a numeric listedAt as-is', async () => {
         const epochMs = 1_700_000_000_000;
-        jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue({
           ok: true,
           status: 200,
           statusText: 'OK',
@@ -474,7 +477,7 @@ describe('TerminalMarketService', () => {
       it('parses an ISO string listedAt to epoch ms', async () => {
         const isoString = '2023-11-14T22:13:20.000Z';
         const expectedMs = Date.parse(isoString);
-        jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue({
           ok: true,
           status: 200,
           statusText: 'OK',
@@ -490,7 +493,7 @@ describe('TerminalMarketService', () => {
       });
 
       it('omits listedAt when the string is not a valid date', async () => {
-        jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue({
           ok: true,
           status: 200,
           statusText: 'OK',
@@ -506,7 +509,7 @@ describe('TerminalMarketService', () => {
       });
 
       it('omits listedAt when the value is null', async () => {
-        jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue({
           ok: true,
           status: 200,
           statusText: 'OK',
@@ -519,7 +522,7 @@ describe('TerminalMarketService', () => {
       });
 
       it('omits listedAt when the field is absent', async () => {
-        jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue({
           ok: true,
           status: 200,
           statusText: 'OK',
@@ -535,7 +538,7 @@ describe('TerminalMarketService', () => {
 
   describe('fetchGlobalSnapshot', () => {
     beforeEach(() => {
-      jest.spyOn(Date, 'now').mockReturnValue(SNAPSHOT_NOW);
+      vi.spyOn(Date, 'now').mockReturnValue(SNAPSHOT_NOW);
       mockDeps.terminalApi = {
         ...mockDeps.terminalApi,
         globalSnapshotUrl:
@@ -544,9 +547,9 @@ describe('TerminalMarketService', () => {
     });
 
     it('validates and maps a fresh v4 snapshot', async () => {
-      jest
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue(okJsonResponse(createGlobalSnapshot()));
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(createGlobalSnapshot()),
+      );
 
       const result = await service.fetchGlobalSnapshot({
         provider: 'hyperliquid',
@@ -605,7 +608,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('keeps main first when canonicalizing requested DEXes', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: false,
         status: 503,
         statusText: 'Service Unavailable',
@@ -626,7 +629,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('maps a snapshot with unknown envelope and market fields', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             futureEnvelope: true,
@@ -651,8 +654,75 @@ describe('TerminalMarketService', () => {
       expect(result).not.toHaveProperty('futureEnvelope');
     });
 
+    it('maps isolated-only margin metadata into market info', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            markets: [
+              createSnapshotMarket({ onlyIsolated: null, marginMode: null }),
+              createSnapshotMarket({
+                id: 'hype-hyperliquid-mainnet',
+                symbol: 'HYPE',
+                onlyIsolated: true,
+                marginMode: 'strictIsolated',
+              }),
+              createSnapshotMarket({
+                id: 'purr-hyperliquid-mainnet',
+                symbol: 'PURR',
+                onlyIsolated: false,
+                marginMode: 'noCross',
+              }),
+            ],
+          }),
+        ),
+      );
+
+      const result = await service.fetchGlobalSnapshot({
+        provider: 'hyperliquid',
+        network: 'mainnet',
+        enabledDexes: ['main'],
+      });
+
+      expect(result.marketInfos).toStrictEqual([
+        { name: 'BTC', szDecimals: 5, maxLeverage: 50, marginTableId: 0 },
+        {
+          name: 'HYPE',
+          szDecimals: 5,
+          maxLeverage: 50,
+          marginTableId: 0,
+          onlyIsolated: true,
+          marginMode: 'strictIsolated',
+        },
+        {
+          name: 'PURR',
+          szDecimals: 5,
+          maxLeverage: 50,
+          marginTableId: 0,
+          marginMode: 'noCross',
+        },
+      ]);
+    });
+
+    it('rejects an unknown margin mode', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(
+          createGlobalSnapshot({
+            markets: [createSnapshotMarket({ marginMode: 'crossOnly' })],
+          }),
+        ),
+      );
+
+      await expect(
+        service.fetchGlobalSnapshot({
+          provider: 'hyperliquid',
+          network: 'mainnet',
+          enabledDexes: ['main'],
+        }),
+      ).rejects.toThrow('failed schema validation');
+    });
+
     it('maps a null rolling pair as unavailable', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             markets: [
@@ -680,7 +750,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('maps a null 5m rolling pair as unavailable', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             markets: [
@@ -762,9 +832,7 @@ describe('TerminalMarketService', () => {
         }),
       ],
     ])('rejects %s', async (_name, snapshot) => {
-      jest
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue(okJsonResponse(snapshot));
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(okJsonResponse(snapshot));
 
       await expect(
         service.fetchGlobalSnapshot({
@@ -786,7 +854,7 @@ describe('TerminalMarketService', () => {
         ],
       ],
     ])('accepts %s optional trend data', async (_name, trend) => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             markets: [createSnapshotMarket({ trend })],
@@ -804,7 +872,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('rejects a response larger than the snapshot payload limit', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -821,13 +889,13 @@ describe('TerminalMarketService', () => {
     });
 
     it('rejects an oversized Content-Length before allocating response text', async () => {
-      const text = jest.fn().mockRejectedValue(new Error('must not read'));
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      const text = vi.fn().mockRejectedValue(new Error('must not read'));
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
         headers: {
-          get: jest.fn().mockReturnValue('1048577'),
+          get: vi.fn().mockReturnValue('1048577'),
         } as unknown as Headers,
         text,
       } as Response);
@@ -843,8 +911,8 @@ describe('TerminalMarketService', () => {
     });
 
     it('aborts when the response body stalls', async () => {
-      jest.useFakeTimers();
-      jest.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
+      vi.useFakeTimers();
+      vi.spyOn(globalThis, 'fetch').mockImplementation((_url, init) => {
         const signal = init?.signal as AbortSignal;
         return Promise.resolve({
           ok: true,
@@ -871,12 +939,12 @@ describe('TerminalMarketService', () => {
       });
       await Promise.resolve();
 
-      jest.advanceTimersByTime(TERMINAL_API_CONFIG.FetchTimeoutMs);
+      vi.advanceTimersByTime(TERMINAL_API_CONFIG.FetchTimeoutMs);
 
       await expect(pending).rejects.toThrow(
         'Terminal global snapshot timed out',
       );
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it.each([
@@ -901,9 +969,9 @@ describe('TerminalMarketService', () => {
         },
       ],
     ])('rejects a snapshot with invalid %s', async (_name, overrides) => {
-      jest
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue(okJsonResponse(createGlobalSnapshot(overrides)));
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(createGlobalSnapshot(overrides)),
+      );
 
       await expect(
         service.fetchGlobalSnapshot({
@@ -917,11 +985,9 @@ describe('TerminalMarketService', () => {
     it('rejects a market missing a required rolling field', async () => {
       const snapshotMarket = createSnapshotMarket();
       delete snapshotMarket.change5m;
-      jest
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue(
-          okJsonResponse(createGlobalSnapshot({ markets: [snapshotMarket] })),
-        );
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        okJsonResponse(createGlobalSnapshot({ markets: [snapshotMarket] })),
+      );
 
       await expect(
         service.fetchGlobalSnapshot({
@@ -933,7 +999,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('rejects a rolling field with the wrong type', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             markets: [createSnapshotMarket({ changePercent5m: '1.5' })],
@@ -951,7 +1017,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('rejects a rolling pair that is only half null', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             markets: [
@@ -974,7 +1040,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('rejects a malformed present change5m absolute', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             markets: [createSnapshotMarket({ change5m: 'abc' })],
@@ -998,7 +1064,7 @@ describe('TerminalMarketService', () => {
           markets: [createSnapshotMarket({ changePercent1h: 0 })],
         }),
       ).replace('"changePercent1h":0', '"changePercent1h":1e999');
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -1015,7 +1081,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('accepts timestamps within the producer clock-skew allowance', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             generatedAt: SNAPSHOT_NOW + 5_000,
@@ -1037,7 +1103,7 @@ describe('TerminalMarketService', () => {
       ['oracle price', { oraclePrice: '0' }],
       ['mid price', { midPrice: '0' }],
     ])('rejects a non-positive %s', async (_name, marketOverrides) => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             markets: [createSnapshotMarket(marketOverrides)],
@@ -1071,7 +1137,7 @@ describe('TerminalMarketService', () => {
       ['wrong network', [createSnapshotMarket({ network: 'testnet' })]],
     ])('rejects %s', async (_name, markets) => {
       const needsXyz = _name === 'missing requested DEX';
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             ...(needsXyz && {
@@ -1094,7 +1160,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('accepts HIP-3 markets whose provider is the Hyperliquid venue', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             enabledDexes: ['main', 'xyz'],
@@ -1147,7 +1213,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('rejects HIP-3 markets whose provider does not match the snapshot venue', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             enabledDexes: ['main', 'xyz'],
@@ -1185,7 +1251,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('maps id from the v3 snapshot market to PerpsMarketData', async () => {
-      jest.spyOn(globalThis, 'fetch').mockResolvedValue(
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         okJsonResponse(
           createGlobalSnapshot({
             markets: [createSnapshotMarket({ id: 'btc-hyperliquid-mainnet' })],
@@ -1203,7 +1269,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('coalesces same-key requests and isolates different identities', async () => {
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(globalThis, 'fetch')
         .mockResolvedValueOnce(okJsonResponse(createGlobalSnapshot()))
         .mockResolvedValueOnce(
@@ -1235,7 +1301,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('bounds cache TTL by source age and the 30-second consumer cap', async () => {
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(globalThis, 'fetch')
         .mockResolvedValue(okJsonResponse(createGlobalSnapshot()));
       const request = {
@@ -1245,11 +1311,11 @@ describe('TerminalMarketService', () => {
       };
 
       await service.fetchGlobalSnapshot(request);
-      jest.spyOn(Date, 'now').mockReturnValue(SNAPSHOT_NOW + 27_999);
+      vi.spyOn(Date, 'now').mockReturnValue(SNAPSHOT_NOW + 27_999);
       await service.fetchGlobalSnapshot(request);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
 
-      jest.spyOn(Date, 'now').mockReturnValue(SNAPSHOT_NOW + 28_000);
+      vi.spyOn(Date, 'now').mockReturnValue(SNAPSHOT_NOW + 28_000);
       await expect(service.fetchGlobalSnapshot(request)).rejects.toThrow(
         'stale',
       );
@@ -1257,7 +1323,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('does not cache rejected data', async () => {
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(globalThis, 'fetch')
         .mockResolvedValue(
           okJsonResponse(createGlobalSnapshot({ fingerprint: 'invalid' })),
@@ -1279,7 +1345,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('keeps the legacy cache separate and clears both accepted caches', async () => {
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(globalThis, 'fetch')
         .mockResolvedValueOnce(okJsonResponse(createGlobalSnapshot()))
         .mockResolvedValueOnce(okJsonResponse(mockApiResponse))
@@ -1301,7 +1367,7 @@ describe('TerminalMarketService', () => {
     it('does not reuse or recache an in-flight response after clearCache', async () => {
       let resolveFirst: ((response: Response) => void) | undefined;
       let resolveSecond: ((response: Response) => void) | undefined;
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(globalThis, 'fetch')
         .mockImplementationOnce(
           () =>
@@ -1336,7 +1402,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('does not expose mutable references from the validated cache', async () => {
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(globalThis, 'fetch')
         .mockResolvedValue(okJsonResponse(createGlobalSnapshot()));
       const request = {
@@ -1358,7 +1424,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('serves getMarkets and market data from one snapshot request', async () => {
-      const fetchSpy = jest
+      const fetchSpy = vi
         .spyOn(globalThis, 'fetch')
         .mockResolvedValue(okJsonResponse(createGlobalSnapshot()));
       const marketData = new MarketDataService({
@@ -1379,8 +1445,8 @@ describe('TerminalMarketService', () => {
         },
       };
       const provider = createMockHyperLiquidProvider();
-      const getMarkets = jest.spyOn(provider, 'getMarkets');
-      const getMarketDataWithPrices = jest.spyOn(
+      const getMarkets = vi.spyOn(provider, 'getMarkets');
+      const getMarketDataWithPrices = vi.spyOn(
         provider,
         'getMarketDataWithPrices',
       );
@@ -1420,7 +1486,7 @@ describe('TerminalMarketService', () => {
 
   describe('cache behavior', () => {
     it('returns cached data on second call within TTL', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -1436,7 +1502,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('fetches again after cache is cleared', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -1451,7 +1517,7 @@ describe('TerminalMarketService', () => {
     });
 
     it('fetches again after TTL expires', async () => {
-      const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
         ok: true,
         status: 200,
         statusText: 'OK',
@@ -1461,7 +1527,7 @@ describe('TerminalMarketService', () => {
       await service.fetchMarkets();
 
       // Advance time past TTL (5 minutes)
-      jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 6 * 60 * 1000);
+      vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 6 * 60 * 1000);
 
       await service.fetchMarkets();
 

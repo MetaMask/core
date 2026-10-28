@@ -1,5 +1,6 @@
 import type { GasFeeToken } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
@@ -14,20 +15,20 @@ import {
 import { calculateGasFeeTokenCost } from './gas.js';
 import { getTokenBalance } from './token.js';
 
-jest.mock('./gas');
-jest.mock('./token', () => ({
-  ...jest.requireActual('./token'),
-  getTokenBalance: jest.fn(),
+vi.mock(import('./gas.js'));
+vi.mock(import('./token.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  getTokenBalance: vi.fn(),
 }));
 
 // `logGasPaymentOutcome` only emits diagnostics, so the log call is the
 // observable behaviour. Capturing it is the only way to assert the outcome it
 // reports rather than merely that it did not throw.
-const logMock = jest.fn();
+const logMock = vi.fn();
 
-jest.mock('@metamask/utils', () => ({
-  ...jest.requireActual('@metamask/utils'),
-  // Indirected through a closure because `jest.mock` is hoisted above the
+vi.mock('@metamask/utils', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@metamask/utils')>()),
+  // Indirected through a closure because `vi.mock` is hoisted above the
   // `logMock` declaration, so it cannot be read while the module initialises.
   createModuleLogger:
     () =>
@@ -71,8 +72,8 @@ const SPONSORED_ROUTE_REQUEST_MOCK = {
 };
 
 describe('gas-payment', () => {
-  const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
-  const getTokenBalanceMock = jest.mocked(getTokenBalance);
+  const calculateGasFeeTokenCostMock = vi.mocked(calculateGasFeeTokenCost);
+  const getTokenBalanceMock = vi.mocked(getTokenBalance);
 
   const {
     messenger,
@@ -81,7 +82,7 @@ describe('gas-payment', () => {
   } = getMessengerMock();
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
     calculateGasFeeTokenCostMock.mockReturnValue({
       fiat: '0',
       human: '0',

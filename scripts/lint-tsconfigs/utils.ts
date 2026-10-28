@@ -6,6 +6,7 @@ import type { FormatConfig } from 'oxfmt';
 import { format as oxfmtFormat } from 'oxfmt';
 import path from 'path';
 
+// oxlint-disable-next-line n/no-unsupported-features/node-builtins
 const REPO_ROOT = path.join(import.meta.dirname, '..', '..');
 
 /**
@@ -140,7 +141,6 @@ export async function filterWorkspacesWithTsconfig({
       if (await fileExists(filePath)) {
         return workspace;
       }
-      return;
     }),
   );
 
@@ -589,8 +589,8 @@ export async function ensureTsconfigsUpdated({
 }
 
 /**
- * Prints the results from linting tsconfig files (i.e., whether issues were
- * found or not, and if so, what they were).
+ * Prints the results from linting tsconfig files. Only tsconfig files with
+ * issues (or, when fixing, files that were changed) are printed.
  *
  * @param metaReport - The report to print (includes all tsconfigs linted).
  */
@@ -599,30 +599,27 @@ export function printReport(metaReport: TsconfigLintMetaReport): void {
     for (const [tsconfig, report] of metaReport.byTsconfig.entries()) {
       if (report.didChange) {
         console.log(
-          `✅ Updated ${tsconfig.fileName} so all references now match dependencies.`,
+          `✅ Updated ${getDisplayPath(tsconfig)} so all references now match dependencies.`,
         );
-      } else {
-        console.log(`ℹ️ ${tsconfig.fileName} already up to date.`);
       }
     }
+
     return;
   }
 
   for (const [tsconfig, report] of metaReport.byTsconfig.entries()) {
     if (
-      report.missingReferencePaths.length === 0 &&
-      report.extraReferencePaths.length === 0
+      report.missingReferencePaths.length > 0 ||
+      report.extraReferencePaths.length > 0
     ) {
       console.log(
-        `✅ No issues detected within ${tsconfig.fileName}. Good job!`,
+        `❌ Detected the following issues within ${getDisplayPath(tsconfig)}:`,
       );
-    } else {
-      console.log(
-        `❌ Detected the following issues within ${tsconfig.fileName}:`,
-      );
+
       for (const referencePath of report.missingReferencePaths) {
         console.log(`  - Missing reference: \`${referencePath}\``);
       }
+
       for (const referencePath of report.extraReferencePaths) {
         console.log(`  - Unnecessary reference: \`${referencePath}\``);
       }
@@ -634,4 +631,15 @@ export function printReport(metaReport: TsconfigLintMetaReport): void {
       '\nYou can run `yarn workspace <workspace> run lint:tsconfigs:fix` or `yarn run lint:tsconfigs:fix:all` to quickly fix these issues.',
     );
   }
+}
+
+/**
+ * Gets the path of a tsconfig file relative to the current working directory,
+ * for display purposes.
+ *
+ * @param tsconfig - The tsconfig file.
+ * @returns The relative path to the tsconfig file.
+ */
+function getDisplayPath(tsconfig: Tsconfig): string {
+  return path.relative(process.cwd(), tsconfig.filePath);
 }

@@ -112,11 +112,13 @@ type SuggestedNftMeta = {
  * creator - The NFT owner information object
  * isCurrentlyOwned - Boolean indicating whether the address/chainId combination where it's currently stored currently owns this NFT
  * transactionId - Transaction Id associated with the NFT
+ * source - How the NFT was added (`custom`, `dapp` or `detected`). Set on creation; auto-detection never overwrites it, a dapp suggestion upgrades `detected`, and a manual import overrides any other source. Unset for NFTs added before this field existed.
  */
 export type Nft = {
   tokenId: string;
   address: string;
   isCurrentlyOwned?: boolean;
+  source?: Source;
 } & NftMetadata;
 
 type NftUpdate = {
@@ -936,10 +938,18 @@ export class NftController extends BaseController<
               existingEntry,
             );
 
+            // Auto-detection never overwrites a stored source and nothing
+            // overwrites a manual import.
+            const needsSourceUpdate =
+              source !== Source.Detected &&
+              existingEntry.source !== Source.Custom &&
+              existingEntry.source !== source;
+
             if (
               !differentMetadata &&
               existingEntry.isCurrentlyOwned &&
-              !hasNewFields
+              !hasNewFields &&
+              !needsSourceUpdate
             ) {
               continue;
             }
@@ -954,6 +964,7 @@ export class NftController extends BaseController<
               allNftsForUserPerChain[chainId][indexToUpdate] = {
                 ...existingEntry,
                 ...nftMetadata,
+                ...(needsSourceUpdate && { source }),
               };
             }
           } else {
@@ -963,6 +974,7 @@ export class NftController extends BaseController<
               favorite: false,
               isCurrentlyOwned: true,
               ...nftMetadata,
+              source,
             };
 
             allNftsForUserPerChain[chainId].push(newEntry);
@@ -1421,7 +1433,7 @@ export class NftController extends BaseController<
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @param options - an object of arguments
    * @param options.userAddress - The address of the current user.
-   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp.
+   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom`; pass `Source.Detected` when refreshing existing NFTs.
    */
   async addNftVerifyOwnership(
     address: string,
@@ -1463,7 +1475,7 @@ export class NftController extends BaseController<
    * @param options - an object of arguments
    * @param options.nftMetadata - NFT optional metadata.
    * @param options.userAddress - The address of the current user.
-   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp.
+   * @param options.source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom`; pass `Source.Detected` when refreshing existing NFTs.
    * @returns Promise resolving to the current NFT list.
    */
   async addNft(
@@ -1555,7 +1567,7 @@ export class NftController extends BaseController<
    * @param nfts[].tokenId - The NFT identifier.
    * @param nfts[].nftMetadata - NFT metadata including chainId.
    * @param userAddress - The address of the current user.
-   * @param source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to Source.Custom.
+   * @param source - Whether the NFT was detected, added manually or suggested by a dapp. Defaults to `Source.Custom`; pass `Source.Detected` when refreshing existing NFTs.
    * @returns Promise resolving to the current NFT list.
    */
   async addNfts(

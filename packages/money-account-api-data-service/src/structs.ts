@@ -154,3 +154,36 @@ export const VaultRateResponseStruct = type({
   data_freshness: DataFreshnessStruct,
   indexer_lag_seconds: number(),
 });
+
+export const VbaSiweChallengeResponseStruct = type({
+  nonce: string(),
+  message: string(),
+});
+
+export const VbaSiweSessionResponseStruct = type({
+  token_type: enums(['bearer']),
+  access_token: string(),
+  expires_in: number(),
+});
+
+const VbaTransferDetailsStruct = type({
+  sender_address: nullable(string()),
+  recipient_address: string(),
+  network: string(),
+  amount: string(),
+  asset: string(),
+  transaction_hash: nullable(string()),
+});
+
+const VbaTransferStruct = type({
+  event_id: string(),
+  transfer_id: string(),
+  status: enums(['processing', 'confirmed', 'error']),
+  event_timestamp: string(),
+  updated_at: string(),
+  transfer: VbaTransferDetailsStruct,
+});
+
+export const VbaTransfersResponseStruct = type({
+  transfers: array(VbaTransferStruct),
+});

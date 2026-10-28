@@ -3,6 +3,8 @@ import type { V3AssetResponse } from '@metamask/core-backend';
 import type { Json } from '@metamask/utils';
 import nock from 'nock';
 
+import { getRequestUrl } from '../../test-utils.js';
+import type { NockRequestInfo } from '../../test-utils.js';
 import accountsV2SupportedNetworks from './accounts-api/v2-supportedNetworks.js';
 import pricesV2SupportedNetworks from './price-api/v2-supportedNetworks.js';
 import v3SpotPrices from './price-api/v3-spot-prices.js';
@@ -90,7 +92,7 @@ function mockV3Assets(): BatchRecordingMock {
     .persist()
     .get('/v3/assets')
     .query(true)
-    .reply(200, (uri: string) => {
+    .reply(200, (uri: NockRequestInfo) => {
       const assetIds = readListParam(uri, 'assetIds', API_URLS.TOKENS);
       requestedBatches.push(assetIds);
       return assetIds.map((assetId) => lookupAsset(assetId));
@@ -124,7 +126,7 @@ function mockV3SpotPrices(): BatchRecordingMock {
     .persist()
     .get('/v3/spot-prices')
     .query(true)
-    .reply(200, (uri: string) => {
+    .reply(200, (uri: NockRequestInfo) => {
       const assetIds = readListParam(uri, 'assetIds', API_URLS.PRICES);
       requestedBatches.push(assetIds);
 
@@ -174,8 +176,12 @@ export function mockWsApis(): {
  * @param base - Base URL, so the relative URI can be parsed.
  * @returns The parameter's values.
  */
-function readListParam(uri: string, param: string, base: string): string[] {
-  const value = new URL(uri, base).searchParams.get(param);
+function readListParam(
+  uri: NockRequestInfo,
+  param: string,
+  base: string,
+): string[] {
+  const value = new URL(getRequestUrl(uri), base).searchParams.get(param);
   return value ? value.split(',') : [];
 }
 

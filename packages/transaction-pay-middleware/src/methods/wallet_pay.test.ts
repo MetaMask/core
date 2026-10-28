@@ -2,8 +2,10 @@
 import { errorCodes } from '@metamask/rpc-errors';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex, Json, PendingJsonRpcResponse } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mocked } from 'vitest';
 
-import { createMessenger } from '../tests/messenger-mock.js';
+import { createAccount, createMessenger } from '../tests/messenger-mock.js';
 import type { MessengerMocks } from '../tests/messenger-mock.js';
 import type { WalletPayHooks, WalletPayJsonRpcRequest } from '../types.js';
 import { walletPay } from './wallet_pay.js';
@@ -42,12 +44,12 @@ async function run({
 } = {}): Promise<{
   response: PendingJsonRpcResponse;
   request: WalletPayJsonRpcRequest;
-  hooks: jest.Mocked<WalletPayHooks>;
+  hooks: Mocked<WalletPayHooks>;
   mocks: MessengerMocks;
 }> {
   const mocks = createMessenger(messengerOptions);
-  const hooks: jest.Mocked<WalletPayHooks> = {
-    getPermittedAccountsForOrigin: jest.fn(async () => permittedAccounts),
+  const hooks: Mocked<WalletPayHooks> = {
+    getPermittedAccountsForOrigin: vi.fn(async () => permittedAccounts),
   };
   const request: WalletPayJsonRpcRequest = {
     jsonrpc: '2.0',
@@ -76,6 +78,42 @@ async function runError(
     code?: number;
     message: string;
   };
+}
+
+/**
+ * Runs `walletPay`, ignoring any error, and returns the messenger mocks.
+ *
+ * @param options - Inputs.
+ * @param options.params - The request params.
+ * @param options.permittedAccounts - Accounts connected to the origin.
+ * @param options.messengerOptions - Options for the mock messenger.
+ * @returns The messenger mocks.
+ */
+async function runWithMocks({
+  params = [{ type: 'perpsDeposit', from: FROM }],
+  permittedAccounts = [FROM],
+  messengerOptions = { remoteFeatureFlags: ALLOW_BOTH_FLAGS },
+}: {
+  params?: Json[];
+  permittedAccounts?: string[];
+  messengerOptions?: Parameters<typeof createMessenger>[0];
+}): Promise<{ mocks: MessengerMocks }> {
+  const mocks = createMessenger(messengerOptions);
+
+  await walletPay(
+    {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'wallet_pay',
+      origin: ORIGIN,
+      params,
+    },
+    { jsonrpc: '2.0', id: 1 },
+    { getPermittedAccountsForOrigin: async () => permittedAccounts },
+    mocks.messenger,
+  ).catch(() => undefined);
+
+  return { mocks };
 }
 
 describe('walletPay', () => {
@@ -112,7 +150,7 @@ describe('walletPay', () => {
       expect(error.message).toContain(field);
     });
 
-    it.each(['-1', '0', '0.000', '1.1234567', 'abc', '1e3', ''])(
+    it.each(['-1', '1.1234567', 'abc', '1e3', '', '0.'])(
       'rejects amount "%s"',
       async (amount) => {
         const error = await runError({
@@ -122,6 +160,38 @@ describe('walletPay', () => {
         expect(error.code).toBe(errorCodes.rpc.invalidParams);
       },
     );
+
+    it.each(['0', '0.000', '00'])(
+      'rejects a zero amount "%s" for perpsDeposit',
+      async (amount) => {
+        const error = await runError({
+          params: [{ type: 'perpsDeposit', from: FROM, amount }],
+        });
+
+        expect(error.code).toBe(errorCodes.rpc.invalidParams);
+        expect(error.message).toContain('amount');
+      },
+    );
+
+    it.each(['0', '0.000'])(
+      'accepts a zero amount "%s" for perpsWithdraw',
+      async (amount) => {
+        const { mocks, response } = await run({
+          params: [{ type: 'perpsWithdraw', from: FROM, amount }],
+        });
+
+        expect(response.result).toStrictEqual({ transactionHash: HASH });
+        expect(mocks.addTransaction).toHaveBeenCalledTimes(1);
+      },
+    );
+
+    it('accepts a perpsWithdraw without an amount', async () => {
+      const { response } = await run({
+        params: [{ type: 'perpsWithdraw', from: FROM }],
+      });
+
+      expect(response.result).toStrictEqual({ transactionHash: HASH });
+    });
 
     it.each(['10', '0.5', '12.123456'])('accepts amount %s', async (amount) => {
       const { response } = await run({
@@ -153,7 +223,7 @@ describe('walletPay', () => {
             params: [],
           },
           response,
-          { getPermittedAccountsForOrigin: jest.fn() },
+          { getPermittedAccountsForOrigin: vi.fn() },
           mocks.messenger,
         ),
       ).rejects.toMatchObject({ code: errorCodes.rpc.invalidParams });
@@ -336,6 +406,138 @@ describe('walletPay', () => {
           mocks.messenger,
         ),
       ).rejects.toBe(rejection);
+    });
+  });
+
+  describe('account selection', () => {
+    const REQUESTED_ACCOUNT = createAccount('requested-account', FROM);
+    const SELECTED_ACCOUNT = createAccount('selected-account', OTHER);
+
+    it('selects the requested account before adding the transaction', async () => {
+      const mocks = createMessenger({
+        remoteFeatureFlags: ALLOW_BOTH_FLAGS,
+        accounts: [REQUESTED_ACCOUNT, SELECTED_ACCOUNT],
+        selectedAccount: SELECTED_ACCOUNT,
+      });
+      mocks.addTransaction.mockImplementation(async () => {
+        expect(mocks.setSelectedAccountGroupByAccountId).toHaveBeenCalledWith(
+          REQUESTED_ACCOUNT.id,
+        );
+        return {
+          result: Promise.resolve(HASH),
+        } as Awaited<ReturnType<typeof mocks.addTransaction>>;
+      });
+
+      await walletPay(
+        {
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'wallet_pay',
+          origin: ORIGIN,
+          params: [{ type: 'perpsDeposit', from: CHECKSUM_FROM }],
+        },
+        { jsonrpc: '2.0', id: 1 },
+        { getPermittedAccountsForOrigin: async () => [FROM] },
+        mocks.messenger,
+      );
+
+      expect(mocks.getAccountByAddress).toHaveBeenCalledWith(CHECKSUM_FROM);
+      expect(mocks.setSelectedAccountGroupByAccountId).toHaveBeenCalledTimes(1);
+      expect(mocks.addTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not switch when the requested account is already selected', async () => {
+      const { mocks, response } = await run({
+        messengerOptions: {
+          remoteFeatureFlags: ALLOW_BOTH_FLAGS,
+          accounts: [REQUESTED_ACCOUNT],
+          selectedAccount: REQUESTED_ACCOUNT,
+        },
+      });
+
+      expect(mocks.setSelectedAccountGroupByAccountId).not.toHaveBeenCalled();
+      expect(response.result).toStrictEqual({ transactionHash: HASH });
+    });
+
+    it('rejects a from address that is not a known account', async () => {
+      const mocks = createMessenger({
+        remoteFeatureFlags: ALLOW_BOTH_FLAGS,
+        accounts: [SELECTED_ACCOUNT],
+        selectedAccount: SELECTED_ACCOUNT,
+      });
+
+      await expect(
+        walletPay(
+          {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'wallet_pay',
+            origin: ORIGIN,
+            params: [{ type: 'perpsDeposit', from: FROM }],
+          },
+          { jsonrpc: '2.0', id: 1 },
+          { getPermittedAccountsForOrigin: async () => [FROM] },
+          mocks.messenger,
+        ),
+      ).rejects.toMatchObject({ code: errorCodes.provider.unauthorized });
+      expect(mocks.setSelectedAccountGroupByAccountId).not.toHaveBeenCalled();
+      expect(mocks.addTransaction).not.toHaveBeenCalled();
+    });
+
+    it('does not switch when the params are invalid', async () => {
+      const { mocks } = await runWithMocks({ params: [] });
+
+      expect(mocks.getAccountByAddress).not.toHaveBeenCalled();
+      expect(mocks.setSelectedAccountGroupByAccountId).not.toHaveBeenCalled();
+    });
+
+    it('does not switch when the type is not allowed', async () => {
+      const { mocks } = await runWithMocks({ messengerOptions: {} });
+
+      expect(mocks.getAccountByAddress).not.toHaveBeenCalled();
+      expect(mocks.setSelectedAccountGroupByAccountId).not.toHaveBeenCalled();
+    });
+
+    it('does not switch when the account is not permitted', async () => {
+      const { mocks } = await runWithMocks({ permittedAccounts: [OTHER] });
+
+      expect(mocks.getAccountByAddress).not.toHaveBeenCalled();
+      expect(mocks.setSelectedAccountGroupByAccountId).not.toHaveBeenCalled();
+    });
+
+    it('does not switch when the user is not eligible for perps', async () => {
+      const { mocks } = await runWithMocks({
+        messengerOptions: {
+          remoteFeatureFlags: ALLOW_BOTH_FLAGS,
+          eligibility: [false],
+        },
+      });
+
+      expect(mocks.getAccountByAddress).not.toHaveBeenCalled();
+      expect(mocks.setSelectedAccountGroupByAccountId).not.toHaveBeenCalled();
+    });
+
+    it('does not switch when the chain is not configured', async () => {
+      const mocks = createMessenger({ remoteFeatureFlags: ALLOW_BOTH_FLAGS });
+      mocks.findNetworkClientIdByChainId.mockImplementation(() => {
+        throw new Error('Invalid chain ID');
+      });
+
+      await expect(
+        walletPay(
+          {
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'wallet_pay',
+            origin: ORIGIN,
+            params: [{ type: 'perpsDeposit', from: FROM }],
+          },
+          { jsonrpc: '2.0', id: 1 },
+          { getPermittedAccountsForOrigin: async () => [FROM] },
+          mocks.messenger,
+        ),
+      ).rejects.toMatchObject({ code: errorCodes.rpc.internal });
+      expect(mocks.setSelectedAccountGroupByAccountId).not.toHaveBeenCalled();
     });
   });
 

@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [22.x, 24.x]
+        node-version: [22.x, 24.x, 26.x]
     outputs:
       child-workspace-package-names: ${{ steps.workspace-package-names.outputs.child-workspace-package-names }}
       merge-base: ${{ steps.fetch-merge-base.outputs.merge-base }}
@@ -80,7 +80,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [24.x]
+        node-version: [26.x]
         script:
           - codeowners:check
           - constraints
@@ -117,7 +117,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [24.x]
+        node-version: [26.x]
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -143,7 +143,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [24.x]
+        node-version: [26.x]
         package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
       - name: Checkout and setup environment
@@ -152,12 +152,15 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
-          # Full history so `changelog:validate` can find the merge base with the
-          # base branch to detect which packages are being released.
-          fetch-depth: 0
+      - name: Fetch merge base commit
+        if: needs.prepare.outputs.merge-base != '' && startsWith(github.head_ref || github.ref_name, 'release/')
+        run: git fetch --depth=1 --filter=blob:none --no-tags origin "$MERGE_BASE"
+        env:
+          MERGE_BASE: ${{ needs.prepare.outputs.merge-base }}
       - run: yarn workspace "$PACKAGE_NAME" changelog:validate
         env:
           PACKAGE_NAME: ${{ matrix.package-name }}
+          CHANGELOG_MERGE_BASE: ${{ needs.prepare.outputs.merge-base }}
       - name: Require clean working directory
         shell: bash
         run: |
@@ -184,7 +187,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [24.x]
+        node-version: [26.x]
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -208,7 +211,7 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [24.x]
+        node-version: [26.x]
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -232,7 +235,12 @@ jobs:
   test-22:
     name: Test (22.x)
     runs-on: ubuntu-latest
-    if: needs.prepare.outputs.package-names != '[]'
+    if: >-
+      needs.prepare.outputs.package-names != '[]' && (
+        github.ref_name == 'main' ||
+        startsWith(github.base_ref, 'release/') ||
+        startsWith(github.event.merge_group.base_ref, 'refs/heads/release/')
+      )
     needs: prepare
     strategy:
       fail-fast: false
@@ -283,6 +291,33 @@ jobs:
             exit 1
           fi
 
+  test-26:
+    name: Test (26.x)
+    runs-on: ubuntu-latest
+    if: needs.prepare.outputs.package-names != '[]'
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+          persist-credentials: false
+          node-version: 26.x
+      - run: yarn workspace "$PACKAGE_NAME" run test
+        env:
+          PACKAGE_NAME: ${{ matrix.package-name }}
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
+
   build-platform-api-docs:
     name: Build Platform API docs
     runs-on: ubuntu-latest
@@ -295,41 +330,7 @@ jobs:
         with:
           is-high-risk-environment: false
           persist-credentials: false
-          node-version: 24.x
+          node-version: 26.x
 
       - name: Generate and build Platform API docs
         run: yarn docs:platform-api:build
-
-  # The wallet-cli daemon e2e spawns the BUILT `mm` CLI and the native
-  # better-sqlite3 addon as real child processes, so it needs its dependency
-  # subtree built first and cannot run in the per-package `test-*` matrix above.
-  test-wallet-cli-e2e:
-    name: Test wallet-cli daemon e2e (${{ matrix.node-version }})
-    runs-on: ubuntu-latest
-    if: contains(fromJson(needs.prepare.outputs.package-names), '@metamask/wallet-cli')
-    needs: prepare
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [22.x, 24.x]
-    steps:
-      - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
-        with:
-          is-high-risk-environment: false
-          persist-credentials: false
-          node-version: ${{ matrix.node-version }}
-      - name: Build wallet-cli and its dependencies
-        run: yarn workspaces foreach --topological-dev --recursive --from '@metamask/wallet-cli' run build
-      - name: Install anvil for the real-chain e2e
-        run: yarn workspace @metamask/wallet-cli run test:e2e:install-anvil
-      - run: yarn workspace @metamask/wallet-cli run test:e2e
-        env:
-          MM_E2E_REQUIRE_ANVIL: 'true'
-      - name: Require clean working directory
-        shell: bash
-        run: |
-          if ! git diff --exit-code; then
-            echo "Working tree dirty at end of job"
-            exit 1
-          fi

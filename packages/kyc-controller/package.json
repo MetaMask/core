@@ -1,6 +1,6 @@
 {
   "name": "@metamask/kyc-controller",
-  "version": "0.11.0",
+  "version": "0.13.0",
   "description": "Shared KYC / identity verification controller used across MetaMask clients",
   "keywords": [
     "Ethereum",
@@ -40,11 +40,11 @@
     "build:watch": "yarn build && chokidar 'src/**/*.ts' -c 'tsc --project tsconfig.build.json' --initial",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/kyc-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/kyc-controller",
-    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
-    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
-    "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
-    "messenger-action-types:generate": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --generate",
-    "mint:ukyc-token": "node --import ../../scripts/resolver/register.ts --experimental-transform-types scripts/mint-ukyc-test-token.ts",
+    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
+    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
+    "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
+    "messenger-action-types:generate": "node --import ../../scripts/resolver/register.ts ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --generate",
+    "mint:ukyc-token": "node --import ../../scripts/resolver/register.ts scripts/mint-ukyc-test-token.ts",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "vitest",
     "test:clean": "vitest --clearCache",
@@ -58,9 +58,9 @@
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/geolocation-controller": "^2.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/profile-sync-controller": "^35.0.0",
+    "@metamask/profile-sync-controller": "^36.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^12.0.0",
+    "@metamask/utils": "^12.0.1",
     "@noble/ciphers": "^1.3.0",
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^1.8.0",
@@ -80,6 +80,6 @@
     "vitest": "^5.0.0"
   },
   "engines": {
-    "node": "^22.14.0 || ^24"
+    "node": "^22.14.0 || ^24 || ^26"
   }
 }

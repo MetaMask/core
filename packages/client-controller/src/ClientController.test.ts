@@ -1,4 +1,5 @@
 import { Messenger } from '@metamask/messenger';
+import { describe, expect, it } from 'vitest';
 
 import type {
   ClientControllerActions,

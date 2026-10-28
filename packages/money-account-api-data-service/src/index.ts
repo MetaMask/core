@@ -13,6 +13,7 @@ export type {
   MoneyAccountApiDataServiceFetchHistoryAction,
   MoneyAccountApiDataServiceFetchRateHistoryAction,
   MoneyAccountApiDataServiceFetchVaultRateAction,
+  MoneyAccountApiDataServiceFetchVbaTransfersAction,
 } from './money-account-api-data-service-method-action-types.js';
 export type {
   PositionResponse,
@@ -22,6 +23,10 @@ export type {
   HistoryResponse,
   RateHistoryResponse,
   VaultRateResponse,
+  VbaSiweChallengeResponse,
+  VbaSiweSessionResponse,
+  VbaTransfer,
+  VbaTransfersResponse,
   VaultPosition,
   CashFlowEntry,
   RateHistoryEntry,
@@ -36,6 +41,7 @@ export type {
   HistoryOptions,
   RateHistoryOptions,
   VaultRateOptions,
+  FetchVbaTransfersOptions,
 } from './types.js';
 export { Env } from './constants.js';
 export {

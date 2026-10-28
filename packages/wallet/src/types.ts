@@ -5,6 +5,7 @@ import type {
   DefaultEvents,
   RootMessenger,
 } from './initialization/defaults.js';
+import type { AnalyticsControllerInstanceOptions } from './initialization/instances/analytics-controller/types.js';
 import type { ApprovalControllerInstanceOptions } from './initialization/instances/approval-controller/types.js';
 import type { AssetsControllerInstanceOptions } from './initialization/instances/assets-controller/types.js';
 import type { ClaimsServiceInstanceOptions } from './initialization/instances/claims-service/types.js';
@@ -12,6 +13,7 @@ import type { ConfigRegistryApiServiceInstanceOptions } from './initialization/i
 import type { ConfigRegistryControllerInstanceOptions } from './initialization/instances/config-registry-controller/types.js';
 import type { ConnectivityControllerInstanceOptions } from './initialization/instances/connectivity-controller/types.js';
 import type { GasFeeControllerInstanceOptions } from './initialization/instances/gas-fee-controller/types.js';
+import type { GeolocationApiServiceInstanceOptions } from './initialization/instances/geolocation-api-service/types.js';
 import type { KeyringControllerInstanceOptions } from './initialization/instances/keyring-controller/types.js';
 import type { NetworkControllerInstanceOptions } from './initialization/instances/network-controller/types.js';
 import type { PasskeyControllerInstanceOptions } from './initialization/instances/passkey-controller/types.js';
@@ -35,6 +37,7 @@ export type WalletOptions = {
 };
 
 export type InstanceSpecificOptions = {
+  analyticsController: AnalyticsControllerInstanceOptions;
   approvalController?: ApprovalControllerInstanceOptions;
   assetsController?: AssetsControllerInstanceOptions;
   claimsService?: ClaimsServiceInstanceOptions;
@@ -42,6 +45,7 @@ export type InstanceSpecificOptions = {
   configRegistryController?: ConfigRegistryControllerInstanceOptions;
   connectivityController: ConnectivityControllerInstanceOptions;
   gasFeeController: GasFeeControllerInstanceOptions;
+  geolocationApiService?: GeolocationApiServiceInstanceOptions;
   keyringController?: KeyringControllerInstanceOptions;
   networkController: NetworkControllerInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
