@@ -108,10 +108,11 @@ async function advanceTimeUntilSettled<Value>(
   promise: Promise<Value>,
 ): Promise<Value> {
   let isSettled = false;
-  const markSettled = (): void => {
-    isSettled = true;
-  };
-  promise.then(markSettled, markSettled);
+  promise
+    .finally(() => {
+      isSettled = true;
+    })
+    .catch(() => undefined);
 
   await vi.waitFor(
     () => {
