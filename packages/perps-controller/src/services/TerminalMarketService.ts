@@ -2,6 +2,7 @@ import type { Infer } from '@metamask/superstruct';
 import {
   array,
   boolean,
+  enums,
   is,
   nullable,
   number,
@@ -72,6 +73,8 @@ const GlobalSnapshotMarketStruct = type({
   tags: nullable(array(string())),
   listedAt: nullable(number()),
   trend: array(tuple([number(), string()])),
+  onlyIsolated: optional(nullable(boolean())),
+  marginMode: optional(nullable(enums(['strictIsolated', 'noCross']))),
 });
 
 const GlobalSnapshotStruct = type({
@@ -687,6 +690,8 @@ export class TerminalMarketService {
         szDecimals: market.szDecimals,
         maxLeverage: market.maxLeverage,
         marginTableId: 0,
+        ...(market.onlyIsolated === true && { onlyIsolated: true as const }),
+        ...(market.marginMode && { marginMode: market.marginMode }),
       },
     };
   }

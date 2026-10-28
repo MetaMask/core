@@ -94,6 +94,7 @@ function buildMockApiServiceHandler(overrides?: {
           chains: [],
         },
       },
+      etag: null,
       modified: true,
     };
   };
@@ -431,6 +432,8 @@ describe('ConfigRegistryController', () => {
 
           mockApiServiceHandler.mockResolvedValue({
             modified: false,
+            etag: null,
+            data: null,
           });
 
           const beforeTimestamp = Date.now();
@@ -439,50 +442,6 @@ describe('ConfigRegistryController', () => {
           const afterTimestamp = Date.now();
 
           expect(controller.state.etag).toBe('"existing-etag"');
-          expect(controller.state.lastFetched).not.toBeNull();
-          expect(controller.state.lastFetched).toBeGreaterThanOrEqual(
-            beforeTimestamp,
-          );
-          expect(controller.state.lastFetched).toBeLessThanOrEqual(
-            afterTimestamp,
-          );
-        },
-      );
-    });
-
-    it('handles unmodified response and sets etag to null when explicitly null', async () => {
-      await withController(
-        {
-          options: {
-            state: {
-              etag: '"existing-etag"',
-            },
-          },
-        },
-        async ({
-          controller,
-          rootMessenger,
-          mockRemoteFeatureFlagGetState,
-          mockApiServiceHandler,
-        }) => {
-          mockRemoteFeatureFlagGetState.mockReturnValue({
-            remoteFeatureFlags: {
-              configRegistryApiEnabled: true,
-            },
-            cacheTimestamp: Date.now(),
-          });
-
-          mockApiServiceHandler.mockResolvedValue({
-            modified: false,
-            etag: null,
-          });
-
-          const beforeTimestamp = Date.now();
-          rootMessenger.call('ConfigRegistryController:startPolling', null);
-          await vi.advanceTimersByTimeAsync(0);
-          const afterTimestamp = Date.now();
-
-          expect(controller.state.etag).toBeNull();
           expect(controller.state.lastFetched).not.toBeNull();
           expect(controller.state.lastFetched).toBeGreaterThanOrEqual(
             beforeTimestamp,
@@ -897,6 +856,45 @@ describe('ConfigRegistryController', () => {
       );
     });
 
+    it('preserves the existing events etag when an unmodified events config response has no etag', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              eventsConfigEtag: '"events-etag-1"',
+            },
+          },
+        },
+        async ({
+          controller,
+          rootMessenger,
+          mockRemoteFeatureFlagGetState,
+        }) => {
+          mockRemoteFeatureFlagGetState.mockReturnValue({
+            remoteFeatureFlags: { configRegistryApiEnabled: true },
+            cacheTimestamp: Date.now(),
+          });
+
+          rootMessenger.unregisterActionHandler(
+            'ConfigRegistryApiService:fetchEventsConfig',
+          );
+          rootMessenger.registerActionHandler(
+            'ConfigRegistryApiService:fetchEventsConfig',
+            vi.fn().mockResolvedValue({
+              modified: false,
+              etag: null,
+              data: null,
+            }),
+          );
+
+          rootMessenger.call('ConfigRegistryController:startPolling', null);
+          await vi.advanceTimersByTimeAsync(0);
+
+          expect(controller.state.eventsConfigEtag).toBe('"events-etag-1"');
+        },
+      );
+    });
+
     it('updates eventsConfig when events config fetch returns modified without etag', async () => {
       await withController(
         async ({
@@ -922,6 +920,7 @@ describe('ConfigRegistryController', () => {
             'ConfigRegistryApiService:fetchEventsConfig',
             vi.fn().mockResolvedValue({
               modified: true,
+              etag: null,
               data: { data: eventsConfig },
             }),
           );

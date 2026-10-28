@@ -81,6 +81,8 @@ const fullHydratedPosition = {
             uid: 'comment-1',
             commentText: 'Hello',
             timestamp: 100,
+            sourceLanguage: 'ko',
+            translations: { en: 'Hello' },
             metrics: {
               reactions: [
                 null,
@@ -172,6 +174,8 @@ describe('parseRealtimeFeedItem', () => {
       authorComment: {
         uid: 'comment-1',
         text: 'Hello',
+        sourceLanguage: 'ko',
+        translations: { en: 'Hello' },
         engagement: {
           replyCount: 2,
         },
@@ -186,6 +190,37 @@ describe('parseRealtimeFeedItem', () => {
       marketCap: 1000,
     });
     expect(parsed).toMatchObject({ positionId: 'position-1' });
+  });
+
+  it('keeps a null source language and drops non-string translations', () => {
+    const value = {
+      ...fullHydratedPosition,
+      metadata: {
+        ...fullHydratedPosition.metadata,
+        trades: [
+          {
+            ...fullHydratedPosition.metadata.trades[1],
+            comments: [
+              {
+                uid: 'comment-2',
+                commentText: 'Hello',
+                timestamp: 100,
+                sourceLanguage: null,
+                translations: { en: 'Hello', pt: 1 },
+                metrics: { reactions: [], userReaction: null },
+                replies: [],
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    expect(normalizeRealtimeFeedItem(value)?.authorComment).toMatchObject({
+      uid: 'comment-2',
+      sourceLanguage: null,
+      translations: { en: 'Hello' },
+    });
   });
 
   it('rejects compact event payloads', () => {
@@ -364,5 +399,38 @@ describe('parseRealtimeFeedItem', () => {
     };
 
     expect(normalizeRealtimeFeedItem(value)?.authorComment).toBeNull();
+  });
+
+  it('copies position flags from the hydrated card and ignores metadata', () => {
+    const fromMetadataOnly = normalizeRealtimeFeedItem({
+      ...fullHydratedPosition,
+      metadata: {
+        ...fullHydratedPosition.metadata,
+        flags: ['insider'],
+      },
+    });
+    const fromCard = normalizeRealtimeFeedItem({
+      ...fullHydratedPosition,
+      metadata: {
+        ...fullHydratedPosition.metadata,
+        flags: ['insider'],
+      },
+      flags: ['developer', 'future-flag'],
+    });
+    const absent = normalizeRealtimeFeedItem(fullHydratedPosition);
+
+    expect(fromMetadataOnly?.flags).toBeUndefined();
+    expect(fromCard?.flags).toStrictEqual(['developer', 'future-flag']);
+    expect(absent?.flags).toBeUndefined();
+  });
+
+  it('keeps flags on an already normalized feed item', () => {
+    const normalized = normalizeRealtimeFeedItem(fullHydratedPosition);
+    const flagged = { ...normalized, flags: ['insider'] };
+
+    expect(parseRealtimeFeedItem(flagged)?.flags).toStrictEqual(['insider']);
+    expect(
+      parseRealtimeFeedItem({ ...normalized, flags: 'insider' }),
+    ).toBeUndefined();
   });
 });

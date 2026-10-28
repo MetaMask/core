@@ -106,6 +106,52 @@ export type {
 } from './ws/ohlcv/index.js';
 
 // ============================================================================
+// CHANNEL SUBSCRIPTION MANAGER
+// ============================================================================
+
+export { ChannelSubscriptionManager } from './ws/ChannelSubscriptionManager.js';
+
+export type {
+  ChannelSubscriptionManagerMessenger,
+  ChannelSubscriptionManagerOptions,
+  ChannelSubscriptionOperation,
+} from './ws/ChannelSubscriptionManager.js';
+
+// ============================================================================
+// LAUNCHPAD TOKEN DETAILS SERVICE
+// ============================================================================
+
+export {
+  LaunchpadTokenDetailsService,
+  LAUNCHPAD_TDP_SERVICE_ALLOWED_ACTIONS,
+  LAUNCHPAD_TDP_SERVICE_ALLOWED_EVENTS,
+  buildChannel,
+  normalizeEvent,
+  parseBatch,
+  LAUNCHPAD_SUBSCRIPTION_NAMESPACE,
+} from './ws/launchpad/index.js';
+
+export type {
+  LaunchpadSystemNotificationData,
+  LaunchpadTokenDetailsServiceOptions,
+  LaunchpadTokenDetailsServiceActions,
+  LaunchpadTokenDetailsServiceAllowedActions,
+  LaunchpadTokenDetailsServiceTokenUpdatedEvent,
+  LaunchpadTokenDetailsServiceStatusChangedEvent,
+  LaunchpadTokenDetailsServiceSubscriptionErrorEvent,
+  LaunchpadTokenDetailsServiceEvents,
+  LaunchpadTokenDetailsServiceAllowedEvents,
+  LaunchpadTokenDetailsServiceMessenger,
+  LaunchpadEventType,
+  RawLaunchpadTokenEvent,
+  LaunchpadTokenCreatedEvent,
+  LaunchpadTokenStatsEvent,
+  LaunchpadTokenMigratedEvent,
+  LaunchpadTokenEvent,
+  LaunchpadTokenDetailsSubscriptionOptions,
+} from './ws/launchpad/index.js';
+
+// ============================================================================
 // API PLATFORM CLIENT
 // ============================================================================
 

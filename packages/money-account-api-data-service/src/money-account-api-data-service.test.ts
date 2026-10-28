@@ -5,7 +5,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll as nockCleanAll } from 'nock';
+import nock from 'nock';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
@@ -158,11 +158,64 @@ const MOCK_VAULT_RATE_RESPONSE = {
   indexer_lag_seconds: 4,
 };
 
-const MOCK_SIWE_MESSAGE = `money.example wants you to sign in with your Ethereum account:\n${MOCK_ADDRESS}\n\nSign in to view your VBA transfers.\n\nURI: https://money.example\nVersion: 1\nChain ID: 143\nNonce: ${'a'.repeat(64)}\nIssued At: 2026-10-22T12:00:00.000Z\nExpiration Time: 2026-10-22T12:05:00.000Z`;
-const MOCK_SIWE_CHALLENGE = {
-  nonce: 'a'.repeat(64),
-  message: MOCK_SIWE_MESSAGE,
-};
+const MOCK_SIWE_NONCE = 'a'.repeat(64);
+const MOCK_SIWE_OTHER_ADDRESS = '0x3333333333333333333333333333333333333333';
+const MOCK_SIWE_ISSUED_AT = Date.parse('2026-10-22T12:00:00.000Z');
+const MOCK_SIWE_DOMAIN = new URL(MONEY_ACCOUNT_API_URL_MAP[Env.DEV]).host;
+const MOCK_SIWE_CHALLENGE_TTL_MS = 300_000;
+
+// Hand-written copy of the Money Account API's SIWE template.
+//
+// Deliberately independent of the production builder so these tests catch a
+// divergence in the service's validation.
+function createMockSiweMessage({
+  address = MOCK_ADDRESS,
+  nonce = MOCK_SIWE_NONCE,
+  domain = MOCK_SIWE_DOMAIN,
+  uri = `https://${MOCK_SIWE_DOMAIN}`,
+  statement = 'Sign in to view your VBA transfers.',
+  version = '1',
+  chainId = '143',
+  issuedAt = Date.now(),
+  expirationTime = issuedAt + MOCK_SIWE_CHALLENGE_TTL_MS,
+  extraLines = [],
+}: {
+  address?: string;
+  nonce?: string;
+  domain?: string;
+  uri?: string;
+  statement?: string;
+  version?: string;
+  chainId?: string;
+  issuedAt?: number;
+  expirationTime?: number;
+  extraLines?: string[];
+} = {}): string {
+  return [
+    `${domain} wants you to sign in with your Ethereum account:`,
+    address,
+    '',
+    statement,
+    '',
+    `URI: ${uri}`,
+    `Version: ${version}`,
+    `Chain ID: ${chainId}`,
+    `Nonce: ${nonce}`,
+    `Issued At: ${new Date(issuedAt).toISOString()}`,
+    `Expiration Time: ${new Date(expirationTime).toISOString()}`,
+    ...extraLines,
+  ].join('\n');
+}
+
+function createMockSiweChallenge(
+  overrides: Parameters<typeof createMockSiweMessage>[0] = {},
+): { nonce: string; message: string } {
+  return {
+    nonce: overrides.nonce ?? MOCK_SIWE_NONCE,
+    message: createMockSiweMessage(overrides),
+  };
+}
+
 const MOCK_SIWE_SESSION = {
   token_type: 'bearer' as const,
   access_token: 'siwe-session-token',
@@ -270,7 +323,7 @@ function createService(
 
 describe('MoneyAccountApiDataService', () => {
   afterEach(() => {
-    nockCleanAll();
+    nock.cleanAll();
   });
 
   describe('constructor', () => {
@@ -1537,15 +1590,21 @@ describe('MoneyAccountApiDataService', () => {
   });
 
   describe('fetchVbaTransfers', () => {
+    beforeEach(() => {
+      vi.spyOn(Date, 'now').mockReturnValue(MOCK_SIWE_ISSUED_AT);
+    });
+
     function mockSiweAuthentication(
       address: string,
       token: string,
       signPersonalMessage: ReturnType<typeof vi.fn>,
+      issuedAt: number = Date.now(),
     ): string {
-      const message = MOCK_SIWE_MESSAGE.replace(MOCK_ADDRESS, address);
+      const challenge = createMockSiweChallenge({ address, issuedAt });
+      const { message } = challenge;
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
         .post('/v1/vba/auth/challenge', { address })
-        .reply(200, { ...MOCK_SIWE_CHALLENGE, message });
+        .reply(200, challenge);
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
         .post('/v1/vba/auth/verify', {
           message,
@@ -1554,6 +1613,15 @@ describe('MoneyAccountApiDataService', () => {
         .reply(200, { ...MOCK_SIWE_SESSION, access_token: token });
       signPersonalMessage.mockResolvedValue('0xsignature');
       return message;
+    }
+
+    // Registers a challenge that fails the client-side SIWE validation.
+    function mockInvalidSiweChallenge(
+      overrides: Parameters<typeof createMockSiweMessage>[0],
+    ): ReturnType<typeof nock> {
+      return nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge', { address: MOCK_ADDRESS })
+        .reply(200, createMockSiweChallenge(overrides));
     }
 
     it('authenticates with the exact SIWE challenge and returns current transfers', async () => {
@@ -1581,6 +1649,166 @@ describe('MoneyAccountApiDataService', () => {
       service.destroy();
     });
 
+    const templateMismatchCases: [
+      string,
+      Parameters<typeof createMockSiweMessage>[0],
+    ][] = [
+      ['a wrong address', { address: MOCK_SIWE_OTHER_ADDRESS }],
+      ['a wrong domain', { domain: 'evil.example' }],
+      ['a wrong URI', { uri: 'https://evil.example' }],
+      ['a wrong statement', { statement: 'Sign in to move your money.' }],
+      ['a wrong chain ID', { chainId: '1' }],
+      ['a wrong version', { version: '2' }],
+    ];
+
+    it.each(templateMismatchCases)(
+      'rejects a challenge with %s before signing',
+      async (_label, overrides) => {
+        const signPersonalMessage = vi.fn();
+        const { service } = createService(Env.DEV, { signPersonalMessage });
+        const challengeScope = mockInvalidSiweChallenge(overrides);
+
+        await expect(
+          service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+        ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+        expect(signPersonalMessage).not.toHaveBeenCalled();
+        challengeScope.done();
+        expect(nock.pendingMocks()).toHaveLength(0);
+        service.destroy();
+      },
+    );
+
+    const malformedFieldCases: [
+      string,
+      Parameters<typeof createMockSiweMessage>[0],
+    ][] = [
+      ['an extra field', { extraLines: ['Resources: https://evil.example'] }],
+      [
+        'a shifted expiration time',
+        {
+          expirationTime:
+            MOCK_SIWE_ISSUED_AT + MOCK_SIWE_CHALLENGE_TTL_MS + 1000,
+        },
+      ],
+    ];
+
+    it.each(malformedFieldCases)(
+      'rejects a challenge with %s before signing',
+      async (_label, overrides) => {
+        const signPersonalMessage = vi.fn();
+        const { service } = createService(Env.DEV, { signPersonalMessage });
+        const challengeScope = mockInvalidSiweChallenge(overrides);
+
+        await expect(
+          service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+        ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+        expect(signPersonalMessage).not.toHaveBeenCalled();
+        challengeScope.done();
+        service.destroy();
+      },
+    );
+
+    it('rejects a challenge whose message nonce differs from the challenge nonce', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const challengeScope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .post('/v1/vba/auth/challenge', { address: MOCK_ADDRESS })
+        .reply(200, {
+          nonce: 'b'.repeat(64),
+          message: createMockSiweMessage(),
+        });
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+      expect(signPersonalMessage).not.toHaveBeenCalled();
+      challengeScope.done();
+      service.destroy();
+    });
+
+    it('rejects a challenge with a nonce that is not 64 lowercase hex characters', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const challengeScope = mockInvalidSiweChallenge({
+        nonce: 'a'.repeat(63),
+      });
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+      expect(signPersonalMessage).not.toHaveBeenCalled();
+      challengeScope.done();
+      service.destroy();
+    });
+
+    it('rejects an expired challenge before signing', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const challengeScope = mockInvalidSiweChallenge({
+        issuedAt: MOCK_SIWE_ISSUED_AT - MOCK_SIWE_CHALLENGE_TTL_MS,
+      });
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+      expect(signPersonalMessage).not.toHaveBeenCalled();
+      challengeScope.done();
+      service.destroy();
+    });
+
+    it('rejects a challenge issued beyond the clock-skew allowance', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const challengeScope = mockInvalidSiweChallenge({
+        issuedAt: MOCK_SIWE_ISSUED_AT + 60_001,
+      });
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+      expect(signPersonalMessage).not.toHaveBeenCalled();
+      challengeScope.done();
+      service.destroy();
+    });
+
+    it('accepts a challenge issued within the clock-skew allowance', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      mockSiweAuthentication(
+        MOCK_ADDRESS,
+        'skew-token',
+        signPersonalMessage,
+        MOCK_SIWE_ISSUED_AT + 60_000,
+      );
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer skew-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+
+      expect(
+        await service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).toStrictEqual({ transfers: [] });
+      expect(signPersonalMessage).toHaveBeenCalledTimes(1);
+      service.destroy();
+    });
+
+    it('does not retry an invalid challenge through the service policy', async () => {
+      const signPersonalMessage = vi.fn();
+      const { service } = createService(Env.DEV, { signPersonalMessage });
+      const challengeScope = mockInvalidSiweChallenge({
+        statement: 'Sign in to move your money.',
+      });
+
+      await expect(
+        service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
+      ).rejects.toBeInstanceOf(MoneyAccountApiResponseValidationError);
+      expect(signPersonalMessage).not.toHaveBeenCalled();
+      challengeScope.done();
+      expect(nock.pendingMocks()).toHaveLength(0);
+      service.destroy();
+    });
+
     it('does not retry a rejected SIWE signature through the service policy', async () => {
       const signPersonalMessage = vi
         .fn()
@@ -1588,7 +1816,7 @@ describe('MoneyAccountApiDataService', () => {
       const { service } = createService(Env.DEV, { signPersonalMessage });
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
         .post('/v1/vba/auth/challenge')
-        .reply(200, MOCK_SIWE_CHALLENGE);
+        .reply(200, createMockSiweChallenge());
 
       await expect(
         service.fetchVbaTransfers({ address: MOCK_ADDRESS }),
@@ -1619,7 +1847,7 @@ describe('MoneyAccountApiDataService', () => {
       const { service } = createService(Env.DEV, { signPersonalMessage });
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
         .post('/v1/vba/auth/challenge')
-        .reply(200, MOCK_SIWE_CHALLENGE);
+        .reply(200, createMockSiweChallenge());
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
         .post('/v1/vba/auth/verify')
         .reply(401, 'invalid signature');
@@ -1665,25 +1893,29 @@ describe('MoneyAccountApiDataService', () => {
     });
 
     it('renews an expired SIWE session', async () => {
-      let now = Date.now();
+      let now = MOCK_SIWE_ISSUED_AT;
       const dateNowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now);
       const signPersonalMessage = vi.fn();
       const { service } = createService(Env.DEV, { signPersonalMessage });
       mockSiweAuthentication(MOCK_ADDRESS, 'first-token', signPersonalMessage);
-      mockSiweAuthentication(MOCK_ADDRESS, 'second-token', signPersonalMessage);
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
         reqheaders: { authorization: 'Bearer first-token' },
-      })
-        .get('/v1/vba/transfers')
-        .reply(200, { transfers: [] });
-      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
-        reqheaders: { authorization: 'Bearer second-token' },
       })
         .get('/v1/vba/transfers')
         .reply(200, { transfers: [] });
 
       await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
       now += MOCK_SIWE_SESSION.expires_in * 1000 + 1;
+
+      // The renewed challenge must be issued at the advanced clock, otherwise
+      // the service rejects it as expired before signing.
+      mockSiweAuthentication(MOCK_ADDRESS, 'second-token', signPersonalMessage);
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV], {
+        reqheaders: { authorization: 'Bearer second-token' },
+      })
+        .get('/v1/vba/transfers')
+        .reply(200, { transfers: [] });
+
       await service.fetchVbaTransfers({ address: MOCK_ADDRESS });
 
       expect(signPersonalMessage).toHaveBeenCalledTimes(2);
@@ -1721,7 +1953,7 @@ describe('MoneyAccountApiDataService', () => {
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
         .post('/v1/vba/auth/challenge')
         .delay(10)
-        .reply(200, MOCK_SIWE_CHALLENGE);
+        .reply(200, createMockSiweChallenge());
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
         .post('/v1/vba/auth/verify')
         .reply(200, MOCK_SIWE_SESSION);
@@ -1862,7 +2094,7 @@ describe('MoneyAccountApiDataService', () => {
 
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
         .post('/v1/vba/auth/challenge')
-        .reply(200, MOCK_SIWE_CHALLENGE);
+        .reply(200, createMockSiweChallenge());
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
         .post('/v1/vba/auth/verify')
         .reply(200, { token_type: 'basic' });

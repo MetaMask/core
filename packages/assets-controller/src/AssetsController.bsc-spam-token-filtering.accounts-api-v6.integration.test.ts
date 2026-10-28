@@ -1,5 +1,5 @@
 import type { ApiPlatformClient } from '@metamask/core-backend';
-import { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 
 import {
@@ -132,7 +132,7 @@ const WALLET_PASSES = [
     pass: 'second pass over the wallet the first pass left behind',
     run: async (): Promise<AssetsControllerState> => {
       const firstPass = (await fetchWallet()).state;
-      cleanAll();
+      nock.cleanAll();
 
       const secondPass = await fetchWallet(
         buildEmptyAssetsState({
@@ -148,7 +148,7 @@ const WALLET_PASSES = [
 
 describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE)', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe.each(WALLET_PASSES)('$pass', ({ run }) => {
@@ -195,7 +195,7 @@ describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE)', () 
 
 describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE) imported as a custom asset', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   function buildCustomAssetWalletState(): AssetsControllerState {
@@ -238,7 +238,7 @@ describe('AssetsController (Accounts API v6): BNB Chain spam token (CDOGE) impor
 
 describe("AssetsController (Accounts API v6): 'full' update operation - stale tracked spam token already in state", () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   /**

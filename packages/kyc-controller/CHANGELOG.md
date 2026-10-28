@@ -13,11 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `KycService.getSessionStatus`, `KycService.getSessionStatusForVendor`, and `KycService.setAuthorizations` read `currentStep` from the kyc-api session response
   - A missing `currentStep` is left unset. Any other value, including one this package does not know, is returned as sent. Sessions saved before this field existed keep working until the next status fetch
   - Export `KYC_CURRENT_STEPS` and `KycCurrentStep`
+- Add `KycService.getDataShares` and `KycController.getDataShares`, which list the vendors the customer's verified identity data has been shared with, newest first ([#11158](https://github.com/MetaMask/core/pull/11158))
+  - `KycService.getDataShares({ externalUserId })` reads `GET /api/kyc/external-user-id/{externalUserId}/shares` on the idOS relay and returns the unwrapped `shares` array. It requires `idosRelayBaseUrl` to be configured
+  - `KycController.getDataShares()` takes the external user id from the session status on state, falling back to the latest session for the vendor on state (which it does not write to state), and returns an empty array when no session can be resolved. It stores nothing
+  - Both methods are exposed as the `KycService:getDataShares` and `KycController:getDataShares` messenger actions
+- Export the `KycDataShare` and `GetDataSharesParams` types and the `KycServiceGetDataSharesAction` and `KycControllerGetDataSharesAction` action types ([#11158](https://github.com/MetaMask/core/pull/11158))
 
 ### Changed
 
 - When a kyc-api session reports `finalStatus` `pending` and `currentStep` `kyc`, the session returned by those endpoints uses `finalStatus` `new`. Every other `finalStatus` is returned unchanged. This resolves a regression where `finalStatus: pending` originally was only possible after sumsub was fully submitted, but now it is possible when partially submitted. ([#11094](https://github.com/MetaMask/core/pull/11094))
   - After the SumSub SDK completes, the stored session is `finalStatus` `pending` with `currentStep` `processing`
+
+## [0.13.0]
+
+### Added
+
+- Add an optional `trackKycAnalytics` constructor option for KYC analytics ([#11041](https://github.com/MetaMask/core/pull/11041))
+  - `verificationOutcome` is called after the state write for each SumSub launch attempt (`submitted`, `abandoned`, `failed`), including a repeat of the previous outcome and the failures that leave state unchanged. The payload is `status`, `kycStatus`, `providerFlowStatus` and `vendor`
+  - `statusChanged` is called after any state write that changes the analytics KYC status (for example `new` to `pending`, `pending` to `approved`, or `pending` to `retry`). The payload is `previousKycStatus`, `kycStatus`, `providerFlowStatus` and `vendor`. `previousKycStatus` is always present and is `none` when nothing was stored before, which covers both a session that was just created and a stored `finalStatus` outside `KYC_ANALYTICS_STATUSES`, so an absent field never has to be read as "first observation"
+  - Loading a session into an empty slot (for example after a reinstall) calls neither callback
+  - Neither payload carries session id, email, disclaimer or token data
+  - A callback that throws leaves the stored KYC outcome unchanged. `launchProviderFlow` still returns the outcome it wrote, and polling still stops when a session reaches `approved`, `rejected`, or `retry`
+- Export `getKycAnalyticsStatus`, `KYC_ANALYTICS_STATUSES` and the `KycAnalyticsTrackers`, `KycAnalyticsStatus`, `KycAnalyticsVerificationOutcome`, `KycAnalyticsVerificationOutcomePayload` and `KycAnalyticsStatusChangedPayload` types
+
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [0.12.1]
 
@@ -212,7 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.13.0...HEAD
+[0.13.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.1...@metamask/kyc-controller@0.13.0
 [0.12.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.0...@metamask/kyc-controller@0.12.1
 [0.12.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.11.0...@metamask/kyc-controller@0.12.0
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.10.0...@metamask/kyc-controller@0.11.0

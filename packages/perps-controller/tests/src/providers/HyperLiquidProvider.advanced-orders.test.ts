@@ -360,6 +360,13 @@ const createTestProvider = (
     messenger: mockMessenger,
   });
 
+// Tests that need the real validation rules share one copy loaded while the
+// file is collected. A vi.importActual inside a test waits on the module
+// loader, which on a busy machine with coverage can outlast the 5 s timeout.
+const actualValidation = await vi.importActual<
+  typeof import('../../../src/utils/hyperLiquidValidation.js')
+>('../../../src/utils/hyperLiquidValidation.js');
+
 describe('HyperLiquidProvider', () => {
   let provider: HyperLiquidProvider;
   let mockClientService: Mocked<HyperLiquidClientService>;
@@ -1125,11 +1132,7 @@ describe('HyperLiquidProvider', () => {
       // The leverage change is on-chain and not undone by a later rejection, so
       // a size that disappears at szDecimals: 3 has to be caught before it.
       mockValidateOrderParams.mockImplementation(
-        (
-          await vi.importActual<
-            typeof import('../../../src/utils/hyperLiquidValidation.js')
-          >('../../../src/utils/hyperLiquidValidation.js')
-        ).validateOrderParams,
+        actualValidation.validateOrderParams,
       );
 
       const result = await provider.placeOrder({
@@ -1157,11 +1160,7 @@ describe('HyperLiquidProvider', () => {
       // The SDK would reject triggerPx: '0' anyway, but only after the leverage
       // change has already been written on-chain.
       mockValidateOrderParams.mockImplementation(
-        (
-          await vi.importActual<
-            typeof import('../../../src/utils/hyperLiquidValidation.js')
-          >('../../../src/utils/hyperLiquidValidation.js')
-        ).validateOrderParams,
+        actualValidation.validateOrderParams,
       );
 
       const result = await provider.placeOrder({
@@ -1280,11 +1279,7 @@ describe('HyperLiquidProvider', () => {
         // Real validation, so the rejection happens at step 1 of placeOrder
         // rather than while the exchange payload is being built.
         mockValidateOrderParams.mockImplementation(
-          (
-            await vi.importActual<
-              typeof import('../../../src/utils/hyperLiquidValidation.js')
-            >('../../../src/utils/hyperLiquidValidation.js')
-          ).validateOrderParams,
+          actualValidation.validateOrderParams,
         );
 
         const result = await provider.placeOrder({
@@ -3092,11 +3087,7 @@ describe('HyperLiquidProvider', () => {
 
     it('returns a typed error when a partial size exceeds the position', async () => {
       mockValidateOrderParams.mockImplementation(
-        (
-          await vi.importActual<
-            typeof import('../../../src/utils/hyperLiquidValidation.js')
-          >('../../../src/utils/hyperLiquidValidation.js')
-        ).validateOrderParams,
+        actualValidation.validateOrderParams,
       );
 
       const result = await provider.updatePositionTPSL({
@@ -3118,11 +3109,7 @@ describe('HyperLiquidProvider', () => {
       // formats to '0' at szDecimals: 3 — which HyperLiquid reads as a
       // whole-position trigger, silently closing the entire position.
       mockValidateOrderParams.mockImplementation(
-        (
-          await vi.importActual<
-            typeof import('../../../src/utils/hyperLiquidValidation.js')
-          >('../../../src/utils/hyperLiquidValidation.js')
-        ).validateOrderParams,
+        actualValidation.validateOrderParams,
       );
 
       const result = await provider.updatePositionTPSL({
@@ -3157,11 +3144,7 @@ describe('HyperLiquidProvider', () => {
         // builder-fee approvals on-chain. None of that should happen for an
         // update that is rejected outright.
         mockValidateOrderParams.mockImplementation(
-          (
-            await vi.importActual<
-              typeof import('../../../src/utils/hyperLiquidValidation.js')
-            >('../../../src/utils/hyperLiquidValidation.js')
-          ).validateOrderParams,
+          actualValidation.validateOrderParams,
         );
 
         const result = await provider.updatePositionTPSL({
@@ -3190,11 +3173,7 @@ describe('HyperLiquidProvider', () => {
 
     it('rejects a TP/SL price that rounds to zero before the pre-cancel sweep', async () => {
       mockValidateOrderParams.mockImplementation(
-        (
-          await vi.importActual<
-            typeof import('../../../src/utils/hyperLiquidValidation.js')
-          >('../../../src/utils/hyperLiquidValidation.js')
-        ).validateOrderParams,
+        actualValidation.validateOrderParams,
       );
 
       const result = await provider.updatePositionTPSL({
@@ -3218,11 +3197,7 @@ describe('HyperLiquidProvider', () => {
       // Rejecting the update after that sweep would strip the protection and
       // put nothing back, so the rejection has to come first.
       mockValidateOrderParams.mockImplementation(
-        (
-          await vi.importActual<
-            typeof import('../../../src/utils/hyperLiquidValidation.js')
-          >('../../../src/utils/hyperLiquidValidation.js')
-        ).validateOrderParams,
+        actualValidation.validateOrderParams,
       );
       // A partial update always reads the REST payload for parent/child links,
       // so that is where the sweep finds the trigger it would cancel.
