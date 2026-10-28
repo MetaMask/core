@@ -17,7 +17,9 @@ import {
 
 describe('NetworkController provider tests', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({
+      toNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'],
+    });
   });
 
   afterEach(() => {
@@ -220,7 +222,7 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          vi.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         const { provider } = controller.getNetworkClientById(networkClientId);
 
@@ -304,7 +306,7 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          vi.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         const stateChangeListener = vi.fn();
         messenger.subscribe(
@@ -404,7 +406,7 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          vi.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         const stateChangeListener = vi.fn();
         messenger.subscribe(
@@ -511,7 +513,7 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          vi.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         const stateChangeListener = vi.fn();
         messenger.subscribe(
@@ -591,7 +593,7 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          vi.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         const { provider } = controller.getNetworkClientById(networkClientId);
         const request = {
@@ -700,7 +702,7 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          vi.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         const { provider } = controller.getNetworkClientById(networkClientId);
         const request = {
@@ -790,7 +792,7 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          vi.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         const stateChangeListener = vi.fn();
         messenger.subscribe(
@@ -919,7 +921,7 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          vi.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         const stateChangeListener = vi.fn();
         messenger.subscribe(

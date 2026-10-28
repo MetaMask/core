@@ -1,5 +1,5 @@
 import nock from 'nock';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createMockNetworkConfig } from '../../tests/helpers.js';
 import {
@@ -17,7 +17,9 @@ import type {
 
 function createMockServiceMessenger(): ConfigRegistryApiServiceMessenger {
   return {
+    registerActionHandler: vi.fn(),
     registerMethodActionHandlers: vi.fn(),
+    publish: vi.fn(),
   } as unknown as ConfigRegistryApiServiceMessenger;
 }
 
@@ -129,7 +131,7 @@ describe('ConfigRegistryApiService', () => {
       const result = await service.fetchConfig();
 
       expect(result).toMatchObject({ modified: true, data: MOCK_API_RESPONSE });
-      expect(result.etag).toBeUndefined();
+      expect(result.etag).toBeNull();
       expect(scope.isDone()).toBe(true);
     });
 
@@ -144,7 +146,7 @@ describe('ConfigRegistryApiService', () => {
       const result = await service.fetchConfig({ etag });
 
       expect(result.modified).toBe(false);
-      expect(result.data).toBeUndefined();
+      expect(result.data).toBeNull();
       expect(scope.isDone()).toBe(true);
     });
 
@@ -177,7 +179,7 @@ describe('ConfigRegistryApiService', () => {
       const result = await service.fetchConfig();
 
       expect(result.modified).toBe(false);
-      expect(result.etag).toBeUndefined();
+      expect(result.etag).toBeNull();
       expect(scope.isDone()).toBe(true);
     });
 
@@ -195,9 +197,8 @@ describe('ConfigRegistryApiService', () => {
     });
 
     it('does not include If-None-Match header when etag is undefined', async () => {
-      const scope = nock(UAT_ORIGIN)
+      const scope = nock(UAT_ORIGIN, { badheaders: ['If-None-Match'] })
         .get(CONFIG_PATH)
-        .matchHeader('If-None-Match', (val) => val === undefined)
         .reply(200, MOCK_API_RESPONSE);
 
       const service = createService();
@@ -311,87 +312,6 @@ describe('ConfigRegistryApiService', () => {
     });
   });
 
-  describe('onRetry', () => {
-    it('registers and returns a disposable', () => {
-      const service = createService();
-      const listener = vi.fn();
-      const disposable = service.onRetry(listener);
-      expect(disposable).toHaveProperty('dispose');
-      expect(typeof disposable.dispose).toBe('function');
-    });
-  });
-
-  describe('onBreak', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it('registers and calls onBreak handler', async () => {
-      const maximumConsecutiveFailures = 3;
-      const retries = 0;
-
-      for (let i = 0; i < maximumConsecutiveFailures; i++) {
-        nock(UAT_ORIGIN).get(CONFIG_PATH).replyWithError('Network error');
-      }
-
-      const onBreakHandler = vi.fn();
-      const service = createService({
-        policyOptions: {
-          maxRetries: retries,
-          maxConsecutiveFailures: maximumConsecutiveFailures,
-          circuitBreakDuration: 10000,
-        },
-      });
-
-      service.onBreak(onBreakHandler);
-      service.onRetry(() => {
-        vi.advanceTimersToNextTimer();
-      });
-
-      for (let i = 0; i < maximumConsecutiveFailures; i++) {
-        await expect(service.fetchConfig()).rejects.toThrow(Error);
-      }
-
-      const finalPromise = service.fetchConfig();
-      await expect(finalPromise).rejects.toThrow(Error);
-      expect(onBreakHandler).toHaveBeenCalled();
-    });
-  });
-
-  describe('onDegraded', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it('calls onDegraded handler when service becomes degraded', async () => {
-      const degradedThreshold = 2000; // 2 seconds
-      nock(UAT_ORIGIN)
-        .get(CONFIG_PATH)
-        .reply(200, () => {
-          vi.advanceTimersByTime(degradedThreshold + 100);
-          return MOCK_API_RESPONSE;
-        });
-
-      const service = createService({
-        policyOptions: { degradedThreshold, maxRetries: 0 },
-      });
-      const onDegradedHandler = vi.fn();
-      service.onDegraded(onDegradedHandler);
-
-      await service.fetchConfig();
-
-      expect(onDegradedHandler).toHaveBeenCalled();
-    });
-  });
-
   describe('custom fetch function', () => {
     it('uses custom fetch function when provided', async () => {
       const customFetch = vi.fn().mockResolvedValue(
@@ -476,7 +396,7 @@ describe('ConfigRegistryApiService - fetchEventsConfig', () => {
     const result = await service.fetchEventsConfig({ etag });
 
     expect(result.modified).toBe(false);
-    expect(result.data).toBeUndefined();
+    expect(result.data).toBeNull();
   });
 
   it('returns cached data when 304 is received and service has prior successful response', async () => {

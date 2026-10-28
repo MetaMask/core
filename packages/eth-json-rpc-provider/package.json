@@ -50,8 +50,8 @@
   "dependencies": {
     "@metamask/json-rpc-engine": "^11.0.0",
     "@metamask/rpc-errors": "^7.0.3",
-    "@metamask/utils": "^12.0.0",
-    "@types/lodash": "^4.17.26",
+    "@metamask/utils": "^12.0.1",
+    "@types/lodash": "^4.17.27",
     "lodash-es": "^4.18.1",
     "nanoid": "^3.3.19"
   },

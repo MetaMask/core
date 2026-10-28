@@ -2,7 +2,7 @@ import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { ConstantBackoff, HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -16,6 +16,17 @@ import { RampsEnvironment } from './RampsService.js';
 import { WalletRegistrationError } from './wallet-registration-service.js';
 
 const STAGING_BASE = 'https://on-ramp.uat-api.cx.metamask.io';
+
+const isAutorampTransactionQuery = (
+  query: Record<string, string | string[] | undefined>,
+  pageSize?: string,
+): boolean => {
+  const pageMatches =
+    pageSize === undefined ? true : query.page_size === pageSize;
+  return (
+    query.autoramp_id === 'ar-1' && query.sort_order === 'desc' && pageMatches
+  );
+};
 
 /**
  * Builds a NeoBankService with AuthenticationController bearer auth stubbed.
@@ -91,7 +102,7 @@ function createService(options?: {
 
 describe('NeoBankService', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe('mapNeoBankAutorampToRemoteSnapshot', () => {
@@ -755,6 +766,20 @@ describe('NeoBankService', () => {
           createdAt: '2026-06-01T00:00:00Z',
         },
       ]);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('sends page_size when a page size is requested', async () => {
+      const scope = nock(STAGING_BASE)
+        .get('/neobank/autoramp-transactions')
+        .query((query) => isAutorampTransactionQuery(query, '50'))
+        .reply(200, { items: [] });
+
+      const service = createService();
+
+      expect(
+        await service.listAutorampTransactions('ar-1', { pageSize: 50 }),
+      ).toStrictEqual([]);
       expect(scope.isDone()).toBe(true);
     });
 

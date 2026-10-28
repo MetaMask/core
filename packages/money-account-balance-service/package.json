@@ -56,11 +56,11 @@
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/money-account-api-data-service": "^2.3.0",
+    "@metamask/money-account-api-data-service": "^2.3.1",
     "@metamask/network-controller": "^37.1.1",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^12.0.0"
+    "@metamask/utils": "^12.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",

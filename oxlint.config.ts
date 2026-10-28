@@ -59,6 +59,7 @@ export default createConfig({
         'packages/platform-api-docs/**',
         '**/scripts/**',
         'oxlint.config.ts',
+        'vitest.config.ts',
         'vitest.config.packages.ts',
         'vitest.config.scripts.ts',
         'tests/matchers.ts',
@@ -79,6 +80,7 @@ export default createConfig({
     {
       files: [
         'tests/vitest/**',
+        'vitest.config.ts',
         'vitest.config.packages.ts',
         'vitest.config.scripts.ts',
         'packages/*/vitest.config.ts',
@@ -93,6 +95,7 @@ export default createConfig({
       rules: {
         'node/no-sync': 'off',
         'node/no-process-env': 'off',
+        'n/no-unsupported-features/node-builtins': 'off',
         'typescript/no-unsafe-assignment': 'off',
       },
     },

@@ -111,7 +111,6 @@ vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
 });
 
 // Mock TradingReadinessCache - global singleton for signing operation caching
-// Use jest.createMockFromModule for proper mock creation
 vi.mock('../../../src/services/TradingReadinessCache');
 
 const MockedHyperLiquidClientService = HyperLiquidClientService as MockedClass<
@@ -872,7 +871,7 @@ describe('HyperLiquidProvider', () => {
         expect(orderParams.deferProviderErrorReport).toBe(true);
       });
 
-      it('preserves deferred reporting through the minimum-order retry', async () => {
+      it('defers reporting a minimum-order rejection without resubmitting', async () => {
         const order = vi
           .fn()
           .mockRejectedValueOnce(
@@ -891,10 +890,10 @@ describe('HyperLiquidProvider', () => {
           deferProviderErrorReport: true,
         });
 
-        expect(order).toHaveBeenCalledTimes(2);
+        expect(order).toHaveBeenCalledTimes(1);
         expect(result).toMatchObject({
           success: false,
-          error: 'Flip retry venue unavailable',
+          error: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
         });
         expect(wasProviderErrorReported(result)).toBe(false);
         expect(mockPlatformDependencies.logger.error).not.toHaveBeenCalled();

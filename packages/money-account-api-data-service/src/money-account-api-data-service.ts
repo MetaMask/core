@@ -36,6 +36,11 @@ import type {
   VbaSiweChallengeResponse,
   VbaTransfersResponse,
 } from './response.types.js';
+import type { SiweMessageTemplate } from './siwe-message.js';
+import {
+  getSiweMessageTemplate,
+  validateSiweChallengeMessage,
+} from './siwe-message.js';
 import {
   HistoryResponseStruct,
   InterestResponseStruct,
@@ -195,6 +200,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
 > {
   readonly #baseUrl: string;
 
+  readonly #siweTemplate: SiweMessageTemplate;
+
   readonly #trace: MoneyAccountApiDataServiceTraceCallback;
 
   readonly #siweSessions = new Map<
@@ -241,6 +248,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
     });
 
     this.#baseUrl = MONEY_ACCOUNT_API_URL_MAP[env];
+    this.#siweTemplate = getSiweMessageTemplate(this.#baseUrl);
 
     this.#trace =
       trace ??
@@ -788,6 +796,10 @@ export class MoneyAccountApiDataService extends BaseDataService<
   /**
    * Fetches and validates a SIWE challenge for the given address.
    *
+   * The challenge message is verified against the Money Account API's SIWE
+   * template before it is returned, so callers never sign a message the
+   * service did not expect.
+   *
    * @param normalizedAddress - Lowercased account address to authenticate.
    * @returns The validated challenge containing the message to sign.
    */
@@ -817,6 +829,19 @@ export class MoneyAccountApiDataService extends BaseDataService<
     if (challengeError) {
       throw new MoneyAccountApiResponseValidationError(
         `Malformed response from VBA SIWE challenge endpoint: ${challengeError.message}`,
+      );
+    }
+
+    const invalidReason = validateSiweChallengeMessage({
+      template: this.#siweTemplate,
+      address: normalizedAddress,
+      nonce: challenge.nonce,
+      message: challenge.message,
+      now: Date.now(),
+    });
+    if (invalidReason) {
+      throw new MoneyAccountApiResponseValidationError(
+        `Invalid VBA SIWE challenge message: ${invalidReason}`,
       );
     }
 

@@ -2573,9 +2573,11 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            'SOLaccountAddress',
-            mockQuoteResponse,
-            false,
+            {
+              accountAddress: 'SOLaccountAddress',
+              quoteResponses: [mockQuoteResponse],
+              isStxEnabled: false,
+            },
           );
           controller.stopAllPolling();
 
@@ -2602,12 +2604,11 @@ describe('BridgeStatusController', () => {
         { mockMessengerCall },
         async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              'SOLaccountAddress',
-              mockQuoteResponse,
-              false,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: 'SOLaccountAddress',
+              quoteResponses: [mockQuoteResponse],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow(
             'Failed to submit cross-chain swap transaction: undefined snap id',
           );
@@ -2624,12 +2625,11 @@ describe('BridgeStatusController', () => {
         { mockMessengerCall },
         async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              'SOLaccountAddress',
-              mockQuoteResponse,
-              false,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: 'SOLaccountAddress',
+              quoteResponses: [mockQuoteResponse],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow(
             'Failed to submit cross-chain swap transaction: undefined multichain account',
           );
@@ -2647,12 +2647,11 @@ describe('BridgeStatusController', () => {
         { mockMessengerCall },
         async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              'SOLaccountAddress',
-              mockQuoteResponse,
-              false,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: 'SOLaccountAddress',
+              quoteResponses: [mockQuoteResponse],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow('Snap error');
           expect(mockMessengerCall.mock.calls).toMatchSnapshot();
           expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
@@ -2807,9 +2806,11 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            'SOLaccountAddress',
-            mockQuoteResponse,
-            false,
+            {
+              accountAddress: 'SOLaccountAddress',
+              quoteResponses: [mockQuoteResponse],
+              isStxEnabled: false,
+            },
           );
           controller.stopAllPolling();
 
@@ -2845,12 +2846,11 @@ describe('BridgeStatusController', () => {
         { mockMessengerCall },
         async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              'SOLaccountAddress',
-              mockQuoteResponse,
-              false,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: 'SOLaccountAddress',
+              quoteResponses: [mockQuoteResponse],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow(
             'Failed to submit cross-chain swap transaction: undefined snap id',
           );
@@ -2867,12 +2867,11 @@ describe('BridgeStatusController', () => {
         { mockMessengerCall },
         async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              'SOLaccountAddress',
-              mockQuoteResponse,
-              false,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: 'SOLaccountAddress',
+              quoteResponses: [mockQuoteResponse],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow(
             'Failed to submit cross-chain swap transaction: undefined multichain account',
           );
@@ -2891,12 +2890,11 @@ describe('BridgeStatusController', () => {
         { mockMessengerCall },
         async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              'SOLaccountAddress',
-              mockQuoteResponse,
-              false,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: 'SOLaccountAddress',
+              quoteResponses: [mockQuoteResponse],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow('Snap error');
           expect(mockMessengerCall.mock.calls).toMatchSnapshot();
           expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
@@ -3058,9 +3056,11 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            'TRXaccountAddress',
-            mockQuoteResponse,
-            false,
+            {
+              accountAddress: 'TRXaccountAddress',
+              quoteResponses: [mockQuoteResponse],
+              isStxEnabled: false,
+            },
           );
           controller.stopAllPolling();
 
@@ -3084,12 +3084,11 @@ describe('BridgeStatusController', () => {
         { mockMessengerCall },
         async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              'TRXaccountAddress',
-              mockQuoteResponse,
-              false,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: 'TRXaccountAddress',
+              quoteResponses: [mockQuoteResponse],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow('Approval transaction failed');
           expect(startPollingForBridgeTxStatusSpy).not.toHaveBeenCalled();
           expect(mockMessengerCall.mock.calls).toMatchSnapshot();
@@ -3145,9 +3144,11 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            'TRXaccountAddress',
-            mockTronBridgeQuote,
-            false,
+            {
+              accountAddress: 'TRXaccountAddress',
+              quoteResponses: [mockTronBridgeQuote],
+              isStxEnabled: false,
+            },
           );
           controller.stopAllPolling();
 
@@ -3355,9 +3356,11 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            'otherAccount',
-            mockEvmQuoteResponse,
-            false,
+            {
+              accountAddress: 'otherAccount',
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: false,
+            },
           );
 
           expect(result).toMatchSnapshot();
@@ -3396,12 +3399,19 @@ describe('BridgeStatusController', () => {
           const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (quoteWithoutApproval.trade as TxData).from,
             {
-              ...quoteWithoutApproval,
-              quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
+              accountAddress: (quoteWithoutApproval.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...quoteWithoutApproval,
+                  quote: {
+                    ...quoteWithoutApproval.quote,
+                    destAsset: erc20Token,
+                  },
+                },
+              ],
+              isStxEnabled: false,
             },
-            false,
           );
 
           expect(result).toMatchSnapshot();
@@ -3438,10 +3448,12 @@ describe('BridgeStatusController', () => {
           );
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (quoteWithoutApproval.trade as TxData).from,
-            quoteWithoutApproval,
-            true,
-            quotesReceivedContext,
+            {
+              accountAddress: (quoteWithoutApproval.trade as TxData).from,
+              quoteResponses: [quoteWithoutApproval],
+              isStxEnabled: true,
+              quotesReceivedContext,
+            },
           );
           controller.stopAllPolling();
 
@@ -3471,12 +3483,11 @@ describe('BridgeStatusController', () => {
           const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
 
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              (quoteWithoutApproval.trade as TxData).from,
-              quoteWithoutApproval,
-              false,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: (quoteWithoutApproval.trade as TxData).from,
+              quoteResponses: [quoteWithoutApproval],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow(
             'Failed to submit cross-chain swap transaction: unknown account in trade data',
           );
@@ -3505,15 +3516,16 @@ describe('BridgeStatusController', () => {
           const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
 
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              (quoteWithoutApproval.trade as TxData).from,
-              {
-                ...quoteWithoutApproval,
-                trade: (quoteWithoutApproval.trade as TxData).data,
-              },
-              false,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: (quoteWithoutApproval.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...quoteWithoutApproval,
+                  trade: (quoteWithoutApproval.trade as TxData).data,
+                },
+              ],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow(
             'Failed to submit cross-chain swap transaction: trade is not an EVM transaction',
           );
@@ -3542,18 +3554,19 @@ describe('BridgeStatusController', () => {
           const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
 
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              (quoteWithoutApproval.trade as TxData).from,
-              {
-                ...quoteWithoutApproval,
-                quote: {
-                  ...quoteWithoutApproval.quote,
-                  srcChainId: ChainId.SOLANA,
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: (quoteWithoutApproval.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...quoteWithoutApproval,
+                  quote: {
+                    ...quoteWithoutApproval.quote,
+                    srcChainId: ChainId.SOLANA,
+                  },
                 },
-              },
-              false,
-            ),
+              ],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow(
             'Failed to submit cross-chain swap transaction: trade is not a non-EVM transaction',
           );
@@ -3590,19 +3603,23 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
             {
-              ...mockEvmQuoteResponse,
-              resetApproval: {
-                chainId: 1,
-                data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
-                from: '0xaccount1',
-                gasLimit: 21000,
-                to: '0xtokenContract',
-                value: '0x0',
-              },
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...mockEvmQuoteResponse,
+                  resetApproval: {
+                    chainId: 1,
+                    data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
+                    from: '0xaccount1',
+                    gasLimit: 21000,
+                    to: '0xtokenContract',
+                    value: '0x0',
+                  },
+                },
+              ],
+              isStxEnabled: false,
             },
-            false,
           );
           controller.stopAllPolling();
 
@@ -3639,19 +3656,23 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
             {
-              ...mockEvmQuoteResponse,
-              resetApproval: {
-                chainId: 1,
-                data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
-                from: '0xaccount1',
-                gasLimit: 21000,
-                to: '0xtokenContract',
-                value: '0x0',
-              },
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...mockEvmQuoteResponse,
+                  resetApproval: {
+                    chainId: 1,
+                    data: '0x095ea7b3000000000000000000000000881d40237659c251811cec9c364ef91dc08d300c0000000000000000000000000000000000000000000000000000000000000000',
+                    from: '0xaccount1',
+                    gasLimit: 21000,
+                    to: '0xtokenContract',
+                    value: '0x0',
+                  },
+                },
+              ],
+              isStxEnabled: true,
             },
-            true,
           );
           controller.stopAllPolling();
 
@@ -3698,12 +3719,11 @@ describe('BridgeStatusController', () => {
         { mockMessengerCall },
         async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              (mockEvmQuoteResponse.trade as TxData).from,
-              mockEvmQuoteResponse,
-              false,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow('Approval tx failed');
 
           expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
@@ -3735,12 +3755,11 @@ describe('BridgeStatusController', () => {
         { mockMessengerCall },
         async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              (mockEvmQuoteResponse.trade as TxData).from,
-              mockEvmQuoteResponse,
-              false,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow('Approval tx failed');
 
           expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
@@ -3773,12 +3792,11 @@ describe('BridgeStatusController', () => {
         { mockMessengerCall },
         async ({ rootMessenger, startPollingForBridgeTxStatusSpy }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              (mockEvmQuoteResponse.trade as TxData).from,
-              mockEvmQuoteResponse,
-              false,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: false,
+            }),
           ).rejects.toThrow(
             'Failed to submit cross-chain swap tx: txMeta for txHash was not found',
           );
@@ -3816,9 +3834,11 @@ describe('BridgeStatusController', () => {
 
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            'otherAccount',
-            lineaQuoteResponse,
-            false,
+            {
+              accountAddress: 'otherAccount',
+              quoteResponses: [lineaQuoteResponse],
+              isStxEnabled: false,
+            },
           );
           controller.stopAllPolling();
 
@@ -3860,9 +3880,11 @@ describe('BridgeStatusController', () => {
 
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            'otherAccount',
-            baseQuoteResponse,
-            false,
+            {
+              accountAddress: 'otherAccount',
+              quoteResponses: [baseQuoteResponse],
+              isStxEnabled: false,
+            },
           );
           controller.stopAllPolling();
 
@@ -3916,9 +3938,11 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
-            mockEvmQuoteResponse,
-            false,
+            {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: false,
+            },
           );
           controller.stopAllPolling();
 
@@ -3965,9 +3989,11 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            'otherAccount',
-            mockEvmQuoteResponse,
-            false,
+            {
+              accountAddress: 'otherAccount',
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: false,
+            },
           );
           controller.stopAllPolling();
 
@@ -4019,9 +4045,11 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
-            mockEvmQuoteResponse,
-            false,
+            {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: false,
+            },
           );
           controller.stopAllPolling();
 
@@ -4061,9 +4089,11 @@ describe('BridgeStatusController', () => {
           }) => {
             const result = await rootMessenger.call(
               'BridgeStatusController:submitTx',
-              (quoteWithoutApproval.trade as TxData).from,
-              quoteWithoutApproval,
-              false, // STX disabled - uses non-batch path
+              {
+                accountAddress: (quoteWithoutApproval.trade as TxData).from,
+                quoteResponses: [quoteWithoutApproval],
+                isStxEnabled: false, // STX disabled - uses non-batch path
+              },
             );
             controller.stopAllPolling();
 
@@ -4129,12 +4159,11 @@ describe('BridgeStatusController', () => {
             startPollingForBridgeTxStatusSpy,
           }) => {
             await expect(
-              rootMessenger.call(
-                'BridgeStatusController:submitTx',
-                (quoteWithoutApproval.trade as TxData).from,
-                quoteWithoutApproval,
-                false,
-              ),
+              rootMessenger.call('BridgeStatusController:submitTx', {
+                accountAddress: (quoteWithoutApproval.trade as TxData).from,
+                quoteResponses: [quoteWithoutApproval],
+                isStxEnabled: false,
+              }),
             ).rejects.toThrow('Trade tx submission failed');
 
             // Verify: Pre-submission history should still exist keyed by actionId
@@ -4235,9 +4264,11 @@ describe('BridgeStatusController', () => {
           }) => {
             const result = await rootMessenger.call(
               'BridgeStatusController:submitTx',
-              (mockEvmQuoteResponse.trade as TxData).from,
-              mockEvmQuoteResponse,
-              false, // STX disabled
+              {
+                accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+                quoteResponses: [mockEvmQuoteResponse],
+                isStxEnabled: false,
+              },
             );
             controller.stopAllPolling();
             expect(result).toMatchInlineSnapshot(`
@@ -4430,9 +4461,11 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
-            mockEvmQuoteResponse,
-            false,
+            {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: false,
+            },
           );
           controller.stopAllPolling();
 
@@ -4465,12 +4498,16 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
             {
-              ...mockEvmQuoteResponse,
-              featureId: FeatureId.PERPS,
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...mockEvmQuoteResponse,
+                  featureId: FeatureId.PERPS,
+                },
+              ],
+              isStxEnabled: false,
             },
-            false,
           );
           controller.stopAllPolling();
 
@@ -4512,24 +4549,28 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
             {
-              ...mockEvmQuoteResponse,
-              quote: {
-                ...mockEvmQuoteResponse.quote,
-                gasIncluded: true,
-                feeData: {
-                  ...mockEvmQuoteResponse.quote.feeData,
-                  txFee: {
-                    amount: '100',
-                    asset: getNativeAssetForChainId(42161),
-                    maxFeePerGas: '123',
-                    maxPriorityFeePerGas: '123',
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...mockEvmQuoteResponse,
+                  quote: {
+                    ...mockEvmQuoteResponse.quote,
+                    gasIncluded: true,
+                    feeData: {
+                      ...mockEvmQuoteResponse.quote.feeData,
+                      txFee: {
+                        amount: '100',
+                        asset: getNativeAssetForChainId(42161),
+                        maxFeePerGas: '123',
+                        maxPriorityFeePerGas: '123',
+                      },
+                    },
                   },
                 },
-              },
+              ],
+              isStxEnabled: true,
             },
-            true,
           );
           controller.stopAllPolling();
 
@@ -4598,31 +4639,35 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
             {
-              ...mockEvmQuoteResponse,
-              quote: {
-                ...mockEvmQuoteResponse.quote,
-                gasIncluded: true,
-                feeData: {
-                  ...mockEvmQuoteResponse.quote.feeData,
-                  txFee: {
-                    amount: '100',
-                    asset: {
-                      address: '0x0000000000000000000000000000000000000032',
-                      symbol: 'WETH',
-                      chainId: 10,
-                      assetId: 'eip155:10/slip44:60',
-                      name: 'WETH',
-                      decimals: 18,
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...mockEvmQuoteResponse,
+                  quote: {
+                    ...mockEvmQuoteResponse.quote,
+                    gasIncluded: true,
+                    feeData: {
+                      ...mockEvmQuoteResponse.quote.feeData,
+                      txFee: {
+                        amount: '100',
+                        asset: {
+                          address: '0x0000000000000000000000000000000000000032',
+                          symbol: 'WETH',
+                          chainId: 10,
+                          assetId: 'eip155:10/slip44:60',
+                          name: 'WETH',
+                          decimals: 18,
+                        },
+                        maxFeePerGas: '123',
+                        maxPriorityFeePerGas: '123',
+                      },
                     },
-                    maxFeePerGas: '123',
-                    maxPriorityFeePerGas: '123',
                   },
                 },
-              },
+              ],
+              isStxEnabled: true,
             },
-            true,
           );
           controller.stopAllPolling();
 
@@ -4681,13 +4726,20 @@ describe('BridgeStatusController', () => {
           const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
             {
-              ...quoteWithoutApproval,
-              quote: { ...quoteWithoutApproval.quote, destAsset: erc20Token },
-              gasFee: undefined as never,
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...quoteWithoutApproval,
+                  quote: {
+                    ...quoteWithoutApproval.quote,
+                    destAsset: erc20Token,
+                  },
+                  gasFee: undefined as never,
+                },
+              ],
+              isStxEnabled: false,
             },
-            false,
           );
 
           expect(mockTraceFn.mock.calls).toMatchInlineSnapshot(`
@@ -4756,26 +4808,31 @@ describe('BridgeStatusController', () => {
           const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
             {
-              ...quoteWithoutApproval,
-              quote: {
-                ...quoteWithoutApproval.quote,
-                gasIncluded: true,
-                gasIncluded7702: false,
-                feeData: {
-                  ...quoteWithoutApproval.quote.feeData,
-                  txFee: {
-                    amount:
-                      quoteWithoutApproval.quote.feeData.metabridge.amount,
-                    asset: quoteWithoutApproval.quote.feeData.metabridge.asset,
-                    maxFeePerGas: '1395348', // Decimal string from quote
-                    maxPriorityFeePerGas: '1000001',
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...quoteWithoutApproval,
+                  quote: {
+                    ...quoteWithoutApproval.quote,
+                    gasIncluded: true,
+                    gasIncluded7702: false,
+                    feeData: {
+                      ...quoteWithoutApproval.quote.feeData,
+                      txFee: {
+                        amount:
+                          quoteWithoutApproval.quote.feeData.metabridge.amount,
+                        asset:
+                          quoteWithoutApproval.quote.feeData.metabridge.asset,
+                        maxFeePerGas: '1395348', // Decimal string from quote
+                        maxPriorityFeePerGas: '1000001',
+                      },
+                    },
                   },
                 },
-              },
+              ],
+              isStxEnabled: false, // isStxEnabledOnClient = FALSE (key for this test)
             },
-            false, // isStxEnabledOnClient = FALSE (key for this test)
           );
           controller.stopAllPolling();
 
@@ -4859,9 +4916,11 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
-            mockQuote,
-            false, // isStxEnabledOnClient = FALSE (key for this test)
+            {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockQuote],
+              isStxEnabled: false,
+            },
           );
           controller.stopAllPolling();
 
@@ -4911,16 +4970,20 @@ describe('BridgeStatusController', () => {
           const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
             {
-              ...quoteWithoutApproval,
-              quote: {
-                ...quoteWithoutApproval.quote,
-                gasIncluded: false,
-                gasIncluded7702: false,
-              },
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...quoteWithoutApproval,
+                  quote: {
+                    ...quoteWithoutApproval.quote,
+                    gasIncluded: false,
+                    gasIncluded7702: false,
+                  },
+                },
+              ],
+              isStxEnabled: false,
             },
-            false, // STX off
           );
           controller.stopAllPolling();
 
@@ -4979,16 +5042,20 @@ describe('BridgeStatusController', () => {
           const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
             {
-              ...quoteWithoutApproval,
-              quote: {
-                ...quoteWithoutApproval.quote,
-                gasIncluded: false,
-                gasIncluded7702: false,
-              },
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...quoteWithoutApproval,
+                  quote: {
+                    ...quoteWithoutApproval.quote,
+                    gasIncluded: false,
+                    gasIncluded7702: false,
+                  },
+                },
+              ],
+              isStxEnabled: false,
             },
-            false, // STX off
           );
           controller.stopAllPolling();
 
@@ -5044,26 +5111,31 @@ describe('BridgeStatusController', () => {
           const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
             {
-              ...quoteWithoutApproval,
-              quote: {
-                ...quoteWithoutApproval.quote,
-                gasIncluded: true,
-                gasIncluded7702: true, // 7702 takes precedence → batch path
-                feeData: {
-                  ...quoteWithoutApproval.quote.feeData,
-                  txFee: {
-                    amount:
-                      quoteWithoutApproval.quote.feeData.metabridge.amount,
-                    asset: quoteWithoutApproval.quote.feeData.metabridge.asset,
-                    maxFeePerGas: '1395348',
-                    maxPriorityFeePerGas: '1000001',
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...quoteWithoutApproval,
+                  quote: {
+                    ...quoteWithoutApproval.quote,
+                    gasIncluded: true,
+                    gasIncluded7702: true, // 7702 takes precedence → batch path
+                    feeData: {
+                      ...quoteWithoutApproval.quote.feeData,
+                      txFee: {
+                        amount:
+                          quoteWithoutApproval.quote.feeData.metabridge.amount,
+                        asset:
+                          quoteWithoutApproval.quote.feeData.metabridge.asset,
+                        maxFeePerGas: '1395348',
+                        maxPriorityFeePerGas: '1000001',
+                      },
+                    },
                   },
                 },
-              },
+              ],
+              isStxEnabled: false, // STX off, but gasIncluded7702 = true forces batch path
             },
-            false, // STX off, but gasIncluded7702 = true forces batch path
           );
           controller.stopAllPolling();
 
@@ -5112,26 +5184,31 @@ describe('BridgeStatusController', () => {
         async ({ controller, rootMessenger }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
             {
-              ...mockEvmQuoteResponse,
-              quote: {
-                ...mockEvmQuoteResponse.quote,
-                gasIncluded: true,
-                gasIncluded7702: true, // 7702 takes precedence → batch path
-                feeData: {
-                  ...mockEvmQuoteResponse.quote.feeData,
-                  txFee: {
-                    amount:
-                      mockEvmQuoteResponse.quote.feeData.metabridge.amount,
-                    asset: mockEvmQuoteResponse.quote.feeData.metabridge.asset,
-                    maxFeePerGas: '1395348',
-                    maxPriorityFeePerGas: '1000001',
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [
+                {
+                  ...mockEvmQuoteResponse,
+                  quote: {
+                    ...mockEvmQuoteResponse.quote,
+                    gasIncluded: true,
+                    gasIncluded7702: true, // 7702 takes precedence → batch path
+                    feeData: {
+                      ...mockEvmQuoteResponse.quote.feeData,
+                      txFee: {
+                        amount:
+                          mockEvmQuoteResponse.quote.feeData.metabridge.amount,
+                        asset:
+                          mockEvmQuoteResponse.quote.feeData.metabridge.asset,
+                        maxFeePerGas: '1395348',
+                        maxPriorityFeePerGas: '1000001',
+                      },
+                    },
                   },
                 },
-              },
+              ],
+              isStxEnabled: false, // STX off, but gasIncluded7702 = true forces batch path
             },
-            false, // STX off, but gasIncluded7702 = true forces batch path
           );
           controller.stopAllPolling();
 
@@ -5188,9 +5265,11 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
-            mockEvmQuoteResponse,
-            true,
+            {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: true,
+            },
           );
           controller.stopAllPolling();
 
@@ -5253,9 +5332,11 @@ describe('BridgeStatusController', () => {
         }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
-            mockEvmQuoteResponse,
-            true,
+            {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: true,
+            },
           );
           controller.stopAllPolling();
 
@@ -5323,12 +5404,11 @@ describe('BridgeStatusController', () => {
           startPollingForBridgeTxStatusSpy,
         }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              (mockEvmQuoteResponse.trade as TxData).from,
-              mockEvmQuoteResponse,
-              true,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: true,
+            }),
           ).rejects.toBe('Error adding transaction batch');
           controller.stopAllPolling();
 
@@ -5368,12 +5448,11 @@ describe('BridgeStatusController', () => {
           startPollingForBridgeTxStatusSpy,
         }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              (mockEvmQuoteResponse.trade as TxData).from,
-              mockEvmQuoteResponse,
-              true,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: true,
+            }),
           ).rejects.toThrow(
             'Failed to submit cross-chain swap batch transaction: unknown account in trade data',
           );
@@ -5485,12 +5564,11 @@ describe('BridgeStatusController', () => {
           startPollingForBridgeTxStatusSpy,
         }) => {
           await expect(
-            rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              (mockEvmQuoteResponse.trade as TxData).from,
-              mockEvmQuoteResponse,
-              true,
-            ),
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: true,
+            }),
           ).rejects.toThrow(
             'Failed to update cross-chain swap transaction batch: tradeMeta not found',
           );
@@ -5573,9 +5651,11 @@ describe('BridgeStatusController', () => {
         async ({ controller, rootMessenger }) => {
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
-            (mockEvmQuoteResponse.trade as TxData).from,
-            mockEvmQuoteResponse,
-            false, // STX disabled - uses non-batch path
+            {
+              accountAddress: (mockEvmQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmQuoteResponse],
+              isStxEnabled: false, // STX disabled - uses non-batch path
+            },
           );
           controller.stopAllPolling();
 
@@ -7415,9 +7495,11 @@ describe('BridgeStatusController', () => {
 
             const result = await rootMessenger.call(
               'BridgeStatusController:submitTx',
-              (mockEvmSwapQuoteResponse.trade as TxData).from,
-              mockEvmSwapQuoteResponse,
-              false,
+              {
+                accountAddress: (mockEvmSwapQuoteResponse.trade as TxData).from,
+                quoteResponses: [mockEvmSwapQuoteResponse],
+                isStxEnabled: false,
+              },
             );
             controller.stopAllPolling();
 
@@ -7451,12 +7533,11 @@ describe('BridgeStatusController', () => {
           async ({ controller, rootMessenger }) => {
             registerSubmitTxHandlers(rootMessenger);
 
-            await rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              (mockEvmSwapQuoteResponse.trade as TxData).from,
-              mockEvmSwapQuoteResponse,
-              false,
-            );
+            await rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: (mockEvmSwapQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmSwapQuoteResponse],
+              isStxEnabled: false,
+            });
             controller.stopAllPolling();
 
             const replacementHash = '0xevmReplacementSrcTxHash';
@@ -7531,12 +7612,11 @@ describe('BridgeStatusController', () => {
               false,
             );
 
-            await rootMessenger.call(
-              'BridgeStatusController:submitTx',
-              (mockEvmSwapQuoteResponse.trade as TxData).from,
-              mockEvmSwapQuoteResponse,
-              false,
-            );
+            await rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: (mockEvmSwapQuoteResponse.trade as TxData).from,
+              quoteResponses: [mockEvmSwapQuoteResponse],
+              isStxEnabled: false,
+            });
             controller.stopAllPolling();
 
             // Nothing was rekeyed onto the trade-meta id, so no submitted

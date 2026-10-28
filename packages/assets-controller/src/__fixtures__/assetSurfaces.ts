@@ -78,24 +78,6 @@ export const buildPricesSurface = <Source>(
 });
 
 /**
- * Build the `detected assets` surface over a detected-assets record.
- *
- * @param selectDetectedAssets - Reads the detected assets from the source.
- * @returns The detected-assets surface.
- */
-export const buildDetectedAssetsSurface = <Source>(
-  selectDetectedAssets: (
-    source: Source,
-  ) => Record<string, string[]> | undefined,
-): AssetSurface<Source> => ({
-  surface: 'detected assets',
-  lookUp: (source, assetId) =>
-    Object.values(selectDetectedAssets(source) ?? {})
-      .flat()
-      .find((detectedId) => detectedId.toLowerCase() === assetId.toLowerCase()),
-});
-
-/**
  * The `balances` surface over `AssetsController` state for one account.
  *
  * @param accountId - The account whose balance record to inspect.
@@ -140,9 +122,3 @@ export const RESPONSE_METADATA_SURFACE: ResponseSurface = buildMetadataSurface(
 export const RESPONSE_PRICES_SURFACE: ResponseSurface = buildPricesSurface(
   (response: DataResponse) => response.assetsPrice,
 );
-
-/** The `detected assets` surface over a pipeline `DataResponse`. */
-export const RESPONSE_DETECTED_ASSETS_SURFACE: ResponseSurface =
-  buildDetectedAssetsSurface(
-    (response: DataResponse) => response.detectedAssets,
-  );

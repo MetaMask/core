@@ -1,6 +1,6 @@
 {
   "name": "@metamask/smart-transactions-controller",
-  "version": "27.1.1",
+  "version": "27.2.0",
   "description": "Improves success rates for swaps by trialing transactions privately and finding minimum fees",
   "keywords": [
     "Ethereum",
@@ -61,11 +61,11 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/network-controller": "^37.1.1",
     "@metamask/polling-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^35.0.0",
+    "@metamask/profile-sync-controller": "^36.0.0",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^72.2.1",
-    "@metamask/utils": "^12.0.0",
+    "@metamask/transaction-controller": "^72.3.0",
+    "@metamask/utils": "^12.0.1",
     "bignumber.js": "^9.1.2",
     "lodash-es": "^4.18.1",
     "reselect": "^5.3.0"
