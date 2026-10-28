@@ -4,8 +4,10 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { flushPromises } from '../../../../../tests/helpers.js';
+import { flushPromises } from '../../../../../tests/vitest/helpers.js';
 import type { ServerNotificationMessage } from '../BackendWebSocketService.js';
 import { WebSocketState } from '../BackendWebSocketService.js';
 import { LaunchpadTokenDetailsService } from './LaunchpadTokenDetailsService.js';
@@ -35,13 +37,13 @@ const getMessenger = (): {
   rootMessenger: RootMessenger;
   messenger: LaunchpadTokenDetailsServiceMessenger;
   mocks: {
-    connect: jest.Mock;
-    subscribe: jest.Mock;
-    channelHasSubscription: jest.Mock;
-    getSubscriptionsByChannel: jest.Mock;
-    forceReconnection: jest.Mock;
-    addChannelCallback: jest.Mock;
-    removeChannelCallback: jest.Mock;
+    connect: Mock;
+    subscribe: Mock;
+    channelHasSubscription: Mock;
+    getSubscriptionsByChannel: Mock;
+    forceReconnection: Mock;
+    addChannelCallback: Mock;
+    removeChannelCallback: Mock;
   };
 } => {
   const rootMessenger: RootMessenger = new Messenger({
@@ -67,13 +69,13 @@ const getMessenger = (): {
   });
 
   const mocks = {
-    connect: jest.fn().mockResolvedValue(undefined),
-    subscribe: jest.fn().mockResolvedValue(undefined),
-    channelHasSubscription: jest.fn().mockReturnValue(false),
-    getSubscriptionsByChannel: jest.fn().mockReturnValue([]),
-    forceReconnection: jest.fn().mockResolvedValue(undefined),
-    addChannelCallback: jest.fn(),
-    removeChannelCallback: jest.fn(),
+    connect: vi.fn().mockResolvedValue(undefined),
+    subscribe: vi.fn().mockResolvedValue(undefined),
+    channelHasSubscription: vi.fn().mockReturnValue(false),
+    getSubscriptionsByChannel: vi.fn().mockReturnValue([]),
+    forceReconnection: vi.fn().mockResolvedValue(undefined),
+    addChannelCallback: vi.fn(),
+    removeChannelCallback: vi.fn(),
   };
 
   rootMessenger.registerActionHandler(
@@ -135,7 +137,7 @@ async function withService<R>(fn: WithServiceCallback<R>): Promise<R> {
 }
 
 const getSubscribeCallback = (mocks: {
-  subscribe: jest.Mock;
+  subscribe: Mock;
 }): ((notification: ServerNotificationMessage) => void) => {
   const call = mocks.subscribe.mock.calls.at(-1);
   if (!call) {
@@ -146,7 +148,7 @@ const getSubscribeCallback = (mocks: {
 };
 
 const getSystemNotificationCallback = (mocks: {
-  addChannelCallback: jest.Mock;
+  addChannelCallback: Mock;
 }): ((notification: ServerNotificationMessage) => void) => {
   const call = mocks.addChannelCallback.mock.calls.find(
     (c: unknown[]) =>
@@ -175,11 +177,11 @@ const EXPECTED_CHANNEL = 'launchpad-tokens.v1.eip155:8453/erc20:0xaaa';
 
 describe('LaunchpadTokenDetailsService', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -212,7 +214,7 @@ describe('LaunchpadTokenDetailsService', () => {
     it('publishes subscriptionError when subscribe fails', async () => {
       await withService(async ({ service, mocks, messenger }) => {
         mocks.connect.mockRejectedValueOnce(new Error('connection failed'));
-        const errorListener = jest.fn();
+        const errorListener = vi.fn();
         messenger.subscribe(
           'LaunchpadTokenDetailsService:subscriptionError',
           errorListener,
@@ -233,7 +235,7 @@ describe('LaunchpadTokenDetailsService', () => {
     it('publishes tokenUpdated with the normalized batch', async () => {
       await withService(async ({ service, mocks, messenger }) => {
         await service.subscribe(SUB_OPTS);
-        const updateListener = jest.fn();
+        const updateListener = vi.fn();
         messenger.subscribe(
           'LaunchpadTokenDetailsService:tokenUpdated',
           updateListener,
@@ -263,7 +265,7 @@ describe('LaunchpadTokenDetailsService', () => {
     it('does not publish tokenUpdated for an empty or invalid batch', async () => {
       await withService(async ({ service, mocks, messenger }) => {
         await service.subscribe(SUB_OPTS);
-        const updateListener = jest.fn();
+        const updateListener = vi.fn();
         messenger.subscribe(
           'LaunchpadTokenDetailsService:tokenUpdated',
           updateListener,
@@ -291,7 +293,7 @@ describe('LaunchpadTokenDetailsService', () => {
   describe('unsubscribe', () => {
     it('unsubscribes on the server after the grace period', async () => {
       await withService(async ({ service, mocks }) => {
-        const mockUnsub = jest.fn().mockResolvedValue(undefined);
+        const mockUnsub = vi.fn().mockResolvedValue(undefined);
         mocks.getSubscriptionsByChannel.mockReturnValue([
           { unsubscribe: mockUnsub },
         ]);
@@ -299,7 +301,7 @@ describe('LaunchpadTokenDetailsService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        jest.advanceTimersByTime(3000);
+        vi.advanceTimersByTime(3000);
         await completeAsyncOperations();
 
         expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
@@ -313,7 +315,7 @@ describe('LaunchpadTokenDetailsService', () => {
   describe('system notifications', () => {
     it('publishes statusChanged from a system notification', async () => {
       await withService(async ({ mocks, messenger }) => {
-        const statusListener = jest.fn();
+        const statusListener = vi.fn();
         messenger.subscribe(
           'LaunchpadTokenDetailsService:statusChanged',
           statusListener,
@@ -351,7 +353,7 @@ describe('LaunchpadTokenDetailsService', () => {
 
     it('ignores non-disconnect connection state changes', async () => {
       await withService(async ({ messenger, rootMessenger }) => {
-        const statusListener = jest.fn();
+        const statusListener = vi.fn();
         messenger.subscribe(
           'LaunchpadTokenDetailsService:statusChanged',
           statusListener,
@@ -377,7 +379,7 @@ describe('LaunchpadTokenDetailsService', () => {
 
     it('does not publish on disconnect when no chains are tracked', async () => {
       await withService(async ({ messenger, rootMessenger }) => {
-        const statusListener = jest.fn();
+        const statusListener = vi.fn();
         messenger.subscribe(
           'LaunchpadTokenDetailsService:statusChanged',
           statusListener,
@@ -403,7 +405,7 @@ describe('LaunchpadTokenDetailsService', () => {
 
     it('marks tracked chains down on disconnect', async () => {
       await withService(async ({ mocks, messenger, rootMessenger }) => {
-        const statusListener = jest.fn();
+        const statusListener = vi.fn();
         messenger.subscribe(
           'LaunchpadTokenDetailsService:statusChanged',
           statusListener,

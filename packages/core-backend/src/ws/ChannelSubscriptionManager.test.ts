@@ -1,7 +1,9 @@
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { flushPromises } from '../../../../tests/helpers.js';
+import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types.js';
 import type {
   BackendWebSocketServiceConnectionStateChangedEvent,
@@ -57,13 +59,13 @@ const getMessenger = (): {
   rootMessenger: RootMessenger;
   messenger: TestMessenger;
   mocks: {
-    connect: jest.Mock;
-    subscribe: jest.Mock;
-    channelHasSubscription: jest.Mock;
-    getSubscriptionsByChannel: jest.Mock;
-    forceReconnection: jest.Mock;
-    addChannelCallback: jest.Mock;
-    removeChannelCallback: jest.Mock;
+    connect: Mock;
+    subscribe: Mock;
+    channelHasSubscription: Mock;
+    getSubscriptionsByChannel: Mock;
+    forceReconnection: Mock;
+    addChannelCallback: Mock;
+    removeChannelCallback: Mock;
   };
 } => {
   const rootMessenger: RootMessenger = new Messenger({
@@ -89,13 +91,13 @@ const getMessenger = (): {
   });
 
   const mocks = {
-    connect: jest.fn().mockResolvedValue(undefined),
-    subscribe: jest.fn().mockResolvedValue(undefined),
-    channelHasSubscription: jest.fn().mockReturnValue(false),
-    getSubscriptionsByChannel: jest.fn().mockReturnValue([]),
-    forceReconnection: jest.fn().mockResolvedValue(undefined),
-    addChannelCallback: jest.fn(),
-    removeChannelCallback: jest.fn(),
+    connect: vi.fn().mockResolvedValue(undefined),
+    subscribe: vi.fn().mockResolvedValue(undefined),
+    channelHasSubscription: vi.fn().mockReturnValue(false),
+    getSubscriptionsByChannel: vi.fn().mockReturnValue([]),
+    forceReconnection: vi.fn().mockResolvedValue(undefined),
+    addChannelCallback: vi.fn(),
+    removeChannelCallback: vi.fn(),
   };
 
   rootMessenger.registerActionHandler(
@@ -133,10 +135,10 @@ const getMessenger = (): {
 type Setup = ReturnType<typeof getMessenger> & {
   manager: ChannelSubscriptionManager;
   options: {
-    onMessage: jest.Mock;
-    onSubscriptionError: jest.Mock;
-    onSystemNotification: jest.Mock;
-    onConnectionStateChange: jest.Mock;
+    onMessage: Mock;
+    onSubscriptionError: Mock;
+    onSystemNotification: Mock;
+    onConnectionStateChange: Mock;
   };
 };
 
@@ -145,10 +147,10 @@ const getManager = (
 ): Setup => {
   const base = getMessenger();
   const options = {
-    onMessage: jest.fn(),
-    onSubscriptionError: jest.fn(),
-    onSystemNotification: jest.fn(),
-    onConnectionStateChange: jest.fn(),
+    onMessage: vi.fn(),
+    onSubscriptionError: vi.fn(),
+    onSystemNotification: vi.fn(),
+    onConnectionStateChange: vi.fn(),
   };
   const manager = new ChannelSubscriptionManager({
     messenger: base.messenger,
@@ -180,11 +182,11 @@ const getSubscribeCallback = (
 
 describe('ChannelSubscriptionManager', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('subscribe', () => {
@@ -258,7 +260,7 @@ describe('ChannelSubscriptionManager', () => {
   describe('unsubscribe', () => {
     it('unsubscribes on the server after the grace period', async () => {
       const { manager, mocks } = getManager();
-      const mockUnsub = jest.fn().mockResolvedValue(undefined);
+      const mockUnsub = vi.fn().mockResolvedValue(undefined);
       mocks.getSubscriptionsByChannel.mockReturnValue([
         { unsubscribe: mockUnsub },
       ]);
@@ -268,7 +270,7 @@ describe('ChannelSubscriptionManager', () => {
 
       expect(mockUnsub).not.toHaveBeenCalled();
 
-      jest.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(3000);
       await completeAsyncOperations();
 
       expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(CHANNEL);
@@ -277,7 +279,7 @@ describe('ChannelSubscriptionManager', () => {
 
     it('reuses the subscription if a new subscriber arrives during the grace period', async () => {
       const { manager, mocks } = getManager();
-      const mockUnsub = jest.fn().mockResolvedValue(undefined);
+      const mockUnsub = vi.fn().mockResolvedValue(undefined);
       mocks.getSubscriptionsByChannel.mockReturnValue([
         { unsubscribe: mockUnsub },
       ]);
@@ -287,7 +289,7 @@ describe('ChannelSubscriptionManager', () => {
       await manager.unsubscribe(CHANNEL);
       await manager.subscribe(CHANNEL);
 
-      jest.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(3000);
       await completeAsyncOperations();
 
       expect(mockUnsub).not.toHaveBeenCalled();
@@ -302,13 +304,13 @@ describe('ChannelSubscriptionManager', () => {
       await manager.subscribe(CHANNEL);
       await manager.unsubscribe(CHANNEL);
 
-      jest.advanceTimersByTime(3000);
+      vi.advanceTimersByTime(3000);
       await completeAsyncOperations();
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
       await completeAsyncOperations();
-      jest.advanceTimersByTime(2000);
+      vi.advanceTimersByTime(2000);
       await completeAsyncOperations();
-      jest.advanceTimersByTime(4000);
+      vi.advanceTimersByTime(4000);
       await completeAsyncOperations();
 
       expect(mocks.forceReconnection).toHaveBeenCalledTimes(1);
@@ -400,7 +402,7 @@ describe('ChannelSubscriptionManager', () => {
   describe('flush', () => {
     it('flushes other grace-period channels before subscribing a new one', async () => {
       const { manager, mocks } = getManager();
-      const mockUnsub = jest.fn().mockResolvedValue(undefined);
+      const mockUnsub = vi.fn().mockResolvedValue(undefined);
       mocks.getSubscriptionsByChannel.mockReturnValue([
         { unsubscribe: mockUnsub },
       ]);
