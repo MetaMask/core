@@ -2032,6 +2032,33 @@
       "count": 2
     }
   },
+  "packages/core-backend/src/ws/ChannelSubscriptionManager.test.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "node/callback-return": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/core-backend/src/ws/launchpad/LaunchpadTokenDetailsService.test.ts": {
+    "id-length": {
+      "count": 5
+    },
+    "node/callback-return": {
+      "count": 5
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/core-backend/src/ws/launchpad/normalize.test.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
   "packages/core-backend/src/ws/ohlcv/OHLCVService.test.ts": {
     "id-length": {
       "count": 5
