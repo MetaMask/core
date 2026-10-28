@@ -83,6 +83,24 @@ export type KycControllerGetSessionStatusForVendorAction = {
 };
 
 /**
+ * Fetches the vendors this customer's verified identity data has been shared
+ * with, newest first.
+ *
+ * The external user id comes from the session status on state. When no
+ * session has been stored yet, the latest session for the vendor on state is
+ * fetched first (without writing it to state). An unresolvable session — no
+ * vendor on state, or no latest session for it — yields an empty list rather
+ * than an error, so consumers can render an empty "shared with" list.
+ *
+ * @returns The data shares, newest first; empty when no session can be
+ * resolved.
+ */
+export type KycControllerGetDataSharesAction = {
+  type: `KycController:getDataShares`;
+  handler: KycController['getDataShares'];
+};
+
+/**
  * Returns the durable outcome of the identity-provider flow.
  *
  * @returns The latest provider-flow status.
@@ -261,6 +279,7 @@ export type KycControllerMethodActions =
   | KycControllerResetAction
   | KycControllerClearStateAction
   | KycControllerGetSessionStatusForVendorAction
+  | KycControllerGetDataSharesAction
   | KycControllerGetProviderFlowStatusAction
   | KycControllerRefreshSessionStatusAction
   | KycControllerReadSessionStatusAction

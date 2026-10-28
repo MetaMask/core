@@ -222,11 +222,35 @@ export class MultichainAccountService {
       // Custom account providers that can be provided by the MetaMask client.
       ...providers,
     ];
+    this.#assertUniqueProviderNames(this.#providers);
 
     this.#messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Assert that every registered provider has a unique name.
+   *
+   * Duplicate names break group state (keyed by provider name), alignment, and
+   * resync. This commonly happens when a client passes a custom provider that
+   * reuses a built-in name (e.g. registering Stellar both as a default and via
+   * `providers`).
+   *
+   * @param providers - The providers to validate.
+   * @throws If two providers share the same {@link Bip44AccountProvider.getName}.
+   */
+  #assertUniqueProviderNames(providers: Bip44AccountProvider[]): void {
+    const seenNames = new Set<string>();
+    for (const provider of providers) {
+      const name = provider.getName();
+      assert(
+        !seenNames.has(name),
+        `Duplicate account provider name "${name}". Custom providers must not reuse a built-in or already-registered provider name.`,
+      );
+      seenNames.add(name);
+    }
   }
 
   /**

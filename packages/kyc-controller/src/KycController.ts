@@ -46,6 +46,7 @@ import {
 } from './types.js';
 import type {
   KycConsentRecord,
+  KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
   KycProviderDisclaimersAccepted,
@@ -270,6 +271,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'reset',
   'clearState',
   'getSessionStatusForVendor',
+  'getDataShares',
   'getProviderFlowStatus',
   'refreshSessionStatus',
   'readSessionStatus',
@@ -602,6 +604,40 @@ export class KycController extends BaseController<
     vendor: KycVendor,
   ): Promise<KycSessionStatus | null> {
     return this.messenger.call('KycService:getSessionStatusForVendor', vendor);
+  }
+
+  /**
+   * Fetches the vendors this customer's verified identity data has been shared
+   * with, newest first.
+   *
+   * The external user id comes from the session status on state. When no
+   * session has been stored yet, the latest session for the vendor on state is
+   * fetched first (without writing it to state). An unresolvable session — no
+   * vendor on state, or no latest session for it — yields an empty list rather
+   * than an error, so consumers can render an empty "shared with" list.
+   *
+   * @returns The data shares, newest first; empty when no session can be
+   * resolved.
+   */
+  async getDataShares(): Promise<KycDataShare[]> {
+    let externalUserId = this.state.sessionStatus?.externalUserId;
+
+    if (!externalUserId) {
+      const { vendor } = this.state;
+      if (!vendor) {
+        return [];
+      }
+      const sessionStatus = await this.messenger.call(
+        'KycService:getSessionStatusForVendor',
+        vendor,
+      );
+      if (!sessionStatus) {
+        return [];
+      }
+      externalUserId = sessionStatus.externalUserId;
+    }
+
+    return this.messenger.call('KycService:getDataShares', { externalUserId });
   }
 
   /**

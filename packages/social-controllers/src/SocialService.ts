@@ -43,6 +43,7 @@ import type {
   SwapCommentResponse,
   TranslateCommentOptions,
   TraderProfileResponse,
+  UnblockProfileOptions,
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types.js';
@@ -95,6 +96,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'optInToLeaderboard',
   'refreshNotificationPreferencesCache',
   'block',
+  'unblockProfile',
   'fetchBlockedProfiles',
   'fetchBlockedContent',
 ] as const;
@@ -1170,6 +1172,37 @@ export class SocialService extends BaseDataService<
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.BLOCK_FAILED,
+        );
+        return null;
+      },
+    });
+  }
+
+  /**
+   * Removes the current user's block on a trader.
+   *
+   * Calls `DELETE ${baseUrl}/moderation/blocks/profiles/${profileId}`.
+   * Unblocking a trader who is not blocked is a no-op. The caller is
+   * identified server-side from the JWT sub claim carried in the
+   * Authorization header.
+   *
+   * @param options - Options bag.
+   * @param options.profileId - Profile id (UUID) of the trader to unblock.
+   */
+  async unblockProfile({ profileId }: UnblockProfileOptions): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:unblockProfile`, profileId],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/moderation/blocks/profiles/${encodeURIComponent(profileId)}`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'DELETE',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.UNBLOCK_PROFILE_FAILED,
         );
         return null;
       },

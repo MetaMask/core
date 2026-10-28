@@ -2032,6 +2032,30 @@
       "count": 2
     }
   },
+  "packages/core-backend/src/ws/ChannelSubscriptionManager.test.ts": {
+    "id-length": {
+      "count": 2
+    },
+    "node/callback-return": {
+      "count": 1
+    },
+    "typescript/no-unnecessary-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/core-backend/src/ws/launchpad/LaunchpadTokenDetailsService.test.ts": {
+    "id-length": {
+      "count": 5
+    },
+    "node/callback-return": {
+      "count": 5
+    }
+  },
+  "packages/core-backend/src/ws/launchpad/normalize.test.ts": {
+    "id-length": {
+      "count": 2
+    }
+  },
   "packages/core-backend/src/ws/ohlcv/OHLCVService.test.ts": {
     "id-length": {
       "count": 5
@@ -3378,12 +3402,6 @@
     "jsdoc/require-returns": {
       "count": 1
     },
-    "typescript/no-unsafe-argument": {
-      "count": 1
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 1
-    },
     "vitest/no-conditional-in-test": {
       "count": 1
     }
@@ -4364,9 +4382,6 @@
     },
     "typescript/no-unsafe-argument": {
       "count": 5
-    },
-    "vitest/no-conditional-in-test": {
-      "count": 4
     }
   },
   "packages/profile-sync-controller/src/sdk/user-storage.ts": {
