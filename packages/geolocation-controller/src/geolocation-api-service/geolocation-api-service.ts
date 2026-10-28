@@ -7,6 +7,7 @@ import type {
 } from '@metamask/base-data-service';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import { nullable, object, pattern as matches, string } from '@metamask/superstruct';
 
 import { Env } from '../types.js';
 import type { GeolocationApiServiceMethodActions } from './geolocation-api-service-method-action-types.js';
@@ -65,6 +66,15 @@ export function getUnknownGeolocationData(): GeolocationData {
  * the United States and Canada (e.g. `US-NY`, `CA-ON`) and returned the country
  * alone for everywhere else.
  */
+/**
+ * Describes the validated shape of {@link GeolocationData}.
+ */
+const GeolocationDataStruct = object({
+  country: nullable(matches(string(), COUNTRY_PATTERN)),
+  region: nullable(matches(string(), REGION_PATTERN)),
+  timezone: nullable(matches(string(), TIMEZONE_PATTERN)),
+});
+
 const REGION_APPENDED_COUNTRIES = new Set(['US', 'CA']);
 
 /**
@@ -337,6 +347,7 @@ export class GeolocationApiService extends BaseDataService<
     const geolocation = await this.fetchQuery({
       queryKey,
       staleTime: this.#ttlMs,
+      responseStruct: GeolocationDataStruct,
       // Retain the result for as long as it is considered fresh.
       gcTime: this.#ttlMs,
       queryFn: async () => {
