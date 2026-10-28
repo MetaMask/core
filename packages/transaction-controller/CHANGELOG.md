@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [72.3.0]
+
 ### Added
 
 - Add `mode` to the `estimateGasBatch` result, `eip7702` for a single gas limit of the outer EIP-7702 transaction or `separate` for one gas limit per transaction, and export the `EstimateGasBatchMode` and `EstimateGasBatchResult` types ([#10790](https://github.com/MetaMask/core/pull/10790))
@@ -2864,7 +2866,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.3.0...HEAD
+[72.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.2.1...@metamask/transaction-controller@72.3.0
 [72.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.2.0...@metamask/transaction-controller@72.2.1
 [72.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.1.0...@metamask/transaction-controller@72.2.0
 [72.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.1...@metamask/transaction-controller@72.1.0
