@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: use the nock default export instead of named imports ([#11138](https://github.com/MetaMask/core/pull/11138))
+
 ### Added
 
 - Export the `Source` enum (`Custom`, `Dapp`, `Detected`) so consumers can pass it to `NftController.addNft` and related methods ([#11106](https://github.com/MetaMask/core/pull/11106))
