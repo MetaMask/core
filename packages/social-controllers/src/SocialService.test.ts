@@ -2932,6 +2932,74 @@ describe('SocialService', () => {
     });
   });
 
+  describe('unblockProfile', () => {
+    it('sends DELETE to /moderation/blocks/profiles/:profileId', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      const result = await service.unblockProfile({
+        profileId: mockProfileSummary.profileId,
+      });
+
+      expect(result).toBeUndefined();
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/moderation/blocks/profiles/${mockProfileSummary.profileId}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+        },
+      );
+    });
+
+    it('encodes the profile id in the URL path', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      await service.unblockProfile({ profileId: 'a/b c' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/moderation/blocks/profiles/a%2Fb%20c`,
+        expect.anything(),
+      );
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 400 });
+
+      const service = createService();
+
+      await expect(
+        service.unblockProfile({ profileId: mockProfileSummary.profileId }),
+      ).rejects.toThrow(
+        `${SocialServiceErrorMessage.UNBLOCK_PROFILE_FAILED}: 400`,
+      );
+    });
+
+    it('always sends the request on repeated calls (staleTime: 0)', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      await service.unblockProfile({ profileId: mockProfileSummary.profileId });
+      await service.unblockProfile({ profileId: mockProfileSummary.profileId });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('is callable via messenger action', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const messenger = createMessenger();
+      // eslint-disable-next-line no-new
+      new SocialService({ messenger, baseUrl: BASE_URL });
+
+      const result = await messenger.call('SocialService:unblockProfile', {
+        profileId: mockProfileSummary.profileId,
+      });
+
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe('fetchBlockedProfiles', () => {
     const mockBlockedProfilesResponse = {
       items: [

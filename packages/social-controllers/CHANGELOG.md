@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `unblockProfile` to `SocialService` (`SocialService:unblockProfile`). Calls `DELETE /v1/moderation/blocks/profiles/:profileId` to remove the current user's block on a trader; unblocking a trader who is not blocked is a no-op. Export `UnblockProfileOptions` and `SocialServiceUnblockProfileAction` ([#11159](https://github.com/MetaMask/core/pull/11159))
+
 ## [3.13.0]
 
 ### Added

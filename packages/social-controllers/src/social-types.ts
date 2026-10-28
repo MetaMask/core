@@ -843,6 +843,14 @@ export type BlockOptions =
     };
 
 /**
+ * Options for `DELETE /v1/moderation/blocks/profiles/:profileId`.
+ */
+export type UnblockProfileOptions = {
+  /** Profile id (UUID) of the trader to unblock. */
+  profileId: string;
+};
+
+/**
  * Options for the cursor-paginated moderation list endpoints. Omit `cursor`
  * for the first page.
  */

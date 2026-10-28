@@ -432,6 +432,22 @@ export type SocialServiceBlockAction = {
 };
 
 /**
+ * Removes the current user's block on a trader.
+ *
+ * Calls `DELETE ${baseUrl}/moderation/blocks/profiles/${profileId}`.
+ * Unblocking a trader who is not blocked is a no-op. The caller is
+ * identified server-side from the JWT sub claim carried in the
+ * Authorization header.
+ *
+ * @param options - Options bag.
+ * @param options.profileId - Profile id (UUID) of the trader to unblock.
+ */
+export type SocialServiceUnblockProfileAction = {
+  type: `SocialService:unblockProfile`;
+  handler: SocialService['unblockProfile'];
+};
+
+/**
  * Fetches traders the current user has blocked.
  *
  * Calls `GET ${baseUrl}/moderation/blocks/profiles`. Results are most
@@ -491,5 +507,6 @@ export type SocialServiceMethodActions =
   | SocialServiceOptInToLeaderboardAction
   | SocialServiceRefreshNotificationPreferencesCacheAction
   | SocialServiceBlockAction
+  | SocialServiceUnblockProfileAction
   | SocialServiceFetchBlockedProfilesAction
   | SocialServiceFetchBlockedContentAction;
