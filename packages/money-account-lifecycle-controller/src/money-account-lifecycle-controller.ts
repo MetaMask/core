@@ -6,6 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type {
   ChompApiServiceGetDerivedIdentitiesAction,
+  DerivedIdentitiesResponse,
   DerivedIdentity,
 } from '@metamask/chomp-api-service';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -121,10 +122,6 @@ export type MoneyAccountLifecycleControllerHooks = {
   isEnabled: (remoteFeatureFlags: FeatureFlags) => boolean;
 };
 
-type DerivedIdentitiesFetch = {
-  remoteFeatureFlags: FeatureFlags;
-};
-
 export class MoneyAccountLifecycleController extends BaseController<
   typeof CONTROLLER_NAME,
   MoneyAccountLifecycleControllerState,
@@ -134,7 +131,9 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   #initialized = false;
 
-  #derivedIdentitiesFetch?: DerivedIdentitiesFetch;
+  #syncedRemoteFeatureFlags?: FeatureFlags;
+
+  #derivedIdentitiesRequest?: Promise<DerivedIdentitiesResponse>;
 
   #derivedIdentities?: DerivedIdentity[];
 
@@ -256,42 +255,40 @@ export class MoneyAccountLifecycleController extends BaseController<
         !this.#isEnabled(remoteFeatureFlags) ||
         !isWalletReady(this.messenger.call('KeyringController:getState'))
       ) {
-        this.#derivedIdentitiesFetch = undefined;
+        this.#syncedRemoteFeatureFlags = undefined;
+        this.#derivedIdentitiesRequest = undefined;
         this.#derivedIdentities = undefined;
         return;
       }
 
       if (
-        this.#derivedIdentitiesFetch &&
-        deepEqual(
-          this.#derivedIdentitiesFetch.remoteFeatureFlags,
-          remoteFeatureFlags,
-        )
+        this.#syncedRemoteFeatureFlags &&
+        deepEqual(this.#syncedRemoteFeatureFlags, remoteFeatureFlags)
       ) {
         return;
       }
 
-      this.#fetchDerivedIdentities(remoteFeatureFlags);
+      this.#syncedRemoteFeatureFlags = remoteFeatureFlags;
+      this.#fetchDerivedIdentities();
     } catch (error) {
       this.#reportError(error);
     }
   }
 
-  #fetchDerivedIdentities(remoteFeatureFlags: FeatureFlags): void {
-    const derivedIdentitiesFetch = { remoteFeatureFlags };
-    this.#derivedIdentitiesFetch = derivedIdentitiesFetch;
+  #fetchDerivedIdentities(): void {
+    const request = this.messenger.call('ChompApiService:getDerivedIdentities');
+    this.#derivedIdentitiesRequest = request;
 
-    this.messenger
-      .call('ChompApiService:getDerivedIdentities')
+    request
       .then(({ identities }) => {
-        if (this.#derivedIdentitiesFetch === derivedIdentitiesFetch) {
+        if (this.#derivedIdentitiesRequest === request) {
           this.#derivedIdentities = identities;
           this.#updateMoneyAccountLifecycle({ isRehydrating: true });
         }
       })
       .catch((error: unknown) => {
-        if (this.#derivedIdentitiesFetch === derivedIdentitiesFetch) {
-          this.#derivedIdentitiesFetch = undefined;
+        if (this.#derivedIdentitiesRequest === request) {
+          this.#syncedRemoteFeatureFlags = undefined;
         }
         this.#reportError(error);
       });
