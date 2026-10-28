@@ -7,29 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
-- chore: use TypeScript for Vitest configs ([#10921](https://github.com/MetaMask/core/pull/10921))
-- test: correct the Vitest lint directives in migrated packages ([#10868](https://github.com/MetaMask/core/pull/10868))
-
-### Added
-
-- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
-
 ### Changed
 
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
-
-## [10.1.0]
-
-### Added
-
-- Add `validateControllerState` function for validating controller state against the `struct` property ([#10023](https://github.com/MetaMask/core/pull/10023))
-
-### Changed
-
-- Add `@metamask/superstruct` as a dependency ([#10023](https://github.com/MetaMask/core/pull/10023))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
 - Bump `immer` from `^9.0.6` to `^11.1.18` ([#10331](https://github.com/MetaMask/core/pull/10331), [#10382](https://github.com/MetaMask/core/pull/10382))
 
@@ -470,8 +449,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@10.1.0...HEAD
-[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@10.0.0...@metamask/base-controller@10.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@10.0.0...HEAD
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.1.0...@metamask/base-controller@10.0.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.1...@metamask/base-controller@9.1.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@9.0.0...@metamask/base-controller@9.0.1

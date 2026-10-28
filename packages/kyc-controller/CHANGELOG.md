@@ -7,87 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(deps): update dependency nock to v15 ([#11055](https://github.com/MetaMask/core/pull/11055))
-- test: use the nock default export instead of named imports ([#11138](https://github.com/MetaMask/core/pull/11138))
-
-### Added
-
-- Add `KycService.getDataShares` and `KycController.getDataShares`, which list the vendors the customer's verified identity data has been shared with, newest first ([#11158](https://github.com/MetaMask/core/pull/11158))
-  - `KycService.getDataShares({ externalUserId })` reads `GET /api/kyc/external-user-id/{externalUserId}/shares` on the idOS relay and returns the unwrapped `shares` array. It requires `idosRelayBaseUrl` to be configured
-  - `KycController.getDataShares()` takes the external user id from the session status on state, falling back to the latest session for the vendor on state (which it does not write to state), and returns an empty array when no session can be resolved. It stores nothing
-  - Both methods are exposed as the `KycService:getDataShares` and `KycController:getDataShares` messenger actions
-- Export the `KycDataShare` and `GetDataSharesParams` types and the `KycServiceGetDataSharesAction` and `KycControllerGetDataSharesAction` action types ([#11158](https://github.com/MetaMask/core/pull/11158))
-
-## [0.13.0]
-
-### Added
-
-- Add an optional `trackKycAnalytics` constructor option for KYC analytics ([#11041](https://github.com/MetaMask/core/pull/11041))
-  - `verificationOutcome` is called after the state write for each SumSub launch attempt (`submitted`, `abandoned`, `failed`), including a repeat of the previous outcome and the failures that leave state unchanged. The payload is `status`, `kycStatus`, `providerFlowStatus` and `vendor`
-  - `statusChanged` is called after any state write that changes the analytics KYC status (for example `new` to `pending`, `pending` to `approved`, or `pending` to `retry`). The payload is `previousKycStatus`, `kycStatus`, `providerFlowStatus` and `vendor`. `previousKycStatus` is always present and is `none` when nothing was stored before, which covers both a session that was just created and a stored `finalStatus` outside `KYC_ANALYTICS_STATUSES`, so an absent field never has to be read as "first observation"
-  - Loading a session into an empty slot (for example after a reinstall) calls neither callback
-  - Neither payload carries session id, email, disclaimer or token data
-  - A callback that throws leaves the stored KYC outcome unchanged. `launchProviderFlow` still returns the outcome it wrote, and polling still stops when a session reaches `approved`, `rejected`, or `retry`
-- Export `getKycAnalyticsStatus`, `KYC_ANALYTICS_STATUSES` and the `KycAnalyticsTrackers`, `KycAnalyticsStatus`, `KycAnalyticsVerificationOutcome`, `KycAnalyticsVerificationOutcomePayload` and `KycAnalyticsStatusChangedPayload` types
-
-### Changed
-
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
-
-## [0.12.1]
-
-### Changed
-
-- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
-
-## [0.12.0]
-
-### Added
-
-- Add optional `partnerIdentityToken` to `CreateUkycSessionParams`; `KycService.createUkycSession` sends it on `POST /sessions` when provided ([#10872](https://github.com/MetaMask/core/pull/10872))
-  - `KycController.startSession` now forwards the partner identity token minted for the selected vendor when creating a UKYC session
-- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
-
-### Changed
-
-- Cache successful `KycService.fetchIdosEnclaveJwks` and `KycService.fetchIdosRelayJwks` responses in the service query cache for 24 hours ([#10894](https://github.com/MetaMask/core/pull/10894))
-  - `KycService:invalidateQueries` drops the cached keys
-- Session creation and capability-authorization refresh throw a short, displayable error when fetching issuer signing keys fails or an encryption schema's `jwtChain` does not verify. The original error is preserved on `cause` ([#10834](https://github.com/MetaMask/core/pull/10834))
-
-## [0.11.0]
-
-### Changed
-
-- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
-- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
-
-### Removed
-
-- **BREAKING:** Remove `MoonPayFrameHandler`, `MoonPayFrameHandlerOptions`, and `clearMoonPaySession` ([#10850](https://github.com/MetaMask/core/pull/10850))
-  - Clients that embedded MoonPay Check/Auth frames must implement that protocol themselves
-
-## [0.10.0]
-
-### Added
-
-- Add `@metamask/authenticated-user-storage` `^4.1.0` as a dependency ([#10452](https://github.com/MetaMask/core/pull/10452))
-
-### Changed
-
-- **BREAKING:** `KycController` now requires messenger actions `AuthenticatedUserStorageService:putIdentitySharingConsent` and `AuthenticationController:getPartnerIdentityToken` ([#10452](https://github.com/MetaMask/core/pull/10452))
-- **BREAKING:** `KycService.createVendorCustomer` and `KycService.createMoonpaySession` take `partnerIdentityToken` instead of a plaintext `email` ([#10452](https://github.com/MetaMask/core/pull/10452))
-  - `POST /vendors/{vendor}/customers` sends `{ partnerIdentityToken }`
-  - `POST /vendors/moonpay/sessions` sends `partnerIdentityToken` instead of `email`
-  - `KycController.startSession` forwards the token minted by `AuthenticationController:getPartnerIdentityToken`
-- Remove the `email` parameter from `KycController.startSession` and the `KycController:startSession` messenger action ([#10452](https://github.com/MetaMask/core/pull/10452))
-  - Email is resolved from a partner identity token. The token's `ext.email` is used only when `ext.email_verified` is `true`
-  - If that request returns HTTP 422 (`EmailRequiredError`), `startSession` throws when it must create a vendor customer or the controller has no stored email
-- `KycService.createUkycSession` no longer sends a `jwtToken` field on `POST /sessions` ([#10630](https://github.com/MetaMask/core/pull/10630))
-
-## [0.9.0]
-
 ### Added
 
 - Add `KycService.resetWrappingKeys`, which posts `POST /sessions/{sessionId}/wrapping-keys` with `sessionClientPublicKey` and returns `UkycSessionResponse` ([#10692](https://github.com/MetaMask/core/pull/10692))
@@ -229,13 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#10145](https://github.com/MetaMask/core/pull/10145))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.13.0...HEAD
-[0.13.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.1...@metamask/kyc-controller@0.13.0
-[0.12.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.12.0...@metamask/kyc-controller@0.12.1
-[0.12.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.11.0...@metamask/kyc-controller@0.12.0
-[0.11.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.10.0...@metamask/kyc-controller@0.11.0
-[0.10.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.9.0...@metamask/kyc-controller@0.10.0
-[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.8.0...@metamask/kyc-controller@0.9.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.8.0...HEAD
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.7.0...@metamask/kyc-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.1...@metamask/kyc-controller@0.7.0
 [0.6.1]: https://github.com/MetaMask/core/compare/@metamask/kyc-controller@0.6.0...@metamask/kyc-controller@0.6.1

@@ -7,82 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add `unblockProfile` to `SocialService` (`SocialService:unblockProfile`). Calls `DELETE /v1/moderation/blocks/profiles/:profileId` to remove the current user's block on a trader; unblocking a trader who is not blocked is a no-op. Export `UnblockProfileOptions` and `SocialServiceUnblockProfileAction` ([#11159](https://github.com/MetaMask/core/pull/11159))
-
-## [3.13.0]
-
-### Added
-
-- Add optional `sourceLanguage` (`string | null`) and `translations` (`Record<string, string>`) to `AuthorComment` and `AuthorCommentStruct`. Feed validation and the realtime feed parser keep both when social-api sends them, and responses that omit them still validate ([#11137](https://github.com/MetaMask/core/pull/11137))
-- Add `translateComment` to `SocialController` and `SocialService` (`SocialController:translateComment`, `SocialService:translateComment`). Calls `POST /swap-comment/:commentId/translate` with `{ targetLanguage }`. social-api does not expose that route yet: a 404 is logged as `Translation endpoint does not exist yet` and rethrown ([#11137](https://github.com/MetaMask/core/pull/11137))
-- Add optional `flags` to `Position`, so open positions, closed positions, position-by-id, and feed items (including realtime hydration) can carry an open list of server flags. `insider` (`INSIDER_POSITION_FLAG`) marks a Codex insider wallet/token pair that is excluded from the trader's realized PnL and must not be copy-traded. `developer` (`DEVELOPER_POSITION_FLAG`) is also a known flag. Unrecognized flag strings are preserved, `null` is accepted, and responses that omit `flags` still validate ([#11097](https://github.com/MetaMask/core/pull/11097))
-
-### Changed
-
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
-
-## [3.12.1]
-
-### Changed
-
-- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
-
-## [3.12.0]
-
-### Added
-
-- Add `assetIds`, `profileId` and `commentedOnly` to `FetchFeedOptions`, sent as repeated `assetIds` params and as `profileId` and `commentedOnly=true` on `GET /v1/feed`, matching the filters social-api now accepts ([#11059](https://github.com/MetaMask/core/pull/11059))
-- Add optional `volumeUsd30d` and `volumeUsd7d` to `FeedActorSummary` and `LeaderboardEntry`. Feed actors carry all-chain totals from profile metadata, including realtime feed normalization. Leaderboard entries carry the chain-scoped totals returned by social-api ([#11042](https://github.com/MetaMask/core/pull/11042))
-
-## [3.11.0]
-
-### Added
-
-- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
-
-### Changed
-
-- Normalize full hydrated Social feed events into `FeedItem` data for direct client hydration. ([#10986](https://github.com/MetaMask/core/pull/10986))
-
-## [3.10.0]
-
-### Added
-
-- Allow `createSwapComment` to identify an in-flight Hyperliquid order with `tradeInFlight.orderId` (the exchange `oid`) instead of `transactionHash`. `tokenAddress` is the coin, and the response `transactionHash` is empty until the fill is indexed ([#10966](https://github.com/MetaMask/core/pull/10966))
-
-## [3.9.0]
-
-### Added
-
-- Add optional `createdAt` to `TraderProfile`. `fetchTraderProfile` accepts an ISO-8601 timestamp, or `null`, on `GET /traders/:addressOrId/profile` and still accepts responses that omit it ([#10877](https://github.com/MetaMask/core/pull/10877))
-- Add the shared `all` feed scope to `FetchFeedOptions` and export `FeedScope`. Preserve optional `eventId`, `revision`, and `occurredAt` projection metadata on `FeedItem` ([#10865](https://github.com/MetaMask/core/pull/10865))
-- Add the `trending` feed scope to `FetchFeedOptions` and export `FeedScope` for policy-filtered trending feed reads ([#10895](https://github.com/MetaMask/core/pull/10895))
-- Add explicit `all` and `trending` scope subscriptions to `SocialRealtimeService` and validate hydrated realtime feed events before forwarding them ([#10924](https://github.com/MetaMask/core/pull/10924))
-
-### Changed
-
-- Bump `@metamask/core-backend` from `^12.1.0` to `^12.3.0` ([#10857](https://github.com/MetaMask/core/pull/10857), [#10876](https://github.com/MetaMask/core/pull/10876))
-- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
-- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
-
-## [3.8.0]
-
-### Added
-
-- Add `createCopyTradeIntent` method to `SocialService` (and the `SocialService:createCopyTradeIntent` messenger action). Calls `POST /v1/copy-trade-intents` with the comment origin, the copier's CAIP-10 account, and the execution (a swaps `quoteId` or a perps `oid`), and returns the validated `CopyTradeIntentResponse`. Both 201 (created) and 200 (existing intent) resolve ([#10823](https://github.com/MetaMask/core/pull/10823))
-  - Export the `CreateCopyTradeIntentOptions`, `CopyTradeIntentResponse`, `CopyTradeOrigin`, `CopyTradeExecution`, `CopyTradeAccount`, and `CopyTradePayoutEligibility` types
-
-### Changed
-
-- Preserve optional per-position copy counts from Social API responses ([#10801](https://github.com/MetaMask/core/pull/10801))
-- Bump `@metamask/core-backend` from `^12.0.1` to `^12.1.0` ([#10788](https://github.com/MetaMask/core/pull/10788))
-
-### Fixed
-
-- Set `staleTime: 0` on `fetchFollowers` and `fetchTraderFollowing` so follow-list refetches after follow/unfollow are not served from the 1-minute `BaseDataService` cache ([#10789](https://github.com/MetaMask/core/pull/10789))
-
 ## [3.7.0]
 
 ### Added
@@ -342,14 +266,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.13.0...HEAD
-[3.13.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.12.1...@metamask/social-controllers@3.13.0
-[3.12.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.12.0...@metamask/social-controllers@3.12.1
-[3.12.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.11.0...@metamask/social-controllers@3.12.0
-[3.11.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.10.0...@metamask/social-controllers@3.11.0
-[3.10.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.9.0...@metamask/social-controllers@3.10.0
-[3.9.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.8.0...@metamask/social-controllers@3.9.0
-[3.8.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.7.0...@metamask/social-controllers@3.8.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.7.0...HEAD
 [3.7.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.6.0...@metamask/social-controllers@3.7.0
 [3.6.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.5.0...@metamask/social-controllers@3.6.0
 [3.5.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.4.0...@metamask/social-controllers@3.5.0

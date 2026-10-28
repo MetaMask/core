@@ -7,26 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
-- test: run core-platform-rpc packages on Vitest ([#10975](https://github.com/MetaMask/core/pull/10975))
-
-### Added
-
-- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
-
-### Changed
-
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
-- Bump `@metamask/permission-controller` from `^14.0.0` to `^14.1.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
-
-## [2.1.0]
-
-### Added
-
-- Add `getEthAccountsForScope` to get the Ethereum accounts permitted for a single scope of a CAIP-25 caveat value ([#10915](https://github.com/MetaMask/core/pull/10915))
-
 ### Changed
 
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
@@ -269,8 +249,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@2.1.0...HEAD
-[2.1.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@2.0.0...@metamask/chain-agnostic-permission@2.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@2.0.0...HEAD
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.7.0...@metamask/chain-agnostic-permission@2.0.0
 [1.7.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.2...@metamask/chain-agnostic-permission@1.7.0
 [1.6.2]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.1...@metamask/chain-agnostic-permission@1.6.2

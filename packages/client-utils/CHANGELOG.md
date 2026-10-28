@@ -7,35 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
-- test: run core-ux packages on Vitest ([#10952](https://github.com/MetaMask/core/pull/10952))
-- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
-- chore(deps): update dependency typedoc-plugin-missing-exports to v4 ([#10762](https://github.com/MetaMask/core/pull/10762))
-- chore(deps): update dependency typedoc-plugin-missing-exports to ^2.3.0 ([#10710](https://github.com/MetaMask/core/pull/10710))
-- chore(deps): update dependency typedoc to ^0.28.20 ([#10731](https://github.com/MetaMask/core/pull/10731))
-
-### Added
-
-- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
-- Add `predictionSettled` to `ActivityKind` for prediction-market payouts that settle automatically, without a manual claim ([#11169](https://github.com/MetaMask/core/pull/11169))
-  - It shares the data shape of the other prediction kinds, with the proceeds in `data.token` (direction `in`)
-
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.3.0` ([#10652](https://github.com/MetaMask/core/pull/10652), [#10772](https://github.com/MetaMask/core/pull/10772), [#10817](https://github.com/MetaMask/core/pull/10817), [#11154](https://github.com/MetaMask/core/pull/11154))
-- Bump `@metamask/core-backend` from `^12.0.0` to `^12.3.0` ([#10662](https://github.com/MetaMask/core/pull/10662), [#10788](https://github.com/MetaMask/core/pull/10788), [#10857](https://github.com/MetaMask/core/pull/10857), [#10876](https://github.com/MetaMask/core/pull/10876))
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.2.0` ([#10652](https://github.com/MetaMask/core/pull/10652), [#10772](https://github.com/MetaMask/core/pull/10772))
+- Bump `@metamask/core-backend` from `^12.0.0` to `^12.0.1` ([#10662](https://github.com/MetaMask/core/pull/10662))
 - Bump `@metamask/contract-metadata` from `^2.4.0` to `^2.5.0` ([#10716](https://github.com/MetaMask/core/pull/10716))
 - Bump `@metamask/slip44` from `^4.3.0` to `^4.5.0` ([#10736](https://github.com/MetaMask/core/pull/10736))
-- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.3.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
-
-### Fixed
-
-- Set fees on contract interaction fallback in API transaction mapper ([#11013](https://github.com/MetaMask/core/pull/11013))
-- Add the L1 fee and operator fee from the transaction receipt to the base network fee returned by `getLocalTransactionFees`, so Mantle and other OP Stack activity shows the fee paid onchain ([#9630](https://github.com/MetaMask/core/pull/9630))
-  - The operator fee uses the Jovian formula when the receipt has `daFootprintGasScalar`, and the Isthmus formula otherwise
+- Bump `@metamask/keyring-api` from `^24.0.0` to `^24.1.0` ([#10717](https://github.com/MetaMask/core/pull/10717))
 
 ## [3.0.4]
 

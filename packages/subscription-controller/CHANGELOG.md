@@ -9,65 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^72.2.1` to `^72.3.0` ([#11154](https://github.com/MetaMask/core/pull/11154))
-
-## [15.1.1]
-
-### Changed
-
-- Bump `@metamask/chomp-api-service` from `^6.0.1` to `^7.0.0` ([#11120](https://github.com/MetaMask/core/pull/11120))
-- Bump `@metamask/money-account-upgrade-controller` from `^5.1.0` to `^6.0.0` ([#11120](https://github.com/MetaMask/core/pull/11120))
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
-
-## [15.1.0]
-
-### Added
-
-- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
-
-### Changed
-
-- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
-
-## [15.0.0]
-
-### Changed
-
-- **BREAKING:** `getBenefits` returns an ineligible benefits response instead of throwing `UserNotSubscribed`. ([#10994](https://github.com/MetaMask/core/pull/10994))
-- **BREAKING:** Remove `builderCode` from `PerpsBenefitUsage` and from benefits-response validation. The Perps benefits payload no longer includes it, and requiring the field rejected otherwise valid responses. ([#10995](https://github.com/MetaMask/core/pull/10995))
-
-## [14.0.2]
-
-### Changed
-
-- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
-
-## [14.0.1]
-
-### Changed
-
-- Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
-- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
-
-### Fixed
-
-- Stop reusing a cash-subscription delegation whose period `startDate` is outside the Subscription API window (14 days before the checkout start date, 5 minutes after it; trial checkouts also reject a live start). A stale stored permission caused `POST /subscriptions/crypto` to fail with `E214`. ([#10870](https://github.com/MetaMask/core/pull/10870))
-
-## [14.0.0]
-
-### Changed
-
-- **BREAKING:** `SubscriptionDelegationServiceMessenger` now requires `SubscriptionController:isUserEligibleForTrial` ([#10795](https://github.com/MetaMask/core/pull/10795))
-  - Clients that construct this messenger must delegate `SubscriptionController:isUserEligibleForTrial`.
 - Bump `@metamask/profile-sync-controller` from `^34.0.2` to `^34.0.3` ([#10761](https://github.com/MetaMask/core/pull/10761))
 - Require `Subscription.currentPeriodStart`, `currentPeriodEnd`, `cancelType`, and `isEligibleForSupport` in the subscription response and runtime validation. ([#10765](https://github.com/MetaMask/core/pull/10765))
 - Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
-
-### Fixed
-
-- Fixed Money Account Plus checkout requesting a trial for a user `isUserEligibleForTrial` rejects ([#10795](https://github.com/MetaMask/core/pull/10795))
-- `SubscriptionController:unCancelSubscription` refreshes subscriptions after a successful uncancel. ([#10802](https://github.com/MetaMask/core/pull/10802))
-  - The stored subscription is replaced with the uncancel response instead of merged with it, so optional fields the response omits (such as `cancelAtPeriodEnd` and `canceledAt`) no longer keep stale values, including when the subscription refresh fails.
 
 ## [13.0.0]
 
@@ -692,13 +636,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
 - Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.1.1...HEAD
-[15.1.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.1.0...@metamask/subscription-controller@15.1.1
-[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@15.0.0...@metamask/subscription-controller@15.1.0
-[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.2...@metamask/subscription-controller@15.0.0
-[14.0.2]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.1...@metamask/subscription-controller@14.0.2
-[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@14.0.0...@metamask/subscription-controller@14.0.1
-[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@13.0.0...@metamask/subscription-controller@14.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@13.0.0...HEAD
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@12.0.1...@metamask/subscription-controller@13.0.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@12.0.0...@metamask/subscription-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/subscription-controller@11.0.0...@metamask/subscription-controller@12.0.0

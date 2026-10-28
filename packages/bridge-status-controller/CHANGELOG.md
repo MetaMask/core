@@ -7,76 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(deps): update dependency nock to v15 ([#11055](https://github.com/MetaMask/core/pull/11055))
-
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^72.2.1` to `^72.3.0` ([#11154](https://github.com/MetaMask/core/pull/11154))
-- Bump `@metamask/bridge-controller` from `^83.1.1` to `^83.1.2` ([#11157](https://github.com/MetaMask/core/pull/11157))
-- Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
-
-## [78.0.0]
-
-### Changed
-
-- **BREAKING:** Change `submitTx` args to a single object ([#11140](https://github.com/MetaMask/core/pull/11140))
-- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
-- Bump `@metamask/bridge-controller` from `^83.1.0` to `^83.1.1` ([#11115](https://github.com/MetaMask/core/pull/11115))
-
-## [77.1.0]
-
-### Added
-
-- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
-
-### Changed
-
-- Bump `@metamask/network-controller` from `^37.1.0` to `^37.1.1` ([#10982](https://github.com/MetaMask/core/pull/10982))
-- Bump `@metamask/bridge-controller` from `^83.0.0` to `^83.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
-- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
-
-## [77.0.0]
-
-### Added
-
-- Update `TraceName` to include both client-emitted and controller trace names ([#10893](https://github.com/MetaMask/core/pull/10893))
-- Populate the `tags` field with the active `feature` when tracing swap/bridge operations ([#10893](https://github.com/MetaMask/core/pull/10893))
-
-### Changed
-
-- **BREAKING:** Require `traceFn` when initializing the BridgeStatusController ([#10893](https://github.com/MetaMask/core/pull/10893))
-- Update batch-strategy and batch-sell-strategy history persistence ([#10814](https://github.com/MetaMask/core/pull/10814))
-  - add a history item before submitting transactions. This enables the `TransactionController:transactionStatusUpdated` listener to match the txMeta with history and determine whether to publish the Failed event
-  - include latest `TransactionStatus` when rekey-ing or adding to history
-- Update evm-strategy history persistence ([#10814](https://github.com/MetaMask/core/pull/10814))
-  - if an approval is required, key initial historyItem by `actionId`
-  - rekey to the trade's `actionId` if the approval succeeds
-  - rekey to the trade's `id` on confirmation
-- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
-- Bump `@metamask/bridge-controller` from `^82.0.3` to `^83.0.0` ([#10925](https://github.com/MetaMask/core/pull/10925))
-- Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
-- Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
-- Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
-- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
-
-### Fixed
-
-- Emit only one `Unified SwapBridge Failed` event when `addTransaction` or `addTransactionBatch` fails ([#10814](https://github.com/MetaMask/core/pull/10814))
-  - Pre-submit history: evm keyed by actionId, batch + batch-sell keyed by batchId
-  - After tx exists: listener publishes Failed; submitTx returns the txMeta
-  - Before tx exists: submitTx catch publishes Failed
-
-## [76.4.0]
-
-### Changed
-
-- Pass the swap/bridge `sourceAssetId` and `destAssetId` to Tron, Solana, and Bitcoin Snap `signAndSendTransaction` requests. ([#10775](https://github.com/MetaMask/core/pull/10775))
 - Bump `@metamask/profile-sync-controller` from `^34.0.0` to `^34.0.3` ([#10752](https://github.com/MetaMask/core/pull/10752), [#10756](https://github.com/MetaMask/core/pull/10756), [#10761](https://github.com/MetaMask/core/pull/10761))
 - Bump `@metamask/snaps-controllers` from `^19.0.0` to `^19.0.1` ([#10719](https://github.com/MetaMask/core/pull/10719))
-- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.1` ([#10772](https://github.com/MetaMask/core/pull/10772), [#10817](https://github.com/MetaMask/core/pull/10817))
-- Bump `@metamask/bridge-controller` from `^82.0.2` to `^82.0.3` ([#10788](https://github.com/MetaMask/core/pull/10788))
+- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.2.0` ([#10772](https://github.com/MetaMask/core/pull/10772))
 
 ## [76.3.5]
 
@@ -1718,11 +1653,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@78.0.0...HEAD
-[78.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@77.1.0...@metamask/bridge-status-controller@78.0.0
-[77.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@77.0.0...@metamask/bridge-status-controller@77.1.0
-[77.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.4.0...@metamask/bridge-status-controller@77.0.0
-[76.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.5...@metamask/bridge-status-controller@76.4.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.5...HEAD
 [76.3.5]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.4...@metamask/bridge-status-controller@76.3.5
 [76.3.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.3...@metamask/bridge-status-controller@76.3.4
 [76.3.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@76.3.2...@metamask/bridge-status-controller@76.3.3
