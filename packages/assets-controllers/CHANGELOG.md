@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - NFTs whose stored `source` is `custom` (manual import) or `dapp` (approved dapp suggestion) are never auto-removed. Detected NFTs, and NFTs added before `source` was recorded, can be removed.
 - Bump `@metamask/transaction-controller` from `^72.2.1` to `^72.3.0` ([#11154](https://github.com/MetaMask/core/pull/11154))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/permission-controller` from `^14.0.0` to `^14.1.0` ([#11157](https://github.com/MetaMask/core/pull/11157))
 
 ## [112.2.0]
 
