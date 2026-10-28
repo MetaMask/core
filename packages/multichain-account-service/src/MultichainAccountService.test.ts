@@ -206,12 +206,14 @@ async function setup({
   rootMessenger = getRootMessenger(),
   keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
   accounts,
+  providers,
   providerConfigs,
   config,
 }: {
   rootMessenger?: RootMessenger;
   keyrings?: KeyringObject[];
   accounts?: KeyringAccount[];
+  providers?: MultichainAccountServiceOptions['providers'];
   providerConfigs?: MultichainAccountServiceOptions['providerConfigs'];
   config?: MultichainAccountServiceOptions['config'];
 } = {}): Promise<{
@@ -341,6 +343,7 @@ async function setup({
 
   const service = new MultichainAccountService({
     messenger,
+    providers,
     providerConfigs,
     config,
   });
@@ -532,6 +535,41 @@ describe('MultichainAccountService', () => {
         messenger,
         providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
+      );
+    });
+
+    it('throws if a custom provider reuses a built-in provider name', async () => {
+      const duplicateProvider = makeMockAccountProvider();
+      duplicateProvider.getName.mockReturnValue(XLM_ACCOUNT_PROVIDER_NAME);
+
+      await expect(
+        setup({
+          accounts: [MOCK_HD_ACCOUNT_1],
+          providers: [
+            duplicateProvider as unknown as Bip44AccountProvider,
+          ],
+        }),
+      ).rejects.toThrow(
+        `Duplicate account provider name "${XLM_ACCOUNT_PROVIDER_NAME}". Custom providers must not reuse a built-in or already-registered provider name.`,
+      );
+    });
+
+    it('throws if two custom providers share the same name', async () => {
+      const firstProvider = makeMockAccountProvider();
+      firstProvider.getName.mockReturnValue('CustomProvider');
+      const secondProvider = makeMockAccountProvider();
+      secondProvider.getName.mockReturnValue('CustomProvider');
+
+      await expect(
+        setup({
+          accounts: [MOCK_HD_ACCOUNT_1],
+          providers: [
+            firstProvider as unknown as Bip44AccountProvider,
+            secondProvider as unknown as Bip44AccountProvider,
+          ],
+        }),
+      ).rejects.toThrow(
+        'Duplicate account provider name "CustomProvider". Custom providers must not reuse a built-in or already-registered provider name.',
       );
     });
   });

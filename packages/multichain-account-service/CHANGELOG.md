@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `MultichainAccountService` now throws if two providers share the same `getName()` value (including a custom `providers` entry that reuses a built-in name such as Stellar)
 - Stop publishing the `tests` directory, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))
 - Bump `lodash-es` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `@metamask/keyring-internal-api` from `^12.0.0` to `^12.1.2` ([#10733](https://github.com/MetaMask/core/pull/10733), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
