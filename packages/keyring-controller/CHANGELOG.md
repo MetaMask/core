@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Keyrings that a failed operation did not touch now keep their in-memory instances: `destroy()` is no longer invoked on them, and references previously obtained (e.g. via `getKeyringsByType` or `getKeyringForAccount`) remain valid after a rollback.
   - Unsupported keyrings are no longer re-attempted when an operation rolls back.
   - A keyring that fails to destroy during a rollback no longer aborts it: the failure is logged, the rollback completes, and the error of the failed operation is still the one thrown.
+  - Instances created by a failed operation are destroyed before any keyring is recreated from its snapshot, releasing any shared resource they hold (e.g. a hardware SDK singleton) for the recreation.
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
