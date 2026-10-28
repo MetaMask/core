@@ -352,7 +352,6 @@ export class GeolocationApiService extends BaseDataService<
       queryKey,
       staleTime: this.#ttlMs,
       responseStruct: GeolocationDataStruct,
-      // Retain the result for as long as it is considered fresh.
       gcTime: this.#ttlMs,
       queryFn: async () => {
         const response = await this.#fetch(this.#url);
