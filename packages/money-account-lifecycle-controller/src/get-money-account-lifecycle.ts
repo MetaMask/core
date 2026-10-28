@@ -14,8 +14,8 @@ export type MoneyAccountLifecycle =
 /**
  * Classifies a Money Account against the derived identities. A Money Account
  * that is an identity's current address is `migrating` while that identity
- * has a pending migration, and an `sfa` otherwise. Either takes precedence
- * over an `mfa` match.
+ * has a pending migration, and an `sfa` otherwise. A Money Account that is one
+ * of an identity's previous addresses is an `mfa`.
  *
  * @param moneyAccountAddress - The address of the Money Account.
  * @param identities - The derived identities to search.
