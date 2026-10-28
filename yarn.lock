@@ -5485,7 +5485,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/assets-controller@npm:^20.0.2, @metamask/assets-controller@workspace:packages/assets-controller":
+"@metamask/assets-controller@npm:^20.1.0, @metamask/assets-controller@workspace:packages/assets-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controller@workspace:packages/assets-controller"
   dependencies:
@@ -5767,7 +5767,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.8.0"
     "@metamask/accounts-controller": "npm:^40.1.0"
-    "@metamask/assets-controller": "npm:^20.0.2"
+    "@metamask/assets-controller": "npm:^20.1.0"
     "@metamask/assets-controllers": "npm:^113.0.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.1.0"
@@ -8950,7 +8950,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.8.0"
     "@metamask/accounts-controller": "npm:^40.1.0"
-    "@metamask/assets-controller": "npm:^20.0.2"
+    "@metamask/assets-controller": "npm:^20.1.0"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/controller-utils": "npm:^13.0.0"
