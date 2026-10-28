@@ -639,8 +639,6 @@ describe('GeolocationApiService', () => {
         .mockImplementation(() => Promise.resolve(createMockResponse('', 500)));
       const { service } = getService({ options: { fetch: mockFetch } });
 
-      // The assertion is attached before the timers are drained, so the
-      // rejection always has a handler.
       await Promise.all([
         expect(service.fetchGeolocation()).rejects.toThrow(
           'Geolocation fetch failed: 500',

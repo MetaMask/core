@@ -345,7 +345,6 @@ export class GeolocationApiService extends BaseDataService<
     const queryKey = [`${this.name}:fetchGeolocationData`] as const;
 
     if (options?.bypassCache) {
-      // The query stays stale if the refresh fails, so the next call refetches.
       await this.invalidateQueries({ queryKey, refetchType: 'none' });
     }
 
