@@ -258,7 +258,7 @@ describe('ChompApiService', () => {
       const { service } = createService();
 
       await expect(service.disassociateAddress('0xabc')).rejects.toThrow(
-        'network down',
+        'fetch failed',
       );
       expect(scope.pendingMocks()).toHaveLength(1);
     });
@@ -1467,7 +1467,7 @@ describe('ChompApiService', () => {
       const { service } = createService();
 
       await expect(service.createUpgrade(upgradeParams)).rejects.toThrow(
-        /network down|fetch failed/u,
+        /fetch failed/u,
       );
       expect(scope.isDone()).toBe(true);
     });

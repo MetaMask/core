@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KycService.getDataShares` and `KycController.getDataShares`, which list the vendors the customer's verified identity data has been shared with, newest first ([#11158](https://github.com/MetaMask/core/pull/11158))
+  - `KycService.getDataShares({ externalUserId })` reads `GET /api/kyc/external-user-id/{externalUserId}/shares` on the idOS relay and returns the unwrapped `shares` array. It requires `idosRelayBaseUrl` to be configured
+  - `KycController.getDataShares()` takes the external user id from the session status on state, falling back to the latest session for the vendor on state (which it does not write to state), and returns an empty array when no session can be resolved. It stores nothing
+  - Both methods are exposed as the `KycService:getDataShares` and `KycController:getDataShares` messenger actions
+- Export the `KycDataShare` and `GetDataSharesParams` types and the `KycServiceGetDataSharesAction` and `KycControllerGetDataSharesAction` action types ([#11158](https://github.com/MetaMask/core/pull/11158))
+
 ## [0.13.0]
 
 ### Added

@@ -34,7 +34,7 @@ const V3_ASSETS_BY_LOWER_ID = v3Assets as unknown as Record<
 export function mockSuggestedOccurrenceFloors(): nock.Scope {
   return nock(API_URLS.TOKEN)
     .get('/v1/suggestedOccurrenceFloors')
-    .reply(200, suggestedOccurrenceFloors as Record<string, number>);
+    .reply(200, suggestedOccurrenceFloors);
 }
 
 /**
