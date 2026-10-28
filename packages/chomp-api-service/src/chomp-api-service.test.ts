@@ -343,7 +343,7 @@ describe('ChompApiService', () => {
     it('does not share an in-flight request across different bearer tokens', async () => {
       const tokens = ['profile-a-token', 'profile-b-token'];
       const { service } = createService({
-        getBearerToken: async () => tokens.shift() ?? 'exhausted',
+        getBearerToken: async () => tokens.shift() as string,
       });
       // The first profile's request is still in flight when the second
       // profile's request is issued; the second must not be deduplicated

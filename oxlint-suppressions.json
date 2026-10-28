@@ -1871,11 +1871,6 @@
       "count": 2
     }
   },
-  "packages/chomp-api-service/src/chomp-api-service.test.ts": {
-    "vitest/no-conditional-in-test": {
-      "count": 1
-    }
-  },
   "packages/chomp-api-service/src/chomp-api-service.ts": {
     "typescript/no-unsafe-assignment": {
       "count": 12
