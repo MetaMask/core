@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [20.0.2]
 
-### Changed
+### Fixed
 
 - Use hand-rolled Multicall3 `aggregate3` codecs for balance batches, while retaining the Ethers codecs for byte-identical comparison ([#11078](https://github.com/MetaMask/core/pull/11078))
 
