@@ -1,6 +1,6 @@
 import { base64ToBytes } from '@metamask/utils';
 import { ed25519 } from '@noble/curves/ed25519';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeAll } from 'vitest';
 
 import {
   UKYC_KWIL_AUDIENCE,
