@@ -5,7 +5,10 @@ import {
   isTronChainId,
 } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { TransactionStatus } from '@metamask/transaction-controller';
+import {
+  generateBatchId,
+  TransactionStatus,
+} from '@metamask/transaction-controller';
 
 import type {
   BridgeHistoryItem,
@@ -330,6 +333,8 @@ export const getInitialHistoryItem = (
 
   if (quoteResponse.depositConfig) {
     txHistoryItem.depositConfig = quoteResponse.depositConfig;
+    // Pre-generate and save to history to prevent double submission after swap
+    txHistoryItem.depositBatchId = generateBatchId();
   }
 
   if (batchSellData) {

@@ -238,6 +238,11 @@ export type BridgeHistoryItem = {
    * Whether the destWalletAddress is a money account deposit
    */
   depositConfig?: QuoteResponse['depositConfig'];
+  /**
+   * The batchId for the money account deposit transactions.
+   * Pre-generated when swap is submitted to prevent double submission.
+   */
+  depositBatchId?: `0x${string}`;
 };
 
 /**

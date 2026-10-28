@@ -124,6 +124,7 @@ import {
   isCrossChainTx,
   updateTransactionsInBatch,
   hasNestedSwapTransactions,
+  checkIsBatchIdSubmitted,
 } from './utils/transaction.js';
 import { handleMoneyAccountDeposit } from './utils/money-account.js';
 
@@ -272,7 +273,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       {
         historyKey?: string;
         historyItem?: BridgeHistoryItem;
-        txMeta: TransactionMeta;
+        txMeta?: TransactionMeta;
         isApprovalTxMeta: boolean;
       }
     >(
@@ -330,6 +331,18 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           transactionMeta,
         );
         const entryToUse = entry ?? approvalEntry;
+
+        // Return early if depositBatchId is in progress or is finalized (no retries for failures or rejections)
+        const depositBatchId = entryToUse?.[1]?.depositBatchId;
+        if (
+          depositBatchId &&
+          checkIsBatchIdSubmitted(this.messenger, depositBatchId)
+        ) {
+          return {
+            txMeta: undefined,
+            isApprovalTxMeta: false,
+          };
+        }
 
         return {
           historyKey: entryToUse?.[0],

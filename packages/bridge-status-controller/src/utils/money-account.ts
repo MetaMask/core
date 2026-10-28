@@ -3,7 +3,7 @@ import {
   getNetworkClientIdByChainId,
 } from '@metamask/bridge-controller';
 import { Web3Provider } from '@ethersproject/providers';
-import type { TransactionController } from '@metamask/transaction-controller';
+import { type TransactionController } from '@metamask/transaction-controller';
 import type {
   BridgeHistoryItem,
   BridgeStatusControllerMessenger,
@@ -16,7 +16,7 @@ import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 
 export const handleMoneyAccountDeposit = async ({
   messenger,
-  historyItem: { depositConfig, quote, account },
+  historyItem: { depositConfig, quote, account, depositBatchId },
   txHash,
   addTransactionBatchFn,
 }: {
@@ -71,7 +71,7 @@ export const handleMoneyAccountDeposit = async ({
 
   // Add tx batch
   return await addTransactionBatchFn({
-    // batchId,
+    batchId: depositBatchId,
     disableHook: true,
     disableSequential: true,
     disableUpgrade: true,
