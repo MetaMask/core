@@ -6,6 +6,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # How each command below is invoked. Jobs override this when debug logging is
+  # enabled, so that commands run through the permission audit rather than
+  # directly, without every step needing a second copy of itself.
+  RUN: yarn
+
 jobs:
   prepare:
     name: Prepare
@@ -98,8 +104,11 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
+      - name: Enable permission audit for debug runs
+        if: ${{ runner.debug == '1' }}
+        run: echo 'RUN=yarn audit-script --verbose' >> "$GITHUB_ENV"
       - name: Run yarn ${{ matrix.script }}
-        run: yarn "$SCRIPT"
+        run: $RUN "$SCRIPT"
         env:
           SCRIPT: ${{ matrix.script }}
       - name: Require clean working directory
@@ -125,8 +134,11 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
+      - name: Enable permission audit for debug runs
+        if: ${{ runner.debug == '1' }}
+        run: echo 'RUN=yarn audit-script --verbose' >> "$GITHUB_ENV"
       - name: Lint
-        run: yarn lint:oxlint
+        run: $RUN lint:oxlint
       - name: Require clean working directory
         shell: bash
         run: |
@@ -189,14 +201,19 @@ jobs:
       matrix:
         node-version: [26.x]
     steps:
+      - name: Remove global TypeScript
+        run: npm uninstall -g typescript
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
+      - name: Enable permission audit for debug runs
+        if: ${{ runner.debug == '1' }}
+        run: echo 'RUN=yarn audit-script --verbose' >> "$GITHUB_ENV"
       - name: Build
-        run: yarn build
+        run: $RUN build
       - name: Require clean working directory
         shell: bash
         run: |
@@ -219,8 +236,11 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
-      - run: yarn test:scripts
-      - run: yarn test:scripts:shell
+      - name: Enable permission audit for debug runs
+        if: ${{ runner.debug == '1' }}
+        run: echo 'RUN=yarn audit-script --verbose' >> "$GITHUB_ENV"
+      - run: $RUN test:scripts
+      - run: $RUN test:scripts:shell
       - name: Require clean working directory
         shell: bash
         run: |
@@ -269,6 +289,8 @@ jobs:
     runs-on: ubuntu-latest
     if: needs.prepare.outputs.package-names != '[]'
     needs: prepare
+    env:
+      RUN: yarn workspace ${{ matrix.package-name }} run
     strategy:
       fail-fast: false
       matrix:
@@ -280,9 +302,12 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: 24.x
-      - run: yarn workspace "$PACKAGE_NAME" run test
+      - name: Enable permission audit for debug runs
+        if: ${{ runner.debug == '1' }}
+        run: echo "RUN=yarn workspace $PACKAGE_NAME run audit-script --verbose" >> "$GITHUB_ENV"
         env:
           PACKAGE_NAME: ${{ matrix.package-name }}
+      - run: $RUN test
       - name: Require clean working directory
         shell: bash
         run: |
@@ -331,6 +356,8 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: 26.x
-
+      - name: Enable permission audit for debug runs
+        if: ${{ runner.debug == '1' }}
+        run: echo 'RUN=yarn audit-script --verbose' >> "$GITHUB_ENV"
       - name: Generate and build Platform API docs
-        run: yarn docs:platform-api:build
+        run: $RUN docs:platform-api:build
