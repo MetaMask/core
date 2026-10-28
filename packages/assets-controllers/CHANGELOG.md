@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test: make nock tests independent of node-fetch in network, assets and transaction controllers ([#11132](https://github.com/MetaMask/core/pull/11132))
-
 ## [113.0.0]
 
 ### Added
