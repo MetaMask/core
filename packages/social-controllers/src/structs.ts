@@ -91,7 +91,14 @@ const AuthorCommentStruct = structType({
   uid: string(),
   text: string(),
   timestamp: number(),
+  sourceLanguage: optional(nullable(string())),
+  translations: optional(record(string(), string())),
   engagement: CommentEngagementStruct,
+});
+
+export const CommentTranslationStruct = structType({
+  sourceLanguage: nullable(string()),
+  translations: record(string(), string()),
 });
 
 const SwapCommentAuthorStruct = structType({

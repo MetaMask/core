@@ -763,14 +763,21 @@ export class NeoBankService {
    * (`Completed`, `Failed`, …). The deprecated `state` field is ignored.
    *
    * @param autorampId - MoonPay autoramp id.
+   * @param options - Optional page size. Omitted requests use the API default.
+   * @param options.pageSize - `page_size` query value. Callers that diff
+   * status pass 50.
    * @returns Transaction summaries from the newest page.
    */
   async listAutorampTransactions(
     autorampId: string,
+    options?: { pageSize?: number },
   ): Promise<AutorampTransactionSummary[]> {
     const response = await this.#getJson<unknown>('autoramp-transactions', {
       autoramp_id: autorampId,
       sort_order: 'desc',
+      ...(options?.pageSize === undefined
+        ? {}
+        : { page_size: options.pageSize }),
     });
     const transactions = readPagedItems(
       response,

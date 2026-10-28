@@ -4,7 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll, disableNetConnect, enableNetConnect } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AnalyticsDataRegulationServiceMessenger } from './AnalyticsDataRegulationService.js';
@@ -20,14 +20,14 @@ describe('AnalyticsDataRegulationService', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    cleanAll();
-    disableNetConnect();
+    nock.cleanAll();
+    nock.disableNetConnect();
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    cleanAll();
-    enableNetConnect();
+    nock.cleanAll();
+    nock.enableNetConnect();
   });
 
   describe('AnalyticsDataRegulationService:createDataDeletionTask', () => {

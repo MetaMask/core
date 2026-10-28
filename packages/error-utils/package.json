@@ -1,6 +1,6 @@
 {
   "name": "@metamask/error-utils",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Utilities for inspecting, wrapping, and extracting messages from errors",
   "keywords": [
     "Ethereum",
@@ -50,7 +50,7 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/type-utils": "^0.0.0",
+    "@metamask/type-utils": "^0.1.0",
     "pony-cause": "^2.1.11"
   },
   "devDependencies": {

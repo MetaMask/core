@@ -82,7 +82,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/seedless-onboarding-controller": "^12.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/utils": "^12.0.0",
+    "@metamask/utils": "^12.0.1",
     "@noble/curves": "^1.9.7",
     "@noble/hashes": "^1.8.0",
     "@signinwithethereum/siwe": "^4.2.1",

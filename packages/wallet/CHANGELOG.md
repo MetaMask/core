@@ -7,11 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `NetworkEnablementController` to the default initialization configurations ([#10997](https://github.com/MetaMask/core/pull/10997))
+  - Delegates `MultichainNetworkController:getState`. `Wallet` does not construct `MultichainNetworkController`. Clients must register that action on the wallet messenger before calling `wallet.init()`. `NetworkEnablementController.init()` reads it during `Wallet.init()`, and `enableAllPopularNetworks` and `listPopularMultichainNetworks` read it later.
+  - Also delegates `ConfigRegistryController:getState`, `NetworkController:getState`, `NetworkController:networkAdded`, `NetworkController:networkRemoved`, `NetworkController:stateChange`, and `TransactionController:transactionSubmitted`. `Wallet` constructs those controllers during default initialization.
+
 ### Changed
 
+- Add `@metamask/network-enablement-controller` as a dependency ([#10997](https://github.com/MetaMask/core/pull/10997))
 - Bump `@metamask/claims-controller` from `^1.0.4` to `^1.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
 - Bump `@metamask/shield-controller` from `^7.0.5` to `^7.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
-- Bump `@metamask/subscription-controller` from `^15.0.0` to `^15.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/subscription-controller` from `^15.0.0` to `^15.1.1` ([#11092](https://github.com/MetaMask/core/pull/11092), [#11120](https://github.com/MetaMask/core/pull/11120))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [20.0.0]
 

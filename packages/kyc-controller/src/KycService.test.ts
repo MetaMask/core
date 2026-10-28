@@ -4,7 +4,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { EncryptionSchema, KycServiceMessenger } from './KycService.js';
@@ -21,7 +21,7 @@ const services: KycService[] = [];
 
 describe('KycService', () => {
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
     for (const service of services) {
       service.destroy();
     }

@@ -16,6 +16,7 @@ import type {
   BlockedProfilesResponse,
   BlockOptions,
   CommentEngagement,
+  CommentTranslation,
   CopyTradeIntentResponse,
   CreateCopyTradeIntentOptions,
   CreateSwapCommentOptions,
@@ -40,6 +41,7 @@ import type {
   ReactToCommentOptions,
   RemoveCommentReactionOptions,
   SwapCommentResponse,
+  TranslateCommentOptions,
   TraderProfileResponse,
   UnfollowOptions,
   UnfollowResponse,
@@ -49,6 +51,7 @@ import {
   BlockedContentResponseStruct,
   BlockedProfilesResponseStruct,
   CommentEngagementStruct,
+  CommentTranslationStruct,
   CopyTradeIntentResponseStruct,
   FollowResponseStruct,
   FollowersResponseStruct,
@@ -84,6 +87,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'reactToComment',
   'removeCommentReaction',
   'createSwapComment',
+  'translateComment',
   'createCopyTradeIntent',
   'follow',
   'unfollow',
@@ -792,6 +796,51 @@ export class SocialService extends BaseDataService<
           );
         }
         return comment;
+      },
+    });
+  }
+
+  /**
+   * Requests a translation of a swap comment (Call).
+   *
+   * Calls `POST ${baseUrl}/swap-comment/${commentId}/translate`. social-api
+   * does not expose this route yet, so a missing route rejects with
+   * {@link SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}.
+   * `SocialController.translateComment` logs that case.
+   *
+   * @param options - Options bag.
+   * @param options.commentId - `authorComment.uid` from a feed item.
+   * @param options.targetLanguage - AWS language code to translate into, for
+   * example `en`.
+   * @returns The detected source language and stored translations.
+   */
+  async translateComment(
+    options: TranslateCommentOptions,
+  ): Promise<CommentTranslation> {
+    const { commentId, targetLanguage } = options;
+
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:translateComment`, commentId, targetLanguage],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/swap-comment/${encodeURIComponent(commentId)}/translate`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetLanguage }),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED,
+        );
+        const translation = (await response.json()) as unknown;
+        if (!is(translation, CommentTranslationStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.TRANSLATE_COMMENT_INVALID_RESPONSE,
+          );
+        }
+        return translation;
       },
     });
   }

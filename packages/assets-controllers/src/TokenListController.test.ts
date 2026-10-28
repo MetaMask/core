@@ -15,7 +15,7 @@ import type {
 import type { NetworkState } from '@metamask/network-controller';
 import { StorageGetResult } from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
 
@@ -568,7 +568,7 @@ describe('TokenListController', () => {
 
   afterEach(() => {
     vi.clearAllTimers();
-    cleanAll();
+    nock.cleanAll();
     tokenService.resetSuggestedOccurrenceFloorsCacheForTesting();
   });
 

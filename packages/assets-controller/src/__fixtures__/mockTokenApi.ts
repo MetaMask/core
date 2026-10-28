@@ -1,6 +1,6 @@
 import { API_URLS, ApiPlatformClient } from '@metamask/core-backend';
 import type { Json } from '@metamask/utils';
-import nock, { pendingMocks } from 'nock';
+import nock from 'nock';
 
 import {
   ARBITRUM_GMX,
@@ -16,7 +16,8 @@ import {
   SOLANA_USDC,
   findTokenMetadata,
 } from './spamWalletState.js';
-import { waitFor } from './test-utils.js';
+import { getRequestUrl, waitFor } from './test-utils.js';
+import type { NockRequestInfo } from './test-utils.js';
 
 /**
  * `GET token.api.cx.metamask.io/v1/suggestedOccurrenceFloors`, verbatim.
@@ -127,7 +128,7 @@ export function mockV3Assets({
     .get('/v3/assets')
     .query(true)
     .times(times)
-    .reply(status, (uri: string) => {
+    .reply(status, (uri: NockRequestInfo) => {
       const assetIds = readAssetIds(uri);
       requestedBatches.push(assetIds);
       if (status !== 200) {
@@ -154,7 +155,7 @@ export async function waitForTokenApiRequests(
 ): Promise<void> {
   await waitFor(
     () => {
-      if (pendingMocks().length > 0) {
+      if (nock.pendingMocks().length > 0) {
         throw new Error('Mocks are still pending');
       }
     },
@@ -168,8 +169,11 @@ export async function waitForTokenApiRequests(
  * @param uri - The intercepted request URI, path and query.
  * @returns The asset IDs the caller asked about.
  */
-function readAssetIds(uri: string): string[] {
-  const assetIds = new URL(uri, API_URLS.TOKENS).searchParams.get('assetIds');
+function readAssetIds(uri: NockRequestInfo): string[] {
+  const assetIds = new URL(
+    getRequestUrl(uri),
+    API_URLS.TOKENS,
+  ).searchParams.get('assetIds');
   return assetIds ? assetIds.split(',') : [];
 }
 

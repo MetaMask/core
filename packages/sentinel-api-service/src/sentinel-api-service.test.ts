@@ -6,7 +6,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
-import nock, { cleanAll as nockCleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -232,7 +232,7 @@ function mockNetworks(times = 1): nock.Scope {
 
 describe('SentinelApiService', () => {
   afterEach(() => {
-    nockCleanAll();
+    nock.cleanAll();
   });
 
   describe('errors', () => {
