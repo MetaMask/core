@@ -16,6 +16,7 @@ import type {
   BlockedProfilesResponse,
   BlockOptions,
   CommentEngagement,
+  CommentTranslation,
   CopyTradeIntentResponse,
   CreateCopyTradeIntentOptions,
   CreateSwapCommentOptions,
@@ -40,7 +41,9 @@ import type {
   ReactToCommentOptions,
   RemoveCommentReactionOptions,
   SwapCommentResponse,
+  TranslateCommentOptions,
   TraderProfileResponse,
+  UnblockProfileOptions,
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types.js';
@@ -49,6 +52,7 @@ import {
   BlockedContentResponseStruct,
   BlockedProfilesResponseStruct,
   CommentEngagementStruct,
+  CommentTranslationStruct,
   CopyTradeIntentResponseStruct,
   FollowResponseStruct,
   FollowersResponseStruct,
@@ -84,6 +88,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'reactToComment',
   'removeCommentReaction',
   'createSwapComment',
+  'translateComment',
   'createCopyTradeIntent',
   'follow',
   'unfollow',
@@ -91,6 +96,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'optInToLeaderboard',
   'refreshNotificationPreferencesCache',
   'block',
+  'unblockProfile',
   'fetchBlockedProfiles',
   'fetchBlockedContent',
 ] as const;
@@ -446,6 +452,10 @@ export class SocialService extends BaseDataService<
    * @param options.scope - `following` (default), `leaderboard`, `all`, or
    * `trending`.
    * @param options.chains - Filter by one or more chains.
+   * @param options.assetIds - Only items in any of these CAIP-19 assets. Invalid
+   * or unsupported asset ids are rejected with a 400.
+   * @param options.profileId - Only this trader's items.
+   * @param options.commentedOnly - When true, only items with an author comment.
    * @param options.limit - Number of results per page.
    * @param options.olderThan - Cursor for older items (scroll down).
    * @param options.newerThan - Cursor for newer items (refresh).
@@ -456,7 +466,16 @@ export class SocialService extends BaseDataService<
       queryKey: [`${this.name}:fetchFeed`, options ?? null],
       staleTime: 0,
       queryFn: async () => {
-        const { scope, chains, limit, olderThan, newerThan } = options ?? {};
+        const {
+          scope,
+          chains,
+          assetIds,
+          profileId,
+          commentedOnly,
+          limit,
+          olderThan,
+          newerThan,
+        } = options ?? {};
         const url = new URL(`${this.#v1Url}/feed`);
         if (scope) {
           url.searchParams.append('scope', scope);
@@ -465,6 +484,17 @@ export class SocialService extends BaseDataService<
           for (const chain of chains) {
             url.searchParams.append('chains', chain);
           }
+        }
+        if (assetIds) {
+          for (const assetId of assetIds) {
+            url.searchParams.append('assetIds', assetId);
+          }
+        }
+        if (profileId) {
+          url.searchParams.append('profileId', profileId);
+        }
+        if (commentedOnly === true) {
+          url.searchParams.append('commentedOnly', 'true');
         }
         if (limit !== undefined) {
           url.searchParams.append('limit', String(limit));
@@ -768,6 +798,51 @@ export class SocialService extends BaseDataService<
           );
         }
         return comment;
+      },
+    });
+  }
+
+  /**
+   * Requests a translation of a swap comment (Call).
+   *
+   * Calls `POST ${baseUrl}/swap-comment/${commentId}/translate`. social-api
+   * does not expose this route yet, so a missing route rejects with
+   * {@link SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}.
+   * `SocialController.translateComment` logs that case.
+   *
+   * @param options - Options bag.
+   * @param options.commentId - `authorComment.uid` from a feed item.
+   * @param options.targetLanguage - AWS language code to translate into, for
+   * example `en`.
+   * @returns The detected source language and stored translations.
+   */
+  async translateComment(
+    options: TranslateCommentOptions,
+  ): Promise<CommentTranslation> {
+    const { commentId, targetLanguage } = options;
+
+    return await this.fetchQuery({
+      queryKey: [`${this.name}:translateComment`, commentId, targetLanguage],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/swap-comment/${encodeURIComponent(commentId)}/translate`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { ...authHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetLanguage }),
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED,
+        );
+        const translation = (await response.json()) as unknown;
+        if (!is(translation, CommentTranslationStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.TRANSLATE_COMMENT_INVALID_RESPONSE,
+          );
+        }
+        return translation;
       },
     });
   }
@@ -1097,6 +1172,37 @@ export class SocialService extends BaseDataService<
         SocialService.#throwIfNotOk(
           response,
           SocialServiceErrorMessage.BLOCK_FAILED,
+        );
+        return null;
+      },
+    });
+  }
+
+  /**
+   * Removes the current user's block on a trader.
+   *
+   * Calls `DELETE ${baseUrl}/moderation/blocks/profiles/${profileId}`.
+   * Unblocking a trader who is not blocked is a no-op. The caller is
+   * identified server-side from the JWT sub claim carried in the
+   * Authorization header.
+   *
+   * @param options - Options bag.
+   * @param options.profileId - Profile id (UUID) of the trader to unblock.
+   */
+  async unblockProfile({ profileId }: UnblockProfileOptions): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:unblockProfile`, profileId],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/moderation/blocks/profiles/${encodeURIComponent(profileId)}`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'DELETE',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.UNBLOCK_PROFILE_FAILED,
         );
         return null;
       },

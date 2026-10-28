@@ -61,8 +61,8 @@
     "@metamask/snaps-controllers": "^19.0.1",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
-    "@metamask/transaction-controller": "^72.2.1",
-    "@metamask/utils": "^12.0.0"
+    "@metamask/transaction-controller": "^72.3.0",
+    "@metamask/utils": "^12.0.1"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^5.1.0",

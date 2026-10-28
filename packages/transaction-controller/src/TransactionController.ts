@@ -4127,6 +4127,7 @@ export class TransactionController extends BaseController<
       tokenBalanceChanges: [],
     };
     let gasUsed: Hex | undefined;
+    let gasFeeSponsor: string | undefined;
     let gasFeeTokens: GasFeeToken[] = [];
     let isGasFeeSponsored = false;
     let simulationRevert: Revert | undefined;
@@ -4178,6 +4179,7 @@ export class TransactionController extends BaseController<
         const gasFeeTokensResponse =
           await this.#getGasFeeTokens(transactionMeta);
 
+        gasFeeSponsor = gasFeeTokensResponse?.gasFeeSponsor;
         gasFeeTokens = gasFeeTokensResponse?.gasFeeTokens ?? [];
         isGasFeeSponsored = gasFeeTokensResponse?.isGasFeeSponsored ?? false;
       }
@@ -4212,6 +4214,9 @@ export class TransactionController extends BaseController<
           txMeta.gasFeeTokens = gasFeeTokens;
           txMeta.isGasFeeSponsored =
             txMeta.isGasFeeSponsored ?? isGasFeeSponsored;
+          txMeta.gasFeeSponsor = txMeta.isGasFeeSponsored
+            ? gasFeeSponsor
+            : undefined;
 
           if (txMeta.isGasFeeSponsored) {
             txMeta.isExternalSign = true;
@@ -4509,6 +4514,7 @@ export class TransactionController extends BaseController<
   }
 
   async #getGasFeeTokens(transaction: TransactionMeta): Promise<{
+    gasFeeSponsor?: string;
     gasFeeTokens: GasFeeToken[];
     isGasFeeSponsored: boolean;
   }> {

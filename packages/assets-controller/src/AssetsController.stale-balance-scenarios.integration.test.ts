@@ -1,6 +1,6 @@
 import type { BalanceUpdate } from '@metamask/core-backend';
 import { TransactionStatus } from '@metamask/transaction-controller';
-import { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { stateBalancesSurface } from './__fixtures__/assetSurfaces.js';
@@ -207,12 +207,12 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
   const BALANCES = stateBalancesSurface(SOLANA_ACCOUNT_ID);
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   it('1: keeps the last amounts on screen when the snap is unreachable', async () => {
     const seeded = await fetchSolanaSnapWallet();
-    cleanAll();
+    nock.cleanAll();
 
     const unreachable = await fetchSolanaSnapWallet({
       state: buildEmptySolanaSnapState({
@@ -237,7 +237,7 @@ describe('AssetsController stale-balance scenarios: Solana keyring snap', () => 
 
   it('2: copies the last amount for a skipped asset the snap has seen before', async () => {
     const seeded = await fetchSolanaSnapWallet();
-    cleanAll();
+    nock.cleanAll();
 
     const skipped = await fetchSolanaSnapWallet({
       state: buildEmptySolanaSnapState({
@@ -377,12 +377,12 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
   const BALANCES = stateBalancesSurface(BSC_ACCOUNT_ID);
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   it('4: keeps the last amount for the one token whose RPC read fails while the rest of the chain updates', async () => {
     const seeded = await fetchBscWallet();
-    cleanAll();
+    nock.cleanAll();
 
     const after = await fetchBscWallet({
       state: buildEmptyStaleBalanceState({
@@ -412,7 +412,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
       apiMutations: { setBalances: { [USDT_ASSET_ID_LOWER]: '0' } },
     });
     expect(BALANCES.lookupAmount(seeded, USDT_ASSET_ID_CHECKSUM)).toBe('0');
-    cleanAll();
+    nock.cleanAll();
 
     const after = await fetchBscWallet({
       state: buildEmptyStaleBalanceState({
@@ -446,7 +446,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
 
   it('6: keeps every last amount on the chain when all RPC calls fail', async () => {
     const seeded = await fetchBscWallet();
-    cleanAll();
+    nock.cleanAll();
 
     const after = await fetchBscWallet({
       state: buildEmptyStaleBalanceState({
@@ -470,7 +470,7 @@ describe('AssetsController stale-balance scenarios: BNB Chain RPC fallback', () 
 
   it('7: recovers the chain with fresh amounts once the RPC fallback owns it', async () => {
     const seeded = await fetchBscWallet();
-    cleanAll();
+    nock.cleanAll();
 
     const after = await fetchBscWallet({
       state: buildEmptyStaleBalanceState({
@@ -576,7 +576,7 @@ describe('AssetsController stale-balance scenarios: Account Activity live events
   const BALANCES = stateBalancesSurface(BSC_ACCOUNT_ID);
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   /**
@@ -740,7 +740,7 @@ describe('AssetsController stale-balance scenarios: staked ETH on mainnet and Ho
   const BALANCES = stateBalancesSurface(MAINNET_ACCOUNT_ID);
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
   });
 
   it('12: refreshes only the vault the transaction touched, and staked ETH survives token polls that never include it', async () => {

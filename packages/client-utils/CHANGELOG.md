@@ -10,14 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add `predictionSettled` to `ActivityKind` for prediction-market payouts that settle automatically, without a manual claim ([#11169](https://github.com/MetaMask/core/pull/11169))
+  - It shares the data shape of the other prediction kinds, with the proceeds in `data.token` (direction `in`)
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.2.1` ([#10652](https://github.com/MetaMask/core/pull/10652), [#10772](https://github.com/MetaMask/core/pull/10772), [#10817](https://github.com/MetaMask/core/pull/10817))
+- Bump `@metamask/transaction-controller` from `^72.0.1` to `^72.3.0` ([#10652](https://github.com/MetaMask/core/pull/10652), [#10772](https://github.com/MetaMask/core/pull/10772), [#10817](https://github.com/MetaMask/core/pull/10817), [#11154](https://github.com/MetaMask/core/pull/11154))
 - Bump `@metamask/core-backend` from `^12.0.0` to `^12.3.0` ([#10662](https://github.com/MetaMask/core/pull/10662), [#10788](https://github.com/MetaMask/core/pull/10788), [#10857](https://github.com/MetaMask/core/pull/10857), [#10876](https://github.com/MetaMask/core/pull/10876))
 - Bump `@metamask/contract-metadata` from `^2.4.0` to `^2.5.0` ([#10716](https://github.com/MetaMask/core/pull/10716))
 - Bump `@metamask/slip44` from `^4.3.0` to `^4.5.0` ([#10736](https://github.com/MetaMask/core/pull/10736))
 - Bump `@metamask/keyring-api` from `^24.0.0` to `^24.3.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ### Fixed
 

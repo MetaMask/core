@@ -7,9 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+
+## [30.1.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/analytics-controller` from `^4.0.0` to `^4.1.0` ([#11072](https://github.com/MetaMask/core/pull/11072))
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
 
 ## [30.0.1]
 
@@ -1002,7 +1014,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.1.0...HEAD
+[30.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.1...@metamask/notification-services-controller@30.1.0
 [30.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@30.0.0...@metamask/notification-services-controller@30.0.1
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.3...@metamask/notification-services-controller@30.0.0
 [29.0.3]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@29.0.2...@metamask/notification-services-controller@29.0.3

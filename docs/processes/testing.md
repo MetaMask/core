@@ -10,6 +10,7 @@ If you need to customize the behavior of the test runner for a package, see `vit
 - Run `yarn workspace <workspaceName> run test run <file>` to run a single test file.
 - Run `yarn workspace <workspaceName> run test:coverage` to run all tests for a package with coverage and enforce its coverage thresholds.
 - Run `yarn test` to run tests for all packages.
+- Run `yarn test:packages --project <directory-name>` from the root to run a single package through the root Vitest projects config.
 
 > **Note**
 >

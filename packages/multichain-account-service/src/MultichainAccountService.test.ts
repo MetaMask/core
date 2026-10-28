@@ -10,6 +10,7 @@ import {
   EthAccountType,
   SolAccountType,
   TrxAccountType,
+  XlmAccountType,
 } from '@metamask/keyring-api';
 import type { Keyring } from '@metamask/keyring-api/v2';
 import { KeyringType } from '@metamask/keyring-api/v2';
@@ -62,6 +63,10 @@ import {
   TRX_ACCOUNT_PROVIDER_NAME,
   TrxAccountProvider,
 } from './providers/TrxAccountProvider.js';
+import {
+  XLM_ACCOUNT_PROVIDER_NAME,
+  XlmAccountProvider,
+} from './providers/XlmAccountProvider.js';
 import type { MultichainAccountServiceMessenger } from './types.js';
 import type { SentryError } from './utils.js';
 
@@ -96,6 +101,12 @@ vi.mock('./providers/TrxAccountProvider', async (importOriginal) => ({
   >()),
   TrxAccountProvider: vi.fn(),
 }));
+vi.mock('./providers/XlmAccountProvider', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('./providers/XlmAccountProvider.js')
+  >()),
+  XlmAccountProvider: vi.fn(),
+}));
 
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -125,6 +136,8 @@ type Mocks = {
   BtcAccountProvider: MockAccountProvider;
   // eslint-disable-next-line @typescript-eslint/naming-convention
   TrxAccountProvider: MockAccountProvider;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  XlmAccountProvider: MockAccountProvider;
 };
 
 function mockAccountProvider<Provider extends Bip44AccountProvider>(
@@ -166,6 +179,11 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
     mocks.isAccountCompatible?.mockImplementation(
       (account: KeyringAccount) => account.type === TrxAccountType.Eoa,
     );
+  } else if (providerClass === (XlmAccountProvider as unknown)) {
+    mocks.getName.mockReturnValue(XLM_ACCOUNT_PROVIDER_NAME);
+    mocks.isAccountCompatible?.mockImplementation(
+      (account: KeyringAccount) => account.type === XlmAccountType.Account,
+    );
   }
 
   // Mirror production behavior: a provider's tracked account IDs are only
@@ -188,12 +206,14 @@ async function setup({
   rootMessenger = getRootMessenger(),
   keyrings = [MOCK_HD_KEYRING_1, MOCK_HD_KEYRING_2],
   accounts,
+  providers,
   providerConfigs,
   config,
 }: {
   rootMessenger?: RootMessenger;
   keyrings?: KeyringObject[];
   accounts?: KeyringAccount[];
+  providers?: MultichainAccountServiceOptions['providers'];
   providerConfigs?: MultichainAccountServiceOptions['providerConfigs'];
   config?: MultichainAccountServiceOptions['config'];
 } = {}): Promise<{
@@ -223,6 +243,7 @@ async function setup({
     SolAccountProvider: makeMockAccountProvider(),
     BtcAccountProvider: makeMockAccountProvider(),
     TrxAccountProvider: makeMockAccountProvider(),
+    XlmAccountProvider: makeMockAccountProvider(),
   };
 
   // Required for the `assert` on `MultichainAccountWallet.createMultichainAccountGroup`.
@@ -279,6 +300,7 @@ async function setup({
     SolAccountProvider.NAME = SOL_ACCOUNT_PROVIDER_NAME;
     BtcAccountProvider.NAME = BTC_ACCOUNT_PROVIDER_NAME;
     TrxAccountProvider.NAME = TRX_ACCOUNT_PROVIDER_NAME;
+    XlmAccountProvider.NAME = XLM_ACCOUNT_PROVIDER_NAME;
 
     mockAccountProvider<EvmAccountProvider>(
       EvmAccountProvider,
@@ -308,12 +330,20 @@ async function setup({
       3,
       TrxAccountType.Eoa,
     );
+    mockAccountProvider<XlmAccountProvider>(
+      XlmAccountProvider,
+      mocks.XlmAccountProvider,
+      accounts,
+      4,
+      XlmAccountType.Account,
+    );
   }
 
   const messenger = getMultichainAccountServiceMessenger(rootMessenger);
 
   const service = new MultichainAccountService({
     messenger,
+    providers,
     providerConfigs,
     config,
   });
@@ -353,6 +383,17 @@ describe('MultichainAccountService', () => {
               timeoutMs: 3000,
             },
           },
+          [XLM_ACCOUNT_PROVIDER_NAME]: {
+            maxConcurrency: 1,
+            discovery: {
+              timeoutMs: 2000,
+              maxAttempts: 3,
+              backOffMs: 1000,
+            },
+            createAccounts: {
+              timeoutMs: 3000,
+            },
+          },
         };
 
       const { mocks, messenger } = await setup({
@@ -368,6 +409,11 @@ describe('MultichainAccountService', () => {
       expect(mocks.SolAccountProvider.constructor).toHaveBeenCalledWith(
         messenger,
         providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
+        expect.any(Function), // TraceCallback
+      );
+      expect(mocks.XlmAccountProvider.constructor).toHaveBeenCalledWith(
+        messenger,
+        providerConfigs?.[XLM_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
       );
     });
@@ -489,6 +535,39 @@ describe('MultichainAccountService', () => {
         messenger,
         providerConfigs?.[SOL_ACCOUNT_PROVIDER_NAME],
         expect.any(Function), // TraceCallback
+      );
+    });
+
+    it('throws if a custom provider reuses a built-in provider name', async () => {
+      const duplicateProvider = makeMockAccountProvider();
+      duplicateProvider.getName.mockReturnValue(XLM_ACCOUNT_PROVIDER_NAME);
+
+      await expect(
+        setup({
+          accounts: [MOCK_HD_ACCOUNT_1],
+          providers: [duplicateProvider as unknown as Bip44AccountProvider],
+        }),
+      ).rejects.toThrow(
+        `Duplicate account provider name "${XLM_ACCOUNT_PROVIDER_NAME}". Custom providers must not reuse a built-in or already-registered provider name.`,
+      );
+    });
+
+    it('throws if two custom providers share the same name', async () => {
+      const firstProvider = makeMockAccountProvider();
+      firstProvider.getName.mockReturnValue('CustomProvider');
+      const secondProvider = makeMockAccountProvider();
+      secondProvider.getName.mockReturnValue('CustomProvider');
+
+      await expect(
+        setup({
+          accounts: [MOCK_HD_ACCOUNT_1],
+          providers: [
+            firstProvider as unknown as Bip44AccountProvider,
+            secondProvider as unknown as Bip44AccountProvider,
+          ],
+        }),
+      ).rejects.toThrow(
+        'Duplicate account provider name "CustomProvider". Custom providers must not reuse a built-in or already-registered provider name.',
       );
     });
   });
@@ -1053,6 +1132,7 @@ describe('MultichainAccountService', () => {
       // Providers that own no accounts for this wallet should be left alone.
       expect(mocks.BtcAccountProvider.deleteAccounts).not.toHaveBeenCalled();
       expect(mocks.TrxAccountProvider.deleteAccounts).not.toHaveBeenCalled();
+      expect(mocks.XlmAccountProvider.deleteAccounts).not.toHaveBeenCalled();
       expect(() =>
         service.getMultichainAccountWallet({
           entropySource: MOCK_HD_KEYRING_1.metadata.id,

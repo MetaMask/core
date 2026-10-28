@@ -17,7 +17,6 @@ function buildSources(): UpdateSources {
       'CustomAssetGraduationMiddleware',
     ),
     rpcFallbackMiddleware: stubSource('RpcFallbackMiddleware'),
-    detectionMiddleware: stubSource('DetectionMiddleware'),
     tokenDataSource: stubSource('TokenDataSource'),
     priceDataSource: stubSource('PriceDataSource'),
   };
@@ -26,53 +25,43 @@ function buildSources(): UpdateSources {
 describe('buildUpdateSources', () => {
   it.each([
     {
-      title:
-        'v5 AccountsApi lane: graduation → RPC fallback → detection → enrichment',
+      title: 'v5 AccountsApi lane: graduation → RPC fallback → enrichment',
       includeCustomAssetGraduation: true,
       includeRpcFallback: true,
       isBasicFunctionality: true,
       expected: [
         'CustomAssetGraduationMiddleware',
         'RpcFallbackMiddleware',
-        'DetectionMiddleware',
         'ParallelMiddleware',
       ],
     },
     {
-      title: 'v5 AccountsApi lane: graduation → RPC fallback → detection',
+      title: 'v5 AccountsApi lane: graduation → RPC fallback',
       includeCustomAssetGraduation: true,
       includeRpcFallback: true,
       isBasicFunctionality: false,
-      expected: [
-        'CustomAssetGraduationMiddleware',
-        'RpcFallbackMiddleware',
-        'DetectionMiddleware',
-      ],
+      expected: ['CustomAssetGraduationMiddleware', 'RpcFallbackMiddleware'],
     },
     {
-      title: 'v5 Snap/RPC lane: detection → enrichment',
+      title: 'v5 Snap/RPC lane: enrichment',
       includeCustomAssetGraduation: false,
       includeRpcFallback: false,
       isBasicFunctionality: true,
-      expected: ['DetectionMiddleware', 'ParallelMiddleware'],
+      expected: ['ParallelMiddleware'],
     },
     {
-      title: 'v6 lane: RPC fallback → detection → enrichment',
+      title: 'v6 lane: RPC fallback → enrichment',
       includeCustomAssetGraduation: false,
       includeRpcFallback: true,
       isBasicFunctionality: true,
-      expected: [
-        'RpcFallbackMiddleware',
-        'DetectionMiddleware',
-        'ParallelMiddleware',
-      ],
+      expected: ['RpcFallbackMiddleware', 'ParallelMiddleware'],
     },
     {
-      title: 'v6 lane: detection only',
+      title: 'v6 lane: no enrichment when basic functionality is off',
       includeCustomAssetGraduation: false,
       includeRpcFallback: false,
       isBasicFunctionality: false,
-      expected: ['DetectionMiddleware'],
+      expected: [],
     },
   ])(
     '$title',
