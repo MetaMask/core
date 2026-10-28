@@ -173,6 +173,22 @@ export function needsCapabilityAuthorizationRefresh(
 }
 
 /**
+ * A record of the customer's verified identity data being shared with a vendor,
+ * returned by `GET /api/kyc/external-user-id/{externalUserId}/shares`.
+ *
+ * Metadata only — it remains available after the relay redacts the underlying
+ * session (14 days).
+ */
+export type KycDataShare = {
+  /** The UKYC session the data was shared from. */
+  kycSessionId: string;
+  /** The vendor the identity data was shared with. */
+  vendor: KycVendor;
+  /** ISO 8601 date-time string of when the data was shared. */
+  sharedAt: string;
+};
+
+/**
  * A single disclaimer/term the customer must accept before a vendor session is
  * created (`GET /vendors/{vendor}/disclaimers`).
  */
