@@ -11,10 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets ([#11030](https://github.com/MetaMask/core/pull/11030))
   - Snapshots without these fields, or with `null` values, still validate. An unrecognized `marginMode` rejects the snapshot, so snapshot-backed reads fall back to the provider.
-- Add optional `AccountState.crossMarginSummary` (`accountValue`, `maintenanceMargin`, `marginUsed`, `notional`) and the `CrossMarginSummary` type, so clients can show account ratio, maintenance margin, account leverage and cross margin usage for Hyperliquid and Lighter ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add optional `AccountState.crossMarginSummary` (`accountValue`, `maintenanceMargin`, `marginUsed`, `notional`) and the `CrossMarginSummary` type, so clients can show account ratio, maintenance margin, account leverage and cross margin usage for Hyperliquid and Lighter ([#11148](https://github.com/MetaMask/core/pull/11148))
   - Hyperliquid fills it from `crossMarginSummary` and `crossMaintenanceMarginUsed`, summed across HIP-3 DEXs. A malformed value fails the read.
   - Lighter fills it from `getAccountState` (not the `user_stats` stream) using the account's cross positions; account value is the total balance less isolated positions' unrealized PnL. It is omitted when market margin metadata cannot be read.
-- Add `GetAccountStateParams.throwOnUnavailable`: when `true`, a failed Lighter account read throws `ACCOUNT_STATE_FAILED` (with the original error as `cause`) instead of returning zero balances ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `GetAccountStateParams.throwOnUnavailable`: when `true`, a failed Lighter account read throws `ACCOUNT_STATE_FAILED` (with the original error as `cause`) instead of returning zero balances ([#11148](https://github.com/MetaMask/core/pull/11148))
   - Callers that omit it see no change. A wallet without a Lighter account still reads as empty.
 
 ### Changed
