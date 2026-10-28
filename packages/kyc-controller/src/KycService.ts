@@ -1021,8 +1021,6 @@ export class KycService extends BaseDataService<
       DataSharesResponseStruct,
       'data shares',
     );
-    // `vendor` is validated as a string (see `DataShareStruct`); narrowed here
-    // to the vendor union the package exposes.
     return shares as KycDataShare[];
   }
 

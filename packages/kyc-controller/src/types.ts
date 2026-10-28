@@ -182,8 +182,13 @@ export function needsCapabilityAuthorizationRefresh(
 export type KycDataShare = {
   /** The UKYC session the data was shared from. */
   kycSessionId: string;
-  /** The vendor the identity data was shared with. */
-  vendor: KycVendor;
+  /**
+   * The vendor the identity data was shared with.
+   *
+   * Plain `string` (like {@link KycSessionStatus.vendor}) because the relay
+   * returns vendors this package does not model (e.g. `kalshi`, `kraken`).
+   */
+  vendor: string;
   /** ISO 8601 date-time string of when the data was shared. */
   sharedAt: string;
 };
