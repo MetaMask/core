@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- UI queries now reflect `fetchStatus` and errors from fetches the data service starts in the background ([#NNNNN](https://github.com/MetaMask/core/pull/NNNNN))
+- UI queries now reflect `fetchStatus` and errors from fetches the data service starts in the background ([#11166](https://github.com/MetaMask/core/pull/11166))
   - While the data service refetches a query, the UI query is now `fetching` instead of staying `idle`, unless the UI is running its own fetch for that query.
   - When a background refetch fails, the UI query now moves to `error` with an `Error` built from the serialized error, keeping its existing data.
   - A UI query that mirrors a background fetch goes back to `idle` when its last observer is removed or when the data service removes the query.
