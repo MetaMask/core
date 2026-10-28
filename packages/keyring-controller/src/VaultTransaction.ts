@@ -183,11 +183,13 @@ type WalletSnapshot = {
  *    transaction does not reconcile them, and must not amplify them.
  * 4. On success, nothing is destroyed or rebuilt; instances survive in
  *    place and references remain valid.
- * 5. When a rebuild is necessary (failure path only), the stale instance
- *    is always destroyed before its replacement is created, as it must
- *    release the resources shared with the replacement (e.g. the SDK
- *    singleton of hardware keyrings) before the replacement is
- *    initialized.
+ * 5. When a rebuild is necessary (failure path only), every instance that
+ *    must make way for it is destroyed before the replacement is created,
+ *    as it must release the resources shared with the replacement (e.g.
+ *    the SDK singleton of hardware keyrings) before the replacement is
+ *    initialized: the stale instance being replaced, and — on the
+ *    wallet-scope rollback — every instance the failed transaction
+ *    created, before any keyring is rebuilt.
  *
  * The transaction is also the home of the data it accumulates about
  * itself, which must not outlive it: the keyring instances it destroyed,
@@ -427,14 +429,15 @@ export class VaultTransaction {
    * Reconcile the keyrings in memory with the pre-transaction snapshot,
    * touching only the keyrings that the failed transaction changed.
    *
-   * The snapshot is walked in order, preserving the keyring order:
-   * unchanged keyrings keep their instances, mutated keyrings are rebuilt
-   * in place, removed keyrings are recreated at their snapshot position,
-   * and keyrings created by the transaction are destroyed and dropped. A
-   * stale instance is always destroyed before its replacement is created,
-   * as it must release the resources shared with the replacement (e.g.
-   * the SDK singleton of hardware keyrings) before the replacement is
-   * initialized.
+   * The keyrings created by the failed transaction are destroyed first, as
+   * they may hold the shared resources (e.g. the SDK singleton of hardware
+   * keyrings) that the recreations below need to acquire. The snapshot is
+   * then walked in order, preserving the keyring order: unchanged keyrings
+   * keep their instances, mutated keyrings are rebuilt in place, and
+   * removed keyrings are recreated at their snapshot position. A stale
+   * instance is always destroyed before its replacement is created, as it
+   * must release the resources shared with the replacement before the
+   * replacement is initialized.
    */
   async #rollbackWallet(): Promise<void> {
     const snapshot = this.#requireWalletSnapshot();
@@ -451,6 +454,24 @@ export class VaultTransaction {
     // The keyrings live at the time of the rollback, before the walk
     // replaces them below.
     const oldKeyrings = this.#session.getKeyrings();
+
+    // Whatever is not in the snapshots was created by the failed
+    // transaction: destroyed before the walk, as the leftovers may hold
+    // the shared resources (e.g. the SDK singleton of hardware keyrings)
+    // that the recreations below need to acquire, and dropped by the
+    // single keyrings assignment at the end of the walk. Destruction
+    // failures must not mask the transaction's error.
+    const snapshotEntries = new Set(
+      snapshot.keyrings.map((keyringSnapshot) => keyringSnapshot.entry),
+    );
+    for (const leftover of oldKeyrings.filter(
+      // Keyring entries that are not present in the snapshots, i.e.,
+      // created by the failed transaction, so we need to destroy and drop
+      // them.
+      (old) => !snapshotEntries.has(old),
+    )) {
+      await this.destroy(leftover, { ignoreErrors: true });
+    }
 
     // Built locally, and assigned once after the reconciliation: readers
     // never observe a partially reconciled list, while duplicate account
@@ -487,21 +508,6 @@ export class VaultTransaction {
       if (entry) {
         reconciled.push(entry);
       }
-    }
-
-    // Whatever is left was created by the failed transaction: destroy and
-    // drop it.
-    const snapshotEntries = new Set(
-      snapshot.keyrings.map((keyringSnapshot) => keyringSnapshot.entry),
-    );
-    for (const leftover of oldKeyrings.filter(
-      // Keyring entries that are not present in the snapshots, i.e.,
-      // created by the failed transaction, so we need to destroy and drop
-      // them.
-      (old) => !snapshotEntries.has(old),
-    )) {
-      // Destruction failures must not mask the transaction's error.
-      await this.destroy(leftover, { ignoreErrors: true });
     }
 
     // Assigned once, after the reconciliation: everything outside
