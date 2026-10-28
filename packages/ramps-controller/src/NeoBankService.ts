@@ -720,6 +720,7 @@ export class NeoBankService extends BaseDataService<
     const response = await this.fetchQuery({
       queryKey: [`${this.name}:getAutoramp`, autorampId],
       staleTime: 0,
+      gcTime: 0,
       responseStruct: AutorampResponseStruct,
       queryFn: async () =>
         this.#getJson<Infer<typeof AutorampResponseStruct>>(
@@ -759,6 +760,7 @@ export class NeoBankService extends BaseDataService<
       const response = await this.fetchQuery({
         queryKey: [`${this.name}:getAutoramps`, toQueryKeyParams(query)],
         staleTime: 0,
+        gcTime: 0,
         responseStruct: AutorampListResponseStruct,
         queryFn: async () =>
           this.#getJson<Infer<typeof AutorampListResponseStruct>>(
@@ -796,6 +798,7 @@ export class NeoBankService extends BaseDataService<
     const response = await this.fetchQuery({
       queryKey: [`${this.name}:getPixDepositInstructions`, autorampId],
       staleTime: 0,
+      gcTime: 0,
       responseStruct: PixAutorampResponseStruct,
       queryFn: async () =>
         this.#getJson<Infer<typeof PixAutorampResponseStruct>>(
@@ -825,6 +828,7 @@ export class NeoBankService extends BaseDataService<
     const response = await this.fetchQuery({
       queryKey: [`${this.name}:getDepositInstructions`, autorampId],
       staleTime: 0,
+      gcTime: 0,
       responseStruct: PixAutorampResponseStruct,
       queryFn: async () =>
         this.#getJson<Infer<typeof PixAutorampResponseStruct>>(
@@ -873,6 +877,7 @@ export class NeoBankService extends BaseDataService<
         toQueryKeyParams(query),
       ],
       staleTime: 0,
+      gcTime: 0,
       responseStruct: AutorampTransactionListResponseStruct,
       queryFn: async () =>
         this.#getJson<Infer<typeof AutorampTransactionListResponseStruct>>(
@@ -933,6 +938,7 @@ export class NeoBankService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getAutorampQuote`, toQueryKeyParams(query)],
       staleTime: 0,
+      gcTime: 0,
       queryFn: async () => this.#getJson('autoramps/quote', query),
     });
   }
@@ -983,6 +989,7 @@ export class NeoBankService extends BaseDataService<
         toQueryKeyParams(query),
       ],
       staleTime: 0,
+      gcTime: 0,
       queryFn: async () =>
         this.#getJson(
           `autoramps/${encodeURIComponent(autorampId)}/quote`,
@@ -1027,6 +1034,7 @@ export class NeoBankService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:getCustomerByExternalId`, externalId],
       staleTime: 0,
+      gcTime: 0,
       queryFn: async () =>
         this.#getJson(`customers/${encodeURIComponent(externalId)}/external`),
     });
