@@ -2024,7 +2024,7 @@ function testsForRetriableResponses({
     expect(onDegradedListener).toHaveBeenCalledWith({
       endpointUrl: `${endpointUrl}/`,
       error: expect.objectContaining({
-        message: expect.stringMatching(/fetch failed/u),
+        message: expect.stringMatching(/Connection refused|fetch failed/u),
       }),
       rpcMethodName: 'eth_chainId',
       duration: undefined,

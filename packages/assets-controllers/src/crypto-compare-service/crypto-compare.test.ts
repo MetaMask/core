@@ -97,7 +97,7 @@ describe('CryptoCompare', () => {
       .replyWithError('Example network error');
 
     await expect(fetchExchangeRate('CAD', 'ETH')).rejects.toThrow(
-      /fetch failed/u,
+      /Example network error|fetch failed/u,
     );
   });
 

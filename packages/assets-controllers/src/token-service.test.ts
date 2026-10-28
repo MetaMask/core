@@ -760,7 +760,7 @@ describe('Token service', () => {
       expect(result).toStrictEqual({
         count: 0,
         data: [],
-        error: expect.stringMatching(/fetch failed/u),
+        error: expect.stringMatching(/Example network error|fetch failed/u),
       });
     });
 

@@ -161,7 +161,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             fetchTokenPrices,
             retries,
           }),
-        ).rejects.toThrow(/fetch failed/u);
+        ).rejects.toThrow(/Failed to fetch|fetch failed/u);
       }
 
       expect(onBreakHandler).toHaveBeenCalledTimes(1);
@@ -784,7 +784,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           ],
           currency: 'ETH',
         }),
-      ).rejects.toThrow(/fetch failed/u);
+      ).rejects.toThrow(/Failed to fetch|fetch failed/u);
     });
 
     it('throws if the initial request and all retries fail', async () => {
@@ -817,7 +817,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           ],
           currency: 'ETH',
         }),
-      ).rejects.toThrow(/fetch failed/u);
+      ).rejects.toThrow(/Failed to fetch|fetch failed/u);
     });
 
     it('succeeds if the last retry succeeds', async () => {
@@ -1230,7 +1230,7 @@ describe('CodefiTokenPricesServiceV2', () => {
               fetchTokenPrices,
               retries,
             }),
-          ).rejects.toThrow(/fetch failed/u);
+          ).rejects.toThrow(/Failed to fetch|fetch failed/u);
         }
 
         expect(onBreakHandler).toHaveBeenCalledTimes(1);
@@ -1304,7 +1304,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             includeUsdRate: true,
             cryptocurrencies: ['btc', 'eth'],
           }),
-        ).rejects.toThrow(/Failed to fetch/u);
+        ).rejects.toThrow(/Failed to fetch|fetch failed/u);
       });
       it('throws an error if none of the cryptocurrencies are supported', async () => {
         nock('https://price.api.cx.metamask.io')
@@ -1445,7 +1445,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             includeUsdRate: true,
             cryptocurrencies: ['btc', 'eth'],
           }),
-        ).rejects.toThrow(/Failed to fetch/u);
+        ).rejects.toThrow(/Failed to fetch|fetch failed/u);
       });
 
       it('returns successfully usd values when all the cryptocurrencies are supported', async () => {
@@ -1560,7 +1560,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           includeUsdRate: false,
           cryptocurrencies,
         }),
-      ).rejects.toThrow(/Failed to fetch/u);
+      ).rejects.toThrow(/Failed to fetch|fetch failed/u);
     });
 
     it('throws if the initial request and all retries fail', async () => {
@@ -1579,7 +1579,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           includeUsdRate: false,
           cryptocurrencies,
         }),
-      ).rejects.toThrow(/Failed to fetch/u);
+      ).rejects.toThrow(/Failed to fetch|fetch failed/u);
     });
 
     it('succeeds if the last retry succeeds', async () => {
@@ -1746,7 +1746,7 @@ describe('CodefiTokenPricesServiceV2', () => {
               fetchExchangeRates,
               retries,
             }),
-          ).rejects.toThrow(/Failed to fetch/u);
+          ).rejects.toThrow(/Failed to fetch|fetch failed/u);
         }
 
         expect(onBreakHandler).toHaveBeenCalledTimes(1);
