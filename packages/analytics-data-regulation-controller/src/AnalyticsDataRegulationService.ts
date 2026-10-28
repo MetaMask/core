@@ -290,6 +290,7 @@ export class AnalyticsDataRegulationService extends BaseDataService<
 
     const jsonResponse = await this.executeMutation({
       mutationKey: [`${this.name}:createDataDeletionTask`, analyticsId],
+      gcTime: 0,
       responseStruct: CreateRegulationResponseStruct,
       mutationFn: async () => {
         const response = await this.#fetch(url, {
@@ -341,6 +342,7 @@ export class AnalyticsDataRegulationService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:checkDataDeleteStatus`, regulationId],
       staleTime: 0,
+      gcTime: 0,
       queryFn: async () => {
         const response = await this.#fetch(url, {
           method: 'GET',
