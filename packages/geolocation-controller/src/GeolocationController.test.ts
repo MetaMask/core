@@ -5,6 +5,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { onlineManager } from '@tanstack/query-core';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
@@ -205,6 +206,25 @@ describe('GeolocationController', () => {
           expect(controller.state.location).toBe('DE');
         },
       );
+    });
+
+    it('shows loading while the first load is paused offline', async () => {
+      const mockFetch = createMockFetch();
+
+      await withController({ mockFetch }, async ({ controller }) => {
+        onlineManager.setOnline(false);
+        try {
+          // The paused fetch is dropped when the service is destroyed.
+          controller.getGeolocation().catch(() => undefined);
+          await vi.waitFor(() =>
+            expect(controller.state.status).toBe('loading'),
+          );
+          expect(mockFetch).not.toHaveBeenCalled();
+          expect(controller.state.error).toBeNull();
+        } finally {
+          onlineManager.setOnline(true);
+        }
+      });
     });
 
     it('reflects a cache hit without a network call', async () => {
@@ -489,6 +509,31 @@ describe('GeolocationController', () => {
           ]);
         },
       );
+    });
+
+    it('shows loading while the refresh is paused offline', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(buildResponse({ country: 'US' }));
+
+      await withController({ mockFetch }, async ({ controller }) => {
+        await controller.getGeolocation();
+        expect(controller.state.status).toBe('complete');
+
+        onlineManager.setOnline(false);
+        try {
+          // The paused fetch is dropped when the service is destroyed.
+          controller.refreshGeolocation().catch(() => undefined);
+          await vi.waitFor(() =>
+            expect(controller.state.status).toBe('loading'),
+          );
+          expect(mockFetch).toHaveBeenCalledTimes(1);
+          expect(controller.state.lastFetchedAt).toBeNull();
+          expect(controller.state.error).toBeNull();
+        } finally {
+          onlineManager.setOnline(true);
+        }
+      });
     });
 
     it('sets status to error when the fetch fails', async () => {

@@ -298,7 +298,8 @@ export class GeolocationController extends BaseController<
    * @param queryState - The state of the geolocation query.
    */
   #applyQueryState(queryState: DataServiceQueryState): void {
-    if (queryState.fetchStatus === 'fetching') {
+    // A fetch paused while offline still counts as loading.
+    if (queryState.fetchStatus !== 'idle') {
       this.update((draft) => {
         draft.status = 'loading';
         draft.error = null;
