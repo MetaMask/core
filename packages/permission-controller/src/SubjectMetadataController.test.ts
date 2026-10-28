@@ -226,7 +226,7 @@ describe('SubjectMetadataController', () => {
 
       const stateChangedListener = vi.fn();
       messenger.subscribe(
-        'SubjectMetadataController:stateChanged',
+        'SubjectMetadataController:stateChange',
         stateChangedListener,
       );
 
