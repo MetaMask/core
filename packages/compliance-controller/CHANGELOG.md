@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ComplianceServiceMessenger` now includes the `ComplianceService:invalidateQueries` action and `ComplianceService:cacheUpdated` events. Messengers built from `ComplianceServiceActions` / `ComplianceServiceEvents` pick these up automatically.
 - Concurrent `checkWalletCompliance` / `checkWalletsCompliance` calls with identical arguments now share one request. Sequential calls still always hit the API ([#10880](https://github.com/MetaMask/core/pull/10880))
 - Responses that do not match the expected shape now throw `Query function for "ComplianceService:<method>" returned an unexpected response: …`, instead of `Malformed response received from <api name>` ([#10880](https://github.com/MetaMask/core/pull/10880))
-- Response bodies that are not valid JSON are now retried by the service policy instead of failing immediately. Valid JSON with an invalid shape still fails immediately ([#10880](https://github.com/MetaMask/core/pull/10880))
+- Response bodies that are not valid JSON are now retried by the service policy and count toward opening the circuit breaker, instead of failing immediately. Valid JSON with an invalid shape still fails immediately ([#10880](https://github.com/MetaMask/core/pull/10880))
 - Add dependency `@metamask/base-data-service` ([#10880](https://github.com/MetaMask/core/pull/10880))
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
