@@ -6207,7 +6207,6 @@ __metadata:
     knip: "npm:^6.39.0"
     lodash: "npm:^4.18.1"
     nock: "npm:^15.0.5"
-    node-fetch: "npm:^2.7.0"
     oxfmt: "npm:^0.72.0"
     oxlint: "npm:^1.85.0"
     oxlint-tsgolint: "npm:^7.0.2002"
