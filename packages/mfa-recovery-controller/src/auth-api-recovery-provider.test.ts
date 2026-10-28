@@ -63,20 +63,15 @@ function setup(approval: Approval = APPROVAL): {
   });
   rootMessenger.delegate({
     actions: [
-      'AuthenticationController:getSessionProfile',
+      'AuthenticationController:refreshCanonicalProfileId',
       'AuthenticationController:requestMfaApproval',
     ],
     events: [],
     messenger,
   });
   rootMessenger.registerActionHandler(
-    'AuthenticationController:getSessionProfile',
-    async () => ({
-      identifierId: 'srp-identifier',
-      profileId: 'srp-profile',
-      canonicalProfileId: 'profile-1',
-      metaMetricsId: 'metametrics-id',
-    }),
+    'AuthenticationController:refreshCanonicalProfileId',
+    async () => 'profile-1',
   );
   const requestMfaApproval = vi.fn().mockResolvedValue(approval);
   rootMessenger.registerActionHandler(
@@ -90,7 +85,7 @@ function setup(approval: Approval = APPROVAL): {
 }
 
 describe('AuthApiRecoveryAuthProvider', () => {
-  it('returns the canonical profile id', async () => {
+  it('returns a freshly resolved canonical profile id', async () => {
     expect(await setup().provider.getAuthenticatedProfileId()).toBe(
       'profile-1',
     );

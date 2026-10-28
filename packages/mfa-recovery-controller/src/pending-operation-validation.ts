@@ -119,11 +119,29 @@ export async function assertValidPendingOperation(
     !Array.isArray(approvedIdentifiers) ||
     !approvedIdentifiers.every(isIdentifier) ||
     (pendingPayloadHasIdentifiers(payload) &&
-      token.ext.identifiersHash !== (await hash(approvedIdentifiers))) ||
+      (token.ext.identifiersHash !== (await hash(approvedIdentifiers)) ||
+        !(await isApprovedSubset(payload.identifiers, approvedIdentifiers)))) ||
     !isMutationReceiptArray(pending.receipts)
   ) {
     throwInvalidPendingOperation();
   }
+}
+
+/**
+ * Escrows reject payload identifiers that are not exactly (verifier included)
+ * in the approval's list, and the rejection leaves the write unabortable.
+ *
+ * @param identifiers - Payload identifiers.
+ * @param approvedIdentifiers - The approval's identifiers.
+ * @returns Whether every payload identifier is in the approval.
+ */
+async function isApprovedSubset(
+  identifiers: Identifier[],
+  approvedIdentifiers: Identifier[],
+): Promise<boolean> {
+  const approved = new Set(await Promise.all(approvedIdentifiers.map(hash)));
+  const hashes = await Promise.all(identifiers.map(hash));
+  return hashes.every((identifierHash) => approved.has(identifierHash));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

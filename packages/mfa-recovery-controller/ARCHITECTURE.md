@@ -114,8 +114,11 @@ Anything that fails is rejected rather than acted on:
   an identifier.
 - `writing` only: the approval binds `sub` to `profileId` and `ext.request_hash`
   to `requestHash`, with `aal >= 2`. `register` / `updateIdentifiers` also need
-  `identifiers_hash` to match `approvedIdentifiers`; receipts must be
-  well-formed with at most one per escrow.
+  `identifiers_hash` to match `approvedIdentifiers`, and every payload
+  identifier to equal one of them exactly. This runs before `writing` is
+  persisted: an escrow rejection is not a `Deny`, so a mismatch found there
+  would leave an unabortable write. Receipts must be well-formed with at most
+  one per escrow.
 
 ## Mutation sequence (`register` / updates)
 

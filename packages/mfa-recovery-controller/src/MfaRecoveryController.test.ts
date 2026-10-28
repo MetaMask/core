@@ -802,15 +802,28 @@ describe('MfaRecoveryController', () => {
       });
     });
 
-    it('rejects identifiers that Auth did not approve', async () => {
-      await withController(async ({ controller, authProvider }) => {
-        authProvider.identifiers = [SOCIAL, OTHER_PASSKEY];
-        await expect(
-          controller.register(SECRET, IDENTIFIERS),
-        ).rejects.toBeInstanceOf(MutationRejectedError);
-        expect(await controller.getPhase()).toBe('idle');
-      });
-    });
+    it.each([
+      ['an identifier Auth did not approve', [SOCIAL, OTHER_PASSKEY]],
+      [
+        'a stale passkey verifier',
+        [{ ...PASSKEY, verifier: { publicKey: 'rotated' } }, SOCIAL],
+      ],
+    ])(
+      'rejects %s before writing, leaving the mutation abortable',
+      async (_name, approved) => {
+        await withController(async ({ controller, authProvider, escrowA }) => {
+          authProvider.identifiers = approved;
+          const apply = vi.spyOn(escrowA, 'applyMutation');
+          await expect(
+            controller.register(SECRET, IDENTIFIERS),
+          ).rejects.toMatchObject({ code: 'invalid_pending_operation' });
+          expect(apply).not.toHaveBeenCalled();
+          expect(await controller.getPhase()).toBe('authorizing');
+          await controller.abort();
+          expect(await controller.getPhase()).toBe('idle');
+        });
+      },
+    );
   });
 
   describe('resume and abort', () => {

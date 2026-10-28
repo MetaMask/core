@@ -1,6 +1,6 @@
 import type { Messenger } from '@metamask/messenger';
 import type {
-  AuthenticationControllerGetSessionProfileAction,
+  AuthenticationControllerRefreshCanonicalProfileIdAction,
   AuthenticationControllerRequestMfaApprovalAction,
 } from '@metamask/profile-sync-controller/auth';
 
@@ -8,7 +8,7 @@ import type { RecoveryApproval, RecoveryAuthProvider } from './types.js';
 
 export type AuthApiRecoveryAuthProviderMessenger = Messenger<
   'AuthApiRecoveryAuthProvider',
-  | AuthenticationControllerGetSessionProfileAction
+  | AuthenticationControllerRefreshCanonicalProfileIdAction
   | AuthenticationControllerRequestMfaApprovalAction
 >;
 
@@ -32,12 +32,16 @@ export class AuthApiRecoveryAuthProvider implements RecoveryAuthProvider {
     this.#messenger = messenger;
   }
 
-  /** @returns The canonical profile id, which approvals use as `sub`. */
+  /**
+   * Resolves the canonical profile id from the server, since the cached one
+   * can be stale after pairing on another device.
+   *
+   * @returns The canonical profile id, which approvals use as `sub`.
+   */
   async getAuthenticatedProfileId(): Promise<string> {
-    const { canonicalProfileId } = await this.#messenger.call(
-      'AuthenticationController:getSessionProfile',
+    return await this.#messenger.call(
+      'AuthenticationController:refreshCanonicalProfileId',
     );
-    return canonicalProfileId;
   }
 
   /**
