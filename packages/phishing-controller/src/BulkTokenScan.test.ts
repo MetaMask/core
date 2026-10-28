@@ -5,7 +5,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockInstance, MockedFunction } from 'vitest';
 
@@ -124,7 +124,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
   });
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
   });
@@ -203,7 +203,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           'Unsupported chain ID: 0x64',
         );
-        cleanAll();
+        nock.cleanAll();
       });
 
       it('should handle case insensitive chainId', async () => {

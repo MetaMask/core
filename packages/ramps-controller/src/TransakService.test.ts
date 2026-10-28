@@ -4,7 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll, isDone } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
@@ -310,7 +310,7 @@ describe('TransakService', () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    cleanAll();
+    nock.cleanAll();
   });
 
   describe('constructor', () => {
@@ -341,7 +341,7 @@ describe('TransakService', () => {
       await vi.runAllTimersAsync();
       await flushPromises();
       await promise;
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('uses production URLs when environment is Production', async () => {
@@ -359,7 +359,7 @@ describe('TransakService', () => {
       await vi.runAllTimersAsync();
       await flushPromises();
       await promise;
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('stores the initial API key when provided', () => {
@@ -577,6 +577,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.sendUserOtp('invalid');
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -597,6 +598,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.sendUserOtp('test@example.com');
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -676,6 +678,7 @@ describe('TransakService', () => {
       const { service } = getService();
 
       const promise = service.verifyUserOtp('a@b.com', 'wrong', 'st');
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -754,6 +757,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.logout();
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -816,6 +820,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -839,6 +844,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -867,6 +873,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -894,6 +901,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.getUserDetails();
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -998,6 +1006,7 @@ describe('TransakService', () => {
       const promise = service.patchUser({
         personalDetails: { firstName: 'Bad' },
       });
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1516,6 +1525,7 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1643,6 +1653,7 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -1666,6 +1677,7 @@ describe('TransakService', () => {
         '0x1234',
         'credit_debit_card',
       );
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2220,6 +2232,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.createWidgetUrl(MOCK_BUY_QUOTE, '0xWALLET');
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2428,6 +2441,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelOrder('bad-order');
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2446,6 +2460,7 @@ describe('TransakService', () => {
       authenticateService(service);
 
       const promise = service.cancelOrder('err-order');
+      promise.catch(() => undefined);
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -2490,7 +2505,7 @@ describe('TransakService', () => {
       await flushPromises();
 
       expect(await promise).toStrictEqual([]);
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
 
     it('collects individual cancel errors instead of throwing', async () => {

@@ -4,7 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock, { cleanAll, disableNetConnect, enableNetConnect } from 'nock';
+import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AnalyticsDataRegulationServiceMessenger } from './AnalyticsDataRegulationService.js';
@@ -20,14 +20,14 @@ describe('AnalyticsDataRegulationService', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    cleanAll();
-    disableNetConnect();
+    nock.cleanAll();
+    nock.disableNetConnect();
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    cleanAll();
-    enableNetConnect();
+    nock.cleanAll();
+    nock.enableNetConnect();
   });
 
   describe('AnalyticsDataRegulationService:createDataDeletionTask', () => {
@@ -360,7 +360,7 @@ describe('AnalyticsDataRegulationService', () => {
 
       const onRetryListener = vi.fn();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
+        vi.runOnlyPendingTimersAsync().catch(console.error);
         onRetryListener();
       });
 
@@ -384,7 +384,7 @@ describe('AnalyticsDataRegulationService', () => {
 
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
 
       const onBreakListener = vi.fn();
@@ -449,7 +449,7 @@ describe('AnalyticsDataRegulationService', () => {
 
       const { service, rootMessenger } = getService();
       service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       const onDegradedListener = vi.fn();
       service.onDegraded(onDegradedListener);
