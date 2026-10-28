@@ -231,6 +231,7 @@ export class ComplianceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:checkWalletCompliance`, address],
       staleTime: 0,
+      gcTime: 0,
       responseStruct: WalletCheckResponseStruct,
       queryFn: async () => {
         const url = new URL(
@@ -262,6 +263,7 @@ export class ComplianceService extends BaseDataService<
     return this.fetchQuery({
       queryKey: [`${this.name}:checkWalletsCompliance`, addresses],
       staleTime: 0,
+      gcTime: 0,
       responseStruct: array(BatchWalletCheckResponseItemStruct),
       queryFn: async () => {
         const url = new URL('v1/wallet/batch', this.#complianceApiUrl);
