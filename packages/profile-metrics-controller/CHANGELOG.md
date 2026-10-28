@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(deps): update dependency nock to v15 ([#11055](https://github.com/MetaMask/core/pull/11055))
+- test(profile-metrics-controller): make nock tests independent of node-fetch ([#11101](https://github.com/MetaMask/core/pull/11101))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.2.1` to `^72.3.0` ([#11154](https://github.com/MetaMask/core/pull/11154))
