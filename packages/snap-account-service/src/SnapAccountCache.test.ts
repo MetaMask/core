@@ -9,6 +9,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { SnapId } from '@metamask/snaps-sdk';
+import { describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import { SnapAccountCache } from './SnapAccountCache.js';
 import type { SnapAccountServiceMessenger } from './SnapAccountService.js';
@@ -104,7 +106,7 @@ function publishAccountsRemoved(
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   AccountsController: {
-    getState: jest.MockedFunction<() => AccountsControllerState>;
+    getState: MockedFunction<() => AccountsControllerState>;
   };
 };
 
@@ -129,7 +131,7 @@ function setup({
 
   const mocks: Mocks = {
     AccountsController: {
-      getState: jest.fn().mockReturnValue(buildAccountsState(accounts)),
+      getState: vi.fn().mockReturnValue(buildAccountsState(accounts)),
     },
   };
 

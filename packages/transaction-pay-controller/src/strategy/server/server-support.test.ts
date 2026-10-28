@@ -1,5 +1,6 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
+import { describe, expect, it } from 'vitest';
 
 import type { QuoteRequest } from '../../types.js';
 import {
@@ -126,11 +127,6 @@ describe('server-support', () => {
         ServerUnsupportedReason.DirectMusdMoneyAccount,
       ],
       ['isMaxAmount', { isMaxAmount: true }, ServerUnsupportedReason.MaxAmount],
-      [
-        'isPolymarketDepositWallet',
-        { isPolymarketDepositWallet: true },
-        ServerUnsupportedReason.PolymarketDepositWallet,
-      ],
     ] as const)(
       'returns %s reason for an unsupported capability',
       (_name, overrides, expected) => {
@@ -151,6 +147,14 @@ describe('server-support', () => {
     it('supports non-atomic requests', () => {
       expect(
         getReason({ requests: [{ ...REQUEST_MOCK, atomic: false }] }),
+      ).toBeUndefined();
+    });
+
+    it('supports Polymarket deposit wallet requests', () => {
+      expect(
+        getReason({
+          requests: [{ ...REQUEST_MOCK, isPolymarketDepositWallet: true }],
+        }),
       ).toBeUndefined();
     });
 

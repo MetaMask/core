@@ -1,7 +1,6 @@
+import { readJsonFile } from '@metamask/node-utils';
 import { execa } from 'execa';
 import path from 'path';
-
-import { readJsonFile } from './lib/utils.ts';
 
 type Workspace = {
   location: string;

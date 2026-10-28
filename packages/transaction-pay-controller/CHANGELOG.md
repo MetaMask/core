@@ -7,14 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.3.1]
+
 ### Changed
 
+- Bump `@metamask/ramps-controller` from `^27.2.0` to `^28.0.0` ([#11141](https://github.com/MetaMask/core/pull/11141))
+
+## [30.3.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Read `mode` from the `TransactionController:estimateGasBatch` result to detect a combined EIP-7702 gas limit, instead of inferring it from the number of gas limits, falling back to the number of gas limits if `mode` is missing ([#10790](https://github.com/MetaMask/core/pull/10790))
+- Bump `@metamask/ramps-controller` from `^27.1.0` to `^27.2.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/assets-controller` from `^19.1.0` to `^20.0.0` ([#11115](https://github.com/MetaMask/core/pull/11115))
+
+### Fixed
+
+- Stop copying the outer EIP-7702 gas limit into the `gas` of each nested transaction when submitting a Server quote as an EIP-7702 batch, as nested gas is not supported in EIP-7702 batches ([#10790](https://github.com/MetaMask/core/pull/10790))
+
+## [30.2.0]
+
+### Added
+
+- Support Predict withdraw in `ServerStrategy` ([#10702](https://github.com/MetaMask/core/pull/10702))
+  - Polymarket deposit wallet withdrawals unwrap directly to a provider deposit address, then sweep any leftover or refunded USDC.e back into the deposit wallet.
+  - Polymarket deposit wallet withdrawals have no source network fee, as the Polymarket relayer pays origin gas.
+  - Non-atomic post-quote payment overrides, such as withdrawing to a Money Account, settle on the override recipient and run the override calls as a second leg.
+  - Post-quote quotes honour `refundTo`, include the original transaction in gas estimation, and reserve the gas fee token cost from the source amount.
+
+### Changed
+
+- Stop publishing the `tests/messenger-mock` test helper, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))
 - Bump `@metamask/transaction-controller` from `^72.2.0` to `^72.2.1` ([#10817](https://github.com/MetaMask/core/pull/10817))
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
-- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.1` ([#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982))
 - Bump `@metamask/assets-controller` from `^19.0.0` to `^19.1.0` ([#10876](https://github.com/MetaMask/core/pull/10876))
+- Bump `@metamask/ramps-controller` from `^27.0.1` to `^27.1.0` ([#10925](https://github.com/MetaMask/core/pull/10925), [#10985](https://github.com/MetaMask/core/pull/10985))
+
+### Fixed
+
+- Prefer the checksummed `AssetsController` asset ID over a lowercase duplicate when resolving token metadata, balances, and prices ([#10967](https://github.com/MetaMask/core/pull/10967))
+  - A stale lowercase `assetsInfo` entry without price data previously shadowed the checksummed entry for lowercase token addresses, dropping the token from required tokens so no quote was requested.
+  - Lowercase-only matches are no longer cached, so the checksummed entry is picked up once indexed.
 
 ## [30.1.0]
 
@@ -1713,7 +1754,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.3.1...HEAD
+[30.3.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.3.0...@metamask/transaction-pay-controller@30.3.1
+[30.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.2.0...@metamask/transaction-pay-controller@30.3.0
+[30.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.1.0...@metamask/transaction-pay-controller@30.2.0
 [30.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.3...@metamask/transaction-pay-controller@30.1.0
 [30.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.2...@metamask/transaction-pay-controller@30.0.3
 [30.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.0.1...@metamask/transaction-pay-controller@30.0.2

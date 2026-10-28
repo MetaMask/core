@@ -3,9 +3,11 @@ import type {
   BackendWebSocketServiceMessenger,
   WebSocketSubscription,
 } from '@metamask/core-backend';
+import type { Mock } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
-  SOCIAL_FEED_CHANNEL,
+  SOCIAL_FEED_CHANNELS,
   SOCIAL_FEED_CHANNEL_TYPE,
   SocialRealtimeService,
 } from './SocialRealtimeService.js';
@@ -13,33 +15,53 @@ import {
 describe('SocialRealtimeService', () => {
   type ConnectionStateHandler = (connection: { state: WebSocketState }) => void;
 
-  type BackendCall = jest.Mock<unknown, [string, unknown?]>;
+  type BackendCall = Mock<(method: string, params?: unknown) => unknown>;
 
   type TestHarness = {
     call: BackendCall;
     connectionStateHandler: () => ConnectionStateHandler | undefined;
     messenger: BackendWebSocketServiceMessenger;
     service: SocialRealtimeService;
-    unsubscribe: jest.Mock;
+    unsubscribe: Mock;
   };
 
   const event = {
     version: 1 as const,
     kind: 'feed-item' as const,
     eventId: 'event-1',
-    feedItemId: 'position-1:trade-1',
+    feedItemId: 'position-1',
     revision: 1,
     occurredAt: '2026-01-01T00:00:00.000Z',
     data: {
       positionId: 'position-1',
+      tokenSymbol: 'TKN',
+      tokenName: 'Token',
+      tokenAddress: '0xtoken',
+      chain: 'base',
+      positionAmount: 1,
+      isOpen: true,
+      boughtUsd: 1,
+      soldUsd: 0,
+      realizedPnl: 0,
+      costBasis: 1,
+      trades: [],
+      lastTradeAt: 1,
+      actor: {
+        profileId: 'profile-1',
+        address: '0x123',
+        name: 'Trader',
+      },
       timestamp: 1,
     },
   };
 
-  const createService = (enabled = true): TestHarness => {
+  const createService = (
+    enabled = true,
+    scopes: ('all' | 'trending')[] = ['trending'],
+  ): TestHarness => {
     let connectionStateHandler: ConnectionStateHandler | undefined;
-    const unsubscribe = jest.fn().mockResolvedValue(undefined);
-    const call: BackendCall = jest.fn(
+    const unsubscribe = vi.fn().mockResolvedValue(undefined);
+    const call: BackendCall = vi.fn(
       (action: string, _options?: unknown): unknown => {
         if (action === 'BackendWebSocketService:connect') {
           return Promise.resolve();
@@ -58,7 +80,7 @@ describe('SocialRealtimeService', () => {
     );
     const messenger = {
       call,
-      subscribe: jest.fn(
+      subscribe: vi.fn(
         (_event: string, handler: ConnectionStateHandler): void => {
           connectionStateHandler = handler;
         },
@@ -66,6 +88,7 @@ describe('SocialRealtimeService', () => {
     };
     const service = new SocialRealtimeService({
       messenger: messenger as unknown as BackendWebSocketServiceMessenger,
+      scopes,
       isEnabled: (): boolean => enabled,
     });
 
@@ -99,13 +122,13 @@ describe('SocialRealtimeService', () => {
 
   it('subscribes and forwards valid feed events', async () => {
     const { call, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addListener(listener);
 
     await service.setActive(true);
     const handleNotification = getFeedCallback(call);
     handleNotification({
-      channel: SOCIAL_FEED_CHANNEL,
+      channel: SOCIAL_FEED_CHANNELS.trending,
       data: event,
     });
 
@@ -113,21 +136,48 @@ describe('SocialRealtimeService', () => {
     expect(call).toHaveBeenCalledWith(
       'BackendWebSocketService:subscribe',
       expect.objectContaining({
-        channels: [SOCIAL_FEED_CHANNEL],
+        channels: [SOCIAL_FEED_CHANNELS.trending],
         channelType: SOCIAL_FEED_CHANNEL_TYPE,
       }),
     );
-    expect(listener).toHaveBeenCalledWith(event);
+    expect(listener).toHaveBeenCalledWith(event, 'trending');
+  });
+
+  it('subscribes to all selected feed scopes together', async () => {
+    const { call, service } = createService(true, ['all', 'trending']);
+    const listener = vi.fn();
+    service.addListener(listener);
+
+    await service.setActive(true);
+    const subscribeCall = call.mock.calls.find(
+      ([action]) => action === 'BackendWebSocketService:subscribe',
+    );
+    const subscribeOptions = subscribeCall?.[1] as {
+      channels: string[];
+      callback: (notification: { channel: string; data: unknown }) => void;
+    };
+
+    expect(subscribeOptions.channels).toStrictEqual([
+      SOCIAL_FEED_CHANNELS.all,
+      SOCIAL_FEED_CHANNELS.trending,
+    ]);
+
+    subscribeOptions.callback({
+      channel: SOCIAL_FEED_CHANNELS.all,
+      data: event,
+    });
+
+    expect(listener).toHaveBeenCalledWith(event, 'all');
   });
 
   it('forwards every valid event in a batched notification', async () => {
     const { call, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addListener(listener);
 
     await service.setActive(true);
     getFeedCallback(call)({
-      channel: SOCIAL_FEED_CHANNEL,
+      channel: SOCIAL_FEED_CHANNELS.trending,
       data: [
         event,
         {
@@ -138,22 +188,41 @@ describe('SocialRealtimeService', () => {
       ],
     });
 
-    expect(listener).toHaveBeenNthCalledWith(1, event);
-    expect(listener).toHaveBeenNthCalledWith(2, {
-      ...event,
-      eventId: 'event-2',
-      feedItemId: 'position-2:trade-2',
-    });
+    expect(listener).toHaveBeenNthCalledWith(1, event, 'trending');
+    expect(listener).toHaveBeenNthCalledWith(
+      2,
+      {
+        ...event,
+        eventId: 'event-2',
+        feedItemId: 'position-2:trade-2',
+      },
+      'trending',
+    );
   });
 
-  it('ignores non-object feed events', async () => {
+  it('drops malformed items without rejecting valid items in a batch', async () => {
     const { call, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addListener(listener);
 
     await service.setActive(true);
     getFeedCallback(call)({
-      channel: SOCIAL_FEED_CHANNEL,
+      channel: SOCIAL_FEED_CHANNELS.trending,
+      data: [event, { ...event, eventId: 'invalid', data: null }],
+    });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith(event, 'trending');
+  });
+
+  it('ignores non-object feed events', async () => {
+    const { call, service } = createService();
+    const listener = vi.fn();
+    service.addListener(listener);
+
+    await service.setActive(true);
+    getFeedCallback(call)({
+      channel: SOCIAL_FEED_CHANNELS.trending,
       data: null,
     });
 
@@ -172,12 +241,12 @@ describe('SocialRealtimeService', () => {
     'ignores feed events with an invalid %s field',
     async (_field, invalid) => {
       const { call, service } = createService();
-      const listener = jest.fn();
+      const listener = vi.fn();
       service.addListener(listener);
 
       await service.setActive(true);
       getFeedCallback(call)({
-        channel: SOCIAL_FEED_CHANNEL,
+        channel: SOCIAL_FEED_CHANNELS.trending,
         data: { ...event, ...invalid },
       });
 
@@ -187,7 +256,7 @@ describe('SocialRealtimeService', () => {
 
   it('ignores notifications for other channels', async () => {
     const { call, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addListener(listener);
 
     await service.setActive(true);
@@ -207,24 +276,558 @@ describe('SocialRealtimeService', () => {
     expect(call).not.toHaveBeenCalled();
   });
 
-  it('enables the feed by default when no gate is provided', async () => {
+  it('subscribes configured scopes when no gate is provided', async () => {
     const { call, messenger } = createService();
-    const service = new SocialRealtimeService({ messenger });
+    const service = new SocialRealtimeService({
+      messenger,
+      scopes: ['trending'],
+    });
 
     await service.setActive(true);
 
     expect(call).toHaveBeenCalledWith(
       'BackendWebSocketService:subscribe',
       expect.objectContaining({
-        channels: [SOCIAL_FEED_CHANNEL],
+        channels: [SOCIAL_FEED_CHANNELS.trending],
+      }),
+    );
+  });
+
+  it('replaces active scopes with a new subscription', async () => {
+    const { call, service, unsubscribe } = createService(true, ['trending']);
+
+    await service.setActive(true);
+    await service.setScopes(['all', 'trending']);
+
+    const subscribeCalls = call.mock.calls.filter(
+      ([action]) => action === 'BackendWebSocketService:subscribe',
+    );
+    expect(subscribeCalls).toHaveLength(2);
+    const secondSubscribe = subscribeCalls[1];
+    if (!secondSubscribe) {
+      throw new Error('Missing scope replacement call');
+    }
+    expect(
+      (secondSubscribe[1] as { channels: string[] }).channels,
+    ).toStrictEqual([SOCIAL_FEED_CHANNELS.all, SOCIAL_FEED_CHANNELS.trending]);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards overlapping events once during scope replacement', async () => {
+    const { call, service } = createService(true, ['trending']);
+    const listener = vi.fn();
+    service.addListener(listener);
+
+    await service.setActive(true);
+    await service.setScopes(['all', 'trending']);
+
+    const subscribeCalls = call.mock.calls.filter(
+      ([action]) => action === 'BackendWebSocketService:subscribe',
+    );
+    const firstSubscribe = subscribeCalls[0];
+    const secondSubscribe = subscribeCalls[1];
+    if (!firstSubscribe || !secondSubscribe) {
+      throw new Error('Missing scope replacement calls');
+    }
+    const firstCallback = (
+      firstSubscribe[1] as {
+        callback: (notification: { channel: string; data: unknown }) => void;
+      }
+    ).callback;
+    const secondCallback = (
+      secondSubscribe[1] as {
+        callback: (notification: { channel: string; data: unknown }) => void;
+      }
+    ).callback;
+    const notification = {
+      channel: SOCIAL_FEED_CHANNELS.trending,
+      data: event,
+    };
+
+    firstCallback(notification);
+    secondCallback(notification);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith(event, 'trending');
+  });
+
+  it('cleans up a replacement when the existing subscription cleanup fails', async () => {
+    const { call, service } = createService(true, ['trending']);
+    const existingUnsubscribe = vi
+      .fn()
+      .mockRejectedValue(new Error('Unsubscribe failed'));
+    const replacementUnsubscribe = vi.fn().mockResolvedValue(undefined);
+    const listener = vi.fn();
+    let subscribeCount = 0;
+    service.addListener(listener);
+
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:subscribe') {
+        subscribeCount += 1;
+        return Promise.resolve({
+          unsubscribe:
+            subscribeCount === 1 ? existingUnsubscribe : replacementUnsubscribe,
+        });
+      }
+
+      return Promise.resolve();
+    });
+
+    await service.setActive(true);
+    await expect(service.setScopes(['all'])).rejects.toThrow(
+      'Unsubscribe failed',
+    );
+
+    const subscribeCalls = call.mock.calls.filter(
+      ([action]) => action === 'BackendWebSocketService:subscribe',
+    );
+    const firstSubscribe = subscribeCalls[0];
+    const secondSubscribe = subscribeCalls[1];
+    if (!firstSubscribe || !secondSubscribe) {
+      throw new Error('Missing scope replacement calls');
+    }
+    const firstCallback = (
+      firstSubscribe[1] as {
+        callback: (notification: { channel: string; data: unknown }) => void;
+      }
+    ).callback;
+    const secondCallback = (
+      secondSubscribe[1] as {
+        callback: (notification: { channel: string; data: unknown }) => void;
+      }
+    ).callback;
+    const notification = {
+      channel: SOCIAL_FEED_CHANNELS.trending,
+      data: event,
+    };
+
+    firstCallback(notification);
+    secondCallback(notification);
+
+    expect(replacementUnsubscribe).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('resubscribes after disconnect during replacement cleanup', async () => {
+    const { call, connectionStateHandler, service } = createService(true, [
+      'trending',
+    ]);
+    const error = new Error('Unsubscribe failed');
+    const existingUnsubscribe = vi.fn().mockImplementation(() => {
+      connectionStateHandler()?.({ state: WebSocketState.DISCONNECTED });
+      return Promise.reject(error);
+    });
+    let subscribeCount = 0;
+
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:subscribe') {
+        subscribeCount += 1;
+        return Promise.resolve({
+          unsubscribe:
+            subscribeCount === 1
+              ? existingUnsubscribe
+              : vi.fn().mockResolvedValue(undefined),
+        });
+      }
+
+      return Promise.resolve();
+    });
+
+    await service.setActive(true);
+    await expect(service.setScopes(['all'])).rejects.toBe(error);
+    connectionStateHandler()?.({ state: WebSocketState.CONNECTED });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(
+      call.mock.calls.filter(
+        ([action]) => action === 'BackendWebSocketService:subscribe',
+      ),
+    ).toHaveLength(3);
+  });
+
+  it('handles deactivation while replacing scopes', async () => {
+    const { call, service } = createService(true, ['trending']);
+    const existingUnsubscribe = vi
+      .fn()
+      .mockRejectedValue(new Error('Unsubscribe failed'));
+    const replacementUnsubscribe = vi.fn().mockResolvedValue(undefined);
+    let resolveReplacement: (value: WebSocketSubscription) => void = () =>
+      undefined;
+    const replacementPromise = new Promise<WebSocketSubscription>(
+      (resolve): void => {
+        resolveReplacement = resolve;
+      },
+    );
+    let subscribeCount = 0;
+
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:subscribe') {
+        subscribeCount += 1;
+        return subscribeCount === 1
+          ? Promise.resolve({ unsubscribe: existingUnsubscribe })
+          : replacementPromise;
+      }
+
+      return Promise.resolve();
+    });
+
+    await service.setActive(true);
+    const scopeUpdate = service.setScopes(['all']);
+    await Promise.resolve();
+    await Promise.resolve();
+    await service.setActive(false);
+    resolveReplacement({
+      unsubscribe: replacementUnsubscribe,
+    } as unknown as WebSocketSubscription);
+
+    await expect(scopeUpdate).rejects.toThrow('Unsubscribe failed');
+    expect(replacementUnsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('cleans up after deactivation during a failed scope replacement', async () => {
+    const { call, service } = createService(true, ['trending']);
+    const existingUnsubscribe = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Existing cleanup failed'))
+      .mockResolvedValue(undefined);
+    const replacementError = new Error('Replacement failed');
+    const listener = vi.fn();
+    let rejectReplacement: (reason?: unknown) => void = () => undefined;
+    const replacementPromise = new Promise<WebSocketSubscription>(
+      (_resolve, reject): void => {
+        rejectReplacement = reject;
+      },
+    );
+    let subscribeCount = 0;
+    service.addListener(listener);
+
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:subscribe') {
+        subscribeCount += 1;
+        return subscribeCount === 1
+          ? Promise.resolve({ unsubscribe: existingUnsubscribe })
+          : replacementPromise;
+      }
+
+      return Promise.resolve();
+    });
+
+    await service.setActive(true);
+    const scopeUpdate = service.setScopes(['all']);
+    await Promise.resolve();
+    await Promise.resolve();
+    await service.setActive(false);
+    rejectReplacement(replacementError);
+
+    await expect(scopeUpdate).rejects.toBe(replacementError);
+    getFeedCallback(call)({
+      channel: SOCIAL_FEED_CHANNELS.trending,
+      data: event,
+    });
+    await service.setActive(false);
+
+    expect(existingUnsubscribe).toHaveBeenCalledTimes(2);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('retains requested scopes after cleanup fails during deactivation', async () => {
+    const { call, service } = createService(true, ['trending']);
+    const replacementUnsubscribe = vi.fn().mockResolvedValue(undefined);
+    const existingUnsubscribe = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        service.setActive(false).catch(() => undefined);
+        return Promise.reject(new Error('Existing cleanup failed'));
+      })
+      .mockResolvedValue(undefined);
+    let subscribeCount = 0;
+
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:subscribe') {
+        subscribeCount += 1;
+        return Promise.resolve({
+          unsubscribe:
+            subscribeCount === 1 ? existingUnsubscribe : replacementUnsubscribe,
+        });
+      }
+
+      return Promise.resolve();
+    });
+
+    await service.setActive(true);
+    await expect(service.setScopes(['all'])).rejects.toThrow(
+      'Existing cleanup failed',
+    );
+    await service.setActive(true);
+
+    const subscribeCalls = call.mock.calls.filter(
+      ([action]) => action === 'BackendWebSocketService:subscribe',
+    );
+    const latestSubscribe = subscribeCalls[2];
+    if (!latestSubscribe) {
+      throw new Error('Missing reactivation subscription call');
+    }
+
+    expect(existingUnsubscribe).toHaveBeenCalledTimes(2);
+    expect(
+      (latestSubscribe[1] as { channels: string[] }).channels,
+    ).toStrictEqual([SOCIAL_FEED_CHANNELS.all]);
+  });
+
+  it('handles a failed replacement after disconnecting', async () => {
+    const { call, connectionStateHandler, service } = createService(true, [
+      'trending',
+    ]);
+    const replacementError = new Error('Replacement failed');
+    let rejectReplacement: (reason?: unknown) => void = () => undefined;
+    const replacementPromise = new Promise<WebSocketSubscription>(
+      (_resolve, reject): void => {
+        rejectReplacement = reject;
+      },
+    );
+    let subscribeCount = 0;
+
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:subscribe') {
+        subscribeCount += 1;
+        return subscribeCount === 1
+          ? Promise.resolve({ unsubscribe: vi.fn() })
+          : replacementPromise;
+      }
+
+      return Promise.resolve();
+    });
+
+    await service.setActive(true);
+    connectionStateHandler()?.({ state: WebSocketState.DISCONNECTED });
+    const scopeUpdate = service.setScopes(['all']);
+    await Promise.resolve();
+    await Promise.resolve();
+    await service.setActive(false);
+    rejectReplacement(replacementError);
+
+    await expect(scopeUpdate).rejects.toBe(replacementError);
+  });
+
+  it('retries failed replacement cleanup', async () => {
+    const { call, service } = createService(true, ['trending']);
+    const existingUnsubscribe = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Unsubscribe failed'))
+      .mockResolvedValue(undefined);
+    const replacementUnsubscribe = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Replacement cleanup failed'))
+      .mockRejectedValueOnce(new Error('Replacement cleanup still failed'))
+      .mockResolvedValue(undefined);
+    let subscribeCount = 0;
+
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:subscribe') {
+        subscribeCount += 1;
+        return Promise.resolve({
+          unsubscribe:
+            subscribeCount === 1 ? existingUnsubscribe : replacementUnsubscribe,
+        });
+      }
+
+      return Promise.resolve();
+    });
+
+    await service.setActive(true);
+    await expect(service.setScopes(['all'])).rejects.toThrow(
+      'Unsubscribe failed',
+    );
+    await service.setActive(false);
+    await service.setActive(true);
+    await service.setScopes(['all']);
+
+    expect(replacementUnsubscribe).toHaveBeenCalledTimes(4);
+  });
+
+  it('preserves the active feed when replacing scopes fails', async () => {
+    const { call, service } = createService(true, ['trending']);
+    const existingUnsubscribe = vi.fn().mockResolvedValue(undefined);
+    const error = new Error('WebSocket unavailable');
+    const listener = vi.fn();
+    let subscribeCount = 0;
+    service.addListener(listener);
+
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:subscribe') {
+        subscribeCount += 1;
+        if (subscribeCount === 2) {
+          return Promise.reject(error);
+        }
+        return Promise.resolve({ unsubscribe: existingUnsubscribe });
+      }
+
+      return Promise.resolve();
+    });
+
+    await service.setActive(true);
+    await expect(service.setScopes(['all'])).rejects.toBe(error);
+    getFeedCallback(call)({
+      channel: SOCIAL_FEED_CHANNELS.trending,
+      data: event,
+    });
+
+    expect(existingUnsubscribe).not.toHaveBeenCalled();
+    expect(listener).toHaveBeenCalledWith(event, 'trending');
+  });
+
+  it('waits for an active subscription before replacing scopes', async () => {
+    const { call, service, unsubscribe } = createService(true, ['trending']);
+    let resolveSubscription: (value: WebSocketSubscription) => void = () =>
+      undefined;
+    const subscriptionPromise = new Promise<WebSocketSubscription>(
+      (resolve): void => {
+        resolveSubscription = resolve;
+      },
+    );
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+      return subscriptionPromise;
+    });
+
+    const activation = service.setActive(true);
+    await Promise.resolve();
+    await Promise.resolve();
+    const scopeUpdate = service.setScopes(['all']);
+    resolveSubscription({ unsubscribe } as unknown as WebSocketSubscription);
+
+    await activation;
+    await scopeUpdate;
+
+    const subscribeCalls = call.mock.calls.filter(
+      ([action]) => action === 'BackendWebSocketService:subscribe',
+    );
+    expect(subscribeCalls).toHaveLength(2);
+    const secondSubscribe = subscribeCalls[1];
+    if (!secondSubscribe) {
+      throw new Error('Missing scope replacement call');
+    }
+    expect(
+      (secondSubscribe[1] as { channels: string[] }).channels,
+    ).toStrictEqual([SOCIAL_FEED_CHANNELS.all]);
+  });
+
+  it('serializes concurrent scope updates', async () => {
+    const { call, service, unsubscribe } = createService(true, ['trending']);
+    const firstError = new Error('First replacement failed');
+    let rejectFirstReplacement: (reason?: unknown) => void = () => undefined;
+    const firstReplacement = new Promise<WebSocketSubscription>(
+      (_resolve, reject): void => {
+        rejectFirstReplacement = reject;
+      },
+    );
+    let subscribeCount = 0;
+
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.resolve();
+      }
+
+      if (action === 'BackendWebSocketService:subscribe') {
+        subscribeCount += 1;
+        if (subscribeCount === 2) {
+          return firstReplacement;
+        }
+        return Promise.resolve({ unsubscribe });
+      }
+
+      return Promise.resolve();
+    });
+
+    await service.setActive(true);
+    const firstUpdate = service.setScopes(['all']);
+    await Promise.resolve();
+    await Promise.resolve();
+    const secondUpdate = service.setScopes(['all', 'trending']);
+    rejectFirstReplacement(firstError);
+
+    await expect(firstUpdate).rejects.toBe(firstError);
+    await secondUpdate;
+
+    const subscribeCalls = call.mock.calls.filter(
+      ([action]) => action === 'BackendWebSocketService:subscribe',
+    );
+    expect(subscribeCalls).toHaveLength(3);
+    const firstReplacementCall = subscribeCalls[1];
+    const secondReplacementCall = subscribeCalls[2];
+    if (!firstReplacementCall || !secondReplacementCall) {
+      throw new Error('Missing concurrent scope replacement calls');
+    }
+
+    expect(
+      (firstReplacementCall[1] as { channels: string[] }).channels,
+    ).toStrictEqual([SOCIAL_FEED_CHANNELS.all]);
+    expect(
+      (secondReplacementCall[1] as { channels: string[] }).channels,
+    ).toStrictEqual([SOCIAL_FEED_CHANNELS.all, SOCIAL_FEED_CHANNELS.trending]);
+  });
+
+  it('rejects an empty scope set', async () => {
+    const { service } = createService();
+
+    await expect(service.setScopes([])).rejects.toThrow(
+      'At least one Social feed scope is required',
+    );
+  });
+
+  it('remembers scope changes while inactive', async () => {
+    const { call, service } = createService();
+
+    await service.setScopes(['all']);
+    await service.setActive(true);
+
+    expect(call).toHaveBeenCalledWith(
+      'BackendWebSocketService:subscribe',
+      expect.objectContaining({
+        channels: [SOCIAL_FEED_CHANNELS.all],
       }),
     );
   });
 
   it('creates an owned subscription when the feed channel already has one', async () => {
     const { call, service, unsubscribe } = createService();
-    const listener = jest.fn();
-    const existingUnsubscribe = jest.fn().mockResolvedValue(undefined);
+    const listener = vi.fn();
+    const existingUnsubscribe = vi.fn().mockResolvedValue(undefined);
     const existingSubscription = {
       unsubscribe: existingUnsubscribe,
     } as unknown as WebSocketSubscription;
@@ -247,7 +850,7 @@ describe('SocialRealtimeService', () => {
     service.addListener(listener);
     await service.setActive(true);
     getFeedCallback(call)({
-      channel: SOCIAL_FEED_CHANNEL,
+      channel: SOCIAL_FEED_CHANNELS.trending,
       data: event,
     });
     await service.setActive(false);
@@ -255,10 +858,10 @@ describe('SocialRealtimeService', () => {
     expect(call).toHaveBeenCalledWith(
       'BackendWebSocketService:subscribe',
       expect.objectContaining({
-        channels: [SOCIAL_FEED_CHANNEL],
+        channels: [SOCIAL_FEED_CHANNELS.trending],
       }),
     );
-    expect(listener).toHaveBeenCalledWith(event);
+    expect(listener).toHaveBeenCalledWith(event, 'trending');
     expect(existingUnsubscribe).not.toHaveBeenCalled();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
@@ -287,7 +890,7 @@ describe('SocialRealtimeService', () => {
     expect(call).toHaveBeenCalledWith(
       'BackendWebSocketService:subscribe',
       expect.objectContaining({
-        channels: [SOCIAL_FEED_CHANNEL],
+        channels: [SOCIAL_FEED_CHANNELS.trending],
       }),
     );
     expect(unsubscribe).toHaveBeenCalledTimes(1);
@@ -338,7 +941,7 @@ describe('SocialRealtimeService', () => {
 
   it('ignores an initial connected notification instead of reporting a reconnect', async () => {
     const { call, connectionStateHandler, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addReconnectListener(listener);
 
     await service.setActive(true);
@@ -437,7 +1040,7 @@ describe('SocialRealtimeService', () => {
     ).toHaveLength(2);
   });
 
-  it('swallows subscription errors so feed activation remains best effort', async () => {
+  it('rejects subscription errors during feed activation', async () => {
     const { call, service } = createService();
     const error = new Error('WebSocket unavailable');
     call.mockImplementation((action: string, _options?: unknown): unknown => {
@@ -445,10 +1048,10 @@ describe('SocialRealtimeService', () => {
         return Promise.reject(error);
       }
 
-      return Promise.resolve({ unsubscribe: jest.fn() });
+      return Promise.resolve({ unsubscribe: vi.fn() });
     });
 
-    await service.setActive(true);
+    await expect(service.setActive(true)).rejects.toBe(error);
 
     expect(call).toHaveBeenCalledWith('BackendWebSocketService:connect');
   });
@@ -463,8 +1066,8 @@ describe('SocialRealtimeService', () => {
 
   it('removes feed and reconnect listeners', () => {
     const { service } = createService();
-    const removeFeedListener = service.addListener(jest.fn());
-    const removeReconnectListener = service.addReconnectListener(jest.fn());
+    const removeFeedListener = service.addListener(vi.fn());
+    const removeReconnectListener = service.addReconnectListener(vi.fn());
 
     expect(removeFeedListener()).toBe(true);
     expect(removeReconnectListener()).toBe(true);
@@ -488,14 +1091,35 @@ describe('SocialRealtimeService', () => {
 
   it('notifies active feed listeners after a socket reconnects', async () => {
     const { connectionStateHandler, service } = createService();
-    const listener = jest.fn();
+    const listener = vi.fn();
     service.addReconnectListener(listener);
 
     await service.setActive(true);
     connectionStateHandler()?.({ state: WebSocketState.DISCONNECTED });
     connectionStateHandler()?.({ state: WebSocketState.CONNECTED });
+    await new Promise<void>((resolve) => setImmediate(resolve));
 
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not notify reconnect listeners when resubscription fails', async () => {
+    const { call, connectionStateHandler, service } = createService();
+    const listener = vi.fn();
+    service.addReconnectListener(listener);
+
+    await service.setActive(true);
+    call.mockImplementation((action: string): unknown => {
+      if (action === 'BackendWebSocketService:connect') {
+        return Promise.reject(new Error('WebSocket unavailable'));
+      }
+      return Promise.resolve({ unsubscribe: vi.fn() });
+    });
+
+    connectionStateHandler()?.({ state: WebSocketState.DISCONNECTED });
+    connectionStateHandler()?.({ state: WebSocketState.CONNECTED });
+    await new Promise<void>((resolve) => setImmediate(resolve));
+
+    expect(listener).not.toHaveBeenCalled();
   });
 
   it('unsubscribes when the feed leaves the active tab', async () => {

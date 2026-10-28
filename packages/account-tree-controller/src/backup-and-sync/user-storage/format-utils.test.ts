@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
+
 import type { AccountGroupMultichainAccountObject } from '../../group.js';
 import { backupAndSyncLogger } from '../../logger.js';
 import type { AccountWalletEntropyObject } from '../../wallet.js';
@@ -18,23 +21,23 @@ import {
   assertValidLegacyUserStorageAccount,
 } from './validation.js';
 
-jest.mock('./validation');
-jest.mock('../../logger');
+vi.mock('./validation');
+vi.mock('../../logger');
 
-const mockBackupAndSyncLogger = backupAndSyncLogger as jest.MockedFunction<
+const mockBackupAndSyncLogger = backupAndSyncLogger as MockedFunction<
   typeof backupAndSyncLogger
 >;
 
 const mockAssertValidUserStorageWallet =
-  assertValidUserStorageWallet as jest.MockedFunction<
+  assertValidUserStorageWallet as MockedFunction<
     typeof assertValidUserStorageWallet
   >;
 const mockAssertValidUserStorageGroup =
-  assertValidUserStorageGroup as jest.MockedFunction<
+  assertValidUserStorageGroup as MockedFunction<
     typeof assertValidUserStorageGroup
   >;
 const mockAssertValidLegacyUserStorageAccount =
-  assertValidLegacyUserStorageAccount as jest.MockedFunction<
+  assertValidLegacyUserStorageAccount as MockedFunction<
     typeof assertValidLegacyUserStorageAccount
   >;
 
@@ -66,7 +69,7 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('formatWalletForUserStorageUsage', () => {

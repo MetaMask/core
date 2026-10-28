@@ -5,6 +5,8 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { Env } from '../types.js';
 import type { GeolocationApiServiceMessenger } from './geolocation-api-service.js';
@@ -15,11 +17,11 @@ import {
 
 describe('GeolocationApiService', () => {
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('GeolocationApiService:fetchGeolocation', () => {
@@ -166,7 +168,7 @@ describe('GeolocationApiService', () => {
         expect(first).toBe('US');
         expect(mockFetch).toHaveBeenCalledTimes(1);
 
-        jest.advanceTimersByTime(4 * 60 * 1000);
+        vi.advanceTimersByTime(4 * 60 * 1000);
 
         const second = await service.fetchGeolocation();
         expect(second).toBe('US');
@@ -180,7 +182,7 @@ describe('GeolocationApiService', () => {
         await service.fetchGeolocation();
         expect(mockFetch).toHaveBeenCalledTimes(1);
 
-        jest.advanceTimersByTime(5 * 60 * 1000 + 1);
+        vi.advanceTimersByTime(5 * 60 * 1000 + 1);
 
         await service.fetchGeolocation();
         expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -198,7 +200,7 @@ describe('GeolocationApiService', () => {
         await service.fetchGeolocation();
         expect(mockFetch).toHaveBeenCalledTimes(1);
 
-        jest.advanceTimersByTime(101);
+        vi.advanceTimersByTime(101);
 
         await service.fetchGeolocation();
         expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -216,7 +218,7 @@ describe('GeolocationApiService', () => {
       });
 
       it('does not cache UNKNOWN responses', async () => {
-        const mockFetch = jest
+        const mockFetch = vi
           .fn()
           .mockImplementationOnce(() =>
             Promise.resolve(createMockResponse('', 200)),
@@ -238,7 +240,7 @@ describe('GeolocationApiService', () => {
       });
 
       it('caches a partially-known response so it is not re-fetched within the TTL', async () => {
-        const mockFetch = jest.fn(() =>
+        const mockFetch = vi.fn(() =>
           Promise.resolve(
             createMockResponse(
               JSON.stringify({ timezone: 'Europe/Paris' }),
@@ -290,9 +292,7 @@ describe('GeolocationApiService', () => {
 
     describe('when the fetch fails', () => {
       it('throws the network error', async () => {
-        const mockFetch = jest
-          .fn()
-          .mockRejectedValue(new Error('Network error'));
+        const mockFetch = vi.fn().mockRejectedValue(new Error('Network error'));
         const { service } = getService({
           options: {
             fetch: mockFetch,
@@ -306,7 +306,7 @@ describe('GeolocationApiService', () => {
       });
 
       it('throws an HttpError on non-OK response', async () => {
-        const mockFetch = jest
+        const mockFetch = vi
           .fn()
           .mockImplementation(() =>
             Promise.resolve(createMockResponse('', 500)),
@@ -324,7 +324,7 @@ describe('GeolocationApiService', () => {
       });
 
       it('rethrows non-Error values as-is', async () => {
-        const mockFetch = jest.fn().mockRejectedValue('string error');
+        const mockFetch = vi.fn().mockRejectedValue('string error');
         const { service } = getService({
           options: {
             fetch: mockFetch,
@@ -550,7 +550,7 @@ describe('GeolocationApiService', () => {
 
     describe('bypassCache', () => {
       it('invalidates the TTL cache and triggers a new fetch', async () => {
-        const mockFetch = jest
+        const mockFetch = vi
           .fn()
           .mockImplementationOnce(() =>
             Promise.resolve(
@@ -588,7 +588,7 @@ describe('GeolocationApiService', () => {
       });
 
       it('invalidates the TTL cache for fetchGeolocationData', async () => {
-        const mockFetch = jest
+        const mockFetch = vi
           .fn()
           .mockImplementationOnce(() =>
             Promise.resolve(
@@ -615,7 +615,7 @@ describe('GeolocationApiService', () => {
 
   describe('service policy', () => {
     it('retries on 500 and returns the result from the second attempt', async () => {
-      const mockFetch = jest
+      const mockFetch = vi
         .fn()
         .mockImplementationOnce(() =>
           Promise.resolve(createMockResponse('', 500)),
@@ -627,7 +627,7 @@ describe('GeolocationApiService', () => {
         );
       const { service } = getService({ options: { fetch: mockFetch } });
       service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
+        vi.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
       const result = await service.fetchGeolocation();
@@ -637,12 +637,12 @@ describe('GeolocationApiService', () => {
     });
 
     it('throws after exhausting all retry attempts', async () => {
-      const mockFetch = jest
+      const mockFetch = vi
         .fn()
         .mockImplementation(() => Promise.resolve(createMockResponse('', 500)));
       const { service } = getService({ options: { fetch: mockFetch } });
       service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
+        vi.advanceTimersToNextTimerAsync().catch(console.error);
       });
 
       await expect(service.fetchGeolocation()).rejects.toThrow(
@@ -653,7 +653,7 @@ describe('GeolocationApiService', () => {
     });
 
     it('fires onDegraded when the request exceeds the degraded threshold', async () => {
-      const mockFetch = jest.fn().mockImplementation(
+      const mockFetch = vi.fn().mockImplementation(
         () =>
           new Promise<Response>((resolve) => {
             setTimeout(() => {
@@ -664,18 +664,18 @@ describe('GeolocationApiService', () => {
           }),
       );
       const { service } = getService({ options: { fetch: mockFetch } });
-      const onDegradedListener = jest.fn();
+      const onDegradedListener = vi.fn();
       service.onDegraded(onDegradedListener);
 
       const fetchPromise = service.fetchGeolocation();
-      await jest.advanceTimersByTimeAsync(6000);
+      await vi.advanceTimersByTimeAsync(6000);
       await fetchPromise;
 
       expect(onDegradedListener).toHaveBeenCalled();
     });
 
     it('fires onBreak after repeated failures trip the circuit breaker', async () => {
-      const mockFetch = jest
+      const mockFetch = vi
         .fn()
         .mockImplementation(() => Promise.resolve(createMockResponse('', 500)));
       const { service } = getService({
@@ -685,9 +685,9 @@ describe('GeolocationApiService', () => {
         },
       });
       service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
+        vi.advanceTimersToNextTimerAsync().catch(console.error);
       });
-      const onBreakListener = jest.fn();
+      const onBreakListener = vi.fn();
       service.onBreak(onBreakListener);
 
       await expect(service.fetchGeolocation()).rejects.toThrow(
@@ -702,7 +702,7 @@ describe('GeolocationApiService', () => {
 
   describe('constructor', () => {
     it('falls back to globalThis.fetch when fetch option is omitted', async () => {
-      const spy = jest
+      const spy = vi
         .spyOn(globalThis, 'fetch')
         .mockImplementation(() =>
           Promise.resolve(
@@ -780,12 +780,12 @@ function createMockResponse(body: string, status: number): Response {
  * Each call returns a fresh mock Response.
  *
  * @param body - The raw body to return.
- * @returns A jest mock function.
+ * @returns A mock function.
  */
 function createMockRawFetch(
   body: string,
-): jest.Mock<Promise<Response>, [string]> {
-  return jest
+): Mock<(url: string) => Promise<Response>> {
+  return vi
     .fn()
     .mockImplementation(() => Promise.resolve(createMockResponse(body, 200)));
 }
@@ -795,11 +795,11 @@ function createMockRawFetch(
  * payload serialized as JSON. Each call returns a fresh mock Response.
  *
  * @param payload - The geolocation payload to return.
- * @returns A jest mock function.
+ * @returns A mock function.
  */
 function createMockFetch(
   payload: Record<string, unknown>,
-): jest.Mock<Promise<Response>, [string]> {
+): Mock<(url: string) => Promise<Response>> {
   return createMockRawFetch(JSON.stringify(payload));
 }
 

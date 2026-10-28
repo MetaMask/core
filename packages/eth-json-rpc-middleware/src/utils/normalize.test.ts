@@ -1,6 +1,7 @@
 import { MessageTypes, TypedMessage } from '@metamask/eth-sig-util';
 import deepFreeze from 'deep-freeze-strict';
 import { klona } from 'klona';
+import { describe, expect, it } from 'vitest';
 
 import { normalizeTypedMessage } from './normalize.js';
 

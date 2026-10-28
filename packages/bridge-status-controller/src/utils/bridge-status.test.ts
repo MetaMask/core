@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
+
 import { BRIDGE_PROD_API_BASE_URL, REFRESH_INTERVAL_MS } from '../constants.js';
 import { QuoteStatusFetchWithRetryOutcomeType } from '../quote-status-manager/constants.js';
 import { QuoteStatusGetError } from '../quote-status-manager/errors.js';
@@ -96,7 +99,7 @@ describe('utils', () => {
     const mockClientId = BridgeClientId.EXTENSION;
 
     it('should successfully fetch and validate bridge transaction status', async () => {
-      const mockFetch: FetchFunction = jest
+      const mockFetch: FetchFunction = vi
         .fn()
         .mockResolvedValue(mockValidResponse);
 
@@ -120,7 +123,7 @@ describe('utils', () => {
       );
 
       // Verify URL contains all required parameters
-      const callUrl = (mockFetch as jest.Mock).mock.calls[0][0];
+      const callUrl = (mockFetch as Mock).mock.calls[0][0];
       expect(callUrl).toContain(`bridgeId=${mockStatusRequest.bridgeId}`);
       expect(callUrl).toContain(`srcTxHash=${mockStatusRequest.srcTxHash}`);
       expect(callUrl).toContain(
@@ -137,7 +140,7 @@ describe('utils', () => {
         ...mockValidResponse,
         status: 'INVALID',
       };
-      const mockFetch: FetchFunction = jest
+      const mockFetch: FetchFunction = vi
         .fn()
         .mockResolvedValue(mockInvalidResponse);
 
@@ -161,7 +164,7 @@ describe('utils', () => {
       );
 
       // Verify URL contains all required parameters
-      const callUrl = (mockFetch as jest.Mock).mock.calls[0][0];
+      const callUrl = (mockFetch as Mock).mock.calls[0][0];
       expect(callUrl).toContain(`bridgeId=${mockStatusRequest.bridgeId}`);
       expect(callUrl).toContain(`srcTxHash=${mockStatusRequest.srcTxHash}`);
       expect(callUrl).toContain(
@@ -182,7 +185,7 @@ describe('utils', () => {
         invalid: 'response',
       };
 
-      const mockFetch: FetchFunction = jest
+      const mockFetch: FetchFunction = vi
         .fn()
         .mockResolvedValue(invalidResponse);
 
@@ -207,7 +210,7 @@ describe('utils', () => {
     });
 
     it('should handle fetch errors', async () => {
-      const mockFetch: FetchFunction = jest
+      const mockFetch: FetchFunction = vi
         .fn()
         .mockRejectedValue(new Error('Network error'));
 
@@ -237,9 +240,9 @@ describe('utils', () => {
       outcome: QuoteStatusGetWithRetryOutcome | undefined,
     ): {
       quoteStatusManager: QuoteStatusManager;
-      getStatus: jest.Mock;
+      getStatus: Mock;
     } {
-      const getStatus = jest.fn().mockResolvedValue(outcome);
+      const getStatus = vi.fn().mockResolvedValue(outcome);
       return {
         quoteStatusManager: { getStatus } as unknown as QuoteStatusManager,
         getStatus,
@@ -373,10 +376,10 @@ describe('utils', () => {
 
   describe('shouldSkipFetchDueToFetchFailures', () => {
     const mockCurrentTime = 1_000_000; // Fixed timestamp for testing
-    let dateNowSpy: jest.SpyInstance;
+    let dateNowSpy: MockInstance;
 
     beforeEach(() => {
-      dateNowSpy = jest.spyOn(Date, 'now').mockReturnValue(mockCurrentTime);
+      dateNowSpy = vi.spyOn(Date, 'now').mockReturnValue(mockCurrentTime);
     });
 
     afterEach(() => {

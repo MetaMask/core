@@ -1,4 +1,5 @@
 import { createMethodMiddleware } from '@metamask/json-rpc-engine';
+import { describe, expect, it } from 'vitest';
 
 import { methodHandlers } from './index.js';
 import type { WalletCreateSessionHooks } from './wallet-createSession.js';

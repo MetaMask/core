@@ -230,6 +230,12 @@ export type TransactionMeta = {
   isGasFeeSponsored?: boolean;
 
   /**
+   * Name of the party paying the gas fee, such as `Uniswap` or `MetaMask`.
+   * Only set when `isGasFeeSponsored` is true and the simulation names a sponsor.
+   */
+  gasFeeSponsor?: string;
+
+  /**
    * Whether the transaction has no lifecycle and is not signed or published.
    */
   isStateOnly?: boolean;
@@ -1145,6 +1151,12 @@ export type TransactionReceipt = {
   blockNumber?: string;
 
   /**
+   * DA footprint gas scalar from OP Stack Jovian receipts (including Mantle).
+   * Its presence selects the Jovian operator fee formula.
+   */
+  daFootprintGasScalar?: string;
+
+  /**
    * Effective gas price the transaction was charged at.
    */
   effectiveGasPrice?: string;
@@ -1155,9 +1167,28 @@ export type TransactionReceipt = {
   gasUsed?: string;
 
   /**
-   * Total used gas in hex.
+   * Layer 1 data fee in hex wei (native token units on Mantle).
    */
   l1Fee?: string;
+
+  /**
+   * Operator fee constant from OP Stack / Mantle Arsia receipts, in hex wei.
+   */
+  operatorFeeConstant?: string;
+
+  /**
+   * Operator fee scalar from OP Stack / Mantle Arsia receipts, in hex.
+   * Used as `gasUsed * operatorFeeScalar * 100 + operatorFeeConstant` on
+   * Jovian, and `gasUsed * operatorFeeScalar / 1e6 + operatorFeeConstant`
+   * on Isthmus.
+   */
+  operatorFeeScalar?: string;
+
+  /**
+   * ETH/MNT token ratio from Mantle receipts. Informational only —
+   * receipt `l1Fee` is already denominated in the native token.
+   */
+  tokenRatio?: string;
 
   /**
    * All the logs emitted by this transaction.
@@ -2087,6 +2118,13 @@ export type GasFeeToken = {
 
   /** Account address to send the token to. */
   recipient: Hex;
+
+  /**
+   * Name of the party paying the gas fee, such as `Uniswap` or `MetaMask`.
+   * Only set when the simulation reports the gas fee as sponsored.
+   * Prefer `TransactionMeta.gasFeeSponsor`, which also respects a caller-provided `isGasFeeSponsored`.
+   */
+  sponsor?: string;
 
   /** Symbol of the token. */
   symbol: string;

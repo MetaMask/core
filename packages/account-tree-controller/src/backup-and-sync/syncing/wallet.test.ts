@@ -1,3 +1,6 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
+
 import type { AccountWalletEntropyObject } from '../../wallet.js';
 import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
 import type {
@@ -11,15 +14,15 @@ import {
   syncWalletMetadata,
 } from './wallet.js';
 
-jest.mock('./metadata');
-jest.mock('../user-storage/network-operations');
+vi.mock('./metadata');
+vi.mock('../user-storage/network-operations');
 
-const mockCompareAndSyncMetadata =
-  compareAndSyncMetadata as jest.MockedFunction<typeof compareAndSyncMetadata>;
-const mockPushWalletToUserStorage =
-  pushWalletToUserStorage as jest.MockedFunction<
-    typeof pushWalletToUserStorage
-  >;
+const mockCompareAndSyncMetadata = compareAndSyncMetadata as MockedFunction<
+  typeof compareAndSyncMetadata
+>;
+const mockPushWalletToUserStorage = pushWalletToUserStorage as MockedFunction<
+  typeof pushWalletToUserStorage
+>;
 
 describe('BackupAndSync - Syncing - Wallet', () => {
   let mockContext: BackupAndSyncContext;
@@ -32,7 +35,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         state: {
           accountWalletsMetadata: {},
         },
-        setAccountWalletName: jest.fn(),
+        setAccountWalletName: vi.fn(),
       },
     } as unknown as BackupAndSyncContext;
 
@@ -51,7 +54,7 @@ describe('BackupAndSync - Syncing - Wallet', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('syncWalletMetadataAndCheckIfPushNeeded', () => {
@@ -134,14 +137,14 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       );
 
       expect(applyLocalUpdate).toBeDefined();
-      /* eslint-disable jest/no-conditional-expect */
+      /* eslint-disable vitest/no-conditional-expect */
       if (applyLocalUpdate) {
         await applyLocalUpdate('New Name');
         expect(
           mockContext.controller.setAccountWalletName,
         ).toHaveBeenCalledWith(mockLocalWallet.id, 'New Name');
       }
-      /* eslint-enable jest/no-conditional-expect */
+      /* eslint-enable vitest/no-conditional-expect */
     });
 
     it('validates user storage values using the schema validator', async () => {
@@ -170,14 +173,14 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       );
 
       expect(validateUserStorageValue).toBeDefined();
-      /* eslint-disable jest/no-conditional-expect */
+      /* eslint-disable vitest/no-conditional-expect */
       if (validateUserStorageValue) {
         expect(validateUserStorageValue('valid string')).toBe(true);
         expect(validateUserStorageValue(123)).toBe(false);
         expect(validateUserStorageValue(null)).toBe(false);
         expect(validateUserStorageValue(undefined)).toBe(false);
       }
-      /* eslint-enable jest/no-conditional-expect */
+      /* eslint-enable vitest/no-conditional-expect */
     });
   });
 

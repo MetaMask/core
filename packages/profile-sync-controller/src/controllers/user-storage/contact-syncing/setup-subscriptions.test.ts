@@ -1,3 +1,5 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import * as ControllerIntegration from './controller-integration.js';
 import { setupContactSyncingSubscriptions } from './setup-subscriptions.js';
 import * as SyncUtils from './sync-utils.js';
@@ -11,31 +13,33 @@ type AddressBookContactData = {
 
 describe('user-storage/contact-syncing/setup-subscriptions - setupContactSyncingSubscriptions', () => {
   beforeEach(() => {
-    jest
-      .spyOn(SyncUtils, 'canPerformContactSyncing')
-      .mockImplementation(() => true);
+    vi.spyOn(SyncUtils, 'canPerformContactSyncing').mockImplementation(
+      () => true,
+    );
 
     // Mock the individual operations methods
-    jest
-      .spyOn(ControllerIntegration, 'updateContactInRemoteStorage')
-      .mockResolvedValue(undefined);
+    vi.spyOn(
+      ControllerIntegration,
+      'updateContactInRemoteStorage',
+    ).mockResolvedValue(undefined);
 
-    jest
-      .spyOn(ControllerIntegration, 'deleteContactInRemoteStorage')
-      .mockResolvedValue(undefined);
+    vi.spyOn(
+      ControllerIntegration,
+      'deleteContactInRemoteStorage',
+    ).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('should subscribe to contactUpdated and contactDeleted events', () => {
     const options = {
-      getMessenger: jest.fn().mockReturnValue({
-        subscribe: jest.fn(),
+      getMessenger: vi.fn().mockReturnValue({
+        subscribe: vi.fn(),
       }),
-      getUserStorageControllerInstance: jest.fn().mockReturnValue({
-        syncContactsWithUserStorage: jest.fn(),
+      getUserStorageControllerInstance: vi.fn().mockReturnValue({
+        syncContactsWithUserStorage: vi.fn(),
         state: {
           isProfileSyncingEnabled: true,
           isContactSyncingEnabled: true,
@@ -62,7 +66,7 @@ describe('user-storage/contact-syncing/setup-subscriptions - setupContactSyncing
       {};
 
     // Mock the subscribe function to capture callbacks
-    const mockSubscribe = jest
+    const mockSubscribe = vi
       .fn()
       .mockImplementation(
         (event: string, callback: (data: AddressBookContactData) => void) => {
@@ -70,16 +74,16 @@ describe('user-storage/contact-syncing/setup-subscriptions - setupContactSyncing
         },
       );
 
-    const mocksyncContactsWithUserStorage = jest.fn();
-    const mockUpdateContactInRemoteStorage = jest
+    const mocksyncContactsWithUserStorage = vi.fn();
+    const mockUpdateContactInRemoteStorage = vi
       .spyOn(ControllerIntegration, 'updateContactInRemoteStorage')
       .mockResolvedValue(undefined);
 
     const options = {
-      getMessenger: jest.fn().mockReturnValue({
+      getMessenger: vi.fn().mockReturnValue({
         subscribe: mockSubscribe,
       }),
-      getUserStorageControllerInstance: jest.fn().mockReturnValue({
+      getUserStorageControllerInstance: vi.fn().mockReturnValue({
         syncContactsWithUserStorage: mocksyncContactsWithUserStorage,
         state: {
           isProfileSyncingEnabled: true,
@@ -117,7 +121,7 @@ describe('user-storage/contact-syncing/setup-subscriptions - setupContactSyncing
       {};
 
     // Mock the subscribe function to capture callbacks
-    const mockSubscribe = jest
+    const mockSubscribe = vi
       .fn()
       .mockImplementation(
         (event: string, callback: (data: AddressBookContactData) => void) => {
@@ -125,16 +129,16 @@ describe('user-storage/contact-syncing/setup-subscriptions - setupContactSyncing
         },
       );
 
-    const mocksyncContactsWithUserStorage = jest.fn();
-    const mockDeleteContactInRemoteStorage = jest
+    const mocksyncContactsWithUserStorage = vi.fn();
+    const mockDeleteContactInRemoteStorage = vi
       .spyOn(ControllerIntegration, 'deleteContactInRemoteStorage')
       .mockResolvedValue(undefined);
 
     const options = {
-      getMessenger: jest.fn().mockReturnValue({
+      getMessenger: vi.fn().mockReturnValue({
         subscribe: mockSubscribe,
       }),
-      getUserStorageControllerInstance: jest.fn().mockReturnValue({
+      getUserStorageControllerInstance: vi.fn().mockReturnValue({
         syncContactsWithUserStorage: mocksyncContactsWithUserStorage,
         state: {
           isProfileSyncingEnabled: true,
@@ -168,16 +172,16 @@ describe('user-storage/contact-syncing/setup-subscriptions - setupContactSyncing
 
   it('should not call operations when canPerformContactSyncing returns false', () => {
     // Override the default mock to return false for this test
-    jest
-      .spyOn(SyncUtils, 'canPerformContactSyncing')
-      .mockImplementation(() => false);
+    vi.spyOn(SyncUtils, 'canPerformContactSyncing').mockImplementation(
+      () => false,
+    );
 
     // Store the callbacks
     const callbacks: Record<string, (data: AddressBookContactData) => void> =
       {};
 
     // Mock the subscribe function to capture callbacks
-    const mockSubscribe = jest
+    const mockSubscribe = vi
       .fn()
       .mockImplementation(
         (event: string, callback: (data: AddressBookContactData) => void) => {
@@ -185,19 +189,19 @@ describe('user-storage/contact-syncing/setup-subscriptions - setupContactSyncing
         },
       );
 
-    const mocksyncContactsWithUserStorage = jest.fn();
-    const mockUpdateContactInRemoteStorage = jest
+    const mocksyncContactsWithUserStorage = vi.fn();
+    const mockUpdateContactInRemoteStorage = vi
       .spyOn(ControllerIntegration, 'updateContactInRemoteStorage')
       .mockResolvedValue(undefined);
-    const mockDeleteContactInRemoteStorage = jest
+    const mockDeleteContactInRemoteStorage = vi
       .spyOn(ControllerIntegration, 'deleteContactInRemoteStorage')
       .mockResolvedValue(undefined);
 
     const options = {
-      getMessenger: jest.fn().mockReturnValue({
+      getMessenger: vi.fn().mockReturnValue({
         subscribe: mockSubscribe,
       }),
-      getUserStorageControllerInstance: jest.fn().mockReturnValue({
+      getUserStorageControllerInstance: vi.fn().mockReturnValue({
         syncContactsWithUserStorage: mocksyncContactsWithUserStorage,
         state: {
           isProfileSyncingEnabled: false,
@@ -235,7 +239,7 @@ describe('user-storage/contact-syncing/setup-subscriptions - setupContactSyncing
       {};
 
     // Mock the subscribe function to capture callbacks
-    const mockSubscribe = jest
+    const mockSubscribe = vi
       .fn()
       .mockImplementation(
         (event: string, callback: (data: AddressBookContactData) => void) => {
@@ -243,16 +247,16 @@ describe('user-storage/contact-syncing/setup-subscriptions - setupContactSyncing
         },
       );
 
-    const mockUpdateContactInRemoteStorage = jest
+    const mockUpdateContactInRemoteStorage = vi
       .spyOn(ControllerIntegration, 'updateContactInRemoteStorage')
       .mockResolvedValue(undefined);
 
     const options = {
-      getMessenger: jest.fn().mockReturnValue({
+      getMessenger: vi.fn().mockReturnValue({
         subscribe: mockSubscribe,
       }),
-      getUserStorageControllerInstance: jest.fn().mockReturnValue({
-        syncContactsWithUserStorage: jest.fn(),
+      getUserStorageControllerInstance: vi.fn().mockReturnValue({
+        syncContactsWithUserStorage: vi.fn(),
         state: {
           isProfileSyncingEnabled: true,
           isContactSyncingEnabled: true,

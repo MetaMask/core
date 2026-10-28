@@ -1,17 +1,19 @@
+import { bytesToHex, hexToBytes } from '@metamask/byte-utils';
+import { add0x } from '@metamask/byte-utils';
+import { describe, expect, it } from 'vitest';
+
 import {
   DECIMAL_NUMBERS,
   HEX_STRINGS,
   NEGATIVE_INTEGERS,
   POSITIVE_INTEGERS,
 } from './__fixtures__/index.js';
-import { bytesToHex, hexToBytes } from './bytes.js';
 import {
   createBigInt,
   createBytes,
   createHex,
   createNumber,
 } from './coercers.js';
-import { add0x } from './hex.js';
 
 describe('createNumber', () => {
   it.each(POSITIVE_INTEGERS)(

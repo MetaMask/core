@@ -19,6 +19,8 @@ import {
   createSwappableProxy,
 } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import type {
   SelectedNetworkControllerState,
@@ -71,35 +73,35 @@ function buildSelectedNetworkControllerMessenger({
   rootMessenger: RootMessenger;
   getSubjectNames?: string[];
 }) {
-  const mockGetNetworkClientById = jest.fn().mockReturnValue({
-    provider: { request: jest.fn() },
-    blockTracker: { getLatestBlock: jest.fn() },
+  const mockGetNetworkClientById = vi.fn().mockReturnValue({
+    provider: { request: vi.fn() },
+    blockTracker: { getLatestBlock: vi.fn() },
   });
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     mockGetNetworkClientById,
   );
-  const mockGetSelectedNetworkClient = jest.fn().mockReturnValue({
-    provider: { request: jest.fn() },
-    blockTracker: { getLatestBlock: jest.fn() },
+  const mockGetSelectedNetworkClient = vi.fn().mockReturnValue({
+    provider: { request: vi.fn() },
+    blockTracker: { getLatestBlock: vi.fn() },
   });
   rootMessenger.registerActionHandler(
     'NetworkController:getSelectedNetworkClient',
     mockGetSelectedNetworkClient,
   );
-  const mockNetworkControllerGetState = jest
+  const mockNetworkControllerGetState = vi
     .fn()
     .mockReturnValue({ selectedNetworkClientId: 'mainnet' });
   rootMessenger.registerActionHandler(
     'NetworkController:getState',
     mockNetworkControllerGetState,
   );
-  const mockHasPermissions = jest.fn().mockReturnValue(true);
+  const mockHasPermissions = vi.fn().mockReturnValue(true);
   rootMessenger.registerActionHandler(
     'PermissionController:hasPermissions',
     mockHasPermissions,
   );
-  const mockGetSubjectNames = jest.fn().mockReturnValue(getSubjectNames);
+  const mockGetSubjectNames = vi.fn().mockReturnValue(getSubjectNames);
   rootMessenger.registerActionHandler(
     'PermissionController:getSubjectNames',
     mockGetSubjectNames,
@@ -139,7 +141,7 @@ function buildSelectedNetworkControllerMessenger({
   };
 }
 
-jest.mock('@metamask/swappable-obj-proxy');
+vi.mock('@metamask/swappable-obj-proxy');
 
 const setup = ({
   getSubjectNames = [],
@@ -151,26 +153,26 @@ const setup = ({
   domainProxyMap?: Map<Domain, NetworkProxy>;
 } = {}) => {
   const mockProviderProxy = {
-    setTarget: jest.fn(),
-    eventNames: jest.fn(),
-    rawListeners: jest.fn(),
-    removeAllListeners: jest.fn(),
-    on: jest.fn(),
-    prependListener: jest.fn(),
-    addListener: jest.fn(),
-    off: jest.fn(),
-    once: jest.fn(),
+    setTarget: vi.fn(),
+    eventNames: vi.fn(),
+    rawListeners: vi.fn(),
+    removeAllListeners: vi.fn(),
+    on: vi.fn(),
+    prependListener: vi.fn(),
+    addListener: vi.fn(),
+    off: vi.fn(),
+    once: vi.fn(),
   };
   const mockBlockTrackerProxy = {
-    setTarget: jest.fn(),
-    eventNames: jest.fn(),
-    rawListeners: jest.fn(),
-    removeAllListeners: jest.fn(),
-    on: jest.fn(),
-    prependListener: jest.fn(),
-    addListener: jest.fn(),
-    off: jest.fn(),
-    once: jest.fn(),
+    setTarget: vi.fn(),
+    eventNames: vi.fn(),
+    rawListeners: vi.fn(),
+    removeAllListeners: vi.fn(),
+    on: vi.fn(),
+    prependListener: vi.fn(),
+    addListener: vi.fn(),
+    off: vi.fn(),
+    once: vi.fn(),
   };
 
   // Non-polluting use of any for test mock.
@@ -184,10 +186,10 @@ const setup = ({
     }
     return mockProviderProxy;
   };
-  const createSwappableProxyMock = jest
+  const createSwappableProxyMock = vi
     .mocked(createSwappableProxy)
     .mockImplementation(swappableProxyImplementation);
-  const createEventEmitterProxyMock = jest
+  const createEventEmitterProxyMock = vi
     .mocked(createEventEmitterProxy)
     .mockImplementation(swappableProxyImplementation);
   const rootMessenger = getRootMessenger();
@@ -279,7 +281,7 @@ describe('SelectedNetworkController', () => {
         chainId: Hex,
         networkControllerState: NetworkState,
         messenger: RootMessenger,
-        mockNetworkControllerGetState: jest.Mock,
+        mockNetworkControllerGetState: Mock,
       ) => {
         delete networkControllerState.networkConfigurationsByChainId[chainId];
         mockNetworkControllerGetState.mockReturnValueOnce(
@@ -348,8 +350,8 @@ describe('SelectedNetworkController', () => {
           }
 
           return {
-            provider: { request: jest.fn() },
-            blockTracker: { getLatestBlock: jest.fn() },
+            provider: { request: vi.fn() },
+            blockTracker: { getLatestBlock: vi.fn() },
           };
         });
 
@@ -627,10 +629,10 @@ describe('getNetworkClientIdForDomain', () => {
 describe('getProviderAndBlockTracker', () => {
   it('returns the cached proxy provider and block tracker when the domain already has a cached networkProxy in the domainProxyMap', () => {
     const mockProxyProvider = {
-      setTarget: jest.fn(),
+      setTarget: vi.fn(),
     } as unknown as ProviderProxy;
     const mockProxyBlockTracker = {
-      setTarget: jest.fn(),
+      setTarget: vi.fn(),
     } as unknown as BlockTrackerProxy;
 
     const domainProxyMap = new Map<Domain, NetworkProxy>([
@@ -674,7 +676,7 @@ describe('getProviderAndBlockTracker', () => {
             domains: {},
           },
         });
-        jest.spyOn(messenger, 'call');
+        vi.spyOn(messenger, 'call');
         mockHasPermissions.mockReturnValue(true);
 
         const result = rootMessenger.call(
@@ -698,7 +700,7 @@ describe('getProviderAndBlockTracker', () => {
             domains: {},
           },
         });
-        jest.spyOn(messenger, 'call');
+        vi.spyOn(messenger, 'call');
         mockHasPermissions.mockReturnValue(false);
         const result = rootMessenger.call(
           'SelectedNetworkController:getProviderAndBlockTracker',
@@ -743,7 +745,7 @@ describe('getProviderAndBlockTracker', () => {
           domains: {},
         },
       });
-      jest.spyOn(messenger, 'call');
+      vi.spyOn(messenger, 'call');
 
       const result = rootMessenger.call(
         'SelectedNetworkController:getProviderAndBlockTracker',
@@ -788,7 +790,7 @@ describe('getProviderAndBlockTracker', () => {
           domains: {},
         },
       });
-      jest.spyOn(messenger, 'call');
+      vi.spyOn(messenger, 'call');
 
       const result = rootMessenger.call(
         'SelectedNetworkController:getProviderAndBlockTracker',

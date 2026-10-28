@@ -1,3 +1,6 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
+
 import { CandlePeriod } from '../../../src/constants/chartConfig.js';
 import {
   PERPS_CONSTANTS,
@@ -29,27 +32,27 @@ import {
 // Create a comprehensive mock provider
 const createMockProvider = (
   providerId: PerpsProviderType,
-): jest.Mocked<PerpsProvider> => {
-  const mockProvider: jest.Mocked<PerpsProvider> = {
+): Mocked<PerpsProvider> => {
+  const mockProvider: Mocked<PerpsProvider> = {
     protocolId: providerId,
 
     // Asset routes
-    getDepositRoutes: jest.fn().mockReturnValue([]),
-    getWithdrawalRoutes: jest.fn().mockReturnValue([]),
-    getOrderCapabilities: jest.fn().mockResolvedValue({
+    getDepositRoutes: vi.fn().mockReturnValue([]),
+    getWithdrawalRoutes: vi.fn().mockReturnValue([]),
+    getOrderCapabilities: vi.fn().mockResolvedValue({
       status: 'ready',
       providerId,
       supportedStrategies: [],
     }),
-    getScalePriceLadder: jest.fn().mockResolvedValue({
+    getScalePriceLadder: vi.fn().mockResolvedValue({
       status: 'ready',
       providerId,
       prices: ['100', '150', '200'],
     }),
 
     // Read operations
-    getPositions: jest.fn().mockResolvedValue([]),
-    getAccountState: jest.fn().mockResolvedValue({
+    getPositions: vi.fn().mockResolvedValue([]),
+    getAccountState: vi.fn().mockResolvedValue({
       spendableBalance: '10000',
       withdrawableBalance: '10000',
       totalBalance: '10000',
@@ -57,96 +60,96 @@ const createMockProvider = (
       unrealizedPnl: '0',
       returnOnEquity: '0',
     }),
-    getMarkets: jest.fn().mockResolvedValue([]),
-    getMarketDataWithPrices: jest.fn().mockResolvedValue([]),
-    getOrderFills: jest.fn().mockResolvedValue([]),
-    getOrFetchFills: jest.fn().mockResolvedValue([]),
-    getOrders: jest.fn().mockResolvedValue([]),
-    getOpenOrders: jest.fn().mockResolvedValue([]),
-    getFunding: jest.fn().mockResolvedValue([]),
-    getHistoricalPortfolio: jest.fn().mockResolvedValue({
+    getMarkets: vi.fn().mockResolvedValue([]),
+    getMarketDataWithPrices: vi.fn().mockResolvedValue([]),
+    getOrderFills: vi.fn().mockResolvedValue([]),
+    getOrFetchFills: vi.fn().mockResolvedValue([]),
+    getOrders: vi.fn().mockResolvedValue([]),
+    getOpenOrders: vi.fn().mockResolvedValue([]),
+    getFunding: vi.fn().mockResolvedValue([]),
+    getHistoricalPortfolio: vi.fn().mockResolvedValue({
       accountValue1dAgo: '10000',
       timestamp: Date.now(),
     }),
-    getUserNonFundingLedgerUpdates: jest.fn().mockResolvedValue([]),
-    getUserHistory: jest.fn().mockResolvedValue([]),
-    getTwapOrders: jest.fn().mockResolvedValue([]),
-    getChaseOrders: jest.fn().mockResolvedValue([]),
-    suspendChaseOrders: jest.fn().mockResolvedValue([]),
-    getCurrentAccountId: jest
+    getUserNonFundingLedgerUpdates: vi.fn().mockResolvedValue([]),
+    getUserHistory: vi.fn().mockResolvedValue([]),
+    getTwapOrders: vi.fn().mockResolvedValue([]),
+    getChaseOrders: vi.fn().mockResolvedValue([]),
+    suspendChaseOrders: vi.fn().mockResolvedValue([]),
+    getCurrentAccountId: vi
       .fn()
       .mockResolvedValue(
         `eip155:1:0x${providerId.padStart(40, '0').slice(0, 40)}`,
       ),
 
     // Write operations
-    placeOrder: jest
+    placeOrder: vi
       .fn()
       .mockResolvedValue({ success: true, orderId: 'order-123' }),
-    editOrder: jest
+    editOrder: vi
       .fn()
       .mockResolvedValue({ success: true, orderId: 'order-123' }),
-    cancelOrder: jest.fn().mockResolvedValue({ success: true }),
-    cancelOrders: jest.fn().mockResolvedValue({
+    cancelOrder: vi.fn().mockResolvedValue({ success: true }),
+    cancelOrders: vi.fn().mockResolvedValue({
       success: true,
       successCount: 1,
       failureCount: 0,
       results: [],
     }),
-    closePosition: jest.fn().mockResolvedValue({ success: true }),
-    closePositions: jest.fn().mockResolvedValue({
+    closePosition: vi.fn().mockResolvedValue({ success: true }),
+    closePositions: vi.fn().mockResolvedValue({
       success: true,
       successCount: 1,
       failureCount: 0,
       results: [],
     }),
-    updatePositionTPSL: jest.fn().mockResolvedValue({ success: true }),
-    updateMargin: jest.fn().mockResolvedValue({ success: true }),
-    withdraw: jest.fn().mockResolvedValue({ success: true }),
+    updatePositionTPSL: vi.fn().mockResolvedValue({ success: true }),
+    updateMargin: vi.fn().mockResolvedValue({ success: true }),
+    withdraw: vi.fn().mockResolvedValue({ success: true }),
 
     // Validation
-    validateDeposit: jest.fn().mockResolvedValue({ isValid: true }),
-    validateOrder: jest.fn().mockResolvedValue({ isValid: true }),
-    validateClosePosition: jest.fn().mockResolvedValue({ isValid: true }),
-    validateWithdrawal: jest.fn().mockResolvedValue({ isValid: true }),
+    validateDeposit: vi.fn().mockResolvedValue({ isValid: true }),
+    validateOrder: vi.fn().mockResolvedValue({ isValid: true }),
+    validateClosePosition: vi.fn().mockResolvedValue({ isValid: true }),
+    validateWithdrawal: vi.fn().mockResolvedValue({ isValid: true }),
 
     // Calculations
-    calculateLiquidationPrice: jest.fn().mockResolvedValue('45000'),
-    calculateMaintenanceMargin: jest.fn().mockResolvedValue(0.05),
-    getMaxLeverage: jest.fn().mockResolvedValue(50),
-    calculateFees: jest.fn().mockResolvedValue({ feeRate: 0.001 }),
-    previewPositionModify: jest.fn().mockResolvedValue({ status: 'none' }),
+    calculateLiquidationPrice: vi.fn().mockResolvedValue('45000'),
+    calculateMaintenanceMargin: vi.fn().mockResolvedValue(0.05),
+    getMaxLeverage: vi.fn().mockResolvedValue(50),
+    calculateFees: vi.fn().mockResolvedValue({ feeRate: 0.001 }),
+    previewPositionModify: vi.fn().mockResolvedValue({ status: 'none' }),
 
     // Subscriptions
-    subscribeToPrices: jest.fn().mockReturnValue(() => undefined),
-    subscribeToPositions: jest.fn().mockReturnValue(() => undefined),
-    subscribeToOrderFills: jest.fn().mockReturnValue(() => undefined),
-    subscribeToOrders: jest.fn().mockReturnValue(() => undefined),
-    subscribeToAccount: jest.fn().mockReturnValue(() => undefined),
-    subscribeToOICaps: jest.fn().mockReturnValue(() => undefined),
-    subscribeToCandles: jest.fn().mockReturnValue(() => undefined),
-    subscribeToOrderBook: jest.fn().mockReturnValue(() => undefined),
+    subscribeToPrices: vi.fn().mockReturnValue(() => undefined),
+    subscribeToPositions: vi.fn().mockReturnValue(() => undefined),
+    subscribeToOrderFills: vi.fn().mockReturnValue(() => undefined),
+    subscribeToOrders: vi.fn().mockReturnValue(() => undefined),
+    subscribeToAccount: vi.fn().mockReturnValue(() => undefined),
+    subscribeToOICaps: vi.fn().mockReturnValue(() => undefined),
+    subscribeToCandles: vi.fn().mockReturnValue(() => undefined),
+    subscribeToOrderBook: vi.fn().mockReturnValue(() => undefined),
 
     // Configuration
-    setLiveDataConfig: jest.fn(),
-    setUserFeeDiscount: jest.fn(),
-    setUserFeeResolution: jest.fn(),
-    approveSubscriptionBuilderFee: jest.fn().mockResolvedValue(true),
+    setLiveDataConfig: vi.fn(),
+    setUserFeeDiscount: vi.fn(),
+    setUserFeeResolution: vi.fn(),
+    approveSubscriptionBuilderFee: vi.fn().mockResolvedValue(true),
 
     // Lifecycle
-    toggleTestnet: jest
+    toggleTestnet: vi
       .fn()
       .mockResolvedValue({ success: true, isTestnet: false }),
-    initialize: jest.fn().mockResolvedValue({ success: true }),
-    isReadyToTrade: jest.fn().mockResolvedValue({ ready: true }),
-    disconnect: jest.fn().mockResolvedValue({ success: true }),
-    ping: jest.fn().mockResolvedValue(undefined),
+    initialize: vi.fn().mockResolvedValue({ success: true }),
+    isReadyToTrade: vi.fn().mockResolvedValue({ ready: true }),
+    disconnect: vi.fn().mockResolvedValue({ success: true }),
+    ping: vi.fn().mockResolvedValue(undefined),
 
     // Block explorer
-    getBlockExplorerUrl: jest.fn().mockReturnValue('https://explorer.example'),
+    getBlockExplorerUrl: vi.fn().mockReturnValue('https://explorer.example'),
 
     // HIP-3
-    getAvailableDexs: jest.fn().mockResolvedValue([]),
+    getAvailableDexs: vi.fn().mockResolvedValue([]),
   };
 
   return mockProvider;
@@ -198,8 +201,8 @@ const createMockOrder = (orderId: string, symbol: string): Order =>
 describe('AggregatedPerpsProvider', () => {
   let aggregatedProvider: AggregatedPerpsProvider;
   let routedProvider: PerpsProvider;
-  let mockHLProvider: jest.Mocked<PerpsProvider>;
-  let mockLighterProvider: jest.Mocked<PerpsProvider>;
+  let mockHLProvider: Mocked<PerpsProvider>;
+  let mockLighterProvider: Mocked<PerpsProvider>;
   let mockInfrastructure: ReturnType<typeof createMockInfrastructure>;
 
   beforeEach(() => {
@@ -231,9 +234,9 @@ describe('AggregatedPerpsProvider', () => {
         providerId: 'lighter',
       },
     ];
-    const reviewScaleOrderGroups = jest.fn().mockResolvedValue(groups);
+    const reviewScaleOrderGroups = vi.fn().mockResolvedValue(groups);
     Object.assign(mockLighterProvider, {
-      getScaleOrderGroups: jest.fn().mockResolvedValue(groups),
+      getScaleOrderGroups: vi.fn().mockResolvedValue(groups),
       reviewScaleOrderGroups,
     });
     expect(await aggregatedProvider.getScaleOrderGroups()).toEqual(groups);
@@ -265,7 +268,7 @@ describe('AggregatedPerpsProvider', () => {
           childClientOrderIds: ['102'],
           cancellation: 'explicit-exact-owned-orders',
         };
-        const read = jest.fn().mockResolvedValue([group]);
+        const read = vi.fn().mockResolvedValue([group]);
         const provider = new AggregatedPerpsProvider({
           providers: new Map([
             ['hyperliquid', mockHLProvider],
@@ -292,8 +295,8 @@ describe('AggregatedPerpsProvider', () => {
         orders: [],
         reviewedAt: 5,
       };
-      const reviewRecoveryVenue = jest.fn().mockResolvedValue(review);
-      const resolveRecoveryProtection = jest.fn().mockResolvedValue({
+      const reviewRecoveryVenue = vi.fn().mockResolvedValue(review);
+      const resolveRecoveryProtection = vi.fn().mockResolvedValue({
         status: 'settled',
         providerId: 'lighter',
         success: true,
@@ -373,8 +376,8 @@ describe('AggregatedPerpsProvider', () => {
     };
 
     it('returns only Lighter rows when HyperLiquid has no recovery capabilities', async () => {
-      const reconcile = jest.fn().mockResolvedValue([outcome]);
-      const listing = jest
+      const reconcile = vi.fn().mockResolvedValue([outcome]);
+      const listing = vi
         .fn()
         .mockResolvedValue([{ ...outcome, recoveryId: 'old' }]);
       expect(mockHLProvider.reconcileRecoveredDispatches).toBeUndefined();
@@ -403,8 +406,8 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('reconciles all providers with listing fallback and propagates failures', async () => {
-      const reconcile = jest.fn().mockResolvedValue([outcome]);
-      const listing = jest
+      const reconcile = vi.fn().mockResolvedValue([outcome]);
+      const listing = vi
         .fn()
         .mockResolvedValue([{ ...outcome, recoveryId: 'other' }]);
       const aggregated = new AggregatedPerpsProvider({
@@ -436,9 +439,9 @@ describe('AggregatedPerpsProvider', () => {
     it('aggregates recoveries and outcomes from providers implementing the contract', async () => {
       const durable = {
         ...mockLighterProvider,
-        getPendingManualRecoveries: jest.fn().mockResolvedValue([pending]),
-        getRecoveredDispatches: jest.fn().mockResolvedValue([outcome]),
-        acknowledgeRecoveredDispatch: jest.fn().mockResolvedValue(undefined),
+        getPendingManualRecoveries: vi.fn().mockResolvedValue([pending]),
+        getRecoveredDispatches: vi.fn().mockResolvedValue([outcome]),
+        acknowledgeRecoveredDispatch: vi.fn().mockResolvedValue(undefined),
       } as unknown as PerpsProvider;
       const aggregated = new AggregatedPerpsProvider({
         providers: new Map([
@@ -457,7 +460,7 @@ describe('AggregatedPerpsProvider', () => {
       ]);
       await aggregated.acknowledgeRecoveredDispatch('42:abcd');
       expect(
-        (durable as unknown as { acknowledgeRecoveredDispatch: jest.Mock })
+        (durable as unknown as { acknowledgeRecoveredDispatch: Mock })
           .acknowledgeRecoveredDispatch,
       ).toHaveBeenCalledWith('42:abcd');
     });
@@ -465,11 +468,11 @@ describe('AggregatedPerpsProvider', () => {
     it('propagates storage errors and unknown-id refusals instead of hiding them', async () => {
       const durable = {
         ...mockLighterProvider,
-        getPendingManualRecoveries: jest
+        getPendingManualRecoveries: vi
           .fn()
           .mockRejectedValue(new Error('manual-recovery index is corrupt')),
-        getRecoveredDispatches: jest.fn().mockResolvedValue([]),
-        acknowledgeRecoveredDispatch: jest
+        getRecoveredDispatches: vi.fn().mockResolvedValue([]),
+        acknowledgeRecoveredDispatch: vi
           .fn()
           .mockRejectedValue(new Error('No pending recovered')),
       } as unknown as PerpsProvider;
@@ -1266,8 +1269,8 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('prepares every provider and reports the first one not ready', async () => {
-      const prepareHyperLiquid = jest.fn().mockResolvedValue({ ready: true });
-      const prepareLighter = jest.fn().mockResolvedValue({
+      const prepareHyperLiquid = vi.fn().mockResolvedValue({ ready: true });
+      const prepareLighter = vi.fn().mockResolvedValue({
         ready: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
       });
@@ -1289,7 +1292,7 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('reports ready when every provider is ready or has no deferred setup', async () => {
-      const prepareHyperLiquid = jest.fn().mockResolvedValue({ ready: true });
+      const prepareHyperLiquid = vi.fn().mockResolvedValue({ ready: true });
       Object.assign(mockHLProvider, {
         prepareTradingWallet: prepareHyperLiquid,
       });
@@ -1301,10 +1304,10 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('reports the first not-ready provider when several are not ready', async () => {
-      const prepareHyperLiquid = jest
+      const prepareHyperLiquid = vi
         .fn()
         .mockResolvedValue({ ready: false, error: 'first' });
-      const prepareLighter = jest
+      const prepareLighter = vi
         .fn()
         .mockResolvedValue({ ready: false, error: 'second' });
       Object.assign(mockHLProvider, {
@@ -1324,9 +1327,9 @@ describe('AggregatedPerpsProvider', () => {
 
     it('still prepares the other providers when one throws', async () => {
       const crash = new Error('provider crashed');
-      const prepareLighter = jest.fn().mockResolvedValue({ ready: true });
+      const prepareLighter = vi.fn().mockResolvedValue({ ready: true });
       Object.assign(mockHLProvider, {
-        prepareTradingWallet: jest.fn().mockRejectedValue(crash),
+        prepareTradingWallet: vi.fn().mockRejectedValue(crash),
       });
       Object.assign(mockLighterProvider, {
         prepareTradingWallet: prepareLighter,
@@ -1337,7 +1340,7 @@ describe('AggregatedPerpsProvider', () => {
       expect(result).toStrictEqual({ ready: false, error: 'provider crashed' });
       expect(prepareLighter.mock.calls).toStrictEqual([[]]);
       expect(
-        (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+        (mockInfrastructure.logger.error as Mock).mock.calls,
       ).toStrictEqual([
         [
           crash,
@@ -1369,17 +1372,17 @@ describe('AggregatedPerpsProvider', () => {
       'reports and logs a provider that throws %s instead of an Error',
       async (_thrown, thrown, message) => {
         Object.assign(mockHLProvider, {
-          prepareTradingWallet: jest.fn().mockRejectedValue(thrown),
+          prepareTradingWallet: vi.fn().mockRejectedValue(thrown),
         });
         Object.assign(mockLighterProvider, {
-          prepareTradingWallet: jest.fn().mockResolvedValue({ ready: true }),
+          prepareTradingWallet: vi.fn().mockResolvedValue({ ready: true }),
         });
 
         const result = await aggregatedProvider.prepareTradingWallet();
 
         expect(result).toStrictEqual({ ready: false, error: message });
         expect(
-          (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+          (mockInfrastructure.logger.error as Mock).mock.calls,
         ).toStrictEqual([
           [
             new Error(message),
@@ -1415,13 +1418,13 @@ describe('AggregatedPerpsProvider', () => {
         });
         const crash = new Error('provider crashed');
         Object.assign(mockHLProvider, {
-          prepareTradingWallet: jest.fn().mockRejectedValue(crash),
+          prepareTradingWallet: vi.fn().mockRejectedValue(crash),
         });
 
         await networkProvider.prepareTradingWallet();
 
         expect(
-          (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+          (mockInfrastructure.logger.error as Mock).mock.calls,
         ).toStrictEqual([
           [
             crash,
@@ -1445,11 +1448,11 @@ describe('AggregatedPerpsProvider', () => {
     );
 
     it('tags a logged Lighter failure with the network while Lighter is not pinned to testnet', async () => {
-      jest.replaceProperty(
+      vi.spyOn(
         PROVIDER_CONFIG as { LIGHTER_TESTNET_ONLY: boolean },
         'LIGHTER_TESTNET_ONLY',
-        false,
-      );
+        'get',
+      ).mockReturnValue(false);
       const networkProvider = new AggregatedPerpsProvider({
         providers: new Map([['lighter', mockLighterProvider]]),
         defaultProvider: 'lighter',
@@ -1458,13 +1461,13 @@ describe('AggregatedPerpsProvider', () => {
       });
       const crash = new Error('provider crashed');
       Object.assign(mockLighterProvider, {
-        prepareTradingWallet: jest.fn().mockRejectedValue(crash),
+        prepareTradingWallet: vi.fn().mockRejectedValue(crash),
       });
 
       await networkProvider.prepareTradingWallet();
 
       expect(
-        (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+        (mockInfrastructure.logger.error as Mock).mock.calls,
       ).toStrictEqual([
         [
           crash,
@@ -1484,11 +1487,11 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('tags a logged Lighter failure with testnet while Lighter is pinned to testnet', async () => {
-      jest.replaceProperty(
+      vi.spyOn(
         PROVIDER_CONFIG as { LIGHTER_TESTNET_ONLY: boolean },
         'LIGHTER_TESTNET_ONLY',
-        true,
-      );
+        'get',
+      ).mockReturnValue(true);
       const networkProvider = new AggregatedPerpsProvider({
         providers: new Map([['lighter', mockLighterProvider]]),
         defaultProvider: 'lighter',
@@ -1497,13 +1500,13 @@ describe('AggregatedPerpsProvider', () => {
       });
       const crash = new Error('provider crashed');
       Object.assign(mockLighterProvider, {
-        prepareTradingWallet: jest.fn().mockRejectedValue(crash),
+        prepareTradingWallet: vi.fn().mockRejectedValue(crash),
       });
 
       await networkProvider.prepareTradingWallet();
 
       expect(
-        (mockInfrastructure.logger.error as jest.Mock).mock.calls,
+        (mockInfrastructure.logger.error as Mock).mock.calls,
       ).toStrictEqual([
         [
           crash,
@@ -1525,11 +1528,11 @@ describe('AggregatedPerpsProvider', () => {
     it('prepares the next provider only after the previous one settles', async () => {
       const hyperLiquidAsked = createDeferred<void>();
       const firstPreparation = createDeferred<{ ready: boolean }>();
-      const prepareHyperLiquid = jest.fn(async () => {
+      const prepareHyperLiquid = vi.fn(async () => {
         hyperLiquidAsked.resolve();
         return await firstPreparation.promise;
       });
-      const prepareLighter = jest.fn().mockResolvedValue({ ready: true });
+      const prepareLighter = vi.fn().mockResolvedValue({ ready: true });
       Object.assign(mockHLProvider, {
         prepareTradingWallet: prepareHyperLiquid,
       });
@@ -1638,7 +1641,7 @@ describe('AggregatedPerpsProvider', () => {
     };
 
     it('routes once to the exact provider and preserves captured identity', async () => {
-      const reconcile = jest.fn().mockResolvedValue(unsupported);
+      const reconcile = vi.fn().mockResolvedValue(unsupported);
       mockLighterProvider.reconcileChaseOrderCancellation = reconcile;
       const input = params();
       const expected = structuredClone(input);
@@ -1666,7 +1669,7 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockHLProvider.cancelOrder).not.toHaveBeenCalled();
     });
     it('refuses mismatched owner and route before provider calls', async () => {
-      const reconcile = jest.fn().mockResolvedValue(unsupported);
+      const reconcile = vi.fn().mockResolvedValue(unsupported);
       mockLighterProvider.reconcileChaseOrderCancellation = reconcile;
       const input = params();
       input.owner.providerId = 'hyperliquid';
@@ -1677,7 +1680,7 @@ describe('AggregatedPerpsProvider', () => {
     });
     it('fences a provider replacement during reconciliation', async () => {
       const result = createDeferred<ReconcileChaseOrderCancellationResult>();
-      mockLighterProvider.reconcileChaseOrderCancellation = jest.fn(
+      mockLighterProvider.reconcileChaseOrderCancellation = vi.fn(
         () => result.promise,
       );
       const pending =
@@ -2153,7 +2156,7 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('gets the margin mode lock from the routed provider', async () => {
-      mockLighterProvider.getMarginModeLock = jest.fn().mockResolvedValue({
+      mockLighterProvider.getMarginModeLock = vi.fn().mockResolvedValue({
         status: 'locked',
         providerId: 'lighter',
         marginMode: 'cross',
@@ -2209,7 +2212,7 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('rejects a margin mode lock attributed to a different provider', async () => {
-      mockLighterProvider.getMarginModeLock = jest.fn().mockResolvedValue({
+      mockLighterProvider.getMarginModeLock = vi.fn().mockResolvedValue({
         status: 'unlocked',
         providerId: 'hyperliquid',
       });
@@ -2227,7 +2230,7 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('reports unavailable when the routed margin mode lock read throws', async () => {
-      mockHLProvider.getMarginModeLock = jest
+      mockHLProvider.getMarginModeLock = vi
         .fn()
         .mockRejectedValue(new Error('offline'));
 
@@ -2359,7 +2362,7 @@ describe('AggregatedPerpsProvider', () => {
 
   describe('Subscriptions', () => {
     it('subscribes to prices via multiplexer', () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
       aggregatedProvider.subscribeToPrices({
         symbols: ['BTC'],
         callback,
@@ -2370,14 +2373,14 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('delegates account subscription to default provider', () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
       aggregatedProvider.subscribeToAccount({ callback });
 
       expect(mockHLProvider.subscribeToAccount).toHaveBeenCalled();
     });
 
     it('delegates subscribeToOICaps to default provider', () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
 
       aggregatedProvider.subscribeToOICaps({ callback });
 
@@ -2385,7 +2388,7 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('delegates subscribeToCandles to default provider', () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
 
       aggregatedProvider.subscribeToCandles({
         symbol: 'BTC',
@@ -2397,7 +2400,7 @@ describe('AggregatedPerpsProvider', () => {
     });
 
     it('delegates subscribeToOrderBook to default provider', () => {
-      const callback = jest.fn();
+      const callback = vi.fn();
 
       aggregatedProvider.subscribeToOrderBook({ symbol: 'BTC', callback });
 
@@ -2409,10 +2412,10 @@ describe('AggregatedPerpsProvider', () => {
     it('delegates getWebSocketConnectionState to default provider', () => {
       // Arrange
       (
-        mockHLProvider as jest.Mocked<PerpsProvider> & {
-          getWebSocketConnectionState: jest.Mock;
+        mockHLProvider as Mocked<PerpsProvider> & {
+          getWebSocketConnectionState: Mock;
         }
-      ).getWebSocketConnectionState = jest
+      ).getWebSocketConnectionState = vi
         .fn()
         .mockReturnValue(WebSocketConnectionState.Connected);
 
@@ -2441,13 +2444,13 @@ describe('AggregatedPerpsProvider', () => {
 
     it('delegates subscribeToConnectionState to default provider', () => {
       // Arrange
-      const unsubscribe = jest.fn();
+      const unsubscribe = vi.fn();
       (
-        mockHLProvider as jest.Mocked<PerpsProvider> & {
-          subscribeToConnectionState: jest.Mock;
+        mockHLProvider as Mocked<PerpsProvider> & {
+          subscribeToConnectionState: Mock;
         }
-      ).subscribeToConnectionState = jest.fn().mockReturnValue(unsubscribe);
-      const listener = jest.fn();
+      ).subscribeToConnectionState = vi.fn().mockReturnValue(unsubscribe);
+      const listener = vi.fn();
 
       // Act
       const cleanup = aggregatedProvider.subscribeToConnectionState(listener);
@@ -2464,7 +2467,7 @@ describe('AggregatedPerpsProvider', () => {
         defaultProvider: 'no-ws' as PerpsProviderType,
         infrastructure: mockInfrastructure,
       });
-      const listener = jest.fn();
+      const listener = vi.fn();
 
       // Act
       const cleanup = testProvider.subscribeToConnectionState(listener);
@@ -2480,10 +2483,10 @@ describe('AggregatedPerpsProvider', () => {
     it('delegates reconnect to default provider', async () => {
       // Arrange
       (
-        mockHLProvider as jest.Mocked<PerpsProvider> & {
-          reconnect: jest.Mock;
+        mockHLProvider as Mocked<PerpsProvider> & {
+          reconnect: Mock;
         }
-      ).reconnect = jest.fn().mockResolvedValue(undefined);
+      ).reconnect = vi.fn().mockResolvedValue(undefined);
 
       // Act
       await aggregatedProvider.reconnect();
@@ -2491,8 +2494,8 @@ describe('AggregatedPerpsProvider', () => {
       // Assert
       expect(
         (
-          mockHLProvider as jest.Mocked<PerpsProvider> & {
-            reconnect: jest.Mock;
+          mockHLProvider as Mocked<PerpsProvider> & {
+            reconnect: Mock;
           }
         ).reconnect,
       ).toHaveBeenCalled();

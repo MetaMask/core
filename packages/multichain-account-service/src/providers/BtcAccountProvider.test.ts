@@ -5,8 +5,9 @@ import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import deepmerge from 'deepmerge';
+import { describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
-import { TraceName } from '../analytics/traces.js';
 import {
   getMultichainAccountServiceMessenger,
   getRootMessenger,
@@ -17,8 +18,9 @@ import {
   MOCK_HD_KEYRING_1,
   MockAccountBuilder,
   toGroupIndexRangeArray,
-} from '../tests/index.js';
-import type { RootMessenger, DeepPartial } from '../tests/index.js';
+} from '../../tests/index.js';
+import type { RootMessenger, DeepPartial } from '../../tests/index.js';
+import { TraceName } from '../analytics/traces.js';
 import { AccountProviderWrapper } from './AccountProviderWrapper.js';
 import {
   BTC_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
@@ -63,7 +65,7 @@ class MockBtcKeyring {
     this.accounts = accounts;
   }
 
-  createAccounts = jest.fn().mockImplementation((options) => {
+  createAccounts = vi.fn().mockImplementation((options) => {
     const groupIndices =
       options.type === 'bip44:derive-index'
         ? [options.groupIndex]
@@ -90,7 +92,7 @@ class MockBtcKeyring {
     });
   });
 
-  deleteAccount = jest.fn().mockResolvedValue(undefined);
+  deleteAccount = vi.fn().mockResolvedValue(undefined);
 }
 
 class MockBtcAccountProvider extends BtcAccountProvider {
@@ -124,11 +126,11 @@ function setup({
   messenger: RootMessenger;
   keyring: MockBtcKeyring;
   mocks: {
-    handleRequest: jest.Mock;
+    handleRequest: Mock;
     keyring: {
-      createAccounts: jest.Mock;
+      createAccounts: Mock;
     };
-    trace: jest.Mock;
+    trace: Mock;
   };
 } {
   const keyring = new MockBtcKeyring(accounts);
@@ -153,7 +155,7 @@ function setup({
     () => accounts,
   );
 
-  const mockGetAccount = jest.fn().mockImplementation((id) => {
+  const mockGetAccount = vi.fn().mockImplementation((id) => {
     return keyring.accounts.find((account) => account.id === id);
   });
   messenger.registerActionHandler(
@@ -161,7 +163,7 @@ function setup({
     mockGetAccount,
   );
 
-  const mockHandleRequest = jest
+  const mockHandleRequest = vi
     .fn()
     .mockImplementation((address: string) =>
       keyring.accounts.find((account) => account.address === address),
@@ -180,7 +182,7 @@ function setup({
       }),
   );
 
-  const mockTrace = jest.fn().mockImplementation(async (_request, fn) => {
+  const mockTrace = vi.fn().mockImplementation(async (_request, fn) => {
     return await fn();
   });
 

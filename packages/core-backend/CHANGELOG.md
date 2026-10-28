@@ -11,10 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `LaunchpadTokenDetailsService` for real-time launchpad token detail streaming over the shared backend WebSocket, exposing `subscribe`/`unsubscribe` by `assetId` and publishing `tokenUpdated`, `statusChanged`, and `subscriptionError` events, along with `LAUNCHPAD_TDP_SERVICE_ALLOWED_ACTIONS`/`LAUNCHPAD_TDP_SERVICE_ALLOWED_EVENTS` and launchpad event types/normalizers (`parseBatch`, `normalizeEvent`, `buildChannel`) ([#10884](https://github.com/MetaMask/core/pull/10884))
 - Add `ChannelSubscriptionManager`, a reusable per-channel WebSocket subscription lifecycle helper (reference counting, grace-period unsubscribe, unsubscribe retry, and resubscribe on reconnect) shared by `OHLCVService` and `LaunchpadTokenDetailsService` ([#10884](https://github.com/MetaMask/core/pull/10884))
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
 - Refactor `OHLCVService` to delegate its subscription lifecycle to the shared `ChannelSubscriptionManager` via composition, with no change to its public API or published events ([#10884](https://github.com/MetaMask/core/pull/10884))
+- Stop publishing the `api/test-utils` test helper, which was never reachable through the package's `exports` field ([#10916](https://github.com/MetaMask/core/pull/10916))
+- Bump `@metamask/account-tree-controller` from `^11.0.1` to `^11.2.0` ([#10891](https://github.com/MetaMask/core/pull/10891), [#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^36.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925), [#11092](https://github.com/MetaMask/core/pull/11092))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [12.3.0]
 

@@ -14,10 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - This assumes that the data service method you want to call uses `BaseDataService.executeMutation` to make the request instead of `fetchQuery`, but should also take a trailing `globalId` argument.
     - Retries are disabled by default.
   - Also, the query client returned by `createUIQueryClient` is now aware of mutations and will ensure that they are copied from data service query clients properly.
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
-- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.1` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107))
 - Add `uuid` `^11.1.1` as a dependency ([#9324](https://github.com/MetaMask/core/pull/9324))
 - Bump `@tanstack/query-core` and `@tanstack/react-query` from `^5.62.16` to `^5.89.0` ([#9324](https://github.com/MetaMask/core/pull/9324))
 - Bump `@metamask/base-data-service` from `^2.0.0` to `^2.1.0` ([#10502](https://github.com/MetaMask/core/pull/10502))

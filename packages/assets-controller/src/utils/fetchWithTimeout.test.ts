@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { fetchWithTimeout } from './fetchWithTimeout.js';
 
 describe('fetchWithTimeout', () => {
@@ -21,7 +23,7 @@ describe('fetchWithTimeout', () => {
   });
 
   it('clears the timeout when the task resolves first', async () => {
-    const clearSpy = jest.spyOn(global, 'clearTimeout');
+    const clearSpy = vi.spyOn(global, 'clearTimeout');
     await fetchWithTimeout(async () => 'done', 1_000);
     expect(clearSpy).toHaveBeenCalled();
     clearSpy.mockRestore();
