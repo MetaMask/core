@@ -177,7 +177,9 @@ export type NeoBankServiceGetMoonpayCustomerIdAction = {
  * once per service instance; concurrent callers share the in-flight lookup
  * and a failed lookup is retried by the next call. A 404 (from the customer
  * lookup or the list) means there is no customer or no deposits yet and
- * resolves `[]`. Any other non-2xx response throws.
+ * resolves `[]`. Any other non-2xx response throws an {@link HttpError}. The
+ * customer lookup is a single attempt: it does not go through the retry
+ * policy.
  *
  * @returns MoonPay microdeposits, unmodified.
  */

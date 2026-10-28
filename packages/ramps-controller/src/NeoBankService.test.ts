@@ -1,5 +1,5 @@
 import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
-import { ConstantBackoff } from '@metamask/controller-utils';
+import { ConstantBackoff, HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import nock, { cleanAll } from 'nock';
@@ -13,6 +13,7 @@ import {
 } from './NeoBankService.js';
 import type { NeoBankServiceMessenger } from './NeoBankService.js';
 import { RampsEnvironment } from './RampsService.js';
+import { WalletRegistrationError } from './wallet-registration-service.js';
 
 const STAGING_BASE = 'https://on-ramp.uat-api.cx.metamask.io';
 
@@ -1130,11 +1131,34 @@ describe('NeoBankService', () => {
       expect(customerScope.isDone()).toBe(true);
     });
 
+    it('rethrows customer lookup errors that carry no HTTP status unchanged', async () => {
+      const service = createService({ canonicalProfileId: '' });
+
+      await expect(service.getMicrodeposits()).rejects.toThrow(
+        /Unable to resolve MetaMask canonical profile id/u,
+      );
+    });
+
+    it('rethrows a WalletRegistrationError without an HTTP status unchanged', async () => {
+      nock(STAGING_BASE).get(CUSTOMER_PATH).reply(200, {});
+      const service = createService();
+
+      await expect(service.getMicrodeposits()).rejects.toBeInstanceOf(
+        WalletRegistrationError,
+      );
+    });
+
     it('retries the customer lookup after a failed resolution', async () => {
       nock(STAGING_BASE).get(CUSTOMER_PATH).once().reply(500, 'boom');
       const service = createService();
 
-      await expect(service.getMicrodeposits()).rejects.toThrow(/boom/u);
+      const error = await service.getMicrodeposits().catch((caught) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error.httpStatus).toBe(500);
+      expect(error.message).toBe(
+        "Fetching neo-bank customer lookup failed with status '500' - boom",
+      );
 
       mockCustomerLookup();
       nock(STAGING_BASE).get(MICRODEPOSITS_PATH).query(true).reply(200, []);

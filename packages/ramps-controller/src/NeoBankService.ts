@@ -22,7 +22,10 @@ import type {
 } from './autoramp-types.js';
 import type { NeoBankServiceMethodActions } from './NeoBankService-method-action-types.js';
 import { RAMPS_SDK_VERSION, RampsEnvironment } from './RampsService.js';
-import { WalletRegistrationService } from './wallet-registration-service.js';
+import {
+  WalletRegistrationError,
+  WalletRegistrationService,
+} from './wallet-registration-service.js';
 import type {
   RegistrationOutcome,
   RegistrationStatus,
@@ -955,7 +958,9 @@ export class NeoBankService {
    * once per service instance; concurrent callers share the in-flight lookup
    * and a failed lookup is retried by the next call. A 404 (from the customer
    * lookup or the list) means there is no customer or no deposits yet and
-   * resolves `[]`. Any other non-2xx response throws.
+   * resolves `[]`. Any other non-2xx response throws an {@link HttpError}. The
+   * customer lookup is a single attempt: it does not go through the retry
+   * policy.
    *
    * @returns MoonPay microdeposits, unmodified.
    */
@@ -965,6 +970,15 @@ export class NeoBankService {
       this.#customerIdPromise ??= this.getMoonpayCustomerId().catch(
         (error: unknown) => {
           this.#customerIdPromise = undefined;
+          // The lookup runs outside the service policy and throws
+          // WalletRegistrationError; surface HTTP failures as HttpError like
+          // every other method.
+          if (error instanceof WalletRegistrationError && error.httpStatus) {
+            throw new HttpError(
+              error.httpStatus,
+              `Fetching neo-bank customer lookup failed with status '${error.httpStatus}'${error.body ? ` - ${error.body}` : ''}`,
+            );
+          }
           throw error;
         },
       );
