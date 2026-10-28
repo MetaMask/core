@@ -1,4 +1,5 @@
-import { bytesToHex, hexToBytes, randomBytes } from '@noble/hashes/utils';
+import { getRandomBytes } from '@metamask/cryptography';
+import { bytesToHex, hexToBytes, remove0x } from '@metamask/utils';
 
 import {
   UKYC_CAPABILITY_AUTH_SCHEME,
@@ -43,7 +44,7 @@ export type MintUkycTestTokenParams = {
    * a fresh random secret is generated (returned in the result so it can be
    * reused).
    */
-  localUserSecret?: Uint8Array | string;
+  localUserSecret?: Uint8Array<ArrayBuffer> | string;
   /** Operations the token authorizes. Defaults to `['read']`. */
   operations?: UkycStorageOperation[];
   /** Who will present the token. Defaults to `client`. */
@@ -82,9 +83,11 @@ export type MintedUkycTestToken = {
  * @param secret - Raw 32 bytes, a hex string, or undefined for a random secret.
  * @returns The `local_user_secret` bytes.
  */
-function resolveLocalUserSecret(secret?: Uint8Array | string): Uint8Array {
+function resolveLocalUserSecret(
+  secret?: Uint8Array<ArrayBuffer> | string,
+): Uint8Array<ArrayBuffer> {
   if (secret === undefined) {
-    return randomBytes(UKYC_LOCAL_USER_SECRET_SIZE_BYTES);
+    return getRandomBytes(UKYC_LOCAL_USER_SECRET_SIZE_BYTES);
   }
   return typeof secret === 'string' ? hexToBytes(secret) : secret;
 }
@@ -95,9 +98,9 @@ function resolveLocalUserSecret(secret?: Uint8Array | string): Uint8Array {
  * @param params - See {@link MintUkycTestTokenParams}.
  * @returns The token, its `Authorization` header, and the derived identifiers.
  */
-export function mintUkycTestToken(
+export async function mintUkycTestToken(
   params: MintUkycTestTokenParams = {},
-): MintedUkycTestToken {
+): Promise<MintedUkycTestToken> {
   const {
     operations = ['read'],
     presenter,
@@ -107,9 +110,9 @@ export function mintUkycTestToken(
   } = params;
 
   const localUserSecret = resolveLocalUserSecret(params.localUserSecret);
-  const material = deriveClientMaterial(localUserSecret);
+  const material = await deriveClientMaterial(localUserSecret);
 
-  const token = signStorageAccessToken({
+  const token = await signStorageAccessToken({
     material,
     operations,
     presenter,
@@ -121,7 +124,7 @@ export function mintUkycTestToken(
   const { storageId, signingPublicKey } = encodeClientMaterial(material);
 
   return {
-    localUserSecret: bytesToHex(localUserSecret),
+    localUserSecret: remove0x(bytesToHex(localUserSecret)),
     storageId,
     signingPublicKey,
     token,

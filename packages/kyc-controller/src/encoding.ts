@@ -29,7 +29,7 @@ export function toBase64Url(bytes: Uint8Array): string {
  * @param value - The base64url string.
  * @returns The decoded bytes.
  */
-export function base64UrlToBytes(value: string): Uint8Array {
+export function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
   return base64ToBytes(
     value
       .replace(/-/gu, '+')

@@ -1,5 +1,5 @@
+import { sign } from '@metamask/cryptography/ed25519';
 import { stringToBytes } from '@metamask/utils';
-import { ed25519 } from '@noble/curves/ed25519';
 
 import { toBase64Url } from '../encoding.js';
 import {
@@ -159,9 +159,9 @@ function toRfc3339Seconds(date: Date): string {
  * @param params - See {@link SignStorageAccessTokenParams}.
  * @returns The signed token envelope.
  */
-export function signStorageAccessToken(
+export async function signStorageAccessToken(
   params: SignStorageAccessTokenParams,
-): UkycStorageAccessToken {
+): Promise<UkycStorageAccessToken> {
   const {
     material,
     operations,
@@ -211,7 +211,7 @@ export function signStorageAccessToken(
   }
 
   const message = stringToBytes(canonicalizeJson(payload));
-  const signature = ed25519.sign(message, material.signingKey);
+  const signature = await sign(material.signingKey, message);
 
   return {
     payload,

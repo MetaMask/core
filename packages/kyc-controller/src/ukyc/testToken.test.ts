@@ -34,8 +34,8 @@ function decodeHeader(header: string): {
 }
 
 describe('UKYC mintUkycTestToken', () => {
-  it('mints a client token from a hex secret with the derived identifiers', () => {
-    const result = mintUkycTestToken({
+  it('mints a client token from a hex secret with the derived identifiers', async () => {
+    const result = await mintUkycTestToken({
       localUserSecret: SECRET_HEX,
       operations: ['read', 'write'],
       issuedAt: ISSUED_AT,
@@ -60,8 +60,8 @@ describe('UKYC mintUkycTestToken', () => {
     expect(result.token.payload).not.toHaveProperty('session_id');
   });
 
-  it('produces an Authorization header whose signature verifies (as UKYC Storage checks it)', () => {
-    const result = mintUkycTestToken({
+  it('produces an Authorization header whose signature verifies (as UKYC Storage checks it)', async () => {
+    const result = await mintUkycTestToken({
       localUserSecret: SECRET_HEX,
       issuedAt: ISSUED_AT,
       expiresAt: EXPIRES_AT,
@@ -75,8 +75,8 @@ describe('UKYC mintUkycTestToken', () => {
     expect(ed25519.verify(signature, message, publicKey)).toBe(true);
   });
 
-  it('defaults operations to ["read"] and expiry to issued_at + 4h', () => {
-    const result = mintUkycTestToken({
+  it('defaults operations to ["read"] and expiry to issued_at + 4h', async () => {
+    const result = await mintUkycTestToken({
       localUserSecret: SECRET_HEX,
       issuedAt: ISSUED_AT,
     });
@@ -86,7 +86,7 @@ describe('UKYC mintUkycTestToken', () => {
     expect(result.token.payload.expires_at).toBe('2026-07-07T04:00:00Z');
   });
 
-  it('accepts a raw byte secret and is deterministic for the same inputs', () => {
+  it('accepts a raw byte secret and is deterministic for the same inputs', async () => {
     const secret = hexToBytes(SECRET_HEX);
     const params = {
       localUserSecret: secret,
@@ -94,11 +94,13 @@ describe('UKYC mintUkycTestToken', () => {
       expiresAt: EXPIRES_AT,
     };
 
-    expect(mintUkycTestToken(params)).toStrictEqual(mintUkycTestToken(params));
+    expect(await mintUkycTestToken(params)).toStrictEqual(
+      await mintUkycTestToken(params),
+    );
   });
 
-  it('generates a fresh random secret when none is supplied', () => {
-    const result = mintUkycTestToken();
+  it('generates a fresh random secret when none is supplied', async () => {
+    const result = await mintUkycTestToken();
 
     // 32 bytes hex-encoded.
     expect(result.localUserSecret).toMatch(/^[0-9a-f]{64}$/u);
@@ -108,8 +110,8 @@ describe('UKYC mintUkycTestToken', () => {
     ).toBe(true);
   });
 
-  it('binds session_id for a Relay-presented token', () => {
-    const result = mintUkycTestToken({
+  it('binds session_id for a Relay-presented token', async () => {
+    const result = await mintUkycTestToken({
       localUserSecret: SECRET_HEX,
       operations: ['read', 'write'],
       presenter: 'idos-relay',
@@ -122,14 +124,14 @@ describe('UKYC mintUkycTestToken', () => {
     expect(result.token.payload.session_id).toBe('session-1');
   });
 
-  it('rejects a Relay presenter without a session_id', () => {
-    expect(() =>
+  it('rejects a Relay presenter without a session_id', async () => {
+    await expect(
       mintUkycTestToken({
         localUserSecret: SECRET_HEX,
         presenter: 'idos-relay',
         issuedAt: ISSUED_AT,
         expiresAt: EXPIRES_AT,
       }),
-    ).toThrow('requires a session_id');
+    ).rejects.toThrow('requires a session_id');
   });
 });

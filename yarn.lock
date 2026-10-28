@@ -7110,6 +7110,7 @@ __metadata:
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/base-data-service": "npm:^2.1.0"
     "@metamask/controller-utils": "npm:^13.0.0"
+    "@metamask/cryptography": "npm:^1.1.2"
     "@metamask/geolocation-controller": "npm:^2.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/profile-sync-controller": "npm:^36.0.0"
