@@ -6,7 +6,6 @@
  */
 
 import type {
-  LaunchpadEventType,
   LaunchpadTokenCreatedEvent,
   LaunchpadTokenEvent,
   LaunchpadTokenMigratedEvent,
@@ -30,15 +29,11 @@ export function buildChannel(assetId: string): string {
   return `${LAUNCHPAD_SUBSCRIPTION_NAMESPACE}.${assetId}`;
 }
 
-const EVENT_TYPES: ReadonlySet<LaunchpadEventType> = new Set([
-  'created',
-  'stats',
-  'migrated',
-]);
-
 /**
- * Type guard for a plausible raw launchpad token event. Tolerant by design:
- * only the discriminator, timestamp and asset id are required.
+ * Type guard for a structurally plausible raw launchpad token event. Tolerant
+ * by design: only a string discriminator, numeric timestamp and asset id are
+ * required. Whether the discriminator is a *known* event type is decided by
+ * {@link normalizeEvent}, which returns `null` for anything it does not handle.
  *
  * @param value - Candidate value.
  * @returns True if the value looks like a raw launchpad token event.
@@ -52,7 +47,6 @@ function isRawLaunchpadTokenEvent(
   const candidate = value as Partial<RawLaunchpadTokenEvent>;
   return (
     typeof candidate.evt === 'string' &&
-    EVENT_TYPES.has(candidate.evt) &&
     typeof candidate.ts === 'number' &&
     typeof candidate.a === 'string'
   );
@@ -63,11 +57,12 @@ function isRawLaunchpadTokenEvent(
  * union. Only the fields relevant to the event type are mapped.
  *
  * @param raw - The raw abbreviated-key event.
- * @returns The normalized event.
+ * @returns The normalized event, or `null` if the event type is not one we
+ * handle (`created | stats | migrated`) so callers can skip it.
  */
 export function normalizeEvent(
   raw: RawLaunchpadTokenEvent,
-): LaunchpadTokenEvent {
+): LaunchpadTokenEvent | null {
   const base = {
     timestamp: raw.ts,
     assetId: raw.a,
@@ -103,8 +98,7 @@ export function normalizeEvent(
       };
       return event;
     }
-    case 'stats':
-    default: {
+    case 'stats': {
       const event: LaunchpadTokenStatsEvent = {
         eventType: 'stats',
         ...base,
@@ -127,6 +121,9 @@ export function normalizeEvent(
       };
       return event;
     }
+    default:
+      // Unknown/unhandled event type — skip rather than coercing to `stats`.
+      return null;
   }
 }
 
@@ -145,8 +142,12 @@ export function parseBatch(data: unknown): LaunchpadTokenEvent[] {
 
   const events: LaunchpadTokenEvent[] = [];
   for (const entry of data) {
-    if (isRawLaunchpadTokenEvent(entry)) {
-      events.push(normalizeEvent(entry));
+    if (!isRawLaunchpadTokenEvent(entry)) {
+      continue;
+    }
+    const normalized = normalizeEvent(entry);
+    if (normalized) {
+      events.push(normalized);
     }
   }
   return events;

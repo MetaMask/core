@@ -146,6 +146,16 @@ describe('launchpad normalize', () => {
         graduationStage: 'migrated',
       });
     });
+
+    it('returns null for an unknown event type', () => {
+      const raw = {
+        evt: 'unknown',
+        ts: 5,
+        a: ASSET_ID,
+      } as unknown as RawLaunchpadTokenEvent;
+
+      expect(normalizeEvent(raw)).toBeNull();
+    });
   });
 
   describe('parseBatch', () => {

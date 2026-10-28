@@ -7,7 +7,6 @@ import type {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
-import { flushPromises } from '../../../../../tests/vitest/helpers.js';
 import type { ServerNotificationMessage } from '../BackendWebSocketService.js';
 import { WebSocketState } from '../BackendWebSocketService.js';
 import { LaunchpadTokenDetailsService } from './LaunchpadTokenDetailsService.js';
@@ -23,29 +22,23 @@ type AllEvents = MessengerEvents<LaunchpadTokenDetailsServiceMessenger>;
 
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
-const completeAsyncOperations = async (timeoutMs = 0): Promise<void> => {
-  for (let i = 0; i < 5; i++) {
-    await flushPromises();
-  }
-  if (timeoutMs > 0) {
-    await new Promise((resolve) => setTimeout(resolve, timeoutMs));
-  }
-  await flushPromises();
+type ServiceMocks = {
+  connect: Mock;
+  subscribe: Mock;
+  channelHasSubscription: Mock;
+  getSubscriptionsByChannel: Mock;
+  forceReconnection: Mock;
+  addChannelCallback: Mock;
+  removeChannelCallback: Mock;
 };
 
-const getMessenger = (): {
+type MessengerSetup = {
   rootMessenger: RootMessenger;
   messenger: LaunchpadTokenDetailsServiceMessenger;
-  mocks: {
-    connect: Mock;
-    subscribe: Mock;
-    channelHasSubscription: Mock;
-    getSubscriptionsByChannel: Mock;
-    forceReconnection: Mock;
-    addChannelCallback: Mock;
-    removeChannelCallback: Mock;
-  };
-} => {
+  mocks: ServiceMocks;
+};
+
+const getMessenger = (): MessengerSetup => {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -114,7 +107,7 @@ type WithServiceCallback<R> = (payload: {
   service: LaunchpadTokenDetailsService;
   messenger: LaunchpadTokenDetailsServiceMessenger;
   rootMessenger: RootMessenger;
-  mocks: ReturnType<typeof getMessenger>['mocks'];
+  mocks: ServiceMocks;
 }) => Promise<R> | R;
 
 async function withService<R>(fn: WithServiceCallback<R>): Promise<R> {
@@ -170,6 +163,35 @@ const SUB_OPTS: LaunchpadTokenDetailsSubscriptionOptions = {
 };
 
 const EXPECTED_CHANNEL = 'launchpad-tokens.v1.eip155:8453/erc20:0xaaa';
+
+/**
+ * Build a {@link ServerNotificationMessage} fixture. The single `data` cast is
+ * confined here so individual tests can pass plain, readable payloads (the wire
+ * `data` is an array for token batches but typed `Record<string, unknown>`).
+ *
+ * @param args - Notification fields; `channel` defaults to the per-asset channel.
+ * @param args.event - Server event name (defaults to `'data'`).
+ * @param args.channel - Channel the notification arrived on.
+ * @param args.timestamp - Notification timestamp.
+ * @param args.data - The notification payload.
+ * @returns A fully-typed server notification message.
+ */
+const notification = ({
+  event = 'data',
+  channel = EXPECTED_CHANNEL,
+  timestamp = 0,
+  data,
+}: {
+  event?: string;
+  channel?: string;
+  timestamp?: number;
+  data: unknown;
+}): ServerNotificationMessage => ({
+  event,
+  channel,
+  timestamp,
+  data: data as Record<string, unknown>,
+});
 
 // =============================================================================
 // Tests
@@ -242,15 +264,15 @@ describe('LaunchpadTokenDetailsService', () => {
         );
 
         const callback = getSubscribeCallback(mocks);
-        callback({
-          event: 'data',
-          channel: EXPECTED_CHANNEL,
-          data: [
-            { evt: 'created', ts: 1, a: SUB_OPTS.assetId, n: 'AlphaDog' },
-            { evt: 'stats', ts: 2, a: SUB_OPTS.assetId, mc: '21000' },
-          ],
-          timestamp: 2,
-        } as unknown as ServerNotificationMessage);
+        callback(
+          notification({
+            data: [
+              { evt: 'created', ts: 1, a: SUB_OPTS.assetId, n: 'AlphaDog' },
+              { evt: 'stats', ts: 2, a: SUB_OPTS.assetId, mc: '21000' },
+            ],
+            timestamp: 2,
+          }),
+        );
 
         expect(updateListener).toHaveBeenCalledWith({
           channel: EXPECTED_CHANNEL,
@@ -272,18 +294,8 @@ describe('LaunchpadTokenDetailsService', () => {
         );
 
         const callback = getSubscribeCallback(mocks);
-        callback({
-          event: 'data',
-          channel: EXPECTED_CHANNEL,
-          data: [],
-          timestamp: 1,
-        } as unknown as ServerNotificationMessage);
-        callback({
-          event: 'data',
-          channel: EXPECTED_CHANNEL,
-          data: { not: 'an array' },
-          timestamp: 2,
-        } as unknown as ServerNotificationMessage);
+        callback(notification({ data: [], timestamp: 1 }));
+        callback(notification({ data: { not: 'an array' }, timestamp: 2 }));
 
         expect(updateListener).not.toHaveBeenCalled();
       });
@@ -301,8 +313,7 @@ describe('LaunchpadTokenDetailsService', () => {
         await service.subscribe(SUB_OPTS);
         await service.unsubscribe(SUB_OPTS);
 
-        vi.advanceTimersByTime(3000);
-        await completeAsyncOperations();
+        await vi.advanceTimersByTimeAsync(3000);
 
         expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
           EXPECTED_CHANNEL,
@@ -322,12 +333,13 @@ describe('LaunchpadTokenDetailsService', () => {
         );
 
         const callback = getSystemNotificationCallback(mocks);
-        callback({
-          event: 'data',
-          channel: 'system-notifications.v1.launchpad-tokens.v1',
-          data: { chainIds: ['eip155:8453'], status: 'down' },
-          timestamp: 42,
-        } as unknown as ServerNotificationMessage);
+        callback(
+          notification({
+            channel: 'system-notifications.v1.launchpad-tokens.v1',
+            data: { chainIds: ['eip155:8453'], status: 'down' },
+            timestamp: 42,
+          }),
+        );
 
         expect(statusListener).toHaveBeenCalledWith({
           chainIds: ['eip155:8453'],
@@ -341,12 +353,13 @@ describe('LaunchpadTokenDetailsService', () => {
       await withService(async ({ mocks }) => {
         const callback = getSystemNotificationCallback(mocks);
         expect(() =>
-          callback({
-            event: 'data',
-            channel: 'system-notifications.v1.launchpad-tokens.v1',
-            data: { status: 'down' },
-            timestamp: 1,
-          } as unknown as ServerNotificationMessage),
+          callback(
+            notification({
+              channel: 'system-notifications.v1.launchpad-tokens.v1',
+              data: { status: 'down' },
+              timestamp: 1,
+            }),
+          ),
         ).toThrow('Invalid system notification data');
       });
     });
@@ -371,7 +384,7 @@ describe('LaunchpadTokenDetailsService', () => {
             requestTimeout: 30000,
           },
         );
-        await completeAsyncOperations();
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(statusListener).not.toHaveBeenCalled();
       });
@@ -397,7 +410,7 @@ describe('LaunchpadTokenDetailsService', () => {
             requestTimeout: 30000,
           },
         );
-        await completeAsyncOperations();
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(statusListener).not.toHaveBeenCalled();
       });
@@ -412,12 +425,13 @@ describe('LaunchpadTokenDetailsService', () => {
         );
 
         const callback = getSystemNotificationCallback(mocks);
-        callback({
-          event: 'data',
-          channel: 'system-notifications.v1.launchpad-tokens.v1',
-          data: { chainIds: ['eip155:8453'], status: 'up' },
-          timestamp: 1,
-        } as unknown as ServerNotificationMessage);
+        callback(
+          notification({
+            channel: 'system-notifications.v1.launchpad-tokens.v1',
+            data: { chainIds: ['eip155:8453'], status: 'up' },
+            timestamp: 1,
+          }),
+        );
         statusListener.mockClear();
 
         rootMessenger.publish(
@@ -432,7 +446,7 @@ describe('LaunchpadTokenDetailsService', () => {
             requestTimeout: 30000,
           },
         );
-        await completeAsyncOperations();
+        await vi.advanceTimersByTimeAsync(0);
 
         expect(statusListener).toHaveBeenCalledWith(
           expect.objectContaining({
