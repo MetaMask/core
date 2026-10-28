@@ -448,4 +448,20 @@ describe('MoneyAccountLifecycleController', () => {
       });
     });
   });
+
+  describe('MoneyAccountLifecycleController:upgradeMoneyAccount', () => {
+    it('calls upgradeMoneyAccount on the controller', async () => {
+      const upgradeMoneyAccountSpy = vi
+        .spyOn(MoneyAccountLifecycleController.prototype, 'upgradeMoneyAccount')
+        .mockResolvedValue(undefined);
+
+      await withController(async ({ rootMessenger }) => {
+        await rootMessenger.call(
+          'MoneyAccountLifecycleController:upgradeMoneyAccount',
+        );
+
+        expect(upgradeMoneyAccountSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
 });

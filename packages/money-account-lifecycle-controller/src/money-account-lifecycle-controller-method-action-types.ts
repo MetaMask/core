@@ -19,10 +19,8 @@ import type { MoneyAccountLifecycleController } from './money-account-lifecycle-
  * registered with CHOMP. For a valid MFA, makes `MoneyAccountController`'s
  * MPC money account its default once that account exists and matches the
  * identity's current address; it never creates the MPC money account.
- * Registers the Money Account address through
- * `MoneyAccountUpgradeController` when it is not registered and is either
- * not in an identity or a valid SFA. A migrating Money Account is frozen by
- * CHOMP, so it is never registered.
+ * Never upgrades the Money Account itself; clients do so through
+ * `upgradeMoneyAccount`.
  */
 export type MoneyAccountLifecycleControllerInitAction = {
   type: `MoneyAccountLifecycleController:init`;
@@ -48,8 +46,30 @@ export type MoneyAccountLifecycleControllerGetMoneyAccountIdentityAction = {
 };
 
 /**
+ * Makes one attempt to upgrade the primary Money Account through
+ * `MoneyAccountUpgradeController`, then refreshes its recorded registration
+ * status. Clients own when this runs and how failed attempts are retried.
+ *
+ * Uses the recorded lifecycle, fetching identities fresh from CHOMP when none
+ * has been recorded. Only a Money Account that is not in an identity or is a
+ * valid SFA is upgraded; a migrating Money Account is frozen by CHOMP, and a
+ * valid MFA has already moved on. Concurrent calls share the attempt in
+ * flight.
+ *
+ * @returns A promise that resolves once the attempt completes, or straight
+ * away when the feature is unavailable, there is no Money Account, or its
+ * lifecycle cannot be upgraded.
+ * @throws The error from fetching identities or from the upgrade, unchanged.
+ */
+export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
+  type: `MoneyAccountLifecycleController:upgradeMoneyAccount`;
+  handler: MoneyAccountLifecycleController['upgradeMoneyAccount'];
+};
+
+/**
  * Union of all MoneyAccountLifecycleController action types.
  */
 export type MoneyAccountLifecycleControllerMethodActions =
   | MoneyAccountLifecycleControllerInitAction
-  | MoneyAccountLifecycleControllerGetMoneyAccountIdentityAction;
+  | MoneyAccountLifecycleControllerGetMoneyAccountIdentityAction
+  | MoneyAccountLifecycleControllerUpgradeMoneyAccountAction;

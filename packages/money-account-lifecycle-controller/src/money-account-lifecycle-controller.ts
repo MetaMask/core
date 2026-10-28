@@ -72,7 +72,11 @@ export function getDefaultMoneyAccountLifecycleControllerState(): MoneyAccountLi
   };
 }
 
-const MESSENGER_EXPOSED_METHODS = ['init', 'getMoneyAccountIdentity'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'init',
+  'getMoneyAccountIdentity',
+  'upgradeMoneyAccount',
+] as const;
 
 export type MoneyAccountIdentity = Pick<
   DerivedIdentity,
@@ -137,7 +141,7 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   #derivedIdentities?: DerivedIdentity[];
 
-  readonly #registrationsInFlight = new Set<string>();
+  readonly #upgradesInFlight = new Map<string, Promise<void>>();
 
   constructor({
     messenger,
@@ -180,10 +184,8 @@ export class MoneyAccountLifecycleController extends BaseController<
    * registered with CHOMP. For a valid MFA, makes `MoneyAccountController`'s
    * MPC money account its default once that account exists and matches the
    * identity's current address; it never creates the MPC money account.
-   * Registers the Money Account address through
-   * `MoneyAccountUpgradeController` when it is not registered and is either
-   * not in an identity or a valid SFA. A migrating Money Account is frozen by
-   * CHOMP, so it is never registered.
+   * Never upgrades the Money Account itself; clients do so through
+   * `upgradeMoneyAccount`.
    */
   init(): void {
     if (this.#initialized) {
@@ -243,6 +245,82 @@ export class MoneyAccountLifecycleController extends BaseController<
 
     const { currentAddress, previousAddresses, status } = lifecycle.identity;
     return { currentAddress, previousAddresses, status };
+  }
+
+  /**
+   * Makes one attempt to upgrade the primary Money Account through
+   * `MoneyAccountUpgradeController`, then refreshes its recorded registration
+   * status. Clients own when this runs and how failed attempts are retried.
+   *
+   * Uses the recorded lifecycle, fetching identities fresh from CHOMP when none
+   * has been recorded. Only a Money Account that is not in an identity or is a
+   * valid SFA is upgraded; a migrating Money Account is frozen by CHOMP, and a
+   * valid MFA has already moved on. Concurrent calls share the attempt in
+   * flight.
+   *
+   * @returns A promise that resolves once the attempt completes, or straight
+   * away when the feature is unavailable, there is no Money Account, or its
+   * lifecycle cannot be upgraded.
+   * @throws The error from fetching identities or from the upgrade, unchanged.
+   */
+  async upgradeMoneyAccount(): Promise<void> {
+    if (
+      !this.#isEnabled(
+        this.messenger.call('RemoteFeatureFlagController:getState')
+          .remoteFeatureFlags,
+      ) ||
+      !isWalletReady(this.messenger.call('KeyringController:getState'))
+    ) {
+      return;
+    }
+
+    const moneyAccount = this.messenger.call(
+      'MoneyAccountController:getMoneyAccount',
+      { type: 'mnemonic' },
+    );
+    if (!moneyAccount) {
+      return;
+    }
+
+    const moneyAccountKey = moneyAccount.address.toLowerCase();
+    const upgradeInFlight = this.#upgradesInFlight.get(moneyAccountKey);
+    if (upgradeInFlight) {
+      return upgradeInFlight;
+    }
+
+    const upgrade = this.#upgradeMoneyAccount(moneyAccount.address).finally(
+      () => this.#upgradesInFlight.delete(moneyAccountKey),
+    );
+    this.#upgradesInFlight.set(moneyAccountKey, upgrade);
+    return upgrade;
+  }
+
+  async #upgradeMoneyAccount(moneyAccountAddress: string): Promise<void> {
+    const lifecycle =
+      this.state.moneyAccounts[moneyAccountAddress.toLowerCase()] ??
+      (await this.#fetchMoneyAccountLifecycle(moneyAccountAddress));
+    if (lifecycle.type !== 'sfa' && lifecycle.type !== 'notInIdentity') {
+      return;
+    }
+
+    await this.messenger.call(
+      'MoneyAccountUpgradeController:upgradeAccount',
+      moneyAccountAddress as Hex,
+    );
+    await this.#fetchRegistrationStatus(moneyAccountAddress).catch(
+      (error: unknown) => this.#reportError(error),
+    );
+  }
+
+  async #fetchMoneyAccountLifecycle(
+    moneyAccountAddress: string,
+  ): Promise<MoneyAccountLifecycle> {
+    const { identities } = await this.messenger.call(
+      'ChompApiService:getDerivedIdentities',
+    );
+    this.#derivedIdentities = identities;
+    this.#updateMoneyAccountLifecycle({ isRehydrating: false });
+    return getMoneyAccountLifecycle(moneyAccountAddress, identities);
   }
 
   #sync(): void {
@@ -335,13 +413,13 @@ export class MoneyAccountLifecycleController extends BaseController<
         return;
       }
 
-      this.#fetchRegistrationStatus(moneyAccount.address, {
-        shouldReconcile: true,
-      });
+      this.#fetchRegistrationStatus(moneyAccount.address).catch(
+        (error: unknown) => this.#reportError(error),
+      );
       if (lifecycle.type === 'mfa') {
-        this.#fetchRegistrationStatus(lifecycle.identity.currentAddress, {
-          shouldReconcile: false,
-        });
+        this.#fetchRegistrationStatus(lifecycle.identity.currentAddress).catch(
+          (error: unknown) => this.#reportError(error),
+        );
       }
     } catch (error) {
       this.#reportError(error);
@@ -367,44 +445,14 @@ export class MoneyAccountLifecycleController extends BaseController<
     );
   }
 
-  #fetchRegistrationStatus(
-    address: string,
-    { shouldReconcile }: { shouldReconcile: boolean },
-  ): void {
-    const addressKey = address.toLowerCase();
-    this.messenger
-      .call('MoneyAccountUpgradeController:getRegistrationStatus', address)
-      .then(({ isRegistered }) => {
-        this.update((state) => {
-          state.addressRegistrations[addressKey] = { isRegistered };
-        });
-
-        const lifecycle = this.state.moneyAccounts[addressKey];
-        if (
-          shouldReconcile &&
-          !isRegistered &&
-          (lifecycle?.type === 'sfa' || lifecycle?.type === 'notInIdentity')
-        ) {
-          this.#registerAddress(address);
-        }
-      })
-      .catch((error: unknown) => this.#reportError(error));
-  }
-
-  #registerAddress(address: string): void {
-    const addressKey = address.toLowerCase();
-    if (this.#registrationsInFlight.has(addressKey)) {
-      return;
-    }
-    this.#registrationsInFlight.add(addressKey);
-
-    this.messenger
-      .call('MoneyAccountUpgradeController:upgradeAccount', address as Hex)
-      .then(() =>
-        this.#fetchRegistrationStatus(address, { shouldReconcile: false }),
-      )
-      .catch((error: unknown) => this.#reportError(error))
-      .finally(() => this.#registrationsInFlight.delete(addressKey));
+  async #fetchRegistrationStatus(address: string): Promise<void> {
+    const { isRegistered } = await this.messenger.call(
+      'MoneyAccountUpgradeController:getRegistrationStatus',
+      address,
+    );
+    this.update((state) => {
+      state.addressRegistrations[address.toLowerCase()] = { isRegistered };
+    });
   }
 
   #reportError(error: unknown): void {

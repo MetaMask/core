@@ -23,11 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - The lifecycle is re-evaluated after each fetch and whenever `MoneyAccountController` state changes
   - Record whether the Money Account address, and the successor `currentAddress` of a valid MFA, are registered with CHOMP in the persisted `addressRegistrations` state, keyed by lowercased address, using `MoneyAccountUpgradeController:getRegistrationStatus`
     - The registration status is refreshed after each fetch and whenever the recorded lifecycle changes
-  - Register the Money Account address through `MoneyAccountUpgradeController:upgradeAccount` when it is not registered with CHOMP and is either `notInIdentity` or a valid `sfa`, then refresh its registration status
-    - A `migrating` Money Account is never registered, because CHOMP freezes it once it is linked to a successor
-    - Failed registrations are reported through the messenger's `captureException` and retried on the next fetch
+  - Add `upgradeMoneyAccount` method, also exposed through the messenger as `MoneyAccountLifecycleController:upgradeMoneyAccount`
+    - Makes one attempt to upgrade the primary Money Account through `MoneyAccountUpgradeController:upgradeAccount`, then refreshes its recorded registration status; clients decide when to call it and how to retry
+    - Uses the recorded lifecycle, fetching derived identities fresh from CHOMP when none has been recorded
+    - Only upgrades a Money Account that is `notInIdentity` or a valid `sfa`, and otherwise resolves without upgrading, as it does when the feature is unavailable or there is no Money Account
+    - Rejects with the error from fetching identities or from the upgrade, unchanged
+    - Concurrent calls share the attempt in flight
   - Call `MoneyAccountController:setDefaultMoneyAccount` with the MPC money account when the Money Account is a valid MFA, after each fetch and whenever `MoneyAccountController` state changes
     - Only applies once the MPC money account exists and its address is the identity's successor `currentAddress`; the lifecycle controller never creates it
-  - Add `AddressRegistration`, `MoneyAccountIdentity`, `MoneyAccountLifecycle`, `MoneyAccountLifecycleControllerActions`, `MoneyAccountLifecycleControllerEvents`, `MoneyAccountLifecycleControllerGetMoneyAccountIdentityAction`, `MoneyAccountLifecycleControllerGetStateAction`, `MoneyAccountLifecycleControllerHooks`, `MoneyAccountLifecycleControllerInitAction`, `MoneyAccountLifecycleControllerMessenger`, `MoneyAccountLifecycleControllerState`, and `MoneyAccountLifecycleControllerStateChangedEvent` types
+  - Add `AddressRegistration`, `MoneyAccountIdentity`, `MoneyAccountLifecycle`, `MoneyAccountLifecycleControllerActions`, `MoneyAccountLifecycleControllerEvents`, `MoneyAccountLifecycleControllerGetMoneyAccountIdentityAction`, `MoneyAccountLifecycleControllerGetStateAction`, `MoneyAccountLifecycleControllerHooks`, `MoneyAccountLifecycleControllerInitAction`, `MoneyAccountLifecycleControllerMessenger`, `MoneyAccountLifecycleControllerState`, `MoneyAccountLifecycleControllerStateChangedEvent`, and `MoneyAccountLifecycleControllerUpgradeMoneyAccountAction` types
 
 [Unreleased]: https://github.com/MetaMask/core/

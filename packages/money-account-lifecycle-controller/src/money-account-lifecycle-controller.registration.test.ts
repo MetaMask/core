@@ -11,7 +11,6 @@ import {
   flushPromises,
   withController,
 } from '../tests/helpers.js';
-import type { RegistrationStatus } from './money-account-upgrade-controller-registration-status.js';
 
 describe('MoneyAccountLifecycleController', () => {
   describe('address registration', () => {
@@ -102,166 +101,207 @@ describe('MoneyAccountLifecycleController', () => {
         },
       );
     });
-  });
 
-  describe('reconciliation', () => {
-    it('registers an unregistered SFA money account and records the refreshed registration status', async () => {
+    it('reports a failed lookup of the current address of an MFA', async () => {
       await withController(async ({ controller, mocks, init }) => {
+        const error = new Error('Lookup failed');
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [MFA_IDENTITY],
+        });
         mocks.getRegistrationStatus
-          .mockResolvedValueOnce({ isRegistered: false })
-          .mockResolvedValueOnce({ isRegistered: true });
+          .mockResolvedValueOnce({ isRegistered: true })
+          .mockRejectedValueOnce(error);
 
         await init();
 
-        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
-        expect(mocks.upgradeAccount).toHaveBeenCalledWith(
-          MONEY_ACCOUNT_ADDRESS,
-        );
-        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
+        expect(mocks.captureException).toHaveBeenCalledWith(error);
         expect(controller.state.addressRegistrations).toStrictEqual({
           [MONEY_ACCOUNT_KEY]: { isRegistered: true },
         });
       });
     });
+  });
 
-    it('registers an unregistered money account that is not in an identity', async () => {
-      await withController(async ({ mocks, init }) => {
-        mocks.getDerivedIdentities.mockResolvedValue({ identities: [] });
-        mocks.getRegistrationStatus.mockResolvedValueOnce({
-          isRegistered: false,
-        });
-
-        await init();
-
-        expect(mocks.getRegistrationStatus).toHaveBeenCalledWith(
-          MONEY_ACCOUNT_ADDRESS,
-        );
-        expect(mocks.upgradeAccount).toHaveBeenCalledWith(
-          MONEY_ACCOUNT_ADDRESS,
-        );
-      });
-    });
-
-    it('does not register a money account that is already registered', async () => {
-      await withController(async ({ mocks, init }) => {
-        await init();
-
-        expect(mocks.upgradeAccount).not.toHaveBeenCalled();
-      });
-    });
-
-    it('does not register any address for an MFA', async () => {
-      await withController(async ({ mocks, init }) => {
-        mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [MFA_IDENTITY],
-        });
+  describe('upgradeMoneyAccount', () => {
+    it('does not upgrade an unregistered money account on its own', async () => {
+      await withController(async ({ mocks, init, refetch }) => {
         mocks.getRegistrationStatus.mockResolvedValue({ isRegistered: false });
 
         await init();
+        await refetch();
 
-        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
-        expect(mocks.upgradeAccount).not.toHaveBeenCalled();
-      });
-    });
-
-    it('records the registration status of a migrating money account without registering it', async () => {
-      await withController(async ({ controller, mocks, init }) => {
-        mocks.getDerivedIdentities.mockResolvedValue({
-          identities: [MIGRATING_IDENTITY],
-        });
-        mocks.getRegistrationStatus.mockResolvedValue({ isRegistered: false });
-
-        await init();
-
-        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(1);
-        expect(mocks.getRegistrationStatus).toHaveBeenCalledWith(
-          MONEY_ACCOUNT_ADDRESS,
-        );
-        expect(controller.state.addressRegistrations).toStrictEqual({
-          [MONEY_ACCOUNT_KEY]: { isRegistered: false },
-        });
         expect(mocks.upgradeAccount).not.toHaveBeenCalled();
       });
     });
 
     it.each([
-      { lifecycle: 'started migrating', identity: MIGRATING_IDENTITY },
-      { lifecycle: 'become an MFA', identity: MFA_IDENTITY },
+      { lifecycle: 'a valid SFA', identities: [SFA_IDENTITY] },
+      { lifecycle: 'not in an identity', identities: [] },
     ])(
-      'does not register the money account when it has $lifecycle by the time its registration status arrives',
-      async ({ identity }) => {
-        await withController(async ({ mocks, init, refetch }) => {
-          const { promise, resolve } =
-            createDeferredPromise<RegistrationStatus>();
-          mocks.getDerivedIdentities
-            .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
-            .mockResolvedValueOnce({ identities: [identity] });
+      'upgrades the money account when it is $lifecycle and records the refreshed registration status',
+      async ({ identities }) => {
+        await withController(async ({ controller, mocks, init }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({ identities });
           mocks.getRegistrationStatus
-            .mockReturnValueOnce(promise)
-            .mockResolvedValue({ isRegistered: false });
-
+            .mockResolvedValueOnce({ isRegistered: false })
+            .mockResolvedValueOnce({ isRegistered: true });
           await init();
-          await refetch();
-          resolve({ isRegistered: false });
-          await flushPromises();
+
+          await controller.upgradeMoneyAccount();
+
+          expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
+          expect(mocks.upgradeAccount).toHaveBeenCalledWith(
+            MONEY_ACCOUNT_ADDRESS,
+          );
+          expect(controller.state.addressRegistrations).toStrictEqual({
+            [MONEY_ACCOUNT_KEY]: { isRegistered: true },
+          });
+        });
+      },
+    );
+
+    it.each([
+      { lifecycle: 'migrating', identity: MIGRATING_IDENTITY },
+      { lifecycle: 'a valid MFA', identity: MFA_IDENTITY },
+    ])(
+      'resolves without upgrading when the recorded lifecycle is $lifecycle',
+      async ({ identity }) => {
+        await withController(async ({ controller, mocks, init }) => {
+          mocks.getDerivedIdentities.mockResolvedValue({
+            identities: [identity],
+          });
+          await init();
+
+          await controller.upgradeMoneyAccount();
 
           expect(mocks.upgradeAccount).not.toHaveBeenCalled();
         });
       },
     );
 
-    it('does not register again when the refreshed registration status is still unregistered', async () => {
+    it('uses the recorded lifecycle without fetching identities again', async () => {
       await withController(async ({ controller, mocks, init }) => {
-        mocks.getRegistrationStatus.mockResolvedValue({ isRegistered: false });
-
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [MFA_IDENTITY] })
+          .mockResolvedValue({ identities: [SFA_IDENTITY] });
         await init();
 
-        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
-        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
-        expect(controller.state.addressRegistrations).toStrictEqual({
-          [MONEY_ACCOUNT_KEY]: { isRegistered: false },
-        });
+        await controller.upgradeMoneyAccount();
+
+        expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
+        expect(mocks.upgradeAccount).not.toHaveBeenCalled();
       });
     });
 
-    it('does not start a second registration while one for the same address is in flight', async () => {
-      await withController(async ({ mocks, init, refetch }) => {
-        mocks.upgradeAccount.mockReturnValue(
-          createDeferredPromise<void>().promise,
+    it('fetches identities fresh and records the lifecycle when none has been recorded', async () => {
+      await withController(async ({ controller, mocks }) => {
+        await controller.upgradeMoneyAccount();
+
+        expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
+        expect(controller.state.moneyAccounts).toStrictEqual({
+          [MONEY_ACCOUNT_KEY]: { type: 'sfa', identity: SFA_IDENTITY },
+        });
+        expect(mocks.upgradeAccount).toHaveBeenCalledWith(
+          MONEY_ACCOUNT_ADDRESS,
         );
-        mocks.getRegistrationStatus.mockResolvedValue({ isRegistered: false });
-
-        await init();
-        await refetch();
-
-        expect(mocks.getRegistrationStatus).toHaveBeenCalledTimes(2);
-        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
       });
     });
 
-    it('reports a failed registration and retries on the next identity fetch', async () => {
-      await withController(async ({ controller, mocks, init, refetch }) => {
-        const error = new Error('Upgrade failed');
-        mocks.upgradeAccount.mockRejectedValueOnce(error);
-        mocks.getRegistrationStatus
-          .mockResolvedValueOnce({ isRegistered: false })
-          .mockResolvedValueOnce({ isRegistered: false })
-          .mockResolvedValueOnce({ isRegistered: true });
-
-        await init();
-
-        expect(mocks.captureException).toHaveBeenCalledWith(error);
-        expect(controller.state.addressRegistrations).toStrictEqual({
-          [MONEY_ACCOUNT_KEY]: { isRegistered: false },
+    it('resolves without upgrading when the freshly fetched lifecycle is not upgradeable', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities.mockResolvedValue({
+          identities: [MIGRATING_IDENTITY],
         });
 
-        await refetch();
+        await controller.upgradeMoneyAccount();
+
+        expect(mocks.upgradeAccount).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rejects with the error when fetching identities fails', async () => {
+      await withController(async ({ controller, mocks }) => {
+        const error = new Error('CHOMP unavailable');
+        mocks.getDerivedIdentities.mockRejectedValue(error);
+
+        await expect(controller.upgradeMoneyAccount()).rejects.toBe(error);
+        expect(mocks.upgradeAccount).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rejects with the upgrade error unchanged, without reporting it', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        const error = new Error('Upgrade failed');
+        mocks.upgradeAccount.mockRejectedValue(error);
+        await init();
+
+        await expect(controller.upgradeMoneyAccount()).rejects.toBe(error);
+        expect(mocks.captureException).not.toHaveBeenCalled();
+      });
+    });
+
+    it('reports a failed registration status refresh after upgrading, without rejecting', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        await init();
+        const error = new Error('Lookup failed');
+        mocks.getRegistrationStatus.mockRejectedValueOnce(error);
+
+        await controller.upgradeMoneyAccount();
+
+        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
+        expect(mocks.captureException).toHaveBeenCalledWith(error);
+      });
+    });
+
+    it('shares an in-flight upgrade across concurrent calls, and starts a new one once it settles', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        const { promise, resolve } = createDeferredPromise<void>();
+        mocks.upgradeAccount.mockReturnValueOnce(promise);
+        await init();
+
+        const first = controller.upgradeMoneyAccount();
+        const second = controller.upgradeMoneyAccount();
+        await flushPromises();
+        resolve();
+        await Promise.all([first, second]);
+
+        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(1);
+
+        await controller.upgradeMoneyAccount();
 
         expect(mocks.upgradeAccount).toHaveBeenCalledTimes(2);
-        expect(controller.state.addressRegistrations).toStrictEqual({
-          [MONEY_ACCOUNT_KEY]: { isRegistered: true },
-        });
       });
     });
+
+    it('starts a new upgrade after a failed one settles', async () => {
+      await withController(async ({ controller, mocks, init }) => {
+        mocks.upgradeAccount.mockRejectedValueOnce(new Error('Upgrade failed'));
+        await init();
+
+        await expect(controller.upgradeMoneyAccount()).rejects.toThrow(
+          'Upgrade failed',
+        );
+        await controller.upgradeMoneyAccount();
+
+        expect(mocks.upgradeAccount).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it.each([
+      { reason: 'there is no money account', moneyAccountAddress: undefined },
+      { reason: 'the feature is disabled', isEnabled: false },
+      { reason: 'the wallet is locked', isUnlocked: false },
+      { reason: 'there is no HD keyring', hasHdKeyring: false },
+    ])(
+      'resolves without fetching or upgrading when $reason',
+      async ({ reason: _reason, ...gates }) => {
+        await withController(gates, async ({ controller, mocks }) => {
+          await controller.upgradeMoneyAccount();
+
+          expect(mocks.getDerivedIdentities).not.toHaveBeenCalled();
+          expect(mocks.upgradeAccount).not.toHaveBeenCalled();
+        });
+      },
+    );
   });
 });
