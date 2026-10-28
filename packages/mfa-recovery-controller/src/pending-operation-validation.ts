@@ -111,12 +111,15 @@ export async function assertValidPendingOperation(
     return;
   }
   const token = decodeAuthControllerToken(pending.authControllerToken);
+  const { approvedIdentifiers } = pending;
   if (
     token?.sub !== mutation.profileId ||
     token.ext.requestHash !== mutation.requestHash ||
     token.ext.aal < 2 ||
+    !Array.isArray(approvedIdentifiers) ||
+    !approvedIdentifiers.every(isIdentifier) ||
     (pendingPayloadHasIdentifiers(payload) &&
-      token.ext.identifiersHash !== (await hash(payload.identifiers))) ||
+      token.ext.identifiersHash !== (await hash(approvedIdentifiers))) ||
     !isMutationReceiptArray(pending.receipts)
   ) {
     throwInvalidPendingOperation();

@@ -13,6 +13,7 @@ import {
 import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
 import type {
   AuthControllerToken,
+  Identifier,
   IdentifierAuthorization,
   Mutation,
   MutationPayload,
@@ -54,6 +55,14 @@ const WIRE_PAYLOAD = {
     ciphertext: bytesToHex(CIPHERTEXT),
   },
 };
+
+const APPROVED: Identifier[] = [
+  {
+    type: 'social',
+    namespace: 'https://accounts.google.com',
+    value: 'hashed-email',
+  },
+];
 
 const AUTHORIZATION: IdentifierAuthorization = {
   kind: 'key-bound',
@@ -168,7 +177,7 @@ describe('CubistEscrowProvider', () => {
       const receipt = await signedReceipt();
       const { provider, invoke } = createProvider({ stdout: receipt });
       expect(
-        await provider.applyMutation(MUTATION, TOKEN, null, PAYLOAD),
+        await provider.applyMutation(MUTATION, TOKEN, null, PAYLOAD, APPROVED),
       ).toStrictEqual(receipt);
       expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
         request: {
@@ -177,6 +186,7 @@ describe('CubistEscrowProvider', () => {
           authControllerToken: TOKEN,
           identifierAuthorization: null,
           payload: WIRE_PAYLOAD,
+          approvedIdentifiers: APPROVED,
         },
       });
     });
@@ -185,7 +195,13 @@ describe('CubistEscrowProvider', () => {
       const { provider, invoke } = createProvider({
         stdout: await signedReceipt(),
       });
-      await provider.applyMutation(MUTATION, TOKEN, AUTHORIZATION, PAYLOAD);
+      await provider.applyMutation(
+        MUTATION,
+        TOKEN,
+        AUTHORIZATION,
+        PAYLOAD,
+        APPROVED,
+      );
       const [, , { request }] = invoke.mock.calls[0] as [
         string,
         string,
@@ -202,7 +218,13 @@ describe('CubistEscrowProvider', () => {
     it('rejects a response that is not a receipt', async () => {
       const { provider } = createProvider({ stdout: { nope: true } });
       await expect(
-        provider.applyMutation(MUTATION, TOKEN, AUTHORIZATION, PAYLOAD),
+        provider.applyMutation(
+          MUTATION,
+          TOKEN,
+          AUTHORIZATION,
+          PAYLOAD,
+          APPROVED,
+        ),
       ).rejects.toMatchObject({ code: 'escrow_response_invalid' });
     });
 
@@ -216,7 +238,13 @@ describe('CubistEscrowProvider', () => {
       const receipt = { ...(await signedReceipt()), ...patch };
       const { provider } = createProvider({ stdout: receipt });
       await expect(
-        provider.applyMutation(MUTATION, TOKEN, AUTHORIZATION, PAYLOAD),
+        provider.applyMutation(
+          MUTATION,
+          TOKEN,
+          AUTHORIZATION,
+          PAYLOAD,
+          APPROVED,
+        ),
       ).rejects.toMatchObject({ code: 'escrow_response_invalid' });
     });
 
@@ -225,7 +253,7 @@ describe('CubistEscrowProvider', () => {
         policy: { response: 'Deny', reason: 'version mismatch' },
       });
       await expect(
-        provider.applyMutation(MUTATION, TOKEN, null, PAYLOAD),
+        provider.applyMutation(MUTATION, TOKEN, null, PAYLOAD, APPROVED),
       ).rejects.toBeInstanceOf(MutationRejectedError);
     });
   });

@@ -66,7 +66,8 @@ export class AuthApiRecoveryAuthProvider implements RecoveryAuthProvider {
     if (!response.ok) {
       throw new MfaRecoveryError(
         `Authentication API returned ${response.status}`,
-        'auth_api_error',
+        // 403 means the session's MFA is missing or stale; prompt it again.
+        response.status === 403 ? 'authentication_required' : 'auth_api_error',
       );
     }
     const result: unknown = await response.json();

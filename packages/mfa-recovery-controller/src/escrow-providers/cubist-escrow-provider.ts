@@ -21,6 +21,7 @@ import { isMutationReceipt } from '../escrow-utils.js';
 import type {
   AuthControllerToken,
   GetRecoverySecretResponse,
+  Identifier,
   IdentifierAuthorization,
   Mutation,
   MutationPayload,
@@ -144,6 +145,8 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
    * @param authControllerToken - Request-bound AuthController token.
    * @param identifierAuthorization - Identifier proof. `null` for register.
    * @param payload - Per-escrow mutation payload.
+   * @param approvedIdentifiers - The approval's identifiers, which payload
+   * identifiers must be drawn from.
    * @returns The escrow's mutation receipt.
    */
   async applyMutation(
@@ -151,6 +154,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     authControllerToken: AuthControllerToken,
     identifierAuthorization: IdentifierAuthorization | null,
     payload: MutationPayload,
+    approvedIdentifiers: Identifier[],
   ): Promise<MutationReceipt> {
     return await this.#invoke(
       'applyMutation',
@@ -159,6 +163,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
         authControllerToken,
         identifierAuthorization,
         payload,
+        approvedIdentifiers,
       },
       parseReceipt,
       true, // a policy Deny did not apply the mutation

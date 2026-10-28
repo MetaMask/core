@@ -8,6 +8,7 @@ import {
 
 import { decodeAuthControllerToken } from '../src/auth-controller-token.js';
 import {
+  canonicalize,
   decryptFromPublic,
   encryptToPublic,
   hash,
@@ -296,6 +297,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     authControllerToken: AuthControllerToken,
     identifierAuthorization: IdentifierAuthorization | null,
     payload: MutationPayload,
+    approvedIdentifiers: Identifier[],
   ): Promise<MutationReceipt> {
     if (this.failNextApplyCount > 0) {
       this.failNextApplyCount -= 1;
@@ -309,6 +311,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         authControllerToken,
         identifierAuthorization,
         payload,
+        approvedIdentifiers,
       );
     } catch (error) {
       if (!this.#applyCommitted && error instanceof MfaRecoveryError) {
@@ -323,6 +326,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     authControllerToken: AuthControllerToken,
     identifierAuthorization: IdentifierAuthorization | null,
     payload: MutationPayload,
+    approvedIdentifiers: Identifier[],
   ): Promise<MutationReceipt> {
     await this.#verifyMutationAuthorization(mutation, authControllerToken);
 
@@ -366,6 +370,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       await this.#assertIdentifierOwnership(
         authControllerToken,
         registerPayload.identifiers,
+        approvedIdentifiers,
       );
       this.#assertIdentifiersAvailable(
         mutation.profileId,
@@ -426,7 +431,11 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     } else {
       const { identifiers } = payload as UpdateIdentifiersPayload;
       await this.#assertPayloadHash(mutation, payload);
-      await this.#assertIdentifierOwnership(authControllerToken, identifiers);
+      await this.#assertIdentifierOwnership(
+        authControllerToken,
+        identifiers,
+        approvedIdentifiers,
+      );
       this.#assertIdentifiersAvailable(mutation.profileId, identifiers);
       this.#applyCommitted = true;
       this.#replaceIdentifierIndex(
@@ -570,10 +579,13 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   async #assertIdentifierOwnership(
     token: AuthControllerToken,
     identifiers: Identifier[],
+    approvedIdentifiers: Identifier[],
   ): Promise<void> {
+    const approved = new Set(approvedIdentifiers.map(canonicalize));
     if (
       decodeAuthControllerToken(token)?.ext.identifiersHash !==
-      (await hash(identifiers))
+        (await hash(approvedIdentifiers)) ||
+      !identifiers.every((identifier) => approved.has(canonicalize(identifier)))
     ) {
       throw new MfaRecoveryError(
         'Identifier ownership not approved',

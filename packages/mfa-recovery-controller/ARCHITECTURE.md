@@ -113,8 +113,9 @@ Anything that fails is rejected rather than acted on:
 - `register` has `expectedVersion` `0` and `identifier: null`; updates carry
   an identifier.
 - `writing` only: the approval binds `sub` to `profileId` and `ext.request_hash`
-  to `requestHash`, with `aal >= 2`. `register` / `updateIdentifiers` also bind
-  `identifiers_hash`; receipts must be well-formed with at most one per escrow.
+  to `requestHash`, with `aal >= 2`. `register` / `updateIdentifiers` also need
+  `identifiers_hash` to match `approvedIdentifiers`; receipts must be
+  well-formed with at most one per escrow.
 
 ## Mutation sequence (`register` / updates)
 
@@ -167,9 +168,12 @@ Auth approvals:
 - The provider receives the operation's `requestHash` and each target escrow's
   `authAudience`. All writes and reads set `requireTwoFactor` for AAL2.
 - The issuer controls approval lifetime. AAL2 requires recent MFA.
-- `register` and `updateIdentifiers` retry approval once with Auth's returned
-  identifiers if they differ. The rebuilt request is persisted as `authorizing`;
-  `writing` mutations are never rebuilt. Hashing sorts object keys, not arrays.
+- The approval's `identifiers` are persisted with its token as
+  `approvedIdentifiers` and refreshed with it. `register` and
+  `updateIdentifiers` send them to every escrow, which checks them against
+  `identifiers_hash` and rejects payload identifiers outside them. Hashing
+  sorts object keys, not arrays.
+- A 403 from Auth means MFA is missing or stale (`authentication_required`).
 - Escrows verify signatures. The controller decodes claims only for pending-state
   validation and expiry-based refresh.
 

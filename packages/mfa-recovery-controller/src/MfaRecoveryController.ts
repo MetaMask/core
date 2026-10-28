@@ -519,33 +519,15 @@ export class MfaRecoveryController extends BaseController<
   async #prepareMutation(
     pending: AuthorizingPendingOperation,
   ): Promise<WritingPendingOperation> {
-    const authorization = await this.#authorizeMutation(pending.mutation);
-    const writing: WritingPendingOperation = {
+    const { approval, identifiers } = await this.#authorizeMutation(
+      pending.mutation,
+    );
+    return {
       ...pending,
       phase: 'writing',
-      authControllerToken: authorization.approval,
+      authControllerToken: approval,
+      approvedIdentifiers: identifiers,
       receipts: [],
-    };
-    if (
-      !pendingPayloadHasIdentifiers(pending.payload) ||
-      (await hash(authorization.identifiers)) ===
-        (await hash(pending.payload.identifiers))
-    ) {
-      return writing;
-    }
-
-    const payload = {
-      ...pending.payload,
-      identifiers: authorization.identifiers,
-    };
-    const { requestHash: _requestHash, ...fields } = pending.mutation;
-    const mutation = await this.#buildMutation(fields, payload);
-    await this.#persistPending({ ...pending, mutation, payload });
-    return {
-      ...writing,
-      mutation,
-      payload,
-      authControllerToken: (await this.#authorizeMutation(mutation)).approval,
     };
   }
 
@@ -577,11 +559,15 @@ export class MfaRecoveryController extends BaseController<
     await this.#assertEscrowsAvailable(remainingEscrows);
 
     const claims = decodeAuthControllerToken(pending.authControllerToken);
-    const authControllerToken =
-      claims && claims.exp > this.#now()
-        ? pending.authControllerToken
-        : (await this.#authorizeMutation(mutation)).approval;
-    const writing = { ...pending, authControllerToken };
+    let writing = pending;
+    if (!claims || claims.exp <= this.#now()) {
+      const { approval, identifiers } = await this.#authorizeMutation(mutation);
+      writing = {
+        ...pending,
+        authControllerToken: approval,
+        approvedIdentifiers: identifiers,
+      };
+    }
     await this.#assertPending(writing);
     const authorizedEscrows =
       mutation.operation === 'register'
@@ -614,6 +600,7 @@ export class MfaRecoveryController extends BaseController<
           writing.authControllerToken,
           authorizedEscrows?.[index]?.authorization ?? null,
           payloads[index],
+          writing.approvedIdentifiers,
         ),
       ),
     );

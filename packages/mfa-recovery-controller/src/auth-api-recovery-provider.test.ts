@@ -74,10 +74,13 @@ describe('AuthApiRecoveryAuthProvider', () => {
     },
   );
 
-  it('surfaces an Auth API failure', async () => {
+  it.each([
+    [403, 'authentication_required'],
+    [500, 'auth_api_error'],
+  ])('surfaces an Auth API %i as %s', async (status, code) => {
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(new Response(null, { status: 403 }));
+      .mockResolvedValue(new Response(null, { status }));
     await expect(
       new AuthApiRecoveryAuthProvider({
         ...options,
@@ -86,7 +89,10 @@ describe('AuthApiRecoveryAuthProvider', () => {
         requestHash: '0xrequest',
         audiences: ['cubist-audience'],
       }),
-    ).rejects.toThrow('Authentication API returned 403');
+    ).rejects.toMatchObject({
+      message: `Authentication API returned ${status}`,
+      code,
+    });
   });
 
   it.each([

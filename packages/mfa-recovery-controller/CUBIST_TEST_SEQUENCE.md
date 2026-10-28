@@ -51,7 +51,8 @@ sequenceDiagram
 ## Write: `register`, `updateRecoverySecret`, `updateIdentifiers`
 
 All mutations require a request-bound AAL2 approval. `register` and
-`updateIdentifiers` also bind the identifier set via `identifiers_hash`.
+`updateIdentifiers` also send the approval's identifiers as
+`approvedIdentifiers`, bound by `identifiers_hash`.
 
 ```mermaid
 sequenceDiagram
@@ -75,7 +76,7 @@ sequenceDiagram
   end
 
   Note over C: Encrypt the secret to the Cubist wrap key
-  C->>Cubist: applyMutation(mutation, JWT, { token, proof } or null, payload)
+  C->>Cubist: applyMutation(mutation, JWT, { token, proof } or null, payload, approvedIdentifiers)
   Cubist-->>C: signed receipt
   Note over C: Verify the receipt with the pinned receipt key
   C-->>Mobile: done

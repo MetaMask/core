@@ -211,6 +211,11 @@ export type AuthorizingPendingOperation = PendingOperationBase & {
 export type WritingPendingOperation = PendingOperationBase & {
   phase: 'writing';
   authControllerToken: AuthControllerToken;
+  /**
+   * The approval's identifiers, in Auth API order, bound by its
+   * `identifiers_hash`.
+   */
+  approvedIdentifiers: Identifier[];
   receipts: MutationReceipt[];
 };
 
@@ -305,6 +310,7 @@ export type RecoveryEscrowProvider = {
     authControllerToken: AuthControllerToken,
     identifierAuthorization: IdentifierAuthorization | null,
     payload: MutationPayload,
+    approvedIdentifiers: Identifier[],
   ) => Promise<MutationReceipt>;
   /**
    * Verifies a receipt cryptographically using the build-pinned receipt key

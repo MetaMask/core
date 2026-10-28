@@ -13,10 +13,11 @@ It posts `{ request_hash, audiences }` to `/api/v2/mfa/approvals` and returns
 `{ approval, identifiers }`. Writes and reads require a request-bound AAL2
 approval; updates and reads also require an identifier proof.
 
-Use Auth's latest `identifiers` for `register` and `updateIdentifiers`. A mismatch
-with the approval response triggers one rebuild and retry before writing;
-`writing` mutations are never rebuilt. Set `CubistEscrowProviderOptions.authAudience`
-to the escrow's `AUTH_CONTROLLER_AUDIENCE`.
+`register` and `updateIdentifiers` send the approval's `identifiers` to each
+escrow as `approvedIdentifiers`; the escrow rejects payload identifiers outside
+that list. A 403 from Auth throws `authentication_required`: prompt for MFA
+again. Set `CubistEscrowProviderOptions.authAudience` to the escrow's
+`AUTH_CONTROLLER_AUDIENCE`.
 
 ## Installation
 
