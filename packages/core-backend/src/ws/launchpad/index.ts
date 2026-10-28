@@ -23,7 +23,6 @@ export {
 } from './normalize.js';
 export type {
   LaunchpadEventType,
-  NumericLike,
   RawLaunchpadTokenEvent,
   LaunchpadTokenCreatedEvent,
   LaunchpadTokenStatsEvent,

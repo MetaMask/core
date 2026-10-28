@@ -37,6 +37,7 @@ describe('launchpad normalize', () => {
         da: '0xdev',
         pa: '0xpair',
         gp: '0.5',
+        gs: 'bonding',
       };
 
       expect(normalizeEvent(raw)).toStrictEqual({
@@ -48,10 +49,11 @@ describe('launchpad normalize', () => {
         symbol: 'ADOG',
         launchpadId: 'pump',
         launchpadProtocol: 'pumpfun',
-        deployer: 18,
+        decimals: 18,
         devAddress: '0xdev',
         pairAddress: '0xpair',
         graduationPercent: '0.5',
+        graduationStage: 'bonding',
       });
     });
 
@@ -61,17 +63,21 @@ describe('launchpad normalize', () => {
         ts: 2,
         a: ASSET_ID,
         gp: '12.4',
+        gs: 'bonding',
         mc: '21000',
         p: '0.0000021',
         l: '5000',
-        h: '0.0000030',
+        h: 42,
         v: '1234',
         txs: 10,
         bc: 7,
         sc: 3,
-        snc: 1,
+        snc: '1',
         snhp: '2.5',
         dhp: '1.1',
+        ihp: '11.23',
+        t10hp: '30.5',
+        cs: '1000000000',
       };
 
       expect(normalizeEvent(raw)).toStrictEqual({
@@ -79,17 +85,21 @@ describe('launchpad normalize', () => {
         timestamp: 2,
         assetId: ASSET_ID,
         graduationPercent: '12.4',
+        graduationStage: 'bonding',
         marketCap: '21000',
         price: '0.0000021',
         liquidity: '5000',
-        high: '0.0000030',
+        holderCount: 42,
         volume1h: '1234',
         txCount: 10,
         buyCount: 7,
         sellCount: 3,
-        sniperCount: 1,
+        sniperCount: '1',
         sniperHoldingPercent: '2.5',
         deployerHoldingPercent: '1.1',
+        insiderHoldingPercent: '11.23',
+        top10HoldingPercent: '30.5',
+        circulatingSupply: '1000000000',
       });
     });
 
@@ -122,6 +132,7 @@ describe('launchpad normalize', () => {
         d: 18,
         da: '0xdev',
         pa: '0xdexpool',
+        gs: 'migrated',
       };
 
       expect(normalizeEvent(raw)).toStrictEqual({
@@ -129,9 +140,10 @@ describe('launchpad normalize', () => {
         timestamp: 4,
         assetId: ASSET_ID,
         chainId: 'eip155:8453',
-        deployer: 18,
+        decimals: 18,
         devAddress: '0xdev',
         pairAddress: '0xdexpool',
+        graduationStage: 'migrated',
       });
     });
   });

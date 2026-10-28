@@ -12,12 +12,6 @@
 export type LaunchpadEventType = 'created' | 'stats' | 'migrated';
 
 /**
- * A value that the gateway may deliver either as a number or a numeric string.
- * Consumers should coerce as needed; prices in particular may arrive as strings.
- */
-export type NumericLike = number | string;
-
-/**
  * Raw launchpad token event as delivered on the wire, using the gateway's
  * abbreviated keys. All fields other than the discriminator, timestamp and asset
  * id are optional because presence varies by event type and partial events are
@@ -40,24 +34,24 @@ export type RawLaunchpadTokenEvent = {
   lp?: string;
   /** Launchpad protocol. */
   lpp?: string;
-  /** Deployer. */
-  d?: NumericLike;
-  /** Dev address. */
+  /** Token decimals. */
+  d?: number;
+  /** Deployer address (CAIP-10 format). */
   da?: string;
-  /** Pair address. */
+  /** Pool address; on `migrated` events this is the DEX pool address. */
   pa?: string;
   /** Graduation percent. */
-  gp?: NumericLike;
+  gp?: string;
   /** Market cap. */
-  mc?: NumericLike;
+  mc?: string;
   /** Price. */
-  p?: NumericLike;
+  p?: string;
   /** Liquidity. */
-  l?: NumericLike;
-  /** High. */
-  h?: NumericLike;
+  l?: string;
+  /** Holder count. */
+  h?: number;
   /** 1h volume. */
-  v?: NumericLike;
+  v?: string;
   /** Tx count. */
   txs?: number;
   /** Buy count. */
@@ -65,11 +59,19 @@ export type RawLaunchpadTokenEvent = {
   /** Sell count. */
   sc?: number;
   /** Sniper count. */
-  snc?: number;
+  snc?: string;
   /** Sniper holding percent. */
-  snhp?: NumericLike;
+  snhp?: string;
   /** Deployer holding percent. */
-  dhp?: NumericLike;
+  dhp?: string;
+  /** Insider holding percent. */
+  ihp?: string;
+  /** Top 10 holder percent. */
+  t10hp?: string;
+  /** Circulating supply. */
+  cs?: string;
+  /** Graduation stage identifier (platform-specific label). */
+  gs?: string;
 };
 
 /** Fields common to every normalized launchpad token event. */
@@ -89,10 +91,11 @@ export type LaunchpadTokenCreatedEvent = LaunchpadTokenEventBase & {
   symbol?: string;
   launchpadId?: string;
   launchpadProtocol?: string;
-  deployer?: NumericLike;
+  decimals?: number;
   devAddress?: string;
   pairAddress?: string;
-  graduationPercent?: NumericLike;
+  graduationPercent?: string;
+  graduationStage?: string;
 };
 
 /**
@@ -100,18 +103,22 @@ export type LaunchpadTokenCreatedEvent = LaunchpadTokenEventBase & {
  */
 export type LaunchpadTokenStatsEvent = LaunchpadTokenEventBase & {
   eventType: 'stats';
-  graduationPercent?: NumericLike;
-  marketCap?: NumericLike;
-  price?: NumericLike;
-  liquidity?: NumericLike;
-  high?: NumericLike;
-  volume1h?: NumericLike;
+  graduationPercent?: string;
+  graduationStage?: string;
+  marketCap?: string;
+  price?: string;
+  liquidity?: string;
+  holderCount?: number;
+  volume1h?: string;
   txCount?: number;
   buyCount?: number;
   sellCount?: number;
-  sniperCount?: number;
-  sniperHoldingPercent?: NumericLike;
-  deployerHoldingPercent?: NumericLike;
+  sniperCount?: string;
+  sniperHoldingPercent?: string;
+  deployerHoldingPercent?: string;
+  insiderHoldingPercent?: string;
+  top10HoldingPercent?: string;
+  circulatingSupply?: string;
 };
 
 /**
@@ -120,9 +127,10 @@ export type LaunchpadTokenStatsEvent = LaunchpadTokenEventBase & {
 export type LaunchpadTokenMigratedEvent = LaunchpadTokenEventBase & {
   eventType: 'migrated';
   chainId?: string;
-  deployer?: NumericLike;
+  decimals?: number;
   devAddress?: string;
   pairAddress?: string;
+  graduationStage?: string;
 };
 
 /**

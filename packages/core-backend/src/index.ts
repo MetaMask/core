@@ -143,7 +143,6 @@ export type {
   LaunchpadTokenDetailsServiceAllowedEvents,
   LaunchpadTokenDetailsServiceMessenger,
   LaunchpadEventType,
-  NumericLike,
   RawLaunchpadTokenEvent,
   LaunchpadTokenCreatedEvent,
   LaunchpadTokenStatsEvent,

@@ -83,10 +83,11 @@ export function normalizeEvent(
         symbol: raw.s,
         launchpadId: raw.lp,
         launchpadProtocol: raw.lpp,
-        deployer: raw.d,
+        decimals: raw.d,
         devAddress: raw.da,
         pairAddress: raw.pa,
         graduationPercent: raw.gp,
+        graduationStage: raw.gs,
       };
       return event;
     }
@@ -95,9 +96,10 @@ export function normalizeEvent(
         eventType: 'migrated',
         ...base,
         chainId: raw.c,
-        deployer: raw.d,
+        decimals: raw.d,
         devAddress: raw.da,
         pairAddress: raw.pa,
+        graduationStage: raw.gs,
       };
       return event;
     }
@@ -107,10 +109,11 @@ export function normalizeEvent(
         eventType: 'stats',
         ...base,
         graduationPercent: raw.gp,
+        graduationStage: raw.gs,
         marketCap: raw.mc,
         price: raw.p,
         liquidity: raw.l,
-        high: raw.h,
+        holderCount: raw.h,
         volume1h: raw.v,
         txCount: raw.txs,
         buyCount: raw.bc,
@@ -118,6 +121,9 @@ export function normalizeEvent(
         sniperCount: raw.snc,
         sniperHoldingPercent: raw.snhp,
         deployerHoldingPercent: raw.dhp,
+        insiderHoldingPercent: raw.ihp,
+        top10HoldingPercent: raw.t10hp,
+        circulatingSupply: raw.cs,
       };
       return event;
     }
