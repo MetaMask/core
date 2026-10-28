@@ -3563,6 +3563,105 @@ function calculateBalanceChangeForAccountGroup_ORIG(assetsControllerState, accou
 //    DO NOT EDIT. Parity vs CANDIDATE is enforced on every run.
 // ============================================================================
 
+const INT_AMOUNT_RE = /^-?\d+$/;
+const DEC_AMOUNT_RE = /^(-?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/;
+const MAX_REASONABLE_EXP = 400;
+const POW10_CACHE = [];
+function pow10(k) {
+  let v = POW10_CACHE[k];
+  if (v === undefined) {
+    v = BigInt('1' + '0'.repeat(k));
+    POW10_CACHE[k] = v;
+  }
+  return v;
+}
+// Parse a balance amount string into [mantissa(bigint), scale] — an exact
+// decimal representation. Integer strings (the dominant shape) hit the
+// cheap regex+BigInt path; fractional/exponential strings use one exec + two
+// digit concats. Returns null when the row must be skipped (zero or
+// non-finite), matching the original's zero-skip semantics exactly.
+function parseAmount(str) {
+  if (INT_AMOUNT_RE.test(str)) {
+    const m = BigInt(str);
+    return m === 0n ? null : [m, 0];
+  }
+  const match = DEC_AMOUNT_RE.exec(str);
+  if (match) {
+    const intD = match[2] === undefined ? '' : match[2];
+    const fracD = match[3] === undefined ? '' : match[3];
+    if (intD !== '' || fracD !== '') {
+      const exp = match[4] === undefined ? 0 : Number(match[4]);
+      if (exp >= -MAX_REASONABLE_EXP && exp <= MAX_REASONABLE_EXP) {
+        let m = BigInt((match[1] || '') + intD + fracD);
+        let scale = fracD.length - exp;
+        if (scale < 0) {
+          m = m * pow10(-scale);
+          scale = 0;
+        }
+        return m === 0n ? null : [m, scale];
+      }
+    }
+  }
+  // Rare shapes ('NaN', 'Infinity', '', '-1e999999', ...): resolve through
+  // BigNumber, which yields zero for non-finite values — skipped — and an
+  // exact plain-decimal string for finite oddities.
+  const bn = toBigNumberOrZero_CAND(str);
+  if (bn.isZero()) {
+    return null;
+  }
+  return [BigInt(bn.toFixed()), 0];
+}
+// Parse a price (JS number, via its String() repr — the same decimal
+// BigNumber multiplies by) into an exact [mantissa, scale]. Zero stays
+// [0n, 0] (zero is a valid price). Returns null for shapes that are not
+// finite plain decimals, so the caller can fall back to BigNumber for
+// exact parity.
+function parsePriceToDecimal(price) {
+  const str = String(price);
+  if (INT_AMOUNT_RE.test(str)) {
+    return [BigInt(str), 0];
+  }
+  const match = DEC_AMOUNT_RE.exec(str);
+  if (match) {
+    const intD = match[2] === undefined ? '' : match[2];
+    const fracD = match[3] === undefined ? '' : match[3];
+    if (intD !== '' || fracD !== '') {
+      const exp = match[4] === undefined ? 0 : Number(match[4]);
+      if (exp >= -MAX_REASONABLE_EXP && exp <= MAX_REASONABLE_EXP) {
+        let m = BigInt((match[1] || '') + intD + fracD);
+        let scale = fracD.length - exp;
+        if (scale < 0) {
+          m = m * pow10(-scale);
+          scale = 0;
+        }
+        return [m, scale];
+      }
+    }
+  }
+  return null;
+}
+// Materialize [mantissa, scale] as a plain decimal string identical to
+// BigNumber#toFixed(): no exponent, no trailing fractional zeros.
+function mantissaToFixed(m, scale) {
+  if (scale === 0) {
+    return m.toString();
+  }
+  const neg = m < 0n;
+  let d = (neg ? -m : m).toString();
+  while (d.length <= scale) {
+    d = '0' + d;
+  }
+  const cut = d.length - scale;
+  const frac = d.slice(cut);
+  let end = frac.length;
+  while (end > 0 && frac.charCodeAt(end - 1) === 48) {
+    end--;
+  }
+  const out =
+    d.slice(0, cut) + (end > 0 ? '.' + frac.slice(0, end) : '');
+  return neg ? '-' + out : out;
+}
+
 const ZERO_PRICE_CAND = { price: 0, pricePercentChange1d: 0 };
 
 const getAmountFromBalance_CAND = (balance) => {
@@ -3652,6 +3751,7 @@ function mergeBalancesIntoMap_CAND(args) {
     assetPreferences,
     enabledNetworkMap,
     assetInfoCache,
+    chainEnabledCache,
   } = args;
 
   for (const assetId in accountBalances) {
@@ -3672,24 +3772,46 @@ function mergeBalancesIntoMap_CAND(args) {
     }
 
     const info = getAssetInfo_CAND(assetInfoCache, typedAssetId);
-    if (!isChainEnabledByMap_CAND(enabledNetworkMap, info.chainId)) {
+    // One enablement resolution per distinct chainId per aggregation instead
+    // of one per asset row (the map is fixed for the whole aggregation).
+    let enabled = chainEnabledCache.get(info.chainId);
+    if (enabled === undefined) {
+      enabled = isChainEnabledByMap_CAND(enabledNetworkMap, info.chainId);
+      chainEnabledCache.set(info.chainId, enabled);
+    }
+    if (!enabled) {
       continue;
     }
 
     const amountStr = getAmountFromBalance_CAND(accountBalances[typedAssetId]);
-    const amountBn = toBigNumberOrZero_CAND(amountStr);
-    if (amountBn.isZero()) {
+    // Exact-decimal accumulation in native [bigint mantissa, scale] pairs:
+    // every finite amount shape parses without BigNumber.js and accumulates
+    // with exact integer math. Rows that resolve to zero are skipped.
+    const parsed = parseAmount(amountStr);
+    if (parsed === null) {
       continue; // skip zeros early to reduce map pressure
     }
+    const inM = parsed[0];
+    const inS = parsed[1];
 
     const existing = out.get(typedAssetId);
     if (existing) {
-      existing.amount = existing.amount.plus(amountBn);
+      if (existing.s === inS) {
+        existing.m = existing.m + inM;
+      } else if (existing.s > inS) {
+        existing.m =
+          existing.m + inM * pow10(existing.s - inS);
+      } else {
+        existing.m =
+          existing.m * pow10(inS - existing.s) + inM;
+        existing.s = inS;
+      }
       continue;
     }
 
     out.set(typedAssetId, {
-      amount: amountBn,
+      m: inM,
+      s: inS,
       decimals: meta.decimals,
       symbol: meta.symbol,
       name: meta.name,
@@ -3848,6 +3970,7 @@ function aggregateBalances_CAND(state, accounts, enabledNetworkMap, trace) {
   const accountsToAggregate = accounts;
 
   const assetInfoCache = makeAssetInfoCache_CAND();
+  const chainEnabledCache = new Map();
   const merged = new Map();
 
   for (const account of accountsToAggregate) {
@@ -3861,6 +3984,7 @@ function aggregateBalances_CAND(state, accounts, enabledNetworkMap, trace) {
       assetPreferences,
       enabledNetworkMap,
       assetInfoCache,
+      chainEnabledCache,
     });
   }
 
@@ -3874,10 +3998,10 @@ function aggregateBalances_CAND(state, accounts, enabledNetworkMap, trace) {
   let weightedNumerator = 0;
 
   for (const [assetId, row] of merged.entries()) {
-    const { amount } = row;
+    const amountString = mantissaToFixed(row.m, row.s);
     const entry = {
       assetId,
-      amount: amount.toFixed(),
+      amount: amountString,
       ...(row.decimals === undefined ? {} : { decimals: row.decimals }),
       ...(row.symbol === undefined ? {} : { symbol: row.symbol }),
       ...(row.name === undefined ? {} : { name: row.name }),
@@ -3890,7 +4014,24 @@ function aggregateBalances_CAND(state, accounts, enabledNetworkMap, trace) {
         assetsPrice,
         assetId,
       );
-      const contribution = amount.multipliedBy(price).toNumber();
+      // Fiat contribution: exact decimal product via BigInt mantissa math
+      // (amount x price-as-decimal), converted to a number by parsing the
+      // plain-decimal product string. Falls back to BigNumber for price
+      // shapes that are not finite plain decimals.
+      let contribution;
+      const priceDecimal = parsePriceToDecimal(price);
+      if (priceDecimal === null) {
+        contribution = new BigNumberJS(amountString)
+          .multipliedBy(price)
+          .toNumber();
+      } else {
+        contribution = Number(
+          mantissaToFixed(
+            row.m * priceDecimal[0],
+            row.s + priceDecimal[1],
+          ),
+        );
+      }
       if (contribution > 0) {
         totalBalanceInFiat += contribution;
         weightedNumerator += contribution * pricePercentChange1d;
