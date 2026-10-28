@@ -1,13 +1,15 @@
 import type { Infer } from '@metamask/superstruct';
 import {
   array,
-  assert,
   boolean,
+  literal,
+  nullable,
   number,
   optional,
   record,
   string,
   type,
+  union,
 } from '@metamask/superstruct';
 import { CaipChainIdStruct, StrictHexStruct } from '@metamask/utils';
 
@@ -91,12 +93,6 @@ export type RegistryConfigApiResponse = Infer<
   typeof RegistryConfigApiResponseSchema
 >;
 
-export function validateRegistryConfigApiResponse(
-  data: unknown,
-): asserts data is RegistryConfigApiResponse {
-  assert(data, RegistryConfigApiResponseSchema);
-}
-
 /**
  * Schema for the events-config API response.
  * Maps event names to their allowed analytics purposes.
@@ -116,40 +112,53 @@ export type RegistryEventsConfigApiResponse = Infer<
 
 export type RegistryEventsConfig = RegistryEventsConfigApiResponse['data'];
 
-export function validateRegistryEventsConfigApiResponse(
-  data: unknown,
-): asserts data is RegistryEventsConfigApiResponse {
-  assert(data, RegistryEventsConfigApiResponseSchema);
-}
+export const FetchConfigResultStruct = union([
+  type({
+    modified: literal(false),
+    etag: nullable(string()),
+    data: nullable(RegistryConfigApiResponseSchema),
+  }),
+  type({
+    modified: literal(true),
+    etag: nullable(string()),
+    data: RegistryConfigApiResponseSchema,
+  }),
+]);
+
+export const FetchEventsConfigResultStruct = union([
+  type({
+    modified: literal(false),
+    etag: nullable(string()),
+    data: nullable(RegistryEventsConfigApiResponseSchema),
+  }),
+  type({
+    modified: literal(true),
+    etag: nullable(string()),
+    data: RegistryEventsConfigApiResponseSchema,
+  }),
+]);
 
 export type FetchConfigOptions = {
   etag?: string;
 };
 
-export type FetchConfigResult =
+type FetchResult<Data> =
   | {
       modified: false;
-      etag?: string;
+      etag: string | null;
       /**
        * Cached data from the service when available (e.g. after a previous
-       * successful fetch). Omitted when the service has no cache yet.
+       * successful fetch). `null` when the service has no cache yet.
        */
-      data?: RegistryConfigApiResponse;
+      data: Data | null;
     }
   | {
       modified: true;
-      data: RegistryConfigApiResponse;
-      etag?: string;
+      etag: string | null;
+      data: Data;
     };
 
+export type FetchConfigResult = FetchResult<RegistryConfigApiResponse>;
+
 export type FetchEventsConfigResult =
-  | {
-      modified: false;
-      etag?: string;
-      data?: RegistryEventsConfigApiResponse;
-    }
-  | {
-      modified: true;
-      data: RegistryEventsConfigApiResponse;
-      etag?: string;
-    };
+  FetchResult<RegistryEventsConfigApiResponse>;

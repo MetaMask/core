@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/subscription-controller` from `^15.1.0` to `^15.1.1` ([#11120](https://github.com/MetaMask/core/pull/11120))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- `HyperLiquidProvider.placeOrder` no longer resubmits an opening order 1.5% larger when Hyperliquid rejects it for the minimum order value; it returns a failed result with `errorCode: 'ORDER_SIZE_MIN'` instead ([#11122](https://github.com/MetaMask/core/pull/11122))
+  - The client should re-quote and ask the user to confirm a new size. No order larger than the one the user approved is submitted.
+  - Reduce-only and strategy (TWAP, scale, chase) orders are unchanged: they are submitted once and keep Hyperliquid's error message.
 
 ### Fixed
 

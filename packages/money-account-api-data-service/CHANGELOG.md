@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.1]
+
 ### Changed
 
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
@@ -111,7 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fetch cursor-paginated cash-flow history (`fetchHistory`)
   - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.3.1...HEAD
+[2.3.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.3.0...@metamask/money-account-api-data-service@2.3.1
 [2.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.2.0...@metamask/money-account-api-data-service@2.3.0
 [2.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.1.0...@metamask/money-account-api-data-service@2.2.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-api-data-service@2.0.0...@metamask/money-account-api-data-service@2.1.0
