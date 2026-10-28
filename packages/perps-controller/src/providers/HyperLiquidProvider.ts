@@ -6381,11 +6381,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         orderId: restingOrder?.oid?.toString() ?? filledOrder?.oid?.toString(),
         filledSize: filledOrder?.totalSz,
         // The main order's `s` is the final normalized size sent to the exchange
-        // (post precision rounding, USD recalculation, and $10-minimum retry —
-        // the retry recurses through placeOrder so this reflects the last
-        // submission). TradingService uses it to classify partial fills. The SDK
-        // types `s` as `string | number`, so normalize to the string OrderResult
-        // shape while preserving `undefined` when no order was built.
+        // (post precision rounding and USD recalculation). TradingService uses
+        // it to classify partial fills. The SDK types `s` as `string | number`,
+        // so normalize to the string OrderResult shape while preserving
+        // `undefined` when no order was built.
         submittedSize:
           orders[0]?.s === undefined ? undefined : String(orders[0].s),
         averagePrice: filledOrder?.avgPx,
@@ -6459,13 +6458,13 @@ export class HyperLiquidProvider implements PerpsProvider {
    * Each helper method is focused on a single responsibility.
    *
    * @param input - Order parameters
-   * @param retryCount - Internal retry counter to prevent infinite loops (default: 0)
+   * @param _retryCount - Unused. Kept so `reportFailure` stays the third argument.
    * @param reportFailure - Whether this call owns provider-level error reporting.
    * @returns A promise that resolves to the result.
    */
   async placeOrder(
     input: OrderParams,
-    retryCount = 0,
+    _retryCount = 0,
     reportFailure = true,
   ): Promise<OrderResult> {
     const deferProviderErrorReport = input.deferProviderErrorReport === true;
@@ -6478,9 +6477,6 @@ export class HyperLiquidProvider implements PerpsProvider {
         error: PERPS_ERROR_CODES.ORDER_SCALE_PREVIEW_STALE,
       };
     }
-    // Hoisted so the retry path in the catch block can use the fetched price
-    // even when the caller (e.g. flipPosition) omits currentPrice from params.
-    let effectivePrice: number | undefined;
     try {
       this.#deps.debugLogger.log('Placing order via HyperLiquid SDK:', params);
 
@@ -6541,7 +6537,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       // Allow override with UI-provided price (optimization to avoid API call).
-      effectivePrice =
+      const effectivePrice =
         params.currentPrice && params.currentPrice > 0
           ? params.currentPrice
           : currentPrice;
@@ -6692,8 +6688,13 @@ export class HyperLiquidProvider implements PerpsProvider {
         builderFeeSetupContext,
       });
     } catch (error) {
-      // Retry mechanism for $10 minimum order errors
-      // This handles the case where UI price feed slightly differs from HyperLiquid's orderbook price
+      // The venue can reject an order the minimum check above accepted, when
+      // its price differs from the one the order was sized at. Growing the
+      // order to clear the minimum would submit more than the user approved,
+      // so an opening order fails with the typed code instead and the client
+      // re-quotes. Reduce-only and strategy orders keep the venue's error: a
+      // close is capped at the position, and the minimum applies to each TWAP
+      // slice or ladder rung rather than the total.
       const errorMessage = ensureError(
         error,
         'HyperLiquidProvider.placeOrder',
@@ -6702,78 +6703,16 @@ export class HyperLiquidProvider implements PerpsProvider {
         errorMessage.includes('Order must have minimum value of $10') ||
         errorMessage.includes('Order 0: Order must have minimum value');
 
-      // Reduce-only orders are excluded. The retry works by growing the order
-      // 1.5%, which a close cannot do: a full close already submits the whole
-      // position, and a partial close is capped at the size the caller asked to
-      // close, so the retry would either be rejected as "Reduce only order would
-      // increase position" or resubmit an identical order. Surfacing the
-      // minimum-value error names the real problem instead.
-      //
-      // Strategy placements are excluded for the same reason in a different
-      // shape: the minimum applies to each TWAP slice and each ladder rung, not
-      // to the total, so growing the total by 1.5% does not clear it.
-      if (
-        isMinimumOrderError &&
-        retryCount === 0 &&
-        !params.reduceOnly &&
-        !isStrategyOrderType(params.orderType)
-      ) {
-        let adjustedUsdAmount: string;
-        let originalValue: string | undefined;
-
-        if (params.usdAmount) {
-          // USD-based order: adjust the USD amount directly
-          originalValue = params.usdAmount;
-          adjustedUsdAmount = (parseFloat(params.usdAmount) * 1.015).toFixed(2);
-        } else if (effectivePrice) {
-          // Size-based order: calculate USD from size and adjust.
-          // Use the hoisted effectivePrice (fetched live price) so callers that
-          // omit currentPrice (e.g. flipPosition) can still recover from the
-          // $10-minimum edge case.
-          const sizeValue = parseFloat(params.size);
-          const estimatedUsd = sizeValue * effectivePrice;
-          originalValue = `${estimatedUsd.toFixed(2)} (calculated from size ${params.size})`;
-          adjustedUsdAmount = (estimatedUsd * 1.015).toFixed(2);
-        } else {
-          // No price information available - cannot retry
-          return await this.#handleOrderError({
-            error,
-            symbol: params.symbol,
-            orderType: params.orderType,
-            isBuy: params.isBuy,
-            reportFailure: shouldReportFailure,
-          });
-        }
-
-        this.#deps.debugLogger.log(
-          'Retrying order with adjusted size due to minimum value error',
-          {
-            originalValue,
-            adjustedUsdAmount,
-            retryCount,
-          },
-        );
-
-        return this.placeOrder(
-          {
-            ...params,
-            usdAmount: adjustedUsdAmount,
-            // This USD amount was derived from the effective price solely to
-            // grow an exact-size order past the venue minimum. Preserve the
-            // original exact-size semantics instead of applying its unrelated
-            // calculation snapshot to the retry. Genuine USD-sized orders keep
-            // their snapshot guard.
-            priceAtCalculation: params.usdAmount
-              ? params.priceAtCalculation
-              : undefined,
-          },
-          1, // Retry count = 1, prevents further retries
-          shouldReportFailure,
-        );
-      }
-
       return await this.#handleOrderError({
-        error,
+        error:
+          isMinimumOrderError &&
+          !params.reduceOnly &&
+          !isStrategyOrderType(params.orderType)
+            ? new PerpsControllerError(
+                PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+                PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+              )
+            : error,
         symbol: params.symbol,
         orderType: params.orderType,
         isBuy: params.isBuy,
