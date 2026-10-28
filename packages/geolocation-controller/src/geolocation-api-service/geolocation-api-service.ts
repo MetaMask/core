@@ -7,7 +7,12 @@ import type {
 } from '@metamask/base-data-service';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
-import { nullable, object, pattern as matches, string } from '@metamask/superstruct';
+import {
+  nullable,
+  object,
+  pattern as matches,
+  string,
+} from '@metamask/superstruct';
 
 import { Env } from '../types.js';
 import type { GeolocationApiServiceMethodActions } from './geolocation-api-service-method-action-types.js';
