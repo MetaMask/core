@@ -7,12 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
-- Bump `@metamask/chomp-api-service` from `^6.0.0` to `^6.0.1` ([#10626](https://github.com/MetaMask/core/pull/10626))
-- Bump `@metamask/network-controller` from `^37.0.0` to `^37.1.0` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864))
+- **BREAKING:** The `MoneyAccountUpgradeControllerMessenger` must now allow the `ChompApiService:createAddressChallenge` and `ChompApiService:associateAddressV2` actions, and no longer uses `ChompApiService:associateAddress` ([#10687](https://github.com/MetaMask/core/pull/10687))
+- The `associate-address` upgrade step now uses CHOMP's v2 address association: it signs a single-use SIWE challenge from `POST /v2/auth/address/challenge` instead of a `CHOMP Authentication {timestamp}` message, and submits it to `POST /v2/auth/address` ([#10687](https://github.com/MetaMask/core/pull/10687))
+  - A challenge that expired or was replaced while signing is retried once with a fresh challenge.
+- Bump `@metamask/chomp-api-service` from `^6.0.0` to `^7.0.0` ([#10626](https://github.com/MetaMask/core/pull/10626), [#11120](https://github.com/MetaMask/core/pull/11120))
+- Bump `@metamask/network-controller` from `^37.0.0` to `^37.1.1` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [5.1.0]
 
@@ -242,7 +252,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@6.0.0...HEAD
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.1.0...@metamask/money-account-upgrade-controller@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.0.0...@metamask/money-account-upgrade-controller@5.1.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@4.0.0...@metamask/money-account-upgrade-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@3.0.2...@metamask/money-account-upgrade-controller@4.0.0

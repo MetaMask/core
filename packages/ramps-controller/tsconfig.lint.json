@@ -21,6 +21,9 @@
       "path": "../remote-feature-flag-controller/tsconfig.lint.json"
     },
     {
+      "path": "../utils/tsconfig.lint.json"
+    },
+    {
       "path": "../base-data-service/tsconfig.lint.json"
     }
   ]

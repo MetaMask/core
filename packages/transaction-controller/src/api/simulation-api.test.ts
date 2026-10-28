@@ -1,5 +1,7 @@
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
+import type { MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CHAIN_IDS, DELEGATION_MANAGER_ADDRESSES } from '../constants.js';
 import type { GetSimulationConfig } from '../types.js';
@@ -13,7 +15,7 @@ const CHAIN_ID_MOCK = '0x1';
 const CHAIN_ID_MOCK_DECIMAL = 1;
 const ERROR_CODE_MOCK = 123;
 const ERROR_MESSAGE_MOCK = 'Test Error Message';
-const GET_SIMULATION_CONFIG_MOCK: GetSimulationConfig = jest
+const GET_SIMULATION_CONFIG_MOCK: GetSimulationConfig = vi
   .fn()
   .mockResolvedValue({});
 
@@ -67,7 +69,7 @@ const RESPONSE_MOCK_NETWORKS = {
 };
 
 describe('Simulation API Utils', () => {
-  let fetchMock: jest.MockedFunction<typeof fetch>;
+  let fetchMock: MockedFunction<typeof fetch>;
 
   /**
    * Mock a JSON response from fetch.
@@ -76,14 +78,12 @@ describe('Simulation API Utils', () => {
    */
   function mockFetchResponse(jsonResponse: unknown): void {
     fetchMock.mockResolvedValueOnce({
-      json: jest.fn().mockResolvedValue(jsonResponse),
+      json: vi.fn().mockResolvedValue(jsonResponse),
     } as unknown as Response);
   }
 
   beforeEach(() => {
-    fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
-      typeof fetch
-    >;
+    fetchMock = vi.spyOn(global, 'fetch');
 
     mockFetchResponse(RESPONSE_MOCK_NETWORKS);
     mockFetchResponse({ result: RESPONSE_MOCK });
@@ -130,7 +130,7 @@ describe('Simulation API Utils', () => {
     });
 
     it('uses simulation config', async () => {
-      const getSimulationConfigMock: GetSimulationConfig = jest
+      const getSimulationConfigMock: GetSimulationConfig = vi
         .fn()
         .mockResolvedValue({
           authorization: 'Bearer test',
@@ -169,10 +169,10 @@ describe('Simulation API Utils', () => {
 
       await expect(
         simulateTransactions(CHAIN_ID_MOCK, REQUEST_MOCK),
-      ).rejects.toThrow({
+      ).rejects.toMatchObject({
         code: ERROR_CODE_MOCK,
         message: ERROR_MESSAGE_MOCK,
-      } as unknown as Error);
+      });
     });
 
     it('overrides DelegationManager code', async () => {

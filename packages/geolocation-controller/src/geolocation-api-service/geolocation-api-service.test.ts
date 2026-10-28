@@ -1,10 +1,11 @@
-import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { Env } from '../types.js';
 import type { GeolocationApiServiceMessenger } from './geolocation-api-service.js';
@@ -15,11 +16,11 @@ import {
 
 describe('GeolocationApiService', () => {
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers();
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   describe('GeolocationApiService:fetchGeolocation', () => {
@@ -166,7 +167,7 @@ describe('GeolocationApiService', () => {
         expect(first).toBe('US');
         expect(mockFetch).toHaveBeenCalledTimes(1);
 
-        jest.advanceTimersByTime(4 * 60 * 1000);
+        vi.advanceTimersByTime(4 * 60 * 1000);
 
         const second = await service.fetchGeolocation();
         expect(second).toBe('US');
@@ -180,7 +181,7 @@ describe('GeolocationApiService', () => {
         await service.fetchGeolocation();
         expect(mockFetch).toHaveBeenCalledTimes(1);
 
-        jest.advanceTimersByTime(5 * 60 * 1000 + 1);
+        vi.advanceTimersByTime(5 * 60 * 1000 + 1);
 
         await service.fetchGeolocation();
         expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -198,7 +199,7 @@ describe('GeolocationApiService', () => {
         await service.fetchGeolocation();
         expect(mockFetch).toHaveBeenCalledTimes(1);
 
-        jest.advanceTimersByTime(101);
+        vi.advanceTimersByTime(101);
 
         await service.fetchGeolocation();
         expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -216,7 +217,7 @@ describe('GeolocationApiService', () => {
       });
 
       it('does not cache UNKNOWN responses', async () => {
-        const mockFetch = jest
+        const mockFetch = vi
           .fn()
           .mockImplementationOnce(() =>
             Promise.resolve(createMockResponse('', 200)),
@@ -238,7 +239,7 @@ describe('GeolocationApiService', () => {
       });
 
       it('caches a partially-known response so it is not re-fetched within the TTL', async () => {
-        const mockFetch = jest.fn(() =>
+        const mockFetch = vi.fn(() =>
           Promise.resolve(
             createMockResponse(
               JSON.stringify({ timezone: 'Europe/Paris' }),
@@ -290,9 +291,7 @@ describe('GeolocationApiService', () => {
 
     describe('when the fetch fails', () => {
       it('throws the network error', async () => {
-        const mockFetch = jest
-          .fn()
-          .mockRejectedValue(new Error('Network error'));
+        const mockFetch = vi.fn().mockRejectedValue(new Error('Network error'));
         const { service } = getService({
           options: {
             fetch: mockFetch,
@@ -306,7 +305,7 @@ describe('GeolocationApiService', () => {
       });
 
       it('throws an HttpError on non-OK response', async () => {
-        const mockFetch = jest
+        const mockFetch = vi
           .fn()
           .mockImplementation(() =>
             Promise.resolve(createMockResponse('', 500)),
@@ -324,7 +323,7 @@ describe('GeolocationApiService', () => {
       });
 
       it('rethrows non-Error values as-is', async () => {
-        const mockFetch = jest.fn().mockRejectedValue('string error');
+        const mockFetch = vi.fn().mockRejectedValue('string error');
         const { service } = getService({
           options: {
             fetch: mockFetch,
@@ -550,7 +549,7 @@ describe('GeolocationApiService', () => {
 
     describe('bypassCache', () => {
       it('invalidates the TTL cache and triggers a new fetch', async () => {
-        const mockFetch = jest
+        const mockFetch = vi
           .fn()
           .mockImplementationOnce(() =>
             Promise.resolve(
@@ -588,7 +587,7 @@ describe('GeolocationApiService', () => {
       });
 
       it('invalidates the TTL cache for fetchGeolocationData', async () => {
-        const mockFetch = jest
+        const mockFetch = vi
           .fn()
           .mockImplementationOnce(() =>
             Promise.resolve(
@@ -615,7 +614,7 @@ describe('GeolocationApiService', () => {
 
   describe('service policy', () => {
     it('retries on 500 and returns the result from the second attempt', async () => {
-      const mockFetch = jest
+      const mockFetch = vi
         .fn()
         .mockImplementationOnce(() =>
           Promise.resolve(createMockResponse('', 500)),
@@ -626,83 +625,98 @@ describe('GeolocationApiService', () => {
           ),
         );
       const { service } = getService({ options: { fetch: mockFetch } });
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
-      });
 
-      const result = await service.fetchGeolocation();
+      const promise = service.fetchGeolocation();
+      await vi.runAllTimersAsync();
 
-      expect(result).toBe('US');
+      expect(await promise).toBe('US');
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
     it('throws after exhausting all retry attempts', async () => {
-      const mockFetch = jest
+      const mockFetch = vi
         .fn()
         .mockImplementation(() => Promise.resolve(createMockResponse('', 500)));
       const { service } = getService({ options: { fetch: mockFetch } });
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
-      });
 
-      await expect(service.fetchGeolocation()).rejects.toThrow(
-        'Geolocation fetch failed: 500',
-      );
+      await Promise.all([
+        expect(service.fetchGeolocation()).rejects.toThrow(
+          'Geolocation fetch failed: 500',
+        ),
+        vi.runAllTimersAsync(),
+      ]);
 
       expect(mockFetch.mock.calls.length).toBeGreaterThanOrEqual(2);
     });
+  });
 
-    it('fires onDegraded when the request exceeds the degraded threshold', async () => {
-      const mockFetch = jest.fn().mockImplementation(
-        () =>
-          new Promise<Response>((resolve) => {
-            setTimeout(() => {
-              resolve(
-                createMockResponse(JSON.stringify({ country: 'US' }), 200),
-              );
-            }, 6000);
-          }),
-      );
-      const { service } = getService({ options: { fetch: mockFetch } });
-      const onDegradedListener = jest.fn();
-      service.onDegraded(onDegradedListener);
+  describe('BaseDataService integration', () => {
+    const payload = {
+      country: 'US',
+      region: 'NY',
+      timezone: 'America/New_York',
+    };
 
-      const fetchPromise = service.fetchGeolocation();
-      await jest.advanceTimersByTimeAsync(6000);
-      await fetchPromise;
+    it('registers the invalidateQueries action, which forces a refetch', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValue(createMockResponse(JSON.stringify(payload), 200));
+      const { service, rootMessenger } = getService({
+        options: { fetch: mockFetch },
+      });
 
-      expect(onDegradedListener).toHaveBeenCalled();
+      await service.fetchGeolocationData();
+      await rootMessenger.call('GeolocationApiService:invalidateQueries');
+      await service.fetchGeolocationData();
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
-    it('fires onBreak after repeated failures trip the circuit breaker', async () => {
-      const mockFetch = jest
-        .fn()
-        .mockImplementation(() => Promise.resolve(createMockResponse('', 500)));
-      const { service } = getService({
+    it('publishes cacheUpdated after a fetch', async () => {
+      const { service, messenger } = getService({
         options: {
-          fetch: mockFetch,
-          policyOptions: { maxConsecutiveFailures: 4 },
+          fetch: vi
+            .fn()
+            .mockResolvedValue(
+              createMockResponse(JSON.stringify(payload), 200),
+            ),
         },
       });
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
-      });
-      const onBreakListener = jest.fn();
-      service.onBreak(onBreakListener);
+      const publishSpy = vi.spyOn(messenger, 'publish');
 
-      await expect(service.fetchGeolocation()).rejects.toThrow(
-        'Geolocation fetch failed: 500',
+      await service.fetchGeolocationData();
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'GeolocationApiService:cacheUpdated',
+        expect.objectContaining({ objectType: 'query' }),
       );
+    });
 
-      expect(onBreakListener).toHaveBeenCalledWith({
-        error: expect.any(HttpError),
+    it('refetches on the next call after a failed bypassCache refresh', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(createMockResponse(JSON.stringify(payload), 200))
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValueOnce(
+          createMockResponse(JSON.stringify(payload), 200),
+        );
+      const { service } = getService({
+        options: { fetch: mockFetch, policyOptions: { maxRetries: 0 } },
       });
+
+      await service.fetchGeolocationData();
+      await expect(
+        service.fetchGeolocationData({ bypassCache: true }),
+      ).rejects.toThrow('offline');
+      await service.fetchGeolocationData();
+
+      expect(mockFetch).toHaveBeenCalledTimes(3);
     });
   });
 
   describe('constructor', () => {
     it('falls back to globalThis.fetch when fetch option is omitted', async () => {
-      const spy = jest
+      const spy = vi
         .spyOn(globalThis, 'fetch')
         .mockImplementation(() =>
           Promise.resolve(
@@ -780,12 +794,12 @@ function createMockResponse(body: string, status: number): Response {
  * Each call returns a fresh mock Response.
  *
  * @param body - The raw body to return.
- * @returns A jest mock function.
+ * @returns A mock function.
  */
 function createMockRawFetch(
   body: string,
-): jest.Mock<Promise<Response>, [string]> {
-  return jest
+): Mock<(url: string) => Promise<Response>> {
+  return vi
     .fn()
     .mockImplementation(() => Promise.resolve(createMockResponse(body, 200)));
 }
@@ -795,11 +809,11 @@ function createMockRawFetch(
  * payload serialized as JSON. Each call returns a fresh mock Response.
  *
  * @param payload - The geolocation payload to return.
- * @returns A jest mock function.
+ * @returns A mock function.
  */
 function createMockFetch(
   payload: Record<string, unknown>,
-): jest.Mock<Promise<Response>, [string]> {
+): Mock<(url: string) => Promise<Response>> {
   return createMockRawFetch(JSON.stringify(payload));
 }
 

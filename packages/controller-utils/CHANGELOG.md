@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
-- Bump `@metamask/utils` from `^11.12.0` to `^12.0.0` ([#10192](https://github.com/MetaMask/core/pull/10192))
+- Bump `@metamask/utils` from `^11.12.0` to `^12.0.1` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107))
 - Bump `@types/bn.js` from `^5.1.5` to `^5.2.0` ([#10362](https://github.com/MetaMask/core/pull/10362))
 - Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
 - Bump `cockatiel` from `^3.1.2` to `^3.2.1` ([#10436](https://github.com/MetaMask/core/pull/10436))

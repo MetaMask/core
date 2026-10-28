@@ -1,5 +1,6 @@
 import { BtcScope, SolScope, XlmScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   ETH_USDT_ADDRESS,
@@ -23,7 +24,7 @@ import {
 
 describe('Bridge utils', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('sumHexes', () => {

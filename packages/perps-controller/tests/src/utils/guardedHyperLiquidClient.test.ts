@@ -1,4 +1,5 @@
 import { ExchangeClient } from '@nktkas/hyperliquid';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createGuardedHyperLiquidClient } from '../../../src/utils/guardedHyperLiquidClient.js';
 
@@ -20,17 +21,17 @@ describe('createGuardedHyperLiquidClient', () => {
   it.each([false, true])(
     'reports the exact refused exchange payload and preserves the guard error when reporting throws: %s',
     async (reportingThrows) => {
-      const request = jest.fn();
+      const request = vi.fn();
       const client = new ExchangeClient({
         wallet: {
           address: '0x1111111111111111111111111111111111111111',
-          signTypedData: jest.fn(),
+          signTypedData: vi.fn(),
         },
         transport: { isTestnet: false, request },
       });
       const refusal = new Error('scope changed');
       const payload = { signature: { r: `0x${'11'.repeat(32)}` } };
-      const onDispatchRefused = jest.fn<void, [unknown]>(() => {
+      const onDispatchRefused = vi.fn<(...args: [unknown]) => void>(() => {
         if (reportingThrows) {
           throw new Error('observer failed');
         }
@@ -54,16 +55,16 @@ describe('createGuardedHyperLiquidClient', () => {
   );
 
   it('does not report a refused info request as an exchange request', async () => {
-    const request = jest.fn();
+    const request = vi.fn();
     const client = new ExchangeClient({
       wallet: {
         address: '0x1111111111111111111111111111111111111111',
-        signTypedData: jest.fn(),
+        signTypedData: vi.fn(),
       },
       transport: { isTestnet: false, request },
     });
     const refusal = new Error('scope changed');
-    const onDispatchRefused = jest.fn();
+    const onDispatchRefused = vi.fn();
     const guarded = createGuardedHyperLiquidClient(
       client,
       async () => {
@@ -82,18 +83,18 @@ describe('createGuardedHyperLiquidClient', () => {
 
   it('leaves dispatched transport failures to the reporting transport', async () => {
     const failure = new Error('fetch failed');
-    const request = jest.fn().mockRejectedValue(failure);
+    const request = vi.fn().mockRejectedValue(failure);
     const client = new ExchangeClient({
       wallet: {
         address: '0x1111111111111111111111111111111111111111',
-        signTypedData: jest.fn(),
+        signTypedData: vi.fn(),
       },
       transport: { isTestnet: false, request },
     });
-    const onDispatchRefused = jest.fn();
+    const onDispatchRefused = vi.fn();
     const guarded = createGuardedHyperLiquidClient(
       client,
-      jest.fn().mockResolvedValue(undefined),
+      vi.fn().mockResolvedValue(undefined),
       onDispatchRefused,
     );
     const payload = { action: { type: 'cancel' } };
@@ -117,7 +118,7 @@ describe('createGuardedHyperLiquidClient', () => {
         return `0x${'11'.repeat(64)}1b`;
       },
     };
-    const request = jest.fn().mockImplementation(async () => {
+    const request = vi.fn().mockImplementation(async () => {
       events.push('dispatch');
       return {
         status: 'ok',
@@ -128,7 +129,7 @@ describe('createGuardedHyperLiquidClient', () => {
       };
     });
     const transport = { isTestnet: true, request };
-    const nonceManager = jest.fn().mockResolvedValue(1234);
+    const nonceManager = vi.fn().mockResolvedValue(1234);
     const client = new ExchangeClient({
       wallet,
       transport,
@@ -136,7 +137,7 @@ describe('createGuardedHyperLiquidClient', () => {
       defaultExpiresAfter: 9999,
     });
     const config = client.config_;
-    const guard = jest.fn().mockImplementation(async () => {
+    const guard = vi.fn().mockImplementation(async () => {
       events.push('guard');
     });
     const guarded = createGuardedHyperLiquidClient(client, guard);

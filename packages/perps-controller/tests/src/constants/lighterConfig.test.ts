@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import * as publicConstants from '../../../src/constants/index.js';
 import {
   computeLighterMinOrderSize,

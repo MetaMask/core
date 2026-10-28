@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { assertExpectedPosition } from '../../../src/utils/positionProtection.js';
 

@@ -39,8 +39,8 @@
     "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/controller-utils",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/controller-utils",
-    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
-    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts --experimental-transform-types ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
+    "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
+    "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "vitest",
     "test:clean": "vitest --clearCache",
@@ -51,7 +51,7 @@
     "@ethersproject/abi": "^5.7.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/ethjs-unit": "^0.3.0",
-    "@metamask/utils": "^12.0.0",
+    "@metamask/utils": "^12.0.1",
     "@signinwithethereum/siwe-parser": "^4.2.1",
     "@types/bn.js": "^5.2.0",
     "bignumber.js": "^9.1.2",
@@ -79,6 +79,6 @@
     "@babel/runtime": "^7.0.0"
   },
   "engines": {
-    "node": "^22.14.0 || ^24"
+    "node": "^22.14.0 || ^24 || ^26"
   }
 }

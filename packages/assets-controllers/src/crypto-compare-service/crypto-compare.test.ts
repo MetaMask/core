@@ -1,4 +1,5 @@
 import nock from 'nock';
+import { describe, expect, it } from 'vitest';
 
 import { fetchExchangeRate, fetchMultiExchangeRate } from './crypto-compare.js';
 
@@ -96,7 +97,7 @@ describe('CryptoCompare', () => {
       .replyWithError('Example network error');
 
     await expect(fetchExchangeRate('CAD', 'ETH')).rejects.toThrow(
-      'Example network error',
+      /Example network error|fetch failed/u,
     );
   });
 

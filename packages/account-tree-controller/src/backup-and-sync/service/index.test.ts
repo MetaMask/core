@@ -1,4 +1,6 @@
 import { AccountWalletType } from '@metamask/account-api';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockedFunction } from 'vitest';
 
 import type { AccountGroupObject } from '../../group.js';
 import type { AccountTreeControllerState } from '../../types.js';
@@ -16,37 +18,36 @@ import { createStateSnapshot, getLocalEntropyWallets } from '../utils/index.js';
 import { BackupAndSyncService } from './index.js';
 
 // Mock the sync functions and all external dependencies
-jest.mock('../syncing');
-jest.mock('../authentication');
-jest.mock('../utils');
-jest.mock('../user-storage');
+vi.mock('../syncing');
+vi.mock('../authentication');
+vi.mock('../utils');
+vi.mock('../user-storage');
 
 // Get typed mocks for the functions we want to spy on
-const mockGetProfileId = getProfileId as jest.MockedFunction<
-  typeof getProfileId
+const mockGetProfileId = getProfileId as MockedFunction<typeof getProfileId>;
+const mockGetLocalEntropyWallets = getLocalEntropyWallets as MockedFunction<
+  typeof getLocalEntropyWallets
 >;
-const mockGetLocalEntropyWallets =
-  getLocalEntropyWallets as jest.MockedFunction<typeof getLocalEntropyWallets>;
-const mockSyncWalletMetadata = syncWalletMetadata as jest.MockedFunction<
+const mockSyncWalletMetadata = syncWalletMetadata as MockedFunction<
   typeof syncWalletMetadata
 >;
 const mockPerformLegacyAccountSyncing =
-  performLegacyAccountSyncing as jest.MockedFunction<
+  performLegacyAccountSyncing as MockedFunction<
     typeof performLegacyAccountSyncing
   >;
 const mockGetAllGroupsFromUserStorage =
-  getAllGroupsFromUserStorage as jest.MockedFunction<
+  getAllGroupsFromUserStorage as MockedFunction<
     typeof getAllGroupsFromUserStorage
   >;
-const mockCreateStateSnapshot = createStateSnapshot as jest.MockedFunction<
+const mockCreateStateSnapshot = createStateSnapshot as MockedFunction<
   typeof createStateSnapshot
 >;
 
-// `jest.mock('../utils')` auto-mocks every export, including the tracker
+// `vi.mock('../utils')` auto-mocks every export, including the tracker
 // factory. Grab the real one so tests use the actual tracker behaviour rather
 // than a hand-rolled duplicate.
 const { createSyncMutationTracker } =
-  jest.requireActual<typeof import('../utils/index.js')>('../utils');
+  await vi.importActual<typeof import('../utils/index.js')>('../utils');
 
 describe('BackupAndSync - Service - BackupAndSyncService', () => {
   let mockContext: BackupAndSyncContext;
@@ -56,7 +57,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     isBackupAndSyncEnabled = true,
     isAccountSyncingEnabled = true,
   ) => {
-    (mockContext.messenger.call as jest.Mock).mockImplementation((action) => {
+    (mockContext.messenger.call as Mock).mockImplementation((action) => {
       if (action === 'UserStorageController:getState') {
         return {
           isBackupAndSyncEnabled,
@@ -78,11 +79,11 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
           },
         },
       },
-      controllerStateUpdateFn: jest.fn(),
+      controllerStateUpdateFn: vi.fn(),
       messenger: {
-        call: jest.fn(),
+        call: vi.fn(),
       },
-      traceFn: jest.fn().mockImplementation((_config, fn) => fn()),
+      traceFn: vi.fn().mockImplementation((_config, fn) => fn()),
       groupIdToWalletId: new Map(),
       mutationTracker: createSyncMutationTracker(),
     } as unknown as BackupAndSyncContext;
@@ -103,7 +104,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('isInProgress getter', () => {
@@ -390,8 +391,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         expect.any(Function),
       );
       // The traced callback is empty (the span is backdated, work already ran).
-      const [, tracedCallback] = (mockContext.traceFn as jest.Mock).mock
-        .calls[0];
+      const [, tracedCallback] = (mockContext.traceFn as Mock).mock.calls[0];
       expect(tracedCallback()).toBeUndefined();
     });
 
@@ -408,9 +408,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       });
       // Tracing is best-effort: a rejected trace must not fail the sync nor
       // leave the controller stuck mid-sync.
-      (mockContext.traceFn as jest.Mock).mockRejectedValue(
-        new Error('trace boom'),
-      );
+      (mockContext.traceFn as Mock).mockRejectedValue(new Error('trace boom'));
 
       expect(await backupAndSyncService.performFullSync()).toBeUndefined();
 
@@ -418,8 +416,8 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       const state = {
         isAccountTreeSyncingInProgress: true,
       } as AccountTreeControllerState;
-      for (const [updater] of (mockContext.controllerStateUpdateFn as jest.Mock)
-        .mock.calls) {
+      for (const [updater] of (mockContext.controllerStateUpdateFn as Mock).mock
+        .calls) {
         updater(state);
       }
       expect(state.isAccountTreeSyncingInProgress).toBe(false);
@@ -659,7 +657,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     beforeEach(() => {
       setupMockUserStorageControllerState(true, true);
       // Clear all mocks before each test
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       mockGetLocalEntropyWallets.mockClear();
     });
 

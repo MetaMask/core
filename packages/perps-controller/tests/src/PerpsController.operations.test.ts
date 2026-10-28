@@ -6,6 +6,9 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, Mocked, MockedClass } from 'vitest';
+
 import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
   createDeferred,
@@ -14,7 +17,7 @@ import {
   createMockMessenger,
 } from '../helpers/serviceMocks.js';
 
-jest.mock('@nktkas/hyperliquid', () => ({}));
+vi.mock('@nktkas/hyperliquid', () => ({}));
 
 import {
   PERPS_EVENT_PROPERTY,
@@ -45,136 +48,136 @@ import {
 } from '../../src/types/index.js';
 import { STRATEGY_ORDER_TYPES } from '../../src/utils/orderTypes.js';
 
-jest.mock('../../src/providers/HyperLiquidProvider');
+vi.mock('../../src/providers/HyperLiquidProvider');
 
 // Mock transaction controller utility
-const mockAddTransaction = jest.fn();
-jest.mock(
-  '../../../util/transaction-controller',
-  () => ({
-    addTransaction: (...args: unknown[]) => mockAddTransaction(...args),
-  }),
-  { virtual: true },
-);
+const mockAddTransaction = vi.fn();
+vi.mock('../../../util/transaction-controller', () => ({
+  addTransaction: (...args: unknown[]) => mockAddTransaction(...args),
+}));
 
 // Mock wait utility to speed up retry tests
-jest.mock('../../src/utils/wait', () => ({
-  wait: jest.fn().mockResolvedValue(undefined),
+vi.mock('../../src/utils/wait', () => ({
+  wait: vi.fn().mockResolvedValue(undefined),
 }));
+
+import * as accountServiceModule from '../../src/services/AccountService.js';
+import * as dataLakeServiceModule from '../../src/services/DataLakeService.js';
+import * as depositServiceModule from '../../src/services/DepositService.js';
+import * as eligibilityServiceModule from '../../src/services/EligibilityService.js';
+import * as featureFlagConfigurationServiceModule from '../../src/services/FeatureFlagConfigurationService.js';
+import * as marketDataServiceModule from '../../src/services/MarketDataService.js';
+import * as tradingServiceModule from '../../src/services/TradingService.js';
 import { wait as mockWait } from '../../src/utils/wait';
 
 // Mock stream manager
 const mockStreamManager = {
-  positions: { pause: jest.fn(), resume: jest.fn() },
-  account: { pause: jest.fn(), resume: jest.fn() },
-  orders: { pause: jest.fn(), resume: jest.fn() },
-  prices: { pause: jest.fn(), resume: jest.fn() },
-  orderFills: { pause: jest.fn(), resume: jest.fn() },
+  positions: { pause: vi.fn(), resume: vi.fn() },
+  account: { pause: vi.fn(), resume: vi.fn() },
+  orders: { pause: vi.fn(), resume: vi.fn() },
+  prices: { pause: vi.fn(), resume: vi.fn() },
+  orderFills: { pause: vi.fn(), resume: vi.fn() },
 };
 
-jest.mock(
-  '../../../components/UI/Perps/providers/PerpsStreamManager',
-  () => ({
-    getStreamManagerInstance: jest.fn(() => mockStreamManager),
-  }),
-  { virtual: true },
-);
+vi.mock('../../../components/UI/Perps/providers/PerpsStreamManager', () => ({
+  getStreamManagerInstance: vi.fn(() => mockStreamManager),
+}));
 
-jest.mock('@metamask/utils', () => ({
-  ...jest.requireActual('@metamask/utils'),
-  formatAccountToCaipAccountId: jest
+vi.mock(import('@metamask/utils'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  formatAccountToCaipAccountId: vi
     .fn()
     .mockReturnValue('eip155:1:0x1234567890123456789012345678901234567890'),
 }));
 
 // Mock EligibilityService as a class with instance methods
 const mockEligibilityServiceInstance = {
-  checkEligibility: jest.fn().mockResolvedValue(true),
+  checkEligibility: vi.fn().mockResolvedValue(true),
 };
-jest.mock('../../src/services/EligibilityService', () => ({
-  EligibilityService: jest
-    .fn()
-    .mockImplementation(() => mockEligibilityServiceInstance),
+vi.mock('../../src/services/EligibilityService', () => ({
+  EligibilityService: vi.fn().mockImplementation(function () {
+    return mockEligibilityServiceInstance;
+  }),
 }));
 
 // Mock DepositService as a class with instance methods
 const mockDepositServiceInstance = {
-  prepareTransaction: jest.fn(),
+  prepareTransaction: vi.fn(),
 };
-jest.mock('../../src/services/DepositService', () => ({
-  DepositService: jest
-    .fn()
-    .mockImplementation(() => mockDepositServiceInstance),
+vi.mock('../../src/services/DepositService', () => ({
+  DepositService: vi.fn().mockImplementation(function () {
+    return mockDepositServiceInstance;
+  }),
 }));
 
 // Mock MarketDataService as a class with instance methods
 const mockMarketDataServiceInstance = {
-  getPositions: jest.fn(),
-  getAccountState: jest.fn(),
-  getMarkets: jest.fn(),
-  getWithdrawalRoutes: jest.fn().mockReturnValue([]),
-  validateClosePosition: jest.fn().mockResolvedValue({ isValid: true }),
-  validateOrder: jest.fn(),
-  calculateMaintenanceMargin: jest.fn().mockResolvedValue(0),
-  calculateLiquidationPrice: jest.fn(),
-  getMaxLeverage: jest.fn(),
-  calculateFees: jest.fn().mockResolvedValue({ totalFee: 0 }),
-  previewPositionModify: jest.fn(),
-  getAvailableDexs: jest.fn().mockResolvedValue([]),
-  getBlockExplorerUrl: jest.fn(),
-  getOrderFills: jest.fn(),
-  getOrders: jest.fn(),
-  getFunding: jest.fn(),
+  getPositions: vi.fn(),
+  getAccountState: vi.fn(),
+  getMarkets: vi.fn(),
+  getWithdrawalRoutes: vi.fn().mockReturnValue([]),
+  validateClosePosition: vi.fn().mockResolvedValue({ isValid: true }),
+  validateOrder: vi.fn(),
+  calculateMaintenanceMargin: vi.fn().mockResolvedValue(0),
+  calculateLiquidationPrice: vi.fn(),
+  getMaxLeverage: vi.fn(),
+  calculateFees: vi.fn().mockResolvedValue({ totalFee: 0 }),
+  previewPositionModify: vi.fn(),
+  getAvailableDexs: vi.fn().mockResolvedValue([]),
+  getBlockExplorerUrl: vi.fn(),
+  getOrderFills: vi.fn(),
+  getOrders: vi.fn(),
+  getFunding: vi.fn(),
 };
-jest.mock('../../src/services/MarketDataService', () => ({
-  MarketDataService: jest
-    .fn()
-    .mockImplementation(() => mockMarketDataServiceInstance),
+vi.mock('../../src/services/MarketDataService', () => ({
+  MarketDataService: vi.fn().mockImplementation(function () {
+    return mockMarketDataServiceInstance;
+  }),
 }));
 
 // Mock TradingService as a class with instance methods
 const mockTradingServiceInstance = {
-  placeOrder: jest.fn(),
-  editOrder: jest.fn(),
-  cancelOrder: jest.fn(),
-  cancelOrders: jest.fn(),
-  closePosition: jest.fn(),
-  closePositions: jest.fn(),
-  updatePositionTPSL: jest.fn(),
-  updateMargin: jest.fn(),
-  flipPosition: jest.fn(),
-  setControllerDependencies: jest.fn(),
+  placeOrder: vi.fn(),
+  editOrder: vi.fn(),
+  cancelOrder: vi.fn(),
+  cancelOrders: vi.fn(),
+  closePosition: vi.fn(),
+  closePositions: vi.fn(),
+  updatePositionTPSL: vi.fn(),
+  updateMargin: vi.fn(),
+  flipPosition: vi.fn(),
+  setControllerDependencies: vi.fn(),
 };
-jest.mock('../../src/services/TradingService', () => ({
-  TradingService: jest
-    .fn()
-    .mockImplementation(() => mockTradingServiceInstance),
+vi.mock('../../src/services/TradingService', () => ({
+  TradingService: vi.fn().mockImplementation(function () {
+    return mockTradingServiceInstance;
+  }),
 }));
 
 // Mock AccountService as a class with instance methods
 const mockAccountServiceInstance = {
-  withdraw: jest.fn(),
-  validateWithdrawal: jest.fn(),
+  withdraw: vi.fn(),
+  validateWithdrawal: vi.fn(),
 };
-jest.mock('../../src/services/AccountService', () => ({
-  AccountService: jest
-    .fn()
-    .mockImplementation(() => mockAccountServiceInstance),
+vi.mock('../../src/services/AccountService', () => ({
+  AccountService: vi.fn().mockImplementation(function () {
+    return mockAccountServiceInstance;
+  }),
 }));
 
 // Mock DataLakeService as a class with instance methods
 const mockDataLakeServiceInstance = {
-  reportOrder: jest.fn(),
+  reportOrder: vi.fn(),
 };
-jest.mock('../../src/services/DataLakeService', () => ({
-  DataLakeService: jest
-    .fn()
-    .mockImplementation(() => mockDataLakeServiceInstance),
+vi.mock('../../src/services/DataLakeService', () => ({
+  DataLakeService: vi.fn().mockImplementation(function () {
+    return mockDataLakeServiceInstance;
+  }),
 }));
 
 // Mock FeatureFlagConfigurationService as a class with instance methods
 const mockFeatureFlagConfigurationServiceInstance = {
-  refreshEligibility: jest.fn((options: any) => {
+  refreshEligibility: vi.fn((options: any) => {
     // Simulate the service's behavior: extract blocked regions from remote flags
     const remoteFlags =
       options.remoteFeatureFlagControllerState.remoteFeatureFlags;
@@ -206,8 +209,8 @@ const mockFeatureFlagConfigurationServiceInstance = {
       mockFeatureFlagConfigurationServiceInstance.refreshHip3Config(options);
     }
   }),
-  refreshHip3Config: jest.fn(),
-  setBlockedRegions: jest.fn((options: any) => {
+  refreshHip3Config: vi.fn(),
+  setBlockedRegions: vi.fn((options: any) => {
     // Simulate setBlockedRegions behavior
     const { list, source, context } = options;
     if (context.setBlockedRegionList && context.getBlockedRegionList) {
@@ -229,10 +232,10 @@ const mockFeatureFlagConfigurationServiceInstance = {
     }
   }),
 };
-jest.mock('../../src/services/FeatureFlagConfigurationService', () => ({
-  FeatureFlagConfigurationService: jest
-    .fn()
-    .mockImplementation(() => mockFeatureFlagConfigurationServiceInstance),
+vi.mock('../../src/services/FeatureFlagConfigurationService', () => ({
+  FeatureFlagConfigurationService: vi.fn().mockImplementation(function () {
+    return mockFeatureFlagConfigurationServiceInstance;
+  }),
 }));
 
 /**
@@ -368,8 +371,8 @@ class TestablePerpsController extends PerpsController {
 
 describe('PerpsController', () => {
   let controller: TestablePerpsController;
-  let mockProvider: jest.Mocked<HyperLiquidProvider>;
-  let mockInfrastructure: jest.Mocked<PerpsPlatformDependencies>;
+  let mockProvider: Mocked<HyperLiquidProvider>;
+  let mockInfrastructure: Mocked<PerpsPlatformDependencies>;
 
   // Helper to mark controller as initialized for tests
   const markControllerAsInitialized = () => {
@@ -377,36 +380,50 @@ describe('PerpsController', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     (
-      jest.requireMock('../../src/services/EligibilityService')
-        .EligibilityService as jest.Mock
-    ).mockImplementation(() => mockEligibilityServiceInstance);
+      (eligibilityServiceModule as unknown as Record<string, Mock>)
+        .EligibilityService as Mock
+    ).mockImplementation(function () {
+      return mockEligibilityServiceInstance;
+    });
     (
-      jest.requireMock('../../src/services/DepositService')
-        .DepositService as jest.Mock
-    ).mockImplementation(() => mockDepositServiceInstance);
+      (depositServiceModule as unknown as Record<string, Mock>)
+        .DepositService as Mock
+    ).mockImplementation(function () {
+      return mockDepositServiceInstance;
+    });
     (
-      jest.requireMock('../../src/services/MarketDataService')
-        .MarketDataService as jest.Mock
-    ).mockImplementation(() => mockMarketDataServiceInstance);
+      (marketDataServiceModule as unknown as Record<string, Mock>)
+        .MarketDataService as Mock
+    ).mockImplementation(function () {
+      return mockMarketDataServiceInstance;
+    });
     (
-      jest.requireMock('../../src/services/TradingService')
-        .TradingService as jest.Mock
-    ).mockImplementation(() => mockTradingServiceInstance);
+      (tradingServiceModule as unknown as Record<string, Mock>)
+        .TradingService as Mock
+    ).mockImplementation(function () {
+      return mockTradingServiceInstance;
+    });
     (
-      jest.requireMock('../../src/services/AccountService')
-        .AccountService as jest.Mock
-    ).mockImplementation(() => mockAccountServiceInstance);
+      (accountServiceModule as unknown as Record<string, Mock>)
+        .AccountService as Mock
+    ).mockImplementation(function () {
+      return mockAccountServiceInstance;
+    });
     (
-      jest.requireMock('../../src/services/DataLakeService')
-        .DataLakeService as jest.Mock
-    ).mockImplementation(() => mockDataLakeServiceInstance);
+      (dataLakeServiceModule as unknown as Record<string, Mock>)
+        .DataLakeService as Mock
+    ).mockImplementation(function () {
+      return mockDataLakeServiceInstance;
+    });
     (
-      jest.requireMock('../../src/services/FeatureFlagConfigurationService')
-        .FeatureFlagConfigurationService as jest.Mock
-    ).mockImplementation(() => mockFeatureFlagConfigurationServiceInstance);
+      (featureFlagConfigurationServiceModule as unknown as Record<string, Mock>)
+        .FeatureFlagConfigurationService as Mock
+    ).mockImplementation(function () {
+      return mockFeatureFlagConfigurationServiceInstance;
+    });
 
     mockEligibilityServiceInstance.checkEligibility.mockResolvedValue(true);
     mockMarketDataServiceInstance.getPositions.mockResolvedValue([]);
@@ -518,10 +535,12 @@ describe('PerpsController', () => {
     mockProvider.getWithdrawalRoutes.mockReturnValue([]);
 
     (
-      HyperLiquidProvider as jest.MockedClass<typeof HyperLiquidProvider>
-    ).mockImplementation(() => mockProvider);
+      HyperLiquidProvider as MockedClass<typeof HyperLiquidProvider>
+    ).mockImplementation(function () {
+      return mockProvider;
+    });
 
-    const mockCall = jest.fn().mockImplementation((action: string) => {
+    const mockCall = vi.fn().mockImplementation((action: string) => {
       if (action === 'RemoteFeatureFlagController:getState') {
         return {
           remoteFeatureFlags: {
@@ -571,13 +590,13 @@ describe('PerpsController', () => {
           value !== null &&
           'mockClear' in value
         ) {
-          (value as jest.Mock).mockClear();
+          (value as Mock).mockClear();
         }
       });
     }
-    (mockInfrastructure.metrics.trackPerpsEvent as jest.Mock).mockClear();
-    (mockInfrastructure.logger.error as jest.Mock).mockClear();
-    (mockInfrastructure.debugLogger.log as jest.Mock).mockClear();
+    (mockInfrastructure.metrics.trackPerpsEvent as Mock).mockClear();
+    (mockInfrastructure.logger.error as Mock).mockClear();
+    (mockInfrastructure.debugLogger.log as Mock).mockClear();
   });
   describe('validation methods', () => {
     it('validates close position', async () => {
@@ -594,9 +613,10 @@ describe('PerpsController', () => {
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-      jest
-        .spyOn(mockMarketDataServiceInstance, 'validateClosePosition')
-        .mockResolvedValue(mockValidationResult);
+      vi.spyOn(
+        mockMarketDataServiceInstance,
+        'validateClosePosition',
+      ).mockResolvedValue(mockValidationResult);
 
       const result = await controller.validateClosePosition(closeParams);
 
@@ -624,9 +644,10 @@ describe('PerpsController', () => {
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-      jest
-        .spyOn(mockAccountServiceInstance, 'validateWithdrawal')
-        .mockResolvedValue(mockValidationResult);
+      vi.spyOn(
+        mockAccountServiceInstance,
+        'validateWithdrawal',
+      ).mockResolvedValue(mockValidationResult);
 
       const result = await controller.validateWithdrawal(withdrawParams);
 
@@ -655,9 +676,10 @@ describe('PerpsController', () => {
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-      jest
-        .spyOn(mockTradingServiceInstance, 'updatePositionTPSL')
-        .mockResolvedValue(mockUpdateResult);
+      vi.spyOn(
+        mockTradingServiceInstance,
+        'updatePositionTPSL',
+      ).mockResolvedValue(mockUpdateResult);
 
       const result = await controller.updatePositionTPSL(updateParams);
 
@@ -685,9 +707,10 @@ describe('PerpsController', () => {
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-      jest
-        .spyOn(mockMarketDataServiceInstance, 'calculateMaintenanceMargin')
-        .mockResolvedValue(mockMargin);
+      vi.spyOn(
+        mockMarketDataServiceInstance,
+        'calculateMaintenanceMargin',
+      ).mockResolvedValue(mockMargin);
 
       const result = await controller.calculateMaintenanceMargin(marginParams);
 
@@ -713,9 +736,9 @@ describe('PerpsController', () => {
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-      jest
-        .spyOn(mockTradingServiceInstance, 'updateMargin')
-        .mockResolvedValue(mockUpdateResult);
+      vi.spyOn(mockTradingServiceInstance, 'updateMargin').mockResolvedValue(
+        mockUpdateResult,
+      );
 
       const result = await controller.updateMargin(updateMarginParams);
 
@@ -740,9 +763,9 @@ describe('PerpsController', () => {
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-      jest
-        .spyOn(mockTradingServiceInstance, 'updateMargin')
-        .mockRejectedValue(new Error(errorMessage));
+      vi.spyOn(mockTradingServiceInstance, 'updateMargin').mockRejectedValue(
+        new Error(errorMessage),
+      );
 
       await expect(controller.updateMargin(updateMarginParams)).rejects.toThrow(
         errorMessage,
@@ -781,9 +804,9 @@ describe('PerpsController', () => {
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-      jest
-        .spyOn(mockTradingServiceInstance, 'flipPosition')
-        .mockResolvedValue(mockFlipResult);
+      vi.spyOn(mockTradingServiceInstance, 'flipPosition').mockResolvedValue(
+        mockFlipResult,
+      );
 
       const result = await controller.flipPosition(flipPositionParams);
 
@@ -823,9 +846,9 @@ describe('PerpsController', () => {
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-      jest
-        .spyOn(mockTradingServiceInstance, 'flipPosition')
-        .mockRejectedValue(new Error(errorMessage));
+      vi.spyOn(mockTradingServiceInstance, 'flipPosition').mockRejectedValue(
+        new Error(errorMessage),
+      );
 
       await expect(controller.flipPosition(flipPositionParams)).rejects.toThrow(
         errorMessage,
@@ -836,7 +859,7 @@ describe('PerpsController', () => {
 
   describe('margin mode lock', () => {
     it('returns the lock from the active provider', async () => {
-      mockProvider.getMarginModeLock = jest.fn().mockResolvedValue({
+      mockProvider.getMarginModeLock = vi.fn().mockResolvedValue({
         status: 'locked',
         providerId: 'hyperliquid',
         marginMode: 'isolated',
@@ -873,7 +896,7 @@ describe('PerpsController', () => {
     });
 
     it('reports provider_unavailable when the provider read throws', async () => {
-      mockProvider.getMarginModeLock = jest
+      mockProvider.getMarginModeLock = vi
         .fn()
         .mockRejectedValue(new Error('offline'));
       markControllerAsInitialized();
@@ -931,7 +954,7 @@ describe('PerpsController', () => {
     };
 
     it('returns capabilities from the active routed provider', async () => {
-      mockProvider.getOrderCapabilities = jest.fn().mockResolvedValue({
+      mockProvider.getOrderCapabilities = vi.fn().mockResolvedValue({
         status: 'ready',
         providerId: 'hyperliquid',
         supportedStrategies: ['twap', 'scale', 'chase'],
@@ -979,7 +1002,7 @@ describe('PerpsController', () => {
     });
 
     it('preserves a direct unavailable reason when the provider omits its identity', async () => {
-      mockProvider.getOrderCapabilities = jest.fn().mockResolvedValue({
+      mockProvider.getOrderCapabilities = vi.fn().mockResolvedValue({
         status: 'unavailable',
         reason: 'market_not_found',
       });
@@ -1017,7 +1040,7 @@ describe('PerpsController', () => {
     });
 
     it('preserves the resolved provider when capability discovery fails', async () => {
-      mockProvider.getOrderCapabilities = jest
+      mockProvider.getOrderCapabilities = vi
         .fn()
         .mockRejectedValue(new Error('metadata unavailable'));
       markControllerAsInitialized();
@@ -1046,7 +1069,7 @@ describe('PerpsController', () => {
     });
 
     it('routes an explicit provider through the active aggregator', async () => {
-      const getLighterOrderCapabilities = jest.fn().mockResolvedValue({
+      const getLighterOrderCapabilities = vi.fn().mockResolvedValue({
         status: 'ready',
         providerId: 'lighter',
         supportedStrategies: [],
@@ -1489,10 +1512,10 @@ describe('PerpsController', () => {
       async (method) => {
         const release = createDeferred<void>();
         const started = createDeferred<void>();
-        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => {
+        vi.mocked(HyperLiquidProvider).mockImplementationOnce(function () {
           throw new Error('Transient initialization failure');
         });
-        jest.mocked(mockWait).mockImplementationOnce(() => {
+        vi.mocked(mockWait).mockImplementationOnce(() => {
           started.resolve();
           return release.promise;
         });
@@ -1557,10 +1580,10 @@ describe('PerpsController', () => {
         let initialization: Promise<void> | undefined;
         if (readiness === 'initializing') {
           const started = createDeferred<void>();
-          jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => {
+          vi.mocked(HyperLiquidProvider).mockImplementationOnce(function () {
             throw new Error('Transient initialization failure');
           });
-          jest.mocked(mockWait).mockImplementationOnce(() => {
+          vi.mocked(mockWait).mockImplementationOnce(() => {
             started.resolve();
             return release.promise;
           });
@@ -1618,7 +1641,7 @@ describe('PerpsController', () => {
       const lighterProvider: PerpsProvider = {
         ...createMockHyperLiquidProvider(),
         protocolId: 'lighter',
-        getScalePriceLadder: jest.fn().mockResolvedValue({
+        getScalePriceLadder: vi.fn().mockResolvedValue({
           status: 'ready',
           providerId: 'lighter',
           prices: ['100', '125', '150'],
@@ -1729,7 +1752,7 @@ describe('PerpsController', () => {
       const feeParams = {
         orderType: 'market' as const,
         isMaker: false,
-        amount: '100000',
+        amount: '1000',
         symbol: 'BTC',
       };
 
@@ -1746,9 +1769,10 @@ describe('PerpsController', () => {
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
-      jest
-        .spyOn(mockMarketDataServiceInstance, 'calculateFees')
-        .mockResolvedValue(mockFees);
+      vi.spyOn(
+        mockMarketDataServiceInstance,
+        'calculateFees',
+      ).mockResolvedValue(mockFees);
 
       const result = await controller.calculateFees(feeParams);
 
@@ -1832,13 +1856,13 @@ describe('PerpsController', () => {
         reason: 'eligible' as const,
         remainingNotionalUsd: 2500,
       };
-      const getStatus = jest
+      const getStatus = vi
         .spyOn(
           RewardsIntegrationService.prototype,
           'getSubscriptionFeeWaiverStatus',
         )
         .mockReturnValue(waiverStatus);
-      const refresh = jest
+      const refresh = vi
         .spyOn(
           RewardsIntegrationService.prototype,
           'refreshSubscriptionBenefits',
@@ -1866,6 +1890,88 @@ describe('PerpsController', () => {
       refresh.mockRestore();
     });
 
+    it('passes one scoped rewards resolution to the fee preview and returns its source', async () => {
+      const params = {
+        orderType: 'market' as const,
+        symbol: 'BTC',
+        amount: '1000',
+      };
+      const resolution = {
+        feeBips: 3.5,
+        discountBips: 6500,
+        source: 'rewards' as const,
+        subscription: {
+          eligible: false,
+          reason: 'no-source' as const,
+        },
+      };
+      const resolveFee = vi
+        .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
+        .mockResolvedValue(resolution);
+      vi.spyOn(
+        RewardsIntegrationService.prototype,
+        'refreshSubscriptionBenefits',
+      ).mockResolvedValue(undefined);
+      const fees = { metamaskFeeRate: 0.00035, feeSource: 'rewards' as const };
+      mockMarketDataServiceInstance.calculateFees.mockResolvedValue(fees);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      expect(await controller.calculateFees(params)).toBe(fees);
+      expect(resolveFee).toHaveBeenCalledTimes(1);
+      expect(resolveFee).toHaveBeenCalledWith(1000, {
+        providerId: 'hyperliquid',
+        isTestnet: false,
+      });
+      expect(mockMarketDataServiceInstance.calculateFees).toHaveBeenCalledWith(
+        expect.objectContaining({
+          context: expect.objectContaining({
+            feeResolution: resolution,
+          }),
+        }),
+      );
+      vi.resetAllMocks();
+    });
+
+    it('scopes an aggregated fee preview to its concrete write provider', async () => {
+      const resolveFee = vi
+        .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
+        .mockResolvedValue({
+          feeBips: 2,
+          discountBips: 8000,
+          source: 'grant',
+          subscription: { eligible: false, reason: 'no-source' },
+        });
+      vi.spyOn(
+        RewardsIntegrationService.prototype,
+        'refreshSubscriptionBenefits',
+      ).mockResolvedValue(undefined);
+      const aggregatedProvider = new AggregatedPerpsProvider({
+        providers: new Map([['hyperliquid', mockProvider]]),
+        defaultProvider: 'hyperliquid',
+        infrastructure: mockInfrastructure,
+      });
+      markControllerAsInitialized();
+      controller.testUpdate((state) => {
+        state.activeProvider = 'aggregated';
+      });
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      controller.testSetActiveProvider(aggregatedProvider);
+
+      await controller.calculateFees({
+        orderType: 'market',
+        symbol: 'BTC',
+        amount: '1000',
+      });
+
+      expect(resolveFee).toHaveBeenCalledWith(1000, {
+        providerId: 'hyperliquid',
+        isTestnet: false,
+      });
+
+      vi.restoreAllMocks();
+    });
+
     it('resolves the preview fee against the order notional', async () => {
       const feeParams = {
         orderType: 'market' as const,
@@ -1886,15 +1992,13 @@ describe('PerpsController', () => {
         subscriptionWaiverKind: 'partial' as const,
         subscriptionCoveredNotionalUsd: 250,
       };
-      const resolveFee = jest
+      const resolveFee = vi
         .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
         .mockResolvedValue(resolution);
-      jest
-        .spyOn(
-          RewardsIntegrationService.prototype,
-          'refreshSubscriptionBenefits',
-        )
-        .mockResolvedValue(undefined);
+      vi.spyOn(
+        RewardsIntegrationService.prototype,
+        'refreshSubscriptionBenefits',
+      ).mockResolvedValue(undefined);
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
@@ -1906,17 +2010,20 @@ describe('PerpsController', () => {
       // assertion lives in TradingService.test.ts ('charges a partial blend at
       // submit when the allowance is bounded'), which is what makes the two
       // paths verifiably agree.
-      expect(resolveFee).toHaveBeenCalledWith(1000);
+      expect(resolveFee).toHaveBeenCalledWith(1000, {
+        providerId: 'hyperliquid',
+        isTestnet: false,
+      });
       const { context } = (
-        mockMarketDataServiceInstance.calculateFees as jest.Mock
-      ).mock.calls.at(-1)[0];
+        mockMarketDataServiceInstance.calculateFees as Mock
+      ).mock.calls.at(-1)?.[0];
       expect(context.feeResolution).toStrictEqual(resolution);
 
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('resolves without an order notional when the preview quotes a bare rate', async () => {
-      const resolveFee = jest
+      const resolveFee = vi
         .spyOn(RewardsIntegrationService.prototype, 'resolveFee')
         .mockResolvedValue({
           feeBips: 10,
@@ -1924,12 +2031,10 @@ describe('PerpsController', () => {
           source: 'default',
           subscription: { eligible: false, reason: 'no-source' },
         });
-      jest
-        .spyOn(
-          RewardsIntegrationService.prototype,
-          'refreshSubscriptionBenefits',
-        )
-        .mockResolvedValue(undefined);
+      vi.spyOn(
+        RewardsIntegrationService.prototype,
+        'refreshSubscriptionBenefits',
+      ).mockResolvedValue(undefined);
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
@@ -1940,21 +2045,22 @@ describe('PerpsController', () => {
         symbol: 'BTC',
       });
 
-      expect(resolveFee).toHaveBeenCalledWith(undefined);
+      expect(resolveFee).toHaveBeenCalledWith(undefined, {
+        providerId: 'hyperliquid',
+        isTestnet: false,
+      });
 
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('registers the current HyperLiquid address at preview time', async () => {
-      const register = jest
+      const register = vi
         .spyOn(RewardsIntegrationService.prototype, 'registerTradingAddress')
         .mockResolvedValue(undefined);
-      jest
-        .spyOn(
-          RewardsIntegrationService.prototype,
-          'refreshSubscriptionBenefits',
-        )
-        .mockResolvedValue(undefined);
+      vi.spyOn(
+        RewardsIntegrationService.prototype,
+        'refreshSubscriptionBenefits',
+      ).mockResolvedValue(undefined);
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
@@ -1972,19 +2078,18 @@ describe('PerpsController', () => {
         isTestnet: controller.state.isTestnet,
       });
 
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('never fails a fee preview when address registration rejects', async () => {
-      jest
-        .spyOn(RewardsIntegrationService.prototype, 'registerTradingAddress')
-        .mockRejectedValue(new Error('address index unavailable'));
-      jest
-        .spyOn(
-          RewardsIntegrationService.prototype,
-          'refreshSubscriptionBenefits',
-        )
-        .mockResolvedValue(undefined);
+      vi.spyOn(
+        RewardsIntegrationService.prototype,
+        'registerTradingAddress',
+      ).mockRejectedValue(new Error('address index unavailable'));
+      vi.spyOn(
+        RewardsIntegrationService.prototype,
+        'refreshSubscriptionBenefits',
+      ).mockResolvedValue(undefined);
 
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
@@ -1998,17 +2103,19 @@ describe('PerpsController', () => {
         }),
       ).resolves.toBeDefined();
 
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('re-registers the trading address when the selected account changes', async () => {
-      const reset = jest
+      const reset = vi
         .spyOn(
           RewardsIntegrationService.prototype,
           'resetRegisteredTradingAddresses',
         )
-        .mockImplementation(() => undefined);
-      const register = jest
+        .mockImplementation(function () {
+          return undefined;
+        });
+      const register = vi
         .spyOn(RewardsIntegrationService.prototype, 'registerTradingAddress')
         .mockResolvedValue(undefined);
 
@@ -2022,7 +2129,7 @@ describe('PerpsController', () => {
       });
       expect(subscribed).toBeDefined();
 
-      const accountHandlers = (messenger.subscribe as jest.Mock).mock.calls
+      const accountHandlers = (messenger.subscribe as Mock).mock.calls
         .filter(
           ([event]) => event === 'AccountsController:selectedAccountChange',
         )
@@ -2042,7 +2149,7 @@ describe('PerpsController', () => {
     });
 
     it('no longer approves a dedicated subscription builder', async () => {
-      const approve = jest.fn().mockResolvedValue(true);
+      const approve = vi.fn().mockResolvedValue(true);
       mockProvider.approveSubscriptionBuilderFee = approve;
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
@@ -2060,12 +2167,14 @@ describe('PerpsController', () => {
     it('exposes subscription benefits invalidation to clients', async () => {
       // The service is private to the controller, so a client detecting a
       // sign-out or profile switch can only reach it through this method.
-      const invalidate = jest
+      const invalidate = vi
         .spyOn(
           RewardsIntegrationService.prototype,
           'invalidateSubscriptionBenefits',
         )
-        .mockImplementation(() => undefined);
+        .mockImplementation(function () {
+          return undefined;
+        });
 
       controller.invalidateSubscriptionBenefits();
 
@@ -2084,7 +2193,7 @@ describe('PerpsController', () => {
       // The mocked infrastructure wires no `subscription` dependency, so the
       // real service reports `no-source` and the context field must be absent
       // rather than carrying a meaningless "not eligible".
-      const getStatus = jest.spyOn(
+      const getStatus = vi.spyOn(
         RewardsIntegrationService.prototype,
         'getSubscriptionFeeWaiverStatus',
       );
@@ -2099,8 +2208,8 @@ describe('PerpsController', () => {
         reason: 'no-source',
       });
       const { context } = (
-        mockMarketDataServiceInstance.calculateFees as jest.Mock
-      ).mock.calls.at(-1)[0];
+        mockMarketDataServiceInstance.calculateFees as Mock
+      ).mock.calls.at(-1)?.[0];
       expect(context.subscriptionFeeWaiver).toBeUndefined();
 
       getStatus.mockRestore();
@@ -2119,9 +2228,9 @@ describe('PerpsController', () => {
         error: undefined,
       };
 
-      jest
-        .spyOn(mockDataLakeServiceInstance, 'reportOrder')
-        .mockResolvedValue(mockReportResult);
+      vi.spyOn(mockDataLakeServiceInstance, 'reportOrder').mockResolvedValue(
+        mockReportResult,
+      );
 
       const orderParams = {
         action: 'open' as const,
@@ -2162,7 +2271,7 @@ describe('PerpsController', () => {
       'captures the issuing context before %s readiness across %s change',
       async (operation, drift) => {
         let selectedAccount = createMockEvmAccount();
-        const call = jest.fn().mockImplementation((action: string) => {
+        const call = vi.fn().mockImplementation((action: string) => {
           if (
             action ===
             'AccountTreeController:getAccountsFromSelectedAccountGroup'
@@ -2179,7 +2288,7 @@ describe('PerpsController', () => {
           state: getDefaultPerpsControllerState(),
           infrastructure: createMockInfrastructure(),
         });
-        const invoked = jest.fn().mockResolvedValue({
+        const invoked = vi.fn().mockResolvedValue({
           status: 'unsupported',
           providerId: 'hyperliquid',
           success: false,
@@ -2191,10 +2300,12 @@ describe('PerpsController', () => {
           resolveRecoveryProtection: invoked,
           acknowledgeRecoveredDispatch: invoked,
         });
-        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => provider);
+        vi.mocked(HyperLiquidProvider).mockImplementationOnce(function () {
+          return provider;
+        });
         const entered = createDeferred<void>();
         const release = createDeferred<void>();
-        jest.mocked(mockWait).mockImplementationOnce(() => {
+        vi.mocked(mockWait).mockImplementationOnce(() => {
           entered.resolve();
           return release.promise;
         });
@@ -2235,7 +2346,7 @@ describe('PerpsController', () => {
           state.lastUpdateTimestamp = 1;
         });
         const failure = new Error('Provider recovery failed');
-        const invoked = jest.fn(async () => {
+        const invoked = vi.fn(async () => {
           if (outcome === 'throw') {
             throw failure;
           }
@@ -2269,12 +2380,12 @@ describe('PerpsController', () => {
               errors.push(error);
             });
         }
-        const traces = jest
+        const traces = vi
           .mocked(mockInfrastructure.tracer.trace)
           .mock.calls.filter(
             ([entry]) => entry.name === PerpsTraceNames.UpdateTpsl,
           );
-        const ends = jest
+        const ends = vi
           .mocked(mockInfrastructure.tracer.endTrace)
           .mock.calls.filter(
             ([entry]) => entry.name === PerpsTraceNames.UpdateTpsl,
@@ -2303,7 +2414,7 @@ describe('PerpsController', () => {
         controller.testUpdate((state) => {
           state.lastUpdateTimestamp = 1;
         });
-        const resolveRecoveryProtection = jest.fn().mockResolvedValue({
+        const resolveRecoveryProtection = vi.fn().mockResolvedValue({
           status,
           providerId: 'hyperliquid',
           success: status === 'settled',
@@ -2329,7 +2440,7 @@ describe('PerpsController', () => {
         markControllerAsInitialized();
         const entered = createDeferred<void>();
         const release = createDeferred<void>();
-        const read = jest.fn(async () => {
+        const read = vi.fn(async () => {
           entered.resolve();
           await release.promise;
           return [];
@@ -2378,7 +2489,7 @@ describe('PerpsController', () => {
         markControllerAsInitialized();
         const entered = createDeferred<void>();
         const release = createDeferred<void>();
-        const call = jest.fn(async () => {
+        const call = vi.fn(async () => {
           entered.resolve();
           await release.promise;
           return {
@@ -2440,20 +2551,20 @@ describe('PerpsController', () => {
           await releaseCleanup.promise;
           return { success: true };
         });
-        const reconcile = jest.fn().mockResolvedValue([]);
-        const listing = jest.fn().mockResolvedValue([]);
+        const reconcile = vi.fn().mockResolvedValue([]);
+        const listing = vi.fn().mockResolvedValue([]);
         const replacement = Object.assign(createMockHyperLiquidProvider(), {
           getRecoveredDispatches: listing,
           ...(capability === 'reconcile'
             ? { reconcileRecoveredDispatches: reconcile }
             : {}),
         });
-        jest
-          .mocked(HyperLiquidProvider)
-          .mockImplementationOnce(() => replacement);
+        vi.mocked(HyperLiquidProvider).mockImplementationOnce(function () {
+          return replacement;
+        });
         const initializationStarted = createDeferred<void>();
         const releaseInitialization = createDeferred<void>();
-        jest.mocked(mockWait).mockImplementationOnce(() => {
+        vi.mocked(mockWait).mockImplementationOnce(() => {
           initializationStarted.resolve();
           return releaseInitialization.promise;
         });
@@ -2491,7 +2602,7 @@ describe('PerpsController', () => {
       'rejects an account change during initialization before provider %s work',
       async (capability) => {
         let selectedAccount = createMockEvmAccount();
-        const selectedAccountCall = jest.fn();
+        const selectedAccountCall = vi.fn();
         selectedAccountCall.mockImplementation((action: string) => {
           if (
             action ===
@@ -2511,18 +2622,20 @@ describe('PerpsController', () => {
           state: getDefaultPerpsControllerState(),
           infrastructure: mockInfrastructure,
         });
-        const reconcile = jest.fn().mockResolvedValue([]);
-        const listing = jest.fn().mockResolvedValue([]);
+        const reconcile = vi.fn().mockResolvedValue([]);
+        const listing = vi.fn().mockResolvedValue([]);
         const provider = Object.assign(mockProvider, {
           getRecoveredDispatches: listing,
           ...(capability === 'reconcile'
             ? { reconcileRecoveredDispatches: reconcile }
             : {}),
         });
-        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => provider);
+        vi.mocked(HyperLiquidProvider).mockImplementationOnce(function () {
+          return provider;
+        });
         const initializationStarted = createDeferred<void>();
         const releaseInitialization = createDeferred<void>();
-        jest.mocked(mockWait).mockImplementationOnce(() => {
+        vi.mocked(mockWait).mockImplementationOnce(() => {
           initializationStarted.resolve();
           return releaseInitialization.promise;
         });
@@ -2561,18 +2674,20 @@ describe('PerpsController', () => {
             acknowledgeable: false,
           },
         ];
-        const reconcile = jest.fn().mockResolvedValue(rows);
-        const listing = jest.fn().mockResolvedValue(rows);
+        const reconcile = vi.fn().mockResolvedValue(rows);
+        const listing = vi.fn().mockResolvedValue(rows);
         const provider = Object.assign(mockProvider, {
           ...(capability !== 'none' ? { getRecoveredDispatches: listing } : {}),
           ...(capability === 'reconcile'
             ? { reconcileRecoveredDispatches: reconcile }
             : {}),
         });
-        jest.mocked(HyperLiquidProvider).mockImplementationOnce(() => provider);
+        vi.mocked(HyperLiquidProvider).mockImplementationOnce(function () {
+          return provider;
+        });
         const initializationStarted = createDeferred<void>();
         const releaseInitialization = createDeferred<void>();
-        jest.mocked(mockWait).mockImplementationOnce(() => {
+        vi.mocked(mockWait).mockImplementationOnce(() => {
           initializationStarted.resolve();
           return releaseInitialization.promise;
         });
@@ -2602,7 +2717,7 @@ describe('PerpsController', () => {
     );
 
     it('registers the reconciliation messenger action during initialization', async () => {
-      const register = jest.fn();
+      const register = vi.fn();
       controller = new TestablePerpsController({
         messenger: createMockMessenger({
           registerMethodActionHandlers: register,
@@ -2631,8 +2746,8 @@ describe('PerpsController', () => {
           acknowledgeable: false,
         },
       ];
-      const listing = jest.fn().mockResolvedValue(rows);
-      const reconcile = jest.fn().mockResolvedValue(rows);
+      const listing = vi.fn().mockResolvedValue(rows);
+      const reconcile = vi.fn().mockResolvedValue(rows);
       controller.testSetProviders(
         new Map([
           [
@@ -2700,9 +2815,9 @@ describe('PerpsController', () => {
       ];
       const durableProvider = {
         ...mockProvider,
-        getPendingManualRecoveries: jest.fn().mockResolvedValue(pending),
-        getRecoveredDispatches: jest.fn().mockResolvedValue(outcomes),
-        acknowledgeRecoveredDispatch: jest.fn().mockResolvedValue(undefined),
+        getPendingManualRecoveries: vi.fn().mockResolvedValue(pending),
+        getRecoveredDispatches: vi.fn().mockResolvedValue(outcomes),
+        acknowledgeRecoveredDispatch: vi.fn().mockResolvedValue(undefined),
       } as unknown as PerpsProvider;
       markControllerAsInitialized();
       controller.testSetProviders(new Map([['hyperliquid', durableProvider]]));
@@ -2714,7 +2829,7 @@ describe('PerpsController', () => {
       expect(
         (
           durableProvider as unknown as {
-            acknowledgeRecoveredDispatch: jest.Mock;
+            acknowledgeRecoveredDispatch: Mock;
           }
         ).acknowledgeRecoveredDispatch,
       ).toHaveBeenCalledWith('42:abcd');
@@ -2729,9 +2844,10 @@ describe('PerpsController', () => {
 
     it('returns available HIP-3 DEXs from provider', async () => {
       const mockDexs = ['dex1', 'dex2', 'dex3'];
-      jest
-        .spyOn(mockMarketDataServiceInstance, 'getAvailableDexs')
-        .mockResolvedValue(mockDexs);
+      vi.spyOn(
+        mockMarketDataServiceInstance,
+        'getAvailableDexs',
+      ).mockResolvedValue(mockDexs);
 
       const result = await controller.getAvailableDexs();
 
@@ -2748,9 +2864,10 @@ describe('PerpsController', () => {
     it('passes filter parameters to provider', async () => {
       const mockDexs = ['dex1'];
       const filterParams = {} as GetAvailableDexsParams;
-      jest
-        .spyOn(mockMarketDataServiceInstance, 'getAvailableDexs')
-        .mockResolvedValue(mockDexs);
+      vi.spyOn(
+        mockMarketDataServiceInstance,
+        'getAvailableDexs',
+      ).mockResolvedValue(mockDexs);
 
       const result = await controller.getAvailableDexs(filterParams);
 
@@ -2765,9 +2882,10 @@ describe('PerpsController', () => {
     });
 
     it('throws error when provider does not support HIP-3', async () => {
-      jest
-        .spyOn(mockMarketDataServiceInstance, 'getAvailableDexs')
-        .mockRejectedValue(new Error('Provider does not support HIP-3 DEXs'));
+      vi.spyOn(
+        mockMarketDataServiceInstance,
+        'getAvailableDexs',
+      ).mockRejectedValue(new Error('Provider does not support HIP-3 DEXs'));
 
       await expect(controller.getAvailableDexs()).rejects.toThrow(
         'Provider does not support HIP-3 DEXs',
@@ -2790,25 +2908,26 @@ describe('PerpsController', () => {
     const mockTransactionMeta = { id: 'tx-meta-123' };
     const mockTxHash = '0xhash123';
 
-    let depositInfrastructure: jest.Mocked<PerpsPlatformDependencies>;
+    let depositInfrastructure: Mocked<PerpsPlatformDependencies>;
     let depositController: TestablePerpsController;
-    let depositMockCall: jest.Mock;
+    let depositMockCall: Mock;
 
     beforeEach(async () => {
       // Mock DepositService
-      jest
-        .spyOn(mockDepositServiceInstance, 'prepareTransaction')
-        .mockResolvedValue({
-          transaction: mockTransaction,
-          assetChainId: mockAssetChainId,
-          currentDepositId: mockDepositId,
-        });
+      vi.spyOn(
+        mockDepositServiceInstance,
+        'prepareTransaction',
+      ).mockResolvedValue({
+        transaction: mockTransaction,
+        assetChainId: mockAssetChainId,
+        currentDepositId: mockDepositId,
+      });
 
       // Create infrastructure mock (controllers no longer on infra)
       depositInfrastructure = createMockInfrastructure();
 
       // Create messenger mock that handles network + transaction + account controller calls
-      depositMockCall = jest
+      depositMockCall = vi
         .fn()
         .mockImplementation((action: string, ..._args: unknown[]) => {
           if (action === 'RemoteFeatureFlagController:getState') {
@@ -2860,7 +2979,7 @@ describe('PerpsController', () => {
     });
 
     afterEach(() => {
-      jest.clearAllMocks();
+      vi.clearAllMocks();
       mockAddTransaction.mockClear();
     });
 
@@ -2952,9 +3071,10 @@ describe('PerpsController', () => {
         new Map([['hyperliquid', mockProvider]]),
       );
       const mockError = new Error('Deposit service failed');
-      jest
-        .spyOn(mockDepositServiceInstance, 'prepareTransaction')
-        .mockRejectedValue(mockError);
+      vi.spyOn(
+        mockDepositServiceInstance,
+        'prepareTransaction',
+      ).mockRejectedValue(mockError);
 
       await expect(
         depositController.depositWithConfirmation({ amount: '100' }),
@@ -3364,7 +3484,7 @@ describe('PerpsController', () => {
     });
 
     it('clears depositInProgress after successful transaction', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       depositController.testMarkInitialized();
       depositController.testSetProviders(
         new Map([['hyperliquid', mockProvider]]),
@@ -3381,17 +3501,17 @@ describe('PerpsController', () => {
       expect(depositController.state.depositInProgress).toBe(true);
 
       // Fast-forward the setTimeout
-      jest.advanceTimersByTime(100);
+      vi.advanceTimersByTime(100);
 
       // After timeout, depositInProgress should be cleared
       expect(depositController.state.depositInProgress).toBe(false);
       expect(depositController.state.lastDepositTransactionId).toBeNull();
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('handles non-user-cancelled transaction errors after confirmation', async () => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       depositController.testMarkInitialized();
       depositController.testSetProviders(
         new Map([['hyperliquid', mockProvider]]),
@@ -3468,7 +3588,7 @@ describe('PerpsController', () => {
         }),
       );
 
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('logs post-confirmation deposit-and-order transaction failures', async () => {
@@ -3554,7 +3674,7 @@ describe('PerpsController', () => {
           state.lastDepositResult = null;
           state.depositInProgress = false;
         });
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         const mockError = new Error(message);
         // Mock messenger to succeed initially, but result promise rejects with user cancellation
         depositMockCall.mockImplementation(
@@ -3619,7 +3739,7 @@ describe('PerpsController', () => {
           state.lastDepositResult = null;
           state.depositInProgress = false;
         });
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         depositMockCall.mockImplementation(
           (action: string, ..._args: unknown[]) => {
             if (
@@ -3975,11 +4095,12 @@ describe('PerpsController', () => {
 
     it('logs error in getWithdrawalRoutes when provider throws', () => {
       const mockError = new Error('Provider error');
-      jest
-        .spyOn(mockMarketDataServiceInstance, 'getWithdrawalRoutes')
-        .mockImplementation(() => {
-          throw mockError;
-        });
+      vi.spyOn(
+        mockMarketDataServiceInstance,
+        'getWithdrawalRoutes',
+      ).mockImplementation(() => {
+        throw mockError;
+      });
 
       const result = controller.getWithdrawalRoutes();
 
@@ -3998,11 +4119,12 @@ describe('PerpsController', () => {
     });
 
     it('returns empty array from getWithdrawalRoutes on error', () => {
-      jest
-        .spyOn(mockMarketDataServiceInstance, 'getWithdrawalRoutes')
-        .mockImplementation(() => {
-          throw new Error('Service failure');
-        });
+      vi.spyOn(
+        mockMarketDataServiceInstance,
+        'getWithdrawalRoutes',
+      ).mockImplementation(() => {
+        throw new Error('Service failure');
+      });
 
       const result = controller.getWithdrawalRoutes();
 

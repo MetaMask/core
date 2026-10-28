@@ -1,6 +1,7 @@
 import { ClaimsService } from '@metamask/claims-controller';
 import { Env } from '@metamask/claims-controller';
 import { Messenger } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
 import { defaultConfigurations } from '../../defaults.js';
 import type {
@@ -60,7 +61,7 @@ describe('claimsService', () => {
 
   it('forwards fetchFunction and policy options to the service', async () => {
     const rootMessenger = getRootMessenger();
-    const mockGetBearerToken = jest.fn().mockResolvedValue('test-token');
+    const mockGetBearerToken = vi.fn().mockResolvedValue('test-token');
     registerActionHandler(
       rootMessenger,
       'AuthenticationController',
@@ -68,7 +69,7 @@ describe('claimsService', () => {
       mockGetBearerToken,
     );
 
-    const mockFetch = jest.fn();
+    const mockFetch = vi.fn();
     const messenger = claimsService.getMessenger(rootMessenger);
     claimsService.init({
       state: undefined,
@@ -87,7 +88,7 @@ describe('claimsService', () => {
 
   it('delegates AuthenticationController getBearerToken and getSessionProfile', () => {
     const rootMessenger = getRootMessenger();
-    const delegateSpy = jest.spyOn(rootMessenger, 'delegate');
+    const delegateSpy = vi.spyOn(rootMessenger, 'delegate');
 
     claimsService.getMessenger(rootMessenger);
 
@@ -107,7 +108,7 @@ describe('claimsService', () => {
       rootMessenger,
       'AuthenticationController',
       'AuthenticationController:getBearerToken',
-      jest.fn().mockResolvedValue('test-token'),
+      vi.fn().mockResolvedValue('test-token'),
     );
 
     const messenger = claimsService.getMessenger(rootMessenger);
@@ -128,7 +129,7 @@ describe('claimsService', () => {
       rootMessenger,
       'AuthenticationController',
       'AuthenticationController:getBearerToken',
-      jest.fn().mockResolvedValue('test-token'),
+      vi.fn().mockResolvedValue('test-token'),
     );
 
     const messenger = claimsService.getMessenger(rootMessenger);

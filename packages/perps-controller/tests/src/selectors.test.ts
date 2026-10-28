@@ -1,4 +1,6 @@
 /* eslint-disable */
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
   MARKET_SORTING_CONFIG,
   PERPS_CONSTANTS,
@@ -325,11 +327,11 @@ describe('PerpsController selectors', () => {
 
   describe('selectPendingTradeConfiguration', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('returns pending config for mainnet when not testnet and not expired', () => {
@@ -514,7 +516,7 @@ describe('PerpsController selectors', () => {
 
       // Time passes beyond the TTL without any change to isTestnet,
       // tradeConfigurations, or coin (same state reference).
-      jest.advanceTimersByTime(
+      vi.advanceTimersByTime(
         PERPS_CONSTANTS.PendingTradeConfigurationTtlMs + 1,
       );
 
@@ -658,11 +660,11 @@ describe('PerpsController selectors', () => {
     const expired = now - 25 * 60 * 60 * 1000; // 25 hours ago — outside 24h TTL
 
     beforeEach(() => {
-      jest.spyOn(Date, 'now').mockReturnValue(now);
+      vi.spyOn(Date, 'now').mockReturnValue(now);
     });
 
     afterEach(() => {
-      jest.restoreAllMocks();
+      vi.restoreAllMocks();
     });
 
     it('returns mainnet symbols when not on testnet, ordered newest-first', () => {

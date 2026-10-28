@@ -4,6 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { describe, expect, it, vi } from 'vitest';
 
 import { serviceName } from './ProfileService.js';
 import type { ProfileServiceMessenger } from './ProfileService.js';
@@ -190,7 +191,7 @@ describe('buildMockProfileService', () => {
 
     it('uses a custom disconnectX handler when provided', async () => {
       const messenger = createMessenger();
-      const disconnectX = jest.fn().mockResolvedValue(undefined);
+      const disconnectX = vi.fn().mockResolvedValue(undefined);
       buildMockProfileService(messenger, { disconnectX });
 
       await messenger.call('ProfileService:disconnectX', 'profile-123');

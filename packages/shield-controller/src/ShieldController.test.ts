@@ -5,6 +5,7 @@ import type { SignatureControllerState } from '@metamask/signature-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
+import { describe, expect, it, vi } from 'vitest';
 
 import { TX_META_SIMULATION_DATA_MOCKS } from '../tests/data.js';
 import {
@@ -251,7 +252,7 @@ describe('ShieldController', () => {
           data: 'normalized data',
         },
       };
-      const normalizeSignatureRequestMock = jest
+      const normalizeSignatureRequestMock = vi
         .fn()
         .mockImplementationOnce((_signatureRequest: SignatureRequest) => {
           return MOCK_NORMALIZED_SIGNATURE_REQUEST;

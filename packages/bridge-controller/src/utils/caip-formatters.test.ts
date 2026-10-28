@@ -1,5 +1,6 @@
 import { AddressZero } from '@ethersproject/constants';
 import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
+import { describe, expect, it } from 'vitest';
 
 import { CHAIN_IDS } from '../constants/chains.js';
 import { ChainId } from '../types.js';

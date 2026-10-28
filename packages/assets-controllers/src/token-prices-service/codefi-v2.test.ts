@@ -1,6 +1,7 @@
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import nock, { isDone } from 'nock';
+import nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   CodefiTokenPricesServiceV2,
@@ -25,14 +26,13 @@ const defaultMaxRetryDelay = 30_000;
 describe('CodefiTokenPricesServiceV2', () => {
   describe('onBreak', () => {
     beforeEach(() => {
-      jest.useFakeTimers({
+      vi.useFakeTimers({
         now: Date.now(),
-        doNotFake: ['nextTick', 'queueMicrotask'],
       });
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('registers a listener that is called upon break', async () => {
@@ -122,7 +122,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             pricePercentChange1y: -2.2992517267242754,
           },
         });
-      const onBreakHandler = jest.fn();
+      const onBreakHandler = vi.fn();
       const service = new CodefiTokenPricesServiceV2({
         retries,
         maximumConsecutiveFailures,
@@ -161,7 +161,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             fetchTokenPrices,
             retries,
           }),
-        ).rejects.toThrow('Failed to fetch');
+        ).rejects.toThrow(/Failed to fetch|fetch failed/u);
       }
 
       expect(onBreakHandler).toHaveBeenCalledTimes(1);
@@ -170,14 +170,13 @@ describe('CodefiTokenPricesServiceV2', () => {
 
   describe('onDegraded', () => {
     beforeEach(() => {
-      jest.useFakeTimers({
+      vi.useFakeTimers({
         now: Date.now(),
-        doNotFake: ['nextTick', 'queueMicrotask'],
       });
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
 
     it('calls onDegraded when request is slower than threshold', async () => {
@@ -211,7 +210,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             priceChange1d: 1,
           },
         });
-      const onDegradedHandler = jest.fn();
+      const onDegradedHandler = vi.fn();
       const service = new CodefiTokenPricesServiceV2({
         degradedThreshold,
         retries,
@@ -785,7 +784,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           ],
           currency: 'ETH',
         }),
-      ).rejects.toThrow('Failed to fetch');
+      ).rejects.toThrow(/Failed to fetch|fetch failed/u);
     });
 
     it('throws if the initial request and all retries fail', async () => {
@@ -818,7 +817,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           ],
           currency: 'ETH',
         }),
-      ).rejects.toThrow('Failed to fetch');
+      ).rejects.toThrow(/Failed to fetch|fetch failed/u);
     });
 
     it('succeeds if the last retry succeeds', async () => {
@@ -1021,14 +1020,13 @@ describe('CodefiTokenPricesServiceV2', () => {
 
     describe('before circuit break', () => {
       beforeEach(() => {
-        jest.useFakeTimers({
+        vi.useFakeTimers({
           now: Date.now(),
-          doNotFake: ['nextTick', 'queueMicrotask'],
         });
       });
 
       afterEach(() => {
-        jest.useRealTimers();
+        vi.useRealTimers();
       });
 
       it('calls onDegraded when request is slower than threshold', async () => {
@@ -1062,7 +1060,7 @@ describe('CodefiTokenPricesServiceV2', () => {
               priceChange1d: 1,
             },
           });
-        const onDegradedHandler = jest.fn();
+        const onDegradedHandler = vi.fn();
         const service = new CodefiTokenPricesServiceV2({
           degradedThreshold,
           onDegraded: onDegradedHandler,
@@ -1097,14 +1095,13 @@ describe('CodefiTokenPricesServiceV2', () => {
 
     describe('after circuit break', () => {
       beforeEach(() => {
-        jest.useFakeTimers({
+        vi.useFakeTimers({
           now: Date.now(),
-          doNotFake: ['nextTick', 'queueMicrotask'],
         });
       });
 
       afterEach(() => {
-        jest.useRealTimers();
+        vi.useRealTimers();
       });
 
       it('calls onBreak handler upon break', async () => {
@@ -1194,7 +1191,7 @@ describe('CodefiTokenPricesServiceV2', () => {
               pricePercentChange1y: -2.2992517267242754,
             },
           });
-        const onBreakHandler = jest.fn();
+        const onBreakHandler = vi.fn();
         const service = new CodefiTokenPricesServiceV2({
           retries,
           maximumConsecutiveFailures,
@@ -1233,7 +1230,7 @@ describe('CodefiTokenPricesServiceV2', () => {
               fetchTokenPrices,
               retries,
             }),
-          ).rejects.toThrow('Failed to fetch');
+          ).rejects.toThrow(/Failed to fetch|fetch failed/u);
         }
 
         expect(onBreakHandler).toHaveBeenCalledTimes(1);
@@ -1307,7 +1304,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             includeUsdRate: true,
             cryptocurrencies: ['btc', 'eth'],
           }),
-        ).rejects.toThrow('Failed to fetch');
+        ).rejects.toThrow(/Failed to fetch|fetch failed/u);
       });
       it('throws an error if none of the cryptocurrencies are supported', async () => {
         nock('https://price.api.cx.metamask.io')
@@ -1448,7 +1445,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             includeUsdRate: true,
             cryptocurrencies: ['btc', 'eth'],
           }),
-        ).rejects.toThrow('Failed to fetch');
+        ).rejects.toThrow(/Failed to fetch|fetch failed/u);
       });
 
       it('returns successfully usd values when all the cryptocurrencies are supported', async () => {
@@ -1563,7 +1560,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           includeUsdRate: false,
           cryptocurrencies,
         }),
-      ).rejects.toThrow('Failed to fetch');
+      ).rejects.toThrow(/Failed to fetch|fetch failed/u);
     });
 
     it('throws if the initial request and all retries fail', async () => {
@@ -1582,7 +1579,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           includeUsdRate: false,
           cryptocurrencies,
         }),
-      ).rejects.toThrow('Failed to fetch');
+      ).rejects.toThrow(/Failed to fetch|fetch failed/u);
     });
 
     it('succeeds if the last retry succeeds', async () => {
@@ -1652,14 +1649,13 @@ describe('CodefiTokenPricesServiceV2', () => {
 
     describe('before circuit break', () => {
       beforeEach(() => {
-        jest.useFakeTimers({
+        vi.useFakeTimers({
           now: Date.now(),
-          doNotFake: ['nextTick', 'queueMicrotask'],
         });
       });
 
       afterEach(() => {
-        jest.useRealTimers();
+        vi.useRealTimers();
       });
 
       it('calls onDegraded when request is slower than threshold', async () => {
@@ -1672,7 +1668,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           })
           .delay(degradedThreshold * 2)
           .reply(200, exchangeRatesMockResponseEur);
-        const onDegradedHandler = jest.fn();
+        const onDegradedHandler = vi.fn();
         const service = new CodefiTokenPricesServiceV2({
           degradedThreshold,
           onDegraded: onDegradedHandler,
@@ -1695,14 +1691,13 @@ describe('CodefiTokenPricesServiceV2', () => {
 
     describe('after circuit break', () => {
       beforeEach(() => {
-        jest.useFakeTimers({
+        vi.useFakeTimers({
           now: Date.now(),
-          doNotFake: ['nextTick', 'queueMicrotask'],
         });
       });
 
       afterEach(() => {
-        jest.useRealTimers();
+        vi.useRealTimers();
       });
 
       it('calls onBreak handler upon break', async () => {
@@ -1724,7 +1719,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             baseCurrency: 'eur',
           })
           .reply(200, exchangeRatesMockResponseEur);
-        const onBreakHandler = jest.fn();
+        const onBreakHandler = vi.fn();
         const service = new CodefiTokenPricesServiceV2({
           retries,
           maximumConsecutiveFailures,
@@ -1751,7 +1746,7 @@ describe('CodefiTokenPricesServiceV2', () => {
               fetchExchangeRates,
               retries,
             }),
-          ).rejects.toThrow('Failed to fetch');
+          ).rejects.toThrow(/Failed to fetch|fetch failed/u);
         }
 
         expect(onBreakHandler).toHaveBeenCalledTimes(1);
@@ -2015,7 +2010,7 @@ describe('CodefiTokenPricesServiceV2', () => {
       });
 
       // Verify no pending mocks (i.e., only one request was made)
-      expect(isDone()).toBe(true);
+      expect(nock.isDone()).toBe(true);
     });
   });
 
@@ -2278,16 +2273,28 @@ async function fetchTokenPricesWithFakeTimers({
   >;
   retries: number;
 }): ReturnType<CodefiTokenPricesServiceV2['fetchTokenPrices']> {
+  const status = { settled: false };
   const pendingUpdate = fetchTokenPrices();
-  pendingUpdate.catch(() => {
-    // suppress Unhandled Promise error
-  });
+  pendingUpdate
+    .finally(() => {
+      status.settled = true;
+    })
+    .catch(() => {
+      // suppress Unhandled Promise error
+    });
 
   // Advance timer enough to exceed max possible retry delay for initial call, and all
   // subsequent retries
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const _retryAttempt of Array(retries + 1).keys()) {
-    await jest.advanceTimersByTimeAsync(defaultMaxRetryDelay);
+    await vi.advanceTimersByTimeAsync(defaultMaxRetryDelay);
+  }
+
+  // Each request settles on the real event loop, which can take longer than
+  // the advances above yield to it. Keep advancing until the call settles so
+  // that a slow reply cannot leave a retry waiting on a timer nobody advances.
+  while (!status.settled) {
+    await vi.advanceTimersByTimeAsync(defaultMaxRetryDelay);
   }
 
   return await pendingUpdate;
@@ -2317,16 +2324,28 @@ async function fetchExchangeRatesWithFakeTimers({
   >;
   retries: number;
 }): ReturnType<CodefiTokenPricesServiceV2['fetchExchangeRates']> {
+  const status = { settled: false };
   const pendingUpdate = fetchExchangeRates();
-  pendingUpdate.catch(() => {
-    // suppress Unhandled Promise error
-  });
+  pendingUpdate
+    .finally(() => {
+      status.settled = true;
+    })
+    .catch(() => {
+      // suppress Unhandled Promise error
+    });
 
   // Advance timer enough to exceed max possible retry delay for initial call, and all
   // subsequent retries
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   for (const _retryAttempt of Array(retries + 1).keys()) {
-    await jest.advanceTimersByTimeAsync(defaultMaxRetryDelay);
+    await vi.advanceTimersByTimeAsync(defaultMaxRetryDelay);
+  }
+
+  // Each request settles on the real event loop, which can take longer than
+  // the advances above yield to it. Keep advancing until the call settles so
+  // that a slow reply cannot leave a retry waiting on a timer nobody advances.
+  while (!status.settled) {
+    await vi.advanceTimersByTimeAsync(defaultMaxRetryDelay);
   }
 
   return await pendingUpdate;

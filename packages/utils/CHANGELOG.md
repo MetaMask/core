@@ -7,20 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.1]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
 ### Changed
 
 - This package was migrated from `MetaMask/utils` to the `MetaMask/core` monorepo ([#10175](https://github.com/MetaMask/core/pull/10175))
   - See [MetaMask/utils](https://github.com/MetaMask/utils/blob/main/CHANGELOG.md) for the original changelog, which covers every release up to and including `12.0.0`.
+- Move `Json`, `Mutable`, `NonEmptyArray`, `PartialOrAbsent`, `RuntimeObject`, `getKnownPropertyNames`, `hasProperty`, `isNullOrUndefined`, `isObject`, and `isPlainObject` to `@metamask/type-utils` ([#10908](https://github.com/MetaMask/core/pull/10908))
+  - These are still re-exported from `@metamask/utils`, so the public API is unchanged.
+  - It's recommended to import these types and functions from `@metamask/type-utils` instead of `@metamask/utils` going forward.
+- Move `AssertionError`, `AssertionErrorConstructor`, `assert`, and `assertExhaustive` to `@metamask/type-utils` ([#10983](https://github.com/MetaMask/core/pull/10983))
+  - These are still re-exported from `@metamask/utils`, so the public API is unchanged.
+  - It's recommended to import these types and functions from `@metamask/type-utils` instead of `@metamask/utils` going forward.
+- Move `ensureError`, `getErrorMessage`, `isErrorWithCode`, `isErrorWithMessage`, `isErrorWithStack`, and `wrapError` to `@metamask/error-utils` ([#10917](https://github.com/MetaMask/core/pull/10917))
+  - These are still re-exported from `@metamask/utils`, so the public API is unchanged.
+  - It's recommended to import these functions from `@metamask/error-utils` instead of `@metamask/utils` going forward.
+- Move `FileSandbox`, `createSandbox`, `directoryExists`, `ensureDirectoryStructureExists`, `fileExists`, `forceRemove`, `readFile`, `readJsonFile`, `writeFile`, and `writeJsonFile` to `@metamask/node-utils` ([#10926](https://github.com/MetaMask/core/pull/10926))
+  - These are still re-exported from `@metamask/utils/node`, so the public API is unchanged.
+  - It's recommended to import these types and functions from `@metamask/node-utils` instead of `@metamask/utils/node` going forward.
+- Move `Bytes`, `Hex`, `HEX_REGEX`, `STRICT_HEX_REGEX`, `add0x`, `areUint8ArraysEqual`, `assertIsBytes`, `assertIsHexString`, `assertIsStrictHexString`, `base64ToBytes`, `bigIntToBytes`, `bigIntToHex`, `bytesToBase64`, `bytesToBigInt`, `bytesToHex`, `bytesToNumber`, `bytesToSignedBigInt`, `bytesToString`, `concatBytes`, `createDataView`, `hexToBigInt`, `hexToBytes`, `hexToNumber`, `isBytes`, `isHexString`, `isStrictHexString`, `numberToBytes`, `numberToHex`, `remove0x`, `signedBigIntToBytes`, `stringToBytes`, and `valueToBytes` to `@metamask/byte-utils` ([#11037](https://github.com/MetaMask/core/pull/11037))
+  - These are still re-exported from `@metamask/utils`, so the public API is unchanged.
+  - It's recommended to import these types and functions from `@metamask/byte-utils` instead of `@metamask/utils` going forward.
 - Bump `uuid` from `^9.0.1` to `^11.1.1` ([#10243](https://github.com/MetaMask/core/pull/10243))
 - Bump `semver` from `^7.6.3` to `^7.8.5` ([#10443](https://github.com/MetaMask/core/pull/10443))
 - Bump `pony-cause` from `^2.1.10` to `^2.1.11` ([#10440](https://github.com/MetaMask/core/pull/10440))
-- Bump `@types/lodash` from `^4.17.20` to `^4.17.26` ([#10435](https://github.com/MetaMask/core/pull/10435), [#10832](https://github.com/MetaMask/core/pull/10832))
+- Bump `@types/lodash` from `^4.17.20` to `^4.17.27` ([#10435](https://github.com/MetaMask/core/pull/10435), [#10832](https://github.com/MetaMask/core/pull/10832), [#11081](https://github.com/MetaMask/core/pull/11081))
 - Bump `lodash` from `^4.17.21` to `^4.18.1` ([#10447](https://github.com/MetaMask/core/pull/10447))
 - Bump `debug` from `^4.3.4` to `^4.4.3` ([#10523](https://github.com/MetaMask/core/pull/10523))
+- Bump `@metamask/byte-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/error-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/node-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
+- Bump `@metamask/type-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ### Fixed
 
 - Narrow byte helper return types to `Uint8Array<ArrayBuffer>` ([#10617](https://github.com/MetaMask/core/pull/10617))
   - These functions already returned a `Uint8Array` backed by an `ArrayBuffer`, but were typed as returning `Uint8Array<ArrayBufferLike>`.
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/utils@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/releases/tag/@metamask/utils@12.0.1

@@ -6,6 +6,7 @@ import {
   isJsonRpcFailure,
   isJsonRpcSuccess,
 } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { JsonRpcMiddleware } from './index.js';
 import { JsonRpcEngine } from './index.js';
@@ -63,8 +64,8 @@ describe('JsonRpcEngine', () => {
   });
 
   it('handle: returns undefined for malformed notifications', async () => {
-    const middleware = jest.fn();
-    const notificationHandler = jest.fn();
+    const middleware = vi.fn();
+    const notificationHandler = vi.fn();
     const engine = new JsonRpcEngine({ notificationHandler });
     engine.push(middleware);
 
@@ -78,7 +79,7 @@ describe('JsonRpcEngine', () => {
   });
 
   it('handle: treats notifications as requests when no notification handler is specified', async () => {
-    const middleware = jest
+    const middleware = vi
       .fn()
       .mockImplementation((_request, response, _next, end) => {
         response.result = 'bar';
@@ -97,8 +98,8 @@ describe('JsonRpcEngine', () => {
   });
 
   it('handle: forwards notifications to handlers', async () => {
-    const middleware = jest.fn();
-    const notificationHandler = jest.fn();
+    const middleware = vi.fn();
+    const notificationHandler = vi.fn();
     const engine = new JsonRpcEngine({ notificationHandler });
     engine.push(middleware);
 
@@ -112,7 +113,7 @@ describe('JsonRpcEngine', () => {
   });
 
   it('handle: re-throws errors from notification handlers (async)', async () => {
-    const notificationHandler = jest.fn().mockImplementation(() => {
+    const notificationHandler = vi.fn().mockImplementation(() => {
       throw new Error('baz');
     });
     const engine = new JsonRpcEngine({ notificationHandler });
@@ -128,7 +129,7 @@ describe('JsonRpcEngine', () => {
   });
 
   it('handle: re-throws errors from notification handlers (callback)', async () => {
-    const notificationHandler = jest.fn().mockImplementation(() => {
+    const notificationHandler = vi.fn().mockImplementation(() => {
       throw new Error('baz');
     });
     const engine = new JsonRpcEngine({ notificationHandler });
@@ -682,7 +683,7 @@ describe('JsonRpcEngine', () => {
 
   it('handles batch request processing error', async () => {
     const engine = new JsonRpcEngine();
-    jest
+    vi
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .spyOn(engine as any, '_promiseHandle')
@@ -700,7 +701,7 @@ describe('JsonRpcEngine', () => {
 
   it('handles batch request processing error (async)', async () => {
     const engine = new JsonRpcEngine();
-    jest
+    vi
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .spyOn(engine as any, '_promiseHandle')
@@ -743,7 +744,7 @@ describe('JsonRpcEngine', () => {
         next();
       });
 
-      const destroyMock = jest.fn();
+      const destroyMock = vi.fn();
       const destroyableMiddleware: JsonRpcMiddleware<JsonRpcParams, Json> = (
         _request,
         _response,

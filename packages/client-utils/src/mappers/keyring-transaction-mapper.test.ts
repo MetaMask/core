@@ -1,4 +1,5 @@
 import { SolScope } from '@metamask/keyring-api';
+import { describe, expect, it } from 'vitest';
 
 import { keyringTransactionFixtures } from '../../test/fixtures/keyring-transactions.js';
 import { mapKeyringTransaction } from './keyring-transaction-mapper.js';

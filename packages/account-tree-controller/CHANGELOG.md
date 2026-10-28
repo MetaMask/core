@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+## [11.2.0]
+
+### Added
+
+- Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^35.0.0` to `^36.0.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
+
+## [11.1.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^34.0.3` to `^35.0.0` ([#10905](https://github.com/MetaMask/core/pull/10905), [#10925](https://github.com/MetaMask/core/pull/10925))
+
+## [11.1.0]
+
 ### Added
 
 - Add watch-only account naming ([#10677](https://github.com/MetaMask/core/pull/10677))
@@ -21,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+### Fixed
+
+- Add explicit return types ([#10888](https://github.com/MetaMask/core/pull/10888))
+  - Preventing TypeScript from inferring generic-heavy return types in the `.d.ts` output.
 
 ## [11.0.1]
 
@@ -755,7 +782,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release ([#5847](https://github.com/MetaMask/core/pull/5847))
   - Grouping accounts into 3 main categories: Entropy source, Snap ID, keyring types.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.2.0...HEAD
+[11.2.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.1.1...@metamask/account-tree-controller@11.2.0
+[11.1.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.1.0...@metamask/account-tree-controller@11.1.1
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.0.1...@metamask/account-tree-controller@11.1.0
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@11.0.0...@metamask/account-tree-controller@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@10.0.1...@metamask/account-tree-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/account-tree-controller@10.0.0...@metamask/account-tree-controller@10.0.1

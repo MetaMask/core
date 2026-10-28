@@ -4,6 +4,7 @@ import {
 } from '@metamask/controller-utils';
 import { Duration, inMilliseconds } from '@metamask/utils';
 import nock from 'nock';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NetworkStatus } from '../src/constants.js';
 import {
@@ -16,11 +17,13 @@ import {
 
 describe('NetworkController provider tests', () => {
   beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    vi.useFakeTimers({
+      toNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'],
+    });
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('sets the status of a network client to "available" the first time its (sole) RPC endpoint returns a 2xx response', async () => {
@@ -107,7 +110,7 @@ describe('NetworkController provider tests', () => {
         params: [],
       })
       .reply(() => {
-        jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+        vi.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
         return [
           200,
           {
@@ -124,7 +127,7 @@ describe('NetworkController provider tests', () => {
         params: [],
       })
       .reply(() => {
-        jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+        vi.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
         return [
           200,
           {
@@ -219,7 +222,7 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          jest.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         const { provider } = controller.getNetworkClientById(networkClientId);
 
@@ -303,9 +306,9 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          jest.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
-        const stateChangeListener = jest.fn();
+        const stateChangeListener = vi.fn();
         messenger.subscribe(
           'NetworkController:stateChange',
           stateChangeListener,
@@ -403,9 +406,9 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          jest.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
-        const stateChangeListener = jest.fn();
+        const stateChangeListener = vi.fn();
         messenger.subscribe(
           'NetworkController:stateChange',
           stateChangeListener,
@@ -458,7 +461,7 @@ describe('NetworkController provider tests', () => {
         params: [],
       })
       .reply(() => {
-        jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+        vi.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
         return [
           200,
           {
@@ -475,7 +478,7 @@ describe('NetworkController provider tests', () => {
         params: [],
       })
       .reply(() => {
-        jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+        vi.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
         return [
           200,
           {
@@ -510,9 +513,9 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          jest.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
-        const stateChangeListener = jest.fn();
+        const stateChangeListener = vi.fn();
         messenger.subscribe(
           'NetworkController:stateChange',
           stateChangeListener,
@@ -590,7 +593,7 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          jest.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         const { provider } = controller.getNetworkClientById(networkClientId);
         const request = {
@@ -699,7 +702,7 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          jest.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
         const { provider } = controller.getNetworkClientById(networkClientId);
         const request = {
@@ -789,9 +792,9 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          jest.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
-        const stateChangeListener = jest.fn();
+        const stateChangeListener = vi.fn();
         messenger.subscribe(
           'NetworkController:stateChange',
           stateChangeListener,
@@ -813,7 +816,7 @@ describe('NetworkController provider tests', () => {
         await expect(provider.request(request)).rejects.toThrow(expectedError);
         // Wait until the circuit break duration passes and hit the endpoint
         // again.
-        jest.advanceTimersByTime(inMilliseconds(30, Duration.Second));
+        vi.advanceTimersByTime(inMilliseconds(30, Duration.Second));
         await provider.request(request);
 
         expect(stateChangeListener).toHaveBeenCalledTimes(3);
@@ -918,9 +921,9 @@ describe('NetworkController provider tests', () => {
       },
       async ({ controller, messenger }) => {
         messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
-          jest.advanceTimersToNextTimer();
+          vi.runOnlyPendingTimersAsync().catch(console.error);
         });
-        const stateChangeListener = jest.fn();
+        const stateChangeListener = vi.fn();
         messenger.subscribe(
           'NetworkController:stateChange',
           stateChangeListener,
@@ -938,7 +941,7 @@ describe('NetworkController provider tests', () => {
         await provider.request(request);
         // Wait for the block tracker to reset the cache. (For some reason,
         // multiple timers exist.)
-        jest.runAllTimers();
+        vi.runAllTimers();
         // Hit the endpoint, run out of retries.
         await expect(provider.request(request)).rejects.toThrow(expectedError);
         // Hit the endpoint, run out of retries.
