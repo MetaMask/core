@@ -14,12 +14,14 @@
 
 import {
   LIGHTER_DATA_INTEGRITY_PREFIX,
+  LIGHTER_MARGIN_MODE_ISOLATED,
   LIGHTER_MAX_LEVERAGE,
   LIGHTER_UNSUPPORTED_CAPABILITY_PREFIX,
   parseLighterStrictDecimal,
 } from '../constants/lighterConfig.js';
 import type {
   AccountState,
+  CrossMarginSummary,
   MarketDataFormatters,
   MarketInfo,
   Order,
@@ -499,6 +501,23 @@ export function adaptFillFromLighterTrade(
 // ============================================================================
 
 /**
+ * Margin a Lighter position uses: its value times the initial margin
+ * fraction, a percentage (e.g. "20" => 5x leverage).
+ *
+ * @param positionValue - Position value in USDC.
+ * @param initialMarginFraction - Initial margin fraction, in percent.
+ * @returns Margin used in USDC; the full value when no fraction is set.
+ */
+function deriveLighterPositionMarginUsed(
+  positionValue: number,
+  initialMarginFraction: number,
+): number {
+  return initialMarginFraction > 0
+    ? (positionValue * initialMarginFraction) / 100
+    : positionValue;
+}
+
+/**
  * Transform a Lighter account position into canonical Position.
  *
  * @param position - Position entry from an account payload.
@@ -536,8 +555,10 @@ export function adaptPositionFromLighter(
   // initialMarginFraction is a percentage (e.g. "20" => 5x leverage).
   const leverageValue =
     marginFraction > 0 ? Math.round(100 / marginFraction) : 1;
-  const marginUsed =
-    marginFraction > 0 ? (positionValue * marginFraction) / 100 : positionValue;
+  const marginUsed = deriveLighterPositionMarginUsed(
+    positionValue,
+    marginFraction,
+  );
   const unrealizedPnl = parseFloat(position.unrealizedPnl);
   const liquidationPrice = parseFloat(position.liquidationPrice);
 
@@ -615,6 +636,72 @@ export function adaptAccountStateFromLighter(
     returnOnEquity:
       marginUsed > 0 ? String((unrealizedPnl / marginUsed) * 100) : '0',
     providerId: 'lighter',
+  };
+}
+
+/**
+ * Build the cross-margin summary from a Lighter sub-account's positions.
+ *
+ * Open cross positions contribute their value to notional, their margin to
+ * margin used and value times the market's maintenance fraction to
+ * maintenance margin. Account value is the total balance less isolated
+ * positions' unrealized PnL.
+ *
+ * @param account - Sub-account payload from `account`.
+ * @param totalBalance - The account's adapted total balance.
+ * @param getMaintenanceFraction - Maintenance margin fraction (0.024 = 2.4%)
+ * for a market symbol; must throw when the market has none.
+ * @returns The cross-margin summary.
+ */
+export function adaptCrossMarginSummaryFromLighter(
+  account: LighterSubAccount,
+  totalBalance: string,
+  getMaintenanceFraction: (symbol: string) => number,
+): CrossMarginSummary {
+  let isolatedUnrealizedPnl = 0;
+  let notional = 0;
+  let marginUsed = 0;
+  let maintenanceMargin = 0;
+  for (const position of account.positions ?? []) {
+    const unrealizedPnl = parseStrictAccountDecimal(
+      position.unrealizedPnl,
+      `REST unrealized PnL for ${position.symbol}`,
+    );
+    if (position.marginMode === LIGHTER_MARGIN_MODE_ISOLATED) {
+      isolatedUnrealizedPnl += unrealizedPnl;
+      continue;
+    }
+    const size = parseStrictAccountDecimal(
+      position.position,
+      `REST position size for ${position.symbol}`,
+    );
+    if (size === 0) {
+      continue;
+    }
+    const positionValue = parseStrictAccountDecimal(
+      position.positionValue,
+      `REST position value for ${position.symbol}`,
+    );
+    const initialMarginFraction = parseStrictAccountDecimal(
+      position.initialMarginFraction,
+      `REST initial margin fraction for ${position.symbol}`,
+    );
+    notional += positionValue;
+    marginUsed += deriveLighterPositionMarginUsed(
+      positionValue,
+      initialMarginFraction,
+    );
+    maintenanceMargin +=
+      positionValue * getMaintenanceFraction(position.symbol);
+  }
+  return {
+    accountValue: String(
+      parseStrictAccountDecimal(totalBalance, 'total balance') -
+        isolatedUnrealizedPnl,
+    ),
+    maintenanceMargin: String(maintenanceMargin),
+    marginUsed: String(marginUsed),
+    notional: String(notional),
   };
 }
 
