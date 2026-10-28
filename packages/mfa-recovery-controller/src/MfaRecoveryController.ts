@@ -35,7 +35,6 @@ import {
   MIN_IDENTIFIERS,
   requestKeyBoundIdentifierToken,
 } from './identifier-auth.js';
-import type { AuthorizedEscrow } from './identifier-auth.js';
 import type { MfaRecoveryControllerMethodActions } from './MfaRecoveryController-method-action-types.js';
 import {
   assertValidPendingOperation,
@@ -44,9 +43,10 @@ import {
 } from './pending-operation-validation.js';
 import { assertAbortAllowed, getRecoveryPhase } from './state-machine.js';
 import type {
-  AuthControllerToken,
   Identifier,
+  IdentifierAuthorization,
   IdentifierSession,
+  KeyBoundCredential,
   Mutation,
   MutationPayload,
   MutationReceipt,
@@ -393,11 +393,12 @@ export class MfaRecoveryController extends BaseController<
       });
       const authorizedEscrows = await authorizeEscrowsWithToken({
         escrows: available,
-        credential: session,
+        credentials: [session],
         authControllerToken: approval,
       });
       const results = await Promise.allSettled(
-        authorizedEscrows.map(async ({ escrow, authorization }) => {
+        authorizedEscrows.map(async ({ escrow, authorizations }) => {
+          const [authorization] = authorizations;
           const response = await escrow.getSecret(
             approval,
             authorization,
@@ -593,7 +594,7 @@ export class MfaRecoveryController extends BaseController<
   }
 
   async #replicateMutation(pending: WritingPendingOperation): Promise<void> {
-    const { mutation, identifier } = pending;
+    const { mutation } = pending;
     const remainingEscrows = await this.#getRemainingEscrows(pending);
     if (remainingEscrows.length === 0) {
       await this.#clearPending();
@@ -608,24 +609,10 @@ export class MfaRecoveryController extends BaseController<
         ? pending
         : { ...pending, ...(await this.#authorizeMutation(mutation)) };
     await this.#assertPending(writing);
-    const authorizedEscrows =
-      mutation.operation === 'register'
-        ? null
-        : await this.#authorizeEscrows({
-            escrows: remainingEscrows,
-            identifier: identifier as Identifier,
-            requestHash: mutation.requestHash,
-            authControllerToken: writing.authControllerToken,
-          });
-    if (
-      authorizedEscrows !== null &&
-      authorizedEscrows.length !== remainingEscrows.length
-    ) {
-      throw new MfaRecoveryError(
-        'Unable to authorize every escrow',
-        'identifier_auth_failed',
-      );
-    }
+    const authorizations = await this.#authorizeEscrows(
+      writing,
+      remainingEscrows,
+    );
     const payloads = await Promise.all(
       remainingEscrows.map(async (escrow) =>
         this.#payloadForEscrow(writing, escrow),
@@ -638,7 +625,7 @@ export class MfaRecoveryController extends BaseController<
         escrow.applyMutation(
           mutation,
           writing.authControllerToken,
-          authorizedEscrows?.[index]?.authorization ?? null,
+          authorizations[index],
           payloads[index],
           writing.approvedIdentifiers,
         ),
@@ -741,28 +728,78 @@ export class MfaRecoveryController extends BaseController<
     return { receipts, hasInvalidReceipt };
   }
 
-  async #authorizeEscrows({
-    escrows,
-    identifier,
-    requestHash,
-    authControllerToken,
-  }: {
-    escrows: RecoveryEscrowProvider[];
-    identifier: Identifier;
-    requestHash: string;
-    authControllerToken: AuthControllerToken;
-  }): Promise<AuthorizedEscrow[]> {
-    getIdentifierAuthMode(identifier.type);
-    const credential = await requestKeyBoundIdentifierToken({
-      identifier,
-      requestHash,
-      identifierAuthProvider: this.#identifierAuthProvider,
-    });
-    return await authorizeEscrowsWithToken({
+  /**
+   * Proves the update's enrolled identifier and each SIWE identifier the
+   * escrows have not enrolled, all against one challenge per escrow.
+   *
+   * @param writing - Writing pending mutation.
+   * @param escrows - Escrows to authorize.
+   * @returns Each escrow's identifier authorizations, in `escrows` order.
+   */
+  async #authorizeEscrows(
+    writing: WritingPendingOperation,
+    escrows: RecoveryEscrowProvider[],
+  ): Promise<IdentifierAuthorization[][]> {
+    const identifiers = [
+      ...(writing.identifier ? [writing.identifier] : []),
+      ...(await this.#unenrolledSiweIdentifiers(writing, escrows)),
+    ];
+    if (identifiers.length === 0) {
+      return escrows.map(() => []);
+    }
+    const credentials: KeyBoundCredential[] = [];
+    for (const identifier of identifiers) {
+      getIdentifierAuthMode(identifier.type);
+      credentials.push(
+        await requestKeyBoundIdentifierToken({
+          identifier,
+          requestHash: writing.mutation.requestHash,
+          identifierAuthProvider: this.#identifierAuthProvider,
+        }),
+      );
+    }
+    const authorized = await authorizeEscrowsWithToken({
       escrows,
-      credential,
-      authControllerToken,
+      credentials,
+      authControllerToken: writing.authControllerToken,
     });
+    if (authorized.length !== escrows.length) {
+      throw new MfaRecoveryError(
+        'Unable to authorize every escrow',
+        'identifier_auth_failed',
+      );
+    }
+    return authorized.map(({ authorizations }) => authorizations);
+  }
+
+  async #unenrolledSiweIdentifiers(
+    { mutation, payload, authControllerToken }: WritingPendingOperation,
+    escrows: RecoveryEscrowProvider[],
+  ): Promise<Identifier[]> {
+    const siwe = pendingPayloadHasIdentifiers(payload)
+      ? payload.identifiers.filter(({ type }) => type === 'siwe')
+      : [];
+    if (mutation.operation === 'register' || siwe.length === 0) {
+      return siwe;
+    }
+    const responses = await Promise.all(
+      escrows.map(
+        async (escrow) => await escrow.getIdentifiers(authControllerToken),
+      ),
+    );
+    // Escrows past `expectedVersion` replay their receipt without checking proofs.
+    const enrolled =
+      responses.find(({ version }) => version === mutation.expectedVersion)
+        ?.identifiers ?? siwe;
+    return siwe.filter(
+      (identifier) =>
+        !enrolled.some(
+          (other) =>
+            other.type === identifier.type &&
+            other.namespace === identifier.namespace &&
+            other.value.toLowerCase() === identifier.value.toLowerCase(),
+        ),
+    );
   }
 
   async #payloadForEscrow(

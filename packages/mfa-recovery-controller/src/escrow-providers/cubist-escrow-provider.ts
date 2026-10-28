@@ -173,16 +173,16 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   /**
    * @param mutation - Mutation to apply.
    * @param authControllerToken - Request-bound AuthController token.
-   * @param identifierAuthorization - Identifier proof. `null` for register.
+   * @param identifierAuthorizations - Identifier proofs sharing one challenge.
    * @param payload - Per-escrow mutation payload.
-   * @param approvedIdentifiers - The approval's identifiers, which payload
-   * identifiers must be drawn from.
+   * @param approvedIdentifiers - The approval's identifiers, which non-SIWE
+   * payload identifiers must be drawn from.
    * @returns The escrow's mutation receipt.
    */
   async applyMutation(
     mutation: Mutation,
     authControllerToken: AuthControllerToken,
-    identifierAuthorization: IdentifierAuthorization | null,
+    identifierAuthorizations: IdentifierAuthorization[],
     payload: MutationPayload,
     approvedIdentifiers: Identifier[],
   ): Promise<MutationReceipt> {
@@ -191,7 +191,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
       {
         mutation,
         authControllerToken,
-        identifierAuthorization,
+        identifierAuthorizations,
         payload,
         approvedIdentifiers,
       },
