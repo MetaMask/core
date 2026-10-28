@@ -32,6 +32,7 @@ import {
   authorizeEscrowsWithToken,
   countDistinctIdentifiers,
   getIdentifierAuthMode,
+  getSiweNamespace,
   MIN_IDENTIFIERS,
   requestKeyBoundIdentifierToken,
 } from './identifier-auth.js';
@@ -263,7 +264,7 @@ export class MfaRecoveryController extends BaseController<
     recoverySecret: Uint8Array,
     identifiers: Identifier[],
   ): Promise<void> {
-    this.#assertKnownIdentifierTypes(identifiers);
+    this.#assertValidIdentifiers(identifiers);
     this.#assertMinIdentifiers(identifiers);
     await this.#mutate({
       operation: 'register',
@@ -288,7 +289,7 @@ export class MfaRecoveryController extends BaseController<
     recoverySecret: Uint8Array,
     epoch: number,
   ): Promise<void> {
-    this.#assertKnownIdentifierTypes([identifier]);
+    this.#assertValidIdentifiers([identifier]);
     await this.#mutate({
       operation: 'updateRecoverySecret',
       payload: {
@@ -312,7 +313,7 @@ export class MfaRecoveryController extends BaseController<
     identifiers: Identifier[],
     epoch: number,
   ): Promise<void> {
-    this.#assertKnownIdentifierTypes([identifier, ...identifiers]);
+    this.#assertValidIdentifiers([identifier, ...identifiers]);
     this.#assertMinIdentifiers(identifiers);
     await this.#mutate({
       operation: 'updateIdentifiers',
@@ -331,7 +332,7 @@ export class MfaRecoveryController extends BaseController<
   async authenticateIdentifier(
     identifier: Identifier,
   ): Promise<IdentifierSession> {
-    this.#assertKnownIdentifierTypes([identifier]);
+    this.#assertValidIdentifiers([identifier]);
     const requestId = randomId();
     const ephemeral = await generateWrapKey();
     const pkE = ephemeral.publicKey;
@@ -367,7 +368,7 @@ export class MfaRecoveryController extends BaseController<
   ): Promise<RecoveredSecret> {
     return await this.#withLock(async () => {
       const { token, requestId, pkE } = session;
-      this.#assertKnownIdentifierTypes([token.identifier]);
+      this.#assertValidIdentifiers([token.identifier]);
       const requestHash = await hash({
         operation: 'getRecoverySecret',
         requestId,
@@ -742,7 +743,7 @@ export class MfaRecoveryController extends BaseController<
   ): Promise<IdentifierAuthorization[][]> {
     const identifiers = [
       ...(writing.identifier ? [writing.identifier] : []),
-      ...(await this.#unenrolledSiweIdentifiers(writing, escrows)),
+      ...(await this.#findNewSiweIdentifiers(writing, escrows)),
     ];
     if (identifiers.length === 0) {
       return escrows.map(() => []);
@@ -772,33 +773,37 @@ export class MfaRecoveryController extends BaseController<
     return authorized.map(({ authorizations }) => authorizations);
   }
 
-  async #unenrolledSiweIdentifiers(
+  // SIWE identifiers some escrow has not enrolled. Escrows that already
+  // applied the mutation replay their receipt and ignore the extra proofs.
+  async #findNewSiweIdentifiers(
     { mutation, payload, authControllerToken }: WritingPendingOperation,
     escrows: RecoveryEscrowProvider[],
   ): Promise<Identifier[]> {
-    const siwe = pendingPayloadHasIdentifiers(payload)
+    const siweIdentifiers = pendingPayloadHasIdentifiers(payload)
       ? payload.identifiers.filter(({ type }) => type === 'siwe')
       : [];
-    if (mutation.operation === 'register' || siwe.length === 0) {
-      return siwe;
+    if (mutation.operation === 'register' || siweIdentifiers.length === 0) {
+      return siweIdentifiers;
     }
     const responses = await Promise.all(
-      escrows.map(
-        async (escrow) => await escrow.getIdentifiers(authControllerToken),
-      ),
+      escrows.map((escrow) => escrow.getIdentifiers(authControllerToken)),
     );
-    // Escrows past `expectedVersion` replay their receipt without checking proofs.
-    const enrolled =
-      responses.find(({ version }) => version === mutation.expectedVersion)
-        ?.identifiers ?? siwe;
-    return siwe.filter(
-      (identifier) =>
-        !enrolled.some(
+    const enrolledPerEscrow = responses.map(({ identifiers }) => identifiers);
+    // Escrows compare SIWE addresses case-insensitively.
+    const isEnrolledInEveryEscrow = ({
+      namespace,
+      value,
+    }: Identifier): boolean =>
+      enrolledPerEscrow.every((enrolled) =>
+        enrolled.some(
           (other) =>
-            other.type === identifier.type &&
-            other.namespace === identifier.namespace &&
-            other.value.toLowerCase() === identifier.value.toLowerCase(),
+            other.type === 'siwe' &&
+            other.namespace === namespace &&
+            other.value.toLowerCase() === value.toLowerCase(),
         ),
+      );
+    return siweIdentifiers.filter(
+      (identifier) => !isEnrolledInEveryEscrow(identifier),
     );
   }
 
@@ -848,9 +853,18 @@ export class MfaRecoveryController extends BaseController<
     );
   }
 
-  #assertKnownIdentifierTypes(identifiers: Identifier[]): void {
+  #assertValidIdentifiers(identifiers: Identifier[]): void {
     for (const identifier of identifiers) {
       getIdentifierAuthMode(identifier.type);
+      if (
+        identifier.type === 'siwe' &&
+        identifier.namespace !== getSiweNamespace(identifier)
+      ) {
+        throw new MfaRecoveryError(
+          'SIWE namespace must be the verifier domain:chainId',
+          'invalid_identifier',
+        );
+      }
     }
   }
 

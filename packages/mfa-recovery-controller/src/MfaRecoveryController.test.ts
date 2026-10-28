@@ -55,6 +55,7 @@ const WALLET: Identifier = {
   type: 'siwe',
   namespace: 'example.com:1',
   value: '0xAbC0000000000000000000000000000000000001',
+  verifier: { domain: 'example.com', chainId: 1 },
 };
 
 const IDENTIFIERS = [PASSKEY, SOCIAL];
@@ -1853,6 +1854,20 @@ describe('MfaRecoveryController', () => {
               PASSKEY,
             ]),
           ).rejects.toThrow('Unknown identifier type');
+        });
+      },
+    );
+
+    it.each([
+      { ...WALLET, namespace: 'example.com:2' },
+      { ...WALLET, verifier: undefined },
+    ])(
+      'rejects a SIWE namespace that does not match its verifier',
+      async (wallet) => {
+        await withController(async ({ controller }) => {
+          await expect(
+            controller.register(SECRET, [PASSKEY, wallet]),
+          ).rejects.toMatchObject({ code: 'invalid_identifier' });
         });
       },
     );

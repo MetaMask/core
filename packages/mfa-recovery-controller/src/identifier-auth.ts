@@ -1,3 +1,5 @@
+import { isObject } from '@metamask/utils';
+
 import { generateSigningKey, hash, sign } from './crypto.js';
 import { MfaRecoveryError } from './errors.js';
 import { isFulfilledResult } from './escrow-utils.js';
@@ -28,6 +30,18 @@ export function countDistinctIdentifiers(identifiers: Identifier[]): number {
       ({ type, namespace, value }) => `${type}\0${namespace}\0${value}`,
     ),
   ).size;
+}
+
+/**
+ * @param identifier - SIWE identifier.
+ * @returns The verifier's `domain:chainId`, which escrows use as the namespace.
+ */
+export function getSiweNamespace(identifier: Identifier): string | undefined {
+  const { verifier } = identifier;
+  if (!isObject(verifier)) {
+    return undefined;
+  }
+  return `${String(verifier.domain)}:${String(verifier.chainId)}`;
 }
 
 /**
