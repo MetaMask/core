@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-controller",
-  "version": "83.1.1",
+  "version": "83.1.2",
   "description": "Manages bridge-related quote fetching functionality for MetaMask",
   "keywords": [
     "Ethereum",
@@ -57,7 +57,7 @@
     "@ethersproject/providers": "^5.8.0",
     "@metamask/accounts-controller": "^40.1.0",
     "@metamask/assets-controller": "^20.0.0",
-    "@metamask/assets-controllers": "^112.2.0",
+    "@metamask/assets-controllers": "^113.0.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/gas-fee-controller": "^27.0.0",
