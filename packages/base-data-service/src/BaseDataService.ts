@@ -104,8 +104,11 @@ export type CacheUpdatedState = Omit<DehydratedState, 'queries'> & {
  */
 export type DataServiceQueryState = Omit<
   DehydratedState['queries'][number]['state'],
-  'error'
-> & { error: SerializedQueryError | null };
+  'error' | 'fetchFailureReason'
+> & {
+  error: SerializedQueryError | null;
+  fetchFailureReason: SerializedQueryError | null;
+};
 
 /**
  * A callback that receives the state of a query as it changes.

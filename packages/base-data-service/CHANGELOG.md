@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The callback receives the query state with serialized errors, first with the cached state if one exists, then on every update until the fetch has settled and the query is idle.
   - Errors thrown by the callback are logged and ignored.
   - This option is not available on `fetchInfiniteQuery`.
-- Export `DataServiceQueryState`, `QueryStateChangeHandler` and `SerializedQueryError` types ([#11162](https://github.com/MetaMask/core/pull/11162))
+- Export `CacheUpdatedState`, `DataServiceQueryState`, `QueryStateChangeHandler` and `SerializedQueryError` types ([#11162](https://github.com/MetaMask/core/pull/11162))
 
 ### Changed
 

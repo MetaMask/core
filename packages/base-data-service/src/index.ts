@@ -14,6 +14,7 @@ export {
 } from 'cockatiel';
 
 export type {
+  CacheUpdatedState,
   DataServiceActions,
   DataServiceEvents,
   DataServiceCacheUpdatedPayload,
