@@ -924,6 +924,7 @@ export class NeoBankService extends BaseDataService<
   ): Promise<Json> {
     return this.executeMutation({
       mutationKey: [`${this.name}:registerPixAddress`],
+      gcTime: 0,
       mutationFn: async () => this.#postJson('addresses/pix', body, options),
     });
   }
@@ -957,6 +958,7 @@ export class NeoBankService extends BaseDataService<
   ): Promise<AutorampRemoteSnapshot> {
     const response = await this.executeMutation({
       mutationKey: [`${this.name}:createAutoramp`],
+      gcTime: 0,
       responseStruct: AutorampResponseStruct,
       mutationFn: async () =>
         this.#postJson<Infer<typeof AutorampResponseStruct>>(
@@ -1014,6 +1016,7 @@ export class NeoBankService extends BaseDataService<
   ): Promise<Json> {
     return this.executeMutation({
       mutationKey: [`${this.name}:attachAutorampQuote`, autorampId],
+      gcTime: 0,
       mutationFn: async () =>
         this.#postJson(
           `autoramps/${encodeURIComponent(autorampId)}/quotes`,
