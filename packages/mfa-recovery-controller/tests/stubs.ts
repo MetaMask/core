@@ -1,13 +1,18 @@
-import { bytesToBase64, bytesToHex, stringToBytes } from '@metamask/utils';
+import type { KeyPair } from '@metamask/cryptography';
+import {
+  bytesToBase64,
+  bytesToHex,
+  hexToBytes,
+  stringToBytes,
+} from '@metamask/utils';
 
 import { decodeAuthControllerToken } from '../src/auth-controller-token.js';
 import {
-  decodeHex,
   decryptFromPublic,
   encryptToPublic,
-  generateSigningKey,
   hash,
   hashMutationReceipt,
+  receiptKeyId,
   sign,
   unixNow,
   verifySignature,
@@ -20,7 +25,6 @@ import {
 } from '../src/identifier-auth.js';
 import type {
   AuthControllerToken,
-  EcPublicJwk,
   Identifier,
   IdentifierAuthorization,
   KeyBoundIdentifierToken,
@@ -133,7 +137,7 @@ export class StubAuthProvider implements RecoveryAuthProvider {
 export class StubIdentifierAuthProvider implements RecoveryIdentifierAuthProvider {
   async getKeyBoundIdentifierToken(params: {
     identifier: Identifier;
-    proofPublicKey: string;
+    proofPublicKey: Uint8Array;
     requestHash: string;
   }): Promise<KeyBoundIdentifierToken> {
     return {
@@ -174,17 +178,17 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
   readonly authAudience = 'stub-audience';
 
-  readonly wrapPublicKey: string;
+  readonly wrapPublicKey: Uint8Array;
 
   /**
-   * P-256 receipt public JWK JSON. Distinct from {@link wrapPublicKey}, matching
-   * cubist WRAP_KEY vs RECEIPT_KEY.
+   * Raw 32-byte Ed25519 receipt public key. Distinct from {@link wrapPublicKey},
+   * matching cubist WRAP_KEY vs RECEIPT_KEY.
    */
-  readonly receiptPublicKey: string;
+  readonly receiptPublicKey: Uint8Array;
 
-  readonly #wrapPrivateKey: string;
+  readonly #wrapPrivateKey: Uint8Array;
 
-  readonly #receiptPrivateKey: string;
+  readonly #receiptPrivateKey: Uint8Array;
 
   readonly #replicaIds: string[];
 
@@ -192,13 +196,13 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
   constructor(
     id: string,
-    wrapKey: { publicKey: string; privateKey: string } = generateSigningKey(),
+    wrapKey: KeyPair,
+    receiptKey: KeyPair,
     replicaIds: string[] = [id],
   ) {
     this.id = id;
     this.wrapPublicKey = wrapKey.publicKey;
     this.#wrapPrivateKey = wrapKey.privateKey;
-    const receiptKey = generateSigningKey();
     this.receiptPublicKey = receiptKey.publicKey;
     this.#receiptPrivateKey = receiptKey.privateKey;
     this.#replicaIds = [...replicaIds];
@@ -243,7 +247,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     authControllerToken: AuthControllerToken,
     authorization: IdentifierAuthorization,
     requestId: string,
-    pkE: EcPublicJwk,
+    pkE: Uint8Array,
   ): Promise<GetRecoverySecretResponse> {
     if (this.failGetSecret) {
       throw new MfaRecoveryError(
@@ -277,8 +281,8 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       recoverySecret: {
         ciphertext: await encryptToPublic(
           this.#wrapPrivateKey,
-          JSON.stringify(pkE),
-          decodeHex(record.recoverySecret),
+          pkE,
+          hexToBytes(record.recoverySecret),
         ),
       },
       version: record.version,
@@ -455,7 +459,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       receipt.escrowId !== expectedEscrowId ||
       expectedEscrowId !== this.id ||
       receipt.version !== mutation.newVersion ||
-      receipt.receiptKeyId !== (await wrapKeyId(this.receiptPublicKey))
+      receipt.receiptKeyId !== (await receiptKeyId(this.receiptPublicKey))
     ) {
       return false;
     }
@@ -516,7 +520,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       requestHash: mutation.requestHash,
       escrowId: this.id,
       version: mutation.newVersion,
-      receiptKeyId: await wrapKeyId(this.receiptPublicKey),
+      receiptKeyId: await receiptKeyId(this.receiptPublicKey),
     };
     return {
       ...unsigned,
@@ -667,7 +671,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     return bytesToHex(
       await decryptFromPublic(
         this.#wrapPrivateKey,
-        JSON.stringify(wrapped.pkE),
+        wrapped.pkE,
         wrapped.ciphertext,
       ),
     );

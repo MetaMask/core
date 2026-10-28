@@ -21,6 +21,8 @@ import type {
 import { getKnownPropertyNames } from '@metamask/utils';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
+import type { Mock } from 'vitest';
+import { vi } from 'vitest';
 
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client.js';
 import { NetworkController } from '../src/index.js';
@@ -140,7 +142,7 @@ export const TESTNET = {
  * @param options.analyticsId - The analytics ID that `AnalyticsController:getState`
  * returns by default. Defaults to a fixed valid UUIDv4.
  * @param options.trackEvent - The handler registered for
- * `AnalyticsController:trackEvent`. Defaults to a Jest mock so tests can assert
+ * `AnalyticsController:trackEvent`. Defaults to a Vitest mock so tests can assert
  * on it.
  * @param options.configRegistryNetworkConfigs - The network config that
  * `ConfigRegistryController:getNetworkConfigByCaip2ChainId` returns by default. Defaults to
@@ -151,20 +153,20 @@ export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
   rpcFailoverMode = 'disabled',
   analyticsId = '11111111-1111-4111-8111-111111111111',
-  trackEvent = jest.fn(),
+  trackEvent = vi.fn(),
   configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
 }: {
   connectivityStatus?: ConnectivityStatus;
   rpcFailoverMode?: RpcFailoverMode;
   analyticsId?: string;
-  trackEvent?: jest.Mock;
+  trackEvent?: Mock;
   configRegistryNetworkConfigs?: RegistryNetworkConfig[];
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
     MessengerActions<NetworkControllerMessenger>,
     MessengerEvents<NetworkControllerMessenger>
-  >({ namespace: MOCK_ANY_NAMESPACE, captureException: jest.fn() });
+  >({ namespace: MOCK_ANY_NAMESPACE, captureException: vi.fn() });
 
   rootMessenger.registerActionHandler(
     'ConnectivityController:getState',

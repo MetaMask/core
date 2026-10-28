@@ -230,6 +230,12 @@ export type TransactionMeta = {
   isGasFeeSponsored?: boolean;
 
   /**
+   * Name of the party paying the gas fee, such as `Uniswap` or `MetaMask`.
+   * Only set when `isGasFeeSponsored` is true and the simulation names a sponsor.
+   */
+  gasFeeSponsor?: string;
+
+  /**
    * Whether the transaction has no lifecycle and is not signed or published.
    */
   isStateOnly?: boolean;
@@ -2112,6 +2118,13 @@ export type GasFeeToken = {
 
   /** Account address to send the token to. */
   recipient: Hex;
+
+  /**
+   * Name of the party paying the gas fee, such as `Uniswap` or `MetaMask`.
+   * Only set when the simulation reports the gas fee as sponsored.
+   * Prefer `TransactionMeta.gasFeeSponsor`, which also respects a caller-provided `isGasFeeSponsored`.
+   */
+  sponsor?: string;
 
   /** Symbol of the token. */
   symbol: string;

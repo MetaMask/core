@@ -9,6 +9,8 @@ import {
   EthMethod,
   SignatureRequestType,
 } from '@metamask/signature-controller';
+import type { Mock, MockedFunction } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   generateMockSignatureRequest,
@@ -28,7 +30,7 @@ import {
   ShieldApiService,
 } from './shield-api-service.js';
 
-const mockCaptureException = jest.fn();
+const mockCaptureException = vi.fn();
 const MOCK_TOKEN = 'token';
 
 type RootMessenger = Messenger<
@@ -60,10 +62,10 @@ function createService({
   service: ShieldApiService;
   rootMessenger: RootMessenger;
   messenger: ShieldApiServiceMessenger;
-  getBearerToken: jest.Mock;
+  getBearerToken: Mock;
 } {
   const rootMessenger = createRootMessenger();
-  const getBearerTokenMock = jest.fn(getBearerToken);
+  const getBearerTokenMock = vi.fn(getBearerToken);
   rootMessenger.registerActionHandler(
     'AuthenticationController:getBearerToken',
     getBearerTokenMock,
@@ -114,13 +116,11 @@ function setup({
   getBearerToken?: () => Promise<string>;
 } = {}): {
   service: ShieldApiService;
-  fetchMock: jest.MockedFunction<typeof fetch>;
-  getBearerToken: jest.Mock;
+  fetchMock: MockedFunction<typeof fetch>;
+  getBearerToken: Mock;
   rootMessenger: RootMessenger;
 } {
-  const fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
-    typeof fetch
-  >;
+  const fetchMock = vi.spyOn(global, 'fetch');
 
   const {
     service,
@@ -145,17 +145,17 @@ function setup({
 
 describe('ShieldApiService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('defaults fetch to globalThis.fetch when omitted', async () => {
-    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+      json: vi.fn().mockResolvedValue({ coverageId: 'coverageId' }),
     } as unknown as Response);
     fetchSpy.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue(getRandomCoverageResult()),
+      json: vi.fn().mockResolvedValue(getRandomCoverageResult()),
     } as unknown as Response);
 
     try {
@@ -192,13 +192,13 @@ describe('ShieldApiService', () => {
     const coverageId = 'coverageId';
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ coverageId }),
+      json: vi.fn().mockResolvedValue({ coverageId }),
     } as unknown as Response);
 
     const result = getRandomCoverageResult();
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue(result),
+      json: vi.fn().mockResolvedValue(result),
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
@@ -219,16 +219,14 @@ describe('ShieldApiService', () => {
 
   it('exposes checkCoverage through the messenger', async () => {
     const coverageId = 'coverageId';
-    const fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
-      typeof fetch
-    >;
+    const fetchMock = vi.spyOn(global, 'fetch');
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ coverageId }),
+      json: vi.fn().mockResolvedValue({ coverageId }),
     } as unknown as Response);
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue(getRandomCoverageResult()),
+      json: vi.fn().mockResolvedValue(getRandomCoverageResult()),
     } as unknown as Response);
 
     const { rootMessenger } = createService();
@@ -251,18 +249,18 @@ describe('ShieldApiService', () => {
     const coverageId = 'coverageId';
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ coverageId }),
+      json: vi.fn().mockResolvedValue({ coverageId }),
     } as unknown as Response);
 
     fetchMock.mockResolvedValueOnce({
       status: 404,
-      json: jest.fn().mockResolvedValue({ status: 'unavailable' }),
+      json: vi.fn().mockResolvedValue({ status: 'unavailable' }),
     } as unknown as Response);
 
     const result = getRandomCoverageResult();
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue(result),
+      json: vi.fn().mockResolvedValue(result),
     } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
@@ -273,7 +271,7 @@ describe('ShieldApiService', () => {
     // returns the coverage result). Keying off fetch progress rather than the
     // number of `Date.now()` calls keeps this robust to how many times
     // query-core reads the clock internally.
-    const nowSpy = jest
+    const nowSpy = vi
       .spyOn(Date, 'now')
       .mockImplementation(() =>
         fetchMock.mock.calls.length >= 3
@@ -348,11 +346,11 @@ describe('ShieldApiService', () => {
       .mockResolvedValueOnce({ status: 401 } as unknown as Response)
       .mockResolvedValueOnce({
         status: 200,
-        json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+        json: vi.fn().mockResolvedValue({ coverageId: 'coverageId' }),
       } as unknown as Response)
       .mockResolvedValueOnce({
         status: 200,
-        json: jest.fn().mockResolvedValue(getRandomCoverageResult()),
+        json: vi.fn().mockResolvedValue(getRandomCoverageResult()),
       } as unknown as Response);
 
     const txMeta = generateMockTxMeta();
@@ -393,11 +391,11 @@ describe('ShieldApiService', () => {
     fetchMock
       .mockResolvedValueOnce({
         status: 200,
-        json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+        json: vi.fn().mockResolvedValue({ coverageId: 'coverageId' }),
       } as unknown as Response)
       .mockResolvedValueOnce({
         status: 200,
-        json: jest.fn().mockResolvedValue(getRandomCoverageResult()),
+        json: vi.fn().mockResolvedValue(getRandomCoverageResult()),
       } as unknown as Response);
 
     expect(await service.checkCoverage({ txMeta })).toMatchObject({
@@ -414,7 +412,7 @@ describe('ShieldApiService', () => {
 
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+      json: vi.fn().mockResolvedValue({ coverageId: 'coverageId' }),
     } as unknown as Response);
 
     fetchMock.mockResolvedValue({
@@ -437,12 +435,12 @@ describe('ShieldApiService', () => {
 
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+      json: vi.fn().mockResolvedValue({ coverageId: 'coverageId' }),
     } as unknown as Response);
 
     fetchMock.mockResolvedValue({
       status: 412,
-      json: jest.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue({
         message: 'Results are not available yet',
         statusCode: 412,
       }),
@@ -461,18 +459,18 @@ describe('ShieldApiService', () => {
 
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+      json: vi.fn().mockResolvedValue({ coverageId: 'coverageId' }),
     } as unknown as Response);
 
     const result = { status: 'covered', message: 'ok', reasonCode: 'E104' };
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue(result),
+      json: vi.fn().mockResolvedValue(result),
     } as unknown as Response);
 
     let nowValue = 1000;
     const latencyMs = 123;
-    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => {
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => {
       const val = nowValue;
       nowValue += latencyMs;
       return val;
@@ -490,18 +488,18 @@ describe('ShieldApiService', () => {
 
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+      json: vi.fn().mockResolvedValue({ coverageId: 'coverageId' }),
     } as unknown as Response);
 
     const result = { status: 'covered', message: 'ok', reasonCode: 'E104' };
     fetchMock.mockResolvedValueOnce({
       status: 200,
-      json: jest.fn().mockResolvedValue(result),
+      json: vi.fn().mockResolvedValue(result),
     } as unknown as Response);
 
     let nowValue = 2000;
     const latencyMs = 456;
-    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => {
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => {
       const val = nowValue;
       nowValue += latencyMs;
       return val;
@@ -523,13 +521,13 @@ describe('ShieldApiService', () => {
       const coverageId = 'coverageId';
       fetchMock.mockResolvedValueOnce({
         status: 200,
-        json: jest.fn().mockResolvedValue({ coverageId }),
+        json: vi.fn().mockResolvedValue({ coverageId }),
       } as unknown as Response);
 
       const result = getRandomCoverageResult();
       fetchMock.mockResolvedValueOnce({
         status: 200,
-        json: jest.fn().mockResolvedValue(result),
+        json: vi.fn().mockResolvedValue(result),
       } as unknown as Response);
 
       const signatureRequest = generateMockSignatureRequest();
@@ -815,16 +813,14 @@ describe('ShieldApiService', () => {
 
   describe('authentication', () => {
     it('uses AuthenticationController:getBearerToken for requests', async () => {
-      const fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
-        typeof fetch
-      >;
+      const fetchMock = vi.spyOn(global, 'fetch');
       fetchMock.mockResolvedValueOnce({
         status: 200,
-        json: jest.fn().mockResolvedValue({ coverageId: 'coverageId' }),
+        json: vi.fn().mockResolvedValue({ coverageId: 'coverageId' }),
       } as unknown as Response);
       fetchMock.mockResolvedValueOnce({
         status: 200,
-        json: jest.fn().mockResolvedValue(getRandomCoverageResult()),
+        json: vi.fn().mockResolvedValue(getRandomCoverageResult()),
       } as unknown as Response);
 
       const { service, getBearerToken } = createService({

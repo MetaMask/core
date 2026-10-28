@@ -5,14 +5,14 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   generateSigningKey,
+  generateWrapKey,
   hashMutationReceipt,
+  receiptKeyId,
   sign,
-  wrapKeyId,
 } from '../crypto.js';
 import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
 import type {
   AuthControllerToken,
-  EcPublicJwk,
   IdentifierAuthorization,
   Mutation,
   MutationPayload,
@@ -20,8 +20,11 @@ import type {
 } from '../types.js';
 import { CubistEscrowProvider } from './cubist-escrow-provider.js';
 
-const wrapKey = generateSigningKey();
-const receiptKey = generateSigningKey();
+const wrapKey = await generateWrapKey();
+const receiptKey = await generateSigningKey();
+
+const PK_E = new Uint8Array(32).fill(7);
+const CIPHERTEXT = new Uint8Array([0xaa, 0xbb]);
 
 const MUTATION: Mutation = {
   id: 'mut-1',
@@ -39,8 +42,16 @@ const TOKEN: AuthControllerToken = 'header.payload.signature';
 const PAYLOAD: MutationPayload = {
   identifiers: [],
   recoverySecret: {
-    pkE: { kty: 'EC', crv: 'P-256', x: 'eA', y: 'eB' },
-    ciphertext: 'aa',
+    pkE: PK_E,
+    ciphertext: CIPHERTEXT,
+  },
+};
+
+const WIRE_PAYLOAD = {
+  identifiers: [],
+  recoverySecret: {
+    pkE: bytesToHex(PK_E),
+    ciphertext: bytesToHex(CIPHERTEXT),
   },
 };
 
@@ -53,7 +64,7 @@ const AUTHORIZATION: IdentifierAuthorization = {
       value: 'cred-1',
       verifier: { publicKey: 'pk' },
     },
-    proofPublicKey: '{}',
+    proofPublicKey: new Uint8Array(32).fill(1),
     requestHash: '0x1',
     providerAssertion: {},
   },
@@ -63,8 +74,6 @@ const AUTHORIZATION: IdentifierAuthorization = {
     signature: '11',
   },
 };
-
-const PK_E: EcPublicJwk = { kty: 'EC', crv: 'P-256', x: 'x', y: 'y' };
 
 const CHALLENGE = {
   id: 'challenge-1',
@@ -77,7 +86,7 @@ describe('CubistEscrowProvider', () => {
     const { provider } = createProvider();
     expect(provider.id).toBe('cubist');
     expect(provider.authAudience).toBe('gamma.signer.cubist.dev');
-    expect(provider.wrapPublicKey).toBe(wrapKey.publicKey);
+    expect(provider.wrapPublicKey).toStrictEqual(wrapKey.publicKey);
   });
 
   describe('isAvailable', () => {
@@ -167,8 +176,26 @@ describe('CubistEscrowProvider', () => {
           mutation: MUTATION,
           authControllerToken: TOKEN,
           identifierAuthorization: null,
-          payload: PAYLOAD,
+          payload: WIRE_PAYLOAD,
         },
+      });
+    });
+
+    it('hex-encodes byte fields in the request sent to the escrow', async () => {
+      const { provider, invoke } = createProvider({
+        stdout: await signedReceipt(),
+      });
+      await provider.applyMutation(MUTATION, TOKEN, AUTHORIZATION, PAYLOAD);
+      const [, , { request }] = invoke.mock.calls[0] as [
+        string,
+        string,
+        { request: { identifierAuthorization: { token: unknown } } },
+      ];
+      expect(request.identifierAuthorization.token).toStrictEqual({
+        identifier: AUTHORIZATION.token.identifier,
+        proofPublicKey: bytesToHex(new Uint8Array(32).fill(1)),
+        requestHash: '0x1',
+        providerAssertion: {},
       });
     });
 
@@ -205,24 +232,33 @@ describe('CubistEscrowProvider', () => {
 
   describe('getSecret', () => {
     const secretResponse = {
-      recoverySecret: { ciphertext: 'cc' },
+      recoverySecret: { ciphertext: '0xcc' },
       version: 1,
       lastMutationId: 'mut-1',
       wrapKeyId: '0xabc',
     };
 
-    it('invokes getSecret and returns the wrapped secret', async () => {
+    it('invokes getSecret and returns the wrapped secret as bytes', async () => {
       const { provider, invoke } = createProvider({ stdout: secretResponse });
       expect(
         await provider.getSecret(TOKEN, AUTHORIZATION, 'req-1', PK_E),
-      ).toStrictEqual(secretResponse);
+      ).toStrictEqual({
+        ...secretResponse,
+        recoverySecret: { ciphertext: new Uint8Array([0xcc]) },
+      });
       expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
         request: {
           cmd: 'getSecret',
           authControllerToken: TOKEN,
-          identifierAuthorization: AUTHORIZATION,
+          identifierAuthorization: {
+            ...AUTHORIZATION,
+            token: {
+              ...AUTHORIZATION.token,
+              proofPublicKey: bytesToHex(AUTHORIZATION.token.proofPublicKey),
+            },
+          },
           requestId: 'req-1',
-          pkE: PK_E,
+          pkE: bytesToHex(PK_E),
         },
       });
     });
@@ -232,6 +268,14 @@ describe('CubistEscrowProvider', () => {
       ['null', null],
       ['missing wrap object', { ...secretResponse, recoverySecret: 'x' }],
       ['missing ciphertext', { ...secretResponse, recoverySecret: {} }],
+      [
+        'ciphertext without a 0x prefix',
+        { ...secretResponse, recoverySecret: { ciphertext: 'cc' } },
+      ],
+      [
+        'non-hex ciphertext',
+        { ...secretResponse, recoverySecret: { ciphertext: '0xzz' } },
+      ],
       ['non-numeric version', { ...secretResponse, version: '1' }],
       ['fractional version', { ...secretResponse, version: 1.2 }],
       ['negative version', { ...secretResponse, version: -1 }],
@@ -431,7 +475,7 @@ async function signedReceipt(
     requestHash: MUTATION.requestHash,
     escrowId: 'cubist',
     version: MUTATION.newVersion,
-    receiptKeyId: await wrapKeyId(receiptKey.publicKey),
+    receiptKeyId: await receiptKeyId(receiptKey.publicKey),
     ...patch,
   };
   return {

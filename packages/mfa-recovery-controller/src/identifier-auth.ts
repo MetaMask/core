@@ -66,7 +66,7 @@ export async function requestKeyBoundIdentifierToken({
   requestHash: string;
   identifierAuthProvider: RecoveryIdentifierAuthProvider;
 }): Promise<KeyBoundCredential> {
-  const proofKey = generateSigningKey();
+  const proofKey = await generateSigningKey();
   const token = await identifierAuthProvider.getKeyBoundIdentifierToken({
     identifier,
     proofPublicKey: proofKey.publicKey,

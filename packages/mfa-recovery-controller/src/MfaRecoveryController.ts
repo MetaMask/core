@@ -5,14 +5,13 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { bytesToHex } from '@metamask/utils';
+import { bytesToHex, hexToBytes } from '@metamask/utils';
 
 import { decodeAuthControllerToken } from './auth-controller-token.js';
 import {
-  decodeHex,
   decryptFromPublic,
   encryptToPublic,
-  generateSigningKey,
+  generateWrapKey,
   hash,
   randomId,
   unixNow,
@@ -46,7 +45,6 @@ import {
 import { assertAbortAllowed, getRecoveryPhase } from './state-machine.js';
 import type {
   AuthorizingPendingOperation,
-  EcPublicJwk,
   Identifier,
   IdentifierSession,
   Mutation,
@@ -335,8 +333,8 @@ export class MfaRecoveryController extends BaseController<
   ): Promise<IdentifierSession> {
     this.#assertKnownIdentifierTypes([identifier]);
     const requestId = randomId();
-    const ephemeral = generateSigningKey();
-    const pkE = JSON.parse(ephemeral.publicKey) as EcPublicJwk;
+    const ephemeral = await generateWrapKey();
+    const pkE = ephemeral.publicKey;
     const requestHash = await hash({
       operation: 'getRecoverySecret',
       requestId,
@@ -745,7 +743,7 @@ export class MfaRecoveryController extends BaseController<
       };
     }
     const recoverySecret = await this.#wrapRecoverySecret(
-      decodeHex(payload.recoverySecret),
+      hexToBytes(payload.recoverySecret),
       escrow.wrapPublicKey,
     );
     if (pendingPayloadHasIdentifiers(payload)) {
@@ -797,11 +795,11 @@ export class MfaRecoveryController extends BaseController<
 
   async #wrapRecoverySecret(
     plaintext: Uint8Array,
-    wrapPublicKey: string,
+    wrapPublicKey: Uint8Array,
   ): Promise<WrappedSecret> {
-    const ephemeral = generateSigningKey();
+    const ephemeral = await generateWrapKey();
     return {
-      pkE: JSON.parse(ephemeral.publicKey) as EcPublicJwk,
+      pkE: ephemeral.publicKey,
       ciphertext: await encryptToPublic(
         ephemeral.privateKey,
         wrapPublicKey,

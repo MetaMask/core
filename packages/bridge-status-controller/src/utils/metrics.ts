@@ -326,7 +326,7 @@ export const getPreConfirmationPropertiesFromQuote = (
   batchSellTrades?: BatchSellTradesResponse | null,
   batchId?: Hex,
   quotesReceivedContext?: RequiredEventContextFromClient[UnifiedSwapBridgeEventName.QuotesReceived],
-) => {
+): RequiredEventContextFromClient[UnifiedSwapBridgeEventName.Submitted] => {
   const { quote } = quoteResponse;
   return {
     ...getPriceImpactFromQuote(quote),

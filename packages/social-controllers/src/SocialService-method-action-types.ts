@@ -132,8 +132,13 @@ export type SocialServiceFetchPositionByIdAction = {
  * `pagination.newerCursor` as `newerThan` to fetch newer items.
  *
  * @param options - Options bag.
- * @param options.scope - `following` (default) or `leaderboard`.
+ * @param options.scope - `following` (default), `leaderboard`, `all`, or
+ * `trending`.
  * @param options.chains - Filter by one or more chains.
+ * @param options.assetIds - Only items in any of these CAIP-19 assets. Invalid
+ * or unsupported asset ids are rejected with a 400.
+ * @param options.profileId - Only this trader's items.
+ * @param options.commentedOnly - When true, only items with an author comment.
  * @param options.limit - Number of results per page.
  * @param options.olderThan - Cursor for older items (scroll down).
  * @param options.newerThan - Cursor for newer items (refresh).
@@ -253,6 +258,25 @@ export type SocialServiceRemoveCommentReactionAction = {
 export type SocialServiceCreateSwapCommentAction = {
   type: `SocialService:createSwapComment`;
   handler: SocialService['createSwapComment'];
+};
+
+/**
+ * Requests a translation of a swap comment (Call).
+ *
+ * Calls `POST ${baseUrl}/swap-comment/${commentId}/translate`. social-api
+ * does not expose this route yet, so a missing route rejects with
+ * {@link SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}.
+ * `SocialController.translateComment` logs that case.
+ *
+ * @param options - Options bag.
+ * @param options.commentId - `authorComment.uid` from a feed item.
+ * @param options.targetLanguage - AWS language code to translate into, for
+ * example `en`.
+ * @returns The detected source language and stored translations.
+ */
+export type SocialServiceTranslateCommentAction = {
+  type: `SocialService:translateComment`;
+  handler: SocialService['translateComment'];
 };
 
 /**
@@ -456,6 +480,7 @@ export type SocialServiceMethodActions =
   | SocialServiceReactToCommentAction
   | SocialServiceRemoveCommentReactionAction
   | SocialServiceCreateSwapCommentAction
+  | SocialServiceTranslateCommentAction
   | SocialServiceCreateCopyTradeIntentAction
   | SocialServiceFetchFollowingAction
   | SocialServiceFetchMyFollowingAction

@@ -1,24 +1,29 @@
+import type { KeyPair } from '@metamask/cryptography';
 import { getRandomBytes } from '@metamask/cryptography';
+import { decrypt, encrypt, IV_LENGTH } from '@metamask/cryptography/aes-gcm';
+import {
+  generateKeyPair as generateEd25519KeyPair,
+  sign as ed25519Sign,
+  verify as ed25519Verify,
+} from '@metamask/cryptography/ed25519';
 import { hkdfSha256 } from '@metamask/cryptography/hkdf';
 import { sha256 } from '@metamask/cryptography/sha';
 import {
+  generateKeyPair as generateX25519KeyPair,
+  getSharedSecret,
+} from '@metamask/cryptography/x25519';
+import {
   base64ToBytes,
-  bytesToBase64,
   bytesToHex,
   concatBytes,
   hexToBytes,
   stringToBytes,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { chacha20poly1305 } from '@noble/ciphers/chacha';
-import { p256 } from '@noble/curves/nist';
 import stableStringify from 'json-stable-stringify';
 
-import type { EcPublicJwk } from './types.js';
-
 const WRAP_INFO = new TextEncoder().encode('escrow-wrap-v1');
-const CHACHA_KEY_LEN = 32;
-const CHACHA_NONCE_LEN = 12;
+const WRAP_KEY_LEN = 32;
 
 /**
  * Recursively sorts object keys so hashes are independent of property order.
@@ -60,76 +65,63 @@ export function unixNow(): number {
 }
 
 /**
- * Generates an ephemeral ECDSA P-256 proof key pair for key-bound identifier PoP.
+ * Generates an ephemeral Ed25519 proof key pair for key-bound identifier PoP.
  *
- * @returns JWK-encoded public and private keys.
+ * @returns Raw 32-byte Ed25519 public and private keys.
  */
-export function generateSigningKey(): {
-  publicKey: string;
-  privateKey: string;
-} {
-  const privateKeyBytes = p256.utils.randomSecretKey();
-  const publicKeyBytes = p256.getPublicKey(privateKeyBytes, false);
-  const publicJwk = {
-    kty: 'EC',
-    crv: 'P-256',
-    x: toBase64Url(publicKeyBytes.slice(1, 33)),
-    y: toBase64Url(publicKeyBytes.slice(33, 65)),
-  };
-  return {
-    publicKey: JSON.stringify(publicJwk),
-    privateKey: JSON.stringify({
-      ...publicJwk,
-      d: toBase64Url(privateKeyBytes),
-    }),
-  };
+export async function generateSigningKey(): Promise<KeyPair> {
+  return await generateEd25519KeyPair();
 }
 
 /**
- * Signs a message with the ephemeral proof private key.
+ * Generates an X25519 wrap key pair.
  *
- * @param privateKey - JWK JSON private key.
- * @param message - Message string; hashed with SHA-256 before ECDSA.
- * @returns Compact IEEE P1363 hex signature (`r‖s`).
+ * @returns Raw 32-byte X25519 public and private keys.
  */
-export async function sign(privateKey: string, message: string): Promise<Hex> {
-  const jwk = JSON.parse(privateKey) as { d?: string };
-  if (typeof jwk.d !== 'string') {
-    throw new Error('Invalid P-256 private JWK');
-  }
+export async function generateWrapKey(): Promise<KeyPair> {
+  return await generateX25519KeyPair();
+}
+
+/**
+ * Signs a message with an Ed25519 private key.
+ *
+ * @param privateKey - Raw 32-byte Ed25519 private key.
+ * @param message - Message string; signed as its UTF-8 bytes without a
+ * pre-hash, since Ed25519 hashes internally.
+ * @returns 0x-prefixed hex of the 64-byte Ed25519 signature.
+ */
+export async function sign(
+  privateKey: Uint8Array,
+  message: string,
+): Promise<Hex> {
   return bytesToHex(
-    p256
-      .sign(await sha256(stringToBytes(message)), fromBase64Url(jwk.d))
-      .toBytes('compact'),
+    await ed25519Sign(
+      new Uint8Array(privateKey),
+      new Uint8Array(stringToBytes(message)),
+    ),
   );
 }
 
 /**
- * Verifies a P-256 signature against a public key.
+ * Verifies an Ed25519 signature against a public key. Never throws: malformed
+ * keys or signatures yield `false`.
  *
- * @param publicKey - JWK JSON public key.
- * @param signature - Compact IEEE P1363 hex signature.
- * @param message - Message string; hashed with SHA-256 before ECDSA.
+ * @param publicKey - Raw 32-byte Ed25519 public key.
+ * @param signature - Hex of the 64-byte signature, with or without a 0x prefix.
+ * @param message - Message string; verified as its UTF-8 bytes without a
+ * pre-hash.
  * @returns Whether the signature is valid.
  */
 export async function verifySignature(
-  publicKey: string,
+  publicKey: Uint8Array,
   signature: string,
   message: string,
 ): Promise<boolean> {
-  const jwk = JSON.parse(publicKey) as { x?: string; y?: string };
-  if (typeof jwk.x !== 'string' || typeof jwk.y !== 'string') {
-    return false;
-  }
   try {
-    return p256.verify(
-      hexToBytes(signature),
-      await sha256(stringToBytes(message)),
-      concatBytes([
-        new Uint8Array([0x04]),
-        fromBase64Url(jwk.x),
-        fromBase64Url(jwk.y),
-      ]),
+    return await ed25519Verify(
+      new Uint8Array(publicKey),
+      new Uint8Array(hexToBytes(signature)),
+      new Uint8Array(stringToBytes(message)),
     );
   } catch {
     return false;
@@ -143,7 +135,7 @@ export async function verifySignature(
  * @param receipt - Receipt fields covered by the signature.
  * @param receipt.escrowId - Escrow that issued the receipt.
  * @param receipt.mutationId - Mutation id.
- * @param receipt.receiptKeyId - SHA-256 of the uncompressed receipt public key.
+ * @param receipt.receiptKeyId - SHA-256 of the raw 32-byte Ed25519 receipt public key.
  * @param receipt.requestHash - Mutation request hash.
  * @param receipt.version - Applied version.
  * @returns Hex digest.
@@ -165,123 +157,78 @@ export async function hashMutationReceipt(receipt: {
 }
 
 /**
- * Decodes hex that may or may not have a `0x` prefix.
+ * SHA-256 of the raw 32-byte X25519 wrap public key, as `0x` hex.
  *
- * @param hexString - Hex string.
- * @returns Raw bytes.
- */
-export function decodeHex(hexString: string): Uint8Array {
-  return hexToBytes(hexString.startsWith('0x') ? hexString : `0x${hexString}`);
-}
-
-/**
- * SHA-256 of the uncompressed P-256 wrap public key, as `0x` hex.
- *
- * @param wrapPublicKey - Wrap public JWK JSON.
+ * @param wrapPublicKey - Raw 32-byte X25519 wrap public key.
  * @returns Key id matching cubist `wrapKeyId`.
  */
-export async function wrapKeyId(wrapPublicKey: string): Promise<Hex> {
-  return bytesToHex(
-    await sha256(new Uint8Array(publicKeyBytesFromJwk(wrapPublicKey))),
-  );
+export async function wrapKeyId(wrapPublicKey: Uint8Array): Promise<Hex> {
+  return bytesToHex(await sha256(new Uint8Array(wrapPublicKey)));
 }
 
 /**
- * Encrypts plaintext to a P-256 public key using escrow-wrap-v1.
+ * SHA-256 of the raw 32-byte Ed25519 receipt public key, as `0x` hex.
  *
- * @param privateKey - Sender P-256 private JWK JSON.
- * @param publicKey - Recipient P-256 public JWK JSON.
+ * @param receiptPublicKey - Raw 32-byte Ed25519 receipt public key.
+ * @returns Key id matching cubist `receiptKeyId`.
+ */
+export async function receiptKeyId(receiptPublicKey: Uint8Array): Promise<Hex> {
+  return bytesToHex(await sha256(new Uint8Array(receiptPublicKey)));
+}
+
+/**
+ * Encrypts plaintext to an X25519 public key using escrow-wrap-v1.
+ *
+ * @param privateKey - Sender raw 32-byte X25519 private key.
+ * @param publicKey - Recipient raw 32-byte X25519 public key.
  * @param plaintext - Bytes to encrypt.
- * @returns Unprefixed hex of `nonce || ciphertext+tag`.
+ * @returns `iv || ciphertext+tag` bytes.
  */
 export async function encryptToPublic(
-  privateKey: string,
-  publicKey: string,
+  privateKey: Uint8Array,
+  publicKey: Uint8Array,
   plaintext: Uint8Array,
-): Promise<string> {
+): Promise<Uint8Array> {
   const key = await deriveTransportKey(privateKey, publicKey);
-  const nonce = getRandomBytes(CHACHA_NONCE_LEN);
-  const ciphertext = chacha20poly1305(key, nonce).encrypt(plaintext);
-  return bytesToHex(concatBytes([nonce, ciphertext])).slice(2);
+  const { iv, ciphertext } = await encrypt(key, new Uint8Array(plaintext));
+  return concatBytes([iv, ciphertext]);
 }
 
 /**
  * Decrypts escrow-wrap-v1 ciphertext produced by {@link encryptToPublic}.
  *
- * @param privateKey - Recipient P-256 private JWK JSON.
- * @param publicKey - Sender P-256 public JWK JSON.
- * @param ciphertextHex - Unprefixed or `0x` hex of `nonce || ciphertext+tag`.
+ * @param privateKey - Recipient raw 32-byte X25519 private key.
+ * @param publicKey - Sender raw 32-byte X25519 public key.
+ * @param ciphertext - `iv || ciphertext+tag` bytes.
  * @returns Plaintext bytes.
  */
 export async function decryptFromPublic(
-  privateKey: string,
-  publicKey: string,
-  ciphertextHex: string,
+  privateKey: Uint8Array,
+  publicKey: Uint8Array,
+  ciphertext: Uint8Array,
 ): Promise<Uint8Array> {
   const key = await deriveTransportKey(privateKey, publicKey);
-  const blob = decodeHex(ciphertextHex);
-  if (blob.length < CHACHA_NONCE_LEN) {
+  const blob = new Uint8Array(ciphertext);
+  if (blob.length < IV_LENGTH) {
     throw new Error('Wrapped secret is truncated');
   }
-  return chacha20poly1305(key, blob.subarray(0, CHACHA_NONCE_LEN)).decrypt(
-    blob.subarray(CHACHA_NONCE_LEN),
-  );
+  return decrypt(key, blob.subarray(0, IV_LENGTH), blob.subarray(IV_LENGTH));
 }
 
 async function deriveTransportKey(
-  privateKey: string,
-  publicKey: string,
-): Promise<Uint8Array> {
-  const privateBytes = privateKeyBytesFromJwk(privateKey);
-  const publicBytes = publicKeyBytesFromJwk(publicKey);
-  const shared = p256.getSharedSecret(privateBytes, publicBytes);
-  // noble returns a compressed point (33 bytes). Cubist uses the 32-byte x-coordinate.
-  const ikm = shared.slice(1, 33);
-  // An empty salt is equivalent to the previous `undefined` salt: HMAC zero-pads
-  // the key to the block size either way, so derived keys are unchanged.
-  return hkdfSha256(ikm, new Uint8Array(0), WRAP_INFO, CHACHA_KEY_LEN);
-}
-
-function privateKeyBytesFromJwk(privateKey: string): Uint8Array {
-  const jwk = JSON.parse(privateKey) as { d?: string };
-  if (typeof jwk.d !== 'string') {
-    throw new Error('Invalid P-256 private JWK');
-  }
-  return fromBase64Url(jwk.d);
-}
-
-function publicKeyBytesFromJwk(publicKey: string): Uint8Array {
-  const jwk = JSON.parse(publicKey) as EcPublicJwk;
-  if (
-    jwk.kty !== 'EC' ||
-    jwk.crv !== 'P-256' ||
-    typeof jwk.x !== 'string' ||
-    typeof jwk.y !== 'string'
-  ) {
-    throw new Error('Invalid P-256 public JWK');
-  }
-  return concatBytes([
-    new Uint8Array([0x04]),
-    fromBase64Url(jwk.x),
-    fromBase64Url(jwk.y),
-  ]);
+  privateKey: Uint8Array,
+  publicKey: Uint8Array,
+): Promise<Uint8Array<ArrayBuffer>> {
+  // WebCrypto rejects the all-zero shared secret of a low-order public key.
+  const shared = await getSharedSecret(
+    new Uint8Array(privateKey),
+    new Uint8Array(publicKey),
+  );
+  return hkdfSha256(shared, new Uint8Array(0), WRAP_INFO, WRAP_KEY_LEN);
 }
 
 /**
- * Encodes bytes as unpadded base64url (JWK coordinate format).
- *
- * @param bytes - Raw coordinate or scalar.
- * @returns Base64url string.
- */
-function toBase64Url(bytes: Uint8Array): string {
-  return bytesToBase64(bytes)
-    .replace(/\+/gu, '-')
-    .replace(/\//gu, '_')
-    .replace(/[=]+$/u, '');
-}
-
-/**
- * Decodes unpadded base64url, as used by JWK coordinates and JWT segments.
+ * Decodes unpadded base64url, as used by JWT segments.
  *
  * @param value - Base64url string.
  * @returns Raw bytes.

@@ -1,5 +1,6 @@
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service.js';
 import { NetworkClientType } from '../../src/types.js';
@@ -197,7 +198,7 @@ export function testsForRpcMethodSupportingBlockParam(
             const firstResult = await makeRpcCall(requests[0]);
             // Proceed to the next iteration of the block tracker so that a new
             // block is fetched and the current block is updated.
-            await jest.advanceTimersByTimeAsync(pollingInterval);
+            await vi.advanceTimersByTimeAsync(pollingInterval);
             await waitForTwoBlocks;
             const secondResult = await makeRpcCall(requests[1]);
             return [firstResult, secondResult];
@@ -347,7 +348,7 @@ export function testsForRpcMethodSupportingBlockParam(
             const firstResult = await resultPromises[0];
             // The inflight cache middleware uses setTimeout to run the
             // handlers, so run them now
-            jest.runAllTimers();
+            vi.runAllTimers();
             const remainingResults = await Promise.all(resultPromises.slice(1));
             return [firstResult, ...remainingResults];
           },
@@ -405,7 +406,6 @@ export function testsForRpcMethodSupportingBlockParam(
 
         if (providerType === NetworkClientType.Infura) {
           // This is not ideal, but we can refactor this later.
-          // eslint-disable-next-line jest/no-conditional-expect
           await expect(promise).rejects.toThrow(
             rpcErrors.internal({
               message: error.message,
@@ -414,7 +414,6 @@ export function testsForRpcMethodSupportingBlockParam(
           );
         } else {
           // This is not ideal, but we can refactor this later.
-          // eslint-disable-next-line jest/no-conditional-expect
           await expect(promise).rejects.toThrow(
             rpcErrors.internal({ data: error }),
           );
@@ -1155,7 +1154,7 @@ export function testsForRpcMethodSupportingBlockParam(
         // first block tracker request occurs because of the first RPC
         // request. The second block tracker request, however, does not
         // occur because of the second RPC request, but rather because we
-        // call `jest.runAllTimers()` below.
+        // call `vi.runAllTimers()` below.
         comms.mockNextBlockTrackerRequest({ blockNumber: '0x1' });
         comms.mockRpcCall({
           request: requests[0],
@@ -1173,7 +1172,7 @@ export function testsForRpcMethodSupportingBlockParam(
             const firstResult = await client.makeRpcCall(requests[0]);
             // Proceed to the next iteration of the block tracker so that a
             // new block is fetched and the current block is updated.
-            jest.runAllTimers();
+            vi.runAllTimers();
             const secondResult = await client.makeRpcCall(requests[1]);
             return [firstResult, secondResult];
           },

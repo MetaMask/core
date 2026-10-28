@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'vitest';
+
 import type { MarketDataFormatters } from '../../../src/types/index.js';
 import type {
   LighterApiOrder,
@@ -17,7 +19,7 @@ import {
   adaptPositionFromLighter,
 } from '../../../src/utils/lighterAdapter.js';
 
-// Built per-test (jest resetMocks wipes module-scope jest.fn implementations).
+// Built per-test (jest resetMocks wipes module-scope vi.fn implementations).
 const buildFormatters = (): MarketDataFormatters => ({
   formatPerpsFiat: (value: number) => `$${value.toFixed(2)}`,
   formatVolume: (value: number) => `$${value}`,
@@ -199,6 +201,19 @@ describe('lighterAdapter', () => {
       expect(adapted.providerId).toBe('lighter');
     });
 
+    it('returns returnOnEquity as a fraction of margin used, like Hyperliquid', () => {
+      // 20x ETH long: 161.4 notional at 5% initial margin = 8.07 margin.
+      const adapted = adaptPositionFromLighter({
+        ...position,
+        symbol: 'ETH',
+        initialMarginFraction: '5',
+        positionValue: '161.4',
+        unrealizedPnl: '-0.86',
+      });
+      expect(adapted.marginUsed).toBe('8.07');
+      expect(Number(adapted.returnOnEquity)).toBeCloseTo(-0.10657, 5);
+    });
+
     it('negates size for short positions', () => {
       const adapted = adaptPositionFromLighter({ ...position, sign: -1 });
       expect(adapted.size).toBe('-0.5');
@@ -262,6 +277,12 @@ describe('lighterAdapter', () => {
       expect(state.marginUsed).toBe('2000');
       expect(state.unrealizedPnl).toBe('500');
       expect(state.providerId).toBe('lighter');
+    });
+
+    it('returns account returnOnEquity in percent, like Hyperliquid account state', () => {
+      // 500 PnL on 2000 margin used. Hyperliquid's AccountState reports 25.
+      const state = adaptAccountStateFromLighter(account);
+      expect(state.returnOnEquity).toBe('25');
     });
 
     it('handles accounts with no positions', () => {

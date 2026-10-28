@@ -96,7 +96,7 @@ to finish that write.
 
 Updates and reads prove control of a registered identifier:
 
-1. The controller generates a P-256 proof key and requests an identifier token
+1. The controller generates an Ed25519 proof key and requests an identifier token
    binding `hash([proofPublicKey, requestHash])`: the SIWE nonce or WebAuthn challenge.
 2. The proof key signs `hash([token, challenge.id, requestHash])` for each escrow.
    The controller sends the approval and `{ kind: 'key-bound', token, proof }`

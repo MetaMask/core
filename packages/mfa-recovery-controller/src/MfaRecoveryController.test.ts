@@ -15,7 +15,12 @@ import {
   createAuthControllerToken,
   passthroughEncryptor,
 } from '../tests/stubs.js';
-import { generateSigningKey, hash, unixNow } from './crypto.js';
+import {
+  generateSigningKey,
+  generateWrapKey,
+  hash,
+  unixNow,
+} from './crypto.js';
 import { IncompleteMutationError, MutationRejectedError } from './errors.js';
 import type {
   MfaRecoveryControllerMessenger,
@@ -77,8 +82,10 @@ describe('MfaRecoveryController', () => {
       ).toThrow('At least one escrow is required');
     });
 
-    it('throws if escrow ids are duplicated', () => {
+    it('throws if escrow ids are duplicated', async () => {
       const rootMessenger = getRootMessenger();
+      const wrapKey = await generateWrapKey();
+      const receiptKey = await generateSigningKey();
       expect(
         () =>
           new MfaRecoveryController({
@@ -86,8 +93,8 @@ describe('MfaRecoveryController', () => {
             authProvider: new StubAuthProvider(),
             identifierAuthProvider: new StubIdentifierAuthProvider(),
             escrows: [
-              new StubEscrowProvider('escrow-a'),
-              new StubEscrowProvider('escrow-a'),
+              new StubEscrowProvider('escrow-a', wrapKey, receiptKey),
+              new StubEscrowProvider('escrow-a', wrapKey, receiptKey),
             ],
             pendingOperationEncryptor: passthroughEncryptor,
           }),
@@ -263,11 +270,19 @@ describe('MfaRecoveryController', () => {
     });
 
     it('does not write when an escrow wrap key is invalid', async () => {
-      const escrowA = new StubEscrowProvider('escrow-a');
-      const escrowB = new StubEscrowProvider('escrow-b', {
-        publicKey: '{}',
-        privateKey: '{}',
-      });
+      const escrowA = new StubEscrowProvider(
+        'escrow-a',
+        await generateWrapKey(),
+        await generateSigningKey(),
+      );
+      const escrowB = new StubEscrowProvider(
+        'escrow-b',
+        {
+          publicKey: new Uint8Array(0),
+          privateKey: new Uint8Array(0),
+        },
+        await generateSigningKey(),
+      );
       const applyA = vi.spyOn(escrowA, 'applyMutation');
       const applyB = vi.spyOn(escrowB, 'applyMutation');
       const controller = new MfaRecoveryController({
@@ -276,7 +291,7 @@ describe('MfaRecoveryController', () => {
       });
 
       await expect(controller.register(SECRET, IDENTIFIERS)).rejects.toThrow(
-        'Invalid P-256 public JWK',
+        'Invalid public key length: Public key must be exactly 32 bytes for X25519.',
       );
 
       expect(applyA).not.toHaveBeenCalled();
@@ -327,10 +342,11 @@ describe('MfaRecoveryController', () => {
           session: Awaited<
             ReturnType<MfaRecoveryController['authenticateIdentifier']>
           >,
-        ): IdentifierSession => ({
-          ...session,
-          pkE: { ...session.pkE, x: `${session.pkE.x}-tampered` },
-        }),
+        ): IdentifierSession => {
+          const pkE = new Uint8Array(session.pkE);
+          pkE[0] = (pkE[0] + 1) % 256;
+          return { ...session, pkE };
+        },
       },
     ])('rejects a tampered $name', async ({ update }) => {
       await withController(async ({ controller }) => {
@@ -476,7 +492,7 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ controller, escrowA }) => {
         await controller.register(SECRET, IDENTIFIERS);
         vi.spyOn(escrowA, 'getSecret').mockResolvedValue({
-          recoverySecret: { ciphertext: 'aa' },
+          recoverySecret: { ciphertext: new Uint8Array([0xaa]) },
           version: 1,
           lastMutationId: '0x',
           wrapKeyId: '0xdead',
@@ -1865,12 +1881,14 @@ async function withController<ReturnValue>(
   const replicaIds = ['escrow-a', 'escrow-b'];
   const escrowA = new StubEscrowProvider(
     'escrow-a',
-    generateSigningKey(),
+    await generateWrapKey(),
+    await generateSigningKey(),
     replicaIds,
   );
   const escrowB = new StubEscrowProvider(
     'escrow-b',
-    generateSigningKey(),
+    await generateWrapKey(),
+    await generateSigningKey(),
     replicaIds,
   );
   const options = {

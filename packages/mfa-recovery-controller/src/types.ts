@@ -22,7 +22,10 @@ export type IdentifierAuthMode = 'key-bound';
 
 export type KeyBoundIdentifierToken = {
   identifier: Identifier;
-  proofPublicKey: string;
+  /**
+   * Raw 32-byte Ed25519 public key of the ephemeral proof key.
+   */
+  proofPublicKey: Uint8Array;
   requestHash: string;
   providerAssertion: unknown;
 };
@@ -76,21 +79,10 @@ export type MutationReceipt = {
   escrowId: string;
   version: number;
   /**
-   * SHA-256 of the uncompressed receipt public key, as `0x` hex.
+   * SHA-256 of the raw 32-byte Ed25519 receipt public key, as `0x` hex.
    */
   receiptKeyId: string;
   signature: string;
-};
-
-/**
- * P-256 public JWK for the client's ephemeral key (`pkE`). The escrow wrap
- * key is a different key.
- */
-export type EcPublicJwk = {
-  kty: 'EC';
-  crv: 'P-256';
-  x: string;
-  y: string;
 };
 
 /**
@@ -99,7 +91,10 @@ export type EcPublicJwk = {
  */
 export type KeyBoundCredential = {
   token: KeyBoundIdentifierToken;
-  proofPrivateKey: string;
+  /**
+   * Raw 32-byte Ed25519 private key of the ephemeral proof key.
+   */
+  proofPrivateKey: Uint8Array;
 };
 
 /**
@@ -112,21 +107,35 @@ export type KeyBoundCredential = {
  */
 export type IdentifierSession = KeyBoundCredential & {
   requestId: string;
-  ephemeralPrivateKey: string;
-  pkE: EcPublicJwk;
+  /**
+   * Raw 32-byte X25519 private key matching `pkE`.
+   */
+  ephemeralPrivateKey: Uint8Array;
+  /**
+   * Raw 32-byte X25519 public key, the client's one-time read key.
+   */
+  pkE: Uint8Array;
 };
 
 /**
  * Recovery secret wrapped to one escrow wrap key for transit.
- * `ciphertext` is unprefixed hex of `nonce || ChaCha20-Poly1305(ciphertext+tag)`.
  */
 export type WrappedSecret = {
-  pkE: EcPublicJwk;
-  ciphertext: string;
+  /**
+   * Raw 32-byte X25519 public key of the sender's ephemeral key.
+   */
+  pkE: Uint8Array;
+  /**
+   * Raw bytes of `iv || AES-256-GCM(ciphertext+tag)`.
+   */
+  ciphertext: Uint8Array;
 };
 
 export type WrappedSecretOutput = {
-  ciphertext: string;
+  /**
+   * Raw bytes of `iv || AES-256-GCM(ciphertext+tag)`.
+   */
+  ciphertext: Uint8Array;
 };
 
 export type RegisterPayload = {
@@ -259,7 +268,10 @@ export type RecoveryAuthProvider = {
 export type RecoveryIdentifierAuthProvider = {
   getKeyBoundIdentifierToken: (params: {
     identifier: Identifier;
-    proofPublicKey: string;
+    /**
+     * Raw 32-byte Ed25519 public key to bind into the token.
+     */
+    proofPublicKey: Uint8Array;
     requestHash: string;
   }) => Promise<KeyBoundIdentifierToken>;
 };
@@ -275,18 +287,18 @@ export type RecoveryEscrowProvider = {
    */
   readonly authAudience: string;
   /**
-   * P-256 wrap public JWK JSON. Mutation payloads are encrypted to this key;
-   * `getSecret` responses are encrypted to the request's ephemeral key using
-   * the corresponding wrap private key.
+   * Raw 32-byte X25519 wrap public key. Mutation payloads are encrypted to this
+   * key; `getSecret` responses are encrypted to the request's ephemeral key
+   * using the corresponding wrap private key.
    */
-  readonly wrapPublicKey: string;
+  readonly wrapPublicKey: Uint8Array;
   isAvailable: () => Promise<boolean>;
   generateChallenge: () => Promise<PoPChallenge>;
   getSecret: (
     authControllerToken: AuthControllerToken,
     authorization: IdentifierAuthorization,
     requestId: string,
-    pkE: EcPublicJwk,
+    pkE: Uint8Array,
   ) => Promise<GetRecoverySecretResponse>;
   applyMutation: (
     mutation: Mutation,

@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import {
   LighterChaseService,
   toLighterChaseOrder,
@@ -10,10 +12,10 @@ import type {
 import type { LighterChaseChildObservation } from '../../../src/utils/lighterChase.js';
 
 // Vary policy in this isolated module to prove conversion units are independent.
-jest.mock('../../../src/constants/lighterConfig', () => ({
-  ...jest.requireActual<
+vi.mock('../../../src/constants/lighterConfig', async (importOriginal) => ({
+  ...(await importOriginal<
     typeof import('../../../src/constants/lighterConfig.js')
-  >('../../../src/constants/lighterConfig'),
+  >()),
   LIGHTER_CHASE_MAX_DISTANCE_BPS: 5000,
 }));
 
@@ -70,7 +72,7 @@ function fixture(isBuy: boolean): UnitFixture {
       return String(id);
     },
     quote: async () => quote,
-    place: jest.fn(async (child, hooks) => {
+    place: vi.fn<LighterChaseIo['place']>(async (child, hooks) => {
       await hooks.signed({
         nonce: id,
         txHash: 'aabbccdd',
@@ -85,7 +87,7 @@ function fixture(isBuy: boolean): UnitFixture {
         remainingSize: child.size,
       });
     }),
-    cancel: jest.fn(async (child, hooks) => {
+    cancel: vi.fn<LighterChaseIo['cancel']>(async (child, hooks) => {
       id += 1;
       await hooks.signed({
         nonce: id,

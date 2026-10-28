@@ -52,13 +52,18 @@ yet (MFA-605 / MFA-606 / MFA-568).
 `register` and `updateIdentifiers` require at least two **distinct**
 identifiers (by `type` + `namespace` + `value`).
 
-Recovery secrets are wrapped in transit with escrow-wrap-v1: P-256 ECDH (x
-coordinate), HKDF-SHA256, ChaCha20-Poly1305; ciphertext is hex of
-`nonce || ciphertext+tag`. Pending state stores the secret as 0x-hex;
-`payloadHash` is the hash of that pending payload. At apply, each escrow gets
-`{ pkE, ciphertext }` wrapped to its own `wrapPublicKey` with a fresh
-ephemeral key. Reads bind the client's ephemeral `pkE` into the `getSecret`
-request hash, and the escrow wraps its response to `pkE`.
+Recovery secrets are wrapped in transit with X25519 ECDH, HKDF-SHA256 (empty
+salt, info `escrow-wrap-v1`), and AES-256-GCM. The ciphertext is the raw bytes
+`iv || ciphertext+tag`. Wrap keys and `pkE` are raw 32-byte X25519 public keys,
+and `wrapKeyId` is the SHA-256 of the raw 32-byte public key. Proof keys and
+receipt keys are raw 32-byte Ed25519 public keys, and `receiptKeyId` is the
+SHA-256 of the raw 32-byte Ed25519 public key. Pending state stores the secret
+as 0x-hex; `payloadHash` is the hash of that pending payload. At apply, each
+escrow gets `{ pkE, ciphertext }` wrapped to its own `wrapPublicKey` with a
+fresh ephemeral key. Reads bind the client's ephemeral `pkE` into the
+`getSecret` request hash, and the escrow wraps its response to `pkE`. On the
+Cubist wire, byte fields are 0x-prefixed hex, and the hash of a request
+matches the hash computed over its hex-encoded form.
 
 Public surface (all exposed as messenger actions): `register`,
 `updateRecoverySecret`, `updateIdentifiers`, `authenticateIdentifier`,
@@ -214,7 +219,7 @@ before `register`.
 `applyMutation` becomes `MutationRejectedError`; any other failure is
 `escrow_request_failed` / `escrow_response_invalid`. `verifyReceipt` checks
 the mutation id, request hash, escrow id, `version === newVersion`,
-`receiptKeyId` (SHA-256 of the pinned receipt key), and the ECDSA signature
+`receiptKeyId` (SHA-256 of the pinned receipt key), and the Ed25519 signature
 locally.
 
 For a single-escrow walkthrough, see [Cubist test sequence](CUBIST_TEST_SEQUENCE.md).

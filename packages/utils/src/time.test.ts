@@ -1,3 +1,5 @@
+import { describe, expect, it, vi } from 'vitest';
+
 import { Duration, inMilliseconds, timeSince } from './index.js';
 
 describe('time utilities', () => {
@@ -50,7 +52,7 @@ describe('time utilities', () => {
 
     it('computes the elapsed time', () => {
       // Set the "current time" to "10".
-      jest.spyOn(Date, 'now').mockImplementation(() => 10);
+      vi.spyOn(Date, 'now').mockImplementation(() => 10);
 
       [
         [10, 0],

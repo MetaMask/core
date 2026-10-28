@@ -7,7 +7,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import { bytesToHex } from '@metamask/utils';
+import { bytesToHex, hexToBytes } from '@metamask/utils';
 import { randomBytes } from 'node:crypto';
 
 import { CubistEscrowProvider } from '../src/escrow-providers/cubist-escrow-provider.js';
@@ -25,12 +25,14 @@ import {
  *
  * Usage:
  *   yarn workspace @metamask/mfa-recovery-controller run cubesigner:register -- \
- *     --wrap-key '<p256-jwk-json>' \
- *     --receipt-key '<p256-jwk-json>' --auth-audience '<audience>' \
+ *     --wrap-key <x25519-public-key-hex> \
+ *     --receipt-key <ed25519-public-key-hex> --auth-audience <audience> \
  *     [--function-id <name-or-id>] [--version latest|v0]
+ *
+ * Keys are raw 32-byte public keys, hex-encoded.
  */
 const USAGE =
-  'Usage: cubesigner:register --wrap-key <p256-jwk-json> --receipt-key <p256-jwk-json> --auth-audience <audience> [--function-id <name-or-id>] [--version latest|v0]';
+  'Usage: cubesigner:register --wrap-key <x25519-public-key-hex> --receipt-key <ed25519-public-key-hex> --auth-audience <audience> [--function-id <name-or-id>] [--version latest|v0]';
 
 const PASSKEY: Identifier = {
   type: 'passkey',
@@ -121,8 +123,8 @@ async function main(flags: Record<string, string>): Promise<void> {
   const escrow = new CubistEscrowProvider({
     client,
     authAudience,
-    wrapPublicKey,
-    receiptPublicKey,
+    wrapPublicKey: hexToBytes(wrapPublicKey),
+    receiptPublicKey: hexToBytes(receiptPublicKey),
     ...(flags['function-id'] === undefined
       ? {}
       : { functionId: flags['function-id'] }),

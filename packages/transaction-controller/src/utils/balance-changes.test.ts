@@ -4,6 +4,7 @@ import { toHex } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { simulateTransactions } from '../api/simulation-api.js';
 import type {
@@ -22,10 +23,10 @@ import type { GetBalanceChangesRequest } from './balance-changes.js';
 import { getBalanceChanges, SupportedToken } from './balance-changes.js';
 import { rpcRequest } from './provider.js';
 
-jest.mock('../api/simulation-api');
+vi.mock('../api/simulation-api');
 
-jest.mock('./provider', () => ({
-  rpcRequest: jest.fn(),
+vi.mock('./provider', () => ({
+  rpcRequest: vi.fn(),
 }));
 
 // Utility function to encode addresses and values to 32-byte ABI format
@@ -66,7 +67,7 @@ const REQUEST_MOCK: GetBalanceChangesRequest = {
   chainId: '0x1',
   messenger: MESSENGER_MOCK,
   networkClientId: NETWORK_CLIENT_ID_MOCK,
-  getSimulationConfig: jest.fn(),
+  getSimulationConfig: vi.fn(),
   txParams: {
     data: '0x123',
     from: USER_ADDRESS_MOCK,
@@ -270,7 +271,7 @@ function mockParseLog({
   erc20Wrapped?: LogDescription;
   erc721Legacy?: LogDescription;
 }): void {
-  const parseLogMock = jest.spyOn(Interface.prototype, 'parseLog');
+  const parseLogMock = vi.spyOn(Interface.prototype, 'parseLog');
 
   for (const value of [erc20, erc721, erc1155, erc20Wrapped, erc721Legacy]) {
     if (value) {
@@ -285,12 +286,12 @@ function mockParseLog({
 }
 
 describe('Balance Change Utils', () => {
-  const simulateTransactionsMock = jest.mocked(simulateTransactions);
-  const rpcRequestMock = jest.mocked(rpcRequest);
+  const simulateTransactionsMock = vi.mocked(simulateTransactions);
+  const rpcRequestMock = vi.mocked(rpcRequest);
 
   beforeEach(() => {
-    jest.resetAllMocks();
-    jest.spyOn(Interface.prototype, 'encodeFunctionData').mockReturnValue('');
+    vi.resetAllMocks();
+    vi.spyOn(Interface.prototype, 'encodeFunctionData').mockReturnValue('');
     rpcRequestMock.mockResolvedValue('0xFFFFFFFFFFFF');
   });
 
@@ -1990,7 +1991,7 @@ describe('Balance Change Utils', () => {
     });
 
     it('forwards simulation config', async () => {
-      const getSimulationConfigMock: GetSimulationConfig = jest.fn();
+      const getSimulationConfigMock: GetSimulationConfig = vi.fn();
 
       const request = {
         ...REQUEST_MOCK,

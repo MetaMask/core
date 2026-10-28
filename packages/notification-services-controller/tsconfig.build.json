@@ -7,6 +7,9 @@
   },
   "references": [
     {
+      "path": "../analytics-controller/tsconfig.build.json"
+    },
+    {
       "path": "../authenticated-user-storage/tsconfig.build.json"
     },
     {
@@ -29,10 +32,5 @@
     }
   ],
   "include": ["../../types", "./src"],
-  "exclude": [
-    "./jest.config.packages.ts",
-    "**/*.test.ts",
-    "**/jest.config.ts",
-    "**/__fixtures__/"
-  ]
+  "exclude": ["**/*.test.ts", "**/__fixtures__/"]
 }

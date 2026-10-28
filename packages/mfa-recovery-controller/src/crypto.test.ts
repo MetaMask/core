@@ -1,14 +1,15 @@
-import { bytesToHex } from '@metamask/utils';
+import { bytesToHex, hexToBytes } from '@metamask/utils';
 import { describe, expect, it } from 'vitest';
 
 import {
   canonicalize,
-  decodeHex,
   decryptFromPublic,
   encryptToPublic,
   generateSigningKey,
+  generateWrapKey,
   hash,
   hashMutationReceipt,
+  receiptKeyId,
   sign,
   unixNow,
   verifySignature,
@@ -48,28 +49,40 @@ describe('crypto', () => {
     expect(await hash({ b: 1, a: 2 })).toBe(await hash({ a: 2, b: 1 }));
   });
 
-  it('decodes hex with or without a 0x prefix', () => {
+  it('hashes bytes the same as their 0x-prefixed hex encoding', async () => {
     const bytes = new Uint8Array([255, 0, 16]);
-    const encoded = bytesToHex(bytes);
-    expect(decodeHex(encoded.slice(2))).toStrictEqual(bytes);
-    expect(decodeHex(encoded)).toStrictEqual(bytes);
+    expect(await hash({ a: bytes })).toBe(await hash({ a: bytesToHex(bytes) }));
   });
 
-  it('round-trips a P-256 proof signature', async () => {
-    const key = generateSigningKey();
+  it('round-trips an Ed25519 proof signature', async () => {
+    const key = await generateSigningKey();
     const signature = await sign(key.privateKey, 'hello');
 
     expect(await verifySignature(key.publicKey, signature, 'hello')).toBe(true);
     expect(await verifySignature(key.publicKey, signature, 'other')).toBe(
       false,
     );
+  });
+
+  it('returns false for malformed verification inputs instead of throwing', async () => {
+    const key = await generateSigningKey();
+    const signature = await sign(key.privateKey, 'hello');
+
     expect(await verifySignature(key.publicKey, '0x00', 'hello')).toBe(false);
     expect(await verifySignature(key.publicKey, 'not-hex', 'hello')).toBe(
       false,
     );
-    expect(await verifySignature('{}', signature, 'hello')).toBe(false);
-    await expect(sign('{}', 'hello')).rejects.toThrow(
-      'Invalid P-256 private JWK',
+    expect(
+      await verifySignature(key.publicKey, signature.slice(0, -2), 'hello'),
+    ).toBe(false);
+    expect(await verifySignature(new Uint8Array(31), signature, 'hello')).toBe(
+      false,
+    );
+  });
+
+  it('rejects a signing key of the wrong length', async () => {
+    await expect(sign(new Uint8Array(0), 'hello')).rejects.toThrow(
+      'Invalid private key length: Private key must be exactly 32 bytes for Ed25519.',
     );
   });
 
@@ -101,16 +114,28 @@ describe('crypto', () => {
   });
 
   describe('wire-format vectors', () => {
-    // Fixed keys and outputs captured from the pre-migration implementation.
-    // These guard against changes to the escrow wire format.
-    const pubA =
-      '{"kty":"EC","crv":"P-256","x":"-GnlZ7gZANe0Gs7QZ4pSpahACCd4QRDreFl7p1o0-fU","y":"Bn-YKRTZNOHs2Fxs-cfnQeslwbGX7FEThxshVEjNTEY"}';
-    const pubB =
-      '{"kty":"EC","crv":"P-256","x":"5maYv6oliw0cvzGW9YTpxc5lgzzXQWSi19xQPuQPCFE","y":"39L_TUNqvNOOVU-wxFIBhnPSMUlYJE9EAEwGdLNrBGY"}';
-    const privB =
-      '{"kty":"EC","crv":"P-256","x":"5maYv6oliw0cvzGW9YTpxc5lgzzXQWSi19xQPuQPCFE","y":"39L_TUNqvNOOVU-wxFIBhnPSMUlYJE9EAEwGdLNrBGY","d":"AgkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk"}';
-    const ciphertext =
-      '030303030303030303030303e2b9aa448de9d87c62ef5c18066076f9e5fdd4b575';
+    // Computed independently with raw WebCrypto X25519, HKDF-SHA256, AES-GCM,
+    // and Ed25519. These guard against changes to the escrow wire format.
+    const pubA = hexToBytes(
+      '0xa4e09292b651c278b9772c569f5fa9bb13d906b46ab68c9df9dc2b4409f8a209',
+    );
+    const privB = hexToBytes(
+      '0x0202020202020202020202020202020202020202020202020202020202020202',
+    );
+    const pubB = hexToBytes(
+      '0xce8d3ad1ccb633ec7b70c17814a5c76ecd029685050d344745ba05870e587d59',
+    );
+    const ciphertext = hexToBytes(
+      '0x03030303030303030303030359258c0012ebb6bea5d2c386500608204ef8344ae6',
+    );
+    const receiptPublicKey = hexToBytes(
+      '0xca93ac1705187071d67b83c7ff0efe8108e8ec4530575d7726879333dbdabe7c',
+    );
+    const receiptPrivateKey = hexToBytes(
+      '0x0404040404040404040404040404040404040404040404040404040404040404',
+    );
+    const pinnedMessage =
+      '0x665cec53b6bd2aa401cf30969b6b2e67aa897b90432758ca89f6268970ce2d4c';
 
     it('hashes canonical JSON to the pinned SHA-256 digest', async () => {
       expect(await hash({ c: { d: null }, b: [1, 'x'], a: 1 })).toBe(
@@ -120,8 +145,30 @@ describe('crypto', () => {
 
     it('derives the pinned wrap key id', async () => {
       expect(await wrapKeyId(pubB)).toBe(
-        '0xaccd2e1ccd3c2c0ebf7daf42ae30c8192dada53086772829e2695504940f67ad',
+        '0xcfa570c653bd212b10a9cb551fd7a1b4789855ee17e99ef2b3a2037feb337a08',
       );
+    });
+
+    it('derives the pinned receipt key id', async () => {
+      expect(await receiptKeyId(receiptPublicKey)).toBe(
+        '0xc5b940ed3f65c391965de8295fc5d25f474fa57b48d36eb10ad363b8539c1b79',
+      );
+    });
+
+    it('signs the pinned message with the pinned Ed25519 key', async () => {
+      expect(await sign(receiptPrivateKey, pinnedMessage)).toBe(
+        '0xeee8a9a363927aa129a5366b56c59fb7b31484765595e176104ab744782a28c4b1a50d547df18f65549dab2228cbb0015bd743265266f3316a0a2b00f9a05609',
+      );
+    });
+
+    it('verifies the pinned Ed25519 signature', async () => {
+      expect(
+        await verifySignature(
+          receiptPublicKey,
+          '0xeee8a9a363927aa129a5366b56c59fb7b31484765595e176104ab744782a28c4b1a50d547df18f65549dab2228cbb0015bd743265266f3316a0a2b00f9a05609',
+          pinnedMessage,
+        ),
+      ).toBe(true);
     });
 
     it('decrypts the pinned escrow-wrap-v1 ciphertext', async () => {
@@ -131,9 +178,19 @@ describe('crypto', () => {
     });
   });
 
+  it('generates 32-byte X25519 wrap and Ed25519 signing key pairs', async () => {
+    const wrapKey = await generateWrapKey();
+    const signingKey = await generateSigningKey();
+
+    expect(wrapKey.publicKey).toHaveLength(32);
+    expect(wrapKey.privateKey).toHaveLength(32);
+    expect(signingKey.publicKey).toHaveLength(32);
+    expect(signingKey.privateKey).toHaveLength(32);
+  });
+
   it('round-trips wrap encryption to a wrap public key', async () => {
-    const wrapKey = generateSigningKey();
-    const ephemeral = generateSigningKey();
+    const wrapKey = await generateWrapKey();
+    const ephemeral = await generateWrapKey();
     const plaintext = new Uint8Array([1, 2, 3, 4, 5]);
 
     const ciphertext = await encryptToPublic(
@@ -142,7 +199,6 @@ describe('crypto', () => {
       plaintext,
     );
 
-    expect(ciphertext.startsWith('0x')).toBe(false);
     expect(
       await decryptFromPublic(
         wrapKey.privateKey,
@@ -153,8 +209,8 @@ describe('crypto', () => {
   });
 
   it('round-trips getSecret wrapping with an ephemeral client key', async () => {
-    const wrapKey = generateSigningKey();
-    const ephemeral = generateSigningKey();
+    const wrapKey = await generateWrapKey();
+    const ephemeral = await generateWrapKey();
     const plaintext = new Uint8Array([9, 8, 7]);
     const ciphertext = await encryptToPublic(
       wrapKey.privateKey,
@@ -202,13 +258,13 @@ describe('crypto', () => {
   });
 
   it('verifies a mutation receipt signature', async () => {
-    const key = generateSigningKey();
+    const key = await generateSigningKey();
     const unsigned = {
       mutationId: '0x1',
       requestHash: '0x2',
       escrowId: 'cubist',
       version: 1,
-      receiptKeyId: await wrapKeyId(key.publicKey),
+      receiptKeyId: await receiptKeyId(key.publicKey),
     };
     const signature = await sign(
       key.privateKey,
@@ -231,16 +287,48 @@ describe('crypto', () => {
     ).toBe(false);
   });
 
-  it('rejects truncated wrap ciphertext and invalid JWKs', async () => {
-    const wrapKey = generateSigningKey();
+  it('rejects truncated wrap ciphertext', async () => {
+    const wrapKey = await generateWrapKey();
     await expect(
-      decryptFromPublic(wrapKey.privateKey, wrapKey.publicKey, '00'),
+      decryptFromPublic(
+        wrapKey.privateKey,
+        wrapKey.publicKey,
+        new Uint8Array([0]),
+      ),
     ).rejects.toThrow('Wrapped secret is truncated');
-    await expect(wrapKeyId('{"kty":"OKP"}')).rejects.toThrow(
-      'Invalid P-256 public JWK',
+  });
+
+  it('rejects wrap keys of the wrong length', async () => {
+    const wrapKey = await generateWrapKey();
+    await expect(
+      encryptToPublic(
+        wrapKey.privateKey,
+        new Uint8Array(0),
+        new Uint8Array([1]),
+      ),
+    ).rejects.toThrow(
+      'Invalid public key length: Public key must be exactly 32 bytes for X25519.',
     );
     await expect(
-      decryptFromPublic('{}', wrapKey.publicKey, '00'.repeat(32)),
-    ).rejects.toThrow('Invalid P-256 private JWK');
+      decryptFromPublic(
+        new Uint8Array(0),
+        wrapKey.publicKey,
+        new Uint8Array(33),
+      ),
+    ).rejects.toThrow(
+      'Invalid private key length: Private key must be exactly 32 bytes for X25519.',
+    );
+  });
+
+  it('rejects a low-order wrap public key', async () => {
+    const ephemeral = await generateWrapKey();
+
+    await expect(
+      encryptToPublic(
+        ephemeral.privateKey,
+        new Uint8Array(32),
+        new Uint8Array([1]),
+      ),
+    ).rejects.toMatchObject({ name: 'OperationError' });
   });
 });

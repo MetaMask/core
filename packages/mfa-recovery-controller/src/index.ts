@@ -37,7 +37,6 @@ export {
 } from './identifier-auth.js';
 export type {
   AuthControllerToken,
-  EcPublicJwk,
   EncryptedPendingOperation,
   Identifier,
   IdentifierAuthorization,

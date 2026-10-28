@@ -1,6 +1,7 @@
 import { MessageTypes, TypedMessage } from '@metamask/eth-sig-util';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
-import type { Json } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createHandleParams, createRequest } from '../test/util/helpers.js';
 import type {
@@ -22,12 +23,18 @@ const testTxHash =
 const testMsgSig =
   '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c';
 
+const getNetworkClientById = (): { configuration: { chainId: Hex } } => ({
+  configuration: { chainId: '0x1' },
+});
+
 describe('wallet', () => {
   describe('accounts', () => {
     it('returns null for coinbase when no accounts', async () => {
       const getAccounts = async (): Promise<never[]> => [];
       const engine = JsonRpcEngineV2.create({
-        middleware: [createWalletMiddleware({ getAccounts })],
+        middleware: [
+          createWalletMiddleware({ getAccounts, getNetworkClientById }),
+        ],
       });
       const coinbaseResult = await engine.handle(
         ...createHandleParams({
@@ -40,7 +47,9 @@ describe('wallet', () => {
     it('should return the correct value from getAccounts', async () => {
       const getAccounts = async (): Promise<string[]> => testAddresses.slice();
       const engine = JsonRpcEngineV2.create({
-        middleware: [createWalletMiddleware({ getAccounts })],
+        middleware: [
+          createWalletMiddleware({ getAccounts, getNetworkClientById }),
+        ],
       });
       const coinbaseResult = await engine.handle(
         ...createHandleParams({
@@ -54,7 +63,9 @@ describe('wallet', () => {
       const getAccounts = async (): Promise<string[]> =>
         testAddresses.slice(0, 2);
       const engine = JsonRpcEngineV2.create({
-        middleware: [createWalletMiddleware({ getAccounts })],
+        middleware: [
+          createWalletMiddleware({ getAccounts, getNetworkClientById }),
+        ],
       });
       const coinbaseResult = await engine.handle(
         ...createHandleParams({
@@ -78,7 +89,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTransaction }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTransaction,
+          }),
         ],
       });
       const txParams = {
@@ -93,6 +108,52 @@ describe('wallet', () => {
       expect(witnessedTxParams[0]).toStrictEqual(txParams);
     });
 
+    it('uses the chain ID of the transaction as the scope', async () => {
+      const getAccounts = vi.fn().mockResolvedValue(testAddresses.slice());
+      const processTransaction = async (): Promise<string> => testTxHash;
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTransaction,
+          }),
+        ],
+      });
+      const payload = {
+        method: 'eth_sendTransaction',
+        params: [{ from: testAddresses[0], chainId: '0x89' }],
+      };
+
+      await engine.handle(...createHandleParams(payload));
+
+      expect(getAccounts).toHaveBeenCalledWith('test-origin', 'eip155:137');
+    });
+
+    it('uses the chain ID of the network client as the scope if the transaction has no chain ID and the context has no scope', async () => {
+      const getAccounts = vi.fn().mockResolvedValue(testAddresses.slice());
+      const getNetworkClientByIdMock = vi.fn(getNetworkClientById);
+      const processTransaction = async (): Promise<string> => testTxHash;
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById: getNetworkClientByIdMock,
+            processTransaction,
+          }),
+        ],
+      });
+      const payload = {
+        method: 'eth_sendTransaction',
+        params: [{ from: testAddresses[0] }],
+      };
+
+      await engine.handle(...createHandleParams(payload));
+
+      expect(getNetworkClientByIdMock).toHaveBeenCalledWith('test-client-id');
+      expect(getAccounts).toHaveBeenCalledWith('test-origin', 'eip155:1');
+    });
+
     it('throws when provided an invalid address', async () => {
       const getAccounts = async (): Promise<string[]> =>
         testAddresses.slice(0, 2);
@@ -105,7 +166,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTransaction }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTransaction,
+          }),
         ],
       });
       const txParams = {
@@ -133,7 +198,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTransaction }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTransaction,
+          }),
         ],
       });
       const txParams = {
@@ -157,7 +226,11 @@ describe('wallet', () => {
       const processTransaction = async (): Promise<string> => testTxHash;
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTransaction }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTransaction,
+          }),
         ],
       });
       const payload = {
@@ -182,7 +255,11 @@ describe('wallet', () => {
       const processTransaction = async (): Promise<string> => testTxHash;
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTransaction }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTransaction,
+          }),
         ],
       });
 
@@ -221,7 +298,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTransaction }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTransaction,
+          }),
         ],
       });
       const txParams = {
@@ -252,7 +333,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processSignTransaction }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processSignTransaction,
+          }),
         ],
       });
       const txParams = {
@@ -279,7 +364,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processSignTransaction }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processSignTransaction,
+          }),
         ],
       });
       const txParams = {
@@ -305,7 +394,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processSignTransaction }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processSignTransaction,
+          }),
         ],
       });
       const txParams = {
@@ -332,7 +425,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processSignTransaction }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processSignTransaction,
+          }),
         ],
       });
       const txParams = {
@@ -353,7 +450,11 @@ describe('wallet', () => {
       const processSignTransaction = async (): Promise<string> => testTxHash;
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processSignTransaction }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processSignTransaction,
+          }),
         ],
       });
       const payload = {
@@ -378,7 +479,11 @@ describe('wallet', () => {
       const processSignTransaction = async (): Promise<string> => testTxHash;
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processSignTransaction }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processSignTransaction,
+          }),
         ],
       });
 
@@ -418,7 +523,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessage }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessage,
+          }),
         ],
       });
       const message = [
@@ -457,7 +566,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessage }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessage,
+          }),
         ],
       });
       const message = [
@@ -475,7 +588,7 @@ describe('wallet', () => {
       await expect(
         engine.handle(...createHandleParams(payload)),
       ).rejects.toThrow(
-        new Error('Invalid parameters: must provide an Ethereum address.'),
+        'Invalid parameters: must provide an Ethereum address.',
       );
     });
 
@@ -490,7 +603,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessage }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessage,
+          }),
         ],
       });
       const message = [
@@ -526,7 +643,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessageV3,
+          }),
         ],
       });
 
@@ -586,7 +707,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessageV3,
+          }),
         ],
       });
 
@@ -630,7 +755,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessageV3,
+          }),
         ],
       });
 
@@ -712,7 +841,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessageV4,
+          }),
         ],
       });
 
@@ -739,7 +872,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessageV4,
+          }),
         ],
       });
 
@@ -770,7 +907,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessageV4,
+          }),
         ],
       });
 
@@ -797,7 +938,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessageV4,
+          }),
         ],
       });
 
@@ -824,7 +969,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessageV4,
+          }),
         ],
       });
 
@@ -854,7 +1003,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessageV4,
+          }),
         ],
       });
 
@@ -880,7 +1033,11 @@ describe('wallet', () => {
       const processTypedMessageV4 = async (): Promise<string> => testMsgSig;
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processTypedMessageV4,
+          }),
         ],
       });
 
@@ -911,7 +1068,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processPersonalMessage }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processPersonalMessage,
+          }),
         ],
       });
 
@@ -943,7 +1104,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processPersonalMessage }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processPersonalMessage,
+          }),
         ],
       });
 
@@ -956,7 +1121,7 @@ describe('wallet', () => {
       await expect(
         engine.handle(...createHandleParams(payload)),
       ).rejects.toThrow(
-        new Error('Invalid parameters: must provide an Ethereum address.'),
+        'Invalid parameters: must provide an Ethereum address.',
       );
     });
 
@@ -971,7 +1136,11 @@ describe('wallet', () => {
       };
       const engine = JsonRpcEngineV2.create({
         middleware: [
-          createWalletMiddleware({ getAccounts, processPersonalMessage }),
+          createWalletMiddleware({
+            getAccounts,
+            getNetworkClientById,
+            processPersonalMessage,
+          }),
         ],
       });
 
@@ -1002,7 +1171,9 @@ describe('wallet', () => {
       };
 
       const engine = JsonRpcEngineV2.create({
-        middleware: [createWalletMiddleware({ getAccounts })],
+        middleware: [
+          createWalletMiddleware({ getAccounts, getNetworkClientById }),
+        ],
       });
 
       const payload = {
@@ -1030,7 +1201,9 @@ describe('wallet', () => {
       };
 
       const engine = JsonRpcEngineV2.create({
-        middleware: [createWalletMiddleware({ getAccounts })],
+        middleware: [
+          createWalletMiddleware({ getAccounts, getNetworkClientById }),
+        ],
       });
 
       const payload = {
@@ -1054,7 +1227,11 @@ describe('wallet', () => {
           const processTypedMessage = async (): Promise<string> => testMsgSig;
           const engine = JsonRpcEngineV2.create({
             middleware: [
-              createWalletMiddleware({ getAccounts, processTypedMessage }),
+              createWalletMiddleware({
+                getAccounts,
+                getNetworkClientById,
+                processTypedMessage,
+              }),
             ],
           });
 
@@ -1084,7 +1261,11 @@ describe('wallet', () => {
           const processTypedMessageV3 = async (): Promise<string> => testMsgSig;
           const engine = JsonRpcEngineV2.create({
             middleware: [
-              createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+              createWalletMiddleware({
+                getAccounts,
+                getNetworkClientById,
+                processTypedMessageV3,
+              }),
             ],
           });
 
@@ -1122,7 +1303,11 @@ describe('wallet', () => {
           const processTypedMessageV4 = async (): Promise<string> => testMsgSig;
           const engine = JsonRpcEngineV2.create({
             middleware: [
-              createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+              createWalletMiddleware({
+                getAccounts,
+                getNetworkClientById,
+                processTypedMessageV4,
+              }),
             ],
           });
 

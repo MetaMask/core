@@ -1,6 +1,7 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import PortStream from 'extension-port-stream';
 import type { Duplex } from 'stream';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { Runtime } from 'webextension-polyfill-ts';
 
 import { createStreamMiddleware, createEngineStream } from './index.js';
@@ -39,7 +40,7 @@ describe('createStreamMiddleware', () => {
         },
         (errorObj) => {
           try {
-            // eslint-disable-next-line jest/no-restricted-matchers
+            // eslint-disable-next-line vitest/no-restricted-matchers
             expect(errorObj).toBeFalsy();
             expect(initRes).toStrictEqual(res);
           } catch (error) {

@@ -1,19 +1,16 @@
 import * as FirebaseAppModule from 'firebase/app';
 import * as FirebaseMessagingModule from 'firebase/messaging';
 import * as FirebaseMessagingSWModule from 'firebase/messaging/sw';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 
 import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger.js';
 import type { PushAnalyticsPayload } from '../types/index.js';
-import {
-  createRegToken,
-  deleteRegToken,
-  createSubscribeToPushNotifications,
-} from './push-utils.js';
-import * as PushWebModule from './push-utils.js';
+import type * as PushUtilsModule from './push-utils.js';
 
-jest.mock('firebase/app');
-jest.mock('firebase/messaging');
-jest.mock('firebase/messaging/sw');
+vi.mock('firebase/app');
+vi.mock('firebase/messaging');
+vi.mock('firebase/messaging/sw');
 
 const mockEnv = {
   apiKey: 'test-apiKey',
@@ -49,15 +46,26 @@ const firebaseApp: FirebaseAppModule.FirebaseApp = {
   options: mockEnv,
 };
 
+/**
+ * Imports a fresh copy of `push-utils.js`, so its module level
+ * `supportedCache` starts out empty in every test.
+ *
+ * @returns The freshly imported module.
+ */
+async function importPushUtils(): Promise<typeof PushUtilsModule> {
+  vi.resetModules();
+  return await import('./push-utils.js');
+}
+
 function arrangeFirebaseAppMocks(): {
-  mockGetApp: jest.SpyInstance;
-  mockInitializeApp: jest.SpyInstance;
+  mockGetApp: MockInstance;
+  mockInitializeApp: MockInstance;
 } {
-  const mockGetApp = jest
+  const mockGetApp = vi
     .spyOn(FirebaseAppModule, 'getApp')
     .mockReturnValue(firebaseApp);
 
-  const mockInitializeApp = jest
+  const mockInitializeApp = vi
     .spyOn(FirebaseAppModule, 'initializeApp')
     .mockReturnValue(firebaseApp);
 
@@ -65,21 +73,21 @@ function arrangeFirebaseAppMocks(): {
 }
 
 function arrangeFirebaseMessagingSWMocks(): {
-  mockIsSupported: jest.SpyInstance;
-  mockGetMessaging: jest.SpyInstance;
-  mockOnBackgroundMessage: jest.SpyInstance;
-  mockOnBackgroundMessageUnsub: jest.Mock;
+  mockIsSupported: MockInstance;
+  mockGetMessaging: MockInstance;
+  mockOnBackgroundMessage: MockInstance;
+  mockOnBackgroundMessageUnsub: Mock;
 } {
-  const mockIsSupported = jest
+  const mockIsSupported = vi
     .spyOn(FirebaseMessagingSWModule, 'isSupported')
     .mockResolvedValue(true);
 
-  const mockGetMessaging = jest
+  const mockGetMessaging = vi
     .spyOn(FirebaseMessagingSWModule, 'getMessaging')
     .mockReturnValue({ app: firebaseApp });
 
-  const mockOnBackgroundMessageUnsub = jest.fn();
-  const mockOnBackgroundMessage = jest
+  const mockOnBackgroundMessageUnsub = vi.fn();
+  const mockOnBackgroundMessage = vi
     .spyOn(FirebaseMessagingSWModule, 'onBackgroundMessage')
     .mockReturnValue(mockOnBackgroundMessageUnsub);
 
@@ -92,14 +100,14 @@ function arrangeFirebaseMessagingSWMocks(): {
 }
 
 function arrangeFirebaseMessagingMocks(): {
-  mockGetToken: jest.SpyInstance;
-  mockDeleteToken: jest.SpyInstance;
+  mockGetToken: MockInstance;
+  mockDeleteToken: MockInstance;
 } {
-  const mockGetToken = jest
+  const mockGetToken = vi
     .spyOn(FirebaseMessagingModule, 'getToken')
     .mockResolvedValue('test-token');
 
-  const mockDeleteToken = jest
+  const mockDeleteToken = vi
     .spyOn(FirebaseMessagingModule, 'deleteToken')
     .mockResolvedValue(true);
 
@@ -107,6 +115,12 @@ function arrangeFirebaseMessagingMocks(): {
 }
 
 describe('createRegToken() tests', () => {
+  let createRegToken: typeof PushUtilsModule.createRegToken;
+
+  beforeEach(async () => {
+    ({ createRegToken } = await importPushUtils());
+  });
+
   const TEST_TOKEN = 'test-token';
 
   function arrange(): ReturnType<typeof arrangeFirebaseAppMocks> &
@@ -126,10 +140,7 @@ describe('createRegToken() tests', () => {
   }
 
   afterEach(() => {
-    jest.clearAllMocks();
-
-    // TODO - replace with jest.replaceProperty once we upgrade jest.
-    Object.defineProperty(PushWebModule, 'supportedCache', { value: null });
+    vi.clearAllMocks();
   });
 
   it('should return a registration token when Firebase is supported', async () => {
@@ -176,6 +187,12 @@ describe('createRegToken() tests', () => {
 });
 
 describe('deleteRegToken() tests', () => {
+  let deleteRegToken: typeof PushUtilsModule.deleteRegToken;
+
+  beforeEach(async () => {
+    ({ deleteRegToken } = await importPushUtils());
+  });
+
   function arrange(): ReturnType<typeof arrangeFirebaseAppMocks> &
     ReturnType<typeof arrangeFirebaseMessagingSWMocks> &
     ReturnType<typeof arrangeFirebaseMessagingMocks> {
@@ -187,10 +204,7 @@ describe('deleteRegToken() tests', () => {
   }
 
   afterEach(() => {
-    jest.clearAllMocks();
-
-    // TODO - replace with jest.replaceProperty once we upgrade jest.
-    Object.defineProperty(PushWebModule, 'supportedCache', { value: null });
+    vi.clearAllMocks();
   });
 
   it('should return true when the token is successfully deleted', async () => {
@@ -224,22 +238,28 @@ describe('deleteRegToken() tests', () => {
 });
 
 describe('createSubscribeToPushNotifications() tests', () => {
+  let createSubscribeToPushNotifications: typeof PushUtilsModule.createSubscribeToPushNotifications;
+
+  beforeEach(async () => {
+    ({ createSubscribeToPushNotifications } = await importPushUtils());
+  });
+
   function arrangeMessengerMocks(): {
     messenger: ReturnType<
       typeof buildPushPlatformNotificationsControllerMessenger
     >;
-    onNewNotificationsListener: jest.Mock;
-    pushNotificationClickedListener: jest.Mock;
+    onNewNotificationsListener: Mock;
+    pushNotificationClickedListener: Mock;
   } {
     const messenger = buildPushPlatformNotificationsControllerMessenger();
 
-    const onNewNotificationsListener = jest.fn();
+    const onNewNotificationsListener = vi.fn();
     messenger.subscribe(
       'NotificationServicesPushController:onNewNotifications',
       onNewNotificationsListener,
     );
 
-    const pushNotificationClickedListener = jest.fn();
+    const pushNotificationClickedListener = vi.fn();
     messenger.subscribe(
       'NotificationServicesPushController:pushNotificationClicked',
       pushNotificationClickedListener,
@@ -253,14 +273,14 @@ describe('createSubscribeToPushNotifications() tests', () => {
   }
 
   function arrangeClickListenerMocks(): {
-    mockAddEventListener: jest.SpyInstance;
-    mockRemoveEventListener: jest.SpyInstance;
+    mockAddEventListener: MockInstance;
+    mockRemoveEventListener: MockInstance;
   } {
     // Testing service worker functionality requires using the 'self' global
     // eslint-disable-next-line no-restricted-globals
-    const mockAddEventListener = jest.spyOn(self, 'addEventListener');
+    const mockAddEventListener = vi.spyOn(self, 'addEventListener');
     // eslint-disable-next-line no-restricted-globals
-    const mockRemoveEventListener = jest.spyOn(self, 'removeEventListener');
+    const mockRemoveEventListener = vi.spyOn(self, 'removeEventListener');
 
     return {
       mockAddEventListener,
@@ -272,8 +292,8 @@ describe('createSubscribeToPushNotifications() tests', () => {
     ReturnType<typeof arrangeFirebaseMessagingSWMocks> &
     ReturnType<typeof arrangeMessengerMocks> &
     ReturnType<typeof arrangeClickListenerMocks> & {
-      mockOnReceivedHandler: jest.Mock;
-      mockOnClickHandler: jest.Mock;
+      mockOnReceivedHandler: Mock;
+      mockOnClickHandler: Mock;
     } {
     const firebaseMocks = {
       ...arrangeFirebaseAppMocks(),
@@ -284,8 +304,8 @@ describe('createSubscribeToPushNotifications() tests', () => {
       ...firebaseMocks,
       ...arrangeMessengerMocks(),
       ...arrangeClickListenerMocks(),
-      mockOnReceivedHandler: jest.fn(),
-      mockOnClickHandler: jest.fn(),
+      mockOnReceivedHandler: vi.fn(),
+      mockOnClickHandler: vi.fn(),
     };
   }
 
@@ -302,10 +322,7 @@ describe('createSubscribeToPushNotifications() tests', () => {
   }
 
   afterEach(() => {
-    jest.clearAllMocks();
-
-    // TODO - replace with jest.replaceProperty once we upgrade jest.
-    Object.defineProperty(PushWebModule, 'supportedCache', { value: null });
+    vi.clearAllMocks();
   });
 
   it('should initialize subscriptions', async () => {
@@ -346,7 +363,7 @@ describe('createSubscribeToPushNotifications() tests', () => {
     await actCreateSubscription(mocks);
 
     const firebaseCallback = mocks.mockOnBackgroundMessage.mock
-      .lastCall[1] as FirebaseMessagingModule.NextFn<FirebaseMessagingSWModule.MessagePayload>;
+      .lastCall?.[1] as FirebaseMessagingModule.NextFn<FirebaseMessagingSWModule.MessagePayload>;
     const payload = {
       data: testData,
     } as unknown as FirebaseMessagingSWModule.MessagePayload;

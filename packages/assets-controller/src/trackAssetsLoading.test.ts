@@ -1,4 +1,5 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { describe, expect, it } from 'vitest';
 
 import type { AssetsControllerState } from './AssetsController.js';
 import { trackAssetsLoading } from './trackAssetsLoading.js';
