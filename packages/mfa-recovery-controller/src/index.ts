@@ -14,6 +14,7 @@ export type {
 export type {
   MfaRecoveryControllerAbortAction,
   MfaRecoveryControllerAuthenticateIdentifierAction,
+  MfaRecoveryControllerGetIdentifiersAction,
   MfaRecoveryControllerGetPhaseAction,
   MfaRecoveryControllerGetRecoverySecretAction,
   MfaRecoveryControllerRegisterAction,
@@ -41,6 +42,7 @@ export {
 export type {
   AuthControllerToken,
   EncryptedPendingOperation,
+  EscrowIdentifiers,
   Identifier,
   IdentifierAuthorization,
   IdentifierSession,
@@ -58,6 +60,7 @@ export type {
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
+  RecoveryIdentifiers,
   RecoveryPhase,
   RecoveredSecret,
   WrappedSecret,

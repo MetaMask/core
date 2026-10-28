@@ -67,7 +67,11 @@ matches the hash computed over its hex-encoded form.
 
 Public surface (all exposed as messenger actions): `register`,
 `updateRecoverySecret`, `updateIdentifiers`, `authenticateIdentifier`,
-`getRecoverySecret`, `resume`, `abort`, `getPhase`.
+`getRecoverySecret`, `getIdentifiers`, `resume`, `abort`, `getPhase`.
+
+`getIdentifiers` takes an AAL1 approval and returns the enrolled identifiers
+at the highest consistent escrow version as `epoch`, plus Auth's identifiers.
+A new device builds the `updateIdentifiers` set and `expectedEpoch` from it.
 
 ## State machine
 
@@ -222,8 +226,10 @@ before `register`.
 
 `CubistEscrowProvider` sends every command with `policyInvoke` on the C2F
 (default `cubist_secret_escrow`, version `latest`) as `{ cmd, ...fields }`:
-`ping` (`isAvailable`), `generateChallenge`, `getSecret`, and
-`applyMutation`. Escrow JSON is parsed from C2F stdout. A policy `Deny` on
+`ping` (`isAvailable`), `generateChallenge`, `getIdentifiers`, `getSecret`,
+and `applyMutation`. `generateChallenge` and `getIdentifiers` take the
+operation's `authControllerToken`; the escrow keys the challenge to its
+profile. Escrow JSON is parsed from C2F stdout. A policy `Deny` on
 `applyMutation` becomes `MutationRejectedError`; any other failure is
 `escrow_request_failed` / `escrow_response_invalid`. `verifyReceipt` checks
 the mutation id, request hash, escrow id, `version === newVersion`,

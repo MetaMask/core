@@ -2,6 +2,7 @@ import { generateSigningKey, hash, sign } from './crypto.js';
 import { MfaRecoveryError } from './errors.js';
 import { isFulfilledResult } from './escrow-utils.js';
 import type {
+  AuthControllerToken,
   Identifier,
   IdentifierAuthMode,
   IdentifierAuthorization,
@@ -81,18 +82,22 @@ export async function requestKeyBoundIdentifierToken({
  * @param params - Escrow authorization parameters.
  * @param params.escrows - Escrows to authorize.
  * @param params.credential - Key-bound identifier credential.
+ * @param params.authControllerToken - Approval each escrow keys its challenge
+ * to.
  * @returns Successful escrow authorizations.
  */
 export async function authorizeEscrowsWithToken({
   escrows,
   credential,
+  authControllerToken,
 }: {
   escrows: RecoveryEscrowProvider[];
   credential: KeyBoundCredential;
+  authControllerToken: AuthControllerToken;
 }): Promise<AuthorizedEscrow[]> {
   const { token, proofPrivateKey } = credential;
   const challengeResults = await Promise.allSettled(
-    escrows.map((escrow) => escrow.generateChallenge()),
+    escrows.map((escrow) => escrow.generateChallenge(authControllerToken)),
   );
   const challenges = challengeResults.flatMap((result, index) =>
     isFulfilledResult(result)

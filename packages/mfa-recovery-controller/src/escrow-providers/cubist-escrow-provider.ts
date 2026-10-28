@@ -3,7 +3,15 @@ import type {
   InvokePolicyResponse,
   Version,
 } from '@cubist-labs/cubesigner-sdk';
-import { integer, is, literal, min, string, type } from '@metamask/superstruct';
+import {
+  array,
+  integer,
+  is,
+  literal,
+  min,
+  string,
+  type,
+} from '@metamask/superstruct';
 import {
   bytesToHex,
   bytesToString,
@@ -20,6 +28,7 @@ import { MfaRecoveryError, MutationRejectedError } from '../errors.js';
 import { isMutationReceipt } from '../escrow-utils.js';
 import type {
   AuthControllerToken,
+  EscrowIdentifiers,
   GetRecoverySecretResponse,
   Identifier,
   IdentifierAuthorization,
@@ -109,10 +118,31 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   }
 
   /**
+   * @param authControllerToken - Approval for the profile the challenge is for.
    * @returns A proof-of-possession challenge for this escrow.
    */
-  async generateChallenge(): Promise<PoPChallenge> {
-    return await this.#invoke('generateChallenge', {}, parseChallenge);
+  async generateChallenge(
+    authControllerToken: AuthControllerToken,
+  ): Promise<PoPChallenge> {
+    return await this.#invoke(
+      'generateChallenge',
+      { authControllerToken },
+      parseChallenge,
+    );
+  }
+
+  /**
+   * @param authControllerToken - Approval for the profile to read.
+   * @returns The enrolled identifiers and record version.
+   */
+  async getIdentifiers(
+    authControllerToken: AuthControllerToken,
+  ): Promise<EscrowIdentifiers> {
+    return await this.#invoke(
+      'getIdentifiers',
+      { authControllerToken },
+      parseIdentifiers,
+    );
   }
 
   /**
@@ -258,6 +288,13 @@ const ChallengeStruct = type({
   expiresAt: integer(),
 });
 
+const IdentifiersStruct = type({
+  identifiers: array(
+    type({ type: string(), namespace: string(), value: string() }),
+  ),
+  version: min(integer(), 0),
+});
+
 const GetSecretResponseStruct = type({
   recoverySecret: type({ ciphertext: string() }),
   version: min(integer(), 0),
@@ -286,6 +323,16 @@ function parseChallenge(value: unknown): PoPChallenge {
     escrowId: value.escrowId,
     expiresAt: value.expiresAt,
   };
+}
+
+function parseIdentifiers(value: unknown): EscrowIdentifiers {
+  if (!is(value, IdentifiersStruct)) {
+    throw new MfaRecoveryError(
+      'Invalid identifiers response',
+      'escrow_response_invalid',
+    );
+  }
+  return { identifiers: value.identifiers, version: value.version };
 }
 
 /**

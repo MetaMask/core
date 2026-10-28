@@ -393,9 +393,10 @@ describe('MfaRecoveryController', () => {
 
   describe('getRecoverySecret', () => {
     it('requests a request-bound AAL2 approval for each read', async () => {
-      await withController(async ({ controller, authProvider }) => {
+      await withController(async ({ controller, authProvider, escrowA }) => {
         await controller.register(SECRET, IDENTIFIERS);
         const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+        const generateChallenge = vi.spyOn(escrowA, 'generateChallenge');
         const session = await controller.authenticateIdentifier(PASSKEY);
         await controller.getRecoverySecret(session);
         expect(authorize).toHaveBeenCalledExactlyOnceWith({
@@ -403,6 +404,8 @@ describe('MfaRecoveryController', () => {
           audiences: ['stub-audience', 'stub-audience'],
           requireTwoFactor: true,
         });
+        const { approval } = await authorize.mock.results[0].value;
+        expect(generateChallenge).toHaveBeenCalledExactlyOnceWith(approval);
       });
     });
 
@@ -552,12 +555,15 @@ describe('MfaRecoveryController', () => {
       await withController(async ({ controller, escrowA }) => {
         const generateChallenge = vi.spyOn(escrowA, 'generateChallenge');
         await controller.register(SECRET, IDENTIFIERS);
+        const apply = vi.spyOn(escrowA, 'applyMutation');
         await controller.updateRecoverySecret(
           PASSKEY,
           SECRET_2,
           REGISTERED_EPOCH,
         );
-        expect(generateChallenge).toHaveBeenCalledWith();
+        expect(generateChallenge).toHaveBeenCalledExactlyOnceWith(
+          apply.mock.calls[0][1],
+        );
         const recovered = await recover(controller, PASSKEY);
         expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET_2));
       });
@@ -755,6 +761,75 @@ describe('MfaRecoveryController', () => {
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, 1.5),
         ).rejects.toThrow('Invalid epoch');
+      });
+    });
+  });
+
+  describe('getIdentifiers', () => {
+    it('returns the enrolled identifiers, epoch and Auth identifiers', async () => {
+      await withController(async ({ controller, authProvider }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        authProvider.identifiers = [...IDENTIFIERS, OTHER_PASSKEY];
+        const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+        expect(await controller.getIdentifiers()).toStrictEqual({
+          identifiers: IDENTIFIERS,
+          epoch: REGISTERED_EPOCH,
+          authIdentifiers: authProvider.identifiers,
+        });
+        expect(authorize).toHaveBeenCalledExactlyOnceWith({
+          requestHash: await hash({ operation: 'getIdentifiers' }),
+          audiences: ['stub-audience', 'stub-audience'],
+        });
+      });
+    });
+
+    it('returns the highest version when one escrow is behind', async () => {
+      await withController(async ({ controller, escrowA, options }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        options.authProvider.identifiers = [...IDENTIFIERS, OTHER_PASSKEY];
+        escrowA.failNextApplyCount = 1;
+        await expect(
+          controller.updateIdentifiers(
+            PASSKEY,
+            [SOCIAL, OTHER_PASSKEY],
+            REGISTERED_EPOCH,
+          ),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+        expect(await controller.getIdentifiers()).toMatchObject({
+          identifiers: [SOCIAL, OTHER_PASSKEY],
+          epoch: REGISTERED_EPOCH + 1,
+        });
+      });
+    });
+
+    it('throws when replicas at the same version disagree', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        vi.spyOn(escrowA, 'getIdentifiers').mockResolvedValue({
+          identifiers: [SOCIAL, OTHER_PASSKEY],
+          version: REGISTERED_EPOCH,
+        });
+        await expect(controller.getIdentifiers()).rejects.toMatchObject({
+          code: 'replica_corruption',
+        });
+      });
+    });
+
+    it('throws when no escrow returns identifiers', async () => {
+      await withController(async ({ controller }) => {
+        await expect(controller.getIdentifiers()).rejects.toMatchObject({
+          code: 'read_failed',
+        });
+      });
+    });
+
+    it('throws when no escrow is available', async () => {
+      await withController(async ({ controller, escrowA, escrowB }) => {
+        escrowA.available = false;
+        escrowB.available = false;
+        await expect(controller.getIdentifiers()).rejects.toMatchObject({
+          code: 'no_available_escrow',
+        });
       });
     });
   });

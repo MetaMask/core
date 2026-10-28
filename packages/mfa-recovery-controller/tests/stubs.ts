@@ -26,6 +26,7 @@ import {
 } from '../src/identifier-auth.js';
 import type {
   AuthControllerToken,
+  EscrowIdentifiers,
   Identifier,
   IdentifierAuthorization,
   KeyBoundIdentifierToken,
@@ -213,7 +214,10 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     return this.available;
   }
 
-  async generateChallenge(): Promise<PoPChallenge> {
+  async generateChallenge(
+    authControllerToken: AuthControllerToken,
+  ): Promise<PoPChallenge> {
+    this.#verifyProfileToken(authControllerToken);
     const challenge: StoredPoPChallenge = {
       id: `${this.id}-pop-${this.#popChallenges.size + 1}`,
       escrowId: this.id,
@@ -226,6 +230,29 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       escrowId: challenge.escrowId,
       expiresAt: challenge.expiresAt,
     };
+  }
+
+  async getIdentifiers(
+    authControllerToken: AuthControllerToken,
+  ): Promise<EscrowIdentifiers> {
+    const record = this.#records.get(
+      this.#verifyProfileToken(authControllerToken),
+    );
+    if (record === undefined) {
+      throw new MfaRecoveryError('No recovery record', 'not_registered');
+    }
+    return { identifiers: record.identifiers, version: record.version };
+  }
+
+  #verifyProfileToken(authControllerToken: AuthControllerToken): string {
+    const claims = decodeAuthControllerToken(authControllerToken);
+    if (!claims || claims.ext.aal < 1 || claims.exp <= this.now()) {
+      throw new MfaRecoveryError(
+        'Invalid profile approval',
+        'invalid_profile_auth',
+      );
+    }
+    return claims.sub;
   }
 
   /**
