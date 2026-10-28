@@ -509,6 +509,23 @@ describe('EIP-7702 Utils', () => {
       );
     });
 
+    it('returns true for MPC Money Keyring', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'MPC Money Keyring',
+            accounts: [ADDRESS_MOCK],
+            metadata: { id: 'mpc-money', name: 'MPC Money Keyring' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        true,
+      );
+    });
+
     it('returns true for Money Keyring', () => {
       getKeyringStateMock.mockReturnValue({
         isUnlocked: true,
