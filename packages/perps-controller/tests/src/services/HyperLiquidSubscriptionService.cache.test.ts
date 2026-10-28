@@ -1594,24 +1594,28 @@ describe('HyperLiquidSubscriptionService', () => {
         returnOnEquity: '0',
         crossMarginSummary: {
           accountValue: state.withdrawable,
-          maintenanceMargin: '1',
+          maintenanceMargin: state.crossMaintenanceMarginUsed,
           marginUsed: '2',
           notional: '3',
         },
       }));
 
+      const clearinghouseCallbacks = new Map<string, (data: any) => void>();
+      const emitClearinghouse = (dex: string, maintenance: string): void =>
+        clearinghouseCallbacks.get(dex)?.({
+          dex,
+          clearinghouseState: {
+            assetPositions: [],
+            marginSummary: { accountValue: '0', totalMarginUsed: '0' },
+            withdrawable: dex ? '20' : '100',
+            crossMaintenanceMarginUsed: maintenance,
+          },
+        });
       mockSubscriptionClient.clearinghouseState.mockImplementation(
         (_params: any, callback: any) => {
-          setTimeout(() => {
-            callback({
-              dex: _params.dex || '',
-              clearinghouseState: {
-                assetPositions: [],
-                marginSummary: { accountValue: '0', totalMarginUsed: '0' },
-                withdrawable: _params.dex ? '20' : '100',
-              },
-            });
-          }, 0);
+          const dex = _params.dex || '';
+          clearinghouseCallbacks.set(dex, callback);
+          setTimeout(() => emitClearinghouse(dex, '1'), 0);
           return Promise.resolve({
             unsubscribe: vi.fn().mockResolvedValue(undefined),
           });
@@ -1646,6 +1650,14 @@ describe('HyperLiquidSubscriptionService', () => {
         marginUsed: '4',
         notional: '6',
       });
+
+      // A later event that changes only the summary still reaches subscribers.
+      emitClearinghouse('', '5');
+      await vi.runAllTimersAsync();
+
+      expect(
+        mockCallback.mock.calls.at(-1)?.[0].crossMarginSummary,
+      ).toStrictEqual(expect.objectContaining({ maintenanceMargin: '6' }));
 
       unsubscribe();
     });

@@ -1001,7 +1001,11 @@ export class HyperLiquidSubscriptionService {
   }
 
   #hashAccountState(account: AccountState): string {
-    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}`;
+    const summary = account.crossMarginSummary;
+    const summaryHash = summary
+      ? `${summary.accountValue}:${summary.maintenanceMargin}:${summary.marginUsed}:${summary.notional}`
+      : 'none';
+    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${summaryHash}`;
   }
 
   // Cache hashes to avoid recomputation
