@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test(ramps-controller): use the nock default export instead of named imports ([#11142](https://github.com/MetaMask/core/pull/11142))
+
 ## [28.0.0]
 
 ### Added
