@@ -236,6 +236,29 @@ export class HyperLiquidSubscriptionService {
   // Order fill subscriptions keyed by accountId (normalized: undefined -> 'default')
   readonly #orderFillSubscriptions = new Map<string, ISubscription>();
 
+  // In-flight userFills subscribe calls, so concurrent subscribers / reconnect
+  // share one socket open instead of racing two opens onto the same map key.
+  readonly #pendingOrderFillSubscriptions = new Map<string, Promise<void>>();
+
+  // Bumped per account by teardown and reconnect so an in-flight open for
+  // that account discards its subscription instead of rehydrating a cleared
+  // map (same race TWAP already guards; without it live fills can stick to a
+  // dead pre-reconnect listener — MetaMask/metamask-extension#47287).
+  readonly #orderFillSubscriptionGenerations = new Map<string, number>();
+
+  #orderFillGeneration(normalizedAccountId: string): number {
+    return (
+      this.#orderFillSubscriptionGenerations.get(normalizedAccountId) ?? 0
+    );
+  }
+
+  #bumpOrderFillGeneration(normalizedAccountId: string): void {
+    this.#orderFillSubscriptionGenerations.set(
+      normalizedAccountId,
+      this.#orderFillGeneration(normalizedAccountId) + 1,
+    );
+  }
+
   // TWAP subscriptions keyed by accountId (normalized: undefined -> 'default')
   readonly #twapOrderSubscriptions = new Map<string, ISubscription>();
 
@@ -2901,6 +2924,10 @@ export class HyperLiquidSubscriptionService {
           });
           this.#orderFillSubscriptions.delete(normalizedAccountId);
         }
+        // Invalidate any open still in flight for this account: without this
+        // its continuation installs a live socket nobody is listening to.
+        this.#bumpOrderFillGeneration(normalizedAccountId);
+        this.#pendingOrderFillSubscriptions.delete(normalizedAccountId);
       }
     };
   }
@@ -2923,17 +2950,69 @@ export class HyperLiquidSubscriptionService {
       return;
     }
 
-    const subscriptionClient = this.#clientService.getSubscriptionClient();
+    // Another caller is already opening this account's socket. Await it so
+    // subscribe + reconnect do not race two userFills opens onto one key.
+    const pending =
+      this.#pendingOrderFillSubscriptions.get(normalizedAccountId);
+    if (pending) {
+      await pending;
+      if (this.#orderFillSubscriptions.has(normalizedAccountId)) {
+        return;
+      }
+    }
+
+    // Captured once here, spanning the whole open including the client
+    // handshake. Capturing inside the open would let a bump that lands during
+    // the handshake be adopted as the baseline and silently forgotten.
+    const startGeneration = this.#orderFillGeneration(normalizedAccountId);
+    const subscriptionPromise = this.#createOrderFillSubscription(
+      normalizedAccountId,
+      accountId,
+      startGeneration,
+    );
+    this.#pendingOrderFillSubscriptions.set(
+      normalizedAccountId,
+      subscriptionPromise,
+    );
+    try {
+      await subscriptionPromise;
+    } finally {
+      // Delete by identity: a reconnect may have cleared the map and installed
+      // a newer open behind this one, which must not be evicted here.
+      if (
+        this.#pendingOrderFillSubscriptions.get(normalizedAccountId) ===
+        subscriptionPromise
+      ) {
+        this.#pendingOrderFillSubscriptions.delete(normalizedAccountId);
+      }
+    }
+  }
+
+  /**
+   * Open one userFills subscription and register it for teardown.
+   *
+   * @param normalizedAccountId - Map key for this account ('default' when unset).
+   * @param accountId - Optional CAIP account ID to resolve the address from.
+   * @param startGeneration - This account's generation when the open began.
+   * @returns A promise that resolves once the subscription is registered.
+   */
+  async #createOrderFillSubscription(
+    normalizedAccountId: string,
+    accountId: CaipAccountId | undefined,
+    startGeneration: number,
+  ): Promise<void> {
+    // Bootstrap the client inline rather than recursing: a recursive call
+    // would re-read the generation after the handshake and adopt a bump that
+    // landed during it as its own baseline.
+    let subscriptionClient = this.#clientService.getSubscriptionClient();
     if (!subscriptionClient) {
       await this.#clientService.ensureSubscriptionClient(
         this.#walletService.createWalletAdapter(),
       );
-      const client = this.#clientService.getSubscriptionClient();
-      if (!client) {
+      subscriptionClient = this.#clientService.getSubscriptionClient();
+      if (!subscriptionClient) {
         throw new Error('SubscriptionClient not available');
       }
-      await this.#ensureOrderFillISubscription(accountId);
-      return;
     }
 
     const userAddress =
@@ -2943,6 +3022,13 @@ export class HyperLiquidSubscriptionService {
     const subscription = await subscriptionClient.userFills(
       { user: userAddress },
       (data: UserFillsWsEvent) => {
+        // A frame queued before an unsubscribe or reconnect must not mutate
+        // the replacement's cache or reach its subscribers.
+        if (
+          startGeneration !== this.#orderFillGeneration(normalizedAccountId)
+        ) {
+          return;
+        }
         // Build a Map for O(1) lookup instead of O(n) find per fill
         const orderMap = new Map<string, string>();
         if (this.#cachedOrders) {
@@ -3008,6 +3094,19 @@ export class HyperLiquidSubscriptionService {
       },
     );
 
+    // Teardown, clearAll, or a reconnect may have run while this open was in
+    // flight. Rehydrating the map here would leave a socket with no
+    // subscribers, or clobber the live replacement — so drop ours instead.
+    const subscribers = this.#orderFillSubscribers.get(normalizedAccountId);
+    if (
+      startGeneration !== this.#orderFillGeneration(normalizedAccountId) ||
+      this.#orderFillSubscriptions.has(normalizedAccountId) ||
+      !subscribers ||
+      subscribers.size === 0
+    ) {
+      subscription.unsubscribe().catch(() => undefined);
+      return;
+    }
     this.#orderFillSubscriptions.set(normalizedAccountId, subscription);
   }
 
@@ -4945,8 +5044,19 @@ export class HyperLiquidSubscriptionService {
 
     // Re-establish order fill subscriptions if there are fill subscribers
     if (this.#orderFillSubscribers.size > 0) {
-      // Clear existing subscription references (they're dead after reconnection)
+      // Existing subscription references are dead after reconnection. Bump
+      // each account's generation first so a pre-reconnect open still in
+      // flight discards itself instead of occupying the map ahead of its
+      // replacement (MetaMask/metamask-extension#47287).
+      for (const normalizedAccountId of new Set([
+        ...this.#orderFillSubscribers.keys(),
+        ...this.#orderFillSubscriptions.keys(),
+        ...this.#pendingOrderFillSubscriptions.keys(),
+      ])) {
+        this.#bumpOrderFillGeneration(normalizedAccountId);
+      }
       this.#orderFillSubscriptions.clear();
+      this.#pendingOrderFillSubscriptions.clear();
 
       // Re-establish subscriptions for all accountIds with subscribers
       // Note: normalizedAccountId is 'default' for undefined, need to convert back
@@ -5181,6 +5291,15 @@ export class HyperLiquidSubscriptionService {
     ])) {
       this.#bumpTwapOrderGeneration(normalizedAccountId);
     }
+    // Same for order fills: bump before subscriber keys are cleared so an
+    // in-flight userFills open cannot rehydrate after clearAll.
+    for (const normalizedAccountId of new Set([
+      ...this.#orderFillSubscribers.keys(),
+      ...this.#orderFillSubscriptions.keys(),
+      ...this.#pendingOrderFillSubscriptions.keys(),
+    ])) {
+      this.#bumpOrderFillGeneration(normalizedAccountId);
+    }
 
     // Clear all local subscriber collections
     this.#priceSubscribers.clear();
@@ -5193,13 +5312,14 @@ export class HyperLiquidSubscriptionService {
     this.#marketDataSubscribers.clear();
     this.#orderBookSubscribers.clear();
 
-    // Clear order fill subscriptions
+    // Clear order fill subscriptions; generations were bumped above.
     this.#orderFillSubscriptions.forEach((subscription) => {
       subscription.unsubscribe().catch(() => {
         // Ignore errors during cleanup
       });
     });
     this.#orderFillSubscriptions.clear();
+    this.#pendingOrderFillSubscriptions.clear();
 
     // Clear TWAP subscriptions; generations were bumped above, before the
     // subscriber keys naming those accounts were cleared.
