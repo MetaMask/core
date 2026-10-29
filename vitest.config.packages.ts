@@ -45,8 +45,9 @@ export default defineConfig({
       // Coverage is opt in through the `test:coverage` script, which CI runs.
       enabled: false,
 
-      // Configure the coverage provider. We use `istanbul` here, because it is
-      // more stable than `v8`.
+      // We use `istanbul` because on 2026-10-25 `v8` was only about 5% faster
+      // across six sample packages and made the crypto heavy tests in
+      // keyring-controller and profile-sync-controller time out.
       provider: 'istanbul',
 
       // The files to include in the coverage report.
