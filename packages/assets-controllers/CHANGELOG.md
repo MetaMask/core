@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+- Bump `@metamask/snaps-utils` from `^12.1.2` to `^12.6.1` ([#11123](https://github.com/MetaMask/core/pull/11123))
 
 ## [113.0.0]
 
