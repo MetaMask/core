@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
+- test: stub globals and use fake timers instead of replacing them directly ([#11064](https://github.com/MetaMask/core/pull/11064))
+- test: run core-backend on Vitest ([#11039](https://github.com/MetaMask/core/pull/11039))
+- chore: note the unpublished test helpers in the changelogs ([#10928](https://github.com/MetaMask/core/pull/10928))
+
 ### Added
 
 - Add `LaunchpadTokenDetailsService` for real-time launchpad token detail streaming over the shared backend WebSocket, exposing `subscribe`/`unsubscribe` by `assetId` and publishing `tokenUpdated`, `statusChanged`, and `subscriptionError` events, along with `LAUNCHPAD_TDP_SERVICE_ALLOWED_ACTIONS`/`LAUNCHPAD_TDP_SERVICE_ALLOWED_EVENTS` and launchpad event types/normalizers (`parseBatch`, `normalizeEvent`, `buildChannel`) ([#10884](https://github.com/MetaMask/core/pull/10884))
