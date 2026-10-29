@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Add `isAccountOverrideRecipientOnly` to `TransactionConfig` and `TransactionData` ([#10992](https://github.com/MetaMask/core/pull/10992))
-  - When set on a post-quote transaction, quotes are requested and submitted from the transaction's own `from`, and `accountOverride` only receives the output.
-  - Lets an account that cannot sign, such as a hardware wallet, receive a withdrawal.
-
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.2.1` to `^72.3.0` ([#11154](https://github.com/MetaMask/core/pull/11154))

@@ -107,16 +107,6 @@ export type TransactionConfig = {
   atomic?: boolean;
 
   /**
-   * Whether `accountOverride` only receives the output of a post-quote
-   * transaction. When true, quotes are requested and submitted from the
-   * transaction's own `from`, so the override account never signs. Use this
-   * when the override account cannot sign, such as a hardware wallet. The
-   * `from` account must be able to submit the source transactions, for
-   * example through a Relay execute quote.
-   */
-  isAccountOverrideRecipientOnly?: boolean;
-
-  /**
    * Whether the source of funds is HyperLiquid (HyperCore).
    * When true, the Relay strategy uses the HyperLiquid 2-step withdrawal
    * flow: (1) authorize nonce-mapping, (2) sendAsset to Relay solver.
@@ -339,12 +329,6 @@ export type TransactionData = {
 
   /** Fiat payment method state. */
   fiatPayment?: TransactionFiatPayment;
-
-  /**
-   * Whether `accountOverride` only receives the post-quote output.
-   * See {@link TransactionConfig.isAccountOverrideRecipientOnly}.
-   */
-  isAccountOverrideRecipientOnly?: boolean;
 
   /** Whether quotes are currently being retrieved. */
   isLoading: boolean;
