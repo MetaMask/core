@@ -69,9 +69,11 @@ runs:
           if [ "$NEW_ROOT_VERSION" = "$CURRENT_ROOT_VERSION" ]; then
             echo "::error::This pull request is a release (one or more packages have a version bump), but the root package.json version was not bumped. Please bump the root package.json version."
             exit 1
-          else
+          elif [ "$(printf '%s\n%s\n' "$CURRENT_ROOT_VERSION" "$NEW_ROOT_VERSION" | sort -V | tail -n 1)" = "$NEW_ROOT_VERSION" ]; then
             echo "✅ Root package.json is bumped (\`$CURRENT_ROOT_VERSION\` -> \`$NEW_ROOT_VERSION\`)"
             echo "root-package-bumped=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "↩️ Root package.json version is lower than before (\`$CURRENT_ROOT_VERSION\` -> \`$NEW_ROOT_VERSION\`). Treating this as a revert."
           fi
         else
           echo "✅ No package version bumps detected; skipping root package.json check."
