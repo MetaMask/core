@@ -3,9 +3,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { extractFromSourceFile } from './extraction.js';
-import { createProject } from './ts-project.js';
-import { MessengerCapabilityPacket } from './types.js';
+import { createProject } from '../ts-project.js';
+import { MessengerCapabilityPacket } from '../types.js';
+import { extractFromSourceFile } from './scan.js';
 
 const { withinSandbox } = createSandbox('platform-api-docs/extraction');
 

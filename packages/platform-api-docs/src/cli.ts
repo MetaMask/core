@@ -7,8 +7,8 @@ import npmWhich from 'npm-which';
 import yargs from 'yargs';
 
 import { generate, resolveRepoUrl } from './generate.js';
-import type { RootCapabilitiesTypeReference } from './root-messenger-discovery.js';
-import { parseRootCapabilitiesTypeReference } from './root-messenger-discovery.js';
+import type { RootCapabilitiesTypeReference } from './strategies/root-messenger.js';
+import { parseRootCapabilitiesTypeReference } from './strategies/root-messenger.js';
 
 /**
  * Arguments shared by both discovery strategies.
