@@ -185,6 +185,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchAndUpdateProfile',
   'getXAuthorizationUrl',
   'disconnectX',
+  'clearState',
 ] as const;
 
 // === CONTROLLER ===
@@ -474,5 +475,12 @@ export class ProfileController extends BaseController<
         state.profile.connectedToX = false;
       }
     });
+  }
+
+  /**
+   * Clears the controller state, including the profile and X profile.
+   */
+  clearState(): void {
+    this.update(() => getDefaultProfileControllerState());
   }
 }
