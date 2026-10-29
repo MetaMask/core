@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-controller",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Controller for managing user profile data including username, bio, avatar, and linked accounts via the MetaMask Profile API",
   "keywords": [
     "Ethereum",
