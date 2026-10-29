@@ -649,17 +649,3 @@ export function buildRequestWithReplacedBlockParam(
   updatedParams[blockParamIndex] = blockParam;
   return { method, params: updatedParams };
 }
-
-/**
- * Builds a pattern that matches the message of an error that was produced by
- * `fetch`. Depending on the implementation of `fetch`, the original error
- * message is either preserved (`node-fetch`) or replaced with a generic one
- * (native `fetch`), so both are accepted.
- *
- * @param message - The message that `node-fetch` would preserve.
- * @returns A regular expression that matches either message.
- */
-export function buildFetchErrorPattern(message: string): RegExp {
-  const escapedMessage = message.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-  return new RegExp(`${escapedMessage}|fetch failed`, 'u');
-}

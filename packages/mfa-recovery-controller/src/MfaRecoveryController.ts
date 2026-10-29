@@ -44,13 +44,11 @@ import {
 } from './pending-operation-validation.js';
 import { assertAbortAllowed, getRecoveryPhase } from './state-machine.js';
 import type {
-  AuthControllerToken,
   Identifier,
   IdentifierSession,
   Mutation,
   MutationPayload,
   MutationReceipt,
-  PendingMutationPayload,
   PendingOperation,
   PendingOperationEncryptor,
   PendingRegisterPayload,
@@ -385,6 +383,11 @@ export class MfaRecoveryController extends BaseController<
           'no_available_escrow',
         );
       }
+      const { approval } = await this.#authProvider.authorizeRecoveryRequest({
+        requestHash,
+        audiences: available.map((escrow) => escrow.authAudience),
+        requireTwoFactor: true,
+      });
       const authorizedEscrows = await authorizeEscrowsWithToken({
         escrows: available,
         credential: session,
@@ -392,6 +395,7 @@ export class MfaRecoveryController extends BaseController<
       const results = await Promise.allSettled(
         authorizedEscrows.map(async ({ escrow, authorization }) => {
           const response = await escrow.getSecret(
+            approval,
             authorization,
             requestId,
             pkE,
@@ -492,14 +496,10 @@ export class MfaRecoveryController extends BaseController<
       };
       await this.#persistPending(pending);
 
-      const authControllerToken = await this.#authorizeMutation(
-        mutation,
-        payload,
-      );
       await this.#replicateMutation({
         ...pending,
         phase: 'writing',
-        authControllerToken,
+        ...(await this.#authorizeMutation(mutation)),
         receipts: [],
       });
     });
@@ -507,16 +507,16 @@ export class MfaRecoveryController extends BaseController<
 
   async #authorizeMutation(
     mutation: Mutation,
-    payload: PendingMutationPayload,
-  ): Promise<AuthControllerToken> {
-    return await this.#authProvider.authorizeRecoveryRequest({
-      requestHash: mutation.requestHash,
-      audiences: this.#escrows.map((escrow) => escrow.authAudience),
-      ...(mutation.operation === 'register' ? {} : { requireTwoFactor: true }),
-      ...(pendingPayloadHasIdentifiers(payload)
-        ? { identifiers: payload.identifiers }
-        : {}),
-    });
+  ): Promise<
+    Pick<WritingPendingOperation, 'authControllerToken' | 'approvedIdentifiers'>
+  > {
+    const { approval, identifiers } =
+      await this.#authProvider.authorizeRecoveryRequest({
+        requestHash: mutation.requestHash,
+        audiences: this.#escrows.map((escrow) => escrow.authAudience),
+        requireTwoFactor: true,
+      });
+    return { authControllerToken: approval, approvedIdentifiers: identifiers };
   }
 
   async #repairPendingMutation(): Promise<void> {
@@ -530,10 +530,7 @@ export class MfaRecoveryController extends BaseController<
       await this.#replicateMutation({
         ...pending,
         phase: 'writing',
-        authControllerToken: await this.#authorizeMutation(
-          pending.mutation,
-          pending.payload,
-        ),
+        ...(await this.#authorizeMutation(pending.mutation)),
         receipts: [],
       });
       return;
@@ -544,7 +541,7 @@ export class MfaRecoveryController extends BaseController<
   }
 
   async #replicateMutation(pending: WritingPendingOperation): Promise<void> {
-    const { mutation, payload, identifier } = pending;
+    const { mutation, identifier } = pending;
     const remainingEscrows = await this.#getRemainingEscrows(pending);
     if (remainingEscrows.length === 0) {
       await this.#clearPending();
@@ -554,11 +551,11 @@ export class MfaRecoveryController extends BaseController<
     await this.#assertEscrowsAvailable(remainingEscrows);
 
     const claims = decodeAuthControllerToken(pending.authControllerToken);
-    const authControllerToken =
+    const writing =
       claims && claims.exp > this.#now()
-        ? pending.authControllerToken
-        : await this.#authorizeMutation(mutation, payload);
-    const writing = { ...pending, authControllerToken };
+        ? pending
+        : { ...pending, ...(await this.#authorizeMutation(mutation)) };
+    await this.#assertPending(writing);
     const authorizedEscrows =
       mutation.operation === 'register'
         ? null
@@ -590,6 +587,7 @@ export class MfaRecoveryController extends BaseController<
           writing.authControllerToken,
           authorizedEscrows?.[index]?.authorization ?? null,
           payloads[index],
+          writing.approvedIdentifiers,
         ),
       ),
     );

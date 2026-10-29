@@ -11,9 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `init()`, which reads enabled chains from `NetworkEnablementController:getState`. Construction no longer requires that action to be registered. Later enablement changes still arrive on `NetworkEnablementController:stateChange` ([#10885](https://github.com/MetaMask/core/pull/10885))
 
-## [20.0.2]
-
-### Fixed
+### Changed
 
 - Use hand-rolled Multicall3 `aggregate3` codecs for balance batches, while retaining the Ethers codecs for byte-identical comparison ([#11078](https://github.com/MetaMask/core/pull/11078))
 
@@ -1215,8 +1213,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.2...HEAD
-[20.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.1...@metamask/assets-controller@20.0.2
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.1...HEAD
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.0...@metamask/assets-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@19.1.0...@metamask/assets-controller@20.0.0
 [19.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@19.0.0...@metamask/assets-controller@19.1.0

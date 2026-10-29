@@ -7,46 +7,13 @@ each one. Error branches, pending-state repair, and multi-escrow behavior are
 in [ARCHITECTURE.md](./ARCHITECTURE.md); treat the TypeScript in `src/` as the
 source of truth if a diagram drifts.
 
-| Step | Client call                                                  | Version |
-| ---- | ------------------------------------------------------------ | ------- |
-| 1    | `register(secret, [siwe, passkey])`                          | `0 → 1` |
-| 2    | `updateRecoverySecret(passkey, newSecret, epoch)`            | `1 → 2` |
-| 3    | `updateIdentifiers(siwe, [siwe, replacementPasskey], epoch)` | `2 → 3` |
+| Step | Client call                                                  | Read with            | Version |
+| ---- | ------------------------------------------------------------ | -------------------- | ------- |
+| 1    | `register(secret, [siwe, passkey])`                          | `siwe`               | `0 → 1` |
+| 2    | `updateRecoverySecret(passkey, newSecret, epoch)`            | `passkey`            | `1 → 2` |
+| 3    | `updateIdentifiers(siwe, [siwe, replacementPasskey], epoch)` | `replacementPasskey` | `2 → 3` |
 
 Each update passes the `epoch` returned by the previous read.
-
-## Overview
-
-```mermaid
-sequenceDiagram
-  autonumber
-  participant Mobile as Mobile client
-  participant C as MfaRecoveryController
-  participant Cubist as Cubist escrow
-
-  Note over Mobile,Cubist: Setup: sign in, open Cubist session, build controller
-
-  Mobile->>C: register(secret, [siwe, passkey])
-  C->>Cubist: applyMutation (version 0 → 1)
-  Cubist-->>C: signed receipt
-  Mobile->>C: read with siwe
-  C->>Cubist: getSecret
-  C-->>Mobile: secret, epoch 1
-
-  Mobile->>C: updateRecoverySecret(passkey, newSecret, 1)
-  C->>Cubist: applyMutation (version 1 → 2)
-  Cubist-->>C: signed receipt
-  Mobile->>C: read with passkey
-  C->>Cubist: getSecret
-  C-->>Mobile: newSecret, epoch 2
-
-  Mobile->>C: updateIdentifiers(siwe, [siwe, replacementPasskey], 2)
-  C->>Cubist: applyMutation (version 2 → 3)
-  Cubist-->>C: signed receipt
-  Mobile->>C: read with replacementPasskey
-  C->>Cubist: getSecret
-  C-->>Mobile: same secret, epoch 3
-```
 
 ## Setup
 
@@ -83,7 +50,9 @@ sequenceDiagram
 
 ## Write: `register`, `updateRecoverySecret`, `updateIdentifiers`
 
-All three mutations share one path.
+All mutations require a request-bound AAL2 approval. `register` and
+`updateIdentifiers` also send the approval's identifiers as
+`approvedIdentifiers`, bound by `identifiers_hash`.
 
 ```mermaid
 sequenceDiagram
@@ -98,7 +67,7 @@ sequenceDiagram
   C->>Auth: getAuthenticatedProfileId()
   Auth-->>C: profileId
   Note over C: Build the mutation (version epoch → epoch + 1)<br/>and its requestHash
-  C->>Auth: authorizeRecoveryRequest(requestHash, ...)
+  C->>Auth: authorizeRecoveryRequest(requestHash, requireTwoFactor: true, ...)
   Auth-->>C: JWT bound to requestHash
   C->>Cubist: isAvailable
 
@@ -107,17 +76,17 @@ sequenceDiagram
   end
 
   Note over C: Encrypt the secret to the Cubist wrap key
-  C->>Cubist: applyMutation(mutation, JWT, { token, proof } or null, payload)
+  C->>Cubist: applyMutation(mutation, JWT, { token, proof } or null, payload, approvedIdentifiers)
   Cubist-->>C: signed receipt
   Note over C: Verify the receipt with the pinned receipt key
   C-->>Mobile: done
 ```
 
-| Operation              | Identifier proof        | JWT requires     | Payload              |
-| ---------------------- | ----------------------- | ---------------- | -------------------- |
-| `register`             | none                    | identifiers      | identifiers + secret |
-| `updateRecoverySecret` | the identifier argument | 2FA              | secret               |
-| `updateIdentifiers`    | the identifier argument | 2FA, identifiers | identifiers          |
+| Operation              | Identifier proof        | Payload              |
+| ---------------------- | ----------------------- | -------------------- |
+| `register`             | none                    | identifiers + secret |
+| `updateRecoverySecret` | the identifier argument | secret               |
+| `updateIdentifiers`    | the identifier argument | identifiers          |
 
 If an escrow refuses the mutation (`MutationRejectedError`) and every replica
 does the same, the controller clears the pending mutation. A transport failure
@@ -126,47 +95,19 @@ to finish that write.
 
 ## Proof of possession
 
-Updates and reads prove control of a registered identifier in two parts. The
-identifier provider signs a token that names a fresh proof key and the
-`requestHash`. Then the controller signs a Cubist challenge with that proof
-key. Code: `requestKeyBoundIdentifierToken` and `authorizeEscrowsWithToken` in
-`src/identifier-auth.ts`.
+Updates and reads prove control of a registered identifier:
 
-```mermaid
-sequenceDiagram
-  autonumber
-  participant C as MfaRecoveryController
-  participant Id as identifierAuthProvider
-  participant Cubist as Cubist escrow
+1. The controller generates an Ed25519 proof key and requests an identifier token
+   binding `hash([proofPublicKey, requestHash])`: the SIWE nonce or WebAuthn challenge.
+2. The proof key signs `hash([token, challenge.id, requestHash])` for each escrow.
+   The controller sends the approval and `{ kind: 'key-bound', token, proof }`
+   with `applyMutation` or `getSecret`.
+3. The escrow C2F verifies the provider assertion, registered identifier, request
+   binding, challenge, and proof signature.
 
-  rect rgba(128, 128, 128, 0.1)
-  Note over C,Id: Part 1: proof key + identifier token
-  Note over C: generateSigningKey() → Ed25519 proof key pair
-  C->>Id: getKeyBoundIdentifierToken(identifier, proofPublicKey, requestHash)
-  Note over Id: binding = hash([proofPublicKey, requestHash])<br/>SIWE: personal_sign a SIWE message, Nonce = binding<br/>Passkey: WebAuthn assertion, challenge = binding
-  Id-->>C: token { identifier, proofPublicKey, requestHash, providerAssertion }
-  end
-
-  rect rgba(128, 128, 128, 0.1)
-  Note over C,Cubist: Part 2: challenge + signature
-  C->>Cubist: generateChallenge()
-  Cubist-->>C: challenge { id, escrowId, expiresAt }
-  Note over C: signature = sign(proofPrivateKey,<br/>hash([token, challenge.id, requestHash]))
-  Note over C: authorization = { kind: key-bound, token,<br/>proof: { challengeId, requestHash, signature } }
-  C->>Cubist: applyMutation or getSecret(authorization, ...)
-  Note over Cubist: providerAssertion is valid for the identifier<br/>and binds proofPublicKey + requestHash<br/>identifier is registered, challenge id is its own<br/>signature verifies under proofPublicKey
-  end
-```
-
-- The identifier provider signs once, over the proof key and `requestHash`.
-  The proof key then signs each escrow challenge, so the token works only for
-  this request.
-- The proof private key is never sent to the identifier provider or Cubist.
-  For reads it lives only in the session returned by `authenticateIdentifier`.
-- The Cubist-side checks happen in the escrow C2F (`cubist_secret_escrow`),
-  not in this package.
-- `register` sends no identifier proof (`null`); the JWT from `authProvider`
-  is the only authorization.
+The proof private key never leaves the controller/caller; read sessions keep it
+in memory. `register` sends `null` instead of an identifier proof. Implementation:
+`requestKeyBoundIdentifierToken` and `authorizeEscrowsWithToken` in `src/identifier-auth.ts`.
 
 ## Read: `authenticateIdentifier`, `getRecoverySecret`
 
@@ -175,6 +116,7 @@ sequenceDiagram
   autonumber
   participant Mobile as Mobile client
   participant C as MfaRecoveryController
+  participant Auth as authProvider
   participant Id as identifierAuthProvider
   participant Cubist as Cubist escrow
 
@@ -186,8 +128,10 @@ sequenceDiagram
   Mobile->>C: getRecoverySecret(session)
   Note over C: Recompute requestHash, must equal token.requestHash
   C->>Cubist: isAvailable
+  C->>Auth: authorizeRecoveryRequest(requestHash, requireTwoFactor: true, ...)
+  Auth-->>C: request-bound AAL2 approval
   Note over C,Cubist: Proof of possession, part 2: challenge + signature
-  C->>Cubist: getSecret({ token, proof }, requestId, pkE)
+  C->>Cubist: getSecret(approval, { token, proof }, requestId, pkE)
   Cubist-->>C: secret encrypted to the read key, version
   Note over C: Decrypt the secret
   C-->>Mobile: { recoverySecret, epoch: version }

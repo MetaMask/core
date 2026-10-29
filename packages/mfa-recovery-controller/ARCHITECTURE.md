@@ -34,19 +34,18 @@ flowchart LR
 | --------------------------- | --------------------------------------------------------------------------- |
 | `pendingOperation`          | Only persisted field: encrypted `authorizing` / `writing` blob, or `null`   |
 | `escrows[]`                 | Build-time replica set; non-empty, unique `id`s; mutations require **all**  |
-| `authProvider`              | Profile id + request-bound AuthController token (Hydra JWT)                 |
+| `authProvider`              | Profile id + request-bound Auth API approval                                |
 | `identifierAuthProvider`    | Key-bound IdP assertion (passkey / OIDC / SIWE)                             |
 | `pendingOperationEncryptor` | Encrypts / decrypts the pending blob with wallet secure storage             |
 | `now`                       | Clock (Unix seconds) for AuthController token expiry; defaults to `unixNow` |
 | `#withLock`                 | Serializes every public method except `authenticateIdentifier`              |
 
-Each escrow has two identities: `id` is the replica id used in mutation
-`audiences` and receipts; `authAudience` is the audience the AuthController
-token must carry for that escrow. They are independent (Cubist uses `"cubist"`
-for both).
+`id` identifies the replica in mutations and receipts; `authAudience` identifies
+the approval audience. Cubist uses `id: "cubist"` and an `authAudience` matching
+`AUTH_CONTROLLER_AUDIENCE`.
 
 Identifier types pick the auth mode from a trusted table, not a client flag:
-`passkey` / `oidc` / `siwe` → key-bound. Any other type is rejected with
+`passkey` / `social` / `siwe` → key-bound. Any other type is rejected with
 `unknown_identifier_type`. `emailOtp` / `smsOtp` escrow-challenge is not wired
 yet (MFA-605 / MFA-606 / MFA-568).
 
@@ -113,10 +112,13 @@ Anything that fails is rejected rather than acted on:
   must match the mutation fields.
 - `register` has `expectedVersion` `0` and `identifier: null`; updates carry
   an identifier.
-- `writing` only: the AuthController token's `sub` is the mutation
-  `profileId`, its `ext.request_hash` is the mutation `requestHash`, updates
-  have `aal >= 2`, `register` / `updateIdentifiers` carry `identifiers_hash`,
-  and receipts are well-formed with at most one per escrow.
+- `writing` only: the approval binds `sub` to `profileId` and `ext.request_hash`
+  to `requestHash`, with `aal >= 2`. `register` / `updateIdentifiers` also need
+  `identifiers_hash` to match `approvedIdentifiers`, and every payload
+  identifier to equal one of them exactly. This runs before `writing` is
+  persisted: an escrow rejection is not a `Deny`, so a mismatch found there
+  would leave an unabortable write. Receipts must be well-formed with at most
+  one per escrow.
 
 ## Mutation sequence (`register` / updates)
 
@@ -164,15 +166,20 @@ sequenceDiagram
   end
 ```
 
-AuthController token request:
+Auth approvals:
 
-- `requestHash` is the mutation `requestHash`; `audiences` is every escrow's
-  `authAudience`.
-- Updates set `requireTwoFactor`. `register` and `updateIdentifiers` pass the
-  payload `identifiers` so the token is bound to them.
-- The token is a compact Hydra JWT. The controller decodes its claims without
-  verifying the signature (escrows verify it) and only uses them for
-  pending-state checks and the `exp` refresh.
+- The provider receives the operation's `requestHash` and each target escrow's
+  `authAudience`. All writes and reads set `requireTwoFactor` for AAL2.
+- The issuer controls approval lifetime. AAL2 requires recent MFA.
+- The approval's `identifiers` are persisted with its token as
+  `approvedIdentifiers` and refreshed with it. `register` and
+  `updateIdentifiers` send them to every escrow, which checks them against
+  `identifiers_hash` and rejects payload identifiers outside them. Hashing
+  sorts object keys, not arrays.
+- Missing or stale MFA rejects with `AuthenticationController`'s
+  `StepUpRequiredError`.
+- Escrows verify signatures. The controller decodes claims only for pending-state
+  validation and expiry-based refresh.
 
 Receipts:
 
@@ -204,11 +211,11 @@ retries only escrows that do not already have a stored receipt. Updates
 re-run identifier auth (a new key-bound token and PoP) for those escrows on
 every attempt, so the identifier provider must be able to authenticate again.
 
-## Cubist store sequence
+## Cubist integration
 
 The controller does not call CubeSigner, the registration API, or
-`KeyringController`. A Cubist deploy injects one `CubistEscrowProvider`
-(`id` and `authAudience`: `"cubist"`). The caller proves OIDC, calls
+`KeyringController`. A Cubist deploy injects one `CubistEscrowProvider`.
+The caller proves OIDC, calls
 `ensure-user`, opens the session, and constructs the provider with the
 authenticated `CubeSignerClient` and the pinned wrap and receipt public keys
 before `register`.
@@ -223,53 +230,7 @@ the mutation id, request hash, escrow id, `version === newVersion`,
 `receiptKeyId` (SHA-256 of the pinned receipt key), and the Ed25519 signature
 locally.
 
-`register(recoverySecret, identifiers)` takes an identifier **array** of at
-least two distinct key-bound identifiers. One `siwe` identifier is rejected.
-`applyMutation` is the store: the controller wraps the secret to the escrow
-wrap key, and the Cubist C2F persists that payload.
-
-`authenticateIdentifier` asks the injected identifier provider for a key-bound
-token. A SIWE provider signs with `KeyringController.signPersonalMessage`.
-The controller does not. `getRecoverySecret` then challenges the escrow, signs
-the proof of possession locally, calls `getSecret`, and unwraps. `epoch` is
-the replica `version`.
-
-```mermaid
-sequenceDiagram
-  participant Caller as Caller
-  participant Auth as RecoveryAuthProvider
-  participant IdP as SIWE identifier provider
-  participant Ctrl as MfaRecoveryController
-  participant Escrow as Cubist escrow
-
-  Note over Caller,Escrow: proveOidcIdentity, ensure-user, createOidcSession, then new CubistEscrowProvider
-
-  Caller->>Ctrl: register(secret, identifiers)
-  Ctrl->>Escrow: isAvailable (ping)
-  Ctrl->>Auth: getAuthenticatedProfileId
-  Ctrl->>Ctrl: persist authorizing
-  Ctrl->>Auth: authorizeRecoveryRequest
-  Auth-->>Ctrl: AuthController token (Hydra JWT)
-  Ctrl->>Ctrl: wrap secret, persist writing
-  Ctrl->>Escrow: applyMutation
-  Escrow-->>Ctrl: receipt
-  Ctrl->>Ctrl: verify receipt, clear pending
-
-  Caller->>Ctrl: authenticateIdentifier(siwe)
-  Ctrl->>IdP: getKeyBoundIdentifierToken
-  Note over IdP: signPersonalMessage
-  IdP-->>Ctrl: token
-  Ctrl-->>Caller: identifierSession
-
-  Caller->>Ctrl: getRecoverySecret(identifierSession)
-  Ctrl->>Escrow: isAvailable (ping)
-  Ctrl->>Escrow: generateChallenge
-  Ctrl->>Ctrl: sign proof of possession
-  Ctrl->>Escrow: getSecret
-  Escrow-->>Ctrl: wrapped secret + version + wrapKeyId
-  Ctrl->>Ctrl: check wrapKeyId, unwrap
-  Ctrl-->>Caller: secret bytes + epoch
-```
+For a single-escrow walkthrough, see [Cubist test sequence](CUBIST_TEST_SEQUENCE.md).
 
 ## Read sequence (`getRecoverySecret`)
 
@@ -283,6 +244,7 @@ sequenceDiagram
   participant C as Client
   participant M as MfaRecoveryController
   participant I as IdentifierAuthProvider
+  participant A as RecoveryAuthProvider
   participant E as Available escrows
 
   C->>M: authenticateIdentifier(identifier)
@@ -296,9 +258,11 @@ sequenceDiagram
   alt none available
     M-->>C: no_available_escrow
   end
+  M->>A: authorizeRecoveryRequest (read hash, AAL2)
+  A-->>M: request-bound approval
   M->>E: generateChallenge + PoP (partial OK)
   par read
-    M->>E: getSecret
+    M->>E: getSecret(approval, authorization, requestId, pkE)
     M->>M: check wrapKeyId, unwrap with ephemeral key
   end
   M->>M: selectHighestConsistentVersion
@@ -330,7 +294,7 @@ the highest one. The next mutation still requires `resume()` first.
 ```mermaid
 flowchart TD
   Start[identifier + requestHash] --> Mode{trusted type?}
-  Mode -->|passkey / oidc / siwe| KB[fresh proof key, IdP key-bound token]
+  Mode -->|passkey / social / siwe| KB[fresh proof key, IdP key-bound token]
   KB --> Chal[each escrow generateChallenge]
   Chal --> PoP[sign PoP over hash of token + challengeId + requestHash]
   Mode -->|emailOtp / smsOtp| Todo[TODO MFA-605 / MFA-606 / MFA-568]
@@ -341,22 +305,3 @@ On **mutation**, every remaining target escrow must authorize or the write
 does not start (`identifier_auth_failed`). On **read**, escrows whose
 challenge fails are skipped. `register` sends no identifier authorization
 (`null`).
-
-## Crash / repair
-
-```mermaid
-flowchart TD
-  Crash[crash or partial apply] --> Phase{pending phase?}
-  Phase -->|none| Idle[idle]
-  Phase -->|authorizing| AbortOrResume{client choice}
-  AbortOrResume -->|abort| Idle
-  AbortOrResume -->|resume| Auth[re-issue AuthController token]
-  Auth --> Write[replicate]
-  Phase -->|writing| ResumeOnly[resume only]
-  ResumeOnly --> Skip[skip escrows that already have verified receipts]
-  Skip --> Refresh[re-issue token only if expired]
-  Refresh --> Write
-  Write --> All{receipts for every configured escrow?}
-  All -->|yes| Clear[clear pending]
-  All -->|no| PendingErr[IncompleteMutationError]
-```

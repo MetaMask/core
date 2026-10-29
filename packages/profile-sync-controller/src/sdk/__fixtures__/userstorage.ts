@@ -46,18 +46,14 @@ export type MockPutScope = nock.Scope & { requestBodies: nock.Body[] };
 
 /**
  * Reads the JSON body of a request from the arguments that nock passes to a
- * reply function: `(uri, body)` on nock 13, or a Fetch API `Request` followed
- * by a callback on later versions.
+ * reply function, the first of which is a Fetch API `Request`.
  *
  * @param replyArgs - The arguments that nock passed to the reply function.
  * @returns The request body.
  */
 const readRequestBody = async (replyArgs: unknown[]): Promise<nock.Body> => {
-  const [first, second] = replyArgs;
-  if (typeof first === 'string') {
-    return second as nock.Body;
-  }
-  return (await (first as Request).clone().json()) as nock.Body;
+  const [request] = replyArgs;
+  return (await (request as Request).clone().json()) as nock.Body;
 };
 
 /**
