@@ -101,6 +101,9 @@ export async function updateQuotes(
 
   const from = accountOverride ?? (transaction.txParams.from as Hex);
 
+  // Post-quote output goes to `accountOverride`, so the funds holder sends.
+  const quoteFrom = isPostQuote ? (transaction.txParams.from as Hex) : from;
+
   const controller = abortPreviousAndCreateController(transactionId);
   const { signal } = controller;
 
@@ -134,7 +137,7 @@ export async function updateQuotes(
 
     const requests = buildQuoteRequests({
       atomic,
-      from,
+      from: quoteFrom,
       isHyperliquidSource,
       isMaxAmount: isMaxAmount ?? false,
       isPolymarketDepositWallet,
@@ -147,11 +150,11 @@ export async function updateQuotes(
       transactionId,
     });
 
-    const supports7702 = accountSupports7702(messenger, from);
+    const supports7702 = accountSupports7702(messenger, quoteFrom);
 
     const { batchTransactions, error, quotes } = await getQuotes(
       transaction,
-      from,
+      quoteFrom,
       requests,
       paymentToken,
       isQuoteRequired ?? false,
@@ -651,7 +654,7 @@ async function refreshPaymentTokenBalance({
  * Retrieve quotes for a transaction.
  *
  * @param transaction - Transaction metadata.
- * @param from - Resolved wallet address (`accountOverride ?? txParams.from`).
+ * @param from - Sending wallet address (`txParams.from` for post-quote, otherwise `accountOverride ?? txParams.from`).
  * @param requests - Quote requests.
  * @param paymentToken - Selected payment token, if any.
  * @param isQuoteRequired - Whether a quote is always required for the transaction.

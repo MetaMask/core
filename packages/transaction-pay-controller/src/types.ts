@@ -86,7 +86,8 @@ export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
 export type TransactionConfig = {
   /**
    * Optional address to override the default account used by the transaction.
-   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is true, it only receives the MM Pay transfer, which is
+   * quoted and submitted from the transaction's own `from`.
    * When `isPostQuote` is false, it provides the funds and pays for gas.
    */
   accountOverride?: Hex;
@@ -316,7 +317,8 @@ export type TransactionPayFiatOptions = {
 export type TransactionData = {
   /**
    * Optional address to override the default account used by the transaction.
-   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is true, it only receives the MM Pay transfer, which is
+   * quoted and submitted from the transaction's own `from`.
    * When `isPostQuote` is false, it provides the funds and pays for gas.
    */
   accountOverride?: Hex;

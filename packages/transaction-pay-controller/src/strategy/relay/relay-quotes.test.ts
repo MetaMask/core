@@ -207,6 +207,8 @@ describe('Relay Quotes Utils', () => {
 
     successfulFetchMock = vi.spyOn(global, 'fetch');
 
+    getControllerStateMock.mockReturnValue({ transactionData: {} });
+
     getKeyringControllerStateMock.mockReturnValue({
       isUnlocked: true,
       keyrings: [
@@ -280,6 +282,36 @@ describe('Relay Quotes Utils', () => {
       expect(body.recipient).toBe(FROM_MOCK);
       expect(body.txs).toBeUndefined();
       expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+    });
+
+    it('pays the account override of a post-quote withdrawal sent by the transaction account', async () => {
+      const accountOverride = '0xbbbb000000000000000000000000000000000001';
+
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_META_MOCK.id]: { accountOverride },
+        },
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      });
+
+      const result = await getRelayQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isPostQuote: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+      expect(body.user).toBe(FROM_MOCK);
+      expect(body.recipient).toBe(accountOverride);
+      expect(result[0].request.recipient).toBe(accountOverride);
     });
 
     it('defaults atomic deposits to the execution account rather than the payer', async () => {

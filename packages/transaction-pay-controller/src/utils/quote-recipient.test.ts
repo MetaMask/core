@@ -59,7 +59,7 @@ describe('resolveQuoteRecipient', () => {
   );
 
   it.each([undefined, true])(
-    'pays the selected receiving account for ordinary withdrawals when atomic is %s',
+    'pays the sender for ordinary withdrawals without an account override when atomic is %s',
     async (atomic) => {
       expect(
         await resolveQuoteRecipient({
@@ -71,6 +71,39 @@ describe('resolveQuoteRecipient', () => {
       expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
     },
   );
+
+  it.each([undefined, true])(
+    'pays the account override for ordinary withdrawals when atomic is %s',
+    async (atomic) => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_MOCK.id]: {
+            accountOverride: PAYOUT_RECIPIENT_MOCK,
+          },
+        },
+      });
+
+      expect(
+        await resolveQuoteRecipient({
+          messenger,
+          request: { ...REQUEST_MOCK, atomic, isPostQuote: true },
+          transaction: TRANSACTION_MOCK,
+        }),
+      ).toBe(PAYOUT_RECIPIENT_MOCK);
+    },
+  );
+
+  it('pays the sender for ordinary withdrawals without transaction data', async () => {
+    getControllerStateMock.mockReturnValue({ transactionData: {} });
+
+    expect(
+      await resolveQuoteRecipient({
+        messenger,
+        request: { ...REQUEST_MOCK, isPostQuote: true },
+        transaction: TRANSACTION_MOCK,
+      }),
+    ).toBe(PAYER_MOCK);
+  });
 
   it.each([false, true])(
     'preserves an explicit atomic recipient when isPostQuote is %s',
