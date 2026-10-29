@@ -9,18 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [18.3.0]
 
-### Uncategorized
-
-- chore(deps): update dependency nock to v15 ([#11055](https://github.com/MetaMask/core/pull/11055))
-- test: use the nock default export instead of named imports ([#11138](https://github.com/MetaMask/core/pull/11138))
-- test(phishing-controller): make nock tests independent of node-fetch ([#11104](https://github.com/MetaMask/core/pull/11104))
-- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
-- chore: use TypeScript for Vitest configs ([#10921](https://github.com/MetaMask/core/pull/10921))
-- chore: note the unpublished test helpers in the changelogs ([#10928](https://github.com/MetaMask/core/pull/10928))
-- test: use typed Vitest module mock factories ([#10904](https://github.com/MetaMask/core/pull/10904))
-- test: run phishing-controller on Vitest ([#10554](https://github.com/MetaMask/core/pull/10554))
-- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
-
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
