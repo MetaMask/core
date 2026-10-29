@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
+import { PerpsControllerError } from '../../../src/errors.js';
+import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import {
   isAbortError,
   ensureError,
   isHyperLiquidMultiSigRequiredError,
   isHyperLiquidUserNotFoundError,
   isKeyringLockedError,
+  normalizeHyperLiquidError,
 } from '../../../src/utils/errorUtils.js';
 
 describe('errorUtils', () => {
@@ -162,6 +165,78 @@ describe('errorUtils', () => {
         ),
       ).toBe(false);
       expect(isHyperLiquidMultiSigRequiredError(undefined)).toBe(false);
+    });
+  });
+
+  describe('normalizeHyperLiquidError', () => {
+    it.each([
+      [
+        'Insufficient margin to place order',
+        PERPS_ERROR_CODES.INSUFFICIENT_MARGIN,
+      ],
+      [
+        'Reduce only order would increase position',
+        PERPS_ERROR_CODES.REDUCE_ONLY_VIOLATION,
+      ],
+      [
+        'Order could not immediately match against any resting orders',
+        PERPS_ERROR_CODES.IOC_CANCEL,
+      ],
+      [
+        'Too many requests: rate limit exceeded',
+        PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED,
+      ],
+      [
+        'Order must have minimum value of $10',
+        PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+      ],
+      [
+        'User or API Wallet 0xabc does not exist.',
+        PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      ],
+      [
+        'Must deposit before performing actions. User: 0xabc',
+        PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      ],
+    ])('maps "%s" to %s with provider details', (message, code) => {
+      const cause = new Error(message);
+
+      const result = normalizeHyperLiquidError(cause);
+
+      expect(result.message).toBe(code);
+      expect(result.errorCode).toBe(code);
+      expect(result.errorDetails).toStrictEqual({
+        code,
+        provider: 'hyperliquid',
+      });
+      expect(result.cause).toBe(cause);
+    });
+
+    it('preserves an existing structured controller error', () => {
+      const error = new PerpsControllerError(
+        PERPS_ERROR_CODES.PRICE_MOVED,
+        PERPS_ERROR_CODES.PRICE_MOVED,
+      );
+      const result = normalizeHyperLiquidError(error);
+
+      expect(result).toBe(error);
+    });
+
+    it('returns a safe generic error for an unknown failure and retains the cause', () => {
+      const cause = new Error(
+        'Unexpected Hyperliquid response containing sensitive diagnostics',
+      );
+
+      const result = normalizeHyperLiquidError(cause);
+
+      expect(result.message).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      expect(result.message).not.toContain(cause.message);
+      expect(result.errorCode).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      expect(result.errorDetails).toStrictEqual({
+        code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        provider: 'hyperliquid',
+      });
+      expect(result.cause).toBe(cause);
     });
   });
 });

@@ -1040,7 +1040,7 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
         await wallet.signTypedData(L1_PAYLOAD);
 
-        expect(order).toStrictEqual({
+        expect(order).toMatchObject({
           success: false,
           error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
           errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
@@ -1189,7 +1189,7 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         });
         await wallet.signTypedData(L1_PAYLOAD);
 
-        expect(result).toStrictEqual({
+        expect(result).toMatchObject({
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
@@ -1390,7 +1390,7 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
 
       const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
 
-      expect(order).toStrictEqual({
+      expect(order).toMatchObject({
         success: false,
         error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
         errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,

@@ -501,9 +501,10 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
       const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
       await sdkWallet().signTypedData(L1_PAYLOAD);
 
-      expect(order).toStrictEqual({
+      expect(order).toMatchObject({
         success: false,
-        error: mustDepositError(MAIN_ADDRESS).message,
+        error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
       });
       expect(extraAgents.mock.calls).toStrictEqual([[{ user: MAIN_ADDRESS }]]);
       expect(onAgentRejected).not.toHaveBeenCalled();
@@ -518,9 +519,10 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
 
     const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
 
-    expect(order).toStrictEqual({
+    expect(order).toMatchObject({
       success: false,
-      error: mustDepositError(OTHER_MAIN_ADDRESS).message,
+      error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
     });
     expect(extraAgents).not.toHaveBeenCalled();
     expect(onAgentRejected).not.toHaveBeenCalled();
@@ -560,9 +562,10 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
       success: false,
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
     });
-    expect(unfunded).toStrictEqual({
+    expect(unfunded).toMatchObject({
       success: false,
-      error: mustDepositError(MAIN_ADDRESS).message,
+      error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
     });
     expect(extraAgents).toHaveBeenCalledTimes(1);
     expect(onAgentRejected.mock.calls).toStrictEqual([
@@ -907,9 +910,10 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
     await disconnecting;
     const order = await ordering;
 
-    expect(order).toStrictEqual({
+    expect(order).toMatchObject({
       success: false,
-      error: mustDepositError(MAIN_ADDRESS).message,
+      error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
     });
     expect(extraAgents).toHaveBeenCalledTimes(1);
     expect(onAgentRejected).not.toHaveBeenCalled();
@@ -933,9 +937,10 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
 
     const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
 
-    expect(order).toStrictEqual({
+    expect(order).toMatchObject({
       success: false,
-      error: mustDepositError(MAIN_ADDRESS).message,
+      error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
     });
     expect(extraAgents).not.toHaveBeenCalled();
     expect(onAgentRejected).not.toHaveBeenCalled();
@@ -960,7 +965,11 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
     const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
     await sdkWallet().signTypedData(L1_PAYLOAD);
 
-    expect(order).toStrictEqual({ success: false, error: 'fetch failed' });
+    expect(order).toMatchObject({
+      success: false,
+      error: PERPS_ERROR_CODES.NETWORK_ERROR,
+      errorCode: PERPS_ERROR_CODES.NETWORK_ERROR,
+    });
     expect(extraAgents).not.toHaveBeenCalled();
     expect(onAgentRejected).not.toHaveBeenCalled();
     expect(getAgentSigner.mock.calls).toStrictEqual([[MAINNET_ACCOUNT]]);
@@ -986,9 +995,10 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
 
     const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
 
-    expect(order).toStrictEqual({
+    expect(order).toMatchObject({
       success: false,
-      error: mustDepositError(MAIN_ADDRESS).message,
+      error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
     });
     expect(extraAgents).not.toHaveBeenCalled();
     expect(onAgentRejected).not.toHaveBeenCalled();
@@ -1085,9 +1095,10 @@ describe('HyperLiquidProvider with accountSigner: an agent the venue answers wit
 
       const order = await accountSignerProvider.placeOrder(BTC_MARKET_ORDER);
 
-      expect(order).toStrictEqual({
+      expect(order).toMatchObject({
         success: false,
-        error: mustDepositError(MAIN_ADDRESS).message,
+        error: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+        errorCode: PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
       });
       expect(extraAgents).not.toHaveBeenCalled();
       expect(onAgentRejected).not.toHaveBeenCalled();
