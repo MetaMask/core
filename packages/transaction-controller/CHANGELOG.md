@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: drop mock reset hooks that duplicate the shared config ([#11066](https://github.com/MetaMask/core/pull/11066))
+- chore(deps): update dependency nock to v15 ([#11055](https://github.com/MetaMask/core/pull/11055))
+- test: make nock tests independent of node-fetch in network, assets and transaction controllers ([#11132](https://github.com/MetaMask/core/pull/11132))
+
 ### Changed
 
 - **BREAKING:** Delegate all Sentinel simulation requests to `@metamask/sentinel-api-service` via the `SentinelApiService:simulateTransactions` messenger action ([#9476](https://github.com/MetaMask/core/pull/9476))
