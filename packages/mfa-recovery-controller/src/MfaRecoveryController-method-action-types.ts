@@ -6,6 +6,32 @@
 import type { MfaRecoveryController } from './MfaRecoveryController.js';
 
 /**
+ * Acquires the per-profile recovery lease. Hold it from the first read
+ * through any Auth identifier changes and mutations.
+ */
+export type MfaRecoveryControllerAcquireLockAction = {
+  type: `MfaRecoveryController:acquireLock`;
+  handler: MfaRecoveryController['acquireLock'];
+};
+
+/**
+ * Renews the held lease. Fails if it expired or another operation holds it;
+ * then acquire again and reread state.
+ */
+export type MfaRecoveryControllerRenewLockAction = {
+  type: `MfaRecoveryController:renewLock`;
+  handler: MfaRecoveryController['renewLock'];
+};
+
+/**
+ * Releases the lease. A pending mutation must finish first.
+ */
+export type MfaRecoveryControllerReleaseLockAction = {
+  type: `MfaRecoveryController:releaseLock`;
+  handler: MfaRecoveryController['releaseLock'];
+};
+
+/**
  * Creates version 1 of a recovery record.
  *
  * @param recoverySecret - Secret replicated in full to every escrow.
@@ -107,6 +133,9 @@ export type MfaRecoveryControllerGetPhaseAction = {
  * Union of all MfaRecoveryController action types.
  */
 export type MfaRecoveryControllerMethodActions =
+  | MfaRecoveryControllerAcquireLockAction
+  | MfaRecoveryControllerRenewLockAction
+  | MfaRecoveryControllerReleaseLockAction
   | MfaRecoveryControllerRegisterAction
   | MfaRecoveryControllerUpdateRecoverySecretAction
   | MfaRecoveryControllerUpdateIdentifiersAction

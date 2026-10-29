@@ -17,6 +17,7 @@ import type { Identifier } from '../src/types.js';
 import {
   StubAuthProvider,
   StubIdentifierAuthProvider,
+  StubRecoveryLockProvider,
   passthroughEncryptor,
 } from '../tests/stubs.js';
 
@@ -133,6 +134,7 @@ async function main(flags: Record<string, string>): Promise<void> {
   const controller = new MfaRecoveryController({
     messenger: getControllerMessenger(),
     authProvider: new StubAuthProvider([PASSKEY, SOCIAL]),
+    lockProvider: new StubRecoveryLockProvider(),
     identifierAuthProvider: new StubIdentifierAuthProvider(),
     escrows: [escrow],
     pendingOperationEncryptor: passthroughEncryptor,
