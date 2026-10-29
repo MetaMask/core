@@ -158,7 +158,6 @@ jobs:
       - name: Validate changelogs
         run: yarn changelog:validate:all
         env:
-          PACKAGE_NAME: ${{ matrix.package-name }}
           CHANGELOG_MERGE_BASE: ${{ needs.prepare.outputs.merge-base }}
       - name: Require clean working directory
         shell: bash
