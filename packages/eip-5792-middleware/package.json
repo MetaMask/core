@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eip-5792-middleware",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "description": "Implements the JSON-RPC methods for sending multiple calls from the user's wallet, and checking their status, as referenced in EIP-5792",
   "keywords": [
     "Ethereum",
@@ -51,7 +51,7 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/preferences-controller": "^24.0.0",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^72.3.0",
+    "@metamask/transaction-controller": "^73.0.0",
     "@metamask/utils": "^12.0.1",
     "lodash-es": "^4.18.1",
     "uuid": "^14.0.0"

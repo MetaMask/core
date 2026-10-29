@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-pay-middleware",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Implements the wallet_pay JSON-RPC method, which lets dapps request MetaMask Pay transactions",
   "keywords": [
     "Ethereum",
@@ -59,7 +59,7 @@
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/rpc-errors": "^7.0.3",
     "@metamask/superstruct": "^3.4.1",
-    "@metamask/transaction-controller": "^72.3.0",
+    "@metamask/transaction-controller": "^73.0.0",
     "@metamask/utils": "^12.0.1",
     "bignumber.js": "^9.1.2"
   },
