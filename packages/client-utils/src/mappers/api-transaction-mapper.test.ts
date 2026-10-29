@@ -871,6 +871,28 @@ describe('mapApiTransaction', () => {
     });
   });
 
+  it('maps a relayed (sponsored) ERC-20 send, where the subject is neither from nor to, to a Send activity', () => {
+    const item = mapApiTransaction(
+      apiTransactionFixtures.mapArgs.mapsARelayedSponsoredErc20Send,
+    );
+
+    expect(item).toMatchObject({
+      type: 'send',
+      chainId: 'eip155:143',
+      data: {
+        from: subjectAddress,
+        to: baseRecipientAddress,
+        token: {
+          amount: '10000',
+          decimals: 6,
+          direction: 'out',
+          symbol: 'USDC',
+        },
+        fees: [],
+      },
+    });
+  });
+
   it('maps a failed transaction to a failed activity item', () => {
     const item = mapApiTransaction(
       apiTransactionFixtures.mapArgs.mapsAFailedTransactionToA,
