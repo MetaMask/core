@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Use shared recipient resolution for Relay and Server quotes ([#10887](https://github.com/MetaMask/core/pull/10887))
 - Bump `@metamask/transaction-controller` from `^72.2.1` to `^72.3.0` ([#11154](https://github.com/MetaMask/core/pull/11154))
 - Bump `@metamask/assets-controller` from `^20.0.0` to `^20.0.1` ([#11157](https://github.com/MetaMask/core/pull/11157))
 - Bump `@metamask/ramps-controller` from `^28.0.0` to `^28.1.0` ([#11175](https://github.com/MetaMask/core/pull/11175))
