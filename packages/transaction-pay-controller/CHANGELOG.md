@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^20.0.0` to `^20.0.2` ([#11157](https://github.com/MetaMask/core/pull/11157), [#11196](https://github.com/MetaMask/core/pull/11196))
 - Bump `@metamask/ramps-controller` from `^28.0.0` to `^28.1.0` ([#11175](https://github.com/MetaMask/core/pull/11175))
 - Use shared recipient resolution for Relay and Server quotes ([#10887](https://github.com/MetaMask/core/pull/10887))
+- Use shared Hyperliquid perps logic in all strategies, detecting deposits from calldata rather than transaction type ([#11026](https://github.com/MetaMask/core/pull/11026))
+
+### Fixed
+
+- Fix Hyperliquid perps deposit detection and withdrawal decimals in `ServerStrategy` ([#11026](https://github.com/MetaMask/core/pull/11026))
 
 ## [30.3.1]
 
