@@ -52,8 +52,7 @@ export type JsonRpcRequestMock = {
 
 /**
  * Reads the JSON body of a request from the arguments that Nock passes to a
- * reply function. Depending on the version of Nock, these are either `(uri,
- * body)` or a Fetch API `Request`.
+ * reply function, the first of which is a Fetch API `Request`.
  *
  * @param replyArgs - The arguments that Nock passed to the reply function.
  * @returns The parsed request body.
@@ -61,11 +60,8 @@ export type JsonRpcRequestMock = {
 export async function getNockRequestBody<Body>(
   replyArgs: unknown[],
 ): Promise<Body> {
-  const [first, second] = replyArgs;
-  if (typeof second === 'object' && second !== null) {
-    return second as Body;
-  }
-  return (await (first as Request).clone().json()) as Body;
+  const [request] = replyArgs;
+  return (await (request as Request).clone().json()) as Body;
 }
 
 /**
