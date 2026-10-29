@@ -29,6 +29,7 @@ import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import { PriceDataSource } from './data-sources/PriceDataSource.js';
 import { RpcDataSource } from './data-sources/RpcDataSource.js';
+import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource.js';
 import { TokenDataSource } from './data-sources/TokenDataSource.js';
 import {
   buildDefaultAssetsInfo,
@@ -440,6 +441,7 @@ async function withController<ReturnValue>(
       ...incomingPriceDataSourceConfig,
     },
   });
+  await controller.init();
 
   try {
     return await fn({ controller, messenger, getSelectedAccountsMock });
@@ -744,6 +746,143 @@ describe('AssetsController', () => {
             },
           }),
       ).not.toThrow();
+    });
+
+    it('reads enabled chains from init and from NetworkEnablementController state changes when getState is not registered at construction', async () => {
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      messenger.registerActionHandler(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        () => [],
+      );
+      (
+        messenger as {
+          registerActionHandler: (
+            action: string,
+            handler: () => unknown,
+          ) => void;
+        }
+      ).registerActionHandler('AccountsController:getSelectedAccount', () =>
+        createMockInternalAccount(),
+      );
+      (
+        messenger as {
+          registerActionHandler: (
+            action: string,
+            handler: () => unknown,
+          ) => void;
+        }
+      ).registerActionHandler('NetworkController:getState', () => ({
+        networkConfigurationsByChainId: {},
+        networksMetadata: {},
+      }));
+      (
+        messenger as {
+          registerActionHandler: (
+            action: string,
+            handler: () => unknown,
+          ) => void;
+        }
+      ).registerActionHandler('NetworkController:getNetworkClientById', () => ({
+        provider: {},
+      }));
+
+      const polygonNativeAssetId = 'eip155:137/slip44:966' as Caip19AssetId;
+      const nativeMetadata = {
+        type: 'native' as const,
+        symbol: 'ETH',
+        name: 'Ether',
+        decimals: 18,
+      };
+      const controller = new AssetsController({
+        messenger: messenger as unknown as AssetsControllerMessenger,
+        queryApiClient: createMockQueryApiClient(),
+        state: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_NATIVE_ASSET_ID]: { amount: '1' },
+              [polygonNativeAssetId]: { amount: '2' },
+            },
+          },
+          assetsInfo: {
+            [MOCK_NATIVE_ASSET_ID]: nativeMetadata,
+            [polygonNativeAssetId]: {
+              ...nativeMetadata,
+              symbol: 'POL',
+              name: 'Polygon',
+            },
+          },
+        },
+      });
+
+      const account = createMockInternalAccount();
+      await controller.init();
+      const beforeInit = await controller.getAssets([account]);
+      expect(Object.keys(beforeInit[MOCK_ACCOUNT_ID])).toStrictEqual([]);
+
+      messenger.registerActionHandler(
+        'NetworkEnablementController:getState',
+        () => ({
+          enabledNetworkMap: {
+            eip155: { '0x1': true },
+          },
+          nativeAssetIdentifiers: {
+            'eip155:1': 'eip155:1/slip44:60',
+          },
+        }),
+      );
+      await controller.init();
+
+      const afterInit = await controller.getAssets([account]);
+      expect(Object.keys(afterInit[MOCK_ACCOUNT_ID])).toStrictEqual([
+        MOCK_NATIVE_ASSET_ID,
+      ]);
+
+      (messenger as unknown as { publish: LifecyclePublish }).publish(
+        'NetworkEnablementController:stateChange',
+        {
+          enabledNetworkMap: {
+            eip155: { '0x1': true, '0x89': true },
+          },
+          nativeAssetIdentifiers: {
+            'eip155:1': 'eip155:1/slip44:60',
+            'eip155:137': 'eip155:137/slip44:966',
+          },
+        },
+      );
+      await new Promise(process.nextTick);
+
+      const afterStateChange = await controller.getAssets([account]);
+      expect(
+        Object.keys(afterStateChange[MOCK_ACCOUNT_ID]).sort(),
+      ).toStrictEqual([MOCK_NATIVE_ASSET_ID, polygonNativeAssetId].sort());
+    });
+
+    it('refreshes data source active chains from init', async () => {
+      const refreshRpcSpy = vi.spyOn(
+        RpcDataSource.prototype,
+        'refreshActiveChainsFromNetworkState',
+      );
+      const refreshStakedSpy = vi.spyOn(
+        StakedBalanceDataSource.prototype,
+        'refreshActiveChainsFromNetworkEnablementState',
+      );
+
+      try {
+        await withController(async ({ controller }) => {
+          refreshRpcSpy.mockClear();
+          refreshStakedSpy.mockClear();
+
+          await controller.init();
+
+          expect(refreshRpcSpy).toHaveBeenCalledTimes(1);
+          expect(refreshStakedSpy).toHaveBeenCalledTimes(1);
+        });
+      } finally {
+        refreshRpcSpy.mockRestore();
+        refreshStakedSpy.mockRestore();
+      }
     });
 
     it('accepts isBasicFunctionality option and exposes handleBasicFunctionalityChange', async () => {
@@ -5498,6 +5637,7 @@ describe('AssetsController', () => {
           /* no-op */
         },
       });
+      await controller.init();
 
       const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
@@ -5637,6 +5777,7 @@ describe('AssetsController', () => {
           /* no-op */
         },
       });
+      await controller.init();
 
       let nativePresentAtPriceFetch: boolean | undefined;
       const fetchSpy = vi
@@ -6154,6 +6295,7 @@ describe('AssetsController', () => {
           /* no-op */
         },
       });
+      await controller.init();
 
       const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 

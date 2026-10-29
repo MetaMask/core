@@ -9158,6 +9158,7 @@ __metadata:
     "@metamask/address-book-controller": "npm:^8.0.0"
     "@metamask/analytics-controller": "npm:^4.1.0"
     "@metamask/approval-controller": "npm:^10.0.0"
+    "@metamask/assets-controller": "npm:^20.0.2"
     "@metamask/auto-changelog": "npm:^6.2.1"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/browser-passworder": "npm:^6.0.0"

@@ -12,9 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add `NetworkEnablementController` to the default initialization configurations ([#10997](https://github.com/MetaMask/core/pull/10997))
   - Delegates `MultichainNetworkController:getState`. `Wallet` does not construct `MultichainNetworkController`. Clients must register that action on the wallet messenger before calling `wallet.init()`. `NetworkEnablementController.init()` reads it during `Wallet.init()`, and `enableAllPopularNetworks` and `listPopularMultichainNetworks` read it later.
   - Also delegates `ConfigRegistryController:getState`, `NetworkController:getState`, `NetworkController:networkAdded`, `NetworkController:networkRemoved`, `NetworkController:stateChange`, and `TransactionController:transactionSubmitted`. `Wallet` constructs those controllers during default initialization.
+- Export an `assetsController` initialization configuration for `AssetsController`, along with the `AssetsControllerInstanceOptions` type ([#10885](https://github.com/MetaMask/core/pull/10885))
+  - It is not part of the default initialization configurations, because the Wallet does not yet initialize several of its dependencies (e.g. `AccountTreeController`, `SnapController`). Pass it through `initializationConfigurations`. Those configurations are constructed before the default `NetworkEnablementController`. `AssetsController.init()` reads that controller's state during `wallet.init()`, and later enablement changes arrive on `NetworkEnablementController:stateChange`.
+  - Configure it through the new optional `instanceOptions.assetsController`, which requires a `queryApiClient`.
 
 ### Changed
 
+- Add `@metamask/assets-controller` as a dependency ([#10885](https://github.com/MetaMask/core/pull/10885))
 - Add `@metamask/network-enablement-controller` as a dependency ([#10997](https://github.com/MetaMask/core/pull/10997))
 - Bump `@metamask/claims-controller` from `^1.0.4` to `^1.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))
 - Bump `@metamask/shield-controller` from `^7.0.5` to `^7.1.0` ([#11092](https://github.com/MetaMask/core/pull/11092))

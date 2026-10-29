@@ -120,6 +120,7 @@ async function withController<ReturnValue>(
     isBasicFunctionality,
     captureException,
   });
+  await controller.init();
 
   try {
     return await fn({ controller, messenger: rootMessenger });

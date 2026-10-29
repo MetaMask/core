@@ -220,6 +220,15 @@ export class StakedBalanceDataSource extends AbstractDataSource<
   }
 
   /**
+   * Re-read NetworkEnablementController state and refresh staking
+   * `activeChains` (e.g. when that controller was not registered yet at
+   * construction).
+   */
+  refreshActiveChainsFromNetworkEnablementState(): void {
+    this.#initializeActiveChains();
+  }
+
+  /**
    * When NetworkController state changes (e.g. RPC endpoints or network clients
    * reconfigured), clear the provider cache so subsequent fetches use fresh
    * providers.

@@ -18,6 +18,9 @@
       "path": "../approval-controller/tsconfig.build.json"
     },
     {
+      "path": "../assets-controller/tsconfig.build.json"
+    },
+    {
       "path": "../claims-controller/tsconfig.build.json"
     },
     {

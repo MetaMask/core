@@ -7,6 +7,7 @@ import type {
 } from './initialization/defaults.js';
 import type { AnalyticsControllerInstanceOptions } from './initialization/instances/analytics-controller/types.js';
 import type { ApprovalControllerInstanceOptions } from './initialization/instances/approval-controller/types.js';
+import type { AssetsControllerInstanceOptions } from './initialization/instances/assets-controller/types.js';
 import type { ClaimsServiceInstanceOptions } from './initialization/instances/claims-service/types.js';
 import type { ConfigRegistryApiServiceInstanceOptions } from './initialization/instances/config-registry-api-service/types.js';
 import type { ConfigRegistryControllerInstanceOptions } from './initialization/instances/config-registry-controller/types.js';
@@ -38,6 +39,7 @@ export type WalletOptions = {
 export type InstanceSpecificOptions = {
   analyticsController: AnalyticsControllerInstanceOptions;
   approvalController?: ApprovalControllerInstanceOptions;
+  assetsController?: AssetsControllerInstanceOptions;
   claimsService?: ClaimsServiceInstanceOptions;
   configRegistryApiService: ConfigRegistryApiServiceInstanceOptions;
   configRegistryController?: ConfigRegistryControllerInstanceOptions;
