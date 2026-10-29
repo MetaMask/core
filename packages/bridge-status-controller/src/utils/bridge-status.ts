@@ -19,7 +19,7 @@ import type {
   BridgeStatusControllerMessenger,
 } from '../types.js';
 import { isHistoryItemTooOld } from './history.js';
-import { getNetworkClientByChainId } from './network.js';
+import { getNetworkProviderByChainId } from './network.js';
 import { validateBridgeStatusResponse } from './validators.js';
 
 export const getBridgeStatusUrl = (bridgeApiBaseUrl: string): string =>
@@ -152,14 +152,12 @@ export const shouldWaitForFinalBridgeStatus = async (
   historyItem: BridgeHistoryItem,
 ): Promise<boolean> => {
   // Keep waiting for status if the history is not pending or is not old enough yet
-  if (
-    !(
-      isHistoryItemTooOld(messenger, historyItem) &&
-      [StatusTypes.PENDING, StatusTypes.UNKNOWN].includes(
-        historyItem.status.status,
-      )
+  if (!(
+    isHistoryItemTooOld(messenger, historyItem) &&
+    [StatusTypes.PENDING, StatusTypes.UNKNOWN].includes(
+      historyItem.status.status,
     )
-  ) {
+  )) {
     return true;
   }
 
@@ -169,7 +167,7 @@ export const shouldWaitForFinalBridgeStatus = async (
 
   let provider: Provider;
   try {
-    provider = getNetworkClientByChainId(
+    provider = getNetworkProviderByChainId(
       messenger,
       historyItem.quote.srcChainId,
     );

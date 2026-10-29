@@ -12,6 +12,7 @@ import {
   enums,
   literal,
   AnyStruct,
+  boolean,
 } from '@metamask/superstruct';
 import {
   CaipChainId,
@@ -27,6 +28,7 @@ import { QuoteSchemaV2 } from './quote.js';
 import {
   BitcoinTradeData,
   BitcoinTradeDataSchema,
+  HexString,
   StellarTradeData,
   StellarTradeDataSchema,
   TronTradeData,
@@ -60,6 +62,20 @@ const CommonQuoteResponseSchema = type({
    * @deprecated Use network feeData
    */
   l1GasFeesInHexWei: optional(StrictHexStruct),
+  /**
+   * Appended to the quote response if a money account deposit is needed after the swap
+   */
+  depositConfig: optional(
+    type({
+      chainIdHex: HexString,
+      boringVault: HexString,
+      tellerAddress: HexString,
+      accountantAddress: HexString,
+      lensAddress: HexString,
+      moneyAccountAddress: HexString,
+      isGasFeeSponsored: boolean(),
+    }),
+  ),
 });
 
 const EvmQuoteResponseSchema = intersection([

@@ -48,6 +48,12 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../money-account-controller"
+    },
+    {
+      "path": "../money-account-utils"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

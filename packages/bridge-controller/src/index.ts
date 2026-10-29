@@ -291,3 +291,6 @@ export {
   fetchTokens,
   type SwapsToken,
 } from './utils/swaps.js';
+
+export { getAccountByAddress } from './utils/controllers/accounts.js';
+export { getNetworkClientIdByChainId } from './utils/controllers/network.js';

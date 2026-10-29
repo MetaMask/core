@@ -49,6 +49,12 @@
     },
     {
       "path": "../utils/tsconfig.build.json"
+    },
+    {
+      "path": "../money-account-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../money-account-utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

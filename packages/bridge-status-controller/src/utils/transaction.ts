@@ -6,6 +6,8 @@ import {
   isEvmTxData,
   FeeType,
   BatchSellTransactionType,
+  getNetworkClientIdByChainId,
+  getAccountByAddress,
 } from '@metamask/bridge-controller';
 import type {
   BatchSellTradesResponse,
@@ -35,8 +37,6 @@ import type { Hex } from '@metamask/utils';
 import { APPROVAL_DELAY_MS } from '../constants.js';
 import type { BridgeStatusControllerMessenger } from '../types.js';
 import type { QuoteAndTxMetadata } from '../types.js';
-import { getAccountByAddress } from './accounts.js';
-import { getNetworkClientIdByChainId } from './network.js';
 
 export const isApprovalTx = (type: TransactionType) =>
   type === TransactionType.bridgeApproval ||
@@ -171,6 +171,44 @@ export const checkIsDelegatedAccount = async (
     );
   } catch {
     return false;
+  }
+};
+
+const getBatchTransactionCounts = (
+  messenger: BridgeStatusControllerMessenger,
+  batchId: `0x${string}`,
+) =>
+  messenger.call('TransactionController:getState').batchTransactionCounts[
+    batchId
+  ];
+
+const getTransactionMetaByBatchId = ({
+  messenger,
+  batchId,
+}: {
+  messenger: BridgeStatusControllerMessenger;
+  batchId: string;
+}): TransactionMeta[] =>
+  getTransactions(messenger).filter(
+    (tx: TransactionMeta) => tx.batchId === batchId,
+  );
+
+export const checkIsBatchIdSubmitted = (
+  messenger: BridgeStatusControllerMessenger,
+  batchId: `0x${string}`,
+) => {
+  // If > 0, batch submission is in progress
+  const batchTransactionCounts = getBatchTransactionCounts(messenger, batchId);
+  if (batchTransactionCounts) {
+    return true;
+  }
+  // If length > 0, batch has been approved
+  const transactions = getTransactionMetaByBatchId({
+    messenger,
+    batchId,
+  });
+  if (transactions.length > 0) {
+    return true;
   }
 };
 
@@ -540,9 +578,7 @@ export const findAllTransactionsInBatch = ({
   tradeData: QuoteAndTxMetadata[];
 }): QuoteAndTxMetadata[] => {
   // Filter for transactions with batchId
-  const txs = getTransactions(messenger).filter(
-    (tx: TransactionMeta) => tx.batchId === batchId,
-  );
+  const txs = getTransactionMetaByBatchId({ messenger, batchId });
 
   return tradeData.map((tradeWithMetadata) => {
     const { tx, type } = tradeWithMetadata;

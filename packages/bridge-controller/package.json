@@ -65,6 +65,8 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/multichain-network-controller": "^4.0.0",
+    "@metamask/money-account-controller": "^3.0.0",
+    "@metamask/money-account-utils": "^2.1.0",
     "@metamask/network-controller": "^37.1.1",
     "@metamask/polling-controller": "^17.0.0",
     "@metamask/profile-sync-controller": "^36.0.0",
