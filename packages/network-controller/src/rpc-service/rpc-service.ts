@@ -516,12 +516,13 @@ export class RpcService {
     >,
   ): ReturnType<ServicePolicy['onDegraded']> {
     return this.#policy.onDegradedWithContext(({ context, ...data }) => {
-      const requestInfo =
-        /* istanbul ignore next: the context is always known for requests made by this service */
-        (context && this.#requestInfoByContext.get(context)) ?? {
-          rpcMethodName: '',
-          traceId: undefined,
-        };
+      const requestInfo = (context &&
+        this.#requestInfoByContext.get(
+          context,
+        )) ?? /* istanbul ignore next: the context is always known for requests made by this service */ {
+        rpcMethodName: '',
+        traceId: undefined,
+      };
       listener({
         ...data,
         endpointUrl: this.endpointUrl.toString(),
