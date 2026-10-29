@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
+### Fixed
+
+- Fix `ProfileService.disconnectX` to call `DELETE /v1/profiles/x/account` instead of the non-existent `DELETE /v1/profiles/{profileId}/x` endpoint. The linked X account is resolved server-side from the verified bearer token
+
 ## [1.2.0]
 
 ### Added
