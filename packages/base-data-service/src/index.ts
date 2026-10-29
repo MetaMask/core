@@ -14,6 +14,7 @@ export {
 } from 'cockatiel';
 
 export type {
+  CacheUpdatedState,
   DataServiceActions,
   DataServiceEvents,
   DataServiceCacheUpdatedPayload,
@@ -21,7 +22,10 @@ export type {
   DataServiceInvalidateQueriesAction,
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
+  DataServiceQueryState,
   QueryKey,
+  QueryStateChangeHandler,
+  SerializedQueryError,
   MutationKey,
   PersistenceConfiguration,
 } from './BaseDataService.js';

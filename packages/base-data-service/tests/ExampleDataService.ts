@@ -28,6 +28,7 @@ import {
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
   PersistenceConfiguration,
+  QueryStateChangeHandler,
 } from '../src/BaseDataService.js';
 import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types.js';
 
@@ -134,9 +135,13 @@ export class ExampleDataService extends BaseDataService<
     );
   }
 
-  async getAssets(assets: string[]): Promise<GetAssetsResponse> {
+  async getAssets(
+    assets: string[],
+    onQueryStateChange?: QueryStateChangeHandler,
+  ): Promise<GetAssetsResponse> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getAssets`, assets],
+      onQueryStateChange,
       queryFn: async () => {
         const url = new URL(
           `${this.#tokensBaseUrl}/v3/assets?assetIds=${assets.join(',')}`,

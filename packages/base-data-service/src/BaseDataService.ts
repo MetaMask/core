@@ -11,7 +11,7 @@ import type {
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
 import { Struct } from '@metamask/superstruct';
-import { Duration, inMilliseconds } from '@metamask/utils';
+import { Duration, getErrorMessage, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import {
   DefaultError,
@@ -83,10 +83,75 @@ export type BaseMessenger<Namespace extends string> = Messenger<
   any
 >;
 
+/**
+ * A JSON safe representation of an error thrown by a query.
+ */
+export type SerializedQueryError = { name: string; message: string };
+
+/**
+ * The dehydrated state published in `:cacheUpdated` payloads, where query
+ * errors are serialized and the in flight `promise` is omitted so the payload
+ * survives JSON round trips.
+ */
+export type CacheUpdatedState = Omit<DehydratedState, 'queries'> & {
+  queries: (Omit<DehydratedState['queries'][number], 'state' | 'promise'> & {
+    state: DataServiceQueryState;
+  })[];
+};
+
+/**
+ * The state of a single query, as reported to `onQueryStateChange` handlers.
+ * Errors are serialized so the state is JSON safe.
+ */
+export type DataServiceQueryState = Omit<
+  DehydratedState['queries'][number]['state'],
+  'error' | 'fetchFailureReason'
+> & {
+  error: SerializedQueryError | null;
+  fetchFailureReason: SerializedQueryError | null;
+};
+
+/**
+ * A callback that receives the state of a query as it changes.
+ */
+export type QueryStateChangeHandler = (state: DataServiceQueryState) => void;
+
+/**
+ * Convert a thrown value into a JSON safe error.
+ *
+ * @param error - The raw error stored on a query, if any.
+ * @returns The serialized error, or null if there is no error.
+ */
+function serializeQueryError(error: unknown): SerializedQueryError | null {
+  if (error === null) {
+    return null;
+  }
+  return {
+    name: error instanceof Error ? error.name : 'Error',
+    message: getErrorMessage(error),
+  };
+}
+
+/**
+ * Serialize the errors held by a query state so it survives JSON round trips.
+ *
+ * @param state - The raw query state.
+ * @returns The query state with `error` and `fetchFailureReason` serialized.
+ */
+function serializeQueryState(
+  state: DehydratedState['queries'][number]['state'],
+): DataServiceQueryState {
+  return {
+    ...state,
+    error: serializeQueryError(state.error),
+    fetchFailureReason: serializeQueryError(state.fetchFailureReason),
+  };
+}
+
 export type DataServiceGranularCacheUpdatedPayload = {
   objectType: 'query' | 'mutation';
 } & (
-  | { type: 'added' | 'updated'; state: DehydratedState }
+  | { type: 'added' | 'updated'; state: CacheUpdatedState }
   | {
       type: 'removed';
       state: null;
@@ -321,6 +386,10 @@ export class BaseDataService<
    * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
    * @param options.queryFn - The query function.
    * @param options.responseStruct - An optional struct for validating the response of the query function.
+   * @param options.onQueryStateChange - An optional callback that receives the
+   * state of the query (with serialized errors) as it changes. It is called
+   * once with the current state if the query is already cached, then with
+   * every update until the fetch has settled and the query is idle.
    * @returns The query results.
    */
   protected async fetchQuery<
@@ -334,6 +403,7 @@ export class BaseDataService<
   >({
     queryFn,
     responseStruct,
+    onQueryStateChange,
     ...options
   }: WithRequired<
     OmitKeyof<
@@ -344,14 +414,30 @@ export class BaseDataService<
   > & {
     queryFn: QueryFunction<TQueryFnData, TQueryKey>;
     responseStruct?: TDataStruct;
+    onQueryStateChange?: QueryStateChangeHandler;
   }): Promise<TData> {
-    return this.#queryClient.fetchQuery({
-      ...options,
-      queryFn: async (context) => {
-        const response = await this.#policy.execute(() => queryFn(context));
-        return processQueryResponse(options.queryKey, response, responseStruct);
-      },
-    });
+    const runFetch = async (): Promise<TData> =>
+      this.#queryClient.fetchQuery({
+        ...options,
+        queryFn: async (context) => {
+          const response = await this.#policy.execute(() => queryFn(context));
+          return processQueryResponse(
+            options.queryKey,
+            response,
+            responseStruct,
+          );
+        },
+      });
+
+    if (!onQueryStateChange) {
+      return runFetch();
+    }
+
+    return this.#withQueryStateChange(
+      options.queryKey,
+      onQueryStateChange,
+      runFetch,
+    );
   }
 
   /**
@@ -586,6 +672,83 @@ export class BaseDataService<
   }
 
   /**
+   * Run a fetch while reporting the state of its query to a handler.
+   *
+   * The handler receives the current state up front if the query is cached,
+   * then every `updated` cache event for the query. It is
+   * unsubscribed once the fetch has settled and the last reported state is
+   * idle, so a background fetch that outlives this call is still reported
+   * until it finishes. Errors thrown by the handler are logged and ignored.
+   *
+   * @param queryKey - The key of the query being fetched.
+   * @param handler - The callback receiving query states.
+   * @param runFetch - The function performing the fetch.
+   * @returns The result of the fetch.
+   */
+  async #withQueryStateChange<Result>(
+    queryKey: QueryKey,
+    handler: QueryStateChangeHandler,
+    runFetch: () => Promise<Result>,
+  ): Promise<Result> {
+    const notify = (state: DataServiceQueryState): void => {
+      try {
+        handler(state);
+      } catch (error) {
+        log('onQueryStateChange handler threw', error);
+      }
+    };
+
+    const eventType = `${this.name}:cacheUpdated:${hashKey(queryKey)}` as const;
+    let settled = false;
+    let idle = true;
+
+    const unsubscribe = (
+      handlerToRemove: (
+        payload: DataServiceGranularCacheUpdatedPayload,
+      ) => void,
+    ): void => {
+      try {
+        this.#messenger.unsubscribe(eventType, handlerToRemove);
+      } catch {
+        // The subscription was already cleared, e.g. by `destroy`.
+      }
+    };
+
+    const listener = (
+      payload: DataServiceGranularCacheUpdatedPayload,
+    ): void => {
+      // `added` only carries the blank state built right before the fetch
+      // starts (pending and idle), and `removed` carries no state at all.
+      if (payload.type !== 'updated') {
+        return;
+      }
+      const { state } = payload.state.queries[0];
+      idle = state.fetchStatus === 'idle';
+      notify(state);
+      if (settled && idle) {
+        unsubscribe(listener);
+      }
+    };
+
+    const current = this.#queryClient.getQueryState(queryKey);
+    if (current) {
+      idle = current.fetchStatus === 'idle';
+      notify(serializeQueryState(current));
+    }
+
+    this.#messenger.subscribe(eventType, listener);
+
+    try {
+      return await runFetch();
+    } finally {
+      settled = true;
+      if (idle) {
+        unsubscribe(listener);
+      }
+    }
+  }
+
+  /**
    * Publish `cacheUpdated` events when the query or mutation cache is updated.
    *
    * @param objectType - The type of object updated ("query" or "mutation").
@@ -597,7 +760,7 @@ export class BaseDataService<
     eventType: CacheUpdatedType,
     hash: string,
   ): void {
-    const state =
+    const dehydrated =
       eventType === 'added' || eventType === 'updated'
         ? dehydrate(this.#queryClient, {
             shouldDehydrateQuery: (query) =>
@@ -608,6 +771,14 @@ export class BaseDataService<
               hashKey(mutation.options.mutationKey) === hash,
           })
         : null;
+    const state = dehydrated && {
+      ...dehydrated,
+      // The in flight `promise` is not JSON safe, so it is left out.
+      queries: dehydrated.queries.map(({ promise: _promise, ...query }) => ({
+        ...query,
+        state: serializeQueryState(query.state),
+      })),
+    };
 
     this.#messenger.publish(
       `${this.name}:cacheUpdated` as const,

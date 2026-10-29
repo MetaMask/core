@@ -9,7 +9,14 @@ import {
   StorageServiceRemoveItemAction,
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
-import { CancelledError, hashKey, QueryClient } from '@tanstack/query-core';
+import type { Json } from '@metamask/utils';
+import {
+  CancelledError,
+  hashKey,
+  hydrate,
+  QueryClient,
+} from '@tanstack/query-core';
+import type { DehydratedState } from '@tanstack/query-core';
 import { BrokenCircuitError } from 'cockatiel';
 import nock from 'nock';
 import {
@@ -38,6 +45,10 @@ import {
   TRANSACTIONS_PAGE_3_CURSOR,
 } from '../tests/mocks.js';
 import { STORAGE_SERVICE_KEY } from './BaseDataService.js';
+import type {
+  DataServiceQueryState,
+  QueryStateChangeHandler,
+} from './BaseDataService.js';
 
 const TEST_ADDRESS = '0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520';
 
@@ -731,6 +742,394 @@ describe('BaseDataService', () => {
 
       service.destroy();
     });
+
+    it('serializes query errors in `:cacheUpdated` payloads so they survive JSON', async () => {
+      const messenger = createServiceMessenger();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      const service = new ExampleDataService(messenger);
+
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+      mockAssets({ status: 500, body: { error: 'internal server error' } });
+
+      await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
+        'Query failed with status code: 500.',
+      );
+
+      const hash = hashKey(['ExampleDataService:getAssets', MOCK_ASSETS]);
+      const payloads = publishSpy.mock.calls
+        .filter(
+          ([event]) => event === `ExampleDataService:cacheUpdated:${hash}`,
+        )
+        .map(([, payload]) => payload);
+      const last = roundTrip(payloads.at(-1));
+
+      expect(last.state.queries[0].state.status).toBe('error');
+      expect(last.state.queries[0].state.error).toStrictEqual({
+        name: 'Error',
+        message: 'Query failed with status code: 500.',
+      });
+
+      const globalPayloads = publishSpy.mock.calls
+        .filter(([event]) => event === 'ExampleDataService:cacheUpdated')
+        .map(([, payload]) => roundTrip(payload));
+      expect(globalPayloads.at(-1)?.state.queries[0].state.error).toStrictEqual(
+        {
+          name: 'Error',
+          message: 'Query failed with status code: 500.',
+        },
+      );
+
+      service.destroy();
+    });
+
+    it('serializes non Error query failures with the name `Error`', async () => {
+      class ThrowingService extends ExampleDataService {
+        async failWithString(): Promise<unknown> {
+          return this.fetchQuery({
+            queryKey: [`${this.name}:failWithString`],
+            queryFn: async () => {
+              // eslint-disable-next-line no-throw-literal, @typescript-eslint/only-throw-error
+              throw 'plain string failure';
+            },
+          });
+        }
+      }
+      const messenger = createServiceMessenger();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      const service = new ThrowingService(messenger);
+
+      await expect(service.failWithString()).rejects.toBe(
+        'plain string failure',
+      );
+
+      const hash = hashKey([`ExampleDataService:failWithString`]);
+      const payloads = publishSpy.mock.calls
+        .filter(
+          ([event]) => event === `ExampleDataService:cacheUpdated:${hash}`,
+        )
+        .map(([, payload]) => payload);
+      const last = roundTrip(payloads.at(-1));
+
+      expect(last.state.queries[0].state.error).toStrictEqual({
+        name: 'Error',
+        message: 'plain string failure',
+      });
+
+      service.destroy();
+    });
+
+    it('publishes `error: null` for queries that have not failed', async () => {
+      mockAssets();
+      const messenger = createServiceMessenger();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      const service = new ExampleDataService(messenger);
+
+      await service.getAssets(MOCK_ASSETS);
+
+      const hash = hashKey(['ExampleDataService:getAssets', MOCK_ASSETS]);
+      const payloads = publishSpy.mock.calls
+        .filter(
+          ([event]) => event === `ExampleDataService:cacheUpdated:${hash}`,
+        )
+        .map(([, payload]) => payload);
+      const last = roundTrip(payloads.at(-1));
+
+      expect(last.state.queries[0].state.status).toBe('success');
+      expect(last.state.queries[0].state.error).toBeNull();
+
+      service.destroy();
+    });
+
+    it('omits the pending `promise` from `:cacheUpdated` payloads so they survive JSON', async () => {
+      mockAssets();
+      const messenger = createServiceMessenger();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      const service = new ExampleDataService(messenger);
+
+      const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS] as const;
+      const firstLoad = service.getAssets(MOCK_ASSETS);
+      await service.invalidateQueries({ queryKey });
+      await firstLoad;
+
+      const hash = hashKey(queryKey);
+      const payloads = publishSpy.mock.calls
+        .filter(
+          ([event]) => event === `ExampleDataService:cacheUpdated:${hash}`,
+        )
+        .map(([, payload]) => payload as RoundTrippedPayload);
+
+      // The invalidation is published while the first load is still pending.
+      expect(payloads).toStrictEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'updated',
+            state: expect.objectContaining({
+              queries: [
+                expect.objectContaining({
+                  state: expect.objectContaining({
+                    status: 'pending',
+                    fetchStatus: 'fetching',
+                    isInvalidated: true,
+                  }),
+                }),
+              ],
+            }),
+          }),
+        ]),
+      );
+      for (const payload of payloads) {
+        expect(payload.state.queries[0]).not.toHaveProperty('promise');
+        const roundTripped = roundTrip(payload);
+        expect(roundTripped.state.queries[0]).not.toHaveProperty('promise');
+        expect(() =>
+          hydrate(new QueryClient(), roundTripped.state as DehydratedState),
+        ).not.toThrow();
+      }
+
+      service.destroy();
+    });
+  });
+
+  describe('fetchQuery with onQueryStateChange', () => {
+    const ASSETS_HASH = hashKey(['ExampleDataService:getAssets', MOCK_ASSETS]);
+
+    class StatusService extends ExampleDataService {
+      async failWithBoom(
+        onQueryStateChange: QueryStateChangeHandler,
+      ): Promise<unknown> {
+        return this.fetchQuery({
+          queryKey: [`${this.name}:failWithBoom`],
+          onQueryStateChange,
+          queryFn: async () => {
+            throw new Error('boom');
+          },
+        });
+      }
+
+      async forceGetAssets(): Promise<unknown> {
+        return this.fetchQuery({
+          queryKey: [`${this.name}:getAssets`, MOCK_ASSETS],
+          queryFn: async () => {
+            const response = await fetch(
+              `https://tokens.api.cx.metamask.io/v3/assets?assetIds=${MOCK_ASSETS.join(',')}`,
+            );
+            return (await response.json()) as Json;
+          },
+          staleTime: 0,
+        });
+      }
+    }
+
+    /**
+     * Build a handler that records every state it receives.
+     *
+     * @returns The handler and the list of received states.
+     */
+    function recordStates(): {
+      handler: ReturnType<typeof vi.fn<QueryStateChangeHandler>>;
+      states: DataServiceQueryState[];
+    } {
+      const states: DataServiceQueryState[] = [];
+      const handler = vi.fn<QueryStateChangeHandler>((state) => {
+        states.push(state);
+      });
+      return { handler, states };
+    }
+
+    /**
+     * Republish the last granular `:cacheUpdated` payload for the assets query.
+     *
+     * @param messenger - The service messenger.
+     * @param publishSpy - A spy on `messenger.publish`.
+     */
+    function republishLastAssetsUpdate(
+      messenger: ExampleMessenger,
+      publishSpy: { mock: { calls: unknown[][] } },
+    ): void {
+      const event = `ExampleDataService:cacheUpdated:${ASSETS_HASH}` as const;
+      const payload = publishSpy.mock.calls
+        .filter(([eventType]) => eventType === event)
+        .map(([, eventPayload]) => eventPayload)
+        .at(-1);
+      expect(payload).toBeDefined();
+      messenger.publish(
+        event,
+        payload as Parameters<ExampleMessenger['publish']>[1],
+      );
+    }
+
+    beforeAll(() => {
+      vi.useRealTimers();
+    });
+
+    afterAll(() => {
+      vi.useFakeTimers({ toNotFake: ['nextTick', 'setImmediate'] });
+    });
+
+    beforeEach(() => {
+      nock.cleanAll();
+    });
+
+    it('reports fetching then idle success for a cold fetch', async () => {
+      mockAssets();
+      const messenger = createServiceMessenger();
+      const service = new ExampleDataService(messenger);
+      const { handler, states } = recordStates();
+
+      const result = await service.getAssets(MOCK_ASSETS, handler);
+
+      expect(states[0].fetchStatus).toBe('fetching');
+      expect(states.at(-1)).toMatchObject({
+        status: 'success',
+        fetchStatus: 'idle',
+        data: result,
+        error: null,
+      });
+
+      service.destroy();
+    });
+
+    it('reports the current state once on a cache hit', async () => {
+      mockAssets();
+      const messenger = createServiceMessenger();
+      const service = new ExampleDataService(messenger);
+      await service.getAssets(MOCK_ASSETS);
+      const { handler, states } = recordStates();
+
+      await service.getAssets(MOCK_ASSETS, handler);
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(states[0]).toMatchObject({
+        status: 'success',
+        fetchStatus: 'idle',
+        error: null,
+      });
+
+      service.destroy();
+    });
+
+    it('reports fetching then error with a serialized error', async () => {
+      const messenger = createServiceMessenger();
+      const service = new StatusService(messenger);
+      const { handler, states } = recordStates();
+
+      await expect(service.failWithBoom(handler)).rejects.toThrow('boom');
+
+      expect(states[0].fetchStatus).toBe('fetching');
+      const last = states.at(-1);
+      expect(last?.status).toBe('error');
+      expect(last?.fetchStatus).toBe('idle');
+      expect(last?.error).toStrictEqual({ name: 'Error', message: 'boom' });
+      expect(last?.fetchFailureReason).toStrictEqual({
+        name: 'Error',
+        message: 'boom',
+      });
+
+      service.destroy();
+    });
+
+    it('shares one fetch between concurrent callers', async () => {
+      const scope = mockAssets();
+      const messenger = createServiceMessenger();
+      const service = new ExampleDataService(messenger);
+      const first = recordStates();
+      const second = recordStates();
+
+      const [firstResult, secondResult] = await Promise.all([
+        service.getAssets(MOCK_ASSETS, first.handler),
+        service.getAssets(MOCK_ASSETS, second.handler),
+      ]);
+
+      expect(scope.isDone()).toBe(true);
+      expect(firstResult).toStrictEqual(secondResult);
+      expect(first.states.at(-1)).toMatchObject({
+        status: 'success',
+        fetchStatus: 'idle',
+        data: firstResult,
+      });
+      expect(second.states.at(-1)).toStrictEqual(first.states.at(-1));
+
+      service.destroy();
+    });
+
+    it('ignores callback errors', async () => {
+      mockAssets();
+      const messenger = createServiceMessenger();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      const service = new ExampleDataService(messenger);
+      const handler = vi.fn<QueryStateChangeHandler>(() => {
+        throw new Error('handler failure');
+      });
+
+      const result = await service.getAssets(MOCK_ASSETS, handler);
+
+      expect(result).toHaveLength(3);
+      expect(handler).toHaveBeenCalled();
+
+      handler.mockClear();
+      republishLastAssetsUpdate(messenger, publishSpy);
+      expect(handler).not.toHaveBeenCalled();
+
+      service.destroy();
+    });
+
+    it('unsubscribes after the fetch settles', async () => {
+      mockAssets();
+      const messenger = createServiceMessenger();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      const service = new ExampleDataService(messenger);
+      const { handler } = recordStates();
+
+      await service.getAssets(MOCK_ASSETS, handler);
+
+      handler.mockClear();
+      republishLastAssetsUpdate(messenger, publishSpy);
+      expect(handler).not.toHaveBeenCalled();
+
+      service.destroy();
+    });
+
+    it('keeps reporting a background fetch that outlives the call', async () => {
+      mockAssets();
+      mockAssets();
+      const messenger = createServiceMessenger();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      const service = new StatusService(messenger);
+      await service.getAssets(MOCK_ASSETS);
+      const { handler, states } = recordStates();
+
+      const backgroundFetch = service.forceGetAssets();
+      await service.getAssets(MOCK_ASSETS, handler);
+
+      expect(states).toHaveLength(1);
+      expect(states[0].fetchStatus).toBe('fetching');
+
+      await backgroundFetch;
+
+      expect(states.at(-1)).toMatchObject({
+        status: 'success',
+        fetchStatus: 'idle',
+      });
+
+      handler.mockClear();
+      republishLastAssetsUpdate(messenger, publishSpy);
+      expect(handler).not.toHaveBeenCalled();
+
+      service.destroy();
+    });
+
+    it('surfaces the original error when the service is destroyed during the fetch', async () => {
+      mockAssets();
+      const messenger = createServiceMessenger();
+      const service = new ExampleDataService(messenger);
+      const { handler } = recordStates();
+
+      const request = service.getAssets(MOCK_ASSETS, handler);
+      service.destroy();
+
+      await expect(request).rejects.toBeInstanceOf(CancelledError);
+    });
   });
 
   describe('persistence', () => {
@@ -1047,4 +1446,23 @@ function createServiceMessenger(
     messenger,
   });
   return messenger;
+}
+
+type RoundTrippedPayload = {
+  state: {
+    queries: {
+      state: { status: string; error: unknown };
+    }[];
+  };
+};
+
+/**
+ * Pass a payload through JSON, as a client on the other side of a serialization
+ * boundary would see it.
+ *
+ * @param payload - The published payload.
+ * @returns The payload after a JSON round trip.
+ */
+function roundTrip(payload: unknown): RoundTrippedPayload {
+  return JSON.parse(JSON.stringify(payload)) as RoundTrippedPayload;
 }
