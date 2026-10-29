@@ -1426,7 +1426,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.placeOrder(orderParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid order parameters');
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
     });
 
     it('handles validation errors in withdrawals', async () => {
@@ -1550,7 +1550,7 @@ describe('HyperLiquidProvider', () => {
         expect(result.error).toBe('ORDER_LEVERAGE_REDUCTION_FAILED');
       });
 
-      it('preserves original error message for unmapped errors', async () => {
+      it('hides the original error message for unmapped errors', async () => {
         // Mock with an unmapped error
         const originalError = new Error('Some other HyperLiquid API error');
         mockClientService.getExchangeClient = vi.fn().mockReturnValue({
@@ -1572,7 +1572,7 @@ describe('HyperLiquidProvider', () => {
         const result = await provider.placeOrder(orderParams);
 
         expect(result.success).toBe(false);
-        expect(result.error).toBe('Some other HyperLiquid API error');
+        expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
       });
     });
   });
@@ -1594,7 +1594,7 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.placeOrder(orderParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Asset UNKNOWN not found');
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
     });
 
     it('handles missing price data', async () => {
@@ -1615,7 +1615,7 @@ describe('HyperLiquidProvider', () => {
       // allMids returns {} so #getOrFetchPrice parses price as 0, which is
       // invalid. The error surfaces from #getAssetInfo before validation runs.
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid price for BTC: 0');
+      expect(result.error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
     });
 
     it('handles missing position in close operation', async () => {

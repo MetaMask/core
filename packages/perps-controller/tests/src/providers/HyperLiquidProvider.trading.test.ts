@@ -1075,7 +1075,7 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Insufficient margin');
+      expect(result.error).toBe(PERPS_ERROR_CODES.INSUFFICIENT_MARGIN);
     });
 
     it('returns ORDER_SIZE_MIN instead of resubmitting a USD-based order rejected for the $10 minimum', async () => {
@@ -2958,8 +2958,8 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('minimum value of $10');
-      expect(result.errorCode).toBeUndefined();
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
+      expect(result.errorCode).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
       expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
         1,
       );
@@ -2988,8 +2988,8 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('minimum value of $10');
-      expect(result.errorCode).toBeUndefined();
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
+      expect(result.errorCode).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
       expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
         1,
       );
@@ -4228,7 +4228,7 @@ describe('HyperLiquidProvider', () => {
         expect(result.successCount).toBe(0);
         expect(result.failureCount).toBe(1);
         expect(result.results[0].success).toBe(false);
-        expect(result.results[0].error).toBe('API error');
+        expect(result.results[0].error).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
         expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
           expect.any(Error),
           expect.objectContaining({

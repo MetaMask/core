@@ -318,7 +318,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Insufficient margin');
+      expect(result.error).toBe(PERPS_ERROR_CODES.INSUFFICIENT_MARGIN);
     });
 
     it('surfaces a minimum-value rejection without resubmitting', async () => {
@@ -339,7 +339,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
 
       expect(result.success).toBe(false);
-      expect(result.error).toContain('minimum value of $10');
+      expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
       expect(exchangeClient.twapOrder).toHaveBeenCalledTimes(1);
       expect(exchangeClient.order).not.toHaveBeenCalled();
     });
@@ -367,7 +367,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
         expect(result.success).toBe(false);
         expect(result.orderId).toBeUndefined();
-        expect(result.error).toBe('TWAP order rejected');
+        expect(result.error).toBe(PERPS_ERROR_CODES.ORDER_REJECTED);
       },
     );
   });
@@ -609,7 +609,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         orderId: '123',
-        error: 'Cancel unavailable',
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
       });
     });
 
