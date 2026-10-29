@@ -16,6 +16,7 @@ import { BigNumber } from 'bignumber.js';
 
 import { projectLogger } from '../../logger.js';
 import type {
+  GetDelegationTransactionCallback,
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
@@ -131,6 +132,101 @@ export async function submitServerQuotes(
   }
 
   return { transactionHash };
+}
+
+/**
+ * Build the transactions a server quote submits on-chain, including any
+ * post-quote or payment-override prepends.
+ *
+ * @param quote - Server quote.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ * @returns Ordered transaction params for submission.
+ */
+export async function getServerSubmitParams(
+  quote: TransactionPayQuote<ServerQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+): Promise<TransactionParams[]> {
+  const stepTransactions = await buildStepTransactions(
+    quote,
+    quote.original.steps.filter(isTransactionStep),
+    transaction,
+    messenger,
+  );
+
+  return stepTransactions.map(({ params }) => params);
+}
+
+/**
+ * Resolve how the source network gas for a server quote is paid.
+ *
+ * @param quote - Server quote.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ * @returns The gas payment.
+ */
+export function getServerGasPayment(
+  quote: TransactionPayQuote<ServerQuote>,
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+): GasPayment {
+  return resolveGasPayment({
+    isDelegated: quote.original.gasless,
+    isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
+    sourceTokenAddress: quote.request.sourceTokenAddress,
+    sponsorship: {
+      accountSupports7702: accountSupports7702(messenger, quote.request.from),
+      request: quote.request,
+      transaction,
+    },
+  });
+}
+
+/**
+ * Build the delegation that redeems the source calls of a gasless server
+ * quote.
+ *
+ * @param quote - Server quote.
+ * @param params - Transactions to redeem.
+ * @param messenger - Controller messenger.
+ * @param transaction - Original transaction meta.
+ * @returns The delegation transaction.
+ */
+export async function getServerExecuteDelegation(
+  quote: TransactionPayQuote<ServerQuote>,
+  params: TransactionParams[],
+  messenger: TransactionPayControllerMessenger,
+  transaction: TransactionMeta,
+): ReturnType<GetDelegationTransactionCallback> {
+  const { from, sourceChainId } = quote.request;
+  const networkClientId = getNetworkClientId(messenger, sourceChainId);
+
+  const nestedTransactions = params.map((param) => ({
+    data: (param.data ?? '0x') as Hex,
+    to: param.to as Hex,
+    value: (param.value ?? '0x0') as Hex,
+  }));
+
+  const sourceCallTransaction = {
+    ...transaction,
+    chainId: sourceChainId,
+    networkClientId,
+    nestedTransactions,
+    txParams: {
+      ...transaction.txParams,
+      from,
+    },
+  } as TransactionMeta;
+
+  const delegation = await messenger.call(
+    'TransactionPayController:getDelegationTransaction',
+    { transaction: sourceCallTransaction },
+  );
+
+  log('Delegation result for server source calls', delegation);
+
+  return delegation;
 }
 
 async function executeSingleServerQuote(
@@ -388,16 +484,7 @@ async function submitTransactionSteps(
     messenger,
   );
 
-  const gasPayment = resolveGasPayment({
-    isDelegated: quote.original.gasless,
-    isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
-    sourceTokenAddress: quote.request.sourceTokenAddress,
-    sponsorship: {
-      accountSupports7702: accountSupports7702(messenger, quote.request.from),
-      request: quote.request,
-      transaction,
-    },
-  });
+  const gasPayment = getServerGasPayment(quote, messenger, transaction);
 
   if (gasPayment.mode === GasPaymentMode.Delegation) {
     await submitViaServerExecute(
@@ -819,32 +906,14 @@ async function submitViaServerExecute(
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): Promise<void> {
-  const { from, sourceChainId } = quote.request;
-  const networkClientId = getNetworkClientId(messenger, sourceChainId);
+  const { sourceChainId } = quote.request;
 
-  const nestedTransactions = stepTransactions.map(({ params }) => ({
-    data: (params.data ?? '0x') as Hex,
-    to: params.to as Hex,
-    value: (params.value ?? '0x0') as Hex,
-  }));
-
-  const sourceCallTransaction = {
-    ...transaction,
-    chainId: sourceChainId,
-    networkClientId,
-    nestedTransactions,
-    txParams: {
-      ...transaction.txParams,
-      from,
-    },
-  } as TransactionMeta;
-
-  const delegation = await messenger.call(
-    'TransactionPayController:getDelegationTransaction',
-    { transaction: sourceCallTransaction },
+  const delegation = await getServerExecuteDelegation(
+    quote,
+    stepTransactions.map(({ params }) => params),
+    messenger,
+    transaction,
   );
-
-  log('Delegation result for server source calls', delegation);
 
   const submitBody: ServerSubmitRequest = {
     provider: quote.original.provider,

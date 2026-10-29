@@ -5487,6 +5487,9 @@
     "typescript/no-unnecessary-type-assertion": {
       "count": 4
     },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
     "typescript/no-unsafe-call": {
       "count": 23
     },
@@ -5494,15 +5497,23 @@
       "count": 31
     }
   },
-  "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 141
-    },
+  "packages/transaction-pay-controller/src/strategy/server/server-validation.test.ts": {
     "typescript/no-unsafe-call": {
-      "count": 108
+      "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 108
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 146
+    },
+    "typescript/no-unsafe-call": {
+      "count": 111
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 111
     }
   },
   "packages/transaction-pay-controller/src/utils/gas-payment.test.ts": {

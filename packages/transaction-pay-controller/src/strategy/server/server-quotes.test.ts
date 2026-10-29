@@ -32,6 +32,7 @@ import {
 import { TradeType } from '../../utils/trade-type.js';
 import { fetchServerQuote } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
+import { validateServerQuotes } from './server-validation.js';
 
 vi.mock(import('../../utils/feature-flags.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -40,6 +41,7 @@ vi.mock(import('../../utils/feature-flags.js'), async (importOriginal) => ({
   isEIP7702Chain: vi.fn(),
 }));
 vi.mock(import('./server-api.js'));
+vi.mock(import('./server-validation.js'));
 // `resolveGasPayment` is a pure resolver, so keep the real implementation and
 // only stub the gas station lookup that performs network work. This lets the
 // sponsorship and gas-fee-token modes be exercised for real.
@@ -224,6 +226,56 @@ describe('server-quotes', () => {
       totalGasLimit: '0x7530',
     } as never);
     vi.mocked(resolveGasStationCost).mockResolvedValue({ isAvailable: false });
+  });
+
+  it('validates the normalized quotes', async () => {
+    const abortController = new AbortController();
+
+    const result = await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      signal: abortController.signal,
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(vi.mocked(validateServerQuotes)).toHaveBeenCalledWith({
+      messenger,
+      quotes: result,
+      signal: abortController.signal,
+      transaction: TRANSACTION_META_MOCK,
+    });
+  });
+
+  it('does not validate when there are no quotes', async () => {
+    fetchServerQuoteMock.mockResolvedValue({ results: [] });
+
+    await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(vi.mocked(validateServerQuotes)).not.toHaveBeenCalled();
+  });
+
+  it('throws validation errors', async () => {
+    vi.mocked(validateServerQuotes).mockRejectedValue(
+      new Error('Quote simulation failed'),
+    );
+
+    await expect(
+      getServerQuotes({
+        accountSupports7702: true,
+        from: FROM_MOCK,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      }),
+    ).rejects.toThrow('Quote simulation failed');
   });
 
   it('maps transactions without bundled calls to EXACT_INPUT quote requests', async () => {

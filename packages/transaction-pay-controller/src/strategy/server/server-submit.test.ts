@@ -37,7 +37,7 @@ import {
   submitServerIntent,
 } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
-import { submitServerQuotes } from './server-submit.js';
+import { getServerSubmitParams, submitServerQuotes } from './server-submit.js';
 import { ServerStatus } from './types.js';
 import type { ServerQuote, ServerSignatureStep } from './types.js';
 
@@ -1641,5 +1641,29 @@ describe('submitServerQuotes', () => {
 
       expect(addTxMock).toHaveBeenCalled();
     });
+  });
+});
+
+describe('getServerSubmitParams', () => {
+  const { messenger } = getMessengerMock();
+
+  it('returns the params for the quote transaction steps', async () => {
+    const params = await getServerSubmitParams(
+      QUOTE_MOCK,
+      messenger,
+      TRANSACTION_META_MOCK,
+    );
+
+    expect(params).toStrictEqual([
+      {
+        data: '0xstepdata',
+        from: QUOTE_FROM_MOCK,
+        gas: '0x61a8',
+        maxFeePerGas: '0x3b9aca00',
+        maxPriorityFeePerGas: '0x1dcd6500',
+        to: '0x4444444444444444444444444444444444444444',
+        value: '0x10',
+      },
+    ]);
   });
 });
