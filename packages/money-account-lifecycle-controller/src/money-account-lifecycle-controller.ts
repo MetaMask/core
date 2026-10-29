@@ -252,8 +252,10 @@ export class MoneyAccountLifecycleController extends BaseController<
    * `MoneyAccountUpgradeController`, then refreshes its recorded registration
    * status. Clients own when this runs and how failed attempts are retried.
    *
-   * Uses the recorded lifecycle, fetching identities fresh from CHOMP when none
-   * has been recorded. Only a Money Account that is not in an identity or is a
+   * Uses the recorded lifecycle. When none has been recorded, waits for the
+   * latest identity fetch, starting one if none is in flight, and resolves
+   * without upgrading if the feature is disabled or the wallet stops being
+   * ready meanwhile. Only a Money Account that is not in an identity or is a
    * valid SFA is upgraded; a migrating Money Account is frozen by CHOMP, and a
    * valid MFA has already moved on. Concurrent calls share the attempt in
    * flight.
@@ -264,13 +266,7 @@ export class MoneyAccountLifecycleController extends BaseController<
    * @throws The error from fetching identities or from the upgrade, unchanged.
    */
   async upgradeMoneyAccount(): Promise<void> {
-    if (
-      !this.#isEnabled(
-        this.messenger.call('RemoteFeatureFlagController:getState')
-          .remoteFeatureFlags,
-      ) ||
-      !isWalletReady(this.messenger.call('KeyringController:getState'))
-    ) {
+    if (!this.#isReady()) {
       return;
     }
 
@@ -296,10 +292,16 @@ export class MoneyAccountLifecycleController extends BaseController<
   }
 
   async #upgradeMoneyAccount(moneyAccountAddress: string): Promise<void> {
-    const lifecycle =
-      this.state.moneyAccounts[moneyAccountAddress.toLowerCase()] ??
-      (await this.#fetchMoneyAccountLifecycle(moneyAccountAddress));
-    if (lifecycle.type !== 'sfa' && lifecycle.type !== 'notInIdentity') {
+    const moneyAccountKey = moneyAccountAddress.toLowerCase();
+    if (!this.state.moneyAccounts[moneyAccountKey]) {
+      await this.#waitForLatestDerivedIdentities();
+      if (!this.#isReady()) {
+        return;
+      }
+    }
+
+    const lifecycle = this.state.moneyAccounts[moneyAccountKey];
+    if (lifecycle?.type !== 'sfa' && lifecycle?.type !== 'notInIdentity') {
       return;
     }
 
@@ -312,15 +314,30 @@ export class MoneyAccountLifecycleController extends BaseController<
     );
   }
 
-  async #fetchMoneyAccountLifecycle(
-    moneyAccountAddress: string,
-  ): Promise<MoneyAccountLifecycle> {
-    const { identities } = await this.messenger.call(
-      'ChompApiService:getDerivedIdentities',
+  async #waitForLatestDerivedIdentities(): Promise<void> {
+    if (!this.#derivedIdentitiesRequest) {
+      this.#fetchDerivedIdentities();
+    }
+
+    let request = this.#derivedIdentitiesRequest;
+    while (request) {
+      await request;
+      request =
+        this.#derivedIdentitiesRequest === request
+          ? undefined
+          : this.#derivedIdentitiesRequest;
+    }
+  }
+
+  #isReady(
+    remoteFeatureFlags: FeatureFlags = this.messenger.call(
+      'RemoteFeatureFlagController:getState',
+    ).remoteFeatureFlags,
+  ): boolean {
+    return (
+      this.#isEnabled(remoteFeatureFlags) &&
+      isWalletReady(this.messenger.call('KeyringController:getState'))
     );
-    this.#derivedIdentities = identities;
-    this.#updateMoneyAccountLifecycle({ isRehydrating: false });
-    return getMoneyAccountLifecycle(moneyAccountAddress, identities);
   }
 
   #sync(): void {
@@ -329,10 +346,7 @@ export class MoneyAccountLifecycleController extends BaseController<
         'RemoteFeatureFlagController:getState',
       );
 
-      if (
-        !this.#isEnabled(remoteFeatureFlags) ||
-        !isWalletReady(this.messenger.call('KeyringController:getState'))
-      ) {
+      if (!this.#isReady(remoteFeatureFlags)) {
         this.#syncedRemoteFeatureFlags = undefined;
         this.#derivedIdentitiesRequest = undefined;
         this.#derivedIdentities = undefined;
@@ -367,6 +381,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       .catch((error: unknown) => {
         if (this.#derivedIdentitiesRequest === request) {
           this.#syncedRemoteFeatureFlags = undefined;
+          this.#derivedIdentitiesRequest = undefined;
         }
         this.#reportError(error);
       });

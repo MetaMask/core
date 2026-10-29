@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - The registration status is refreshed after each fetch and whenever the recorded lifecycle changes
   - Add `upgradeMoneyAccount` method, also exposed through the messenger as `MoneyAccountLifecycleController:upgradeMoneyAccount`
     - Makes one attempt to upgrade the primary Money Account through `MoneyAccountUpgradeController:upgradeAccount`, then refreshes its recorded registration status; clients decide when to call it and how to retry
-    - Uses the recorded lifecycle, fetching derived identities fresh from CHOMP when none has been recorded
+    - Uses the recorded lifecycle; when none has been recorded, waits for the latest derived identities fetch, starting one if none is in flight, and resolves without upgrading if the feature is disabled or the wallet stops being ready meanwhile
     - Only upgrades a Money Account that is `notInIdentity` or a valid `sfa`, and otherwise resolves without upgrading, as it does when the feature is unavailable or there is no Money Account
     - Rejects with the error from fetching identities or from the upgrade, unchanged
     - Concurrent calls share the attempt in flight

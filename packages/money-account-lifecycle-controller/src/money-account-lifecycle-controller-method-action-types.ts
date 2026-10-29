@@ -50,8 +50,10 @@ export type MoneyAccountLifecycleControllerGetMoneyAccountIdentityAction = {
  * `MoneyAccountUpgradeController`, then refreshes its recorded registration
  * status. Clients own when this runs and how failed attempts are retried.
  *
- * Uses the recorded lifecycle, fetching identities fresh from CHOMP when none
- * has been recorded. Only a Money Account that is not in an identity or is a
+ * Uses the recorded lifecycle. When none has been recorded, waits for the
+ * latest identity fetch, starting one if none is in flight, and resolves
+ * without upgrading if the feature is disabled or the wallet stops being
+ * ready meanwhile. Only a Money Account that is not in an identity or is a
  * valid SFA is upgraded; a migrating Money Account is frozen by CHOMP, and a
  * valid MFA has already moved on. Concurrent calls share the attempt in
  * flight.
