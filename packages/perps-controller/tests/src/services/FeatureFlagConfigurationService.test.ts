@@ -507,7 +507,7 @@ describe('FeatureFlagConfigurationService', () => {
     });
 
     describe('invalid pattern reporting', () => {
-      const refresh = (flags: Record<string, unknown>): void => {
+      const refresh = (flags: Record<string, string | string[]>): void => {
         mockRemoteFeatureFlagState.remoteFeatureFlags = flags;
         featureFlagConfigurationService.refreshHip3Config({
           remoteFeatureFlagControllerState: mockRemoteFeatureFlagState,
