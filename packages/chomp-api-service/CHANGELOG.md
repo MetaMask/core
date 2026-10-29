@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- test: assert only the native fetch error messages on nock 15 ([#11171](https://github.com/MetaMask/core/pull/11171))
+- chore(deps): update dependency nock to v15 ([#11055](https://github.com/MetaMask/core/pull/11055))
+
 ## [7.0.0]
 
 ### Added
