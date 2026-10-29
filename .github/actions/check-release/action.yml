@@ -43,10 +43,6 @@ runs:
       run: |
         set -euo pipefail
 
-        # Succeeds unless the new version is lower than the current version, so
-        # that reverting a release is not mistaken for releasing. Only the
-        # major, minor, and patch parts are compared, and any other change
-        # (such as a pre-release suffix) counts as an increase.
         is_version_increase() {
           node --eval '
             const [current, next] = process.argv.slice(1).map((version) =>
