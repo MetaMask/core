@@ -127,7 +127,7 @@ export function selectAssetsToStream(
  */
 export function chainIdFromAssetId(assetId: string): string | undefined {
   try {
-    return parseCaipAssetType(assetId).chainId;
+    return parseCaipAssetType(assetId as Caip19AssetId).chainId;
   } catch {
     return undefined;
   }

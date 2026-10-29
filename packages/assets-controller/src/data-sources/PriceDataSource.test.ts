@@ -1898,7 +1898,7 @@ describe('PriceDataSource market-stats', () => {
             },
           },
           assetsPrice,
-        }) as AssetsControllerState,
+        }) as unknown as AssetsControllerState,
       priceResponse: {
         [MOCK_NATIVE_ASSET]: { ...createMockPriceData(1800), wssSupport: true },
       },
