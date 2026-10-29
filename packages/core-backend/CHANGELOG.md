@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MarketStatsService` for real-time spot prices over the shared backend WebSocket. `subscribe`/`unsubscribe` take a CAIP-19 `assetId` and currency (`market-stats.v1.<assetId>.<currency>`). Price changes are published as `pricesUpdated` from the batched `market-stats.v1` channel, and chain health is published as `chainStatusChanged`. Also export `MARKET_STATS_MAX_CHANNELS` (200) and `wssSupport` on `V3SpotPricesResponse`
+
 ## [13.0.0]
 
 ### Added

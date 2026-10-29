@@ -162,6 +162,7 @@ export type {
   TokenDataSourceOptions,
   PriceDataSourceConfig,
   PriceDataSourceOptions,
+  MarketStatsPriceStreamMessenger,
 } from './data-sources/index.js';
 
 // Middlewares

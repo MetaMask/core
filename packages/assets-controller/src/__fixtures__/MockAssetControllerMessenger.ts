@@ -105,6 +105,9 @@ export function createMockAssetsControllerMessenger(
       'PhishingController:bulkScanTokens',
       // AccountsApiDataSource
       'RemoteFeatureFlagController:getState',
+      // PriceDataSource market-stats stream
+      'MarketStatsService:subscribe',
+      'MarketStatsService:unsubscribe',
     ],
 
     events: [
@@ -134,6 +137,9 @@ export function createMockAssetsControllerMessenger(
       'AccountActivityService:statusChanged',
       // AccountsApiDataSource
       'RemoteFeatureFlagController:stateChange',
+      // PriceDataSource market-stats stream
+      'MarketStatsService:pricesUpdated',
+      'MarketStatsService:chainStatusChanged',
     ],
   });
 

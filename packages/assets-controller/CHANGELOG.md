@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Stream spot prices on `market-stats.v1` from `PriceDataSource` when `MarketStatsService` is registered. Assets with `wssSupport` update from the socket (at most 200 channels, highest 24h volume first). Assets without streaming support, assets past that cap, and assets on a chain reported down keep polling `/v3/spot-prices`. A down chain waits a short random delay before the first fallback poll. When `MarketStatsService` is not registered, every asset stays on the poll
+
+### Changed
+
+- **BREAKING:** `AssetsControllerMessenger` now includes `MarketStatsService:subscribe`, `MarketStatsService:unsubscribe`, `MarketStatsService:pricesUpdated`, and `MarketStatsService:chainStatusChanged`. Delegate them from the root messenger. Without a registered `MarketStatsService`, price updates stay on the Price API poll
+
 ## [20.1.0]
 
 ### Added
