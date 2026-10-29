@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+- Bump `@metamask/assets-controller` from `^20.0.1` to `^20.0.2` ([#11176](https://github.com/MetaMask/core/pull/11176))
 
 ## [83.1.2]
 
