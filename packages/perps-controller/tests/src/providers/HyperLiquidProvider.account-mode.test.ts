@@ -1047,7 +1047,7 @@ describe('HyperLiquidProvider', () => {
       expect(exchangeClient.order).not.toHaveBeenCalled();
     });
 
-    it('does not retry a minimum-value rejection with the switched account', async () => {
+    it('returns the typed minimum error without retrying with the switched account', async () => {
       const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
       const exchangeClient = createMockExchangeClient();
       exchangeClient.order = vi
@@ -1077,7 +1077,7 @@ describe('HyperLiquidProvider', () => {
         }),
       ).resolves.toMatchObject({
         success: false,
-        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        error: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
       });
       expect(exchangeClient.order).toHaveBeenCalledTimes(1);
     });

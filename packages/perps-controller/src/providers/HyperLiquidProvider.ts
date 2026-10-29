@@ -6956,7 +6956,7 @@ export class HyperLiquidProvider implements PerpsProvider {
     _retryCount = 0,
     reportFailure = true,
   ): Promise<OrderResult> {
-    return await this.#placeOrder(input, retryCount, reportFailure);
+    return await this.#placeOrder(input, _retryCount, reportFailure);
   }
 
   /**
@@ -6964,7 +6964,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * and minimum-value retries.
    *
    * @param input - Order parameters.
-   * @param retryCount - Internal retry counter.
+   * @param _retryCount - Unused. Preserves the public call shape internally.
    * @param reportFailure - Whether this call owns provider-level reporting.
    * @param expectedAccountContext - Context captured by a parent action or the
    * first minimum-value attempt.
@@ -6972,7 +6972,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   async #placeOrder(
     input: OrderParams,
-    retryCount: number,
+    _retryCount: number,
     reportFailure: boolean,
     expectedAccountContext?: AccountSupportContext,
   ): Promise<OrderResult> {
