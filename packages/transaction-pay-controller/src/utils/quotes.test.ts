@@ -4,17 +4,22 @@ import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { mockModuleExcept } from '../../tests/mock-module-except.js';
 import { TransactionPayStrategy } from '../constants.js';
 import type {
+  GetBalanceCallback,
   TransactionPaySourceAmount,
   TransactionData,
+  TransactionPayControllerGetStateAction,
+  TransactionPayControllerMessenger,
   TransactionPayQuote,
   TransactionPayTotals,
   TransactionPaymentToken,
   TransactionPayRequiredToken,
+  UpdateTransactionDataCallback,
 } from '../types.js';
 import type { UpdateQuotesRequest } from './quotes.js';
 import { refreshQuotes, updateQuotes } from './quotes.js';
@@ -1871,6 +1876,120 @@ describe('Quotes Utils', () => {
       );
 
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
+    });
+
+    describe('max balance refresh', () => {
+      const typedMessenger = messenger as TransactionPayControllerMessenger;
+      const typedGetControllerStateMock =
+        getControllerStateMock as MockedFunction<
+          TransactionPayControllerGetStateAction['handler']
+        >;
+      const typedUpdateTransactionDataMock =
+        updateTransactionDataMock as MockedFunction<UpdateTransactionDataCallback>;
+      const typedGetStrategiesMock = getStrategiesMock as MockedFunction<
+        (transaction: TransactionMeta) => TransactionPayStrategy[]
+      >;
+
+      it('passes transaction ID to strategy refresh interval', async () => {
+        const getRefreshIntervalMock =
+          vi.fn<(request: unknown) => Promise<number | undefined>>();
+        getRefreshIntervalMock.mockResolvedValue(undefined);
+
+        getStrategyByNameMock.mockReturnValue({
+          execute: vi.fn(),
+          getQuotes: vi.fn(),
+          getRefreshInterval: getRefreshIntervalMock,
+        });
+
+        const quote = {
+          ...QUOTE_MOCK,
+          request: {
+            from: TRANSACTION_META_MOCK.txParams.from as Hex,
+            sourceBalanceRaw: '100',
+            sourceChainId: '0x1',
+            sourceTokenAddress: '0xabc',
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '100',
+            targetChainId: '0x2',
+            targetTokenAddress: '0xdef',
+          },
+        } as unknown as TransactionPayQuote<Json>;
+
+        typedGetControllerStateMock.mockReturnValue({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              ...cloneDeep(TRANSACTION_DATA_MOCK),
+              quotes: [quote],
+              quotesLastUpdated: Date.now(),
+            },
+          },
+        });
+
+        await refreshQuotes(
+          typedMessenger,
+          typedUpdateTransactionDataMock,
+          typedGetStrategiesMock,
+        );
+
+        expect(getRefreshIntervalMock).toHaveBeenCalledWith({
+          chainId: '0x1',
+          messenger: typedMessenger,
+          transactionId: TRANSACTION_ID_MOCK,
+        });
+      });
+
+      it('refreshes max source amounts with getBalance before requoting', async () => {
+        const getBalanceMock = vi.fn<GetBalanceCallback>();
+        const maxTransactionData: TransactionData = {
+          ...cloneDeep(TRANSACTION_DATA_MOCK),
+          isMaxAmount: true,
+          quotes: [QUOTE_MOCK],
+          quotesLastUpdated: 1,
+        };
+
+        typedGetControllerStateMock.mockReturnValue({
+          transactionData: { [TRANSACTION_ID_MOCK]: maxTransactionData },
+        });
+
+        await refreshQuotes(
+          typedMessenger,
+          typedUpdateTransactionDataMock,
+          typedGetStrategiesMock,
+          getBalanceMock,
+        );
+
+        const draft = cloneDeep(maxTransactionData);
+        typedUpdateTransactionDataMock.mock.calls[0][1](draft);
+
+        expect(getBalanceMock).toHaveBeenCalledWith({
+          transaction: TRANSACTION_META_MOCK,
+          transactionData: draft,
+        });
+        expect(getQuotesMock).toHaveBeenCalled();
+      });
+
+      it('does not refresh source amounts if not max amount', async () => {
+        const getBalanceMock = vi.fn<GetBalanceCallback>();
+
+        typedGetControllerStateMock.mockReturnValue({
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              ...cloneDeep(TRANSACTION_DATA_MOCK),
+              quotes: [QUOTE_MOCK],
+              quotesLastUpdated: 1,
+            },
+          },
+        });
+
+        await refreshQuotes(
+          typedMessenger,
+          typedUpdateTransactionDataMock,
+          typedGetStrategiesMock,
+          getBalanceMock,
+        );
+
+        expect(getBalanceMock).not.toHaveBeenCalled();
+      });
     });
   });
 

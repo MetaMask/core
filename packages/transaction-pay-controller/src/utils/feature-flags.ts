@@ -201,8 +201,13 @@ export type AtomicMaxEnabledConfig = {
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
 };
 
+export type MaxBalanceRefreshIntervalConfig = {
+  [key in TransactionType]?: number;
+};
+
 type FeatureFlagsExtendedRaw = {
   excludeChainIdsFromInfura?: Hex[];
+  maxBalanceRefreshInterval?: MaxBalanceRefreshIntervalConfig;
   payStrategies?: {
     relay?: {
       atomicMaxEnabled?: AtomicMaxEnabledConfig;
@@ -604,6 +609,30 @@ export function getStablecoins(
   }
 
   return STABLECOINS;
+}
+
+export function getMaxBalanceRefreshInterval(
+  messenger: TransactionPayControllerMessenger,
+  transaction?: TransactionMeta,
+): number | undefined {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  const config = featureFlags.maxBalanceRefreshInterval ?? {};
+
+  for (const [transactionType, interval] of Object.entries(config) as [
+    TransactionType,
+    number | undefined,
+  ][]) {
+    if (hasTransactionType(transaction, [transactionType])) {
+      return interval;
+    }
+  }
+
+  return undefined;
 }
 
 /**

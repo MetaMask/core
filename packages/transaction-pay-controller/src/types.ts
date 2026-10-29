@@ -775,6 +775,9 @@ export type PayStrategyGetRefreshIntervalRequest = {
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
+
+  /** ID of the transaction whose refresh interval is being resolved. */
+  transactionId: string;
 };
 
 /** Strategy used to obtain required tokens for a transaction. */
