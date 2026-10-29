@@ -293,16 +293,14 @@ export class SocialController extends BaseController<
   }
 
   /**
-   * Requests a translation of a swap comment (Call).
+   * Requests an English translation of a swap comment (Call).
    *
-   * Calls `POST ${baseUrl}/swap-comment/${commentId}/translate` through
-   * SocialService. social-api does not expose this route yet: a 404 is logged
-   * and rethrown.
+   * Calls `POST ${baseUrl}/swap-comments/${commentId}/translation` through
+   * SocialService. v1 always translates into English. A 404 is logged and
+   * rethrown.
    *
    * @param options - Options bag.
    * @param options.commentId - `authorComment.uid` from a feed item.
-   * @param options.targetLanguage - AWS language code to translate into, for
-   * example `en`.
    * @returns The detected source language and stored translations.
    */
   async translateComment(

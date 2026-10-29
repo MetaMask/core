@@ -432,18 +432,17 @@ export type RemoveCommentReactionOptions = {
 };
 
 /**
- * Options for `POST /v1/swap-comment/:commentId/translate`.
+ * Options for `POST /v1/swap-comments/:commentId/translation`.
+ * v1 always translates into English, so there is no target language.
  */
 export type TranslateCommentOptions = {
   /** `authorComment.uid` from a feed item. */
   commentId: string;
-  /** AWS language code to translate into, for example `en`. */
-  targetLanguage: string;
 };
 
 /**
  * Translation stored for a swap comment. Returned by
- * `POST /v1/swap-comment/:commentId/translate` once that route exists.
+ * `POST /v1/swap-comments/:commentId/translation`.
  */
 export type CommentTranslation = {
   /** Detected source language. `null` when detection has not run. */

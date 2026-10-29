@@ -712,12 +712,10 @@ describe('SocialController', () => {
       expect(
         await controller.translateComment({
           commentId: 'comment-1',
-          targetLanguage: 'en',
         }),
       ).toStrictEqual(translation);
       expect(translateComment).toHaveBeenCalledWith({
         commentId: 'comment-1',
-        targetLanguage: 'en',
       });
       expect(logged).toStrictEqual([]);
     });
@@ -741,7 +739,6 @@ describe('SocialController', () => {
       await expect(
         controller.translateComment({
           commentId: 'comment-1',
-          targetLanguage: 'en',
         }),
       ).rejects.toThrow(
         `${SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}: 404`,
@@ -764,7 +761,6 @@ describe('SocialController', () => {
       await expect(
         controller.translateComment({
           commentId: 'comment-1',
-          targetLanguage: 'en',
         }),
       ).rejects.toThrow('translation unavailable');
       expect(logged[0]?.[0]).toStrictEqual(

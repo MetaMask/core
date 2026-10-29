@@ -3227,7 +3227,7 @@ describe('SocialService', () => {
       translations: { en: 'This content is in Korean.' },
     };
 
-    it('sends POST with targetLanguage to /swap-comment/:id/translate', async () => {
+    it('sends POST with no body to /swap-comments/:id/translation', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -3237,19 +3237,16 @@ describe('SocialService', () => {
       const service = createService();
       const result = await service.translateComment({
         commentId: 'comment-1',
-        targetLanguage: 'en',
       });
 
       expect(result).toStrictEqual(mockTranslation);
       expect(mockFetch).toHaveBeenCalledWith(
-        `${V1_URL}/swap-comment/comment-1/translate`,
+        `${V1_URL}/swap-comments/comment-1/translation`,
         {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${MOCK_TOKEN}`,
-            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ targetLanguage: 'en' }),
         },
       );
     });
@@ -3262,7 +3259,6 @@ describe('SocialService', () => {
       await expect(
         service.translateComment({
           commentId: 'comment-1',
-          targetLanguage: 'en',
         }),
       ).rejects.toThrow(
         `${SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}: 404`,
@@ -3281,7 +3277,6 @@ describe('SocialService', () => {
       await expect(
         service.translateComment({
           commentId: 'comment-1',
-          targetLanguage: 'en',
         }),
       ).rejects.toThrow(
         SocialServiceErrorMessage.TRANSLATE_COMMENT_INVALID_RESPONSE,

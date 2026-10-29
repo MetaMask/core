@@ -803,34 +803,31 @@ export class SocialService extends BaseDataService<
   }
 
   /**
-   * Requests a translation of a swap comment (Call).
+   * Requests an English translation of a swap comment (Call).
    *
-   * Calls `POST ${baseUrl}/swap-comment/${commentId}/translate`. social-api
-   * does not expose this route yet, so a missing route rejects with
+   * Calls `POST ${baseUrl}/swap-comments/${commentId}/translation` with no
+   * body. v1 always translates into English. A missing route rejects with
    * {@link SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}.
    * `SocialController.translateComment` logs that case.
    *
    * @param options - Options bag.
    * @param options.commentId - `authorComment.uid` from a feed item.
-   * @param options.targetLanguage - AWS language code to translate into, for
-   * example `en`.
    * @returns The detected source language and stored translations.
    */
   async translateComment(
     options: TranslateCommentOptions,
   ): Promise<CommentTranslation> {
-    const { commentId, targetLanguage } = options;
+    const { commentId } = options;
 
     return await this.fetchQuery({
-      queryKey: [`${this.name}:translateComment`, commentId, targetLanguage],
+      queryKey: [`${this.name}:translateComment`, commentId],
       staleTime: 0,
       queryFn: async () => {
-        const url = `${this.#v1Url}/swap-comment/${encodeURIComponent(commentId)}/translate`;
+        const url = `${this.#v1Url}/swap-comments/${encodeURIComponent(commentId)}/translation`;
         const authHeaders = await this.#getAuthHeaders();
         const response = await fetch(url, {
           method: 'POST',
-          headers: { ...authHeaders, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ targetLanguage }),
+          headers: authHeaders,
         });
         SocialService.#throwIfNotOk(
           response,

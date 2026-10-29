@@ -261,17 +261,15 @@ export type SocialServiceCreateSwapCommentAction = {
 };
 
 /**
- * Requests a translation of a swap comment (Call).
+ * Requests an English translation of a swap comment (Call).
  *
- * Calls `POST ${baseUrl}/swap-comment/${commentId}/translate`. social-api
- * does not expose this route yet, so a missing route rejects with
+ * Calls `POST ${baseUrl}/swap-comments/${commentId}/translation` with no
+ * body. v1 always translates into English. A missing route rejects with
  * {@link SocialServiceErrorMessage.TRANSLATE_COMMENT_FAILED}.
  * `SocialController.translateComment` logs that case.
  *
  * @param options - Options bag.
  * @param options.commentId - `authorComment.uid` from a feed item.
- * @param options.targetLanguage - AWS language code to translate into, for
- * example `en`.
  * @returns The detected source language and stored translations.
  */
 export type SocialServiceTranslateCommentAction = {
