@@ -186,6 +186,7 @@ describe('Across Quotes', () => {
     estimateGasMock,
     estimateGasBatchMock,
     findNetworkClientIdByChainIdMock,
+    getControllerStateMock,
     getGasFeeTokensMock,
     getRemoteFeatureFlagControllerStateMock,
   } = getMessengerMock();
@@ -373,6 +374,43 @@ describe('Across Quotes', () => {
       expect(params.get('amount')).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
       expect(params.get('refundAddress')).toBe(refundTo);
       expect(getRequestBody().actions).toStrictEqual([]);
+    });
+
+    it('pays the account override for post-quote predict withdraws', async () => {
+      const accountOverride =
+        '0x5afe000000000000000000000000000000000002' as Hex;
+      const transaction = {
+        ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+        id: 'predict-withdraw-id',
+      };
+
+      getControllerStateMock.mockReturnValue({
+        transactionData: { [transaction.id]: { accountOverride } },
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        accountSupports7702: false,
+        from: FROM_MOCK,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction,
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('depositor')).toBe(FROM_MOCK);
+      expect(params.get('recipient')).toBe(accountOverride);
     });
 
     it('ignores invalid original transaction gas for post-quote predict withdraws', async () => {

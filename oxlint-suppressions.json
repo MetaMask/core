@@ -5304,10 +5304,10 @@
   },
   "packages/transaction-pay-controller/src/strategy/across/across-quotes.test.ts": {
     "typescript/no-unsafe-call": {
-      "count": 42
+      "count": 43
     },
     "typescript/no-unsafe-member-access": {
-      "count": 42
+      "count": 43
     },
     "vitest/no-conditional-in-test": {
       "count": 1

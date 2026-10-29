@@ -27,6 +27,7 @@ import { resolveGasStationCost } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
 import { estimateQuoteGasLimits } from '../../utils/quote-gas.js';
 import type { QuoteGasTransaction } from '../../utils/quote-gas.js';
+import { getPostQuoteRecipient } from '../../utils/quote-recipient.js';
 import { getTokenFiatRate } from '../../utils/token.js';
 import type { AcrossDestination } from './across-actions.js';
 import { getAcrossDestination } from './across-actions.js';
@@ -122,9 +123,9 @@ async function getSingleQuote(
   const amount = useExactInput ? sourceTokenAmount : targetAmountMinimum;
   const tradeType = useExactInput ? 'exactInput' : 'exactOutput';
   const destination = getAcrossDestinationForRequest(
+    messenger,
     transaction,
     request,
-    from,
   );
 
   const quote = await requestAcrossApproval({
@@ -156,14 +157,14 @@ async function getSingleQuote(
 }
 
 function getAcrossDestinationForRequest(
+  messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
   request: QuoteRequest,
-  recipient: Hex,
 ): AcrossDestination {
   if (request.isPostQuote) {
     return {
       actions: [],
-      recipient,
+      recipient: getPostQuoteRecipient({ messenger, request, transaction }),
     };
   }
 
