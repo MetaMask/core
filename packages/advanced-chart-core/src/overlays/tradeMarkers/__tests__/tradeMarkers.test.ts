@@ -244,6 +244,136 @@ describe('handleSetTradeMarkers', () => {
     stub.flushDataReady();
     expect(stub.createShapeCalls).toHaveLength(0);
   });
+
+  it('replaces a different drawn set and draws markers in time order', async () => {
+    const stub = makeStubChart();
+    installWidget(stub.chart);
+    setOhlcvData(sampleBars);
+    getShapesByMarkerId().set('y', { fill: 'fy', ring: 'ry' });
+    getShapesByMarkerId().set('x', { fill: 'fx', ring: 'rx' });
+    getShapeIds().push('ry', 'fy', 'rx', 'fx');
+
+    handleSetTradeMarkers({
+      markers: [entryMarker('b', 3_000), entryMarker('a', 2_000)],
+    });
+    stub.flushDataReady();
+    await stub.drainCreatePromises();
+
+    expect(stub.removedIds).toStrictEqual(['ry', 'fy', 'rx', 'fx']);
+    // The earlier marker is drawn first.
+    expect(stub.createShapeCalls[0].point).toStrictEqual({
+      time: 2,
+      price: 20,
+    });
+  });
+
+  it('falls back to the marker price when the nearest bar has no finite close', async () => {
+    const stub = makeStubChart();
+    installWidget(stub.chart);
+    setOhlcvData([
+      { time: 1_000, open: 1, high: 1, low: 1, close: NaN },
+      { time: 2_000, open: 1, high: 1, low: 1, close: NaN },
+    ]);
+
+    handleSetTradeMarkers({
+      markers: [
+        { id: 'priced', time: 2_000, intent: 'enter', price: 42 },
+        { id: 'unpriced', time: 1_000, intent: 'enter' },
+      ],
+    });
+    stub.flushDataReady();
+    await stub.drainCreatePromises();
+
+    expect(stub.createShapeCalls).toHaveLength(1);
+    expect(stub.createShapeCalls[0].point).toStrictEqual({
+      time: 2,
+      price: 42,
+    });
+  });
+
+  it('removes the ring when a newer placement starts before the fill', async () => {
+    const stub = makeStubChart();
+    installWidget(stub.chart);
+    setOhlcvData(sampleBars);
+
+    handleSetTradeMarkers({ markers: [entryMarker('a', 2_000)] });
+    stub.flushDataReady();
+    await stub.drainCreatePromises();
+    handleSetTradeMarkers({ markers: [entryMarker('b', 3_000)] });
+    stub.createShapeCalls[0].resolveWith('ring-a');
+    await stub.drainCreatePromises();
+
+    expect(stub.removedIds).toContain('ring-a');
+    expect(stub.createShapeCalls).toHaveLength(1);
+    expect(getShapesByMarkerId().has('a')).toBe(false);
+  });
+
+  it('removes the ring and fill when a newer placement starts while drawing', async () => {
+    const stub = makeStubChart();
+    installWidget(stub.chart);
+    setOhlcvData(sampleBars);
+
+    handleSetTradeMarkers({ markers: [entryMarker('a', 2_000)] });
+    stub.flushDataReady();
+    await stub.drainCreatePromises();
+    stub.createShapeCalls[0].resolveWith('ring-a');
+    await stub.drainCreatePromises();
+    handleSetTradeMarkers({ markers: [entryMarker('b', 3_000)] });
+    stub.createShapeCalls[1].resolveWith('fill-a');
+    await stub.drainCreatePromises();
+
+    expect(stub.removedIds).toStrictEqual(['ring-a', 'fill-a']);
+    expect(getShapeIds()).toHaveLength(0);
+  });
+
+  it('does not track shapes TradingView did not create', async () => {
+    const stub = makeStubChart();
+    installWidget(stub.chart);
+    setOhlcvData(sampleBars);
+
+    handleSetTradeMarkers({ markers: [entryMarker('a', 2_000)] });
+    stub.flushDataReady();
+    await stub.drainCreatePromises();
+    stub.createShapeCalls[0].resolveWith('');
+    await stub.drainCreatePromises();
+    stub.createShapeCalls[1].resolveWith('');
+    await stub.drainCreatePromises();
+
+    expect(getShapeIds()).toHaveLength(0);
+    expect(getShapesByMarkerId().get('a')).toStrictEqual({
+      fill: '',
+      ring: '',
+    });
+  });
+
+  it('does not paint when the chart is torn down before data is ready', () => {
+    const stub = makeStubChart();
+    installWidget(stub.chart);
+    setOhlcvData(sampleBars);
+
+    handleSetTradeMarkers({ markers: [entryMarker('a', 2_000)] });
+    setWidget(null);
+    stub.flushDataReady();
+
+    expect(stub.createShapeCalls).toHaveLength(0);
+  });
+
+  it('paints immediately when dataReady throws', async () => {
+    const stub = makeStubChart();
+    const chart = {
+      ...stub.chart,
+      dataReady: () => {
+        throw new Error('not supported');
+      },
+    } as unknown as TVActiveChart;
+    installWidget(chart);
+    setOhlcvData(sampleBars);
+
+    handleSetTradeMarkers({ markers: [entryMarker('a', 2_000)] });
+    await stub.drainCreatePromises();
+
+    expect(stub.createShapeCalls).toHaveLength(1);
+  });
 });
 
 describe('placeTradeMarkers', () => {

@@ -5,8 +5,12 @@ import {
   _resetStateForTests,
   setChartReady,
   setOhlcvData,
+  setSlbMode,
+  setVisibleFromMs,
+  setVisibleToMs,
   setWidget,
 } from '../../../core/state.js';
+import { getApproxBarDurationSec } from '../../../core/timeUtils.js';
 import type {
   OHLCVBar,
   TVActiveChart,
@@ -253,5 +257,84 @@ describe('handleFocusTime', () => {
     expect(stub.setRangeCalls).toHaveLength(1);
     expect(stub.setRangeCalls[0].from).toBeCloseTo(95, 0);
     expect(stub.setRangeCalls[0].to).toBeCloseTo(105, 0);
+  });
+
+  it('jumps when reading the visible range throws', () => {
+    const setVisibleRange = vi.fn();
+    const chart = {
+      getVisibleRange: () => {
+        throw new Error('not ready');
+      },
+      setVisibleRange,
+    } as unknown as TVActiveChart;
+    installWidget(chart);
+
+    handleFocusTime({ timeMs: 100_000, spanMs: 10_000 });
+
+    expect(setVisibleRange).toHaveBeenCalledTimes(1);
+    expect(setVisibleRange).toHaveBeenCalledWith({ from: 95, to: 105 });
+  });
+
+  it('falls back to a span of bars when there is no span and no visible range', () => {
+    const stub = makeStubChart(null);
+    installWidget(stub.chart);
+    const spanSec = getApproxBarDurationSec(sampleBars) * 60;
+
+    handleFocusTime({ timeMs: 100_000 });
+
+    expect(stub.setRangeCalls).toStrictEqual([
+      { from: 100 - spanSec / 2, to: 100 + spanSec / 2 },
+    ]);
+  });
+
+  describe('in SLB mode', () => {
+    beforeEach(() => {
+      setSlbMode(true);
+    });
+
+    it('uses the trade window as the span', () => {
+      setVisibleFromMs(0);
+      setVisibleToMs(40_000);
+      const stub = makeStubChart({ from: 0, to: 10 });
+      installWidget(stub.chart);
+
+      handleFocusTime({ timeMs: 100_000, animate: false });
+
+      expect(stub.setRangeCalls).toStrictEqual([{ from: 80, to: 120 }]);
+    });
+
+    it('uses the current visible span when the trade window is unknown', () => {
+      const stub = makeStubChart({ from: 0, to: 20 });
+      installWidget(stub.chart);
+
+      handleFocusTime({ timeMs: 100_000, animate: false });
+
+      expect(stub.setRangeCalls).toStrictEqual([{ from: 90, to: 110 }]);
+    });
+
+    it('falls back to a span of bars without a trade window or visible range', () => {
+      const stub = makeStubChart(null);
+      installWidget(stub.chart);
+      const spanSec = getApproxBarDurationSec(sampleBars) * 60;
+
+      handleFocusTime({ timeMs: 100_000 });
+
+      expect(stub.setRangeCalls).toStrictEqual([
+        { from: 100 - spanSec / 2, to: 100 + spanSec / 2 },
+      ]);
+    });
+  });
+
+  it('stops animating when the chart is torn down mid animation', () => {
+    const stub = makeStubChart({ from: 0, to: 10 });
+    installWidget(stub.chart);
+
+    handleFocusTime({ timeMs: 100_000, spanMs: 10_000 });
+    vi.advanceTimersByTime(100);
+    const callsBeforeTeardown = stub.setRangeCalls.length;
+    setWidget(null);
+    vi.advanceTimersByTime(1000);
+
+    expect(stub.setRangeCalls).toHaveLength(callsBeforeTeardown);
   });
 });
