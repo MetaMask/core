@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/snaps-controllers` from `^19.0.1` to `^22.0.1` ([#10748](https://github.com/MetaMask/core/pull/10748))
+
 ## [20.1.0]
 
 ### Added
