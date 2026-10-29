@@ -40,7 +40,9 @@ const DEFAULT_RPC_CHAIN_ATTEMPTS_UNTIL_BREAK =
 
 describe('RpcServiceChain', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({
+      toNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'],
+    });
   });
 
   afterEach(() => {
@@ -265,7 +267,7 @@ describe('RpcServiceChain', () => {
         },
       ]);
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
 
       const jsonRpcRequest = {
@@ -379,7 +381,7 @@ describe('RpcServiceChain', () => {
         },
       ]);
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
 
       const jsonRpcRequest = {
@@ -445,7 +447,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onBreakListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onBreak(onBreakListener);
 
@@ -536,7 +538,7 @@ describe('RpcServiceChain', () => {
         },
       ]);
       const onServiceRetryListener = vi.fn(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onServiceRetry(onServiceRetryListener);
 
@@ -621,7 +623,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onBreakListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onBreak(onBreakListener);
 
@@ -687,7 +689,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onBreakListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onBreak(onBreakListener);
 
@@ -789,7 +791,7 @@ describe('RpcServiceChain', () => {
       const onBreakListener = vi.fn();
       const onAvailableListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onBreak(onBreakListener);
       rpcServiceChain.onAvailable(onAvailableListener);
@@ -890,7 +892,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onBreakListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onBreak(onBreakListener);
 
@@ -982,7 +984,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onServiceBreakListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onServiceBreak(onServiceBreakListener);
 
@@ -1067,7 +1069,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onDegraded(onDegradedListener);
 
@@ -1128,7 +1130,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onDegraded(onDegradedListener);
 
@@ -1196,7 +1198,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onDegraded(onDegradedListener);
 
@@ -1266,7 +1268,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onDegraded(onDegradedListener);
 
@@ -1342,7 +1344,7 @@ describe('RpcServiceChain', () => {
       const onBreakListener = vi.fn();
       const onDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onBreak(onBreakListener);
       rpcServiceChain.onDegraded(onDegradedListener);
@@ -1413,7 +1415,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onDegraded(onDegradedListener);
 
@@ -1509,7 +1511,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onDegraded(onDegradedListener);
 
@@ -1583,7 +1585,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onServiceDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
 
@@ -1654,7 +1656,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onServiceDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
 
@@ -1731,7 +1733,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onServiceDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
 
@@ -1824,7 +1826,7 @@ describe('RpcServiceChain', () => {
       const onBreakListener = vi.fn();
       const onServiceDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onBreak(onBreakListener);
       rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
@@ -1912,7 +1914,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onServiceDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
 
@@ -2020,7 +2022,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onServiceDegradedListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
 
@@ -2220,7 +2222,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onAvailableListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onAvailable(onAvailableListener);
 
@@ -2279,7 +2281,7 @@ describe('RpcServiceChain', () => {
       ]);
       const onAvailableListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onAvailable(onAvailableListener);
 
@@ -2346,7 +2348,7 @@ describe('RpcServiceChain', () => {
       const onDegradedListener = vi.fn();
       const onAvailableListener = vi.fn();
       rpcServiceChain.onServiceRetry(() => {
-        vi.advanceTimersToNextTimer();
+        vi.runOnlyPendingTimersAsync().catch(console.error);
       });
       rpcServiceChain.onDegraded(onDegradedListener);
       rpcServiceChain.onAvailable(onAvailableListener);

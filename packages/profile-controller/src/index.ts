@@ -26,6 +26,7 @@ export type {
   ProfileControllerReplaceProfileAction,
   ProfileControllerGetXAuthorizationUrlAction,
   ProfileControllerUpdateProfileAction,
+  ProfileControllerClearStateAction,
 } from './ProfileController-method-action-types.js';
 export type {
   ProfileApiResponse,

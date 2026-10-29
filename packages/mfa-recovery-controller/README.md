@@ -1,13 +1,26 @@
 # `@metamask/mfa-recovery-controller`
 
-Manages MFA recovery flows across MetaMask clients. Auth and escrow storage are
-injected so the same controller can run against different identity providers and
-escrow backends.
+Coordinates MFA recovery through injected auth and escrow providers.
 
-Pending mutations are persisted as encoded encrypted `authorizing` / `writing`
-state so a crash can `resume()` the same mutation. `abort()` drops `authorizing`
-only; `writing` must `resume()`. The encoded ciphertext is stored as a string so
-BaseController state serialization preserves the encrypted value.
+Pending mutations are encrypted in controller state. `resume()` completes them;
+`abort()` is allowed only before writing. See [Architecture](ARCHITECTURE.md).
+
+## Auth API Integration
+
+Configure `AuthApiRecoveryAuthProvider` with a messenger that can call
+`AuthenticationController:refreshCanonicalProfileId` and
+`AuthenticationController:requestMfaApproval`. It resolves the current canonical
+profile id for each mutation and requests approvals from `/api/v2/mfa/approvals`. Writes and reads require a
+request-bound AAL2 approval; updates and reads also require an identifier proof.
+Without a recent MFA verification, approvals reject with `StepUpRequiredError`:
+verify, then call `resume()` or retry the read.
+
+`register` and `updateIdentifiers` send the approval's `identifiers` to each
+escrow as `approvedIdentifiers`; the escrow rejects payload identifiers outside
+that list. Build payload identifiers from those entries unchanged (verifier
+included): the controller rejects any other identifier before writing, and the
+mutation can then be aborted. Set `CubistEscrowProviderOptions.authAudience` to the escrow's
+`AUTH_CONTROLLER_AUDIENCE`.
 
 ## Installation
 

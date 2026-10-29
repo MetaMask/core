@@ -6,7 +6,7 @@ export type Identifier = {
   type: string;
   namespace: string;
   value: string;
-  verifier: unknown;
+  verifier?: unknown;
 };
 
 export type PoPChallenge = {
@@ -63,10 +63,15 @@ export type Mutation = {
 };
 
 /**
- * Hydra access token (compact JWT). Its `ext` claims bind it to one mutation:
+ * Auth API approval (compact JWT). Its `ext` claims bind it to one mutation:
  * `aal`, `request_hash`, and `identifiers_hash`.
  */
 export type AuthControllerToken = string;
+
+export type RecoveryApproval = {
+  approval: AuthControllerToken;
+  identifiers: Identifier[];
+};
 
 export type MutationReceipt = {
   mutationId: string;
@@ -206,6 +211,11 @@ export type AuthorizingPendingOperation = PendingOperationBase & {
 export type WritingPendingOperation = PendingOperationBase & {
   phase: 'writing';
   authControllerToken: AuthControllerToken;
+  /**
+   * The approval's identifiers, in Auth API order, bound by its
+   * `identifiers_hash`.
+   */
+  approvedIdentifiers: Identifier[];
   receipts: MutationReceipt[];
 };
 
@@ -246,12 +256,15 @@ export type RecoveredSecret = {
  */
 export type RecoveryAuthProvider = {
   getAuthenticatedProfileId: () => Promise<string>;
+  /**
+   * Returns the Auth API's approval and current recovery identifiers.
+   * `requireTwoFactor` requests recent AAL2 authentication.
+   */
   authorizeRecoveryRequest: (params: {
     requestHash: string;
     audiences: string[];
     requireTwoFactor?: boolean;
-    identifiers?: Identifier[];
-  }) => Promise<AuthControllerToken>;
+  }) => Promise<RecoveryApproval>;
 };
 
 /**
@@ -287,6 +300,7 @@ export type RecoveryEscrowProvider = {
   isAvailable: () => Promise<boolean>;
   generateChallenge: () => Promise<PoPChallenge>;
   getSecret: (
+    authControllerToken: AuthControllerToken,
     authorization: IdentifierAuthorization,
     requestId: string,
     pkE: Uint8Array,
@@ -296,6 +310,7 @@ export type RecoveryEscrowProvider = {
     authControllerToken: AuthControllerToken,
     identifierAuthorization: IdentifierAuthorization | null,
     payload: MutationPayload,
+    approvedIdentifiers: Identifier[],
   ) => Promise<MutationReceipt>;
   /**
    * Verifies a receipt cryptographically using the build-pinned receipt key

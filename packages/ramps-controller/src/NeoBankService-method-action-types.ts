@@ -172,6 +172,26 @@ export type NeoBankServiceGetMoonpayCustomerIdAction = {
 };
 
 /**
+ * Lists the customer's bank-link microdeposits via neobank-proxy
+ * `GET /neobank/customers/{customer_id}/microdeposits` (MoonPay
+ * `GET /api/customers/{id}/microdeposits`).
+ *
+ * The customer id is resolved through {@link getMoonpayCustomerId} at most
+ * once per service instance; concurrent callers share the in-flight lookup
+ * and a failed lookup is retried by the next call. A 404 (from the customer
+ * lookup or the list) means there is no customer or no deposits yet and
+ * resolves `[]`. Any other non-2xx response throws an {@link HttpError}. The
+ * customer lookup is a single attempt: it does not go through the retry
+ * policy.
+ *
+ * @returns MoonPay microdeposits, unmodified.
+ */
+export type NeoBankServiceGetMicrodepositsAction = {
+  type: `NeoBankService:getMicrodeposits`;
+  handler: NeoBankService['getMicrodeposits'];
+};
+
+/**
  * Checks whether a Monad Money Account address is already registered for the
  * given Iron customer.
  *
@@ -213,5 +233,6 @@ export type NeoBankServiceMethodActions =
   | NeoBankServiceAttachAutorampQuoteAction
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetMoonpayCustomerIdAction
+  | NeoBankServiceGetMicrodepositsAction
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction;

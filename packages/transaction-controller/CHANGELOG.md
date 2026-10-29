@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+
+## [72.3.0]
+
 ### Added
 
 - Add `mode` to the `estimateGasBatch` result, `eip7702` for a single gas limit of the outer EIP-7702 transaction or `separate` for one gas limit per transaction, and export the `EstimateGasBatchMode` and `EstimateGasBatchResult` types ([#10790](https://github.com/MetaMask/core/pull/10790))
@@ -33,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Treat `MPC Money Keyring` accounts as EIP-7702 capable, so deposits no longer fail with "Account does not support EIP-7702" ([#11153](https://github.com/MetaMask/core/pull/11153))
 - Exclude the unused gas refund from `nativeBalanceChange` when the simulation credits the sender without debiting the gas cost ([#10614](https://github.com/MetaMask/core/pull/10614))
   - On Arc the simulated state diff credits the fee recipient and, when the gas limit exceeds the gas used, refunds the sender's unused gas, but never debits the upfront gas, so a value-0 call was reported as an incoming native balance and a native send under-reported its decrease.
 
@@ -2863,7 +2870,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.3.0...HEAD
+[72.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.2.1...@metamask/transaction-controller@72.3.0
 [72.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.2.0...@metamask/transaction-controller@72.2.1
 [72.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.1.0...@metamask/transaction-controller@72.2.0
 [72.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.0.1...@metamask/transaction-controller@72.1.0

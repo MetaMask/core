@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.1.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -18,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `nanoid` from `^3.3.8` to `^3.3.19` ([#10439](https://github.com/MetaMask/core/pull/10439))
 - Bump `@metamask/rpc-errors` from `^7.0.2` to `^7.0.3` ([#10718](https://github.com/MetaMask/core/pull/10718))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+### Fixed
+
+- Skip updating `SubjectMetadataController` in `addSubjectMetadata` when the new metadata is identical to existing state ([#11156](https://github.com/MetaMask/core/pull/11156))
 
 ## [14.0.0]
 
@@ -522,7 +528,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@14.1.0...HEAD
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@14.0.0...@metamask/permission-controller@14.1.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@13.1.1...@metamask/permission-controller@14.0.0
 [13.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@13.1.0...@metamask/permission-controller@13.1.1
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@13.0.0...@metamask/permission-controller@13.1.0
