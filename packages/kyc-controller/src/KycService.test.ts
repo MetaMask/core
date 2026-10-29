@@ -532,6 +532,7 @@ describe('KycService', () => {
       kycStatus: 'approved',
       vendor: 'sumsub',
       vendorStatus: 'GREEN',
+      currentStep: 'approved',
     };
 
     it('posts the wrapped secrets and returns the session status', async () => {
@@ -631,6 +632,7 @@ describe('KycService', () => {
         consentStatus: 'given',
         idOSStatus: 'active',
         capabilityAuthorizationStatus: 'stored',
+        currentStep: 'approved',
       };
       nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
       const { service } = getService();
@@ -648,12 +650,87 @@ describe('KycService', () => {
         kycStatus: 'pending',
         vendor: 'sumsub',
         vendorStatus: 'YELLOW',
+        currentStep: 'processing',
       };
       nock(MOCK_API_URL).get('/sessions/a%2Fb/status').reply(200, response);
       const { service } = getService();
 
       expect(
         await service.getSessionStatus({ sessionId: 'a/b' }),
+      ).toStrictEqual(response);
+    });
+
+    it('reports finalStatus as new when the session is pending at the kyc step', async () => {
+      const response = {
+        id: 'sid',
+        finalStatus: 'pending',
+        externalUserId: 'ext-1',
+        kycStatus: 'pending',
+        vendor: 'sumsub',
+        vendorStatus: 'YELLOW',
+        currentStep: 'kyc',
+      };
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getSessionStatus({ sessionId: 'sid' }),
+      ).toStrictEqual({
+        ...response,
+        finalStatus: 'new',
+      });
+    });
+
+    it('keeps a pending finalStatus when currentStep is not kyc', async () => {
+      const response = {
+        id: 'sid',
+        finalStatus: 'pending',
+        externalUserId: 'ext-1',
+        kycStatus: 'pending',
+        vendor: 'iron',
+        vendorStatus: 'pending',
+        currentStep: 'phoneOtpCollection',
+      };
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getSessionStatus({ sessionId: 'sid' }),
+      ).toStrictEqual(response);
+    });
+
+    it('keeps finalStatus and an unrecognized currentStep', async () => {
+      const response = {
+        id: 'sid',
+        finalStatus: 'pending',
+        externalUserId: 'ext-1',
+        kycStatus: 'pending',
+        vendor: 'iron',
+        vendorStatus: 'pending',
+        currentStep: 'addressCollection',
+      };
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getSessionStatus({ sessionId: 'sid' }),
+      ).toStrictEqual(response);
+    });
+
+    it('returns the session when currentStep is omitted', async () => {
+      const response = {
+        id: 'sid',
+        finalStatus: 'pending',
+        externalUserId: 'ext-1',
+        kycStatus: 'pending',
+        vendor: 'iron',
+        vendorStatus: 'pending',
+      };
+      nock(MOCK_API_URL).get('/sessions/sid/status').reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.getSessionStatus({ sessionId: 'sid' }),
       ).toStrictEqual(response);
     });
 
@@ -740,6 +817,7 @@ describe('KycService', () => {
       kycStatus: 'approved',
       vendor: 'iron',
       vendorStatus: 'GREEN',
+      currentStep: 'approved',
     };
 
     it('returns the latest session status for the vendor', async () => {

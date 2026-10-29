@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getAccountSupport` to the controller, messenger, and optional provider contract. Hyperliquid detects native multi-signature accounts, caches successful checks per account/network session, and blocks exchange mutations for unsupported accounts. Transient detection failures remain retryable, authoritative exchange rejections correct cached support, and actions reject stale account, network, or provider contexts before signing. ([#10693](https://github.com/MetaMask/core/pull/10693))
 - Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets ([#11030](https://github.com/MetaMask/core/pull/11030))
   - Snapshots without these fields, or with `null` values, still validate. An unrecognized `marginMode` rejects the snapshot, so snapshot-backed reads fall back to the provider.
 - Add optional `AccountState.crossMarginSummary` (`accountValue`, `maintenanceMargin`, `marginUsed`, `notional`) and the `CrossMarginSummary` type, so clients can show account ratio, maintenance margin, account leverage and cross margin usage for Hyperliquid and Lighter ([#11148](https://github.com/MetaMask/core/pull/11148))
