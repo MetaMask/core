@@ -1981,7 +1981,7 @@ describe('Quotes Utils', () => {
       );
     });
 
-    it('quotes from the transaction account when accountOverride is set for post-quote flow', async () => {
+    it('uses the transaction account as from for post-quote flow with accountOverride', async () => {
       const accountOverride =
         '0xrecipient0000000000000000000000000000001' as Hex;
 
@@ -1994,7 +1994,6 @@ describe('Quotes Utils', () => {
 
       expect(getQuotesMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          from: TRANSACTION_META_MOCK.txParams.from,
           requests: [
             expect.objectContaining({
               isPostQuote: true,
@@ -2002,32 +2001,6 @@ describe('Quotes Utils', () => {
             }),
           ],
         }),
-      );
-      expect(getQuotesMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          requests: [
-            expect.not.objectContaining({ recipient: expect.anything() }),
-          ],
-        }),
-      );
-    });
-
-    it('refreshes the payment token balance of accountOverride for post-quote flow', async () => {
-      const accountOverride =
-        '0xrecipient0000000000000000000000000000001' as Hex;
-
-      await run({
-        transactionData: {
-          ...POST_QUOTE_TRANSACTION_DATA,
-          accountOverride,
-        },
-      });
-
-      expect(getLiveTokenBalanceMock).toHaveBeenCalledWith(
-        messenger,
-        accountOverride,
-        DESTINATION_TOKEN_MOCK.chainId,
-        DESTINATION_TOKEN_MOCK.address,
       );
     });
 

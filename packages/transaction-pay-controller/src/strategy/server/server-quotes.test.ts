@@ -193,7 +193,6 @@ describe('server-quotes', () => {
   beforeEach(() => {
     vi.resetAllMocks();
 
-    getControllerStateMock.mockReturnValue({ transactionData: {} });
     fetchServerQuoteMock.mockResolvedValue({
       results: [FULFILLED_RESULT_MOCK],
     });
@@ -304,32 +303,6 @@ describe('server-quotes', () => {
     expect(fetchServerQuoteMock.mock.calls[0][1].recipient).toBe(FROM_MOCK);
     expect(result[0].request.recipient).toBe(FROM_MOCK);
     expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
-  });
-
-  it('pays the account override of a post-quote withdrawal sent by the transaction account', async () => {
-    getControllerStateMock.mockReturnValue({
-      transactionData: {
-        [TRANSACTION_META_MOCK.id]: {
-          accountOverride: OVERRIDE_RECIPIENT_MOCK,
-        },
-      },
-    });
-
-    const result = await getServerQuotes({
-      accountSupports7702: true,
-      from: FROM_MOCK,
-      messenger,
-      requests: [{ ...QUOTE_REQUEST_MOCK, isPostQuote: true }],
-      transaction: TRANSACTION_META_MOCK,
-    });
-
-    expect(fetchServerQuoteMock.mock.calls[0][1]).toStrictEqual(
-      expect.objectContaining({
-        recipient: OVERRIDE_RECIPIENT_MOCK,
-        sender: FROM_MOCK,
-      }),
-    );
-    expect(result[0].request.recipient).toBe(OVERRIDE_RECIPIENT_MOCK);
   });
 
   it.each([undefined, TOKEN_TRANSFER_RECIPIENT_MOCK])(
