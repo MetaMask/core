@@ -1113,16 +1113,20 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Read the current enabled chains from NetworkEnablementController.
+   * Read the current enabled chains from NetworkEnablementController, and
+   * refresh the active chains of data sources that read
+   * NetworkEnablementController or NetworkController state at construction.
    *
    * `Wallet` constructs additional controllers before default ones, so this
    * controller can be constructed before `NetworkEnablementController:getState`
-   * is registered. `Wallet.init()` calls `init()` after that controller
-   * exists. Later enablement changes arrive on
-   * `NetworkEnablementController:stateChange`.
+   * and `NetworkController:getState` are registered. `Wallet.init()` calls
+   * `init()` after those controllers exist. Later changes arrive on their
+   * `stateChange` events.
    */
   async init(): Promise<void> {
     this.#initializeState();
+    this.#rpcDataSource.refreshActiveChainsFromNetworkState();
+    this.#stakedBalanceDataSource.refreshActiveChainsFromNetworkEnablementState();
   }
 
   #initializeState(): void {

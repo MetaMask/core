@@ -219,6 +219,31 @@ describe('StakedBalanceDataSource', () => {
     });
   });
 
+  describe('refreshActiveChainsFromNetworkEnablementState', () => {
+    it('re-reads NetworkEnablementController state and updates active chains', async () => {
+      await withController(
+        { enabledNetworkMap: {} },
+        async ({ controller, mockMessengerCall, onActiveChainsUpdated }) => {
+          expect(await controller.getActiveChains()).toStrictEqual([]);
+
+          mockMessengerCall.mockReturnValueOnce({
+            enabledNetworkMap: { eip155: { [MAINNET_CHAIN_ID_HEX]: true } },
+          });
+          controller.refreshActiveChainsFromNetworkEnablementState();
+
+          expect(await controller.getActiveChains()).toStrictEqual([
+            MAINNET_CHAIN_ID_CAIP,
+          ]);
+          expect(onActiveChainsUpdated).toHaveBeenLastCalledWith(
+            'StakedBalanceDataSource',
+            [MAINNET_CHAIN_ID_CAIP],
+            [],
+          );
+        },
+      );
+    });
+  });
+
   describe('getName', () => {
     it('returns the data source name', async () => {
       await withController(({ controller }) => {

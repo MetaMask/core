@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `init()`, which reads enabled chains from `NetworkEnablementController:getState`. Construction no longer requires that action to be registered. Later enablement changes still arrive on `NetworkEnablementController:stateChange` ([#10885](https://github.com/MetaMask/core/pull/10885))
+  - `init()` also refreshes the RPC and staked balance data sources' active chains from `NetworkController:getState` and `NetworkEnablementController:getState`, which they otherwise read only at construction.
 
 ### Changed
 

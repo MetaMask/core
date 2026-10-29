@@ -29,6 +29,7 @@ import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource.js';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
 import { PriceDataSource } from './data-sources/PriceDataSource.js';
 import { RpcDataSource } from './data-sources/RpcDataSource.js';
+import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource.js';
 import { TokenDataSource } from './data-sources/TokenDataSource.js';
 import {
   buildDefaultAssetsInfo,
@@ -854,6 +855,32 @@ describe('AssetsController', () => {
       expect(
         Object.keys(afterStateChange[MOCK_ACCOUNT_ID]).sort(),
       ).toStrictEqual([MOCK_NATIVE_ASSET_ID, polygonNativeAssetId].sort());
+    });
+
+    it('refreshes data source active chains from init', async () => {
+      const refreshRpcSpy = vi.spyOn(
+        RpcDataSource.prototype,
+        'refreshActiveChainsFromNetworkState',
+      );
+      const refreshStakedSpy = vi.spyOn(
+        StakedBalanceDataSource.prototype,
+        'refreshActiveChainsFromNetworkEnablementState',
+      );
+
+      try {
+        await withController(async ({ controller }) => {
+          refreshRpcSpy.mockClear();
+          refreshStakedSpy.mockClear();
+
+          await controller.init();
+
+          expect(refreshRpcSpy).toHaveBeenCalledTimes(1);
+          expect(refreshStakedSpy).toHaveBeenCalledTimes(1);
+        });
+      } finally {
+        refreshRpcSpy.mockRestore();
+        refreshStakedSpy.mockRestore();
+      }
     });
 
     it('accepts isBasicFunctionality option and exposes handleBasicFunctionalityChange', async () => {
