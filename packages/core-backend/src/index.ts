@@ -152,6 +152,37 @@ export type {
 } from './ws/launchpad/index.js';
 
 // ============================================================================
+// MARKET STATS SERVICE
+// ============================================================================
+
+export {
+  MarketStatsService,
+  MARKET_STATS_SERVICE_ALLOWED_ACTIONS,
+  MARKET_STATS_SERVICE_ALLOWED_EVENTS,
+  buildMarketStatsChannel,
+  parseMarketStatsBatch,
+  MARKET_STATS_BATCH_CHANNEL,
+  MARKET_STATS_MAX_CHANNELS,
+  MARKET_STATS_NAMESPACE,
+  MARKET_STATS_SYSTEM_NOTIFICATIONS_CHANNEL,
+} from './ws/market-stats/index.js';
+
+export type {
+  MarketStatsPriceUpdate,
+  MarketStatsSubscriptionOptions,
+  MarketStatsSystemNotificationData,
+  MarketStatsServiceOptions,
+  MarketStatsServiceActions,
+  MarketStatsServiceAllowedActions,
+  MarketStatsServicePricesUpdatedEvent,
+  MarketStatsServiceChainStatusChangedEvent,
+  MarketStatsServiceSubscriptionErrorEvent,
+  MarketStatsServiceEvents,
+  MarketStatsServiceAllowedEvents,
+  MarketStatsServiceMessenger,
+} from './ws/market-stats/index.js';
+
+// ============================================================================
 // API PLATFORM CLIENT
 // ============================================================================
 

@@ -23,6 +23,9 @@ import type {
   ApiPlatformClient,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceStatusChangedEvent,
+  MarketStatsServiceActions,
+  MarketStatsServiceChainStatusChangedEvent,
+  MarketStatsServicePricesUpdatedEvent,
   SupportedCurrency,
 } from '@metamask/core-backend';
 import type { Transaction as KeyringTransaction } from '@metamask/keyring-api';
@@ -333,7 +336,9 @@ type AllowedActions =
   // PhishingController
   | PhishingControllerBulkScanTokensAction
   // AccountsApiDataSource (Accounts API v6 balances feature flag)
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  // PriceDataSource market-stats stream. Absent at runtime, prices stay on the poll.
+  | MarketStatsServiceActions;
 
 type AllowedEvents =
   // AssetsController — account tree lifecycle and group switches
@@ -367,7 +372,10 @@ type AllowedEvents =
   | AccountActivityServiceStatusChangedEvent
   // AccountsApiDataSource subscribes to react to Snaps → AssetsController
   // migration flag changes (which gate the chains it surfaces as active)
-  | RemoteFeatureFlagControllerStateChangeEvent;
+  | RemoteFeatureFlagControllerStateChangeEvent
+  // PriceDataSource market-stats stream
+  | MarketStatsServicePricesUpdatedEvent
+  | MarketStatsServiceChainStatusChangedEvent;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -1033,6 +1041,7 @@ export class AssetsController extends BaseController<
     });
     this.#priceDataSource = new PriceDataSource({
       queryApiClient,
+      messenger: this.messenger,
       getSelectedCurrency: (): SupportedCurrency => this.state.selectedCurrency,
       getAssetsState: (): AssetsControllerState => this.state,
       ...priceDataSourceConfig,
@@ -2558,6 +2567,9 @@ export class AssetsController extends BaseController<
 
     // Currency changed — old cached prices are in the wrong currency.
     this.#priceDataSource.invalidatePriceCache();
+    this.#priceDataSource.resubscribeForCurrencyChange().catch((error) => {
+      log('Failed to resubscribe market stats after currency change', error);
+    });
 
     this.syncAssetsPrices(
       Object.values(this.state.assetsBalance).flatMap(
