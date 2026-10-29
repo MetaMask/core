@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/network-controller` from `^37.0.0` to `^37.1.1` ([#10658](https://github.com/MetaMask/core/pull/10658), [#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982))
 - Bump `@metamask/accounts-controller` from `^40.0.0` to `^40.1.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+- Bump `jsonschema` from `^1.4.1` to `^1.5.0` ([#10531](https://github.com/MetaMask/core/pull/10531))
 
 ## [40.0.0]
 
