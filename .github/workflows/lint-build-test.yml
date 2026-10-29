@@ -135,16 +135,14 @@ jobs:
             exit 1
           fi
 
-  validate-changelog:
-    name: Validate changelog
+  validate-changelogs:
+    name: Validate changelogs
     runs-on: ubuntu-latest
-    if: needs.prepare.outputs.package-names != '[]'
     needs: prepare
     strategy:
       fail-fast: false
       matrix:
         node-version: [26.x]
-        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -157,9 +155,9 @@ jobs:
         run: git fetch --depth=1 --filter=blob:none --no-tags origin "$MERGE_BASE"
         env:
           MERGE_BASE: ${{ needs.prepare.outputs.merge-base }}
-      - run: yarn workspace "$PACKAGE_NAME" changelog:validate
+      - name: Validate changelogs
+        run: yarn changelog:validate:all
         env:
-          PACKAGE_NAME: ${{ matrix.package-name }}
           CHANGELOG_MERGE_BASE: ${{ needs.prepare.outputs.merge-base }}
       - name: Require clean working directory
         shell: bash
