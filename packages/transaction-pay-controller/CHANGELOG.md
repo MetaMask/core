@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^72.2.1` to `^72.3.0` ([#11154](https://github.com/MetaMask/core/pull/11154))
-- Bump `@metamask/assets-controller` from `^20.0.0` to `^20.0.1` ([#11157](https://github.com/MetaMask/core/pull/11157))
+- Bump `@metamask/assets-controller` from `^20.0.0` to `^20.0.2` ([#11157](https://github.com/MetaMask/core/pull/11157), [#11176](https://github.com/MetaMask/core/pull/11176))
 - Bump `@metamask/ramps-controller` from `^28.0.0` to `^28.1.0` ([#11175](https://github.com/MetaMask/core/pull/11175))
 
 ## [30.3.1]

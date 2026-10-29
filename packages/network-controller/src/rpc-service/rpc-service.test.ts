@@ -859,14 +859,8 @@ describe('RpcService', () => {
           result: '0x1',
         });
       const promiseForRequestUrl = new Promise<string>((resolve) => {
-        scope.on('request', (request: unknown) => {
-          // Depending on the version of Nock, this is either a Node.js request
-          // (with `options.href`) or a Fetch API `Request` (with `url`).
-          const { options, url } = request as {
-            options?: { href: string };
-            url?: string;
-          };
-          resolve([options?.href, url].find(Boolean) as string);
+        scope.on('request', (request: Request) => {
+          resolve(request.url);
         });
       });
       const service = new RpcService({

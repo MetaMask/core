@@ -16,8 +16,7 @@ import {
   SOLANA_USDC,
   findTokenMetadata,
 } from './spamWalletState.js';
-import { getRequestUrl, waitFor } from './test-utils.js';
-import type { NockRequestInfo } from './test-utils.js';
+import { waitFor } from './test-utils.js';
 
 /**
  * `GET token.api.cx.metamask.io/v1/suggestedOccurrenceFloors`, verbatim.
@@ -128,8 +127,8 @@ export function mockV3Assets({
     .get('/v3/assets')
     .query(true)
     .times(times)
-    .reply(status, (uri: NockRequestInfo) => {
-      const assetIds = readAssetIds(uri);
+    .reply(status, (request: Request) => {
+      const assetIds = readAssetIds(request);
       requestedBatches.push(assetIds);
       if (status !== 200) {
         return { message: 'Service Unavailable' };
@@ -166,14 +165,13 @@ export async function waitForTokenApiRequests(
 /**
  * Read the requested asset IDs back off a `/v3/assets` request URI.
  *
- * @param uri - The intercepted request URI, path and query.
+ * @param request - The intercepted request.
  * @returns The asset IDs the caller asked about.
  */
-function readAssetIds(uri: NockRequestInfo): string[] {
-  const assetIds = new URL(
-    getRequestUrl(uri),
-    API_URLS.TOKENS,
-  ).searchParams.get('assetIds');
+function readAssetIds(request: Request): string[] {
+  const assetIds = new URL(request.url, API_URLS.TOKENS).searchParams.get(
+    'assetIds',
+  );
   return assetIds ? assetIds.split(',') : [];
 }
 

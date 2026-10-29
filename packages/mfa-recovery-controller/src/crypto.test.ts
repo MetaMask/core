@@ -3,8 +3,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   canonicalize,
-  canonicalizeIdentifiers,
-  compareUtf8,
   decryptFromPublic,
   encryptToPublic,
   generateSigningKey,
@@ -88,71 +86,31 @@ describe('crypto', () => {
     );
   });
 
-  it('sorts identifiers for ownership hashes', async () => {
-    const first: Identifier = {
-      type: 'passkey',
-      namespace: 'b.com',
-      value: '2',
-      verifier: null,
-    };
-    const second: Identifier = {
-      type: 'passkey',
-      namespace: 'a.com',
-      value: '1',
-      verifier: null,
-    };
-    expect(canonicalize(canonicalizeIdentifiers([first, second]))).toBe(
-      canonicalize(canonicalizeIdentifiers([second, first])),
+  it('matches the Auth API and escrow identifiers hash', async () => {
+    const identifiers: Identifier[] = [
+      {
+        type: 'social',
+        namespace: 'https://accounts.google.com',
+        value: 'abc',
+      },
+      {
+        type: 'passkey',
+        namespace: 'metamask.io',
+        value: 'AQID',
+        verifier: {
+          credentialId: 'AQID',
+          publicKey: { cose: 'AQID' },
+          rpId: 'metamask.io',
+          origins: ['https://metamask.io', 'android:apk-key-hash:example'],
+        },
+      },
+    ];
+    expect(await hash(identifiers)).toBe(
+      '0x7fbf077f78e6cc4c420eb9b1885ba911aca3ec9810422ab5f26f767f13622090',
     );
-  });
-
-  describe('identifier sort order', () => {
-    // The escrow sorts by UTF-8 byte order (Rust `String` ordering). Any other
-    // order changes `identifiersHash` and the escrow rejects the mutation.
-    const identifier = (value: string): Identifier => ({
-      type: 'passkey',
-      namespace: 'metamask.io',
-      value,
-      verifier: null,
-    });
-    const sortedValues = (values: string[]): string[] =>
-      (
-        canonicalizeIdentifiers(values.map(identifier)) as { value: string }[]
-      ).map((item) => item.value);
-
-    it('puts uppercase before lowercase, unlike locale order', () => {
-      // base64url credential ids are mixed case; localeCompare would put
-      // `a2V5LTE` first.
-      expect(sortedValues(['a2V5LTE', 'Zm9vLTI'])).toStrictEqual([
-        'Zm9vLTI',
-        'a2V5LTE',
-      ]);
-      expect(sortedValues(['Zm9vLTI', 'a2V5LTE'])).toStrictEqual([
-        'Zm9vLTI',
-        'a2V5LTE',
-      ]);
-    });
-
-    it('orders by UTF-8 bytes rather than UTF-16 code units', () => {
-      // U+FF21 is EF BC A1 in UTF-8 and U+1F600 is F0 9F 98 80, so U+FF21
-      // sorts first. In UTF-16 U+1F600 (D83D DE00) would sort first.
-      expect(sortedValues(['\u{1F600}', '\uFF21'])).toStrictEqual([
-        '\uFF21',
-        '\u{1F600}',
-      ]);
-    });
-
-    it('orders a shorter identifier before its extension', () => {
-      expect(sortedValues(['abc', 'ab'])).toStrictEqual(['ab', 'abc']);
-    });
-
-    it('compares UTF-8 bytes, treating a shared prefix as shorter', () => {
-      expect(compareUtf8('ab', 'abc')).toBeLessThan(0);
-      expect(compareUtf8('abc', 'ab')).toBeGreaterThan(0);
-      expect(compareUtf8('abc', 'abc')).toBe(0);
-      expect(compareUtf8('a', 'b')).toBeLessThan(0);
-      expect(compareUtf8('b', 'a')).toBeGreaterThan(0);
-    });
+    expect(await hash([...identifiers].reverse())).not.toBe(
+      await hash(identifiers),
+    );
   });
 
   describe('wire-format vectors', () => {
