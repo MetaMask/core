@@ -43,6 +43,8 @@ import { consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
 import {
   needsCapabilityAuthorizationRefresh,
   FINAL_STATUSES_TO_STOP_POLLING,
+  KYC_CURRENT_STEPS,
+  KYC_STATUSES,
 } from './types.js';
 import type {
   KycConsentRecord,
@@ -1388,7 +1390,10 @@ export class KycController extends BaseController<
         this.#recordLaunchOutcomeAndTrackAnalytics('submitted', (state) => {
           state.sessionStatus = {
             ...currentSessionStatus,
-            finalStatus: 'pending',
+            finalStatus: KYC_STATUSES.pending,
+            // The applicant has submitted documents, so the session is in
+            // vendor processing rather than still on the `kyc` step.
+            currentStep: KYC_CURRENT_STEPS.processing,
           };
           state.providerFlowStatus = 'submitted';
         });
