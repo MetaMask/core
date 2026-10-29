@@ -1518,6 +1518,182 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(mockSubscriptionClient.userFills).toHaveBeenCalledTimes(2);
       unsubscribe();
     });
+
+    describe('userFills open lifecycle', () => {
+      type ControlledOpen = {
+        emit: (event: unknown) => void;
+        resolve: () => void;
+        reject: (error: Error) => void;
+        subscription: { unsubscribe: ReturnType<typeof vi.fn> };
+      };
+
+      const liveFill = (oid: number): unknown => ({
+        user: '0x0000000000000000000000000000000000000000',
+        fills: [
+          {
+            oid,
+            coin: 'BTC',
+            side: 'B',
+            sz: '0.1',
+            px: '50000',
+            fee: '5',
+            time: 1_700_000_000_000 + oid,
+            closedPnl: '0',
+            dir: 'Open Long',
+            feeToken: 'USDC',
+            startPosition: '0',
+          },
+        ],
+        isSnapshot: false,
+      });
+
+      // Each userFills call returns a promise the test settles by hand, and
+      // exposes the listener the service registered so frames can be pushed.
+      const controlUserFillsOpens = (): ControlledOpen[] => {
+        const opens: ControlledOpen[] = [];
+        mockSubscriptionClient.userFills.mockImplementation(
+          (_params: unknown, callback: (event: unknown) => void) => {
+            const subscription = {
+              unsubscribe: vi.fn().mockResolvedValue(undefined),
+            };
+            return new Promise((resolve, reject) => {
+              opens.push({
+                emit: callback,
+                resolve: () => resolve(subscription),
+                reject,
+                subscription,
+              });
+            });
+          },
+        );
+        return opens;
+      };
+
+      const waitForOpens = async (
+        opens: ControlledOpen[],
+        count: number,
+      ): Promise<void> => {
+        await vi.waitFor(() => {
+          expect(opens).toHaveLength(count);
+        });
+      };
+
+      it('delivers fills on the post-reconnect subscription and drops pre-reconnect frames', async () => {
+        const opens = controlUserFillsOpens();
+        const callback = vi.fn();
+        const unsubscribe = service.subscribeToOrderFills({ callback });
+        await waitForOpens(opens, 1);
+
+        const restorePromise = service.restoreSubscriptions();
+        await waitForOpens(opens, 2);
+        opens[1].resolve();
+        opens[0].resolve();
+        await restorePromise;
+        await vi.runAllTimersAsync();
+
+        opens[0].emit(liveFill(1));
+        expect(callback).not.toHaveBeenCalled();
+
+        opens[1].emit(liveFill(2));
+        expect(callback).toHaveBeenCalledTimes(1);
+        expect(callback).toHaveBeenCalledWith(
+          [expect.objectContaining({ orderId: '2' })],
+          false,
+        );
+        expect(opens[0].subscription.unsubscribe).toHaveBeenCalled();
+        expect(opens[1].subscription.unsubscribe).not.toHaveBeenCalled();
+        unsubscribe();
+      });
+
+      it('opens its own userFills when the pending open it awaited rejects', async () => {
+        const opens = controlUserFillsOpens();
+        const firstCallback = vi.fn();
+        const secondCallback = vi.fn();
+        const unsubscribeFirst = service.subscribeToOrderFills({
+          callback: firstCallback,
+        });
+        await waitForOpens(opens, 1);
+        const unsubscribeSecond = service.subscribeToOrderFills({
+          callback: secondCallback,
+        });
+
+        opens[0].reject(new Error('socket closed'));
+        await waitForOpens(opens, 2);
+        opens[1].resolve();
+        await vi.runAllTimersAsync();
+
+        opens[1].emit(liveFill(3));
+        expect(firstCallback).toHaveBeenCalledTimes(1);
+        expect(secondCallback).toHaveBeenCalledTimes(1);
+        expect(mockSubscriptionClient.userFills).toHaveBeenCalledTimes(2);
+        unsubscribeFirst();
+        unsubscribeSecond();
+      });
+
+      it('does not open when the last subscriber left while a waiter was pending', async () => {
+        const opens = controlUserFillsOpens();
+        const unsubscribeFirst = service.subscribeToOrderFills({
+          callback: vi.fn(),
+        });
+        await waitForOpens(opens, 1);
+        const unsubscribeSecond = service.subscribeToOrderFills({
+          callback: vi.fn(),
+        });
+
+        unsubscribeFirst();
+        unsubscribeSecond();
+        opens[0].resolve();
+        await vi.runAllTimersAsync();
+
+        expect(mockSubscriptionClient.userFills).toHaveBeenCalledTimes(1);
+        expect(opens[0].subscription.unsubscribe).toHaveBeenCalled();
+      });
+
+      it('discards an in-flight open when the last subscriber leaves', async () => {
+        const opens = controlUserFillsOpens();
+        const staleCallback = vi.fn();
+        const liveCallback = vi.fn();
+        const unsubscribeStale = service.subscribeToOrderFills({
+          callback: staleCallback,
+        });
+        await waitForOpens(opens, 1);
+        unsubscribeStale();
+
+        const unsubscribeLive = service.subscribeToOrderFills({
+          callback: liveCallback,
+        });
+        await waitForOpens(opens, 2);
+
+        opens[0].emit(liveFill(4));
+        expect(staleCallback).not.toHaveBeenCalled();
+        expect(liveCallback).not.toHaveBeenCalled();
+
+        opens[1].resolve();
+        opens[0].resolve();
+        await vi.runAllTimersAsync();
+
+        expect(opens[0].subscription.unsubscribe).toHaveBeenCalled();
+        expect(opens[1].subscription.unsubscribe).not.toHaveBeenCalled();
+        opens[1].emit(liveFill(5));
+        expect(liveCallback).toHaveBeenCalledTimes(1);
+        unsubscribeLive();
+      });
+
+      it('discards an in-flight open when clearAll runs', async () => {
+        const opens = controlUserFillsOpens();
+        const callback = vi.fn();
+        service.subscribeToOrderFills({ callback });
+        await waitForOpens(opens, 1);
+
+        service.clearAll();
+        opens[0].emit(liveFill(6));
+        opens[0].resolve();
+        await vi.runAllTimersAsync();
+
+        expect(callback).not.toHaveBeenCalled();
+        expect(opens[0].subscription.unsubscribe).toHaveBeenCalled();
+      });
+    });
   });
 
   describe('Shared WebData3 Subscription', () => {

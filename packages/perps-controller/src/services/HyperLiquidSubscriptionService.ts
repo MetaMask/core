@@ -2950,13 +2950,23 @@ export class HyperLiquidSubscriptionService {
 
     // Another caller is already opening this account's socket. Await it so
     // subscribe + reconnect do not race two userFills opens onto one key.
-    const pending =
-      this.#pendingOrderFillSubscriptions.get(normalizedAccountId);
-    if (pending) {
-      await pending;
+    // The owner of the pending open logs its failure, so swallow it here and
+    // fall through to open our own. Re-read after each wait: several waiters
+    // resume together and only the first should start the replacement open.
+    let pending = this.#pendingOrderFillSubscriptions.get(normalizedAccountId);
+    while (pending) {
+      await pending.catch(() => undefined);
       if (this.#orderFillSubscriptions.has(normalizedAccountId)) {
         return;
       }
+      pending = this.#pendingOrderFillSubscriptions.get(normalizedAccountId);
+    }
+
+    // A discarded open resolves without registering; if the last subscriber
+    // left meanwhile, opening now would cache frames nobody is listening to.
+    const subscribers = this.#orderFillSubscribers.get(normalizedAccountId);
+    if (!subscribers || subscribers.size === 0) {
+      return;
     }
 
     // Captured once here, spanning the whole open including the client
