@@ -505,6 +505,88 @@ describe('FeatureFlagConfigurationService', () => {
         }),
       );
     });
+
+    describe('invalid pattern reporting', () => {
+      const refresh = (flags: Record<string, unknown>): void => {
+        mockRemoteFeatureFlagState.remoteFeatureFlags = flags;
+        featureFlagConfigurationService.refreshHip3Config({
+          remoteFeatureFlagControllerState: mockRemoteFeatureFlagState,
+          context: mockContext,
+        });
+      };
+
+      beforeEach(() => {
+        (validateMarketPattern as Mock).mockImplementation(
+          (pattern: string) => {
+            if (pattern.includes('variation')) {
+              throw new Error('Market pattern contains invalid characters');
+            }
+            return true;
+          },
+        );
+      });
+
+      it('reports the same invalid field and pattern once across repeated updates', () => {
+        mockCurrentHip3Config.blocklistMarkets = ['existing:BTC'];
+
+        refresh({ perpsHip3BlocklistMarkets: 'variation 2' });
+        refresh({ perpsHip3BlocklistMarkets: 'variation 2' });
+        refresh({ perpsHip3BlocklistMarkets: 'variation 2' });
+
+        expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+        expect(mockContext.setHip3Config).not.toHaveBeenCalled();
+        expect(mockCurrentHip3Config.blocklistMarkets).toStrictEqual([
+          'existing:BTC',
+        ]);
+      });
+
+      it('reports a distinct invalid pattern or field once each', () => {
+        refresh({ perpsHip3BlocklistMarkets: 'variation 2' });
+        refresh({ perpsHip3BlocklistMarkets: 'variation 3' });
+        refresh({ perpsHip3AllowlistMarkets: 'variation 2' });
+        refresh({ perpsHip3BlocklistMarkets: 'variation 3' });
+
+        expect(mockDeps.logger.error).toHaveBeenCalledTimes(3);
+        expect(mockDeps.logger.error).toHaveBeenLastCalledWith(
+          expect.any(Error),
+          expect.objectContaining({
+            context: expect.objectContaining({
+              data: { fieldName: 'allowlistMarkets', pattern: 'variation 2' },
+            }),
+          }),
+        );
+      });
+
+      it('keeps retaining the current config for an empty value', () => {
+        mockCurrentHip3Config.allowlistMarkets = ['existing:BTC'];
+
+        refresh({ perpsHip3AllowlistMarkets: '' });
+        refresh({ perpsHip3AllowlistMarkets: [] });
+
+        expect(mockContext.setHip3Config).not.toHaveBeenCalled();
+        expect(mockDeps.logger.error).not.toHaveBeenCalled();
+      });
+
+      it('applies a valid update after repeated invalid updates', () => {
+        refresh({ perpsHip3BlocklistMarkets: 'variation 2' });
+        refresh({ perpsHip3BlocklistMarkets: 'variation 2' });
+        refresh({ perpsHip3BlocklistMarkets: 'xyz:TSLA' });
+
+        expect(mockContext.setHip3Config).toHaveBeenCalledTimes(1);
+        expect(mockContext.setHip3Config).toHaveBeenCalledWith(
+          expect.objectContaining({ blocklistMarkets: ['xyz:TSLA'] }),
+        );
+        expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not report again when the invalid pattern returns after a valid update', () => {
+        refresh({ perpsHip3BlocklistMarkets: 'variation 2' });
+        refresh({ perpsHip3BlocklistMarkets: 'xyz:TSLA' });
+        refresh({ perpsHip3BlocklistMarkets: 'variation 2' });
+
+        expect(mockDeps.logger.error).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
   describe('refreshEligibility', () => {
