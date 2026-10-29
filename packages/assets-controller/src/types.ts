@@ -225,8 +225,12 @@ export type FungibleAssetPrice = BaseAssetPrice & {
   marketCapPercentChange1d?: number;
   /** 24h price change in USD */
   priceChange1d?: number;
+  /** 5m price change percentage */
+  pricePercentChange5m?: number;
   /** 1h price change percentage */
   pricePercentChange1h?: number;
+  /** 4h price change percentage */
+  pricePercentChange4h?: number;
   /** 24h price change percentage */
   pricePercentChange1d?: number;
   /** 7d price change percentage */
