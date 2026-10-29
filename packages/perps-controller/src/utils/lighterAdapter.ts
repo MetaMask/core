@@ -650,19 +650,24 @@ export function adaptAccountStateFromLighter(
  * @param account - Sub-account payload from `account`.
  * @param totalBalance - The account's adapted total balance.
  * @param getMaintenanceFraction - Maintenance margin fraction (0.024 = 2.4%)
- * for a market symbol; must throw when the market has none.
- * @returns The cross-margin summary.
+ * for a market symbol, or undefined when the market has none.
+ * @returns The cross-margin summary, or undefined when the payload omits
+ * positions or an open cross position's market has no maintenance fraction.
  */
 export function adaptCrossMarginSummaryFromLighter(
   account: LighterSubAccount,
   totalBalance: string,
-  getMaintenanceFraction: (symbol: string) => number,
-): CrossMarginSummary {
+  getMaintenanceFraction: (symbol: string) => number | undefined,
+): CrossMarginSummary | undefined {
+  // Omitted positions are not evidence of zero exposure.
+  if (!account.positions) {
+    return undefined;
+  }
   let isolatedUnrealizedPnl = 0;
   let notional = 0;
   let marginUsed = 0;
   let maintenanceMargin = 0;
-  for (const position of account.positions ?? []) {
+  for (const position of account.positions) {
     const unrealizedPnl = parseStrictAccountDecimal(
       position.unrealizedPnl,
       `REST unrealized PnL for ${position.symbol}`,
@@ -686,13 +691,16 @@ export function adaptCrossMarginSummaryFromLighter(
       position.initialMarginFraction,
       `REST initial margin fraction for ${position.symbol}`,
     );
+    const maintenanceFraction = getMaintenanceFraction(position.symbol);
+    if (maintenanceFraction === undefined) {
+      return undefined;
+    }
     notional += positionValue;
     marginUsed += deriveLighterPositionMarginUsed(
       positionValue,
       initialMarginFraction,
     );
-    maintenanceMargin +=
-      positionValue * getMaintenanceFraction(position.symbol);
+    maintenanceMargin += positionValue * maintenanceFraction;
   }
   return {
     accountValue: String(

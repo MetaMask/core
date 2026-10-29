@@ -10174,14 +10174,14 @@ export class LighterProvider implements PerpsProvider {
   }
 
   /**
-   * Cross-margin summary for an account read. Without market-margin
-   * metadata, default callers keep the account state without a summary;
-   * opted-in callers get the failure.
+   * Cross-margin summary for an account read. Without positions or
+   * market-margin metadata, default callers keep the account state without
+   * a summary; opted-in callers get the failure.
    *
    * @param account - Validated sub-account payload.
    * @param accountState - The account's adapted state.
    * @param throwOnUnavailable - Whether the caller opted in to failures.
-   * @returns The summary, or undefined when metadata is unavailable.
+   * @returns The summary, or undefined when its inputs are unavailable.
    */
   readonly #readCrossMarginSummary = async (
     account: LighterSubAccount,
@@ -10205,11 +10205,17 @@ export class LighterProvider implements PerpsProvider {
         return undefined;
       }
     }
-    return adaptCrossMarginSummaryFromLighter(
+    const summary = adaptCrossMarginSummaryFromLighter(
       account,
       accountState.totalBalance,
       this.#maintenanceFractionFor,
     );
+    if (!summary && throwOnUnavailable) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} cross margin summary unavailable: positions or maintenance margin metadata missing`,
+      );
+    }
+    return summary;
   };
 
   /** Decorate real venue rows only when they match durable Scale intent.
@@ -17618,7 +17624,13 @@ export class LighterProvider implements PerpsProvider {
     params: MaintenanceMarginParams,
   ): Promise<number> {
     await this.#ensureMarketMargins();
-    return this.#maintenanceFractionFor(params.asset);
+    const fraction = this.#maintenanceFractionFor(params.asset);
+    if (fraction === undefined) {
+      throw new Error(
+        `${LIGHTER_DATA_INTEGRITY_PREFIX} maintenance margin metadata unavailable for ${params.asset || 'unknown market'}`,
+      );
+    }
+    return fraction;
   }
 
   /**
@@ -17627,16 +17639,12 @@ export class LighterProvider implements PerpsProvider {
    * (240 = 2.4%) in orderBookDetails.
    *
    * @param asset - Market symbol.
-   * @returns The fraction (0.024 = 2.4%).
+   * @returns The fraction (0.024 = 2.4%), or undefined when the market has
+   * none.
    */
-  readonly #maintenanceFractionFor = (asset: string): number => {
+  readonly #maintenanceFractionFor = (asset: string): number | undefined => {
     const maintenance = this.#marginBySymbol.get(asset)?.maintenance;
-    if (maintenance && maintenance > 0) {
-      return maintenance / 10_000;
-    }
-    throw new Error(
-      `${LIGHTER_DATA_INTEGRITY_PREFIX} maintenance margin metadata unavailable for ${asset || 'unknown market'}`,
-    );
+    return maintenance && maintenance > 0 ? maintenance / 10_000 : undefined;
   };
 
   /**

@@ -848,7 +848,7 @@ describe('LighterProvider', () => {
       expect(state).not.toHaveProperty('crossMarginSummary');
     });
 
-    it('surfaces a missing maintenance fraction for an open cross position', async () => {
+    it('keeps the account state without a summary when an open cross position has no maintenance fraction', async () => {
       const { provider, clientInstance } = buildProvider();
       clientInstance.getAccountByIndex.mockResolvedValue({
         code: 200,
@@ -859,9 +859,28 @@ describe('LighterProvider', () => {
           },
         ],
       });
-      await expect(provider.getAccountState()).rejects.toThrow(
-        'maintenance margin metadata unavailable for SOL',
-      );
+      const state = await provider.getAccountState();
+      expect(state.totalBalance).toBe('10500');
+      expect(state).not.toHaveProperty('crossMarginSummary');
+      await expect(
+        provider.getAccountState({ throwOnUnavailable: true }),
+      ).rejects.toThrow('cross margin summary unavailable');
+    });
+
+    it('keeps the account state without a summary when the response omits positions', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const { positions: _positions, ...withoutPositions } = ACCOUNT;
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [withoutPositions],
+      });
+      const state = await provider.getAccountState();
+      expect(state.totalBalance).toBe('10000');
+      expect(state).not.toHaveProperty('crossMarginSummary');
+      expect(clientInstance.getOrderBookDetails).not.toHaveBeenCalled();
+      await expect(
+        provider.getAccountState({ throwOnUnavailable: true }),
+      ).rejects.toThrow('cross margin summary unavailable');
     });
 
     describe('with throwOnUnavailable', () => {

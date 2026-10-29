@@ -354,16 +354,10 @@ describe('lighterAdapter', () => {
       positions,
     });
     const fractions: Record<string, number> = { BTC: 0.012, ETH: 0.02 };
-    const lookup = (symbol: string): number => {
-      const fraction = fractions[symbol];
-      if (fraction === undefined) {
-        throw new Error(`no maintenance fraction for ${symbol}`);
-      }
-      return fraction;
-    };
+    const lookup = (symbol: string): number | undefined => fractions[symbol];
     const summarize = (
       positions: LighterApiPosition[] | undefined,
-    ): CrossMarginSummary => {
+    ): CrossMarginSummary | undefined => {
       const account = accountWith(positions);
       return adaptCrossMarginSummaryFromLighter(
         account,
@@ -413,7 +407,7 @@ describe('lighterAdapter', () => {
 
     it('treats rows without a margin mode as cross', () => {
       const { marginMode: _marginMode, ...legacy } = row({});
-      expect(summarize([legacy]).notional).toBe('10000');
+      expect(summarize([legacy])?.notional).toBe('10000');
     });
 
     it('skips flat cross rows without needing their market metadata', () => {
@@ -429,8 +423,8 @@ describe('lighterAdapter', () => {
       });
     });
 
-    it('reports zeros and the total balance for an account without positions', () => {
-      expect(summarize(undefined)).toStrictEqual({
+    it('reports zeros and the total balance for an empty positions list', () => {
+      expect(summarize([])).toStrictEqual({
         accountValue: '10000',
         maintenanceMargin: '0',
         marginUsed: '0',
@@ -438,10 +432,14 @@ describe('lighterAdapter', () => {
       });
     });
 
-    it('propagates a missing maintenance fraction for an open cross position', () => {
-      expect(() => summarize([row({ symbol: 'SOL' })])).toThrow(
-        'no maintenance fraction for SOL',
-      );
+    it('returns no summary when the response omits positions', () => {
+      expect(summarize(undefined)).toBeUndefined();
+    });
+
+    it('returns no summary when an open cross position has no maintenance fraction', () => {
+      expect(
+        summarize([row({}), row({ marketId: 3, symbol: 'SOL' })]),
+      ).toBeUndefined();
     });
 
     it.each([
