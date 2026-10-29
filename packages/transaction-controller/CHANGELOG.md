@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consumers must construct a `SentinelApiService` and delegate the `SentinelApiService:simulateTransactions` action to the `TransactionController` messenger.
   - The `getSimulationConfig` constructor option now returns `{ newUrl?: string }` only, as the `authorization` field is no longer supported since authentication headers are handled by the service.
 - Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+- Bump `@metamask/core-backend` from `^12.3.0` to `^13.0.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
 
 ## [72.3.0]
 
