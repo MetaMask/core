@@ -5665,11 +5665,10 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/auto-changelog@npm:@metamask-previews/auto-changelog@7.0.1-preview-eaa1dd2":
-  version: 7.0.1-preview-eaa1dd2
-  resolution: "@metamask-previews/auto-changelog@npm:7.0.1-preview-eaa1dd2"
+"@metamask/auto-changelog@npm:@metamask-previews/auto-changelog@7.0.1-preview-04c950b":
+  version: 7.0.1-preview-04c950b
+  resolution: "@metamask-previews/auto-changelog@npm:7.0.1-preview-04c950b"
   dependencies:
-    "@metamask/node-utils": "npm:^0.1.0"
     "@octokit/rest": "npm:^20.0.0"
     "@yarnpkg/core": "npm:4.9.1"
     "@yarnpkg/fslib": "npm:^3.1.5"
@@ -5687,7 +5686,7 @@ __metadata:
       optional: true
   bin:
     auto-changelog: dist/cli.js
-  checksum: 10/f0496ad23e7ebe73ccfa8cf1908749a7b7b7ae9b90b6326efc3f6939feb418720472f4545341894da260f9db535a547fd449a4770b81a950d18ef746e646b575
+  checksum: 10/2676ebb739c458e49cce0d3f0766ae60abff01a2942cea8c3479251d633234f0535006c4518df37364157f97e0ac00312201fc569d296cb979f985deef529082
   languageName: node
   linkType: hard
 
