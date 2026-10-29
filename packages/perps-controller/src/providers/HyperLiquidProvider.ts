@@ -199,6 +199,7 @@ import {
   isHyperLiquidMultiSigRequiredError,
   isHyperLiquidUserNotFoundError,
   isKeyringLockedError,
+  normalizeHyperLiquidError,
 } from '../utils/errorUtils.js';
 import { shouldDeferUnifiedAccountSetup } from '../utils/hyperLiquidAbstraction.js';
 import {
@@ -1726,15 +1727,6 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   // Cache for USDC token ID from spot metadata
   #cachedUsdcTokenId?: string;
-
-  // Error mappings from HyperLiquid API errors to standardized PERPS_ERROR_CODES
-  readonly #errorMappings = {
-    'isolated position does not have sufficient margin available to decrease leverage':
-      PERPS_ERROR_CODES.ORDER_LEVERAGE_REDUCTION_FAILED,
-    'could not immediately match': PERPS_ERROR_CODES.IOC_CANCEL,
-    'multi-sig required': PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
-    'invalid nonce': PERPS_ERROR_CODES.EXCHANGE_INVALID_NONCE,
-  };
 
   // Scale ladders placed by this provider instance, keyed by group handle, so
   // one cancel can reach every rung. Cleared on disconnect; the rung IDs are
@@ -5259,28 +5251,7 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @returns The result of the operation.
    */
   #mapError(error: unknown): Error {
-    const { message } = ensureError(error, 'HyperLiquidProvider.mapError');
-
-    // "User or API Wallet 0x... does not exist." carries the user's address, so
-    // it cannot be matched by the static substring table below. It means the
-    // wallet has no Hyperliquid account yet — surface an actionable code the
-    // client can translate ("fund your account") instead of leaking the raw
-    // exchange string to the UI and to failed-trade analytics.
-    if (isHyperLiquidUserNotFoundError(error)) {
-      return new PerpsControllerError(
-        PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
-        PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
-      );
-    }
-
-    for (const [pattern, code] of Object.entries(this.#errorMappings)) {
-      if (message.toLowerCase().includes(pattern.toLowerCase())) {
-        return new PerpsControllerError(code, code);
-      }
-    }
-
-    // Return original error to preserve stack trace for unmapped errors
-    return ensureError(error, 'HyperLiquidProvider.mapError');
+    return normalizeHyperLiquidError(error);
   }
 
   /**

@@ -15,7 +15,21 @@ export type PriceMovedErrorDetails = {
   currentPrice: number;
 };
 
-export type PerpsErrorDetails = PriceMovedErrorDetails;
+/**
+ * Provider context for a normalized Hyperliquid failure.
+ *
+ * Raw venue messages are deliberately excluded because result details cross
+ * the client boundary. The original failure is retained as the error cause for
+ * telemetry instead.
+ */
+export type HyperLiquidErrorDetails = {
+  code: Exclude<PerpsErrorCode, typeof PERPS_ERROR_CODES.PRICE_MOVED>;
+  provider: 'hyperliquid';
+};
+
+export type PerpsErrorDetails =
+  | PriceMovedErrorDetails
+  | HyperLiquidErrorDetails;
 
 export type PerpsErrorResultFields = {
   errorCode?: PerpsErrorCode;
@@ -35,8 +49,9 @@ export class PerpsControllerError extends Error {
     errorCode: PerpsErrorCode,
     message: string,
     errorDetails?: PerpsErrorDetails,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = 'PerpsControllerError';
     this.errorCode = errorCode;
     this.errorDetails = errorDetails;
