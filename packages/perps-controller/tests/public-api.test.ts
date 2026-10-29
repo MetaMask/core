@@ -25,12 +25,15 @@ import {
 import type {
   DirectProviderOrderCapabilities,
   DirectProviderOrderCapabilitiesUnavailableReason,
+  GetAccountSupportParams,
   UpdatePositionTPSLParams,
   MarketInfo,
+  PerpsAccountSupport,
   PerpsAccountSigner,
   PerpsAgentAccount,
   PerpsAgentSigner,
   PerpsControllerClearAgentSignersAction,
+  PerpsControllerGetAccountSupportAction,
   PerpsControllerReconcileChaseOrderCancellationAction,
   PerpsControllerPrepareTradingWalletAction,
   PerpsControllerSetAgentSignerAction,
@@ -95,6 +98,24 @@ describe('@metamask/perps-controller public API', () => {
       typeof PerpsController.prototype.reconcileChaseOrderCancellation,
     ).toBe('function');
     expect(action).toBe('PerpsController:reconcileChaseOrderCancellation');
+  });
+
+  it('exports the account support contracts and controller method', () => {
+    const params: GetAccountSupportParams = { providerId: 'hyperliquid' };
+    const support: PerpsAccountSupport = {
+      isSupported: false,
+      reason: 'multi_sig_account',
+    };
+    const action: PerpsControllerGetAccountSupportAction['type'] =
+      'PerpsController:getAccountSupport';
+
+    expect(typeof PerpsController.prototype.getAccountSupport).toBe('function');
+    expect(params.providerId).toBe('hyperliquid');
+    expect(support).toStrictEqual({
+      isSupported: false,
+      reason: 'multi_sig_account',
+    });
+    expect(action).toBe('PerpsController:getAccountSupport');
   });
 
   it('exports the trading configuration constants', () => {

@@ -17,6 +17,8 @@ import type {
 import {
   getServerPollingInterval,
   getServerPollingTimeout,
+  getSlippage,
+  isEIP7702Chain,
 } from '../../utils/feature-flags.js';
 import {
   submitPolymarketWithdraw,
@@ -29,7 +31,12 @@ import {
   getTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction.js';
-import { getServerStatus, submitServerIntent } from './server-api.js';
+import {
+  fetchServerQuote,
+  getServerStatus,
+  submitServerIntent,
+} from './server-api.js';
+import { getServerQuotes } from './server-quotes.js';
 import { submitServerQuotes } from './server-submit.js';
 import { ServerStatus } from './types.js';
 import type { ServerQuote, ServerSignatureStep } from './types.js';
@@ -44,6 +51,7 @@ vi.mock(import('../../utils/second-leg.js'));
 vi.mock(import('../../utils/token.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   getLiveTokenBalance: vi.fn(),
+  getTokenFiatRate: vi.fn(),
 }));
 vi.mock(import('../../utils/transaction.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -358,6 +366,62 @@ describe('submitServerQuotes', () => {
 
       expect(submitSecondLegMock).toHaveBeenCalledWith(
         expect.objectContaining({ from: RECIPIENT_MOCK }),
+      );
+    });
+
+    it('funds and submits deferred calls from the execution account when payer and payout differ', async () => {
+      vi.mocked(isEIP7702Chain).mockReturnValue(true);
+      vi.mocked(getSlippage).mockReturnValue(0.005);
+      vi.mocked(fetchServerQuote).mockResolvedValue({
+        results: [
+          {
+            provider: ORIGINAL_QUOTE_MOCK.provider,
+            quote: { ...ORIGINAL_QUOTE_MOCK, callsDeferred: true },
+          },
+        ],
+      });
+
+      const transaction: TransactionMeta = {
+        ...request.transaction,
+        isGasFeeSponsored: true,
+        nestedTransactions: [{ data: '0x1234', to: ORIGINAL_FROM_MOCK }],
+      };
+      const quotes = await getServerQuotes({
+        accountSupports7702: true,
+        from: QUOTE_FROM_MOCK,
+        messenger: request.messenger,
+        requests: [
+          {
+            ...QUOTE_MOCK.request,
+            atomic: true,
+            recipient: RECIPIENT_MOCK,
+          },
+        ],
+        transaction,
+      });
+
+      expect(fetchServerQuote).toHaveBeenCalledTimes(1);
+      expect(fetchServerQuote).toHaveBeenCalledWith(
+        request.messenger,
+        expect.objectContaining({
+          recipient: ORIGINAL_FROM_MOCK,
+          sender: QUOTE_FROM_MOCK,
+          supportsDeferredCalls: true,
+        }),
+        undefined,
+      );
+      expect(quotes).toHaveLength(1);
+      expect(quotes[0].request.recipient).toBe(ORIGINAL_FROM_MOCK);
+      expect(quotes[0].requiresSecondLeg).toBe(true);
+
+      await submitServerQuotes({ ...request, quotes, transaction });
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: ORIGINAL_FROM_MOCK,
+          settlementHash: TARGET_HASH_MOCK,
+          transaction,
+        }),
       );
     });
 

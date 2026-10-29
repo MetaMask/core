@@ -1,5 +1,5 @@
 import { TransactionType } from '@metamask/transaction-controller';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { localTransactionFixtures } from '../../test/fixtures/local-transactions.js';
 import type { ActivityItem } from '../types.js';
@@ -27,9 +27,6 @@ const mapLocal = (input: unknown): ActivityItem =>
   mapLocalTransaction(input as Parameters<typeof mapLocalTransaction>[0]);
 
 describe('mapLocalTransaction', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
   it('maps a pending native send to a Send activity', () => {
     const item = mapLocal(
       localTransactionFixtures.mapInputs.mapsAPendingNativeSendTo,

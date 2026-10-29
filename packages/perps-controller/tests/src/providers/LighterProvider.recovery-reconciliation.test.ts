@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   ACCOUNT,
@@ -25,10 +25,6 @@ vi.mock('../../../src/services/LighterWalletService');
 
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
 
   describe('non-financial recovered dispatch reconciliation', () => {
     const ledgerKey = 'lighterNonceLedger:testnet:28:7';

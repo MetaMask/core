@@ -4,6 +4,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import { base64ToBytes, bytesToBase64 } from '@metamask/utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
@@ -28,6 +29,10 @@ import type {
   KycSessionDisclaimers,
   KycSessionStatus,
 } from './types.js';
+import {
+  UKYC_LOCAL_USER_SECRET_PATH,
+  UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
+} from './ukyc/constants.js';
 import {
   assertAttestedServerPublicKey,
   verifyJwtChain,
@@ -1719,6 +1724,104 @@ describe('KycController', () => {
     });
   });
 
+  describe('ensureLocalUserSecret', () => {
+    it('creates and stores a local_user_secret when none exists', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const storage = statefulUserStorage(handlers);
+
+        expect(await controller.ensureLocalUserSecret()).toBeUndefined();
+
+        expect(storage.get).toHaveBeenCalledWith(
+          UKYC_LOCAL_USER_SECRET_PATH,
+          undefined,
+        );
+        expect(storage.set).toHaveBeenCalledTimes(1);
+        expect(storage.set).toHaveBeenCalledWith(
+          UKYC_LOCAL_USER_SECRET_PATH,
+          expect.any(String),
+          undefined,
+        );
+        const [, persisted] = storage.set.mock.calls[0] as [
+          string,
+          string,
+          undefined,
+        ];
+        expect(storage.value).toBe(persisted);
+        expect(base64ToBytes(persisted)).toHaveLength(
+          UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
+        );
+        expect(controller.state).toStrictEqual(getDefaultKycControllerState());
+      });
+    });
+
+    it('keeps an existing local_user_secret', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const existing = bytesToBase64(
+          new Uint8Array(UKYC_LOCAL_USER_SECRET_SIZE_BYTES).fill(7),
+        );
+        const storage = statefulUserStorage(handlers, existing);
+
+        await controller.ensureLocalUserSecret();
+
+        expect(storage.set).not.toHaveBeenCalled();
+        expect(storage.value).toBe(existing);
+      });
+    });
+
+    it('stores the secret once when called concurrently', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const storage = statefulUserStorage(handlers);
+
+        await Promise.all([
+          controller.ensureLocalUserSecret(),
+          controller.ensureLocalUserSecret(),
+        ]);
+
+        expect(storage.set).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('leaves session creation with a storage read when the secret already exists', async () => {
+      await withController(async ({ controller, handlers }) => {
+        const storage = statefulUserStorage(handlers);
+        await controller.ensureLocalUserSecret();
+        storage.set.mockClear();
+        storage.get.mockClear();
+
+        await controller.startSession({
+          vendor: 'iron',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(storage.get).toHaveBeenCalledWith(
+          UKYC_LOCAL_USER_SECRET_PATH,
+          undefined,
+        );
+        expect(storage.set).not.toHaveBeenCalled();
+      });
+    });
+
+    it('rejects when encrypted user storage cannot be read', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.performGetStorage.mockRejectedValue(new Error('storage down'));
+
+        await expect(controller.ensureLocalUserSecret()).rejects.toThrow(
+          'storage down',
+        );
+      });
+    });
+
+    it('is exposed as a messenger action', async () => {
+      await withController(async ({ rootMessenger, handlers }) => {
+        const storage = statefulUserStorage(handlers);
+
+        await rootMessenger.call('KycController:ensureLocalUserSecret');
+
+        expect(storage.set).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
   describe('analytics', () => {
     afterEach(() => {
       vi.useRealTimers();
@@ -2360,6 +2463,34 @@ function sessionStatus(
     vendorStatus: finalStatus,
     currentStep,
     ...overrides,
+  };
+}
+
+/**
+ * Points the user-storage mocks at one in-memory value so a write is visible
+ * to the next read.
+ *
+ * @param handlers - Service handlers from {@link withController}.
+ * @param initial - Initial stored base64 value.
+ * @returns The storage mocks plus the current stored value.
+ */
+function statefulUserStorage(
+  handlers: ServiceHandlers,
+  initial: string | null = null,
+): { get: Mock; set: Mock; value: string | null } {
+  let value = initial;
+  const get = handlers.performGetStorage.mockImplementation(async () => value);
+  const set = handlers.performSetStorage.mockImplementation(
+    async (_path: string, next: string) => {
+      value = next;
+    },
+  );
+  return {
+    get,
+    set,
+    get value() {
+      return value;
+    },
   };
 }
 

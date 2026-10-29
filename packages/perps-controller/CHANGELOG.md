@@ -9,8 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getAccountSupport` to the controller, messenger, and optional provider contract. Hyperliquid detects native multi-signature accounts, caches successful checks per account/network session, and blocks exchange mutations for unsupported accounts. Transient detection failures remain retryable, authoritative exchange rejections correct cached support, and actions reject stale account, network, or provider contexts before signing. ([#10693](https://github.com/MetaMask/core/pull/10693))
 - Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets ([#11030](https://github.com/MetaMask/core/pull/11030))
   - Snapshots without these fields, or with `null` values, still validate. An unrecognized `marginMode` rejects the snapshot, so snapshot-backed reads fall back to the provider.
+- Add optional `AccountState.crossMarginSummary` (`accountValue`, `maintenanceMargin`, `marginUsed`, `notional`) and the `CrossMarginSummary` type, so clients can show account ratio, maintenance margin, account leverage and cross margin usage for Hyperliquid and Lighter ([#11148](https://github.com/MetaMask/core/pull/11148))
+  - Hyperliquid fills it from `crossMarginSummary` and `crossMaintenanceMarginUsed`, summed across HIP-3 DEXs. A malformed value fails the read.
+  - Lighter fills it from `getAccountState` (not the `user_stats` stream) using the account's cross positions; account value is the total balance less isolated positions' unrealized PnL. It is omitted when the account response has no positions list or market margin metadata (including a market's maintenance fraction) cannot be read; `throwOnUnavailable` callers get an error instead.
+- Add `GetAccountStateParams.throwOnUnavailable`: when `true`, a failed Lighter account read throws `ACCOUNT_STATE_FAILED` (with the original error as `cause`) instead of returning zero balances ([#11148](https://github.com/MetaMask/core/pull/11148))
+  - Callers that omit it see no change. A wallet without a Lighter account still reads as empty.
 
 ### Changed
 
@@ -23,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `FeatureFlagConfigurationService` reports each invalid HIP-3 allowlist or blocklist pattern once per service lifetime, keyed by field name and pattern, instead of on every remote feature flag state change ([#11190](https://github.com/MetaMask/core/pull/11190))
+  - Invalid patterns are still dropped and the current configuration is retained.
 - Lighter `Position.returnOnEquity` is now a fraction (`-0.107` for -10.7%), the same unit as Hyperliquid positions, instead of a percent, so clients that multiply it by 100 no longer show Lighter position PnL % 100x too large ([#11080](https://github.com/MetaMask/core/pull/11080))
   - Lighter `AccountState.returnOnEquity` is unchanged: it stays a percent, like Hyperliquid's.
 

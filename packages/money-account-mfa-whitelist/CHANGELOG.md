@@ -13,7 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `DelegationFrameworkContracts` requires `TimestampEnforcer` ([#11185](https://github.com/MetaMask/core/pull/11185))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
+
+### Fixed
+
+- Whitelist single-use vault deposit delegations that carry a `Timestamp` deadline caveat ([#11185](https://github.com/MetaMask/core/pull/11185))
 
 ## [0.1.0]
 

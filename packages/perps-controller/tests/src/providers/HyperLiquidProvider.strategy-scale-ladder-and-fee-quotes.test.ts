@@ -946,7 +946,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           return {
             status: 'ok',
             response: {
-              data: { statuses: [{ error: 'multi-sig required' }] },
+              data: { statuses: [{ error: 'cancel refused' }] },
             },
           };
         }
@@ -955,7 +955,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           ? {
               status: 'ok',
               response: {
-                data: { statuses: [{ error: 'multi-sig required' }] },
+                data: { statuses: [{ error: 'cancel refused' }] },
               },
             }
           : {

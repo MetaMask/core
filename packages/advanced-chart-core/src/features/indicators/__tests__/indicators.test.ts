@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import {
@@ -78,10 +78,6 @@ describe('handleAddIndicator', () => {
     );
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('no-ops when no widget exists', () => {
     handleAddIndicator({ name: 'MACD' }, baseConfig);
     expect(getActiveStudies().size).toBe(0);
@@ -155,10 +151,6 @@ describe('handleSetMAVisibility', () => {
         return 0;
       },
     );
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it('removes MA variants that are no longer in the visible list', () => {

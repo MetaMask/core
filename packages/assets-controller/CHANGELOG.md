@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Added
+
+- Add optional `pricePercentChange5m` and `pricePercentChange4h` to `FungibleAssetPrice` ([#11201](https://github.com/MetaMask/core/pull/11201))
+
+## [20.0.2]
+
+### Fixed
 
 - Use hand-rolled Multicall3 `aggregate3` codecs for balance batches, while retaining the Ethers codecs for byte-identical comparison ([#11078](https://github.com/MetaMask/core/pull/11078))
 
@@ -1209,7 +1215,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.2...HEAD
+[20.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.1...@metamask/assets-controller@20.0.2
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.0...@metamask/assets-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@19.1.0...@metamask/assets-controller@20.0.0
 [19.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@19.0.0...@metamask/assets-controller@19.1.0

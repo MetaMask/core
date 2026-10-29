@@ -15,6 +15,7 @@ export type DelegationFrameworkContracts = {
   ExactExecutionEnforcer: Hex;
   LimitedCallsEnforcer: Hex;
   RedeemerEnforcer: Hex;
+  TimestampEnforcer: Hex;
   ValueLteEnforcer: Hex;
 };
 

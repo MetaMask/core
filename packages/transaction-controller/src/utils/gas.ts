@@ -5,6 +5,7 @@ import {
   toHex,
 } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
+import type { SentinelSimulationTransaction } from '@metamask/sentinel-api-service';
 import type { Hex, Json } from '@metamask/utils';
 import {
   add0x,
@@ -15,7 +16,6 @@ import {
 import { BigNumber } from 'bignumber.js';
 
 import { simulateTransactions } from '../api/simulation-api.js';
-import type { SimulationRequestTransaction } from '../api/simulation-api.js';
 import { projectLogger } from '../logger.js';
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import { TransactionEnvelopeType } from '../types.js';
@@ -48,7 +48,7 @@ import { decodeRevert } from './revert-reason.js';
 export type UpdateGasRequest = {
   isCustomNetwork: boolean;
   isSimulationEnabled: boolean;
-  getSimulationConfig: GetSimulationConfig;
+  getSimulationConfig?: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   txMeta: TransactionMeta;
 };
@@ -147,7 +147,7 @@ export async function updateGas(request: UpdateGasRequest): Promise<void> {
  * @param options - The options object.
  * @param options.ignoreDelegationSignatures - Ignore signature errors if submitting delegations to the DelegationManager.
  * @param options.isSimulationEnabled - Whether the simulation is enabled.
- * @param options.getSimulationConfig - The function to get the simulation configuration.
+ * @param options.getSimulationConfig - Optional callback to rewrite the simulation request URL.
  * @param options.messenger - The messenger instance for communication.
  * @param options.networkClientId - The network client ID.
  * @param options.txParams - The transaction parameters.
@@ -163,7 +163,7 @@ export async function estimateGas({
 }: {
   ignoreDelegationSignatures?: boolean;
   isSimulationEnabled: boolean;
-  getSimulationConfig: GetSimulationConfig;
+  getSimulationConfig?: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   networkClientId: NetworkClientId;
   txParams: TransactionParams;
@@ -255,6 +255,7 @@ export async function estimateGas({
       estimatedGas = await simulateGas({
         chainId,
         getSimulationConfig,
+        messenger,
         transaction: request,
       });
     } else {
@@ -330,7 +331,7 @@ export async function estimateGasBatch({
   transactions,
 }: {
   from: Hex;
-  getSimulationConfig: GetSimulationConfig;
+  getSimulationConfig?: GetSimulationConfig;
   isAtomicBatchSupported: (
     request: IsAtomicBatchSupportedRequest,
   ) => Promise<IsAtomicBatchSupportedResult>;
@@ -432,6 +433,7 @@ export async function estimateGasBatch({
     chainId,
     from,
     getSimulationConfig,
+    messenger,
     transactions: transactions.map((transaction) => ({
       params: transaction,
     })),
@@ -497,7 +499,8 @@ export function addGasBuffer(
  * @param options - The options object.
  * @param options.chainId - The chain ID of the transactions.
  * @param options.from - The address of the sender.
- * @param options.getSimulationConfig - The function to get the simulation configuration.
+ * @param options.getSimulationConfig - Optional callback to rewrite the simulation request URL.
+ * @param options.messenger - The messenger instance used to invoke the Sentinel simulation action.
  * @param options.transactions - The array of transactions within a batch request.
  * @returns An object containing the transactions with their gas limits and the total gas limit.
  */
@@ -505,21 +508,27 @@ export async function simulateGasBatch({
   chainId,
   from,
   getSimulationConfig,
+  messenger,
   transactions,
 }: {
   chainId: Hex;
   from: Hex;
-  getSimulationConfig: GetSimulationConfig;
+  getSimulationConfig?: GetSimulationConfig;
+  messenger: TransactionControllerMessenger;
   transactions: TransactionBatchSingleRequest[];
 }): Promise<{ totalGasLimit: Hex; gasLimits: Hex[] }> {
   try {
-    const response = await simulateTransactions(chainId, {
-      getSimulationConfig,
-      transactions: transactions.map((transaction) => ({
-        ...transaction.params,
-        from,
-      })),
-    });
+    const response = await simulateTransactions(
+      messenger,
+      chainId,
+      {
+        transactions: transactions.map((transaction) => ({
+          ...transaction.params,
+          from,
+        })),
+      },
+      { getSimulationConfig },
+    );
 
     if (response?.transactions?.length !== transactions.length) {
       throw new Error('Simulation response does not match transaction count');
@@ -668,7 +677,7 @@ async function getLatestBlock(
  * @param options - The options object.
  * @param options.authorizationList - The original authorization list of the transaction.
  * @param options.chainId - The chain ID of the transaction.
- * @param options.getSimulationConfig - The function to get the simulation configuration.
+ * @param options.getSimulationConfig - Optional callback to rewrite the simulation request URL.
  * @param options.isSimulationEnabled - Whether the simulation is enabled.
  * @param options.messenger - The messenger instance for communication.
  * @param options.networkClientId - The network client ID.
@@ -686,7 +695,7 @@ async function estimateGasType4({
 }: {
   authorizationList: AuthorizationList;
   chainId: Hex;
-  getSimulationConfig: GetSimulationConfig;
+  getSimulationConfig?: GetSimulationConfig;
   isSimulationEnabled: boolean;
   messenger: TransactionControllerMessenger;
   networkClientId: NetworkClientId;
@@ -720,6 +729,7 @@ async function estimateGasType4({
         authorizationList: simulationAuthorizationList,
         chainId,
         getSimulationConfig,
+        messenger,
         transaction: txParams,
       });
     } catch (error) {
@@ -822,7 +832,8 @@ async function estimateGasType4Node({
  * @param options - The options object.
  * @param options.authorizationList - The authorization list with the authority of each entry.
  * @param options.chainId - The chain ID of the transaction.
- * @param options.getSimulationConfig - The function to get the simulation configuration.
+ * @param options.getSimulationConfig - Optional callback to rewrite the simulation request URL.
+ * @param options.messenger - The messenger instance used to invoke the Sentinel simulation action.
  * @param options.transaction - The transaction parameters.
  * @returns The simulated gas.
  */
@@ -830,25 +841,31 @@ async function simulateGas({
   authorizationList,
   chainId,
   getSimulationConfig,
+  messenger,
   transaction,
 }: {
-  authorizationList?: SimulationRequestTransaction['authorizationList'];
+  authorizationList?: SentinelSimulationTransaction['authorizationList'];
   chainId: Hex;
-  getSimulationConfig: GetSimulationConfig;
+  getSimulationConfig?: GetSimulationConfig;
+  messenger: TransactionControllerMessenger;
   transaction: TransactionParams;
 }): Promise<Hex> {
-  const response = await simulateTransactions(chainId, {
-    getSimulationConfig,
-    transactions: [
-      {
-        ...(authorizationList ? { authorizationList } : {}),
-        to: transaction.to as Hex,
-        from: transaction.from as Hex,
-        data: transaction.data as Hex,
-        value: transaction.value as Hex,
-      },
-    ],
-  });
+  const response = await simulateTransactions(
+    messenger,
+    chainId,
+    {
+      transactions: [
+        {
+          ...(authorizationList ? { authorizationList } : {}),
+          to: transaction.to as Hex,
+          from: transaction.from as Hex,
+          data: transaction.data as Hex,
+          value: transaction.value as Hex,
+        },
+      ],
+    },
+    { getSimulationConfig },
+  );
 
   const simulatedTransaction = response?.transactions?.[0];
   const gasLimit = simulatedTransaction?.gasLimit;

@@ -1,4 +1,3 @@
-import { TransactionType } from '@metamask/transaction-controller';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
@@ -49,6 +48,10 @@ const TRANSACTION_TOKEN_MOCK: TransactionPayRequiredToken = {
 };
 
 const TRANSACTION_ID_MOCK = '123-456';
+
+// transfer(HL bridge, 1000000)
+const PERPS_DEPOSIT_DATA_MOCK =
+  '0xa9059cbb0000000000000000000000002df1c51e09aecf9cacb7bc98cb1742757f163df700000000000000000000000000000000000000000000000000000000000f4240';
 
 describe('Source Amounts Utils', () => {
   const getTokenFiatRateMock = vi.mocked(getTokenFiatRate);
@@ -126,11 +129,14 @@ describe('Source Amounts Utils', () => {
       expect(transactionData.sourceAmounts).toHaveLength(1);
     });
 
-    it('does not return empty array if payment token matches but supported perps deposit and across strategy', () => {
+    it('does not return empty array if payment token matches but perps deposit and across strategy', () => {
       getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
       getTransactionMock.mockReturnValue({
         id: TRANSACTION_ID_MOCK,
-        type: TransactionType.perpsDeposit,
+        txParams: {
+          to: ARBITRUM_USDC_ADDRESS,
+          data: PERPS_DEPOSIT_DATA_MOCK,
+        },
       } as never);
 
       const transactionData: TransactionData = {
@@ -154,11 +160,14 @@ describe('Source Amounts Utils', () => {
       expect(transactionData.sourceAmounts).toHaveLength(1);
     });
 
-    it('does not return empty array if payment token matches but perps deposit and order and across strategy', () => {
+    it('does not return empty array if payment token matches but nested perps deposit and across strategy', () => {
       getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
       getTransactionMock.mockReturnValue({
         id: TRANSACTION_ID_MOCK,
-        type: TransactionType.perpsDepositAndOrder,
+        txParams: {},
+        nestedTransactions: [
+          { to: ARBITRUM_USDC_ADDRESS, data: PERPS_DEPOSIT_DATA_MOCK },
+        ],
       } as never);
 
       const transactionData: TransactionData = {

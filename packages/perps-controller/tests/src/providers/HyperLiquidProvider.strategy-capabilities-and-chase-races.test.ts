@@ -2172,7 +2172,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
           }),
           cancel: vi.fn().mockResolvedValue({
             status: 'ok',
-            response: { data: { statuses: [{ error: 'multi-sig required' }] } },
+            response: { data: { statuses: [{ error: 'cancel refused' }] } },
           }),
         },
       });
@@ -2213,7 +2213,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
-          response: { data: { statuses: [{ error: 'multi-sig required' }] } },
+          response: { data: { statuses: [{ error: 'cancel refused' }] } },
         })
         .mockResolvedValue({
           status: 'ok',
@@ -3677,7 +3677,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
   });
 
   describe('Strategy placement racing a disconnect', () => {
-    it('retracts a TWAP that finishes after teardown through its captured client', async () => {
+    it('retracts a TWAP that finishes after same-account teardown', async () => {
       let disconnected: Promise<unknown> | undefined;
       const twapOrder = vi.fn().mockImplementation(async () => {
         disconnected = provider.disconnect();
@@ -3717,6 +3717,79 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(placed.orderId).toBeUndefined();
     });
 
+    /**
+     * Place a TWAP that disconnects as the venue accepts it, after the caller
+     * changes the account or network.
+     *
+     * @param changeContext - Switches the account or network before teardown.
+     * @returns The placement result and the client that served it.
+     */
+    const placeTwapDuringContextChange = async (
+      changeContext: () => void,
+    ): Promise<{ placed: OrderResult; exchangeClient: MockClient }> => {
+      let disconnected: Promise<unknown> | undefined;
+      const twapOrder = vi.fn().mockImplementation(async () => {
+        changeContext();
+        disconnected = provider.disconnect();
+        await Promise.resolve();
+        return {
+          status: 'ok',
+          response: {
+            type: 'twapOrder',
+            data: { status: { running: { twapId: 987 } } },
+          },
+        };
+      });
+      const twapCancel = vi.fn().mockResolvedValue({
+        status: 'ok',
+        response: { type: 'twapCancel', data: { status: 'success' } },
+      });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { twapOrder, twapCancel },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'twap',
+        twapDuration: 30,
+      } satisfies OrderParams);
+      await disconnected;
+
+      return { placed, exchangeClient };
+    };
+
+    it('does not retract a TWAP after its account changes', async () => {
+      const { placed, exchangeClient } = await placeTwapDuringContextChange(
+        () => {
+          mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+            '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+          );
+        },
+      );
+
+      expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        orderId: '987',
+      });
+    });
+
+    it('does not retract a TWAP after its network changes', async () => {
+      const { placed, exchangeClient } = await placeTwapDuringContextChange(
+        () => {
+          mockClientService.isTestnetMode.mockReturnValue(true);
+        },
+      );
+
+      expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        orderId: '987',
+      });
+    });
+
     it('treats an already-finished stale TWAP as retracted', async () => {
       let disconnected: Promise<unknown> | undefined;
       const twapOrder = vi.fn().mockImplementation(async () => {
@@ -3753,7 +3826,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
     });
 
-    it('retracts resting scale rungs and registers no stale group after teardown', async () => {
+    it('retracts resting Scale rungs after same-account teardown', async () => {
       let disconnected: Promise<unknown> | undefined;
       const order = vi.fn().mockImplementation(async () => {
         disconnected = provider.disconnect();
@@ -3810,6 +3883,49 @@ describe('HyperLiquidProvider - strategy order types', () => {
         { orderId: '33', state: 'resting' },
       ]);
     });
+
+    it('does not retract Scale rungs after the venue marks their account unsupported', async () => {
+      let disconnected: Promise<unknown> | undefined;
+      const order = vi.fn().mockImplementation(async () => {
+        disconnected = provider.disconnect();
+        await disconnected;
+        return {
+          status: 'ok',
+          response: {
+            data: {
+              statuses: [
+                { resting: { oid: 11 } },
+                { error: 'Multi-sig required' },
+                { resting: { oid: 33 } },
+              ],
+            },
+          },
+        };
+      });
+      const cancel = vi.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: ['success', 'success'] } },
+      });
+      const { exchangeClient } = useStrategyClients({
+        exchange: { order, cancel },
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        orderType: 'scale',
+        scaleMinPrice: '2000',
+        scaleMaxPrice: '3000',
+        scaleNumOrders: 3,
+      } satisfies OrderParams);
+      await disconnected;
+
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+        childOrderIds: ['11', '33'],
+      });
+    });
   });
 
   describe('Chase placement racing a disconnect', () => {
@@ -3862,14 +3978,17 @@ describe('HyperLiquidProvider - strategy order types', () => {
      * to be done through the client it is already holding.
      *
      * @param cancel - The cancel the retraction attempt will get back.
+     * @param changeContext - Optional account or network change before teardown.
      * @returns The placement result and the exchange client that served it.
      */
     const placeChaseTornDownMidFlight = async (
       cancel: Mock,
+      changeContext?: () => void,
     ): Promise<{ placed: OrderResult; exchangeClient: MockClient }> => {
       let disconnected: Promise<unknown> | undefined;
       const order = vi.fn().mockImplementation(async () => {
         // The order is on its way to the venue when the provider is torn down.
+        changeContext?.();
         disconnected = provider.disconnect();
         mockClientService.getExchangeClient.mockImplementation(() => {
           throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
@@ -3893,6 +4012,48 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       return { placed, exchangeClient };
     };
+
+    it('does not retract an orphaned Chase after its account changes', async () => {
+      const cancel = vi.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: ['success'] } },
+      });
+      const { placed, exchangeClient } = await placeChaseTornDownMidFlight(
+        cancel,
+        () => {
+          mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+            '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+          );
+        },
+      );
+
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+        childOrderIds: ['55'],
+      });
+    });
+
+    it('does not retract an orphaned Chase after its network changes', async () => {
+      const cancel = vi.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: ['success'] } },
+      });
+      const { placed, exchangeClient } = await placeChaseTornDownMidFlight(
+        cancel,
+        () => {
+          mockClientService.isTestnetMode.mockReturnValue(true);
+        },
+      );
+
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+        childOrderIds: ['55'],
+      });
+    });
 
     it('retracts the order it could not put a strategy behind', async () => {
       const cancel = vi.fn().mockResolvedValue({
@@ -3984,9 +4145,14 @@ describe('HyperLiquidProvider - strategy order types', () => {
           response: { data: { statuses: [{ resting: { oid: 55 } }] } },
         };
       });
+      const sendAsset = vi.fn().mockImplementation(async () => {
+        transferred = true;
+        return { status: 'ok' };
+      });
       useStrategyClients({
         exchange: {
           order,
+          sendAsset,
           cancel: vi.fn().mockResolvedValue({
             status: 'ok',
             response: {
@@ -4018,12 +4184,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useUnifiedAccount: false,
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
-      const transfer = vi
-        .spyOn(provider, 'transferBetweenDexs')
-        .mockImplementation(async () => {
-          transferred = true;
-          return { success: true };
-        });
 
       const placed = await provider.placeOrder({
         ...baseOrder,
@@ -4037,7 +4197,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         error: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
         childOrderIds: ['55'],
       });
-      expect(transfer).toHaveBeenCalledTimes(1);
+      expect(sendAsset).toHaveBeenCalledTimes(1);
     });
 
     it('places nothing when the teardown lands during the book read', async () => {

@@ -1584,6 +1584,84 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    it('sums per-DEX cross margin summaries in the streamed account', async () => {
+      vi.mocked(adaptAccountStateFromSDK).mockImplementation((state) => ({
+        spendableBalance: '0',
+        withdrawableBalance: '0',
+        totalBalance: '0',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+        crossMarginSummary: {
+          accountValue: state.withdrawable,
+          maintenanceMargin: state.crossMaintenanceMarginUsed,
+          marginUsed: '2',
+          notional: '3',
+        },
+      }));
+
+      const clearinghouseCallbacks = new Map<string, (data: any) => void>();
+      const emitClearinghouse = (dex: string, maintenance: string): void =>
+        clearinghouseCallbacks.get(dex)?.({
+          dex,
+          clearinghouseState: {
+            assetPositions: [],
+            marginSummary: { accountValue: '0', totalMarginUsed: '0' },
+            withdrawable: dex ? '20' : '100',
+            crossMaintenanceMarginUsed: maintenance,
+          },
+        });
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
+        (_params: any, callback: any) => {
+          const dex = _params.dex || '';
+          clearinghouseCallbacks.set(dex, callback);
+          setTimeout(() => emitClearinghouse(dex, '1'), 0);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+      mockSubscriptionClient.openOrders.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => callback({ dex: _params.dex || '', orders: [] }), 0);
+          return Promise.resolve({
+            unsubscribe: vi.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const hip3Service = new HyperLiquidSubscriptionService(
+        mockClientService,
+        mockWalletService,
+        mockDeps,
+        true,
+      );
+      await hip3Service.updateFeatureFlags(true, ['xyz'], [], []);
+
+      const mockCallback = vi.fn();
+      const unsubscribe = hip3Service.subscribeToAccount({
+        callback: mockCallback,
+      });
+      await vi.runAllTimersAsync();
+
+      expect(mockCallback.mock.calls.at(-1)?.[0].crossMarginSummary).toEqual({
+        accountValue: '120',
+        maintenanceMargin: '2',
+        marginUsed: '4',
+        notional: '6',
+      });
+
+      // A later event that changes only the summary still reaches subscribers.
+      emitClearinghouse('', '5');
+      await vi.runAllTimersAsync();
+
+      expect(
+        mockCallback.mock.calls.at(-1)?.[0].crossMarginSummary,
+      ).toStrictEqual(expect.objectContaining({ maintenanceMargin: '6' }));
+
+      unsubscribe();
+    });
+
     it('does not use non-USDC spot coins in streamed spendable/withdrawable', async () => {
       vi.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '0',

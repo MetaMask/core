@@ -43,6 +43,9 @@
     },
     {
       "path": "../utils/tsconfig.build.json"
+    },
+    {
+      "path": "../sentinel-api-service/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

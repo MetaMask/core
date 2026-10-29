@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { IntentManager } from './bridge-status-controller.intent';
 import type { BridgeHistoryItem } from './types.js';
@@ -43,10 +43,6 @@ const createManagerOptions = (overrides?: {
 });
 
 describe('IntentManager', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('returns early when no original tx id is present', () => {
     const options = createManagerOptions();
     const manager = new IntentManager(options);

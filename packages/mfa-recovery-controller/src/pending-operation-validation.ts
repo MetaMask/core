@@ -111,17 +111,37 @@ export async function assertValidPendingOperation(
     return;
   }
   const token = decodeAuthControllerToken(pending.authControllerToken);
+  const { approvedIdentifiers } = pending;
   if (
     token?.sub !== mutation.profileId ||
     token.ext.requestHash !== mutation.requestHash ||
-    (mutation.operation !== 'register' && (token.ext.aal ?? 0) < 2) ||
-    ((mutation.operation === 'register' ||
-      mutation.operation === 'updateIdentifiers') &&
-      token.ext.identifiersHash === undefined) ||
+    token.ext.aal < 2 ||
+    !Array.isArray(approvedIdentifiers) ||
+    !approvedIdentifiers.every(isIdentifier) ||
+    (pendingPayloadHasIdentifiers(payload) &&
+      (token.ext.identifiersHash !== (await hash(approvedIdentifiers)) ||
+        !(await isApprovedSubset(payload.identifiers, approvedIdentifiers)))) ||
     !isMutationReceiptArray(pending.receipts)
   ) {
     throwInvalidPendingOperation();
   }
+}
+
+/**
+ * Escrows reject payload identifiers that are not exactly (verifier included)
+ * in the approval's list, and the rejection leaves the write unabortable.
+ *
+ * @param identifiers - Payload identifiers.
+ * @param approvedIdentifiers - The approval's identifiers.
+ * @returns Whether every payload identifier is in the approval.
+ */
+async function isApprovedSubset(
+  identifiers: Identifier[],
+  approvedIdentifiers: Identifier[],
+): Promise<boolean> {
+  const approved = new Set(await Promise.all(approvedIdentifiers.map(hash)));
+  const hashes = await Promise.all(identifiers.map(hash));
+  return hashes.every((identifierHash) => approved.has(identifierHash));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -195,8 +215,7 @@ function isIdentifier(value: unknown): value is Identifier {
     isRecord(value) &&
     typeof value.type === 'string' &&
     typeof value.namespace === 'string' &&
-    typeof value.value === 'string' &&
-    Object.prototype.hasOwnProperty.call(value, 'verifier')
+    typeof value.value === 'string'
   );
 }
 

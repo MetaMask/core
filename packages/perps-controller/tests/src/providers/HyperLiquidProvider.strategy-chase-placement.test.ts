@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Mock, Mocked, MockInstance } from 'vitest';
+import type { Mock, Mocked } from 'vitest';
 
 import {
   CHASE_ORDER_CONFIG,
@@ -9,7 +9,10 @@ import { PERPS_ERROR_CODES } from '../../../src/perpsErrorCodes.js';
 import { HyperLiquidProvider } from '../../../src/providers/HyperLiquidProvider.js';
 import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiquidSubscriptionService.js';
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
-import type { OrderParams } from '../../../src/types/index.js';
+import type {
+  OrderParams,
+  TransferBetweenDexsParams,
+} from '../../../src/types/index.js';
 import {
   baseOrder,
   createClearinghouseBalance,
@@ -523,12 +526,18 @@ describe('HyperLiquidProvider - strategy order types', () => {
         }
         return Promise.resolve(createClearinghouseBalance(withdrawable));
       });
+      const sendAsset = vi
+        .fn()
+        .mockResolvedValueOnce({ status: 'ok' })
+        .mockResolvedValueOnce({ status: 'err' })
+        .mockResolvedValue({ status: 'ok' });
       useStrategyClients({
         exchange: {
           order: vi.fn().mockImplementation(async () => {
             chasePlaced = true;
             return chaseRested;
           }),
+          sendAsset,
         },
         info: {
           clearinghouseState,
@@ -546,11 +555,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
         useUnifiedAccount: false,
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
-      const transfer = vi
-        .spyOn(provider, 'transferBetweenDexs')
-        .mockResolvedValueOnce({ success: true })
-        .mockResolvedValueOnce({ success: false, error: 'Transfer failed' })
-        .mockResolvedValue({ success: true });
 
       const placed = await provider.placeOrder({
         ...baseOrder,
@@ -559,21 +563,21 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
 
       expect(placed.success).toBe(true);
-      expect(transfer).toHaveBeenCalledTimes(1);
+      expect(sendAsset).toHaveBeenCalledTimes(1);
 
       await provider.suspendChaseOrders();
 
-      expect(transfer).toHaveBeenCalledTimes(1);
+      expect(sendAsset).toHaveBeenCalledTimes(1);
       await provider.cancelOrder({
         orderId: placed.orderId,
         symbol: 'xyz:TSLA',
         orderType: 'chase',
       });
-      expect(transfer).toHaveBeenCalledTimes(2);
+      expect(sendAsset).toHaveBeenCalledTimes(2);
       await provider.getChaseOrders();
-      expect(transfer).toHaveBeenCalledTimes(3);
+      expect(sendAsset).toHaveBeenCalledTimes(3);
       await provider.getChaseOrders();
-      expect(transfer).toHaveBeenCalledTimes(3);
+      expect(sendAsset).toHaveBeenCalledTimes(3);
     });
 
     it('reports a backgrounded child that later fills as filled', async () => {
@@ -794,7 +798,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         .fn()
         .mockResolvedValueOnce({
           status: 'ok',
-          response: { data: { statuses: [{ error: 'multi-sig required' }] } },
+          response: { data: { statuses: [{ error: 'cancel refused' }] } },
         })
         .mockResolvedValue({
           status: 'ok',
@@ -838,7 +842,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       vi.useFakeTimers();
       const cancel = vi.fn().mockResolvedValue({
         status: 'ok',
-        response: { data: { statuses: [{ error: 'multi-sig required' }] } },
+        response: { data: { statuses: [{ error: 'cancel refused' }] } },
       });
       useStrategyClients({
         exchange: { order: vi.fn().mockResolvedValue(chaseRested), cancel },
@@ -974,7 +978,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     const useHip3MarketOrder = (
       orderResponse: Record<string, unknown>,
     ): {
-      transfer: MockInstance;
+      transfer: Mock;
       order: Mock;
       exchangeClient: MockClient;
     } => {
@@ -1011,7 +1015,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         initialAssetMapping: [['xyz:TSLA', 110000]],
       });
       return {
-        transfer: vi.spyOn(provider, 'transferBetweenDexs'),
+        transfer: exchangeClient.sendAsset,
         order,
         exchangeClient,
       };
@@ -1045,6 +1049,19 @@ describe('HyperLiquidProvider - strategy order types', () => {
       'HyperLiquidProvider: Rollback not signed - funds remain on HIP-3 DEX';
     const REBALANCE_NOT_SIGNED =
       'HyperLiquidProvider: Auto-rebalance not signed - funds remain on HIP-3 DEX';
+
+    const transferRequests = (transfer: Mock): TransferBetweenDexsParams[] =>
+      transfer.mock.calls.map((call) => {
+        const request = call[0] as TransferBetweenDexsParams & {
+          destination: string;
+          token: string;
+        };
+        return {
+          sourceDex: request.sourceDex,
+          destinationDex: request.destinationDex,
+          amount: request.amount,
+        };
+      });
 
     /**
      * The transfers noted as not signed, with their details.
@@ -1081,10 +1098,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('reads an omitted margin mode from the HIP-3 DEX position slice', async () => {
       const { transfer, exchangeClient } = useHip3MarketOrder(REFUSED_ORDER);
-      transfer.mockResolvedValueOnce({
-        success: false,
-        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
-      });
+      transfer.mockRejectedValueOnce(
+        new Error(PERPS_ERROR_CODES.KEYRING_LOCKED),
+      );
       // Only the xyz slice holds the position, so its mode proves the lookup
       // routes a HIP-3 symbol to its own DEX cache.
       mockSubscriptionService.getCachedPositionsForDex.mockImplementation(
@@ -1110,10 +1126,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
     it('fails a HIP-3 order with KEYRING_LOCKED, sending nothing, when its collateral transfer cannot be signed', async () => {
       const { transfer, order } = useHip3MarketOrder(REFUSED_ORDER);
-      transfer.mockResolvedValueOnce({
-        success: false,
-        error: PERPS_ERROR_CODES.KEYRING_LOCKED,
-      });
+      transfer.mockRejectedValueOnce(
+        new Error(PERPS_ERROR_CODES.KEYRING_LOCKED),
+      );
 
       const result = await provider.placeOrder(HIP3_MARKET_ORDER);
 
@@ -1121,9 +1136,25 @@ describe('HyperLiquidProvider - strategy order types', () => {
         success: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
       });
-      expect(transfer.mock.calls).toStrictEqual([[PRE_ORDER_TRANSFER]]);
+      expect(transferRequests(transfer)).toStrictEqual([PRE_ORDER_TRANSFER]);
       expect(order).not.toHaveBeenCalled();
       expect(reportedErrors()).toStrictEqual([]);
+    });
+
+    it('preserves EXCHANGE_MULTI_SIG_REQUIRED when a HIP-3 collateral transfer is rejected', async () => {
+      const { transfer, order } = useHip3MarketOrder(REFUSED_ORDER);
+      transfer.mockRejectedValueOnce(
+        new Error(PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED),
+      );
+
+      const result = await provider.placeOrder(HIP3_MARKET_ORDER);
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      expect(transferRequests(transfer)).toStrictEqual([PRE_ORDER_TRANSFER]);
+      expect(order).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -1135,6 +1166,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       {
         transferError: 'transfer failed',
         reported: [
+          ['transfer failed', 'transferBetweenDexs'],
           ['transfer failed', 'placeOrder:rollback'],
           [ORDER_FAILURE, 'placeOrder'],
         ],
@@ -1145,15 +1177,15 @@ describe('HyperLiquidProvider - strategy order types', () => {
       async ({ transferError, reported, notes }) => {
         const { transfer } = useHip3MarketOrder(REFUSED_ORDER);
         transfer
-          .mockResolvedValueOnce({ success: true })
-          .mockResolvedValueOnce({ success: false, error: transferError });
+          .mockResolvedValueOnce({ status: 'ok' })
+          .mockRejectedValueOnce(new Error(transferError));
 
         const result = await provider.placeOrder(HIP3_MARKET_ORDER);
 
         expect(result).toStrictEqual({ success: false, error: ORDER_FAILURE });
-        expect(transfer.mock.calls).toStrictEqual([
-          [PRE_ORDER_TRANSFER],
-          [ROLLBACK_TRANSFER],
+        expect(transferRequests(transfer)).toStrictEqual([
+          PRE_ORDER_TRANSFER,
+          ROLLBACK_TRANSFER,
         ]);
         expect(reportedErrors()).toStrictEqual(reported);
         expect(unsignedTransferNotes()).toStrictEqual(notes);
@@ -1168,7 +1200,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
       },
       {
         transferError: 'transfer failed',
-        reported: [['transfer failed', 'placeOrder:autoRebalance']],
+        reported: [
+          ['transfer failed', 'transferBetweenDexs'],
+          ['transfer failed', 'placeOrder:autoRebalance'],
+        ],
         notes: [],
       },
     ])(
@@ -1183,8 +1218,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
           },
         });
         transfer
-          .mockResolvedValueOnce({ success: true })
-          .mockResolvedValueOnce({ success: false, error: transferError });
+          .mockResolvedValueOnce({ status: 'ok' })
+          .mockRejectedValueOnce(new Error(transferError));
 
         const result = await provider.placeOrder(HIP3_MARKET_ORDER);
 
@@ -1196,9 +1231,9 @@ describe('HyperLiquidProvider - strategy order types', () => {
           submittedSize: '1',
           averagePrice: '3000',
         });
-        expect(transfer.mock.calls).toStrictEqual([
-          [PRE_ORDER_TRANSFER],
-          [REBALANCE_TRANSFER],
+        expect(transferRequests(transfer)).toStrictEqual([
+          PRE_ORDER_TRANSFER,
+          REBALANCE_TRANSFER,
         ]);
         expect(reportedErrors()).toStrictEqual(reported);
         expect(unsignedTransferNotes()).toStrictEqual(notes);
@@ -1776,6 +1811,74 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // Disconnecting stops the loop; it does not cancel what is already resting.
       expect(order).toHaveBeenCalledTimes(1);
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('HIP-3 disconnect cleanup', () => {
+    it('retries deferred collateral cleanup while disconnecting', async () => {
+      const balances = new Map<string | undefined, string>([
+        [undefined, '1000'],
+        ['xyz', '0'],
+      ]);
+      const clearinghouseState = vi
+        .fn()
+        .mockImplementation(({ dex }: { dex?: string }) =>
+          Promise.resolve(
+            createClearinghouseBalance(balances.get(dex) as string),
+          ),
+        );
+      const sendAsset = vi
+        .fn()
+        .mockResolvedValueOnce({ status: 'ok' })
+        .mockResolvedValueOnce({ status: 'err' })
+        .mockResolvedValue({ status: 'ok' });
+      useStrategyClients({
+        exchange: {
+          order: vi.fn().mockImplementation(async () => {
+            balances.set('xyz', '20');
+            return {
+              status: 'ok',
+              response: {
+                data: { statuses: [{ resting: { oid: 55 } }] },
+              },
+            };
+          }),
+          sendAsset,
+        },
+        info: {
+          clearinghouseState,
+          perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+          meta: vi.fn().mockResolvedValue({
+            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+            collateralToken: 0,
+          }),
+          allMids: vi.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+        },
+      });
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: false,
+        initialAssetMapping: [['xyz:TSLA', 110000]],
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        symbol: 'xyz:TSLA',
+        orderType: 'chase',
+      } satisfies OrderParams);
+      const { orderId = '' } = placed;
+      expect(orderId).not.toBe('');
+      await provider.suspendChaseOrders();
+      await provider.cancelOrder({
+        orderId,
+        symbol: 'xyz:TSLA',
+        orderType: 'chase',
+      });
+      expect(sendAsset).toHaveBeenCalledTimes(2);
+
+      expect(await provider.disconnect()).toStrictEqual({ success: true });
+      expect(sendAsset).toHaveBeenCalledTimes(3);
     });
   });
 });
