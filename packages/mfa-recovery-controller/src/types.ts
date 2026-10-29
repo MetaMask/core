@@ -328,10 +328,15 @@ export type RecoveryEscrowProvider = {
     requestId: string,
     pkE: Uint8Array,
   ) => Promise<GetRecoverySecretResponse>;
+  /**
+   * `identifierAuthorizations` share one challenge: one proof per SIWE
+   * identifier the escrow has not enrolled, plus one enrolled-identifier proof
+   * for updates.
+   */
   applyMutation: (
     mutation: Mutation,
     authControllerToken: AuthControllerToken,
-    identifierAuthorization: IdentifierAuthorization | null,
+    identifierAuthorizations: IdentifierAuthorization[],
     payload: MutationPayload,
     approvedIdentifiers: Identifier[],
   ) => Promise<MutationReceipt>;

@@ -51,6 +51,13 @@ const SOCIAL: Identifier = {
 
 const OTHER_PASSKEY: Identifier = { ...PASSKEY, value: 'cred-2' };
 
+const WALLET: Identifier = {
+  type: 'siwe',
+  namespace: 'example.com:1',
+  value: '0xAbC0000000000000000000000000000000000001',
+  verifier: { domain: 'example.com', chainId: 1 },
+};
+
 const IDENTIFIERS = [PASSKEY, SOCIAL];
 
 const SECRET = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
@@ -899,6 +906,73 @@ describe('MfaRecoveryController', () => {
         });
       },
     );
+  });
+
+  describe('SIWE identifiers', () => {
+    it('proves each SIWE identifier at register', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+        await controller.register(SECRET, [PASSKEY, WALLET]);
+        expect(
+          apply.mock.calls[0][2].map(({ token }) => token.identifier),
+        ).toStrictEqual([WALLET]);
+      });
+    });
+
+    it('proves an added SIWE identifier with the enrolled identifier on one challenge', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+        await controller.updateIdentifiers(
+          PASSKEY,
+          [SOCIAL, WALLET],
+          REGISTERED_EPOCH,
+        );
+        const authorizations = apply.mock.calls[0][2];
+        expect(
+          authorizations.map(({ token }) => token.identifier),
+        ).toStrictEqual([PASSKEY, WALLET]);
+        expect(
+          new Set(authorizations.map(({ proof }) => proof.challengeId)).size,
+        ).toBe(1);
+      });
+    });
+
+    it('does not prove an enrolled SIWE identifier in another address case', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, [PASSKEY, WALLET]);
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+        await controller.updateIdentifiers(
+          PASSKEY,
+          [SOCIAL, { ...WALLET, value: WALLET.value.toLowerCase() }],
+          REGISTERED_EPOCH,
+        );
+        expect(
+          apply.mock.calls[0][2].map(({ token }) => token.identifier),
+        ).toStrictEqual([PASSKEY]);
+      });
+    });
+
+    it('does not prove SIWE identifiers to an escrow that already applied the mutation', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.invalidReceipts = true;
+        await expect(
+          controller.updateIdentifiers(
+            PASSKEY,
+            [SOCIAL, WALLET],
+            REGISTERED_EPOCH,
+          ),
+        ).rejects.toThrow('Invalid mutation receipt');
+        escrowA.invalidReceipts = false;
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+        await controller.resume();
+        expect(
+          apply.mock.calls[0][2].map(({ token }) => token.identifier),
+        ).toStrictEqual([PASSKEY]);
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
   });
 
   describe('resume and abort', () => {
@@ -1780,6 +1854,20 @@ describe('MfaRecoveryController', () => {
               PASSKEY,
             ]),
           ).rejects.toThrow('Unknown identifier type');
+        });
+      },
+    );
+
+    it.each([
+      { ...WALLET, namespace: 'example.com:2' },
+      { ...WALLET, verifier: undefined },
+    ])(
+      'rejects a SIWE namespace that does not match its verifier',
+      async (wallet) => {
+        await withController(async ({ controller }) => {
+          await expect(
+            controller.register(SECRET, [PASSKEY, wallet]),
+          ).rejects.toMatchObject({ code: 'invalid_identifier' });
         });
       },
     );
