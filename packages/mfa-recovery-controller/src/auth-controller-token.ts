@@ -3,9 +3,7 @@ import { bytesToString, isObject } from '@metamask/utils';
 import { fromBase64Url } from './crypto.js';
 
 /**
- * The claims the controller reads from an AuthController (Hydra) access token,
- * in the token's shape with camelCase names. The Auth API token hook adds the
- * step-up bindings under `ext`; a token that did not step up has none of them.
+ * Claims read from an Auth API approval, with camelCase field names.
  */
 export type AuthControllerTokenClaims = {
   /**
@@ -21,9 +19,9 @@ export type AuthControllerTokenClaims = {
     /**
      * Authentication assurance level.
      */
-    aal?: number;
+    aal: number;
     /**
-     * Only present when the step-up was bound to a payload's identifiers.
+     * Hash of the Auth API's recovery identifiers.
      */
     identifiersHash?: string;
   };
@@ -64,7 +62,7 @@ export function decodeAuthControllerToken(
     typeof sub !== 'string' ||
     typeof exp !== 'number' ||
     typeof requestHash !== 'string' ||
-    (aal !== undefined && typeof aal !== 'number') ||
+    typeof aal !== 'number' ||
     (identifiersHash !== undefined && typeof identifiersHash !== 'string')
   ) {
     return undefined;

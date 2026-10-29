@@ -7301,6 +7301,7 @@ __metadata:
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/cryptography": "npm:^1.1.2"
     "@metamask/messenger": "npm:^3.0.0"
+    "@metamask/profile-sync-controller": "npm:^36.0.0"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/utils": "npm:^12.0.1"
     "@typescript/native": "npm:typescript@^7.0.2"
