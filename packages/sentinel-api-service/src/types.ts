@@ -191,6 +191,9 @@ export type SentinelSimulationTransaction = {
  */
 export type SentinelStateOverrides = {
   [address: Hex]: {
+    /** Override the native balance of an address. */
+    balance?: Hex;
+
     /** Override the code for an address. */
     code?: Hex;
 
@@ -222,6 +225,12 @@ export type SentinelSimulationRequest = {
 
     /** Whether to include the gas fee of the token transfer. */
     withFeeTransfer?: boolean;
+
+    /**
+     * Whether to include a RedeemerEnforcer caveat, restricting redemption to
+     * the relay signers, in the delegation used for the EIP-7702 estimate.
+     */
+    withRedeemerEnforcer?: boolean;
 
     /** Whether to include the native transfer if available. */
     withTransfer?: boolean;
@@ -485,6 +494,9 @@ export type SentinelSimulationResponse = {
 
     /** Error message for the sponsorship determination, if any. */
     error: string | null;
+
+    /** Name of the party paying the gas fee, such as `Uniswap` or `MetaMask`. */
+    sponsor?: string;
   };
 
   /** Simulation data for each transaction in the request. */

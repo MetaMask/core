@@ -1,5 +1,5 @@
 import * as Utils from '@metamask/utils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   assertScopeSupported,
@@ -39,10 +39,6 @@ describe('Scope Assert', () => {
     MockUtils.isCaipChainId.mockImplementation(() => true);
     MockUtils.isCaipReference.mockImplementation(() => true);
     MockUtils.isCaipAccountId.mockImplementation(() => true);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   describe('assertScopeSupported', () => {

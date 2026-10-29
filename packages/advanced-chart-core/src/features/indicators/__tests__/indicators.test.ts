@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import {
@@ -77,10 +77,6 @@ describe('handleAddIndicator', () => {
         return 0;
       },
     );
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it('no-ops when no widget exists', () => {
@@ -245,10 +241,6 @@ describe('handleSetMAVisibility', () => {
         return 0;
       },
     );
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it('removes MA variants that are no longer in the visible list', () => {

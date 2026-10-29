@@ -7,15 +7,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
-import {
-  afterAll,
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   AddressBookControllerContactDeletedEvent,
@@ -90,10 +82,6 @@ describe('AddressBookController', () => {
 
   beforeEach(() => {
     vi.spyOn(Date, 'now').mockImplementation(() => MOCK_TIMESTAMP);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   afterAll(() => {

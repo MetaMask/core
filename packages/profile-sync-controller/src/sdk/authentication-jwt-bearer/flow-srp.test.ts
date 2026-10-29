@@ -336,10 +336,6 @@ describe('SRP MFA methods', () => {
     });
   }
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('begins passkey and email enrollment with the access token', async () => {
     const auth = createAuth();
     mockMfaEnroll

@@ -1,6 +1,6 @@
 import type { Hex } from '@metamask/utils';
 import type { MockedFunction } from 'vitest';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type {
   BatchTransactionParams,
@@ -78,10 +78,6 @@ describe('ExtraTransactionsPublishHook', () => {
       originalPublishHook: originalPublishHookMock,
     });
   }
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
 
   it('creates batch transaction', async () => {
     const hook = createHook().getHook();

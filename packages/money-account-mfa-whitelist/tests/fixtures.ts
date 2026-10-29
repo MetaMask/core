@@ -8,6 +8,7 @@ import {
   createExactExecutionTerms,
   createLimitedCallsTerms,
   createRedeemerTerms,
+  createTimestampTerms,
   createValueLteTerms,
 } from '@metamask/delegation-core';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
@@ -52,6 +53,7 @@ export const CONTRACTS: DelegationFrameworkContracts = {
   ExactExecutionEnforcer: MONAD_CONTRACTS.ExactExecutionEnforcer,
   LimitedCallsEnforcer: MONAD_CONTRACTS.LimitedCallsEnforcer,
   RedeemerEnforcer: MONAD_CONTRACTS.RedeemerEnforcer,
+  TimestampEnforcer: MONAD_CONTRACTS.TimestampEnforcer,
   ValueLteEnforcer: MONAD_CONTRACTS.ValueLteEnforcer,
 };
 
@@ -271,11 +273,16 @@ export function wrapInExecute(calls: Execution[]): Execution {
  * @param options - Options.
  * @param options.mobileOrder - Put the exact-execution caveat first, as
  * Mobile does, instead of `LimitedCalls` first, as the extension does.
+ * @param options.deadline - Adds a `Timestamp` caveat after `LimitedCalls`
+ * that expires at this Unix time, as the transaction controller does.
  * @returns The unsigned delegation.
  */
 export function buildSingleUseDelegation(
   executions: Execution[],
-  { mobileOrder = false }: { mobileOrder?: boolean } = {},
+  {
+    mobileOrder = false,
+    deadline,
+  }: { mobileOrder?: boolean; deadline?: number } = {},
 ): UnsignedDelegation {
   const limitedCalls = {
     enforcer: CONTRACTS.LimitedCallsEnforcer,
@@ -299,9 +306,23 @@ export function buildSingleUseDelegation(
     delegate: ANY_BENEFICIARY,
     delegator: MONEY_ACCOUNT,
     authority: ROOT_AUTHORITY,
-    caveats: mobileOrder
-      ? [exactExecution, limitedCalls]
-      : [limitedCalls, exactExecution],
+    caveats: [
+      ...(mobileOrder ? [exactExecution] : []),
+      limitedCalls,
+      ...(deadline === undefined
+        ? []
+        : [
+            {
+              enforcer: CONTRACTS.TimestampEnforcer,
+              terms: createTimestampTerms({
+                afterThreshold: 0,
+                beforeThreshold: deadline,
+              }),
+              args: '0x' as Hex,
+            },
+          ]),
+      ...(mobileOrder ? [] : [exactExecution]),
+    ],
     salt: `0x${'ab'.repeat(32)}`,
   };
 }

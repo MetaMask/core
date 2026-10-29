@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mocked } from 'vitest';
 
 import { EligibilityService } from '../../../src/services/EligibilityService.js';
@@ -13,10 +13,6 @@ describe('EligibilityService', () => {
     vi.clearAllMocks();
     mockDeps = createMockInfrastructure();
     service = new EligibilityService(mockDeps);
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   describe('checkEligibility', () => {

@@ -1,5 +1,5 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import type {
@@ -96,10 +96,6 @@ function setup(
 }
 
 describe('CustomAssetGraduationMiddleware', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('initializes with correct name', () => {
     const { middleware } = setup();
     expect(middleware.name).toBe('CustomAssetGraduationMiddleware');

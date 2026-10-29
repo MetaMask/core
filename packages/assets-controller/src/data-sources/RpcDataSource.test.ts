@@ -4,7 +4,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import {
@@ -331,10 +331,6 @@ describe('createRpcDataSource', () => {
 });
 
 describe('RpcDataSource', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('constructor', () => {
     it('initializes with default options', async () => {
       await withController(({ controller }) => {

@@ -9,11 +9,14 @@ import {
 import type { QuoteRequest } from '../../types.js';
 import {
   SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
-  isServerPerpsDepositRequest,
   normalizeServerPerpsRequest,
 } from './perps.js';
 
 const BRIDGE_ADDRESS_LOWER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7';
+
+// transfer(HL bridge, 1000000)
+const BRIDGE_TRANSFER_DATA =
+  '0xa9059cbb0000000000000000000000002df1c51e09aecf9cacb7bc98cb1742757f163df700000000000000000000000000000000000000000000000000000000000f4240';
 
 const baseRequest: QuoteRequest = {
   from: '0x97e298b35d580c080f4a59f1f0fabd09b5add715',
@@ -42,89 +45,33 @@ const innocuousTransaction = {
   },
 } as unknown as TransactionMeta;
 
+const bridgeTransferTransaction = {
+  txParams: {
+    from: '0x97e298b35d580c080f4a59f1f0fabd09b5add715',
+    to: ARBITRUM_USDC_ADDRESS,
+    data: BRIDGE_TRANSFER_DATA,
+  },
+} as unknown as TransactionMeta;
+
 describe('strategy/server/perps', () => {
-  describe('isServerPerpsDepositRequest', () => {
-    it('returns true when txParams.to references the Hyperliquid bridge', () => {
-      expect(isServerPerpsDepositRequest(baseRequest, bridgeTransaction)).toBe(
-        true,
-      );
-    });
-
-    it('returns true when a nested transaction targets the bridge directly', () => {
-      const nestedTransaction = {
-        txParams: {
-          from: '0x97e298b35d580c080f4a59f1f0fabd09b5add715',
-          to: ARBITRUM_USDC_ADDRESS,
-          data: '0x',
-        },
-        nestedTransactions: [
-          {
-            to: BRIDGE_ADDRESS_LOWER,
-            data: '0xdeadbeef',
-          },
-        ],
-      } as unknown as TransactionMeta;
-
-      expect(isServerPerpsDepositRequest(baseRequest, nestedTransaction)).toBe(
-        true,
-      );
-    });
-
-    it('matches the bridge address case-insensitively in txParams.to', () => {
-      const upperTransaction = {
-        txParams: {
-          to: BRIDGE_ADDRESS_LOWER.toUpperCase(),
-          data: '0x',
-        },
-      } as unknown as TransactionMeta;
-
-      expect(isServerPerpsDepositRequest(baseRequest, upperTransaction)).toBe(
-        true,
-      );
-    });
-
-    it('returns false when transaction to does not reference the bridge', () => {
-      expect(
-        isServerPerpsDepositRequest(baseRequest, innocuousTransaction),
-      ).toBe(false);
-    });
-
-    it('returns false when target chain is not Arbitrum', () => {
-      expect(
-        isServerPerpsDepositRequest(
-          { ...baseRequest, targetChainId: '0x1' },
-          bridgeTransaction,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns false when target token is not Arbitrum USDC', () => {
-      expect(
-        isServerPerpsDepositRequest(
-          {
-            ...baseRequest,
-            targetTokenAddress: '0x0000000000000000000000000000000000000002',
-          },
-          bridgeTransaction,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns false on post-quote requests', () => {
-      expect(
-        isServerPerpsDepositRequest(
-          { ...baseRequest, isPostQuote: true },
-          bridgeTransaction,
-        ),
-      ).toBe(false);
-    });
-  });
-
   describe('normalizeServerPerpsRequest', () => {
     it('rewrites target chain, token, and amount when the bridge is referenced', () => {
       const result = normalizeServerPerpsRequest(
         baseRequest,
         bridgeTransaction,
+      );
+
+      expect(result.targetChainId).toBe(CHAIN_ID_HYPERCORE);
+      expect(result.targetTokenAddress).toBe(
+        SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
+      );
+      expect(result.targetAmountMinimum).toBe('100000000');
+    });
+
+    it('rewrites target chain, token, and amount for a token transfer to the bridge', () => {
+      const result = normalizeServerPerpsRequest(
+        baseRequest,
+        bridgeTransferTransaction,
       );
 
       expect(result.targetChainId).toBe(CHAIN_ID_HYPERCORE);
@@ -148,7 +95,7 @@ describe('strategy/server/perps', () => {
         ...baseRequest,
         isHyperliquidSource: true,
         sourceChainId: '0xa4b1',
-        sourceTokenAmount: '100000000',
+        sourceTokenAmount: '1000000',
       };
 
       const result = normalizeServerPerpsRequest(
@@ -160,7 +107,7 @@ describe('strategy/server/perps', () => {
       expect(result.sourceTokenAddress).toBe(
         SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
       );
-      expect(result.sourceTokenAmount).toBe('1000000');
+      expect(result.sourceTokenAmount).toBe('100000000');
     });
   });
 });

@@ -7,7 +7,10 @@ export type { AnalyticsDataRegulationControllerOptions } from './AnalyticsDataRe
 export { AnalyticsDataRegulationService } from './AnalyticsDataRegulationService.js';
 export type {
   AnalyticsDataRegulationServiceActions,
+  AnalyticsDataRegulationServiceCacheUpdatedEvent,
   AnalyticsDataRegulationServiceEvents,
+  AnalyticsDataRegulationServiceGranularCacheUpdatedEvent,
+  AnalyticsDataRegulationServiceInvalidateQueriesAction,
   AnalyticsDataRegulationServiceMessenger,
   AnalyticsDataRegulationServiceOptions,
 } from './AnalyticsDataRegulationService.js';

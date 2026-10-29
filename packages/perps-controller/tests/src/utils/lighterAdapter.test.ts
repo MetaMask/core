@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import type { MarketDataFormatters } from '../../../src/types/index.js';
+import type {
+  CrossMarginSummary,
+  MarketDataFormatters,
+} from '../../../src/types/index.js';
 import type {
   LighterApiOrder,
   LighterApiPosition,
@@ -13,6 +16,7 @@ import {
   adaptFillFromLighterTrade,
   adaptAccountStateFromLighter,
   adaptAccountStateFromLighterUserStats,
+  adaptCrossMarginSummaryFromLighter,
   adaptMarketDataFromLighter,
   adaptMarketFromLighter,
   adaptOrderFromLighter,
@@ -314,6 +318,148 @@ describe('lighterAdapter', () => {
         ).toThrow('Invalid Lighter venue data');
       },
     );
+  });
+
+  describe('adaptCrossMarginSummaryFromLighter', () => {
+    const row = (
+      overrides: Partial<LighterApiPosition>,
+    ): LighterApiPosition => ({
+      marketId: 1,
+      symbol: 'BTC',
+      initialMarginFraction: '20',
+      openOrderCount: 0,
+      sign: 1,
+      position: '0.1',
+      avgEntryPrice: '100000',
+      positionValue: '10000',
+      unrealizedPnl: '0',
+      realizedPnl: '0',
+      liquidationPrice: '0',
+      marginMode: 0,
+      ...overrides,
+    });
+    const accountWith = (
+      positions: LighterApiPosition[] | undefined,
+    ): LighterSubAccount => ({
+      code: 0,
+      accountType: 0,
+      index: 28,
+      l1Address: '0xabc',
+      cancelAllTime: 0,
+      totalOrderCount: 0,
+      pendingOrderCount: 0,
+      status: 1,
+      collateral: '10000',
+      availableBalance: '8000',
+      positions,
+    });
+    const fractions: Record<string, number> = { BTC: 0.012, ETH: 0.02 };
+    const lookup = (symbol: string): number | undefined => fractions[symbol];
+    const summarize = (
+      positions: LighterApiPosition[] | undefined,
+    ): CrossMarginSummary | undefined => {
+      const account = accountWith(positions);
+      return adaptCrossMarginSummaryFromLighter(
+        account,
+        adaptAccountStateFromLighter(account).totalBalance,
+        lookup,
+      );
+    };
+
+    it('sums cross positions and removes isolated PnL from account value', () => {
+      // total balance = 10000 + 500 - 200 = 10300; isolated PnL is -200.
+      expect(
+        summarize([
+          row({ unrealizedPnl: '500' }),
+          row({
+            marketId: 2,
+            symbol: 'ETH',
+            initialMarginFraction: '10',
+            sign: -1,
+            position: '1',
+            positionValue: '3000',
+            unrealizedPnl: '-200',
+            marginMode: 1,
+          }),
+        ]),
+      ).toStrictEqual({
+        accountValue: '10500',
+        maintenanceMargin: '120',
+        marginUsed: '2000',
+        notional: '10000',
+      });
+    });
+
+    it('counts several cross positions in one market and skips its isolated one', () => {
+      expect(
+        summarize([
+          row({ positionValue: '10000' }),
+          row({ initialMarginFraction: '10', positionValue: '5000' }),
+          row({ positionValue: '2000', unrealizedPnl: '50', marginMode: 1 }),
+        ]),
+      ).toStrictEqual({
+        accountValue: '10000',
+        maintenanceMargin: '180',
+        marginUsed: '2500',
+        notional: '15000',
+      });
+    });
+
+    it('treats rows without a margin mode as cross', () => {
+      const { marginMode: _marginMode, ...legacy } = row({});
+      expect(summarize([legacy])?.notional).toBe('10000');
+    });
+
+    it('skips flat cross rows without needing their market metadata', () => {
+      expect(
+        summarize([
+          row({ symbol: 'DELISTED', position: '0', positionValue: '0' }),
+        ]),
+      ).toStrictEqual({
+        accountValue: '10000',
+        maintenanceMargin: '0',
+        marginUsed: '0',
+        notional: '0',
+      });
+    });
+
+    it('reports zeros and the total balance for an empty positions list', () => {
+      expect(summarize([])).toStrictEqual({
+        accountValue: '10000',
+        maintenanceMargin: '0',
+        marginUsed: '0',
+        notional: '0',
+      });
+    });
+
+    it('returns no summary when the response omits positions', () => {
+      expect(summarize(undefined)).toBeUndefined();
+    });
+
+    it('returns no summary when an open cross position has no maintenance fraction', () => {
+      expect(
+        summarize([row({}), row({ marketId: 3, symbol: 'SOL' })]),
+      ).toBeUndefined();
+    });
+
+    it.each([
+      ['position value', { positionValue: '1e999' }],
+      ['position value', { positionValue: '10000oops' }],
+      ['initial margin fraction', { initialMarginFraction: 'NaN' }],
+      ['position size', { position: '0.1x' }],
+      ['unrealized PnL', { unrealizedPnl: 'Infinity', marginMode: 1 }],
+    ])('fails on a malformed %s', (_label, overrides) => {
+      const account = accountWith([row(overrides)]);
+      expect(() =>
+        adaptCrossMarginSummaryFromLighter(account, '10000', lookup),
+      ).toThrow('Invalid Lighter venue data');
+    });
+
+    it('fails on a non-finite total balance', () => {
+      expect(() =>
+        adaptCrossMarginSummaryFromLighter(accountWith([]), 'NaN', lookup),
+      ).toThrow('Invalid Lighter venue data');
+    });
   });
 
   describe('adaptAccountStateFromLighterUserStats', () => {

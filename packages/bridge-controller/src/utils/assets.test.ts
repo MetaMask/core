@@ -1,5 +1,5 @@
 import type { CaipAssetType } from '@metamask/utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { getAssetIdsForToken, toExchangeRates } from './assets.js';
@@ -17,10 +17,6 @@ vi.mock('./caip-formatters', () => ({
 
 describe('assets utils', () => {
   describe('getAssetIdsForToken', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('should return empty array when formatAddressToAssetId returns null', () => {
       (formatAddressToAssetId as Mock).mockReturnValue(null);
 

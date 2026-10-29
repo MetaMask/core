@@ -8,7 +8,7 @@ import {
 
 import { decodeAuthControllerToken } from '../src/auth-controller-token.js';
 import {
-  canonicalizeIdentifiers,
+  canonicalize,
   decryptFromPublic,
   encryptToPublic,
   hash,
@@ -35,6 +35,7 @@ import type {
   PendingOperation,
   PendingOperationEncryptor,
   PoPChallenge,
+  RecoveryApproval,
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
@@ -60,7 +61,7 @@ const CHALLENGE_TTL_SECS = 5 * 60;
 
 /**
  * Builds an unsigned compact JWT carrying the claims the controller reads from
- * an AuthController (Hydra) access token.
+ * an Auth API approval.
  *
  * @param claims - Token claims.
  * @param claims.sub - The profile id.
@@ -74,7 +75,7 @@ export function createAuthControllerToken({
   sub,
   exp,
   requestHash,
-  aal,
+  aal = 1,
   identifiersHash,
 }: {
   sub: string;
@@ -104,6 +105,12 @@ export class StubAuthProvider implements RecoveryAuthProvider {
 
   now: () => number = unixNow;
 
+  identifiers: Identifier[];
+
+  constructor(identifiers: Identifier[] = []) {
+    this.identifiers = identifiers;
+  }
+
   async getAuthenticatedProfileId(): Promise<string> {
     return this.profileId;
   }
@@ -111,21 +118,17 @@ export class StubAuthProvider implements RecoveryAuthProvider {
   async authorizeRecoveryRequest(params: {
     requestHash: string;
     requireTwoFactor?: boolean;
-    identifiers?: Identifier[];
-  }): Promise<AuthControllerToken> {
-    return createAuthControllerToken({
-      sub: this.profileId,
-      exp: this.now() + 60 * 60,
-      requestHash: params.requestHash,
-      aal: params.requireTwoFactor ? 2 : 1,
-      ...(params.identifiers === undefined
-        ? {}
-        : {
-            identifiersHash: await hash(
-              canonicalizeIdentifiers(params.identifiers),
-            ),
-          }),
-    });
+  }): Promise<RecoveryApproval> {
+    return {
+      approval: createAuthControllerToken({
+        sub: this.profileId,
+        exp: this.now() + 5 * 60,
+        requestHash: params.requestHash,
+        aal: params.requireTwoFactor ? 2 : 1,
+        identifiersHash: await hash(this.identifiers),
+      }),
+      identifiers: this.identifiers,
+    };
   }
 }
 
@@ -242,6 +245,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   }
 
   async getSecret(
+    authControllerToken: AuthControllerToken,
     authorization: IdentifierAuthorization,
     requestId: string,
     pkE: Uint8Array,
@@ -261,6 +265,15 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       authorization,
       requestHash,
     );
+    const claims = decodeAuthControllerToken(authControllerToken);
+    if (
+      claims?.sub !== profileId ||
+      claims.ext.requestHash !== requestHash ||
+      claims.ext.aal < 2 ||
+      claims.exp <= this.now()
+    ) {
+      throw new MfaRecoveryError('Invalid read approval', 'invalid_read_auth');
+    }
     const record = this.#records.get(profileId);
     if (record === undefined) {
       throw new MfaRecoveryError('No recovery record', 'not_registered');
@@ -284,6 +297,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     authControllerToken: AuthControllerToken,
     identifierAuthorization: IdentifierAuthorization | null,
     payload: MutationPayload,
+    approvedIdentifiers: Identifier[],
   ): Promise<MutationReceipt> {
     if (this.failNextApplyCount > 0) {
       this.failNextApplyCount -= 1;
@@ -297,6 +311,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
         authControllerToken,
         identifierAuthorization,
         payload,
+        approvedIdentifiers,
       );
     } catch (error) {
       if (!this.#applyCommitted && error instanceof MfaRecoveryError) {
@@ -311,6 +326,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     authControllerToken: AuthControllerToken,
     identifierAuthorization: IdentifierAuthorization | null,
     payload: MutationPayload,
+    approvedIdentifiers: Identifier[],
   ): Promise<MutationReceipt> {
     await this.#verifyMutationAuthorization(mutation, authControllerToken);
 
@@ -354,6 +370,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       await this.#assertIdentifierOwnership(
         authControllerToken,
         registerPayload.identifiers,
+        approvedIdentifiers,
       );
       this.#assertIdentifiersAvailable(
         mutation.profileId,
@@ -382,8 +399,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       return await this.#signReceipt(mutation);
     }
 
-    const claims = decodeAuthControllerToken(authControllerToken);
-    if (record === undefined || (claims?.ext.aal ?? 0) < 2) {
+    if (record === undefined) {
       throw new MfaRecoveryError(
         'Update not authorized',
         'update_unauthorized',
@@ -415,7 +431,11 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
     } else {
       const { identifiers } = payload as UpdateIdentifiersPayload;
       await this.#assertPayloadHash(mutation, payload);
-      await this.#assertIdentifierOwnership(authControllerToken, identifiers);
+      await this.#assertIdentifierOwnership(
+        authControllerToken,
+        identifiers,
+        approvedIdentifiers,
+      );
       this.#assertIdentifiersAvailable(mutation.profileId, identifiers);
       this.#applyCommitted = true;
       this.#replaceIdentifierIndex(
@@ -538,6 +558,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       requestHash !== mutation.requestHash ||
       claims?.ext.requestHash !== mutation.requestHash ||
       claims.sub !== mutation.profileId ||
+      claims.ext.aal < 2 ||
       claims.exp <= this.now() ||
       !this.#hasExactAudiences(mutation.audiences)
     ) {
@@ -558,10 +579,13 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
   async #assertIdentifierOwnership(
     token: AuthControllerToken,
     identifiers: Identifier[],
+    approvedIdentifiers: Identifier[],
   ): Promise<void> {
+    const approved = new Set(approvedIdentifiers.map(canonicalize));
     if (
       decodeAuthControllerToken(token)?.ext.identifiersHash !==
-      (await hash(canonicalizeIdentifiers(identifiers)))
+        (await hash(approvedIdentifiers)) ||
+      !identifiers.every((identifier) => approved.has(canonicalize(identifier)))
     ) {
       throw new MfaRecoveryError(
         'Identifier ownership not approved',

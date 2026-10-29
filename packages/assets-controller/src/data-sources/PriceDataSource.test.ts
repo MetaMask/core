@@ -1,6 +1,6 @@
 import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
@@ -193,10 +193,6 @@ function setupController(
 }
 
 describe('PriceDataSource', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   afterAll(() => {
     vi.useRealTimers();
   });
@@ -256,6 +252,34 @@ describe('PriceDataSource', () => {
       marketCap: 1000000000,
       totalVolume: 50000000,
     });
+
+    controller.destroy();
+  });
+
+  it('keeps 5-minute and 4-hour percent changes from the spot-prices payload', async () => {
+    const { controller } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1.5' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: {
+          ...createMockPriceData(2500),
+          pricePercentChange5m: 1.25,
+          pricePercentChange4h: -4.5,
+        },
+      },
+    });
+
+    const response = await controller.fetch(createDataRequest());
+
+    expect(response.assetsPrice?.[MOCK_NATIVE_ASSET]).toStrictEqual(
+      expect.objectContaining({
+        pricePercentChange5m: 1.25,
+        pricePercentChange4h: -4.5,
+      }),
+    );
 
     controller.destroy();
   });

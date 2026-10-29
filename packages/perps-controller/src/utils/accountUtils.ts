@@ -6,7 +6,11 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type { SpotClearinghouseStateResponse } from '../types/hyperliquid-types.js';
-import type { AccountState, PerpsInternalAccount } from '../types/index.js';
+import type {
+  AccountState,
+  CrossMarginSummary,
+  PerpsInternalAccount,
+} from '../types/index.js';
 
 const EVM_ACCOUNT_TYPES = new Set(['eip155:eoa', 'eip155:erc4337']);
 
@@ -310,6 +314,34 @@ function resolveFoldedBalance(
 }
 
 /**
+ * Sum per-DEX cross-margin summaries. Undefined unless every state carries
+ * one, so a partial sum never reads as the whole account.
+ *
+ * @param states - The per-DEX account states.
+ * @returns The summed summary, or undefined.
+ */
+export function sumCrossMarginSummaries(
+  states: AccountState[],
+): CrossMarginSummary | undefined {
+  const summaries = states
+    .map((state) => state.crossMarginSummary)
+    .filter((summary): summary is CrossMarginSummary => summary !== undefined);
+  if (summaries.length === 0 || summaries.length !== states.length) {
+    return undefined;
+  }
+  const sum = (field: keyof CrossMarginSummary): string =>
+    summaries
+      .reduce((total, summary) => total + parseFloat(summary[field]), 0)
+      .toString();
+  return {
+    accountValue: sum('accountValue'),
+    maintenanceMargin: sum('maintenanceMargin'),
+    marginUsed: sum('marginUsed'),
+    notional: sum('notional'),
+  };
+}
+
+/**
  * Aggregate multiple per-DEX AccountState objects into one by summing numeric fields.
  * ROE is recalculated as (totalUnrealizedPnl / totalMarginUsed) * 100.
  *
@@ -366,6 +398,11 @@ export function aggregateAccountStates(states: AccountState[]): AccountState {
     ).toString();
   } else {
     aggregated.returnOnEquity = '0';
+  }
+
+  const crossMarginSummary = sumCrossMarginSummaries(states);
+  if (crossMarginSummary) {
+    aggregated.crossMarginSummary = crossMarginSummary;
   }
 
   return aggregated;

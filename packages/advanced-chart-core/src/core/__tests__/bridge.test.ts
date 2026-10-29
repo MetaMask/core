@@ -91,10 +91,6 @@ describe('core/bridge', () => {
       );
     });
 
-    afterEach(() => {
-      vi.restoreAllMocks();
-    });
-
     it('subscribes to both window and document message events', () => {
       onFromRN(() => undefined);
       expect(listeners.window).toHaveLength(1);

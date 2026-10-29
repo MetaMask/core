@@ -1,6 +1,6 @@
 import { AccountWalletType } from '@metamask/account-api';
 import type { UserStorageController } from '@metamask/profile-sync-controller';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockedFunction } from 'vitest';
 
 import type { AccountGroupObject } from '../../group.js';
@@ -120,10 +120,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     );
 
     backupAndSyncService = new BackupAndSyncService(mockContext);
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   describe('isInProgress getter', () => {

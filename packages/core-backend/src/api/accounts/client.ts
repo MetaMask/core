@@ -4,8 +4,8 @@
  * Handles all account-related API calls including:
  * - Supported networks
  * - Active networks
- * - Balances (v2, v4, v5)
- * - Transactions
+ * - Balances (v2, v4, v5, v6)
+ * - Transactions (v1, v4, v5)
  * - Relationships
  * - NFTs
  * - Token discovery
@@ -32,6 +32,8 @@ import type {
   V1TransactionByHashResponse,
   V1AccountTransactionsResponse,
   V4MultiAccountTransactionsResponse,
+  V5MultiAccountTransactionsQueryOptions,
+  V5MultiAccountTransactionsResponse,
   V1AccountRelationshipResult,
   V2NftsResponse,
   V2TokensResponse,
@@ -1070,6 +1072,177 @@ export class AccountsApiClient extends BaseApiClient {
     return this.queryClient.fetchQuery(
       this.getV4MultiAccountTransactionsQueryOptions(
         accountAddresses,
+        queryOptions,
+        options,
+      ),
+    );
+  }
+
+  /**
+   * Returns the TanStack Query options object for v5 multi-account transactions.
+   * Covers EVM and CAS-backed accounts (Solana, Bitcoin, Tron, Stellar).
+   *
+   * @param accountIds - Array of CAIP-10 account IDs.
+   * @param queryOptions - Query filter options.
+   * @param options - Fetch options including cache settings.
+   * @returns Query options object compatible with fetchQuery/useQuery.
+   */
+  getV5MultiAccountTransactionsQueryOptions(
+    accountIds: string[],
+    queryOptions?: V5MultiAccountTransactionsQueryOptions,
+    options?: FetchOptions,
+  ): FetchQueryOptions<V5MultiAccountTransactionsResponse> {
+    return {
+      queryKey: [
+        'accounts',
+        'transactions',
+        'v5MultiAccount',
+        {
+          accountIds: [...accountIds].sort(),
+          options: queryOptions && {
+            ...queryOptions,
+            networks:
+              queryOptions.networks && [...queryOptions.networks].sort(),
+            assetIds:
+              queryOptions.assetIds && [...queryOptions.assetIds].sort(),
+          },
+        },
+      ],
+      queryFn: ({ signal }: QueryFunctionContext) =>
+        this.fetch<V5MultiAccountTransactionsResponse>(
+          this.apiUrls.ACCOUNTS,
+          '/v5/multiaccount/transactions',
+          {
+            signal,
+            params: {
+              accountIds,
+              networks: queryOptions?.networks,
+              assetIds: queryOptions?.assetIds,
+              startTimestamp: queryOptions?.startTimestamp,
+              endTimestamp: queryOptions?.endTimestamp,
+              limit: queryOptions?.limit,
+              after: queryOptions?.after,
+              before: queryOptions?.before,
+              sortDirection: queryOptions?.sortDirection,
+              includeMiscOperations: queryOptions?.includeMiscOperations,
+              includeTxMetadata: queryOptions?.includeTxMetadata,
+              includeLogs: queryOptions?.includeLogs,
+              filterSupportedTokens: queryOptions?.filterSupportedTokens,
+              filterIncomingTransfers: queryOptions?.filterIncomingTransfers,
+              filterSpamTokens: queryOptions?.filterSpamTokens,
+              maxLogsPerTx: queryOptions?.maxLogsPerTx,
+              lang: queryOptions?.lang,
+            },
+          },
+        ),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
+
+  /**
+   * Returns TanStack Query options for v5 multi-account transactions,
+   * designed for use with `useInfiniteQuery`. Pages forward via `after`.
+   *
+   * @param params - API endpoint parameters (excluding pagination cursors).
+   * @param params.accountIds - Array of CAIP-10 account IDs.
+   * @param options - Fetch options including cache settings.
+   * @returns Options object compatible with `useInfiniteQuery`.
+   */
+  getV5MultiAccountTransactionsInfiniteQueryOptions(
+    params: Omit<V5MultiAccountTransactionsQueryOptions, 'after' | 'before'> & {
+      accountIds: string[];
+    },
+    options?: FetchOptions,
+  ): FetchInfiniteQueryOptions<
+    V5MultiAccountTransactionsResponse,
+    Error,
+    V5MultiAccountTransactionsResponse,
+    readonly unknown[],
+    string | undefined
+  > {
+    return {
+      queryKey: [
+        'accounts',
+        'transactions',
+        'v5MultiAccount',
+        {
+          accountIds: [...params.accountIds].sort(),
+          networks: params.networks && [...params.networks].sort(),
+          assetIds: params.assetIds && [...params.assetIds].sort(),
+          startTimestamp: params.startTimestamp,
+          endTimestamp: params.endTimestamp,
+          limit: params.limit,
+          sortDirection: params.sortDirection,
+          includeMiscOperations: params.includeMiscOperations,
+          includeTxMetadata: params.includeTxMetadata,
+          includeLogs: params.includeLogs,
+          filterSupportedTokens: params.filterSupportedTokens,
+          filterIncomingTransfers: params.filterIncomingTransfers,
+          filterSpamTokens: params.filterSpamTokens,
+          maxLogsPerTx: params.maxLogsPerTx,
+          lang: params.lang,
+        },
+      ] as const,
+      queryFn: ({
+        pageParam,
+        signal,
+      }: {
+        pageParam?: string;
+        signal?: AbortSignal;
+      }) =>
+        this.fetch<V5MultiAccountTransactionsResponse>(
+          this.apiUrls.ACCOUNTS,
+          '/v5/multiaccount/transactions',
+          {
+            signal,
+            params: {
+              accountIds: params.accountIds,
+              networks: params.networks,
+              assetIds: params.assetIds,
+              startTimestamp: params.startTimestamp,
+              endTimestamp: params.endTimestamp,
+              limit: params.limit,
+              after: pageParam,
+              sortDirection: params.sortDirection,
+              includeMiscOperations: params.includeMiscOperations,
+              includeTxMetadata: params.includeTxMetadata,
+              includeLogs: params.includeLogs,
+              filterSupportedTokens: params.filterSupportedTokens,
+              filterIncomingTransfers: params.filterIncomingTransfers,
+              filterSpamTokens: params.filterSpamTokens,
+              maxLogsPerTx: params.maxLogsPerTx,
+              lang: params.lang,
+            },
+          },
+        ),
+      getNextPageParam: ({ pageInfo }: V5MultiAccountTransactionsResponse) =>
+        pageInfo.hasNextPage ? pageInfo.endCursor : undefined,
+      initialPageParam: options?.initialPageParam,
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
+
+  /**
+   * Get multi-account transactions (v5 endpoint).
+   * Covers EVM and CAS-backed accounts (Solana, Bitcoin, Tron, Stellar).
+   *
+   * @param accountIds - Array of CAIP-10 account IDs.
+   * @param queryOptions - Query filter options.
+   * @param options - Fetch options including cache settings.
+   * @returns The multi-account transactions response.
+   */
+  async fetchV5MultiAccountTransactions(
+    accountIds: string[],
+    queryOptions?: V5MultiAccountTransactionsQueryOptions,
+    options?: FetchOptions,
+  ): Promise<V5MultiAccountTransactionsResponse> {
+    return this.queryClient.fetchQuery(
+      this.getV5MultiAccountTransactionsQueryOptions(
+        accountIds,
         queryOptions,
         options,
       ),

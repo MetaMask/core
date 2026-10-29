@@ -4,7 +4,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   multicallOrFallback,
@@ -27,10 +27,6 @@ const mockContract = new Contract(
 );
 
 describe('multicall', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('should return empty results for empty calls', async () => {
     const results = await multicallOrFallback([], '0x1', provider);
     expect(results).toStrictEqual([]);
@@ -293,10 +289,6 @@ describe('multicall', () => {
         tokenAddresses: tokenAddresses as Hex[],
       },
     ];
-
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
 
     it('should return empty results for empty inputs', async () => {
       const results = await getTokenBalancesForMultipleAddresses(
@@ -1277,10 +1269,6 @@ describe('multicall', () => {
       '0x1111111111111111111111111111111111111111',
       '0x2222222222222222222222222222222222222222',
     ];
-
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
 
     it('should fetch staked balances for addresses with non-zero shares', async () => {
       // Mock getShares calls - first address has shares, second doesn't
