@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `KycController.ensureLocalUserSecret` and the `KycController:ensureLocalUserSecret` messenger action, which create and store the UKYC `local_user_secret` when one does not already exist ([#11099](https://github.com/MetaMask/core/pull/11099))
+  - Call it after the user has expressed intent to onboard and before `startSession`, so secret generation and the Encrypted User Storage write happen before session creation
+  - `startSession` still creates the secret when this method has not been called
+  - The secret is not returned
 - Add `KycService.getDataShares` and `KycController.getDataShares`, which list the vendors the customer's verified identity data has been shared with, newest first ([#11158](https://github.com/MetaMask/core/pull/11158))
   - `KycService.getDataShares({ externalUserId })` reads `GET /api/kyc/external-user-id/{externalUserId}/shares` on the idOS relay and returns the unwrapped `shares` array. It requires `idosRelayBaseUrl` to be configured
   - `KycController.getDataShares()` takes the external user id from the session status on state, falling back to the latest session for the vendor on state (which it does not write to state), and returns an empty array when no session can be resolved. It stores nothing
