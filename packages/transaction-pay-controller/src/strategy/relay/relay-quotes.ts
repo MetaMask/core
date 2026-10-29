@@ -16,10 +16,7 @@ import {
   CHAIN_ID_HYPERCORE,
   CHAIN_ID_POLYGON,
   HYPERCORE_USDC_ADDRESS,
-  HYPERCORE_USDC_DECIMALS,
   NATIVE_TOKEN_ADDRESS,
-  PERPS_DEPOSIT_TYPES,
-  USDC_DECIMALS,
 } from '../../constants.js';
 import { TransactionPayStrategy } from '../../index.js';
 import { projectLogger } from '../../logger.js';
@@ -46,6 +43,10 @@ import {
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
+import {
+  normalizePerpsDepositRequest,
+  normalizePerpsWithdrawRequest,
+} from '../../utils/perps.js';
 import {
   getPolymarketDepositWalletOverrides,
   getPredictWithdrawFeeTokenAccount,
@@ -475,8 +476,8 @@ async function processTransactions(
  * Normalizes requests for Relay.
  *
  * @param request - Quote request to normalize.
- * @param transaction - Parent transaction metadata, used to gate
- * Hyperliquid-specific rewrites on transaction type.
+ * @param transaction - Parent transaction metadata, inspected to detect
+ * Hyperliquid perps deposits.
  * @returns Normalized request.
  */
 function normalizeRequest(
@@ -485,56 +486,32 @@ function normalizeRequest(
 ): QuoteRequest {
   const newRequest = {
     ...request,
+    sourceTokenAddress: normalizeTokenAddress(
+      request.sourceTokenAddress,
+      request.sourceChainId,
+      TokenAddressTarget.Relay,
+    ),
+    targetTokenAddress: normalizeTokenAddress(
+      request.targetTokenAddress,
+      request.targetChainId,
+      TokenAddressTarget.Relay,
+    ),
   };
 
-  const isPerpsDeposit =
-    transaction.type !== undefined &&
-    PERPS_DEPOSIT_TYPES.includes(transaction.type);
-
-  const isHyperliquidDeposit =
-    isPerpsDeposit &&
-    !request.isPostQuote &&
-    request.targetChainId === CHAIN_ID_ARBITRUM &&
-    request.targetTokenAddress.toLowerCase() ===
-      ARBITRUM_USDC_ADDRESS.toLowerCase();
-
-  newRequest.sourceTokenAddress = normalizeTokenAddress(
-    newRequest.sourceTokenAddress,
-    newRequest.sourceChainId,
-    TokenAddressTarget.Relay,
-  );
-  newRequest.targetTokenAddress = normalizeTokenAddress(
-    newRequest.targetTokenAddress,
-    newRequest.targetChainId,
-    TokenAddressTarget.Relay,
+  const depositRequest = normalizePerpsDepositRequest(
+    newRequest,
+    transaction,
+    HYPERCORE_USDC_ADDRESS,
   );
 
-  if (isHyperliquidDeposit) {
-    newRequest.targetChainId = CHAIN_ID_HYPERCORE;
-    newRequest.targetTokenAddress = HYPERCORE_USDC_ADDRESS;
-    newRequest.targetAmountMinimum = new BigNumber(request.targetAmountMinimum)
-      .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
-      .toString(10);
-
+  if (depositRequest !== newRequest) {
     log('Converting Arbitrum Hyperliquid deposit to direct deposit', {
       originalRequest: request,
-      normalizedRequest: newRequest,
+      normalizedRequest: depositRequest,
     });
   }
 
-  // HyperLiquid withdrawal: source is HyperCore Perps USDC, not Arbitrum.
-  if (request.isHyperliquidSource) {
-    newRequest.sourceChainId = CHAIN_ID_HYPERCORE;
-    newRequest.sourceTokenAddress = HYPERCORE_USDC_ADDRESS;
-
-    if (newRequest.sourceTokenAmount) {
-      newRequest.sourceTokenAmount = new BigNumber(newRequest.sourceTokenAmount)
-        .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
-        .toString(10);
-    }
-  }
-
-  return newRequest;
+  return normalizePerpsWithdrawRequest(depositRequest, HYPERCORE_USDC_ADDRESS);
 }
 
 /**
