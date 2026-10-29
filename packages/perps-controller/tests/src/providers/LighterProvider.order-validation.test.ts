@@ -39,10 +39,6 @@ vi.mock('../../../src/services/LighterWalletService');
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('round-11 TP/SL local preflight', () => {
     it('malformed live position sizes abort TP/SL replacement before any cancellation or signer call', async () => {
       const { provider, calls, clientInstance } = buildProvider();

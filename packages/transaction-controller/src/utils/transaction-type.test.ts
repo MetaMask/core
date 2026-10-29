@@ -7,7 +7,7 @@ import {
   abiFiatTokenV2,
 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type { TransactionMeta } from '../types.js';
@@ -38,10 +38,6 @@ describe('determineTransactionType', () => {
     data: '0xa9059cbb0000000000000000000000002f318C334780961FB129D2a6c30D0763d9a5C970000000000000000000000000000000000000000000000000000000000000000a',
     from: FROM_MOCK,
   };
-
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
 
   it('returns a token transfer type when the recipient is a contract, there is no value passed, and data is for the respective method call', async () => {
     vi.mocked(rpcRequest).mockResolvedValue('0xab');

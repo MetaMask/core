@@ -1,5 +1,5 @@
 import type { Hex } from '@metamask/utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { CHAIN_IDS } from '../constants/chains.js';
 import {
@@ -20,10 +20,6 @@ import {
 import type { SwapsToken } from './swaps.js';
 
 describe('Swaps utils', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('isValidSwapsContractAddress', () => {
     it('returns true for valid swaps contract address', () => {
       const contract = SWAPS_CONTRACT_ADDRESSES[CHAIN_IDS.MAINNET];

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
 import type { CandlePeriod } from '../../../src/constants/chartConfig.js';
@@ -55,10 +55,6 @@ describe('MarketDataService', () => {
     // REST coalesce cache is module-scoped and persists across tests; reset
     // so each test starts from a clean slate.
     resetPerpsRestCacheForTests();
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   describe('getPositions', () => {

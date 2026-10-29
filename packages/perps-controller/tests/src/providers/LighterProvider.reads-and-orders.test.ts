@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import {
@@ -38,10 +38,6 @@ vi.mock('../../../src/services/LighterWalletService');
 
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
 
   describe('lifecycle', () => {
     it('exposes the lighter protocol id', () => {

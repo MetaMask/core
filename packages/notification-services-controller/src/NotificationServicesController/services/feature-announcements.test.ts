@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { mockFetchFeatureAnnouncementNotifications } from '../__fixtures__/mockServices.js';
 import { TRIGGER_TYPES } from '../constants/notification-schema.js';
@@ -25,10 +25,6 @@ const featureAnnouncementsEnv = {
 };
 
 describe('Feature Announcement Notifications', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('should return an empty array if invalid environment provided', async () => {
     mockFetchFeatureAnnouncementNotifications();
 

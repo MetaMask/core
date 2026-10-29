@@ -7,7 +7,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { hexToNumber } from '@metamask/utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ROOT_AUTHORITY } from './constants.js';
 import {
@@ -143,10 +143,6 @@ function createController(state?: DelegationControllerState) {
 }
 
 describe(`${controllerName}`, () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
   describe('constructor', () => {
     it('initializes with default state', () => {
       const { controller } = createController();
