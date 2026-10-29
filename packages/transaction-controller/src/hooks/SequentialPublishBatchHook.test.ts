@@ -1,6 +1,6 @@
 import type { Hex } from '@metamask/utils';
 import type { Mock, Mocked, MockedFunction } from 'vitest';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { flushPromises } from '../../../../tests/vitest/helpers.js';
 import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker.js';
@@ -100,10 +100,6 @@ describe('SequentialPublishBatchHook', () => {
       addTransactionToPoll: vi.fn(),
       stop: vi.fn(),
     } as unknown as Mocked<PendingTransactionTracker>;
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   it('publishes multiple transactions sequentially', async () => {

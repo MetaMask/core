@@ -1,6 +1,6 @@
 /* eslint-disable */
 import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
 import { FeatureFlagConfigurationService } from '../../../src/services/FeatureFlagConfigurationService.js';
@@ -92,10 +92,6 @@ describe('FeatureFlagConfigurationService', () => {
     (validateMarketPattern as Mock).mockImplementation(() => true);
 
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   describe('refreshHip3Config', () => {

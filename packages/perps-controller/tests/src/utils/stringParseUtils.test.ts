@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   parseBoundedNonNegativeDecimal,
+  parseFiniteDecimal,
   stripQuotes,
   parseCommaSeparatedString,
 } from '../../../src/utils/stringParseUtils.js';
@@ -104,4 +105,21 @@ describe('bounded decimal parsing', () => {
   it('rejects values above the supplied bound', () => {
     expect(parseBoundedNonNegativeDecimal('1.1', 1)).toBeNull();
   });
+});
+
+describe('parseFiniteDecimal', () => {
+  it.each([
+    ['0', 0],
+    ['12.5', 12.5],
+    ['-3.25', -3.25],
+  ])('parses %s', (value, expected) => {
+    expect(parseFiniteDecimal(value)).toBe(expected);
+  });
+
+  it.each(['', 'NaN', 'Infinity', '1e3', '12oops', ' 1', '+1', 1, null])(
+    'rejects %s',
+    (value) => {
+      expect(parseFiniteDecimal(value)).toBeNull();
+    },
+  );
 });

@@ -25,7 +25,7 @@ import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 import { bytesToHex, isValidHexAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mocked } from 'vitest';
 
 import MockEncryptor, {
@@ -136,10 +136,6 @@ function createVault(keyrings: SerializedKeyring[] = defaultKeyrings): string {
 }
 
 describe('KeyringController', () => {
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
-
   describe('constructor', () => {
     it('allows overwriting the built-in Simple keyring builder', async () => {
       const mockSimpleKeyringBuilder =

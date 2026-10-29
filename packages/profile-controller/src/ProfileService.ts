@@ -544,11 +544,16 @@ export class ProfileService extends BaseDataService<
   }
 
   /**
-   * Disconnects the X account linked to the given profile.
-   * A `404` response is treated as success (the X account is already
-   * disconnected, or the profile is unknown), making the operation idempotent.
+   * Disconnects the X account linked to the authenticated profile.
+   * Identity is resolved server-side from the verified bearer token, so the
+   * request targets the shared account endpoint rather than a profile-scoped
+   * path.
+   * A `404` response is treated as success (no X account is linked), making
+   * the operation idempotent.
    *
-   * @param profileId - The ID of the profile to disconnect the linked X account from.
+   * @param profileId - The ID of the profile whose cached data should be
+   * invalidated after the disconnection. The API resolves the linked X account
+   * from the bearer token, not from this value.
    * @returns The result of the mutation.
    * @throws {HttpError} If the API returns a non-2xx response other than `404`.
    */
@@ -557,13 +562,10 @@ export class ProfileService extends BaseDataService<
       mutationKey: [`${this.name}:disconnectX`, profileId],
       mutationFn: async () => {
         try {
-          return await this.#fetch(
-            `profiles/${encodeURIComponent(profileId)}/x`,
-            {
-              method: 'DELETE',
-              error: ProfileServiceErrorMessage.DISCONNECT_X_FAILED,
-            },
-          );
+          return await this.#fetch('profiles/x/account', {
+            method: 'DELETE',
+            error: ProfileServiceErrorMessage.DISCONNECT_X_FAILED,
+          });
         } catch (error) {
           if (error instanceof HttpError && error.httpStatus === 404) {
             return null;

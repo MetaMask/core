@@ -27,10 +27,6 @@ describe('getAccountKeyringType', () => {
   const mockAccountAddress =
     '0x1234567890123456789012345678901234567890' as Hex;
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('when account is found with valid keyring type', () => {
     it('should return the keyring type for HD account', () => {
       const mockAccounts = {

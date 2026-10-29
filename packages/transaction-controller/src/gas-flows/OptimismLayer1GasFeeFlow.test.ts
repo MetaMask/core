@@ -41,9 +41,6 @@ function createTransaction(chainId: string): TransactionMeta {
 }
 
 describe('OptimismLayer1GasFeeFlow', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
   const messenger = {} as TransactionControllerMessenger;
 
   describe('matchesTransaction', () => {

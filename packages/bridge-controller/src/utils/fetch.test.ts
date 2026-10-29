@@ -450,10 +450,6 @@ describe('fetch', () => {
   });
 
   describe('fetchAssetPrices', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('should fetch and combine prices for multiple currencies successfully', async () => {
       mockFetchFn
         .mockResolvedValueOnce({

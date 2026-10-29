@@ -1,6 +1,6 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import type { UpgradeAccountParams } from './types.js';
@@ -61,10 +61,6 @@ const createTestResponse = (): PendingJsonRpcResponse => ({
 });
 
 describe('walletUpgradeAccount', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('successfully upgrades account with current chain ID', async () => {
     const hooks = createTestHooks();
     const req = createTestRequest();

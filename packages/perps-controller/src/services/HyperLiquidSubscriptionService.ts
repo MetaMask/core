@@ -54,6 +54,7 @@ import type {
 import {
   addSpotBalanceToAccountState,
   calculateWeightedReturnOnEquity,
+  sumCrossMarginSummaries,
 } from '../utils/accountUtils.js';
 import type { AddSpotBalanceOptions } from '../utils/accountUtils.js';
 import {
@@ -1000,7 +1001,11 @@ export class HyperLiquidSubscriptionService {
   }
 
   #hashAccountState(account: AccountState): string {
-    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}`;
+    const summary = account.crossMarginSummary;
+    const summaryHash = summary
+      ? `${summary.accountValue}:${summary.maintenanceMargin}:${summary.marginUsed}:${summary.notional}`
+      : 'none';
+    return `${account.spendableBalance}:${account.withdrawableBalance}:${account.totalBalance}:${account.marginUsed}:${account.unrealizedPnl}:${summaryHash}`;
   }
 
   // Cache hashes to avoid recomputation
@@ -1411,13 +1416,19 @@ export class HyperLiquidSubscriptionService {
     // Use first DEX's account state as base and override aggregated values
     const firstDexAccount =
       this.#dexAccountCache.values().next().value ?? ({} as AccountState);
+    const { crossMarginSummary: _firstDexSummary, ...firstDexBase } =
+      firstDexAccount;
+    const crossMarginSummary = sumCrossMarginSummaries(
+      Array.from(this.#dexAccountCache.values()),
+    );
 
     // Calculate weighted returnOnEquity across all DEXs
     const returnOnEquity = calculateWeightedReturnOnEquity(accountStatesForROE);
 
     return addSpotBalanceToAccountState(
       {
-        ...firstDexAccount,
+        ...firstDexBase,
+        ...(crossMarginSummary ? { crossMarginSummary } : {}),
         spendableBalance: totalSpendableBalance.toString(),
         withdrawableBalance: totalWithdrawableBalance.toString(),
         totalBalance: totalBalance.toString(),

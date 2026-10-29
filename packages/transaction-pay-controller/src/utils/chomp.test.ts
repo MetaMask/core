@@ -83,10 +83,6 @@ function buildMessenger(): TransactionPayControllerMessenger {
 describe('chomp', () => {
   const rpcRequestMock = vi.mocked(rpcRequest);
 
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
   describe('findRecentChompVaultDeposit', () => {
     it('returns the CHOMP tx hash when a Transfer log with sufficient amount is found', async () => {
       rpcRequestMock.mockResolvedValueOnce([buildMusdTransferLog()]);

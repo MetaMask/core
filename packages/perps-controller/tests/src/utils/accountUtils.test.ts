@@ -8,6 +8,7 @@ import {
   aggregateAccountStates,
   calculateWeightedReturnOnEquity,
   getSpotBalance,
+  sumCrossMarginSummaries,
 } from '../../../src/utils/accountUtils.js';
 
 describe('aggregateAccountStates', () => {
@@ -437,5 +438,59 @@ describe('calculateWeightedReturnOnEquity', () => {
       { unrealizedPnl: '10', returnOnEquity: '20' },
     ]);
     expect(parseFloat(result)).toBeCloseTo(20, 5);
+  });
+});
+
+describe('cross margin summary aggregation', () => {
+  const base: AccountState = {
+    spendableBalance: '100',
+    withdrawableBalance: '100',
+    totalBalance: '200',
+    marginUsed: '50',
+    unrealizedPnl: '10',
+    returnOnEquity: '20',
+  };
+  const withSummary = (accountValue: string): AccountState => ({
+    ...base,
+    crossMarginSummary: {
+      accountValue,
+      maintenanceMargin: '5',
+      marginUsed: '25',
+      notional: '250',
+    },
+  });
+
+  it('sums every DEX summary', () => {
+    expect(
+      sumCrossMarginSummaries([withSummary('100'), withSummary('50.5')]),
+    ).toStrictEqual({
+      accountValue: '150.5',
+      maintenanceMargin: '10',
+      marginUsed: '50',
+      notional: '500',
+    });
+  });
+
+  it('returns undefined when any DEX lacks a summary', () => {
+    expect(sumCrossMarginSummaries([withSummary('100'), base])).toBeUndefined();
+    expect(sumCrossMarginSummaries([])).toBeUndefined();
+  });
+
+  it('carries the summed summary through aggregateAccountStates', () => {
+    expect(
+      aggregateAccountStates([withSummary('100'), withSummary('20')])
+        .crossMarginSummary,
+    ).toStrictEqual({
+      accountValue: '120',
+      maintenanceMargin: '10',
+      marginUsed: '50',
+      notional: '500',
+    });
+  });
+
+  it('drops a single DEX summary rather than reporting a partial sum', () => {
+    expect(
+      aggregateAccountStates([withSummary('100'), base]),
+    ).not.toHaveProperty('crossMarginSummary');
   });
 });

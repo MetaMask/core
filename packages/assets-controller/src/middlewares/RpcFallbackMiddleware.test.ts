@@ -1,5 +1,5 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { MockedFunction } from 'vitest';
 
 import type {
@@ -125,10 +125,6 @@ function createMockRpcSource(response: DataResponse = {}): {
 }
 
 describe('RpcFallbackMiddleware', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('passes through when there are no errors in the response', async () => {
     const { source, middleware: rpcMw } = createMockRpcSource();
     const mw = createFallback(source);

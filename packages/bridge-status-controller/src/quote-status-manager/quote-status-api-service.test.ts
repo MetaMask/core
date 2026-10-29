@@ -1,5 +1,5 @@
 import { StatusTypes } from '@metamask/bridge-controller';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 
 import { BridgeClientId, BridgeStatusControllerMessenger } from '../types.js';
@@ -106,10 +106,6 @@ describe('QuoteStatusApiService', () => {
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, 'fetch');
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   describe('updateQuoteStatus', () => {
