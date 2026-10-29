@@ -1061,10 +1061,10 @@ export class AssetsController extends BaseController<
       defaultUpdateInterval: this.#defaultUpdateInterval,
     });
 
-    // Subscribe before the first read so a stateChange published while
-    // NetworkEnablementController is still starting is not missed.
+    // Subscribe during construction so a stateChange published before init()
+    // is not missed. Enabled chains are read in init(), after every
+    // controller has been constructed.
     this.#subscribeToEvents();
-    this.#initializeState();
     this.#registerActionHandlers();
     // Subscriptions start only when both UI is open and keyring unlocked -> #updateActive().
 
@@ -1117,11 +1117,9 @@ export class AssetsController extends BaseController<
    * refresh the active chains of data sources that read
    * NetworkEnablementController or NetworkController state at construction.
    *
-   * `Wallet` constructs additional controllers before default ones, so this
-   * controller can be constructed before `NetworkEnablementController:getState`
-   * and `NetworkController:getState` are registered. `Wallet.init()` calls
-   * `init()` after those controllers exist. Later changes arrive on their
-   * `stateChange` events.
+   * This controller does not call those actions in its constructor. `Wallet`
+   * constructs every controller first, then `Wallet.init()` calls `init()`.
+   * Later changes arrive on `stateChange` events.
    */
   async init(): Promise<void> {
     this.#initializeState();

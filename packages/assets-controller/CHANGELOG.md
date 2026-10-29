@@ -9,11 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `init()`, which reads enabled chains from `NetworkEnablementController:getState`. Construction no longer requires that action to be registered. Later enablement changes still arrive on `NetworkEnablementController:stateChange` ([#10885](https://github.com/MetaMask/core/pull/10885))
+- Add `init()`, which reads enabled chains from `NetworkEnablementController:getState` after every controller has been constructed. Later enablement changes still arrive on `NetworkEnablementController:stateChange` ([#10885](https://github.com/MetaMask/core/pull/10885))
   - `init()` also refreshes the RPC and staked balance data sources' active chains from `NetworkController:getState` and `NetworkEnablementController:getState`, which they otherwise read only at construction.
 
 ### Changed
 
+- **BREAKING:** The constructor no longer calls `NetworkEnablementController:getState`. Call `init()` after the other controllers exist. `Wallet.init()` does this. Until `init()` runs, enabled chains stay empty unless a `NetworkEnablementController:stateChange` event arrives ([#10885](https://github.com/MetaMask/core/pull/10885))
 - Use hand-rolled Multicall3 `aggregate3` codecs for balance batches, while retaining the Ethers codecs for byte-identical comparison ([#11078](https://github.com/MetaMask/core/pull/11078))
 
 ## [20.0.1]

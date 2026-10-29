@@ -441,6 +441,7 @@ async function withController<ReturnValue>(
       ...incomingPriceDataSourceConfig,
     },
   });
+  await controller.init();
 
   try {
     return await fn({ controller, messenger, getSelectedAccountsMock });
@@ -816,6 +817,7 @@ describe('AssetsController', () => {
       });
 
       const account = createMockInternalAccount();
+      await controller.init();
       const beforeInit = await controller.getAssets([account]);
       expect(Object.keys(beforeInit[MOCK_ACCOUNT_ID])).toStrictEqual([]);
 
@@ -5635,6 +5637,7 @@ describe('AssetsController', () => {
           /* no-op */
         },
       });
+      await controller.init();
 
       const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
@@ -5774,6 +5777,7 @@ describe('AssetsController', () => {
           /* no-op */
         },
       });
+      await controller.init();
 
       let nativePresentAtPriceFetch: boolean | undefined;
       const fetchSpy = vi
@@ -6291,6 +6295,7 @@ describe('AssetsController', () => {
           /* no-op */
         },
       });
+      await controller.init();
 
       const getAssetsSpy = vi.spyOn(controller, 'getAssets');
 
