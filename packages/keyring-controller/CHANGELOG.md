@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(deps): bump uuid from 11.1.1 to 14.0.0 ([#10941](https://github.com/MetaMask/core/pull/10941))
-- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
-- chore: use TypeScript for Vitest configs ([#10921](https://github.com/MetaMask/core/pull/10921))
-- test: use typed Vitest module mock factories ([#10904](https://github.com/MetaMask/core/pull/10904))
-- test: run keyring-controller on Vitest ([#10552](https://github.com/MetaMask/core/pull/10552))
-- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
-
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))

@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat(geolocation-controller): migrate GeolocationApiService to BaseDataService ([#10881](https://github.com/MetaMask/core/pull/10881))
-- refactor: Migrate `ConfigRegistryApiService` to `BaseDataService` ([#11134](https://github.com/MetaMask/core/pull/11134))
-- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
-
 ### Added
 
 - **BREAKING:** Add `NetworkEnablementController` to the default initialization configurations ([#10997](https://github.com/MetaMask/core/pull/10997))
