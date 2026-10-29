@@ -29,6 +29,32 @@ const SECOND_ENCRYPTION_KEY: CachedEncryptionKey = {
   salt: 'second-salt',
 };
 
+/**
+ * A shared resource, as the SDK singleton of hardware keyrings: only one
+ * keyring instance holds it at a time; acquiring it while another instance
+ * holds it fails, and destroying the holder releases it.
+ */
+let sharedResourceHeld = false;
+
+/**
+ * Acquire the shared resource.
+ *
+ * @throws While another instance holds it.
+ */
+function acquireSharedResource(): void {
+  if (sharedResourceHeld) {
+    throw new Error('Init_AlreadyInitialized');
+  }
+  sharedResourceHeld = true;
+}
+
+/**
+ * Release the shared resource.
+ */
+function releaseSharedResource(): void {
+  sharedResourceHeld = false;
+}
+
 type FakeKeyringOptions = {
   type?: string;
   serialize?: () => Promise<Json>;
@@ -618,6 +644,68 @@ describe('VaultTransaction', () => {
 
       expect(destroyC).toHaveBeenCalledTimes(1);
       expect(session.getKeyrings()).toStrictEqual([entryA]);
+    });
+
+    it('destroys the leftovers before recreating, so a shared resource is released for the recreations', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      // Before the transaction, the keyring holds the shared resource.
+      sharedResourceHeld = true;
+
+      const entryA = buildEntry(
+        buildFakeKeyring({
+          type: 'Shared',
+          serialize: async (): Promise<Json> => ({ a: true }),
+          destroy: async () => releaseSharedResource(),
+        }),
+        undefined,
+        { id: 'a', name: 'A' },
+      );
+      const leftoverDestroy = vi.fn(async () => releaseSharedResource());
+      const leftoverEntry = buildEntry(
+        buildFakeKeyring({ type: 'Shared', destroy: leftoverDestroy }),
+        undefined,
+        { id: 'leftover', name: 'Leftover' },
+      );
+
+      const { transaction, session, createKeyring } = buildWalletTransaction({
+        keyrings: [entryA],
+      });
+      // The recreated keyring acquires the resource on creation, and the
+      // acquisition fails while another instance holds it.
+      createKeyring.mockImplementation(
+        async (
+          type: string,
+          _data?: unknown,
+          metadata?: KeyringMetadata,
+        ): Promise<KeyringEntry> => {
+          acquireSharedResource();
+          return buildEntry(buildFakeKeyring({ type }), undefined, metadata);
+        },
+      );
+      await transaction.begin();
+
+      // The failed transaction removes the keyring — releasing the
+      // resource — and its own replacement instance takes it over.
+      await transaction.remove(entryA);
+      session.insertKeyringAt(0, leftoverEntry);
+      sharedResourceHeld = true;
+
+      await transaction.rollback();
+
+      // The leftover was destroyed before the recreation, releasing the
+      // resource for it instead of blocking it: the keyring is recreated
+      // from its snapshot, not parked as unsupported and dropped.
+      expect(leftoverDestroy).toHaveBeenCalledTimes(1);
+      expect(createKeyring).toHaveBeenCalledTimes(1);
+      expect(createKeyring).toHaveBeenCalledWith(
+        'Shared',
+        { a: true },
+        { id: 'a', name: 'A' },
+      );
+      const keyrings = session.getKeyrings();
+      expect(keyrings).toHaveLength(1);
+      expect(keyrings[0]?.keyring).not.toBe(entryA.keyring);
+      expect(session.getUnsupportedKeyrings()).toStrictEqual([]);
     });
 
     it('restores the unsupported keyrings wholesale, parking the keyrings it fails to recreate', async () => {

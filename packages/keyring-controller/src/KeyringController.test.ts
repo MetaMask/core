@@ -208,6 +208,30 @@ class SharedSdkKeyring implements EthKeyring {
   }
 }
 
+/**
+ * Build a `getAccounts` implementation that succeeds on an instance's
+ * first read and fails on every subsequent one: used to fail an unlock
+ * after its restored instances were already read once. The successful
+ * reads derive the accounts from `serialize()`, which the spy leaves
+ * untouched.
+ *
+ * @returns The failing-on-second-read implementation.
+ */
+function buildGetAccountsFailingOnSecondRead(): (
+  this: SharedSdkKeyring,
+) => Promise<Hex[]> {
+  const seenInstances = new WeakSet<SharedSdkKeyring>();
+
+  return async function (this: SharedSdkKeyring): Promise<Hex[]> {
+    if (seenInstances.has(this)) {
+      throw new Error('Second getAccounts read failed');
+    }
+    seenInstances.add(this);
+    const { accounts } = (await this.serialize()) as { accounts: Hex[] };
+    return [...accounts];
+  };
+}
+
 const RUNTIME_STATE_KEYRING_TYPE = 'Runtime State Keyring';
 
 const RUNTIME_STATE_ACCOUNT_ADDRESS: Hex =
@@ -6421,6 +6445,57 @@ describe('KeyringController', () => {
           expect(
             controller.getKeyringsByType(MockShallowKeyring.type),
           ).toHaveLength(2);
+        },
+      );
+    });
+
+    it('destroys the instances created by the failed transaction before recreating, so a shared-SDK keyring survives a failed re-unlock', async () => {
+      sharedSdkToken = undefined;
+      await withController(
+        {
+          skipVaultCreation: true,
+          keyringBuilders: [keyringBuilderFactory(SharedSdkKeyring)],
+          state: {
+            vault: createVault([
+              {
+                type: SharedSdkKeyring.type,
+                data: { accounts: [SHARED_SDK_ACCOUNT_ADDRESS] },
+                metadata: { id: 'shared-sdk-keyring', name: '' },
+              },
+              ...defaultKeyrings,
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          // Unlock: the shared-SDK keyring is live and holds the SDK.
+          await controller.submitPassword(password);
+          const accountsBefore = await controller.getAccounts();
+
+          // The instances restored by the next unlock fail on their
+          // second `getAccounts` read: the unlock fails after the
+          // in-memory keyrings were already replaced by fresh instances,
+          // which now hold the shared SDK.
+          const getAccountsSpy = vi.spyOn(
+            SharedSdkKeyring.prototype,
+            'getAccounts',
+          );
+          getAccountsSpy.mockImplementation(
+            buildGetAccountsFailingOnSecondRead(),
+          );
+
+          await expect(controller.submitPassword(password)).rejects.toThrow(
+            'Second getAccounts read failed',
+          );
+
+          // The rollback destroyed the fresh instances — the transaction's
+          // leftovers, holding the shared SDK — before recreating the
+          // pre-transaction keyrings, releasing the SDK for the recreation
+          // instead of letting it block the recreation and park the
+          // keyring as unsupported.
+          expect(
+            controller.getKeyringsByType(SharedSdkKeyring.type),
+          ).toHaveLength(1);
+          expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
         },
       );
     });
