@@ -14,7 +14,9 @@ import { VaultTransaction } from './VaultTransaction.js';
 import type {
   TransactionScope,
   VaultOperations,
+  VaultPersistPolicy,
   VaultSession,
+  WalletTransactionScope,
 } from './VaultTransaction.js';
 
 const FIRST_ENCRYPTION_KEY: CachedEncryptionKey = {
@@ -136,6 +138,9 @@ type AssertNoDuplicateAccountsMock = Mock<
   (keyrings: EthKeyring[]) => Promise<void>
 >;
 
+/** A mocked `VaultOperations.updateVault`. */
+type UpdateVaultMock = Mock<() => Promise<boolean>>;
+
 /**
  * The pieces a test needs to drive a transaction: the transaction itself,
  * the mock session behind it, and the mock operations it calls.
@@ -145,6 +150,7 @@ type MockTransactionContext = {
   session: VaultSession;
   createKeyring: CreateKeyringMock;
   assertNoDuplicateAccounts: AssertNoDuplicateAccountsMock;
+  updateVault: UpdateVaultMock;
   observedKeyrings: KeyringEntry[][];
 };
 
@@ -155,6 +161,7 @@ const buildMockOperations = (
   operations: VaultOperations;
   createKeyring: CreateKeyringMock;
   assertNoDuplicateAccounts: AssertNoDuplicateAccountsMock;
+  updateVault: UpdateVaultMock;
   observedKeyrings: KeyringEntry[][];
 } => {
   const observedKeyrings: KeyringEntry[][] = [];
@@ -183,15 +190,21 @@ const buildMockOperations = (
     async (_keyrings: EthKeyring[]): Promise<void> => undefined,
   );
 
+  const updateVault: UpdateVaultMock = vi.fn(
+    async (): Promise<boolean> => true,
+  );
+
   const operations: VaultOperations = {
     createKeyring,
     assertNoDuplicateAccounts,
+    updateVault,
   };
 
   return {
     operations,
     createKeyring,
     assertNoDuplicateAccounts,
+    updateVault,
     observedKeyrings,
   };
 };
@@ -206,6 +219,7 @@ const buildTransaction = (
     operations,
     createKeyring,
     assertNoDuplicateAccounts,
+    updateVault,
     observedKeyrings,
   } = buildMockOperations(session, operationsOptions);
   return {
@@ -213,22 +227,40 @@ const buildTransaction = (
     session,
     createKeyring,
     assertNoDuplicateAccounts,
+    updateVault,
     observedKeyrings,
   };
 };
 
+/**
+ * The standard persist policy: persist iff the session state changed.
+ *
+ * @param hasChanged - Lazily checks whether the session state changed.
+ * @returns Whether the vault should be written.
+ */
+const PERSIST_WHEN_CHANGED: VaultPersistPolicy = (hasChanged) => hasChanged();
+
 const buildWalletTransaction = (
   sessionOptions: MockSessionOptions = {},
   operationsOptions: MockOperationsOptions = {},
+  persist: WalletTransactionScope['persist'] = PERSIST_WHEN_CHANGED,
 ): MockTransactionContext =>
-  buildTransaction({ type: 'wallet' }, sessionOptions, operationsOptions);
+  buildTransaction(
+    { type: 'wallet', persist },
+    sessionOptions,
+    operationsOptions,
+  );
 
 describe('VaultTransaction', () => {
   describe('scope', () => {
     it('exposes the wallet scope', () => {
-      const { transaction } = buildWalletTransaction();
+      const persist: WalletTransactionScope['persist'] = () => false;
+      const { transaction } = buildTransaction({ type: 'wallet', persist });
 
-      expect(transaction.scope).toStrictEqual({ type: 'wallet' });
+      expect(transaction.scope).toStrictEqual({
+        type: 'wallet',
+        persist,
+      });
     });
 
     it('exposes the keyring scope with its entry and created flag', () => {
@@ -853,11 +885,143 @@ describe('VaultTransaction', () => {
   });
 
   describe('hasChanged', () => {
-    it('throws for wallet-scoped transactions', async () => {
-      const { transaction } = buildWalletTransaction();
-      await transaction.begin();
+    describe('wallet scope', () => {
+      it('reports no change for an unchanged session', async () => {
+        const entryA = buildEntry(
+          buildFakeKeyring({
+            type: 'A',
+            serialize: async (): Promise<Json> => ({ a: true }),
+          }),
+        );
+        const entryB = buildEntry(
+          buildFakeKeyring({
+            type: 'B',
+            serialize: async (): Promise<Json> => ({ b: true }),
+          }),
+        );
+        const { transaction } = buildWalletTransaction({
+          keyrings: [entryA, entryB],
+          encryptionKey: FIRST_ENCRYPTION_KEY,
+        });
+        await transaction.begin();
 
-      await expect(transaction.hasChanged()).rejects.toThrow('keyring-scoped');
+        expect(await transaction.hasChanged()).toBe(false);
+      });
+
+      it('reports a change when a keyring was mutated', async () => {
+        const aData: Json = { a: true };
+        const entryA = buildEntry(
+          buildFakeKeyring({ type: 'A', serialize: async () => aData }),
+        );
+        const { transaction } = buildWalletTransaction({
+          keyrings: [entryA],
+        });
+        await transaction.begin();
+
+        aData.a = false;
+
+        expect(await transaction.hasChanged()).toBe(true);
+      });
+
+      it('reports a change when a keyring was created', async () => {
+        const entryA = buildEntry(
+          buildFakeKeyring({
+            type: 'A',
+            serialize: async (): Promise<Json> => ({ a: true }),
+          }),
+        );
+        const createdEntry = buildEntry(
+          buildFakeKeyring({
+            type: 'C',
+            serialize: async (): Promise<Json> => ({ c: true }),
+          }),
+        );
+        const { transaction, session } = buildWalletTransaction({
+          keyrings: [entryA],
+        });
+        await transaction.begin();
+
+        session.insertKeyringAt(1, createdEntry);
+
+        expect(await transaction.hasChanged()).toBe(true);
+      });
+
+      it('reports a change when a keyring was removed', async () => {
+        const entryA = buildEntry(
+          buildFakeKeyring({
+            type: 'A',
+            serialize: async (): Promise<Json> => ({ a: true }),
+          }),
+        );
+        const entryB = buildEntry(
+          buildFakeKeyring({
+            type: 'B',
+            serialize: async (): Promise<Json> => ({ b: true }),
+          }),
+        );
+        const { transaction, session } = buildWalletTransaction({
+          keyrings: [entryA, entryB],
+        });
+        await transaction.begin();
+
+        session.removeKeyring(entryB);
+
+        expect(await transaction.hasChanged()).toBe(true);
+      });
+
+      it('reports a change when the encryption key was changed', async () => {
+        const entryA = buildEntry(
+          buildFakeKeyring({
+            type: 'A',
+            serialize: async (): Promise<Json> => ({ a: true }),
+          }),
+        );
+        const { transaction, session } = buildWalletTransaction({
+          keyrings: [entryA],
+          encryptionKey: FIRST_ENCRYPTION_KEY,
+        });
+        await transaction.begin();
+
+        session.setEncryptionKey(SECOND_ENCRYPTION_KEY);
+
+        expect(await transaction.hasChanged()).toBe(true);
+      });
+
+      it('reports a change when the unsupported keyrings were changed', async () => {
+        const entryA = buildEntry(
+          buildFakeKeyring({
+            type: 'A',
+            serialize: async (): Promise<Json> => ({ a: true }),
+          }),
+        );
+        const { transaction, session } = buildWalletTransaction({
+          keyrings: [entryA],
+        });
+        await transaction.begin();
+
+        session.parkUnsupportedKeyring({ type: 'Rogue', data: {} });
+
+        expect(await transaction.hasChanged()).toBe(true);
+      });
+
+      it('reports a change when a keyring was renamed', async () => {
+        const entryA = buildEntry(
+          buildFakeKeyring({
+            type: 'A',
+            serialize: async (): Promise<Json> => ({ a: true }),
+          }),
+          undefined,
+          { id: 'a', name: 'Old name' },
+        );
+        const { transaction } = buildWalletTransaction({
+          keyrings: [entryA],
+        });
+        await transaction.begin();
+
+        entryA.metadata.name = 'New name';
+
+        expect(await transaction.hasChanged()).toBe(true);
+      });
     });
 
     it('reports a change for a created keyring that still exists', async () => {
@@ -939,6 +1103,222 @@ describe('VaultTransaction', () => {
       await transaction.destroy(entry);
 
       expect(await transaction.hasChanged()).toBe(true);
+    });
+  });
+
+  describe('commit', () => {
+    describe('wallet scope', () => {
+      it('persists the vault when the session changed', async () => {
+        const aData: Json = { a: true };
+        const entryA = buildEntry(
+          buildFakeKeyring({ type: 'A', serialize: async () => aData }),
+        );
+        const { transaction, updateVault } = buildWalletTransaction({
+          keyrings: [entryA],
+        });
+        await transaction.begin();
+
+        aData.a = false;
+
+        await transaction.commit();
+
+        expect(updateVault).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not persist the vault when the session is unchanged', async () => {
+        const entryA = buildEntry(
+          buildFakeKeyring({
+            type: 'A',
+            serialize: async (): Promise<Json> => ({ a: true }),
+          }),
+        );
+        const { transaction, updateVault } = buildWalletTransaction({
+          keyrings: [entryA],
+        });
+        await transaction.begin();
+
+        await transaction.commit();
+
+        expect(updateVault).not.toHaveBeenCalled();
+      });
+
+      it('persists the vault when the policy forces the write', async () => {
+        const entryA = buildEntry(
+          buildFakeKeyring({
+            type: 'A',
+            serialize: async (): Promise<Json> => ({ a: true }),
+          }),
+        );
+        const { transaction, updateVault } = buildWalletTransaction(
+          { keyrings: [entryA] },
+          {},
+          () => true,
+        );
+        await transaction.begin();
+
+        await transaction.commit();
+
+        expect(updateVault).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not persist the vault when the policy declines', async () => {
+        const aData: Json = { a: true };
+        const entryA = buildEntry(
+          buildFakeKeyring({ type: 'A', serialize: async () => aData }),
+        );
+        const { transaction, updateVault } = buildWalletTransaction(
+          { keyrings: [entryA] },
+          {},
+          () => false,
+        );
+        await transaction.begin();
+
+        aData.a = false;
+
+        await transaction.commit();
+
+        expect(updateVault).not.toHaveBeenCalled();
+      });
+
+      it('does not evaluate the session change when the policy ignores it', async () => {
+        const serializeA = vi.fn(async (): Promise<Json> => ({ a: true }));
+        const entryA = buildEntry(
+          buildFakeKeyring({ type: 'A', serialize: serializeA }),
+        );
+        const { transaction } = buildWalletTransaction(
+          { keyrings: [entryA] },
+          {},
+          () => false,
+        );
+        await transaction.begin();
+
+        // Only `begin()` serialized the keyring: the declined commit never
+        // evaluated the session change.
+        expect(serializeA).toHaveBeenCalledTimes(1);
+
+        await transaction.commit();
+
+        expect(serializeA).toHaveBeenCalledTimes(1);
+      });
+
+      it('rejects when the policy throws', async () => {
+        const entryA = buildEntry(buildFakeKeyring({ type: 'A' }));
+        const { transaction } = buildWalletTransaction(
+          { keyrings: [entryA] },
+          {},
+          () => {
+            throw new Error('policy failed');
+          },
+        );
+        await transaction.begin();
+
+        await expect(transaction.commit()).rejects.toThrow('policy failed');
+      });
+    });
+
+    describe('keyring scope', () => {
+      it('persists the vault when the operated keyring changed', async () => {
+        const aData: Json = { a: true };
+        const entry = buildEntry(
+          buildFakeKeyring({ type: 'A', serialize: async () => aData }),
+        );
+        const { transaction, updateVault } = buildTransaction(
+          { type: 'keyring', entry, created: false },
+          { keyrings: [entry] },
+        );
+        await transaction.begin();
+
+        aData.a = false;
+
+        await transaction.commit();
+
+        expect(updateVault).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not persist the vault when the operated keyring is unchanged', async () => {
+        const entry = buildEntry(
+          buildFakeKeyring({
+            type: 'A',
+            serialize: async (): Promise<Json> => ({ a: true }),
+          }),
+        );
+        const { transaction, updateVault } = buildTransaction(
+          { type: 'keyring', entry, created: false },
+          { keyrings: [entry] },
+        );
+        await transaction.begin();
+
+        await transaction.commit();
+
+        expect(updateVault).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('remove', () => {
+    it('removes a registered entry from the session, destroying it', async () => {
+      const destroy = vi.fn(async () => undefined);
+      const entry = buildEntry(
+        buildFakeKeyring({ type: 'A', destroy }),
+        undefined,
+        { id: 'a', name: 'A' },
+      );
+      const other = buildEntry(buildFakeKeyring({ type: 'Other' }));
+      const { transaction, session } = buildTransaction(
+        { type: 'keyring', entry, created: false },
+        { keyrings: [other, entry] },
+      );
+      await transaction.begin();
+
+      await transaction.remove(entry);
+
+      expect(destroy).toHaveBeenCalledTimes(1);
+      expect(session.getKeyrings()).toStrictEqual([other]);
+      expect(transaction.isDestroyed(entry)).toBe(true);
+    });
+
+    it('is a no-op for an unregistered entry, destroying nothing', async () => {
+      const destroy = vi.fn(async () => undefined);
+      const entry = buildEntry(
+        buildFakeKeyring({ type: 'A', destroy }),
+        undefined,
+        { id: 'a', name: 'A' },
+      );
+      const other = buildEntry(buildFakeKeyring({ type: 'Other' }));
+      const { transaction, session } = buildTransaction(
+        { type: 'keyring', entry, created: false },
+        { keyrings: [other] },
+      );
+      await transaction.begin();
+
+      await transaction.remove(entry);
+
+      expect(destroy).not.toHaveBeenCalled();
+      expect(session.getKeyrings()).toStrictEqual([other]);
+    });
+
+    it('removes the entry even when its destruction fails', async () => {
+      const entry = buildEntry(
+        buildFakeKeyring({
+          type: 'A',
+          destroy: async () => {
+            throw new Error('destroy failed');
+          },
+        }),
+        undefined,
+        { id: 'a', name: 'A' },
+      );
+      const other = buildEntry(buildFakeKeyring({ type: 'Other' }));
+      const { transaction, session } = buildTransaction(
+        { type: 'keyring', entry, created: false },
+        { keyrings: [other, entry] },
+      );
+      await transaction.begin();
+
+      await expect(transaction.remove(entry)).rejects.toThrow('destroy failed');
+
+      expect(session.getKeyrings()).toStrictEqual([other]);
+      expect(transaction.isDestroyed(entry)).toBe(true);
     });
   });
 });
