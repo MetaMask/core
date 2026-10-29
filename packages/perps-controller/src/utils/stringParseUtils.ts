@@ -16,6 +16,21 @@ export const parseCommaSeparatedString = (value: string): string[] =>
     .filter((item) => item.length > 0);
 
 const NON_NEGATIVE_DECIMAL_PATTERN = /^\d+(?:\.\d+)?$/u;
+const DECIMAL_PATTERN = /^-?\d+(?:\.\d+)?$/u;
+
+/**
+ * Parse a plain, optionally negative, finite decimal string.
+ *
+ * @param value - Candidate decimal string.
+ * @returns The parsed value, or null when the input is not a finite decimal.
+ */
+export function parseFiniteDecimal(value: unknown): number | null {
+  if (typeof value !== 'string' || !DECIMAL_PATTERN.test(value)) {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 /**
  * Parse a plain non-negative decimal within an inclusive upper bound.

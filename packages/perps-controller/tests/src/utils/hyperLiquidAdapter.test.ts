@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import type { FrontendOrder } from '../../../src/types/hyperliquid-types.js';
+import type {
+  ClearinghouseStateResponse,
+  FrontendOrder,
+} from '../../../src/types/hyperliquid-types.js';
 import {
+  adaptAccountStateFromSDK,
   adaptOrderFromSDK,
   adaptMarketFromSDK,
   buildHyperLiquidFillId,
@@ -156,5 +160,92 @@ describe('buildHyperLiquidFillId', () => {
 
   it.each([undefined, null])('returns undefined when tid is %s', (tid) => {
     expect(buildHyperLiquidFillId({ ...fill, tid })).toBeUndefined();
+  });
+});
+
+describe('adaptAccountStateFromSDK cross margin summary', () => {
+  const buildState = (
+    overrides: Partial<ClearinghouseStateResponse> = {},
+  ): ClearinghouseStateResponse => ({
+    assetPositions: [],
+    marginSummary: {
+      accountValue: '1500',
+      totalNtlPos: '4000',
+      totalRawUsd: '1500',
+      totalMarginUsed: '600',
+    },
+    crossMarginSummary: {
+      accountValue: '1200',
+      totalNtlPos: '3000',
+      totalRawUsd: '1200',
+      totalMarginUsed: '400',
+    },
+    crossMaintenanceMarginUsed: '75.5',
+    withdrawable: '800',
+    time: 0,
+    ...overrides,
+  });
+
+  it('maps crossMarginSummary and crossMaintenanceMarginUsed', () => {
+    expect(
+      adaptAccountStateFromSDK(buildState()).crossMarginSummary,
+    ).toStrictEqual({
+      accountValue: '1200',
+      maintenanceMargin: '75.5',
+      marginUsed: '400',
+      notional: '3000',
+    });
+  });
+
+  it('omits the summary when the payload carries no cross fields', () => {
+    const state = buildState();
+    delete (state as Partial<ClearinghouseStateResponse>)
+      .crossMaintenanceMarginUsed;
+    expect(adaptAccountStateFromSDK(state)).not.toHaveProperty(
+      'crossMarginSummary',
+    );
+  });
+
+  it.each([
+    [
+      'accountValue',
+      {
+        crossMarginSummary: {
+          accountValue: 'NaN',
+          totalNtlPos: '0',
+          totalRawUsd: '0',
+          totalMarginUsed: '0',
+        },
+      },
+    ],
+    [
+      'notional',
+      {
+        crossMarginSummary: {
+          accountValue: '1',
+          totalNtlPos: '1e999',
+          totalRawUsd: '0',
+          totalMarginUsed: '0',
+        },
+      },
+    ],
+    [
+      'marginUsed',
+      {
+        crossMarginSummary: {
+          accountValue: '1',
+          totalNtlPos: '0',
+          totalRawUsd: '0',
+          totalMarginUsed: '12oops',
+        },
+      },
+    ],
+    ['maintenanceMargin', { crossMaintenanceMarginUsed: '' }],
+  ])('fails the read on a malformed %s', (field, overrides) => {
+    expect(() =>
+      adaptAccountStateFromSDK(
+        buildState(overrides as Partial<ClearinghouseStateResponse>),
+      ),
+    ).toThrow(`Invalid HyperLiquid cross margin ${field}`);
   });
 });

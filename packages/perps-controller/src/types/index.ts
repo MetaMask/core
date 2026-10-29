@@ -913,6 +913,21 @@ export type PositionTriggerOrder = {
   reduceOnly: boolean; // Whether the trigger can only reduce the position
 };
 
+/**
+ * Provider-agnostic cross-margin summary, in USD decimal strings. Clients
+ * derive account ratio, account leverage and cross margin usage from it.
+ *
+ * HL: crossMarginSummary + crossMaintenanceMarginUsed, summed across DEXs.
+ * Lighter: the bound account's cross positions; accountValue is the total
+ * balance less isolated positions' unrealized PnL.
+ */
+export type CrossMarginSummary = {
+  accountValue: string;
+  maintenanceMargin: string;
+  marginUsed: string;
+  notional: string;
+};
+
 // Using 'type' instead of 'interface' for BaseController Json compatibility
 export type AccountState = {
   /**
@@ -940,6 +955,11 @@ export type AccountState = {
   marginUsed: string;
   unrealizedPnl: string;
   returnOnEquity: string;
+  /**
+   * Cross-margin account summary. Absent when the provider does not report
+   * one for this read.
+   */
+  crossMarginSummary?: CrossMarginSummary;
   /**
    * Per-sub-account balance breakdown (protocol-specific, optional)
    * Maps sub-account identifier to its balance details.
@@ -1632,6 +1652,12 @@ export type GetAccountStateParams = {
   source?: string; // Optional: source of the call for tracing (e.g., 'health_check', 'initial_connection')
   standalone?: boolean; // Optional: lightweight mode - skip full initialization, use standalone HTTP client (no wallet/WebSocket needed)
   userAddress?: string; // Optional: required when standalone is true - user address to query account state for
+  /**
+   * Optional: throw instead of returning zero-valued state when the read
+   * fails. Lighter throws `ACCOUNT_STATE_FAILED` (with the cause attached);
+   * a wallet without a Lighter account still reads as empty.
+   */
+  throwOnUnavailable?: boolean;
 };
 
 export type GetUserDataSnapshotParams = {
