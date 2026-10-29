@@ -12,6 +12,7 @@ import type { Mock, Mocked, MockedClass } from 'vitest';
 import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
   createDeferred,
+  createKeyringlessMessenger,
   createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
@@ -613,6 +614,48 @@ describe('PerpsController', () => {
 
       expect(result).toEqual(accountSupport);
       expect(mockProvider.getAccountSupport).toHaveBeenCalledWith(undefined);
+    });
+
+    it('exposes account support through the public messenger action', async () => {
+      const host = createKeyringlessMessenger();
+      host.rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        () => ({ remoteFeatureFlags: {}, cacheTimestamp: 0 }),
+      );
+      host.rootMessenger.delegate({
+        actions: ['RemoteFeatureFlagController:getState'],
+        events: [
+          'RemoteFeatureFlagController:stateChange',
+          'AccountsController:selectedAccountChange',
+          'AccountTreeController:selectedAccountGroupChange',
+        ],
+        messenger: host.messenger,
+      });
+      const messengerController = new TestablePerpsController({
+        messenger: host.messenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure: createMockInfrastructure(),
+        deferEligibilityCheck: true,
+      });
+      const accountSupport = {
+        isSupported: false,
+        reason: 'multi_sig_account',
+      } as const;
+      mockProvider.getAccountSupport.mockResolvedValue(accountSupport);
+      await messengerController.init();
+      messengerController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+
+      const result = await host.messenger.call(
+        'PerpsController:getAccountSupport',
+        { providerId: 'hyperliquid' },
+      );
+
+      expect(result).toStrictEqual(accountSupport);
+      expect(mockProvider.getAccountSupport).toHaveBeenCalledWith({
+        providerId: 'hyperliquid',
+      });
     });
 
     it('treats providers without an account support hook as supported', async () => {

@@ -764,6 +764,9 @@
     }
   },
   "packages/perps-controller/tests/src/providers/HyperLiquidProvider.strategy-chase-placement.test.ts": {
+    "TS2322": {
+      "count": 9
+    },
     "TS7006": {
       "count": 1
     }
