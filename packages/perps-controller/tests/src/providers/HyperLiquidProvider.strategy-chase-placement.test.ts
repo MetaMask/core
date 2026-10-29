@@ -746,7 +746,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(result).toStrictEqual({
         success: false,
-        error: 'Trading setup failed',
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
         orderId: '55',
       });
     });
@@ -1044,7 +1044,6 @@ describe('HyperLiquidProvider - strategy order types', () => {
       amount: '19.900000',
     };
     const REFUSED_ORDER = { status: 'err', response: 'venue busy' };
-    const ORDER_FAILURE = `Order failed: ${JSON.stringify(REFUSED_ORDER)}`;
     const ROLLBACK_NOT_SIGNED =
       'HyperLiquidProvider: Rollback not signed - funds remain on HIP-3 DEX';
     const REBALANCE_NOT_SIGNED =
@@ -1160,7 +1159,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
     it.each([
       {
         transferError: PERPS_ERROR_CODES.KEYRING_LOCKED,
-        reported: [[ORDER_FAILURE, 'placeOrder']],
+        reported: [[PERPS_ERROR_CODES.UNKNOWN_ERROR, 'placeOrder']],
         notes: [[ROLLBACK_NOT_SIGNED, { dex: 'xyz', amount: 154.9635 }]],
       },
       {
@@ -1168,7 +1167,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
         reported: [
           ['transfer failed', 'transferBetweenDexs'],
           ['transfer failed', 'placeOrder:rollback'],
-          [ORDER_FAILURE, 'placeOrder'],
+          [PERPS_ERROR_CODES.UNKNOWN_ERROR, 'placeOrder'],
         ],
         notes: [],
       },
@@ -1182,7 +1181,10 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
         const result = await provider.placeOrder(HIP3_MARKET_ORDER);
 
-        expect(result).toStrictEqual({ success: false, error: ORDER_FAILURE });
+        expect(result).toStrictEqual({
+          success: false,
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        });
         expect(transferRequests(transfer)).toStrictEqual([
           PRE_ORDER_TRANSFER,
           ROLLBACK_TRANSFER,
