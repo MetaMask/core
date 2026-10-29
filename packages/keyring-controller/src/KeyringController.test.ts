@@ -6336,6 +6336,95 @@ describe('KeyringController', () => {
       );
     });
 
+    it('never exposes a partially reconciled keyrings list during a whole-wallet rollback', async () => {
+      const FIRST_SHALLOW_ACCOUNT: Hex =
+        '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
+      const SECOND_SHALLOW_ACCOUNT: Hex =
+        '0x514910771af9ca656af840dff83e8264ecf986ca';
+      const OTHER_SHALLOW_ACCOUNT: Hex =
+        '0xc011a73ee8576fb34f7e44f44b8d8bdf3dd2bcf4';
+
+      // What a lock-free reader observes while the rollback walk
+      // recreates the mutated keyrings, through the deprecated direct
+      // getter, which reads the live keyrings without any lock.
+      const observedKeyringCounts: number[] = [];
+      let lockFreeReader:
+        | { getKeyringsByType: (type: string) => unknown[] }
+        | undefined;
+
+      /**
+       * A shallow keyring that records how many keyrings the lock-free
+       * reader sees whenever it is deserialized — including by the
+       * rollback walk, which rebuilds keyrings from their snapshot.
+       */
+      class ObservingShallowKeyring extends MockShallowKeyring {
+        override async deserialize(state: { accounts: Hex[] }): Promise<void> {
+          const reader = lockFreeReader;
+          if (reader) {
+            observedKeyringCounts.push(
+              reader.getKeyringsByType(KeyringTypes.hd).length +
+                reader.getKeyringsByType(MockShallowKeyring.type).length,
+            );
+          }
+          return super.deserialize(state);
+        }
+      }
+
+      await withController(
+        {
+          skipVaultCreation: true,
+          keyringBuilders: [keyringBuilderFactory(ObservingShallowKeyring)],
+          state: {
+            vault: createVault([
+              ...defaultKeyrings,
+              {
+                type: MockShallowKeyring.type,
+                data: { accounts: [FIRST_SHALLOW_ACCOUNT] },
+                metadata: { id: 'first-shallow', name: '' },
+              },
+              {
+                type: MockShallowKeyring.type,
+                data: { accounts: [SECOND_SHALLOW_ACCOUNT] },
+                metadata: { id: 'second-shallow', name: '' },
+              },
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+          const accountsBefore = await controller.getAccounts();
+
+          // The reader is attached after the unlock: the deprecated
+          // direct getter refuses reads while the controller is locked
+          // and being unlocked, and only the rollback walk matters here.
+          lockFreeReader = controller;
+
+          // The failed transaction mutates both shallow keyrings, so the
+          // rollback rebuilds both, in walk order.
+          await expect(
+            controller.withController(async () => {
+              const shallowKeyrings = controller.getKeyringsByType(
+                MockShallowKeyring.type,
+              ) as MockShallowKeyring[];
+              await shallowKeyrings[0]?.addAccounts(1);
+              shallowKeyrings[1]?.accounts.push(OTHER_SHALLOW_ACCOUNT);
+              throw new Error('Oops');
+            }),
+          ).rejects.toThrow('Oops');
+
+          // Both recreations were observed, and every read saw the full
+          // pre-rollback list — never the partially reconciled one.
+          expect(observedKeyringCounts).toStrictEqual([3, 3]);
+
+          // The rollback still restored the session.
+          expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
+          expect(
+            controller.getKeyringsByType(MockShallowKeyring.type),
+          ).toHaveLength(2);
+        },
+      );
+    });
+
     it('resolves snapshots by identity, so a shared-SDK keyring sharing its id with another keyring survives a whole-wallet rollback', async () => {
       sharedSdkToken = undefined;
       await withController(
@@ -7046,6 +7135,48 @@ describe('KeyringController', () => {
       });
     });
 
+    it('does not check other keyrings for duplicate accounts when rolling back a scoped transaction', async () => {
+      const SHALLOW_ACCOUNT: Hex = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
+
+      await withController(
+        {
+          skipVaultCreation: true,
+          keyringBuilders: [keyringBuilderFactory(MockShallowKeyring)],
+          state: {
+            vault: createVault([
+              ...defaultKeyrings,
+              {
+                type: MockShallowKeyring.type,
+                data: { accounts: [SHALLOW_ACCOUNT] },
+                metadata: { id: 'shallow', name: '' },
+              },
+            ]),
+          },
+        },
+        async ({ controller }) => {
+          await controller.submitPassword(password);
+
+          const hdGetAccounts = vi.spyOn(HdKeyring.prototype, 'getAccounts');
+          hdGetAccounts.mockClear();
+
+          await expect(
+            controller.withKeyring(
+              { type: MockShallowKeyring.type },
+              async ({ keyring }) => {
+                await keyring.addAccounts(1);
+                throw new Error('Oops');
+              },
+            ),
+          ).rejects.toThrow('Oops');
+
+          // The scoped rollback rebuilds the operated keyring without
+          // checking the other keyrings for duplicate accounts: the
+          // transaction owned the only keyring that changed.
+          expect(hdGetAccounts).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('does not update the vault for an unchanged operated keyring that shares its id with another keyring', async () => {
       await withController(
         {
@@ -7254,6 +7385,43 @@ describe('KeyringController', () => {
         expect(
           await controller.getKeyringForAccount(importedAccount),
         ).toBeDefined();
+      });
+    });
+
+    it('drops the operated keyring created and drained by the same transaction when its destruction fails, preserving the original error', async () => {
+      await withController(async ({ controller }) => {
+        vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        const accountsBefore = await controller.getAccounts();
+
+        await expect(
+          controller.withKeyring(
+            { type: KeyringTypes.simple },
+            async ({ keyring }) => {
+              const destroy = vi
+                .fn()
+                .mockRejectedValue(new Error('Cannot destroy'));
+              (
+                keyring as {
+                  destroy?: () => Promise<void>;
+                }
+              ).destroy = destroy;
+              const [account] = await keyring.getAccounts();
+              keyring.removeAccount?.(account);
+            },
+            { createIfMissing: true, createWithData: [privateKey] },
+          ),
+          // The operation creates the Simple keyring and drains it: the
+          // cleanup removes it, but its destruction fails, so the
+          // transaction fails and rolls the created keyring back — a
+          // no-op for the already removed entry.
+        ).rejects.toThrow('Cannot destroy');
+
+        // The session is left as it was before the call: the created,
+        // drained keyring is dropped.
+        expect(controller.getKeyringsByType(KeyringTypes.simple)).toHaveLength(
+          0,
+        );
+        expect(await controller.getAccounts()).toStrictEqual(accountsBefore);
       });
     });
 
