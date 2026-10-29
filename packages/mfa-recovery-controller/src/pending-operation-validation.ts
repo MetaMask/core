@@ -7,7 +7,7 @@ import {
   getIdentifierAuthMode,
   MIN_IDENTIFIERS,
 } from './identifier-auth.js';
-import { assertSameAudienceIds } from './state-machine.js';
+import { assertConfiguredAudienceIds } from './state-machine.js';
 import type {
   Identifier,
   Mutation,
@@ -62,7 +62,7 @@ export async function assertValidPendingOperation(
     throwInvalidPendingOperation();
   }
   const mutation = mutationValue as unknown as Mutation;
-  assertSameAudienceIds(mutation.audiences, escrowIds);
+  assertConfiguredAudienceIds(mutation.audiences, escrowIds);
 
   const { payload } = pending;
   if (!isPendingPayload(mutation.operation, payload)) {

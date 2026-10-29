@@ -219,22 +219,14 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
 
   readonly #receiptPrivateKey: Uint8Array;
 
-  readonly #replicaIds: string[];
-
   #applyCommitted = false;
 
-  constructor(
-    id: string,
-    wrapKey: KeyPair,
-    receiptKey: KeyPair,
-    replicaIds: string[] = [id],
-  ) {
+  constructor(id: string, wrapKey: KeyPair, receiptKey: KeyPair) {
     this.id = id;
     this.wrapPublicKey = wrapKey.publicKey;
     this.#wrapPrivateKey = wrapKey.privateKey;
     this.receiptPublicKey = receiptKey.publicKey;
     this.#receiptPrivateKey = receiptKey.privateKey;
-    this.#replicaIds = [...replicaIds];
   }
 
   async isAvailable(): Promise<boolean> {
@@ -266,7 +258,7 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       this.#verifyProfileToken(authControllerToken),
     );
     if (record === undefined) {
-      throw new MfaRecoveryError('No recovery record', 'not_registered');
+      return { identifiers: [], version: 0 };
     }
     return { identifiers: record.identifiers, version: record.version };
   }
@@ -620,20 +612,13 @@ export class StubEscrowProvider implements RecoveryEscrowProvider {
       claims.sub !== mutation.profileId ||
       claims.ext.aal < 2 ||
       claims.exp <= this.now() ||
-      !this.#hasExactAudiences(mutation.audiences)
+      mutation.audiences.filter((id) => id === this.id).length !== 1
     ) {
       throw new MfaRecoveryError(
         'Invalid mutation authorization',
         'invalid_mutation_auth',
       );
     }
-  }
-
-  #hasExactAudiences(audiences: string[]): boolean {
-    return (
-      audiences.length === this.#replicaIds.length &&
-      audiences.every((id, index) => id === this.#replicaIds[index])
-    );
   }
 
   async #assertIdentifierOwnership(

@@ -12,7 +12,6 @@ export type RecoverySecretResult = {
   escrowId: string;
   recoverySecret: Uint8Array;
   version: number;
-  lastMutationId: string;
 };
 
 /**
@@ -74,7 +73,9 @@ export async function verifyMutationReceipt(
 }
 
 /**
- * Selects the highest consistent successful recovery-secret response.
+ * Selects the highest consistent successful recovery-secret response. Repaired
+ * replicas hold the same secret under a different mutation, so only the secret
+ * is compared.
  *
  * @param results - Settled escrow read results.
  * @returns The selected recovery-secret response.
@@ -100,10 +101,8 @@ export function selectHighestConsistentVersion(
   );
   const selected = highest[0];
   if (
-    !highest.every(
-      (response) =>
-        response.lastMutationId === selected.lastMutationId &&
-        areUint8ArraysEqual(response.recoverySecret, selected.recoverySecret),
+    !highest.every((response) =>
+      areUint8ArraysEqual(response.recoverySecret, selected.recoverySecret),
     )
   ) {
     throw new MfaRecoveryError('Replica corruption', 'replica_corruption');

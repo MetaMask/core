@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Rejects SIWE identifiers whose `namespace` is not their verifier's `domain:chainId` with `invalid_identifier` ([#11151](https://github.com/MetaMask/core/pull/11151))
   - Requires a `lockProvider` and adds `acquireLock`, `renewLock` and `releaseLock`; the lease is acquired or renewed before every approval, and its ID is persisted in `lockId` ([#10910](https://github.com/MetaMask/core/pull/10910))
   - Exports `RecoveryRegistrationLockProvider`, `RecoveryRegistrationLockProviderOptions`, `RecoveryRegistrationLockProviderMessenger` and `RecoveryLockProvider` for holding the lease in the recovery registration service ([#10910](https://github.com/MetaMask/core/pull/10910))
+  - Rejects new mutations with `replica_lagging` when escrows are at different versions, and adds `repairReplicas`, which copies the highest escrow record to escrows one version behind it ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Clears a pending mutation when every remaining escrow rejects it, even if other escrows have receipts ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Allows `abort` while writing once the approval has expired, no escrow has a receipt, and every target escrow is still at `expectedVersion` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Compares only the secret, not `lastMutationId`, when checking replicas at the highest version on reads ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - Requires `RecoveryEscrowProvider.getIdentifiers` to report a missing record as `{ identifiers: [], version: 0 }`, so `getIdentifiers` returns `epoch: 0` before registration ([#TBD](https://github.com/MetaMask/core/pull/TBD))
   - Exports `MfaRecoveryController`, `getDefaultMfaRecoveryControllerState`, and the controller's action, event, messenger, state, and options types.
   - Exports `AuthApiRecoveryAuthProvider`, `AuthApiRecoveryAuthProviderOptions` and `AuthApiRecoveryAuthProviderMessenger` for requesting approvals through `AuthenticationController:requestMfaApproval`, using the profile id from `AuthenticationController:refreshCanonicalProfileId` ([#10883](https://github.com/MetaMask/core/pull/10883))
   - Exports `CubistEscrowProvider` and `CubistEscrowProviderOptions` for storing recovery secrets with CubeSigner.

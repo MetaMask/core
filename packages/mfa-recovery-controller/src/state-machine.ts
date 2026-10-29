@@ -14,33 +14,21 @@ export function getRecoveryPhase(
 }
 
 /**
- * Abort is allowed while idle or authorizing. `writing` must `resume()`.
- *
- * @param pending - Loaded pending operation, if any.
- * @throws If a mutation is already writing.
- */
-export function assertAbortAllowed(pending: PendingOperation | null): void {
-  if (pending?.phase === 'writing') {
-    throw new MfaRecoveryError(
-      'Cannot abort a mutation that may have been applied',
-      'abort_not_allowed',
-    );
-  }
-}
-
-/**
- * Ensures a persisted mutation targets the build-configured escrow set.
+ * Ensures a persisted mutation targets configured escrows, in configured
+ * order. Repairs target only the lagging escrows.
  *
  * @param audiences - Mutation audience ids.
  * @param escrowIds - Configured escrow ids.
  */
-export function assertSameAudienceIds(
+export function assertConfiguredAudienceIds(
   audiences: string[],
   escrowIds: string[],
 ): void {
+  const expected = escrowIds.filter((id) => audiences.includes(id));
   if (
-    audiences.length !== escrowIds.length ||
-    audiences.some((id, index) => id !== escrowIds[index])
+    audiences.length === 0 ||
+    audiences.length !== expected.length ||
+    audiences.some((id, index) => id !== expected[index])
   ) {
     throw new MfaRecoveryError(
       'Persisted mutation audiences do not match configured escrows',

@@ -2,8 +2,16 @@
 
 Coordinates MFA recovery through injected auth and escrow providers.
 
-Pending mutations are encrypted in controller state. `resume()` completes them;
-`abort()` is allowed only before writing. See [Architecture](ARCHITECTURE.md).
+Pending mutations are encrypted in controller state. `resume()` completes them.
+`abort()` drops them before writing, or while writing once the approval has
+expired and no escrow applied the write. See [Architecture](ARCHITECTURE.md).
+
+## Replica Repair
+
+Mutations fail with `replica_lagging` when escrows are at different versions,
+for example after an interrupted write whose pending state was lost. Call
+`repairReplicas(identifier)` under the recovery lock: it copies the highest
+record to escrows one version behind it, then retry the mutation.
 
 ## Recovery Lock
 
