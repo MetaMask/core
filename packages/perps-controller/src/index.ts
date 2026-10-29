@@ -247,6 +247,7 @@ export type {
   PerpsRecoveryProtectionResult,
   Position,
   AccountState,
+  CrossMarginSummary,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,

@@ -238,6 +238,7 @@ jobs:
     if: >-
       needs.prepare.outputs.package-names != '[]' && (
         github.ref_name == 'main' ||
+        startsWith(github.head_ref, 'release/') ||
         startsWith(github.base_ref, 'release/') ||
         startsWith(github.event.merge_group.base_ref, 'refs/heads/release/')
       )
@@ -270,6 +271,7 @@ jobs:
     if: >-
       needs.prepare.outputs.package-names != '[]' && (
         github.ref_name == 'main' ||
+        startsWith(github.head_ref, 'release/') ||
         startsWith(github.base_ref, 'release/') ||
         startsWith(github.event.merge_group.base_ref, 'refs/heads/release/')
       )

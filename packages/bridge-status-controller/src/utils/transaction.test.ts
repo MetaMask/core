@@ -2574,10 +2574,6 @@ describe('Bridge Status Controller Transaction Utils', () => {
       } as unknown as BridgeStatusControllerMessenger;
     };
 
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('should update transaction types for 7702 swap transactions', () => {
       const txs = [
         createMockTransaction({

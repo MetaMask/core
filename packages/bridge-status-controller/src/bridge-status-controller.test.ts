@@ -1400,10 +1400,6 @@ describe('BridgeStatusController', () => {
   });
 
   describe('startPollingForBridgeTxStatus', () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
     it('throws error when bridgeTxMeta.id is not provided', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const argsWithoutId = getMockStartPollingForBridgeTxStatusArgs();
@@ -6860,10 +6856,6 @@ describe('BridgeStatusController', () => {
     });
 
     describe('TransactionController:transactionStatusUpdated (confirmed)', () => {
-      beforeEach(() => {
-        vi.clearAllMocks();
-      });
-
       it('should start polling for bridge tx if status response is invalid', async () => {
         const messengerCallSpy = vi.spyOn(mockBridgeStatusMessenger, 'call');
 

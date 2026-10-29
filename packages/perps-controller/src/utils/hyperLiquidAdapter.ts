@@ -18,6 +18,7 @@ import type {
 } from '../types/hyperliquid-types.js';
 import type {
   AccountState,
+  CrossMarginSummary,
   MarketInfo,
   Order,
   OrderParams as PerpsOrderParams,
@@ -40,6 +41,7 @@ import {
   countSignificantFigures,
   roundToSignificantFigures,
 } from './significantFigures.js';
+import { parseFiniteDecimal } from './stringParseUtils.js';
 
 type FrontendOrderWithParentTpsl = FrontendOrder & {
   takeProfitPrice?: unknown;
@@ -489,6 +491,36 @@ export function adaptMarketFromSDK(
   };
 }
 
+/**
+ * Read one clearinghouse's cross-margin summary. A payload without the cross
+ * fields reports none; present values must be finite decimals.
+ *
+ * @param perpsState - Clearinghouse state for one DEX.
+ * @returns The summary, or undefined when the payload carries none.
+ */
+function adaptCrossMarginSummaryFromSDK(
+  perpsState: ClearinghouseStateResponse,
+): CrossMarginSummary | undefined {
+  const { crossMarginSummary, crossMaintenanceMarginUsed } = perpsState;
+  if (!crossMarginSummary || crossMaintenanceMarginUsed === undefined) {
+    return undefined;
+  }
+  const summary: CrossMarginSummary = {
+    accountValue: crossMarginSummary.accountValue,
+    maintenanceMargin: crossMaintenanceMarginUsed,
+    marginUsed: crossMarginSummary.totalMarginUsed,
+    notional: crossMarginSummary.totalNtlPos,
+  };
+  for (const [field, value] of Object.entries(summary)) {
+    if (parseFiniteDecimal(value) === null) {
+      throw new Error(
+        `Invalid HyperLiquid cross margin ${field} '${String(value)}'`,
+      );
+    }
+  }
+  return summary;
+}
+
 // Perps-only account adapter. Spot balances are layered on afterwards by
 // addSpotBalanceToAccountState, which enforces the USDC-only policy via
 // SPOT_COLLATERAL_COINS. Keeping spot logic out of here preserves a single
@@ -526,6 +558,7 @@ export function adaptAccountStateFromSDK(
   const perpsBalance = parseFloat(perpsState.marginSummary.accountValue);
 
   const withdrawable = perpsState.withdrawable || '0';
+  const crossMarginSummary = adaptCrossMarginSummaryFromSDK(perpsState);
   const accountState: AccountState = {
     spendableBalance: withdrawable,
     withdrawableBalance: withdrawable,
@@ -533,6 +566,7 @@ export function adaptAccountStateFromSDK(
     marginUsed: perpsState.marginSummary.totalMarginUsed || '0',
     unrealizedPnl: totalUnrealizedPnl.toString() || '0',
     returnOnEquity: totalReturnOnEquityPercentage || '0',
+    ...(crossMarginSummary ? { crossMarginSummary } : {}),
   };
 
   return accountState;

@@ -1,6 +1,6 @@
 import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
@@ -193,10 +193,6 @@ function setupController(
 }
 
 describe('PriceDataSource', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   afterAll(() => {
     vi.useRealTimers();
   });
