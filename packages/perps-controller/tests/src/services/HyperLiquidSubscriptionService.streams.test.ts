@@ -1456,6 +1456,68 @@ describe('HyperLiquidSubscriptionService', () => {
         });
       });
     });
+
+    it('re-establishes the venue subscription after a reconnect', async () => {
+      const callback = vi.fn();
+      const unsubscribe = service.subscribeToOrderFills({
+        callback,
+      });
+      await vi.runAllTimersAsync();
+      expect(mockSubscriptionClient.userFills).toHaveBeenCalledTimes(1);
+
+      await service.restoreSubscriptions();
+      await vi.runAllTimersAsync();
+
+      expect(mockSubscriptionClient.userFills).toHaveBeenCalledTimes(2);
+      unsubscribe();
+    });
+
+    it('discards a pre-reconnect userFills open that resolves after restore', async () => {
+      // Race: subscribe starts an open that is still awaiting when reconnect
+      // clears the map and opens a replacement. The stale open must unsubscribe
+      // itself instead of overwriting the live post-reconnect subscription
+      // (MetaMask/metamask-extension#47287).
+      let resolveFirstOpen:
+        | ((subscription: { unsubscribe: ReturnType<typeof vi.fn> }) => void)
+        | undefined;
+      const firstSubscription = {
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      };
+      const secondSubscription = {
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      };
+      let openCount = 0;
+      mockSubscriptionClient.userFills.mockImplementation(() => {
+        openCount += 1;
+        if (openCount === 1) {
+          return new Promise((resolve) => {
+            resolveFirstOpen = resolve;
+          });
+        }
+        return Promise.resolve(secondSubscription);
+      });
+
+      const callback = vi.fn();
+      const unsubscribe = service.subscribeToOrderFills({ callback });
+      // Let the first open start but not resolve.
+      await vi.waitFor(() => {
+        expect(openCount).toBe(1);
+      });
+
+      const restorePromise = service.restoreSubscriptions();
+      await vi.waitFor(() => {
+        expect(openCount).toBe(2);
+      });
+
+      resolveFirstOpen?.(firstSubscription);
+      await restorePromise;
+      await vi.runAllTimersAsync();
+
+      expect(firstSubscription.unsubscribe).toHaveBeenCalled();
+      expect(secondSubscription.unsubscribe).not.toHaveBeenCalled();
+      expect(mockSubscriptionClient.userFills).toHaveBeenCalledTimes(2);
+      unsubscribe();
+    });
   });
 
   describe('Shared WebData3 Subscription', () => {
