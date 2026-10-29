@@ -41,15 +41,17 @@ export const getReceivedERC20Amount = (
     '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
   const tokenTransferLog = logs.find((txReceiptLog) => {
-    const isTokenTransfer = txReceiptLog.topics?.[0]?.startsWith(
-      TOKEN_TRANSFER_LOG_TOPIC_HASH,
-    );
+    const isTokenTransfer = txReceiptLog.topics?.[0]
+      ?.toLowerCase()
+      .startsWith(TOKEN_TRANSFER_LOG_TOPIC_HASH);
     const isTransferFromGivenToken =
       txReceiptLog.address?.toLowerCase() === destAssetAddress?.toLowerCase();
     const isTransferFromGivenAddress =
       txReceiptLog.topics?.[2] &&
-      (txReceiptLog.topics[2] === walletAddress ||
-        txReceiptLog.topics[2].match(walletAddress?.slice(2)));
+      (txReceiptLog.topics[2].toLowerCase() === walletAddress?.toLowerCase() ||
+        txReceiptLog.topics[2]
+          .toLowerCase()
+          .match(walletAddress?.slice(2).toLowerCase()));
 
     return (
       isTokenTransfer && isTransferFromGivenToken && isTransferFromGivenAddress

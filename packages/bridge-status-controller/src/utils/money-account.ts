@@ -58,7 +58,7 @@ export const handleMoneyAccountDeposit = async ({
     } = depositConfig;
 
     // Build txs
-    const txs = buildMoneyAccountDepositBatch({
+    const txs = await buildMoneyAccountDepositBatch({
       amount: BigInt(receivedAmount.toNumber()),
       chainId: formatChainIdToHex(quote.destChainId),
       provider: ethersProvider,
