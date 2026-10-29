@@ -261,6 +261,147 @@ export type V4MultiAccountTransactionsResponse = {
   data: V1TransactionByHashResponse[];
 };
 
+/** Transaction header on a v5 multi-account transactions row. */
+export type V5Transaction = {
+  id: string;
+  /** CAIP-2 chain ID. */
+  chainId: string;
+  status: string;
+  /** Unix timestamp in milliseconds. */
+  timestamp: number;
+  date: string;
+  from: string;
+  to: string | null;
+  blockNumber: string;
+  blockHash: string;
+  nonce?: string;
+  value?: string;
+  methodId?: string;
+  operationCount?: number;
+  memo?: string;
+  transactionType?: string;
+  transactionCategory?: string;
+  transactionProtocol?: string;
+  readable?: string;
+  readableExtended?: string;
+};
+
+/** Value transfer on a v5 transaction. */
+export type V5TransactionValueTransfer = {
+  assetClass: string;
+  from: string;
+  to: string;
+  /** CAIP-19 asset ID. */
+  assetId: string;
+  amount?: string;
+  decimal?: number;
+  symbol?: string;
+  name?: string;
+  tokenId?: string;
+};
+
+/** Non-transfer operation on a v5 transaction, such as a Stellar trustline update. */
+export type V5TransactionMiscOperation = {
+  type?: string;
+  /** CAIP-19 asset ID. */
+  assetId?: string;
+};
+
+/** Fee asset on a v5 transaction. */
+export type V5TransactionFeeAsset = {
+  /** CAIP-19 asset ID. */
+  assetId: string;
+  amount: string;
+  decimals: number;
+  symbol?: string;
+};
+
+/** Fee paid for a v5 transaction. `null` when the chain does not report one. */
+export type V5TransactionFee = {
+  /** CAIP-10 account ID of the fee payer. */
+  payer: string;
+  asset: V5TransactionFeeAsset;
+  unitsConsumed?: number;
+  unitPrice?: string;
+  baseFee?: string;
+  priorityFee?: string;
+  stroops?: number;
+};
+
+/** EVM log included when `includeLogs` is true. */
+export type V5TransactionLog = {
+  data: string;
+  topics: string[];
+  address: string;
+  logIndex: number;
+};
+
+/** One account's view of a transaction from `GET /v5/multiaccount/transactions`. */
+export type V5TransactionRecord = {
+  /** CAIP-10 account ID this row was fetched for. */
+  accountId: string;
+  tx: V5Transaction;
+  valueTransfers: V5TransactionValueTransfer[];
+  /** Present when `includeMiscOperations` is true. */
+  miscOperations?: V5TransactionMiscOperation[];
+  /** Present when `includeLogs` is true. */
+  logs?: V5TransactionLog[];
+  fee: V5TransactionFee | null;
+};
+
+/** V5 multi-account transactions response (`GetMultiAccountNetworkTransactionsV5Dto`). */
+export type V5MultiAccountTransactionsResponse = {
+  data: V5TransactionRecord[];
+  pageInfo: {
+    count: number;
+    hasNextPage: boolean;
+    endCursor?: string;
+  };
+  /** CAIP-10 account IDs that could not be processed for this request. */
+  unprocessedAccounts: string[];
+};
+
+/** Query filters for `GET /v5/multiaccount/transactions`. */
+export type V5MultiAccountTransactionsQueryOptions = {
+  /** CAIP-2 chain IDs. */
+  networks?: string[];
+  /** CAIP-19 asset IDs. */
+  assetIds?: string[];
+  /** Start timestamp (epoch seconds). */
+  startTimestamp?: number;
+  /** End timestamp (epoch seconds). */
+  endTimestamp?: number;
+  /** Maximum number of transactions to return (1–50, default 20). */
+  limit?: number;
+  /** JWT containing the endCursor for the next page. */
+  after?: string;
+  /**
+   * Accepted by the API and ignored. V5 pages forward only.
+   */
+  before?: string;
+  sortDirection?: 'ASC' | 'DESC';
+  includeMiscOperations?: boolean;
+  includeTxMetadata?: boolean;
+  includeLogs?: boolean;
+  /**
+   * When true, drop transactions whose ERC-20 transfers are not in the Token API.
+   */
+  filterSupportedTokens?: boolean;
+  /**
+   * When true, drop a transaction only when every value transfer is paid to a
+   * watched account. Swaps are kept.
+   */
+  filterIncomingTransfers?: boolean;
+  /**
+   * When true, drop transactions whose protocol is `SPAM_TOKEN` or `SPAM`.
+   */
+  filterSpamTokens?: boolean;
+  /** Maximum number of logs per transaction. */
+  maxLogsPerTx?: number;
+  /** Language for the transaction category. Defaults to `en`. */
+  lang?: string;
+};
+
 // ============================================================================
 // RELATIONSHIP TYPES
 // ============================================================================
