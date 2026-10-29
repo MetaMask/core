@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.14.0]
+
 ### Added
 
 - Add `unblockProfile` to `SocialService` (`SocialService:unblockProfile`). Calls `DELETE /v1/moderation/blocks/profiles/:profileId` to remove the current user's block on a trader; unblocking a trader who is not blocked is a no-op. Export `UnblockProfileOptions` and `SocialServiceUnblockProfileAction` ([#11159](https://github.com/MetaMask/core/pull/11159))
@@ -342,7 +344,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.13.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.14.0...HEAD
+[3.14.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.13.0...@metamask/social-controllers@3.14.0
 [3.13.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.12.1...@metamask/social-controllers@3.13.0
 [3.12.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.12.0...@metamask/social-controllers@3.12.1
 [3.12.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.11.0...@metamask/social-controllers@3.12.0
