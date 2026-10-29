@@ -11,6 +11,7 @@ import { HyperLiquidSubscriptionService } from '../../../src/services/HyperLiqui
 import { HyperLiquidWalletService } from '../../../src/services/HyperLiquidWalletService.js';
 import type {
   OrderParams,
+  OrderResult,
   TransferBetweenDexsParams,
 } from '../../../src/types/index.js';
 import {
@@ -78,6 +79,13 @@ vi.mock('../../../src/utils/hyperLiquidAdapter', async (importOriginal) => {
 
 // Mock TradingReadinessCache - global singleton for signing operation caching
 vi.mock('../../../src/services/TradingReadinessCache');
+
+const requireOrderId = (result: OrderResult): string => {
+  if (typeof result.orderId !== 'string') {
+    throw new Error('Expected order placement to return an order ID');
+  }
+  return result.orderId;
+};
 
 describe('HyperLiquidProvider - strategy order types', () => {
   let provider: HyperLiquidProvider;
@@ -352,7 +360,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(
         await provider.cancelOrder({
-          orderId: result.orderId,
+          orderId: requireOrderId(result),
           symbol: 'ETH',
           orderType: 'chase',
         }),
@@ -569,7 +577,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       expect(sendAsset).toHaveBeenCalledTimes(1);
       await provider.cancelOrder({
-        orderId: placed.orderId,
+        orderId: requireOrderId(placed),
         symbol: 'xyz:TSLA',
         orderType: 'chase',
       });
@@ -656,7 +664,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
 
       const result = await provider.cancelOrder({
-        orderId: placed.orderId,
+        orderId: requireOrderId(placed),
         symbol: 'ETH',
         orderType: 'chase',
       });
@@ -669,7 +677,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       // Retrying a completed termination is idempotent. Mobile can receive a
       // stale lifecycle snapshot while the first request is settling.
       const second = await provider.cancelOrder({
-        orderId: placed.orderId,
+        orderId: requireOrderId(placed),
         symbol: 'ETH',
         orderType: 'chase',
       });
@@ -691,12 +699,12 @@ describe('HyperLiquidProvider - strategy order types', () => {
       });
 
       const first = provider.cancelOrder({
-        orderId: placed.orderId,
+        orderId: requireOrderId(placed),
         symbol: 'ETH',
         orderType: 'chase',
       });
       const second = provider.cancelOrder({
-        orderId: placed.orderId,
+        orderId: requireOrderId(placed),
         symbol: 'ETH',
         orderType: 'chase',
       });
@@ -814,7 +822,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
 
       const first = await provider.cancelOrder({
-        orderId: placed.orderId,
+        orderId: requireOrderId(placed),
         symbol: 'ETH',
         orderType: 'chase',
       });
@@ -831,7 +839,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       ]);
 
       const second = await provider.cancelOrder({
-        orderId: placed.orderId,
+        orderId: requireOrderId(placed),
         symbol: 'ETH',
         orderType: 'chase',
       });
@@ -856,7 +864,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       await vi.advanceTimersByTimeAsync(1000);
 
       const result = await provider.cancelOrder({
-        orderId: placed.orderId,
+        orderId: requireOrderId(placed),
         symbol: 'ETH',
         orderType: 'chase',
       });
@@ -1869,7 +1877,7 @@ describe('HyperLiquidProvider - strategy order types', () => {
       } satisfies OrderParams);
       await provider.suspendChaseOrders();
       await provider.cancelOrder({
-        orderId: placed.orderId,
+        orderId: requireOrderId(placed),
         symbol: 'xyz:TSLA',
         orderType: 'chase',
       });
