@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `FeatureFlagConfigurationService` reports each invalid HIP-3 allowlist or blocklist pattern once per service lifetime, keyed by field name and pattern, instead of on every remote feature flag state change ([#11190](https://github.com/MetaMask/core/pull/11190))
+  - Invalid patterns are still dropped and the current configuration is retained.
 - Lighter `Position.returnOnEquity` is now a fraction (`-0.107` for -10.7%), the same unit as Hyperliquid positions, instead of a percent, so clients that multiply it by 100 no longer show Lighter position PnL % 100x too large ([#11080](https://github.com/MetaMask/core/pull/11080))
   - Lighter `AccountState.returnOnEquity` is unchanged: it stays a percent, like Hyperliquid's.
 
