@@ -1171,12 +1171,6 @@ describe('RpcService', () => {
           params: [],
         })
         .reply(200, async () => {
-          // The RPC method name that `onDegraded` listeners receive is read
-          // when the request completes, so a response is only attributed
-          // correctly if the previous response has already been reported.
-          // Whether two responses are handled in the same turn of the event
-          // loop depends on the version of Node.js, so the second response is
-          // held back until the first request has been reported as degraded.
           await firstRequestDegraded;
           vi.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
