@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add exported `HyperLiquidErrorDetails` and include provider-tagged structured details on normalized Hyperliquid failures, so clients can translate stable codes without parsing venue messages. ([TAT-3085](https://consensyssoftware.atlassian.net/browse/TAT-3085))
+- Add exported `HyperLiquidErrorDetails` and include provider-tagged structured details on normalized Hyperliquid failures, so clients can translate stable codes without parsing venue messages. ([#11206](https://github.com/MetaMask/core/pull/11206))
 - Add `getAccountSupport` to the controller, messenger, and optional provider contract. Hyperliquid detects native multi-signature accounts, caches successful checks per account/network session, and blocks exchange mutations for unsupported accounts. Transient detection failures remain retryable, authoritative exchange rejections correct cached support, and actions reject stale account, network, or provider contexts before signing. ([#10693](https://github.com/MetaMask/core/pull/10693))
 - Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets ([#11030](https://github.com/MetaMask/core/pull/11030))
   - Snapshots without these fields, or with `null` values, still validate. An unrecognized `marginMode` rejects the snapshot, so snapshot-backed reads fall back to the provider.
@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Normalize known Hyperliquid venue failures to stable `PerpsErrorCode` values. Unknown failures now return `UNKNOWN_ERROR` instead of raw venue text, while the original failure remains attached as the telemetry cause. ([TAT-3085](https://consensyssoftware.atlassian.net/browse/TAT-3085))
+- Normalize known Hyperliquid venue failures to stable `PerpsErrorCode` values. Unknown failures now return `UNKNOWN_ERROR` instead of raw venue text, while the original failure remains attached as the telemetry cause. ([#11206](https://github.com/MetaMask/core/pull/11206))
 - Bump `@metamask/subscription-controller` from `^15.1.0` to `^15.1.1` ([#11120](https://github.com/MetaMask/core/pull/11120))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 - `HyperLiquidProvider.placeOrder` no longer resubmits an opening order 1.5% larger when Hyperliquid rejects it for the minimum order value; it returns a failed result with `errorCode: 'ORDER_SIZE_MIN'` instead ([#11122](https://github.com/MetaMask/core/pull/11122))
