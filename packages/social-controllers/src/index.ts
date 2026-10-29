@@ -54,6 +54,7 @@ export type {
   SocialServiceTranslateCommentAction,
   SocialServiceRefreshNotificationPreferencesCacheAction,
   SocialServiceRemoveCommentReactionAction,
+  SocialServiceUnblockProfileAction,
   SocialServiceUnfollowAction,
 } from './SocialService-method-action-types.js';
 
@@ -138,6 +139,7 @@ export type {
   TraderProfileResponse,
   TraderRankingTag,
   TraderStats,
+  UnblockProfileOptions,
   UnfollowOptions,
   UnfollowResponse,
 } from './social-types.js';

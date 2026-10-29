@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Enable Arc (`0x13b2`) token scanning now that the Security Alerts API supports Arc token verdicts ([#11144](https://github.com/MetaMask/core/pull/11144))
 
 ### Changed
 

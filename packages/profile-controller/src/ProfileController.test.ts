@@ -143,10 +143,7 @@ function createController(
 } {
   const rootMessenger = options.rootMessenger ?? getRootMessenger();
   const messenger = getMessenger(rootMessenger);
-  const controller = new ProfileController({
-    messenger,
-    state: options.state,
-  });
+  const controller = new ProfileController({ messenger, state: options.state });
   return { controller, rootMessenger, messenger };
 }
 
@@ -716,10 +713,7 @@ describe('ProfileController', () => {
       mockServiceAction(
         rootMessenger,
         'ProfileService:getProfile',
-        vi.fn().mockResolvedValue({
-          ...mockProfileResponse,
-          bio: null,
-        }),
+        vi.fn().mockResolvedValue({ ...mockProfileResponse, bio: null }),
       );
 
       const { controller } = createController({ rootMessenger });
@@ -899,6 +893,31 @@ describe('ProfileController', () => {
       expect(disconnectXMock).toHaveBeenCalledWith('profile-123');
       expect(controller.state.xProfile).toBeUndefined();
       expect(controller.state.profile.connectedToX).toBe(false);
+    });
+  });
+
+  describe('clearState', () => {
+    it('resets the profile and removes the X profile', () => {
+      const { controller, messenger } = createController({
+        state: {
+          profile: { ...mockMappedProfile, connectedToX: true },
+          xProfile: mockMappedXProfile,
+        },
+      });
+      const stateChangedListener = vi.fn();
+      messenger.subscribe(
+        'ProfileController:stateChanged',
+        stateChangedListener,
+      );
+
+      controller.clearState();
+
+      expect(controller.state).toStrictEqual(
+        getDefaultProfileControllerState(),
+      );
+      expect(controller.getProfile()).toBeUndefined();
+      expect(controller.getXProfile()).toBeUndefined();
+      expect(stateChangedListener).toHaveBeenCalledTimes(1);
     });
   });
 });

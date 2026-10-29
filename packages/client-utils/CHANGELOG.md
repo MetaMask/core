@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add `predictionSettled` to `ActivityKind` for prediction-market payouts that settle automatically, without a manual claim ([#11169](https://github.com/MetaMask/core/pull/11169))
+  - It shares the data shape of the other prediction kinds, with the proceeds in `data.token` (direction `in`)
 
 ### Changed
 

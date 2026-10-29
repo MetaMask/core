@@ -68,6 +68,7 @@ export const SocialServiceErrorMessage = {
   NOTIFICATION_PREFERENCES_CACHE_REFRESH_FAILED:
     'SocialService: Notification preferences cache refresh request failed',
   BLOCK_FAILED: 'SocialService: Block request failed',
+  UNBLOCK_PROFILE_FAILED: 'SocialService: Unblock profile request failed',
   FETCH_BLOCKED_PROFILES_FAILED:
     'SocialService: Blocked profiles request failed',
   FETCH_BLOCKED_PROFILES_INVALID_RESPONSE:
