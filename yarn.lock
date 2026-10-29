@@ -5814,6 +5814,8 @@ __metadata:
     "@metamask/gas-fee-controller": "npm:^27.0.0"
     "@metamask/keyring-controller": "npm:^28.2.0"
     "@metamask/messenger": "npm:^3.0.0"
+    "@metamask/money-account-controller": "npm:^3.0.0"
+    "@metamask/money-account-utils": "npm:^2.1.0"
     "@metamask/network-controller": "npm:^37.1.1"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/profile-sync-controller": "npm:^36.0.0"
@@ -7402,7 +7404,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/money-account-controller@workspace:packages/money-account-controller":
+"@metamask/money-account-controller@npm:^3.0.0, @metamask/money-account-controller@workspace:packages/money-account-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-controller@workspace:packages/money-account-controller"
   dependencies:

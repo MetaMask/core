@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import { formatChainIdToHex } from '@metamask/bridge-controller';
+import { getNetworkClientIdByChainId } from '@metamask/bridge-controller';
 import type { GenericQuoteRequest } from '@metamask/bridge-controller';
 import type { NetworkClient } from '@metamask/network-controller';
 
@@ -18,26 +18,17 @@ export const getSelectedChainId = (
   return networkClient.configuration.chainId;
 };
 
-export const getNetworkClientIdByChainId = (
-  messenger: BridgeStatusControllerMessenger,
-  chainId: GenericQuoteRequest['srcChainId'],
-) => {
-  const hexChainId = formatChainIdToHex(chainId);
-  return messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    hexChainId,
-  );
-};
-
-export const getNetworkClientByChainId = (
+export const getNetworkProviderByChainId = (
   messenger: BridgeStatusControllerMessenger,
   chainId: GenericQuoteRequest['srcChainId'],
 ): NetworkClient['provider'] => {
   const networkClientId = getNetworkClientIdByChainId(messenger, chainId);
+  if (!networkClientId) {
+    throw new Error(`No network client found for chainId: ${chainId}`);
+  }
 
-  const networkClient = messenger.call(
+  return messenger.call(
     'NetworkController:getNetworkClientById',
     networkClientId,
-  );
-  return networkClient.provider;
+  ).provider;
 };

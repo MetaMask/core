@@ -17,7 +17,9 @@ import type {
   BatchSellTradesResponse,
   BridgeControllerGetStateAction,
   InputPrimaryDenomination,
+  QuoteResponse,
 } from '@metamask/bridge-controller';
+import type { MoneyAccountControllerGetMoneyAccountAction } from '@metamask/money-account-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -46,6 +48,7 @@ import type { BridgeStatusControllerMethodActions } from './bridge-status-contro
 import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants.js';
 import { QuoteStatusState } from './quote-status-manager/constants.js';
 import { StatusResponseSchema } from './utils/validators.js';
+import type { getMoneyAccountDepositSetup } from '../../bridge-controller/src/utils/controllers/money-account.js';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
@@ -231,6 +234,15 @@ export type BridgeHistoryItem = {
    * swap/bridge was submitted.
    */
   inputPrimaryDenomination?: InputPrimaryDenomination;
+  /**
+   * Whether the destWalletAddress is a money account deposit
+   */
+  depositConfig?: QuoteResponse['depositConfig'];
+  /**
+   * The batchId for the money account deposit transactions.
+   * Pre-generated when swap is submitted to prevent double submission.
+   */
+  depositBatchId?: `0x${string}`;
 };
 
 /**
@@ -295,7 +307,8 @@ export type StartPollingForBridgeTxStatusArgs = {
    * @deprecated the txMeta or orderUid should be used instead
    */
   originalTransactionId?: string;
-  quoteResponse: QuoteResponseV1 & QuoteMetadata;
+  quoteResponse: QuoteResponseV1 &
+    QuoteMetadata & { depositConfig?: QuoteResponse['depositConfig'] };
   startTime: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
   customSlippage?: BridgeHistoryItem['customSlippage'];
@@ -314,18 +327,6 @@ export type StartPollingForBridgeTxStatusArgs = {
   tokenSecurityTypeDestination?: BridgeHistoryItem['tokenSecurityTypeDestination'];
   // Primary denomination at submission time, persisted for post-submit analytics.
   inputPrimaryDenomination?: BridgeHistoryItem['inputPrimaryDenomination'];
-};
-
-/**
- * Chrome: The BigNumber values are automatically serialized to strings when sent to the background
- * Firefox: The BigNumber values are not serialized to strings when sent to the background,
- * so we force the ui to do it manually, by using StartPollingForBridgeTxStatusArgsSerialized type on the startPollingForBridgeTxStatus action
- */
-export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
-  StartPollingForBridgeTxStatusArgs,
-  'quoteResponse'
-> & {
-  quoteResponse: QuoteResponseV1 & QuoteMetadata;
 };
 
 export type SourceChainTxMetaId = string;
@@ -351,8 +352,7 @@ export type BridgeStatusControllerGetStateAction = ControllerGetStateAction<
 >;
 
 export type BridgeStatusControllerActions =
-  | BridgeStatusControllerGetStateAction
-  | BridgeStatusControllerMethodActions;
+  BridgeStatusControllerGetStateAction | BridgeStatusControllerMethodActions;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -391,7 +391,8 @@ type AllowedActions =
   | BridgeControllerGetStateAction
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
-  | KeyringControllerSignTypedMessageAction;
+  | KeyringControllerSignTypedMessageAction
+  | MoneyAccountControllerGetMoneyAccountAction;
 
 /**
  * The external events available to the BridgeStatusController.

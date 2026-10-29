@@ -13,6 +13,7 @@ import type {
   QuoteStreamCompleteData,
   BatchSellTradesRequest,
   BatchSellTradesResponse,
+  BridgeControllerMessenger,
 } from '../types.js';
 import { validateBatchSellTradesResponse } from '../validators/batch-sell.js';
 import type { BridgeAsset } from '../validators/bridge-asset.js';
@@ -34,6 +35,7 @@ import {
 import { fetchServerEvents } from './fetch-server-events.js';
 import type { QuoteMetadata } from './quote-metadata/types.js';
 import { formatStructErrors } from './struct-error.js';
+import { getMoneyAccountDepositSetup } from './controllers/money-account.js';
 
 export const getClientHeaders = ({
   clientId,
@@ -96,6 +98,7 @@ export async function fetchBridgeTokens(
  */
 const formatQuoteRequest = (request: GenericQuoteRequest): QuoteRequest => {
   const destWalletAddress = request.destWalletAddress ?? request.walletAddress;
+  const isMoneyAccount = Boolean(request.isMoneyAccount);
   // Transform the generic quote request into QuoteRequest
   const normalizedRequest: QuoteRequest = {
     walletAddress: formatAddressToCaipReference(request.walletAddress),
@@ -109,6 +112,7 @@ const formatQuoteRequest = (request: GenericQuoteRequest): QuoteRequest => {
     resetApproval: Boolean(request.resetApproval),
     gasIncluded: Boolean(request.gasIncluded),
     gasIncluded7702: Boolean(request.gasIncluded7702),
+    isMoneyAccount,
   };
   if (request.slippage !== undefined) {
     normalizedRequest.slippage = request.slippage;
@@ -116,8 +120,11 @@ const formatQuoteRequest = (request: GenericQuoteRequest): QuoteRequest => {
   if (request.fee !== undefined) {
     normalizedRequest.fee = request.fee;
   }
-  if (request.aggIds && request.aggIds.length > 0) {
+  if (request.aggIds && request.aggIds.length > 0 && !isMoneyAccount) {
     normalizedRequest.aggIds = request.aggIds;
+  }
+  if (isMoneyAccount) {
+    normalizedRequest.aggIds = ['relay'];
   }
   if (request.bridgeIds && request.bridgeIds.length > 0) {
     normalizedRequest.bridgeIds = request.bridgeIds;
@@ -344,6 +351,7 @@ const getQuoteResponseId = ({
  * @returns A list of bridge tx quote promises
  */
 export async function fetchBridgeQuoteStream(
+  messenger: BridgeControllerMessenger,
   fetchFn: FetchFunction,
   quoteRequests: GenericQuoteRequest[],
   signal: AbortSignal | undefined,
@@ -403,6 +411,12 @@ export async function fetchBridgeQuoteStream(
             : undefined,
         ...(isBatchSellRequest && {
           quoteRequestIndex: matchedQuoteRequestIdx,
+        }),
+        ...(matchingQuoteRequest.isMoneyAccount && {
+          depositConfig: await getMoneyAccountDepositSetup({
+            messenger,
+            quoteRequest: matchingQuoteRequest,
+          }),
         }),
       });
     } catch (error) {
