@@ -3147,6 +3147,24 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
+   * Create an operation-local exchange client that revalidates its captured
+   * account after signing and immediately before transport dispatch.
+   *
+   * @param context - Account, network, and lifecycle authorized for the write.
+   * @param operation - Operation name included in lifecycle diagnostics.
+   * @returns An exchange client fenced to the captured account context.
+   */
+  #getAccountGuardedExchangeClient(
+    context: AccountSupportContext,
+    operation: string,
+  ): ExchangeClient {
+    return this.#clientService.getExchangeClient(
+      async (): Promise<void> =>
+        await this.#assertNoKnownUnsupportedAccount(context, operation),
+    );
+  }
+
+  /**
    * Stop an action before signing when Hyperliquid reports a native multi-sig
    * signer set for the active account.
    *
@@ -5576,7 +5594,10 @@ export class HyperLiquidProvider implements PerpsProvider {
             'Builder fee approval',
           );
         }
-        const exchangeClient = this.#clientService.getExchangeClient();
+        const exchangeClient = this.#getAccountGuardedExchangeClient(
+          supportContext,
+          'Builder fee approval dispatch',
+        );
         const maxFeeRate = BUILDER_FEE_CONFIG.MaxFeeRate;
 
         const approvalResult = await exchangeClient.approveBuilderFee({
@@ -6648,7 +6669,10 @@ export class HyperLiquidProvider implements PerpsProvider {
       'Leverage update',
     );
     try {
-      const exchangeClient = this.#clientService.getExchangeClient();
+      const exchangeClient = this.#getAccountGuardedExchangeClient(
+        accountContext,
+        'Leverage update dispatch',
+      );
       const leverageResult = await exchangeClient.updateLeverage({
         asset: assetId,
         isCross: marginMode === 'cross',
@@ -6797,7 +6821,10 @@ export class HyperLiquidProvider implements PerpsProvider {
     const { orders, grouping, isHip3Order, dexName, transferInfo, symbol } =
       params;
 
-    const exchangeClient = this.#clientService.getExchangeClient();
+    const exchangeClient = this.#getAccountGuardedExchangeClient(
+      params.accountContext,
+      'Order submission dispatch',
+    );
 
     const builder = params.chargesMetamaskBuilderFee
       ? await this.#getBuilderOrderContext(
@@ -8286,10 +8313,12 @@ export class HyperLiquidProvider implements PerpsProvider {
     // the provider stays pointed at the account that placed it — a disconnect
     // is usually followed by an account or network switch, after which handing
     // the id back is no remedy at all. So it is cancelled here, through the
-    // client that signed it — the account switch cannot reach that instance —
-    // and the failure is then true of the venue as well as of this provider.
-    // Best-effort still: the transport underneath that client may already be
-    // closing, so a cancel that does not land falls back to reporting the id.
+    // client that signed it. The held client remains usable after teardown,
+    // but its adapter resolves the selected account again for each signature,
+    // so rollback validates the captured identity before cancellation. The
+    // failure is then true of the venue as well as of this provider.
+    // Best-effort still: a context change or closing transport falls back to
+    // reporting the live id.
     if (generation !== this.#strategyGeneration) {
       this.#deps.debugLogger.log('Chase placement outlived its provider', {
         orderId,
@@ -9116,6 +9145,8 @@ export class HyperLiquidProvider implements PerpsProvider {
    * @param placingClient - Client to cancel through. Omitted by every cancel on
    * a live provider, which wants the current one; an abandoned placement passes
    * the client it signed with, the only one still able to reach its order.
+   * That path separately validates the captured rollback account because the
+   * client's wallet adapter resolves the selected account for every signature.
    * @returns Whether the order was cancelled, was already gone, or still rests.
    */
   async #cancelChaseChild(
@@ -9128,7 +9159,9 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     // Looked up only once there is something to cancel, so a session with
     // nothing resting still answers on a provider whose client is already gone.
-    if (!placingClient) {
+    if (placingClient) {
+      await this.#assertRollbackAccountWritable(session.accountContext);
+    } else {
       await this.#assertNoKnownUnsupportedAccount(
         session.accountContext,
         'Chase cancellation',
@@ -15905,7 +15938,10 @@ export class HyperLiquidProvider implements PerpsProvider {
         accountContext,
       });
       await this.#assertNoKnownUnsupportedAccount(accountContext, 'Withdrawal');
-      const exchangeClient = this.#clientService.getExchangeClient();
+      const exchangeClient = this.#getAccountGuardedExchangeClient(
+        accountContext,
+        'Withdrawal dispatch',
+      );
       this.#deps.debugLogger.log('HyperLiquidProvider: CLIENT READY');
 
       // Step 5: Validate amount against account balance
@@ -18098,7 +18134,12 @@ export class HyperLiquidProvider implements PerpsProvider {
           'Referral setup',
         );
       }
-      const exchangeClient = this.#clientService.getExchangeClient();
+      const exchangeClient = accountContext
+        ? this.#getAccountGuardedExchangeClient(
+            accountContext,
+            'Referral setup dispatch',
+          )
+        : this.#clientService.getExchangeClient();
       const referralCode = this.#getReferralCode(
         this.#clientService.isTestnetMode(),
       );

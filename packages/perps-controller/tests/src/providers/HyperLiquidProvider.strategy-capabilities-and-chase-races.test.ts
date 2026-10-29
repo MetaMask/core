@@ -3978,14 +3978,17 @@ describe('HyperLiquidProvider - strategy order types', () => {
      * to be done through the client it is already holding.
      *
      * @param cancel - The cancel the retraction attempt will get back.
+     * @param changeContext - Optional account or network change before teardown.
      * @returns The placement result and the exchange client that served it.
      */
     const placeChaseTornDownMidFlight = async (
       cancel: Mock,
+      changeContext?: () => void,
     ): Promise<{ placed: OrderResult; exchangeClient: MockClient }> => {
       let disconnected: Promise<unknown> | undefined;
       const order = vi.fn().mockImplementation(async () => {
         // The order is on its way to the venue when the provider is torn down.
+        changeContext?.();
         disconnected = provider.disconnect();
         mockClientService.getExchangeClient.mockImplementation(() => {
           throw new Error(PERPS_ERROR_CODES.EXCHANGE_CLIENT_NOT_AVAILABLE);
@@ -4009,6 +4012,48 @@ describe('HyperLiquidProvider - strategy order types', () => {
 
       return { placed, exchangeClient };
     };
+
+    it('does not retract an orphaned Chase after its account changes', async () => {
+      const cancel = vi.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: ['success'] } },
+      });
+      const { placed, exchangeClient } = await placeChaseTornDownMidFlight(
+        cancel,
+        () => {
+          mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+            '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+          );
+        },
+      );
+
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+        childOrderIds: ['55'],
+      });
+    });
+
+    it('does not retract an orphaned Chase after its network changes', async () => {
+      const cancel = vi.fn().mockResolvedValue({
+        status: 'ok',
+        response: { data: { statuses: ['success'] } },
+      });
+      const { placed, exchangeClient } = await placeChaseTornDownMidFlight(
+        cancel,
+        () => {
+          mockClientService.isTestnetMode.mockReturnValue(true);
+        },
+      );
+
+      expect(exchangeClient.cancel).not.toHaveBeenCalled();
+      expect(placed).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_CHASE_ABANDONED,
+        childOrderIds: ['55'],
+      });
+    });
 
     it('retracts the order it could not put a strategy behind', async () => {
       const cancel = vi.fn().mockResolvedValue({

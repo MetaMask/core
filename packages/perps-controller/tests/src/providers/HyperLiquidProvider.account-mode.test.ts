@@ -351,6 +351,53 @@ describe('HyperLiquidProvider', () => {
   });
 
   describe('getAccountSupport', () => {
+    const installAccountSwitchAtDispatch = (
+      method:
+        | 'withdraw3'
+        | 'order'
+        | 'updateLeverage'
+        | 'approveBuilderFee'
+        | 'setReferrer',
+    ): Mock => {
+      const switchedAddress = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+      const dispatch = vi.fn();
+      const exchangeClient = createMockExchangeClient();
+      mockClientService.getExchangeClient.mockImplementation(
+        (beforeDispatch?: () => Promise<void>) => {
+          const guardedClient = { ...exchangeClient };
+          guardedClient[method] = vi.fn(async (...args: unknown[]) => {
+            mockWalletService.getUserAddressWithDefault.mockResolvedValue(
+              switchedAddress,
+            );
+            await beforeDispatch?.();
+            dispatch(method);
+            return (exchangeClient[method] as Mock)(...args);
+          });
+          return guardedClient as unknown as ReturnType<
+            HyperLiquidClientService['getExchangeClient']
+          >;
+        },
+      );
+      return dispatch;
+    };
+
+    const primeSupportedTradingSetup = (): void => {
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+      (
+        TradingReadinessCache as Mocked<typeof TradingReadinessCache>
+      ).get.mockReturnValue({
+        attempted: true,
+        enabled: true,
+        timestamp: Date.now(),
+      });
+      (
+        TradingReadinessCache as Mocked<typeof TradingReadinessCache>
+      ).getReferral.mockReturnValue({ attempted: true, success: true });
+      (
+        TradingReadinessCache as Mocked<typeof TradingReadinessCache>
+      ).getBuilderFee.mockReturnValue({ attempted: true, success: true });
+    };
+
     it('returns supported for a standard Hyperliquid account', async () => {
       mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
 
@@ -903,6 +950,104 @@ describe('HyperLiquidProvider', () => {
       });
 
       expect(exchangeClient.withdraw3).not.toHaveBeenCalled();
+    });
+
+    it('refuses withdrawal dispatch after its signer account changes', async () => {
+      primeSupportedTradingSetup();
+      const dispatch = installAccountSwitchAtDispatch('withdraw3');
+
+      await expect(
+        provider.withdraw({
+          amount: '100',
+          destination: '0x1234567890123456789012345678901234567890' as Hex,
+          assetId:
+            'eip155:42161/erc20:0xa0b86a33e6776e681a06e0e1622c5e5e3e6a8b13/usdc' as CaipAssetId,
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(dispatch).not.toHaveBeenCalled();
+    });
+
+    it('refuses ordinary order dispatch after its signer account changes', async () => {
+      primeSupportedTradingSetup();
+      const dispatch = installAccountSwitchAtDispatch('order');
+
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(dispatch).not.toHaveBeenCalled();
+    });
+
+    it('refuses leverage dispatch after its signer account changes', async () => {
+      primeSupportedTradingSetup();
+      const dispatch = installAccountSwitchAtDispatch('updateLeverage');
+
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          leverage: 5,
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(dispatch).not.toHaveBeenCalled();
+    });
+
+    it('refuses builder fee dispatch after its signer account changes', async () => {
+      primeSupportedTradingSetup();
+      (
+        TradingReadinessCache as Mocked<typeof TradingReadinessCache>
+      ).getBuilderFee.mockReturnValue(undefined);
+      mockInfoClient.maxBuilderFee.mockResolvedValue(null);
+      const dispatch = installAccountSwitchAtDispatch('approveBuilderFee');
+
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(dispatch).not.toHaveBeenCalled();
+    });
+
+    it('refuses referral dispatch after its signer account changes', async () => {
+      primeSupportedTradingSetup();
+      (
+        TradingReadinessCache as Mocked<typeof TradingReadinessCache>
+      ).getReferral.mockReturnValue(undefined);
+      const dispatch = installAccountSwitchAtDispatch('setReferrer');
+
+      await expect(
+        provider.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+        }),
+      ).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE,
+      });
+      expect(dispatch).not.toHaveBeenCalled();
     });
 
     it('blocks an action when the selected account changes during its support check', async () => {
