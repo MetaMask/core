@@ -9762,10 +9762,16 @@ export class HyperLiquidProvider implements PerpsProvider {
       accountContext,
       'TWAP cancellation',
     );
-    const result = await this.#clientService.getExchangeClient().twapCancel({
-      a: assetId,
-      t: twapId,
-    });
+    let result: Awaited<ReturnType<ExchangeClient['twapCancel']>>;
+    try {
+      result = await this.#clientService.getExchangeClient().twapCancel({
+        a: assetId,
+        t: twapId,
+      });
+    } catch (error) {
+      this.#recordUnsupportedAccountFromError(error, accountContext);
+      throw error;
+    }
 
     const status = result.response?.data?.status;
     const cancelOutcome = classifyCancelStatus(status);
@@ -11134,6 +11140,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           answer = getVenueAnswer(error);
           statuses = getCancelStatusesFromError(error, ordinaryOrders.length);
           if (!statuses) {
+            this.#recordUnsupportedAccountFromError(error, accountContext);
             throw error;
           }
         }

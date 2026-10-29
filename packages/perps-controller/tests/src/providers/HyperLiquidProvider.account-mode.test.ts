@@ -1,5 +1,7 @@
 /* eslint-disable */
-vi.mock('@nktkas/hyperliquid', () => ({}));
+vi.mock('@nktkas/hyperliquid', () => ({
+  HyperliquidError: class HyperliquidError extends Error {},
+}));
 
 import type { CaipAssetId, Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -682,6 +684,42 @@ describe('HyperLiquidProvider', () => {
       expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
     });
 
+    it('corrects cached support after a thrown TWAP cancellation rejection', async () => {
+      const exchangeClient = createMockExchangeClient({
+        twapCancel: vi
+          .fn()
+          .mockRejectedValue(new Error('ApiRequestError: Multi-sig required')),
+      });
+      mockClientService.getExchangeClient = vi
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: true,
+      });
+      const cancellation = {
+        orderId: '987',
+        symbol: 'BTC',
+        orderType: 'twap' as const,
+      };
+      await expect(provider.cancelOrder(cancellation)).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      await expect(provider.cancelOrder(cancellation)).resolves.toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+      });
+      expect(exchangeClient.twapCancel).toHaveBeenCalledTimes(1);
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
+    });
+
     it('corrects cached support after batch cancellation status rejections', async () => {
       const exchangeClient = createMockExchangeClient({
         cancel: vi.fn().mockResolvedValue({
@@ -711,6 +749,53 @@ describe('HyperLiquidProvider', () => {
         isSupported: false,
         reason: 'multi_sig_account',
       });
+    });
+
+    it('corrects cached support after a batch cancellation throws without statuses', async () => {
+      const exchangeClient = createMockExchangeClient({
+        cancel: vi
+          .fn()
+          .mockRejectedValue(new Error('ApiRequestError: Multi-sig required')),
+      });
+      mockClientService.getExchangeClient = vi
+        .fn()
+        .mockReturnValue(exchangeClient);
+      mockInfoClient.userToMultiSigSigners.mockResolvedValue(null);
+      const cancellations = [
+        { orderId: '123', symbol: 'BTC' },
+        { orderId: '456', symbol: 'ETH' },
+      ];
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: true,
+      });
+      await expect(provider.cancelOrders(cancellations)).resolves.toMatchObject(
+        {
+          success: false,
+          failureCount: 2,
+          results: [
+            { error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED },
+            { error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED },
+          ],
+        },
+      );
+
+      await expect(provider.getAccountSupport()).resolves.toEqual({
+        isSupported: false,
+        reason: 'multi_sig_account',
+      });
+      await expect(provider.cancelOrders(cancellations)).resolves.toMatchObject(
+        {
+          success: false,
+          failureCount: 2,
+          results: [
+            { error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED },
+            { error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED },
+          ],
+        },
+      );
+      expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
+      expect(mockInfoClient.userToMultiSigSigners).toHaveBeenCalledTimes(1);
     });
 
     it('retries support checks after a transient failure', async () => {
