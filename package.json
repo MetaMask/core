@@ -22,6 +22,7 @@
     "changelog:merge": "node --import ./scripts/resolver/register.ts scripts/merge-changelog-conflicts.ts",
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
     "changelog:validate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:validate",
+    "changelog:validate:all": "auto-changelog validate --all --formatter oxfmt",
     "close-stale-release-prs": "node --import ./scripts/resolver/register.ts scripts/close-stale-release-prs.ts",
     "codeowners:check": "node --import ./scripts/resolver/register.ts scripts/manage-codeowners.ts check",
     "codeowners:generate": "node --import ./scripts/resolver/register.ts scripts/manage-codeowners.ts generate",
@@ -115,6 +116,7 @@
     "yargs": "^17.7.3"
   },
   "resolutions": {
+    "@metamask/auto-changelog@^6.2.1": "npm:@metamask-previews/auto-changelog@7.0.1-preview-eaa1dd2",
     "@typescript/old": "patch:typescript@npm%3A6.0.3#~/.yarn/patches/typescript-npm-6.0.3-585eecd158.patch",
     "@yarnpkg/core": "4.9.1"
   },
