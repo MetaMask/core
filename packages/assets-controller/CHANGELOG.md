@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.1.0]
+
 ### Added
 
 - Add optional `pricePercentChange5m` and `pricePercentChange4h` to `FungibleAssetPrice` ([#11201](https://github.com/MetaMask/core/pull/11201))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^113.0.0` to `^113.0.1` ([#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/core-backend` from `^12.3.0` to `^13.0.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/network-enablement-controller` from `^7.0.2` to `^7.1.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/phishing-controller` from `^18.2.1` to `^18.3.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/transaction-controller` from `^72.3.0` to `^73.0.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
 
 ## [20.0.2]
 
@@ -1215,7 +1225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.1.0...HEAD
+[20.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.2...@metamask/assets-controller@20.1.0
 [20.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.1...@metamask/assets-controller@20.0.2
 [20.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.0.0...@metamask/assets-controller@20.0.1
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@19.1.0...@metamask/assets-controller@20.0.0

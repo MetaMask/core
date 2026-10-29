@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
@@ -15,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `reselect` from `^5.1.1` to `^5.3.0` ([#10532](https://github.com/MetaMask/core/pull/10532))
 - Bump `@metamask/slip44` from `^4.3.0` to `^4.5.0` ([#10736](https://github.com/MetaMask/core/pull/10736))
-- Bump `@metamask/transaction-controller` from `^72.1.0` to `^72.3.0` ([#10772](https://github.com/MetaMask/core/pull/10772), [#10817](https://github.com/MetaMask/core/pull/10817), [#11154](https://github.com/MetaMask/core/pull/11154))
+- Bump `@metamask/transaction-controller` from `^72.1.0` to `^73.0.0` ([#10772](https://github.com/MetaMask/core/pull/10772), [#10817](https://github.com/MetaMask/core/pull/10817), [#11154](https://github.com/MetaMask/core/pull/11154), [#11203](https://github.com/MetaMask/core/pull/11203))
 - Bump `@metamask/keyring-api` from `^24.0.0` to `^24.3.0` ([#10717](https://github.com/MetaMask/core/pull/10717), [#10792](https://github.com/MetaMask/core/pull/10792), [#10844](https://github.com/MetaMask/core/pull/10844))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
 - Bump `@metamask/network-controller` from `^37.0.1` to `^37.1.1` ([#10864](https://github.com/MetaMask/core/pull/10864), [#10982](https://github.com/MetaMask/core/pull/10982))
@@ -464,7 +466,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.2...@metamask/network-enablement-controller@7.1.0
 [7.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.1...@metamask/network-enablement-controller@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@7.0.0...@metamask/network-enablement-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@6.0.5...@metamask/network-enablement-controller@7.0.0
