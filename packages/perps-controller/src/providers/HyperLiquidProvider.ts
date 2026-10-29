@@ -6280,7 +6280,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             },
           );
 
-          const transferResult = await this.#transferBetweenDexsForContext(
+          const transferResult = await this.#transferBetweenDexsForCleanup(
             {
               sourceDex: dexName,
               destinationDex: transferInfo.sourceDex,
@@ -16088,11 +16088,14 @@ export class HyperLiquidProvider implements PerpsProvider {
    *
    * @param params - Transfer parameters.
    * @param expectedContext - Context captured by the parent action.
+   * @param allowStaleLifecycle - Whether a compensating cleanup may run after
+   * provider teardown while the address and network remain unchanged.
    * @returns The transfer result.
    */
   async #transferBetweenDexs(
     params: TransferBetweenDexsParams,
     expectedContext?: AccountSupportContext,
+    allowStaleLifecycle = false,
   ): Promise<TransferBetweenDexsResult> {
     let accountContext: AccountSupportContext | undefined;
     try {
@@ -16110,9 +16113,18 @@ export class HyperLiquidProvider implements PerpsProvider {
         throw new Error('Source and destination DEX must be different');
       }
 
-      // Ensure client ready
-      await this.#ensureReady();
-      accountContext = await this.#assertAccountSupported(expectedContext);
+      if (allowStaleLifecycle) {
+        if (!expectedContext) {
+          throw new Error(PERPS_ERROR_CODES.PROVIDER_LIFECYCLE_STALE);
+        }
+        accountContext = expectedContext;
+        await this.#assertRollbackAccountWritable(accountContext);
+      } else {
+        // Ensure client ready
+        await this.#ensureReady();
+        accountContext = await this.#assertAccountSupported(expectedContext);
+      }
+      const transferAccountContext = accountContext;
       const { userAddress } = accountContext;
       this.#deps.debugLogger.log('HyperLiquidProvider: USER ADDRESS', {
         userAddress,
@@ -16128,16 +16140,30 @@ export class HyperLiquidProvider implements PerpsProvider {
         },
       );
 
-      await this.#assertNoKnownUnsupportedAccount(
-        accountContext,
-        'DEX transfer',
+      const token = await this.#getUsdcTokenId();
+      if (allowStaleLifecycle) {
+        await this.#assertRollbackAccountWritable(accountContext);
+      } else {
+        await this.#assertNoKnownUnsupportedAccount(
+          accountContext,
+          'DEX transfer',
+        );
+      }
+      const exchangeClient = this.#clientService.getExchangeClient(
+        allowStaleLifecycle
+          ? async (): Promise<void> =>
+              await this.#assertRollbackAccountWritable(transferAccountContext)
+          : async (): Promise<void> =>
+              await this.#assertNoKnownUnsupportedAccount(
+                transferAccountContext,
+                'DEX transfer dispatch',
+              ),
       );
-      const exchangeClient = this.#clientService.getExchangeClient();
       const result = await exchangeClient.sendAsset({
         destination: userAddress,
         sourceDex: params.sourceDex,
         destinationDex: params.destinationDex,
-        token: await this.#getUsdcTokenId(), // Query correct USDC token ID dynamically
+        token,
         amount: params.amount,
       });
 
@@ -16208,6 +16234,21 @@ export class HyperLiquidProvider implements PerpsProvider {
     accountContext: AccountSupportContext,
   ): Promise<TransferBetweenDexsResult> {
     return await this.#transferBetweenDexs(params, accountContext);
+  }
+
+  /**
+   * Return collateral for a completed action after teardown, provided the
+   * selected address and network still own the captured context.
+   *
+   * @param params - Transfer parameters.
+   * @param accountContext - Original action context for the cleanup.
+   * @returns The transfer result.
+   */
+  async #transferBetweenDexsForCleanup(
+    params: TransferBetweenDexsParams,
+    accountContext: AccountSupportContext,
+  ): Promise<TransferBetweenDexsResult> {
+    return await this.#transferBetweenDexs(params, accountContext, true);
   }
 
   /**

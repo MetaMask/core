@@ -1813,4 +1813,70 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(exchangeClient.cancel).not.toHaveBeenCalled();
     });
   });
+
+  describe('HIP-3 disconnect cleanup', () => {
+    it('retries deferred collateral cleanup while disconnecting', async () => {
+      const balances = new Map<string | undefined, string>([
+        [undefined, '1000'],
+        ['xyz', '0'],
+      ]);
+      const clearinghouseState = vi
+        .fn()
+        .mockImplementation(({ dex }: { dex?: string }) =>
+          Promise.resolve(
+            createClearinghouseBalance(balances.get(dex) as string),
+          ),
+        );
+      const sendAsset = vi
+        .fn()
+        .mockResolvedValueOnce({ status: 'ok' })
+        .mockResolvedValueOnce({ status: 'err' })
+        .mockResolvedValue({ status: 'ok' });
+      useStrategyClients({
+        exchange: {
+          order: vi.fn().mockImplementation(async () => {
+            balances.set('xyz', '20');
+            return {
+              status: 'ok',
+              response: {
+                data: { statuses: [{ resting: { oid: 55 } }] },
+              },
+            };
+          }),
+          sendAsset,
+        },
+        info: {
+          clearinghouseState,
+          perpDexs: vi.fn().mockResolvedValue([null, { name: 'xyz' }]),
+          meta: vi.fn().mockResolvedValue({
+            universe: [{ name: 'xyz:TSLA', szDecimals: 3, maxLeverage: 20 }],
+            collateralToken: 0,
+          }),
+          allMids: vi.fn().mockResolvedValue({ 'xyz:TSLA': '3000' }),
+        },
+      });
+      provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+        useUnifiedAccount: false,
+        initialAssetMapping: [['xyz:TSLA', 110000]],
+      });
+
+      const placed = await provider.placeOrder({
+        ...baseOrder,
+        symbol: 'xyz:TSLA',
+        orderType: 'chase',
+      } satisfies OrderParams);
+      await provider.suspendChaseOrders();
+      await provider.cancelOrder({
+        orderId: placed.orderId,
+        symbol: 'xyz:TSLA',
+        orderType: 'chase',
+      });
+      expect(sendAsset).toHaveBeenCalledTimes(2);
+
+      expect(await provider.disconnect()).toStrictEqual({ success: true });
+      expect(sendAsset).toHaveBeenCalledTimes(3);
+    });
+  });
 });
