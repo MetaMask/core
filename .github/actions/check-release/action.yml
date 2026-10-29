@@ -43,6 +43,23 @@ runs:
       run: |
         set -euo pipefail
 
+        # Succeeds unless the new version is lower than the current version, so
+        # that reverting a release is not mistaken for releasing. Only the
+        # major, minor, and patch parts are compared, and any other change
+        # (such as a pre-release suffix) counts as an increase.
+        is_version_increase() {
+          node --eval '
+            const [current, next] = process.argv.slice(1).map((version) =>
+              version.split("-")[0].split(".").map(Number),
+            );
+            for (let index = 0; index < 3; index++) {
+              if (next[index] !== current[index]) {
+                process.exit(next[index] > current[index] ? 0 : 1);
+              }
+            }
+          ' "$1" "$2"
+        }
+
         mapfile -t PACKAGES < <(yarn workspaces list --json --no-private | jq --raw-output '.location + "/package.json"')
         ANY_PACKAGE_BUMPED=false
 
@@ -55,7 +72,7 @@ runs:
           CURRENT_VERSION=$(echo "$PACKAGE_JSON_AT_BASE" | jq -r .version)
           NEW_VERSION=$(jq -r .version "$package")
 
-          if [[ "$NEW_VERSION" != "0.0.0" && "$NEW_VERSION" != "$CURRENT_VERSION" ]]; then
+          if [[ "$NEW_VERSION" != "0.0.0" && "$NEW_VERSION" != "$CURRENT_VERSION" ]] && is_version_increase "$CURRENT_VERSION" "$NEW_VERSION"; then
             ANY_PACKAGE_BUMPED=true
             package_name=$(jq -r ".name" "$package")
             echo "📦 Package \`$package_name\` has a version bump (\`$CURRENT_VERSION\` -> \`$NEW_VERSION\`)"
