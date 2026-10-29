@@ -22,7 +22,13 @@ import {
 } from './KycController.js';
 import type { KycControllerMessenger } from './KycController.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
-import type { KycConsentRecord, KycSessionDisclaimers } from './types.js';
+import { KYC_CURRENT_STEPS } from './types.js';
+import type {
+  KycConsentRecord,
+  KycCurrentStep,
+  KycSessionDisclaimers,
+  KycSessionStatus,
+} from './types.js';
 import {
   UKYC_LOCAL_USER_SECRET_PATH,
   UKYC_LOCAL_USER_SECRET_SIZE_BYTES,
@@ -916,6 +922,7 @@ describe('KycController', () => {
           );
           expect(controller.state.sessionStatus).toMatchInlineSnapshot(`
             {
+              "currentStep": "approved",
               "externalUserId": "ext-1",
               "finalStatus": "approved",
               "id": "sid",
@@ -1620,6 +1627,9 @@ describe('KycController', () => {
           );
           expect(handlers.createJourney).toHaveBeenCalledTimes(2);
           expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+          expect(controller.state.sessionStatus?.currentStep).toBe(
+            KYC_CURRENT_STEPS.processing,
+          );
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
@@ -2437,23 +2447,13 @@ function expectResetWrappingKeys(
  */
 function sessionStatus(
   finalStatus: string,
-  overrides: {
-    id?: string;
-    externalUserId?: string;
-    kycStatus?: string;
-    vendor?: string;
-    vendorStatus?: string;
-    capabilityAuthorizationStatus?: string;
-  } = {},
-): {
-  id: string;
-  finalStatus: string;
-  externalUserId: string;
-  kycStatus: string;
-  vendor: string;
-  vendorStatus: string;
-  capabilityAuthorizationStatus?: string;
-} {
+  overrides: Partial<KycSessionStatus> = {},
+): KycSessionStatus {
+  const currentStep: KycCurrentStep =
+    finalStatus === KYC_CURRENT_STEPS.approved ||
+    finalStatus === KYC_CURRENT_STEPS.rejected
+      ? finalStatus
+      : KYC_CURRENT_STEPS.processing;
   return {
     id: 'sid',
     finalStatus,
@@ -2461,6 +2461,7 @@ function sessionStatus(
     kycStatus: finalStatus,
     vendor: 'sumsub',
     vendorStatus: finalStatus,
+    currentStep,
     ...overrides,
   };
 }
