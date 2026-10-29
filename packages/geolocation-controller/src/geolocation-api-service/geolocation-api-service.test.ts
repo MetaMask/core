@@ -610,6 +610,38 @@ describe('GeolocationApiService', () => {
         expect(mockFetch).toHaveBeenCalledTimes(2);
       });
     });
+
+    describe('onQueryStateChange', () => {
+      it('reports the query state while fetching and once the data lands', async () => {
+        const { service } = getService({
+          options: {
+            fetch: vi.fn<typeof globalThis.fetch>(async () =>
+              createMockResponse(JSON.stringify({ country: 'US' }), 200),
+            ),
+          },
+        });
+        const onQueryStateChange = vi.fn();
+
+        await service.fetchGeolocationData({ onQueryStateChange });
+
+        expect(onQueryStateChange).toHaveBeenCalledTimes(2);
+        expect(onQueryStateChange).toHaveBeenNthCalledWith(
+          1,
+          expect.objectContaining({
+            status: 'pending',
+            fetchStatus: 'fetching',
+          }),
+        );
+        expect(onQueryStateChange).toHaveBeenNthCalledWith(
+          2,
+          expect.objectContaining({
+            status: 'success',
+            fetchStatus: 'idle',
+            data: { country: 'US', region: null, timezone: null },
+          }),
+        );
+      });
+    });
   });
 
   describe('service policy', () => {

@@ -4,6 +4,7 @@ import type {
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
   DataServiceInvalidateQueriesAction,
+  QueryStateChangeHandler,
 } from '@metamask/base-data-service';
 import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
@@ -251,6 +252,12 @@ function parseGeolocationResponse(raw: string): GeolocationData {
 export type FetchGeolocationOptions = {
   /** When true, ignores any cached result and fetches fresh data. */
   bypassCache?: boolean;
+  /**
+   * Called with the state of the underlying query as it changes, starting
+   * with a snapshot of the cached entry (if any). See
+   * {@link QueryStateChangeHandler}.
+   */
+  onQueryStateChange?: QueryStateChangeHandler;
 };
 
 /**
@@ -321,6 +328,8 @@ export class GeolocationApiService extends BaseDataService<
    * @param options - Optional fetch options.
    * @param options.bypassCache - When true, ignores any cached result and
    * fetches fresh data.
+   * @param options.onQueryStateChange - Called with the state of the
+   * underlying query as it changes.
    * @returns An ISO 3166-2 location code (e.g. `US`, `US-NY`, `CA-ON`), or
    * {@link UNKNOWN_LOCATION} when the API returns an empty or invalid body.
    */
@@ -336,6 +345,8 @@ export class GeolocationApiService extends BaseDataService<
    * @param options - Optional fetch options.
    * @param options.bypassCache - When true, ignores any cached result and
    * fetches fresh data.
+   * @param options.onQueryStateChange - Called with the state of the
+   * underlying query as it changes.
    * @returns The geolocation data, where each field is `null` when the API
    * omits it or returns a value that fails validation.
    */
@@ -353,6 +364,7 @@ export class GeolocationApiService extends BaseDataService<
       staleTime: this.#ttlMs,
       responseStruct: GeolocationDataStruct,
       gcTime: this.#ttlMs,
+      onQueryStateChange: options?.onQueryStateChange,
       queryFn: async () => {
         const response = await this.#fetch(this.#url);
         if (!response.ok) {

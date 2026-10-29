@@ -12,6 +12,8 @@ import type { GeolocationApiService } from './geolocation-api-service.js';
  * @param options - Optional fetch options.
  * @param options.bypassCache - When true, ignores any cached result and
  * fetches fresh data.
+ * @param options.onQueryStateChange - Called with the state of the
+ * underlying query as it changes.
  * @returns An ISO 3166-2 location code (e.g. `US`, `US-NY`, `CA-ON`), or
  * {@link UNKNOWN_LOCATION} when the API returns an empty or invalid body.
  */
@@ -28,6 +30,8 @@ export type GeolocationApiServiceFetchGeolocationAction = {
  * @param options - Optional fetch options.
  * @param options.bypassCache - When true, ignores any cached result and
  * fetches fresh data.
+ * @param options.onQueryStateChange - Called with the state of the
+ * underlying query as it changes.
  * @returns The geolocation data, where each field is `null` when the API
  * omits it or returns a value that fails validation.
  */

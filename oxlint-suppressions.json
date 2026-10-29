@@ -2417,11 +2417,6 @@
       "count": 1
     }
   },
-  "packages/geolocation-controller/src/GeolocationController.test.ts": {
-    "vitest/no-conditional-in-test": {
-      "count": 5
-    }
-  },
   "packages/java-tron-up/src/bin/java-tron-up.ts": {
     "typescript/no-unsafe-argument": {
       "count": 2
