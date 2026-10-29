@@ -1,5 +1,3 @@
-import { toHex } from '@metamask/controller-utils';
-import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
 import type {
   TransactionMeta,
   TransactionParams,
@@ -22,10 +20,11 @@ import {
   isPredictWithdraw,
 } from '../../utils/polymarket/withdraw.js';
 import {
-  validateQuoteExecution,
-  QuoteError,
-  isQuoteError,
-} from '../../utils/validation.js';
+  build7702BatchSimulation,
+  buildCallsSimulation,
+  buildDelegationSimulation,
+  validateQuotes,
+} from '../../utils/quote-validation.js';
 import type { QuoteSimulation } from '../../utils/validation.js';
 import { getRelayDepositData } from './deposit-step.js';
 import { getRelayExecuteRequest } from './relay-submit-execute.js';
@@ -48,34 +47,15 @@ export async function validateRelayQuotes(
     return;
   }
 
-  for (const quote of request.quotes) {
-    if (shouldSkipValidation(quote, request.transaction)) {
-      continue;
-    }
-
-    try {
-      const simulation = await buildValidationSimulation(request, quote);
-
-      await validateQuoteExecution({
-        messenger: request.messenger,
-        quote,
-        signal: request.signal,
-        simulation,
-      });
-    } catch (error) {
-      if (request.signal?.aborted) {
-        throw error;
-      }
-      const quoteError = toQuoteError(error);
-      if (quoteError.info.reason === 'insufficient-source-balance') {
-        // Backwards compatibility: keep the entire quote batch (including
-        // quotes that may have passed or not yet been validated) so that
-        // clients can still show quote details alongside the balance error.
-        throw new QuoteError(quoteError.info, request.quotes);
-      }
-      throw quoteError;
-    }
-  }
+  await validateQuotes({
+    buildSimulation: async (quote) =>
+      shouldSkipValidation(quote, request.transaction)
+        ? undefined
+        : await buildValidationSimulation(request, quote),
+    messenger: request.messenger,
+    quotes: request.quotes,
+    signal: request.signal,
+  });
 }
 
 function shouldSkipValidation(
@@ -143,17 +123,6 @@ async function buildValidationSimulation(
   );
 }
 
-function toQuoteError(error: unknown): QuoteError {
-  if (isQuoteError(error)) {
-    return error;
-  }
-  return new QuoteError({
-    message: 'Quote simulation failed',
-    reason: 'simulation-failed',
-    detail: [(error as Error).message],
-  });
-}
-
 function buildRelayValidationSimulation(
   messenger: TransactionPayControllerMessenger,
   quote: TransactionPayQuote<RelayQuote>,
@@ -172,32 +141,23 @@ function buildRelayValidationSimulation(
     return buildRelay7702BatchSimulation(messenger, quote, calls);
   }
   log('Building normal simulation', context);
-  return buildRelayNormalSimulation(calls);
+  return buildCallsSimulation(calls);
 }
 
 function buildRelayExecuteSimulation(
   quote: TransactionPayQuote<RelayQuote>,
   executeRequest: Omit<RelayExecuteRequest, 'metamask'>,
 ): QuoteSimulation {
-  const { value } = executeRequest.data;
+  const { authorizationList, data, to, value } = executeRequest.data;
   const valueHex = new BigNumber(value).toString(16).replace(/^/u, '0x') as Hex;
-  return {
-    transactions: [
-      {
-        ...(executeRequest.data.authorizationList?.length
-          ? {
-              authorizationList: executeRequest.data.authorizationList.map(
-                (auth) => ({ address: auth.address, from: quote.request.from }),
-              ),
-            }
-          : {}),
-        data: executeRequest.data.data,
-        from: quote.request.from,
-        to: executeRequest.data.to,
-        value: valueHex,
-      },
-    ],
-  };
+
+  return buildDelegationSimulation({
+    authorizationList,
+    data,
+    from: quote.request.from,
+    to,
+    value: valueHex,
+  });
 }
 
 function buildRelay7702BatchSimulation(
@@ -206,16 +166,6 @@ function buildRelay7702BatchSimulation(
   calls: TransactionParams[],
 ): QuoteSimulation {
   const { from, sourceChainId } = quote.request;
-  const gas = quote.original.metamask.gasLimits[0];
-
-  const batchTx = generateEIP7702BatchTransaction(
-    from,
-    calls.map((params) => ({
-      to: params.to as Hex,
-      data: params.data as Hex,
-      value: params.value as Hex,
-    })),
-  );
 
   // The batch call is an ERC-7821 `execute` on the sender's own account, so the
   // account must appear upgraded for the simulation to succeed. The quote does
@@ -223,41 +173,14 @@ function buildRelay7702BatchSimulation(
   // live upgrade state, so an authorization is always included: the delegator
   // address comes from the quote when present, otherwise from the configured
   // EIP-7702 upgrade contract for the chain.
-  const address =
+  const authorizationAddress =
     quote.original.request.authorizationList?.[0]?.address ??
     getEIP7702UpgradeContractAddress(messenger, sourceChainId);
 
-  const authorizationList = address ? [{ address, from }] : undefined;
-
-  return {
-    transactions: [
-      {
-        ...(authorizationList ? { authorizationList } : {}),
-        data: batchTx.data,
-        from,
-        ...(gas === undefined || gas === 0 ? {} : { gas: toHex(gas) }),
-        to: batchTx.to,
-        value: '0x0',
-      },
-    ],
-  };
-}
-
-function buildRelayNormalSimulation(
-  calls: TransactionParams[],
-): QuoteSimulation {
-  return {
-    transactions: calls.map((params) => {
-      const gas = params.gas as Hex | undefined;
-      return {
-        data: params.data as Hex | undefined,
-        from: params.from as Hex,
-        ...(gas === undefined || new BigNumber(gas).isZero() ? {} : { gas }),
-        maxFeePerGas: params.maxFeePerGas as Hex | undefined,
-        maxPriorityFeePerGas: params.maxPriorityFeePerGas as Hex | undefined,
-        to: params.to as Hex | undefined,
-        value: params.value as Hex,
-      };
-    }),
-  };
+  return build7702BatchSimulation({
+    authorizationAddress,
+    calls,
+    from,
+    gas: quote.original.metamask.gasLimits[0],
+  });
 }

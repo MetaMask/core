@@ -201,6 +201,11 @@ export type AtomicMaxEnabledConfig = {
   transactionTypes?: Partial<Record<TransactionType, boolean>>;
 };
 
+export type ServerValidationEnabledConfig = {
+  default?: boolean;
+  transactionTypes?: Partial<Record<TransactionType, boolean>>;
+};
+
 type FeatureFlagsExtendedRaw = {
   excludeChainIdsFromInfura?: Hex[];
   payStrategies?: {
@@ -215,6 +220,7 @@ type FeatureFlagsExtendedRaw = {
       baseUrl?: string;
       pollingInterval?: number;
       pollingTimeout?: number;
+      validationEnabled?: ServerValidationEnabledConfig;
     };
   };
 };
@@ -706,21 +712,43 @@ export function isRelayValidationEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
 
-  const validationEnabled =
-    featureFlags.payStrategies?.relay?.validationEnabled;
+  return isEnabledForTransaction(
+    featureFlags.payStrategies?.relay?.validationEnabled,
+    transaction,
+  );
+}
 
-  const transactionTypes = validationEnabled?.transactionTypes ?? {};
+/**
+ * Whether Server quote validation is enabled for a given transaction.
+ *
+ * Acts as an emergency kill switch: when disabled (default), Server quotes are
+ * surfaced without being simulated/validated.
+ *
+ * Configured via the `payStrategies.server.validationEnabled` flag, an object
+ * `{ default?: boolean; transactionTypes?: { [type]?: boolean } }`:
+ * `default` is the base toggle applied to all transactions (omitted = `false`);
+ * a matching `transactionTypes[type]` entry overrides `default` when the
+ * transaction, or any of its nested transactions, has that type.
+ *
+ * @param messenger - Controller messenger.
+ * @param transaction - Transaction being validated. Its top-level and nested
+ * types are matched against the `transactionTypes` overrides.
+ * @returns True if Server quote validation is enabled.
+ */
+export function isServerValidationEnabled(
+  messenger: TransactionPayControllerMessenger,
+  transaction?: TransactionMeta,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
 
-  // A per-type override wins over the global `default` toggle. An override
-  // matches when the transaction, or any nested transaction, has that type.
-  for (const [type, enabled] of Object.entries(transactionTypes)) {
-    if (hasTransactionType(transaction, [type as TransactionType])) {
-      return enabled;
-    }
-  }
-
-  // `?? false`: `default` is optional, so an omitted config disables validation.
-  return validationEnabled?.default ?? false;
+  return isEnabledForTransaction(
+    featureFlags.payStrategies?.server?.validationEnabled,
+    transaction,
+  );
 }
 
 /**
@@ -751,19 +779,10 @@ export function isAtomicMaxEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
 
-  const atomicMaxEnabled = featureFlags.payStrategies?.relay?.atomicMaxEnabled;
-
-  const transactionTypes = atomicMaxEnabled?.transactionTypes ?? {};
-
-  // A per-type override wins over the global `default` toggle. An override
-  // matches when the transaction, or any nested transaction, has that type.
-  for (const [type, enabled] of Object.entries(transactionTypes)) {
-    if (hasTransactionType(transaction, [type as TransactionType])) {
-      return enabled;
-    }
-  }
-
-  return atomicMaxEnabled?.default ?? false;
+  return isEnabledForTransaction(
+    featureFlags.payStrategies?.relay?.atomicMaxEnabled,
+    transaction,
+  );
 }
 
 /**
@@ -1225,4 +1244,34 @@ export function getEIP7702UpgradeContractAddress(
   const contracts = getCaseInsensitive(eip7702Flags?.contracts, chainId);
 
   return contracts?.[0]?.address;
+}
+
+/**
+ * Resolve a per-transaction-type toggle.
+ *
+ * A per-type override wins over the global `default` toggle. An override
+ * matches when the transaction, or any nested transaction, has that type.
+ *
+ * @param config - Toggle configuration.
+ * @param transaction - Transaction to match against the type overrides.
+ * @returns The resolved toggle, or `false` when neither matches.
+ */
+function isEnabledForTransaction(
+  config:
+    | {
+        default?: boolean;
+        transactionTypes?: Partial<Record<TransactionType, boolean>>;
+      }
+    | undefined,
+  transaction: TransactionMeta | undefined,
+): boolean {
+  for (const [type, enabled] of Object.entries(
+    config?.transactionTypes ?? {},
+  )) {
+    if (hasTransactionType(transaction, [type as TransactionType])) {
+      return enabled;
+    }
+  }
+
+  return config?.default ?? false;
 }

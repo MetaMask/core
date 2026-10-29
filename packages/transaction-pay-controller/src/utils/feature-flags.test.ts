@@ -39,6 +39,7 @@ import {
   isRelayExecuteEnabled,
   isAtomicMaxEnabled,
   isRelayValidationEnabled,
+  isServerValidationEnabled,
   getFeatureFlags,
   getGasBuffer,
   getHyperliquidActivationFeeConfig,
@@ -592,6 +593,73 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(isRelayExecuteEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('isServerValidationEnabled', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(isServerValidationEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when default is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: { validationEnabled: { default: true } },
+            },
+          },
+        },
+      });
+
+      expect(isServerValidationEnabled(messenger)).toBe(true);
+    });
+
+    it('ignores the relay validation flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { validationEnabled: { default: true } },
+            },
+          },
+        },
+      });
+
+      expect(isServerValidationEnabled(messenger)).toBe(false);
+    });
+
+    it('applies a per-type override over the default', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                validationEnabled: {
+                  default: false,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        isServerValidationEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+      expect(
+        isServerValidationEnabled(messenger, {
+          type: TransactionType.simpleSend,
+        } as TransactionMeta),
+      ).toBe(false);
     });
   });
 
