@@ -60,6 +60,7 @@ import type {
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryIdentifiers,
+  RecoveryLockProvider,
   RecoveryPhase,
   RecoveredSecret,
   WrappedSecret,
@@ -69,6 +70,9 @@ import type {
 const CONTROLLER_NAME = 'MfaRecoveryController';
 
 const MESSENGER_EXPOSED_METHODS = [
+  'acquireLock',
+  'renewLock',
+  'releaseLock',
   'register',
   'updateRecoverySecret',
   'updateIdentifiers',
@@ -82,12 +86,22 @@ const MESSENGER_EXPOSED_METHODS = [
 
 export type MfaRecoveryControllerState = {
   /**
+   * Held recovery lease ID, reused when retrying, or `null`.
+   */
+  lockId: string | null;
+  /**
    * Encrypted pending mutation, or `null` when idle.
    */
   pendingOperation: string | null;
 };
 
 const mfaRecoveryControllerMetadata = {
+  lockId: {
+    persist: true,
+    includeInDebugSnapshot: false,
+    includeInStateLogs: false,
+    usedInUi: false,
+  },
   pendingOperation: {
     persist: true,
     includeInDebugSnapshot: false,
@@ -100,7 +114,7 @@ const mfaRecoveryControllerMetadata = {
  * @returns The default {@link MfaRecoveryController} state.
  */
 export function getDefaultMfaRecoveryControllerState(): MfaRecoveryControllerState {
-  return { pendingOperation: null };
+  return { lockId: null, pendingOperation: null };
 }
 
 export type MfaRecoveryControllerGetStateAction = ControllerGetStateAction<
@@ -147,6 +161,11 @@ export type MfaRecoveryControllerOptions = {
    * Authenticates the MetaMask profile and issues request-bound attestations.
    */
   authProvider: RecoveryAuthProvider;
+
+  /**
+   * Holds the per-profile recovery lease.
+   */
+  lockProvider: RecoveryLockProvider;
 
   /**
    * Obtains key-bound identifier tokens from an IdP.
@@ -201,6 +220,8 @@ export class MfaRecoveryController extends BaseController<
 > {
   readonly #authProvider: RecoveryAuthProvider;
 
+  readonly #lockProvider: RecoveryLockProvider;
+
   readonly #identifierAuthProvider: RecoveryIdentifierAuthProvider;
 
   readonly #escrows: RecoveryEscrowProvider[];
@@ -215,6 +236,7 @@ export class MfaRecoveryController extends BaseController<
     messenger,
     state,
     authProvider,
+    lockProvider,
     identifierAuthProvider,
     escrows,
     pendingOperationEncryptor,
@@ -242,6 +264,7 @@ export class MfaRecoveryController extends BaseController<
     });
 
     this.#authProvider = authProvider;
+    this.#lockProvider = lockProvider;
     this.#identifierAuthProvider = identifierAuthProvider;
     this.#escrows = [...escrows];
     this.#encryptor = pendingOperationEncryptor;
@@ -251,6 +274,53 @@ export class MfaRecoveryController extends BaseController<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Acquires the per-profile recovery lease. Hold it from the first read
+   * through any Auth identifier changes and mutations.
+   */
+  async acquireLock(): Promise<void> {
+    await this.#withLock(async () => this.#acquireLease());
+  }
+
+  /**
+   * Renews the held lease. Fails if it expired or another operation holds it;
+   * then acquire again and reread state.
+   */
+  async renewLock(): Promise<void> {
+    await this.#withLock(async () => {
+      const { lockId } = this.state;
+      if (lockId === null) {
+        throw new MfaRecoveryError(
+          'Acquire the recovery lock first',
+          'recovery_lock_required',
+        );
+      }
+      await this.#lockProvider.renew(lockId);
+    });
+  }
+
+  /**
+   * Releases the lease. A pending mutation must finish first.
+   */
+  async releaseLock(): Promise<void> {
+    await this.#withLock(async () => {
+      if (await this.#loadPending()) {
+        throw new MfaRecoveryError(
+          'A pending mutation must be resumed or aborted first',
+          'pending_mutation',
+        );
+      }
+      const { lockId } = this.state;
+      if (lockId === null) {
+        return;
+      }
+      await this.#lockProvider.release(lockId);
+      this.update((state) => {
+        state.lockId = null;
+      });
+    });
   }
 
   /**
@@ -564,6 +634,14 @@ export class MfaRecoveryController extends BaseController<
   ): Promise<
     Pick<WritingPendingOperation, 'authControllerToken' | 'approvedIdentifiers'>
   > {
+    // The lease outlives the approval, so no write lands after another
+    // operation can take the lease.
+    const { lockId } = this.state;
+    if (lockId === null) {
+      await this.#acquireLease();
+    } else {
+      await this.#lockProvider.renew(lockId);
+    }
     const { approval, identifiers } =
       await this.#authProvider.authorizeRecoveryRequest({
         requestHash: mutation.requestHash,
@@ -923,6 +1001,14 @@ export class MfaRecoveryController extends BaseController<
     this.update((state) => {
       state.pendingOperation = null;
     });
+  }
+
+  async #acquireLease(): Promise<void> {
+    const lockId = this.state.lockId ?? randomId();
+    this.update((state) => {
+      state.lockId = lockId;
+    });
+    await this.#lockProvider.acquire(lockId);
   }
 
   async #withLock<ReturnValue>(

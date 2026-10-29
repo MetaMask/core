@@ -13,11 +13,14 @@ export type {
 } from './MfaRecoveryController.js';
 export type {
   MfaRecoveryControllerAbortAction,
+  MfaRecoveryControllerAcquireLockAction,
   MfaRecoveryControllerAuthenticateIdentifierAction,
   MfaRecoveryControllerGetIdentifiersAction,
   MfaRecoveryControllerGetPhaseAction,
   MfaRecoveryControllerGetRecoverySecretAction,
   MfaRecoveryControllerRegisterAction,
+  MfaRecoveryControllerReleaseLockAction,
+  MfaRecoveryControllerRenewLockAction,
   MfaRecoveryControllerResumeAction,
   MfaRecoveryControllerUpdateIdentifiersAction,
   MfaRecoveryControllerUpdateRecoverySecretAction,
@@ -29,6 +32,11 @@ export type {
   AuthApiRecoveryAuthProviderMessenger,
   AuthApiRecoveryAuthProviderOptions,
 } from './auth-api-recovery-provider.js';
+export { RecoveryRegistrationLockProvider } from './recovery-registration-lock-provider.js';
+export type {
+  RecoveryRegistrationLockProviderMessenger,
+  RecoveryRegistrationLockProviderOptions,
+} from './recovery-registration-lock-provider.js';
 export {
   IncompleteMutationError,
   MfaRecoveryError,
@@ -61,6 +69,7 @@ export type {
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryIdentifiers,
+  RecoveryLockProvider,
   RecoveryPhase,
   RecoveredSecret,
   WrappedSecret,

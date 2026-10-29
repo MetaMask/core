@@ -286,6 +286,16 @@ export type RecoveryAuthProvider = {
 };
 
 /**
+ * Per-profile recovery lease. It must outlive the approvals requested right
+ * after acquiring or renewing it.
+ */
+export type RecoveryLockProvider = {
+  acquire: (lockId: string) => Promise<void>;
+  renew: (lockId: string) => Promise<void>;
+  release: (lockId: string) => Promise<void>;
+};
+
+/**
  * Obtains a key-bound identifier assertion from an IdP (OIDC, Passkey, SIWE).
  */
 export type RecoveryIdentifierAuthProvider = {

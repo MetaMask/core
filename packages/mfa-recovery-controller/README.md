@@ -5,6 +5,21 @@ Coordinates MFA recovery through injected auth and escrow providers.
 Pending mutations are encrypted in controller state. `resume()` completes them;
 `abort()` is allowed only before writing. See [Architecture](ARCHITECTURE.md).
 
+## Recovery Lock
+
+Configure `RecoveryRegistrationLockProvider` with the registration service URL,
+`fetch`, and a messenger that can call
+`AuthenticationController:getBearerToken` and
+`AuthenticationController:refreshCanonicalProfileId`.
+
+Call `acquireLock()` before reading identifiers, hold it while changing Auth
+identifiers and mutating, then call `releaseLock()`. Call `renewLock()` after
+long user interaction. If renewal fails, acquire again and reread.
+
+The controller renews the 6-minute lease before every 5-minute approval, and
+escrows reject expired approvals. So once another operation can take the lease,
+this operation's approvals are dead.
+
 ## Auth API Integration
 
 Configure `AuthApiRecoveryAuthProvider` with a messenger that can call
