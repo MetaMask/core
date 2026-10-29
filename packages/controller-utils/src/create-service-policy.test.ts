@@ -763,6 +763,180 @@ describe('createServicePolicy', () => {
     });
   });
 
+  describe('onDegradedWithContext', () => {
+    const degradedThreshold = 2_000;
+    const slowDelay = degradedThreshold + 1;
+
+    it('fires with the context of the execution that was slow, even when two slow executions finish at the same time', async () => {
+      const contexts: Record<string, unknown> = {};
+      const createSlowService = (
+        name: string,
+      ): Mock<(context: unknown) => Promise<void>> =>
+        vi.fn(async (context: unknown): Promise<void> => {
+          contexts[name] = context;
+          await new Promise<void>((resolve) => setTimeout(resolve, slowDelay));
+        });
+      const onDegradedWithContextListener = vi.fn();
+      const policy = createServicePolicy({ degradedThreshold });
+      policy.onDegradedWithContext(onDegradedWithContextListener);
+
+      const promise = Promise.all([
+        policy.execute(createSlowService('first')),
+        policy.execute(createSlowService('second')),
+      ]);
+      await vi.advanceTimersByTimeAsync(slowDelay);
+      await promise;
+
+      expect(onDegradedWithContextListener).toHaveBeenCalledTimes(2);
+      expect(onDegradedWithContextListener).toHaveBeenCalledWith({
+        duration: expect.any(Number),
+        context: contexts.first,
+      });
+      expect(onDegradedWithContextListener).toHaveBeenCalledWith({
+        duration: expect.any(Number),
+        context: contexts.second,
+      });
+      expect(contexts.first).not.toBe(contexts.second);
+    });
+
+    it('fires with the context of the execution that gave up, even when two executions fail at the same time', async () => {
+      const contexts: Record<string, unknown> = {};
+      const errors = {
+        first: new Error('first failure'),
+        second: new Error('second failure'),
+      };
+      const createFailingService = (
+        name: 'first' | 'second',
+      ): Mock<(context: unknown) => Promise<void>> =>
+        vi.fn(async (context: unknown): Promise<void> => {
+          contexts[name] = context;
+          throw errors[name];
+        });
+      const onDegradedWithContextListener = vi.fn();
+      const policy = createServicePolicy({ maxRetries: 0, degradedThreshold });
+      policy.onDegradedWithContext(onDegradedWithContextListener);
+
+      await Promise.allSettled([
+        policy.execute(createFailingService('first')),
+        policy.execute(createFailingService('second')),
+      ]);
+
+      expect(onDegradedWithContextListener).toHaveBeenCalledTimes(2);
+      expect(onDegradedWithContextListener).toHaveBeenCalledWith({
+        error: errors.first,
+        context: contexts.first,
+      });
+      expect(onDegradedWithContextListener).toHaveBeenCalledWith({
+        error: errors.second,
+        context: contexts.second,
+      });
+    });
+
+    it('fires with an undefined context when the service throws something that is not an object', async () => {
+      const onDegradedWithContextListener = vi.fn();
+      const policy = createServicePolicy({ maxRetries: 0, degradedThreshold });
+      policy.onDegradedWithContext(onDegradedWithContextListener);
+
+      await Promise.allSettled([
+        policy.execute(() => {
+          // eslint-disable-next-line no-throw-literal, @typescript-eslint/only-throw-error
+          throw 'failure';
+        }),
+      ]);
+
+      expect(onDegradedWithContextListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedWithContextListener).toHaveBeenCalledWith({
+        error: 'failure',
+        context: undefined,
+      });
+    });
+
+    it('fires with the context of the final attempt when the service is retried', async () => {
+      const contexts: unknown[] = [];
+      const mockService = vi
+        .fn(async (context: unknown): Promise<void> => {
+          contexts.push(context);
+          await new Promise<void>((resolve) => setTimeout(resolve, slowDelay));
+        })
+        .mockImplementationOnce(async (context: unknown): Promise<void> => {
+          contexts.push(context);
+          throw new Error('failure');
+        });
+      const onDegradedWithContextListener = vi.fn();
+      const policy = createServicePolicy({
+        maxRetries: 1,
+        degradedThreshold,
+        backoff: new ConstantBackoff(0),
+      });
+      policy.onDegradedWithContext(onDegradedWithContextListener);
+
+      const promise = policy.execute(mockService);
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(contexts).toHaveLength(2);
+      expect(onDegradedWithContextListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedWithContextListener).toHaveBeenCalledWith({
+        duration: expect.any(Number),
+        context: contexts[1],
+      });
+    });
+
+    it('does not fire when a slow execution finishes after another execution has broken the circuit', async () => {
+      const onDegradedListener = vi.fn();
+      const onDegradedWithContextListener = vi.fn();
+      const policy = createServicePolicy({
+        maxRetries: 0,
+        maxConsecutiveFailures: 1,
+        degradedThreshold,
+      });
+      policy.onDegraded(onDegradedListener);
+      policy.onDegradedWithContext(onDegradedWithContextListener);
+
+      const slowPromise = policy.execute(
+        () => new Promise<void>((resolve) => setTimeout(resolve, slowDelay)),
+      );
+      await Promise.allSettled([
+        policy.execute(() => {
+          throw new Error('failure');
+        }),
+      ]);
+      await vi.advanceTimersByTimeAsync(slowDelay);
+      await slowPromise;
+
+      expect(policy.getCircuitState()).toBe(CircuitState.Open);
+      expect(onDegradedListener).not.toHaveBeenCalled();
+      expect(onDegradedWithContextListener).not.toHaveBeenCalled();
+    });
+
+    it('does not fire when the service responds within the degraded threshold', async () => {
+      const onDegradedWithContextListener = vi.fn();
+      const policy = createServicePolicy({ degradedThreshold });
+      policy.onDegradedWithContext(onDegradedWithContextListener);
+
+      await policy.execute(vi.fn());
+
+      expect(onDegradedWithContextListener).not.toHaveBeenCalled();
+    });
+
+    it('fires alongside onDegraded, which keeps its original payload', async () => {
+      const onDegradedListener = vi.fn();
+      const policy = createServicePolicy({ degradedThreshold });
+      policy.onDegraded(onDegradedListener);
+
+      const promise = policy.execute(
+        () => new Promise<void>((resolve) => setTimeout(resolve, slowDelay)),
+      );
+      await vi.advanceTimersByTimeAsync(slowDelay);
+      await promise;
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        duration: expect.any(Number),
+      });
+    });
+  });
+
   describe('getRemainingCircuitOpenDuration', () => {
     it('returns null when the circuit is closed', () => {
       const policy = createServicePolicyForTestingRetries();

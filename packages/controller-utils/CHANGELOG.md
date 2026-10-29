@@ -10,9 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add `onDegradedWithContext` to the service policy returned by `createServicePolicy` ([#11204](https://github.com/MetaMask/core/pull/11204))
+  - It works like `onDegraded`, but the event data also includes the `context` that the policy passed to the function whose execution was degraded, so listeners can tell concurrent executions apart.
 
 ### Changed
 
+- The service policy returned by `createServicePolicy` now decides whether an execution was slow once that execution has finished, instead of from an event of the underlying retry policy ([#11204](https://github.com/MetaMask/core/pull/11204))
+  - `onDegraded` and `onAvailable` listeners are still called before `execute` settles, but a few microtasks later than before.
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.1` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107))
 - Bump `@types/bn.js` from `^5.1.5` to `^5.2.0` ([#10362](https://github.com/MetaMask/core/pull/10362))
 - Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
