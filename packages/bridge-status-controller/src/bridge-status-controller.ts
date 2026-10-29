@@ -494,7 +494,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   // Only EVM txs
-  readonly #onTransactionConfirmed = async ({
+  readonly #onTransactionConfirmed = ({
     txMeta,
     historyKey,
     isApprovalTxMeta,
@@ -502,7 +502,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     txMeta: TransactionMeta;
     historyKey?: string;
     isApprovalTxMeta: boolean;
-  }): Promise<void> => {
+  }): void => {
     // Return early if the confirmed txMeta is for an approval since we
     // still need to wait for the trade to be confirmed
     if (isApprovalTxMeta) {
@@ -1585,6 +1585,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         ...quoteResponseV1,
         ...quoteMetadataV1,
         depositConfig: quote.depositConfig,
+        withdraw: quote.withdraw,
+        transfer: quote.transfer,
       };
     });
     const quoteResponse = quoteResponses[0];

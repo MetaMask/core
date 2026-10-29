@@ -243,6 +243,10 @@ export type BridgeHistoryItem = {
    * Pre-generated when swap is submitted to prevent double submission.
    */
   depositBatchId?: `0x${string}`;
+  /**
+   * The transaction id of the money account withdrawal transaction
+   */
+  withdrawTxId?: string;
 };
 
 /**
@@ -308,7 +312,8 @@ export type StartPollingForBridgeTxStatusArgs = {
    */
   originalTransactionId?: string;
   quoteResponse: QuoteResponseV1 &
-    QuoteMetadata & { depositConfig?: QuoteResponse['depositConfig'] };
+    QuoteMetadata &
+    Pick<QuoteResponse, 'withdraw' | 'transfer' | 'depositConfig'>;
   startTime: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
   customSlippage?: BridgeHistoryItem['customSlippage'];

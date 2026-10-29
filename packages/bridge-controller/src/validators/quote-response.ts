@@ -76,6 +76,11 @@ const CommonQuoteResponseSchema = type({
       isGasFeeSponsored: boolean(),
     }),
   ),
+  /**
+   * Appended to the quote response if a money account withdrawal is needed prior to the swap
+   */
+  withdraw: optional(TxDataSchema),
+  transfer: optional(TxDataSchema),
 });
 
 const EvmQuoteResponseSchema = intersection([
