@@ -69,8 +69,8 @@ matches the hash computed over its hex-encoded form.
 
 Public surface (all exposed as messenger actions): `register`,
 `updateRecoverySecret`, `updateIdentifiers`, `authenticateIdentifier`,
-`getRecoverySecret`, `getIdentifiers`, `resume`, `abort`, `getPhase`,
-`acquireLock`, `renewLock`, `releaseLock` (see
+`getRecoverySecret`, `getIdentifiers`, `repairReplicas`, `resume`, `abort`,
+`getPhase`, `acquireLock`, `renewLock`, `releaseLock` (see
 [Recovery Lock](README.md#recovery-lock)).
 
 `getIdentifiers` takes an AAL1 approval and returns the enrolled identifiers
@@ -88,16 +88,18 @@ stateDiagram-v2
   authorizing --> idle: abort()
   authorizing --> writing: identifier auth succeeds, before first apply
   writing --> writing: more receipts, still missing replicas
-  writing --> idle: every configured escrow has a valid receipt
-  writing --> idle: every escrow rejects and none has a receipt
+  writing --> idle: every target escrow has a valid receipt
+  writing --> idle: every remaining escrow rejects
+  writing --> idle: abort() after the approval expired, write not applied
   writing --> writing: resume() retries only missing receipts
   authorizing --> writing: resume() authorizes then writes
 ```
 
 Rules:
 
-- **`abort()`** drops `authorizing` only. `writing` must `resume()`
-  (`abort_not_allowed`).
+- **`abort()`** drops `authorizing`. It drops `writing` only when there are no
+  receipts, the approval has expired, and every target escrow is still at
+  `expectedVersion`; otherwise `abort_not_allowed`.
 - `writing` is persisted before the **first escrow apply**, after the
   AuthController token is issued, every target escrow has accepted identifier
   authorization, and the per-escrow payloads are wrapped. An ambiguous apply
@@ -114,7 +116,7 @@ Anything that fails is rejected rather than acted on:
 - Shape: phase, mutation fields, `newVersion = expectedVersion + 1`, payload
   keys for the operation, hex secret, at least two distinct identifiers, known
   identifier types.
-- `audiences` must equal the configured escrow ids, in order
+- `audiences` must be configured escrow ids, in configured order
   (`audience_mismatch`).
 - `payloadHash` must match the payload (`payload_mismatch`) and `requestHash`
   must match the mutation fields.
@@ -143,6 +145,7 @@ sequenceDiagram
   C->>M: register / updateRecoverySecret / updateIdentifiers
   M->>M: lock, reject if a mutation is already pending
   M->>E: isAvailable (every escrow required)
+  M->>E: getIdentifiers (AAL1); differing versions → replica_lagging
   M->>A: getAuthenticatedProfileId
   M->>M: expectedVersion from caller epoch (register uses 0)
   M->>M: build mutation, requestHash = hash(mutation fields)
@@ -162,9 +165,9 @@ sequenceDiagram
   par write every remaining replica
     M->>E: applyMutation
   end
-  alt every escrow rejects and none has a receipt
+  alt every remaining escrow rejects
     M->>M: clear pending → idle
-    M-->>C: MutationRejectedError (start a new mutation)
+    M-->>C: MutationRejectedError (reread, then start a new mutation)
   else
     M->>M: persist valid receipts
     alt a receipt failed verification
@@ -203,8 +206,9 @@ Receipts:
 - Stored receipts are re-verified before every retry. A receipt for an
   escrow that is no longer configured fails with `unknown_receipt_escrow`.
 - `MutationRejectedError` is only surfaced when **every** remaining escrow
-  threw `MutationRejectedError` and no receipt exists yet; anything else may
-  have been applied and stays `writing`.
+  threw `MutationRejectedError`, even if other escrows have receipts: the
+  mutation is obsolete or was already repaired. Anything else may have been
+  applied and stays `writing`.
 
 Versioning:
 
@@ -215,10 +219,17 @@ Versioning:
 - updates take the caller-supplied `epoch` (a non-negative integer, else
   `invalid_epoch`) as `expectedVersion`, then `n → n+1`. Escrows reject a
   mismatch.
-- Mutation `audiences` is the full configured replica-id list, in that order.
-  Each replica should require an exact match to its configured set (a
-  cubist-only deploy is `["cubist"]`; adding another escrow means every replica
-  is rebuilt with the expanded list).
+- Mutation `audiences` is the configured replica-id list, in that order, or
+  the lagging subset for a repair. Each escrow requires its own id exactly
+  once (a cubist-only deploy is `["cubist"]`).
+- An escrow with no record reports version `0`. New mutations require every
+  escrow at the same version (`replica_lagging`).
+
+`repairReplicas(identifier)` reads every escrow's version and identifiers. Escrows
+one version behind the highest get one mutation addressed only to them:
+`register` if they have no record, `updateIdentifiers` if their identifiers
+differ, otherwise `updateRecoverySecret` with the secret read from the highest
+escrow. Escrows further behind fail with `replica_corruption`.
 
 `resume()` is the same write path without creating a new mutation:
 authorizing pending gets a fresh token then replicates; writing pending
@@ -300,7 +311,8 @@ memory and must not log it.
 A replica whose `wrapKeyId` does not match its configured `wrapPublicKey`, or
 whose ciphertext fails to unwrap, counts as a failed read. Among successful
 reads, the highest `version` wins; every replica at that version must agree
-on `lastMutationId` and the secret bytes.
+on the secret bytes. `lastMutationId` is not compared, since a repaired
+replica holds the same secret under the repair's mutation.
 
 `getRecoverySecret` runs under the controller lock but does not check pending
 state. During `writing`, replicas may hold different versions; the read takes

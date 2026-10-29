@@ -106,6 +106,18 @@ export type MfaRecoveryControllerGetIdentifiersAction = {
 };
 
 /**
+ * Copies the highest escrow record to escrows one version behind it. Call
+ * it when a mutation fails with `replica_lagging`.
+ *
+ * @param identifier - Enrolled identifier, used to read the secret and to
+ * authorize the update.
+ */
+export type MfaRecoveryControllerRepairReplicasAction = {
+  type: `MfaRecoveryController:repairReplicas`;
+  handler: MfaRecoveryController['repairReplicas'];
+};
+
+/**
  * Completes a persisted pending mutation, if any.
  */
 export type MfaRecoveryControllerResumeAction = {
@@ -114,7 +126,9 @@ export type MfaRecoveryControllerResumeAction = {
 };
 
 /**
- * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
+ * Drops the pending mutation. A `writing` one is dropped only once its
+ * approval has expired, it has no receipts, and every target escrow is still
+ * at `expectedVersion`.
  */
 export type MfaRecoveryControllerAbortAction = {
   type: `MfaRecoveryController:abort`;
@@ -142,6 +156,7 @@ export type MfaRecoveryControllerMethodActions =
   | MfaRecoveryControllerAuthenticateIdentifierAction
   | MfaRecoveryControllerGetRecoverySecretAction
   | MfaRecoveryControllerGetIdentifiersAction
+  | MfaRecoveryControllerRepairReplicasAction
   | MfaRecoveryControllerResumeAction
   | MfaRecoveryControllerAbortAction
   | MfaRecoveryControllerGetPhaseAction;

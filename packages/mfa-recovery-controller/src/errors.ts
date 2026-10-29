@@ -32,8 +32,8 @@ export class IncompleteMutationError extends MfaRecoveryError {
 /**
  * Thrown when an escrow refuses a mutation without applying it.
  *
- * When every escrow does this and none has a receipt, the controller clears
- * the pending mutation. Start a new mutation; do not call `resume()`.
+ * When every remaining escrow does this, the controller clears the pending
+ * mutation. Reread state before starting a new one; do not call `resume()`.
  */
 export class MutationRejectedError extends MfaRecoveryError {
   constructor(message: string) {
