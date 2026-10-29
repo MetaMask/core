@@ -7,6 +7,7 @@ import type {
   QuoteResponseV1,
   Trade,
   TxData,
+  QuoteResponse,
 } from '@metamask/bridge-controller';
 import type {
   TransactionController,
@@ -78,7 +79,10 @@ export type SubmitStepResult =
         /** The {@link TransactionMeta} for the `trade` transaction after it has been submitted successfully */
         tradeMeta?: TransactionMeta;
         historyItemOverrides?: Partial<
-          Pick<BridgeHistoryItem, 'approvalTxId' | 'quoteIds' | 'quote'>
+          Pick<
+            BridgeHistoryItem,
+            'approvalTxId' | 'quoteIds' | 'quote' | 'withdrawTxId'
+          >
         >;
       };
     }
@@ -116,9 +120,8 @@ export type SubmitStepResult =
 export type SubmitStrategyParams<
   TradeType extends Trade = TxData,
   BatchSellTradesResponseType extends
-    | BatchSellTradesResponse
-    | undefined
-    | null = BatchSellTradesResponse | undefined | null,
+    BatchSellTradesResponse | undefined | null =
+    BatchSellTradesResponse | undefined | null,
 > = {
   /**
    * The response from obtainGaslessBatch API containing submittable transactions and their fees
@@ -136,7 +139,9 @@ export type SubmitStrategyParams<
    */
   isStxEnabled: boolean;
   messenger: BridgeStatusControllerMessenger;
-  quoteResponses: (QuoteResponseV1<TradeType, TradeType> & QuoteMetadata)[];
+  quoteResponses: (QuoteResponseV1<TradeType, TradeType> &
+    QuoteMetadata &
+    Pick<QuoteResponse, 'withdraw' | 'transfer'>)[];
   /**
    * Set to true so hardware wallets get prompted for approval on mobile
    */

@@ -1,5 +1,8 @@
 import type { TxData } from '@metamask/bridge-controller';
-import { generateBatchId } from '@metamask/transaction-controller';
+import {
+  generateBatchId,
+  TransactionType,
+} from '@metamask/transaction-controller';
 
 import type { QuoteAndTxMetadata } from '../types.js';
 import {
@@ -50,6 +53,8 @@ export async function* submitBatchHandler(
   };
 
   const transactionParams = await getAddTransactionBatchParams({
+    withdrawData: quoteResponse.withdraw,
+    transferData: quoteResponse.transfer,
     tradeData,
     requireApproval,
     isDelegatedAccount,
@@ -92,6 +97,10 @@ export async function* submitBatchHandler(
     },
   };
 
+  const withdrawMeta = quoteAndTxMetas.find(
+    ({ type, txMeta }) =>
+      type === TransactionType.moneyAccountWithdraw && txMeta,
+  )?.txMeta;
   const tradeMeta = quoteAndTxMetas.find(
     ({ type, txMeta }) => isTradeTx(type) && txMeta,
   )?.txMeta;
@@ -118,6 +127,7 @@ export async function* submitBatchHandler(
       newHistoryKey: tradeMeta.id,
       historyItemOverrides: {
         approvalTxId: approvalMeta?.id,
+        withdrawTxId: withdrawMeta?.id,
       },
       tradeMeta,
     },

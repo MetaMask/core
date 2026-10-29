@@ -524,12 +524,16 @@ export const toTransactionParams = async (
 export const getAddTransactionBatchParams = async ({
   messenger,
   tradeData,
+  withdrawData,
+  transferData,
   requireApproval = false,
   isDelegatedAccount,
   ...addTransactionBatchParams
 }: Partial<Parameters<TransactionController['addTransactionBatch']>[0]> & {
   messenger: BridgeStatusControllerMessenger;
   tradeData: QuoteAndTxMetadata[];
+  withdrawData?: TxData;
+  transferData?: TxData;
   requireApproval?: boolean;
   isDelegatedAccount?: boolean;
 }): Promise<Parameters<TransactionController['addTransactionBatch']>[0]> => {
@@ -543,8 +547,34 @@ export const getAddTransactionBatchParams = async ({
   const hexChainId = formatChainIdToHex(trade.chainId);
   const networkClientId = getNetworkClientIdByChainId(messenger, hexChainId);
 
-  const transactions: TransactionBatchSingleRequest[] = await Promise.all(
-    tradeData.map(async ({ tx, txFee, assetsFiatValues, type }) => ({
+  const transactions: TransactionBatchSingleRequest[] = await Promise.all([
+    ...(withdrawData
+      ? [
+          {
+            params: await toTransactionParams(
+              messenger,
+              withdrawData,
+              networkClientId,
+              hexChainId,
+            ),
+            type: TransactionType.moneyAccountWithdraw,
+          },
+        ]
+      : []),
+    ...(transferData
+      ? [
+          {
+            params: await toTransactionParams(
+              messenger,
+              transferData,
+              networkClientId,
+              hexChainId,
+            ),
+            type: TransactionType.tokenMethodTransfer,
+          },
+        ]
+      : []),
+    ...tradeData.map(async ({ tx, txFee, assetsFiatValues, type }) => ({
       params: await toTransactionParams(
         messenger,
         tx,
@@ -555,7 +585,7 @@ export const getAddTransactionBatchParams = async ({
       assetsFiatValues,
       type,
     })),
-  );
+  ]);
 
   return {
     networkClientId,

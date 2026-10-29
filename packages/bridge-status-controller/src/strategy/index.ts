@@ -23,11 +23,7 @@ import type { SubmitStrategyParams, SubmitStepResult } from './types.js';
 
 const validateParams = <
   TxDataType extends
-    | BitcoinTradeData
-    | StellarTradeData
-    | TronTradeData
-    | string
-    | TxData,
+    BitcoinTradeData | StellarTradeData | TronTradeData | string | TxData,
 >(
   params: SubmitStrategyParams<Trade>,
 ): params is SubmitStrategyParams<TxDataType> => {
@@ -105,7 +101,11 @@ const executeSubmitStrategy = (
 
   // Batched transactions
   const shouldBatchTxs =
-    isStxEnabled || quoteResponse.quote.gasIncluded7702 || isDelegatedAccount;
+    isStxEnabled ||
+    quoteResponse.quote.gasIncluded7702 ||
+    isDelegatedAccount ||
+    quoteResponse.withdraw ||
+    quoteResponse.transfer;
   if (shouldBatchTxs) {
     return submitBatchHandler(params);
   }

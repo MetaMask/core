@@ -35,7 +35,10 @@ import {
 import { fetchServerEvents } from './fetch-server-events.js';
 import type { QuoteMetadata } from './quote-metadata/types.js';
 import { formatStructErrors } from './struct-error.js';
-import { getMoneyAccountDepositSetup } from './controllers/money-account.js';
+import {
+  getMoneyAccountDepositSetup,
+  getMoneyAccountWithdrawalTxs,
+} from './controllers/money-account.js';
 
 export const getClientHeaders = ({
   clientId,
@@ -414,6 +417,10 @@ export async function fetchBridgeQuoteStream(
         }),
         ...(matchingQuoteRequest.isMoneyAccount && {
           depositConfig: await getMoneyAccountDepositSetup({
+            messenger,
+            quoteRequest: matchingQuoteRequest,
+          }),
+          ...getMoneyAccountWithdrawalTxs({
             messenger,
             quoteRequest: matchingQuoteRequest,
           }),
