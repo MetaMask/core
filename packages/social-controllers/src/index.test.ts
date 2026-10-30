@@ -5,6 +5,7 @@ import {
   SocialRealtimeService,
   SocialService,
   socialServiceName,
+  UNSUPPORTED_TOKEN_POSITION_FLAG,
 } from './index.js';
 
 describe('social-controllers exports', () => {
@@ -22,5 +23,9 @@ describe('social-controllers exports', () => {
 
   it('exports serviceName', () => {
     expect(socialServiceName).toBe('SocialService');
+  });
+
+  it('exports the unsupported-token position flag', () => {
+    expect(UNSUPPORTED_TOKEN_POSITION_FLAG).toBe('unsupported-token');
   });
 });

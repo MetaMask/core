@@ -891,7 +891,12 @@ describe('SocialService', () => {
             positions: [
               {
                 ...mockPosition,
-                flags: ['insider', 'developer', 'future-flag'],
+                flags: [
+                  'insider',
+                  'developer',
+                  'unsupported-token',
+                  'future-flag',
+                ],
               },
             ],
             pagination: { hasMore: false },
@@ -906,6 +911,7 @@ describe('SocialService', () => {
       expect(result.positions[0].flags).toStrictEqual([
         'insider',
         'developer',
+        'unsupported-token',
         'future-flag',
       ]);
     });

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `UNSUPPORTED_TOKEN_POSITION_FLAG` (`unsupported-token`) as a known value for `Position.flags`. It marks a position on a token that social-api excludes from PnL for every trader, so the position does not count toward the trader's realized PnL. It can appear alongside `insider` ([#11218](https://github.com/MetaMask/core/pull/11218))
+
 ## [3.14.2]
 
 ### Fixed
