@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@ethereumjs/util` from `^9.1.0` to `^10.1.3` ([#10519](https://github.com/MetaMask/core/pull/10519))
+
 ## [113.0.1]
 
 ### Changed
