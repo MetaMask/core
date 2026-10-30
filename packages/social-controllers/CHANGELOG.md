@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Pass the realtime feed item's `authorComment` through from the backend instead of deriving it from trade comments. An absent `authorComment` stays absent and an explicit `null` stays `null`. A present value is validated with the same struct the REST feed uses, and a malformed value drops the realtime item
+- Pass the realtime feed item's `authorComment` through from the backend instead of deriving it from trade comments. An absent `authorComment` stays absent and an explicit `null` stays `null`. A present value is validated with the same struct the REST feed uses, and a malformed value drops the realtime item ([#11209](https://github.com/MetaMask/core/pull/11209))
 
 ## [3.14.1]
 
