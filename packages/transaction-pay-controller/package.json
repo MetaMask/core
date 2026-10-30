@@ -68,7 +68,7 @@
     "@metamask/sentinel-api-service": "^2.1.0",
     "@metamask/transaction-controller": "^73.0.0",
     "@metamask/utils": "^12.0.1",
-    "bignumber.js": "^9.1.2",
+    "bignumber.js": "^11.1.5",
     "bn.js": "^5.2.5",
     "immer": "^11.1.18",
     "lodash-es": "^4.18.1"
