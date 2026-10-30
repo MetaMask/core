@@ -67,7 +67,7 @@
     "@metamask/keyring-controller": "^28.2.0",
     "@types/lodash-es": "^4.17.12",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "immer": "^11.1.18",
+    "immer": "^11.2.9",
     "nock": "^15.0.5",
     "rimraf": "^6.1.3",
     "typedoc": "^0.28.20",
