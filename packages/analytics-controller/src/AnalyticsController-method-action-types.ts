@@ -195,7 +195,10 @@ export type AnalyticsControllerResetConsentDecisionAction = {
 /**
  * Opt in to marketing analytics.
  *
- * Independent of {@link optIn}. Replays queued marketing events.
+ * Independent of {@link optIn}. Replays queued marketing events. The choice
+ * is marked as not yet saved to the user's profile (see
+ * {@link AnalyticsControllerState.marketingConsentSyncPending}), even when
+ * the user was already opted in.
  *
  * @returns A promise that resolves once opt-in processing has completed.
  */
@@ -208,7 +211,10 @@ export type AnalyticsControllerOptInToMarketingAction = {
  * Opt out of marketing analytics.
  *
  * Independent of {@link optOut}. Discards queued marketing events and
- * marketing event fragments.
+ * marketing event fragments. The choice is marked as not yet saved to the
+ * user's profile (see
+ * {@link AnalyticsControllerState.marketingConsentSyncPending}), even when
+ * the user was already opted out.
  */
 export type AnalyticsControllerOptOutOfMarketingAction = {
   type: `AnalyticsController:optOutOfMarketing`;
@@ -218,11 +224,45 @@ export type AnalyticsControllerOptOutOfMarketingAction = {
 /**
  * Reset the marketing consent decision back to undecided.
  *
- * Independent of {@link resetConsentDecision}.
+ * Independent of {@link resetConsentDecision}. Also drops a choice not yet
+ * saved to the user's profile, so the next sync adopts the profile's value.
  */
 export type AnalyticsControllerResetMarketingConsentDecisionAction = {
   type: `AnalyticsController:resetMarketingConsentDecision`;
   handler: AnalyticsController['resetMarketingConsentDecision'];
+};
+
+/**
+ * Apply the marketing consent saved in the user's profile (Authenticated
+ * User Storage).
+ *
+ * Has the same effects as {@link optInToMarketing} or
+ * {@link optOutOfMarketing}, except that the value is not marked as waiting
+ * to be saved, since the profile already holds it. Does nothing when a
+ * choice made on this device is still waiting to be saved, since that choice
+ * wins, or when the user already made the same decision.
+ *
+ * @param optedIn - Whether the profile's consent is opted in.
+ * @returns A promise that resolves once opt-in processing has completed.
+ */
+export type AnalyticsControllerApplyRemoteMarketingConsentAction = {
+  type: `AnalyticsController:applyRemoteMarketingConsent`;
+  handler: AnalyticsController['applyRemoteMarketingConsent'];
+};
+
+/**
+ * Mark a marketing consent choice as no longer waiting to be saved to the
+ * user's profile, either because the profile saved it or because it was
+ * dropped after a failed save.
+ *
+ * Does nothing when local consent no longer matches `optedIn`: a newer
+ * choice was made in the meantime and still has to be saved.
+ *
+ * @param optedIn - The consent value that was saved or dropped.
+ */
+export type AnalyticsControllerClearPendingMarketingConsentAction = {
+  type: `AnalyticsController:clearPendingMarketingConsent`;
+  handler: AnalyticsController['clearPendingMarketingConsent'];
 };
 
 /**
@@ -260,4 +300,6 @@ export type AnalyticsControllerMethodActions =
   | AnalyticsControllerOptInToMarketingAction
   | AnalyticsControllerOptOutOfMarketingAction
   | AnalyticsControllerResetMarketingConsentDecisionAction
+  | AnalyticsControllerApplyRemoteMarketingConsentAction
+  | AnalyticsControllerClearPendingMarketingConsentAction
   | AnalyticsControllerSetMarketingCampaignCookieIdAction;

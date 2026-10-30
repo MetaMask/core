@@ -92,7 +92,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/kyc-controller`](packages/kyc-controller)
 - [`@metamask/local-node-utils`](packages/local-node-utils)
 - [`@metamask/logging-controller`](packages/logging-controller)
-- [`@metamask/marketing-consent-controller`](packages/marketing-consent-controller)
+- [`@metamask/marketing-consent-sync-service`](packages/marketing-consent-sync-service)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
 - [`@metamask/messenger-cli`](packages/messenger-cli)

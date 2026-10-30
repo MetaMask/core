@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/marketing-consent-controller",
-  "version": "1.1.0",
+  "name": "@metamask/marketing-consent-sync-service",
+  "version": "0.0.0",
   "description": "Keeps marketing consent in sync with Authenticated User Storage",
   "keywords": [
     "Ethereum",
     "MetaMask"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/marketing-consent-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/marketing-consent-sync-service#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,8 +37,8 @@
     "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "typedoc",
     "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/marketing-consent-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/marketing-consent-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/marketing-consent-sync-service",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/marketing-consent-sync-service",
     "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
     "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
     "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",

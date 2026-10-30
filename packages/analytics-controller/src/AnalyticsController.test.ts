@@ -318,6 +318,7 @@ describe('AnalyticsController', () => {
         consentDecisionMade: false,
         optedInToMarketing: false,
         marketingConsentDecisionMade: false,
+        marketingConsentSyncPending: false,
         marketingCampaignCookieId: null,
       });
       expect('analyticsId' in defaults).toBe(false);
@@ -355,6 +356,7 @@ describe('AnalyticsController', () => {
           "consentDecisionMade": true,
           "marketingCampaignCookieId": null,
           "marketingConsentDecisionMade": false,
+          "marketingConsentSyncPending": false,
           "optedIn": true,
           "optedInToMarketing": false,
         }
@@ -378,6 +380,7 @@ describe('AnalyticsController', () => {
           "consentDecisionMade": true,
           "marketingCampaignCookieId": null,
           "marketingConsentDecisionMade": false,
+          "marketingConsentSyncPending": false,
           "optedIn": true,
           "optedInToMarketing": false,
         }
@@ -401,6 +404,7 @@ describe('AnalyticsController', () => {
           "consentDecisionMade": true,
           "marketingCampaignCookieId": null,
           "marketingConsentDecisionMade": false,
+          "marketingConsentSyncPending": false,
           "optedIn": true,
           "optedInToMarketing": false,
         }
@@ -3213,6 +3217,289 @@ describe('AnalyticsController', () => {
       controller.resetMarketingConsentDecision();
 
       expect(controller.state.marketingCampaignCookieId).toBeNull();
+    });
+  });
+
+  describe('marketing consent sync', () => {
+    const analyticsId = '01234567-89ab-4cde-8f01-23456789abcd';
+
+    it.each([
+      { optedInToMarketing: false, marketingConsentDecisionMade: false },
+      { optedInToMarketing: true, marketingConsentDecisionMade: true },
+    ])(
+      'marks an opt-in as waiting to be saved (from %o)',
+      async (initialConsent) => {
+        const { controller } = await setupController({
+          state: { ...initialConsent, analyticsId },
+          isGeolocationEnabled: false,
+        });
+
+        await controller.optInToMarketing();
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: true,
+        });
+      },
+    );
+
+    it.each([
+      { optedInToMarketing: false, marketingConsentDecisionMade: false },
+      { optedInToMarketing: false, marketingConsentDecisionMade: true },
+    ])(
+      'marks an opt-out as waiting to be saved (from %o)',
+      async (initialConsent) => {
+        const { controller } = await setupController({
+          state: { ...initialConsent, analyticsId },
+          isGeolocationEnabled: false,
+        });
+
+        controller.optOutOfMarketing();
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: true,
+        });
+      },
+    );
+
+    it('changes consent and marks it as waiting in a single state update', async () => {
+      const { controller, messenger } = await setupController({
+        state: { analyticsId },
+        isGeolocationEnabled: false,
+      });
+      const listener = vi.fn();
+      messenger.subscribe('AnalyticsController:stateChange', listener);
+
+      controller.optOutOfMarketing();
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: true,
+        }),
+        expect.any(Array),
+      );
+    });
+
+    it('drops a choice waiting to be saved when the decision is reset', async () => {
+      const { controller } = await setupController({
+        state: {
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: true,
+          analyticsId,
+        },
+        isGeolocationEnabled: false,
+      });
+
+      controller.resetMarketingConsentDecision();
+
+      expect(controller.state.marketingConsentSyncPending).toBe(false);
+    });
+
+    describe('applyRemoteMarketingConsent', () => {
+      it('applies a remote opt-in without marking it as waiting to be saved', async () => {
+        const { controller } = await setupController({
+          state: { analyticsId },
+          isGeolocationEnabled: false,
+        });
+
+        await controller.applyRemoteMarketingConsent(true);
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: true,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: false,
+        });
+      });
+
+      it('applies a remote opt-out without marking it as waiting to be saved', async () => {
+        const { controller } = await setupController({
+          state: {
+            optedInToMarketing: true,
+            marketingConsentDecisionMade: true,
+            marketingCampaignCookieId: 'GA1.1.123456789.1234567890',
+            analyticsId,
+          },
+          isGeolocationEnabled: false,
+        });
+
+        await controller.applyRemoteMarketingConsent(false);
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: false,
+          marketingCampaignCookieId: null,
+        });
+      });
+
+      it('adopts a remote opt-out on an undecided client', async () => {
+        const { controller } = await setupController({
+          state: { analyticsId },
+          isGeolocationEnabled: false,
+        });
+
+        await controller.applyRemoteMarketingConsent(false);
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: false,
+          marketingConsentDecisionMade: true,
+          marketingConsentSyncPending: false,
+        });
+      });
+
+      it('replays queued marketing events on a remote opt-in', async () => {
+        const adapter = createMockAdapter();
+        const { controller } = await setupController({
+          state: {
+            analyticsId,
+            preConsentEventQueue: {
+              queued: {
+                type: 'track',
+                eventName: 'queued_event',
+                messageId: 'queued',
+                timestamp: '2026-01-01T00:00:00.000Z',
+                eventPurposes: [AnalyticsPurpose.Marketing],
+              },
+            },
+          },
+          platformAdapter: adapter,
+          isGeolocationEnabled: false,
+          isPreConsentQueueEnabled: true,
+          skipInit: true,
+        });
+
+        await controller.applyRemoteMarketingConsent(true);
+
+        expect(controller.state.preConsentEventQueue).toStrictEqual({});
+        expect(adapter.track).toHaveBeenCalledWith(
+          'queued_event',
+          undefined,
+          expect.anything(),
+          expect.anything(),
+        );
+      });
+
+      it('does not override a local choice waiting to be saved', async () => {
+        const { controller } = await setupController({
+          state: {
+            optedInToMarketing: false,
+            marketingConsentDecisionMade: true,
+            marketingConsentSyncPending: true,
+            analyticsId,
+          },
+          isGeolocationEnabled: false,
+        });
+
+        await controller.applyRemoteMarketingConsent(true);
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: false,
+          marketingConsentSyncPending: true,
+        });
+      });
+
+      it.each([true, false])(
+        'does not update state when the user already decided %s',
+        async (optedIn) => {
+          const { controller, messenger } = await setupController({
+            state: {
+              optedInToMarketing: optedIn,
+              marketingConsentDecisionMade: true,
+              analyticsId,
+            },
+            isGeolocationEnabled: false,
+          });
+          const listener = vi.fn();
+          messenger.subscribe('AnalyticsController:stateChange', listener);
+
+          await controller.applyRemoteMarketingConsent(optedIn);
+
+          expect(listener).not.toHaveBeenCalled();
+        },
+      );
+
+      it('is exposed as a messenger action', async () => {
+        const { controller, messenger } = await setupController({
+          state: { analyticsId },
+          isGeolocationEnabled: false,
+        });
+
+        await messenger.call(
+          'AnalyticsController:applyRemoteMarketingConsent',
+          true,
+        );
+
+        expect(controller.state.optedInToMarketing).toBe(true);
+      });
+    });
+
+    describe('clearPendingMarketingConsent', () => {
+      it('clears the flag when local consent matches the saved value', async () => {
+        const { controller } = await setupController({
+          state: { analyticsId },
+          isGeolocationEnabled: false,
+        });
+        controller.optOutOfMarketing();
+
+        controller.clearPendingMarketingConsent(false);
+
+        expect(controller.state.marketingConsentSyncPending).toBe(false);
+      });
+
+      it('keeps the flag when a newer choice was made since', async () => {
+        const { controller } = await setupController({
+          state: { analyticsId },
+          isGeolocationEnabled: false,
+        });
+        await controller.optInToMarketing();
+        controller.optOutOfMarketing();
+
+        controller.clearPendingMarketingConsent(true);
+
+        expect(controller.state).toMatchObject({
+          optedInToMarketing: false,
+          marketingConsentSyncPending: true,
+        });
+      });
+
+      it('does not update state when nothing is waiting to be saved', async () => {
+        const { controller, messenger } = await setupController({
+          state: {
+            optedInToMarketing: true,
+            marketingConsentDecisionMade: true,
+            analyticsId,
+          },
+          isGeolocationEnabled: false,
+        });
+        const listener = vi.fn();
+        messenger.subscribe('AnalyticsController:stateChange', listener);
+
+        controller.clearPendingMarketingConsent(true);
+
+        expect(listener).not.toHaveBeenCalled();
+      });
+
+      it('is exposed as a messenger action', async () => {
+        const { controller, messenger } = await setupController({
+          state: { analyticsId },
+          isGeolocationEnabled: false,
+        });
+        await controller.optInToMarketing();
+
+        messenger.call(
+          'AnalyticsController:clearPendingMarketingConsent',
+          true,
+        );
+
+        expect(controller.state.marketingConsentSyncPending).toBe(false);
+      });
     });
   });
 
