@@ -141,6 +141,7 @@ describe('NetworkController provider tests', () => {
     await withController(
       {
         rpcFailoverMode: 'enabled',
+        getRpcServiceOptions: () => ({ requestTimeout: 60_000 }),
         state: {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({
@@ -492,6 +493,7 @@ describe('NetworkController provider tests', () => {
     await withController(
       {
         rpcFailoverMode: 'enabled',
+        getRpcServiceOptions: () => ({ requestTimeout: 60_000 }),
         state: {
           networkConfigurationsByChainId: {
             '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {

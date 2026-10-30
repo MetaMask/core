@@ -1120,6 +1120,7 @@ describe('RpcService', () => {
       const onDegradedListener = vi.fn();
       const service = new RpcService({
         fetch,
+        requestTimeout: 60_000,
         btoa,
         endpointUrl,
         isOffline: (): boolean => false,
@@ -1184,6 +1185,7 @@ describe('RpcService', () => {
       });
       const service = new RpcService({
         fetch,
+        requestTimeout: 60_000,
         btoa,
         endpointUrl,
         isOffline: (): boolean => false,
@@ -1252,6 +1254,7 @@ describe('RpcService', () => {
       const onDegradedListener = vi.fn();
       const service = new RpcService({
         fetch,
+        requestTimeout: 60_000,
         btoa,
         endpointUrl,
         isOffline: (): boolean => false,
@@ -1316,6 +1319,7 @@ describe('RpcService', () => {
       const onDegradedListener = vi.fn();
       const service = new RpcService({
         fetch,
+        requestTimeout: 60_000,
         btoa,
         endpointUrl,
         isOffline: (): boolean => false,
@@ -1409,6 +1413,7 @@ describe('RpcService', () => {
       const onAvailableListener = vi.fn();
       const service = new RpcService({
         fetch,
+        requestTimeout: 60_000,
         btoa,
         endpointUrl,
         isOffline: (): boolean => false,

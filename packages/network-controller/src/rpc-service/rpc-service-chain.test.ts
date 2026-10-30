@@ -879,12 +879,14 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
@@ -1123,6 +1125,7 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl,
@@ -1191,6 +1194,7 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl,
@@ -1261,6 +1265,7 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl,
@@ -1330,12 +1335,14 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
@@ -1408,6 +1415,7 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl,
@@ -1498,12 +1506,14 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
@@ -1649,6 +1659,7 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl,
@@ -1726,6 +1737,7 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl,
@@ -1812,12 +1824,14 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
@@ -1907,6 +1921,7 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl,
@@ -2009,12 +2024,14 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl: primaryEndpointUrl,
         },
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl: secondaryEndpointUrl,
@@ -2125,6 +2142,7 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl,
@@ -2172,6 +2190,7 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl,
@@ -2340,6 +2359,7 @@ describe('RpcServiceChain', () => {
       const rpcServiceChain = new RpcServiceChain([
         {
           fetch,
+          requestTimeout: 60_000,
           btoa,
           isOffline: (): boolean => false,
           endpointUrl,

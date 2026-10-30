@@ -458,9 +458,10 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers<Type>(
 
   // `hasPromiseBeenFulfilled` is modified asynchronously.
   /* eslint-disable-next-line no-unmodified-loop-condition */
-  while (!hasPromiseBeenFulfilled && numTimesClockHasBeenAdvanced < 30) {
+  while (!hasPromiseBeenFulfilled && numTimesClockHasBeenAdvanced < 300) {
+    // Let real HTTP work settle before advancing its request deadline.
     await new Promise((resolve) => realSetTimeout(resolve, 0));
-    await vi.runAllTimersAsync();
+    await vi.advanceTimersByTimeAsync(100);
     numTimesClockHasBeenAdvanced += 1;
   }
 
