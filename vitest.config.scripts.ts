@@ -39,7 +39,7 @@ export default defineConfig({
     restoreMocks: true,
 
     coverage: {
-      enabled: true,
+      enabled: false,
 
       // Configure the coverage provider. We use `istanbul` here, because it is
       // more stable than `v8`.

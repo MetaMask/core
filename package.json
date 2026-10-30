@@ -59,12 +59,12 @@
     "setup": "yarn install",
     "skills": "metamask-skills sync",
     "skills:postinstall": "metamask-skills postinstall",
-    "test": "yarn test:scripts --coverage.enabled=false --silent && yarn test:scripts:shell && yarn test:packages",
+    "test": "yarn test:scripts --silent && yarn test:scripts:shell && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
-    "test:packages": "vitest --silent --coverage.enabled=false",
+    "test:packages": "vitest --silent",
     "test:scripts": "vitest --config ./vitest.config.scripts.ts",
     "test:scripts:shell": "node_modules/bats/bin/bats scripts/*.bats",
-    "test:verbose": "vitest --reporter=verbose --coverage.enabled=false",
+    "test:verbose": "vitest --reporter=verbose",
     "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
   },
   "devDependencies": {

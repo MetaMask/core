@@ -42,7 +42,8 @@ export default defineConfig({
     },
 
     coverage: {
-      enabled: true,
+      // Coverage is opt in through the `test:coverage` script, which CI runs.
+      enabled: false,
 
       // Configure the coverage provider. We use `istanbul` here, because it is
       // more stable than `v8`.
