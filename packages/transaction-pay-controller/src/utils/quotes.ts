@@ -134,6 +134,7 @@ export async function updateQuotes(
       getSourceAmounts(messenger, transactionId) ?? sourceAmounts;
 
     const requests = buildQuoteRequests({
+      accountOverride,
       atomic,
       from,
       isHyperliquidSource,
@@ -425,6 +426,7 @@ function getSourceAmounts(
  * Build quote requests required to retrieve quotes.
  *
  * @param request - Request parameters.
+ * @param request.accountOverride - Optional account receiving post-quote output.
  * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
@@ -440,6 +442,7 @@ function getSourceAmounts(
  * @returns Array of quote requests.
  */
 function buildQuoteRequests({
+  accountOverride,
   atomic,
   from,
   isHyperliquidSource,
@@ -453,6 +456,7 @@ function buildQuoteRequests({
   tokens,
   transactionId,
 }: {
+  accountOverride?: Hex;
   atomic?: boolean;
   from: Hex;
   isHyperliquidSource?: boolean;
@@ -472,6 +476,7 @@ function buildQuoteRequests({
 
   if (isPostQuote) {
     return buildPostQuoteRequests({
+      accountOverride,
       atomic,
       destinationToken: paymentToken,
       from,
@@ -520,6 +525,7 @@ function buildQuoteRequests({
  * and the target is the user's selected destination token (paymentToken).
  *
  * @param request - Request parameters.
+ * @param request.accountOverride - Optional account receiving the output.
  * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
  * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
  * @param request.from - Address from which the transaction is sent.
@@ -533,6 +539,7 @@ function buildQuoteRequests({
  * @returns Array of quote requests for post-quote flow.
  */
 function buildPostQuoteRequests({
+  accountOverride,
   atomic,
   destinationToken,
   from,
@@ -544,6 +551,7 @@ function buildPostQuoteRequests({
   sourceAmounts,
   transactionId,
 }: {
+  accountOverride?: Hex;
   atomic?: boolean;
   destinationToken: TransactionPaymentToken;
   from: Hex;
@@ -575,6 +583,7 @@ function buildPostQuoteRequests({
   }
 
   const request: QuoteRequest = {
+    accountOverride,
     atomic,
     from,
     isHyperliquidSource,

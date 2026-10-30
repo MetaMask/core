@@ -11,8 +11,8 @@ import { getPostQuotePaymentOverrideData } from './post-quote-payment-override.j
  * Resolve the quote recipient used by both Relay and Server.
  *
  * Non-atomic execution must be funded on its execution account. Ordinary
- * post-quote withdrawals pay the selected receiving account (`accountOverride`,
- * falling back to `request.from`).
+ * post-quote withdrawals pay the selected receiving account in
+ * `request.accountOverride`, falling back to `request.from`.
  * Deposits default to the original transaction's execution account.
  *
  * @param options - Recipient resolution options.
@@ -55,35 +55,9 @@ export async function resolveQuoteRecipient({
   if (request.isPostQuote) {
     // Ordinary withdrawals pay the selected receiving account, which can differ
     // from the account executing the source withdrawal.
-    return getPostQuoteRecipient({ messenger, request, transaction });
+    return request.accountOverride ?? request.from;
   }
 
   // Deposits default to the execution account, which can differ from the payer.
   return executionAccount;
-}
-
-/**
- * Resolve the account receiving an ordinary post-quote withdrawal: the
- * selected receiving account (`accountOverride`), falling back to `request.from`.
- *
- * @param options - Recipient resolution options.
- * @param options.messenger - Controller messenger.
- * @param options.request - Quote request.
- * @param options.transaction - Original transaction metadata.
- * @returns The post-quote recipient.
- */
-export function getPostQuoteRecipient({
-  messenger,
-  request,
-  transaction,
-}: {
-  messenger: TransactionPayControllerMessenger;
-  request: QuoteRequest;
-  transaction: TransactionMeta;
-}): Hex {
-  const { transactionData } = messenger.call(
-    'TransactionPayController:getState',
-  );
-
-  return transactionData[transaction.id]?.accountOverride ?? request.from;
 }

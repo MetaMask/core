@@ -187,7 +187,6 @@ describe('Across Quotes', () => {
     estimateGasMock,
     estimateGasBatchMock,
     findNetworkClientIdByChainIdMock,
-    getControllerStateMock,
     getGasFeeTokensMock,
     getRemoteFeatureFlagControllerStateMock,
   } = getMessengerMock();
@@ -380,14 +379,6 @@ describe('Across Quotes', () => {
     it('pays the account override for post-quote predict withdraws', async () => {
       const accountOverride =
         '0x5afe000000000000000000000000000000000002' as Hex;
-      const transaction = {
-        ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
-        id: 'predict-withdraw-id',
-      };
-
-      getControllerStateMock.mockReturnValue({
-        transactionData: { [transaction.id]: { accountOverride } },
-      });
 
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
@@ -400,11 +391,12 @@ describe('Across Quotes', () => {
         requests: [
           {
             ...QUOTE_REQUEST_MOCK,
+            accountOverride,
             isPostQuote: true,
             targetAmountMinimum: '0',
           },
         ],
-        transaction,
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
       });
 
       const [url] = successfulFetchMock.mock.calls[0];

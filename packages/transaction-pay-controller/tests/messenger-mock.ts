@@ -56,7 +56,7 @@ export function getMessengerMock({
 }: { skipRegister?: boolean } = {}): any {
   const getControllerStateMock: MockedFunction<
     TransactionPayControllerGetStateAction['handler']
-  > = vi.fn(() => ({ transactionData: {} }));
+  > = vi.fn();
 
   const getStrategyMock: MockedFunction<
     TransactionPayControllerGetStrategyAction['handler']

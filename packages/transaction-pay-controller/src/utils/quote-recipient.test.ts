@@ -73,16 +73,14 @@ describe('resolveQuoteRecipient', () => {
   );
 
   it('pays the account override for ordinary withdrawals', async () => {
-    getControllerStateMock.mockReturnValue({
-      transactionData: {
-        [TRANSACTION_MOCK.id]: { accountOverride: PAYOUT_RECIPIENT_MOCK },
-      },
-    });
-
     expect(
       await resolveQuoteRecipient({
         messenger,
-        request: { ...REQUEST_MOCK, isPostQuote: true },
+        request: {
+          ...REQUEST_MOCK,
+          accountOverride: PAYOUT_RECIPIENT_MOCK,
+          isPostQuote: true,
+        },
         transaction: TRANSACTION_MOCK,
       }),
     ).toBe(PAYOUT_RECIPIENT_MOCK);

@@ -5285,10 +5285,10 @@
   },
   "packages/transaction-pay-controller/src/strategy/across/across-quotes.test.ts": {
     "typescript/no-unsafe-call": {
-      "count": 43
+      "count": 42
     },
     "typescript/no-unsafe-member-access": {
-      "count": 43
+      "count": 42
     },
     "vitest/no-conditional-in-test": {
       "count": 1
@@ -5557,10 +5557,10 @@
   },
   "packages/transaction-pay-controller/src/utils/quote-recipient.test.ts": {
     "typescript/no-unsafe-call": {
-      "count": 4
+      "count": 3
     },
     "typescript/no-unsafe-member-access": {
-      "count": 4
+      "count": 3
     }
   },
   "packages/transaction-pay-controller/src/utils/quotes.test.ts": {

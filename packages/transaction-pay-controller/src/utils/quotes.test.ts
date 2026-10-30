@@ -1996,6 +1996,7 @@ describe('Quotes Utils', () => {
         expect.objectContaining({
           requests: [
             expect.objectContaining({
+              accountOverride,
               isPostQuote: true,
               from: TRANSACTION_META_MOCK.txParams.from,
             }),
