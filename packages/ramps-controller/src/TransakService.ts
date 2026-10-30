@@ -1,10 +1,25 @@
+import { BaseDataService } from '@metamask/base-data-service';
 import type {
   CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import {
+  any,
+  array,
+  boolean,
+  number,
+  optional,
+  record,
+  string,
+  type as looseObject,
+} from '@metamask/superstruct';
+import type { Struct } from '@metamask/superstruct';
+import type { Json } from '@metamask/utils';
 
 import packageJson from '../package.json';
 import type { RampsClientIdentity } from './client-identity.js';
@@ -342,7 +357,15 @@ const MESSENGER_EXPOSED_METHODS = [
   'getActiveOrders',
 ] as const;
 
-export type TransakServiceActions = TransakServiceMethodActions;
+/**
+ * Invalidates cached queries held by {@link TransakService}.
+ */
+export type TransakServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+export type TransakServiceActions =
+  | TransakServiceMethodActions
+  | TransakServiceInvalidateQueriesAction;
 
 /**
  * Actions from other messengers that {@link TransakService} calls.
@@ -350,7 +373,23 @@ export type TransakServiceActions = TransakServiceMethodActions;
 type AllowedActions =
   AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
-export type TransakServiceEvents = never;
+/**
+ * Published whenever a query or mutation in the service cache changes.
+ */
+export type TransakServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof serviceName
+>;
+
+/**
+ * Published for a single query or mutation whenever it changes in the service
+ * cache.
+ */
+export type TransakServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+export type TransakServiceEvents =
+  | TransakServiceCacheUpdatedEvent
+  | TransakServiceGranularCacheUpdatedEvent;
 
 type AllowedEvents = never;
 
@@ -477,18 +516,157 @@ export class TransakApiError extends HttpError {
   }
 }
 
+// === RESPONSE STRUCTS ===
+
+/**
+ * The structs below are intentionally lenient: they check the fields the
+ * service and its callers depend on, and ignore any extra fields the APIs
+ * return.
+ */
+
+const TransakPaymentDetailsStruct = array(
+  looseObject({
+    fiatCurrency: string(),
+    paymentMethod: string(),
+    fields: array(
+      looseObject({ name: string(), id: string(), value: string() }),
+    ),
+  }),
+);
+
+const SendUserOtpResponseStruct = looseObject({
+  isTncAccepted: boolean(),
+  stateToken: string(),
+  email: string(),
+  expiresIn: number(),
+});
+
+const VerifyUserOtpResponseStruct = looseObject({
+  accessToken: string(),
+  ttl: number(),
+  created: string(),
+});
+
+const UserDetailsStruct = looseObject({
+  id: string(),
+  firstName: string(),
+  lastName: string(),
+  email: string(),
+  mobileNumber: string(),
+  status: string(),
+  dob: string(),
+  kyc: looseObject({
+    status: string(),
+    type: string(),
+    userId: string(),
+    workFlowRunId: string(),
+  }),
+  address: looseObject({
+    addressLine1: string(),
+    addressLine2: string(),
+    state: string(),
+    city: string(),
+    postCode: string(),
+    country: string(),
+    countryCode: string(),
+  }),
+  createdAt: string(),
+});
+
+const BuyQuoteStruct = looseObject({
+  quoteId: string(),
+  conversionPrice: number(),
+  marketConversionPrice: number(),
+  slippage: number(),
+  fiatCurrency: string(),
+  cryptoCurrency: string(),
+  paymentMethod: string(),
+  fiatAmount: number(),
+  cryptoAmount: number(),
+  isBuyOrSell: string(),
+  network: string(),
+  feeDecimal: number(),
+  totalFee: number(),
+  feeBreakdown: array(record(string(), any())),
+  nonce: number(),
+  cryptoLiquidityProvider: string(),
+  notes: array(record(string(), any())),
+});
+
+const KycRequirementStruct = looseObject({
+  status: string(),
+  kycType: string(),
+  isAllowedToPlaceOrder: boolean(),
+});
+
+const AdditionalRequirementsStruct = looseObject({
+  formsRequired: array(
+    looseObject({ type: string(), metadata: optional(any()) }),
+  ),
+});
+
+const TransakOrderStruct = looseObject({
+  orderId: string(),
+  walletAddress: string(),
+  paymentDetails: optional(TransakPaymentDetailsStruct),
+});
+
+const ActiveOrdersStruct = array(
+  looseObject({ orderId: string(), status: string() }),
+);
+
+const DepositOrderStruct = looseObject({
+  providerOrderId: string(),
+  status: string(),
+});
+
+const UserLimitsStruct = looseObject({
+  limits: looseObject({ '1': number(), '30': number(), '365': number() }),
+  spent: looseObject({ '1': number(), '30': number(), '365': number() }),
+  remaining: looseObject({ '1': number(), '30': number(), '365': number() }),
+  exceeded: looseObject({ '1': boolean(), '30': boolean(), '365': boolean() }),
+  shortage: record(string(), number()),
+});
+
+const OttStruct = looseObject({ ott: string() });
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const TranslationStruct: Struct<any> = looseObject({
+  region: optional(string()),
+  paymentMethod: optional(string()),
+  cryptoCurrency: string(),
+  network: string(),
+  fiatCurrency: string(),
+});
+
+const IdProofStatusStruct = looseObject({
+  status: string(),
+  kycType: string(),
+  randomLogIdentifier: optional(string()),
+});
+
+const PaymentConfirmationStruct = looseObject({ success: boolean() });
+
+const WidgetUrlResponseStruct = looseObject({ widgetUrl: string() });
+
+/**
+ * Wraps a struct in the `{ data }` envelope the Transak API gateway uses.
+ *
+ * @param dataStruct - The struct for the `data` property.
+ * @returns The envelope struct.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function envelope(dataStruct: Struct<any>): Struct<any> {
+  return looseObject({ data: dataStruct });
+}
+
 // === SERVICE DEFINITION ===
 
-export class TransakService {
-  readonly name: typeof serviceName;
-
-  readonly #messenger: TransakServiceMessenger;
-
+export class TransakService extends BaseDataService<
+  typeof serviceName,
+  TransakServiceMessenger
+> {
   readonly #fetch: typeof fetch;
-
-  readonly #policy: ServicePolicy;
-
-  readonly #noRetryPolicy: ServicePolicy;
 
   readonly #environment: TransakEnvironment;
 
@@ -522,7 +700,7 @@ export class TransakService {
     context,
     fetch: fetchFunction,
     apiKey,
-    policyOptions = {},
+    policyOptions,
     orderRetryDelayMs = 2000,
     rampsApiBaseUrlOverride,
     referrerDomain = TRANSAK_REFERRER_DOMAIN,
@@ -541,14 +719,8 @@ export class TransakService {
     clientProduct?: string;
     clientVersion?: string;
   }) {
-    this.name = serviceName;
-    this.#messenger = messenger;
+    super({ name: serviceName, messenger, policyOptions });
     this.#fetch = fetchFunction;
-    this.#policy = createServicePolicy(policyOptions);
-    this.#noRetryPolicy = createServicePolicy({
-      ...policyOptions,
-      maxRetries: 0,
-    });
     this.#environment = environment;
     this.#context = context;
     this.#apiKey = apiKey ?? null;
@@ -560,7 +732,7 @@ export class TransakService {
       clientVersion,
     };
 
-    this.#messenger.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
@@ -660,10 +832,26 @@ export class TransakService {
     );
   }
 
-  async #transakGet<ResponseType>(
+  /**
+   * Identifies the current login session without exposing the access token,
+   * so reads made under different sessions never share a request.
+   *
+   * @returns The access token creation time in milliseconds, or `null` when
+   * logged out.
+   */
+  #getSessionId(): number | null {
+    return this.#accessToken
+      ? new Date(this.#accessToken.created).getTime()
+      : null;
+  }
+
+  async #transakGet<Data>(
+    queryName: string,
     path: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dataStruct: Struct<any>,
     params?: Record<string, string>,
-  ): Promise<ResponseType> {
+  ): Promise<Data> {
     const baseUrl = getTransakApiBaseUrl(this.#environment);
     const url = new URL(path, baseUrl);
 
@@ -678,76 +866,124 @@ export class TransakService {
     const apiKey = this.#ensureApiKey();
     url.searchParams.set('apiKey', apiKey);
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url.toString(), {
-        method: 'GET',
-        headers: this.#getHeaders(),
-      });
-      if (!fetchResponse.ok) {
-        await this.#throwTransakApiError(fetchResponse, url);
-      }
-      return fetchResponse.json() as Promise<{ data: ResponseType }>;
-    });
+    const response = (await this.fetchQuery({
+      // The API key is deliberately left out of the key, as keys appear in the
+      // names of published `cacheUpdated` events.
+      queryKey: [
+        `${this.name}:${queryName}`,
+        params ?? {},
+        this.#getSessionId(),
+      ],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: envelope(dataStruct),
+      queryFn: async () => {
+        const fetchResponse = await this.#fetch(url.toString(), {
+          method: 'GET',
+          headers: this.#getHeaders(),
+        });
+        if (!fetchResponse.ok) {
+          await this.#throwTransakApiError(fetchResponse, url);
+        }
+        return (await fetchResponse.json()) as Json;
+      },
+    })) as { data: Data };
 
     return response.data;
   }
 
-  async #transakPost<ResponseType>(
+  /**
+   * Sends a request that changes server side data. Mutations are never
+   * retried, and the mutation key holds only the method name, as keys appear
+   * in the names of published `cacheUpdated` events.
+   *
+   * @param options - The options.
+   * @param options.mutationName - The name of the public method.
+   * @param options.url - The request URL.
+   * @param options.init - The request method, headers and body.
+   * @param options.responseStruct - The struct for the response body. When
+   * omitted, the response body is ignored.
+   * @returns The validated response body, or `null` if it was ignored.
+   */
+  async #sendMutation({
+    mutationName,
+    url,
+    init,
+    responseStruct,
+  }: {
+    mutationName: string;
+    url: URL;
+    init: RequestInit;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    responseStruct?: Struct<any>;
+  }): Promise<unknown> {
+    return (await this.executeMutation({
+      mutationKey: [`${this.name}:${mutationName}`],
+      gcTime: 0,
+      responseStruct,
+      mutationFn: async () => {
+        const fetchResponse = await this.#fetch(url.toString(), init);
+        if (!fetchResponse.ok) {
+          await this.#throwTransakApiError(fetchResponse, url);
+        }
+        return responseStruct ? ((await fetchResponse.json()) as Json) : null;
+      },
+    })) as unknown;
+  }
+
+  async #transakPost<Data>(
+    mutationName: string,
     path: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dataStruct: Struct<any>,
     body?: Record<string, unknown>,
-    options: { policy?: ServicePolicy } = {},
-  ): Promise<ResponseType> {
+  ): Promise<Data> {
     const apiKey = this.#ensureApiKey();
     const baseUrl = getTransakApiBaseUrl(this.#environment);
     const url = new URL(path, baseUrl);
 
-    const requestBody = {
-      ...(body ?? {}),
-      apiKey,
-    };
-
-    const policy = options.policy ?? this.#policy;
-
-    const response = await policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url.toString(), {
+    const response = (await this.#sendMutation({
+      mutationName,
+      url,
+      init: {
         method: 'POST',
         headers: this.#getHeaders(),
-        body: JSON.stringify(requestBody),
-      });
-      if (!fetchResponse.ok) {
-        await this.#throwTransakApiError(fetchResponse, url);
-      }
-      return fetchResponse.json() as Promise<{ data: ResponseType }>;
-    });
+        body: JSON.stringify({ ...(body ?? {}), apiKey }),
+      },
+      responseStruct: envelope(dataStruct),
+    })) as { data: Data };
 
     return response.data;
   }
 
-  async #transakPatch<ResponseType>(
+  async #transakPatch<Data>(
+    mutationName: string,
     path: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dataStruct: Struct<any>,
     body: Record<string, unknown>,
-  ): Promise<ResponseType> {
+  ): Promise<Data> {
     const apiKey = this.#ensureApiKey();
     const baseUrl = getTransakApiBaseUrl(this.#environment);
     const url = new URL(path, baseUrl);
     url.searchParams.set('apiKey', apiKey);
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url.toString(), {
+    const response = (await this.#sendMutation({
+      mutationName,
+      url,
+      init: {
         method: 'PATCH',
         headers: this.#getHeaders(),
         body: JSON.stringify(body),
-      });
-      if (!fetchResponse.ok) {
-        await this.#throwTransakApiError(fetchResponse, url);
-      }
-      return fetchResponse.json() as Promise<{ data: ResponseType }>;
-    });
+      },
+      responseStruct: envelope(dataStruct),
+    })) as { data: Data };
 
     return response.data;
   }
 
   async #transakDelete(
+    mutationName: string,
     path: string,
     params?: Record<string, string>,
   ): Promise<void> {
@@ -764,14 +1000,10 @@ export class TransakService {
       }
     }
 
-    await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url.toString(), {
-        method: 'DELETE',
-        headers: this.#getHeaders(),
-      });
-      if (!fetchResponse.ok) {
-        await this.#throwTransakApiError(fetchResponse, url);
-      }
+    await this.#sendMutation({
+      mutationName,
+      url,
+      init: { method: 'DELETE', headers: this.#getHeaders() },
     });
   }
 
@@ -801,10 +1033,13 @@ export class TransakService {
     addRampsClientIdentityParams(url, this.#clientIdentity);
   }
 
-  async #ordersApiGet<ResponseType>(
+  async #ordersApiGet<Data>(
+    queryName: string,
     path: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    dataStruct: Struct<any>,
     params?: Record<string, string>,
-  ): Promise<ResponseType> {
+  ): Promise<Data> {
     const baseUrl = this.#getRampsApiBaseUrl();
     const providerPath = getRampsProviderPath(this.#environment);
     const url = new URL(`${providerPath}${path}`, baseUrl);
@@ -823,21 +1058,25 @@ export class TransakService {
       }
     }
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url.toString(), {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      });
-      if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
-      }
-      return fetchResponse.json() as Promise<ResponseType>;
-    });
-
-    return response;
+    return (await this.fetchQuery({
+      queryKey: [`${this.name}:${queryName}`, path, params ?? {}],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: dataStruct,
+      queryFn: async () => {
+        const fetchResponse = await this.#fetch(url.toString(), {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        });
+        if (!fetchResponse.ok) {
+          throw new HttpError(
+            fetchResponse.status,
+            `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+          );
+        }
+        return (await fetchResponse.json()) as Json;
+      },
+    })) as Data;
   }
 
   // === PUBLIC API METHODS ===
@@ -853,7 +1092,9 @@ export class TransakService {
       stateToken: string;
       email: string;
       expiresIn: number;
-    }>('/api/v2/auth/login', { email });
+    }>('sendUserOtp', '/api/v2/auth/login', SendUserOtpResponseStruct, {
+      email,
+    });
     return result;
   }
 
@@ -866,15 +1107,11 @@ export class TransakService {
       accessToken: string;
       ttl: number;
       created: string;
-    }>(
-      '/api/v2/auth/verify',
-      {
-        email,
-        otp: verificationCode,
-        stateToken,
-      },
-      { policy: this.#noRetryPolicy },
-    );
+    }>('verifyUserOtp', '/api/v2/auth/verify', VerifyUserOtpResponseStruct, {
+      email,
+      otp: verificationCode,
+      stateToken,
+    });
 
     const accessToken: TransakAccessToken = {
       accessToken: responseData.accessToken,
@@ -889,7 +1126,11 @@ export class TransakService {
   async logout(): Promise<string> {
     this.#ensureAccessToken();
     try {
-      const result = await this.#transakPost<string>('/api/v1/auth/logout');
+      const result = await this.#transakPost<string>(
+        'logout',
+        '/api/v1/auth/logout',
+        string(),
+      );
       this.clearAccessToken();
       return result;
     } catch (error) {
@@ -903,7 +1144,11 @@ export class TransakService {
 
   async getUserDetails(): Promise<TransakUserDetails> {
     this.#ensureAccessToken();
-    return this.#transakGet<TransakUserDetails>('/api/v2/user/');
+    return this.#transakGet<TransakUserDetails>(
+      'getUserDetails',
+      '/api/v2/user/',
+      UserDetailsStruct,
+    );
   }
 
   async getBuyQuote(
@@ -944,7 +1189,7 @@ export class TransakService {
 
     const quote = await this.#transakGet<
       Omit<TransakBuyQuote, 'requestedAssetId' | 'requestedChainId'>
-    >('/api/v2/lookup/quotes', params);
+    >('getBuyQuote', '/api/v2/lookup/quotes', BuyQuoteStruct, params);
 
     return {
       ...quote,
@@ -956,7 +1201,9 @@ export class TransakService {
   async getKycRequirement(quoteId: string): Promise<TransakKycRequirement> {
     this.#ensureAccessToken();
     const result = await this.#transakGet<TransakKycRequirement>(
+      'getKycRequirement',
       '/api/v2/kyc/requirement',
+      KycRequirementStruct,
       {
         'metadata[quoteId]': quoteId,
       },
@@ -969,7 +1216,9 @@ export class TransakService {
   ): Promise<TransakAdditionalRequirementsResponse> {
     this.#ensureAccessToken();
     return this.#transakGet<TransakAdditionalRequirementsResponse>(
+      'getAdditionalRequirements',
       '/api/v2/kyc/additional-requirements',
+      AdditionalRequirementsStruct,
       { 'metadata[quoteId]': quoteId },
     );
   }
@@ -992,7 +1241,9 @@ export class TransakService {
 
     try {
       const transakOrder = await this.#transakPost<TransakOrder>(
+        'createOrder',
         '/api/v2/orders',
+        TransakOrderStruct,
         {
           quoteId,
           walletAddress,
@@ -1023,7 +1274,9 @@ export class TransakService {
         );
 
         const retryOrder = await this.#transakPost<TransakOrder>(
+          'createOrder',
           '/api/v2/orders',
+          TransakOrderStruct,
           {
             quoteId,
             walletAddress,
@@ -1066,7 +1319,9 @@ export class TransakService {
       TransakOrderIdTransformer.extractTransakOrderId(depositOrderId);
 
     const order = await this.#ordersApiGet<TransakDepositOrder>(
+      'getOrder',
       `/orders/${transakOrderId}`,
+      DepositOrderStruct,
       { wallet },
     );
 
@@ -1083,7 +1338,9 @@ export class TransakService {
     if (this.#accessToken?.accessToken) {
       try {
         const transakOrder = await this.#transakGet<TransakOrder>(
+          'getOrderPaymentDetails',
           `/api/v2/orders/${transakOrderId}`,
+          TransakOrderStruct,
         );
         return { ...orderWithId, paymentDetails: transakOrder.paymentDetails };
       } catch {
@@ -1116,7 +1373,9 @@ export class TransakService {
     }
 
     return this.#transakGet<TransakUserLimits>(
+      'getUserLimits',
       '/api/v2/orders/user-limit',
+      UserLimitsStruct,
       params,
     );
   }
@@ -1129,7 +1388,9 @@ export class TransakService {
   async requestOtt(): Promise<TransakOttResponse> {
     this.#ensureAccessToken();
     const result = await this.#transakPost<TransakOttResponse>(
+      'requestOtt',
       '/api/v2/auth/request-ott',
+      OttStruct,
     );
     return result;
   }
@@ -1201,7 +1462,7 @@ export class TransakService {
     extraParams?: Record<string, string>,
   ): Promise<string> {
     this.#ensureAccessToken();
-    const bearerToken = await this.#messenger.call(
+    const bearerToken = await this.messenger.call(
       'AuthenticationController:getBearerToken',
     );
 
@@ -1236,36 +1497,41 @@ export class TransakService {
       headers['x-transak-access-token'] = this.#accessToken.accessToken;
     }
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url.toString(), {
+    const response = (await this.#sendMutation({
+      mutationName: 'createWidgetUrl',
+      url,
+      init: {
         method: 'POST',
         headers,
         body: JSON.stringify({ widgetParams }),
-      });
-      if (!fetchResponse.ok) {
-        await this.#throwTransakApiError(fetchResponse, url);
-      }
-      return fetchResponse.json() as Promise<{ widgetUrl: string }>;
-    });
+      },
+      responseStruct: WidgetUrlResponseStruct,
+    })) as { widgetUrl: string };
 
     return response.widgetUrl;
   }
 
   async submitPurposeOfUsageForm(purpose: string[]): Promise<void> {
     this.#ensureAccessToken();
-    await this.#transakPost('/api/v2/kyc/purpose-of-usage', {
-      purposeList: purpose,
-    });
+    await this.#transakPost(
+      'submitPurposeOfUsageForm',
+      '/api/v2/kyc/purpose-of-usage',
+      any(),
+      { purposeList: purpose },
+    );
   }
 
   async patchUser(data: PatchUserRequestBody): Promise<unknown> {
     this.#ensureAccessToken();
-    return this.#transakPatch('/api/v2/kyc/user', data);
+    return this.#transakPatch('patchUser', '/api/v2/kyc/user', any(), data);
   }
 
   async submitSsnDetails(ssn: string, quoteId: string): Promise<unknown> {
     this.#ensureAccessToken();
-    return this.#transakPost('/api/v2/kyc/ssn', { ssn, quoteId });
+    return this.#transakPost('submitSsnDetails', '/api/v2/kyc/ssn', any(), {
+      ssn,
+      quoteId,
+    });
   }
 
   async confirmPayment(
@@ -1284,7 +1550,9 @@ export class TransakService {
       TransakOrderIdTransformer.extractTransakOrderId(orderId);
 
     return this.#transakPost<{ success: boolean }>(
+      'confirmPayment',
       '/api/v2/orders/payment-confirmation',
+      PaymentConfirmationStruct,
       {
         orderId: transakOrderId,
         paymentMethod: translation.paymentMethod ?? normalizedPaymentMethod,
@@ -1309,33 +1577,41 @@ export class TransakService {
       ),
     };
 
+    const params: Record<string, string> = {};
     for (const [key, value] of Object.entries(normalizedRequest)) {
       if (value !== undefined) {
         url.searchParams.set(key, value);
+        params[key] = value;
       }
     }
 
-    const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url.toString(), {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-      });
-      if (!fetchResponse.ok) {
-        throw new HttpError(
-          fetchResponse.status,
-          `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
-        );
-      }
-      return fetchResponse.json() as Promise<TransakQuoteTranslation>;
-    });
-
-    return response;
+    return (await this.fetchQuery({
+      queryKey: [`${this.name}:getTranslation`, params],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: TranslationStruct,
+      queryFn: async () => {
+        const fetchResponse = await this.#fetch(url.toString(), {
+          method: 'GET',
+          headers: { Accept: 'application/json' },
+        });
+        if (!fetchResponse.ok) {
+          throw new HttpError(
+            fetchResponse.status,
+            `Fetching '${url.toString()}' failed with status '${fetchResponse.status}'`,
+          );
+        }
+        return (await fetchResponse.json()) as Json;
+      },
+    })) as TransakQuoteTranslation;
   }
 
   async getIdProofStatus(workFlowRunId: string): Promise<TransakIdProofStatus> {
     this.#ensureAccessToken();
     return this.#transakGet<TransakIdProofStatus>(
+      'getIdProofStatus',
       '/api/v2/kyc/id-proof-status',
+      IdProofStatusStruct,
       { workFlowRunId },
     );
   }
@@ -1344,9 +1620,13 @@ export class TransakService {
     this.#ensureAccessToken();
     const transakOrderId =
       TransakOrderIdTransformer.extractTransakOrderId(depositOrderId);
-    await this.#transakDelete(`/api/v2/orders/${transakOrderId}`, {
-      cancelReason: 'Creating new order',
-    });
+    await this.#transakDelete(
+      'cancelOrder',
+      `/api/v2/orders/${transakOrderId}`,
+      {
+        cancelReason: 'Creating new order',
+      },
+    );
   }
 
   async cancelAllActiveOrders(): Promise<Error[]> {
@@ -1376,6 +1656,10 @@ export class TransakService {
 
   async getActiveOrders(): Promise<TransakOrder[]> {
     this.#ensureAccessToken();
-    return this.#transakGet<TransakOrder[]>('/api/v2/active-orders');
+    return this.#transakGet<TransakOrder[]>(
+      'getActiveOrders',
+      '/api/v2/active-orders',
+      ActiveOrdersStruct,
+    );
   }
 }
