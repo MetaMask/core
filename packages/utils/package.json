@@ -60,7 +60,7 @@
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/type-utils": "^0.1.0",
-    "@noble/hashes": "^1.8.0",
+    "@noble/hashes": "^2.4.0",
     "@types/debug": "^4.1.7",
     "@types/lodash": "^4.17.27",
     "debug": "^4.4.3",
