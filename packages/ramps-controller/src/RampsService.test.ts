@@ -19,6 +19,17 @@ import {
 
 const CONTROLLER_VERSION = packageJson.version;
 
+/**
+ * Drives fake timers while nock responds on real I/O, so that retry backoff
+ * delays elapse without waiting.
+ */
+async function settle(): Promise<void> {
+  for (let i = 0; i < 12; i++) {
+    await vi.runOnlyPendingTimersAsync();
+    await flushPromises();
+  }
+}
+
 describe('RampsService', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -44,8 +55,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const geolocationResponse = await geolocationPromise;
 
       expect(geolocationResponse).toBe('us-tx');
@@ -72,8 +82,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const geolocationResponse = await geolocationPromise;
 
       expect(geolocationResponse).toBe('us-tx');
@@ -95,8 +104,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const geolocationResponse = await geolocationPromise;
 
       expect(geolocationResponse).toBe('us-tx');
@@ -118,8 +126,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const geolocationResponse = await geolocationPromise;
 
       expect(geolocationResponse).toBe('us-tx');
@@ -141,8 +148,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const geolocationResponse = await geolocationPromise;
 
       expect(geolocationResponse).toBe('us-tx');
@@ -164,8 +170,7 @@ describe('RampsService', () => {
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const geolocationResponse = await geolocationPromise;
 
       expect(geolocationResponse).toBe('us-tx');
@@ -186,10 +191,9 @@ describe('RampsService', () => {
         'RampsService:getGeolocation',
       );
       geolocationPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await expect(geolocationPromise).rejects.toThrow(
-        'Malformed response received from geolocation API',
+        /Query function for "RampsService:getGeolocation" returned an unexpected response/u,
       );
     });
 
@@ -203,56 +207,20 @@ describe('RampsService', () => {
         })
         .times(4)
         .reply(500, 'Internal Server Error');
-      const { service, rootMessenger } = getService();
-      service.onRetry(() => {
-        vi.runOnlyPendingTimersAsync().catch(() => undefined);
-      });
+      const { rootMessenger } = getService();
 
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
       geolocationPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await expect(geolocationPromise).rejects.toThrow(
         `Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
       );
     });
 
-    it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
-      nock('https://on-ramp.uat-api.cx.metamask.io')
-        .get('/geolocation')
-        .query({
-          sdk: '2.1.6',
-          controller: CONTROLLER_VERSION,
-          context: 'mobile-ios',
-        })
-        .reply(200, () => {
-          return new Promise<string>((resolve) => {
-            setTimeout(() => {
-              resolve('US-TX');
-            }, 6000);
-          });
-        });
-      const { service, rootMessenger } = getService();
-      const onDegradedListener = vi.fn();
-      service.onDegraded(onDegradedListener);
-
-      const geolocationPromise = rootMessenger.call(
-        'RampsService:getGeolocation',
-      );
-      await vi.advanceTimersByTimeAsync(6000);
-      await flushPromises();
-      await vi.runAllTimersAsync();
-      await flushPromises();
-      const geolocationResponse = await geolocationPromise;
-
-      expect(onDegradedListener).toHaveBeenCalled();
-      expect(geolocationResponse).toBe('US-TX');
-    });
-
     it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
-      nock('https://on-ramp.uat-api.cx.metamask.io')
+      const scope = nock('https://on-ramp.uat-api.cx.metamask.io')
         .get('/geolocation')
         .query({
           sdk: '2.1.6',
@@ -261,40 +229,24 @@ describe('RampsService', () => {
         })
         .times(4)
         .reply(500);
-      const { service, rootMessenger } = getService();
-      service.onRetry(() => {
-        vi.runOnlyPendingTimersAsync().catch(() => undefined);
-      });
+      const { rootMessenger } = getService();
 
       const geolocationPromise = rootMessenger.call(
         'RampsService:getGeolocation',
       );
       geolocationPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await expect(geolocationPromise).rejects.toThrow(
         `Fetching 'https://on-ramp.uat-api.cx.metamask.io/geolocation?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
       );
-    });
-
-    it('allows registering onBreak listeners', () => {
-      const { service } = getService();
-      const onBreakListener = vi.fn();
-
-      const subscription = service.onBreak(onBreakListener);
-
-      expect(subscription).toBeDefined();
-      expect(subscription).toHaveProperty('dispose');
+      expect(scope.isDone()).toBe(true);
     });
 
     it('throws error for invalid environment', async () => {
-      const { service, rootMessenger } = getService({
+      const { rootMessenger } = getService({
         options: {
           environment: 'invalid' as unknown as RampsEnvironment,
         },
-      });
-      service.onRetry(() => {
-        vi.runOnlyPendingTimersAsync().catch(() => undefined);
       });
 
       await expect(
@@ -316,8 +268,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const geolocationPromise = service.getGeolocation();
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const geolocationResponse = await geolocationPromise;
 
       expect(geolocationResponse).toBe('us-tx');
@@ -365,8 +316,7 @@ describe('RampsService', () => {
       const { rootMessenger } = getService();
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
@@ -420,8 +370,7 @@ describe('RampsService', () => {
       });
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
@@ -475,8 +424,7 @@ describe('RampsService', () => {
       });
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
@@ -553,8 +501,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const countriesPromise = service.getCountries();
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toHaveLength(1);
@@ -601,8 +548,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const countriesPromise = service.getCountries();
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toHaveLength(1);
@@ -619,15 +565,11 @@ describe('RampsService', () => {
         })
         .times(4)
         .reply(500);
-      const { service, rootMessenger } = getService();
-      service.onRetry(() => {
-        vi.runOnlyPendingTimersAsync().catch(() => undefined);
-      });
+      const { rootMessenger } = getService();
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
       countriesPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await expect(countriesPromise).rejects.toThrow(
         `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/countries?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
       );
@@ -646,10 +588,9 @@ describe('RampsService', () => {
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
       countriesPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await expect(countriesPromise).rejects.toThrow(
-        'Malformed response received from countries API',
+        /Query function for "RampsService:getCountries" returned an unexpected response/u,
       );
     });
 
@@ -666,10 +607,9 @@ describe('RampsService', () => {
 
       const countriesPromise = rootMessenger.call('RampsService:getCountries');
       countriesPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await expect(countriesPromise).rejects.toThrow(
-        'Malformed response received from countries API',
+        /Query function for "RampsService:getCountries" returned an unexpected response/u,
       );
     });
   });
@@ -697,8 +637,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const countriesPromise = service.getCountries();
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toMatchInlineSnapshot(`
@@ -763,8 +702,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const countriesPromise = service.getCountries();
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse[0]?.supported).toStrictEqual({
@@ -812,8 +750,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const countriesPromise = service.getCountries();
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse[0]?.supported).toStrictEqual({
@@ -857,8 +794,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const countriesPromise = service.getCountries();
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const countriesResponse = await countriesPromise;
 
       expect(countriesResponse).toHaveLength(1);
@@ -916,8 +852,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us', 'buy');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const tokensResponse = await tokensPromise;
 
       expect(tokensResponse).toMatchInlineSnapshot(`
@@ -973,8 +908,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const tokensResponse = await tokensPromise;
 
       expect(tokensResponse.topTokens).toStrictEqual([]);
@@ -1006,8 +940,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('US', 'buy');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const tokensResponse = await tokensPromise;
 
       expect(tokensResponse.topTokens).toStrictEqual([]);
@@ -1039,8 +972,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const tokensPromise = service.getTokens('us', 'sell');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const tokensResponse = await tokensPromise;
 
       expect(tokensResponse.topTokens).toStrictEqual([]);
@@ -1069,11 +1001,10 @@ describe('RampsService', () => {
 
       const tokensPromise = service.getTokens('us', 'buy');
       tokensPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(tokensPromise).rejects.toThrow(
-        'Malformed response received from tokens API',
+        /Query function for "RampsService:getTokens" returned an unexpected response/u,
       );
     });
 
@@ -1099,11 +1030,10 @@ describe('RampsService', () => {
 
       const tokensPromise = service.getTokens('us', 'buy');
       tokensPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(tokensPromise).rejects.toThrow(
-        'Malformed response received from tokens API',
+        /Query function for "RampsService:getTokens" returned an unexpected response/u,
       );
     });
 
@@ -1129,11 +1059,10 @@ describe('RampsService', () => {
 
       const tokensPromise = service.getTokens('us', 'buy');
       tokensPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(tokensPromise).rejects.toThrow(
-        'Malformed response received from tokens API',
+        /Query function for "RampsService:getTokens" returned an unexpected response/u,
       );
     });
 
@@ -1159,11 +1088,10 @@ describe('RampsService', () => {
 
       const tokensPromise = service.getTokens('us', 'buy');
       tokensPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(tokensPromise).rejects.toThrow(
-        'Malformed response received from tokens API',
+        /Query function for "RampsService:getTokens" returned an unexpected response/u,
       );
     });
 
@@ -1195,8 +1123,7 @@ describe('RampsService', () => {
       const tokensPromise = service.getTokens('us', 'buy', {
         provider: 'provider-id',
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const tokensResponse = await tokensPromise;
 
       expect(tokensResponse.topTokens).toStrictEqual([]);
@@ -1231,8 +1158,7 @@ describe('RampsService', () => {
       const tokensPromise = service.getTokens('us', 'buy', {
         provider: ['provider-id-1', 'provider-id-2'],
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const tokensResponse = await tokensPromise;
 
       expect(tokensResponse.topTokens).toStrictEqual([]);
@@ -1251,14 +1177,10 @@ describe('RampsService', () => {
         .times(4)
         .reply(500, 'Internal Server Error');
       const { service } = getService();
-      service.onRetry(() => {
-        vi.runOnlyPendingTimersAsync().catch(() => undefined);
-      });
 
       const tokensPromise = service.getTokens('us', 'buy');
       tokensPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(tokensPromise).rejects.toThrow(
         `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us/topTokens?action=buy&sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
@@ -1315,8 +1237,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toHaveLength(1);
@@ -1341,8 +1262,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('US');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toStrictEqual([]);
@@ -1365,8 +1285,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toStrictEqual([]);
@@ -1415,8 +1334,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const providersResponse = await providersPromise;
 
       expect(
@@ -1461,8 +1379,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toHaveLength(1);
@@ -1528,8 +1445,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us');
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toHaveLength(2);
@@ -1568,8 +1484,7 @@ describe('RampsService', () => {
         crypto: 'ETH',
         payments: 'card',
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toStrictEqual([]);
@@ -1595,8 +1510,7 @@ describe('RampsService', () => {
         provider: ['paypal', 'ramp'],
         crypto: ['ETH', 'BTC'],
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toStrictEqual([]);
@@ -1620,8 +1534,7 @@ describe('RampsService', () => {
       const providersPromise = service.getProviders('us', {
         payments: 'card',
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toStrictEqual([]);
@@ -1645,8 +1558,7 @@ describe('RampsService', () => {
       const providersPromise = service.getProviders('us', {
         payments: ['card', 'bank'],
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const providersResponse = await providersPromise;
 
       expect(providersResponse.providers).toStrictEqual([]);
@@ -1665,11 +1577,10 @@ describe('RampsService', () => {
 
       const providersPromise = service.getProviders('us');
       providersPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(providersPromise).rejects.toThrow(
-        'Malformed response received from providers API',
+        /Query function for "RampsService:getProviders" returned an unexpected response/u,
       );
     });
 
@@ -1686,11 +1597,10 @@ describe('RampsService', () => {
 
       const providersPromise = service.getProviders('us');
       providersPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(providersPromise).rejects.toThrow(
-        'Malformed response received from providers API',
+        /Query function for "RampsService:getProviders" returned an unexpected response/u,
       );
     });
 
@@ -1707,11 +1617,10 @@ describe('RampsService', () => {
 
       const providersPromise = service.getProviders('us');
       providersPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(providersPromise).rejects.toThrow(
-        'Malformed response received from providers API',
+        /Query function for "RampsService:getProviders" returned an unexpected response/u,
       );
     });
 
@@ -1726,14 +1635,10 @@ describe('RampsService', () => {
         .times(4)
         .reply(500, 'Internal Server Error');
       const { service } = getService();
-      service.onRetry(() => {
-        vi.runOnlyPendingTimersAsync().catch(() => undefined);
-      });
 
       const providersPromise = service.getProviders('us');
       providersPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(providersPromise).rejects.toThrow(
         `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us/providers?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
@@ -1791,8 +1696,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const paymentMethodsResponse = await paymentMethodsPromise;
 
       expect(paymentMethodsResponse.payments).toHaveLength(2);
@@ -1817,8 +1721,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await paymentMethodsPromise;
 
       expect(scope.isDone()).toBe(true);
@@ -1842,8 +1745,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const paymentMethodsResponse = await paymentMethodsPromise;
 
       expect(paymentMethodsResponse.payments).toHaveLength(2);
@@ -1868,11 +1770,10 @@ describe('RampsService', () => {
         provider: '/providers/stripe',
       });
       paymentMethodsPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
-        'Malformed response received from paymentMethods API',
+        /Query function for "RampsService:getPaymentMethods" returned an unexpected response/u,
       );
     });
 
@@ -1895,11 +1796,10 @@ describe('RampsService', () => {
         provider: '/providers/stripe',
       });
       paymentMethodsPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
-        'Malformed response received from paymentMethods API',
+        /Query function for "RampsService:getPaymentMethods" returned an unexpected response/u,
       );
     });
 
@@ -1922,11 +1822,10 @@ describe('RampsService', () => {
         provider: '/providers/stripe',
       });
       paymentMethodsPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
-        'Malformed response received from paymentMethods API',
+        /Query function for "RampsService:getPaymentMethods" returned an unexpected response/u,
       );
     });
 
@@ -1943,9 +1842,6 @@ describe('RampsService', () => {
         .times(4)
         .reply(500, 'Internal Server Error');
       const { service } = getService();
-      service.onRetry(() => {
-        vi.runOnlyPendingTimersAsync().catch(() => undefined);
-      });
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
@@ -1953,8 +1849,7 @@ describe('RampsService', () => {
         provider: '/providers/stripe',
       });
       paymentMethodsPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
         `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us-al/payments?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&region=us-al&provider=%2Fproviders%2Fstripe' failed with status '500'`,
@@ -1979,8 +1874,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await paymentMethodsPromise;
 
       expect(mockGetBearerToken).not.toHaveBeenCalled();
@@ -2006,8 +1900,7 @@ describe('RampsService', () => {
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await paymentMethodsPromise;
 
       expect(scope.isDone()).toBe(true);
@@ -2090,8 +1983,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const quotesResponse = await quotesPromise;
 
       expect(quotesResponse.success).toHaveLength(2);
@@ -2126,8 +2018,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const quotesResponse = await quotesPromise;
 
       expect(quotesResponse.success).toHaveLength(2);
@@ -2162,8 +2053,7 @@ describe('RampsService', () => {
           '/payments/bank-transfer',
         ],
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const quotesResponse = await quotesPromise;
 
       expect(quotesResponse.success).toHaveLength(2);
@@ -2197,8 +2087,7 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
         providers: ['/providers/moonpay'],
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const quotesResponse = await quotesPromise;
 
       expect(quotesResponse.success).toHaveLength(2);
@@ -2232,8 +2121,7 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
         providers: ['/providers/moonpay', '/providers/transak'],
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const quotesResponse = await quotesPromise;
 
       expect(quotesResponse.success).toHaveLength(2);
@@ -2267,8 +2155,7 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
         redirectUrl: 'https://example.com/callback',
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const quotesResponse = await quotesPromise;
 
       expect(quotesResponse.success).toHaveLength(2);
@@ -2301,8 +2188,7 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/bank-transfer'],
         action: 'sell',
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const quotesResponse = await quotesPromise;
 
       expect(quotesResponse.success).toHaveLength(2);
@@ -2335,11 +2221,10 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
       });
       quotesPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(quotesPromise).rejects.toThrow(
-        'Malformed response received from quotes API',
+        /Query function for "RampsService:getQuotes" returned an unexpected response/u,
       );
     });
 
@@ -2370,11 +2255,10 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
       });
       quotesPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(quotesPromise).rejects.toThrow(
-        'Malformed response received from quotes API',
+        /Query function for "RampsService:getQuotes" returned an unexpected response/u,
       );
     });
 
@@ -2405,11 +2289,10 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
       });
       quotesPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(quotesPromise).rejects.toThrow(
-        'Malformed response received from quotes API',
+        /Query function for "RampsService:getQuotes" returned an unexpected response/u,
       );
     });
 
@@ -2445,11 +2328,10 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
       });
       quotesPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(quotesPromise).rejects.toThrow(
-        'Malformed response received from quotes API',
+        /Query function for "RampsService:getQuotes" returned an unexpected response/u,
       );
     });
 
@@ -2485,11 +2367,10 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
       });
       quotesPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(quotesPromise).rejects.toThrow(
-        'Malformed response received from quotes API',
+        /Query function for "RampsService:getQuotes" returned an unexpected response/u,
       );
     });
 
@@ -2525,11 +2406,10 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
       });
       quotesPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(quotesPromise).rejects.toThrow(
-        'Malformed response received from quotes API',
+        /Query function for "RampsService:getQuotes" returned an unexpected response/u,
       );
     });
 
@@ -2551,9 +2431,6 @@ describe('RampsService', () => {
         .times(4)
         .reply(500, 'Internal Server Error');
       const { service } = getService();
-      service.onRetry(() => {
-        vi.runOnlyPendingTimersAsync().catch(() => undefined);
-      });
 
       const quotesPromise = service.getQuotes({
         region: 'us',
@@ -2564,8 +2441,7 @@ describe('RampsService', () => {
         paymentMethods: ['/payments/debit-credit-card'],
       });
       quotesPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(quotesPromise).rejects.toThrow("failed with status '500'");
     });
@@ -2598,8 +2474,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const quotesResponse = await quotesPromise;
 
       expect(quotesResponse.success).toHaveLength(2);
@@ -2635,8 +2510,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await quotesPromise;
 
       expect(scope.isDone()).toBe(true);
@@ -2672,8 +2546,7 @@ describe('RampsService', () => {
         walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
         paymentMethods: ['/payments/debit-credit-card'],
       });
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await quotesPromise;
 
       expect(mockGetBearerToken).toHaveBeenCalledTimes(1);
@@ -2729,8 +2602,7 @@ describe('RampsService', () => {
         'RampsService:getBuyWidgetUrl',
         'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const buyWidget = await buyWidgetPromise;
 
       expect(buyWidget).toStrictEqual({
@@ -2755,16 +2627,12 @@ describe('RampsService', () => {
         .times(4)
         .reply(500, 'Internal Server Error');
       const { service } = getService();
-      service.onRetry(() => {
-        vi.runOnlyPendingTimersAsync().catch(() => undefined);
-      });
 
       const buyWidgetPromise = service.getBuyWidgetUrl(
         'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
       );
       buyWidgetPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(buyWidgetPromise).rejects.toThrow(
         `Fetching 'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios' failed with status '500'`,
@@ -2794,11 +2662,10 @@ describe('RampsService', () => {
         'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
       );
       buyWidgetPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(buyWidgetPromise).rejects.toThrow(
-        'Malformed response received from buy widget URL API',
+        /Query function for "RampsService:getBuyWidgetUrl" returned an unexpected response/u,
       );
     });
 
@@ -2824,8 +2691,7 @@ describe('RampsService', () => {
       const buyWidgetPromise = service.getBuyWidgetUrl(
         'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await buyWidgetPromise;
 
       expect(mockGetBearerToken).toHaveBeenCalledTimes(1);
@@ -2869,8 +2735,7 @@ describe('RampsService', () => {
       const { service, mockGetBearerToken } = getService();
 
       const geolocationPromise = service.getGeolocation();
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await geolocationPromise;
 
       expect(mockGetBearerToken).not.toHaveBeenCalled();
@@ -2890,8 +2755,7 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const geolocationPromise = service.getGeolocation();
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       await geolocationPromise;
 
       expect(scope.isDone()).toBe(true);
@@ -2943,8 +2807,7 @@ describe('RampsService', () => {
         'abc-123',
         '0xabc',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const order = await orderPromise;
 
       expect(order).toStrictEqual(mockOrder);
@@ -2962,9 +2825,6 @@ describe('RampsService', () => {
         .times(4)
         .reply(404, 'Not Found');
       const { service } = getService();
-      service.onRetry(() => {
-        vi.runOnlyPendingTimersAsync().catch(() => undefined);
-      });
 
       const orderPromise = service.getOrder(
         'transak-staging',
@@ -2972,8 +2832,7 @@ describe('RampsService', () => {
         '0xabc',
       );
       orderPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(orderPromise).rejects.toThrow("failed with status '404'");
     });
@@ -2997,11 +2856,10 @@ describe('RampsService', () => {
         '0xabc',
       );
       orderPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(orderPromise).rejects.toThrow(
-        'Malformed response received from order API',
+        /Query function for "RampsService:getOrder" returned an unexpected response/u,
       );
     });
 
@@ -3022,8 +2880,7 @@ describe('RampsService', () => {
         'abc-123',
         '',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const order = await orderPromise;
 
       expect(order).toStrictEqual(mockOrder);
@@ -3047,8 +2904,7 @@ describe('RampsService', () => {
         'abc-123',
         '0xabc',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const order = await orderPromise;
 
       expect(order).toStrictEqual(mockOrder);
@@ -3109,8 +2965,7 @@ describe('RampsService', () => {
         'https://metamask.app.link/on-ramp?orderId=abc-123',
         '0xabc',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const order = await orderPromise;
 
       expect(order).toStrictEqual(mockOrder);
@@ -3143,8 +2998,7 @@ describe('RampsService', () => {
         'https://metamask.app.link/on-ramp?orderId=abc-123',
         '0xabc',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const order = await orderPromise;
 
       expect(order).toStrictEqual(mockOrder);
@@ -3177,8 +3031,7 @@ describe('RampsService', () => {
         'https://metamask.app.link/on-ramp?orderId=abc-123',
         '0xabc',
       );
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
       const order = await orderPromise;
 
       expect(order).toStrictEqual(mockOrder);
@@ -3203,8 +3056,7 @@ describe('RampsService', () => {
         '0xabc',
       );
       orderPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(orderPromise).rejects.toThrow(
         'Could not extract order ID from callback URL via provider',
@@ -3223,9 +3075,6 @@ describe('RampsService', () => {
         .times(4)
         .reply(500, 'Internal Server Error');
       const { service } = getService();
-      service.onRetry(() => {
-        vi.runOnlyPendingTimersAsync().catch(() => undefined);
-      });
 
       const orderPromise = service.getOrderFromCallback(
         'transak-staging',
@@ -3233,10 +3082,134 @@ describe('RampsService', () => {
         '0xabc',
       );
       orderPromise.catch(() => undefined);
-      await vi.runAllTimersAsync();
-      await flushPromises();
+      await settle();
 
       await expect(orderPromise).rejects.toThrow("failed with status '500'");
+    });
+  });
+
+  describe('BaseDataService integration', () => {
+    const geolocationQuery = {
+      sdk: '2.1.6',
+      controller: CONTROLLER_VERSION,
+      context: 'mobile-ios',
+    };
+
+    it('registers the invalidateQueries action', async () => {
+      const { rootMessenger } = getService();
+
+      expect(
+        await rootMessenger.call('RampsService:invalidateQueries'),
+      ).toBeUndefined();
+    });
+
+    it('publishes cacheUpdated after a read', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query(geolocationQuery)
+        .reply(200, 'us-tx');
+      const { service, messenger } = getService();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      const promise = service.getGeolocation();
+      await settle();
+      await promise;
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'RampsService:cacheUpdated',
+        expect.objectContaining({ objectType: 'query' }),
+      );
+    });
+
+    it('shares one request between concurrent identical reads', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query(geolocationQuery)
+        .reply(200, 'us-tx');
+      const secondRequest = nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query(geolocationQuery)
+        .reply(200, 'fr');
+      const { service } = getService();
+
+      const promises = Promise.all([
+        service.getGeolocation(),
+        service.getGeolocation(),
+      ]);
+      await settle();
+
+      expect(await promises).toStrictEqual(['us-tx', 'us-tx']);
+      expect(secondRequest.isDone()).toBe(false);
+    });
+
+    it('does not share a request between reads with different arguments', async () => {
+      const usTokens = { topTokens: [], allTokens: [{ assetId: 'us' }] };
+      const frTokens = { topTokens: [], allTokens: [{ assetId: 'fr' }] };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/topTokens')
+        .query(true)
+        .reply(200, usTokens);
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/fr/topTokens')
+        .query(true)
+        .reply(200, frTokens);
+      const { service } = getService();
+
+      const promises = Promise.all([
+        service.getTokens('us'),
+        service.getTokens('fr'),
+      ]);
+      await settle();
+
+      expect(await promises).toStrictEqual([usTokens, frTokens]);
+    });
+
+    it('refetches a sequential read instead of serving it from cache', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query(geolocationQuery)
+        .reply(200, 'us-tx');
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query(geolocationQuery)
+        .reply(200, 'fr');
+      const { service } = getService();
+
+      const first = service.getGeolocation();
+      await settle();
+      expect(await first).toBe('us-tx');
+      const second = service.getGeolocation();
+      await settle();
+      expect(await second).toBe('fr');
+    });
+
+    it('rejects a malformed response without retrying', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query(geolocationQuery)
+        .reply(200, '');
+      const retry = nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query(geolocationQuery)
+        .reply(200, 'us-tx');
+      const { service } = getService();
+
+      const promise = service.getGeolocation();
+      promise.catch(() => undefined);
+      await settle();
+
+      await expect(promise).rejects.toThrow(
+        /Query function for "RampsService:getGeolocation" returned an unexpected response/u,
+      );
+      expect(retry.isDone()).toBe(false);
+    });
+
+    it('does not expose onRetry, onBreak or onDegraded', () => {
+      const { service } = getService();
+
+      expect(service).not.toHaveProperty('onRetry');
+      expect(service).not.toHaveProperty('onBreak');
+      expect(service).not.toHaveProperty('onDegraded');
     });
   });
 
