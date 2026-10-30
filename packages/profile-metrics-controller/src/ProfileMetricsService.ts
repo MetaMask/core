@@ -1,18 +1,21 @@
+import { BaseDataService } from '@metamask/base-data-service';
 import type {
   CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import { createServicePolicy, HttpError } from '@metamask/controller-utils';
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { Infer } from '@metamask/superstruct';
 import {
   array,
   number,
   string,
   type as structType,
 } from '@metamask/superstruct';
-import type { IDisposable } from 'cockatiel';
 
 import type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types.js';
 
@@ -31,6 +34,8 @@ const NonceBatchResponseStruct = array(
     nonce: string(),
   }),
 );
+
+type NonceBatchResponse = Infer<typeof NonceBatchResponseStruct>;
 
 // === GENERAL ===
 
@@ -118,9 +123,17 @@ export const MAX_NONCE_BATCH_SIZE = 50;
 const MESSENGER_EXPOSED_METHODS = ['submitMetrics', 'fetchNonces'] as const;
 
 /**
+ * Invalidates cached queries for {@link ProfileMetricsService}.
+ */
+export type ProfileMetricsServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/**
  * Actions that {@link ProfileMetricsService} exposes to other consumers.
  */
-export type ProfileMetricsServiceActions = ProfileMetricsServiceMethodActions;
+export type ProfileMetricsServiceActions =
+  | ProfileMetricsServiceMethodActions
+  | ProfileMetricsServiceInvalidateQueriesAction;
 
 /**
  * Actions from other messengers that {@link ProfileMetricsService} calls.
@@ -129,9 +142,24 @@ type AllowedActions =
   AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 /**
+ * Published when {@link ProfileMetricsService}'s cache is updated.
+ */
+export type ProfileMetricsServiceCacheUpdatedEvent =
+  DataServiceCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Published when a key within {@link ProfileMetricsService}'s cache is
+ * updated.
+ */
+export type ProfileMetricsServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
  * Events that {@link ProfileMetricsService} exposes to other consumers.
  */
-export type ProfileMetricsServiceEvents = never;
+export type ProfileMetricsServiceEvents =
+  | ProfileMetricsServiceCacheUpdatedEvent
+  | ProfileMetricsServiceGranularCacheUpdatedEvent;
 
 /**
  * Events from other messengers that {@link ProfileMetricsService} subscribes
@@ -154,45 +182,25 @@ export type ProfileMetricsServiceMessenger = Messenger<
 /**
  * A service for submitting user profile metrics (metrics ID and accounts).
  */
-export class ProfileMetricsService {
-  /**
-   * The name of the service.
-   */
-  readonly name: typeof serviceName;
-
-  /**
-   * The messenger suited for this service.
-   */
-  readonly #messenger: ConstructorParameters<
-    typeof ProfileMetricsService
-  >[0]['messenger'];
-
+export class ProfileMetricsService extends BaseDataService<
+  typeof serviceName,
+  ProfileMetricsServiceMessenger
+> {
   /**
    * A function that can be used to make an HTTP request.
    */
-  readonly #fetch: ConstructorParameters<
-    typeof ProfileMetricsService
-  >[0]['fetch'];
-
-  /**
-   * Policy for `fetchNonces`. Minting new nonces is safe to retry.
-   *
-   * @see {@link createServicePolicy}
-   */
-  readonly #fetchNoncesPolicy: ServicePolicy;
-
-  /**
-   * Policy for `submitMetrics`. Proof payloads embed single-use nonces, so
-   * in-request retries are disabled by default.
-   *
-   * @see {@link createServicePolicy}
-   */
-  readonly #submitMetricsPolicy: ServicePolicy;
+  readonly #fetch: typeof fetch;
 
   /**
    * The API base URL environment.
    */
   readonly #baseURL: string;
+
+  /**
+   * Counter used to give every nonce request its own query key, so that
+   * concurrent `fetchNonces` calls never share a request or a result.
+   */
+  #nonceRequestCounter = 0;
 
   /**
    * Constructs a new ProfileMetricsService object.
@@ -205,11 +213,11 @@ export class ProfileMetricsService {
    * `node-fetch`).
    * @param args.policyOptions - Options to pass to `createServicePolicy`, which
    * is used to wrap each request. See {@link CreateServicePolicyOptions}.
-   * `submitMetrics` defaults to `maxRetries: 0` (proof nonces are single-use;
-   * the controller poll re-fetches nonces and retries failed submits).
-   * `fetchNonces` keeps the normal retry defaults — a failed nonce fetch
+   * `fetchNonces` is retried according to these options: a failed nonce fetch
    * soft-degrades to a proof-less submit that clears the queue, so retries
-   * here are what preserve proofs across transient errors.
+   * here are what preserve proofs across transient errors. `submitMetrics` is
+   * never retried (proof nonces are single-use; the controller poll re-fetches
+   * nonces and retries failed submits). Both share one circuit breaker.
    * @param args.env - The environment to determine the correct API endpoints.
    */
   constructor({
@@ -223,97 +231,14 @@ export class ProfileMetricsService {
     policyOptions?: CreateServicePolicyOptions;
     env?: SDK.Env;
   }) {
-    this.name = serviceName;
-    this.#messenger = messenger;
+    super({ name: serviceName, messenger, policyOptions });
     this.#fetch = fetchFunction;
-    this.#fetchNoncesPolicy = createServicePolicy(policyOptions);
-    // Keep the circuit breaker scaled to the retry count the same way
-    // `createServicePolicy` derives `DEFAULT_MAX_CONSECUTIVE_FAILURES`:
-    // `(1 + maxRetries) * 3` failed attempts ≈ 3 failed `execute()` calls.
-    const submitMaxRetries = policyOptions.maxRetries ?? 0;
-    this.#submitMetricsPolicy = createServicePolicy({
-      ...policyOptions,
-      maxRetries: submitMaxRetries,
-      maxConsecutiveFailures:
-        policyOptions.maxConsecutiveFailures ?? (1 + submitMaxRetries) * 3,
-    });
     this.#baseURL = getAuthUrl(env);
 
-    this.#messenger.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
-  }
-
-  /**
-   * Registers a handler that will be called after a request returns a non-500
-   * response, causing a retry. Primarily useful in tests where timers are being
-   * mocked.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler. See
-   * {@link CockatielEvent}.
-   * @see {@link createServicePolicy}
-   */
-  onRetry(listener: Parameters<ServicePolicy['onRetry']>[0]): IDisposable {
-    const fetchDisposable = this.#fetchNoncesPolicy.onRetry(listener);
-    const submitDisposable = this.#submitMetricsPolicy.onRetry(listener);
-    return {
-      dispose: (): void => {
-        fetchDisposable.dispose();
-        submitDisposable.dispose();
-      },
-    };
-  }
-
-  /**
-   * Registers a handler that will be called after a set number of retry rounds
-   * prove that requests to the API endpoint consistently return a 5xx response.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler. See
-   * {@link CockatielEvent}.
-   * @see {@link createServicePolicy}
-   */
-  onBreak(listener: Parameters<ServicePolicy['onBreak']>[0]): IDisposable {
-    const fetchDisposable = this.#fetchNoncesPolicy.onBreak(listener);
-    const submitDisposable = this.#submitMetricsPolicy.onBreak(listener);
-    return {
-      dispose: (): void => {
-        fetchDisposable.dispose();
-        submitDisposable.dispose();
-      },
-    };
-  }
-
-  /**
-   * Registers a handler that will be called under one of two circumstances:
-   *
-   * 1. After a set number of retries prove that requests to the API
-   * consistently result in one of the following failures:
-   *    1. A connection initiation error
-   *    2. A connection reset error
-   *    3. A timeout error
-   *    4. A non-JSON response
-   *    5. A 502, 503, or 504 response
-   * 2. After a successful request is made to the API, but the response takes
-   * longer than a set duration to return.
-   *
-   * @param listener - The handler to be called.
-   * @returns An object that can be used to unregister the handler. See
-   * {@link CockatielEvent}.
-   */
-  onDegraded(
-    listener: Parameters<ServicePolicy['onDegraded']>[0],
-  ): IDisposable {
-    const fetchDisposable = this.#fetchNoncesPolicy.onDegraded(listener);
-    const submitDisposable = this.#submitMetricsPolicy.onDegraded(listener);
-    return {
-      dispose: (): void => {
-        fetchDisposable.dispose();
-        submitDisposable.dispose();
-      },
-    };
   }
 
   /**
@@ -322,7 +247,10 @@ export class ProfileMetricsService {
    * Requests larger than {@link MAX_NONCE_BATCH_SIZE} are split into multiple
    * `POST /api/v2/nonce/batch` calls fired in parallel; the resulting maps are
    * merged into a single record. Each chunk independently goes through the
-   * service policy (retry, circuit-breaker, degraded). If any chunk ultimately
+   * service policy (retry, circuit-breaker, degraded).
+   *
+   * Nonces are single-use, so concurrent calls with identical arguments are
+   * not deduplicated: every call, and every chunk, makes its own request. If any chunk ultimately
    * fails, the whole call rejects so the caller can soft-degrade the entire
    * entropy-source batch consistently.
    *
@@ -359,8 +287,8 @@ export class ProfileMetricsService {
 
   /**
    * Mint nonces for a single ≤ {@link MAX_NONCE_BATCH_SIZE}-sized chunk of
-   * identifiers. Wrapped in {@link #fetchNoncesPolicy} for retry / degraded /
-   * circuit semantics.
+   * identifiers. Wrapped in the service policy for retry / degraded / circuit
+   * semantics.
    *
    * @param identifiers - The identifiers in this chunk. Must be 1..MAX_NONCE_BATCH_SIZE.
    * @param entropySourceId - The entropy source ID forwarded to the bearer
@@ -371,89 +299,105 @@ export class ProfileMetricsService {
     identifiers: string[],
     entropySourceId: string | null | undefined,
   ): Promise<Record<string, string>> {
-    return await this.#fetchNoncesPolicy.execute(async () => {
-      const authToken = await this.#messenger.call(
-        'AuthenticationController:getBearerToken',
-        entropySourceId ?? undefined,
-      );
-      const url = new URL(`${this.#baseURL}/nonce/batch`);
-      const localResponse = await this.#fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ identifiers }),
-        credentials: 'omit',
-      });
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
+    // The key carries no identifiers or entropy source ID (keys show up in
+    // the names of published cache events), and it is unique per request so
+    // that single-use nonces are never shared between callers.
+    this.#nonceRequestCounter += 1;
+    const body = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchNonces`, this.#nonceRequestCounter],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: NonceBatchResponseStruct,
+      queryFn: async () => {
+        const authToken = await this.messenger.call(
+          'AuthenticationController:getBearerToken',
+          entropySourceId ?? undefined,
         );
-      }
-      const body: unknown = await localResponse.json();
-      if (!NonceBatchResponseStruct.is(body)) {
-        throw new Error(`Malformed response received from '${url.toString()}'`);
-      }
-      const result: Record<string, string> = {};
-      for (const entry of body) {
-        result[entry.identifier] = entry.nonce;
-      }
-      const echoesRequest =
-        body.length === identifiers.length &&
-        identifiers.every((id) =>
-          Object.prototype.hasOwnProperty.call(result, id),
-        );
-      if (!echoesRequest) {
-        throw new Error(
-          `Fetching '${url.toString()}' returned a response whose identifier set does not match the request`,
-        );
-      }
-      return result;
+        const url = new URL(`${this.#baseURL}/nonce/batch`);
+        const response = await this.#fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ identifiers }),
+          credentials: 'omit',
+        });
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Fetching '${url.toString()}' failed with status '${response.status}'`,
+          );
+        }
+        return (await response.json()) as NonceBatchResponse;
+      },
     });
+    const result: Record<string, string> = {};
+    for (const entry of body) {
+      result[entry.identifier] = entry.nonce;
+    }
+    const echoesRequest =
+      body.length === identifiers.length &&
+      identifiers.every((id) =>
+        Object.prototype.hasOwnProperty.call(result, id),
+      );
+    if (!echoesRequest) {
+      throw new Error(
+        `Fetching '${this.#baseURL}/nonce/batch' returned a response whose identifier set does not match the request`,
+      );
+    }
+    return result;
   }
 
   /**
    * Submit metrics to the API.
    *
+   * The request is never retried, because proof payloads embed single-use
+   * nonces.
+   *
    * @param data - The data to send in the metrics update request.
-   * @returns The response from the API.
+   * @returns Nothing, once the API has accepted the request.
    */
   async submitMetrics(data: ProfileMetricsSubmitMetricsRequest): Promise<void> {
-    await this.#submitMetricsPolicy.execute(async () => {
-      const authToken = await this.#messenger.call(
-        'AuthenticationController:getBearerToken',
-        data.entropySourceId ?? undefined,
-      );
-      const url = new URL(`${this.#baseURL}/profile/accounts`);
-      const localResponse = await this.#fetch(url, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          metametrics_id: data.metametricsId,
-          accounts: data.accounts.map(({ accountSource, ...account }) => ({
-            ...account,
-            // Omitted rather than sent empty when unknown, per the API spec.
-            ...(accountSource ? { account_source: accountSource } : {}),
-          })),
-        }),
-        // The auth API is stateless (no cookies used)
-        // prevent marketing cookies scoped to
-        // .metamask.io from being forwarded to api which
-        // causes 431 Request Header Fields Too Large errors.
-        credentials: 'omit',
-      });
-      if (!localResponse.ok) {
-        throw new HttpError(
-          localResponse.status,
-          `Fetching '${url.toString()}' failed with status '${localResponse.status}'`,
+    await this.executeMutation({
+      // No request data in the key: keys show up in the names of published
+      // cache events.
+      mutationKey: [`${this.name}:submitMetrics`],
+      gcTime: 0,
+      mutationFn: async () => {
+        const authToken = await this.messenger.call(
+          'AuthenticationController:getBearerToken',
+          data.entropySourceId ?? undefined,
         );
-      }
-      return localResponse;
+        const url = new URL(`${this.#baseURL}/profile/accounts`);
+        const response = await this.#fetch(url, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            metametrics_id: data.metametricsId,
+            accounts: data.accounts.map(({ accountSource, ...account }) => ({
+              ...account,
+              // Omitted rather than sent empty when unknown, per the API spec.
+              ...(accountSource ? { account_source: accountSource } : {}),
+            })),
+          }),
+          // The auth API is stateless (no cookies used)
+          // prevent marketing cookies scoped to
+          // .metamask.io from being forwarded to api which
+          // causes 431 Request Header Fields Too Large errors.
+          credentials: 'omit',
+        });
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Fetching '${url.toString()}' failed with status '${response.status}'`,
+          );
+        }
+        return null;
+      },
     });
   }
 }
