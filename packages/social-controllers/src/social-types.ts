@@ -158,6 +158,16 @@ export const INSIDER_POSITION_FLAG = 'insider' as const;
 /** Known position flag value `developer`. */
 export const DEVELOPER_POSITION_FLAG = 'developer' as const;
 
+/**
+ * Position flag for a token that social-api excludes from PnL for every
+ * trader.
+ *
+ * Those positions are still returned, but they do not count toward the
+ * trader's realized PnL. A position can carry this flag alongside
+ * {@link INSIDER_POSITION_FLAG}.
+ */
+export const UNSUPPORTED_TOKEN_POSITION_FLAG = 'unsupported-token' as const;
+
 /** Values for `TraderProfileResponse.rankingTag` from social-api. */
 export const TRADER_RANKING_TAGS = ['shrimp', 'dolphin', 'whale'] as const;
 
@@ -299,9 +309,11 @@ export type Position = {
    * Server flags for this position. {@link INSIDER_POSITION_FLAG} means Codex
    * marked this wallet and token as an insider pair, so the position is
    * excluded from the trader's realized PnL and must not be copy-traded.
-   * {@link DEVELOPER_POSITION_FLAG} is the other known value. The list is
-   * open: unrecognized strings are preserved. Absent on older social-api
-   * builds; `null` when the deployment sends an explicit empty mark.
+   * {@link UNSUPPORTED_TOKEN_POSITION_FLAG} means the token is excluded from
+   * PnL for every trader, so the position does not count toward the trader's
+   * realized PnL. {@link DEVELOPER_POSITION_FLAG} is the other known value.
+   * The list is open: unrecognized strings are preserved. Absent on older
+   * social-api builds; `null` when the deployment sends an explicit empty mark.
    */
   flags?: string[] | null;
 };
