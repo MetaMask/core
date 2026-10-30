@@ -5,6 +5,7 @@ import {
   createExactExecutionTerms,
   createLimitedCallsTerms,
   createRedeemerTerms,
+  createTimestampTerms,
   createValueLteTerms,
 } from '@metamask/delegation-core';
 import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
@@ -1107,6 +1108,35 @@ describe('getMfaRequirement', () => {
         },
       );
 
+      it.each([
+        ['the extension', false],
+        ['Mobile', true],
+      ])(
+        'whitelists a deposit with a deadline, with caveats ordered as %s orders them',
+        async (_client, mobileOrder) => {
+          expect(
+            await evaluateDelegation(
+              buildSingleUseDelegation(buildDepositCalls(), {
+                mobileOrder,
+                deadline: 1_800_000_000,
+              }),
+            ),
+          ).toStrictEqual(whitelistedAs('vault-deposit-delegation'));
+        },
+      );
+
+      it('requires MFA for a withdrawal with a deadline', async () => {
+        expect(
+          await evaluateDelegation(
+            buildSingleUseDelegation(buildWithdrawCalls(), {
+              deadline: 1_800_000_000,
+            }),
+          ),
+        ).toStrictEqual(
+          mfaRequired('Delegation executions are not a vault deposit'),
+        );
+      });
+
       it('whitelists a deposit into the premium vault', async () => {
         expect(
           await evaluateDelegation(
@@ -1398,6 +1428,34 @@ describe('getMfaRequirement', () => {
               enforcer: CONTRACTS.ExactExecutionEnforcer,
               terms: createExactExecutionTerms({
                 execution: buildDepositCalls()[0],
+              }),
+              args: '0x',
+            });
+          },
+        ],
+        [
+          'there are two deadlines',
+          (caveats: UnsignedDelegation['caveats']): void => {
+            const deadline = {
+              enforcer: CONTRACTS.TimestampEnforcer,
+              terms: createTimestampTerms({
+                afterThreshold: 0,
+                beforeThreshold: 1_800_000_000,
+              }),
+              args: '0x' as Hex,
+            };
+            caveats.push(deadline, deadline);
+          },
+        ],
+        [
+          'there is only LimitedCalls and a deadline',
+          (caveats: UnsignedDelegation['caveats']): void => {
+            caveats.pop();
+            caveats.push({
+              enforcer: CONTRACTS.TimestampEnforcer,
+              terms: createTimestampTerms({
+                afterThreshold: 0,
+                beforeThreshold: 1_800_000_000,
               }),
               args: '0x',
             });

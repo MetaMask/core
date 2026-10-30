@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [73.0.0]
+
 ### Changed
 
+- **BREAKING:** Delegate all Sentinel simulation requests to `@metamask/sentinel-api-service` via the `SentinelApiService:simulateTransactions` messenger action ([#9476](https://github.com/MetaMask/core/pull/9476))
+  - Consumers must construct a `SentinelApiService` and delegate the `SentinelApiService:simulateTransactions` action to the `TransactionController` messenger.
+  - The `getSimulationConfig` constructor option now returns `{ newUrl?: string }` only, as the `authorization` field is no longer supported since authentication headers are handled by the service.
 - Bump `uuid` from `^11.1.1` to `^14.0.0` ([#10941](https://github.com/MetaMask/core/pull/10941))
+- Bump `@metamask/core-backend` from `^12.3.0` to `^13.0.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
 
 ## [72.3.0]
 
@@ -2870,7 +2876,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.0.0...HEAD
+[73.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.3.0...@metamask/transaction-controller@73.0.0
 [72.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.2.1...@metamask/transaction-controller@72.3.0
 [72.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.2.0...@metamask/transaction-controller@72.2.1
 [72.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.1.0...@metamask/transaction-controller@72.2.0

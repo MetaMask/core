@@ -19,6 +19,7 @@ export type {
 } from './KycController.js';
 export type {
   KycControllerClearStateAction,
+  KycControllerEnsureLocalUserSecretAction,
   KycControllerFetchSessionDisclaimersAction,
   KycControllerFetchVendorDisclaimersAction,
   KycControllerGetDataSharesAction,
@@ -104,11 +105,16 @@ export type {
   X25519KeyPair,
 } from './crypto.js';
 
-export { KYC_STATUSES, TERMINAL_SESSION_STATUSES } from './types.js';
+export {
+  KYC_CURRENT_STEPS,
+  KYC_STATUSES,
+  TERMINAL_SESSION_STATUSES,
+} from './types.js';
 export type {
   KycCatalogDocument,
   KycConsentDocument,
   KycConsentRecord,
+  KycCurrentStep,
   KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,

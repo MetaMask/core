@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.1.0]
+
 ### Added
 
+- Add `getAccountSupport` to the controller, messenger, and optional provider contract. Hyperliquid detects native multi-signature accounts, caches successful checks per account/network session, and blocks exchange mutations for unsupported accounts. Transient detection failures remain retryable, authoritative exchange rejections correct cached support, and actions reject stale account, network, or provider contexts before signing. ([#10693](https://github.com/MetaMask/core/pull/10693))
 - Map `onlyIsolated` and `marginMode` from Terminal v4 global snapshot markets into the `MarketInfo` that `getMarkets()` returns, so a client reading only the snapshot can withhold Cross margin on isolated-only markets ([#11030](https://github.com/MetaMask/core/pull/11030))
   - Snapshots without these fields, or with `null` values, still validate. An unrecognized `marginMode` rejects the snapshot, so snapshot-backed reads fall back to the provider.
 - Add optional `AccountState.crossMarginSummary` (`accountValue`, `maintenanceMargin`, `marginUsed`, `notional`) and the `CrossMarginSummary` type, so clients can show account ratio, maintenance margin, account leverage and cross margin usage for Hyperliquid and Lighter ([#11148](https://github.com/MetaMask/core/pull/11148))
@@ -19,7 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/subscription-controller` from `^15.1.0` to `^15.1.1` ([#11120](https://github.com/MetaMask/core/pull/11120))
+- Bump `@metamask/subscription-controller` from `^15.1.0` to `^15.1.2` ([#11120](https://github.com/MetaMask/core/pull/11120), [#11203](https://github.com/MetaMask/core/pull/11203))
+- Bump `@metamask/transaction-controller` from `^72.3.0` to `^73.0.0` ([#11203](https://github.com/MetaMask/core/pull/11203))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 - `HyperLiquidProvider.placeOrder` no longer resubmits an opening order 1.5% larger when Hyperliquid rejects it for the minimum order value; it returns a failed result with `errorCode: 'ORDER_SIZE_MIN'` instead ([#11122](https://github.com/MetaMask/core/pull/11122))
   - The client should re-quote and ask the user to confirm a new size. No order larger than the one the user approved is submitted.
@@ -28,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `FeatureFlagConfigurationService` reports each invalid HIP-3 allowlist or blocklist pattern once per service lifetime, keyed by field name and pattern, instead of on every remote feature flag state change ([#11190](https://github.com/MetaMask/core/pull/11190))
+  - Invalid patterns are still dropped and the current configuration is retained.
 - Lighter `Position.returnOnEquity` is now a fraction (`-0.107` for -10.7%), the same unit as Hyperliquid positions, instead of a percent, so clients that multiply it by 100 no longer show Lighter position PnL % 100x too large ([#11080](https://github.com/MetaMask/core/pull/11080))
   - Lighter `AccountState.returnOnEquity` is unchanged: it stays a percent, like Hyperliquid's.
 
@@ -1310,7 +1316,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.1.0...HEAD
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.0.0...@metamask/perps-controller@22.1.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@21.0.0...@metamask/perps-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.1.0...@metamask/perps-controller@21.0.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.0.0...@metamask/perps-controller@20.1.0

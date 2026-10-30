@@ -14,15 +14,8 @@ import {
   unknown as unknownStruct,
 } from '@metamask/superstruct';
 
-import type {
-  AuthorComment,
-  CommentEngagement,
-  CommentReaction,
-  FeedItem,
-  FeedActorSummary,
-  Trade,
-} from './social-types.js';
-import { FeedItemStruct } from './structs.js';
+import type { FeedItem, FeedActorSummary, Trade } from './social-types.js';
+import { AuthorCommentStruct, FeedItemStruct } from './structs.js';
 
 const RawTradeStruct = assign(
   structType({
@@ -92,13 +85,11 @@ const RawHydratedPositionStruct = structType({
   firstTradeAt: optional(nullable(number())),
   holdTimeMs: optional(nullable(number())),
   entryPriceUsd: optional(nullable(number())),
+  authorComment: optional(nullable(AuthorCommentStruct)),
   flags: optional(nullable(array(string()))),
 });
 
 export type RealtimeFeedEventData = FeedItem;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
 
 const readNumber = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined;
@@ -110,128 +101,6 @@ const addNullableNumbers = (
   left: number | null,
   right: number | null,
 ): number | null => (left === null || right === null ? null : left + right);
-
-const toCommentReaction = (value: unknown): CommentReaction | null => {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const { emotion, count: rawCount } = value;
-  const count = readNumber(rawCount);
-  if (typeof emotion !== 'string' || count === undefined) {
-    return null;
-  }
-
-  const profiles = Array.isArray(value.profiles)
-    ? value.profiles.filter(isRecord).flatMap((profile) => {
-        const { id, name } = profile;
-        return typeof id === 'string' && typeof name === 'string'
-          ? [{ id, name }]
-          : [];
-      })
-    : [];
-
-  return { emotion, count, profiles };
-};
-
-const toCommentEngagement = (value: unknown): CommentEngagement => {
-  if (!isRecord(value)) {
-    return { reactions: [], userReaction: null };
-  }
-
-  const reactions = Array.isArray(value.reactions)
-    ? value.reactions
-        .map(toCommentReaction)
-        .filter((reaction): reaction is CommentReaction => reaction !== null)
-    : [];
-  const replyCount = readNumber(value.replyCount);
-
-  return {
-    reactions,
-    userReaction:
-      typeof value.userReaction === 'string' ? value.userReaction : null,
-    ...(replyCount === undefined ? {} : { replyCount }),
-  };
-};
-
-const readSourceLanguage = (value: unknown): string | null | undefined => {
-  if (value === null || typeof value === 'string') {
-    return value;
-  }
-  return undefined;
-};
-
-const readTranslations = (
-  value: unknown,
-): Record<string, string> | undefined => {
-  if (!isRecord(value)) {
-    return undefined;
-  }
-  const translations: Record<string, string> = {};
-  for (const [language, text] of Object.entries(value)) {
-    if (typeof text === 'string') {
-      translations[language] = text;
-    }
-  }
-  return translations;
-};
-
-const toAuthorComment = (value: unknown): AuthorComment | null => {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const { uid, commentText: text, timestamp: rawTimestamp, replies } = value;
-  const timestamp = readNumber(rawTimestamp);
-  if (
-    typeof uid !== 'string' ||
-    typeof text !== 'string' ||
-    timestamp === undefined
-  ) {
-    return null;
-  }
-
-  const replyCount = Array.isArray(replies) ? replies.length : 0;
-  const engagement = toCommentEngagement(value.metrics);
-  const sourceLanguage = readSourceLanguage(value.sourceLanguage);
-  const translations = readTranslations(value.translations);
-
-  return {
-    uid,
-    text,
-    timestamp,
-    ...(sourceLanguage === undefined ? {} : { sourceLanguage }),
-    ...(translations === undefined ? {} : { translations }),
-    engagement: {
-      ...engagement,
-      ...(engagement.replyCount === undefined ? { replyCount } : {}),
-    },
-  };
-};
-
-const toLatestAuthorComment = (
-  trades: {
-    intent: 'enter' | 'exit';
-    timestamp: number;
-    comments: unknown[];
-  }[],
-): AuthorComment | null => {
-  if (trades.length === 0) {
-    return null;
-  }
-
-  const latestTrade = trades.reduce((latest, trade) =>
-    trade.timestamp >= latest.timestamp ? trade : latest,
-  );
-  const candidates = trades
-    .filter((trade) => trade.intent === latestTrade.intent)
-    .flatMap((trade) =>
-      trade.comments
-        .map(toAuthorComment)
-        .filter((comment): comment is AuthorComment => comment !== null),
-    )
-    .sort((left, right) => left.timestamp - right.timestamp);
-
-  return candidates[candidates.length - 1] ?? null;
-};
 
 const toActor = (actor: {
   address: string;
@@ -317,7 +186,12 @@ export const normalizeRealtimeFeedItem = (
       value.metadata.positionAmountWithLeverage ?? null,
     actor: toActor(value.actor),
     timestamp: value.timestamp,
-    authorComment: toLatestAuthorComment(value.metadata.trades),
+    // The socket payload carries the server's selected author comment. It is
+    // passed through as sent: an absent field stays absent, an explicit null
+    // stays null, and a malformed value already dropped the item above.
+    ...(value.authorComment === undefined
+      ? {}
+      : { authorComment: value.authorComment }),
     commentCount: value.metrics.commentCount,
     replyCount: value.metrics.replyCount,
     copyCount: value.metrics.copyCount ?? 0,
