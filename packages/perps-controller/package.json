@@ -104,7 +104,7 @@
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "viem": "^2.56.8",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.5"
   },
   "engines": {
     "node": "^22.14.0 || ^24 || ^26"

@@ -83,7 +83,7 @@
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "uuid": "^14.0.0",
-    "vitest": "^5.0.0",
+    "vitest": "^5.0.5",
     "webextension-polyfill": "^0.12.0"
   },
   "peerDependencies": {
