@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@metamask/type-utils": "^0.1.0",
-    "@scure/base": "^1.2.6"
+    "@scure/base": "^2.4.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.2.1",
