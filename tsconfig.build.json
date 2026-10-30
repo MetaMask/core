@@ -182,13 +182,13 @@
       "path": "./packages/money-account-api-data-service/tsconfig.build.json"
     },
     {
-      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
-    },
-    {
       "path": "./packages/money-account-balance-service/tsconfig.build.json"
     },
     {
       "path": "./packages/money-account-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/money-account-lifecycle-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/money-account-mfa-whitelist/tsconfig.build.json"
