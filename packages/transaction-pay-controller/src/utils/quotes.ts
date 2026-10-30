@@ -99,10 +99,7 @@ export async function updateQuotes(
     tokens,
   } = transactionData;
 
-  const from = accountOverride ?? (transaction.txParams.from as Hex);
-
-  // Post-quote output goes to `accountOverride`, so the funds holder sends.
-  const quoteFrom = isPostQuote ? (transaction.txParams.from as Hex) : from;
+  const from = getFrom(transaction, transactionData);
 
   const controller = abortPreviousAndCreateController(transactionId);
   const { signal } = controller;
@@ -114,7 +111,8 @@ export async function updateQuotes(
 
   try {
     const paymentToken = await refreshPaymentTokenBalance({
-      from,
+      // Post-quote payment tokens are received by `accountOverride`.
+      from: accountOverride ?? (transaction.txParams.from as Hex),
       messenger,
       paymentToken: originalPaymentToken,
       signal,
@@ -137,7 +135,7 @@ export async function updateQuotes(
 
     const requests = buildQuoteRequests({
       atomic,
-      from: quoteFrom,
+      from,
       isHyperliquidSource,
       isMaxAmount: isMaxAmount ?? false,
       isPolymarketDepositWallet,
@@ -150,11 +148,11 @@ export async function updateQuotes(
       transactionId,
     });
 
-    const supports7702 = accountSupports7702(messenger, quoteFrom);
+    const supports7702 = accountSupports7702(messenger, from);
 
     const { batchTransactions, error, quotes } = await getQuotes(
       transaction,
-      quoteFrom,
+      from,
       requests,
       paymentToken,
       isQuoteRequired ?? false,
@@ -222,6 +220,27 @@ export async function updateQuotes(
   }
 
   return true;
+}
+
+/**
+ * Get the account that sends quotes for a transaction.
+ *
+ * @param transaction - Transaction metadata.
+ * @param transactionData - Transaction pay data.
+ * @returns The quote sender address.
+ */
+function getFrom(
+  transaction: TransactionMeta,
+  transactionData: TransactionData,
+): Hex {
+  const transactionFrom = transaction.txParams.from as Hex;
+
+  // Post-quote output goes to `accountOverride`, so the funds holder sends.
+  if (transactionData.isPostQuote) {
+    return transactionFrom;
+  }
+
+  return transactionData.accountOverride ?? transactionFrom;
 }
 
 /**
