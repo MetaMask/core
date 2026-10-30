@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `fetchModerationStatus` to `SocialService` (`SocialService:fetchModerationStatus`). Calls `GET /v1/moderation/status` and returns whether the moderation team has banned the current user, when, and the reason they may be shown. Export `ModerationStatusResponse` and `SocialServiceFetchModerationStatusAction` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `fetchModerationStatus` to `SocialService` (`SocialService:fetchModerationStatus`). Calls `GET /v1/moderation/status` and returns whether the moderation team has banned the current user, when, and the reason they may be shown. Export `ModerationStatusResponse` and `SocialServiceFetchModerationStatusAction` ([#11211](https://github.com/MetaMask/core/pull/11211))
 
 ## [3.14.2]
 
