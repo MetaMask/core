@@ -76,4 +76,8 @@ export const SocialServiceErrorMessage = {
   FETCH_BLOCKED_CONTENT_FAILED: 'SocialService: Blocked content request failed',
   FETCH_BLOCKED_CONTENT_INVALID_RESPONSE:
     'SocialService: Blocked content returned invalid response',
+  FETCH_MODERATION_STATUS_FAILED:
+    'SocialService: Moderation status request failed',
+  FETCH_MODERATION_STATUS_INVALID_RESPONSE:
+    'SocialService: Moderation status returned invalid response',
 } as const;
