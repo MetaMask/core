@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `TransakServiceInvalidateQueriesAction`, `TransakServiceCacheUpdatedEvent` and `TransakServiceGranularCacheUpdatedEvent` types, and include them in `TransakServiceActions` and `TransakServiceEvents` ([#11216](https://github.com/MetaMask/core/pull/11216))
+- Add `@metamask/base-data-service` and `@metamask/superstruct` as dependencies ([#11216](https://github.com/MetaMask/core/pull/11216))
+
+### Changed
+
+- **BREAKING:** `TransakService` now extends `BaseDataService` ([#11216](https://github.com/MetaMask/core/pull/11216))
+  - `TransakServiceActions` now includes `TransakService:invalidateQueries`, and `TransakServiceEvents` now includes the `TransakService:cacheUpdated` events. A host messenger built from `MessengerActions<TransakServiceMessenger>` and `MessengerEvents<TransakServiceMessenger>` picks these up automatically.
+  - The constructor options are unchanged.
+- Concurrent identical reads now share one request, and reads always refetch ([#11216](https://github.com/MetaMask/core/pull/11216))
+- Responses are now validated, and a malformed response throws `Query function for "TransakService:<method>" returned an unexpected response: ...` for reads or `Mutation function for "TransakService:<method>" returned an unexpected response: ...` for writes. Previously the response was returned unchecked ([#11216](https://github.com/MetaMask/core/pull/11216))
+- Writes (every POST, PATCH and DELETE request) are no longer retried. Previously only `verifyUserOtp` was exempt from retries ([#11216](https://github.com/MetaMask/core/pull/11216))
+- Reads and writes now share one circuit breaker. Previously `verifyUserOtp` had its own ([#11216](https://github.com/MetaMask/core/pull/11216))
+
 ## [28.1.0]
 
 ### Added
