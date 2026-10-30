@@ -87,7 +87,7 @@ export const CommentEngagementStruct = structType({
   replyCount: optional(number()),
 });
 
-const AuthorCommentStruct = structType({
+export const AuthorCommentStruct = structType({
   uid: string(),
   text: string(),
   timestamp: number(),
