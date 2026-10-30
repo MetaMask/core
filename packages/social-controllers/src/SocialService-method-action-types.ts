@@ -480,6 +480,19 @@ export type SocialServiceFetchBlockedContentAction = {
 };
 
 /**
+ * Fetches whether the moderation team has banned the current user.
+ *
+ * Calls `GET ${baseUrl}/moderation/status`. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @returns The current user's ban status, with the reason they may be shown.
+ */
+export type SocialServiceFetchModerationStatusAction = {
+  type: `SocialService:fetchModerationStatus`;
+  handler: SocialService['fetchModerationStatus'];
+};
+
+/**
  * Union of all SocialService action types.
  */
 export type SocialServiceMethodActions =
@@ -509,4 +522,5 @@ export type SocialServiceMethodActions =
   | SocialServiceBlockAction
   | SocialServiceUnblockProfileAction
   | SocialServiceFetchBlockedProfilesAction
-  | SocialServiceFetchBlockedContentAction;
+  | SocialServiceFetchBlockedContentAction
+  | SocialServiceFetchModerationStatusAction;

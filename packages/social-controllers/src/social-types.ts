@@ -916,6 +916,19 @@ export type BlockedContentResponse = {
   cursor: string | null;
 };
 
+/**
+ * Response from `GET /v1/moderation/status`: whether the moderation team has
+ * banned the current user. A banned user cannot post, reply, or react.
+ */
+export type ModerationStatusResponse = {
+  /** Whether the current user is banned. */
+  banned: boolean;
+  /** When the ban was placed, in Unix epoch seconds. `null` when not banned. */
+  bannedAt: number | null;
+  /** The reason the moderation team gave the user, if any. Safe to show. */
+  reason: string | null;
+};
+
 // ---------------------------------------------------------------------------
 // Controller state
 // ---------------------------------------------------------------------------

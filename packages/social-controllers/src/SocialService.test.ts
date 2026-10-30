@@ -3221,6 +3221,85 @@ describe('SocialService', () => {
     });
   });
 
+  describe('fetchModerationStatus', () => {
+    const mockBannedStatus = {
+      banned: true,
+      bannedAt: 1700000000,
+      reason: 'Spam or scams',
+    };
+
+    it('fetches the current user’s status from /moderation/status', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockBannedStatus),
+      });
+
+      const service = createService();
+      const result = await service.fetchModerationStatus();
+
+      expect(result).toStrictEqual(mockBannedStatus);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/moderation/status`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('accepts a status without a ban', async () => {
+      const notBanned = { banned: false, bannedAt: null, reason: null };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(notBanned),
+      });
+
+      const service = createService();
+
+      expect(await service.fetchModerationStatus()).toStrictEqual(notBanned);
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 401 });
+
+      const service = createService();
+
+      await expect(service.fetchModerationStatus()).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_MODERATION_STATUS_FAILED}: 401`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ...mockBannedStatus, banned: 'yes' }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchModerationStatus()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_MODERATION_STATUS_INVALID_RESPONSE,
+      );
+    });
+
+    it('is callable via messenger action', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockBannedStatus),
+      });
+
+      const messenger = createMessenger();
+      // eslint-disable-next-line no-new
+      new SocialService({ messenger, baseUrl: BASE_URL });
+
+      const result = await messenger.call(
+        'SocialService:fetchModerationStatus',
+      );
+
+      expect(result).toStrictEqual(mockBannedStatus);
+    });
+  });
+
   describe('translateComment', () => {
     const mockTranslation = {
       sourceLanguage: 'ko',
