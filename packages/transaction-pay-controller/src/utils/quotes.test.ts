@@ -1981,7 +1981,7 @@ describe('Quotes Utils', () => {
       );
     });
 
-    it('uses accountOverride as from for post-quote flow', async () => {
+    it('uses the transaction account as from for post-quote flow with accountOverride', async () => {
       const accountOverride =
         '0xrecipient0000000000000000000000000000001' as Hex;
 
@@ -1996,8 +1996,9 @@ describe('Quotes Utils', () => {
         expect.objectContaining({
           requests: [
             expect.objectContaining({
+              accountOverride,
               isPostQuote: true,
-              from: accountOverride,
+              from: TRANSACTION_META_MOCK.txParams.from,
             }),
           ],
         }),

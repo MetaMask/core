@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Request and submit post-quote quotes from the transaction's own `from`, so `accountOverride` only receives the output and never signs ([#10992](https://github.com/MetaMask/core/pull/10992))
+  - Previously `accountOverride` also sent post-quote quotes, so an account that cannot sign, such as a hardware wallet, could not receive a withdrawal.
+  - Clients must keep the post-quote source funds on the transaction's `from`. For example, a Money Account withdrawal that needs a quote must no longer transfer the withdrawn mUSD to `accountOverride` in its nested calls.
+
 ## [30.3.2]
 
 ### Changed

@@ -376,6 +376,36 @@ describe('Across Quotes', () => {
       expect(getRequestBody().actions).toStrictEqual([]);
     });
 
+    it('pays the account override for post-quote predict withdraws', async () => {
+      const accountOverride =
+        '0x5afe000000000000000000000000000000000002' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        accountSupports7702: false,
+        from: FROM_MOCK,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            accountOverride,
+            isPostQuote: true,
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('depositor')).toBe(FROM_MOCK);
+      expect(params.get('recipient')).toBe(accountOverride);
+    });
+
     it('ignores invalid original transaction gas for post-quote predict withdraws', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
