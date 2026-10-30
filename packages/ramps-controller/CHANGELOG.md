@@ -11,8 +11,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `NeoBankServiceInvalidateQueriesAction`, `NeoBankServiceCacheUpdatedEvent` and `NeoBankServiceGranularCacheUpdatedEvent`, also included in `NeoBankServiceActions` and `NeoBankServiceEvents` ([#10882](https://github.com/MetaMask/core/pull/10882))
 - Add `NeoBankService.getMicrodeposits`, exposed on the messenger, which returns the customer's bank-link microdeposits from neobank-proxy unmodified, and the `NeoBankMicrodeposit` type ([#11165](https://github.com/MetaMask/core/pull/11165))
   - The MoonPay customer id is resolved once per service instance. A 404 resolves `[]`; any other non-2xx response throws an `HttpError`.
+
+### Changed
+
+- **BREAKING:** `NeoBankService` now extends `BaseDataService` from `@metamask/base-data-service` ([#10882](https://github.com/MetaMask/core/pull/10882))
+  - `NeoBankServiceMessenger` now includes the `NeoBankService:invalidateQueries` action and `NeoBankService:cacheUpdated` events. Messengers built from `NeoBankServiceActions` / `NeoBankServiceEvents` pick these up automatically.
+  - Reads and writes now share one circuit breaker (previously each had its own).
+- `NeoBankService.getAutorampQuote`, `getAutorampQuoteForAutoramp`, `getCustomerByExternalId`, `registerPixAddress` and `attachAutorampQuote` now return `Promise<Json>` instead of `Promise<unknown>` ([#10882](https://github.com/MetaMask/core/pull/10882))
+- Concurrent identical NeoBank reads (`getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `getDepositInstructions`, `getMicrodeposits`, `listAutorampTransactions`, `getAutorampQuote`, `getAutorampQuoteForAutoramp`, `getCustomerByExternalId`) now share one request. Sequential reads still always hit the API ([#10882](https://github.com/MetaMask/core/pull/10882))
+  - `getAutoramps` fetches each cursor page as its own query, so a failed page is retried on its own and concurrent calls with the same `customerId` share each page request.
+- Malformed NeoBank responses now throw `Query function for "NeoBankService:<method>" returned an unexpected response: …` (or `Mutation function for "NeoBankService:createAutoramp" …`) instead of `Malformed response received from neo-bank …` ([#10882](https://github.com/MetaMask/core/pull/10882))
+  - This applies to `getAutoramp`, `getAutoramps`, `getPixDepositInstructions`, `getDepositInstructions`, `getMicrodeposits`, `listAutorampTransactions` and `createAutoramp`. Responses that do not match the expected shape are still not retried.
+- Add dependencies `@metamask/base-data-service` and `@metamask/superstruct` ([#10882](https://github.com/MetaMask/core/pull/10882))
+
+### Removed
+
+- **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `NeoBankService` ([#10882](https://github.com/MetaMask/core/pull/10882))
 
 ## [28.0.0]
 

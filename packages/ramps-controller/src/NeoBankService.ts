@@ -1,14 +1,16 @@
+import { BaseDataService, handleWhen } from '@metamask/base-data-service';
 import type {
   CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import {
-  createServicePolicy,
-  handleWhen,
-  HttpError,
-} from '@metamask/controller-utils';
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
+import type { Infer, Struct } from '@metamask/superstruct';
+import { array, size, string, type, union } from '@metamask/superstruct';
+import type { Json } from '@metamask/utils';
 
 import packageJson from '../package.json';
 import type {
@@ -55,6 +57,65 @@ function isRetryableError(error: unknown): boolean {
     return error.httpStatus < 400 || error.httpStatus >= 500;
   }
   return true;
+}
+
+/**
+ * Minimal shape check for an autoramp payload: it must carry a non-empty `id`.
+ * The full mapping is done by {@link mapNeoBankAutorampToRemoteSnapshot}.
+ */
+const AutorampResponseStruct = type({ id: size(string(), 1, Infinity) });
+
+/**
+ * An autoramp payload read only for its `deposit_rails`: any object is
+ * accepted, and {@link extractPixDepositInstructions} tolerates anything in
+ * `deposit_rails`.
+ */
+const PixAutorampResponseStruct = type({});
+
+/**
+ * Minimal shape check for the microdeposits list: an array of objects. The
+ * items are returned unmodified.
+ */
+const MicrodepositListResponseStruct = array(type({}));
+
+/**
+ * Minimal shape check for one autoramp transaction. Other fields are read
+ * leniently when mapping.
+ */
+const AutorampTransactionResponseStruct = type({
+  id: string(),
+  status: string(),
+});
+
+/**
+ * Builds a struct for a MoonPay list: either a paged object with an `items`
+ * array or a raw array.
+ *
+ * @param itemStruct - Struct for each list item.
+ * @returns Struct for the list response.
+ */
+function pagedListStruct<Item>(
+  itemStruct: Struct<Item>,
+): Struct<Item[] | { items: Item[] }> {
+  return union([array(itemStruct), type({ items: array(itemStruct) })]);
+}
+
+const AutorampListResponseStruct = pagedListStruct(AutorampResponseStruct);
+
+const AutorampTransactionListResponseStruct = pagedListStruct(
+  AutorampTransactionResponseStruct,
+);
+
+/**
+ * Drops `undefined` values so query params can be used in a query key.
+ *
+ * @param query - Query params as passed by the caller.
+ * @returns The same params without `undefined` values.
+ */
+function toQueryKeyParams(query: NeoBankQueryParams): Record<string, Json> {
+  return Object.fromEntries(
+    Object.entries(query).filter(([, value]) => value !== undefined),
+  ) as Record<string, Json>;
 }
 
 /**
@@ -168,15 +229,41 @@ const MESSENGER_EXPOSED_METHODS = [
 const AUTORAMP_LIST_PAGE_SIZE = 100;
 
 /**
+ * Invalidates cached queries for {@link NeoBankService}.
+ */
+export type NeoBankServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/**
  * Actions that {@link NeoBankService} exposes to other consumers.
  */
-export type NeoBankServiceActions = NeoBankServiceMethodActions;
+export type NeoBankServiceActions =
+  | NeoBankServiceMethodActions
+  | NeoBankServiceInvalidateQueriesAction;
 
 type AllowedActions =
   | AuthenticationController.AuthenticationControllerGetBearerTokenAction
   | AuthenticationController.AuthenticationControllerGetSessionProfileAction;
 
-export type NeoBankServiceEvents = never;
+/**
+ * Published when {@link NeoBankService}'s cache is updated.
+ */
+export type NeoBankServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof serviceName
+>;
+
+/**
+ * Published when a key within {@link NeoBankService}'s cache is updated.
+ */
+export type NeoBankServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Events that {@link NeoBankService} exposes to other consumers.
+ */
+export type NeoBankServiceEvents =
+  | NeoBankServiceCacheUpdatedEvent
+  | NeoBankServiceGranularCacheUpdatedEvent;
 
 type AllowedEvents = never;
 
@@ -260,27 +347,14 @@ export function mapNeoBankAutorampToRemoteSnapshot(
 }
 
 /**
- * Reads a MoonPay paged list (an object with an items array) or a raw array.
+ * Reads the items of a validated MoonPay list (a paged object with an `items`
+ * array, or a raw array).
  *
- * @param response - Proxy JSON body.
- * @param malformedMessage - Error when the body is neither shape.
+ * @param response - Validated proxy JSON body.
  * @returns Item list.
  */
-function readPagedItems(
-  response: unknown,
-  malformedMessage: string,
-): unknown[] {
-  if (Array.isArray(response)) {
-    return response;
-  }
-  if (
-    response !== null &&
-    typeof response === 'object' &&
-    Array.isArray((response as { items?: unknown }).items)
-  ) {
-    return (response as { items: unknown[] }).items;
-  }
-  throw new Error(malformedMessage);
+function readPagedItems<Item>(response: Item[] | { items: Item[] }): Item[] {
+  return Array.isArray(response) ? response : response.items;
 }
 
 /**
@@ -486,16 +560,11 @@ function readAmount(value: unknown): string | undefined {
  *
  * Paths use the neobank-proxy `/neobank` prefix on the on-ramp.api host.
  */
-export class NeoBankService {
-  readonly name: typeof serviceName;
-
-  readonly #messenger: NeoBankServiceMessenger;
-
+export class NeoBankService extends BaseDataService<
+  typeof serviceName,
+  NeoBankServiceMessenger
+> {
   readonly #fetch: typeof fetch;
-
-  readonly #policy: ServicePolicy;
-
-  readonly #noRetryPolicy: ServicePolicy;
 
   readonly #environment: RampsEnvironment;
 
@@ -522,23 +591,20 @@ export class NeoBankService {
     policyOptions?: CreateServicePolicyOptions;
     baseUrlOverride?: string;
   }) {
-    this.name = serviceName;
-    this.#messenger = messenger;
+    super({
+      name: serviceName,
+      messenger,
+      policyOptions: {
+        retryFilterPolicy: handleWhen(isRetryableError),
+        ...policyOptions,
+      },
+    });
     this.#fetch = fetchFunction;
-    this.#policy = createServicePolicy({
-      retryFilterPolicy: handleWhen(isRetryableError),
-      ...policyOptions,
-    });
-    this.#noRetryPolicy = createServicePolicy({
-      retryFilterPolicy: handleWhen(isRetryableError),
-      ...policyOptions,
-      maxRetries: 0,
-    });
     this.#environment = environment;
     this.#context = context;
     this.#baseUrlOverride = baseUrlOverride;
 
-    this.#messenger.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
@@ -563,7 +629,7 @@ export class NeoBankService {
       fetch: this.#fetch,
       baseUrl: this.#getBaseUrl(),
       getAuthToken: async (): Promise<string> =>
-        this.#messenger.call('AuthenticationController:getBearerToken'),
+        this.messenger.call('AuthenticationController:getBearerToken'),
       getExternalId: async (): Promise<string> =>
         this.#getCanonicalExternalId(),
     });
@@ -573,7 +639,7 @@ export class NeoBankService {
   async #getRequestHeaders(
     options: NeoBankRequestOptions = {},
   ): Promise<Record<string, string>> {
-    const bearerToken = await this.#messenger.call(
+    const bearerToken = await this.messenger.call(
       'AuthenticationController:getBearerToken',
     );
     const headers: Record<string, string> = {
@@ -626,49 +692,51 @@ export class NeoBankService {
     );
   }
 
-  async #getJson<ResponseBody>(
+  /**
+   * Performs one authenticated GET.
+   *
+   * @param path - Path under `/neobank`.
+   * @param query - Optional query params.
+   * @returns Parsed JSON body.
+   */
+  async #getJson<ResponseBody extends Json = Json>(
     path: string,
     query?: NeoBankQueryParams,
   ): Promise<ResponseBody> {
     const url = this.#buildUrl(path, query);
-    return this.#policy.execute(async () => {
-      const headers = await this.#getRequestHeaders();
-      const fetchResponse = await this.#fetch(url, { headers });
-      if (!fetchResponse.ok) {
-        await this.#throwHttpError(url, fetchResponse);
-      }
-      return fetchResponse.json() as Promise<ResponseBody>;
-    });
+    const headers = await this.#getRequestHeaders();
+    const fetchResponse = await this.#fetch(url, { headers });
+    if (!fetchResponse.ok) {
+      await this.#throwHttpError(url, fetchResponse);
+    }
+    return fetchResponse.json() as Promise<ResponseBody>;
   }
 
-  async #postJson<ResponseBody>(
+  /**
+   * Performs one authenticated JSON POST.
+   *
+   * @param path - Path under `/neobank`.
+   * @param body - JSON request body.
+   * @param options - Optional idempotency key.
+   * @returns Parsed JSON body.
+   */
+  async #postJson<ResponseBody extends Json = Json>(
     path: string,
     body: Record<string, unknown>,
     options: NeoBankRequestOptions,
   ): Promise<ResponseBody> {
     const url = this.#buildUrl(path);
-    return this.#noRetryPolicy.execute(async () => {
-      const headers = await this.#getRequestHeaders(options);
-      headers['Content-Type'] = 'application/json';
-      const fetchResponse = await this.#fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-      if (!fetchResponse.ok) {
-        await this.#throwHttpError(url, fetchResponse);
-      }
-      return fetchResponse.json() as Promise<ResponseBody>;
+    const headers = await this.#getRequestHeaders(options);
+    headers['Content-Type'] = 'application/json';
+    const fetchResponse = await this.#fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
     });
-  }
-
-  #mapAutorampResponse(
-    response: NeoBankAutorampResponse,
-  ): AutorampRemoteSnapshot {
-    if (!response || typeof response !== 'object' || !response.id) {
-      throw new Error('Malformed response received from neo-bank autoramp API');
+    if (!fetchResponse.ok) {
+      await this.#throwHttpError(url, fetchResponse);
     }
-    return mapNeoBankAutorampToRemoteSnapshot(response);
+    return fetchResponse.json() as Promise<ResponseBody>;
   }
 
   /**
@@ -680,10 +748,19 @@ export class NeoBankService {
    * @returns Remote snapshot for controller apply/refresh.
    */
   async getAutoramp(autorampId: string): Promise<AutorampRemoteSnapshot> {
-    const response = await this.#getJson<NeoBankAutorampResponse>(
-      `autoramps/${encodeURIComponent(autorampId)}`,
+    const response = await this.fetchQuery({
+      queryKey: [`${this.name}:getAutoramp`, autorampId],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: AutorampResponseStruct,
+      queryFn: async () =>
+        this.#getJson<Infer<typeof AutorampResponseStruct>>(
+          `autoramps/${encodeURIComponent(autorampId)}`,
+        ),
+    });
+    return mapNeoBankAutorampToRemoteSnapshot(
+      response as NeoBankAutorampResponse,
     );
-    return this.#mapAutorampResponse(response);
   }
 
   /**
@@ -701,22 +778,28 @@ export class NeoBankService {
   async getAutoramps(
     params: { customerId?: string } = {},
   ): Promise<AutorampRemoteSnapshot[]> {
-    const autoramps: unknown[] = [];
+    const autoramps: Infer<typeof AutorampResponseStruct>[] = [];
     const seenCursors = new Set<string>();
     let cursor: string | undefined;
 
     do {
-      const response = await this.#getJson<unknown>('autoramps', {
+      const query: NeoBankQueryParams = {
         customer_id: params.customerId,
         page_size: AUTORAMP_LIST_PAGE_SIZE,
         cursor,
+      };
+      const response = await this.fetchQuery({
+        queryKey: [`${this.name}:getAutoramps`, toQueryKeyParams(query)],
+        staleTime: 0,
+        gcTime: 0,
+        responseStruct: AutorampListResponseStruct,
+        queryFn: async () =>
+          this.#getJson<Infer<typeof AutorampListResponseStruct>>(
+            'autoramps',
+            query,
+          ),
       });
-      autoramps.push(
-        ...readPagedItems(
-          response,
-          'Malformed response received from neo-bank autoramps API',
-        ),
-      );
+      autoramps.push(...readPagedItems(response));
       const nextCursor = readNextCursor(response);
       if (nextCursor === undefined || seenCursors.has(nextCursor)) {
         break;
@@ -726,7 +809,7 @@ export class NeoBankService {
     } while (cursor !== undefined);
 
     return autoramps.map((autoramp) =>
-      this.#mapAutorampResponse(autoramp as NeoBankAutorampResponse),
+      mapNeoBankAutorampToRemoteSnapshot(autoramp as NeoBankAutorampResponse),
     );
   }
 
@@ -743,13 +826,20 @@ export class NeoBankService {
   async getPixDepositInstructions(
     autorampId: string,
   ): Promise<PixDepositInstructions | null> {
-    const response = await this.#getJson<NeoBankAutorampResponse>(
-      `autoramps/${encodeURIComponent(autorampId)}`,
+    const response = await this.fetchQuery({
+      queryKey: [`${this.name}:getPixDepositInstructions`, autorampId],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: PixAutorampResponseStruct,
+      queryFn: async () =>
+        this.#getJson<Infer<typeof PixAutorampResponseStruct>>(
+          `autoramps/${encodeURIComponent(autorampId)}`,
+        ),
+    });
+    return extractPixDepositInstructions(
+      (response as Pick<NeoBankAutorampResponse, 'deposit_rails'>)
+        .deposit_rails,
     );
-    if (!response || typeof response !== 'object') {
-      throw new Error('Malformed response received from neo-bank autoramp API');
-    }
-    return extractPixDepositInstructions(response.deposit_rails);
   }
 
   /**
@@ -766,17 +856,25 @@ export class NeoBankService {
   async getDepositInstructions(
     autorampId: string,
   ): Promise<AutorampDepositInstructions | null> {
-    const response = await this.#getJson<NeoBankAutorampResponse>(
-      `autoramps/${encodeURIComponent(autorampId)}`,
-    );
-    if (!response || typeof response !== 'object') {
-      throw new Error('Malformed response received from neo-bank autoramp API');
-    }
-    const pix = extractPixDepositInstructions(response.deposit_rails);
+    const response = await this.fetchQuery({
+      queryKey: [`${this.name}:getDepositInstructions`, autorampId],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: PixAutorampResponseStruct,
+      queryFn: async () =>
+        this.#getJson<Infer<typeof PixAutorampResponseStruct>>(
+          `autoramps/${encodeURIComponent(autorampId)}`,
+        ),
+    });
+    const { deposit_rails: depositRails } = response as Pick<
+      NeoBankAutorampResponse,
+      'deposit_rails'
+    >;
+    const pix = extractPixDepositInstructions(depositRails);
     if (pix) {
       return { type: 'Pix', ...pix };
     }
-    const usBank = extractUsBankDepositInstructions(response.deposit_rails);
+    const usBank = extractUsBankDepositInstructions(depositRails);
     return usBank ? { type: 'UsBank', ...usBank } : null;
   }
 
@@ -797,40 +895,34 @@ export class NeoBankService {
     autorampId: string,
     options?: { pageSize?: number },
   ): Promise<AutorampTransactionSummary[]> {
-    const response = await this.#getJson<unknown>('autoramp-transactions', {
+    const query: NeoBankQueryParams = {
       autoramp_id: autorampId,
       sort_order: 'desc',
       ...(options?.pageSize === undefined
         ? {}
         : { page_size: options.pageSize }),
+    };
+    const response = await this.fetchQuery({
+      queryKey: [
+        `${this.name}:listAutorampTransactions`,
+        toQueryKeyParams(query),
+      ],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: AutorampTransactionListResponseStruct,
+      queryFn: async () =>
+        this.#getJson<Infer<typeof AutorampTransactionListResponseStruct>>(
+          'autoramp-transactions',
+          query,
+        ),
     });
-    const transactions = readPagedItems(
-      response,
-      'Malformed response received from neo-bank autoramp transactions API',
-    );
-    return transactions.map((transaction) => {
-      if (
-        transaction === null ||
-        typeof transaction !== 'object' ||
-        typeof (transaction as { id?: unknown }).id !== 'string'
-      ) {
-        throw new Error(
-          'Malformed response received from neo-bank autoramp transactions API',
-        );
-      }
-      const record = transaction as {
-        id: string;
+    return readPagedItems(response).map((transaction) => {
+      const record = transaction as typeof transaction & {
         autoramp_id?: unknown;
-        status?: unknown;
         source_amount?: unknown;
         destination_amount?: unknown;
         created_at?: unknown;
       };
-      if (typeof record.status !== 'string') {
-        throw new Error(
-          'Malformed response received from neo-bank autoramp transactions API',
-        );
-      }
       const createdAt =
         typeof record.created_at === 'string' && record.created_at.length > 0
           ? record.created_at
@@ -860,8 +952,12 @@ export class NeoBankService {
   async registerPixAddress(
     body: Record<string, unknown>,
     options: NeoBankRequestOptions = {},
-  ): Promise<unknown> {
-    return this.#postJson('addresses/pix', body, options);
+  ): Promise<Json> {
+    return this.executeMutation({
+      mutationKey: [`${this.name}:registerPixAddress`],
+      gcTime: 0,
+      mutationFn: async () => this.#postJson('addresses/pix', body, options),
+    });
   }
 
   /**
@@ -870,8 +966,13 @@ export class NeoBankService {
    * @param query - Quote query params (forwarded as-is).
    * @returns Parsed proxy JSON response.
    */
-  async getAutorampQuote(query: NeoBankQueryParams = {}): Promise<unknown> {
-    return this.#getJson('autoramps/quote', query);
+  async getAutorampQuote(query: NeoBankQueryParams = {}): Promise<Json> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getAutorampQuote`, toQueryKeyParams(query)],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () => this.#getJson('autoramps/quote', query),
+    });
   }
 
   /**
@@ -886,12 +987,20 @@ export class NeoBankService {
     body: Record<string, unknown>,
     options: NeoBankRequestOptions = {},
   ): Promise<AutorampRemoteSnapshot> {
-    const response = await this.#postJson<NeoBankAutorampResponse>(
-      'autoramps',
-      body,
-      options,
+    const response = await this.executeMutation({
+      mutationKey: [`${this.name}:createAutoramp`],
+      gcTime: 0,
+      responseStruct: AutorampResponseStruct,
+      mutationFn: async () =>
+        this.#postJson<Infer<typeof AutorampResponseStruct>>(
+          'autoramps',
+          body,
+          options,
+        ),
+    });
+    return mapNeoBankAutorampToRemoteSnapshot(
+      response as NeoBankAutorampResponse,
     );
-    return this.#mapAutorampResponse(response);
   }
 
   /**
@@ -905,11 +1014,21 @@ export class NeoBankService {
   async getAutorampQuoteForAutoramp(
     autorampId: string,
     query: NeoBankQueryParams = {},
-  ): Promise<unknown> {
-    return this.#getJson(
-      `autoramps/${encodeURIComponent(autorampId)}/quote`,
-      query,
-    );
+  ): Promise<Json> {
+    return this.fetchQuery({
+      queryKey: [
+        `${this.name}:getAutorampQuoteForAutoramp`,
+        autorampId,
+        toQueryKeyParams(query),
+      ],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () =>
+        this.#getJson(
+          `autoramps/${encodeURIComponent(autorampId)}/quote`,
+          query,
+        ),
+    });
   }
 
   /**
@@ -925,12 +1044,17 @@ export class NeoBankService {
     autorampId: string,
     body: Record<string, unknown>,
     options: NeoBankRequestOptions = {},
-  ): Promise<unknown> {
-    return this.#postJson(
-      `autoramps/${encodeURIComponent(autorampId)}/quotes`,
-      body,
-      options,
-    );
+  ): Promise<Json> {
+    return this.executeMutation({
+      mutationKey: [`${this.name}:attachAutorampQuote`, autorampId],
+      gcTime: 0,
+      mutationFn: async () =>
+        this.#postJson(
+          `autoramps/${encodeURIComponent(autorampId)}/quotes`,
+          body,
+          options,
+        ),
+    });
   }
 
   /**
@@ -940,10 +1064,14 @@ export class NeoBankService {
    * @param externalId - Partner-assigned external customer id.
    * @returns Parsed proxy JSON response.
    */
-  async getCustomerByExternalId(externalId: string): Promise<unknown> {
-    return this.#getJson(
-      `customers/${encodeURIComponent(externalId)}/external`,
-    );
+  async getCustomerByExternalId(externalId: string): Promise<Json> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getCustomerByExternalId`, externalId],
+      staleTime: 0,
+      gcTime: 0,
+      queryFn: async () =>
+        this.#getJson(`customers/${encodeURIComponent(externalId)}/external`),
+    });
   }
 
   /**
@@ -972,7 +1100,7 @@ export class NeoBankService {
    * @returns MoonPay microdeposits, unmodified.
    */
   async getMicrodeposits(): Promise<NeoBankMicrodeposit[]> {
-    let response: unknown;
+    let response: Infer<typeof MicrodepositListResponseStruct>;
     try {
       this.#customerIdPromise ??= this.getMoonpayCustomerId().catch(
         (error: unknown) => {
@@ -990,19 +1118,21 @@ export class NeoBankService {
         },
       );
       const customerId = await this.#customerIdPromise;
-      response = await this.#getJson<unknown>(
-        `customers/${encodeURIComponent(customerId)}/microdeposits`,
-      );
+      response = await this.fetchQuery({
+        queryKey: [`${this.name}:getMicrodeposits`, customerId],
+        staleTime: 0,
+        gcTime: 0,
+        responseStruct: MicrodepositListResponseStruct,
+        queryFn: async () =>
+          this.#getJson<Infer<typeof MicrodepositListResponseStruct>>(
+            `customers/${encodeURIComponent(customerId)}/microdeposits`,
+          ),
+      });
     } catch (error) {
       if ((error as { httpStatus?: unknown }).httpStatus === 404) {
         return [];
       }
       throw error;
-    }
-    if (!Array.isArray(response)) {
-      throw new Error(
-        'Malformed response received from neo-bank microdeposits API',
-      );
     }
     return response as NeoBankMicrodeposit[];
   }
@@ -1050,7 +1180,7 @@ export class NeoBankService {
    * @returns Canonical profile id.
    */
   async #getCanonicalExternalId(): Promise<string> {
-    const profile = await this.#messenger.call(
+    const profile = await this.messenger.call(
       'AuthenticationController:getSessionProfile',
     );
     const canonical = profile?.canonicalProfileId;
@@ -1064,23 +1194,5 @@ export class NeoBankService {
       );
     }
     return externalId;
-  }
-
-  onRetry(
-    listener: Parameters<ServicePolicy['onRetry']>[0],
-  ): ReturnType<ServicePolicy['onRetry']> {
-    return this.#policy.onRetry(listener);
-  }
-
-  onBreak(
-    listener: Parameters<ServicePolicy['onBreak']>[0],
-  ): ReturnType<ServicePolicy['onBreak']> {
-    return this.#policy.onBreak(listener);
-  }
-
-  onDegraded(
-    listener: Parameters<ServicePolicy['onDegraded']>[0],
-  ): ReturnType<ServicePolicy['onDegraded']> {
-    return this.#policy.onDegraded(listener);
   }
 }
