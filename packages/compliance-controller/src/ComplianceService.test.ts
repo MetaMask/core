@@ -1,4 +1,3 @@
-import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -6,7 +5,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import nock from 'nock';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { ComplianceServiceMessenger } from './ComplianceService.js';
 import { ComplianceService } from './ComplianceService.js';
@@ -16,16 +15,6 @@ const MOCK_PRODUCTION_API_URL = 'https://compliance.api.cx.metamask.io';
 const MOCK_CONFIGURED_API_URL = 'https://configured-compliance.example.com';
 
 describe('ComplianceService', () => {
-  beforeEach(() => {
-    vi.useFakeTimers({
-      toNotFake: ['nextTick', 'queueMicrotask', 'setImmediate'],
-    });
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   describe('ComplianceService:checkWalletCompliance', () => {
     it('returns the compliance status for a single wallet address', async () => {
       nock(MOCK_API_URL).get('/v1/wallet/0xABC123').reply(200, {
@@ -84,7 +73,7 @@ describe('ComplianceService', () => {
             '0xABC123',
           ),
         ).rejects.toThrow(
-          'Malformed response received from compliance wallet check API',
+          /Query function for "ComplianceService:checkWalletCompliance" returned an unexpected response/u,
         );
       },
     );
@@ -92,89 +81,46 @@ describe('ComplianceService', () => {
     it('throws an HttpError when the API returns a non-200 status', async () => {
       nock(MOCK_API_URL).get('/v1/wallet/0xABC123').times(4).reply(404);
       const { service } = getService();
-      service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
-      });
 
-      await expect(service.checkWalletCompliance('0xABC123')).rejects.toThrow(
-        /failed with status '404'/u,
-      );
-    });
-
-    it('calls onDegraded listeners if the request takes longer than 5 seconds', async () => {
-      nock(MOCK_API_URL)
-        .get('/v1/wallet/0xABC123')
-        .reply(200, () => {
-          vi.advanceTimersByTime(6000);
-          return { address: '0xABC123', blocked: false };
-        });
-      const { service, rootMessenger } = getService();
-      const onDegradedListener = vi.fn();
-      service.onDegraded(onDegradedListener);
-
-      await rootMessenger.call(
-        'ComplianceService:checkWalletCompliance',
-        '0xABC123',
-      );
-
-      expect(onDegradedListener).toHaveBeenCalled();
+      const promise = service.checkWalletCompliance('0xABC123');
+      await expect(promise).rejects.toThrow(/failed with status '404'/u);
     });
 
     it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
-      nock(MOCK_API_URL).get('/v1/wallet/0xABC123').times(4).reply(500);
-      const { service, rootMessenger } = getService();
-      service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
-      });
+      const scope = nock(MOCK_API_URL)
+        .get('/v1/wallet/0xABC123')
+        .times(4)
+        .reply(500);
+      const { rootMessenger } = getService();
 
-      await expect(
-        rootMessenger.call(
-          'ComplianceService:checkWalletCompliance',
-          '0xABC123',
-        ),
-      ).rejects.toThrow(/failed with status '500'/u);
+      const promise = rootMessenger.call(
+        'ComplianceService:checkWalletCompliance',
+        '0xABC123',
+      );
+      await expect(promise).rejects.toThrow(/failed with status '500'/u);
+      expect(scope.isDone()).toBe(true);
     });
 
     it('intercepts requests and throws a circuit break error after the 4th failed attempt', async () => {
       nock(MOCK_API_URL).get('/v1/wallet/0xABC123').times(12).reply(500);
-      const { service, rootMessenger } = getService();
-      service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
-      });
-      const onBreakListener = vi.fn();
-      service.onBreak(onBreakListener);
+      const { rootMessenger } = getService();
 
       // Each call attempts 4 requests before failing
-      await expect(
-        rootMessenger.call(
+      for (let i = 0; i < 3; i++) {
+        const promise = rootMessenger.call(
           'ComplianceService:checkWalletCompliance',
           '0xABC123',
-        ),
-      ).rejects.toThrow(/failed with status '500'/u);
-      await expect(
-        rootMessenger.call(
-          'ComplianceService:checkWalletCompliance',
-          '0xABC123',
-        ),
-      ).rejects.toThrow(/failed with status '500'/u);
-      await expect(
-        rootMessenger.call(
-          'ComplianceService:checkWalletCompliance',
-          '0xABC123',
-        ),
-      ).rejects.toThrow(/failed with status '500'/u);
+        );
+        await expect(promise).rejects.toThrow(/failed with status '500'/u);
+      }
       // Circuit breaker opens
-      await expect(
-        rootMessenger.call(
-          'ComplianceService:checkWalletCompliance',
-          '0xABC123',
-        ),
-      ).rejects.toThrow(
+      const promise = rootMessenger.call(
+        'ComplianceService:checkWalletCompliance',
+        '0xABC123',
+      );
+      await expect(promise).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
-      expect(onBreakListener).toHaveBeenCalledWith({
-        error: expect.any(HttpError),
-      });
     });
 
     it('uses the configured API URL when provided', async () => {
@@ -301,7 +247,7 @@ describe('ComplianceService', () => {
             '0xABC',
           ]),
         ).rejects.toThrow(
-          'Malformed response received from compliance batch check API',
+          /Query function for "ComplianceService:checkWalletsCompliance" returned an unexpected response/u,
         );
       },
     );
@@ -309,13 +255,9 @@ describe('ComplianceService', () => {
     it('throws an HttpError when the API returns a non-200 status', async () => {
       nock(MOCK_API_URL).post('/v1/wallet/batch').times(4).reply(500);
       const { service } = getService();
-      service.onRetry(() => {
-        vi.advanceTimersToNextTimerAsync().catch(console.error);
-      });
 
-      await expect(service.checkWalletsCompliance(['0xABC'])).rejects.toThrow(
-        /failed with status '500'/u,
-      );
+      const promise = service.checkWalletsCompliance(['0xABC']);
+      await expect(promise).rejects.toThrow(/failed with status '500'/u);
     });
   });
 
@@ -347,6 +289,100 @@ describe('ComplianceService', () => {
       const result = await service.checkWalletsCompliance(addresses);
 
       expect(result).toStrictEqual([{ address: '0xABC', blocked: true }]);
+    });
+  });
+
+  describe('BaseDataService integration', () => {
+    it('registers the invalidateQueries action', async () => {
+      const { rootMessenger } = getService();
+
+      expect(
+        await rootMessenger.call('ComplianceService:invalidateQueries'),
+      ).toBeUndefined();
+    });
+
+    it('publishes cacheUpdated after a wallet check', async () => {
+      nock(MOCK_API_URL)
+        .get('/v1/wallet/0xABC123')
+        .reply(200, { address: '0xABC123', blocked: false });
+      const { service, messenger } = getService();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      await service.checkWalletCompliance('0xABC123');
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'ComplianceService:cacheUpdated',
+        expect.objectContaining({ objectType: 'query' }),
+      );
+    });
+
+    it('deduplicates concurrent checks for the same address', async () => {
+      nock(MOCK_API_URL)
+        .get('/v1/wallet/0xABC123')
+        .reply(200, { address: '0xABC123', blocked: true });
+      const secondRequest = nock(MOCK_API_URL)
+        .get('/v1/wallet/0xABC123')
+        .reply(200, { address: '0xABC123', blocked: false });
+      const { service } = getService();
+
+      const results = await Promise.all([
+        service.checkWalletCompliance('0xABC123'),
+        service.checkWalletCompliance('0xABC123'),
+      ]);
+
+      expect(results).toStrictEqual([
+        { address: '0xABC123', blocked: true },
+        { address: '0xABC123', blocked: true },
+      ]);
+      expect(secondRequest.isDone()).toBe(false);
+    });
+
+    it('never serves a sequential re-check from cache', async () => {
+      nock(MOCK_API_URL)
+        .get('/v1/wallet/0xABC123')
+        .reply(200, { address: '0xABC123', blocked: false });
+      nock(MOCK_API_URL)
+        .get('/v1/wallet/0xABC123')
+        .reply(200, { address: '0xABC123', blocked: true });
+      const { service } = getService();
+
+      expect(await service.checkWalletCompliance('0xABC123')).toStrictEqual({
+        address: '0xABC123',
+        blocked: false,
+      });
+      expect(await service.checkWalletCompliance('0xABC123')).toStrictEqual({
+        address: '0xABC123',
+        blocked: true,
+      });
+    });
+
+    it('deduplicates concurrent batch checks for the same addresses', async () => {
+      const body = [{ address: '0xA', blocked: false }];
+      nock(MOCK_API_URL).post('/v1/wallet/batch', ['0xA']).reply(200, body);
+      const secondRequest = nock(MOCK_API_URL)
+        .post('/v1/wallet/batch', ['0xA'])
+        .reply(200, body);
+      const { service } = getService();
+
+      await Promise.all([
+        service.checkWalletsCompliance(['0xA']),
+        service.checkWalletsCompliance(['0xA']),
+      ]);
+
+      expect(secondRequest.isDone()).toBe(false);
+    });
+
+    it('rejects a malformed response without retrying', async () => {
+      nock(MOCK_API_URL).get('/v1/wallet/0xABC123').reply(200, { nope: true });
+      const retry = nock(MOCK_API_URL)
+        .get('/v1/wallet/0xABC123')
+        .reply(200, { address: '0xABC123', blocked: false });
+      const { service } = getService();
+
+      await expect(service.checkWalletCompliance('0xABC123')).rejects.toThrow(
+        /Query function for "ComplianceService:checkWalletCompliance" returned an unexpected response/u,
+      );
+      expect(retry.isDone()).toBe(false);
     });
   });
 });
