@@ -4575,11 +4575,6 @@
       "count": 1
     }
   },
-  "packages/remote-feature-flag-controller/src/client-config-api-service/client-config-api-service.ts": {
-    "typescript/no-unsafe-assignment": {
-      "count": 1
-    }
-  },
   "packages/remote-feature-flag-controller/src/remote-feature-flag-controller.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 10

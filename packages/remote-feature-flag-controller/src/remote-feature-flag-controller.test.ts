@@ -8,9 +8,11 @@ import type {
 import { describe, expect, it, vi } from 'vitest';
 
 import { flushPromises } from '../../../tests/vitest/helpers.js';
-import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service.js';
 import { ThresholdVersion } from './remote-feature-flag-controller-types.js';
-import type { FeatureFlags } from './remote-feature-flag-controller-types.js';
+import type {
+  FeatureFlags,
+  ServiceResponse,
+} from './remote-feature-flag-controller-types.js';
 import {
   RemoteFeatureFlagController,
   controllerName,
@@ -74,7 +76,7 @@ const MOCK_BASE_VERSION = '13.10.0';
 function createController(
   options: Partial<{
     state: Partial<RemoteFeatureFlagControllerState>;
-    clientConfigApiService: AbstractClientConfigApiService;
+    clientConfigApiService: MockClientConfigApiService;
     disabled: boolean;
     getMetaMetricsId: () => string;
     getCanonicalProfileId: () => string;
@@ -85,11 +87,15 @@ function createController(
   }> = {},
 ): { controller: RemoteFeatureFlagController; messenger: RootMessenger } {
   const { rootMessenger, controllerMessenger } = buildMessenger();
+  const clientConfigApiService =
+    options.clientConfigApiService ?? buildClientConfigApiService();
+  rootMessenger.registerActionHandler(
+    'ClientConfigApiService:fetchRemoteFeatureFlags',
+    async () => clientConfigApiService.fetchRemoteFeatureFlags(),
+  );
   const controller = new RemoteFeatureFlagController({
     messenger: controllerMessenger,
     state: options.state,
-    clientConfigApiService:
-      options.clientConfigApiService ?? buildClientConfigApiService(),
     disabled: options.disabled,
     getMetaMetricsId:
       options.getMetaMetricsId ??
@@ -453,7 +459,7 @@ describe('RemoteFeatureFlagController', () => {
 
       const clientConfigApiService = {
         fetchRemoteFeatureFlags: fetchSpy,
-      } as AbstractClientConfigApiService;
+      } as MockClientConfigApiService;
 
       const { controller, messenger } = createController({
         clientConfigApiService,
@@ -2825,6 +2831,10 @@ describe('RemoteFeatureFlagController', () => {
   });
 });
 
+type MockClientConfigApiService = {
+  fetchRemoteFeatureFlags: () => Promise<ServiceResponse>;
+};
+
 type AllRemoteFeatureFlagControllerActions =
   MessengerActions<RemoteFeatureFlagControllerMessenger>;
 
@@ -2867,6 +2877,10 @@ function buildMessenger(): {
     namespace: controllerName,
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    messenger: controllerMessenger,
+    actions: ['ClientConfigApiService:fetchRemoteFeatureFlags'],
+  });
   return { rootMessenger, controllerMessenger };
 }
 
@@ -2887,7 +2901,7 @@ function buildClientConfigApiService({
   remoteFeatureFlags?: FeatureFlags;
   cacheTimestamp?: number;
   error?: Error;
-} = {}): AbstractClientConfigApiService {
+} = {}): MockClientConfigApiService {
   return {
     fetchRemoteFeatureFlags: vi.fn().mockImplementation(() => {
       if (error) {

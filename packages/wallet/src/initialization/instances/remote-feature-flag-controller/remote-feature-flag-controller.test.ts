@@ -1,5 +1,6 @@
 import { Messenger } from '@metamask/messenger';
 import { RemoteFeatureFlagController } from '@metamask/remote-feature-flag-controller';
+import type { ClientConfigApiService } from '@metamask/remote-feature-flag-controller';
 import type { Mock } from 'vitest';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -9,15 +10,33 @@ import type {
   DefaultEvents,
   RootMessenger,
 } from '../../defaults.js';
+import { clientConfigApiService } from '../client-config-api-service/client-config-api-service.js';
 import { remoteFeatureFlagController } from './remote-feature-flag-controller.js';
 
 /**
- * Creates a root messenger for use in tests.
+ * Creates a root messenger with a stub ClientConfigApiService action handler.
  *
+ * @param stub - The stub whose `fetchRemoteFeatureFlags` backs the action.
+ * @param stub.fetchRemoteFeatureFlags - The mock to call.
  * @returns A root messenger.
  */
-function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
-  return new Messenger({ namespace: 'Root' });
+function getRootMessenger(
+  stub: {
+    fetchRemoteFeatureFlags: Mock;
+  } = getClientConfigApiService(),
+): RootMessenger<DefaultActions, DefaultEvents> {
+  const rootMessenger: RootMessenger<DefaultActions, DefaultEvents> =
+    new Messenger({ namespace: 'Root' });
+  clientConfigApiService
+    .getMessenger(rootMessenger)
+    .registerActionHandler(
+      'ClientConfigApiService:fetchRemoteFeatureFlags',
+      async () =>
+        stub.fetchRemoteFeatureFlags() as ReturnType<
+          ClientConfigApiService['fetchRemoteFeatureFlags']
+        >,
+    );
+  return rootMessenger;
 }
 
 /**
@@ -49,7 +68,7 @@ describe('remoteFeatureFlagController', () => {
     const instance = remoteFeatureFlagController.init({
       state: undefined,
       messenger,
-      options: { clientConfigApiService: getClientConfigApiService() },
+      options: {},
     });
 
     expect(instance).toBeInstanceOf(RemoteFeatureFlagController);
@@ -71,45 +90,44 @@ describe('remoteFeatureFlagController', () => {
         cacheTimestamp: 12345,
       },
       messenger,
-      options: { clientConfigApiService: getClientConfigApiService() },
+      options: {},
     });
 
     expect(instance.state.remoteFeatureFlags).toStrictEqual({ testFlag: true });
   });
 
   it('applies default getMetaMetricsId and clientVersion when omitted', async () => {
-    const clientConfigApiService = getClientConfigApiService();
-    const messenger =
-      remoteFeatureFlagController.getMessenger(getRootMessenger());
+    const stub = getClientConfigApiService();
+    const messenger = remoteFeatureFlagController.getMessenger(
+      getRootMessenger(stub),
+    );
 
     const instance = remoteFeatureFlagController.init({
       state: undefined,
       messenger,
-      options: { clientConfigApiService },
+      options: {},
     });
 
     await instance.updateRemoteFeatureFlags();
 
-    expect(
-      clientConfigApiService.fetchRemoteFeatureFlags,
-    ).toHaveBeenCalledTimes(1);
+    expect(stub.fetchRemoteFeatureFlags).toHaveBeenCalledTimes(1);
     expect(instance.state.remoteFeatureFlags).toStrictEqual({});
   });
 
-  it('uses the injected clientConfigApiService, getMetaMetricsId, and clientVersion', async () => {
+  it('uses the ClientConfigApiService action, getMetaMetricsId, and clientVersion', async () => {
     const fetchRemoteFeatureFlags = vi.fn().mockResolvedValue({
       remoteFeatureFlags: { testFlag: true },
       cacheTimestamp: Date.now(),
     });
     const getMetaMetricsId = vi.fn(() => 'test-metrics-id');
-    const messenger =
-      remoteFeatureFlagController.getMessenger(getRootMessenger());
+    const messenger = remoteFeatureFlagController.getMessenger(
+      getRootMessenger({ fetchRemoteFeatureFlags }),
+    );
 
     const instance = remoteFeatureFlagController.init({
       state: undefined,
       messenger,
       options: {
-        clientConfigApiService: { fetchRemoteFeatureFlags },
         getMetaMetricsId,
         clientVersion: '1.2.3',
       },
@@ -123,21 +141,20 @@ describe('remoteFeatureFlagController', () => {
   });
 
   it('does not fetch flags when initialized as disabled', async () => {
-    const clientConfigApiService = getClientConfigApiService();
-    const messenger =
-      remoteFeatureFlagController.getMessenger(getRootMessenger());
+    const stub = getClientConfigApiService();
+    const messenger = remoteFeatureFlagController.getMessenger(
+      getRootMessenger(stub),
+    );
 
     const instance = remoteFeatureFlagController.init({
       state: undefined,
       messenger,
-      options: { clientConfigApiService, disabled: true },
+      options: { disabled: true },
     });
 
     await instance.updateRemoteFeatureFlags();
 
-    expect(
-      clientConfigApiService.fetchRemoteFeatureFlags,
-    ).not.toHaveBeenCalled();
+    expect(stub.fetchRemoteFeatureFlags).not.toHaveBeenCalled();
   });
 
   it('invalidates the cache when prevClientVersion differs from clientVersion', () => {
@@ -151,7 +168,6 @@ describe('remoteFeatureFlagController', () => {
       },
       messenger,
       options: {
-        clientConfigApiService: getClientConfigApiService(),
         clientVersion: '2.0.0',
         prevClientVersion: '1.0.0',
       },
@@ -171,7 +187,6 @@ describe('remoteFeatureFlagController', () => {
       },
       messenger,
       options: {
-        clientConfigApiService: getClientConfigApiService(),
         clientVersion: '2.0.0',
         prevClientVersion: '2.0.0',
       },
@@ -189,7 +204,6 @@ describe('remoteFeatureFlagController', () => {
         state: undefined,
         messenger,
         options: {
-          clientConfigApiService: getClientConfigApiService(),
           clientVersion: 'not-semver',
         },
       }),
@@ -197,21 +211,20 @@ describe('remoteFeatureFlagController', () => {
   });
 
   it('forwards a custom fetchInterval to the controller', async () => {
-    const clientConfigApiService = getClientConfigApiService();
-    const messenger =
-      remoteFeatureFlagController.getMessenger(getRootMessenger());
+    const stub = getClientConfigApiService();
+    const messenger = remoteFeatureFlagController.getMessenger(
+      getRootMessenger(stub),
+    );
 
     const instance = remoteFeatureFlagController.init({
       state: { remoteFeatureFlags: {}, cacheTimestamp: Date.now() },
       messenger,
-      options: { clientConfigApiService, fetchInterval: 60 * 60 * 1000 },
+      options: { fetchInterval: 60 * 60 * 1000 },
     });
 
     await instance.updateRemoteFeatureFlags();
 
-    expect(
-      clientConfigApiService.fetchRemoteFeatureFlags,
-    ).not.toHaveBeenCalled();
+    expect(stub.fetchRemoteFeatureFlags).not.toHaveBeenCalled();
   });
 
   it('forwards defaultFeatureFlags to the controller', async () => {
@@ -222,7 +235,6 @@ describe('remoteFeatureFlagController', () => {
       state: undefined,
       messenger,
       options: {
-        clientConfigApiService: getClientConfigApiService(),
         defaultFeatureFlags: { defaultFlag: true },
       },
     });
@@ -241,7 +253,7 @@ describe('remoteFeatureFlagController', () => {
     remoteFeatureFlagController.init({
       state: undefined,
       messenger,
-      options: { clientConfigApiService: getClientConfigApiService() },
+      options: {},
     });
 
     expect(
