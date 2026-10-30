@@ -16,12 +16,12 @@ This package features the following controllers:
 
 - [**AccountTrackerController**](src/AccountTrackerController.ts) keeps a updated list of the accounts in the currently selected keychain which is updated automatically on a schedule or on demand.
 - [**AssetsContractController**](src/AssetsContractController.ts) provides a set of convenience methods that use contracts to retrieve information about tokens, read token balances, and transfer tokens.
-- [**CollectibleDetectionController**](src/CollectibleDetectionController.ts) keeps a periodically updated list of ERC-721 tokens assigned to the currently selected address.
-- [**CollectiblesController**](src/CollectiblesController.ts) tracks ERC-721 and ERC-1155 tokens assigned to the currently selected address, using OpenSea to retrieve token information.
 - [**CurrencyRateController**](src/CurrencyRateController.ts) keeps a periodically updated value of the exchange rate from the currently selected "native" currency to another (handling testnet tokens specially).
-- [**DeFiPositionsController**](src/DeFiPositionsController/DeFiPositionsController.ts.ts) keeps a periodically updated value of the DeFi positions for the owner EVM addresses.
+- [**DeFiPositionsController**](src/DeFiPositionsController/DeFiPositionsController.ts) keeps a periodically updated value of the DeFi positions for the owner EVM addresses.
+- [**NftController**](src/NftController.ts) tracks ERC-721 and ERC-1155 tokens assigned to the currently selected address, using OpenSea to retrieve token information.
+- [**NftDetectionController**](src/NftDetectionController.ts) keeps a periodically updated list of ERC-721 tokens assigned to the currently selected address.
 - [**RatesController**](src/RatesController/RatesController.ts) keeps a periodically updated value for the exchange rates for different cryptocurrencies. The difference between the `RatesController` and `CurrencyRateController` is that the second one is coupled to the `NetworksController` and is EVM specific, whilst the first one can handle different blockchain currencies like BTC and SOL.
-- [**TokenBalancesController**](src/TokenBalancesController.ts) keeps a periodically updated set of balances for the current set of ERC-20 tokens. It supports real-time balance updates via WebSocket and intelligent polling management. See [Real-Time Balance Updates Flow](./REAL_TIME_BALANCE_UPDATES.md) for details.
+- [**TokenBalancesController**](src/TokenBalancesController.ts) keeps a periodically updated set of balances for the current set of ERC-20 tokens. It supports real-time balance updates via WebSocket and intelligent polling management. See [Real-Time Balance Updates Flow](../core-backend/docs/real-time-balance-updates-flow.md) for details.
 - [**TokenDetectionController**](src/TokenDetectionController.ts) keeps a periodically updated list of ERC-20 tokens assigned to the currently selected address.
 - [**TokenListController**](src/TokenListController.ts) uses the MetaSwap API to keep a periodically updated list of known ERC-20 tokens along with their metadata.
 - [**TokenRatesController**](src/TokenRatesController.ts) keeps a periodically updated list of exchange rates for known ERC-20 tokens relative to the currently selected native currency.
