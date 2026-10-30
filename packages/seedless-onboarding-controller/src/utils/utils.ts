@@ -190,6 +190,28 @@ export function compareAndGetLatestToken(
 }
 
 /**
+ * Pick the latest access token when reconciling state with a decrypted vault.
+ *
+ * @param tokenBeforeUnlock - The access token from state before unlocking.
+ * @param tokenAfterUnlock - The access token from the decrypted vault.
+ * @returns The token that should remain active.
+ */
+export function getLatestAccessToken(
+  tokenBeforeUnlock: string | undefined,
+  tokenAfterUnlock: string,
+): string {
+  if (
+    !tokenBeforeUnlock ||
+    !tokenAfterUnlock ||
+    tokenBeforeUnlock === tokenAfterUnlock
+  ) {
+    return tokenAfterUnlock;
+  }
+
+  return compareAndGetLatestToken(tokenBeforeUnlock, tokenAfterUnlock);
+}
+
+/**
  * Determine whether a token should be proactively refreshed.
  *
  * When `iat` is provided: returns `true` when less than 10% of the token's
