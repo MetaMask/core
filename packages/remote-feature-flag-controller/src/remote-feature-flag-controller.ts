@@ -7,7 +7,7 @@ import type { Messenger } from '@metamask/messenger';
 import { hasProperty, isValidSemVerVersion } from '@metamask/utils';
 import type { Json, SemVerVersion } from '@metamask/utils';
 
-import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service.js';
+import type { ClientConfigApiServiceFetchRemoteFeatureFlagsAction } from './client-config-api-service/client-config-api-service-method-action-types.js';
 import type { RemoteFeatureFlagControllerMethodActions } from './remote-feature-flag-controller-method-action-types.js';
 import type {
   FeatureFlags,
@@ -105,9 +105,15 @@ export type RemoteFeatureFlagControllerStateChangeEvent =
 export type RemoteFeatureFlagControllerEvents =
   RemoteFeatureFlagControllerStateChangeEvent;
 
+/**
+ * Actions from other messengers that {@link RemoteFeatureFlagControllerMessenger}
+ * calls.
+ */
+type AllowedActions = ClientConfigApiServiceFetchRemoteFeatureFlagsAction;
+
 export type RemoteFeatureFlagControllerMessenger = Messenger<
   typeof controllerName,
-  RemoteFeatureFlagControllerActions,
+  RemoteFeatureFlagControllerActions | AllowedActions,
   RemoteFeatureFlagControllerEvents
 >;
 
@@ -174,8 +180,6 @@ export class RemoteFeatureFlagController extends BaseController<
 
   #disabled: boolean;
 
-  readonly #clientConfigApiService: AbstractClientConfigApiService;
-
   #inProgressFlagUpdate?: Promise<ServiceResponse>;
 
   readonly #getMetaMetricsId: () => string;
@@ -196,7 +200,6 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options - The controller options.
    * @param options.messenger - The messenger used for communication.
    * @param options.state - The initial state of the controller.
-   * @param options.clientConfigApiService - The service instance to fetch remote feature flags.
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
@@ -209,7 +212,6 @@ export class RemoteFeatureFlagController extends BaseController<
   constructor({
     messenger,
     state,
-    clientConfigApiService,
     fetchInterval = DEFAULT_CACHE_DURATION,
     disabled = false,
     getMetaMetricsId,
@@ -221,7 +223,6 @@ export class RemoteFeatureFlagController extends BaseController<
   }: {
     messenger: RemoteFeatureFlagControllerMessenger;
     state?: Partial<RemoteFeatureFlagControllerState>;
-    clientConfigApiService: AbstractClientConfigApiService;
     getMetaMetricsId: () => string;
     getCanonicalProfileId: () => string;
     metaMetricsFlags?: readonly string[];
@@ -266,7 +267,6 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#processedRemoteFeatureFlags = initialState.remoteFeatureFlags;
     this.#fetchInterval = fetchInterval;
     this.#disabled = disabled;
-    this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
     this.#getCanonicalProfileId = getCanonicalProfileId;
     this.#metaMetricsFlags = new Set(metaMetricsFlags);
@@ -333,8 +333,9 @@ export class RemoteFeatureFlagController extends BaseController<
     }
 
     try {
-      this.#inProgressFlagUpdate =
-        this.#clientConfigApiService.fetchRemoteFeatureFlags();
+      this.#inProgressFlagUpdate = this.messenger.call(
+        'ClientConfigApiService:fetchRemoteFeatureFlags',
+      );
 
       serverData = await this.#inProgressFlagUpdate;
     } finally {

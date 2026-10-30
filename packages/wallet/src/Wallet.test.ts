@@ -12,6 +12,11 @@ import {
   SubjectMetadataController,
   SubjectType,
 } from '@metamask/permission-controller';
+import {
+  ClientType,
+  DistributionType,
+  EnvironmentType,
+} from '@metamask/remote-feature-flag-controller';
 import { SelectedNetworkController } from '@metamask/selected-network-controller';
 import {
   getDefaultShieldControllerState,
@@ -31,12 +36,13 @@ import { Wallet } from './Wallet.js';
 const TEST_SRP = 'test test test test test test test test test test test ball';
 const TEST_PASSWORD = 'testpass';
 
-const REMOTE_FEATURE_FLAG_OPTIONS = {
-  clientConfigApiService: {
-    fetchRemoteFeatureFlags: async (): Promise<{
-      remoteFeatureFlags: Record<string, boolean>;
-      cacheTimestamp: number;
-    }> => ({ remoteFeatureFlags: {}, cacheTimestamp: Date.now() }),
+const CLIENT_CONFIG_API_SERVICE_OPTIONS = {
+  fetch: async (): Promise<Response> =>
+    new globalThis.Response(JSON.stringify([]), { status: 200 }),
+  config: {
+    client: ClientType.Extension,
+    distribution: DistributionType.Main,
+    environment: EnvironmentType.Production,
   },
 };
 
@@ -68,7 +74,8 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
     storageService: {
       storage: new InMemoryStorageAdapter(),
     },
-    remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    clientConfigApiService: CLIENT_CONFIG_API_SERVICE_OPTIONS,
+    remoteFeatureFlagController: {},
   };
 }
 
@@ -199,7 +206,7 @@ describe('Wallet', () => {
 
     const results = await wallet.init();
 
-    expect(results).toHaveLength(10);
+    expect(results).toHaveLength(11);
   });
 
   it('disallows modifying the messenger', async () => {
@@ -451,16 +458,12 @@ describe('Wallet', () => {
         instanceOptions: {
           ...getInstanceOptions(),
           keyringController: { encryptor: new MockEncryptor() },
-          remoteFeatureFlagController: {
-            clientConfigApiService: {
-              fetchRemoteFeatureFlags: async (): Promise<{
-                remoteFeatureFlags: Record<string, boolean>;
-                cacheTimestamp: number;
-              }> => ({
-                remoteFeatureFlags: { testFlag: true },
-                cacheTimestamp: Date.now(),
+          clientConfigApiService: {
+            ...CLIENT_CONFIG_API_SERVICE_OPTIONS,
+            fetch: async (): Promise<Response> =>
+              new globalThis.Response(JSON.stringify([{ testFlag: true }]), {
+                status: 200,
               }),
-            },
           },
         },
       });

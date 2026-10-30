@@ -25,4 +25,16 @@ export {
 
 export type { FeatureFlags } from './remote-feature-flag-controller-types.js';
 export { ClientConfigApiService } from './client-config-api-service/client-config-api-service.js';
+export type {
+  ClientConfigApiServiceActions,
+  ClientConfigApiServiceCacheUpdatedEvent,
+  ClientConfigApiServiceEvents,
+  ClientConfigApiServiceGranularCacheUpdatedEvent,
+  ClientConfigApiServiceInvalidateQueriesAction,
+  ClientConfigApiServiceMessenger,
+} from './client-config-api-service/client-config-api-service.js';
+export type {
+  ClientConfigApiServiceFetchRemoteFeatureFlagsAction,
+  ClientConfigApiServiceMethodActions,
+} from './client-config-api-service/client-config-api-service-method-action-types.js';
 export { generateDeterministicRandomNumber } from './utils/user-segmentation-utils.js';

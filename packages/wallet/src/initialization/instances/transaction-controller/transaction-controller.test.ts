@@ -1,4 +1,9 @@
 import { Messenger } from '@metamask/messenger';
+import {
+  ClientType,
+  DistributionType,
+  EnvironmentType,
+} from '@metamask/remote-feature-flag-controller';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { TransactionController } from '@metamask/transaction-controller';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -17,12 +22,13 @@ import { transactionController } from './transaction-controller.js';
 const controllers: TransactionController[] = [];
 const wallets: Wallet[] = [];
 
-const REMOTE_FEATURE_FLAG_OPTIONS = {
-  clientConfigApiService: {
-    fetchRemoteFeatureFlags: async (): Promise<{
-      remoteFeatureFlags: Record<string, boolean>;
-      cacheTimestamp: number;
-    }> => ({ remoteFeatureFlags: {}, cacheTimestamp: Date.now() }),
+const CLIENT_CONFIG_API_SERVICE_OPTIONS = {
+  fetch: async (): Promise<Response> =>
+    new globalThis.Response(JSON.stringify([]), { status: 200 }),
+  config: {
+    client: ClientType.Extension,
+    distribution: DistributionType.Main,
+    environment: EnvironmentType.Production,
   },
 };
 
@@ -165,7 +171,8 @@ function getInstanceOptions(): WalletOptions['instanceOptions'] {
     storageService: {
       storage: new InMemoryStorageAdapter(),
     },
-    remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+    clientConfigApiService: CLIENT_CONFIG_API_SERVICE_OPTIONS,
+    remoteFeatureFlagController: {},
     subscriptionController: {},
   };
 }

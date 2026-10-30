@@ -9,13 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `ClientConfigApiServiceInvalidateQueriesAction`, `ClientConfigApiServiceCacheUpdatedEvent` and `ClientConfigApiServiceGranularCacheUpdatedEvent`, also included in the new `ClientConfigApiServiceActions` and `ClientConfigApiServiceEvents` types ([#11217](https://github.com/MetaMask/core/pull/11217))
+- Add `ClientConfigApiServiceMessenger`, `ClientConfigApiServiceFetchRemoteFeatureFlagsAction` and `ClientConfigApiServiceMethodActions` exports ([#11217](https://github.com/MetaMask/core/pull/11217))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
+- **BREAKING:** `ClientConfigApiService` now extends `BaseDataService` from `@metamask/base-data-service` ([#11217](https://github.com/MetaMask/core/pull/11217))
+  - The constructor now requires a `messenger` (`ClientConfigApiServiceMessenger`). Messengers built from `ClientConfigApiServiceActions` and `ClientConfigApiServiceEvents` pick up the new `ClientConfigApiService:invalidateQueries` action and `ClientConfigApiService:cacheUpdated` events automatically.
+  - The `retries`, `maximumConsecutiveFailures`, `circuitBreakDuration`, `onBreak` and `onDegraded` constructor options are replaced by `policyOptions` (`maxRetries`, `maxConsecutiveFailures`, `circuitBreakDuration`). The defaults are unchanged.
+  - `fetch` and `config` are still required.
+- **BREAKING:** `RemoteFeatureFlagController` no longer takes a `clientConfigApiService` option, and now calls `ClientConfigApiService:fetchRemoteFeatureFlags` through its messenger ([#11217](https://github.com/MetaMask/core/pull/11217))
+  - `RemoteFeatureFlagControllerMessenger` now requires that action to be delegated to it. Construct a `ClientConfigApiService` with its own messenger and delegate the action to the controller's messenger.
+- Concurrent calls to `ClientConfigApiService.fetchRemoteFeatureFlags` now share a single request ([#11217](https://github.com/MetaMask/core/pull/11217))
+  - Every call still hits the network, so a sequential call always refetches.
+- `ClientConfigApiService.fetchRemoteFeatureFlags` now treats a non 2xx response as a failure inside its request policy ([#11217](https://github.com/MetaMask/core/pull/11217))
+  - Previously the status was checked after the policy ran, so a 4xx or 5xx response was not retried and did not count toward the circuit breaker. Now it throws an `HttpError` (`Failed to fetch remote feature flags: <status>`), so 5xx responses are retried and repeated failures open the circuit breaker.
+- `ClientConfigApiService.fetchRemoteFeatureFlags` now validates the response with a struct ([#11217](https://github.com/MetaMask/core/pull/11217))
+  - A response that is not an array of objects throws `Query function for "ClientConfigApiService:fetchRemoteFeatureFlags" returned an unexpected response: ...` instead of `Feature flags api did not return an array`. Arrays containing non object items, which used to be ignored, now fail too.
+- Add dependency `@metamask/base-data-service` ([#11217](https://github.com/MetaMask/core/pull/11217))
+- Add dependency `@metamask/superstruct` ([#11217](https://github.com/MetaMask/core/pull/11217))
 - Bump `uuid` from `^8.3.2` to `^14.0.0` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243), [#10941](https://github.com/MetaMask/core/pull/10941))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.1` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))
+
+### Removed
+
+- **BREAKING:** Remove `onBreak` and `onDegraded` from `ClientConfigApiService` ([#11217](https://github.com/MetaMask/core/pull/11217))
+- **BREAKING:** Remove the `AbstractClientConfigApiService` type ([#11217](https://github.com/MetaMask/core/pull/11217))
+
+### Fixed
+
+- Correct the `ClientConfigApiService.fetchRemoteFeatureFlags` documentation, which claimed a structured error object and a cached data fallback. The method throws on failure, and `RemoteFeatureFlagController` keeps its existing state when it does ([#11217](https://github.com/MetaMask/core/pull/11217))
 
 ## [7.0.0]
 

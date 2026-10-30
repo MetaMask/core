@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `ClientConfigApiService` to the default initialization configurations ([#11217](https://github.com/MetaMask/core/pull/11217))
+  - Adds a required `clientConfigApiService` slot to `instanceOptions` with a required `fetch` and `config` (`client`, `distribution`, `environment`), and optional `policyOptions`.
+  - `RemoteFeatureFlagController` delegates `ClientConfigApiService:fetchRemoteFeatureFlags`.
+  - Hosts that already register `ClientConfigApiService` on the wallet root messenger must remove it before upgrading, or messenger registration will collide.
+
+### Removed
+
+- **BREAKING:** Remove `clientConfigApiService` from the `remoteFeatureFlagController` instance options ([#11217](https://github.com/MetaMask/core/pull/11217))
+  - Move the same `fetch` and `config` into `instanceOptions.clientConfigApiService` instead of constructing the service yourself.
+
 ## [21.0.0]
 
 ### Added

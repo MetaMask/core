@@ -1,11 +1,14 @@
-import {
-  createServicePolicy,
-  DEFAULT_CIRCUIT_BREAK_DURATION,
-  DEFAULT_MAX_CONSECUTIVE_FAILURES,
-  DEFAULT_MAX_RETRIES,
-} from '@metamask/controller-utils';
-import type { ServicePolicy } from '@metamask/controller-utils';
-import type { IDisposable } from 'cockatiel';
+import { BaseDataService } from '@metamask/base-data-service';
+import type {
+  CreateServicePolicyOptions,
+  DataServiceCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceInvalidateQueriesAction,
+} from '@metamask/base-data-service';
+import { HttpError } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
+import { array, record, string } from '@metamask/superstruct';
+import { JsonStruct } from '@metamask/utils';
 
 import { BASE_URL } from '../constants.js';
 import type {
@@ -14,17 +17,97 @@ import type {
   DistributionType,
   EnvironmentType,
   ServiceResponse,
-  ApiDataResponse,
 } from '../remote-feature-flag-controller-types.js';
-import type { AbstractClientConfigApiService } from './abstract-client-config-api-service.js';
+import type { ClientConfigApiServiceMethodActions } from './client-config-api-service-method-action-types.js';
+
+// === GENERAL ===
 
 /**
- * This service is responsible for fetching feature flags from the ClientConfig API.
+ * The name of the {@link ClientConfigApiService}, used to namespace the
+ * service's actions and events.
  */
-export class ClientConfigApiService implements AbstractClientConfigApiService {
-  readonly #fetch: typeof fetch;
+export const serviceName = 'ClientConfigApiService';
 
-  readonly #policy: ServicePolicy;
+/**
+ * Describes the shape of the ClientConfig API response: an array of objects,
+ * each holding feature flag key value pairs.
+ */
+const FeatureFlagsResponseStruct = array(record(string(), JsonStruct));
+
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = ['fetchRemoteFeatureFlags'] as const;
+
+/**
+ * Invalidates cached queries for {@link ClientConfigApiService}.
+ */
+export type ClientConfigApiServiceInvalidateQueriesAction =
+  DataServiceInvalidateQueriesAction<typeof serviceName>;
+
+/**
+ * Actions that {@link ClientConfigApiService} exposes to other consumers.
+ */
+export type ClientConfigApiServiceActions =
+  | ClientConfigApiServiceMethodActions
+  | ClientConfigApiServiceInvalidateQueriesAction;
+
+/**
+ * Actions from other messengers that {@link ClientConfigApiServiceMessenger}
+ * calls.
+ */
+type AllowedActions = never;
+
+/**
+ * Published when {@link ClientConfigApiService}'s cache is updated.
+ */
+export type ClientConfigApiServiceCacheUpdatedEvent =
+  DataServiceCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Published when a key within {@link ClientConfigApiService}'s cache is
+ * updated.
+ */
+export type ClientConfigApiServiceGranularCacheUpdatedEvent =
+  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
+
+/**
+ * Events that {@link ClientConfigApiService} exposes to other consumers.
+ */
+export type ClientConfigApiServiceEvents =
+  | ClientConfigApiServiceCacheUpdatedEvent
+  | ClientConfigApiServiceGranularCacheUpdatedEvent;
+
+/**
+ * Events from other messengers that {@link ClientConfigApiService} subscribes
+ * to.
+ */
+type AllowedEvents = never;
+
+/**
+ * The messenger restricted to actions and events accessed by
+ * {@link ClientConfigApiService}.
+ */
+export type ClientConfigApiServiceMessenger = Messenger<
+  typeof serviceName,
+  ClientConfigApiServiceActions | AllowedActions,
+  ClientConfigApiServiceEvents | AllowedEvents
+>;
+
+// === SERVICE DEFINITION ===
+
+/**
+ * This service is responsible for fetching feature flags from the ClientConfig
+ * API.
+ *
+ * Its {@link ClientConfigApiService.fetchRemoteFeatureFlags} method is
+ * automatically registered on the messenger so that
+ * `RemoteFeatureFlagController` can call it.
+ */
+export class ClientConfigApiService extends BaseDataService<
+  typeof serviceName,
+  ClientConfigApiServiceMessenger
+> {
+  readonly #fetch: typeof fetch;
 
   readonly #client: ClientType;
 
@@ -36,16 +119,11 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
    * Constructs a new ClientConfigApiService object.
    *
    * @param args - The arguments.
+   * @param args.messenger - The messenger suited for this service.
    * @param args.fetch - A function that can be used to make an HTTP request.
    * If your JavaScript environment supports `fetch` natively, you'll probably
    * want to pass that; otherwise you can pass an equivalent (such as `fetch`
    * via `node-fetch`).
-   * @param args.retries - Number of retry attempts for each fetch request.
-   * @param args.maximumConsecutiveFailures - The maximum number of consecutive
-   * failures allowed before breaking the circuit and pausing further fetch
-   * attempts.
-   * @param args.circuitBreakDuration - The amount of time to wait when the
-   * circuit breaks from too many consecutive failures.
    * @param args.config - The configuration object, includes client,
    * distribution, and environment.
    * @param args.config.client - The client type (e.g., 'extension', 'mobile').
@@ -53,152 +131,72 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
    * 'flask').
    * @param args.config.environment - The environment type (e.g., 'prod', 'rc',
    * 'dev').
+   * @param args.policyOptions - Options to pass to `createServicePolicy`, which
+   * is used to wrap each request. See {@link CreateServicePolicyOptions}.
    */
-  constructor(args: {
-    fetch: typeof fetch;
-    retries?: number;
-    maximumConsecutiveFailures?: number;
-    circuitBreakDuration?: number;
-    config: {
-      client: ClientType;
-      distribution: DistributionType;
-      environment: EnvironmentType;
-    };
-  });
-
-  /**
-   * Constructs a new ClientConfigApiService object.
-   *
-   * @deprecated This signature is deprecated; please use the `onBreak` and
-   * `onDegraded` methods instead.
-   * @param args - The arguments.
-   * @param args.fetch - A function that can be used to make an HTTP request.
-   * If your JavaScript environment supports `fetch` natively, you'll probably
-   * want to pass that; otherwise you can pass an equivalent (such as `fetch`
-   * via `node-fetch`).
-   * @param args.retries - Number of retry attempts for each fetch request.
-   * @param args.maximumConsecutiveFailures - The maximum number of consecutive
-   * failures allowed before breaking the circuit and pausing further fetch
-   * attempts.
-   * @param args.circuitBreakDuration - The amount of time to wait when the
-   * circuit breaks from too many consecutive failures.
-   * @param args.onBreak - Callback for when the circuit breaks, useful
-   * for capturing metrics about network failures.
-   * @param args.onDegraded - Callback for when the API responds successfully
-   * but takes too long to respond (5 seconds or more).
-   * @param args.config - The configuration object, includes client,
-   * distribution, and environment.
-   * @param args.config.client - The client type (e.g., 'extension', 'mobile').
-   * @param args.config.distribution - The distribution type (e.g., 'main',
-   * 'flask').
-   * @param args.config.environment - The environment type (e.g., 'prod', 'rc',
-   * 'dev').
-   */
-  // eslint-disable-next-line @typescript-eslint/unified-signatures
-  constructor(args: {
-    fetch: typeof fetch;
-    retries?: number;
-    maximumConsecutiveFailures?: number;
-    circuitBreakDuration?: number;
-    onBreak?: () => void;
-    onDegraded?: () => void;
-    config: {
-      client: ClientType;
-      distribution: DistributionType;
-      environment: EnvironmentType;
-    };
-  });
-
   constructor({
+    messenger,
     fetch: fetchFunction,
-    retries = DEFAULT_MAX_RETRIES,
-    maximumConsecutiveFailures = DEFAULT_MAX_CONSECUTIVE_FAILURES,
-    circuitBreakDuration = DEFAULT_CIRCUIT_BREAK_DURATION,
-    onBreak,
-    onDegraded,
     config,
+    policyOptions = {},
   }: {
+    messenger: ClientConfigApiServiceMessenger;
     fetch: typeof fetch;
-    retries?: number;
-    maximumConsecutiveFailures?: number;
-    circuitBreakDuration?: number;
-    onBreak?: () => void;
-    onDegraded?: () => void;
     config: {
       client: ClientType;
       distribution: DistributionType;
       environment: EnvironmentType;
     };
+    policyOptions?: CreateServicePolicyOptions;
   }) {
+    super({ name: serviceName, messenger, policyOptions });
+
     this.#fetch = fetchFunction;
     this.#client = config.client;
     this.#distribution = config.distribution;
     this.#environment = config.environment;
 
-    this.#policy = createServicePolicy({
-      maxRetries: retries,
-      maxConsecutiveFailures: maximumConsecutiveFailures,
-      circuitBreakDuration,
-    });
-    if (onBreak) {
-      this.#policy.onBreak(onBreak);
-    }
-    if (onDegraded) {
-      this.#policy.onDegraded(onDegraded);
-    }
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
-   * Listens for when the request to the API fails too many times in a row.
+   * Fetches feature flags from the API with specific client, distribution, and
+   * environment parameters. Always requests fresh data from the network, and
+   * concurrent calls share a single request. Throws if the request fails or
+   * the response is not an array of flag objects.
    *
-   * @param args - The same arguments that {@link ServicePolicy.onBreak}
-   * takes.
-   * @returns What {@link ServicePolicy.onBreak} returns.
+   * @returns The feature flags merged into a single object, and the time they
+   * were fetched.
    */
-  onBreak(...args: Parameters<ServicePolicy['onBreak']>): IDisposable {
-    return this.#policy.onBreak(...args);
-  }
-
-  /**
-   * Listens for when the API is degraded.
-   *
-   * @param args - The same arguments that {@link ServicePolicy.onDegraded}
-   * takes.
-   * @returns What {@link ServicePolicy.onDegraded} returns.
-   */
-  onDegraded(...args: Parameters<ServicePolicy['onDegraded']>): IDisposable {
-    return this.#policy.onDegraded(...args);
-  }
-
-  /**
-   * Fetches feature flags from the API with specific client, distribution, and environment parameters.
-   * Provides structured error handling, including fallback to cached data if available.
-   *
-   * @returns An object of feature flags and their boolean values or a structured error object.
-   */
-  public async fetchRemoteFeatureFlags(): Promise<ServiceResponse> {
+  async fetchRemoteFeatureFlags(): Promise<ServiceResponse> {
     const url = `${BASE_URL}/flags?client=${this.#client}&distribution=${
       this.#distribution
     }&environment=${this.#environment}`;
 
-    const response = await this.#policy.execute(() =>
-      this.#fetch(url, { cache: 'no-cache' }),
-    );
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchRemoteFeatureFlags`],
+      staleTime: 0,
+      gcTime: 0,
+      responseStruct: FeatureFlagsResponseStruct,
+      queryFn: async () => {
+        const response = await this.#fetch(url, { cache: 'no-cache' });
 
-    if (!response.ok) {
-      throw new Error('Failed to fetch remote feature flags');
-    }
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to fetch remote feature flags: ${response.status}`,
+          );
+        }
 
-    const data = await response.json();
-
-    if (!Array.isArray(data)) {
-      throw new Error('Feature flags api did not return an array');
-    }
-
-    const remoteFeatureFlags = this.#flattenFeatureFlags(data);
+        return (await response.json()) as FeatureFlags[];
+      },
+    });
 
     return {
-      remoteFeatureFlags,
+      remoteFeatureFlags: this.#flattenFeatureFlags(data),
       cacheTimestamp: Date.now(),
     };
   }
@@ -212,7 +210,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
    * // Input: [{ flag1: true }, { flag2: [] }]
    * // Output: { flag1: true, flag2: [] }
    */
-  #flattenFeatureFlags(responseData: ApiDataResponse): FeatureFlags {
+  #flattenFeatureFlags(responseData: FeatureFlags[]): FeatureFlags {
     return responseData.reduce((acc, curr) => {
       return { ...acc, ...curr };
     }, {});

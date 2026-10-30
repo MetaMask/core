@@ -4,6 +4,7 @@ export { analyticsController } from './analytics-controller/analytics-controller
 export { approvalController } from './approval-controller/approval-controller.js';
 export { claimsController } from './claims-controller/claims-controller.js';
 export { claimsService } from './claims-service/claims-service.js';
+export { clientConfigApiService } from './client-config-api-service/client-config-api-service.js';
 export { clientController } from './client-controller/client-controller.js';
 export { configRegistryApiService } from './config-registry-api-service/config-registry-api-service.js';
 export { configRegistryController } from './config-registry-controller/config-registry-controller.js';

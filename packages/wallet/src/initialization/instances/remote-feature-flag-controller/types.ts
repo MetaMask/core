@@ -6,16 +6,11 @@ type RemoteFeatureFlagControllerOptions = ConstructorParameters<
 
 /**
  * Per-instance options for the wallet's `RemoteFeatureFlagController`.
- * `clientConfigApiService` is required; the rest are optional and fall back to
- * the defaults applied in the controller's `init`.
+ * All fields are optional and fall back to the defaults applied in the
+ * controller's `init`. The service that fetches the flags is configured through
+ * the `clientConfigApiService` instance options.
  */
 export type RemoteFeatureFlagControllerInstanceOptions = {
-  /**
-   * The service that fetches remote feature flags. Required: each client
-   * injects a `ClientConfigApiService` configured for its own client type,
-   * distribution, and environment, so there is no platform-agnostic default.
-   */
-  clientConfigApiService: RemoteFeatureFlagControllerOptions['clientConfigApiService'];
   /**
    * Returns the current MetaMetrics id, used for user-segmentation thresholds.
    * Defaults to `() => ''`.
