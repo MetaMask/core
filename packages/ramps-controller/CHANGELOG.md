@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `RampsServiceInvalidateQueriesAction`, `RampsServiceCacheUpdatedEvent` and `RampsServiceGranularCacheUpdatedEvent`, also included in `RampsServiceActions` and `RampsServiceEvents` ([#11214](https://github.com/MetaMask/core/pull/11214))
+
+### Changed
+
+- **BREAKING:** `RampsService` now extends `BaseDataService` from `@metamask/base-data-service` ([#11214](https://github.com/MetaMask/core/pull/11214))
+  - `RampsServiceMessenger` now includes the `RampsService:invalidateQueries` action and the `RampsService:cacheUpdated` events. Messengers built from `RampsServiceActions` and `RampsServiceEvents` pick these up automatically.
+- Concurrent calls to the same `RampsService` method with identical arguments now share one request. Sequential calls still always hit the API ([#11214](https://github.com/MetaMask/core/pull/11214))
+- Responses that do not match the expected shape now throw `Query function for "RampsService:<method>" returned an unexpected response: ...`, instead of `Malformed response received from <api name>` ([#11214](https://github.com/MetaMask/core/pull/11214))
+- Add dependencies `@metamask/base-data-service` and `@metamask/superstruct` ([#11214](https://github.com/MetaMask/core/pull/11214))
+
+### Removed
+
+- **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `RampsService` ([#11214](https://github.com/MetaMask/core/pull/11214))
+
 ## [28.1.0]
 
 ### Added
