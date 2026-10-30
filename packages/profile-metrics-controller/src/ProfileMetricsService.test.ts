@@ -1,4 +1,3 @@
-import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -64,14 +63,54 @@ describe('ProfileMetricsService', () => {
       ).toThrow('invalid environment configuration');
     });
 
-    it('allows policy listeners to be disposed', () => {
+    it('does not expose the policy event listeners of the previous implementation', () => {
       const { service } = getService();
 
-      expect(() => {
-        service.onRetry(() => undefined).dispose();
-        service.onBreak(() => undefined).dispose();
-        service.onDegraded(() => undefined).dispose();
-      }).not.toThrow();
+      expect(service).not.toHaveProperty('onRetry');
+      expect(service).not.toHaveProperty('onBreak');
+      expect(service).not.toHaveProperty('onDegraded');
+    });
+  });
+
+  describe('BaseDataService integration', () => {
+    it('registers the invalidateQueries action', async () => {
+      const { rootMessenger } = getService();
+
+      expect(
+        await rootMessenger.call('ProfileMetricsService:invalidateQueries'),
+      ).toBeUndefined();
+    });
+
+    it('publishes cacheUpdated after fetching nonces', async () => {
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .reply(200, [
+          { expires_in: 300, identifier: '0xAddressOne', nonce: 'nonce-one' },
+        ]);
+      const { service, messenger } = getService();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      await service.fetchNonces({ identifiers: ['0xAddressOne'] });
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'ProfileMetricsService:cacheUpdated',
+        expect.objectContaining({ objectType: 'query' }),
+      );
+    });
+
+    it('publishes cacheUpdated after submitting metrics', async () => {
+      nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
+        .reply(200, { data: { success: true } });
+      const { service, messenger } = getService();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      await service.submitMetrics(createMockRequest());
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'ProfileMetricsService:cacheUpdated',
+        expect.objectContaining({ objectType: 'mutation' }),
+      );
     });
   });
 
@@ -136,78 +175,14 @@ describe('ProfileMetricsService', () => {
       expect(submitMetricsResponse).toBeUndefined();
     });
 
-    it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
-      nock(defaultBaseEndpoint)
+    it('does not retry a failed request, even when retries are enabled', async () => {
+      const scope = nock(defaultBaseEndpoint)
         .put('/profile/accounts')
-        .reply(200, () => {
-          vi.advanceTimersByTime(6000);
-          return {
-            data: {
-              success: true,
-            },
-          };
-        });
-      const { service, rootMessenger } = getService();
-      const onDegradedListener = vi.fn();
-      service.onDegraded(onDegradedListener);
-
-      await rootMessenger.call(
-        'ProfileMetricsService:submitMetrics',
-        createMockRequest(),
-      );
-
-      expect(onDegradedListener).toHaveBeenCalled();
-    });
-
-    it('allows the degradedThreshold to be changed', async () => {
-      nock(defaultBaseEndpoint)
-        .put('/profile/accounts')
-        .reply(200, () => {
-          vi.advanceTimersByTime(1000);
-          return {
-            data: {
-              success: true,
-            },
-          };
-        });
-      const { service, rootMessenger } = getService({
-        options: {
-          policyOptions: { degradedThreshold: 500 },
-        },
-      });
-      const onDegradedListener = vi.fn();
-      service.onDegraded(onDegradedListener);
-
-      await rootMessenger.call(
-        'ProfileMetricsService:submitMetrics',
-        createMockRequest(),
-      );
-
-      expect(onDegradedListener).toHaveBeenCalled();
-    });
-
-    it('does not retry by default when a request fails', async () => {
-      nock(defaultBaseEndpoint).put('/profile/accounts').once().reply(500);
-      const { rootMessenger } = getService();
-
-      await expect(
-        rootMessenger.call(
-          'ProfileMetricsService:submitMetrics',
-          createMockRequest(),
-        ),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
-      );
-    });
-
-    it('attempts a request that responds with non-200 up to 4 times when retries are enabled, throwing if it never succeeds', async () => {
-      nock(defaultBaseEndpoint).put('/profile/accounts').times(4).reply(500);
-      const { service, rootMessenger } = getService({
+        .once()
+        .reply(500);
+      const { rootMessenger } = getService({
         options: { policyOptions: RETRY_POLICY },
       });
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
 
       await expect(
         rootMessenger.call(
@@ -217,70 +192,23 @@ describe('ProfileMetricsService', () => {
       ).rejects.toThrow(
         `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
       );
+      expect(scope.isDone()).toBe(true);
     });
 
-    it('calls onDegraded listeners when the maximum number of retries is exceeded', async () => {
-      nock(defaultBaseEndpoint).put('/profile/accounts').times(4).reply(500);
-      const { service, rootMessenger } = getService({
-        options: { policyOptions: RETRY_POLICY },
+    it('opens the circuit breaker after the configured number of consecutive failures', async () => {
+      nock(defaultBaseEndpoint).put('/profile/accounts').times(2).reply(500);
+      const { rootMessenger } = getService({
+        options: { policyOptions: { maxConsecutiveFailures: 2 } },
       });
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
-      const onDegradedListener = vi.fn();
-      service.onDegraded(onDegradedListener);
 
-      await expect(
-        rootMessenger.call(
-          'ProfileMetricsService:submitMetrics',
-          createMockRequest(),
-        ),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
-      );
-      expect(onDegradedListener).toHaveBeenCalled();
-    });
-
-    it('intercepts requests and throws a circuit break error after the 4th failed attempt, running onBreak listeners', async () => {
-      nock(defaultBaseEndpoint).put('/profile/accounts').times(12).reply(500);
-      const { service, rootMessenger } = getService({
-        options: { policyOptions: RETRY_POLICY },
-      });
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
-      const onBreakListener = vi.fn();
-      service.onBreak(onBreakListener);
-
-      // Should make 4 requests
-      await expect(
-        rootMessenger.call(
-          'ProfileMetricsService:submitMetrics',
-          createMockRequest(),
-        ),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
-      );
-      // Should make 4 requests
-      await expect(
-        rootMessenger.call(
-          'ProfileMetricsService:submitMetrics',
-          createMockRequest(),
-        ),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
-      );
-      // Should make 4 requests
-      await expect(
-        rootMessenger.call(
-          'ProfileMetricsService:submitMetrics',
-          createMockRequest(),
-        ),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
-      );
-      // Should not make an additional request (we only mocked 12 requests
-      // above)
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await expect(
+          rootMessenger.call(
+            'ProfileMetricsService:submitMetrics',
+            createMockRequest(),
+          ),
+        ).rejects.toThrow(/failed with status '500'/u);
+      }
       await expect(
         rootMessenger.call(
           'ProfileMetricsService:submitMetrics',
@@ -289,59 +217,55 @@ describe('ProfileMetricsService', () => {
       ).rejects.toThrow(
         'Execution prevented because the circuit breaker is open',
       );
-      expect(onBreakListener).toHaveBeenCalledWith({
-        error: new HttpError(
-          500,
-          `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
-        ),
-      });
     });
 
-    it('resumes requests after the circuit break duration passes, returning the API response if the request ultimately succeeds', async () => {
+    it('shares one circuit breaker with fetchNonces', async () => {
+      nock(defaultBaseEndpoint).put('/profile/accounts').times(2).reply(500);
+      const { rootMessenger } = getService({
+        options: {
+          policyOptions: { maxRetries: 0, maxConsecutiveFailures: 2 },
+        },
+      });
+
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await expect(
+          rootMessenger.call(
+            'ProfileMetricsService:submitMetrics',
+            createMockRequest(),
+          ),
+        ).rejects.toThrow(/failed with status '500'/u);
+      }
+      await expect(
+        rootMessenger.call('ProfileMetricsService:fetchNonces', {
+          identifiers: ['0xAddressOne'],
+        }),
+      ).rejects.toThrow(
+        'Execution prevented because the circuit breaker is open',
+      );
+    });
+
+    it('resumes requests after the circuit break duration passes', async () => {
       const circuitBreakDuration = 5_000;
       nock(defaultBaseEndpoint)
         .put('/profile/accounts')
-        .times(12)
+        .times(2)
         .reply(500)
         .put('/profile/accounts')
-        .reply(200, {
-          data: {
-            success: true,
-          },
-        });
+        .reply(200, { data: { success: true } });
       const { service, rootMessenger } = getService({
         options: {
-          policyOptions: { ...RETRY_POLICY, circuitBreakDuration },
+          policyOptions: { maxConsecutiveFailures: 2, circuitBreakDuration },
         },
       });
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
 
-      await expect(
-        rootMessenger.call(
-          'ProfileMetricsService:submitMetrics',
-          createMockRequest(),
-        ),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
-      );
-      await expect(
-        rootMessenger.call(
-          'ProfileMetricsService:submitMetrics',
-          createMockRequest(),
-        ),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
-      );
-      await expect(
-        rootMessenger.call(
-          'ProfileMetricsService:submitMetrics',
-          createMockRequest(),
-        ),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/profile/accounts' failed with status '500'`,
-      );
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await expect(
+          rootMessenger.call(
+            'ProfileMetricsService:submitMetrics',
+            createMockRequest(),
+          ),
+        ).rejects.toThrow(/failed with status '500'/u);
+      }
       await expect(
         rootMessenger.call(
           'ProfileMetricsService:submitMetrics',
@@ -351,9 +275,28 @@ describe('ProfileMetricsService', () => {
         'Execution prevented because the circuit breaker is open',
       );
       vi.advanceTimersByTime(circuitBreakDuration);
-      const submitMetricsResponse =
-        await service.submitMetrics(createMockRequest());
-      expect(submitMetricsResponse).toBeUndefined();
+
+      expect(await service.submitMetrics(createMockRequest())).toBeUndefined();
+    });
+
+    it('does not put the metametrics ID or entropy source ID in the published cache events', async () => {
+      nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
+        .reply(200, { data: { success: true } });
+      const { service, messenger } = getService();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      await service.submitMetrics(createMockRequest());
+
+      const published = publishSpy.mock.calls.filter(([eventType]) =>
+        String(eventType).startsWith('ProfileMetricsService:cacheUpdated'),
+      );
+      expect(published.length).toBeGreaterThan(0);
+      const serialized = JSON.stringify(published);
+      expect(serialized).toContain('"objectType":"mutation"');
+      expect(serialized).not.toContain('mock-meta-metrics-id');
+      expect(serialized).not.toContain('mock-entropy-source-id');
+      expect(serialized).not.toContain('0xMockAccountAddress1');
     });
   });
 
@@ -634,11 +577,11 @@ describe('ProfileMetricsService', () => {
       expect(scope.pendingMocks()).toHaveLength(0);
     });
 
-    it('throws after exhausting retries when the response is short of identifiers', async () => {
+    it('throws without retrying when the response is short of identifiers', async () => {
       const identifiers = ['0xAddressOne', '0xAddressTwo'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .times(4)
+        .once()
         .reply(200, [
           {
             expires_in: 300,
@@ -646,10 +589,7 @@ describe('ProfileMetricsService', () => {
             nonce: 'nonce-for-one',
           },
         ]);
-      const { service, rootMessenger } = getService();
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
+      const { rootMessenger } = getService();
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
@@ -660,11 +600,11 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('throws after exhausting retries when the response returns identifiers we did not request', async () => {
+    it('throws without retrying when the response returns identifiers we did not request', async () => {
       const identifiers = ['0xAddressOne', '0xAddressTwo'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .times(4)
+        .once()
         .reply(200, [
           {
             expires_in: 300,
@@ -677,10 +617,7 @@ describe('ProfileMetricsService', () => {
             nonce: 'nonce-for-impostor',
           },
         ]);
-      const { service, rootMessenger } = getService();
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
+      const { rootMessenger } = getService();
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
@@ -691,11 +628,11 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('throws after exhausting retries when the response duplicates one identifier in place of another', async () => {
+    it('throws without retrying when the response duplicates one identifier in place of another', async () => {
       const identifiers = ['0xAddressOne', '0xAddressTwo'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .times(4)
+        .once()
         .reply(200, [
           {
             expires_in: 300,
@@ -708,10 +645,7 @@ describe('ProfileMetricsService', () => {
             nonce: 'nonce-for-one-b',
           },
         ]);
-      const { service, rootMessenger } = getService();
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
+      const { rootMessenger } = getService();
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
@@ -722,11 +656,11 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('throws after exhausting retries when the response duplicates an identifier alongside a full set (preventing silent overwrite)', async () => {
+    it('throws without retrying when the response duplicates an identifier alongside a full set (preventing silent overwrite)', async () => {
       const identifiers = ['0xAddressOne', '0xAddressTwo'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .times(4)
+        .once()
         .reply(200, [
           {
             expires_in: 300,
@@ -744,10 +678,7 @@ describe('ProfileMetricsService', () => {
             nonce: 'nonce-for-two',
           },
         ]);
-      const { service, rootMessenger } = getService();
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
+      const { rootMessenger } = getService();
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
@@ -758,51 +689,45 @@ describe('ProfileMetricsService', () => {
       );
     });
 
-    it('throws after exhausting retries when the response body is not an array', async () => {
+    it('throws without retrying when the response body is not an array', async () => {
       const identifiers = ['0xAddressOne'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .times(4)
+        .once()
         .reply(200, { error: 'oops' });
-      const { service, rootMessenger } = getService();
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
+      const { rootMessenger } = getService();
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
           identifiers,
         }),
       ).rejects.toThrow(
-        `Malformed response received from '${defaultBaseEndpoint}/nonce/batch'`,
+        /Query function for "ProfileMetricsService:fetchNonces" returned an unexpected response/u,
       );
     });
 
-    it('throws after exhausting retries when a response entry is missing the `nonce` field', async () => {
+    it('throws without retrying when a response entry is missing the `nonce` field', async () => {
       const identifiers = ['0xAddressOne'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .times(4)
+        .once()
         .reply(200, [{ expires_in: 300, identifier: '0xAddressOne' }]);
-      const { service, rootMessenger } = getService();
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
+      const { rootMessenger } = getService();
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
           identifiers,
         }),
       ).rejects.toThrow(
-        `Malformed response received from '${defaultBaseEndpoint}/nonce/batch'`,
+        /Query function for "ProfileMetricsService:fetchNonces" returned an unexpected response/u,
       );
     });
 
-    it('throws after exhausting retries when a response entry has a non-string `nonce`', async () => {
+    it('throws without retrying when a response entry has a non-string `nonce`', async () => {
       const identifiers = ['0xAddressOne'];
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
-        .times(4)
+        .once()
         .reply(200, [
           {
             expires_in: 300,
@@ -810,50 +735,105 @@ describe('ProfileMetricsService', () => {
             nonce: 12345,
           },
         ]);
-      const { service, rootMessenger } = getService();
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
+      const { rootMessenger } = getService();
 
       await expect(
         rootMessenger.call('ProfileMetricsService:fetchNonces', {
           identifiers,
         }),
       ).rejects.toThrow(
-        `Malformed response received from '${defaultBaseEndpoint}/nonce/batch'`,
+        /Query function for "ProfileMetricsService:fetchNonces" returned an unexpected response/u,
       );
     });
 
-    it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
-      nock(defaultBaseEndpoint).post('/nonce/batch').times(4).reply(500);
-      const { service, rootMessenger } = getService();
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
-      });
+    it.each([500, 400])(
+      'attempts a request that responds with %i up to 4 times, throwing if it never succeeds',
+      async (status) => {
+        const scope = nock(defaultBaseEndpoint)
+          .post('/nonce/batch')
+          .times(4)
+          .reply(status);
+        const { rootMessenger } = getService();
 
-      await expect(
-        rootMessenger.call('ProfileMetricsService:fetchNonces', {
-          identifiers: ['0xAddressOne'],
-        }),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/nonce/batch' failed with status '500'`,
-      );
+        await Promise.all([
+          expect(
+            rootMessenger.call('ProfileMetricsService:fetchNonces', {
+              identifiers: ['0xAddressOne'],
+            }),
+          ).rejects.toThrow(
+            `Fetching '${defaultBaseEndpoint}/nonce/batch' failed with status '${status}'`,
+          ),
+          vi.runAllTimersAsync(),
+        ]);
+
+        expect(scope.isDone()).toBe(true);
+      },
+    );
+
+    it('does not share nonces between concurrent calls with identical arguments', async () => {
+      const identifiers = ['0xAddressOne'];
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .reply(200, [
+          { expires_in: 300, identifier: '0xAddressOne', nonce: 'nonce-1' },
+        ])
+        .post('/nonce/batch')
+        .reply(200, [
+          { expires_in: 300, identifier: '0xAddressOne', nonce: 'nonce-2' },
+        ]);
+      const { service } = getService();
+
+      const results = await Promise.all([
+        service.fetchNonces({ identifiers, entropySourceId: 'source' }),
+        service.fetchNonces({ identifiers, entropySourceId: 'source' }),
+      ]);
+
+      expect(
+        results.map((nonces) => nonces['0xAddressOne']).sort(),
+      ).toStrictEqual(['nonce-1', 'nonce-2']);
     });
 
-    it('attempts a request that responds with 4xx up to 4 times, throwing if it never succeeds', async () => {
-      nock(defaultBaseEndpoint).post('/nonce/batch').times(4).reply(400);
-      const { service, rootMessenger } = getService();
-      service.onRetry(({ delay }: { delay: number }) => {
-        vi.advanceTimersByTime(delay);
+    it('always requests fresh nonces on sequential calls', async () => {
+      const scope = nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .times(2)
+        .reply(200, [
+          { expires_in: 300, identifier: '0xAddressOne', nonce: 'nonce' },
+        ]);
+      const { service } = getService();
+
+      await service.fetchNonces({ identifiers: ['0xAddressOne'] });
+      await service.fetchNonces({ identifiers: ['0xAddressOne'] });
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('does not put identifiers or the entropy source ID in the published cache event hashes', async () => {
+      nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .reply(200, [
+          { expires_in: 300, identifier: '0xAddressOne', nonce: 'nonce-one' },
+        ]);
+      const { service, messenger } = getService();
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      await service.fetchNonces({
+        identifiers: ['0xAddressOne'],
+        entropySourceId: 'mock-entropy-source-id',
       });
 
-      await expect(
-        rootMessenger.call('ProfileMetricsService:fetchNonces', {
-          identifiers: ['0xAddressOne'],
-        }),
-      ).rejects.toThrow(
-        `Fetching '${defaultBaseEndpoint}/nonce/batch' failed with status '400'`,
+      const eventTypes = publishSpy.mock.calls.map(([eventType]) =>
+        String(eventType),
       );
+      expect(eventTypes.length).toBeGreaterThan(0);
+      const serializedKeys = JSON.stringify(
+        publishSpy.mock.calls.map(([eventType, payload]) => [
+          eventType,
+          (payload as { hash?: string } | undefined)?.hash,
+        ]),
+      );
+      expect(serializedKeys).not.toContain('0xAddressOne');
+      expect(serializedKeys).not.toContain('mock-entropy-source-id');
     });
   });
 

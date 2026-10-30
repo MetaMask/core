@@ -52,6 +52,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^40.1.0",
     "@metamask/base-controller": "^10.1.0",
+    "@metamask/base-data-service": "^2.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/keyring-controller": "^28.2.0",
     "@metamask/messenger": "^3.0.0",

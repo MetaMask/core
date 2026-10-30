@@ -11,7 +11,10 @@ import type { ProfileMetricsService } from './ProfileMetricsService.js';
  * Requests larger than {@link MAX_NONCE_BATCH_SIZE} are split into multiple
  * `POST /api/v2/nonce/batch` calls fired in parallel; the resulting maps are
  * merged into a single record. Each chunk independently goes through the
- * service policy (retry, circuit-breaker, degraded). If any chunk ultimately
+ * service policy (retry, circuit-breaker, degraded).
+ *
+ * Nonces are single-use, so concurrent calls with identical arguments are
+ * not deduplicated: every call, and every chunk, makes its own request. If any chunk ultimately
  * fails, the whole call rejects so the caller can soft-degrade the entire
  * entropy-source batch consistently.
  *
@@ -34,8 +37,11 @@ export type ProfileMetricsServiceFetchNoncesAction = {
 /**
  * Submit metrics to the API.
  *
+ * The request is never retried, because proof payloads embed single-use
+ * nonces.
+ *
  * @param data - The data to send in the metrics update request.
- * @returns The response from the API.
+ * @returns Nothing, once the API has accepted the request.
  */
 export type ProfileMetricsServiceSubmitMetricsAction = {
   type: `ProfileMetricsService:submitMetrics`;
