@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   discoverFromRootMessengerCapabilitiesTypes,
   parseRootCapabilitiesTypeReference,
-} from './root-messenger-discovery.js';
+} from './root-messenger.js';
 
 const { withinSandbox } = createSandbox(
   'platform-api-docs/root-messenger-discovery',

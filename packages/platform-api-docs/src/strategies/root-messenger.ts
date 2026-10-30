@@ -10,15 +10,15 @@ import { Node as NodeGuards } from 'ts-morph';
 import {
   classifyMessengerCapabilityTypeDeclaration,
   extractFromMessengerCapabilityTypeDeclaration,
-} from './extraction.js';
-import { createProject } from './ts-project.js';
-import type { MessengerCapabilityPacket } from './types.js';
+} from '../capability-extraction.js';
+import { createProject } from '../ts-project.js';
+import type { MessengerCapabilityPacket } from '../types.js';
 
 // ---------------------------------------------------------------------------
 // The `root-messenger` strategy: resolve the types a project declares for its
 // collection of root messenger actions and events and let TypeScript walk them.
 // Each capability type found is handed to the shared extractor in
-// `extraction.ts`, so the output matches what the `scan` strategy produces.
+// `capability-extraction.ts`, so the output matches what the `scan` strategy produces.
 // ---------------------------------------------------------------------------
 
 /**
@@ -500,4 +500,97 @@ export function discoverFromRootMessengerCapabilitiesTypes({
     capabilityPackets: allCapabilityPackets,
     skippedCapabilities: allSkippedCapabilities,
   };
+}
+
+/**
+ * Options for the `root-messenger` strategy, which walks the types a
+ * project declares for its root messenger capabilities instead of scanning the
+ * entire repo. Used when one messenger carries every action and event.
+ */
+export type RootMessengerStrategyOptions = {
+  /** The selected strategy. */
+  strategy: 'root-messenger';
+  /** The root messenger actions type reference. */
+  rootActions: RootCapabilitiesTypeReference;
+  /** The root messenger events type reference. */
+  rootEvents: RootCapabilitiesTypeReference;
+};
+
+/** How many skipped capability types to name before summarizing the rest. */
+const MAX_SKIPPED_SHOWN = 10;
+
+/**
+ * Using the project's root messenger capability collection types as
+ * entrypoints, collect the constituent individual capability types and package
+ * them so that they can be displayed within the documentation site.
+ *
+ * @param projectPath - The project root path.
+ * @param options - The root-messenger strategy options.
+ * @returns The extracted capabilities.
+ */
+export function collectFromRootMessengerCapabilities(
+  projectPath: string,
+  options: RootMessengerStrategyOptions,
+): MessengerCapabilityPacket[] {
+  const { rootActions, rootEvents } = options;
+
+  console.log(
+    `Resolving actions from ${rootActions.filePath}#${rootActions.typeName} ` +
+      `and events from ${rootEvents.filePath}#${rootEvents.typeName}...`,
+  );
+
+  const { capabilityPackets, skippedCapabilities } =
+    discoverFromRootMessengerCapabilitiesTypes({
+      projectPath,
+      rootActionsTypeReference: rootActions,
+      rootEventsTypeReference: rootEvents,
+    });
+
+  // Report rather than drop silently: a jump in any of these usually means the
+  // project changed how it declares its capabilities.
+  warnSkipped(
+    'declared inline, with no name to document',
+    skippedCapabilities.unnamedCapabilities,
+  );
+  warnSkipped(
+    'whose shape could not be read',
+    skippedCapabilities.unextractableCapabilities,
+  );
+
+  // If both capability collection types resolve to nothing, it's always a
+  // misconfiguration (a wrong type name, or imports that didn't resolve).
+  // Failing here matters because generation would otherwise replace an existing
+  // docs directory with an empty one and exit successfully.
+  if (capabilityPackets.length === 0) {
+    throw new Error(
+      `No messenger actions or events found in ` +
+        `${rootActions.filePath}#${rootActions.typeName} or ` +
+        `${rootEvents.filePath}#${rootEvents.typeName}. ` +
+        `Check that these types name the collections carrying every ` +
+        `capability, and that their imports resolve.`,
+    );
+  }
+
+  return capabilityPackets;
+}
+
+/**
+ * Warn about capability types that couldn't be documented, naming them so the
+ * warning is actionable.
+ *
+ * @param description - Why they were skipped, as a noun phrase.
+ * @param labels - Labels identifying each skipped type.
+ */
+function warnSkipped(description: string, labels: string[]): void {
+  if (labels.length === 0) {
+    return;
+  }
+
+  const shown = labels.slice(0, MAX_SKIPPED_SHOWN);
+  const remaining = labels.length - shown.length;
+  console.warn(
+    `Warning: skipped ${labels.length} capability ` +
+      `${labels.length === 1 ? 'type' : 'types'} ${description}: ` +
+      `${shown.join(', ')}${remaining > 0 ? `, and ${remaining} more` : ''}`,
+  );
 }

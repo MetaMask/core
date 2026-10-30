@@ -5,9 +5,7 @@ import type {
   JSDocableNode,
   JSDocTag,
   MethodDeclaration,
-  Node as TsMorphNode,
   PropertySignature,
-  SourceFile,
   TypeAliasDeclaration,
   TypeElementTypes,
   TypeNode,
@@ -272,7 +270,7 @@ function buildMethodSignature(method: MethodDeclaration): string {
 }
 
 // ---------------------------------------------------------------------------
-// Messenger discovery
+// Capability classification
 // ---------------------------------------------------------------------------
 
 /**
@@ -306,7 +304,7 @@ type ObjectMessengerCapabilityTypeDeclaration = {
  * messenger action or event, tagged with the body shape the walker
  * identified.
  */
-type MessengerCapabilityTypeDeclaration =
+export type MessengerCapabilityTypeDeclaration =
   | ConstructorMessengerCapabilityTypeDeclaration
   | ObjectMessengerCapabilityTypeDeclaration;
 
@@ -369,267 +367,6 @@ export function classifyMessengerCapabilityTypeDeclaration(
   //   type FooControllerSomeAction = { ... }
   //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   return { bodyShape: 'object', kind, declaration };
-}
-
-/**
- * Represents a type alias for a messenger. Only includes nodes representing the
- * `Actions` and `Events` type parameters.
- */
-type ParsedMessengerTypeAlias = {
-  actionsTypeParameter: TypeNode;
-  eventsTypeParameter: TypeNode;
-};
-
-/**
- * Looks for Messenger types in the source file (that is, those that are type
- * aliases whose names end with "Messenger"), then extracts the `Actions` and
- * `Events` parameters from these types.
- *
- * @param sourceFile - The TypeScript source file to scan.
- * @returns A list of objects that represent messenger types.
- */
-function findMessengerTypeAliases(
-  sourceFile: SourceFile,
-): ParsedMessengerTypeAlias[] {
-  const parsedMessengerTypeAliases: ParsedMessengerTypeAlias[] = [];
-
-  for (const typeAlias of sourceFile.getTypeAliases()) {
-    if (!typeAlias.getName().endsWith('Messenger')) {
-      continue;
-    }
-
-    const body = typeAlias.getTypeNode();
-    // Basic check
-    if (!body || !NodeGuards.isTypeReference(body)) {
-      continue;
-    }
-
-    const typeArgs = body.getTypeArguments();
-    // Messenger types always have 3 type parameters
-    // (e.g. `Messenger<'FooController', Actions, Events>`)
-    if (typeArgs.length < 3) {
-      continue;
-    }
-
-    parsedMessengerTypeAliases.push({
-      actionsTypeParameter: typeArgs[1],
-      eventsTypeParameter: typeArgs[2],
-    });
-  }
-
-  return parsedMessengerTypeAliases;
-}
-
-/**
- * Walks the `Actions` and `Events` type parameters of the given messenger
- * types, extracted in a previous step, to find all type declarations (i.e.,
- * statements) that represent individual messenger actions or events.
- *
- * @param parsedMessengerTypeAliases - The list of objects representing
- * messenger types, parsed in a previous step.
- * @returns The list of type aliases that represent messenger capabilities among
- * the given messenger types.
- */
-function findAllMessengerCapabilityTypeDeclarations(
-  parsedMessengerTypeAliases: ParsedMessengerTypeAlias[],
-): MessengerCapabilityTypeDeclaration[] {
-  const allCapabilityTypeDeclarations: MessengerCapabilityTypeDeclaration[] =
-    [];
-  let allVisitedTypeDeclarations: Set<TsMorphNode> = new Set();
-
-  for (const {
-    actionsTypeParameter,
-    eventsTypeParameter,
-  } of parsedMessengerTypeAliases) {
-    for (const [typeParameter, kind] of [
-      [actionsTypeParameter, 'action'],
-      [eventsTypeParameter, 'event'],
-    ] as const) {
-      const result = recursivelyFindMessengerCapabilityTypeDeclarations(
-        typeParameter,
-        kind,
-        allVisitedTypeDeclarations,
-      );
-      allCapabilityTypeDeclarations.push(...result.capabilityTypeDeclarations);
-      allVisitedTypeDeclarations = result.visitedTypeDeclarations;
-    }
-  }
-
-  return allCapabilityTypeDeclarations;
-}
-
-/**
- * Recursively walks a `ts-morph` AST node — at first the `Actions` or `Events`
- * type parameter of a messenger type, and then a node within that parameter —
- * to find all type aliases that represent individual messenger actions or
- * events, no matter how deeply the type aliases exist in the tree or in which
- * file they are located.
- *
- * @param node - The `ts-morph` AST node to walk.
- * @param kind - Whether to tag found type aliases as 'action' or 'event'.
- * @param visitedTypeDeclarations - A variable that tracks visited type aliases
- * and prevents duplicates.
- * @returns The list of extracted messenger capability type aliases as well as
- * an updated version of `visitedTypeDeclarations`.
- */
-function recursivelyFindMessengerCapabilityTypeDeclarations(
-  node: TsMorphNode,
-  kind: 'action' | 'event',
-  visitedTypeDeclarations: Set<TsMorphNode>,
-): {
-  capabilityTypeDeclarations: MessengerCapabilityTypeDeclaration[];
-  visitedTypeDeclarations: Set<TsMorphNode>;
-} {
-  const result: {
-    capabilityTypeDeclarations: MessengerCapabilityTypeDeclaration[];
-    visitedTypeDeclarations: Set<TsMorphNode>;
-  } = {
-    capabilityTypeDeclarations: [],
-    visitedTypeDeclarations: new Set([...visitedTypeDeclarations]),
-  };
-
-  // If `node` is a union type, walk each type within it.
-  // EXAMPLES:
-  //   type Actions = FooControllerSomeAction | FooControllerSomeOtherAction
-  //                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  //   type FooControllerActions = FooControllerSomeAction | FooControllerSomeOtherAction
-  //                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  if (NodeGuards.isUnionTypeNode(node)) {
-    for (const typeNode of node.getTypeNodes()) {
-      const innerResult = recursivelyFindMessengerCapabilityTypeDeclarations(
-        typeNode,
-        kind,
-        result.visitedTypeDeclarations,
-      );
-      result.capabilityTypeDeclarations.push(
-        ...innerResult.capabilityTypeDeclarations,
-      );
-      for (const typeDeclaration of innerResult.visitedTypeDeclarations) {
-        result.visitedTypeDeclarations.add(typeDeclaration);
-      }
-    }
-    return result;
-  }
-
-  // If `node` is not a type reference, don't walk it.
-  // EXAMPLE:
-  //   // Bad
-  //   type Actions = { ... }
-  //                  ^^^^^^^
-  //   // Good
-  //   type Actions = FooControllerSomeAction;
-  //                  ^^^^^^^^^^^^^^^^^^^^^^^
-  //   // Good
-  //   type Actions = ControllerGetStateAction<...>;
-  //                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  if (!NodeGuards.isTypeReference(node)) {
-    return result;
-  }
-
-  const nameNode = node.getTypeName();
-
-  // Reject qualified-name type names, as we need a plain identifier to
-  // resolve the symbol.
-  // EXAMPLE:
-  //   import * as somePackage from '....js';
-  //   type Actions = somePackage.FooControllerSomeAction;
-  //                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  if (!NodeGuards.isIdentifier(nameNode)) {
-    return result;
-  }
-
-  // Since we know we have a type reference, we can assume that we have a symbol.
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const localSymbol = nameNode.getSymbol()!;
-  // If we have a type imported from another file, ensure that when we access
-  // the declaration, it's the type declaration in the other file, not the
-  // import declaration in this file.
-  // EXAMPLE:
-  //   import { FooControllerSomeAction } from '@metamask/foo-controller';
-  //   type Actions = FooControllerSomeAction;
-  //                  ^^^^^^^^^^^^^^^^^^^^^^^
-  const symbol = localSymbol.getAliasedSymbol() ?? localSymbol;
-
-  // At this point, we have a type *reference*, but we need to find the type
-  // *declaration*.
-  // For instance, if we have `FooControllerSomeAction`, we need to find
-  // the full `type FooControllerSomeAction = ...` statement.
-  for (const declaration of symbol.getDeclarations()) {
-    // Prevent duplicates
-    if (result.visitedTypeDeclarations.has(declaration)) {
-      continue;
-    }
-    result.visitedTypeDeclarations.add(declaration);
-
-    // If we have a type alias, then we have to handle a few scenarios.
-    // EXAMPLES:
-    //   type FooControllerMethodActions = ...
-    //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    //   type FooControllerSomeAction = ...
-    //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    if (NodeGuards.isTypeAliasDeclaration(declaration)) {
-      const body = declaration.getTypeNode();
-
-      // If the body is a union type or a plain type reference (not a utility
-      // type), walk it.
-      // EXAMPLES:
-      //   type FooControllerMethodActions = FooControllerSomeAction | FooControllerSomeOtherAction
-      //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-      //   type DelegationControllerMethodActions = DelegationControllerSignDelegationAction
-      //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-      if (
-        body &&
-        (NodeGuards.isUnionTypeNode(body) ||
-          (NodeGuards.isTypeReference(body) &&
-            body.getTypeArguments().length === 0))
-      ) {
-        const innerResult = recursivelyFindMessengerCapabilityTypeDeclarations(
-          body,
-          kind,
-          result.visitedTypeDeclarations,
-        );
-        result.capabilityTypeDeclarations.push(
-          ...innerResult.capabilityTypeDeclarations,
-        );
-        for (const typeDeclaration of innerResult.visitedTypeDeclarations) {
-          result.visitedTypeDeclarations.add(typeDeclaration);
-        }
-        continue;
-      }
-
-      // Everything else is a leaf capability type — a capability-type-
-      // constructor invocation (e.g. `ControllerGetStateAction<typeof name,
-      // State>`) or a literal object type. Tag it so the matching extractor
-      // can read it without re-checking its shape.
-      // EXAMPLES:
-      //   type FooControllerSomeAction = ControllerGetStateAction<...>
-      //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-      //   type FooControllerSomeAction = { ... }
-      //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-      const classified = classifyMessengerCapabilityTypeDeclaration(
-        declaration,
-        kind,
-      );
-      if (classified) {
-        result.capabilityTypeDeclarations.push(classified);
-      }
-    }
-
-    // Interfaces always carry their members directly — tag for the literal
-    // extractor.
-    // EXAMPLE:
-    //   interface FooControllerSomeAction { ... }
-    //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    else if (NodeGuards.isInterfaceDeclaration(declaration)) {
-      result.capabilityTypeDeclarations.push({
-        bodyShape: 'object',
-        kind,
-        declaration,
-      });
-    }
-  }
-
-  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -923,44 +660,4 @@ function tryToExtractFromCapabilityTypeConstructor(
     line: declaration.getStartLineNumber(),
     deprecated: hasDeprecatedJsDocTag(declaration),
   };
-}
-
-// ---------------------------------------------------------------------------
-// Public entry points
-// ---------------------------------------------------------------------------
-
-/**
- * Extract information (action/event type string, handler/payload arguments and
- * return type, etc.) about every messenger action or event type which is
- * reachable through all of a source file's `*Messenger` type declarations.
- *
- * The caller is responsible for ensuring `sourceFile` (plus any files it
- * imports from) belongs to a `ts-morph` Project so cross-file symbol resolution
- * works.
- *
- * @param sourceFile - The TypeScript source file to extract from.
- * @param projectPath - Project root, used for computing relative source paths.
- * @returns The extracted information about actions and events.
- */
-export function extractFromSourceFile(
-  sourceFile: SourceFile,
-  projectPath: string,
-): MessengerCapabilityPacket[] {
-  const messengerTypeAliases = findMessengerTypeAliases(sourceFile);
-
-  const capabilityTypeDeclarations =
-    findAllMessengerCapabilityTypeDeclarations(messengerTypeAliases);
-
-  const messengerCapabilityPackets: MessengerCapabilityPacket[] = [];
-  for (const capabilityTypeDeclaration of capabilityTypeDeclarations) {
-    const messengerCapabilityPacket =
-      extractFromMessengerCapabilityTypeDeclaration(
-        capabilityTypeDeclaration,
-        projectPath,
-      );
-    if (messengerCapabilityPacket) {
-      messengerCapabilityPackets.push(messengerCapabilityPacket);
-    }
-  }
-  return messengerCapabilityPackets;
 }

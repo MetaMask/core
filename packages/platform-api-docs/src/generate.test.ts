@@ -2,6 +2,7 @@ import { createSandbox } from '@metamask/node-utils';
 import { execa } from 'execa';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { Project } from 'ts-morph';
 import { describe, expect, it, vi } from 'vitest';
 
 import { generate, resolveRepoUrl } from './generate.js';
@@ -35,6 +36,67 @@ async function initGitRepo(
 }
 
 describe('generate', () => {
+  it('collects exactly the eligible files even when they contain no messenger', async () => {
+    await withinSandbox(async ({ directoryPath }) => {
+      const included = [
+        'src/a.ts',
+        'src/nested/z.ts',
+        'packages/dist/src/included.ts',
+        'packages/test/src/included.ts',
+        'node_modules/@metamask/example/dist/a.d.cts',
+        'node_modules/@metamask/example/dist/nested/z.d.cts',
+      ];
+      const excluded = [
+        'src/node_modules/example/index.ts',
+        'src/dist/generated.ts',
+        'src/__tests__/example.ts',
+        'src/tests/example.ts',
+        'src/test/example.ts',
+        'src/__mocks__/example.ts',
+        'src/example.test.ts',
+        'src/example.test-d.ts',
+        'src/example.spec.ts',
+        'src/example.d.ts',
+        'packages/test/src/test/example.ts',
+        'packages/dist/src/dist/generated.ts',
+        'node_modules/other/dist/example.d.cts',
+        'node_modules/@metamask/example/src/example.ts',
+      ];
+      // Reverse creation order so this also checks deterministic collection.
+      for (const relativePath of [...included, ...excluded].reverse()) {
+        const filePath = path.join(directoryPath, relativePath);
+        await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+        await fs.promises.writeFile(filePath, 'export const value = 1;');
+      }
+
+      const addedFiles = vi.spyOn(Project.prototype, 'addSourceFilesAtPaths');
+      try {
+        await generate({
+          projectPath: directoryPath,
+          outputDir: path.join(directoryPath, '.docs'),
+          strategy: 'scan',
+          scanDirs: ['src', 'missing'],
+        });
+
+        const root = await fs.promises.realpath(directoryPath);
+        expect(
+          addedFiles.mock.results
+            .filter((result) => result.type === 'return')
+            .flatMap(({ value }) =>
+              value.map((file) =>
+                path
+                  .relative(root, file.getFilePath())
+                  .split(path.sep)
+                  .join('/'),
+              ),
+            ),
+        ).toStrictEqual(included);
+      } finally {
+        addedFiles.mockRestore();
+      }
+    });
+  });
+
   it('generates docs for a project with action types in src/', async () => {
     expect.assertions(4);
 
