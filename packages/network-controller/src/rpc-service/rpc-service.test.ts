@@ -1144,10 +1144,6 @@ describe('RpcService', () => {
 
     it('calls onDegraded twice with the correct rpcMethodName when two concurrent requests to different methods both respond slowly', async () => {
       const endpointUrl = 'https://rpc.example.chain';
-      let reportFirstRequestDegraded: () => void = () => undefined;
-      const firstRequestDegraded = new Promise<void>((resolve) => {
-        reportFirstRequestDegraded = resolve;
-      });
       nock(endpointUrl)
         .post('/', {
           id: 1,
@@ -1170,8 +1166,7 @@ describe('RpcService', () => {
           method: 'eth_gasPrice',
           params: [],
         })
-        .reply(200, async () => {
-          await firstRequestDegraded;
+        .reply(200, () => {
           vi.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 2,
@@ -1179,9 +1174,7 @@ describe('RpcService', () => {
             result: '0x100',
           };
         });
-      const onDegradedListener = vi.fn(() => {
-        reportFirstRequestDegraded();
-      });
+      const onDegradedListener = vi.fn();
       const service = new RpcService({
         fetch,
         btoa,

@@ -331,24 +331,18 @@ export class RpcService {
   lastError: Error | undefined;
 
   /**
-   * The RPC method name of the current request being processed. This is passed
-   * to `onDegraded` event listeners.
+   * The RPC method name and trace ID of each request, keyed by the context that
+   * the policy passed to the function that made the request. These are passed
+   * to `onDegraded` event listeners, which receive the same context.
    *
-   * Initialised to `''` so the type is `string` throughout the event chain.
-   * The empty string is unreachable in practice because the method name is
-   * guaranteed to be set after the current request is completed but before
-   * any `onDegraded` callbacks are called.
+   * The trace ID comes from the `X-Trace-Id` response header, and is
+   * `undefined` when no response has been received or the response did not
+   * include the header.
    */
-  #currentRpcMethodName = '';
-
-  /**
-   * The trace ID from the `X-Trace-Id` response header of the most recent
-   * request. Passed to `onDegraded` event listeners for debugging.
-   *
-   * `undefined` when no response has been received yet or when the response
-   * did not include the header.
-   */
-  #currentTraceId: string | undefined;
+  readonly #requestInfoByContext = new WeakMap<
+    object,
+    { rpcMethodName: string; traceId: string | undefined }
+  >();
 
   /**
    * The function used to make an HTTP request.
@@ -521,12 +515,19 @@ export class RpcService {
       }
     >,
   ): ReturnType<ServicePolicy['onDegraded']> {
-    return this.#policy.onDegraded((data) => {
+    return this.#policy.onDegradedWithContext(({ context, ...data }) => {
+      const requestInfo = (context &&
+        this.#requestInfoByContext.get(
+          context,
+        )) ?? /* istanbul ignore next: the context is always known for requests made by this service */ {
+        rpcMethodName: '',
+        traceId: undefined,
+      };
       listener({
         ...data,
         endpointUrl: this.endpointUrl.toString(),
-        rpcMethodName: this.#currentRpcMethodName,
-        traceId: this.#currentTraceId,
+        rpcMethodName: requestInfo.rpcMethodName,
+        traceId: requestInfo.traceId,
       });
     });
   }
@@ -721,23 +722,18 @@ export class RpcService {
             return await response.json();
           } finally {
             // Track the RPC method and trace ID for the request that has just
-            // taken place. We pass these properties to `onDegraded` event
-            // listeners.
+            // taken place, keyed by the context that the policy gave us for
+            // this attempt. `onDegraded` listeners receive the same context
+            // for the request that made them fire, so concurrent requests
+            // cannot be mixed up.
             //
-            // We set these properties after the request completes and not
-            // before the request starts to account for race conditions. That
-            // is, if there are two requests that are being performed
-            // concurrently, and the second request fails fast but the first
-            // request succeeds slowly, when `onDegraded` is called we want it
-            // to include the first request as the RPC method, not the second.
-            //
-            // Also, we set these properties within a `finally` block inside of
-            // the function passed to `policy.execute` to ensure that they are
-            // set before `onDegraded` gets called, no matter the outcome of
-            // the request.
-            this.#currentRpcMethodName = rpcMethodName;
-            this.#currentTraceId =
-              response?.headers.get('X-Trace-Id') ?? undefined;
+            // We set these in a `finally` block inside of the function passed
+            // to `policy.execute` to ensure that they are set before
+            // `onDegraded` gets called, no matter the outcome of the request.
+            this.#requestInfoByContext.set(context, {
+              rpcMethodName,
+              traceId: response?.headers.get('X-Trace-Id') ?? undefined,
+            });
           }
         },
       );

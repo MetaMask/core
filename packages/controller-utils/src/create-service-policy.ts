@@ -1,3 +1,4 @@
+import { isObject } from '@metamask/utils';
 import {
   BrokenCircuitError,
   CircuitState,
@@ -121,6 +122,12 @@ export type CreateServicePolicyOptions = {
 };
 
 /**
+ * The context that the policy passes to the function it executes. A new object
+ * is created for each attempt.
+ */
+type ExecuteContext = Parameters<Parameters<IPolicy['execute']>[0]>[0];
+
+/**
  * The service policy object.
  *
  * @deprecated This is deprecated and will be removed in a future major
@@ -169,6 +176,21 @@ export type ServicePolicy = IPolicy & {
    * number of consecutive failures has been reached.
    */
   onDegraded: CockatielEvent<FailureReason<unknown> | { duration: number }>;
+  /**
+   * Like `onDegraded`, but the event data also includes the `context` that the
+   * policy passed to the function whose execution caused the event (for
+   * retries, that is the final attempt). Because the same object is received
+   * by that function, it can be used to tell which of several concurrent
+   * executions of the service was degraded.
+   *
+   * `context` is `undefined` if it cannot be determined, such as when the
+   * service throws something that is not an object.
+   */
+  onDegradedWithContext: CockatielEvent<
+    (FailureReason<unknown> | { duration: number }) & {
+      context: ExecuteContext | undefined;
+    }
+  >;
   /**
    * A function which is called when the service succeeds for the first time,
    * or when the service fails enough times to cause the circuit to break and
@@ -394,26 +416,59 @@ export function createServicePolicy(
   >();
   const onDegraded = onDegradedEventEmitter.addListener;
 
+  const onDegradedWithContextEventEmitter = new CockatielEventEmitter<
+    (FailureReason<unknown> | { duration: number }) & {
+      context: ExecuteContext | undefined;
+    }
+  >();
+  const onDegradedWithContext = onDegradedWithContextEventEmitter.addListener;
+
+  const emitDegraded = (
+    data: FailureReason<unknown> | { duration: number },
+    context: ExecuteContext | undefined,
+  ): void => {
+    onDegradedEventEmitter.emit(data);
+    onDegradedWithContextEventEmitter.emit({ ...data, context });
+  };
+
+  // The data that the retry policy gives to `onGiveUp` listeners does not say
+  // which execution it is for, but it does include the error that the service
+  // threw, so we remember which attempt threw which error.
+  const errorContexts = new WeakMap<object, ExecuteContext>();
+
   const onAvailableEventEmitter = new CockatielEventEmitter<void>();
   const onAvailable = onAvailableEventEmitter.addListener;
 
   retryPolicy.onGiveUp((data) => {
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
       availabilityStatus = AVAILABILITY_STATUSES.Degraded;
-      onDegradedEventEmitter.emit(data);
+      emitDegraded(
+        data,
+        'error' in data && isObject(data.error)
+          ? errorContexts.get(data.error)
+          : undefined,
+      );
     }
   });
-  retryPolicy.onSuccess(({ duration }) => {
+  // The data that the retry policy gives to `onSuccess` listeners has no
+  // information about which execution it is for, and the listeners are called
+  // a few microtasks after the service finishes, so concurrent executions may
+  // finish in between. Instead of using that event, we handle success once the
+  // execution that succeeded has finished.
+  const handleSuccess = (
+    duration: number,
+    context: ExecuteContext | undefined,
+  ): void => {
     if (circuitBreakerPolicy.state === CircuitState.Closed) {
       if (duration > degradedThreshold) {
         availabilityStatus = AVAILABILITY_STATUSES.Degraded;
-        onDegradedEventEmitter.emit({ duration });
+        emitDegraded({ duration }, context);
       } else if (availabilityStatus !== AVAILABILITY_STATUSES.Available) {
         availabilityStatus = AVAILABILITY_STATUSES.Available;
         onAvailableEventEmitter.emit();
       }
     }
-  });
+  };
 
   // Every time the retry policy makes an attempt, it executes the circuit
   // breaker policy, which executes the service.
@@ -437,6 +492,28 @@ export function createServicePolicy(
   // on the retry policy, by the time they are called, the state of the circuit
   // breaker will have already changed.
   const policy = wrap(retryPolicy, circuitBreakerPolicy);
+
+  const execute: IPolicy['execute'] = async (fn, signal) => {
+    const lastAttempt: { context?: ExecuteContext; duration: number } = {
+      duration: 0,
+    };
+    const result = await policy.execute(async (context) => {
+      const startedAt = performance.now();
+      try {
+        const value = await fn(context);
+        lastAttempt.context = context;
+        lastAttempt.duration = performance.now() - startedAt;
+        return value;
+      } catch (error) {
+        if (isObject(error)) {
+          errorContexts.set(error, context);
+        }
+        throw error;
+      }
+    }, signal);
+    handleSuccess(lastAttempt.duration, lastAttempt.context);
+    return result;
+  };
 
   const getRemainingCircuitOpenDuration = (): number | null => {
     if (internalCircuitState.state === CircuitState.Open) {
@@ -465,6 +542,7 @@ export function createServicePolicy(
 
   return {
     ...policy,
+    execute,
     circuitBreakerPolicy,
     circuitBreakDuration,
     getCircuitState,
@@ -473,6 +551,7 @@ export function createServicePolicy(
     retryPolicy,
     onBreak,
     onDegraded,
+    onDegradedWithContext,
     onAvailable,
     onRetry,
   };
