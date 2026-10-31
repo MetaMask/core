@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `eth-chainlist` from `^0.0.844` to `^0.0.871` ([#10722](https://github.com/MetaMask/core/pull/10722))
+
 ## [3.1.0]
 
 ### Added
