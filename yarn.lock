@@ -5524,7 +5524,7 @@ __metadata:
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     lodash-es: "npm:^4.18.1"
     nock: "npm:^15.0.5"
     rimraf: "npm:^6.1.3"
@@ -5789,7 +5789,7 @@ __metadata:
     "@metamask/transaction-controller": "npm:^73.0.0"
     "@metamask/utils": "npm:^12.0.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     lodash-es: "npm:^4.18.1"
     nock: "npm:^15.0.5"
     reselect: "npm:^5.3.0"
@@ -5823,7 +5823,7 @@ __metadata:
     "@metamask/utils": "npm:^12.0.1"
     "@typescript/native": "npm:typescript@^7.0.2"
     "@vitest/coverage-v8": "npm:^5.0.0"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     lodash-es: "npm:^4.18.1"
     nock: "npm:^15.0.5"
     rimraf: "npm:^6.1.3"
@@ -6128,7 +6128,7 @@ __metadata:
     "@types/bn.js": "npm:^5.2.0"
     "@types/lodash-es": "npm:^4.17.12"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     bn.js: "npm:^5.2.5"
     cockatiel: "npm:^3.2.1"
     eth-ens-namehash: "npm:^2.0.8"
@@ -7794,7 +7794,7 @@ __metadata:
     "@types/readable-stream": "npm:^2.3.0"
     "@types/semver": "npm:^7.8.0"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     contentful: "npm:^11.12.10"
     firebase: "npm:^12.19.0"
     jsdom: "npm:^27.0.0"
@@ -8030,7 +8030,7 @@ __metadata:
     "@metamask/utils": "npm:^12.0.1"
     "@nktkas/hyperliquid": "npm:^0.33.3"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     reselect: "npm:^5.3.0"
     rimraf: "npm:^6.1.3"
     typedoc: "npm:^0.28.20"
@@ -8274,7 +8274,7 @@ __metadata:
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/utils": "npm:^12.0.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     fast-deep-equal: "npm:^3.1.3"
     nock: "npm:^15.0.5"
     rimraf: "npm:^6.1.3"
@@ -8578,7 +8578,7 @@ __metadata:
     "@metamask/transaction-controller": "npm:^73.0.0"
     "@metamask/utils": "npm:^12.0.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     lodash-es: "npm:^4.18.1"
     nock: "npm:^15.0.5"
     reselect: "npm:^5.3.0"
@@ -8849,7 +8849,7 @@ __metadata:
     "@metamask/utils": "npm:^12.0.1"
     "@tanstack/query-core": "npm:^5.103.2"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     fast-deep-equal: "npm:^3.1.3"
     rimraf: "npm:^6.1.3"
     typedoc: "npm:^0.28.20"
@@ -8926,7 +8926,7 @@ __metadata:
     "@types/node": "npm:^22.13.14"
     "@typescript/native": "npm:typescript@^7.0.2"
     async-mutex: "npm:^0.5.0"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     bn.js: "npm:^5.2.5"
     eth-method-registry: "npm:^4.0.0"
     ethereum-cryptography: "npm:^3.2.0"
@@ -8970,7 +8970,7 @@ __metadata:
     "@metamask/transaction-controller": "npm:^73.0.0"
     "@metamask/utils": "npm:^12.0.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     bn.js: "npm:^5.2.5"
     immer: "npm:^11.1.18"
     lodash-es: "npm:^4.18.1"
@@ -8999,7 +8999,7 @@ __metadata:
     "@metamask/transaction-controller": "npm:^73.0.0"
     "@metamask/utils": "npm:^12.0.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    bignumber.js: "npm:^9.1.2"
+    bignumber.js: "npm:^9.3.1"
     rimraf: "npm:^6.1.3"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -14061,10 +14061,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"bignumber.js@npm:^9.1.2":
-  version: 9.1.2
-  resolution: "bignumber.js@npm:9.1.2"
-  checksum: 10/d89b8800a987225d2c00dcbf8a69dc08e92aa0880157c851c287b307d31ceb2fc2acb0c62c3e3a3d42b6c5fcae9b004035f13eb4386e56d529d7edac18d5c9d8
+"bignumber.js@npm:^9.1.2, bignumber.js@npm:^9.3.1":
+  version: 9.3.1
+  resolution: "bignumber.js@npm:9.3.1"
+  checksum: 10/1be0372bf0d6d29d0a49b9e6a9cefbd54dad9918232ad21fcd4ec39030260773abf0c76af960c6b3b98d3115a3a71e61c6a111812d1395040a039cfa178e0245
   languageName: node
   linkType: hard
 
