@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `multiformats` from `^9.9.0` to `^14.0.5` ([#10601](https://github.com/MetaMask/core/pull/10601))
+
 ## [113.0.1]
 
 ### Changed
