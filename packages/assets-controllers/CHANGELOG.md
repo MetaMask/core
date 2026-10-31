@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `immer` from `^11.1.18` to `^11.2.9` ([#10723](https://github.com/MetaMask/core/pull/10723))
+
 ## [113.0.1]
 
 ### Changed

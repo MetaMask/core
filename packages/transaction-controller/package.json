@@ -90,7 +90,7 @@
     "@types/bn.js": "^5.2.0",
     "@types/node": "^22.13.14",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "immer": "^11.1.18",
+    "immer": "^11.2.9",
     "jsdom": "^27.0.0",
     "nock": "^15.0.5",
     "rimraf": "^6.1.3",
