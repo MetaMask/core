@@ -5971,7 +5971,7 @@ __metadata:
     "@metamask/transaction-controller": "npm:^73.0.0"
     "@metamask/utils": "npm:^12.0.1"
     "@typescript/native": "npm:typescript@^7.0.2"
-    eth-chainlist: "npm:^0.0.844"
+    eth-chainlist: "npm:^0.0.871"
     rimraf: "npm:^6.1.3"
     typedoc: "npm:^0.28.20"
     typedoc-plugin-missing-exports: "npm:^4.1.4"
@@ -16653,10 +16653,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eth-chainlist@npm:^0.0.844":
-  version: 0.0.844
-  resolution: "eth-chainlist@npm:0.0.844"
-  checksum: 10/a0aef2a7b43f0c631c9eb32c5b93d0cf39a654d0d5be1cd82c3ad9e266b4e9c2d21ef4f0764b9723a49d10cfbb8d408d05c38a6b65323bc33ac01e9865998b3d
+"eth-chainlist@npm:^0.0.871":
+  version: 0.0.871
+  resolution: "eth-chainlist@npm:0.0.871"
+  checksum: 10/868b40cd036f415804698fc3caf8ab0645729b798e4e7f37c6cb0ef4a63bcad5fc6a325f5cbde21a89082aafb3a9fb1008b0e20eb977a368664a8d48042aa8f8
   languageName: node
   linkType: hard
 
