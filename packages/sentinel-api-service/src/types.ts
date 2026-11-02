@@ -300,6 +300,22 @@ export type SentinelSmartTransactionRequest = {
 };
 
 /**
+ * A request to quote gas fees for unsigned smart transactions via
+ * `POST /v1/networks/{chainId}/getFees`.
+ */
+export type SentinelGetFeesRequest = {
+  /** The chain to quote fees on. */
+  chainId: Hex;
+
+  /**
+   * Transactions to quote, in the order the fees should be returned. Each
+   * entry is a {@link SentinelSimulationTransaction}. The handler forwards
+   * them as the `txs` array.
+   */
+  transactions: SentinelSimulationTransaction[];
+};
+
+/**
  * A single network entry from the Sentinel `/networks` registry, or the
  * configuration of a single network from the `/network` endpoint.
  */
@@ -548,4 +564,44 @@ export type SentinelSmartTransaction = {
  */
 export type SentinelSmartTransactionResponse = {
   transactions: SentinelSmartTransaction[];
+};
+
+/**
+ * One gas-fee level returned by the smart-transactions `/getFees` endpoint.
+ * Amounts are decimal numbers, in wei.
+ */
+export type SentinelSmartTransactionFee = {
+  /** Maximum fee per gas, in wei. */
+  maxFeePerGas: number;
+
+  /** Maximum priority fee per gas, in wei. */
+  maxPriorityFeePerGas: number;
+};
+
+/**
+ * Fee quote for a single transaction from the `/getFees` endpoint.
+ */
+export type SentinelSmartTransactionFees = {
+  /** Candidate fees for submitting the transaction. */
+  fees: SentinelSmartTransactionFee[];
+
+  /** Candidate fees for cancelling the transaction. */
+  cancelFees: SentinelSmartTransactionFee[];
+
+  /** Estimated total fee, in wei. */
+  feeEstimate: number;
+
+  /** Gas limit used for the quote. */
+  gasLimit: number;
+
+  /** Gas used by the quote. */
+  gasUsed: number;
+};
+
+/**
+ * The response from `POST /v1/networks/{chainId}/getFees`. One entry in `txs`
+ * per transaction in the request, in the same order.
+ */
+export type SentinelGetFeesResponse = {
+  txs: SentinelSmartTransactionFees[];
 };

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getFees` method and `SentinelApiService:getFees` action to quote smart-transaction gas fees from `POST /v1/networks/{chainId}/getFees`
+  - Accepts a `SentinelGetFeesRequest` and returns a `SentinelGetFeesResponse`.
+  - Each transaction is a `SentinelSimulationTransaction`, the object `infura_simulateTransactions` accepts. The handler forwards them as the `txs` array.
+  - Not cached. Throws `SentinelChainNotSupportedError` when the chain is missing from the registry or does not enable `smartTransactions`. A non-2xx response throws `HttpError` with the response body on `data` when it is JSON.
 - Add optional `suggestFees.withRedeemerEnforcer` property to `SentinelSimulationRequest`, optional `balance` property to `SentinelStateOverrides`, and optional `sponsorship.sponsor` property to `SentinelSimulationResponse` ([#9476](https://github.com/MetaMask/core/pull/9476))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 

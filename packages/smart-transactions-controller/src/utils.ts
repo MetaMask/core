@@ -47,10 +47,6 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
   }
 
   switch (apiType) {
-    case APIType.GET_FEES: {
-      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/getFees`;
-    }
-
     case APIType.ESTIMATE_GAS: {
       return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/estimateGas`;
     }

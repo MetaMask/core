@@ -36,7 +36,6 @@ export enum Kind {
 
 /** API */
 export enum APIType {
-  GET_FEES = 0,
   ESTIMATE_GAS = 1,
   SUBMIT_TRANSACTIONS = 2,
   CANCEL = 3,

@@ -8,6 +8,7 @@ import {
   query,
   safelyExecute,
   ChainId,
+  HttpError,
   isSafeDynamicKey,
 } from '@metamask/controller-utils';
 import type { TraceCallback } from '@metamask/controller-utils';
@@ -25,7 +26,10 @@ import type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
-import type { SentinelApiServiceGetNetworkAction } from '@metamask/sentinel-api-service';
+import type {
+  SentinelApiServiceGetFeesAction,
+  SentinelApiServiceGetNetworkAction,
+} from '@metamask/sentinel-api-service';
 import type {
   TransactionControllerFailTransactionAction,
   TransactionControllerGetNonceLockAction,
@@ -192,6 +196,7 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
+  | SentinelApiServiceGetFeesAction
   | SentinelApiServiceGetNetworkAction
   | TransactionControllerFailTransactionAction
   | TransactionControllerGetNonceLockAction
@@ -908,16 +913,24 @@ export class SmartTransactionsController extends StaticIntervalPollingController
       );
     }
     transactions.push(unsignedTradeTransactionWithNonce);
-    const data = await this.#trace(
-      { name: SmartTransactionsTraceName.GetFees },
-      async () =>
-        await this.#fetch(getAPIRequestURL(APIType.GET_FEES, chainId), {
-          method: 'POST',
-          body: JSON.stringify({
-            txs: transactions,
+    let data;
+    try {
+      data = await this.#trace(
+        { name: SmartTransactionsTraceName.GetFees },
+        async () =>
+          await this.messenger.call('SentinelApiService:getFees', {
+            chainId,
+            transactions,
           }),
-        }),
-    );
+      );
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw Object.assign(new Error(`Fetch error: ${error.httpStatus}`), {
+          data: 'data' in error ? error.data : undefined,
+        });
+      }
+      throw error;
+    }
     let approvalTxFees: IndividualTxFees | null;
     let tradeTxFees: IndividualTxFees | null;
     if (approvalTx) {

@@ -75,3 +75,30 @@ const SentinelSmartTransactionStruct = type({
 export const SentinelSmartTransactionResponseStruct = type({
   transactions: array(SentinelSmartTransactionStruct),
 });
+
+/**
+ * Validates one fee level from the `/getFees` endpoint.
+ */
+const SentinelSmartTransactionFeeStruct = type({
+  maxFeePerGas: number(),
+  maxPriorityFeePerGas: number(),
+});
+
+/**
+ * Validates the fee quote for a single transaction. Loose so additional
+ * fields returned by the API are ignored.
+ */
+const SentinelSmartTransactionFeesStruct = type({
+  cancelFees: array(SentinelSmartTransactionFeeStruct),
+  feeEstimate: number(),
+  fees: array(SentinelSmartTransactionFeeStruct),
+  gasLimit: number(),
+  gasUsed: number(),
+});
+
+/**
+ * Validates the `/getFees` response body.
+ */
+export const SentinelGetFeesResponseStruct = type({
+  txs: array(SentinelSmartTransactionFeesStruct),
+});

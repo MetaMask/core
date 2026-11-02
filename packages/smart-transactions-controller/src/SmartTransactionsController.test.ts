@@ -3,6 +3,7 @@ import {
   NetworkType,
   convertHexToDecimal,
   ChainId,
+  HttpError,
 } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -1092,15 +1093,20 @@ describe('SmartTransactionsController', () => {
 
   describe('clearFees', () => {
     it('clears fees', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, getFees }) => {
         const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
         const approvalTx = createUnsignedTransaction(ethereumChainIdDec);
         const getFeesApiResponse = createGetFeesApiResponse();
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
-          .reply(200, getFeesApiResponse);
 
         const fees = await controller.getFees(tradeTx, approvalTx);
+
+        expect(getFees).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          transactions: [
+            { ...approvalTx, nonce: '0x2a' },
+            { ...tradeTx, nonce: '0x2b' },
+          ],
+        });
 
         expect(fees).toMatchObject({
           approvalTxFees: getFeesApiResponse.txs[0],
@@ -1119,16 +1125,20 @@ describe('SmartTransactionsController', () => {
 
   describe('getFees', () => {
     it('gets unsigned transactions and estimates based on an unsigned transaction', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, getFees }) => {
         const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
         const approvalTx = createUnsignedTransaction(ethereumChainIdDec);
         const getFeesApiResponse = createGetFeesApiResponse();
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
-          .reply(200, getFeesApiResponse);
 
         const fees = await controller.getFees(tradeTx, approvalTx);
 
+        expect(getFees).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          transactions: [
+            { ...approvalTx, nonce: '0x2a' },
+            { ...tradeTx, nonce: '0x2b' },
+          ],
+        });
         expect(fees).toMatchObject({
           approvalTxFees: getFeesApiResponse.txs[0],
           tradeTxFees: getFeesApiResponse.txs[1],
@@ -1137,17 +1147,18 @@ describe('SmartTransactionsController', () => {
     });
 
     it('gets estimates based on an unsigned transaction with an undefined nonce', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, getFees }) => {
         const tradeTx: UnsignedTransaction =
           createUnsignedTransaction(ethereumChainIdDec);
         tradeTx.nonce = undefined;
         const getFeesApiResponse = createGetFeesApiResponse();
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
-          .reply(200, getFeesApiResponse);
 
         const fees = await controller.getFees(tradeTx);
 
+        expect(getFees).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          transactions: [{ ...tradeTx, nonce: '0x2a' }],
+        });
         expect(fees).toMatchObject({
           tradeTxFees: getFeesApiResponse.txs[0],
         });
@@ -1155,13 +1166,10 @@ describe('SmartTransactionsController', () => {
     });
 
     it('should add fee data to feesByChainId state using the networkClientId passed in to identify the appropriate chain', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, getFees }) => {
         const tradeTx = createUnsignedTransaction(sepoliaChainIdDec);
         const approvalTx = createUnsignedTransaction(sepoliaChainIdDec);
         const getFeesApiResponse = createGetFeesApiResponse();
-        nock(SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec])
-          .post(`/v1/networks/${sepoliaChainIdDec}/getFees`)
-          .reply(200, getFeesApiResponse);
 
         expect(
           controller.state.smartTransactionsState.feesByChainId,
@@ -1172,6 +1180,14 @@ describe('SmartTransactionsController', () => {
 
         await controller.getFees(tradeTx, approvalTx, {
           networkClientId: NetworkType.sepolia,
+        });
+
+        expect(getFees).toHaveBeenCalledWith({
+          chainId: ChainId.sepolia,
+          transactions: [
+            { ...approvalTx, nonce: '0x2a' },
+            { ...tradeTx, nonce: '0x2b' },
+          ],
         });
 
         expect(
@@ -1190,19 +1206,27 @@ describe('SmartTransactionsController', () => {
     });
 
     it('rethrows getFees error message when fetch fails', async () => {
-      await withController(async ({ controller }) => {
-        const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
-          .reply(400, createGetFeesApiErrorResponse());
+      const httpError = new HttpError(
+        400,
+        "Sentinel API: Fees request failed with status '400'",
+      );
+      Object.assign(httpError, { data: createGetFeesApiErrorResponse() });
 
-        await expect(controller.getFees(tradeTx)).rejects.toMatchObject({
-          message: 'Fetch error: 400',
-          data: {
-            error: 'insufficient funds',
-          },
-        });
-      });
+      await withController(
+        {
+          getFees: vi.fn().mockRejectedValue(httpError),
+        },
+        async ({ controller }) => {
+          const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
+
+          await expect(controller.getFees(tradeTx)).rejects.toMatchObject({
+            message: 'Fetch error: 400',
+            data: {
+              error: 'insufficient funds',
+            },
+          });
+        },
+      );
     });
   });
 
@@ -2896,14 +2920,14 @@ describe('SmartTransactionsController', () => {
             trace: traceCallback,
           },
         },
-        async ({ controller }) => {
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
-            .reply(200, createGetFeesApiResponse());
-
+        async ({ controller, getFees }) => {
           const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
           await controller.getFees(tradeTx);
 
+          expect(getFees).toHaveBeenCalledWith({
+            chainId: ChainId.mainnet,
+            transactions: [tradeTx],
+          });
           expect(traceCallback).toHaveBeenCalledWith(
             { name: SmartTransactionsTraceName.GetFees },
             expect.any(Function),
@@ -3000,14 +3024,16 @@ describe('SmartTransactionsController', () => {
             trace: traceCallback,
           },
         },
-        async ({ controller }) => {
+        async ({ controller, getFees }) => {
           const expectedResponse = createGetFeesApiResponse();
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(`/v1/networks/${ethereumChainIdDec}/getFees`)
-            .reply(200, expectedResponse);
 
           const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
           const result = await controller.getFees(tradeTx);
+
+          expect(getFees).toHaveBeenCalledWith({
+            chainId: ChainId.mainnet,
+            transactions: [tradeTx],
+          });
 
           expect(traceCallback).toHaveBeenCalled();
           expect(result).toMatchObject({
@@ -3159,10 +3185,12 @@ describe('SmartTransactionsController', () => {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  getFees,
   getNetwork,
   triggerNetworkStateChange,
 }: {
   controller: SmartTransactionsController;
+  getFees: ReturnType<typeof vi.fn>;
   getNetwork: ReturnType<typeof vi.fn>;
   triggerNetworkStateChange: (state: NetworkState) => void;
 }) => Promise<ReturnValue> | ReturnValue;
@@ -3174,6 +3202,7 @@ type WithControllerOptions = {
   getNonceLock?: TransactionControllerGetNonceLockAction['handler'];
   getTransactions?: TransactionControllerGetTransactionsAction['handler'];
   failTransaction?: TransactionControllerFailTransactionAction['handler'];
+  getFees?: ReturnType<typeof vi.fn>;
   getNetwork?: ReturnType<typeof vi.fn>;
   remoteFeatureFlags?: {
     smartTransactionsNetworks?: Record<string, unknown>;
@@ -3206,6 +3235,7 @@ async function withController<ReturnValue>(
     }),
     getTransactions = vi.fn(),
     failTransaction = vi.fn(),
+    getFees = vi.fn().mockResolvedValue(createGetFeesApiResponse()),
     getNetwork = vi.fn().mockResolvedValue({
       smartTransactions: true,
       network: 'mainnet',
@@ -3303,6 +3333,10 @@ async function withController<ReturnValue>(
     vi.fn().mockResolvedValue(bearerToken),
   );
   rootMessenger.registerActionHandler(
+    'SentinelApiService:getFees',
+    getFees,
+  );
+  rootMessenger.registerActionHandler(
     'SentinelApiService:getNetwork',
     getNetwork,
   );
@@ -3326,6 +3360,7 @@ async function withController<ReturnValue>(
       'TransactionController:getNonceLock',
       'TransactionController:getTransactions',
       'TransactionController:failTransaction',
+      'SentinelApiService:getFees',
       'SentinelApiService:getNetwork',
     ],
     events: [
@@ -3383,6 +3418,7 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
+      getFees,
       getNetwork,
       triggerNetworkStateChange,
     });

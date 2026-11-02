@@ -76,6 +76,20 @@ export type SentinelApiServiceGetSmartTransactionAction = {
 };
 
 /**
+ * Quotes gas fees for unsigned smart transactions via
+ * `POST /v1/networks/{chainId}/getFees`. Not cached, since a quote goes
+ * stale immediately.
+ *
+ * @param request - The fee quote request.
+ * @returns The fee quote response. One entry in `txs` per transaction, in
+ * request order.
+ */
+export type SentinelApiServiceGetFeesAction = {
+  type: `SentinelApiService:getFees`;
+  handler: SentinelApiService['getFees'];
+};
+
+/**
  * Union of all SentinelApiService action types.
  */
 export type SentinelApiServiceMethodActions =
@@ -83,4 +97,5 @@ export type SentinelApiServiceMethodActions =
   | SentinelApiServiceGetNetworksAction
   | SentinelApiServiceSimulateTransactionsAction
   | SentinelApiServiceSubmitRelayTransactionAction
-  | SentinelApiServiceGetSmartTransactionAction;
+  | SentinelApiServiceGetSmartTransactionAction
+  | SentinelApiServiceGetFeesAction;

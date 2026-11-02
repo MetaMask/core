@@ -49,12 +49,6 @@ describe('src/utils.js', () => {
   describe('getAPIRequestURL', () => {
     const ethereumChainIdDec = parseInt(ChainId.mainnet, 16);
 
-    it('returns a sentinel URL for getting fees', () => {
-      expect(utils.getAPIRequestURL(APIType.GET_FEES, ChainId.mainnet)).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/getFees`,
-      );
-    });
-
     it('returns correct sentinel URL for ESTIMATE_GAS', () => {
       const chainId = '0x1'; // Mainnet in hex
       const expectedUrl = `${SENTINEL_API_BASE_URL_MAP[1]}/v1/networks/1/estimateGas`;
@@ -95,7 +89,7 @@ describe('src/utils.js', () => {
       const unsupportedChainId = '0x539'; // 1337 — local dev chain
       const chainIdDec = parseInt(unsupportedChainId, 16);
       expect(() =>
-        utils.getAPIRequestURL(APIType.GET_FEES, unsupportedChainId),
+        utils.getAPIRequestURL(APIType.CANCEL, unsupportedChainId),
       ).toThrow(`Chain ${chainIdDec} is not supported`);
     });
   });

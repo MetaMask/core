@@ -33,6 +33,7 @@ import {
 } from './types.js';
 import type {
   SentinelApiServiceMessenger,
+  SentinelGetFeesRequest,
   SentinelRelaySubmitRequest,
   SentinelSimulationRequest,
 } from './types.js';
@@ -114,6 +115,32 @@ const MOCK_SIMULATION_REQUEST: SentinelSimulationRequest = {
       from: '0x1111111111111111111111111111111111111111',
       to: '0x2222222222222222222222222222222222222222',
       value: '0x0',
+    },
+  ],
+};
+
+const CHAIN_ID_POLYGON = '0x89' as Hex;
+
+const MOCK_FEES_REQUEST: SentinelGetFeesRequest = {
+  chainId: CHAIN_ID_MAINNET,
+  transactions: [
+    {
+      from: '0x1111111111111111111111111111111111111111',
+      to: '0x2222222222222222222222222222222222222222',
+      data: '0x',
+      value: '0x0',
+    },
+  ],
+};
+
+const MOCK_FEES_RESPONSE = {
+  txs: [
+    {
+      fees: [{ maxFeePerGas: 2, maxPriorityFeePerGas: 1 }],
+      cancelFees: [{ maxFeePerGas: 3, maxPriorityFeePerGas: 1 }],
+      feeEstimate: 42000,
+      gasLimit: 21000,
+      gasUsed: 21000,
     },
   ],
 };
@@ -1002,6 +1029,113 @@ describe('SentinelApiService', () => {
       expect(result).toStrictEqual({
         transactions: [{ status: 'VALIDATED', hash: '0xhash' }],
       });
+      service.destroy();
+    });
+  });
+
+  describe('getFees', () => {
+    it('returns fee quotes for the chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const scope = nock(MAINNET_URL)
+        .post('/v1/networks/1/getFees', {
+          txs: MOCK_FEES_REQUEST.transactions,
+        })
+        .reply(200, MOCK_FEES_RESPONSE);
+
+      const result = await service.getFees(MOCK_FEES_REQUEST);
+
+      expect(result).toStrictEqual(MOCK_FEES_RESPONSE);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('requests a fresh quote on every call', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const scope = nock(MAINNET_URL)
+        .post('/v1/networks/1/getFees')
+        .twice()
+        .reply(200, MOCK_FEES_RESPONSE);
+
+      await service.getFees(MOCK_FEES_REQUEST);
+      await service.getFees(MOCK_FEES_REQUEST);
+
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('throws a validation error on a malformed response', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/v1/networks/1/getFees')
+        .reply(200, { unexpected: true });
+
+      await expect(
+        service.getFees(MOCK_FEES_REQUEST),
+      ).rejects.toThrow(SentinelApiResponseValidationError);
+      service.destroy();
+    });
+
+    it('throws when the chain is not in the registry', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      await expect(
+        service.getFees({
+          ...MOCK_FEES_REQUEST,
+          chainId: CHAIN_ID_UNKNOWN,
+        }),
+      ).rejects.toThrow(SentinelChainNotSupportedError);
+      service.destroy();
+    });
+
+    it('throws when smart transactions are not enabled for the chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      await expect(
+        service.getFees({
+          ...MOCK_FEES_REQUEST,
+          chainId: CHAIN_ID_POLYGON,
+        }),
+      ).rejects.toThrow(SentinelChainNotSupportedError);
+      service.destroy();
+    });
+
+    it('throws HttpError with the response body on a non-2xx response', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/v1/networks/1/getFees')
+        .reply(400, { error: 'insufficient funds' });
+
+      const error = await service
+        .getFees(MOCK_FEES_REQUEST)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({
+        httpStatus: 400,
+        data: { error: 'insufficient funds' },
+      });
+      service.destroy();
+    });
+
+    it('is callable via messenger action', async () => {
+      const { service, rootMessenger } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/v1/networks/1/getFees')
+        .reply(200, MOCK_FEES_RESPONSE);
+
+      const result = await rootMessenger.call(
+        'SentinelApiService:getFees',
+        MOCK_FEES_REQUEST,
+      );
+
+      expect(result).toStrictEqual(MOCK_FEES_RESPONSE);
       service.destroy();
     });
   });

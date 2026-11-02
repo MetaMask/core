@@ -27,12 +27,15 @@ import {
   SentinelSmartTransactionResponseStruct,
   SentinelNetworkRegistryStruct,
   SentinelNetworkStruct,
+  SentinelGetFeesResponseStruct,
   SentinelRelaySubmitResponseStruct,
   SentinelSimulationResponseStruct,
 } from './structs.js';
 import type {
   SentinelApiServiceMessenger,
   SentinelApiServiceOptions,
+  SentinelGetFeesRequest,
+  SentinelGetFeesResponse,
   SentinelNetwork,
   SentinelNetworkRegistry,
   SentinelRelaySubmitRequest,
@@ -45,7 +48,23 @@ import type {
 
 const log = createModuleLogger(projectLogger, serviceName);
 
+/**
+ * Reads a response body as JSON. Returns undefined when the body is empty or
+ * not JSON, so a failed request can still surface its HTTP status.
+ *
+ * @param response - The response to read.
+ * @returns The parsed JSON body, or undefined.
+ */
+async function readJsonBody(response: Response): Promise<Json | undefined> {
+  try {
+    return (await response.json()) as Json;
+  } catch {
+    return undefined;
+  }
+}
+
 const MESSENGER_EXPOSED_METHODS = [
+  'getFees',
   'getNetwork',
   'getNetworks',
   'simulateTransactions',
@@ -69,6 +88,8 @@ const MESSENGER_EXPOSED_METHODS = [
  * submission (`eth_sendRelayTransaction`), used by the extension and mobile.
  * - {@link SentinelApiService.getSmartTransaction} — smart-transaction status
  * lookup (`/smart-transactions/{uuid}`).
+ * - {@link SentinelApiService.getFees} — smart-transaction fee quotes
+ * (`POST /v1/networks/{chainId}/getFees`). Not cached.
  *
  * Consumers derive higher-level concerns (whether a chain supports simulation
  * or relay, polling loops, etc.) from the raw endpoint responses.
@@ -382,6 +403,70 @@ export class SentinelApiService extends BaseDataService<
   }
 
   /**
+   * Quotes gas fees for unsigned smart transactions via
+   * `POST /v1/networks/{chainId}/getFees`. Not cached, since a quote goes
+   * stale immediately.
+   *
+   * @param request - The fee quote request.
+   * @returns The fee quote response. One entry in `txs` per transaction, in
+   * request order.
+   */
+  async getFees(
+    request: SentinelGetFeesRequest,
+  ): Promise<SentinelGetFeesResponse> {
+    const { chainId, transactions } = request;
+    const baseUrl = await this.#resolveUrl(chainId, 'smartTransactions');
+    const chainIdDecimal = BigInt(chainId).toString(10);
+    const url = `${baseUrl}v1/networks/${chainIdDecimal}/getFees`;
+
+    const result = await this.fetchQuery({
+      queryKey: [`${this.name}:getFees`, request],
+      staleTime: 0,
+      queryFn: async (): Promise<Json> => {
+        const headers = await this.#getHeaders();
+
+        log('getFees', 'Request', url, request);
+
+        const response = await this.#fetch(url, {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ txs: transactions }),
+        });
+
+        if (!response.ok) {
+          const data = await readJsonBody(response);
+          const error = new HttpError(
+            response.status,
+            `Sentinel API: Fees request failed with status '${response.status}'`,
+          );
+          if (data !== undefined) {
+            Object.assign(error, { data });
+          }
+          throw error;
+        }
+
+        const json = (await response.json()) as Json;
+
+        const [error] = validate(json, SentinelGetFeesResponseStruct);
+        if (error) {
+          throw new SentinelApiResponseValidationError(
+            `Sentinel API: Malformed response from fees endpoint: ${error.message}`,
+          );
+        }
+
+        log('getFees', 'Response', json);
+
+        return json;
+      },
+    });
+
+    return result as unknown as SentinelGetFeesResponse;
+  }
+
+  /**
    * Performs a JSON-RPC POST to the Sentinel API and returns the `result`.
    *
    * @param url - The URL to post to.
@@ -482,7 +567,7 @@ export class SentinelApiService extends BaseDataService<
    */
   async #resolveUrl(
     chainId: Hex,
-    capability: 'confirmations' | 'relayTransactions',
+    capability: 'confirmations' | 'relayTransactions' | 'smartTransactions',
   ): Promise<string> {
     const network = await this.#getRegistryEntry(chainId);
 

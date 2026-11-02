@@ -9,6 +9,8 @@ export type {
   SentinelApiServiceCacheUpdatedEvent,
   SentinelApiServiceGranularCacheUpdatedEvent,
   SentinelAuthorization,
+  SentinelGetFeesRequest,
+  SentinelGetFeesResponse,
   SentinelMeta,
   SentinelNetwork,
   SentinelNetworkRegistry,
@@ -24,6 +26,8 @@ export type {
   SentinelSimulationTokenFee,
   SentinelSimulationTransaction,
   SentinelSmartTransaction,
+  SentinelSmartTransactionFee,
+  SentinelSmartTransactionFees,
   SentinelSmartTransactionRequest,
   SentinelSmartTransactionResponse,
   SentinelStateOverrides,
@@ -34,6 +38,7 @@ export {
   SentinelSmartTransactionStatus,
 } from './types.js';
 export type {
+  SentinelApiServiceGetFeesAction,
   SentinelApiServiceGetNetworkAction,
   SentinelApiServiceGetNetworksAction,
   SentinelApiServiceSimulateTransactionsAction,
