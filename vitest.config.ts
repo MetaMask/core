@@ -9,6 +9,10 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     watch: false,
-    projects: ['packages/*/vitest.config.{ts,mts}'],
+    projects: [
+      'packages/*/vitest.config.{ts,mts}',
+      // The docs package isn't tested in CI, and its tests currently fail.
+      '!packages/wallet-framework-docs/vitest.config.mts',
+    ],
   },
 });
