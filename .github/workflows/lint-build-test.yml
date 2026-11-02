@@ -290,6 +290,7 @@ jobs:
         env:
           SHARD: ${{ matrix.shard }}
           SHARD_COUNT: ${{ needs.prepare-environment.outputs.shard-count }}
+          VITEST_BLOB_LABEL: ${{ matrix.node-version }}
       - name: Upload blob report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
@@ -308,27 +309,23 @@ jobs:
           fi
 
   merge-test-reports:
-    name: Merge test reports (${{ matrix.node-version }})
+    name: Merge test reports
     runs-on: ubuntu-latest
     needs:
       - prepare-environment
       - test
     if: ${{ !cancelled() }}
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: ${{ fromJson(needs.prepare-environment.outputs.node-versions) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
           persist-credentials: false
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ needs.prepare-environment.outputs.latest-version }}
       - name: Download blob reports
         uses: actions/download-artifact@v8
         with:
-          pattern: blob-report-${{ matrix.node-version }}-*
+          pattern: blob-report-*
           path: .vitest/blob/
           merge-multiple: true
       - name: Merge reports
