@@ -27,7 +27,6 @@ import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import packageJson from '../package.json';
 import { flushPromises, getFakeProvider } from '../tests/helpers.js';
 import {
   SENTINEL_API_BASE_URL_MAP,
@@ -1242,13 +1241,6 @@ describe('SmartTransactionsController', () => {
       await withController(async ({ controller }) => {
         const signedTransaction = createSignedTransaction();
         const signedCanceledTransaction = createSignedCanceledTransaction();
-        const submitTransactionsApiResponse =
-          createSubmitTransactionsApiResponse(); // It has uuid.
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(
-            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-          )
-          .reply(200, submitTransactionsApiResponse);
 
         await controller.submitSignedTransactions({
           signedTransactions: [signedTransaction],
@@ -1285,22 +1277,6 @@ describe('SmartTransactionsController', () => {
         },
         async ({ controller }) => {
           const signedTransaction = createSignedTransaction();
-          const submitTransactionsApiResponse =
-            createSubmitTransactionsApiResponse();
-
-          // First API mock for the case without nonce
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(
-              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            )
-            .reply(200, submitTransactionsApiResponse);
-
-          // Second API mock for the case with nonce
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(
-              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            )
-            .reply(200, submitTransactionsApiResponse);
 
           // Case 1: Swap transaction without nonce (should call getNonceLock)
           const txParamsWithoutNonce = {
@@ -1352,13 +1328,6 @@ describe('SmartTransactionsController', () => {
         },
         async ({ controller }) => {
           const signedTransaction = createSignedTransaction();
-          const submitTransactionsApiResponse =
-            createSubmitTransactionsApiResponse();
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(
-              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            )
-            .reply(200, submitTransactionsApiResponse);
 
           // Create txParams without nonce
           const txParamsWithoutNonce = {
@@ -1409,13 +1378,6 @@ describe('SmartTransactionsController', () => {
         },
         async ({ controller }) => {
           const signedTransaction = createSignedTransaction();
-          const submitTransactionsApiResponse =
-            createSubmitTransactionsApiResponse();
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(
-              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            )
-            .reply(200, submitTransactionsApiResponse);
 
           // Create txParams without nonce
           const txParamsWithoutNonce = {
@@ -1448,13 +1410,6 @@ describe('SmartTransactionsController', () => {
       await withController(async ({ controller }) => {
         const signedTransaction1 = createSignedTransaction();
         const signedTransaction2 = createSignedTransaction();
-        const submitTransactionsApiResponse =
-          createSubmitTransactionsApiResponse(); // It has uuid.
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(
-            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-          )
-          .reply(200, submitTransactionsApiResponse);
 
         const txParams = createTxParams();
         const result = await controller.submitSignedTransactions({
@@ -1482,41 +1437,28 @@ describe('SmartTransactionsController', () => {
       });
     });
 
-    it('works with optional signedCanceledTransactions', async () => {
-      await withController(async ({ controller }) => {
+    it('sends signedCanceledTransactions as rawCancelTxs', async () => {
+      await withController(async ({ controller, submitTransactions }) => {
         const signedTransaction = createSignedTransaction();
-        const submitTransactionsApiResponse =
-          createSubmitTransactionsApiResponse();
-
-        // Verify that the request body has empty rawCancelTxs array when signedCanceledTransactions is omitted
-        let requestBody: any;
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(
-            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            (body) => {
-              requestBody = body;
-              return true;
-            },
-          )
-          .reply(200, submitTransactionsApiResponse);
+        const signedCanceledTransaction = createSignedCanceledTransaction();
 
         await controller.submitSignedTransactions({
           signedTransactions: [signedTransaction],
+          signedCanceledTransactions: [signedCanceledTransaction],
           txParams: createTxParams(),
-          // No signedCanceledTransactions provided
         });
 
-        // Verify the request was made with an empty rawCancelTxs array
-        expect(requestBody).toBeDefined();
-        expect(requestBody.rawCancelTxs).toStrictEqual([]);
+        expect(submitTransactions).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          rawTxs: [signedTransaction],
+          rawCancelTxs: [signedCanceledTransaction],
+        });
       });
     });
 
-    it('includes signedTransactionsWithMetadata in request body as rawTxsWithMetadata', async () => {
-      await withController(async ({ controller }) => {
+    it('includes signedTransactionsWithMetadata in the submit request', async () => {
+      await withController(async ({ controller, submitTransactions }) => {
         const signedTransaction = createSignedTransaction();
-        const submitTransactionsApiResponse =
-          createSubmitTransactionsApiResponse();
 
         const signedTransactionsWithMetadata = [
           {
@@ -1527,71 +1469,41 @@ describe('SmartTransactionsController', () => {
           },
         ];
 
-        let requestBody: any;
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(
-            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            (body) => {
-              requestBody = body;
-              return true;
-            },
-          )
-          .reply(200, submitTransactionsApiResponse);
-
         await controller.submitSignedTransactions({
           signedTransactions: [signedTransaction],
           signedTransactionsWithMetadata,
           txParams: createTxParams(),
         });
 
-        // Verify the request includes rawTxsWithMetadata
-        expect(requestBody).toBeDefined();
-        expect(requestBody.rawTxsWithMetadata).toStrictEqual(
-          signedTransactionsWithMetadata,
-        );
+        expect(submitTransactions).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          rawTxs: [signedTransaction],
+          rawCancelTxs: [],
+          rawTxsWithMetadata: signedTransactionsWithMetadata,
+        });
       });
     });
 
-    it('omits rawTxsWithMetadata from request body when signedTransactionsWithMetadata is not provided', async () => {
-      await withController(async ({ controller }) => {
+    it('omits rawTxsWithMetadata when signedTransactionsWithMetadata is not provided', async () => {
+      await withController(async ({ controller, submitTransactions }) => {
         const signedTransaction = createSignedTransaction();
-        const submitTransactionsApiResponse =
-          createSubmitTransactionsApiResponse();
-
-        let requestBody: any;
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(
-            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            (body) => {
-              requestBody = body;
-              return true;
-            },
-          )
-          .reply(200, submitTransactionsApiResponse);
 
         await controller.submitSignedTransactions({
           signedTransactions: [signedTransaction],
           txParams: createTxParams(),
-          // signedTransactionsWithMetadata not provided
         });
 
-        // Verify the request does not include rawTxsWithMetadata
-        expect(requestBody).toBeDefined();
-        expect(requestBody.rawTxsWithMetadata).toBeUndefined();
+        expect(submitTransactions).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          rawTxs: [signedTransaction],
+          rawCancelTxs: [],
+        });
       });
     });
 
     it('works without txParams', async () => {
       await withController(async ({ controller }) => {
         const signedTransaction = createSignedTransaction();
-        const submitTransactionsApiResponse =
-          createSubmitTransactionsApiResponse();
-
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(
-            `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-          )
-          .reply(200, submitTransactionsApiResponse);
 
         // This should not throw an error when txParams is missing
         const result = await controller.submitSignedTransactions({
@@ -2946,12 +2858,6 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(
-              `/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-            )
-            .reply(200, createSubmitTransactionsApiResponse());
-
           const signedTx = createSignedTransaction();
           const signedCanceledTx = createSignedCanceledTransaction();
           const txParams = createTxParams();
@@ -3187,11 +3093,13 @@ type WithControllerCallback<ReturnValue> = ({
   controller,
   getFees,
   getNetwork,
+  submitTransactions,
   triggerNetworkStateChange,
 }: {
   controller: SmartTransactionsController;
   getFees: ReturnType<typeof vi.fn>;
   getNetwork: ReturnType<typeof vi.fn>;
+  submitTransactions: ReturnType<typeof vi.fn>;
   triggerNetworkStateChange: (state: NetworkState) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -3204,6 +3112,7 @@ type WithControllerOptions = {
   failTransaction?: TransactionControllerFailTransactionAction['handler'];
   getFees?: ReturnType<typeof vi.fn>;
   getNetwork?: ReturnType<typeof vi.fn>;
+  submitTransactions?: ReturnType<typeof vi.fn>;
   remoteFeatureFlags?: {
     smartTransactionsNetworks?: Record<string, unknown>;
   };
@@ -3236,6 +3145,9 @@ async function withController<ReturnValue>(
     getTransactions = vi.fn(),
     failTransaction = vi.fn(),
     getFees = vi.fn().mockResolvedValue(createGetFeesApiResponse()),
+    submitTransactions = vi
+      .fn()
+      .mockResolvedValue(createSubmitTransactionsApiResponse()),
     getNetwork = vi.fn().mockResolvedValue({
       smartTransactions: true,
       network: 'mainnet',
@@ -3332,9 +3244,10 @@ async function withController<ReturnValue>(
     'AuthenticationController:getBearerToken',
     vi.fn().mockResolvedValue(bearerToken),
   );
+  rootMessenger.registerActionHandler('SentinelApiService:getFees', getFees);
   rootMessenger.registerActionHandler(
-    'SentinelApiService:getFees',
-    getFees,
+    'SentinelApiService:submitTransactions',
+    submitTransactions,
   );
   rootMessenger.registerActionHandler(
     'SentinelApiService:getNetwork',
@@ -3362,6 +3275,7 @@ async function withController<ReturnValue>(
       'TransactionController:failTransaction',
       'SentinelApiService:getFees',
       'SentinelApiService:getNetwork',
+      'SentinelApiService:submitTransactions',
     ],
     events: [
       'NetworkController:stateChange',
@@ -3420,6 +3334,7 @@ async function withController<ReturnValue>(
       controller,
       getFees,
       getNetwork,
+      submitTransactions,
       triggerNetworkStateChange,
     });
   } finally {

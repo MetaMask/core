@@ -102,3 +102,10 @@ const SentinelSmartTransactionFeesStruct = type({
 export const SentinelGetFeesResponseStruct = type({
   txs: array(SentinelSmartTransactionFeesStruct),
 });
+
+/**
+ * Validates the `/submitTransactions` response body.
+ */
+export const SentinelSubmitTransactionsResponseStruct = type({
+  uuid: string(),
+});

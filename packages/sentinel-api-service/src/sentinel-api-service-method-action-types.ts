@@ -90,6 +90,18 @@ export type SentinelApiServiceGetFeesAction = {
 };
 
 /**
+ * Submits signed smart transactions via
+ * `POST /v1/networks/{chainId}/submitTransactions`. Not cached.
+ *
+ * @param request - The submit request.
+ * @returns The UUID assigned to the submitted batch.
+ */
+export type SentinelApiServiceSubmitTransactionsAction = {
+  type: `SentinelApiService:submitTransactions`;
+  handler: SentinelApiService['submitTransactions'];
+};
+
+/**
  * Union of all SentinelApiService action types.
  */
 export type SentinelApiServiceMethodActions =
@@ -98,4 +110,5 @@ export type SentinelApiServiceMethodActions =
   | SentinelApiServiceSimulateTransactionsAction
   | SentinelApiServiceSubmitRelayTransactionAction
   | SentinelApiServiceGetSmartTransactionAction
-  | SentinelApiServiceGetFeesAction;
+  | SentinelApiServiceGetFeesAction
+  | SentinelApiServiceSubmitTransactionsAction;

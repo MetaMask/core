@@ -121,15 +121,16 @@ export enum SentinelFeature {
   Sponsored = 'sponsored',
 }
 
-/**
- * The kind of relay (gas station) submission. Redefined here so that this
- * package does not depend on `@metamask/smart-transactions-controller`.
- */
-export enum SentinelKind {
-  Bundle = 'bundle',
-  Default = 'default',
-  GaslessEIP7702 = 'gaslessEIP7702',
-  GaslessSendBundle = 'gaslessSendBundle',
+export enum SentinelProductFeature {
+  Swap = 'Swap',
+  Staking = 'Staking',
+  Ramp = 'Ramp',
+  Prediction = 'Prediction',
+  Perp = 'Perp',
+  Earn = 'Earn',
+  Card = 'Card',
+  Bridge = 'Bridge',
+  dAppTransaction = 'dAppTransaction',
 }
 
 /**
@@ -139,11 +140,9 @@ export enum SentinelKind {
 export type SentinelMeta = {
   client?: string;
   clientVersion?: string;
-  feature?: SentinelFeature;
-  kind?: SentinelKind;
+  feature?: SentinelFeature | SentinelProductFeature;
   origin?: string;
   txType?: string;
-  wallet?: string;
 };
 
 /**
@@ -313,6 +312,41 @@ export type SentinelGetFeesRequest = {
    * them as the `txs` array.
    */
   transactions: SentinelSimulationTransaction[];
+};
+
+/**
+ * A raw signed smart transaction and the metadata stored with it.
+ */
+export type SentinelSubmitTransactionWithMetadata = {
+  /** Raw signed transaction. */
+  tx: Hex;
+
+  /** Observability metadata stored with the transaction. */
+  metadata?: SentinelMeta;
+};
+
+/**
+ * A request to submit signed smart transactions via
+ * `POST /v1/networks/{chainId}/submitTransactions`.
+ */
+export type SentinelSubmitTransactionsRequest = {
+  /** The chain to submit the transactions on. */
+  chainId: Hex;
+
+  /**
+   * Raw signed transactions. Used when `rawTxsWithMetadata` is omitted or
+   * empty.
+   */
+  rawTxs: Hex[];
+
+  /** Raw signed transactions that cancel the submitted batch. */
+  rawCancelTxs?: Hex[];
+
+  /**
+   * Raw signed transactions with metadata. When non-empty, the API submits
+   * these instead of `rawTxs`.
+   */
+  rawTxsWithMetadata?: SentinelSubmitTransactionWithMetadata[];
 };
 
 /**
@@ -604,4 +638,12 @@ export type SentinelSmartTransactionFees = {
  */
 export type SentinelGetFeesResponse = {
   txs: SentinelSmartTransactionFees[];
+};
+
+/**
+ * The response from `POST /v1/networks/{chainId}/submitTransactions`.
+ */
+export type SentinelSubmitTransactionsResponse = {
+  /** UUID assigned to the submitted batch. */
+  uuid: string;
 };

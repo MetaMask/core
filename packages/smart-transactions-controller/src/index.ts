@@ -36,7 +36,6 @@ export {
   type IndividualTxFees,
   type FeatureFlags,
   type SmartTransaction,
-  type SentinelMeta,
   type SignedTransactionWithMetadata,
   type SmartTransactionsNetworkConfig,
   type SmartTransactionsFeatureFlagsConfig,
@@ -45,9 +44,8 @@ export {
   SmartTransactionStatuses,
   OriginalTransactionStatus,
   ClientId,
-  Feature,
-  Kind,
 } from './types.js';
+export type { SentinelMeta } from '@metamask/sentinel-api-service';
 export { MetaMetricsEventName, MetaMetricsEventCategory } from './constants.js';
 export {
   getSmartTransactionMetricsProperties,

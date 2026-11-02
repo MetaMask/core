@@ -28,7 +28,7 @@ import {
 import { SentinelApiService } from './sentinel-api-service.js';
 import {
   SentinelFeature,
-  SentinelKind,
+  SentinelProductFeature,
   SentinelSmartTransactionStatus,
 } from './types.js';
 import type {
@@ -36,6 +36,7 @@ import type {
   SentinelGetFeesRequest,
   SentinelRelaySubmitRequest,
   SentinelSimulationRequest,
+  SentinelSubmitTransactionsRequest,
 } from './types.js';
 
 // ============================================================
@@ -131,6 +132,18 @@ const MOCK_FEES_REQUEST: SentinelGetFeesRequest = {
       value: '0x0',
     },
   ],
+};
+
+const MOCK_SUBMIT_TX =
+  '0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a02b79f322a625d623a2bb2911e0c6b3e7eaf741a7c7c5d2e8c67ef3ff4acf146ca01ae168fea63dc3391b75b586c8a7c0cb55cdf3b8e2e4d8e097957a3a56c6f2c5' as Hex;
+
+const MOCK_SUBMIT_REQUEST: SentinelSubmitTransactionsRequest = {
+  chainId: CHAIN_ID_MAINNET,
+  rawTxs: [MOCK_SUBMIT_TX],
+};
+
+const MOCK_SUBMIT_RESPONSE = {
+  uuid: 'dP23W7c2kt4FK9TmXOkz1UM2F20',
 };
 
 const MOCK_FEES_RESPONSE = {
@@ -293,9 +306,9 @@ describe('SentinelApiService', () => {
       expect(SentinelSmartTransactionStatus.Failed).toBe('FAILED');
     });
 
-    it('exposes feature and kind values', () => {
+    it('exposes feature values', () => {
       expect(SentinelFeature.Sponsored).toBe('sponsored');
-      expect(SentinelKind.GaslessEIP7702).toBe('gaslessEIP7702');
+      expect(SentinelProductFeature.Swap).toBe('Swap');
     });
   });
 
@@ -1072,9 +1085,9 @@ describe('SentinelApiService', () => {
         .post('/v1/networks/1/getFees')
         .reply(200, { unexpected: true });
 
-      await expect(
-        service.getFees(MOCK_FEES_REQUEST),
-      ).rejects.toThrow(SentinelApiResponseValidationError);
+      await expect(service.getFees(MOCK_FEES_REQUEST)).rejects.toThrow(
+        SentinelApiResponseValidationError,
+      );
       service.destroy();
     });
 
@@ -1136,6 +1149,143 @@ describe('SentinelApiService', () => {
       );
 
       expect(result).toStrictEqual(MOCK_FEES_RESPONSE);
+      service.destroy();
+    });
+  });
+
+  describe('submitTransactions', () => {
+    it('returns the uuid for the submitted transactions', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const scope = nock(MAINNET_URL)
+        .post('/v1/networks/1/submitTransactions', {
+          rawTxs: MOCK_SUBMIT_REQUEST.rawTxs,
+        })
+        .reply(200, MOCK_SUBMIT_RESPONSE);
+
+      const result = await service.submitTransactions(MOCK_SUBMIT_REQUEST);
+
+      expect(result).toStrictEqual(MOCK_SUBMIT_RESPONSE);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('forwards rawCancelTxs when it is set', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const request: SentinelSubmitTransactionsRequest = {
+        ...MOCK_SUBMIT_REQUEST,
+        rawCancelTxs: [MOCK_SUBMIT_TX],
+      };
+      const scope = nock(MAINNET_URL)
+        .post('/v1/networks/1/submitTransactions', {
+          rawTxs: request.rawTxs,
+          rawCancelTxs: request.rawCancelTxs,
+        })
+        .reply(200, MOCK_SUBMIT_RESPONSE);
+
+      await service.submitTransactions(request);
+
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('forwards rawTxsWithMetadata when it is set', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const request: SentinelSubmitTransactionsRequest = {
+        ...MOCK_SUBMIT_REQUEST,
+        rawTxsWithMetadata: [
+          {
+            tx: MOCK_SUBMIT_TX,
+            metadata: { txType: 'swap', feature: SentinelProductFeature.Swap },
+          },
+        ],
+      };
+      const scope = nock(MAINNET_URL)
+        .post('/v1/networks/1/submitTransactions', {
+          rawTxs: request.rawTxs,
+          rawTxsWithMetadata: request.rawTxsWithMetadata,
+        })
+        .reply(200, MOCK_SUBMIT_RESPONSE);
+
+      await service.submitTransactions(request);
+
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('throws a validation error on a malformed response', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/v1/networks/1/submitTransactions')
+        .reply(200, { unexpected: true });
+
+      await expect(
+        service.submitTransactions(MOCK_SUBMIT_REQUEST),
+      ).rejects.toThrow(SentinelApiResponseValidationError);
+      service.destroy();
+    });
+
+    it('throws when the chain is not in the registry', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      await expect(
+        service.submitTransactions({
+          ...MOCK_SUBMIT_REQUEST,
+          chainId: CHAIN_ID_UNKNOWN,
+        }),
+      ).rejects.toThrow(SentinelChainNotSupportedError);
+      service.destroy();
+    });
+
+    it('throws when smart transactions are not enabled for the chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      await expect(
+        service.submitTransactions({
+          ...MOCK_SUBMIT_REQUEST,
+          chainId: CHAIN_ID_POLYGON,
+        }),
+      ).rejects.toThrow(SentinelChainNotSupportedError);
+      service.destroy();
+    });
+
+    it('throws HttpError with the response body on a non-2xx response', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/v1/networks/1/submitTransactions')
+        .reply(400, { error: 'invalid raw tx' });
+
+      const error = await service
+        .submitTransactions(MOCK_SUBMIT_REQUEST)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({
+        httpStatus: 400,
+        data: { error: 'invalid raw tx' },
+      });
+      service.destroy();
+    });
+
+    it('is callable via messenger action', async () => {
+      const { service, rootMessenger } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/v1/networks/1/submitTransactions')
+        .reply(200, MOCK_SUBMIT_RESPONSE);
+
+      const result = await rootMessenger.call(
+        'SentinelApiService:submitTransactions',
+        MOCK_SUBMIT_REQUEST,
+      );
+
+      expect(result).toStrictEqual(MOCK_SUBMIT_RESPONSE);
       service.destroy();
     });
   });

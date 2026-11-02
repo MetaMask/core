@@ -1,38 +1,8 @@
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { TransactionType } from '@metamask/transaction-controller';
+import type { SentinelMeta } from '@metamask/sentinel-api-service';
 import type { CaipChainId, Hex } from '@metamask/utils';
 
 import type { SmartTransactionsNetworkConfig } from './featureFlags/index.js';
-
-export type SentinelMeta = {
-  txType?: TransactionType;
-  feature?: Feature;
-  kind?: Kind;
-  client?: string;
-  clientVersion?: string;
-  wallet?: string;
-  origin?: string;
-};
-
-// This list does not belong here, but as these are reported to tx-sentinel, it is ok to have it here for now.
-export enum Feature {
-  Swap = 'Swap',
-  Staking = 'Staking',
-  Ramp = 'Ramp',
-  Prediction = 'Prediction',
-  Perp = 'Perp',
-  Earn = 'Earn',
-  Card = 'Card',
-  Bridge = 'Bridge',
-  dAppTransaction = 'dAppTransaction',
-}
-
-export enum Kind {
-  Regular = 'Regular',
-  STX = 'STX',
-  GaslessSendBundle = 'GaslessSendBundle',
-  GaslessEIP7702 = 'GaslessEIP7702',
-}
 
 /** API */
 export enum APIType {
@@ -179,8 +149,10 @@ export type UnsignedTransaction = any;
 // TODO
 export type SignedTransaction = any;
 
+export type { SentinelMeta };
+
 export type SignedTransactionWithMetadata = {
-  tx: string;
+  tx: Hex;
   metadata?: SentinelMeta;
 };
 

@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Fetch Smart Transactions liveness from `@metamask/sentinel-api-service` via the `SentinelApiService:getNetwork` messenger action
   - Consumers must construct a `SentinelApiService` and delegate the `SentinelApiService:getNetwork` action to the `SmartTransactionsController` messenger.
+- **BREAKING:** Submit signed smart transactions through `@metamask/sentinel-api-service` via the `SentinelApiService:submitTransactions` messenger action
+  - Consumers must delegate the `SentinelApiService:submitTransactions` action to the `SmartTransactionsController` messenger.
+  - `signedCanceledTransactions` is forwarded as `rawCancelTxs`. `SignedTransactionWithMetadata.tx` is `Hex`.
+- **BREAKING:** `Feature` and `Kind` are no longer exported. `SentinelMeta` is re-exported from `@metamask/sentinel-api-service`.
 - **BREAKING:** Fetch Smart Transactions fee quotes from `@metamask/sentinel-api-service` via the `SentinelApiService:getFees` messenger action
   - Consumers must delegate the `SentinelApiService:getFees` action to the `SmartTransactionsController` messenger. The `getFees` return type is unchanged.
 

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `submitTransactions` method and `SentinelApiService:submitTransactions` action to submit signed smart transactions via `POST /v1/networks/{chainId}/submitTransactions`
+  - Accepts a `SentinelSubmitTransactionsRequest` (`rawTxs`, optional `rawCancelTxs`, optional `rawTxsWithMetadata`) and returns a `SentinelSubmitTransactionsResponse` (`uuid`).
+  - Not cached. Throws `SentinelChainNotSupportedError` when the chain is missing from the registry or does not enable `smartTransactions`. A non-2xx response throws `HttpError` with the response body on `data` when it is JSON.
 - Add `getFees` method and `SentinelApiService:getFees` action to quote smart-transaction gas fees from `POST /v1/networks/{chainId}/getFees`
   - Accepts a `SentinelGetFeesRequest` and returns a `SentinelGetFeesResponse`.
   - Each transaction is a `SentinelSimulationTransaction`, the object `infura_simulateTransactions` accepts. The handler forwards them as the `txs` array.
@@ -18,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Remove the `SentinelKind` enum. `SentinelMeta.kind` and `SentinelMeta.wallet` are no longer part of the metadata type. `SentinelMeta.feature` now accepts `SentinelFeature` or `SentinelProductFeature`.
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [2.1.0]

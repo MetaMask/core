@@ -30,6 +30,7 @@ import {
   SentinelGetFeesResponseStruct,
   SentinelRelaySubmitResponseStruct,
   SentinelSimulationResponseStruct,
+  SentinelSubmitTransactionsResponseStruct,
 } from './structs.js';
 import type {
   SentinelApiServiceMessenger,
@@ -44,6 +45,8 @@ import type {
   SentinelSimulationResponse,
   SentinelSmartTransactionRequest,
   SentinelSmartTransactionResponse,
+  SentinelSubmitTransactionsRequest,
+  SentinelSubmitTransactionsResponse,
 } from './types.js';
 
 const log = createModuleLogger(projectLogger, serviceName);
@@ -69,6 +72,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getNetworks',
   'simulateTransactions',
   'submitRelayTransaction',
+  'submitTransactions',
   'getSmartTransaction',
 ] as const;
 
@@ -90,6 +94,8 @@ const MESSENGER_EXPOSED_METHODS = [
  * lookup (`/smart-transactions/{uuid}`).
  * - {@link SentinelApiService.getFees} — smart-transaction fee quotes
  * (`POST /v1/networks/{chainId}/getFees`). Not cached.
+ * - {@link SentinelApiService.submitTransactions} — signed smart-transaction
+ * submission (`POST /v1/networks/{chainId}/submitTransactions`). Not cached.
  *
  * Consumers derive higher-level concerns (whether a chain supports simulation
  * or relay, polling loops, etc.) from the raw endpoint responses.
@@ -464,6 +470,75 @@ export class SentinelApiService extends BaseDataService<
     });
 
     return result as unknown as SentinelGetFeesResponse;
+  }
+
+  /**
+   * Submits signed smart transactions via
+   * `POST /v1/networks/{chainId}/submitTransactions`. Not cached.
+   *
+   * @param request - The submit request.
+   * @returns The UUID assigned to the submitted batch.
+   */
+  async submitTransactions(
+    request: SentinelSubmitTransactionsRequest,
+  ): Promise<SentinelSubmitTransactionsResponse> {
+    const { chainId, rawTxs, rawCancelTxs, rawTxsWithMetadata } = request;
+    const baseUrl = await this.#resolveUrl(chainId, 'smartTransactions');
+    const chainIdDecimal = BigInt(chainId).toString(10);
+    const url = `${baseUrl}v1/networks/${chainIdDecimal}/submitTransactions`;
+
+    const result = await this.fetchQuery({
+      queryKey: [`${this.name}:submitTransactions`, request],
+      staleTime: 0,
+      queryFn: async (): Promise<Json> => {
+        const headers = await this.#getHeaders();
+
+        log('submitTransactions', 'Request', url, request);
+
+        const response = await this.#fetch(url, {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            rawTxs,
+            ...(rawCancelTxs === undefined ? {} : { rawCancelTxs }),
+            ...(rawTxsWithMetadata === undefined ? {} : { rawTxsWithMetadata }),
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await readJsonBody(response);
+          const error = new HttpError(
+            response.status,
+            `Sentinel API: Submit transactions request failed with status '${response.status}'`,
+          );
+          if (data !== undefined) {
+            Object.assign(error, { data });
+          }
+          throw error;
+        }
+
+        const json = (await response.json()) as Json;
+
+        const [error] = validate(
+          json,
+          SentinelSubmitTransactionsResponseStruct,
+        );
+        if (error) {
+          throw new SentinelApiResponseValidationError(
+            `Sentinel API: Malformed response from submit-transactions endpoint: ${error.message}`,
+          );
+        }
+
+        log('submitTransactions', 'Response', json);
+
+        return json;
+      },
+    });
+
+    return result as unknown as SentinelSubmitTransactionsResponse;
   }
 
   /**

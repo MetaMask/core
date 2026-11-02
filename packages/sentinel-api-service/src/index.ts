@@ -31,10 +31,13 @@ export type {
   SentinelSmartTransactionRequest,
   SentinelSmartTransactionResponse,
   SentinelStateOverrides,
+  SentinelSubmitTransactionsRequest,
+  SentinelSubmitTransactionsResponse,
+  SentinelSubmitTransactionWithMetadata,
 } from './types.js';
 export {
   SentinelFeature,
-  SentinelKind,
+  SentinelProductFeature,
   SentinelSmartTransactionStatus,
 } from './types.js';
 export type {
@@ -43,6 +46,7 @@ export type {
   SentinelApiServiceGetNetworksAction,
   SentinelApiServiceSimulateTransactionsAction,
   SentinelApiServiceSubmitRelayTransactionAction,
+  SentinelApiServiceSubmitTransactionsAction,
   SentinelApiServiceGetSmartTransactionAction,
 } from './sentinel-api-service-method-action-types.js';
 export {

@@ -29,6 +29,8 @@ import type {
 import type {
   SentinelApiServiceGetFeesAction,
   SentinelApiServiceGetNetworkAction,
+  SentinelApiServiceSubmitTransactionsAction,
+  SentinelSubmitTransactionsResponse,
 } from '@metamask/sentinel-api-service';
 import type {
   TransactionControllerFailTransactionAction,
@@ -198,6 +200,7 @@ type AllowedActions =
   | RemoteFeatureFlagControllerGetStateAction
   | SentinelApiServiceGetFeesAction
   | SentinelApiServiceGetNetworkAction
+  | SentinelApiServiceSubmitTransactionsAction
   | TransactionControllerFailTransactionAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetTransactionsAction;
@@ -976,7 +979,12 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     transactionMeta?: TransactionMeta;
     txParams?: TransactionParams;
     networkClientId?: NetworkClientId;
-  }) {
+  }): Promise<
+    SentinelSubmitTransactionsResponse & {
+      txHash: string;
+      txHashes: string[];
+    }
+  > {
     const selectedNetworkClientId =
       networkClientId ??
       this.messenger.call('NetworkController:getState').selectedNetworkClientId;
@@ -988,18 +996,15 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     });
     const data = await this.#trace(
       { name: SmartTransactionsTraceName.SubmitTransactions },
-      async () =>
-        await this.#fetch(
-          getAPIRequestURL(APIType.SUBMIT_TRANSACTIONS, chainId),
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              rawTxs: signedTransactions,
-              rawCancelTxs: signedCanceledTransactions,
-              rawTxsWithMetadata: signedTransactionsWithMetadata,
-            }),
-          },
-        ),
+      async (): Promise<SentinelSubmitTransactionsResponse> =>
+        await this.messenger.call('SentinelApiService:submitTransactions', {
+          chainId,
+          rawTxs: signedTransactions,
+          rawCancelTxs: signedCanceledTransactions,
+          ...(signedTransactionsWithMetadata === undefined
+            ? {}
+            : { rawTxsWithMetadata: signedTransactionsWithMetadata }),
+        }),
     );
     const time = Date.now();
     let preTxBalance;
