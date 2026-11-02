@@ -13,6 +13,12 @@ import type {
 } from '@metamask/messenger';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkState } from '@metamask/network-controller';
+import type {
+  SentinelApiServiceCancelAction,
+  SentinelApiServiceGetFeesAction,
+  SentinelApiServiceGetNetworkAction,
+  SentinelApiServiceSubmitTransactionsAction,
+} from '@metamask/sentinel-api-service';
 import {
   TransactionStatus,
   TransactionType,
@@ -26,6 +32,7 @@ import type {
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 
 import { flushPromises, getFakeProvider } from '../tests/helpers.js';
 import {
@@ -216,7 +223,7 @@ const createSubmitTransactionsApiResponse = () => {
   return { uuid: 'dP23W7c2kt4FK9TmXOkz1UM2F20' };
 };
 
-const createSignedTransaction = () => {
+const createSignedTransaction = (): Hex => {
   return '0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a02b79f322a625d623a2bb2911e0c6b3e7eaf741a7c7c5d2e8c67ef3ff4acf146ca01ae168fea63dc3391b75b586c8a7c0cb55cdf3b8e2e4d8e097957a3a56c6f2c5';
 };
 
@@ -1213,7 +1220,9 @@ describe('SmartTransactionsController', () => {
 
       await withController(
         {
-          getFees: vi.fn().mockRejectedValue(httpError),
+          getFees: vi
+            .fn<SentinelApiServiceGetFeesAction['handler']>()
+            .mockRejectedValue(httpError),
         },
         async ({ controller }) => {
           const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
@@ -1667,7 +1676,9 @@ describe('SmartTransactionsController', () => {
     it('fetches liveness and sets in feesByChainId state for the Smart Transactions API for the chainId of the networkClientId passed in', async () => {
       await withController(
         {
-          getNetwork: vi.fn().mockRejectedValue(new Error('random error')),
+          getNetwork: vi
+            .fn<SentinelApiServiceGetNetworkAction['handler']>()
+            .mockRejectedValue(new Error('random error')),
         },
         async ({ controller, getNetwork }) => {
           expect(
@@ -2096,33 +2107,52 @@ describe('SmartTransactionsController', () => {
   });
 
   describe('cancelSmartTransaction', () => {
-    it('sends POST call to Transactions API', async () => {
-      await withController(async ({ controller }) => {
-        const apiCall = nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .post(`/v1/networks/${ethereumChainIdDec}/cancel`)
-          .reply(200, { message: 'successful' });
-
+    it('cancels the smart transaction on the selected chain', async () => {
+      await withController(async ({ controller, cancel }) => {
         await controller.cancelSmartTransaction('uuid1');
 
-        expect(apiCall.isDone()).toBe(true);
+        expect(cancel).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          uuid: 'uuid1',
+        });
       });
     });
 
-    it('sends Authorization header when getBearerToken is provided', async () => {
-      const bearerToken = 'test-bearer-token-123';
+    it('cancels on the chain for the given network client', async () => {
+      await withController(async ({ controller, cancel }) => {
+        await controller.cancelSmartTransaction('uuid1', {
+          networkClientId: NetworkType.sepolia,
+        });
+
+        expect(cancel).toHaveBeenCalledWith({
+          chainId: ChainId.sepolia,
+          uuid: 'uuid1',
+        });
+      });
+    });
+
+    it('rethrows cancel error message when fetch fails', async () => {
+      const httpError = new HttpError(
+        500,
+        "Sentinel API: Cancel request failed with status '500'",
+      );
+      Object.assign(httpError, {
+        data: { statusCode: 500, error: 'Internal Server Error' },
+      });
+
       await withController(
         {
-          bearerToken,
+          cancel: vi
+            .fn<SentinelApiServiceCancelAction['handler']>()
+            .mockRejectedValue(httpError),
         },
         async ({ controller }) => {
-          const apiCall = nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(`/v1/networks/${ethereumChainIdDec}/cancel`)
-            .matchHeader('Authorization', `Bearer ${bearerToken}`)
-            .reply(200, { message: 'successful' });
-
-          await controller.cancelSmartTransaction('uuid1');
-
-          expect(apiCall.isDone()).toBe(true);
+          await expect(
+            controller.cancelSmartTransaction('uuid1'),
+          ).rejects.toMatchObject({
+            message: 'Fetch error: 500',
+            data: { statusCode: 500, error: 'Internal Server Error' },
+          });
         },
       );
     });
@@ -2886,10 +2916,6 @@ describe('SmartTransactionsController', () => {
           },
         },
         async ({ controller }) => {
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .post(`/v1/networks/${ethereumChainIdDec}/cancel`)
-            .reply(200, {});
-
           await controller.cancelSmartTransaction('uuid1');
 
           expect(traceCallback).toHaveBeenCalledWith(
@@ -3091,15 +3117,19 @@ describe('SmartTransactionsController', () => {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  cancel,
   getFees,
   getNetwork,
   submitTransactions,
   triggerNetworkStateChange,
 }: {
   controller: SmartTransactionsController;
-  getFees: ReturnType<typeof vi.fn>;
-  getNetwork: ReturnType<typeof vi.fn>;
-  submitTransactions: ReturnType<typeof vi.fn>;
+  cancel: Mock<SentinelApiServiceCancelAction['handler']>;
+  getFees: Mock<SentinelApiServiceGetFeesAction['handler']>;
+  getNetwork: Mock<SentinelApiServiceGetNetworkAction['handler']>;
+  submitTransactions: Mock<
+    SentinelApiServiceSubmitTransactionsAction['handler']
+  >;
   triggerNetworkStateChange: (state: NetworkState) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -3110,9 +3140,12 @@ type WithControllerOptions = {
   getNonceLock?: TransactionControllerGetNonceLockAction['handler'];
   getTransactions?: TransactionControllerGetTransactionsAction['handler'];
   failTransaction?: TransactionControllerFailTransactionAction['handler'];
-  getFees?: ReturnType<typeof vi.fn>;
-  getNetwork?: ReturnType<typeof vi.fn>;
-  submitTransactions?: ReturnType<typeof vi.fn>;
+  cancel?: Mock<SentinelApiServiceCancelAction['handler']>;
+  getFees?: Mock<SentinelApiServiceGetFeesAction['handler']>;
+  getNetwork?: Mock<SentinelApiServiceGetNetworkAction['handler']>;
+  submitTransactions?: Mock<
+    SentinelApiServiceSubmitTransactionsAction['handler']
+  >;
   remoteFeatureFlags?: {
     smartTransactionsNetworks?: Record<string, unknown>;
   };
@@ -3144,14 +3177,25 @@ async function withController<ReturnValue>(
     }),
     getTransactions = vi.fn(),
     failTransaction = vi.fn(),
-    getFees = vi.fn().mockResolvedValue(createGetFeesApiResponse()),
+    cancel = vi
+      .fn<SentinelApiServiceCancelAction['handler']>()
+      .mockResolvedValue({
+        uuid: 'uuid1',
+        affected: 1,
+        cancelled: true,
+      }),
+    getFees = vi
+      .fn<SentinelApiServiceGetFeesAction['handler']>()
+      .mockResolvedValue(createGetFeesApiResponse()),
     submitTransactions = vi
-      .fn()
+      .fn<SentinelApiServiceSubmitTransactionsAction['handler']>()
       .mockResolvedValue(createSubmitTransactionsApiResponse()),
-    getNetwork = vi.fn().mockResolvedValue({
-      smartTransactions: true,
-      network: 'mainnet',
-    }),
+    getNetwork = vi
+      .fn<SentinelApiServiceGetNetworkAction['handler']>()
+      .mockResolvedValue({
+        smartTransactions: true,
+        network: 'mainnet',
+      }),
     remoteFeatureFlags = {},
     bearerToken,
   } = rest;
@@ -3244,6 +3288,7 @@ async function withController<ReturnValue>(
     'AuthenticationController:getBearerToken',
     vi.fn().mockResolvedValue(bearerToken),
   );
+  rootMessenger.registerActionHandler('SentinelApiService:cancel', cancel);
   rootMessenger.registerActionHandler('SentinelApiService:getFees', getFees);
   rootMessenger.registerActionHandler(
     'SentinelApiService:submitTransactions',
@@ -3273,6 +3318,7 @@ async function withController<ReturnValue>(
       'TransactionController:getNonceLock',
       'TransactionController:getTransactions',
       'TransactionController:failTransaction',
+      'SentinelApiService:cancel',
       'SentinelApiService:getFees',
       'SentinelApiService:getNetwork',
       'SentinelApiService:submitTransactions',
@@ -3332,6 +3378,7 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
+      cancel,
       getFees,
       getNetwork,
       submitTransactions,

@@ -27,6 +27,7 @@ import {
   SentinelSmartTransactionResponseStruct,
   SentinelNetworkRegistryStruct,
   SentinelNetworkStruct,
+  SentinelCancelResponseStruct,
   SentinelGetFeesResponseStruct,
   SentinelRelaySubmitResponseStruct,
   SentinelSimulationResponseStruct,
@@ -35,6 +36,8 @@ import {
 import type {
   SentinelApiServiceMessenger,
   SentinelApiServiceOptions,
+  SentinelCancelRequest,
+  SentinelCancelResponse,
   SentinelGetFeesRequest,
   SentinelGetFeesResponse,
   SentinelNetwork,
@@ -67,6 +70,7 @@ async function readJsonBody(response: Response): Promise<Json | undefined> {
 }
 
 const MESSENGER_EXPOSED_METHODS = [
+  'cancel',
   'getFees',
   'getNetwork',
   'getNetworks',
@@ -96,6 +100,8 @@ const MESSENGER_EXPOSED_METHODS = [
  * (`POST /v1/networks/{chainId}/getFees`). Not cached.
  * - {@link SentinelApiService.submitTransactions} — signed smart-transaction
  * submission (`POST /v1/networks/{chainId}/submitTransactions`). Not cached.
+ * - {@link SentinelApiService.cancel} — smart-transaction cancellation
+ * (`POST /v1/networks/{chainId}/cancel`). Not cached.
  *
  * Consumers derive higher-level concerns (whether a chain supports simulation
  * or relay, polling loops, etc.) from the raw endpoint responses.
@@ -539,6 +545,68 @@ export class SentinelApiService extends BaseDataService<
     });
 
     return result as unknown as SentinelSubmitTransactionsResponse;
+  }
+
+  /**
+   * Cancels a smart transaction via `POST /v1/networks/{chainId}/cancel`.
+   * Not cached.
+   *
+   * @param request - The cancel request.
+   * @returns The cancel result. `cancelled` is `true` on success.
+   */
+  async cancel(
+    request: SentinelCancelRequest,
+  ): Promise<SentinelCancelResponse> {
+    const { chainId, uuid } = request;
+    const baseUrl = await this.#resolveUrl(chainId, 'smartTransactions');
+    const chainIdDecimal = BigInt(chainId).toString(10);
+    const url = `${baseUrl}v1/networks/${chainIdDecimal}/cancel`;
+
+    const result = await this.fetchQuery({
+      queryKey: [`${this.name}:cancel`, request],
+      staleTime: 0,
+      queryFn: async (): Promise<Json> => {
+        const headers = await this.#getHeaders();
+
+        log('cancel', 'Request', url, request);
+
+        const response = await this.#fetch(url, {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ uuid }),
+        });
+
+        if (!response.ok) {
+          const data = await readJsonBody(response);
+          const error = new HttpError(
+            response.status,
+            `Sentinel API: Cancel request failed with status '${response.status}'`,
+          );
+          if (data !== undefined) {
+            Object.assign(error, { data });
+          }
+          throw error;
+        }
+
+        const json = (await response.json()) as Json;
+
+        const [error] = validate(json, SentinelCancelResponseStruct);
+        if (error) {
+          throw new SentinelApiResponseValidationError(
+            `Sentinel API: Malformed response from cancel endpoint: ${error.message}`,
+          );
+        }
+
+        log('cancel', 'Response', json);
+
+        return json;
+      },
+    });
+
+    return result as unknown as SentinelCancelResponse;
   }
 
   /**

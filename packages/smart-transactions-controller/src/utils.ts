@@ -51,14 +51,6 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
       return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/estimateGas`;
     }
 
-    case APIType.SUBMIT_TRANSACTIONS: {
-      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`;
-    }
-
-    case APIType.CANCEL: {
-      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/cancel`;
-    }
-
     case APIType.BATCH_STATUS: {
       return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/batchStatus`;
     }

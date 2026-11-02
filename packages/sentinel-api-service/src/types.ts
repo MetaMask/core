@@ -350,6 +350,18 @@ export type SentinelSubmitTransactionsRequest = {
 };
 
 /**
+ * A request to cancel a smart transaction via
+ * `POST /v1/networks/{chainId}/cancel`.
+ */
+export type SentinelCancelRequest = {
+  /** The chain to cancel the transaction on. */
+  chainId: Hex;
+
+  /** UUID of the smart transaction to cancel. */
+  uuid: string;
+};
+
+/**
  * A single network entry from the Sentinel `/networks` registry, or the
  * configuration of a single network from the `/network` endpoint.
  */
@@ -646,4 +658,21 @@ export type SentinelGetFeesResponse = {
 export type SentinelSubmitTransactionsResponse = {
   /** UUID assigned to the submitted batch. */
   uuid: string;
+};
+
+/**
+ * The response from `POST /v1/networks/{chainId}/cancel`.
+ */
+export type SentinelCancelResponse = {
+  /** UUID of the cancelled smart transaction. */
+  uuid: string;
+
+  /** Number of pending transactions the cancel updated. */
+  affected: number;
+
+  /**
+   * Always `true` on a 200 response. The handler sets this itself; the RPC
+   * result only carries `uuid` and `affected`.
+   */
+  cancelled: boolean;
 };

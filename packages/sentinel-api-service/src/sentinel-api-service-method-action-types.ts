@@ -102,6 +102,18 @@ export type SentinelApiServiceSubmitTransactionsAction = {
 };
 
 /**
+ * Cancels a smart transaction via `POST /v1/networks/{chainId}/cancel`.
+ * Not cached.
+ *
+ * @param request - The cancel request.
+ * @returns The cancel result. `cancelled` is `true` on success.
+ */
+export type SentinelApiServiceCancelAction = {
+  type: `SentinelApiService:cancel`;
+  handler: SentinelApiService['cancel'];
+};
+
+/**
  * Union of all SentinelApiService action types.
  */
 export type SentinelApiServiceMethodActions =
@@ -111,4 +123,5 @@ export type SentinelApiServiceMethodActions =
   | SentinelApiServiceSubmitRelayTransactionAction
   | SentinelApiServiceGetSmartTransactionAction
   | SentinelApiServiceGetFeesAction
-  | SentinelApiServiceSubmitTransactionsAction;
+  | SentinelApiServiceSubmitTransactionsAction
+  | SentinelApiServiceCancelAction;

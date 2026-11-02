@@ -63,20 +63,6 @@ describe('src/utils.js', () => {
       expect(result).toBe(expectedUrl);
     });
 
-    it('returns a sentinel URL for submitting transactions', () => {
-      expect(
-        utils.getAPIRequestURL(APIType.SUBMIT_TRANSACTIONS, ChainId.mainnet),
-      ).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-      );
-    });
-
-    it('returns a sentinel URL for transaction cancellation', () => {
-      expect(utils.getAPIRequestURL(APIType.CANCEL, ChainId.mainnet)).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/cancel`,
-      );
-    });
-
     it('returns a sentinel URL for checking smart transaction status', () => {
       expect(
         utils.getAPIRequestURL(APIType.BATCH_STATUS, ChainId.mainnet),
@@ -89,7 +75,7 @@ describe('src/utils.js', () => {
       const unsupportedChainId = '0x539'; // 1337 — local dev chain
       const chainIdDec = parseInt(unsupportedChainId, 16);
       expect(() =>
-        utils.getAPIRequestURL(APIType.CANCEL, unsupportedChainId),
+        utils.getAPIRequestURL(APIType.ESTIMATE_GAS, unsupportedChainId),
       ).toThrow(`Chain ${chainIdDec} is not supported`);
     });
   });

@@ -27,6 +27,7 @@ import type {
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
 import type {
+  SentinelApiServiceCancelAction,
   SentinelApiServiceGetFeesAction,
   SentinelApiServiceGetNetworkAction,
   SentinelApiServiceSubmitTransactionsAction,
@@ -198,6 +199,7 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
+  | SentinelApiServiceCancelAction
   | SentinelApiServiceGetFeesAction
   | SentinelApiServiceGetNetworkAction
   | SentinelApiServiceSubmitTransactionsAction
@@ -1143,14 +1145,23 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     } = {},
   ): Promise<void> {
     const chainId = this.#getChainId({ networkClientId });
-    await this.#trace(
-      { name: SmartTransactionsTraceName.CancelTransaction },
-      async () =>
-        await this.#fetch(getAPIRequestURL(APIType.CANCEL, chainId), {
-          method: 'POST',
-          body: JSON.stringify({ uuid }),
-        }),
-    );
+    try {
+      await this.#trace(
+        { name: SmartTransactionsTraceName.CancelTransaction },
+        async () =>
+          await this.messenger.call('SentinelApiService:cancel', {
+            chainId,
+            uuid,
+          }),
+      );
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw Object.assign(new Error(`Fetch error: ${error.httpStatus}`), {
+          data: 'data' in error ? error.data : undefined,
+        });
+      }
+      throw error;
+    }
   }
 
   /**

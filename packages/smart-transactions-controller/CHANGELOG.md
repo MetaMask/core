@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Cancel smart transactions through `@metamask/sentinel-api-service` via the `SentinelApiService:cancel` messenger action
+  - Consumers must delegate the `SentinelApiService:cancel` action to the `SmartTransactionsController` messenger.
+  - `cancelSmartTransaction` still accepts `uuid` and an optional `networkClientId`, and still resolves to `void`. A non-2xx response is still thrown as `Fetch error: <status>` with the response body on `data`.
 - **BREAKING:** Fetch Smart Transactions liveness from `@metamask/sentinel-api-service` via the `SentinelApiService:getNetwork` messenger action
   - Consumers must construct a `SentinelApiService` and delegate the `SentinelApiService:getNetwork` action to the `SmartTransactionsController` messenger.
 - **BREAKING:** Submit signed smart transactions through `@metamask/sentinel-api-service` via the `SentinelApiService:submitTransactions` messenger action

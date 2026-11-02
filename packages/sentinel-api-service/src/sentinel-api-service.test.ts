@@ -33,6 +33,7 @@ import {
 } from './types.js';
 import type {
   SentinelApiServiceMessenger,
+  SentinelCancelRequest,
   SentinelGetFeesRequest,
   SentinelRelaySubmitRequest,
   SentinelSimulationRequest,
@@ -144,6 +145,17 @@ const MOCK_SUBMIT_REQUEST: SentinelSubmitTransactionsRequest = {
 
 const MOCK_SUBMIT_RESPONSE = {
   uuid: 'dP23W7c2kt4FK9TmXOkz1UM2F20',
+};
+
+const MOCK_CANCEL_REQUEST: SentinelCancelRequest = {
+  chainId: CHAIN_ID_MAINNET,
+  uuid: UUID,
+};
+
+const MOCK_CANCEL_RESPONSE = {
+  uuid: UUID,
+  affected: 1,
+  cancelled: true,
 };
 
 const MOCK_FEES_RESPONSE = {
@@ -1286,6 +1298,111 @@ describe('SentinelApiService', () => {
       );
 
       expect(result).toStrictEqual(MOCK_SUBMIT_RESPONSE);
+      service.destroy();
+    });
+  });
+
+  describe('cancel', () => {
+    it('returns the cancel result for the chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const scope = nock(MAINNET_URL)
+        .post('/v1/networks/1/cancel', { uuid: UUID })
+        .reply(200, MOCK_CANCEL_RESPONSE);
+
+      const result = await service.cancel(MOCK_CANCEL_REQUEST);
+
+      expect(result).toStrictEqual(MOCK_CANCEL_RESPONSE);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('requests a cancel on every call', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const scope = nock(MAINNET_URL)
+        .post('/v1/networks/1/cancel')
+        .twice()
+        .reply(200, MOCK_CANCEL_RESPONSE);
+
+      await service.cancel(MOCK_CANCEL_REQUEST);
+      await service.cancel(MOCK_CANCEL_REQUEST);
+
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('throws a validation error on a malformed response', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/v1/networks/1/cancel')
+        .reply(200, { unexpected: true });
+
+      await expect(service.cancel(MOCK_CANCEL_REQUEST)).rejects.toThrow(
+        SentinelApiResponseValidationError,
+      );
+      service.destroy();
+    });
+
+    it('throws when the chain is not in the registry', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      await expect(
+        service.cancel({
+          ...MOCK_CANCEL_REQUEST,
+          chainId: CHAIN_ID_UNKNOWN,
+        }),
+      ).rejects.toThrow(SentinelChainNotSupportedError);
+      service.destroy();
+    });
+
+    it('throws when smart transactions are not enabled for the chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      await expect(
+        service.cancel({
+          ...MOCK_CANCEL_REQUEST,
+          chainId: CHAIN_ID_POLYGON,
+        }),
+      ).rejects.toThrow(SentinelChainNotSupportedError);
+      service.destroy();
+    });
+
+    it('throws HttpError with the response body on a non-2xx response', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/v1/networks/1/cancel')
+        .reply(500, { statusCode: 500, error: 'Internal Server Error' });
+
+      const error = await service
+        .cancel(MOCK_CANCEL_REQUEST)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({
+        httpStatus: 500,
+        data: { statusCode: 500, error: 'Internal Server Error' },
+      });
+      service.destroy();
+    });
+
+    it('is callable via messenger action', async () => {
+      const { service, rootMessenger } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/v1/networks/1/cancel')
+        .reply(200, MOCK_CANCEL_RESPONSE);
+
+      const result = await rootMessenger.call(
+        'SentinelApiService:cancel',
+        MOCK_CANCEL_REQUEST,
+      );
+
+      expect(result).toStrictEqual(MOCK_CANCEL_RESPONSE);
       service.destroy();
     });
   });

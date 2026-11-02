@@ -9,6 +9,8 @@ export type {
   SentinelApiServiceCacheUpdatedEvent,
   SentinelApiServiceGranularCacheUpdatedEvent,
   SentinelAuthorization,
+  SentinelCancelRequest,
+  SentinelCancelResponse,
   SentinelGetFeesRequest,
   SentinelGetFeesResponse,
   SentinelMeta,
@@ -48,6 +50,7 @@ export type {
   SentinelApiServiceSubmitRelayTransactionAction,
   SentinelApiServiceSubmitTransactionsAction,
   SentinelApiServiceGetSmartTransactionAction,
+  SentinelApiServiceCancelAction,
 } from './sentinel-api-service-method-action-types.js';
 export {
   SentinelApiResponseValidationError,

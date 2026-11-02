@@ -109,3 +109,12 @@ export const SentinelGetFeesResponseStruct = type({
 export const SentinelSubmitTransactionsResponseStruct = type({
   uuid: string(),
 });
+
+/**
+ * Validates the `/cancel` response body.
+ */
+export const SentinelCancelResponseStruct = type({
+  affected: number(),
+  cancelled: boolean(),
+  uuid: string(),
+});

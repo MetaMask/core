@@ -7,8 +7,6 @@ import type { SmartTransactionsNetworkConfig } from './featureFlags/index.js';
 /** API */
 export enum APIType {
   ESTIMATE_GAS = 1,
-  SUBMIT_TRANSACTIONS = 2,
-  CANCEL = 3,
   BATCH_STATUS = 4,
 }
 
