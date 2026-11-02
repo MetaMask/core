@@ -329,7 +329,7 @@ jobs:
           path: .vitest/blob/
           merge-multiple: true
       - name: Merge reports
-        run: yarn vitest --merge-reports --reporter default --silent
+        run: yarn vitest --merge-reports --reporter default --reporter github-actions --silent
 
   build-platform-api-docs:
     name: Build Platform API docs
