@@ -13,6 +13,8 @@ jobs:
     outputs:
       node-versions: ${{ steps.get-node-versions.outputs.node-versions }}
       latest-version: ${{ steps.get-node-versions.outputs.latest-version }}
+      shards: ${{ steps.shards.outputs.shards }}
+      shard-count: ${{ steps.shards.outputs.count }}
     steps:
       - name: Get Node versions
         id: get-node-versions
@@ -38,6 +40,14 @@ jobs:
           else
             echo "node-versions=[\"$latest\"]" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Get test shards
+        id: shards
+        env:
+          COUNT: 10
+        run: |
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "shards=$(seq 1 "$COUNT" | jq -sc .)" >> "$GITHUB_OUTPUT"
 
   prepare:
     name: Prepare
@@ -257,34 +267,38 @@ jobs:
             exit 1
           fi
 
-  # The following `test-*` jobs are duplicated because a single job may only
-  # create a maximum of 256 matrix combinations, and we have more than 256 total
-  # test combinations across all Node.js versions.
-  test-22:
-    name: Test (22.x)
+  test:
+    name: Test
     runs-on: ubuntu-latest
-    if: >-
-      needs.prepare.outputs.package-names != '[]' && (
-        github.ref_name == 'main' ||
-        startsWith(github.head_ref, 'release/') ||
-        startsWith(github.base_ref, 'release/') ||
-        startsWith(github.event.merge_group.base_ref, 'refs/heads/release/')
-      )
-    needs: prepare
+    needs:
+      - prepare
+      - prepare-environment
     strategy:
       fail-fast: false
       matrix:
-        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
+        node-version: ${{ fromJson(needs.prepare-environment.outputs.node-versions) }}
+        shard: ${{ fromJson(needs.prepare-environment.outputs.shards) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
           persist-credentials: false
-          node-version: 22.x
-      - run: yarn workspace "$PACKAGE_NAME" run test:coverage
+          node-version: ${{ matrix.node-version }}
+      - name: Test
+        run: yarn vitest --reporter=blob --reporter=default --shard "$SHARD/$SHARD_COUNT"
         env:
-          PACKAGE_NAME: ${{ matrix.package-name }}
+          SHARD: ${{ matrix.shard }}
+          SHARD_COUNT: ${{ needs.prepare-environment.outputs.shard-count }}
+      - name: Upload blob report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: blob-report-${{ matrix.node-version }}-${{ matrix.shard }}
+          path: .vitest/blob/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
       - name: Require clean working directory
         shell: bash
         run: |
@@ -293,65 +307,32 @@ jobs:
             exit 1
           fi
 
-  test-24:
-    name: Test (24.x)
+  merge-test-reports:
+    name: Merge test reports (${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    if: >-
-      needs.prepare.outputs.package-names != '[]' && (
-        github.ref_name == 'main' ||
-        startsWith(github.head_ref, 'release/') ||
-        startsWith(github.base_ref, 'release/') ||
-        startsWith(github.event.merge_group.base_ref, 'refs/heads/release/')
-      )
-    needs: prepare
+    needs:
+      - prepare-environment
+      - test
+    if: ${{ !cancelled() }}
     strategy:
       fail-fast: false
       matrix:
-        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
+        node-version: ${{ fromJson(needs.prepare-environment.outputs.node-versions) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
           persist-credentials: false
-          node-version: 24.x
-      - run: yarn workspace "$PACKAGE_NAME" run test:coverage
-        env:
-          PACKAGE_NAME: ${{ matrix.package-name }}
-      - name: Require clean working directory
-        shell: bash
-        run: |
-          if ! git diff --exit-code; then
-            echo "Working tree dirty at end of job"
-            exit 1
-          fi
-
-  test-26:
-    name: Test (26.x)
-    runs-on: ubuntu-latest
-    if: needs.prepare.outputs.package-names != '[]'
-    needs: prepare
-    strategy:
-      fail-fast: false
-      matrix:
-        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
-    steps:
-      - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
+          node-version: ${{ matrix.node-version }}
+      - name: Download blob reports
+        uses: actions/download-artifact@v8
         with:
-          is-high-risk-environment: false
-          persist-credentials: false
-          node-version: 26.x
-      - run: yarn workspace "$PACKAGE_NAME" run test:coverage
-        env:
-          PACKAGE_NAME: ${{ matrix.package-name }}
-      - name: Require clean working directory
-        shell: bash
-        run: |
-          if ! git diff --exit-code; then
-            echo "Working tree dirty at end of job"
-            exit 1
-          fi
+          pattern: blob-report-${{ matrix.node-version }}-*
+          path: .vitest/blob/
+          merge-multiple: true
+      - name: Merge reports
+        run: yarn vitest --merge-reports --reporter default
 
   build-platform-api-docs:
     name: Build Platform API docs
