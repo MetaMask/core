@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Fetch Smart Transactions liveness from `@metamask/sentinel-api-service` via the `SentinelApiService:getNetwork` messenger action
+  - Consumers must construct a `SentinelApiService` and delegate the `SentinelApiService:getNetwork` action to the `SmartTransactionsController` messenger.
+
 ## [27.2.1]
 
 ### Changed

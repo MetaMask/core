@@ -300,10 +300,6 @@ const createStateAfterSuccess = () => {
   ];
 };
 
-const createSuccessLivenessApiResponse = () => ({
-  smartTransactions: true,
-});
-
 const testHistory = [
   {
     op: 'add',
@@ -1724,50 +1720,44 @@ describe('SmartTransactionsController', () => {
 
   describe('fetchLiveness', () => {
     it('fetches a liveness for Smart Transactions API', async () => {
-      await withController(async ({ controller }) => {
-        const successLivenessApiResponse = createSuccessLivenessApiResponse();
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .get(`/network`)
-          .reply(200, successLivenessApiResponse);
-
+      await withController(async ({ controller, getNetwork }) => {
         const liveness = await controller.fetchLiveness();
 
+        expect(getNetwork).toHaveBeenCalledWith(ChainId.mainnet);
         expect(liveness).toBe(true);
       });
     });
 
     it('fetches liveness and sets in feesByChainId state for the Smart Transactions API for the chainId of the networkClientId passed in', async () => {
-      await withController(async ({ controller }) => {
-        nock(SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec])
-          .get(`/network`)
-          .replyWithError('random error');
+      await withController(
+        {
+          getNetwork: vi.fn().mockRejectedValue(new Error('random error')),
+        },
+        async ({ controller, getNetwork }) => {
+          expect(
+            controller.state.smartTransactionsState.livenessByChainId,
+          ).toStrictEqual({
+            [ChainId.mainnet]: true,
+            [ChainId.sepolia]: true,
+          });
 
-        expect(
-          controller.state.smartTransactionsState.livenessByChainId,
-        ).toStrictEqual({
-          [ChainId.mainnet]: true,
-          [ChainId.sepolia]: true,
-        });
+          await controller.fetchLiveness({
+            networkClientId: NetworkType.sepolia,
+          });
 
-        await controller.fetchLiveness({
-          networkClientId: NetworkType.sepolia,
-        });
-
-        expect(
-          controller.state.smartTransactionsState.livenessByChainId,
-        ).toStrictEqual({
-          [ChainId.mainnet]: true,
-          [ChainId.sepolia]: false,
-        });
-      });
+          expect(getNetwork).toHaveBeenCalledWith(ChainId.sepolia);
+          expect(
+            controller.state.smartTransactionsState.livenessByChainId,
+          ).toStrictEqual({
+            [ChainId.mainnet]: true,
+            [ChainId.sepolia]: false,
+          });
+        },
+      );
     });
 
     it('fetches liveness using chainId directly when provided', async () => {
-      await withController(async ({ controller }) => {
-        nock(SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec])
-          .get(`/network`)
-          .reply(200, createSuccessLivenessApiResponse());
-
+      await withController(async ({ controller, getNetwork }) => {
         expect(
           controller.state.smartTransactionsState.livenessByChainId,
         ).toStrictEqual({
@@ -1779,6 +1769,7 @@ describe('SmartTransactionsController', () => {
           chainId: ChainId.sepolia,
         });
 
+        expect(getNetwork).toHaveBeenCalledWith(ChainId.sepolia);
         expect(liveness).toBe(true);
         expect(
           controller.state.smartTransactionsState.livenessByChainId,
@@ -1790,19 +1781,15 @@ describe('SmartTransactionsController', () => {
     });
 
     it('prioritizes chainId over networkClientId when both are provided', async () => {
-      await withController(async ({ controller }) => {
-        // Mock sepolia (the chainId we're passing directly)
-        nock(SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec])
-          .get(`/network`)
-          .reply(200, createSuccessLivenessApiResponse());
-
+      await withController(async ({ controller, getNetwork }) => {
         const liveness = await controller.fetchLiveness({
           chainId: ChainId.sepolia,
-          networkClientId: NetworkType.mainnet, // This should be ignored
+          networkClientId: NetworkType.mainnet,
         });
 
+        expect(getNetwork).toHaveBeenCalledWith(ChainId.sepolia);
+        expect(getNetwork).not.toHaveBeenCalledWith(ChainId.mainnet);
         expect(liveness).toBe(true);
-        // Verify it used sepolia (from chainId), not mainnet (from networkClientId)
         expect(
           controller.state.smartTransactionsState.livenessByChainId[
             ChainId.sepolia
@@ -2198,25 +2185,6 @@ describe('SmartTransactionsController', () => {
             .reply(200, { message: 'successful' });
 
           await controller.cancelSmartTransaction('uuid1');
-
-          expect(apiCall.isDone()).toBe(true);
-        },
-      );
-    });
-
-    it('sends Authorization header to Sentinel /network when getBearerToken is provided', async () => {
-      const bearerToken = 'test-bearer-token-456';
-      await withController(
-        {
-          bearerToken,
-        },
-        async ({ controller }) => {
-          const apiCall = nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .get(`/network`)
-            .matchHeader('Authorization', `Bearer ${bearerToken}`)
-            .reply(200, createSuccessLivenessApiResponse());
-
-          await controller.fetchLiveness();
 
           expect(apiCall.isDone()).toBe(true);
         },
@@ -3011,13 +2979,10 @@ describe('SmartTransactionsController', () => {
             trace: traceCallback,
           },
         },
-        async ({ controller }) => {
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .get(`/network`)
-            .reply(200, createSuccessLivenessApiResponse());
-
+        async ({ controller, getNetwork }) => {
           await controller.fetchLiveness();
 
+          expect(getNetwork).toHaveBeenCalledWith(ChainId.mainnet);
           expect(traceCallback).toHaveBeenCalledWith(
             { name: SmartTransactionsTraceName.FetchLiveness },
             expect.any(Function),
@@ -3194,9 +3159,11 @@ describe('SmartTransactionsController', () => {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  getNetwork,
   triggerNetworkStateChange,
 }: {
   controller: SmartTransactionsController;
+  getNetwork: ReturnType<typeof vi.fn>;
   triggerNetworkStateChange: (state: NetworkState) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -3207,6 +3174,7 @@ type WithControllerOptions = {
   getNonceLock?: TransactionControllerGetNonceLockAction['handler'];
   getTransactions?: TransactionControllerGetTransactionsAction['handler'];
   failTransaction?: TransactionControllerFailTransactionAction['handler'];
+  getNetwork?: ReturnType<typeof vi.fn>;
   remoteFeatureFlags?: {
     smartTransactionsNetworks?: Record<string, unknown>;
   };
@@ -3238,6 +3206,10 @@ async function withController<ReturnValue>(
     }),
     getTransactions = vi.fn(),
     failTransaction = vi.fn(),
+    getNetwork = vi.fn().mockResolvedValue({
+      smartTransactions: true,
+      network: 'mainnet',
+    }),
     remoteFeatureFlags = {},
     bearerToken,
   } = rest;
@@ -3330,6 +3302,10 @@ async function withController<ReturnValue>(
     'AuthenticationController:getBearerToken',
     vi.fn().mockResolvedValue(bearerToken),
   );
+  rootMessenger.registerActionHandler(
+    'SentinelApiService:getNetwork',
+    getNetwork,
+  );
 
   const messenger = new Messenger<
     'SmartTransactionsController',
@@ -3350,6 +3326,7 @@ async function withController<ReturnValue>(
       'TransactionController:getNonceLock',
       'TransactionController:getTransactions',
       'TransactionController:failTransaction',
+      'SentinelApiService:getNetwork',
     ],
     events: [
       'NetworkController:stateChange',
@@ -3406,6 +3383,7 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
+      getNetwork,
       triggerNetworkStateChange,
     });
   } finally {

@@ -41,7 +41,6 @@ export enum APIType {
   SUBMIT_TRANSACTIONS = 2,
   CANCEL = 3,
   BATCH_STATUS = 4,
-  LIVENESS = 5,
 }
 
 /** SmartTransactions */

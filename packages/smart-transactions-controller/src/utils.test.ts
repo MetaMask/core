@@ -48,7 +48,6 @@ describe('src/utils.js', () => {
 
   describe('getAPIRequestURL', () => {
     const ethereumChainIdDec = parseInt(ChainId.mainnet, 16);
-    const ethSepoliaChainIdDec = parseInt(ChainId.sepolia, 16);
 
     it('returns a sentinel URL for getting fees', () => {
       expect(utils.getAPIRequestURL(APIType.GET_FEES, ChainId.mainnet)).toBe(
@@ -89,34 +88,6 @@ describe('src/utils.js', () => {
         utils.getAPIRequestURL(APIType.BATCH_STATUS, ChainId.mainnet),
       ).toBe(
         `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${ethereumChainIdDec}/batchStatus`,
-      );
-    });
-
-    it('returns a URL for smart transactions API liveness on ETH Mainnet', () => {
-      expect(utils.getAPIRequestURL(APIType.LIVENESS, ChainId.mainnet)).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/network`,
-      );
-    });
-
-    it('returns a URL for smart transactions API liveness on ETH Sepolia', () => {
-      expect(utils.getAPIRequestURL(APIType.LIVENESS, ChainId.sepolia)).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[ethSepoliaChainIdDec]}/network`,
-      );
-    });
-
-    it('returns a URL for smart transactions API liveness on BSC', () => {
-      const bscChainIdHex = '0x38';
-      const bscChainIdDec = parseInt(bscChainIdHex, 16);
-      expect(utils.getAPIRequestURL(APIType.LIVENESS, bscChainIdHex)).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[bscChainIdDec]}/network`,
-      );
-    });
-
-    it('returns a URL for smart transactions API liveness on Base', () => {
-      const baseChainIdHex = '0x2105';
-      const baseChainIdDec = parseInt(baseChainIdHex, 16);
-      expect(utils.getAPIRequestURL(APIType.LIVENESS, baseChainIdHex)).toBe(
-        `${SENTINEL_API_BASE_URL_MAP[baseChainIdDec]}/network`,
       );
     });
 

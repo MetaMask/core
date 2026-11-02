@@ -67,10 +67,6 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
       return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/v1/networks/${chainIdDec}/batchStatus`;
     }
 
-    case APIType.LIVENESS: {
-      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/network`;
-    }
-
     default: {
       throw new Error(`Invalid APIType`); // It can never get here thanks to TypeScript.
     }

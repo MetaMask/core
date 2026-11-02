@@ -25,6 +25,7 @@ import type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
+import type { SentinelApiServiceGetNetworkAction } from '@metamask/sentinel-api-service';
 import type {
   TransactionControllerFailTransactionAction,
   TransactionControllerGetNonceLockAction,
@@ -191,6 +192,7 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
+  | SentinelApiServiceGetNetworkAction
   | TransactionControllerFailTransactionAction
   | TransactionControllerGetNonceLockAction
   | TransactionControllerGetTransactionsAction;
@@ -1153,12 +1155,12 @@ export class SmartTransactionsController extends StaticIntervalPollingController
     const chainId = chainIdArg ?? this.#getChainId({ networkClientId });
     let liveness = false;
     try {
-      const response = await this.#trace(
+      const network = await this.#trace(
         { name: SmartTransactionsTraceName.FetchLiveness },
         async () =>
-          await this.#fetch(getAPIRequestURL(APIType.LIVENESS, chainId)),
+          await this.messenger.call('SentinelApiService:getNetwork', chainId),
       );
-      liveness = Boolean(response.smartTransactions);
+      liveness = Boolean(network.smartTransactions);
     } catch {
       console.log('"fetchLiveness" API call failed');
     }
