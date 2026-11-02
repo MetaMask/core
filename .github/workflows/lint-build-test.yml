@@ -44,7 +44,7 @@ jobs:
       - name: Get test shards
         id: shards
         env:
-          COUNT: 10
+          COUNT: 20
         run: |
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
           echo "shards=$(seq 1 "$COUNT" | jq -sc .)" >> "$GITHUB_OUTPUT"
