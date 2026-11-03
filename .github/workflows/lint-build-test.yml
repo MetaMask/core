@@ -270,6 +270,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    if: needs.prepare.outputs.changed-paths != '[]'
     needs:
       - prepare
       - prepare-environment
@@ -286,8 +287,22 @@ jobs:
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
       - name: Test
-        run: yarn vitest --reporter=blob --reporter=default --shard "$SHARD/$SHARD_COUNT"
+        run: |
+          ARGS=(--reporter=blob --reporter=default --shard "$SHARD/$SHARD_COUNT" --passWithNoTests)
+
+          # Unless a root file changed, only run the changed packages and their
+          # dependants, using a temporary config that lists just those projects.
+          if [[ "$CHANGED_PATHS" != "full" ]]; then
+            PROJECTS=$(jq -c 'map("\(.)/vitest.config.{ts,mts}") + ["!packages/wallet-framework-docs/vitest.config.mts"]' <<< "$CHANGED_PATHS")
+
+            mkdir -p .vitest
+            echo "export default { test: { watch: false, projects: $PROJECTS } };" > .vitest/vitest.config.changed.mjs
+            ARGS+=(--config .vitest/vitest.config.changed.mjs)
+          fi
+
+          yarn vitest "${ARGS[@]}"
         env:
+          CHANGED_PATHS: ${{ needs.prepare.outputs.changed-paths }}
           SHARD: ${{ matrix.shard }}
           SHARD_COUNT: ${{ needs.prepare-environment.outputs.shard-count }}
           VITEST_BLOB_LABEL: ${{ matrix.node-version }}
@@ -314,7 +329,7 @@ jobs:
     needs:
       - prepare-environment
       - test
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && needs.test.result != 'skipped' }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
