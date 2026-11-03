@@ -46,16 +46,17 @@ import {
   KYC_CURRENT_STEPS,
   KYC_STATUSES,
 } from './types.js';
+import { getKycSessionDecision } from './sessionDecision.js';
+import type { KycSessionDecision } from './sessionDecision.js';
 import type {
   KycConsentRecord,
   KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
-  KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycVendor,
-  KycVendorDisclaimersAccepted,
+  KycVendorDisclaimersAcceptance,
   KycVendorSigning,
 } from './types.js';
 import { deriveClientMaterial } from './ukyc/deriveClientMaterial.js';
@@ -72,10 +73,7 @@ import {
 } from './ukyc/storageAccessToken.js';
 import type { UkycStorageOperation } from './ukyc/storageAccessToken.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
-import {
-  areVendorDisclaimersCompleted,
-  recordVendorDisclaimerAcceptance,
-} from './vendorDisclaimers.js';
+import { areVendorDisclaimersCompleted } from './vendorDisclaimers.js';
 
 // === GENERAL ===
 
@@ -113,127 +111,81 @@ const SESSION_STATUS_POLL_INTERVAL_MS = 10_000;
 // === STATE ===
 
 /**
- * Describes the shape of the state object for {@link KycController}.
+ * One vendor's KYC session and everything recorded for it. Sessions are keyed
+ * by vendor, matching kyc-api: a customer holds at most one session per vendor,
+ * and features that use the same vendor share it.
  */
-export type KycControllerState = {
-  /** Email associated with the session (sourced from the account). */
-  email: string | null;
-
-  vendor: KycVendor | null;
-
-  /** Resolved ISO 3166-1 alpha-3 country code. */
-  geoCountry: string | null;
-
-  /** Latest UKYC session status, or `null` when none has been fetched. */
+export type KycVendorSessionState = {
+  /** Latest UKYC session status, or `null` before a session exists. */
   sessionStatus: KycSessionStatus | null;
 
   /** Last durable identity-provider flow outcome for this session. */
   providerFlowStatus: KycProviderFlowStatus;
 
-  // TODO: Check if we need truly need to persist these accepted disclaimers
   /**
-   * Persisted vendor-disclaimer acceptance (T&C1) with fixed `moonpay` and
-   * `iron` keys. MoonPay stores only `termsAcceptedAt`; Iron stores
-   * `disclaimerIds`.
+   * ISO 3166-1 alpha-3 country this vendor's session was created with, or the
+   * country its terms were accepted for before a session existed. Vendor
+   * disclaimer checks read the catalog for this country.
    */
-  vendorDisclaimersAccepted: KycVendorDisclaimersAccepted;
+  residenceCountry: string | null;
+
   /**
-   * KYC-provider disclaimer documents the customer accepted during the last
-   * terms acceptance (persisted `{ key, version }` records under `sumsub`).
-   * Consents-path vendors require this when resuming a session. `null` for
-   * acceptance recorded before this field existed (treated as requiring
-   * reacceptance).
+   * The vendor's T&C acceptance (T&C1). Stored on the device before a session
+   * exists, then marked submitted once the vendor records it.
    */
-  providerDisclaimersAccepted: KycProviderDisclaimersAccepted;
+  vendorDisclaimersAccepted: KycVendorDisclaimersAcceptance | null;
+
   /**
-   * idOS disclaimer documents the customer accepted during the last terms
-   * acceptance (persisted `{ key, version }` records). Consents-path vendors
-   * require this when resuming a session. `null` for acceptance recorded
-   * before this field existed (treated as requiring reacceptance).
+   * KYC-provider (SumSub) disclaimer documents accepted for this session, as
+   * `{ key, version }` records. `null` when none were recorded.
+   */
+  providerDisclaimersAccepted: KycConsentRecord[] | null;
+
+  /**
+   * idOS disclaimer documents accepted for this session, as `{ key, version }`
+   * records. `null` when none were recorded.
    */
   idosDisclaimersAccepted: KycConsentRecord[] | null;
+
   /**
-   * Whether the customer consented to reuse existing idOS credentials
-   * during this session. Applied when recording session-scoped disclaimers.
-   * Not persisted: a new UKYC session must collect reuse consent again.
-   * `null` when never set (treated as `false`).
+   * Whether the customer consented to reuse existing idOS credentials for this
+   * session. `null` when never set (treated as `false`).
    */
   credentialReusabilityConsentGiven: boolean | null;
 };
 
+/**
+ * Describes the shape of the state object for {@link KycController}.
+ */
+export type KycControllerState = {
+  /** Session entries keyed by identity vendor. */
+  sessions: Partial<Record<KycVendor, KycVendorSessionState>>;
+};
+
 const kycControllerMetadata = {
-  email: {
-    includeInDebugSnapshot: false,
-    includeInStateLogs: false,
-    persist: true,
-    usedInUi: false,
-  },
-  vendor: {
+  sessions: {
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     persist: true,
     usedInUi: true,
-  },
-  geoCountry: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: true,
-  },
-  sessionStatus: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: true,
-  },
-  providerFlowStatus: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: true,
-  },
-  vendorDisclaimersAccepted: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: false,
-  },
-  providerDisclaimersAccepted: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: false,
-  },
-  idosDisclaimersAccepted: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: false,
-  },
-  credentialReusabilityConsentGiven: {
-    includeInDebugSnapshot: true,
-    includeInStateLogs: true,
-    persist: true,
-    usedInUi: false,
   },
 } satisfies StateMetadata<KycControllerState>;
 
 /**
- * Constructs the default {@link KycVendorDisclaimersAccepted} value.
+ * Constructs an empty {@link KycVendorSessionState}.
  *
- * @returns The default vendor-disclaimer acceptance map.
+ * @returns A vendor session entry with no session and nothing accepted.
  */
-export function getDefaultKycVendorDisclaimersAccepted(): KycVendorDisclaimersAccepted {
-  return { moonpay: null, iron: null };
-}
-
-/**
- * Constructs the default {@link KycProviderDisclaimersAccepted} value.
- *
- * @returns The default provider-disclaimer acceptance map.
- */
-export function getDefaultKycProviderDisclaimersAccepted(): KycProviderDisclaimersAccepted {
-  return { sumsub: null };
+export function getDefaultKycVendorSessionState(): KycVendorSessionState {
+  return {
+    sessionStatus: null,
+    providerFlowStatus: 'not_started',
+    residenceCountry: null,
+    vendorDisclaimersAccepted: null,
+    providerDisclaimersAccepted: null,
+    idosDisclaimersAccepted: null,
+    credentialReusabilityConsentGiven: null,
+  };
 }
 
 /**
@@ -242,17 +194,7 @@ export function getDefaultKycProviderDisclaimersAccepted(): KycProviderDisclaime
  * @returns The default state.
  */
 export function getDefaultKycControllerState(): KycControllerState {
-  return {
-    email: null,
-    vendor: null,
-    geoCountry: null,
-    sessionStatus: null,
-    providerFlowStatus: 'not_started',
-    vendorDisclaimersAccepted: getDefaultKycVendorDisclaimersAccepted(),
-    providerDisclaimersAccepted: getDefaultKycProviderDisclaimersAccepted(),
-    idosDisclaimersAccepted: null,
-    credentialReusabilityConsentGiven: null,
-  };
+  return { sessions: {} };
 }
 
 /**
@@ -261,14 +203,14 @@ export function getDefaultKycControllerState(): KycControllerState {
  */
 export type FetchSessionDisclaimersParams =
   | {
-      /** UKYC session id from `KycService.createUkycSession`. */
-      sessionId: string;
+      /** Identity vendor whose session catalog to fetch. */
+      vendor: KycVendor;
       country?: never;
     }
   | {
       /** ISO 3166-1 alpha-3 country code for `GET /disclaimers?country=`. */
       country: string;
-      sessionId?: never;
+      vendor?: never;
     };
 
 // === MESSENGER ===
@@ -289,8 +231,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'recordSessionDisclaimers',
   'hasCompletedSessionDisclaimers',
   'fetchVendorDisclaimers',
+  'acceptVendorDisclaimers',
   'recordVendorDisclaimers',
   'hasCompletedVendorDisclaimers',
+  'getSessionDecision',
   'launchProviderFlow',
   'deleteEncryptedStorage',
 ] as const;
@@ -364,14 +308,20 @@ export class KycController extends BaseController<
 
   readonly #trackKycAnalytics?: KycAnalyticsTrackers;
 
-  /** Handle for the scheduled next session-status poll, or `null`. */
-  #sessionStatusPollTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Scheduled next session-status poll for each vendor that is polling. */
+  readonly #sessionStatusPollTimers = new Map<
+    KycVendor,
+    ReturnType<typeof setTimeout>
+  >();
 
   /**
-   * Monotonic polling token. Bumped when the loop stops so an in-flight fetch
-   * neither writes state nor schedules a follow-up.
+   * Monotonic polling token per vendor. Bumped when that vendor's loop stops
+   * so an in-flight fetch neither writes state nor schedules a follow-up.
    */
-  #sessionStatusPollToken = 0;
+  readonly #sessionStatusPollTokens = new Map<KycVendor, number>();
+
+  /** Vendor whose SumSub flow is on screen, or `null`. */
+  #presentingVendor: KycVendor | null = null;
 
   /**
    * Constructs a new {@link KycController}.
@@ -467,12 +417,12 @@ export class KycController extends BaseController<
 
   /**
    * Starts a KYC session for the given vendor. Reuses a latest vendor session
-   * when one exists; otherwise creates a UKYC session.
+   * when one exists; otherwise creates a UKYC session. Sessions for other
+   * vendors are left untouched.
    *
-   * The verified email stored on controller state comes from the partner
-   * identity token. When that request returns HTTP 422, a stored email is
-   * kept for an existing session. Creating a vendor customer and UKYC session
-   * requires the token, which both requests send as `partnerIdentityToken`.
+   * Creating a vendor customer and UKYC session requires a partner identity
+   * token carrying a verified email; both requests send it as
+   * `partnerIdentityToken`. Resuming an existing session does not.
    *
    * Session creation derives client material from the UKYC
    * `local_user_secret`. Call {@link ensureLocalUserSecret} after the user
@@ -490,53 +440,28 @@ export class KycController extends BaseController<
     vendor: KycVendor;
     aal2Token?: string;
   }): Promise<KycSessionStatus> {
-    const partnerIdentity = await this.#getPartnerIdentityForVendor(
-      params.vendor,
-    );
-    const email = partnerIdentity?.email ?? this.state.email;
-    if (!email) {
-      throw new Error('KycController missing verified email for vendor');
-    }
-    if (this.state.email !== null && this.state.email !== email) {
-      throw new Error(
-        'KycController already initialized with a different email',
-      );
-    }
-    if (this.state.vendor !== null && this.state.vendor !== params.vendor) {
-      throw new Error(
-        'KycController already initialized with a different vendor',
-      );
-    }
-
+    const { vendor } = params;
+    const partnerIdentity = await this.#getPartnerIdentityForVendor(vendor);
     const geoCountry = await this.messenger.call('KycService:getGeoCountry');
-    if (
-      this.state.geoCountry !== null &&
-      this.state.geoCountry !== geoCountry
-    ) {
-      throw new Error(
-        'KycController already initialized with a different geoCountry',
-      );
-    }
 
-    this.update((state) => {
-      state.email = email;
-      state.vendor = params.vendor;
-      state.geoCountry = geoCountry;
-      if (state.sessionStatus === null) {
-        state.providerFlowStatus = 'not_started';
+    this.#updateVendorSession(vendor, (entry) => {
+      entry.residenceCountry ??= geoCountry;
+      if (entry.sessionStatus === null) {
+        entry.providerFlowStatus = 'not_started';
       }
     });
 
-    if (this.state.sessionStatus === null) {
+    const storedSession = this.state.sessions[vendor]?.sessionStatus ?? null;
+    if (storedSession === null) {
       const sessionStatus = await this.messenger.call(
         'KycService:getSessionStatusForVendor',
-        params.vendor,
+        vendor,
       );
       if (sessionStatus !== null) {
-        this.update((state) => {
-          state.sessionStatus = sessionStatus;
+        this.#updateVendorSession(vendor, (entry) => {
+          entry.sessionStatus = sessionStatus;
         });
-        return this.#refreshAuthorizationsIfNeeded();
+        return this.#refreshAuthorizationsIfNeeded(vendor);
       }
 
       // TODO: Probably move this into it's own method? Feels like startSession is a little overloaded.
@@ -548,58 +473,50 @@ export class KycController extends BaseController<
       }
 
       if (!partnerIdentity) {
-        throw new Error(
-          'KycController missing partner identity token for vendor',
-        );
+        throw new Error('KycController missing verified email for vendor');
       }
 
       await this.messenger.call('KycService:createVendorCustomer', {
-        vendor: params.vendor,
+        vendor,
         partnerIdentityToken: partnerIdentity.partnerIdentityToken,
       });
 
-      return this.#createUkycSession({
-        vendor: params.vendor,
+      const createdSession = await this.#createUkycSession({
+        vendor,
         geoCountry,
         aal2Token: params.aal2Token,
         partnerIdentityToken: partnerIdentity.partnerIdentityToken,
       });
+      this.#updateVendorSession(vendor, (entry) => {
+        entry.residenceCountry = geoCountry;
+      });
+      return createdSession;
     }
     const sessionStatus = await this.messenger.call(
       'KycService:getSessionStatus',
-      { sessionId: this.state.sessionStatus.id },
+      { sessionId: storedSession.id },
     );
 
-    this.#updateSessionStatusAndTrackAnalytics(sessionStatus);
+    this.#updateSessionStatusAndTrackAnalytics(vendor, sessionStatus);
     // TODO: Should we resume polling here?
-    return this.#refreshAuthorizationsIfNeeded();
+    return this.#refreshAuthorizationsIfNeeded(vendor);
   }
 
   /**
    * Stops session-status polling and restores default controller state.
    */
   async reset(): Promise<void> {
-    this.#stopSessionStatusPolling();
     this.clearState();
   }
 
   /**
-   * Restores the controller to its default state.
+   * Stops every vendor's session-status polling and removes every session
+   * entry.
    */
   clearState(): void {
-    this.#stopSessionStatusPolling();
+    this.#stopAllSessionStatusPolling();
     this.update((state) => {
-      state.email = null;
-      state.vendor = null;
-      state.geoCountry = null;
-      state.sessionStatus = null;
-      state.providerFlowStatus = 'not_started';
-      state.vendorDisclaimersAccepted =
-        getDefaultKycVendorDisclaimersAccepted();
-      state.providerDisclaimersAccepted =
-        getDefaultKycProviderDisclaimersAccepted();
-      state.idosDisclaimersAccepted = null;
-      state.credentialReusabilityConsentGiven = null;
+      state.sessions = {};
     });
   }
 
@@ -619,130 +536,152 @@ export class KycController extends BaseController<
    * Fetches the vendors this customer's verified identity data has been shared
    * with, newest first.
    *
-   * The external user id comes from the session status on state. When no
-   * session has been stored yet, the latest session for the vendor on state is
-   * fetched first (without writing it to state). An unresolvable session — no
-   * vendor on state, or no latest session for it — yields an empty list rather
-   * than an error, so consumers can render an empty "shared with" list.
+   * The external user id is the same for every vendor, so it is read from any
+   * stored session. When none is stored, the latest session for each vendor
+   * with an entry is fetched (without writing it to state). An unresolvable
+   * session yields an empty list rather than an error, so consumers can render
+   * an empty "shared with" list.
    *
    * @returns The data shares, newest first; empty when no session can be
    * resolved.
    */
   async getDataShares(): Promise<KycDataShare[]> {
-    let externalUserId = this.state.sessionStatus?.externalUserId;
+    const entries = Object.values(this.state.sessions);
+    let externalUserId = entries.find((entry) => entry?.sessionStatus)
+      ?.sessionStatus?.externalUserId;
 
     if (!externalUserId) {
-      const { vendor } = this.state;
-      if (!vendor) {
-        return [];
+      for (const vendor of Object.keys(this.state.sessions) as KycVendor[]) {
+        const sessionStatus = await this.messenger.call(
+          'KycService:getSessionStatusForVendor',
+          vendor,
+        );
+        if (sessionStatus) {
+          externalUserId = sessionStatus.externalUserId;
+          break;
+        }
       }
-      const sessionStatus = await this.messenger.call(
-        'KycService:getSessionStatusForVendor',
-        vendor,
-      );
-      if (!sessionStatus) {
-        return [];
-      }
-      externalUserId = sessionStatus.externalUserId;
     }
 
+    if (!externalUserId) {
+      return [];
+    }
     return this.messenger.call('KycService:getDataShares', { externalUserId });
   }
 
   /**
-   * Returns the durable outcome of the identity-provider flow.
+   * Returns the durable outcome of a vendor's identity-provider flow.
    *
-   * @returns The latest provider-flow status.
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @returns The latest provider-flow status, or `not_started` when the vendor
+   * has no entry.
    */
-  getProviderFlowStatus(): KycProviderFlowStatus {
-    return this.state.providerFlowStatus;
+  getProviderFlowStatus({
+    vendor,
+  }: {
+    vendor: KycVendor;
+  }): KycProviderFlowStatus {
+    return this.state.sessions[vendor]?.providerFlowStatus ?? 'not_started';
   }
 
   // TODO: Perhaps this should be renamed to resumeSession()?
   /**
-   * Returns the session already stored on state.
+   * Returns the vendor's session already stored on state.
    *
-   * Starts session-status polling when `finalStatus` is not `approved`,
-   * `rejected`, or `retry`. Does not fetch status or refresh capability
-   * authorization.
+   * Starts that vendor's session-status polling when `finalStatus` is not
+   * `approved`, `rejected`, or `retry`. Does not fetch status or refresh
+   * capability authorization.
    *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
    * @returns The session status stored at call time.
-   * @throws If there is no session on state.
+   * @throws If the vendor has no session on state.
    */
-  refreshSessionStatus(): KycSessionStatus {
-    if (!this.state.sessionStatus) {
-      throw new Error('No session was found');
+  refreshSessionStatus({ vendor }: { vendor: KycVendor }): KycSessionStatus {
+    const sessionStatus = this.#requireSessionStatus(vendor);
+    if (!FINAL_STATUSES_TO_STOP_POLLING.has(sessionStatus.finalStatus)) {
+      this.startSessionStatusPolling({ vendor });
     }
-    if (
-      !FINAL_STATUSES_TO_STOP_POLLING.has(this.state.sessionStatus.finalStatus)
-    ) {
-      this.startSessionStatusPolling();
-    }
-    return this.state.sessionStatus;
-  }
-
-  /**
-   * Returns the persisted session status.
-   *
-   * Does not call the network and does not start session-status polling.
-   *
-   * @returns The session on state, or `null` when none is stored.
-   */
-  readSessionStatus(): KycSessionStatus | null {
-    return this.state.sessionStatus;
-  }
-
-  /**
-   * Fetches `GET /sessions/{id}/status` once and writes the result onto state.
-   *
-   * Does not start the session-status polling timer.
-   *
-   * @param sessionId - UKYC session id.
-   * @returns The fetched session status.
-   */
-  async fetchSessionStatusOnce(sessionId: string): Promise<KycSessionStatus> {
-    const sessionStatus = await this.messenger.call(
-      'KycService:getSessionStatus',
-      { sessionId },
-    );
-    this.#updateSessionStatusAndTrackAnalytics(sessionStatus);
     return sessionStatus;
   }
 
   /**
-   * Starts polling `GET /sessions/{id}/status` for
-   * {@link KycControllerState.sessionStatus}'s current `id`. Each tick writes
-   * the result onto state only when the payload changed. The first poll runs
+   * Returns the vendor's persisted session status.
+   *
+   * Does not call the network and does not start session-status polling.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @returns The vendor's session on state, or `null` when none is stored.
+   */
+  readSessionStatus({ vendor }: { vendor: KycVendor }): KycSessionStatus | null {
+    return this.state.sessions[vendor]?.sessionStatus ?? null;
+  }
+
+  /**
+   * Fetches `GET /sessions/{id}/status` once for the vendor's stored session
+   * and writes the result onto that vendor's entry.
+   *
+   * Does not start the session-status polling timer.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @returns The fetched session status.
+   * @throws If the vendor has no session on state.
+   */
+  async fetchSessionStatusOnce({
+    vendor,
+  }: {
+    vendor: KycVendor;
+  }): Promise<KycSessionStatus> {
+    const { id: sessionId } = this.#requireSessionStatus(vendor);
+    const sessionStatus = await this.messenger.call(
+      'KycService:getSessionStatus',
+      { sessionId },
+    );
+    this.#updateSessionStatusAndTrackAnalytics(vendor, sessionStatus);
+    return sessionStatus;
+  }
+
+  /**
+   * Starts polling `GET /sessions/{id}/status` for the vendor's stored
+   * session. Each vendor has its own loop. Each tick writes the result onto
+   * that vendor's entry only when the payload changed. The first poll runs
    * immediately. Each later wait starts at 10 seconds and grows by 10 seconds
    * after every poll, including a failed one. Starting the loop again resets
    * that delay. The loop stops once `finalStatus` is `approved`, `rejected`,
    * or `retry`, or when {@link reset} / {@link clearState} runs.
    *
-   * @throws If there is no current session id to poll.
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @throws If the vendor has no session id to poll.
    */
-  startSessionStatusPolling(): void {
-    const sessionId = this.state.sessionStatus?.id;
-    if (!sessionId) {
-      throw new Error('No session was found');
-    }
+  startSessionStatusPolling({ vendor }: { vendor: KycVendor }): void {
+    const { id: sessionId } = this.#requireSessionStatus(vendor);
 
-    this.#stopSessionStatusPolling();
-    const token = this.#sessionStatusPollToken;
+    this.#stopSessionStatusPolling(vendor);
+    const token = this.#getSessionStatusPollToken(vendor);
     let completedPolls = 0;
 
     const tick = async (): Promise<void> => {
-      const shouldStop = await this.#pollSessionStatusOnce(sessionId, token);
+      const shouldStop = await this.#pollSessionStatusOnce(
+        vendor,
+        sessionId,
+        token,
+      );
       if (shouldStop) {
         return;
       }
       completedPolls += 1;
-      this.#sessionStatusPollTimer = setTimeout(() => {
-        this.#sessionStatusPollTimer = null;
+      const timer = setTimeout(() => {
+        this.#sessionStatusPollTimers.delete(vendor);
         // `tick` swallows its own errors and therefore never rejects.
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         tick();
       }, SESSION_STATUS_POLL_INTERVAL_MS * completedPolls);
-      this.#sessionStatusPollTimer.unref?.();
+      timer.unref?.();
+      this.#sessionStatusPollTimers.set(vendor, timer);
     };
 
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -750,14 +689,16 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Fetches session status for the polled session and records it when it
-   * differs from state.
+   * Fetches session status for the polled session and records it on the
+   * vendor's entry when it differs from state.
    *
+   * @param vendor - Vendor the loop belongs to.
    * @param sessionId - Session the loop started for.
    * @param token - Polling token captured when the loop started.
    * @returns Whether the loop should stop.
    */
   async #pollSessionStatusOnce(
+    vendor: KycVendor,
     sessionId: string,
     token: number,
   ): Promise<boolean> {
@@ -766,26 +707,62 @@ export class KycController extends BaseController<
         'KycService:getSessionStatus',
         { sessionId },
       );
-      if (this.#sessionStatusPollToken !== token) {
+      if (this.#getSessionStatusPollToken(vendor) !== token) {
         return true;
       }
 
       // TODO: This check seems fragile
       if (
-        JSON.stringify(this.state.sessionStatus) !==
+        JSON.stringify(this.state.sessions[vendor]?.sessionStatus ?? null) !==
         JSON.stringify(sessionStatus)
       ) {
-        this.#updateSessionStatusAndTrackAnalytics(sessionStatus);
+        this.#updateSessionStatusAndTrackAnalytics(vendor, sessionStatus);
       }
 
       if (FINAL_STATUSES_TO_STOP_POLLING.has(sessionStatus.finalStatus)) {
-        this.#stopSessionStatusPolling();
+        this.#stopSessionStatusPolling(vendor);
         return true;
       }
       return false;
     } catch {
-      return this.#sessionStatusPollToken !== token;
+      return this.#getSessionStatusPollToken(vendor) !== token;
     }
+  }
+
+  // === VENDOR SESSION ENTRIES ===
+
+  /**
+   * Applies a write to the vendor's session entry, creating the entry first
+   * when the vendor has none.
+   *
+   * @param vendor - The identity vendor.
+   * @param write - Mutates the vendor's entry.
+   */
+  #updateVendorSession(
+    vendor: KycVendor,
+    write: (entry: KycVendorSessionState) => void,
+  ): void {
+    this.update((state) => {
+      const entry =
+        state.sessions[vendor] ?? getDefaultKycVendorSessionState();
+      write(entry);
+      state.sessions[vendor] = entry;
+    });
+  }
+
+  /**
+   * Returns the vendor's stored session status.
+   *
+   * @param vendor - The identity vendor.
+   * @returns The vendor's session status.
+   * @throws If the vendor has no session on state.
+   */
+  #requireSessionStatus(vendor: KycVendor): KycSessionStatus {
+    const sessionStatus = this.state.sessions[vendor]?.sessionStatus;
+    if (!sessionStatus) {
+      throw new Error('No session was found');
+    }
+    return sessionStatus;
   }
 
   // === ANALYTICS ===
@@ -797,12 +774,15 @@ export class KycController extends BaseController<
   // call site.
 
   /**
-   * Computes the analytics KYC status from the current state.
+   * Computes the analytics KYC status for a vendor from the current state.
    *
+   * @param vendor - The identity vendor.
    * @returns The analytics KYC status.
    */
-  #getKycAnalyticsStatus(): KycAnalyticsStatus {
-    return getKycAnalyticsStatus(this.state.sessionStatus);
+  #getKycAnalyticsStatus(vendor: KycVendor): KycAnalyticsStatus {
+    return getKycAnalyticsStatus(
+      this.state.sessions[vendor]?.sessionStatus ?? null,
+    );
   }
 
   /**
@@ -811,17 +791,19 @@ export class KycController extends BaseController<
    * A callback exception is ignored. The KYC outcome is already stored, and
    * analytics must not replace it or skip the polling that follows a submit.
    *
+   * @param vendor - The identity vendor.
    * @param status - The launch outcome.
    */
   #trackAnalyticsVerificationOutcome(
+    vendor: KycVendor,
     status: KycAnalyticsVerificationOutcomePayload['status'],
   ): void {
     try {
       this.#trackKycAnalytics?.verificationOutcome({
         status,
-        kycStatus: this.#getKycAnalyticsStatus(),
-        providerFlowStatus: this.state.providerFlowStatus,
-        vendor: this.state.vendor,
+        kycStatus: this.#getKycAnalyticsStatus(vendor),
+        providerFlowStatus: this.getProviderFlowStatus({ vendor }),
+        vendor,
       });
     } catch {
       // The host's tracker failed. The launch outcome stays as written.
@@ -835,12 +817,14 @@ export class KycController extends BaseController<
    * A callback exception is ignored, so a tracker failure cannot keep a
    * finished session polling.
    *
+   * @param vendor - The identity vendor.
    * @param previousAnalyticsStatus - Analytics KYC status before the causing write.
    */
   #trackAnalyticsStatusIfChanged(
+    vendor: KycVendor,
     previousAnalyticsStatus: KycAnalyticsStatus,
   ): void {
-    const kycStatus = this.#getKycAnalyticsStatus();
+    const kycStatus = this.#getKycAnalyticsStatus(vendor);
     if (kycStatus === previousAnalyticsStatus) {
       return;
     }
@@ -848,8 +832,8 @@ export class KycController extends BaseController<
       this.#trackKycAnalytics?.statusChanged({
         previousKycStatus: previousAnalyticsStatus,
         kycStatus,
-        providerFlowStatus: this.state.providerFlowStatus,
-        vendor: this.state.vendor,
+        providerFlowStatus: this.getProviderFlowStatus({ vendor }),
+        vendor,
       });
     } catch {
       // The host's tracker failed. The stored session stays as written.
@@ -857,61 +841,94 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Replaces the stored session status, then reports an analytics KYC status
-   * change when one occurred. State is written before the callback runs.
+   * Replaces the vendor's stored session status, then reports an analytics KYC
+   * status change when one occurred. State is written before the callback
+   * runs.
    *
    * Writes that load a session into an empty slot must not use this helper, so
    * an already-decided session found on a fresh install is not reported.
    *
+   * @param vendor - The identity vendor.
    * @param sessionStatus - The session status to store.
    */
-  #updateSessionStatusAndTrackAnalytics(sessionStatus: KycSessionStatus): void {
-    const previousAnalyticsStatus = this.#getKycAnalyticsStatus();
-    this.update((state) => {
-      state.sessionStatus = sessionStatus;
+  #updateSessionStatusAndTrackAnalytics(
+    vendor: KycVendor,
+    sessionStatus: KycSessionStatus,
+  ): void {
+    const previousAnalyticsStatus = this.#getKycAnalyticsStatus(vendor);
+    this.#updateVendorSession(vendor, (entry) => {
+      entry.sessionStatus = sessionStatus;
     });
-    this.#trackAnalyticsStatusIfChanged(previousAnalyticsStatus);
+    this.#trackAnalyticsStatusIfChanged(vendor, previousAnalyticsStatus);
   }
 
   /**
    * Applies the state write for one SumSub launch attempt, then reports the
    * launch outcome and, if the write changed the analytics KYC status (a
    * submitted launch moves it to `pending`), the status change. Every attempt
-   * is reported, including a repeat of the previous outcome. Pass no `update`
+   * is reported, including a repeat of the previous outcome. Pass no `write`
    * for failures that must not write state.
    *
+   * @param vendor - The identity vendor.
    * @param status - The launch outcome.
-   * @param update - Optional state write applied before the callbacks run.
+   * @param write - Optional write to the vendor's entry applied before the
+   * callbacks run.
    */
   #recordLaunchOutcomeAndTrackAnalytics(
+    vendor: KycVendor,
     status: 'submitted' | 'abandoned' | 'failed',
-    update?: (state: KycControllerState) => void,
+    write?: (entry: KycVendorSessionState) => void,
   ): void {
-    const previousAnalyticsStatus = this.#getKycAnalyticsStatus();
-    if (update) {
-      this.update(update);
+    const previousAnalyticsStatus = this.#getKycAnalyticsStatus(vendor);
+    if (write) {
+      this.#updateVendorSession(vendor, write);
     }
-    this.#trackAnalyticsVerificationOutcome(status);
-    this.#trackAnalyticsStatusIfChanged(previousAnalyticsStatus);
+    this.#trackAnalyticsVerificationOutcome(vendor, status);
+    this.#trackAnalyticsStatusIfChanged(vendor, previousAnalyticsStatus);
   }
 
   /**
-   * Stops the session-status polling loop.
+   * Returns the vendor's current polling token.
+   *
+   * @param vendor - The identity vendor.
+   * @returns The polling token.
    */
-  #stopSessionStatusPolling(): void {
-    this.#sessionStatusPollToken += 1;
-    if (this.#sessionStatusPollTimer !== null) {
-      clearTimeout(this.#sessionStatusPollTimer);
-      this.#sessionStatusPollTimer = null;
+  #getSessionStatusPollToken(vendor: KycVendor): number {
+    return this.#sessionStatusPollTokens.get(vendor) ?? 0;
+  }
+
+  /**
+   * Stops the vendor's session-status polling loop.
+   *
+   * @param vendor - The identity vendor.
+   */
+  #stopSessionStatusPolling(vendor: KycVendor): void {
+    this.#sessionStatusPollTokens.set(
+      vendor,
+      this.#getSessionStatusPollToken(vendor) + 1,
+    );
+    const timer = this.#sessionStatusPollTimers.get(vendor);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this.#sessionStatusPollTimers.delete(vendor);
+    }
+  }
+
+  /**
+   * Stops every vendor's session-status polling loop.
+   */
+  #stopAllSessionStatusPolling(): void {
+    for (const vendor of this.#sessionStatusPollTokens.keys()) {
+      this.#stopSessionStatusPolling(vendor);
     }
   }
 
   /**
    * Creates or reuses a UKYC session, wraps the `data_encryption_key` and
    * `ukyc_capability_token` against the returned encryption schemas, and
-   * submits both via authorizations. Stores the resulting session status.
-   * kyc-api returns the existing session if one with the same vendor and
-   * canonicalUserId already exists.
+   * submits both via authorizations. Stores the resulting session status on
+   * the vendor's entry. kyc-api returns the existing session if one with the
+   * same vendor and canonicalUserId already exists.
    *
    * @param params - Vendor, country, and tokens used to create the session.
    * @param params.vendor - Identity vendor for the UKYC session.
@@ -936,9 +953,6 @@ export class KycController extends BaseController<
     const sessionClientPublicKey = toBase64Url(
       x25519.getPublicKey(sessionClientPrivateKey),
     );
-    // Residence is the ISO 3166-1 alpha-3 country already resolved for
-    // disclaimers / KYC-required; fetch it if this sub-flow started without
-    // that earlier step.
     const {
       sessionId,
       encryptionDataKey: encryptionDataKeySchema,
@@ -952,6 +966,7 @@ export class KycController extends BaseController<
     });
 
     return this.#setAuthorizations({
+      vendor: params.vendor,
       sessionId,
       sessionClientPrivateKey,
       sessionClientPublicKey,
@@ -963,9 +978,11 @@ export class KycController extends BaseController<
   /**
    * Verifies encryption schemas, wraps the `data_encryption_key` and
    * `ukyc_capability_token`, and submits both via
-   * {@link KycService.setAuthorizations}. Stores the resulting session status.
+   * {@link KycService.setAuthorizations}. Stores the resulting session status
+   * on the vendor's entry.
    *
    * @param params - Session key material and encryption schemas.
+   * @param params.vendor - Identity vendor that owns the session.
    * @param params.sessionId - UKYC session id to authorize.
    * @param params.sessionClientPrivateKey - Per-session X25519 private key
    * used to seal both secrets.
@@ -978,6 +995,7 @@ export class KycController extends BaseController<
    * @returns The session status after authorizations are applied.
    */
   async #setAuthorizations(params: {
+    vendor: KycVendor;
     sessionId: string;
     sessionClientPrivateKey: Uint8Array;
     sessionClientPublicKey: string;
@@ -985,6 +1003,7 @@ export class KycController extends BaseController<
     capabilityTokenSchema: EncryptionSchema;
   }): Promise<KycSessionStatus> {
     const {
+      vendor,
       sessionId,
       sessionClientPrivateKey,
       encryptionDataKeySchema,
@@ -1012,23 +1031,21 @@ export class KycController extends BaseController<
       },
     );
 
-    this.#updateSessionStatusAndTrackAnalytics(sessionStatus);
+    this.#updateSessionStatusAndTrackAnalytics(vendor, sessionStatus);
 
     return sessionStatus;
   }
 
   /**
    * Mints a new per-session X25519 keypair, reissues wrapping keys for the
-   * current session, and submits wrapped authorizations.
+   * vendor's session, and submits wrapped authorizations.
    *
+   * @param vendor - The identity vendor.
    * @returns The session status after authorizations are applied.
-   * @throws If there is no session on state.
+   * @throws If the vendor has no session on state.
    */
-  async #refreshAuthorizations(): Promise<KycSessionStatus> {
-    const sessionId = this.state.sessionStatus?.id;
-    if (!sessionId) {
-      throw new Error('No session was found');
-    }
+  async #refreshAuthorizations(vendor: KycVendor): Promise<KycSessionStatus> {
+    const { id: sessionId } = this.#requireSessionStatus(vendor);
 
     const sessionClientPrivateKey = x25519.utils.randomSecretKey();
     const sessionClientPublicKey = toBase64Url(
@@ -1044,6 +1061,7 @@ export class KycController extends BaseController<
     });
 
     return this.#setAuthorizations({
+      vendor,
       sessionId,
       sessionClientPrivateKey,
       sessionClientPublicKey,
@@ -1053,41 +1071,39 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Refreshes and resubmits the UKYC capability authorization when the current
-   * session reports it as `new` or `expired`. Uses the `sessionStatus` already
-   * on state (callers are responsible for refreshing status when needed).
-   * No-ops when KYC has already finished (`finalStatus` is `approved` or
-   * `rejected`) or the capability token is `pending`, `stored`, or `wiped`.
+   * Refreshes and resubmits the UKYC capability authorization when the
+   * vendor's session reports it as `new` or `expired`. Uses the session status
+   * already on state (callers are responsible for refreshing status when
+   * needed). No-ops when KYC has already finished (`finalStatus` is `approved`
+   * or `rejected`) or the capability token is `pending`, `stored`, or `wiped`.
    *
+   * @param vendor - The identity vendor.
    * @returns The current or refreshed session status.
-   * @throws If there is no session on state when a refresh is required.
+   * @throws If the vendor has no session on state.
    */
-  async #refreshAuthorizationsIfNeeded(): Promise<KycSessionStatus> {
-    const { sessionStatus } = this.state;
-    if (!sessionStatus) {
-      throw new Error('No session was found');
-    }
+  async #refreshAuthorizationsIfNeeded(
+    vendor: KycVendor,
+  ): Promise<KycSessionStatus> {
+    const sessionStatus = this.#requireSessionStatus(vendor);
 
     if (!needsCapabilityAuthorizationRefresh(sessionStatus)) {
       return sessionStatus;
     }
-    return this.#refreshAuthorizations();
+    return this.#refreshAuthorizations(vendor);
   }
 
   /**
    * Fetches the idOS + KYC-provider disclaimer catalog. Pass exactly one of
-   * `sessionId` or `country`:
+   * `vendor` or `country`:
    *
-   * - `{ sessionId }` → {@link KycService.fetchSessionDisclaimersBySessionId}
-   *   (`GET /sessions/{sessionId}/disclaimers`)
+   * - `{ vendor }` → {@link KycService.fetchSessionDisclaimersBySessionId}
+   *   for that vendor's session (`GET /sessions/{sessionId}/disclaimers`)
    * - `{ country }` → {@link KycService.fetchSessionDisclaimersByCountry}
    *   (`GET /disclaimers?country=`)
    *
-   * A session-id fetch also writes the catalog to `sessionDisclaimers`.
-   *
-   * @param params - The parameters. Provide exactly one of `sessionId` or
+   * @param params - The parameters. Provide exactly one of `vendor` or
    * `country`.
-   * @param params.sessionId - The UKYC session id.
+   * @param params.vendor - Identity vendor whose session catalog to fetch.
    * @param params.country - ISO 3166-1 alpha-3 country code.
    * @returns The catalog. Session fetches include consent state; country
    * fetches do not.
@@ -1095,13 +1111,13 @@ export class KycController extends BaseController<
   async fetchSessionDisclaimers(
     params: FetchSessionDisclaimersParams,
   ): Promise<KycSessionDisclaimers | KycDisclaimersCatalog> {
-    const { sessionId, country } = params as {
-      sessionId?: string;
+    const { vendor, country } = params as {
+      vendor?: KycVendor;
       country?: string;
     };
-    if (sessionId && country) {
+    if (vendor && country) {
       throw new Error(
-        'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
+        'KycController.fetchSessionDisclaimers: provide exactly one of vendor or country.',
       );
     }
 
@@ -1112,44 +1128,44 @@ export class KycController extends BaseController<
       );
     }
 
-    if (!sessionId) {
+    if (!vendor) {
       throw new Error(
-        'KycController.fetchSessionDisclaimers: provide exactly one of sessionId or country.',
+        'KycController.fetchSessionDisclaimers: provide exactly one of vendor or country.',
       );
     }
 
-    const catalog = await this.messenger.call(
-      'KycService:fetchSessionDisclaimersBySessionId',
-      { sessionId },
-    );
-    return catalog;
+    const { id: sessionId } = this.#requireSessionStatus(vendor);
+    return this.messenger.call('KycService:fetchSessionDisclaimersBySessionId', {
+      sessionId,
+    });
   }
 
   /**
-   * Fetches the session-scoped disclaimer catalog and records consents
-   * derived from the T&C2 flags. Already-consented catalog rows are omitted
-   * from the POST. A 409 is re-checked with a GET: continue only when every
-   * accepted document is now consented, otherwise fail closed.
+   * Fetches the vendor's session-scoped disclaimer catalog and records
+   * consents derived from the T&C2 flags. Already-consented catalog rows are
+   * omitted from the POST. A 409 is re-checked with a GET: continue only when
+   * every accepted document is now consented, otherwise fail closed.
    *
    * @param params - Accepted session-disclaimer records.
+   * @param params.vendor - The identity vendor.
    * @param params.providerDisclaimersAccepted - Accepted Sumsub disclaimer records.
    * @param params.idosDisclaimersAccepted - Accepted idOS disclaimer records.
    * @param params.credentialReusabilityConsentGiven - Whether credential
    * reuse was accepted.
    */
   async recordSessionDisclaimers(params: {
+    vendor: KycVendor;
     providerDisclaimersAccepted: KycConsentRecord[];
     idosDisclaimersAccepted: KycConsentRecord[];
     credentialReusabilityConsentGiven: boolean;
   }): Promise<void> {
-    if (!this.state.sessionStatus) {
-      throw new Error('No session was found');
-    }
+    const { vendor } = params;
+    const { id: sessionId } = this.#requireSessionStatus(vendor);
 
     // TODO: Check if these can simply be mapped to `{key, version}` pairs instead
     const disclaimers = await this.messenger.call(
       'KycService:fetchSessionDisclaimersBySessionId',
-      { sessionId: this.state.sessionStatus.id },
+      { sessionId },
     );
 
     const idOS = consentRecordsFromAcceptedList(
@@ -1163,7 +1179,7 @@ export class KycController extends BaseController<
 
     try {
       await this.messenger.call('KycService:submitSessionDisclaimers', {
-        sessionId: this.state.sessionStatus.id,
+        sessionId,
         idOS,
         kycProvider,
         credentialReusabilityConsentGiven:
@@ -1172,33 +1188,36 @@ export class KycController extends BaseController<
     } catch {
       // A 409 means the session already recorded these consents.
     }
-    this.update((state) => {
-      // TODO: This shouldn't be hardcoded to sumsub
-      state.providerDisclaimersAccepted.sumsub =
-        params.providerDisclaimersAccepted;
-      state.idosDisclaimersAccepted = params.idosDisclaimersAccepted;
-      state.credentialReusabilityConsentGiven =
+    this.#updateVendorSession(vendor, (entry) => {
+      entry.providerDisclaimersAccepted = params.providerDisclaimersAccepted;
+      entry.idosDisclaimersAccepted = params.idosDisclaimersAccepted;
+      entry.credentialReusabilityConsentGiven =
         params.credentialReusabilityConsentGiven;
     });
   }
 
   /**
-   * Fetches the current session status and reports whether consent was given.
+   * Fetches the vendor's current session status and reports whether consent
+   * was given.
    *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
    * @returns Whether `consentStatus` is `given`.
-   * @throws If there is no session on state.
+   * @throws If the vendor has no session on state.
    */
-  async hasCompletedSessionDisclaimers(): Promise<boolean> {
-    if (!this.state.sessionStatus) {
-      throw new Error('No session was found');
-    }
+  async hasCompletedSessionDisclaimers({
+    vendor,
+  }: {
+    vendor: KycVendor;
+  }): Promise<boolean> {
+    const { id: sessionId } = this.#requireSessionStatus(vendor);
 
     // TODO: remove this explicit call to the service and use the state directly
     // after we have established the pattern for resuming a session after wallet
     // restart more concretely
     const sessionStatus = await this.messenger.call(
       'KycService:getSessionStatus',
-      { sessionId: this.state.sessionStatus.id },
+      { sessionId },
     );
 
     return sessionStatus.consentStatus === 'given';
@@ -1209,87 +1228,127 @@ export class KycController extends BaseController<
    * created (`GET /vendors/{vendor}/disclaimers?country=`).
    *
    * @param params - The parameters.
-   * @param params.vendor - Identity vendor. Defaults to `moonpay`.
+   * @param params.vendor - Identity vendor.
    * @param params.country - ISO 3166-1 alpha-3 country code.
    * @returns The disclaimers.
    */
   async fetchVendorDisclaimers(params: {
-    vendor?: KycVendor;
+    vendor: KycVendor;
     country: string;
   }): Promise<KycDisclaimer[]> {
     return this.messenger.call('KycService:fetchVendorDisclaimers', params);
   }
 
   /**
-   * Records vendor T&C acceptance via {@link KycService.submitVendorDisclaimers}
-   * and persists the accepted ids on state.
+   * Stores the customer's acceptance of a vendor's T&Cs on the device, before
+   * the vendor has it. Makes no network call, so it works before a session
+   * exists; {@link recordVendorDisclaimers} submits it once one does. Creates
+   * the vendor's entry when it has none.
+   *
+   * Accepting again replaces earlier acceptance and marks it not submitted.
    *
    * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.country - ISO 3166-1 alpha-3 country the terms were fetched
+   * for. Recorded as the entry's residence country until a session exists.
    * @param params.disclaimerIds - Accepted vendor T&C ids.
-   * @returns The vendor signing records.
-   * @throws If `vendor` is missing from state.
    */
-  async recordVendorDisclaimers(params: {
+  acceptVendorDisclaimers(params: {
+    vendor: KycVendor;
+    country: string;
     disclaimerIds: string[];
+  }): void {
+    this.#updateVendorSession(params.vendor, (entry) => {
+      entry.vendorDisclaimersAccepted = {
+        disclaimerIds: [...params.disclaimerIds],
+        acceptedAt: new Date().toISOString(),
+        submitted: false,
+      };
+      if (entry.sessionStatus === null) {
+        entry.residenceCountry = params.country;
+      }
+    });
+  }
+
+  /**
+   * Submits the vendor T&C acceptance stored by
+   * {@link acceptVendorDisclaimers} via
+   * {@link KycService.submitVendorDisclaimers}, then marks it submitted.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @returns The vendor signing records.
+   * @throws If the vendor has no stored acceptance, or no session yet (the
+   * vendor records terms against a customer that session creation creates).
+   */
+  async recordVendorDisclaimers({
+    vendor,
+  }: {
+    vendor: KycVendor;
   }): Promise<KycVendorSigning[]> {
-    if (!this.state.vendor) {
-      throw new Error('No vendor was found');
+    const accepted = this.state.sessions[vendor]?.vendorDisclaimersAccepted;
+    if (!accepted) {
+      throw new Error('No vendor disclaimer acceptance was found');
     }
-
-    if (!this.state.email) {
-      throw new Error('No email was found');
-    }
-
-    const { vendor } = this.state;
+    this.#requireSessionStatus(vendor);
 
     const signings = await this.messenger.call(
       'KycService:submitVendorDisclaimers',
       {
         vendor,
-        disclaimerIds: params.disclaimerIds,
+        disclaimerIds: accepted.disclaimerIds,
       },
     );
 
-    // TODO: this only works for Iron right now
-    this.update((state) => {
-      state.vendorDisclaimersAccepted = recordVendorDisclaimerAcceptance(
-        state.vendorDisclaimersAccepted,
-        vendor,
-        {
-          disclaimerIds: params.disclaimerIds,
-        },
-      );
+    this.#updateVendorSession(vendor, (entry) => {
+      if (entry.vendorDisclaimersAccepted) {
+        entry.vendorDisclaimersAccepted.submitted = true;
+      }
     });
 
     return signings;
   }
 
   /**
-   * Fetches the current vendor T&C catalog and returns whether every document
-   * is already recorded in {@link KycControllerState.vendorDisclaimersAccepted}.
+   * Fetches the vendor's current T&C catalog for the entry's residence country
+   * and returns whether submitted acceptance covers every document.
    *
-   * @returns Whether persisted acceptance covers the fetched catalog.
-   * @throws If `vendor` or `geoCountry` is missing from state.
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @returns Whether submitted acceptance covers the fetched catalog.
+   * @throws If the vendor has no entry or no residence country.
    */
-  async hasCompletedVendorDisclaimers(): Promise<boolean> {
-    if (!this.state.vendor) {
-      throw new Error('No vendor was found');
+  async hasCompletedVendorDisclaimers({
+    vendor,
+  }: {
+    vendor: KycVendor;
+  }): Promise<boolean> {
+    const entry = this.state.sessions[vendor];
+    if (!entry) {
+      throw new Error('No session was found');
     }
-    if (!this.state.geoCountry) {
-      throw new Error('No geoCountry was found');
+    if (!entry.residenceCountry) {
+      throw new Error('No residence country was found');
     }
 
     const fetched = await this.fetchVendorDisclaimers({
-      vendor: this.state.vendor,
-      country: this.state.geoCountry,
+      vendor,
+      country: entry.residenceCountry,
     });
 
-    // TODO: this only works for Iron right now
-    return areVendorDisclaimersCompleted(
-      this.state.vendorDisclaimersAccepted,
-      this.state.vendor,
-      fetched,
-    );
+    return areVendorDisclaimersCompleted(entry.vendorDisclaimersAccepted, fetched);
+  }
+
+  /**
+   * Returns one verdict for the vendor's KYC session. See
+   * {@link KycSessionDecision}.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @returns The session decision; `none` when the vendor has no session.
+   */
+  getSessionDecision({ vendor }: { vendor: KycVendor }): KycSessionDecision {
+    return getKycSessionDecision(this.state.sessions[vendor]);
   }
 
   /**
@@ -1342,47 +1401,66 @@ export class KycController extends BaseController<
   }
 
   /**
-   * Presents the identity-provider verification UI. Currently launches SumSub.
+   * Presents the identity-provider verification UI for the vendor's session.
+   * Currently launches SumSub.
    *
-   * @param params - Optional SDK presentation options.
+   * Only one flow is presented at a time. A launch while another flow is on
+   * screen returns `failed` without writing state.
+   *
+   * @param params - The vendor and optional SDK presentation options.
+   * @param params.vendor - The identity vendor.
    * @param params.locale - BCP-47 locale for the SDK UI.
    * @param params.debug - Enables SDK debug logging.
    * @returns The durable provider-flow outcome.
    */
-  launchProviderFlow({
+  async launchProviderFlow({
+    vendor,
     locale,
     debug,
   }: {
+    vendor: KycVendor;
     locale?: string;
     debug?: boolean;
   }): Promise<KycProviderFlowStatus> {
-    // Currently only sumsub is supported and must be used for Iron
-    return this.#launchSumsubFlow({ locale, debug });
+    if (this.#presentingVendor !== null) {
+      return 'failed';
+    }
+    this.#presentingVendor = vendor;
+    try {
+      // Currently only sumsub is supported and must be used for Iron
+      return await this.#launchSumsubFlow(vendor, { locale, debug });
+    } finally {
+      this.#presentingVendor = null;
+    }
   }
 
   /**
-   * Runs the SumSub document-verification sub-flow end to end:
+   * Runs the SumSub document-verification sub-flow end to end for the
+   * vendor's session:
    *
    *  1. fetches the SumSub applicant access token; and
    *  2. presents the SDK via the injected launcher.
    *
-   * Capability authorization must already be valid on
-   * {@link KycControllerState.sessionStatus} (see
-   * {@link KycController.#refreshAuthorizationsIfNeeded}).
+   * Capability authorization must already be valid on the vendor's session
+   * (see {@link KycController.#refreshAuthorizationsIfNeeded}).
    *
+   * @param vendor - The identity vendor.
    * @param params - Optional parameters.
    * @param params.locale - BCP-47 locale for the SDK UI.
    * @param params.debug - Enables SDK debug logging.
    * @returns The durable provider-flow outcome.
    */
-  async #launchSumsubFlow(params?: {
-    locale?: string;
-    debug?: boolean;
-  }): Promise<KycProviderFlowStatus> {
-    const sessionId = this.state.sessionStatus?.id;
+  async #launchSumsubFlow(
+    vendor: KycVendor,
+    params?: {
+      locale?: string;
+      debug?: boolean;
+    },
+  ): Promise<KycProviderFlowStatus> {
+    const sessionId = this.state.sessions[vendor]?.sessionStatus?.id;
     if (!this.#sumsubLauncher.isAvailable() || !sessionId) {
-      this.#recordLaunchOutcomeAndTrackAnalytics('failed', (state) => {
-        state.providerFlowStatus = 'failed';
+      this.#recordLaunchOutcomeAndTrackAnalytics(vendor, 'failed', (entry) => {
+        entry.providerFlowStatus = 'failed';
       });
       return 'failed';
     }
@@ -1427,15 +1505,15 @@ export class KycController extends BaseController<
       reachedCompletion ||= isSumSubFlowCompleted(result.status);
       sdkFailed ||= isSumSubFlowFailed(result.status);
 
-      const currentSessionStatus = this.state.sessionStatus;
-      if (currentSessionStatus?.id !== sessionId) {
-        this.#recordLaunchOutcomeAndTrackAnalytics('failed');
+      const currentSessionStatus = this.state.sessions[vendor]?.sessionStatus;
+      if (!currentSessionStatus || currentSessionStatus.id !== sessionId) {
+        this.#recordLaunchOutcomeAndTrackAnalytics(vendor, 'failed');
         return 'failed';
       }
 
       if (sdkFailed) {
-        this.#recordLaunchOutcomeAndTrackAnalytics('failed', (state) => {
-          state.providerFlowStatus = 'failed';
+        this.#recordLaunchOutcomeAndTrackAnalytics(vendor, 'failed', (entry) => {
+          entry.providerFlowStatus = 'failed';
         });
         return 'failed';
       }
@@ -1443,31 +1521,35 @@ export class KycController extends BaseController<
       if (reachedCompletion) {
         // Once the SDK completes, the authoritative verification decision comes
         // from the UKYC backend, not the SDK result.
-        this.#recordLaunchOutcomeAndTrackAnalytics('submitted', (state) => {
-          state.sessionStatus = {
-            ...currentSessionStatus,
-            finalStatus: KYC_STATUSES.pending,
-            // The applicant has submitted documents, so the session is in
-            // vendor processing rather than still on the `kyc` step.
-            currentStep: KYC_CURRENT_STEPS.processing,
-          };
-          state.providerFlowStatus = 'submitted';
-        });
-        this.startSessionStatusPolling();
+        this.#recordLaunchOutcomeAndTrackAnalytics(
+          vendor,
+          'submitted',
+          (entry) => {
+            entry.sessionStatus = {
+              ...currentSessionStatus,
+              finalStatus: KYC_STATUSES.pending,
+              // The applicant has submitted documents, so the session is in
+              // vendor processing rather than still on the `kyc` step.
+              currentStep: KYC_CURRENT_STEPS.processing,
+            };
+            entry.providerFlowStatus = 'submitted';
+          },
+        );
+        this.startSessionStatusPolling({ vendor });
         return 'submitted';
       }
 
-      this.#recordLaunchOutcomeAndTrackAnalytics('abandoned', (state) => {
-        state.providerFlowStatus = 'abandoned';
+      this.#recordLaunchOutcomeAndTrackAnalytics(vendor, 'abandoned', (entry) => {
+        entry.providerFlowStatus = 'abandoned';
       });
       return 'abandoned';
     } catch {
-      if (this.state.sessionStatus?.id === sessionId) {
-        this.#recordLaunchOutcomeAndTrackAnalytics('failed', (state) => {
-          state.providerFlowStatus = 'failed';
+      if (this.state.sessions[vendor]?.sessionStatus?.id === sessionId) {
+        this.#recordLaunchOutcomeAndTrackAnalytics(vendor, 'failed', (entry) => {
+          entry.providerFlowStatus = 'failed';
         });
       } else {
-        this.#recordLaunchOutcomeAndTrackAnalytics('failed');
+        this.#recordLaunchOutcomeAndTrackAnalytics(vendor, 'failed');
       }
       return 'failed';
     }
