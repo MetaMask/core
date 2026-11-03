@@ -1,4 +1,4 @@
-import { fileExists } from '@metamask/node-utils';
+import { access } from 'node:fs/promises';
 import path from 'node:path';
 import { loadConfigFromFile } from 'vite';
 import { defineConfig } from 'vitest/config';
@@ -14,6 +14,21 @@ import { getAllWorkspaces, ROOT_WORKSPACE } from './workspaces.ts';
 const EXCLUDED_PACKAGES = ['packages/wallet-framework-docs'];
 
 const CONFIG_EXTENSIONS = ['ts', 'mts'];
+
+/**
+ * Check whether a file exists. This doesn't use `@metamask/node-utils`,
+ * because Vitest loads this file as part of a config, where workspace packages
+ * resolve to their build output, which doesn't exist before a build.
+ *
+ * @param filePath - The path of the file.
+ * @returns Whether the file exists.
+ */
+async function fileExists(filePath: string): Promise<boolean> {
+  return await access(filePath).then(
+    () => true,
+    () => false,
+  );
+}
 
 /**
  * Find the Vitest config file of a package.

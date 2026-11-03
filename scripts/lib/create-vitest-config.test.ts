@@ -1,4 +1,4 @@
-import { fileExists } from '@metamask/node-utils';
+import { access } from 'node:fs/promises';
 import type { InlineConfig } from 'vite';
 import { loadConfigFromFile } from 'vite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,7 +9,10 @@ import {
 } from './create-vitest-config.ts';
 import { getAllWorkspaces } from './workspaces.ts';
 
-vi.mock('@metamask/node-utils', () => ({ fileExists: vi.fn() }));
+vi.mock(import('node:fs/promises'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  access: vi.fn(),
+}));
 
 vi.mock(import('vite'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -31,9 +34,11 @@ vi.mock('./workspaces.ts', () => ({
 function mockPackageConfigs(
   configs: Record<string, InlineConfig['test']>,
 ): void {
-  vi.mocked(fileExists).mockImplementation(
-    async (filePath) => `${filePath}`.replace('/repo/', '') in configs,
-  );
+  vi.mocked(access).mockImplementation(async (filePath) => {
+    if (!(String(filePath).replace('/repo/', '') in configs)) {
+      throw new Error('ENOENT');
+    }
+  });
 
   vi.mocked(loadConfigFromFile).mockImplementation(async (_env, filePath) => ({
     path: `${filePath}`,
@@ -175,7 +180,7 @@ describe('createRootConfig', () => {
     });
 
     it('treats a package config that cannot be loaded as having no coverage options', async () => {
-      vi.mocked(fileExists).mockResolvedValue(true);
+      vi.mocked(access).mockResolvedValue(undefined);
       vi.mocked(loadConfigFromFile).mockResolvedValue(null);
 
       const config = await createRootConfig(['packages/a']);
