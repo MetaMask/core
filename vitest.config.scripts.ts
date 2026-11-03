@@ -31,7 +31,11 @@ export default defineConfig({
     // there.
     exclude: ['**/node_modules/**', 'scripts/**/package-template/**'],
 
-    setupFiles: [path.join(monorepoRoot, 'tests/vitest/scripts-setup.ts')],
+    setupFiles: [
+      // The setup files shared by every package.
+      path.join(monorepoRoot, 'tests/vitest/setup-after-env.ts'),
+      path.join(monorepoRoot, 'tests/vitest/scripts-setup.ts'),
+    ],
 
     // Reset mocks between tests, so a mocked implementation cannot leak from
     // one test into the next.

@@ -87,11 +87,17 @@ function buildPackageRules(
   ].sort();
   const workspacePath = `/packages/${packageDirectoryName}`;
   rules.push(
-    { pattern: `${workspacePath}/CHANGELOG.md`, owners: releaseOwners },
-    { pattern: `${workspacePath}/package.json`, owners: releaseOwners },
-    { pattern: `${workspacePath}/tsconfig.*`, owners: releaseOwners },
-    { pattern: `${workspacePath}/typedoc.json`, owners: releaseOwners },
-    { pattern: `${workspacePath}/vitest.config.*`, owners: releaseOwners },
+    ...[
+      'CHANGELOG.md',
+      'package.json',
+      'tsconfig.*',
+      'typedoc.json',
+      'vitest.config.*',
+    ].map((fileName) => ({
+      pattern: `${workspacePath}/${fileName}`,
+      owners: releaseOwners,
+      primaryOwners: owners,
+    })),
   );
 
   return rules;

@@ -11,6 +11,20 @@ export type CodeownersRule = {
    * The GitHub owners assigned to the pattern.
    */
   owners: string[];
+
+  /**
+   * The teams whose approval is actually expected for the matched files, for
+   * files that the Core Platform team co-owns in every package.
+   *
+   * Core Platform co-owns certain files in each package, such as changelogs
+   * and manifests, so that it can maintain them across the monorepo. Changing
+   * them doesn't require Core Platform's approval, though; the package's own
+   * teams can approve. This is set to those teams, even when they include Core
+   * Platform, so that tools like `create-codeownership-summary` can tell
+   * engineers whom to ask for review. It doesn't affect the generated
+   * CODEOWNERS file.
+   */
+  primaryOwners?: string[];
 };
 
 /**
