@@ -7,9 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KycController.getSessionDecision({ vendor })` and the `KycController:getSessionDecision` messenger action, which reduce a vendor's session to one of `none`, `new`, `pending`, `approved`, `rejected` or `retry` ([#11275](https://github.com/MetaMask/core/pull/11275))
+  - Export the pure `getKycSessionDecision` function, the `KycSessionDecision` type and `KYC_SESSION_DECISIONS`
+  - Only the vendor's own `finalStatus: approved` counts as approved. It is not a "ready" verdict and says nothing about vendor work after approval
+- Add `KycController.acceptVendorDisclaimers({ vendor, country, disclaimerIds })` and its messenger action, which store a vendor's terms acceptance before a session exists, marked not submitted ([#11275](https://github.com/MetaMask/core/pull/11275))
+- Add `selectKycSession(state, vendor)`, `getDefaultKycVendorSessionState` and the `KycVendorSessionState` and `KycVendorDisclaimersAcceptance` types ([#11275](https://github.com/MetaMask/core/pull/11275))
+
 ### Changed
 
+- **BREAKING:** Replace the single-session state with `sessions`, keyed by vendor ([#11275](https://github.com/MetaMask/core/pull/11275))
+  - Each entry holds `sessionStatus`, `providerFlowStatus`, `residenceCountry`, `vendorDisclaimersAccepted`, `providerDisclaimersAccepted`, `idosDisclaimersAccepted` and `credentialReusabilityConsentGiven` for that vendor
+  - The `email`, `vendor` and `geoCountry` fields are removed. Clients must migrate persisted state
+- **BREAKING:** Session methods take the vendor: `getProviderFlowStatus`, `readSessionStatus`, `refreshSessionStatus`, `startSessionStatusPolling`, `hasCompletedSessionDisclaimers` and `hasCompletedVendorDisclaimers` take `{ vendor }`; `recordSessionDisclaimers` and `launchProviderFlow` take `vendor` alongside their other parameters ([#11275](https://github.com/MetaMask/core/pull/11275))
+- **BREAKING:** `fetchSessionStatusOnce` takes `{ vendor }` instead of a session id, and `fetchSessionDisclaimers` takes `{ vendor }` instead of `{ sessionId }` ([#11275](https://github.com/MetaMask/core/pull/11275))
+- **BREAKING:** `recordVendorDisclaimers` takes `{ vendor }` and submits the acceptance stored by `acceptVendorDisclaimers`, instead of taking `disclaimerIds`. It needs an existing session ([#11275](https://github.com/MetaMask/core/pull/11275))
+- **BREAKING:** `hasCompletedVendorDisclaimers` only counts acceptance that was submitted to the vendor, checked against the catalog for the entry's `residenceCountry` ([#11275](https://github.com/MetaMask/core/pull/11275))
+- **BREAKING:** `vendor` is required on `KycService.fetchVendorDisclaimers` and `KycService.createUkycSession`, which no longer default to `moonpay` ([#11275](https://github.com/MetaMask/core/pull/11275))
+- `startSession` no longer throws when called for a vendor, email or country that differs from an earlier session, and only requires a verified email when it creates a session ([#11275](https://github.com/MetaMask/core/pull/11275))
+- `launchProviderFlow` returns `failed` without writing state while another vendor's SumSub flow is on screen ([#11275](https://github.com/MetaMask/core/pull/11275))
+- `getDataShares` reads the external user id from any vendor's stored session ([#11275](https://github.com/MetaMask/core/pull/11275))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
+
+### Removed
+
+- **BREAKING:** Remove `selectKycVendor`, `getDefaultKycVendorDisclaimersAccepted`, `getDefaultKycProviderDisclaimersAccepted` and the `KycPhase`, `KycProduct`, `KycVendorDisclaimersAccepted`, `KycProviderDisclaimersAccepted`, `KycIronVendorDisclaimersAccepted` and `KycMoonpayVendorDisclaimersAccepted` types ([#11275](https://github.com/MetaMask/core/pull/11275))
 
 ## [0.16.0]
 
