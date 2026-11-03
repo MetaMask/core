@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dispatch operations on atomic keyrings without holding the controller lock: `withKeyring` and `withKeyringV2` route atomic keyrings to an unlocked dispatch, so long-running keyring operations do not block other controller operations ([#TODO](https://github.com/MetaMask/core/pull/TODO))
   - There is no snapshot and no rollback for atomic keyrings: an operation error leaves every state mutation the keyring committed through `update` in place.
   - A keyring created by `withKeyring` with `createIfMissing: true` is registered when the transaction commits, and its operation is dispatched unlocked once the transaction completes.
+- Add `@metamask/keyring-sdk@^12.0.1` ([#11241](https://github.com/MetaMask/core/pull/11241))
 
 ### Changed
 
