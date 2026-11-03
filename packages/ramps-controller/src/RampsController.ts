@@ -263,6 +263,7 @@ export const RAMPS_CONTROLLER_REQUIRED_CONTROLLER_ACTIONS = [
   'KycController:fetchSessionStatusOnce',
   'KycController:hasCompletedVendorDisclaimers',
   'KycController:hasCompletedSessionDisclaimers',
+  'KycController:getSessionDecision',
   'KycController:clearState',
   'RemoteFeatureFlagController:getState',
   'UserStorageController:getState',
@@ -294,6 +295,15 @@ type KycControllerSessionStatus = {
 };
 
 /**
+ * Identity vendors behind the KYC controller. Mirrors `KycVendor` in
+ * `@metamask/kyc-controller`.
+ */
+type KycControllerVendor = 'moonpay' | 'iron';
+
+/** Identity vendor for VBA onboarding. */
+const VBA_KYC_VENDOR: KycControllerVendor = 'iron';
+
+/**
  * `finalStatus` values that end a KYC session. Mirrors
  * `TERMINAL_SESSION_STATUSES` in `@metamask/kyc-controller`.
  */
@@ -310,27 +320,40 @@ const TERMINAL_VBA_KYC_FINAL_STATUSES: ReadonlySet<string> = new Set([
  */
 export type KycControllerReadSessionStatusAction = {
   type: 'KycController:readSessionStatus';
-  handler: () => KycControllerSessionStatus | null;
+  handler: (params: {
+    vendor: KycControllerVendor;
+  }) => KycControllerSessionStatus | null;
 };
 
 export type KycControllerFetchSessionStatusOnceAction = {
   type: 'KycController:fetchSessionStatusOnce';
-  handler: (sessionId: string) => Promise<KycControllerSessionStatus>;
+  handler: (params: {
+    vendor: KycControllerVendor;
+  }) => Promise<KycControllerSessionStatus>;
 };
 
 export type KycControllerGetProviderFlowStatusAction = {
   type: 'KycController:getProviderFlowStatus';
-  handler: () => VbaProviderFlowStatus;
+  handler: (params: { vendor: KycControllerVendor }) => VbaProviderFlowStatus;
 };
 
 export type KycControllerHasCompletedVendorDisclaimersAction = {
   type: 'KycController:hasCompletedVendorDisclaimers';
-  handler: () => Promise<boolean>;
+  handler: (params: { vendor: KycControllerVendor }) => Promise<boolean>;
 };
 
 export type KycControllerHasCompletedSessionDisclaimersAction = {
   type: 'KycController:hasCompletedSessionDisclaimers';
-  handler: () => Promise<boolean>;
+  handler: (params: { vendor: KycControllerVendor }) => Promise<boolean>;
+};
+
+/**
+ * One verdict for a vendor's KYC session. Its values match
+ * {@link VbaKycStatus}.
+ */
+export type KycControllerGetSessionDecisionAction = {
+  type: 'KycController:getSessionDecision';
+  handler: (params: { vendor: KycControllerVendor }) => VbaKycStatus;
 };
 
 export type KycControllerClearStateAction = {
@@ -453,8 +476,6 @@ const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
   autorampStatus: 'not_ready',
 };
 
-const VBA_KYC_STATUS_SET = new Set<string>(VBA_KYC_STATUSES);
-
 type MoonpayCustomerRecord = {
   id: string;
   status: string | null;
@@ -480,53 +501,6 @@ function readMoonpayCustomerRecord(
     id,
     status: typeof status === 'string' && status.length > 0 ? status : null,
   };
-}
-
-/**
- * Maps a vendor status string onto the snapshot vocabulary.
- *
- * @param value - Raw KYC status from the session.
- * @returns A known {@link VbaKycStatus}, or `'none'` when missing/unknown.
- */
-function toVbaKycStatus(value: string | undefined): VbaKycStatus {
-  if (value && VBA_KYC_STATUS_SET.has(value)) {
-    return value as VbaKycStatus;
-  }
-  return 'none';
-}
-
-/**
- * Maps a KYC session onto the snapshot vocabulary.
- *
- * Only provider approval (`finalStatus: 'approved'`) is final. Relay approval
- * (`kycStatus: 'approved'`) can represent completed document review while the
- * provider is still deciding, so that state remains `pending`. A non-approved
- * session whose provider flow was submitted, or whose status is pending, is
- * also `pending`.
- *
- * @param session - Persisted or freshly fetched KYC session.
- * @param providerFlowStatus - Durable provider-flow outcome.
- * @returns The snapshot KYC status.
- */
-function resolveVbaKycStatus(
-  session: KycControllerSessionStatus,
-  providerFlowStatus: VbaProviderFlowStatus,
-): VbaKycStatus {
-  if (session.finalStatus === 'approved') {
-    return 'approved';
-  }
-  const mapped = toVbaKycStatus(session.finalStatus);
-  if (mapped === 'rejected' || mapped === 'retry') {
-    return mapped;
-  }
-  if (
-    session.finalStatus === 'pending' ||
-    session.kycStatus === 'pending' ||
-    providerFlowStatus === 'submitted'
-  ) {
-    return 'pending';
-  }
-  return mapped;
 }
 
 /**
@@ -1195,6 +1169,7 @@ type AllowedActions =
   | KycControllerGetProviderFlowStatusAction
   | KycControllerHasCompletedVendorDisclaimersAction
   | KycControllerHasCompletedSessionDisclaimersAction
+  | KycControllerGetSessionDecisionAction
   | KycControllerClearStateAction
   | UserStorageController.UserStorageControllerGetStateAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
@@ -4313,7 +4288,11 @@ export class RampsController extends BaseController<
     refreshKyc: boolean;
     refreshAutoramps: boolean;
   }): Promise<VbaOnboardingSnapshot> {
-    let session = this.messenger.call('KycController:readSessionStatus');
+    const vendorParams = { vendor: VBA_KYC_VENDOR };
+    let session = this.messenger.call(
+      'KycController:readSessionStatus',
+      vendorParams,
+    );
 
     // A persisted session can outlive the identity that created it. Reusing it
     // makes session-scoped calls fail closed. Discard it before any fetch, with
@@ -4339,7 +4318,7 @@ export class RampsController extends BaseController<
       try {
         session = await this.messenger.call(
           'KycController:fetchSessionStatusOnce',
-          session.id,
+          vendorParams,
         );
       } catch (error) {
         if (error instanceof HttpError && error.httpStatus === 404) {
@@ -4357,12 +4336,15 @@ export class RampsController extends BaseController<
 
     const vendorDisclaimersComplete = await this.messenger.call(
       'KycController:hasCompletedVendorDisclaimers',
+      vendorParams,
     );
     const sessionDisclaimersComplete = await this.messenger.call(
       'KycController:hasCompletedSessionDisclaimers',
+      vendorParams,
     );
     const providerFlowStatus = this.messenger.call(
       'KycController:getProviderFlowStatus',
+      vendorParams,
     );
 
     const snapshot: VbaOnboardingSnapshot = {
@@ -4370,7 +4352,10 @@ export class RampsController extends BaseController<
       vendorDisclaimersComplete,
       sessionDisclaimersComplete,
       providerFlowStatus,
-      kycStatus: resolveVbaKycStatus(session, providerFlowStatus),
+      kycStatus: this.messenger.call(
+        'KycController:getSessionDecision',
+        vendorParams,
+      ),
       autorampStatus: 'not_ready',
     };
 

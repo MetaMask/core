@@ -22,7 +22,7 @@ export type KycServiceGetGeoCountryAction = {
  * created.
  *
  * @param params - The parameters.
- * @param params.vendor - Identity vendor. Defaults to `moonpay`.
+ * @param params.vendor - Identity vendor.
  * @param params.country - ISO 3166-1 alpha-3 country code.
  * @returns The disclaimers.
  */

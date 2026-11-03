@@ -18,9 +18,13 @@ import { getKycAnalyticsStatus } from './analytics.js';
 import { base64UrlToBytes, toBase64Url } from './encoding.js';
 import {
   getDefaultKycControllerState,
+  getDefaultKycVendorSessionState,
   KycController,
 } from './KycController.js';
-import type { KycControllerMessenger } from './KycController.js';
+import type {
+  KycControllerMessenger,
+  KycVendorSessionState,
+} from './KycController.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
 import { KYC_CURRENT_STEPS } from './types.js';
 import type {
@@ -2450,6 +2454,245 @@ describe('KycController', () => {
         expect(handlers.completeDeletion).not.toHaveBeenCalled();
       });
     });
+  });
+});
+
+describe('KycController per-vendor sessions', () => {
+  const ironEntry = (
+    overrides: Partial<KycVendorSessionState> = {},
+  ): KycVendorSessionState => ({
+    ...getDefaultKycVendorSessionState(),
+    residenceCountry: 'BRA',
+    sessionStatus: sessionStatus('pending'),
+    ...overrides,
+  });
+
+  it('starts a second vendor without touching the first', async () => {
+    await withController(
+      { options: { state: { sessions: { iron: ironEntry() } } } },
+      async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(
+          sessionStatus('new', { id: 'moonpay-sid' }),
+        );
+
+        await controller.startSession({ vendor: 'moonpay' });
+
+        expect(controller.state.sessions.iron).toStrictEqual(ironEntry());
+        expect(controller.state.sessions.moonpay?.sessionStatus?.id).toBe(
+          'moonpay-sid',
+        );
+        expect(controller.state.sessions.moonpay?.residenceCountry).toBe('USA');
+      },
+    );
+  });
+
+  it('creating a session fails without a verified email', async () => {
+    await withController(async ({ controller, handlers }) => {
+      handlers.getPartnerIdentityToken.mockRejectedValue({ status: 422 });
+
+      await expect(
+        controller.startSession({ vendor: 'iron', aal2Token: AAL2_TOKEN }),
+      ).rejects.toThrow('KycController missing verified email for vendor');
+      expect(handlers.createUkycSession).not.toHaveBeenCalled();
+    });
+  });
+
+  it('resuming a session works without a verified email', async () => {
+    await withController(
+      { options: { state: { sessions: { iron: ironEntry() } } } },
+      async ({ controller, handlers }) => {
+        handlers.getPartnerIdentityToken.mockRejectedValue({ status: 422 });
+        handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
+
+        const result = await controller.startSession({ vendor: 'iron' });
+
+        expect(result.finalStatus).toBe('pending');
+      },
+    );
+  });
+
+  it('clearState removes every vendor', async () => {
+    await withController(
+      {
+        options: {
+          state: { sessions: { iron: ironEntry(), moonpay: ironEntry() } },
+        },
+      },
+      ({ controller }) => {
+        controller.clearState();
+        expect(controller.state).toStrictEqual(getDefaultKycControllerState());
+      },
+    );
+  });
+
+  it('reads status and decision per vendor', async () => {
+    await withController(
+      {
+        options: {
+          state: {
+            sessions: {
+              iron: ironEntry({ sessionStatus: sessionStatus('approved') }),
+            },
+          },
+        },
+      },
+      ({ controller }) => {
+        expect(controller.getSessionDecision({ vendor: 'iron' })).toBe(
+          'approved',
+        );
+        expect(controller.getSessionDecision({ vendor: 'moonpay' })).toBe(
+          'none',
+        );
+        expect(controller.readSessionStatus({ vendor: 'moonpay' })).toBeNull();
+        expect(controller.getProviderFlowStatus({ vendor: 'moonpay' })).toBe(
+          'not_started',
+        );
+      },
+    );
+  });
+
+  it('fetchSessionStatusOnce writes to the vendor entry', async () => {
+    await withController(
+      { options: { state: { sessions: { iron: ironEntry() } } } },
+      async ({ controller, handlers }) => {
+        handlers.getSessionStatus.mockResolvedValue(sessionStatus('approved'));
+
+        await controller.fetchSessionStatusOnce({ vendor: 'iron' });
+
+        expect(handlers.getSessionStatus).toHaveBeenCalledWith({
+          sessionId: 'sid',
+        });
+        expect(
+          controller.state.sessions.iron?.sessionStatus?.finalStatus,
+        ).toBe('approved');
+      },
+    );
+  });
+
+  describe('vendor terms', () => {
+    it('acceptVendorDisclaimers stores unsubmitted acceptance without a session', async () => {
+      await withController(({ controller, handlers }) => {
+        controller.acceptVendorDisclaimers({
+          vendor: 'iron',
+          country: 'BRA',
+          disclaimerIds: ['t1'],
+        });
+
+        const entry = controller.state.sessions.iron;
+        expect(entry?.sessionStatus).toBeNull();
+        expect(entry?.residenceCountry).toBe('BRA');
+        expect(entry?.vendorDisclaimersAccepted).toStrictEqual({
+          disclaimerIds: ['t1'],
+          acceptedAt: expect.any(String),
+          submitted: false,
+        });
+        expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
+      });
+    });
+
+    it('recordVendorDisclaimers needs stored acceptance', async () => {
+      await withController(
+        { options: { state: { sessions: { iron: ironEntry() } } } },
+        async ({ controller }) => {
+          await expect(
+            controller.recordVendorDisclaimers({ vendor: 'iron' }),
+          ).rejects.toThrow('No vendor disclaimer acceptance was found');
+        },
+      );
+    });
+
+    it('recordVendorDisclaimers needs a session and leaves acceptance unsubmitted', async () => {
+      await withController(async ({ controller, handlers }) => {
+        controller.acceptVendorDisclaimers({
+          vendor: 'iron',
+          country: 'BRA',
+          disclaimerIds: ['t1'],
+        });
+
+        await expect(
+          controller.recordVendorDisclaimers({ vendor: 'iron' }),
+        ).rejects.toThrow('No session was found');
+        expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
+        expect(
+          controller.state.sessions.iron?.vendorDisclaimersAccepted?.submitted,
+        ).toBe(false);
+      });
+    });
+
+    it('recordVendorDisclaimers submits stored acceptance and marks it submitted', async () => {
+      await withController(
+        { options: { state: { sessions: { iron: ironEntry() } } } },
+        async ({ controller, handlers }) => {
+          handlers.fetchVendorDisclaimers.mockResolvedValue([
+            { id: 't1', display_name: 'T1', url: 'https://t1' },
+          ]);
+          controller.acceptVendorDisclaimers({
+            vendor: 'iron',
+            country: 'BRA',
+            disclaimerIds: ['t1'],
+          });
+          expect(
+            await controller.hasCompletedVendorDisclaimers({ vendor: 'iron' }),
+          ).toBe(false);
+
+          await controller.recordVendorDisclaimers({ vendor: 'iron' });
+
+          expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
+            vendor: 'iron',
+            disclaimerIds: ['t1'],
+          });
+          expect(
+            controller.state.sessions.iron?.vendorDisclaimersAccepted?.submitted,
+          ).toBe(true);
+          expect(
+            await controller.hasCompletedVendorDisclaimers({ vendor: 'iron' }),
+          ).toBe(true);
+          expect(handlers.fetchVendorDisclaimers).toHaveBeenCalledWith({
+            vendor: 'iron',
+            country: 'BRA',
+          });
+        },
+      );
+    });
+  });
+
+  it('presents one SumSub flow at a time', async () => {
+    await withController(
+      {
+        options: {
+          state: {
+            sessions: {
+              iron: ironEntry(),
+              moonpay: ironEntry({
+                sessionStatus: sessionStatus('pending', { id: 'mp-sid' }),
+              }),
+            },
+          },
+        },
+      },
+      async ({ controller, launcher }) => {
+        let finishLaunch: (value: { status: string }) => void = () => {
+          // Replaced below.
+        };
+        launcher.launch.mockReturnValue(
+          new Promise((resolve) => {
+            finishLaunch = resolve;
+          }),
+        );
+
+        const first = controller.launchProviderFlow({ vendor: 'iron' });
+        await flushPromises();
+        const moonpayBefore = controller.state.sessions.moonpay;
+
+        expect(await controller.launchProviderFlow({ vendor: 'moonpay' })).toBe(
+          'failed',
+        );
+        expect(controller.state.sessions.moonpay).toStrictEqual(moonpayBefore);
+
+        finishLaunch({ status: 'Incomplete' });
+        expect(await first).toBe('abandoned');
+      },
+    );
   });
 });
 
