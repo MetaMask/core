@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import type {
   BridgeStatusControllerState,
   BridgeHistoryItem,
-  StartPollingForBridgeTxStatusArgsSerialized,
+  StartPollingForBridgeTxStatusArgs,
   StatusResponse,
 } from '../types.js';
 import {

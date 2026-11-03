@@ -8,9 +8,6 @@ import {
   BatchSellTradesResponse,
   InputPrimaryDenomination,
   QuoteResponse,
-  toQuoteMetadataV1,
-  toQuoteResponseV1,
-  isQuoteResponseV2,
   FailurePhase,
   SwapBridgeErrorCode,
 } from '@metamask/bridge-controller';
@@ -107,6 +104,7 @@ import {
   promoteFailurePhase,
 } from './utils/metrics.js';
 import { getSelectedChainId } from './utils/network.js';
+import { normalizeQuoteResponses } from './utils/quotes.js';
 import {
   approvalUpdateHandler,
   tradeUpdateHandler,
@@ -1495,20 +1493,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     inputPrimaryDenomination?: InputPrimaryDenomination;
     migrationPhase?: QuoteMetadataMigrationPhase;
   }): Promise<TransactionMeta> => {
-    // Convert quote responses to V1 format and preserve metadata for consistency
-    const quoteResponses = quoteResponsesV1orV2.map((quote) => {
-      if (!isQuoteResponseV2(quote)) {
-        return quote;
-      }
-
-      const quoteMetadataV1 = toQuoteMetadataV1(quote, migrationPhase);
-
-      // This coercion omits legacy metadata from the resulting V1 quote
-      const quoteResponseV1 = toQuoteResponseV1(quote);
-
-      // Merge legacy-shaped metadata to V1-shaped quote response
-      return { ...quoteResponseV1, ...quoteMetadataV1 };
-    });
+    const quoteResponses = normalizeQuoteResponses(
+      quoteResponsesV1orV2,
+      migrationPhase,
+    );
     const quoteResponse = quoteResponses[0];
 
     const { quote } = quoteResponse;
