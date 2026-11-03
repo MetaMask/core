@@ -296,16 +296,14 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Test
         run: |
-          ARGS=(--silent --reporter blob --reporter default --shard "$SHARD/$SHARD_COUNT" --passWithNoTests)
+          ARGS=(--silent --coverage --reporter blob --reporter default --shard "$SHARD/$SHARD_COUNT" --passWithNoTests)
 
           # Unless a root file changed, only run the changed packages and their
-          # dependants, using a temporary config that lists just those projects.
+          # dependants, using a temporary config that lists just those packages.
           if [[ "$CHANGED_PATHS" != "full" ]]; then
-            PROJECTS=$(jq -c 'map("\(.)/vitest.config.{ts,mts}") + ["!packages/wallet-framework-docs/vitest.config.mts"]' <<< "$CHANGED_PATHS")
-
             mkdir -p .vitest
-            echo "export default { test: { watch: false, projects: $PROJECTS } };" > .vitest/vitest.config.changed.mjs
-            ARGS+=(--config .vitest/vitest.config.changed.mjs)
+            echo "import { createRootConfig } from '../scripts/lib/create-vitest-config.js'; export default await createRootConfig($CHANGED_PATHS);" > .vitest/vitest.config.changed.ts
+            ARGS+=(--config .vitest/vitest.config.changed.ts)
           fi
 
           yarn vitest "${ARGS[@]}"
@@ -335,6 +333,7 @@ jobs:
     name: Merge test reports
     runs-on: ubuntu-latest
     needs:
+      - prepare
       - prepare-environment
       - test
     if: ${{ !cancelled() && needs.test.result != 'skipped' }}
@@ -352,7 +351,22 @@ jobs:
           path: .vitest/blob/
           merge-multiple: true
       - name: Merge reports
-        run: yarn vitest --merge-reports --reporter default --reporter github-actions --silent
+        # This also checks the coverage thresholds of each package, which can
+        # only be done on the merged data, because a package's files are split
+        # over shards.
+        run: |
+          ARGS=(--merge-reports --coverage --reporter default --reporter github-actions --silent)
+
+          # Use the same packages as the test shards.
+          if [[ "$CHANGED_PATHS" != "full" ]]; then
+            mkdir -p .vitest
+            echo "import { createRootConfig } from '../scripts/lib/create-vitest-config.js'; export default await createRootConfig($CHANGED_PATHS);" > .vitest/vitest.config.changed.ts
+            ARGS+=(--config .vitest/vitest.config.changed.ts)
+          fi
+
+          yarn vitest "${ARGS[@]}"
+        env:
+          CHANGED_PATHS: ${{ needs.prepare.outputs.changed-paths }}
 
   build-platform-api-docs:
     name: Build Platform API docs

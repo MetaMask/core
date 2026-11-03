@@ -6170,7 +6170,7 @@
       "count": 6
     },
     "typescript/no-unsafe-return": {
-      "count": 3
+      "count": 1
     }
   },
   "scripts/lint-teams-json.ts": {

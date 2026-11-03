@@ -1,18 +1,13 @@
-import { defineConfig } from 'vitest/config';
+import {
+  createRootConfig,
+  getPackageDirectories,
+} from './scripts/lib/create-vitest-config.js';
 
 /**
  * Runs every package's suite in one process with a shared worker pool. Use
- * `--project <name>` to pick packages. Coverage stays off here, because
- * thresholds are per package and a projects run has one coverage report; run
- * `yarn workspace <name> run test:coverage` for the gate.
+ * `--project <name>` to pick packages. Coverage is off unless `--coverage` is
+ * passed, and thresholds are only checked when merging sharded reports (see
+ * `createRootConfig`); run `yarn workspace <name> run test` for a single
+ * package's gate.
  */
-export default defineConfig({
-  test: {
-    watch: false,
-    projects: [
-      'packages/*/vitest.config.{ts,mts}',
-      // The docs package isn't tested in CI, and its tests currently fail.
-      '!packages/wallet-framework-docs/vitest.config.mts',
-    ],
-  },
-});
+export default createRootConfig(await getPackageDirectories());
