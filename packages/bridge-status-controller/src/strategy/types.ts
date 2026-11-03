@@ -1,7 +1,5 @@
-import type { AccountsControllerState } from '@metamask/accounts-controller';
 import type {
   BatchSellTradesResponse,
-  BridgeClientId,
   SwapTraceFunction,
   QuoteMetadata,
   QuoteResponseV1,
@@ -12,7 +10,6 @@ import type {
   TransactionController,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex } from '@metamask/utils';
 
 import type { TraceName } from '../constants.js';
 import type {
@@ -21,6 +18,7 @@ import type {
   FetchFunction,
   QuoteAndTxMetadata,
   StartPollingForBridgeTxStatusArgs,
+  SubmitStrategyParamsJson,
 } from '../types.js';
 
 export enum SubmitStep {
@@ -115,41 +113,15 @@ export type SubmitStepResult =
  */
 export type SubmitStrategyParams<
   TradeType extends Trade = TxData,
-  BatchSellTradesResponseType extends
-    | BatchSellTradesResponse
-    | undefined
-    | null = BatchSellTradesResponse | undefined | null,
+  BatchSellTradesResponseType extends BatchSellTradesResponse | null =
+    BatchSellTradesResponse | null,
 > = {
-  /**
-   * The response from obtainGaslessBatch API containing submittable transactions and their fees
-   */
-  batchSellTrades: BatchSellTradesResponseType;
   /**
    * The function to add a transaction batch to the {@link TransactionControllers}
    */
   addTransactionBatchFn: TransactionController['addTransactionBatch'];
-  isBridgeTx: boolean;
-  isDelegatedAccount: boolean;
-  /**
-   * Whether the STX is enabled in the wallet. Does not necessarily mean that
-   * STX will be used to submit the transaction.
-   */
-  isStxEnabled: boolean;
   messenger: BridgeStatusControllerMessenger;
-  quoteResponses: (QuoteResponseV1<TradeType, TradeType> & QuoteMetadata)[];
-  /**
-   * Set to true so hardware wallets get prompted for approval on mobile
-   */
-  requireApproval: boolean;
-  selectedAccount: AccountsControllerState['internalAccounts']['accounts'][string];
   traceFn: SwapTraceFunction<TraceName>;
   // Used for intent transactions
   fetchFn: FetchFunction;
-  clientId: BridgeClientId;
-  bridgeApiBaseUrl: string;
-  /**
-   * The batch ID of the transaction batch passed to the addTransactionBatchFn
-   * This is only used for batch-sell transactions.
-   */
-  batchId?: Hex;
-};
+} & SubmitStrategyParamsJson<TradeType, BatchSellTradesResponseType>;

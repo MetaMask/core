@@ -140,7 +140,7 @@ describe('History Utils', () => {
       slippagePercentage: 0,
       accountAddress: '0xaccount',
       isStxEnabled: false,
-    } as unknown as StartPollingForBridgeTxStatusArgsSerialized;
+    } as unknown as StartPollingForBridgeTxStatusArgs;
 
     it('defaults isStxEnabled when omitted', () => {
       const { isStxEnabled: _ignored, ...argsWithoutStx } = baseArgs;
