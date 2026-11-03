@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `createIntentsV2` method for `POST /v2/intent`, which accepts the Money Account migration intent types, and the `ChompMigrationIntentType`, `SendIntentV2Params` and `SendIntentV2Response` types, also exposed through the messenger ([#11294](https://github.com/MetaMask/core/pull/11294))
+- Add optional `vaultMigrationHelperAddress` to `ServiceDetailsChain` ([#11294](https://github.com/MetaMask/core/pull/11294))
+- Add `startFundsTransfer` method for `POST /v1/money-account/identities/address/:address/funds-transfer`, which starts moving the funds of a migrating Money Account to its successor, and the `FundsTransferStart` type, also exposed through the messenger ([#11321](https://github.com/MetaMask/core/pull/11321))
+
 ## [7.0.0]
 
 ### Added

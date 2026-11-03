@@ -715,6 +715,135 @@ describe('ChompApiService', () => {
     }
   });
 
+  describe('createIntentsV2', () => {
+    const intentParams = [
+      {
+        account: '0xabc' as const,
+        delegationHash: '0xdef' as const,
+        chainId: '0x1' as const,
+        intent: {
+          type: 'cash-migration-root' as const,
+          data: {
+            allowance: '0xff' as const,
+            tokenSymbol: 'mUSD',
+            tokenAddress: '0x123' as const,
+          },
+        },
+      },
+    ];
+
+    const intentResponse = [
+      {
+        delegationHash: '0xdef',
+        intent: {
+          type: 'cash-migration-root',
+          data: {
+            allowance: '0xff',
+            tokenSymbol: 'mUSD',
+            tokenAddress: '0x123',
+          },
+        },
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ];
+
+    it('sends a POST with auth headers and returns the response array', async () => {
+      nock(BASE_URL)
+        .post('/v2/intent', intentParams)
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(201, intentResponse);
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:createIntentsV2',
+        intentParams,
+      );
+
+      expect(result).toStrictEqual(intentResponse);
+    });
+
+    for (const type of [
+      'cash-deposit',
+      'cash-withdrawal',
+      'cash-deposit-premium',
+      'cash-withdrawal-premium',
+      'cash-subscription',
+      'cash-migration-transfer',
+    ] as const) {
+      it(`accepts and returns the "${type}" intent type`, async () => {
+        const params = [
+          {
+            ...intentParams[0],
+            intent: { ...intentParams[0].intent, type },
+          },
+        ];
+        const response = [
+          {
+            ...intentResponse[0],
+            intent: { ...intentResponse[0].intent, type },
+          },
+        ];
+        nock(BASE_URL).post('/v2/intent', params).reply(201, response);
+        const { service } = createService();
+
+        expect(await service.createIntentsV2(params)).toStrictEqual(response);
+      });
+    }
+
+    it('sends and returns the user signature of a premium migration transfer', async () => {
+      const data = { ...intentParams[0].intent.data, userSignature: '0x99' };
+      const params = [
+        {
+          ...intentParams[0],
+          intent: {
+            type: 'cash-migration-premium-transfer' as const,
+            data: { ...data, userSignature: '0x99' as const },
+          },
+        },
+      ];
+      const response = [
+        {
+          ...intentResponse[0],
+          intent: { type: 'cash-migration-premium-transfer', data },
+        },
+      ];
+      nock(BASE_URL).post('/v2/intent', params).reply(201, response);
+      const { service } = createService();
+
+      expect(await service.createIntentsV2(params)).toStrictEqual(response);
+    });
+
+    it('throws a ChompApiError carrying the CHOMP error code', async () => {
+      nock(BASE_URL).post('/v2/intent').reply(409, {
+        statusCode: 409,
+        code: 'PREMIUM_ELIGIBILITY_NOT_TRANSFERRED',
+      });
+      const { service } = createService();
+
+      const error = await service
+        .createIntentsV2(intentParams)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(ChompApiError);
+      expect(error).toMatchObject({
+        httpStatus: 409,
+        code: 'PREMIUM_ELIGIBILITY_NOT_TRANSFERRED',
+        message: "POST /v2/intent failed with status '409'",
+      });
+    });
+
+    it('throws on malformed response', async () => {
+      nock(BASE_URL)
+        .post('/v2/intent')
+        .reply(201, [{ ...intentResponse[0], intent: { type: 'unknown' } }]);
+      const { service } = createService();
+
+      await expect(service.createIntentsV2(intentParams)).rejects.toThrow(
+        'At path: 0.intent.type',
+      );
+    });
+  });
+
   describe('getIntentsByAddress', () => {
     const intentsResponse = [
       {
@@ -986,6 +1115,48 @@ describe('ChompApiService', () => {
 
       expect(await service.getServiceDetails(['0xa4b1'])).toStrictEqual(
         response,
+      );
+    });
+
+    it('accepts the vault migration helper address of a chain', async () => {
+      const response = {
+        ...serviceDetailsResponse,
+        chains: {
+          '0xa4b1': {
+            ...serviceDetailsResponse.chains['0xa4b1'],
+            vaultMigrationHelperAddress:
+              '0x1111111111111111111111111111111111111111',
+          },
+        },
+      };
+      nock(BASE_URL)
+        .get('/v1/chomp')
+        .query({ chainId: '0xa4b1' })
+        .reply(200, response);
+      const { service } = createService();
+
+      expect(await service.getServiceDetails(['0xa4b1'])).toStrictEqual(
+        response,
+      );
+    });
+
+    it('throws on a malformed vault migration helper address', async () => {
+      nock(BASE_URL)
+        .get('/v1/chomp')
+        .query({ chainId: '0xa4b1' })
+        .reply(200, {
+          ...serviceDetailsResponse,
+          chains: {
+            '0xa4b1': {
+              ...serviceDetailsResponse.chains['0xa4b1'],
+              vaultMigrationHelperAddress: 'not-an-address',
+            },
+          },
+        });
+      const { service } = createService();
+
+      await expect(service.getServiceDetails(['0xa4b1'])).rejects.toThrow(
+        'At path: chains.0xa4b1.vaultMigrationHelperAddress',
       );
     });
 
@@ -1369,6 +1540,115 @@ describe('ChompApiService', () => {
       await expect(
         service.getDerivedIdentityByAddress(ADDRESS_B),
       ).rejects.toThrow('At path: address.role');
+    });
+  });
+
+  describe('startFundsTransfer', () => {
+    const fundsTransferPath = `/v1/money-account/identities/address/${ADDRESS_B}/funds-transfer`;
+    const fundsTransferStart = {
+      from: ADDRESS_B,
+      to: ADDRESS_C,
+      transfer: { requestId: 'transfer-request-id', status: 'PENDING' },
+      premiumTransfer: null,
+    };
+
+    it('sends a POST with auth headers and an empty JSON body and returns the funds-transfer requests', async () => {
+      nock(BASE_URL)
+        .post(fundsTransferPath, {})
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, fundsTransferStart);
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:startFundsTransfer',
+        ADDRESS_B,
+      );
+
+      expect(result).toStrictEqual(fundsTransferStart);
+    });
+
+    it('returns the premium transfer request of a premium migration', async () => {
+      const premiumFundsTransferStart = {
+        ...fundsTransferStart,
+        premiumTransfer: {
+          requestId: 'premium-transfer-request-id',
+          status: 'PENDING',
+        },
+      };
+      nock(BASE_URL)
+        .post(fundsTransferPath)
+        .reply(200, premiumFundsTransferStart);
+      const { service } = createService();
+
+      expect(await service.startFundsTransfer(ADDRESS_B)).toStrictEqual(
+        premiumFundsTransferStart,
+      );
+    });
+
+    it('lowercases returned addresses', async () => {
+      nock(BASE_URL)
+        .post(fundsTransferPath)
+        .reply(200, {
+          ...fundsTransferStart,
+          from: checksumLike(ADDRESS_B),
+          to: checksumLike(ADDRESS_C),
+        });
+      const { service } = createService();
+
+      expect(await service.startFundsTransfer(ADDRESS_B)).toStrictEqual(
+        fundsTransferStart,
+      );
+    });
+
+    it('sends a new request on every call', async () => {
+      nock(BASE_URL)
+        .post(fundsTransferPath)
+        .reply(200, { ...fundsTransferStart, transfer: null });
+      nock(BASE_URL).post(fundsTransferPath).reply(200, fundsTransferStart);
+      const { service } = createService();
+
+      const first = await service.startFundsTransfer(ADDRESS_B);
+      const second = await service.startFundsTransfer(ADDRESS_B);
+
+      expect(first.transfer).toBeNull();
+      expect(second).toStrictEqual(fundsTransferStart);
+    });
+
+    it('throws the CHOMP error code without retrying when a step is missing', async () => {
+      nock(BASE_URL)
+        .post(fundsTransferPath)
+        .reply(409, {
+          code: 'MIGRATION_STEPS_INCOMPLETE',
+          missingSteps: ['ROOT_DELEGATION'],
+        });
+      const { service } = createService();
+
+      await expect(service.startFundsTransfer(ADDRESS_B)).rejects.toMatchObject(
+        { httpStatus: 409, code: 'MIGRATION_STEPS_INCOMPLETE' },
+      );
+    });
+
+    it('throws on non-OK status', async () => {
+      nock(BASE_URL)
+        .post(fundsTransferPath)
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { service } = createService();
+
+      await expect(service.startFundsTransfer(ADDRESS_B)).rejects.toThrow(
+        `POST ${fundsTransferPath} failed with status '500'`,
+      );
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(BASE_URL)
+        .post(fundsTransferPath)
+        .reply(200, { ...fundsTransferStart, transfer: { requestId: 1 } });
+      const { service } = createService();
+
+      await expect(service.startFundsTransfer(ADDRESS_B)).rejects.toThrow(
+        'At path: transfer',
+      );
     });
   });
 
