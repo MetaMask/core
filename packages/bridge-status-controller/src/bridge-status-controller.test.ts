@@ -63,7 +63,7 @@ import { QuoteStatusManager } from './quote-status-manager/quotes-status-manager
 import { BridgeClientId } from './types.js';
 import type {
   BridgeId,
-  StartPollingForBridgeTxStatusArgsSerialized,
+  StartPollingForBridgeTxStatusArgs,
   BridgeHistoryItem,
   BridgeStatusControllerState,
   BridgeStatusControllerMessenger,
@@ -317,7 +317,7 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
   srcChainId = 42161,
   destChainId = 10,
   isStxEnabled = false,
-} = {}): StartPollingForBridgeTxStatusArgsSerialized => ({
+} = {}): StartPollingForBridgeTxStatusArgs => ({
   bridgeTxMeta: {
     id: txMetaId,
     hash: srcTxHash === 'undefined' ? undefined : srcTxHash,

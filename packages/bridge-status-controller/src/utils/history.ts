@@ -11,7 +11,7 @@ import type {
   BridgeHistoryItem,
   BridgeStatusControllerMessenger,
   BridgeStatusControllerState,
-  StartPollingForBridgeTxStatusArgsSerialized,
+  StartPollingForBridgeTxStatusArgs,
 } from '../types.js';
 import { getMaxPendingHistoryItemAgeMs } from './feature-flags.js';
 import { isApprovalTx, isAtomic7702BatchTx } from './transaction.js';
@@ -264,7 +264,7 @@ export function getHistoryKey(
 }
 
 export const getInitialHistoryItem = (
-  args: StartPollingForBridgeTxStatusArgsSerialized,
+  args: StartPollingForBridgeTxStatusArgs,
 ): BridgeHistoryItem => {
   const {
     bridgeTxMeta,
