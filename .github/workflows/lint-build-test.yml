@@ -112,13 +112,13 @@ jobs:
         id: shards
         if: matrix.node-version == needs.prepare-environment.outputs.latest-version
         run: |
-          # Full runs use all 20 shards. Otherwise use one shard per changed
-          # package, between 3 and 20.
+          # Full runs use all 30 shards. Otherwise use one shard per changed
+          # package, between 3 and 30.
           if [[ "$CHANGED_PATHS" == "full" ]]; then
-            COUNT=20
+            COUNT=30
           else
             PACKAGE_COUNT=$(jq 'length' <<< "$CHANGED_PATHS")
-            COUNT=$(( (PACKAGE_COUNT < 18 ? PACKAGE_COUNT : 18) + 2 ))
+            COUNT=$(( (PACKAGE_COUNT < 28 ? PACKAGE_COUNT : 28) + 2 ))
           fi
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
           echo "shards=$(seq 1 "$COUNT" | jq -sc .)" >> "$GITHUB_OUTPUT"
