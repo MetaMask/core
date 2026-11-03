@@ -66,6 +66,9 @@ import {
   isCustodyKeyring,
   keyringBuilderFactory,
 } from './KeyringController.js';
+import { lockLogger, projectLogger } from './logger.js';
+
+vi.mock('./logger.js', () => ({ lockLogger: vi.fn(), projectLogger: vi.fn() }));
 
 type AllKeyringControllerActions = MessengerActions<KeyringControllerMessenger>;
 
@@ -8158,6 +8161,8 @@ describe('KeyringController atomic keyring support', () => {
       { keyringBuilders: [buildFakeAtomicKeyringBuilder(remote)] },
       async ({ controller }) => {
         await controller.addNewKeyring(ATOMIC_TEST_KEYRING_TYPE);
+        vi.mocked(lockLogger).mockClear();
+        vi.mocked(projectLogger).mockClear();
         const fake = controller.getKeyringsByType(
           ATOMIC_TEST_KEYRING_TYPE,
         )[0] as FakeAtomicKeyring;
@@ -8187,10 +8192,41 @@ describe('KeyringController atomic keyring support', () => {
           expect(fake.state.status).toBe('uninitialized');
         });
 
+        expect(projectLogger).toHaveBeenCalledWith(
+          'Atomic keyring operation started (outside controller lock)',
+          { id: expect.any(Number), operation: 'withKeyring' },
+        );
+        expect(projectLogger).toHaveBeenCalledTimes(1);
+        expect(lockLogger).toHaveBeenCalledWith(
+          'Locked operation finished',
+          expect.objectContaining({ operation: 'withKeyring', success: true }),
+        );
+        expect(lockLogger).not.toHaveBeenCalledWith(
+          'Lock requested',
+          expect.objectContaining({ operation: 'atomicUpdate' }),
+        );
+
         ceremonyGate.resolve();
         await operation;
 
         expect(fake.state.status).toBe('ready');
+        expect(projectLogger).toHaveBeenLastCalledWith(
+          'Atomic keyring operation finished (outside controller lock)',
+          expect.objectContaining({
+            operation: 'withKeyring',
+            durationMs: expect.any(Number),
+            success: true,
+          }),
+        );
+        expect(
+          vi
+            .mocked(lockLogger)
+            .mock.calls.filter(([message]) => message === 'Lock acquired')
+            .filter(
+              ([, details]) =>
+                (details as { operation: string }).operation === 'atomicUpdate',
+            ),
+        ).toHaveLength(2);
       },
     );
   });
@@ -8220,6 +8256,14 @@ describe('KeyringController atomic keyring support', () => {
             },
           ),
         ).rejects.toThrow('activation failed');
+
+        expect(projectLogger).toHaveBeenLastCalledWith(
+          'Atomic keyring operation finished (outside controller lock)',
+          expect.objectContaining({
+            success: false,
+            durationMs: expect.any(Number),
+          }),
+        );
 
         // The staged update survived the operation error: there is no
         // rollback for atomic keyrings.
