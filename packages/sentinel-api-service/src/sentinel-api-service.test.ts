@@ -27,12 +27,18 @@ import {
 } from './errors.js';
 import { SentinelApiService } from './sentinel-api-service.js';
 import {
+  SentinelCancellationReason,
   SentinelFeature,
+  SentinelMinedTxStatus,
+  SentinelOriginalTransactionStatus,
   SentinelProductFeature,
   SentinelSmartTransactionStatus,
 } from './types.js';
 import type {
   SentinelApiServiceMessenger,
+  SentinelBatchedTransactionStatus,
+  SentinelBatchStatusRequest,
+  SentinelBatchStatusResponse,
   SentinelCancelRequest,
   SentinelGetFeesRequest,
   SentinelRelaySubmitRequest,
@@ -156,6 +162,32 @@ const MOCK_CANCEL_RESPONSE = {
   uuid: UUID,
   affected: 1,
   cancelled: true,
+};
+
+const UUID_2 = '22222222-2222-2222-2222-222222222222';
+
+const MOCK_BATCH_STATUS_REQUEST: SentinelBatchStatusRequest = {
+  chainId: CHAIN_ID_MAINNET,
+  uuids: [UUID, UUID_2],
+};
+
+const MOCK_BATCH_STATUS_ENTRY: SentinelBatchedTransactionStatus = {
+  cancellationFeeWei: 0,
+  cancellationReason: SentinelCancellationReason.NotCancelled,
+  deadlineRatio: 0,
+  duplicated: false,
+  isSettled: false,
+  minedHash: '',
+  minedTx: SentinelMinedTxStatus.NotMined,
+  originalTransactionStatus: SentinelOriginalTransactionStatus.Pending,
+  proxied: false,
+  timedOut: false,
+  wouldRevertMessage: '',
+};
+
+const MOCK_BATCH_STATUS_RESPONSE: SentinelBatchStatusResponse = {
+  [UUID]: MOCK_BATCH_STATUS_ENTRY,
+  [UUID_2]: MOCK_BATCH_STATUS_ENTRY,
 };
 
 const MOCK_FEES_RESPONSE = {
@@ -1403,6 +1435,158 @@ describe('SentinelApiService', () => {
       );
 
       expect(result).toStrictEqual(MOCK_CANCEL_RESPONSE);
+      service.destroy();
+    });
+  });
+
+  describe('error responses without a JSON body', () => {
+    it('getFees throws HttpError without data', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/v1/networks/1/getFees')
+        .reply(500, 'Internal Server Error');
+
+      const error = await service
+        .getFees(MOCK_FEES_REQUEST)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({ httpStatus: 500 });
+      expect(error).not.toHaveProperty('data');
+      service.destroy();
+    });
+
+    it('submitTransactions throws HttpError without data', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/v1/networks/1/submitTransactions')
+        .reply(500, 'Internal Server Error');
+
+      const error = await service
+        .submitTransactions(MOCK_SUBMIT_REQUEST)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({ httpStatus: 500 });
+      expect(error).not.toHaveProperty('data');
+      service.destroy();
+    });
+
+    it('cancel throws HttpError without data', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/v1/networks/1/cancel')
+        .reply(500, 'Internal Server Error');
+
+      const error = await service
+        .cancel(MOCK_CANCEL_REQUEST)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({ httpStatus: 500 });
+      expect(error).not.toHaveProperty('data');
+      service.destroy();
+    });
+  });
+
+  describe('batchStatus', () => {
+    it('returns the status for each requested uuid', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const scope = nock(MAINNET_URL)
+        .get('/v1/networks/1/batchStatus')
+        .query({ uuids: `${UUID},${UUID_2}` })
+        .reply(200, MOCK_BATCH_STATUS_RESPONSE);
+
+      const result = await service.batchStatus(MOCK_BATCH_STATUS_REQUEST);
+
+      expect(result).toStrictEqual(MOCK_BATCH_STATUS_RESPONSE);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('throws a validation error on a malformed response', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .get('/v1/networks/1/batchStatus')
+        .query(true)
+        .reply(200, { [UUID]: { unexpected: true } });
+
+      await expect(
+        service.batchStatus(MOCK_BATCH_STATUS_REQUEST),
+      ).rejects.toThrow(SentinelApiResponseValidationError);
+      service.destroy();
+    });
+
+    it('throws when the chain is not in the registry', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      await expect(
+        service.batchStatus({
+          ...MOCK_BATCH_STATUS_REQUEST,
+          chainId: CHAIN_ID_UNKNOWN,
+        }),
+      ).rejects.toThrow(SentinelChainNotSupportedError);
+      service.destroy();
+    });
+
+    it('throws HttpError with the response body on a non-2xx response', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .get('/v1/networks/1/batchStatus')
+        .query(true)
+        .reply(404, { statusCode: 404, error: 'Not Found' });
+
+      const error = await service
+        .batchStatus(MOCK_BATCH_STATUS_REQUEST)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({
+        httpStatus: 404,
+        data: { statusCode: 404, error: 'Not Found' },
+      });
+      service.destroy();
+    });
+
+    it('throws HttpError without data when a non-2xx response body is not JSON', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .get('/v1/networks/1/batchStatus')
+        .query(true)
+        .reply(502, 'Bad Gateway');
+
+      const error = await service
+        .batchStatus(MOCK_BATCH_STATUS_REQUEST)
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error).toMatchObject({ httpStatus: 502 });
+      expect(error).not.toHaveProperty('data');
+      service.destroy();
+    });
+
+    it('is callable via messenger action', async () => {
+      const { service, rootMessenger } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .get('/v1/networks/1/batchStatus')
+        .query(true)
+        .reply(200, MOCK_BATCH_STATUS_RESPONSE);
+
+      const result = await rootMessenger.call(
+        'SentinelApiService:batchStatus',
+        MOCK_BATCH_STATUS_REQUEST,
+      );
+
+      expect(result).toStrictEqual(MOCK_BATCH_STATUS_RESPONSE);
       service.destroy();
     });
   });

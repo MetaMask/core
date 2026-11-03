@@ -362,6 +362,21 @@ export type SentinelCancelRequest = {
 };
 
 /**
+ * A request to look up smart-transaction statuses via
+ * `GET /v1/networks/{chainId}/batchStatus`.
+ */
+export type SentinelBatchStatusRequest = {
+  /** The chain to look up statuses on. */
+  chainId: Hex;
+
+  /**
+   * UUIDs to look up. Sent as the comma-separated `uuids` query parameter.
+   * The handler rejects a list longer than 128.
+   */
+  uuids: string[];
+};
+
+/**
  * A single network entry from the Sentinel `/networks` registry, or the
  * configuration of a single network from the `/network` endpoint.
  */
@@ -676,3 +691,118 @@ export type SentinelCancelResponse = {
    */
   cancelled: boolean;
 };
+
+/**
+ * Values of `cancellationReason` on a batch-status entry.
+ * Compliant with the Transaction API (SCP).
+ */
+export enum SentinelCancellationReason {
+  NotCancelled = 'not_cancelled',
+  UserCancelled = 'user_cancelled',
+  WouldRevert = 'would_revert',
+  InvalidNonce = 'invalid_nonce',
+  DeadlineMissed = 'deadline_missed',
+  TooCheap = 'too_cheap',
+}
+
+/**
+ * Values of `minedTx` on a batch-status entry.
+ * Compliant with the Transaction API (SCP).
+ */
+export enum SentinelMinedTxStatus {
+  NotMined = 'not_mined',
+  Reverted = 'reverted',
+  Success = 'success',
+  Cancelled = 'cancelled',
+}
+
+/**
+ * Values of `originalTransactionStatus` on a batch-status entry.
+ * `UNKNOWN_STATUS` is the Go `String()` fallback and is not produced for a
+ * status loaded from the database.
+ */
+export enum SentinelOriginalTransactionStatus {
+  Pending = 'PENDING',
+  PendingCancelled = 'PENDING_CANCELLED',
+  Validated = 'VALIDATED',
+  Reverted = 'REVERTED',
+  NonceTooLow = 'NONCE_TOO_LOW',
+  Cancelled = 'CANCELLED',
+  Failed = 'FAILED',
+  FailedWouldRevert = 'FAILED_WOULD_REVERT',
+  FailedInsufficientFunds = 'FAILED_INSUFFICIENT_FUNDS',
+  FailedUnknown = 'FAILED_UNKNOWN',
+  FailedTimeout = 'FAILED_TIMEOUT',
+  FailedGasTooLow = 'FAILED_GAS_TOO_LOW',
+  FailedNonceTooHigh = 'FAILED_NONCE_TOO_HIGH',
+  FailedGaslessConfig = 'FAILED_GASLESS_CONFIG',
+  FailedSponsorshipRule = 'FAILED_SPONSORSHIP_RULE',
+  FailedSpam = 'FAILED_SPAM',
+  FailedAuth = 'FAILED_AUTH',
+  FailedInsufficientFee = 'FAILED_INSUFFICIENT_FEE',
+  LeakedValidated = 'LEAKED_VALIDATED',
+  LeakedReverted = 'LEAKED_REVERTED',
+  CancelledLeakedValidated = 'CANCELLED_LEAKED_VALIDATED',
+  CancelledLeakedReverted = 'CANCELLED_LEAKED_REVERTED',
+}
+
+/**
+ * One UUID's status from `GET /v1/networks/{chainId}/batchStatus`.
+ */
+export type SentinelBatchedTransactionStatus = {
+  /**
+   * Cancellation fee in wei. The handler always sends `0`.
+   */
+  cancellationFeeWei: number;
+
+  /** Why the transaction was cancelled, or `not_cancelled`. */
+  cancellationReason: SentinelCancellationReason;
+
+  /**
+   * Deadline ratio. The handler always sends `0`.
+   */
+  deadlineRatio: number;
+
+  /**
+   * Whether the transaction has left `PENDING`. `PENDING_CANCELLED` is
+   * settled.
+   */
+  isSettled: boolean;
+
+  /**
+   * Hash of the mined submission. Empty when the aggregate status is not a
+   * mined status, or when no submission hash matches that status.
+   */
+  minedHash: string;
+
+  /** Mining outcome of the smart transaction. */
+  minedTx: SentinelMinedTxStatus;
+
+  /**
+   * Failure message. Empty unless the aggregate status is
+   * `FAILED_WOULD_REVERT`, `FAILED_SPONSORSHIP_RULE`,
+   * `FAILED_INSUFFICIENT_FUNDS`, or `FAILED_INSUFFICIENT_FEE`.
+   */
+  wouldRevertMessage: string;
+
+  /** Whether Sentinel treated the submission as a duplicate. */
+  duplicated: boolean;
+
+  /** Whether the submission was proxied. */
+  proxied: boolean;
+
+  /** Whether the submission timed out. */
+  timedOut: boolean;
+
+  /** Aggregate smart-transaction status. */
+  originalTransactionStatus: SentinelOriginalTransactionStatus;
+};
+
+/**
+ * The response from `GET /v1/networks/{chainId}/batchStatus`.
+ * Keys are the smart-transaction UUIDs from the request.
+ */
+export type SentinelBatchStatusResponse = Record<
+  string,
+  SentinelBatchedTransactionStatus
+>;

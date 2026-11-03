@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Re-export `SentinelCancellationReason`, `SentinelMinedTxStatus` and `SentinelOriginalTransactionStatus` from `@metamask/sentinel-api-service`
+
 ### Changed
 
+- **BREAKING:** Fetch Smart Transactions batch status from `@metamask/sentinel-api-service` via the `SentinelApiService:batchStatus` messenger action
+  - Consumers must delegate the `SentinelApiService:batchStatus` action to the `SmartTransactionsController` messenger.
+  - `fetchSmartTransactionsStatus` still resolves to a `Record<string, SmartTransactionsStatus>` keyed by UUID. A non-2xx response is still thrown as `Fetch error: <status>` with the response body on `data`. A response that does not match the Sentinel batch status schema now throws instead of being processed.
+  - The controller no longer calls `AuthenticationController:getBearerToken`, and `@metamask/profile-sync-controller` is no longer a dependency.
 - **BREAKING:** Cancel smart transactions through `@metamask/sentinel-api-service` via the `SentinelApiService:cancel` messenger action
   - Consumers must delegate the `SentinelApiService:cancel` action to the `SmartTransactionsController` messenger.
   - `cancelSmartTransaction` still accepts `uuid` and an optional `networkClientId`, and still resolves to `void`. A non-2xx response is still thrown as `Fetch error: <status>` with the response body on `data`.
@@ -20,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `Feature` and `Kind` are no longer exported. `SentinelMeta` is re-exported from `@metamask/sentinel-api-service`.
 - **BREAKING:** Fetch Smart Transactions fee quotes from `@metamask/sentinel-api-service` via the `SentinelApiService:getFees` messenger action
   - Consumers must delegate the `SentinelApiService:getFees` action to the `SmartTransactionsController` messenger. The `getFees` return type is unchanged.
+
+### Removed
+
+- **BREAKING:** Remove `SmartTransactionMinedTx`, `SmartTransactionCancellationReason` and `OriginalTransactionStatus`
+  - Use `SentinelMinedTxStatus`, `SentinelCancellationReason` and `SentinelOriginalTransactionStatus` instead. The string values are unchanged, but members are PascalCase (e.g. `SmartTransactionMinedTx.NOT_MINED` becomes `SentinelMinedTxStatus.NotMined`).
+  - `SmartTransactionMinedTx.UNKNOWN` has no replacement; Sentinel never returns it.
 
 ## [27.2.1]
 

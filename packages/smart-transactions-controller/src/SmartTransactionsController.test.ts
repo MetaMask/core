@@ -1,10 +1,5 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import {
-  NetworkType,
-  convertHexToDecimal,
-  ChainId,
-  HttpError,
-} from '@metamask/controller-utils';
+import { NetworkType, ChainId, HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -13,11 +8,18 @@ import type {
 } from '@metamask/messenger';
 import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type { NetworkState } from '@metamask/network-controller';
+import {
+  SentinelCancellationReason,
+  SentinelMinedTxStatus,
+  SentinelOriginalTransactionStatus,
+} from '@metamask/sentinel-api-service';
 import type {
+  SentinelApiServiceBatchStatusAction,
   SentinelApiServiceCancelAction,
   SentinelApiServiceGetFeesAction,
   SentinelApiServiceGetNetworkAction,
   SentinelApiServiceSubmitTransactionsAction,
+  SentinelBatchStatusResponse,
 } from '@metamask/sentinel-api-service';
 import {
   TransactionStatus,
@@ -30,15 +32,11 @@ import type {
   TransactionParams,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { flushPromises, getFakeProvider } from '../tests/helpers.js';
-import {
-  SENTINEL_API_BASE_URL_MAP,
-  SmartTransactionsTraceName,
-} from './constants.js';
+import { SmartTransactionsTraceName } from './constants.js';
 import {
   DEFAULT_INTERVAL,
   SmartTransactionsController,
@@ -47,7 +45,6 @@ import {
 import type { SmartTransactionsControllerMessenger } from './SmartTransactionsController.js';
 import type { SmartTransaction, UnsignedTransaction } from './types.js';
 import { SmartTransactionStatuses, ClientId } from './types.js';
-import * as utils from './utils.js';
 
 type AllActions = MessengerActions<SmartTransactionsControllerMessenger>;
 
@@ -245,15 +242,22 @@ const createSignedCanceledTransaction = () => {
   return '0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a02b79f322a625d623a2bb2911e0c6b3e7eaf741a7c7c5d2e8c67ef3ff4acf146ca01ae168fea63dc3391b75b586c8a7c0cb55cdf3b8e2e4d8e097957a3a56c6f2c5';
 };
 
-const createPendingBatchStatusApiResponse = () => ({
-  uuid1: {
-    cancellationFeeWei: 0,
-    cancellationReason: 'not_cancelled',
-    deadlineRatio: 0.0006295545895894369,
-    minedTx: 'not_mined',
-    minedHash: '',
-  },
-});
+const createPendingBatchStatusApiResponse =
+  (): SentinelBatchStatusResponse => ({
+    uuid1: {
+      cancellationFeeWei: 0,
+      cancellationReason: SentinelCancellationReason.NotCancelled,
+      deadlineRatio: 0.0006295545895894369,
+      duplicated: false,
+      isSettled: false,
+      minedHash: '',
+      minedTx: SentinelMinedTxStatus.NotMined,
+      originalTransactionStatus: SentinelOriginalTransactionStatus.Pending,
+      proxied: false,
+      timedOut: false,
+      wouldRevertMessage: '',
+    },
+  });
 
 const createStateAfterPending = () => {
   return [
@@ -275,16 +279,23 @@ const createStateAfterPending = () => {
   ];
 };
 
-const createSuccessBatchStatusApiResponse = () => ({
-  uuid2: {
-    cancellationFeeWei: 36777567771000,
-    cancellationReason: 'not_cancelled',
-    deadlineRatio: 0.6400288486480713,
-    minedHash:
-      '0x55ad39634ee10d417b6e190cfd3736098957e958879cffe78f1f00f4fd2654d6',
-    minedTx: 'success',
-  },
-});
+const createSuccessBatchStatusApiResponse =
+  (): SentinelBatchStatusResponse => ({
+    uuid2: {
+      cancellationFeeWei: 36777567771000,
+      cancellationReason: SentinelCancellationReason.NotCancelled,
+      deadlineRatio: 0.6400288486480713,
+      duplicated: false,
+      isSettled: true,
+      minedHash:
+        '0x55ad39634ee10d417b6e190cfd3736098957e958879cffe78f1f00f4fd2654d6',
+      minedTx: SentinelMinedTxStatus.Success,
+      originalTransactionStatus: SentinelOriginalTransactionStatus.Validated,
+      proxied: false,
+      timedOut: false,
+      wouldRevertMessage: '',
+    },
+  });
 
 const createStateAfterSuccess = () => {
   return [
@@ -323,8 +334,6 @@ const trackMetaMetricsEventSpy = vi.fn();
 describe('SmartTransactionsController', () => {
   afterEach(async () => {
     vi.clearAllMocks();
-    // eslint-disable-next-line import-x/no-named-as-default-member
-    nock.cleanAll();
   });
 
   it('initializes with default state', async () => {
@@ -1543,13 +1552,11 @@ describe('SmartTransactionsController', () => {
     });
 
     it('fetches a pending status for a single smart transaction via batchStatus API', async () => {
-      await withController(async ({ controller }) => {
+      await withController(async ({ controller, batchStatus }) => {
         const uuids = ['uuid1'];
-        const pendingBatchStatusApiResponse =
-          createPendingBatchStatusApiResponse();
-        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-          .get(`/v1/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid1`)
-          .reply(200, pendingBatchStatusApiResponse);
+        batchStatus.mockResolvedValueOnce(
+          createPendingBatchStatusApiResponse(),
+        );
 
         const params = uuids.map((uuid) => ({
           uuid,
@@ -1557,6 +1564,11 @@ describe('SmartTransactionsController', () => {
         }));
 
         await controller.fetchSmartTransactionsStatus(params);
+
+        expect(batchStatus).toHaveBeenCalledWith({
+          chainId: ChainId.mainnet,
+          uuids: ['uuid1'],
+        });
 
         const pendingState = createStateAfterPending()[0];
         const pendingTransaction = { ...pendingState, history: [pendingState] };
@@ -1591,6 +1603,100 @@ describe('SmartTransactionsController', () => {
       });
     });
 
+    it('rethrows batch status error message when fetch fails', async () => {
+      const httpError = new HttpError(
+        404,
+        "Sentinel API: Batch status request failed with status '404'",
+      );
+      Object.assign(httpError, {
+        data: { statusCode: 404, error: 'Not Found' },
+      });
+
+      await withController(
+        {
+          batchStatus: vi
+            .fn<SentinelApiServiceBatchStatusAction['handler']>()
+            .mockRejectedValue(httpError),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.fetchSmartTransactionsStatus([
+              { uuid: 'uuid1', chainId: ChainId.mainnet },
+            ]),
+          ).rejects.toMatchObject({
+            message: 'Fetch error: 404',
+            data: { statusCode: 404, error: 'Not Found' },
+          });
+        },
+      );
+    });
+
+    it('rethrows batch status errors that are not HTTP errors', async () => {
+      const networkError = new Error('Network down');
+
+      await withController(
+        {
+          batchStatus: vi
+            .fn<SentinelApiServiceBatchStatusAction['handler']>()
+            .mockRejectedValue(networkError),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.fetchSmartTransactionsStatus([
+              { uuid: 'uuid1', chainId: ChainId.mainnet },
+            ]),
+          ).rejects.toBe(networkError);
+        },
+      );
+    });
+
+    it('rethrows batch status error without data when the HTTP error has no body', async () => {
+      await withController(
+        {
+          batchStatus: vi
+            .fn<SentinelApiServiceBatchStatusAction['handler']>()
+            .mockRejectedValue(
+              new HttpError(500, 'Sentinel API: Batch status request failed'),
+            ),
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.fetchSmartTransactionsStatus([
+              { uuid: 'uuid1', chainId: ChainId.mainnet },
+            ]),
+          ).rejects.toThrow('Fetch error: 500');
+        },
+      );
+    });
+
+    it('ignores statuses for UUIDs that were not requested', async () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      await withController(
+        {
+          batchStatus: vi
+            .fn<SentinelApiServiceBatchStatusAction['handler']>()
+            .mockResolvedValue(createPendingBatchStatusApiResponse()),
+        },
+        async ({ controller }) => {
+          await controller.fetchSmartTransactionsStatus([
+            { uuid: 'uuid2', chainId: ChainId.mainnet },
+          ]);
+
+          expect(consoleErrorSpy).toHaveBeenCalledWith(
+            'No matching transaction found for uuid: uuid1',
+          );
+          expect(
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ],
+          ).toStrictEqual([]);
+        },
+      );
+    });
+
     it('fetches a success status for a single smart transaction via batchStatus API', async () => {
       await withController(
         {
@@ -1607,13 +1713,11 @@ describe('SmartTransactionsController', () => {
             },
           },
         },
-        async ({ controller }) => {
+        async ({ controller, batchStatus }) => {
           const uuids = ['uuid2'];
-          const successBatchStatusApiResponse =
-            createSuccessBatchStatusApiResponse();
-          nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
-            .get(`/v1/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid2`)
-            .reply(200, successBatchStatusApiResponse);
+          batchStatus.mockResolvedValueOnce(
+            createSuccessBatchStatusApiResponse(),
+          );
 
           const params = uuids.map((uuid) => ({
             uuid,
@@ -2356,62 +2460,39 @@ describe('SmartTransactionsController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          const handleFetchSpy = vi
-            .spyOn(utils, 'handleFetch')
-            .mockImplementation(async () => Promise.resolve({}));
-
+        async ({ controller, batchStatus }) => {
           const mainnetPollingToken = controller.startPolling({
             chainIds: [ChainId.mainnet],
           });
 
           await vi.advanceTimersByTimeAsync(0);
 
-          const fetchHeaders = {
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Client-Id': ClientId.Mobile,
-            },
-          };
-
-          expect(handleFetchSpy).toHaveBeenNthCalledWith(
-            1,
-            `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${convertHexToDecimal(
-              ChainId.mainnet,
-            )}/batchStatus?uuids=uuid1`,
-            fetchHeaders,
-          );
+          expect(batchStatus).toHaveBeenNthCalledWith(1, {
+            chainId: ChainId.mainnet,
+            uuids: ['uuid1'],
+          });
 
           await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
-          expect(handleFetchSpy).toHaveBeenNthCalledWith(
-            2,
-            `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/v1/networks/${convertHexToDecimal(
-              ChainId.mainnet,
-            )}/batchStatus?uuids=uuid1`,
-            fetchHeaders,
-          );
+          expect(batchStatus).toHaveBeenNthCalledWith(2, {
+            chainId: ChainId.mainnet,
+            uuids: ['uuid1'],
+          });
 
           controller.startPolling({ chainIds: [ChainId.sepolia] });
           await vi.advanceTimersByTimeAsync(0);
 
-          expect(handleFetchSpy).toHaveBeenNthCalledWith(
-            3,
-            `${SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec]}/v1/networks/${convertHexToDecimal(
-              ChainId.sepolia,
-            )}/batchStatus?uuids=uuid2`,
-            fetchHeaders,
-          );
+          expect(batchStatus).toHaveBeenNthCalledWith(3, {
+            chainId: ChainId.sepolia,
+            uuids: ['uuid2'],
+          });
 
           await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
-          expect(handleFetchSpy).toHaveBeenNthCalledWith(
-            5,
-            `${SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec]}/v1/networks/${convertHexToDecimal(
-              ChainId.sepolia,
-            )}/batchStatus?uuids=uuid2`,
-            fetchHeaders,
-          );
+          expect(batchStatus).toHaveBeenNthCalledWith(5, {
+            chainId: ChainId.sepolia,
+            uuids: ['uuid2'],
+          });
 
           // stop the mainnet polling
           controller.stopPollingByPollingToken(mainnetPollingToken);
@@ -2422,23 +2503,35 @@ describe('SmartTransactionsController', () => {
           await vi.advanceTimersByTimeAsync(DEFAULT_INTERVAL);
 
           // check that the mainnet polling has stopped while the sepolia polling continues
-          expect(handleFetchSpy).toHaveBeenNthCalledWith(
-            6,
-            `${SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec]}/v1/networks/${convertHexToDecimal(
-              ChainId.sepolia,
-            )}/batchStatus?uuids=uuid2`,
-            fetchHeaders,
-          );
+          expect(batchStatus).toHaveBeenNthCalledWith(6, {
+            chainId: ChainId.sepolia,
+            uuids: ['uuid2'],
+          });
 
-          expect(handleFetchSpy).toHaveBeenNthCalledWith(
-            7,
-            `${SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec]}/v1/networks/${convertHexToDecimal(
-              ChainId.sepolia,
-            )}/batchStatus?uuids=uuid2`,
-            fetchHeaders,
-          );
+          expect(batchStatus).toHaveBeenNthCalledWith(7, {
+            chainId: ChainId.sepolia,
+            uuids: ['uuid2'],
+          });
         },
       );
+    });
+
+    it('runs the status update at the interval set by setStatusRefreshInterval', async () => {
+      await withController(async ({ controller }) => {
+        const updateSmartTransactionsSpy = vi
+          .spyOn(controller, 'updateSmartTransactions')
+          .mockResolvedValue(undefined);
+        await controller.setStatusRefreshInterval(1000);
+
+        await controller.poll();
+        const callsAfterStart = updateSmartTransactionsSpy.mock.calls.length;
+
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(updateSmartTransactionsSpy.mock.calls).toHaveLength(
+          callsAfterStart + 1,
+        );
+      });
     });
 
     it('does not poll for chains that are not supported', async () => {
@@ -2477,18 +2570,14 @@ describe('SmartTransactionsController', () => {
             },
           },
         },
-        async ({ controller }) => {
-          const handleFetchSpy = vi
-            .spyOn(utils, 'handleFetch')
-            .mockImplementation(async () => Promise.resolve({}));
-
+        async ({ controller, batchStatus }) => {
           controller.startPolling({
             chainIds: ['notSupportedChainId' as Hex],
           });
 
           await vi.advanceTimersByTimeAsync(0);
 
-          expect(handleFetchSpy).not.toHaveBeenCalled();
+          expect(batchStatus).not.toHaveBeenCalled();
         },
       );
     });
@@ -3117,6 +3206,7 @@ describe('SmartTransactionsController', () => {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  batchStatus,
   cancel,
   getFees,
   getNetwork,
@@ -3124,6 +3214,7 @@ type WithControllerCallback<ReturnValue> = ({
   triggerNetworkStateChange,
 }: {
   controller: SmartTransactionsController;
+  batchStatus: Mock<SentinelApiServiceBatchStatusAction['handler']>;
   cancel: Mock<SentinelApiServiceCancelAction['handler']>;
   getFees: Mock<SentinelApiServiceGetFeesAction['handler']>;
   getNetwork: Mock<SentinelApiServiceGetNetworkAction['handler']>;
@@ -3140,6 +3231,7 @@ type WithControllerOptions = {
   getNonceLock?: TransactionControllerGetNonceLockAction['handler'];
   getTransactions?: TransactionControllerGetTransactionsAction['handler'];
   failTransaction?: TransactionControllerFailTransactionAction['handler'];
+  batchStatus?: Mock<SentinelApiServiceBatchStatusAction['handler']>;
   cancel?: Mock<SentinelApiServiceCancelAction['handler']>;
   getFees?: Mock<SentinelApiServiceGetFeesAction['handler']>;
   getNetwork?: Mock<SentinelApiServiceGetNetworkAction['handler']>;
@@ -3149,7 +3241,6 @@ type WithControllerOptions = {
   remoteFeatureFlags?: {
     smartTransactionsNetworks?: Record<string, unknown>;
   };
-  bearerToken?: string;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -3177,6 +3268,9 @@ async function withController<ReturnValue>(
     }),
     getTransactions = vi.fn(),
     failTransaction = vi.fn(),
+    batchStatus = vi
+      .fn<SentinelApiServiceBatchStatusAction['handler']>()
+      .mockResolvedValue({}),
     cancel = vi
       .fn<SentinelApiServiceCancelAction['handler']>()
       .mockResolvedValue({
@@ -3197,7 +3291,6 @@ async function withController<ReturnValue>(
         network: 'mainnet',
       }),
     remoteFeatureFlags = {},
-    bearerToken,
   } = rest;
 
   const rootMessenger: RootMessenger = new Messenger({
@@ -3285,8 +3378,8 @@ async function withController<ReturnValue>(
   );
 
   rootMessenger.registerActionHandler(
-    'AuthenticationController:getBearerToken',
-    vi.fn().mockResolvedValue(bearerToken),
+    'SentinelApiService:batchStatus',
+    batchStatus,
   );
   rootMessenger.registerActionHandler('SentinelApiService:cancel', cancel);
   rootMessenger.registerActionHandler('SentinelApiService:getFees', getFees);
@@ -3311,13 +3404,13 @@ async function withController<ReturnValue>(
   rootMessenger.delegate({
     messenger,
     actions: [
-      'AuthenticationController:getBearerToken',
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
       'RemoteFeatureFlagController:getState',
       'TransactionController:getNonceLock',
       'TransactionController:getTransactions',
       'TransactionController:failTransaction',
+      'SentinelApiService:batchStatus',
       'SentinelApiService:cancel',
       'SentinelApiService:getFees',
       'SentinelApiService:getNetwork',
@@ -3378,6 +3471,7 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
+      batchStatus,
       cancel,
       getFees,
       getNetwork,

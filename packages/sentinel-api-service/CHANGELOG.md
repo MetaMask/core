@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `batchStatus` method and `SentinelApiService:batchStatus` action to look up the status of several smart transactions via `GET /v1/networks/{chainId}/batchStatus`
+  - Accepts a `SentinelBatchStatusRequest` (`chainId`, `uuids`) and returns a `SentinelBatchStatusResponse`, a record keyed by UUID whose values are `SentinelBatchedTransactionStatus`.
+  - Adds the `SentinelCancellationReason`, `SentinelMinedTxStatus`, and `SentinelOriginalTransactionStatus` enums for the closed-set status fields.
+  - Not cached. Throws `SentinelChainNotSupportedError` when the chain is missing from the registry or does not enable `smartTransactions`. A non-2xx response throws `HttpError` with the response body on `data` when it is JSON.
 - Add `cancel` method and `SentinelApiService:cancel` action to cancel a smart transaction via `POST /v1/networks/{chainId}/cancel`
   - Accepts a `SentinelCancelRequest` (`chainId`, `uuid`) and returns a `SentinelCancelResponse` (`uuid`, `affected`, `cancelled`).
   - Not cached. Throws `SentinelChainNotSupportedError` when the chain is missing from the registry or does not enable `smartTransactions`. A non-2xx response throws `HttpError` with the response body on `data` when it is JSON.

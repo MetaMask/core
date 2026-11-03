@@ -39,13 +39,15 @@ export {
   type SignedTransactionWithMetadata,
   type SmartTransactionsNetworkConfig,
   type SmartTransactionsFeatureFlagsConfig,
-  SmartTransactionMinedTx,
-  SmartTransactionCancellationReason,
   SmartTransactionStatuses,
-  OriginalTransactionStatus,
   ClientId,
 } from './types.js';
 export type { SentinelMeta } from '@metamask/sentinel-api-service';
+export {
+  SentinelCancellationReason,
+  SentinelMinedTxStatus,
+  SentinelOriginalTransactionStatus,
+} from '@metamask/sentinel-api-service';
 export { MetaMetricsEventName, MetaMetricsEventCategory } from './constants.js';
 export {
   getSmartTransactionMetricsProperties,

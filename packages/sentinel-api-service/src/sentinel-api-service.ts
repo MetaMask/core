@@ -25,6 +25,7 @@ import {
 import { projectLogger, createModuleLogger } from './logger.js';
 import {
   SentinelSmartTransactionResponseStruct,
+  SentinelBatchStatusResponseStruct,
   SentinelNetworkRegistryStruct,
   SentinelNetworkStruct,
   SentinelCancelResponseStruct,
@@ -36,6 +37,8 @@ import {
 import type {
   SentinelApiServiceMessenger,
   SentinelApiServiceOptions,
+  SentinelBatchStatusRequest,
+  SentinelBatchStatusResponse,
   SentinelCancelRequest,
   SentinelCancelResponse,
   SentinelGetFeesRequest,
@@ -70,6 +73,7 @@ async function readJsonBody(response: Response): Promise<Json | undefined> {
 }
 
 const MESSENGER_EXPOSED_METHODS = [
+  'batchStatus',
   'cancel',
   'getFees',
   'getNetwork',
@@ -102,6 +106,8 @@ const MESSENGER_EXPOSED_METHODS = [
  * submission (`POST /v1/networks/{chainId}/submitTransactions`). Not cached.
  * - {@link SentinelApiService.cancel} — smart-transaction cancellation
  * (`POST /v1/networks/{chainId}/cancel`). Not cached.
+ * - {@link SentinelApiService.batchStatus} — smart-transaction status lookup
+ * for several UUIDs (`GET /v1/networks/{chainId}/batchStatus`). Not cached.
  *
  * Consumers derive higher-level concerns (whether a chain supports simulation
  * or relay, polling loops, etc.) from the raw endpoint responses.
@@ -607,6 +613,63 @@ export class SentinelApiService extends BaseDataService<
     });
 
     return result as unknown as SentinelCancelResponse;
+  }
+
+  /**
+   * Looks up the statuses of several smart transactions via
+   * `GET /v1/networks/{chainId}/batchStatus`. Not cached, since statuses change
+   * while transactions are pending.
+   *
+   * @param request - The batch status request.
+   * @returns The status of each requested transaction, keyed by UUID.
+   */
+  async batchStatus(
+    request: SentinelBatchStatusRequest,
+  ): Promise<SentinelBatchStatusResponse> {
+    const { chainId, uuids } = request;
+    const baseUrl = await this.#resolveUrl(chainId, 'smartTransactions');
+    const chainIdDecimal = BigInt(chainId).toString(10);
+    const query = new URLSearchParams({ uuids: uuids.join(',') });
+    const url = `${baseUrl}v1/networks/${chainIdDecimal}/batchStatus?${query.toString()}`;
+
+    const result = await this.fetchQuery({
+      queryKey: [`${this.name}:batchStatus`, request],
+      staleTime: 0,
+      queryFn: async (): Promise<Json> => {
+        const headers = await this.#getHeaders();
+
+        log('batchStatus', 'Request', url, request);
+
+        const response = await this.#fetch(url, { headers });
+
+        if (!response.ok) {
+          const data = await readJsonBody(response);
+          const error = new HttpError(
+            response.status,
+            `Sentinel API: Batch status request failed with status '${response.status}'`,
+          );
+          if (data !== undefined) {
+            Object.assign(error, { data });
+          }
+          throw error;
+        }
+
+        const json = (await response.json()) as Json;
+
+        const [error] = validate(json, SentinelBatchStatusResponseStruct);
+        if (error) {
+          throw new SentinelApiResponseValidationError(
+            `Sentinel API: Malformed response from batch status endpoint: ${error.message}`,
+          );
+        }
+
+        log('batchStatus', 'Response', json);
+
+        return json;
+      },
+    });
+
+    return result as unknown as SentinelBatchStatusResponse;
   }
 
   /**

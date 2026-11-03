@@ -9,6 +9,9 @@ export type {
   SentinelApiServiceCacheUpdatedEvent,
   SentinelApiServiceGranularCacheUpdatedEvent,
   SentinelAuthorization,
+  SentinelBatchedTransactionStatus,
+  SentinelBatchStatusRequest,
+  SentinelBatchStatusResponse,
   SentinelCancelRequest,
   SentinelCancelResponse,
   SentinelGetFeesRequest,
@@ -38,7 +41,10 @@ export type {
   SentinelSubmitTransactionWithMetadata,
 } from './types.js';
 export {
+  SentinelCancellationReason,
   SentinelFeature,
+  SentinelMinedTxStatus,
+  SentinelOriginalTransactionStatus,
   SentinelProductFeature,
   SentinelSmartTransactionStatus,
 } from './types.js';
@@ -51,6 +57,7 @@ export type {
   SentinelApiServiceSubmitTransactionsAction,
   SentinelApiServiceGetSmartTransactionAction,
   SentinelApiServiceCancelAction,
+  SentinelApiServiceBatchStatusAction,
 } from './sentinel-api-service-method-action-types.js';
 export {
   SentinelApiResponseValidationError,

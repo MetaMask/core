@@ -118,3 +118,30 @@ export const SentinelCancelResponseStruct = type({
   cancelled: boolean(),
   uuid: string(),
 });
+
+/**
+ * Validates one UUID's entry in the `/batchStatus` response. The closed-set
+ * fields are checked as strings, matching the loose validation used for other
+ * Sentinel status fields.
+ */
+const SentinelBatchedTransactionStatusStruct = type({
+  cancellationFeeWei: number(),
+  cancellationReason: string(),
+  deadlineRatio: number(),
+  duplicated: boolean(),
+  isSettled: boolean(),
+  minedHash: string(),
+  minedTx: string(),
+  originalTransactionStatus: string(),
+  proxied: boolean(),
+  timedOut: boolean(),
+  wouldRevertMessage: string(),
+});
+
+/**
+ * Validates the `/batchStatus` response body (a map keyed by UUID).
+ */
+export const SentinelBatchStatusResponseStruct = record(
+  string(),
+  SentinelBatchedTransactionStatusStruct,
+);

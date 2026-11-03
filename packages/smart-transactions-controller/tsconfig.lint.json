@@ -27,9 +27,6 @@
       "path": "../polling-controller/tsconfig.lint.json"
     },
     {
-      "path": "../profile-sync-controller/tsconfig.lint.json"
-    },
-    {
       "path": "../remote-feature-flag-controller/tsconfig.lint.json"
     },
     {

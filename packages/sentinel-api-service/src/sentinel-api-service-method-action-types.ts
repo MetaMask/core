@@ -114,6 +114,19 @@ export type SentinelApiServiceCancelAction = {
 };
 
 /**
+ * Looks up the statuses of several smart transactions via
+ * `GET /v1/networks/{chainId}/batchStatus`. Not cached, since statuses change
+ * while transactions are pending.
+ *
+ * @param request - The batch status request.
+ * @returns The status of each requested transaction, keyed by UUID.
+ */
+export type SentinelApiServiceBatchStatusAction = {
+  type: `SentinelApiService:batchStatus`;
+  handler: SentinelApiService['batchStatus'];
+};
+
+/**
  * Union of all SentinelApiService action types.
  */
 export type SentinelApiServiceMethodActions =
@@ -124,4 +137,5 @@ export type SentinelApiServiceMethodActions =
   | SentinelApiServiceGetSmartTransactionAction
   | SentinelApiServiceGetFeesAction
   | SentinelApiServiceSubmitTransactionsAction
-  | SentinelApiServiceCancelAction;
+  | SentinelApiServiceCancelAction
+  | SentinelApiServiceBatchStatusAction;
