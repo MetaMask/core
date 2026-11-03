@@ -7,6 +7,43 @@ import { withLock } from './withLock.js';
 vi.mock('./logger.js', () => ({ lockLogger: vi.fn() }));
 
 describe('withLock', () => {
+  it('adds selected keyring metadata only to subsequent logs', async () => {
+    const context = {
+      keyring: {
+        type: 'HD Key Tree',
+        kind: 'v2' as const,
+        id: 'keyring-id',
+      },
+    };
+    await withLock(
+      new Mutex(),
+      { lock: 'controller', operation: 'withKeyringV2' },
+      async ({ setLogContext }) => {
+        setLogContext(context);
+      },
+    );
+
+    expect(lockLogger).toHaveBeenCalledWith('Lock requested', {
+      lock: 'controller',
+      operation: 'withKeyringV2',
+      id: expect.any(Number),
+    });
+    expect(lockLogger).toHaveBeenCalledWith('Lock acquired', {
+      lock: 'controller',
+      operation: 'withKeyringV2',
+      id: expect.any(Number),
+      waitMs: expect.any(Number),
+    });
+    expect(lockLogger).toHaveBeenCalledWith(
+      'Lock released',
+      expect.objectContaining(context),
+    );
+    expect(lockLogger).toHaveBeenLastCalledWith(
+      'Locked operation finished',
+      expect.objectContaining(context),
+    );
+  });
+
   it('logs requests, acquisition, release and completion with separate wait and hold times', async () => {
     const mutex = new Mutex();
     const release = await mutex.acquire();

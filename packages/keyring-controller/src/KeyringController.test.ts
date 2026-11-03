@@ -4136,6 +4136,19 @@ describe('KeyringController', () => {
           'Oops',
         );
 
+        expect(lockLogger).toHaveBeenLastCalledWith(
+          'Locked operation finished',
+          expect.objectContaining({
+            operation: 'withKeyring',
+            keyring: {
+              type: KeyringTypes.hd,
+              kind: 'v1',
+              id: initialState.keyrings[0].metadata.id,
+            },
+            success: false,
+          }),
+        );
+
         expect(controller.state.keyrings[0].accounts).toHaveLength(1);
         expect(await controller.getAccounts()).toStrictEqual(
           initialState.keyrings[0].accounts,
@@ -5148,6 +5161,17 @@ describe('KeyringController', () => {
           expect.objectContaining({
             keyring: expect.any(Object),
             metadata: expect.objectContaining({ id: expect.any(String) }),
+          }),
+        );
+        expect(lockLogger).toHaveBeenCalledWith(
+          'Locked operation finished',
+          expect.objectContaining({
+            operation: 'withKeyringV2',
+            keyring: {
+              type: KeyringTypes.hd,
+              kind: 'v2',
+              id: controller.state.keyrings[0].metadata.id,
+            },
           }),
         );
       });
@@ -8194,12 +8218,30 @@ describe('KeyringController atomic keyring support', () => {
 
         expect(projectLogger).toHaveBeenCalledWith(
           'Atomic keyring operation started (outside controller lock)',
-          { id: expect.any(Number), operation: 'withKeyring' },
+          {
+            id: expect.any(Number),
+            operation: 'withKeyring',
+            keyring: {
+              type: ATOMIC_TEST_KEYRING_TYPE,
+              kind: 'v1',
+              id: controller.state.keyrings.find(
+                ({ type }) => type === ATOMIC_TEST_KEYRING_TYPE,
+              )?.metadata.id,
+            },
+          },
         );
         expect(projectLogger).toHaveBeenCalledTimes(1);
         expect(lockLogger).toHaveBeenCalledWith(
           'Locked operation finished',
-          expect.objectContaining({ operation: 'withKeyring', success: true }),
+          expect.objectContaining({
+            operation: 'withKeyring',
+            success: true,
+            keyring: {
+              type: ATOMIC_TEST_KEYRING_TYPE,
+              kind: 'v1',
+              id: expect.any(String),
+            },
+          }),
         );
         expect(lockLogger).not.toHaveBeenCalledWith(
           'Lock requested',
@@ -8210,6 +8252,17 @@ describe('KeyringController atomic keyring support', () => {
         await operation;
 
         expect(fake.state.status).toBe('ready');
+        expect(lockLogger).toHaveBeenCalledWith(
+          'Locked operation finished',
+          expect.objectContaining({
+            operation: 'atomicUpdate',
+            keyring: {
+              type: ATOMIC_TEST_KEYRING_TYPE,
+              kind: 'commit',
+              id: expect.any(String),
+            },
+          }),
+        );
         expect(projectLogger).toHaveBeenLastCalledWith(
           'Atomic keyring operation finished (outside controller lock)',
           expect.objectContaining({

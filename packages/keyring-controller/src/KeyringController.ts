@@ -61,7 +61,7 @@ import type {
   WalletTransactionScope,
 } from './VaultTransaction.js';
 import { withLock } from './withLock.js';
-import type { MutuallyExclusiveCallback } from './withLock.js';
+import type { LogContext, MutuallyExclusiveCallback } from './withLock.js';
 
 /**
  * `ethereumjs-wallet` is CommonJS, and Node cannot reliably detect its named
@@ -3078,29 +3078,42 @@ export class KeyringController<
     keyring: AtomicKeyring,
     action: () => void | Promise<void>,
   ): Promise<void> {
-    await this.#withControllerLock('atomicUpdate', async () => {
-      // Load-bearing, not defensive: detached keyrings cannot write the
-      // vault. Proceeding would silently write a vault without them, and
-      // update actions queued behind the controller lock during a lock or
-      // a restore would commit past it, to a fresh instance they never
-      // belonged to.
-      const keyringRef: object = keyring;
-      if (!this.#keyrings.some((entry) => entry.keyring === keyringRef)) {
-        throw new KeyringControllerError(
-          KeyringControllerErrorMessage.AtomicUpdateKeyringDetached,
+    await this.#withControllerLock(
+      'atomicUpdate',
+      async ({ setLogContext }) => {
+        // Load-bearing, not defensive: detached keyrings cannot write the
+        // vault. Proceeding would silently write a vault without them, and
+        // update actions queued behind the controller lock during a lock or
+        // a restore would commit past it, to a fresh instance they never
+        // belonged to.
+        const keyringRef: object = keyring;
+        const entry = this.#keyrings.find(
+          (candidate) => candidate.keyring === keyringRef,
         );
-      }
+        if (!entry) {
+          throw new KeyringControllerError(
+            KeyringControllerErrorMessage.AtomicUpdateKeyringDetached,
+          );
+        }
+        setLogContext({
+          keyring: {
+            type: entry.keyring.type,
+            kind: 'commit',
+            id: entry.metadata.id,
+          },
+        });
 
-      // The commit window: a wallet-scope transaction whose persist
-      // policy writes the vault if and only if the session state
-      // changed. Only the commit runs — a failure of the action leaves
-      // the transaction abandoned, restoring nothing.
-      const { transaction } = await this.#beginWalletTransaction(
-        persistWhenSessionChanged,
-      );
-      await action();
-      await transaction.commit();
-    });
+        // The commit window: a wallet-scope transaction whose persist
+        // policy writes the vault if and only if the session state
+        // changed. Only the commit runs — a failure of the action leaves
+        // the transaction abandoned, restoring nothing.
+        const { transaction } = await this.#beginWalletTransaction(
+          persistWhenSessionChanged,
+        );
+        await action();
+        await transaction.commit();
+      },
+    );
   }
 
   /**
@@ -3352,12 +3365,17 @@ export class KeyringController<
     create: () => Promise<KeyringEntry | undefined>,
     run: (entry: KeyringEntry) => Promise<Result>,
   ): Promise<Result> {
+    let logContext: LogContext | undefined;
     const outcome = await this.#withTransaction<
       TransactionOutcome<Result>,
       KeyringEntry
     >(
       v2 ? 'withKeyringV2' : 'withKeyring',
-      () => this.#beginKeyringTransaction({ v2 }, select, create),
+      ({ setLogContext }) =>
+        this.#beginKeyringTransaction({ v2 }, select, create, (context) => {
+          logContext = context;
+          setLogContext(context);
+        }),
       async (transaction, entry) => {
         if (transaction.scope.type === 'atomic') {
           // An atomic keyring serializes its own operations and persists
@@ -3406,6 +3424,7 @@ export class KeyringController<
       // take the controller lock.
       const startedAt = performance.now();
       const details = {
+        ...logContext,
         id: this.#nextAtomicOperationId,
         operation: v2 ? 'withKeyringV2' : 'withKeyring',
       };
@@ -3453,12 +3472,14 @@ export class KeyringController<
    * @param select - Selects the keyring entry to operate on, if any.
    * @param create - Creates the keyring entry to operate on when selection
    *   found nothing, if needed.
+   * @param setLogContext - Adds the selected identity to subsequent lock logs.
    * @returns The transaction, and the operated entry.
    */
   async #beginKeyringTransaction(
     { v2 }: { v2: boolean },
     select: () => Promise<KeyringEntry | undefined>,
     create: () => Promise<KeyringEntry | undefined>,
+    setLogContext: (context: LogContext) => void,
   ): Promise<{
     transaction: VaultTransaction;
     setup: KeyringEntry;
@@ -3471,6 +3492,14 @@ export class KeyringController<
         KeyringControllerErrorMessage.KeyringNotFound,
       );
     }
+
+    setLogContext({
+      keyring: {
+        type: entry.keyring.type,
+        kind: v2 ? 'v2' : 'v1',
+        id: entry.metadata.id,
+      },
+    });
 
     if (v2 && !entry.keyringV2) {
       throw new KeyringControllerError(
@@ -3564,14 +3593,19 @@ export class KeyringController<
    */
   async #withTransaction<Result, Setup>(
     operation: string,
-    construct: () => Promise<{
+    construct: (
+      options: Pick<
+        Parameters<MutuallyExclusiveCallback<Result>>[0],
+        'setLogContext'
+      >,
+    ) => Promise<{
       transaction: VaultTransaction;
       setup: Setup;
     }>,
     run: (transaction: VaultTransaction, setup: Setup) => Promise<Result>,
   ): Promise<Result> {
-    return this.#withControllerLock(operation, async () => {
-      const { transaction, setup } = await construct();
+    return this.#withControllerLock(operation, async (options) => {
+      const { transaction, setup } = await construct(options);
 
       try {
         const result = await run(transaction, setup);
