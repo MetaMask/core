@@ -91,6 +91,33 @@ export type MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction = {
 };
 
 /**
+ * Registers the CHOMP intents that `predecessorAddress` signs to migrate its
+ * Money Account: the root delegation to the successor, the open mUSD and
+ * vmUSD transfers to the successor and, for a premium migration, the pvmUSD
+ * transfer through the vault migration helper.
+ *
+ * The successor and the incomplete steps are read from CHOMP, so only the
+ * missing intents are registered and a migration can be resumed by calling
+ * this again. The vault migration helper of a premium migration is read
+ * from the CHOMP service details when it is needed, so one CHOMP starts
+ * serving after the bootstrap is used. The steps signed by the successor
+ * are completed by {@link upgradeSuccessorAccount}. Nothing is recorded in
+ * state.
+ *
+ * @param predecessorAddress - The current address of the migrating Money
+ * Account.
+ * @throws If the controller is not bootstrapped, if the armed config is
+ * disarmed or superseded first, or if the step fails (wrapped in a
+ * {@link MoneyAccountUpgradeStepError}): `predecessorAddress` is not the
+ * predecessor of a migration, a premium migration is missing the premium
+ * vault or the vault migration helper, or signing or a CHOMP call fails.
+ */
+export type MoneyAccountUpgradeControllerRegisterMigrationIntentsAction = {
+  type: `MoneyAccountUpgradeController:registerMigrationIntents`;
+  handler: MoneyAccountUpgradeController['registerMigrationIntents'];
+};
+
+/**
  * Looks up whether `address` is registered with CHOMP, meaning it is part of
  * a Money Account identity of the authenticated profile in any role:
  * current, previous, or pending successor.
@@ -112,4 +139,5 @@ export type MoneyAccountUpgradeControllerMethodActions =
   | MoneyAccountUpgradeControllerUpgradeAccountAction
   | MoneyAccountUpgradeControllerForceUpgradeAccountAction
   | MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction
+  | MoneyAccountUpgradeControllerRegisterMigrationIntentsAction
   | MoneyAccountUpgradeControllerGetRegistrationStatusAction;

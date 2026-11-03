@@ -16,6 +16,8 @@ export type StepContext = {
    */
   predecessorAddress?: Hex;
   chainId: Hex;
+  allowedCalldataEnforcer: Hex;
+  allowedTargetsEnforcer: Hex;
   boringVaultAddress: Hex;
   delegateAddress: Hex;
   delegatorImplAddress: Hex;

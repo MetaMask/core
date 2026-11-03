@@ -12,6 +12,7 @@ import type {
   ChompApiServiceAssociateAddressV2Action,
   ChompApiServiceCreateAddressChallengeAction,
   ChompApiServiceCreateIntentsAction,
+  ChompApiServiceCreateIntentsV2Action,
   ChompApiServiceCreateUpgradeAction,
   ChompApiServiceGetAssociatedAddressesAction,
   ChompApiServiceGetDerivedIdentityByAddressAction,
@@ -56,6 +57,7 @@ import { associateAddressStep } from './steps/associate-address.js';
 import { buildDelegationStep } from './steps/build-delegations.js';
 import { eip7702AuthorizationStep } from './steps/eip-7702-authorization.js';
 import { registerIntentsStep } from './steps/register-intents.js';
+import { registerMigrationIntentsStep } from './steps/register-migration-intents.js';
 import type { Step } from './steps/step.js';
 import type { UpgradeConfig } from './types.js';
 
@@ -133,6 +135,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'upgradeAccount',
   'forceUpgradeAccount',
   'upgradeSuccessorAccount',
+  'registerMigrationIntents',
   'getRegistrationStatus',
 ] as const;
 
@@ -152,6 +155,7 @@ type AllowedActions =
   | ChompApiServiceAssociateAddressV2Action
   | ChompApiServiceCreateAddressChallengeAction
   | ChompApiServiceCreateIntentsAction
+  | ChompApiServiceCreateIntentsV2Action
   | ChompApiServiceCreateUpgradeAction
   | ChompApiServiceGetAssociatedAddressesAction
   | ChompApiServiceGetDerivedIdentityByAddressAction
@@ -620,6 +624,8 @@ export class MoneyAccountUpgradeController extends BaseController<
       boringVaultAddress,
       vedaVaultAdapterAddress: vedaProtocol.adapterAddress,
       delegatorImplAddress: contracts.EIP7702StatelessDeleGatorImpl,
+      allowedCalldataEnforcer: contracts.AllowedCalldataEnforcer,
+      allowedTargetsEnforcer: contracts.AllowedTargetsEnforcer,
       erc20TransferAmountEnforcer: contracts.ERC20TransferAmountEnforcer,
       redeemerEnforcer: contracts.RedeemerEnforcer,
       valueLteEnforcer: contracts.ValueLteEnforcer,
@@ -736,6 +742,37 @@ export class MoneyAccountUpgradeController extends BaseController<
   }
 
   /**
+   * Registers the CHOMP intents that `predecessorAddress` signs to migrate its
+   * Money Account: the root delegation to the successor, the open mUSD and
+   * vmUSD transfers to the successor and, for a premium migration, the pvmUSD
+   * transfer through the vault migration helper.
+   *
+   * The successor and the incomplete steps are read from CHOMP, so only the
+   * missing intents are registered and a migration can be resumed by calling
+   * this again. The vault migration helper of a premium migration is read
+   * from the CHOMP service details when it is needed, so one CHOMP starts
+   * serving after the bootstrap is used. The steps signed by the successor
+   * are completed by {@link upgradeSuccessorAccount}. Nothing is recorded in
+   * state.
+   *
+   * @param predecessorAddress - The current address of the migrating Money
+   * Account.
+   * @throws If the controller is not bootstrapped, if the armed config is
+   * disarmed or superseded first, or if the step fails (wrapped in a
+   * {@link MoneyAccountUpgradeStepError}): `predecessorAddress` is not the
+   * predecessor of a migration, a premium migration is missing the premium
+   * vault or the vault migration helper, or signing or a CHOMP call fails.
+   */
+  async registerMigrationIntents(predecessorAddress: Hex): Promise<void> {
+    const config = await this.#getArmedConfig();
+    await this.#runStep(
+      registerMigrationIntentsStep,
+      predecessorAddress,
+      config,
+    );
+  }
+
+  /**
    * Looks up whether `address` is registered with CHOMP, meaning it is part of
    * a Money Account identity of the authenticated profile in any role:
    * current, previous, or pending successor.
@@ -792,21 +829,7 @@ export class MoneyAccountUpgradeController extends BaseController<
     predecessorAddress?: Hex,
   ): Promise<void> {
     for (const step of this.#steps) {
-      if (this.#config !== config) {
-        throw new Error(
-          'MoneyAccountUpgradeController upgrade aborted: the upgrade config was disarmed or superseded while the sequence was running',
-        );
-      }
-      try {
-        await step.run({
-          messenger: this.messenger,
-          address,
-          ...(predecessorAddress ? { predecessorAddress } : {}),
-          ...config,
-        });
-      } catch (error) {
-        throw new MoneyAccountUpgradeStepError(step.name, error);
-      }
+      await this.#runStep(step, address, config, predecessorAddress);
     }
 
     this.update((state) => {
@@ -815,6 +838,39 @@ export class MoneyAccountUpgradeController extends BaseController<
         completedAt: Date.now(),
       };
     });
+  }
+
+  /**
+   * Runs a single step against `config`, unless the config was disarmed or
+   * superseded since it was armed.
+   *
+   * @param step - The step to run.
+   * @param address - The address the step runs for.
+   * @param config - The armed config to run against.
+   * @param predecessorAddress - The address `address` succeeds, when
+   * upgrading a successor.
+   */
+  async #runStep(
+    step: Step,
+    address: Hex,
+    config: UpgradeConfig & { chainId: Hex },
+    predecessorAddress?: Hex,
+  ): Promise<void> {
+    if (this.#config !== config) {
+      throw new Error(
+        'MoneyAccountUpgradeController upgrade aborted: the upgrade config was disarmed or superseded while the sequence was running',
+      );
+    }
+    try {
+      await step.run({
+        messenger: this.messenger,
+        address,
+        ...(predecessorAddress ? { predecessorAddress } : {}),
+        ...config,
+      });
+    } catch (error) {
+      throw new MoneyAccountUpgradeStepError(step.name, error);
+    }
   }
 }
 

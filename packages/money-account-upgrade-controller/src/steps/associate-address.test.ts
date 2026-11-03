@@ -169,6 +169,8 @@ async function run(
     boringVaultAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
     delegateAddress: MOCK_DELEGATE,
     delegatorImplAddress: MOCK_DELEGATOR_IMPL,
+    allowedCalldataEnforcer: '0x1010101010101010101010101010101010101010',
+    allowedTargetsEnforcer: '0x2020202020202020202020202020202020202020',
     erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,
     musdTokenAddress: MOCK_TOKEN,
     redeemerEnforcer: MOCK_REDEEMER_ENFORCER,

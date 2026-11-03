@@ -25,5 +25,6 @@ export type {
   MoneyAccountUpgradeControllerUpgradeAccountAction,
   MoneyAccountUpgradeControllerForceUpgradeAccountAction,
   MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction,
+  MoneyAccountUpgradeControllerRegisterMigrationIntentsAction,
   MoneyAccountUpgradeControllerGetRegistrationStatusAction,
 } from './MoneyAccountUpgradeController-method-action-types.js';
