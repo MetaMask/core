@@ -13,8 +13,6 @@ jobs:
     outputs:
       node-versions: ${{ steps.get-node-versions.outputs.node-versions }}
       latest-version: ${{ steps.get-node-versions.outputs.latest-version }}
-      shards: ${{ steps.shards.outputs.shards }}
-      shard-count: ${{ steps.shards.outputs.count }}
     steps:
       - name: Get Node versions
         id: get-node-versions
@@ -41,14 +39,6 @@ jobs:
             echo "node-versions=[\"$latest\"]" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Get test shards
-        id: shards
-        env:
-          COUNT: 20
-        run: |
-          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
-          echo "shards=$(seq 1 "$COUNT" | jq -sc .)" >> "$GITHUB_OUTPUT"
-
   prepare:
     name: Prepare
     runs-on: ubuntu-latest
@@ -62,6 +52,8 @@ jobs:
       merge-base: ${{ steps.fetch-merge-base.outputs.merge-base }}
       package-names: ${{ steps.packages.outputs.package-names }}
       changed-paths: ${{ steps.packages.outputs.changed-paths }}
+      shards: ${{ steps.shards.outputs.shards }}
+      shard-count: ${{ steps.shards.outputs.count }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -116,6 +108,22 @@ jobs:
         env:
           MERGE_BASE: ${{ steps.fetch-merge-base.outputs.merge-base }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+      - name: Get test shards
+        id: shards
+        if: matrix.node-version == needs.prepare-environment.outputs.latest-version
+        run: |
+          # Full runs use all 20 shards. Otherwise use one shard per changed
+          # package, between 3 and 20.
+          if [[ "$CHANGED_PATHS" == "full" ]]; then
+            COUNT=20
+          else
+            PACKAGE_COUNT=$(jq 'length' <<< "$CHANGED_PATHS")
+            COUNT=$(( (PACKAGE_COUNT < 18 ? PACKAGE_COUNT : 18) + 2 ))
+          fi
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "shards=$(seq 1 "$COUNT" | jq -sc .)" >> "$GITHUB_OUTPUT"
+        env:
+          CHANGED_PATHS: ${{ steps.packages.outputs.changed-paths }}
 
   lint:
     name: Lint (${{ matrix.script }})
@@ -278,7 +286,7 @@ jobs:
       fail-fast: false
       matrix:
         node-version: ${{ fromJson(needs.prepare-environment.outputs.node-versions) }}
-        shard: ${{ fromJson(needs.prepare-environment.outputs.shards) }}
+        shard: ${{ fromJson(needs.prepare.outputs.shards) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -288,7 +296,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Test
         run: |
-          ARGS=(--reporter=blob --reporter=default --shard "$SHARD/$SHARD_COUNT" --passWithNoTests)
+          ARGS=(--silent --reporter blob --reporter default --shard "$SHARD/$SHARD_COUNT" --passWithNoTests)
 
           # Unless a root file changed, only run the changed packages and their
           # dependants, using a temporary config that lists just those projects.
@@ -304,7 +312,7 @@ jobs:
         env:
           CHANGED_PATHS: ${{ needs.prepare.outputs.changed-paths }}
           SHARD: ${{ matrix.shard }}
-          SHARD_COUNT: ${{ needs.prepare-environment.outputs.shard-count }}
+          SHARD_COUNT: ${{ needs.prepare.outputs.shard-count }}
           VITEST_BLOB_LABEL: ${{ matrix.node-version }}
       - name: Upload blob report
         if: ${{ !cancelled() }}
