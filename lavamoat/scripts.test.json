@@ -1,12 +1,8 @@
 {
   "extends": "./scripts.base.json",
   "nodeOptions": {
-    "--allow-fs-read": [
-      "/"
-    ],
-    "--allow-fs-write": [
-      "$PROJECT_CWD"
-    ],
+    "--allow-fs-read": ["*"],
+    "--allow-fs-write": ["*"],
     "--allow-child-process": true,
     "--allow-net": false,
     "--allow-worker": false,
