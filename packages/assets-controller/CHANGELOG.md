@@ -48,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix the launchpad spam check throwing `TypeError: apiClient.token.fetchV2Assets is not a function` during the unlock spam cleanup, which stopped any spam tokens from being removed ([#11300](https://github.com/MetaMask/core/pull/11300))
   - The check calls `TokenApiClient.fetchV2Assets`, which first ships in `@metamask/core-backend` 14.0.0; the previous `^13.0.0` range could not resolve to a version that has it.
 
+### Fixed
+
+- Refresh the Accounts API and RPC chain lists before fetching balances when a network is added or enabled, so the new network's balance shows without switching networks
+
 ## [20.2.1]
 
 ### Fixed

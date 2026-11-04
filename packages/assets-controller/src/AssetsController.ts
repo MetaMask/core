@@ -4037,6 +4037,9 @@ export class AssetsController extends BaseController<
     this.#ensureNativeBalancesDefaultZero();
     if (addedChains.length > 0) {
       this.#ensureDefaultTrackedAssetsSeeded(addedChains);
+      // The new chain is not in the startup chain lists yet. Refresh those
+      // before subscribing or fetching, or the balance request is dropped.
+      await this.#refreshDataSourceActiveChains();
     }
 
     // Refresh subscriptions for new chain set
@@ -4084,10 +4087,14 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Refresh data-source `activeChains` after an EVM network switch so API/Rpc
-   * chain claiming is not stuck on an empty or stale init-time list.
+   * Re-read Accounts API supported networks and NetworkController state.
+   *
+   * Data sources claim chains from lists captured at startup. A network added
+   * or enabled later is missing from those lists until this runs, so a balance
+   * fetch for it is dropped. Selecting a different network already refreshed
+   * the lists; adding or enabling one has to do the same before fetching.
    */
-  async #refreshActiveChainsOnNetworkSwitch(): Promise<void> {
+  async #refreshDataSourceActiveChains(): Promise<void> {
     await this.#accountsApiDataSource.refreshActiveChains();
     this.#rpcDataSource.refreshActiveChainsFromNetworkState();
   }
@@ -4145,7 +4152,7 @@ export class AssetsController extends BaseController<
 
     const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
-      await this.#refreshActiveChainsOnNetworkSwitch();
+      await this.#refreshDataSourceActiveChains();
 
       this.#ensureNativeBalancesDefaultZero();
       this.#subscribeAssets();
@@ -4196,6 +4203,7 @@ export class AssetsController extends BaseController<
     }
 
     this.#ensureNativeBalancesDefaultZero();
+    await this.#refreshDataSourceActiveChains();
     await this.getAssets(accounts, {
       chainIds: [caipChainId],
       forceUpdate: true,
