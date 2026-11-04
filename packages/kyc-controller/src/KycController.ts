@@ -39,6 +39,8 @@ import {
   isSumSubFlowFailed,
 } from './providers/sumsub.js';
 import type { KycSumSubLauncher } from './providers/sumsub.js';
+import { getKycSessionDecision } from './sessionDecision.js';
+import type { KycSessionDecision } from './sessionDecision.js';
 import { consentRecordsFromAcceptedList } from './sessionDisclaimers.js';
 import {
   needsCapabilityAuthorizationRefresh,
@@ -46,8 +48,6 @@ import {
   KYC_CURRENT_STEPS,
   KYC_STATUSES,
 } from './types.js';
-import { getKycSessionDecision } from './sessionDecision.js';
-import type { KycSessionDecision } from './sessionDecision.js';
 import type {
   KycConsentRecord,
   KycDataShare,
@@ -615,7 +615,11 @@ export class KycController extends BaseController<
    * @param params.vendor - The identity vendor.
    * @returns The vendor's session on state, or `null` when none is stored.
    */
-  readSessionStatus({ vendor }: { vendor: KycVendor }): KycSessionStatus | null {
+  readSessionStatus({
+    vendor,
+  }: {
+    vendor: KycVendor;
+  }): KycSessionStatus | null {
     return this.state.sessions[vendor]?.sessionStatus ?? null;
   }
 
@@ -710,11 +714,16 @@ export class KycController extends BaseController<
       if (this.#getSessionStatusPollToken(vendor) !== token) {
         return true;
       }
+      const entry = this.state.sessions[vendor];
+      /* istanbul ignore next: clearState bumps the token before removing
+         entries, so a live loop always finds its entry. */
+      if (!entry) {
+        return true;
+      }
 
       // TODO: This check seems fragile
       if (
-        JSON.stringify(this.state.sessions[vendor]?.sessionStatus ?? null) !==
-        JSON.stringify(sessionStatus)
+        JSON.stringify(entry.sessionStatus) !== JSON.stringify(sessionStatus)
       ) {
         this.#updateSessionStatusAndTrackAnalytics(vendor, sessionStatus);
       }
@@ -743,8 +752,7 @@ export class KycController extends BaseController<
     write: (entry: KycVendorSessionState) => void,
   ): void {
     this.update((state) => {
-      const entry =
-        state.sessions[vendor] ?? getDefaultKycVendorSessionState();
+      const entry = state.sessions[vendor] ?? getDefaultKycVendorSessionState();
       write(entry);
       state.sessions[vendor] = entry;
     });
@@ -755,11 +763,11 @@ export class KycController extends BaseController<
    *
    * @param vendor - The identity vendor.
    * @returns The vendor's session status.
-   * @throws If the vendor has no session on state.
+   * @throws If the vendor has no session on state, or it has no id.
    */
   #requireSessionStatus(vendor: KycVendor): KycSessionStatus {
     const sessionStatus = this.state.sessions[vendor]?.sessionStatus;
-    if (!sessionStatus) {
+    if (!sessionStatus?.id) {
       throw new Error('No session was found');
     }
     return sessionStatus;
@@ -1135,9 +1143,12 @@ export class KycController extends BaseController<
     }
 
     const { id: sessionId } = this.#requireSessionStatus(vendor);
-    return this.messenger.call('KycService:fetchSessionDisclaimersBySessionId', {
-      sessionId,
-    });
+    return this.messenger.call(
+      'KycService:fetchSessionDisclaimersBySessionId',
+      {
+        sessionId,
+      },
+    );
   }
 
   /**
@@ -1300,8 +1311,11 @@ export class KycController extends BaseController<
       },
     );
 
-    this.#updateVendorSession(vendor, (entry) => {
-      if (entry.vendorDisclaimersAccepted) {
+    // The entry can be cleared while the request is in flight; do not
+    // recreate it.
+    this.update((state) => {
+      const entry = state.sessions[vendor];
+      if (entry?.vendorDisclaimersAccepted) {
         entry.vendorDisclaimersAccepted.submitted = true;
       }
     });
@@ -1336,7 +1350,10 @@ export class KycController extends BaseController<
       country: entry.residenceCountry,
     });
 
-    return areVendorDisclaimersCompleted(entry.vendorDisclaimersAccepted, fetched);
+    return areVendorDisclaimersCompleted(
+      entry.vendorDisclaimersAccepted,
+      fetched,
+    );
   }
 
   /**
@@ -1512,9 +1529,13 @@ export class KycController extends BaseController<
       }
 
       if (sdkFailed) {
-        this.#recordLaunchOutcomeAndTrackAnalytics(vendor, 'failed', (entry) => {
-          entry.providerFlowStatus = 'failed';
-        });
+        this.#recordLaunchOutcomeAndTrackAnalytics(
+          vendor,
+          'failed',
+          (entry) => {
+            entry.providerFlowStatus = 'failed';
+          },
+        );
         return 'failed';
       }
 
@@ -1539,15 +1560,23 @@ export class KycController extends BaseController<
         return 'submitted';
       }
 
-      this.#recordLaunchOutcomeAndTrackAnalytics(vendor, 'abandoned', (entry) => {
-        entry.providerFlowStatus = 'abandoned';
-      });
+      this.#recordLaunchOutcomeAndTrackAnalytics(
+        vendor,
+        'abandoned',
+        (entry) => {
+          entry.providerFlowStatus = 'abandoned';
+        },
+      );
       return 'abandoned';
     } catch {
       if (this.state.sessions[vendor]?.sessionStatus?.id === sessionId) {
-        this.#recordLaunchOutcomeAndTrackAnalytics(vendor, 'failed', (entry) => {
-          entry.providerFlowStatus = 'failed';
-        });
+        this.#recordLaunchOutcomeAndTrackAnalytics(
+          vendor,
+          'failed',
+          (entry) => {
+            entry.providerFlowStatus = 'failed';
+          },
+        );
       } else {
         this.#recordLaunchOutcomeAndTrackAnalytics(vendor, 'failed');
       }
