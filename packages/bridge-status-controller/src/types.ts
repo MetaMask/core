@@ -1,4 +1,7 @@
-import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetAccountByAddressAction,
+  AccountsControllerState,
+} from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -17,6 +20,7 @@ import type {
   BatchSellTradesResponse,
   BridgeControllerGetStateAction,
   InputPrimaryDenomination,
+  Trade,
 } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -317,9 +321,8 @@ export type QuoteMetadataSerialized = {
 
 export type StartPollingForBridgeTxStatusArgs = {
   bridgeTxMeta?: Partial<
-    Pick<TransactionMeta, 'id' | 'hash' | 'batchId' | 'status'>
+    Pick<TransactionMeta, 'id' | 'hash' | 'batchId' | 'status' | 'actionId'>
   >;
-  actionId?: string;
   batchSellData?: BridgeHistoryItem['batchSellData'];
   /**
    * @deprecated the txMeta or orderUid should be used instead

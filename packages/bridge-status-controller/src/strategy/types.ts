@@ -13,13 +13,13 @@ import type {
 
 import type { TraceName } from '../constants.js';
 import type {
-  BridgeHistoryItem,
   BridgeStatusControllerMessenger,
   FetchFunction,
   QuoteAndTxMetadata,
   StartPollingForBridgeTxStatusArgs,
   SubmitStrategyParamsJson,
 } from '../types.js';
+import type { rekeyHistoryItemInState } from '../utils/history.js';
 
 export enum SubmitStep {
   /**
@@ -27,8 +27,7 @@ export enum SubmitStep {
    */
   AddHistoryItem = 'addHistoryItem',
   /**
-   * Rekeys the history item keyed by the old history key to the new history key,
-   * and merges in the tradeMeta's id and hash
+   * Rekeys and updates the history item keyed by the old history key to the new history key.
    */
   RekeyHistoryItem = 'rekeyHistoryItem',
   /**
@@ -58,7 +57,7 @@ export type SubmitStepResult =
       type: SubmitStep.AddHistoryItem;
       payload: Pick<
         StartPollingForBridgeTxStatusArgs,
-        'approvalTxId' | 'bridgeTxMeta' | 'originalTransactionId' | 'actionId'
+        'approvalTxId' | 'bridgeTxMeta' | 'originalTransactionId'
       > & {
         historyKey: string;
         quoteResponse: QuoteResponseV1 & QuoteMetadata;
@@ -73,11 +72,11 @@ export type SubmitStepResult =
         oldHistoryKey: string;
         /** Usually the txMeta.id of the `trade` transaction */
         newHistoryKey: string;
-        /** The {@link TransactionMeta} for the `trade` transaction after it has been submitted successfully */
+        /** The {@link TransactionMeta} for the `trade` transaction after it has been submitted successfully
+         *  @deprecated use `historyItemOverrides` instead
+         */
         tradeMeta?: TransactionMeta;
-        historyItemOverrides?: Partial<
-          Pick<BridgeHistoryItem, 'approvalTxId' | 'quoteIds' | 'quote'>
-        >;
+        historyItemOverrides?: Parameters<typeof rekeyHistoryItemInState>[3];
       };
     }
   | {

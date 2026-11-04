@@ -6,6 +6,7 @@ import {
 } from '@metamask/transaction-controller';
 
 import { QuoteAndTxMetadata } from '../types.js';
+import { getHistoryOverridesFromTxMeta } from '../utils/history.js';
 import {
   findAllTransactionsInBatch,
   getAddTransactionBatchParams,
@@ -166,6 +167,11 @@ export async function* submitBatchSellHandler(
           historyItemOverrides: {
             quote: initialTrade.quoteResponse.quote,
             quoteIds,
+            ...getHistoryOverridesFromTxMeta(
+              false,
+              args.quoteResponses[0].quote.srcChainId,
+              initialTrade.txMeta,
+            ),
           },
           tradeMeta: initialTrade.txMeta,
         },
