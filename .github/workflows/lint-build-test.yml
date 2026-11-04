@@ -298,6 +298,8 @@ jobs:
       fail-fast: false
       matrix:
         package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
+    env:
+      RUN: yarn workspace ${{ matrix.package-name }} run
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -366,6 +368,8 @@ jobs:
       fail-fast: false
       matrix:
         package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
+    env:
+      RUN: yarn workspace ${{ matrix.package-name }} run
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
