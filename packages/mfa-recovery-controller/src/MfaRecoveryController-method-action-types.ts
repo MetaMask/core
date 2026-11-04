@@ -68,6 +68,18 @@ export type MfaRecoveryControllerGetRecoverySecretAction = {
 };
 
 /**
+ * Reads the enrolled identifiers from available escrows at the highest
+ * consistent version, with Auth's current identifiers. Needs no recent MFA,
+ * so a new device can build an {@link updateIdentifiers} call from it.
+ *
+ * @returns Enrolled identifiers, `epoch`, and Auth's identifiers.
+ */
+export type MfaRecoveryControllerGetIdentifiersAction = {
+  type: `MfaRecoveryController:getIdentifiers`;
+  handler: MfaRecoveryController['getIdentifiers'];
+};
+
+/**
  * Completes a persisted pending mutation, if any.
  */
 export type MfaRecoveryControllerResumeAction = {
@@ -100,6 +112,7 @@ export type MfaRecoveryControllerMethodActions =
   | MfaRecoveryControllerUpdateIdentifiersAction
   | MfaRecoveryControllerAuthenticateIdentifierAction
   | MfaRecoveryControllerGetRecoverySecretAction
+  | MfaRecoveryControllerGetIdentifiersAction
   | MfaRecoveryControllerResumeAction
   | MfaRecoveryControllerAbortAction
   | MfaRecoveryControllerGetPhaseAction;

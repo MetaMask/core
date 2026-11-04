@@ -179,17 +179,17 @@ describe('CubistEscrowProvider', () => {
       const { provider, invoke } = createProvider({
         stdout: CHALLENGE,
       });
-      expect(await provider.generateChallenge()).toStrictEqual(CHALLENGE);
+      expect(await provider.generateChallenge(TOKEN)).toStrictEqual(CHALLENGE);
       expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
-        request: { cmd: 'generateChallenge' },
+        request: { cmd: 'generateChallenge', authControllerToken: TOKEN },
       });
     });
 
     it('invokes a caller-specified function version', async () => {
       const { provider, invoke } = createProvider({ version: 'v0' });
-      await provider.generateChallenge();
+      await provider.generateChallenge(TOKEN);
       expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'v0', {
-        request: { cmd: 'generateChallenge' },
+        request: { cmd: 'generateChallenge', authControllerToken: TOKEN },
       });
     });
 
@@ -202,10 +202,10 @@ describe('CubistEscrowProvider', () => {
       ['non-integer expiry', { ...CHALLENGE, expiresAt: 1.5 }],
     ])('rejects a challenge that is %s', async (_label, body) => {
       const { provider } = createProvider({ stdout: body });
-      await expect(provider.generateChallenge()).rejects.toBeInstanceOf(
+      await expect(provider.generateChallenge(TOKEN)).rejects.toBeInstanceOf(
         MfaRecoveryError,
       );
-      await expect(provider.generateChallenge()).rejects.toMatchObject({
+      await expect(provider.generateChallenge(TOKEN)).rejects.toMatchObject({
         code: 'escrow_response_invalid',
       });
     });
@@ -356,12 +356,35 @@ describe('CubistEscrowProvider', () => {
     });
   });
 
+  describe('getIdentifiers', () => {
+    const response = { identifiers: APPROVED, version: 2 };
+
+    it('invokes getIdentifiers and returns the enrolled identifiers', async () => {
+      const { provider, invoke } = createProvider({ stdout: response });
+      expect(await provider.getIdentifiers(TOKEN)).toStrictEqual(response);
+      expect(invoke).toHaveBeenCalledWith('cubist_secret_escrow', 'latest', {
+        request: { cmd: 'getIdentifiers', authControllerToken: TOKEN },
+      });
+    });
+
+    it.each([
+      ['missing identifiers', { version: 2 }],
+      ['a malformed identifier', { identifiers: [{}], version: 2 }],
+      ['a negative version', { ...response, version: -1 }],
+    ])('rejects a response with %s', async (_label, body) => {
+      const { provider } = createProvider({ stdout: body });
+      await expect(provider.getIdentifiers(TOKEN)).rejects.toMatchObject({
+        code: 'escrow_response_invalid',
+      });
+    });
+  });
+
   describe('request failures', () => {
     it('throws when the policy denies the invocation', async () => {
       const { provider } = createProvider({
         policy: { response: 'Deny', reason: 'not allowed' },
       });
-      await expect(provider.generateChallenge()).rejects.toMatchObject({
+      await expect(provider.generateChallenge(TOKEN)).rejects.toMatchObject({
         code: 'escrow_request_failed',
         message: 'not allowed',
       });
@@ -371,7 +394,7 @@ describe('CubistEscrowProvider', () => {
       const { provider } = createProvider({
         policy: { response: 'Error', error: 'wasm panic' },
       });
-      await expect(provider.generateChallenge()).rejects.toMatchObject({
+      await expect(provider.generateChallenge(TOKEN)).rejects.toMatchObject({
         code: 'escrow_request_failed',
         message: 'wasm panic',
       });
@@ -384,7 +407,7 @@ describe('CubistEscrowProvider', () => {
           stdout: 'not hex',
         }),
       });
-      await expect(provider.generateChallenge()).rejects.toMatchObject({
+      await expect(provider.generateChallenge(TOKEN)).rejects.toMatchObject({
         code: 'escrow_response_invalid',
       });
     });
@@ -396,7 +419,7 @@ describe('CubistEscrowProvider', () => {
           stdout: '',
         }),
       });
-      await expect(provider.generateChallenge()).rejects.toMatchObject({
+      await expect(provider.generateChallenge(TOKEN)).rejects.toMatchObject({
         code: 'escrow_request_failed',
         message: 'not allowed',
       });
@@ -406,7 +429,7 @@ describe('CubistEscrowProvider', () => {
       const { provider } = createProvider({
         stdoutBytes: new TextEncoder().encode('nope'),
       });
-      await expect(provider.generateChallenge()).rejects.toMatchObject({
+      await expect(provider.generateChallenge(TOKEN)).rejects.toMatchObject({
         code: 'escrow_response_invalid',
       });
     });
@@ -417,7 +440,7 @@ describe('CubistEscrowProvider', () => {
           throw new Error('offline');
         },
       });
-      await expect(provider.generateChallenge()).rejects.toMatchObject({
+      await expect(provider.generateChallenge(TOKEN)).rejects.toMatchObject({
         code: 'escrow_request_failed',
         message: 'offline',
       });
@@ -431,7 +454,7 @@ describe('CubistEscrowProvider', () => {
           throw nonError;
         },
       });
-      await expect(provider.generateChallenge()).rejects.toMatchObject({
+      await expect(provider.generateChallenge(TOKEN)).rejects.toMatchObject({
         code: 'escrow_request_failed',
         message: 'Escrow request failed',
       });
