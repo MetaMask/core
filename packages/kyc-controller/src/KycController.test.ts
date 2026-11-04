@@ -22,6 +22,7 @@ import {
   KycController,
 } from './KycController.js';
 import type {
+  FetchSessionDisclaimersParams,
   KycControllerMessenger,
   KycVendorSessionState,
 } from './KycController.js';
@@ -106,11 +107,11 @@ describe('KycController', () => {
   describe('constructor', () => {
     it('accepts initial state merged over defaults', async () => {
       await withController(
-        { options: { state: { email: 'a@b.co', vendor: 'iron' } } },
+        { options: { state: { sessions: { iron: vendorSession({}) } } } },
         ({ controller }) => {
-          expect(controller.state.email).toBe('a@b.co');
-          expect(controller.state.vendor).toBe('iron');
-          expect(controller.state.sessionStatus).toBeNull();
+          expect(controller.state.sessions.iron).toStrictEqual(
+            vendorSession({}),
+          );
         },
       );
     });
@@ -167,10 +168,10 @@ describe('KycController', () => {
         ).toBeLessThan(handlers.createUkycSession.mock.invocationCallOrder[0]);
         expect(handlers.setAuthorizations).toHaveBeenCalled();
         expect(result).toStrictEqual(sessionStatus('approved'));
-        expect(controller.state.sessionStatus).toStrictEqual(result);
-        expect(controller.state.email).toBe('a@b.co');
-        expect(controller.state.vendor).toBe('iron');
-        expect(controller.state.geoCountry).toBe('USA');
+        expect(controller.state.sessions.iron?.sessionStatus).toStrictEqual(
+          result,
+        );
+        expect(controller.state.sessions.iron?.residenceCountry).toBe('USA');
       });
     });
 
@@ -187,7 +188,7 @@ describe('KycController', () => {
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
         expect(handlers.getSessionStatus).not.toHaveBeenCalled();
         expect(result).toStrictEqual(sessionStatus('pending'));
-        expect(controller.state.sessionStatus).toStrictEqual(
+        expect(controller.state.sessions.iron?.sessionStatus).toStrictEqual(
           sessionStatus('pending'),
         );
       });
@@ -198,10 +199,12 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
-              vendor: 'iron',
-              geoCountry: 'USA',
-              sessionStatus: sessionStatus('pending'),
+              sessions: {
+                iron: vendorSession({
+                  residenceCountry: 'USA',
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
             },
           },
         },
@@ -233,12 +236,14 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
-              vendor: 'iron',
-              geoCountry: 'USA',
-              sessionStatus: sessionStatus('pending', {
-                capabilityAuthorizationStatus: 'stored',
-              }),
+              sessions: {
+                iron: vendorSession({
+                  residenceCountry: 'USA',
+                  sessionStatus: sessionStatus('pending', {
+                    capabilityAuthorizationStatus: 'stored',
+                  }),
+                }),
+              },
             },
           },
         },
@@ -257,7 +262,9 @@ describe('KycController', () => {
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
           expectResetWrappingKeys(handlers.resetWrappingKeys, 'sid');
           expect(handlers.setAuthorizations).toHaveBeenCalled();
-          expect(controller.state.sessionStatus).toStrictEqual(refreshed);
+          expect(controller.state.sessions.iron?.sessionStatus).toStrictEqual(
+            refreshed,
+          );
         },
       );
     });
@@ -273,10 +280,12 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
-              vendor: 'iron',
-              geoCountry: 'USA',
-              sessionStatus: sessionStatus('pending'),
+              sessions: {
+                iron: vendorSession({
+                  residenceCountry: 'USA',
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
             },
           },
         },
@@ -306,10 +315,12 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
-              vendor: 'iron',
-              geoCountry: 'USA',
-              sessionStatus: sessionStatus('pending'),
+              sessions: {
+                iron: vendorSession({
+                  residenceCountry: 'USA',
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
             },
           },
         },
@@ -337,10 +348,12 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
-              vendor: 'iron',
-              geoCountry: 'USA',
-              sessionStatus: sessionStatus('approved'),
+              sessions: {
+                iron: vendorSession({
+                  residenceCountry: 'USA',
+                  sessionStatus: sessionStatus('approved'),
+                }),
+              },
             },
           },
         },
@@ -388,10 +401,12 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
-              vendor: 'iron',
-              geoCountry: 'USA',
-              sessionStatus: sessionStatus('pending'),
+              sessions: {
+                iron: vendorSession({
+                  residenceCountry: 'USA',
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
             },
           },
         },
@@ -415,10 +430,12 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
-              vendor: 'iron',
-              geoCountry: 'USA',
-              sessionStatus: sessionStatus('pending'),
+              sessions: {
+                iron: vendorSession({
+                  residenceCountry: 'USA',
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
             },
           },
         },
@@ -434,50 +451,24 @@ describe('KycController', () => {
       );
     });
 
-    it('throws when email does not match the initialized session', async () => {
+    it('keeps the stored residence country when the resolved country differs', async () => {
       await withController(
-        { options: { state: { email: 'a@b.co' } } },
-        async ({ controller, handlers }) => {
-          handlers.getPartnerIdentityToken.mockResolvedValue(
-            unsignedJwt({
-              ext: { email: 'other@b.co', email_verified: true },
-            }),
-          );
-
-          await expect(
-            controller.startSession({ vendor: 'iron' }),
-          ).rejects.toThrow(
-            'KycController already initialized with a different email',
-          );
+        {
+          options: {
+            state: {
+              sessions: { iron: vendorSession({ residenceCountry: 'USA' }) },
+            },
+          },
         },
-      );
-    });
-
-    it('throws when vendor does not match the initialized session', async () => {
-      await withController(
-        { options: { state: { vendor: 'moonpay' } } },
-        async ({ controller }) => {
-          await expect(
-            controller.startSession({ vendor: 'iron' }),
-          ).rejects.toThrow(
-            'KycController already initialized with a different vendor',
-          );
-        },
-      );
-    });
-
-    it('throws when the resolved country does not match the initialized session', async () => {
-      await withController(
-        { options: { state: { geoCountry: 'USA' } } },
         async ({ controller, handlers }) => {
           handlers.getGeoCountry.mockResolvedValue('DEU');
-
-          await expect(
-            controller.startSession({ vendor: 'iron' }),
-          ).rejects.toThrow(
-            'KycController already initialized with a different geoCountry',
+          handlers.getSessionStatusForVendor.mockResolvedValue(
+            sessionStatus('pending'),
           );
-          expect(handlers.getSessionStatusForVendor).not.toHaveBeenCalled();
+
+          await controller.startSession({ vendor: 'iron' });
+
+          expect(controller.state.sessions.iron?.residenceCountry).toBe('USA');
         },
       );
     });
@@ -489,7 +480,7 @@ describe('KycController', () => {
         );
 
         await expect(
-          controller.startSession({ vendor: 'iron' }),
+          controller.startSession({ vendor: 'iron', aal2Token: AAL2_TOKEN }),
         ).rejects.toThrow('KycController missing verified email for vendor');
       });
     });
@@ -499,10 +490,12 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'stored@b.co',
-              vendor: 'iron',
-              geoCountry: 'USA',
-              sessionStatus: sessionStatus('pending'),
+              sessions: {
+                iron: vendorSession({
+                  residenceCountry: 'USA',
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
             },
           },
         },
@@ -517,14 +510,13 @@ describe('KycController', () => {
             await controller.startSession({ vendor: 'iron' }),
           ).toStrictEqual(sessionStatus('pending'));
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
-          expect(controller.state.email).toBe('stored@b.co');
         },
       );
     });
 
-    it('does not create a customer from stored email when the partner identity token is missing', async () => {
+    it('does not create a customer when the partner identity token is missing', async () => {
       await withController(
-        { options: { state: { email: 'stored@b.co' } } },
+        { options: { state: { sessions: {} } } },
         async ({ controller, handlers }) => {
           handlers.getPartnerIdentityToken.mockRejectedValue(
             Object.assign(new Error('email_required'), { status: 422 }),
@@ -536,9 +528,7 @@ describe('KycController', () => {
               vendor: 'iron',
               aal2Token: AAL2_TOKEN,
             }),
-          ).rejects.toThrow(
-            'KycController missing partner identity token for vendor',
-          );
+          ).rejects.toThrow('KycController missing verified email for vendor');
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(handlers.createUkycSession).not.toHaveBeenCalled();
         },
@@ -619,7 +609,7 @@ describe('KycController', () => {
         ).rejects.toThrow(/aal2Token is required to create a KYC session/u);
         expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
-        expect(controller.state.sessionStatus).toBeNull();
+        expect(controller.state.sessions.iron?.sessionStatus).toBeNull();
       });
     });
 
@@ -637,7 +627,7 @@ describe('KycController', () => {
           }),
         ).rejects.toThrow('customer failed');
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
-        expect(controller.state.sessionStatus).toBeNull();
+        expect(controller.state.sessions.iron?.sessionStatus).toBeNull();
       });
     });
 
@@ -660,7 +650,7 @@ describe('KycController', () => {
           cause: fetchError,
         });
         expect(handlers.setAuthorizations).not.toHaveBeenCalled();
-        expect(controller.state.sessionStatus).toBeNull();
+        expect(controller.state.sessions.iron?.sessionStatus).toBeNull();
       });
     });
 
@@ -685,7 +675,7 @@ describe('KycController', () => {
           cause: verificationError,
         });
         expect(handlers.setAuthorizations).not.toHaveBeenCalled();
-        expect(controller.state.sessionStatus).toBeNull();
+        expect(controller.state.sessions.iron?.sessionStatus).toBeNull();
       });
     });
   });
@@ -696,10 +686,12 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
-              vendor: 'iron',
-              geoCountry: 'USA',
-              sessionStatus: sessionStatus('pending'),
+              sessions: {
+                iron: vendorSession({
+                  residenceCountry: 'USA',
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
             },
           },
         },
@@ -739,7 +731,17 @@ describe('KycController', () => {
 
     it('uses the external user id from the session on state', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('approved') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('approved'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, handlers }) => {
           handlers.getDataShares.mockResolvedValue(dataShares);
 
@@ -754,7 +756,17 @@ describe('KycController', () => {
 
     it('returns an empty list when nothing has been shared', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('approved') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('approved'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller }) => {
           expect(await controller.getDataShares()).toStrictEqual([]);
         },
@@ -763,7 +775,7 @@ describe('KycController', () => {
 
     it('resolves the latest session for the vendor when state is cold', async () => {
       await withController(
-        { options: { state: { vendor: 'iron' } } },
+        { options: { state: { sessions: { iron: vendorSession({}) } } } },
         async ({ controller, handlers }) => {
           handlers.getSessionStatusForVendor.mockResolvedValue(
             sessionStatus('approved', { externalUserId: 'ext-cold' }),
@@ -778,7 +790,7 @@ describe('KycController', () => {
             externalUserId: 'ext-cold',
           });
           // The resolved session is not written to state.
-          expect(controller.state.sessionStatus).toBeNull();
+          expect(controller.state.sessions.iron?.sessionStatus).toBeNull();
         },
       );
     });
@@ -793,7 +805,7 @@ describe('KycController', () => {
 
     it('returns an empty list when the vendor has no latest session', async () => {
       await withController(
-        { options: { state: { vendor: 'iron' } } },
+        { options: { state: { sessions: { iron: vendorSession({}) } } } },
         async ({ controller, handlers }) => {
           handlers.getSessionStatusForVendor.mockResolvedValue(null);
 
@@ -805,7 +817,17 @@ describe('KycController', () => {
 
     it('is exposed as a messenger action', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('approved') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('approved'),
+                }),
+              },
+            },
+          },
+        },
         async ({ rootMessenger, handlers }) => {
           handlers.getDataShares.mockResolvedValue(dataShares);
 
@@ -824,9 +846,9 @@ describe('KycController', () => {
 
     it('throws when no session is available', async () => {
       await withController(async ({ controller }) => {
-        expect(() => controller.refreshSessionStatus()).toThrow(
-          'No session was found',
-        );
+        expect(() =>
+          controller.refreshSessionStatus({ vendor: 'iron' }),
+        ).toThrow('No session was found');
       });
     });
 
@@ -839,15 +861,23 @@ describe('KycController', () => {
         });
         await withController(
           {
-            options: { state: { sessionStatus: current } },
+            options: {
+              state: {
+                sessions: { iron: vendorSession({ sessionStatus: current }) },
+              },
+            },
           },
           async ({ controller, handlers }) => {
-            expect(controller.refreshSessionStatus()).toStrictEqual(current);
+            expect(
+              controller.refreshSessionStatus({ vendor: 'iron' }),
+            ).toStrictEqual(current);
 
             expect(handlers.getSessionStatus).not.toHaveBeenCalled();
             expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
             expect(handlers.setAuthorizations).not.toHaveBeenCalled();
-            expect(controller.state.sessionStatus).toStrictEqual(current);
+            expect(controller.state.sessions.iron?.sessionStatus).toStrictEqual(
+              current,
+            );
 
             await vi.advanceTimersByTimeAsync(30_000);
             expect(handlers.getSessionStatus).not.toHaveBeenCalled();
@@ -864,19 +894,27 @@ describe('KycController', () => {
       const latest = sessionStatus('pending', { kycStatus: 'in_review' });
       await withController(
         {
-          options: { state: { sessionStatus: current } },
+          options: {
+            state: {
+              sessions: { iron: vendorSession({ sessionStatus: current }) },
+            },
+          },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue(latest);
 
-          expect(controller.refreshSessionStatus()).toStrictEqual(current);
+          expect(
+            controller.refreshSessionStatus({ vendor: 'iron' }),
+          ).toStrictEqual(current);
           await flushPromises();
 
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
-          expect(controller.state.sessionStatus).toStrictEqual(latest);
+          expect(controller.state.sessions.iron?.sessionStatus).toStrictEqual(
+            latest,
+          );
           expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
           expect(handlers.setAuthorizations).not.toHaveBeenCalled();
 
@@ -890,7 +928,7 @@ describe('KycController', () => {
   describe('readSessionStatus', () => {
     it('returns null when no session is stored', async () => {
       await withController(({ controller, handlers }) => {
-        expect(controller.readSessionStatus()).toBeNull();
+        expect(controller.readSessionStatus({ vendor: 'iron' })).toBeNull();
         expect(handlers.getSessionStatus).not.toHaveBeenCalled();
       });
     });
@@ -898,12 +936,20 @@ describe('KycController', () => {
     it('returns the persisted session without fetching', async () => {
       await withController(
         {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
         },
         ({ controller, handlers }) => {
-          expect(controller.readSessionStatus()).toStrictEqual(
-            sessionStatus('pending'),
-          );
+          expect(
+            controller.readSessionStatus({ vendor: 'iron' }),
+          ).toStrictEqual(sessionStatus('pending'));
           expect(handlers.getSessionStatus).not.toHaveBeenCalled();
         },
       );
@@ -919,17 +965,26 @@ describe('KycController', () => {
       vi.useFakeTimers();
       await withController(
         {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('approved'),
           );
 
-          expect(await controller.fetchSessionStatusOnce('sid')).toStrictEqual(
-            sessionStatus('approved'),
-          );
-          expect(controller.state.sessionStatus).toMatchInlineSnapshot(`
+          expect(
+            await controller.fetchSessionStatusOnce({ vendor: 'iron' }),
+          ).toStrictEqual(sessionStatus('approved'));
+          expect(controller.state.sessions.iron?.sessionStatus)
+            .toMatchInlineSnapshot(`
             {
               "currentStep": "approved",
               "externalUserId": "ext-1",
@@ -959,16 +1014,24 @@ describe('KycController', () => {
 
     it('throws when no session id is available', async () => {
       await withController(({ controller }) => {
-        expect(() => controller.startSessionStatusPolling()).toThrow(
-          'No session was found',
-        );
+        expect(() =>
+          controller.startSessionStatusPolling({ vendor: 'iron' }),
+        ).toThrow('No session was found');
       });
     });
 
     it('updates state when the fetched session status differs', async () => {
       await withController(
         {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValueOnce({
@@ -976,13 +1039,15 @@ describe('KycController', () => {
             kycStatus: 'in_review',
           });
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await flushPromises();
 
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
-          expect(controller.state.sessionStatus?.kycStatus).toBe('in_review');
+          expect(controller.state.sessions.iron?.sessionStatus?.kycStatus).toBe(
+            'in_review',
+          );
           expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
           expect(handlers.setAuthorizations).not.toHaveBeenCalled();
         },
@@ -997,15 +1062,25 @@ describe('KycController', () => {
         });
         await withController(
           {
-            options: { state: { sessionStatus: sessionStatus('pending') } },
+            options: {
+              state: {
+                sessions: {
+                  iron: vendorSession({
+                    sessionStatus: sessionStatus('pending'),
+                  }),
+                },
+              },
+            },
           },
           async ({ controller, handlers }) => {
             handlers.getSessionStatus.mockResolvedValue(fetched);
 
-            controller.startSessionStatusPolling();
+            controller.startSessionStatusPolling({ vendor: 'iron' });
             await flushPromises();
 
-            expect(controller.state.sessionStatus).toStrictEqual(fetched);
+            expect(controller.state.sessions.iron?.sessionStatus).toStrictEqual(
+              fetched,
+            );
             expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
             expect(handlers.setAuthorizations).not.toHaveBeenCalled();
           },
@@ -1019,18 +1094,24 @@ describe('KycController', () => {
       });
       await withController(
         {
-          options: { state: { sessionStatus: current } },
+          options: {
+            state: {
+              sessions: { iron: vendorSession({ sessionStatus: current }) },
+            },
+          },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue(current);
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await flushPromises();
 
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
           expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
           expect(handlers.setAuthorizations).not.toHaveBeenCalled();
-          expect(controller.state.sessionStatus).toStrictEqual(current);
+          expect(controller.state.sessions.iron?.sessionStatus).toStrictEqual(
+            current,
+          );
         },
       );
     });
@@ -1041,15 +1122,25 @@ describe('KycController', () => {
       });
       await withController(
         {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue(pendingAuth);
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await flushPromises();
 
-          expect(controller.state.sessionStatus).toStrictEqual(pendingAuth);
+          expect(controller.state.sessions.iron?.sessionStatus).toStrictEqual(
+            pendingAuth,
+          );
           expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
           expect(handlers.setAuthorizations).not.toHaveBeenCalled();
         },
@@ -1062,15 +1153,25 @@ describe('KycController', () => {
       });
       await withController(
         {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue(approvedExpired);
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await flushPromises();
 
-          expect(controller.state.sessionStatus).toStrictEqual(approvedExpired);
+          expect(controller.state.sessions.iron?.sessionStatus).toStrictEqual(
+            approvedExpired,
+          );
           expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
           expect(handlers.setAuthorizations).not.toHaveBeenCalled();
         },
@@ -1083,14 +1184,22 @@ describe('KycController', () => {
         vi.useFakeTimers();
         await withController(
           {
-            options: { state: { sessionStatus: sessionStatus('pending') } },
+            options: {
+              state: {
+                sessions: {
+                  iron: vendorSession({
+                    sessionStatus: sessionStatus('pending'),
+                  }),
+                },
+              },
+            },
           },
           async ({ controller, handlers }) => {
             handlers.getSessionStatus.mockResolvedValue(
               sessionStatus(finalStatus),
             );
 
-            controller.startSessionStatusPolling();
+            controller.startSessionStatusPolling({ vendor: 'iron' });
             await flushPromises();
             expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
@@ -1105,12 +1214,20 @@ describe('KycController', () => {
       vi.useFakeTimers();
       await withController(
         {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await flushPromises();
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
@@ -1136,17 +1253,25 @@ describe('KycController', () => {
       vi.useFakeTimers();
       await withController(
         {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await flushPromises();
           await vi.advanceTimersByTimeAsync(10_000);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await flushPromises();
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(3);
 
@@ -1170,20 +1295,32 @@ describe('KycController', () => {
       vi.useFakeTimers();
       await withController(
         {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus
             .mockRejectedValueOnce(new Error('network down'))
             .mockResolvedValue(sessionStatus('approved'));
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await flushPromises();
-          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+          expect(
+            controller.state.sessions.iron?.sessionStatus?.finalStatus,
+          ).toBe('pending');
 
           await vi.advanceTimersByTimeAsync(10_000);
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(2);
-          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+          expect(
+            controller.state.sessions.iron?.sessionStatus?.finalStatus,
+          ).toBe('approved');
         },
       );
     });
@@ -1192,14 +1329,22 @@ describe('KycController', () => {
       vi.useFakeTimers();
       await withController(
         {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockRejectedValue(
             new Error('network down'),
           );
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await flushPromises();
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
@@ -1218,12 +1363,20 @@ describe('KycController', () => {
       vi.useFakeTimers();
       await withController(
         {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await flushPromises();
           expect(handlers.getSessionStatus).toHaveBeenCalledTimes(1);
 
@@ -1238,7 +1391,15 @@ describe('KycController', () => {
     it('discards an in-flight poll after reset', async () => {
       await withController(
         {
-          options: { state: { sessionStatus: sessionStatus('pending') } },
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
         },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockImplementation(async () => {
@@ -1246,25 +1407,38 @@ describe('KycController', () => {
             return sessionStatus('approved');
           });
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await flushPromises();
 
-          expect(controller.state.sessionStatus).toBeNull();
+          expect(controller.state.sessions.iron).toBeUndefined();
         },
       );
     });
   });
 
   describe('fetchSessionDisclaimers', () => {
-    it('fetches by session id', async () => {
-      await withController(async ({ controller, handlers }) => {
-        expect(
-          await controller.fetchSessionDisclaimers({ sessionId: 'sid' }),
-        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
-        expect(
-          handlers.fetchSessionDisclaimersBySessionId,
-        ).toHaveBeenCalledWith({ sessionId: 'sid' });
-      });
+    it('fetches the vendor session catalog', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          expect(
+            await controller.fetchSessionDisclaimers({ vendor: 'iron' }),
+          ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+          expect(
+            handlers.fetchSessionDisclaimersBySessionId,
+          ).toHaveBeenCalledWith({ sessionId: 'sid' });
+        },
+      );
     });
 
     it('fetches by country', async () => {
@@ -1281,14 +1455,14 @@ describe('KycController', () => {
       });
     });
 
-    it('throws when both sessionId and country are provided', async () => {
+    it('throws when both vendor and country are provided', async () => {
       await withController(async ({ controller, handlers }) => {
         await expect(
           controller.fetchSessionDisclaimers({
-            sessionId: 'sid',
+            vendor: 'iron',
             country: 'USA',
-          } as unknown as { sessionId: string } | { country: string }),
-        ).rejects.toThrow(/provide exactly one of sessionId or country/u);
+          } as unknown as FetchSessionDisclaimersParams),
+        ).rejects.toThrow(/provide exactly one of vendor or country/u);
         expect(
           handlers.fetchSessionDisclaimersBySessionId,
         ).not.toHaveBeenCalled();
@@ -1298,13 +1472,13 @@ describe('KycController', () => {
       });
     });
 
-    it('throws when neither sessionId nor country is provided', async () => {
+    it('throws when neither vendor nor country is provided', async () => {
       await withController(async ({ controller }) => {
         await expect(
           controller.fetchSessionDisclaimers(
-            {} as { sessionId: string } | { country: string },
+            {} as FetchSessionDisclaimersParams,
           ),
-        ).rejects.toThrow(/provide exactly one of sessionId or country/u);
+        ).rejects.toThrow(/provide exactly one of vendor or country/u);
       });
     });
   });
@@ -1314,6 +1488,7 @@ describe('KycController', () => {
       await withController(async ({ controller }) => {
         await expect(
           controller.recordSessionDisclaimers({
+            vendor: 'iron',
             providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
             credentialReusabilityConsentGiven: true,
@@ -1324,9 +1499,20 @@ describe('KycController', () => {
 
     it('submits consents and persists accepted records', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, handlers }) => {
           await controller.recordSessionDisclaimers({
+            vendor: 'iron',
             providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
             idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
             credentialReusabilityConsentGiven: true,
@@ -1339,12 +1525,14 @@ describe('KycController', () => {
             credentialReusabilityConsentGiven: true,
           });
           expect(
-            controller.state.providerDisclaimersAccepted.sumsub,
+            controller.state.sessions.iron?.providerDisclaimersAccepted,
           ).toStrictEqual(MOCK_SUMSUB_DISCLAIMERS_ACCEPTED);
-          expect(controller.state.idosDisclaimersAccepted).toStrictEqual(
-            MOCK_IDOS_DISCLAIMERS_ACCEPTED,
-          );
-          expect(controller.state.credentialReusabilityConsentGiven).toBe(true);
+          expect(
+            controller.state.sessions.iron?.idosDisclaimersAccepted,
+          ).toStrictEqual(MOCK_IDOS_DISCLAIMERS_ACCEPTED);
+          expect(
+            controller.state.sessions.iron?.credentialReusabilityConsentGiven,
+          ).toBe(true);
         },
       );
     });
@@ -1354,21 +1542,33 @@ describe('KycController', () => {
     it('throws when no session exists', async () => {
       await withController(async ({ controller }) => {
         await expect(
-          controller.hasCompletedSessionDisclaimers(),
+          controller.hasCompletedSessionDisclaimers({ vendor: 'iron' }),
         ).rejects.toThrow('No session was found');
       });
     });
 
     it('returns true when the fetched session consentStatus is given', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue({
             ...sessionStatus('pending'),
             consentStatus: 'given',
           });
 
-          expect(await controller.hasCompletedSessionDisclaimers()).toBe(true);
+          expect(
+            await controller.hasCompletedSessionDisclaimers({ vendor: 'iron' }),
+          ).toBe(true);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
@@ -1381,14 +1581,26 @@ describe('KycController', () => {
 
     it('returns false when the fetched session consentStatus is not given', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, handlers }) => {
           handlers.getSessionStatus.mockResolvedValue({
             ...sessionStatus('pending'),
             consentStatus: 'pending',
           });
 
-          expect(await controller.hasCompletedSessionDisclaimers()).toBe(false);
+          expect(
+            await controller.hasCompletedSessionDisclaimers({ vendor: 'iron' }),
+          ).toBe(false);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
@@ -1418,74 +1630,68 @@ describe('KycController', () => {
   });
 
   describe('recordVendorDisclaimers', () => {
-    it('throws when vendor is missing', async () => {
-      await withController(
-        { options: { state: { email: 'a@b.co' } } },
-        async ({ controller, handlers }) => {
-          await expect(
-            controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
-          ).rejects.toThrow('No vendor was found');
-          expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
-        },
-      );
-    });
-
-    it('throws when email is missing', async () => {
-      await withController(
-        { options: { state: { vendor: 'iron' } } },
-        async ({ controller, handlers }) => {
-          await expect(
-            controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
-          ).rejects.toThrow('No email was found');
-          expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
-        },
-      );
-    });
-
-    it('submits accepted ids and persists them', async () => {
+    it('submits the stored acceptance for the vendor', async () => {
       const signings = [
         { id: 'sign-1', customer_id: 'cust-1', content_id: 'd1' },
       ];
       await withController(
-        { options: { state: { vendor: 'iron', email: 'a@b.co' } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, handlers }) => {
           handlers.submitVendorDisclaimers.mockResolvedValue(signings);
+          controller.acceptVendorDisclaimers({
+            vendor: 'iron',
+            country: 'USA',
+            disclaimerIds: ['d1'],
+          });
 
           expect(
-            await controller.recordVendorDisclaimers({ disclaimerIds: ['d1'] }),
+            await controller.recordVendorDisclaimers({ vendor: 'iron' }),
           ).toStrictEqual(signings);
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
           expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
             vendor: 'iron',
             disclaimerIds: ['d1'],
           });
-          expect(
-            controller.state.vendorDisclaimersAccepted.iron?.disclaimerIds,
-          ).toStrictEqual(['d1']);
         },
       );
     });
   });
 
   describe('hasCompletedVendorDisclaimers', () => {
-    it('throws when vendor is missing', async () => {
+    it('throws when the vendor has no entry', async () => {
       await withController(
-        { options: { state: { geoCountry: 'USA' } } },
+        {
+          options: {
+            state: {
+              sessions: { iron: vendorSession({ residenceCountry: 'USA' }) },
+            },
+          },
+        },
         async ({ controller }) => {
           await expect(
-            controller.hasCompletedVendorDisclaimers(),
-          ).rejects.toThrow('No vendor was found');
+            controller.hasCompletedVendorDisclaimers({ vendor: 'moonpay' }),
+          ).rejects.toThrow('No session was found');
         },
       );
     });
 
-    it('throws when geoCountry is missing', async () => {
+    it('throws when the residence country is missing', async () => {
       await withController(
-        { options: { state: { vendor: 'iron' } } },
+        { options: { state: { sessions: { iron: vendorSession({}) } } } },
         async ({ controller, handlers }) => {
           await expect(
-            controller.hasCompletedVendorDisclaimers(),
-          ).rejects.toThrow('No geoCountry was found');
+            controller.hasCompletedVendorDisclaimers({ vendor: 'iron' }),
+          ).rejects.toThrow('No residence country was found');
           expect(handlers.fetchVendorDisclaimers).not.toHaveBeenCalled();
         },
       );
@@ -1496,11 +1702,15 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              vendor: 'iron',
-              geoCountry: 'USA',
-              vendorDisclaimersAccepted: {
-                moonpay: null,
-                iron: { disclaimerIds: ['d1'] },
+              sessions: {
+                iron: vendorSession({
+                  residenceCountry: 'USA',
+                  vendorDisclaimersAccepted: {
+                    disclaimerIds: ['d1'],
+                    acceptedAt: null,
+                    submitted: true,
+                  },
+                }),
               },
             },
           },
@@ -1511,21 +1721,27 @@ describe('KycController', () => {
             { id: 'd2', display_name: 'T2', url: 'u2' },
           ]);
 
-          expect(await controller.hasCompletedVendorDisclaimers()).toBe(false);
+          expect(
+            await controller.hasCompletedVendorDisclaimers({ vendor: 'iron' }),
+          ).toBe(false);
         },
       );
     });
 
-    it('returns true when persisted Iron ids cover the fetched catalog', async () => {
+    it('returns true when submitted ids cover the fetched catalog', async () => {
       await withController(
         {
           options: {
             state: {
-              vendor: 'iron',
-              geoCountry: 'USA',
-              vendorDisclaimersAccepted: {
-                moonpay: null,
-                iron: { disclaimerIds: ['d1', 'd2'] },
+              sessions: {
+                iron: vendorSession({
+                  residenceCountry: 'USA',
+                  vendorDisclaimersAccepted: {
+                    disclaimerIds: ['d1', 'd2'],
+                    acceptedAt: null,
+                    submitted: true,
+                  },
+                }),
               },
             },
           },
@@ -1536,7 +1752,9 @@ describe('KycController', () => {
             { id: 'd2', display_name: 'T2', url: 'u2' },
           ]);
 
-          expect(await controller.hasCompletedVendorDisclaimers()).toBe(true);
+          expect(
+            await controller.hasCompletedVendorDisclaimers({ vendor: 'iron' }),
+          ).toBe(true);
         },
       );
     });
@@ -1545,11 +1763,22 @@ describe('KycController', () => {
   describe('launchProviderFlow', () => {
     it('launches SumSub when a session exists', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, handlers, launcher }) => {
           launcher.launch.mockResolvedValue({ status: 'Completed' });
 
           const result = await controller.launchProviderFlow({
+            vendor: 'iron',
             locale: 'en',
             debug: false,
           });
@@ -1557,42 +1786,82 @@ describe('KycController', () => {
           expect(result).toBe('submitted');
           expect(handlers.createJourney).toHaveBeenCalledWith('sid');
           expect(launcher.launch).toHaveBeenCalled();
-          expect(controller.state.providerFlowStatus).toBe('submitted');
+          expect(controller.state.sessions.iron?.providerFlowStatus).toBe(
+            'submitted',
+          );
         },
       );
     });
 
     it('records abandonment when SumSub closes before submission', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, launcher }) => {
           launcher.launch.mockResolvedValue({ status: 'Incomplete' });
 
-          const result = await controller.launchProviderFlow({});
+          const result = await controller.launchProviderFlow({
+            vendor: 'iron',
+          });
 
           expect(result).toBe('abandoned');
-          expect(controller.state.providerFlowStatus).toBe('abandoned');
+          expect(controller.state.sessions.iron?.providerFlowStatus).toBe(
+            'abandoned',
+          );
         },
       );
     });
 
     it('records failure when SumSub reports that it could not run', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, launcher }) => {
           launcher.launch.mockResolvedValue({ status: 'Failed' });
 
-          const result = await controller.launchProviderFlow({});
+          const result = await controller.launchProviderFlow({
+            vendor: 'iron',
+          });
 
           expect(result).toBe('failed');
-          expect(controller.state.providerFlowStatus).toBe('failed');
+          expect(controller.state.sessions.iron?.providerFlowStatus).toBe(
+            'failed',
+          );
         },
       );
     });
 
     it('records failure when SumSub reports Failed through a status change', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, launcher }) => {
           launcher.launch.mockImplementation(
             async (params: {
@@ -1603,17 +1872,29 @@ describe('KycController', () => {
             },
           );
 
-          const result = await controller.launchProviderFlow({});
+          const result = await controller.launchProviderFlow({
+            vendor: 'iron',
+          });
 
           expect(result).toBe('failed');
-          expect(controller.state.providerFlowStatus).toBe('failed');
+          expect(controller.state.sessions.iron?.providerFlowStatus).toBe(
+            'failed',
+          );
         },
       );
     });
 
     it('marks the session pending and starts polling once the SDK completes', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('retry') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({ sessionStatus: sessionStatus('retry') }),
+              },
+            },
+          },
+        },
         async ({ controller, handlers, launcher }) => {
           launcher.launch.mockImplementation(
             async (params: {
@@ -1628,17 +1909,21 @@ describe('KycController', () => {
           );
           handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
 
-          const result = await controller.launchProviderFlow({});
+          const result = await controller.launchProviderFlow({
+            vendor: 'iron',
+          });
 
           expect(result).toBe('submitted');
           expect(launcher.launch).toHaveBeenCalledWith(
             expect.objectContaining({ locale: 'en', debug: false }),
           );
           expect(handlers.createJourney).toHaveBeenCalledTimes(2);
-          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
-          expect(controller.state.sessionStatus?.currentStep).toBe(
-            KYC_CURRENT_STEPS.processing,
-          );
+          expect(
+            controller.state.sessions.iron?.sessionStatus?.finalStatus,
+          ).toBe('pending');
+          expect(
+            controller.state.sessions.iron?.sessionStatus?.currentStep,
+          ).toBe(KYC_CURRENT_STEPS.processing);
           expect(handlers.getSessionStatus).toHaveBeenCalledWith({
             sessionId: 'sid',
           });
@@ -1648,16 +1933,26 @@ describe('KycController', () => {
 
     it('leaves the session alone when it was cleared while the SDK ran', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, handlers, launcher }) => {
           launcher.launch.mockImplementation(async () => {
             await controller.reset();
             return { status: 'Completed' };
           });
 
-          await controller.launchProviderFlow({});
+          await controller.launchProviderFlow({ vendor: 'iron' });
 
-          expect(controller.state.sessionStatus).toBeNull();
+          expect(controller.state.sessions.iron).toBeUndefined();
           expect(handlers.getSessionStatus).not.toHaveBeenCalled();
         },
       );
@@ -1665,69 +1960,121 @@ describe('KycController', () => {
 
     it('does nothing when the SumSub SDK is unavailable', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, handlers, launcher }) => {
           launcher.isAvailable.mockReturnValue(false);
 
-          const result = await controller.launchProviderFlow({});
+          const result = await controller.launchProviderFlow({
+            vendor: 'iron',
+          });
 
           expect(result).toBe('failed');
           expect(handlers.createJourney).not.toHaveBeenCalled();
           expect(handlers.getSessionStatus).not.toHaveBeenCalled();
           expect(launcher.launch).not.toHaveBeenCalled();
-          expect(controller.state.providerFlowStatus).toBe('failed');
+          expect(controller.state.sessions.iron?.providerFlowStatus).toBe(
+            'failed',
+          );
         },
       );
     });
 
     it('does nothing when there is no session', async () => {
       await withController(async ({ controller, handlers, launcher }) => {
-        const result = await controller.launchProviderFlow({});
+        const result = await controller.launchProviderFlow({ vendor: 'iron' });
 
         expect(result).toBe('failed');
         expect(handlers.createJourney).not.toHaveBeenCalled();
         expect(handlers.getSessionStatus).not.toHaveBeenCalled();
         expect(launcher.launch).not.toHaveBeenCalled();
-        expect(controller.state.providerFlowStatus).toBe('failed');
+        expect(controller.state.sessions.iron?.providerFlowStatus).toBe(
+          'failed',
+        );
       });
     });
 
     it('records failure when the provider launcher throws', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, launcher }) => {
           launcher.launch.mockRejectedValue(new Error('launcher unavailable'));
 
-          const result = await controller.launchProviderFlow({});
+          const result = await controller.launchProviderFlow({
+            vendor: 'iron',
+          });
 
           expect(result).toBe('failed');
-          expect(controller.state.providerFlowStatus).toBe('failed');
+          expect(controller.state.sessions.iron?.providerFlowStatus).toBe(
+            'failed',
+          );
         },
       );
     });
 
     it('does not update a reset session when the provider launcher throws', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('pending') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
         async ({ controller, launcher }) => {
           launcher.launch.mockImplementation(async () => {
             controller.clearState();
             throw new Error('launcher unavailable');
           });
 
-          const result = await controller.launchProviderFlow({});
+          const result = await controller.launchProviderFlow({
+            vendor: 'iron',
+          });
 
           expect(result).toBe('failed');
-          expect(controller.state.providerFlowStatus).toBe('not_started');
+          expect(controller.state.sessions.iron).toBeUndefined();
         },
       );
     });
 
     it('returns the persisted provider flow status', async () => {
       await withController(
-        { options: { state: { providerFlowStatus: 'abandoned' } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({ providerFlowStatus: 'abandoned' }),
+              },
+            },
+          },
+        },
         ({ controller }) => {
-          expect(controller.getProviderFlowStatus()).toBe('abandoned');
+          expect(controller.getProviderFlowStatus({ vendor: 'iron' })).toBe(
+            'abandoned',
+          );
         },
       );
     });
@@ -1867,7 +2214,11 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { vendor: 'iron', sessionStatus: sessionStatus('new') },
+            state: {
+              sessions: {
+                iron: vendorSession({ sessionStatus: sessionStatus('new') }),
+              },
+            },
             trackKycAnalytics: analytics.trackKycAnalytics,
           },
         },
@@ -1875,7 +2226,7 @@ describe('KycController', () => {
           launcher.launch.mockResolvedValue({ status: 'Completed' });
           handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
 
-          await controller.launchProviderFlow({});
+          await controller.launchProviderFlow({ vendor: 'iron' });
 
           expect(analytics.verification).toStrictEqual([
             {
@@ -1902,21 +2253,25 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { sessionStatus: sessionStatus('new') },
+            state: {
+              sessions: {
+                iron: vendorSession({ sessionStatus: sessionStatus('new') }),
+              },
+            },
             trackKycAnalytics: analytics.trackKycAnalytics,
           },
         },
         async ({ controller, launcher }) => {
           launcher.launch.mockResolvedValue({ status: 'Incomplete' });
 
-          await controller.launchProviderFlow({});
+          await controller.launchProviderFlow({ vendor: 'iron' });
 
           expect(analytics.verification).toStrictEqual([
             {
               status: 'abandoned',
               kycStatus: 'new',
               providerFlowStatus: 'abandoned',
-              vendor: null,
+              vendor: 'iron',
             },
           ]);
           expect(analytics.status).toStrictEqual([]);
@@ -1929,17 +2284,21 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { sessionStatus: sessionStatus('new') },
+            state: {
+              sessions: {
+                iron: vendorSession({ sessionStatus: sessionStatus('new') }),
+              },
+            },
             trackKycAnalytics: analytics.trackKycAnalytics,
           },
         },
         async ({ controller, launcher }) => {
           launcher.launch.mockResolvedValueOnce({ status: 'Failed' });
-          await controller.launchProviderFlow({});
+          await controller.launchProviderFlow({ vendor: 'iron' });
           launcher.launch.mockRejectedValueOnce(new Error('launcher threw'));
-          await controller.launchProviderFlow({});
+          await controller.launchProviderFlow({ vendor: 'iron' });
           launcher.isAvailable.mockReturnValueOnce(false);
-          await controller.launchProviderFlow({});
+          await controller.launchProviderFlow({ vendor: 'iron' });
 
           expect(
             analytics.verification.map((event) => event.status),
@@ -1954,15 +2313,19 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { sessionStatus: sessionStatus('new') },
+            state: {
+              sessions: {
+                iron: vendorSession({ sessionStatus: sessionStatus('new') }),
+              },
+            },
             trackKycAnalytics: analytics.trackKycAnalytics,
           },
         },
         async ({ controller, launcher }) => {
           launcher.launch.mockResolvedValue({ status: 'Incomplete' });
 
-          await controller.launchProviderFlow({});
-          await controller.launchProviderFlow({});
+          await controller.launchProviderFlow({ vendor: 'iron' });
+          await controller.launchProviderFlow({ vendor: 'iron' });
 
           expect(
             analytics.verification.map(({ status }) => status),
@@ -1976,7 +2339,11 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { sessionStatus: sessionStatus('new') },
+            state: {
+              sessions: {
+                iron: vendorSession({ sessionStatus: sessionStatus('new') }),
+              },
+            },
             trackKycAnalytics: analytics.trackKycAnalytics,
           },
         },
@@ -1986,15 +2353,15 @@ describe('KycController', () => {
             return { status: 'Completed' };
           });
 
-          await controller.launchProviderFlow({});
+          await controller.launchProviderFlow({ vendor: 'iron' });
 
-          expect(controller.state.providerFlowStatus).toBe('not_started');
+          expect(controller.state.sessions.iron).toBeUndefined();
           expect(analytics.verification).toStrictEqual([
             {
               status: 'failed',
               kycStatus: 'none',
               providerFlowStatus: 'not_started',
-              vendor: null,
+              vendor: 'iron',
             },
           ]);
           expect(analytics.status).toStrictEqual([]);
@@ -2007,7 +2374,11 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { sessionStatus: sessionStatus('new') },
+            state: {
+              sessions: {
+                iron: vendorSession({ sessionStatus: sessionStatus('new') }),
+              },
+            },
             trackKycAnalytics: analytics.trackKycAnalytics,
           },
         },
@@ -2017,7 +2388,7 @@ describe('KycController', () => {
             throw new Error('launcher unavailable');
           });
 
-          await controller.launchProviderFlow({});
+          await controller.launchProviderFlow({ vendor: 'iron' });
 
           expect(
             analytics.verification.map(({ status }) => status),
@@ -2032,7 +2403,13 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { sessionStatus: sessionStatus('pending') },
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
             trackKycAnalytics: analytics.trackKycAnalytics,
           },
         },
@@ -2041,7 +2418,7 @@ describe('KycController', () => {
             sessionStatus('approved'),
           );
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await vi.advanceTimersByTimeAsync(60_000);
 
           expect(analytics.status).toStrictEqual([
@@ -2049,7 +2426,7 @@ describe('KycController', () => {
               previousKycStatus: 'pending',
               kycStatus: 'approved',
               providerFlowStatus: 'not_started',
-              vendor: null,
+              vendor: 'iron',
             },
           ]);
           expect(analytics.verification).toStrictEqual([]);
@@ -2067,7 +2444,13 @@ describe('KycController', () => {
         await withController(
           {
             options: {
-              state: { sessionStatus: sessionStatus('pending') },
+              state: {
+                sessions: {
+                  iron: vendorSession({
+                    sessionStatus: sessionStatus('pending'),
+                  }),
+                },
+              },
               trackKycAnalytics: analytics.trackKycAnalytics,
             },
           },
@@ -2076,7 +2459,7 @@ describe('KycController', () => {
               sessionStatus(finalStatus),
             );
 
-            await controller.fetchSessionStatusOnce('sid');
+            await controller.fetchSessionStatusOnce({ vendor: 'iron' });
 
             expect(
               analytics.status.map((event) => event.kycStatus),
@@ -2093,8 +2476,11 @@ describe('KycController', () => {
         {
           options: {
             state: {
-              email: 'a@b.co',
-              sessionStatus: sessionStatus('pending'),
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
             },
             trackKycAnalytics: analytics.trackKycAnalytics,
           },
@@ -2142,7 +2528,13 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { sessionStatus: sessionStatus('mystery') },
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('mystery'),
+                }),
+              },
+            },
             trackKycAnalytics: analytics.trackKycAnalytics,
           },
         },
@@ -2151,14 +2543,14 @@ describe('KycController', () => {
             sessionStatus('approved'),
           );
 
-          await controller.fetchSessionStatusOnce('sid');
+          await controller.fetchSessionStatusOnce({ vendor: 'iron' });
 
           expect(analytics.status).toStrictEqual([
             {
               previousKycStatus: 'none',
               kycStatus: 'approved',
               providerFlowStatus: 'not_started',
-              vendor: null,
+              vendor: 'iron',
             },
           ]);
         },
@@ -2176,7 +2568,9 @@ describe('KycController', () => {
 
           await controller.startSession({ vendor: 'iron' });
 
-          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+          expect(
+            controller.state.sessions.iron?.sessionStatus?.finalStatus,
+          ).toBe('approved');
           expect(analytics.status).toStrictEqual([]);
           expect(analytics.verification).toStrictEqual([]);
         },
@@ -2188,7 +2582,13 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { sessionStatus: sessionStatus('approved') },
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('approved'),
+                }),
+              },
+            },
             trackKycAnalytics: analytics.trackKycAnalytics,
           },
         },
@@ -2197,7 +2597,7 @@ describe('KycController', () => {
             sessionStatus('approved', { vendorStatus: 'still-approved' }),
           );
 
-          await controller.fetchSessionStatusOnce('sid');
+          await controller.fetchSessionStatusOnce({ vendor: 'iron' });
 
           expect(analytics.status).toStrictEqual([]);
         },
@@ -2210,7 +2610,13 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { sessionStatus: sessionStatus('pending') },
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
             trackKycAnalytics: {
               verificationOutcome: vi.fn(),
               statusChanged: () => {
@@ -2221,12 +2627,12 @@ describe('KycController', () => {
         },
         async ({ controller, handlers }) => {
           readFinalStatus = (): string | undefined =>
-            controller.state.sessionStatus?.finalStatus;
+            controller.state.sessions.iron?.sessionStatus?.finalStatus;
           handlers.getSessionStatus.mockResolvedValue(
             sessionStatus('approved'),
           );
 
-          await controller.fetchSessionStatusOnce('sid');
+          await controller.fetchSessionStatusOnce({ vendor: 'iron' });
 
           expect(statusAtTrack).toStrictEqual(['approved']);
         },
@@ -2237,7 +2643,11 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { vendor: 'iron', sessionStatus: sessionStatus('new') },
+            state: {
+              sessions: {
+                iron: vendorSession({ sessionStatus: sessionStatus('new') }),
+              },
+            },
             trackKycAnalytics: {
               verificationOutcome: () => {
                 throw new Error('analytics down');
@@ -2252,11 +2662,17 @@ describe('KycController', () => {
           launcher.launch.mockResolvedValue({ status: 'Completed' });
           handlers.getSessionStatus.mockRejectedValue(new Error('unavailable'));
 
-          const result = await controller.launchProviderFlow({});
+          const result = await controller.launchProviderFlow({
+            vendor: 'iron',
+          });
 
           expect(result).toBe('submitted');
-          expect(controller.state.providerFlowStatus).toBe('submitted');
-          expect(controller.state.sessionStatus?.finalStatus).toBe('pending');
+          expect(controller.state.sessions.iron?.providerFlowStatus).toBe(
+            'submitted',
+          );
+          expect(
+            controller.state.sessions.iron?.sessionStatus?.finalStatus,
+          ).toBe('pending');
           expect(handlers.getSessionStatus).toHaveBeenCalled();
         },
       );
@@ -2267,7 +2683,13 @@ describe('KycController', () => {
       await withController(
         {
           options: {
-            state: { sessionStatus: sessionStatus('pending') },
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
             trackKycAnalytics: {
               verificationOutcome: vi.fn(),
               statusChanged: () => {
@@ -2281,10 +2703,12 @@ describe('KycController', () => {
             sessionStatus('approved'),
           );
 
-          controller.startSessionStatusPolling();
+          controller.startSessionStatusPolling({ vendor: 'iron' });
           await vi.advanceTimersByTimeAsync(60_000);
 
-          expect(controller.state.sessionStatus?.finalStatus).toBe('approved');
+          expect(
+            controller.state.sessions.iron?.sessionStatus?.finalStatus,
+          ).toBe('approved');
           expect(handlers.getSessionStatus).toHaveBeenCalledOnce();
         },
       );
@@ -2292,11 +2716,21 @@ describe('KycController', () => {
 
     it('leaves KYC behavior unchanged when no tracker is passed', async () => {
       await withController(
-        { options: { state: { sessionStatus: sessionStatus('new') } } },
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({ sessionStatus: sessionStatus('new') }),
+              },
+            },
+          },
+        },
         async ({ controller, launcher }) => {
           launcher.launch.mockResolvedValue({ status: 'Incomplete' });
 
-          expect(await controller.launchProviderFlow({})).toBe('abandoned');
+          expect(await controller.launchProviderFlow({ vendor: 'iron' })).toBe(
+            'abandoned',
+          );
         },
       );
     });
@@ -2324,17 +2758,30 @@ describe('KycController', () => {
 
   describe('messenger actions', () => {
     it('exposes fetchSessionDisclaimers', async () => {
-      await withController(async ({ rootMessenger, handlers }) => {
-        handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
-          MOCK_SESSION_DISCLAIMERS,
-        );
+      await withController(
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
+        async ({ rootMessenger, handlers }) => {
+          handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
+            MOCK_SESSION_DISCLAIMERS,
+          );
 
-        expect(
-          await rootMessenger.call('KycController:fetchSessionDisclaimers', {
-            sessionId: 'sid',
-          }),
-        ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
-      });
+          expect(
+            await rootMessenger.call('KycController:fetchSessionDisclaimers', {
+              vendor: 'iron',
+            }),
+          ).toStrictEqual(MOCK_SESSION_DISCLAIMERS);
+        },
+      );
     });
   });
 
@@ -2562,9 +3009,9 @@ describe('KycController per-vendor sessions', () => {
         expect(handlers.getSessionStatus).toHaveBeenCalledWith({
           sessionId: 'sid',
         });
-        expect(
-          controller.state.sessions.iron?.sessionStatus?.finalStatus,
-        ).toBe('approved');
+        expect(controller.state.sessions.iron?.sessionStatus?.finalStatus).toBe(
+          'approved',
+        );
       },
     );
   });
@@ -2642,7 +3089,8 @@ describe('KycController per-vendor sessions', () => {
             disclaimerIds: ['t1'],
           });
           expect(
-            controller.state.sessions.iron?.vendorDisclaimersAccepted?.submitted,
+            controller.state.sessions.iron?.vendorDisclaimersAccepted
+              ?.submitted,
           ).toBe(true);
           expect(
             await controller.hasCompletedVendorDisclaimers({ vendor: 'iron' }),
@@ -2654,6 +3102,27 @@ describe('KycController per-vendor sessions', () => {
         },
       );
     });
+  });
+
+  it('does not recreate a vendor entry cleared while terms were submitting', async () => {
+    await withController(
+      { options: { state: { sessions: { iron: ironEntry() } } } },
+      async ({ controller, handlers }) => {
+        controller.acceptVendorDisclaimers({
+          vendor: 'iron',
+          country: 'BRA',
+          disclaimerIds: ['t1'],
+        });
+        handlers.submitVendorDisclaimers.mockImplementation(async () => {
+          controller.clearState();
+          return [];
+        });
+
+        await controller.recordVendorDisclaimers({ vendor: 'iron' });
+
+        expect(controller.state.sessions.iron).toBeUndefined();
+      },
+    );
   });
 
   it('presents one SumSub flow at a time', async () => {
@@ -2743,6 +3212,18 @@ type WithControllerCallback<ReturnValue> = (payload: {
 type WithControllerOptions = {
   options: Partial<ConstructorParameters<typeof KycController>[0]>;
 };
+
+/**
+ * Builds a vendor session entry over the defaults.
+ *
+ * @param overrides - Fields to set on the entry.
+ * @returns The vendor session entry.
+ */
+function vendorSession(
+  overrides: Partial<KycVendorSessionState> = {},
+): KycVendorSessionState {
+  return { ...getDefaultKycVendorSessionState(), ...overrides };
+}
 
 /**
  * Builds an unsigned JWT whose payload is the given JSON object.

@@ -1,7 +1,4 @@
-import type {
-  KycDisclaimer,
-  KycVendorDisclaimersAcceptance,
-} from './types.js';
+import type { KycDisclaimer, KycVendorDisclaimersAcceptance } from './types.js';
 
 /**
  * Returns whether every fetched vendor disclaimer is covered by acceptance the

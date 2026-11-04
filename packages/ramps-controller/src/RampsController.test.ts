@@ -10959,6 +10959,7 @@ describe('RampsController', () => {
       getProviderFlowStatus: Mock;
       hasCompletedVendorDisclaimers: Mock;
       hasCompletedSessionDisclaimers: Mock;
+      getSessionDecision: Mock;
       clearState: Mock;
       getSessionProfile: Mock;
       getCustomerByExternalId: Mock;
@@ -10991,6 +10992,49 @@ describe('RampsController', () => {
       externalUserId: CANONICAL_PROFILE_ID,
     };
 
+    /**
+     * Mirrors `getKycSessionDecision` in `@metamask/kyc-controller`, so the
+     * hydrate tests keep asserting the decision for each session shape.
+     *
+     * @param session - The session the controller holds, if any.
+     * @param providerFlowStatus - The durable provider-flow outcome.
+     * @returns The session decision.
+     */
+    const sessionDecision = (
+      session: KycSession | null | undefined,
+      providerFlowStatus: KycValues['providerFlowStatus'],
+    ): string => {
+      if (!session) {
+        return 'none';
+      }
+      if (session.finalStatus === 'approved') {
+        return 'approved';
+      }
+      if (
+        session.finalStatus === 'rejected' ||
+        session.finalStatus === 'retry'
+      ) {
+        return session.finalStatus;
+      }
+      if (
+        session.finalStatus === 'pending' ||
+        session.kycStatus === 'pending' ||
+        providerFlowStatus === 'submitted'
+      ) {
+        return 'pending';
+      }
+      return [
+        'none',
+        'new',
+        'pending',
+        'approved',
+        'rejected',
+        'retry',
+      ].includes(session.finalStatus)
+        ? session.finalStatus
+        : 'none';
+    };
+
     const registerKycHandlers = (
       rootMessenger: RootMessenger,
       overrides: Partial<KycValues> = {},
@@ -11020,6 +11064,19 @@ describe('RampsController', () => {
         hasCompletedSessionDisclaimers: vi
           .fn()
           .mockResolvedValue(values.sessionDisclaimersCompleted),
+        // Reads the session the KYC controller would hold: the last fetched
+        // status when the one-shot GET succeeded, otherwise the persisted one.
+        getSessionDecision: vi.fn(() => {
+          const fetched = handlers.fetchSessionStatusOnce.mock.settledResults
+            .filter((result) => result.type === 'fulfilled')
+            .at(-1)?.value as KycSession | undefined;
+          const persisted = handlers.readSessionStatus.mock.results.at(-1)
+            ?.value as KycSession | null | undefined;
+          return sessionDecision(
+            fetched ?? persisted,
+            handlers.getProviderFlowStatus() as KycValues['providerFlowStatus'],
+          );
+        }),
         clearState: vi.fn(),
         getSessionProfile: vi
           .fn()
@@ -11063,6 +11120,10 @@ describe('RampsController', () => {
       rootMessenger.registerActionHandler(
         'KycController:hasCompletedSessionDisclaimers' as never,
         handlers.hasCompletedSessionDisclaimers as never,
+      );
+      rootMessenger.registerActionHandler(
+        'KycController:getSessionDecision' as never,
+        handlers.getSessionDecision as never,
       );
       rootMessenger.registerActionHandler(
         'KycController:clearState' as never,
@@ -11206,6 +11267,12 @@ describe('RampsController', () => {
         ).toStrictEqual(factsSnapshot({ kycStatus: 'new' }));
 
         expect(handlers.readSessionStatus).toHaveBeenCalledTimes(1);
+        expect(handlers.readSessionStatus).toHaveBeenCalledWith({
+          vendor: 'iron',
+        });
+        expect(handlers.getSessionDecision).toHaveBeenCalledWith({
+          vendor: 'iron',
+        });
         expect(handlers.fetchSessionStatusOnce).not.toHaveBeenCalled();
         expect(handlers.getAutoramps).not.toHaveBeenCalled();
         expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
@@ -11240,9 +11307,9 @@ describe('RampsController', () => {
         );
 
         expect(handlers.fetchSessionStatusOnce).toHaveBeenCalledTimes(1);
-        expect(handlers.fetchSessionStatusOnce).toHaveBeenCalledWith(
-          'session-1',
-        );
+        expect(handlers.fetchSessionStatusOnce).toHaveBeenCalledWith({
+          vendor: 'iron',
+        });
         expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
         expect(handlers.registerSelfHostedWallet).not.toHaveBeenCalled();
         expect(handlers.getAutoramps).not.toHaveBeenCalled();
