@@ -194,6 +194,7 @@ export async function createRootConfig(
     test: {
       watch: false,
       projects,
+      pool: 'threads',
       coverage: {
         provider: 'v8',
         include,
