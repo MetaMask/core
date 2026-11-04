@@ -312,6 +312,57 @@ export type KycControllerHasCompletedVendorDisclaimersAction = {
 };
 
 /**
+ * Verifies the code a vendor emailed during onboarding.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @param params.otp - The code the vendor sent.
+ * @returns The session status after the step.
+ */
+export type KycControllerVerifyVendorEmailOtpAction = {
+  type: `KycController:verifyVendorEmailOtp`;
+  handler: KycController['verifyVendorEmailOtp'];
+};
+
+/**
+ * Asks the vendor to email a new onboarding code.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @returns The session status after the step.
+ */
+export type KycControllerResendVendorEmailOtpAction = {
+  type: `KycController:resendVendorEmailOtp`;
+  handler: KycController['resendVendorEmailOtp'];
+};
+
+/**
+ * Asks the vendor to text an onboarding code to a phone number.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @param params.phoneNumber - Phone number in E.164 format.
+ * @returns The session status after the step.
+ */
+export type KycControllerSendVendorPhoneOtpAction = {
+  type: `KycController:sendVendorPhoneOtp`;
+  handler: KycController['sendVendorPhoneOtp'];
+};
+
+/**
+ * Verifies the code a vendor texted during onboarding.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @param params.otp - The code the vendor sent.
+ * @returns The session status after the step.
+ */
+export type KycControllerVerifyVendorPhoneOtpAction = {
+  type: `KycController:verifyVendorPhoneOtp`;
+  handler: KycController['verifyVendorPhoneOtp'];
+};
+
+/**
  * Returns one verdict for the vendor's KYC session. See
  * {@link KycSessionDecision}.
  *
@@ -383,6 +434,10 @@ export type KycControllerMethodActions =
   | KycControllerRecordVendorDisclaimersAction
   | KycControllerRefreshStepAction
   | KycControllerHasCompletedVendorDisclaimersAction
+  | KycControllerVerifyVendorEmailOtpAction
+  | KycControllerResendVendorEmailOtpAction
+  | KycControllerSendVendorPhoneOtpAction
+  | KycControllerVerifyVendorPhoneOtpAction
   | KycControllerGetSessionDecisionAction
   | KycControllerDeleteEncryptedStorageAction
   | KycControllerLaunchProviderFlowAction;
