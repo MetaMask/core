@@ -1313,6 +1313,12 @@ function expectScriptConfigs(workspace) {
 
   expectWorkspaceField(
     workspace,
+    'scriptsConfig.test:coverage',
+    'lavamoat/scripts.test.json',
+  );
+
+  expectWorkspaceField(
+    workspace,
     'scriptsConfig.test:verbose',
     'lavamoat/scripts.test.json',
   );
