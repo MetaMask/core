@@ -29,6 +29,7 @@ import type { KycServiceMethodActions } from './KycService-method-action-types.j
 import type {
   CapabilityAuthorization,
   EncryptionSchema,
+  KycOnboardingStep,
 } from './KycService.js';
 import {
   getEmailFromPartnerIdentityToken,
@@ -47,6 +48,7 @@ import {
   FINAL_STATUSES_TO_STOP_POLLING,
   KYC_CURRENT_STEPS,
   KYC_STATUSES,
+  VENDORS_REGISTERED_BY_RELAY,
 } from './types.js';
 import type {
   KycConsentRecord,
@@ -235,6 +237,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'recordVendorDisclaimers',
   'hasCompletedVendorDisclaimers',
   'getSessionDecision',
+  'verifyVendorEmailOtp',
+  'resendVendorEmailOtp',
+  'sendVendorPhoneOtp',
+  'verifyVendorPhoneOtp',
   'launchProviderFlow',
   'deleteEncryptedStorage',
 ] as const;
@@ -439,9 +445,19 @@ export class KycController extends BaseController<
   async startSession(params: {
     vendor: KycVendor;
     aal2Token?: string;
+    /**
+     * Email the relay registers the vendor user with. Required to create a
+     * session for vendors in `VENDORS_REGISTERED_BY_RELAY`; ignored otherwise.
+     */
+    email?: string;
   }): Promise<KycSessionStatus> {
     const { vendor } = params;
-    const partnerIdentity = await this.#getPartnerIdentityForVendor(vendor);
+    const registeredByRelay = VENDORS_REGISTERED_BY_RELAY.has(vendor);
+    // No partner identity audience exists for relay-registered vendors yet;
+    // they sign up with the email the caller supplies.
+    const partnerIdentity = registeredByRelay
+      ? null
+      : await this.#getPartnerIdentityForVendor(vendor);
     const geoCountry = await this.messenger.call('KycService:getGeoCountry');
 
     this.#updateVendorSession(
@@ -489,21 +505,37 @@ export class KycController extends BaseController<
         );
       }
 
-      if (!partnerIdentity) {
-        throw new Error('KycController missing verified email for vendor');
+      let createdSession: KycSessionStatus;
+      if (registeredByRelay) {
+        if (!params.email) {
+          throw new Error(
+            'KycController.startSession: email is required to register this vendor user.',
+          );
+        }
+        createdSession = await this.#createUkycSession({
+          vendor,
+          geoCountry,
+          aal2Token: params.aal2Token,
+          email: params.email,
+        });
+      } else {
+        if (!partnerIdentity) {
+          throw new Error('KycController missing verified email for vendor');
+        }
+
+        await this.messenger.call('KycService:createVendorCustomer', {
+          vendor,
+          partnerIdentityToken: partnerIdentity.partnerIdentityToken,
+        });
+
+        createdSession = await this.#createUkycSession({
+          vendor,
+          geoCountry,
+          aal2Token: params.aal2Token,
+          partnerIdentityToken: partnerIdentity.partnerIdentityToken,
+        });
       }
-
-      await this.messenger.call('KycService:createVendorCustomer', {
-        vendor,
-        partnerIdentityToken: partnerIdentity.partnerIdentityToken,
-      });
-
-      return this.#createUkycSession({
-        vendor,
-        geoCountry,
-        aal2Token: params.aal2Token,
-        partnerIdentityToken: partnerIdentity.partnerIdentityToken,
-      });
+      return createdSession;
     }
     const sessionStatus = await this.messenger.call(
       'KycService:getSessionStatus',
@@ -975,7 +1007,8 @@ export class KycController extends BaseController<
     vendor: KycVendor;
     geoCountry: string;
     aal2Token: string;
-    partnerIdentityToken: string;
+    partnerIdentityToken?: string;
+    email?: string;
   }): Promise<KycSessionStatus> {
     // Establish a per-session X25519 keypair used to seal both secrets. The
     // private half stays on the device; the public half is registered on the
@@ -994,7 +1027,10 @@ export class KycController extends BaseController<
       residenceCountry: params.geoCountry,
       vendor: params.vendor,
       aal2Token: params.aal2Token,
-      partnerIdentityToken: params.partnerIdentityToken,
+      ...(params.partnerIdentityToken && {
+        partnerIdentityToken: params.partnerIdentityToken,
+      }),
+      ...(params.email && { email: params.email }),
     });
 
     return this.#setAuthorizations({
@@ -1382,6 +1418,98 @@ export class KycController extends BaseController<
       entry.vendorDisclaimersAccepted,
       fetched,
     );
+  }
+
+  /**
+   * Verifies the code a vendor emailed during onboarding.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.otp - The code the vendor sent.
+   * @returns The session status after the step.
+   */
+  verifyVendorEmailOtp({
+    vendor,
+    otp,
+  }: {
+    vendor: KycVendor;
+    otp: string;
+  }): Promise<KycSessionStatus> {
+    return this.#onboardingStep(vendor, 'email/verify-otp', { otp });
+  }
+
+  /**
+   * Asks the vendor to email a new onboarding code.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @returns The session status after the step.
+   */
+  resendVendorEmailOtp({
+    vendor,
+  }: {
+    vendor: KycVendor;
+  }): Promise<KycSessionStatus> {
+    return this.#onboardingStep(vendor, 'email/resend-otp');
+  }
+
+  /**
+   * Asks the vendor to text an onboarding code to a phone number.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.phoneNumber - Phone number in E.164 format.
+   * @returns The session status after the step.
+   */
+  sendVendorPhoneOtp({
+    vendor,
+    phoneNumber,
+  }: {
+    vendor: KycVendor;
+    phoneNumber: string;
+  }): Promise<KycSessionStatus> {
+    return this.#onboardingStep(vendor, 'phone/send-otp', { phoneNumber });
+  }
+
+  /**
+   * Verifies the code a vendor texted during onboarding.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.otp - The code the vendor sent.
+   * @returns The session status after the step.
+   */
+  verifyVendorPhoneOtp({
+    vendor,
+    otp,
+  }: {
+    vendor: KycVendor;
+    otp: string;
+  }): Promise<KycSessionStatus> {
+    return this.#onboardingStep(vendor, 'phone/verify-otp', { otp });
+  }
+
+  /**
+   * Runs one vendor onboarding step for the vendor's session and stores the
+   * resulting status on its entry.
+   *
+   * @param vendor - The identity vendor.
+   * @param step - The onboarding step.
+   * @param body - Step payload.
+   * @returns The session status after the step.
+   */
+  async #onboardingStep(
+    vendor: KycVendor,
+    step: KycOnboardingStep,
+    body?: Record<string, string>,
+  ): Promise<KycSessionStatus> {
+    const { id: sessionId } = this.#requireSessionStatus(vendor);
+    const sessionStatus = await this.messenger.call(
+      'KycService:postOnboardingStep',
+      { sessionId, step, ...(body && { body }) },
+    );
+    this.#updateSessionStatusAndTrackAnalytics(vendor, sessionStatus);
+    return sessionStatus;
   }
 
   /**

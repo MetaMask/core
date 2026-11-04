@@ -64,6 +64,7 @@ export type {
   FetchSessionDisclaimersBySessionIdParams,
   GetDataSharesParams,
   GetSessionStatusParams,
+  KycOnboardingStep,
   ResetWrappingKeysParams,
   VendorCustomerResponse,
   JwksResponse,
@@ -121,6 +122,7 @@ export {
   KYC_CURRENT_STEPS,
   KYC_STATUSES,
   TERMINAL_SESSION_STATUSES,
+  VENDORS_REGISTERED_BY_RELAY,
 } from './types.js';
 export type {
   KycCatalogDocument,

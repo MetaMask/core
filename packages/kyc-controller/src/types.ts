@@ -13,7 +13,16 @@
  *   session API; sessions are created with `createUkycSession`.
  * - `iron` — Iron Money/VBA path: empty-shell customer → consents → SumSub.
  */
-export type KycVendor = 'moonpay' | 'iron';
+export type KycVendor = 'moonpay' | 'iron' | 'kalshi';
+
+/**
+ * Vendors whose user the idOS relay registers itself, from an email the client
+ * supplies. Their sessions onboard with vendor-sent email / SMS codes before
+ * KYC can start, and need no separate vendor-customer call.
+ */
+export const VENDORS_REGISTERED_BY_RELAY: ReadonlySet<KycVendor> = new Set([
+  'kalshi',
+]);
 
 /**
  * UKYC status values. `kycStatus` (the relay-side decision) and `finalStatus`

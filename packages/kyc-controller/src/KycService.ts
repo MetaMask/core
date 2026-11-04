@@ -66,6 +66,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSessionStatus',
   'getSessionStatusForVendor',
   'getDataShares',
+  'postOnboardingStep',
 ] as const;
 
 /**
@@ -361,7 +362,21 @@ export type CreateUkycSessionParams = {
    * vendor audience. Omitted from the request body when not provided.
    */
   partnerIdentityToken?: string;
+  /**
+   * Email the vendor registers the new user with, for vendors the relay
+   * registers itself (see `VENDORS_REGISTERED_BY_RELAY`).
+   */
+  email?: string;
 };
+
+/**
+ * Vendor onboarding steps under `POST /sessions/{id}/onboarding/...`.
+ */
+export type KycOnboardingStep =
+  | 'email/verify-otp'
+  | 'email/resend-otp'
+  | 'phone/send-otp'
+  | 'phone/verify-otp';
 
 /**
  * Encrypted capability authorization payload (base64url nonce + ciphertext)
@@ -846,6 +861,7 @@ export class KycService extends BaseDataService<
           ...(params.partnerIdentityToken && {
             partnerIdentityToken: params.partnerIdentityToken,
           }),
+          ...(params.email && { email: params.email }),
         }),
       },
       { bearerToken: params.aal2Token },
@@ -1041,6 +1057,33 @@ export class KycService extends BaseDataService<
     );
     const data = await this.#requestJson(url, { method: 'GET' });
     return this.#validateAndPatchSessionStatus(data, 'session status');
+  }
+
+  /**
+   * Runs one vendor onboarding step for a session
+   * (`POST /sessions/{id}/onboarding/{step}`): verify or resend the vendor's
+   * email code, or send or verify its SMS code.
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - UKYC session id.
+   * @param params.step - The onboarding step.
+   * @param params.body - Step payload: `{ otp }` or `{ phoneNumber }`.
+   * @returns The session status after the step.
+   */
+  async postOnboardingStep(params: {
+    sessionId: string;
+    step: KycOnboardingStep;
+    body?: Record<string, string>;
+  }): Promise<KycSessionStatus> {
+    const url = new URL(
+      `/sessions/${encodeURIComponent(params.sessionId)}/onboarding/${params.step}`,
+      this.#baseUrl,
+    );
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify(params.body ?? {}),
+    });
+    return this.#validateAndPatchSessionStatus(data, 'onboarding step');
   }
 
   /**
