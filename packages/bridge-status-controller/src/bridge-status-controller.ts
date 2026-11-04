@@ -847,19 +847,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   readonly #rekeyHistoryItem = (
     oldKey: string,
     newKey: string,
-    txMeta?: { id: string; hash?: string },
-    historyItemOverrides?: Partial<
-      Pick<BridgeHistoryItem, 'approvalTxId' | 'quoteIds' | 'quote'>
-    >,
+    historyItemOverrides?: Parameters<typeof rekeyHistoryItemInState>[3],
   ): void => {
     this.update((state) => {
-      rekeyHistoryItemInState(
-        state,
-        oldKey,
-        newKey,
-        txMeta,
-        historyItemOverrides,
-      );
+      rekeyHistoryItemInState(state, oldKey, newKey, historyItemOverrides);
     });
   };
 
@@ -1356,7 +1347,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             this.#rekeyHistoryItem(
               payload.oldHistoryKey,
               payload.newHistoryKey,
-              payload.tradeMeta,
               payload.historyItemOverrides,
             );
             latestHistoryItemKey = payload.newHistoryKey;
