@@ -30,6 +30,7 @@ export async function* submitBatchHandler(
     isBridgeTx,
     addTransactionBatchFn,
     isDelegatedAccount,
+    next,
   } = args;
 
   const tradeData = toQuoteAndTxMetadata({
@@ -47,6 +48,7 @@ export async function* submitBatchHandler(
       bridgeTxMeta: {
         batchId,
       },
+      next,
     },
   };
 
