@@ -172,6 +172,21 @@ export const getMatchingHistoryEntryForApprovalTxMeta = (
   });
 };
 
+export const resolveHistoryKeyForTxMeta = (
+  { transactionMeta }: { transactionMeta: TransactionMeta },
+  txHistory: BridgeStatusControllerState['txHistory'],
+) => ({
+  historyKey:
+    // Match swap/bridge/batch src tx
+    (getMatchingHistoryEntryForTxMeta(txHistory, transactionMeta) ??
+      // Match approval tx
+      getMatchingHistoryEntryForApprovalTxMeta(
+        txHistory,
+        transactionMeta,
+      ))?.[0],
+  txMeta: transactionMeta,
+});
+
 /**
  * Returns the BatchSell history items in the same batch as the provided tx hash.
  *
