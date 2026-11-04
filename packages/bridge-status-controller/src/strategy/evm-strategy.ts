@@ -152,6 +152,7 @@ export async function* submitEvmHandler(
     quoteResponses: [quoteResponse],
     requireApproval,
     isBridgeTx,
+    next,
   } = args;
 
   // Generate actionId for pre-submission history
@@ -167,6 +168,7 @@ export async function* submitEvmHandler(
       bridgeTxMeta: {
         actionId,
       },
+      next,
     },
   };
 

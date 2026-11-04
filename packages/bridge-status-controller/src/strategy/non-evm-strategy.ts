@@ -73,6 +73,9 @@ export async function* submitNonEvmHandler(
   const {
     quoteResponses: [quoteResponse],
     isBridgeTx,
+    next,
+    messenger,
+    selectedAccount,
   } = args;
 
   const approvalTxId = await handleTronApproval(args);
@@ -80,10 +83,10 @@ export async function* submitNonEvmHandler(
   // TODO bridge-status should update history with actionId if approvalTxId is present
 
   const tradeMeta = await handleNonEvmTx(
-    args.messenger,
+    messenger,
     quoteResponse.trade,
     quoteResponse,
-    args.selectedAccount,
+    selectedAccount,
   );
 
   yield {
@@ -101,6 +104,7 @@ export async function* submitNonEvmHandler(
         hash: tradeMeta.hash,
       },
       quoteResponse,
+      next,
     },
   };
 
