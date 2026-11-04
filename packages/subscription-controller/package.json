@@ -104,6 +104,7 @@
     "messenger-action-types:generate": "lavamoat/scripts.lint.json",
     "test": "lavamoat/scripts.test.json",
     "test:clean": "lavamoat/scripts.test.json",
+    "test:coverage": "lavamoat/scripts.test.json",
     "test:verbose": "lavamoat/scripts.test.json",
     "test:watch": "lavamoat/scripts.test.json"
   }
