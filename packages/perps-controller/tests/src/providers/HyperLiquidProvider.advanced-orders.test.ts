@@ -27,6 +27,7 @@ import {
   validateWithdrawalParams,
 } from '../../../src/utils/hyperLiquidValidation.js';
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
+import { normalizedCreateErrorResult } from '../../helpers/normalizedCreateErrorResult.js';
 import { createMockPosition } from '../../helpers/providerMocks.js';
 import {
   createMockInfrastructure,
@@ -506,11 +507,7 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      normalizedCreateErrorResult,
     );
     const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
       string,
@@ -3212,6 +3209,11 @@ describe('HyperLiquidProvider', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+          errorCode: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+            provider: 'hyperliquid',
+          },
         });
         expect(mockClientService.getInfoClient).toHaveBeenCalledWith({
           useHttp: true,
@@ -3293,6 +3295,11 @@ describe('HyperLiquidProvider', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          errorCode: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+            provider: 'hyperliquid',
+          },
         });
         expect(
           mockClientService.getExchangeClient().order,

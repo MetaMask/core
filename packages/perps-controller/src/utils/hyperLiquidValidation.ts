@@ -12,7 +12,6 @@ import {
   HYPERLIQUID_ORDER_LIMITS,
   HYPERLIQUID_TWAP_LIMITS,
 } from '../constants/perpsConfig.js';
-import { PerpsControllerError } from '../errors.js';
 import type { PerpsErrorResultFields } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import type {
@@ -20,7 +19,7 @@ import type {
   PerpsDebugLogger,
 } from '../types/index.js';
 import type { OrderType, TpslLinkage } from '../types/perps-types.js';
-import { ensureError } from './errorUtils.js';
+import { normalizeHyperLiquidError } from './errorUtils.js';
 import {
   getTriggerExecution,
   isLimitExecutionOrderType,
@@ -41,32 +40,30 @@ export type ValidationDebugLogger = PerpsDebugLogger | undefined;
  */
 
 /**
- * Create standardized error response.
+ * Create a client-facing error response.
+ *
+ * Every Hyperliquid result that reports failure goes through
+ * `normalizeHyperLiquidError`, so the returned message is a stable
+ * `PerpsErrorCode`. The original failure stays on the normalized error's
+ * `cause` for telemetry and is not copied into the result.
  *
  * @param error - The error that occurred
  * @param defaultResponse - The default response object to use as template
- * @returns The error response with success=false and error message
+ * @returns The error response with success=false and a normalized error
  */
 export function createErrorResult<
   TValue extends { success: boolean; error?: string },
 >(error: unknown, defaultResponse: TValue): TValue & PerpsErrorResultFields {
-  const normalizedError = ensureError(error, 'createErrorResult');
-  let errorFields: PerpsErrorResultFields = {};
-
-  if (error instanceof PerpsControllerError) {
-    errorFields = {
-      errorCode: error.errorCode,
-      ...(error.errorDetails === undefined
-        ? {}
-        : { errorDetails: error.errorDetails }),
-    };
-  }
+  const normalizedError = normalizeHyperLiquidError(error);
 
   return {
     ...defaultResponse,
     success: false,
     error: normalizedError.message,
-    ...errorFields,
+    errorCode: normalizedError.errorCode,
+    ...(normalizedError.errorDetails === undefined
+      ? {}
+      : { errorDetails: normalizedError.errorDetails }),
   };
 }
 

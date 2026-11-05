@@ -1038,13 +1038,20 @@ export type ClosePositionsResult = {
    *
    * Set when the close fails as a whole: snapshot/preparation errors with no
    * per-position outcomes, or a thrown batch submission that also fills
-   * `results` with per-position failures.
+   * `results` with per-position failures. Venue text is replaced with a stable
+   * code.
    */
   error?: string;
+  /** Stable classification for the batch-level error. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details for the batch-level error. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
   results: {
     symbol: string;
     success: boolean;
     error?: string;
+    errorCode?: PerpsErrorCode;
+    errorDetails?: PerpsErrorDetails;
   }[];
 };
 
@@ -1057,6 +1064,10 @@ export type UpdateMarginParams = {
 export type MarginResult = {
   success: boolean;
   error?: string;
+  /** Stable classification for a failed margin update. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
 };
 
 export type FlipPositionParams = {
@@ -1070,12 +1081,20 @@ export type FlipPositionParams = {
 export type InitializeResult = {
   success: boolean;
   error?: string;
+  /** Stable classification when initialization fails. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
   chainId?: string;
 };
 
 export type ReadyToTradeResult = {
   ready: boolean;
   error?: string;
+  /** Stable classification when the readiness check fails. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
   walletConnected?: boolean;
   networkSupported?: boolean;
   authenticatedAddress?: string;
@@ -1084,6 +1103,10 @@ export type ReadyToTradeResult = {
 export type DisconnectResult = {
   success: boolean;
   error?: string;
+  /** Stable classification when disconnect fails. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
 };
 
 export type MarketInfo = {
@@ -1249,6 +1272,10 @@ export type ToggleTestnetResult = {
   success: boolean;
   isTestnet: boolean;
   error?: string;
+  /** Stable classification when the network toggle fails. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
 };
 
 export type AssetRoute = {
@@ -1449,6 +1476,10 @@ export type WithdrawResult = {
   success: boolean;
   txHash?: string;
   error?: string;
+  /** Stable classification for a failed withdrawal. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
   withdrawalId?: string; // Unique ID for tracking
   estimatedArrivalTime?: number; // Provider-specific arrival time
 };
@@ -1463,6 +1494,10 @@ export type TransferBetweenDexsResult = {
   success: boolean;
   txHash?: string;
   error?: string;
+  /** Stable classification for a failed transfer. */
+  errorCode?: PerpsErrorCode;
+  /** Provider-tagged details. Raw venue text is excluded. */
+  errorDetails?: PerpsErrorDetails;
 };
 
 export type GetHistoricalPortfolioParams = {

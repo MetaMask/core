@@ -409,6 +409,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
           success: false,
           orderId,
           error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+          errorCode: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+            provider: 'hyperliquid',
+          },
         });
         expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
         expect(exchangeClient.approveBuilderFee).not.toHaveBeenCalled();
@@ -482,6 +487,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         success: false,
         orderId: '654321',
         error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+        errorCode: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+          provider: 'hyperliquid',
+        },
       });
       expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
     });
@@ -535,6 +545,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         success: false,
         orderId: '987',
         error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+        errorCode: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+          provider: 'hyperliquid',
+        },
       });
       expect(exchangeClient.twapCancel).toHaveBeenCalledWith({ a: 1, t: 987 });
     });
@@ -565,6 +580,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         success: false,
         orderId: placed.orderId,
         error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+        errorCode: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+          provider: 'hyperliquid',
+        },
       });
       expect(exchangeClient.twapCancel).not.toHaveBeenCalled();
 
@@ -610,6 +630,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         success: false,
         orderId: '123',
         error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
       });
     });
 
@@ -1785,6 +1810,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         success: false,
         orderId: placed.orderId,
         error: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+        errorCode: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.ORDER_STRATEGY_HANDLE_UNKNOWN,
+          provider: 'hyperliquid',
+        },
       });
       expect(exchangeClient.cancel).toHaveBeenCalledTimes(1);
     });

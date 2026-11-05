@@ -668,6 +668,11 @@ describe('HyperLiquidProvider with accountSigner: agents', () => {
       expect(order).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
       expect(loggerError).not.toHaveBeenCalled();
     });
@@ -696,6 +701,11 @@ describe('HyperLiquidProvider with accountSigner: agents', () => {
         success: false,
         orderId: '123',
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
       // Dropped, so the next L1 action asks again.
       expect(getAgentSigner.mock.calls).toStrictEqual([

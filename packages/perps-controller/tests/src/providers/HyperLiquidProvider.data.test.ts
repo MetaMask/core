@@ -37,6 +37,7 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
+import { normalizedCreateErrorResult } from '../../helpers/normalizedCreateErrorResult.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
@@ -492,11 +493,7 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }),
+      normalizedCreateErrorResult,
     );
     const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
       string,
@@ -1295,8 +1292,16 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.disconnect();
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Disconnect failed');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(result.error).not.toContain('Disconnect failed');
     });
 
     describe('ping() health check', () => {
@@ -1444,8 +1449,12 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.withdraw(withdrawParams);
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('Invalid withdrawal parameters');
+      expect(result).toMatchObject({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+      });
+      expect(result.error).not.toContain('Invalid withdrawal parameters');
     });
 
     it('handles unknown errors gracefully', async () => {

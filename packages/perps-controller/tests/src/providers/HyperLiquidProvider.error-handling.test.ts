@@ -37,6 +37,7 @@ import {
 } from '../../../src/utils/hyperLiquidValidation.js';
 import * as hyperLiquidValidationModule from '../../../src/utils/hyperLiquidValidation.js';
 import { createStandaloneInfoClient } from '../../../src/utils/standaloneInfoClient.js';
+import { normalizedCreateErrorResult } from '../../helpers/normalizedCreateErrorResult.js';
 import {
   createDeferred,
   createMockInfrastructure,
@@ -511,19 +512,7 @@ describe('HyperLiquidProvider', () => {
       contractAddress: '0x1234567890123456789012345678901234567890',
     });
     hyperLiquidValidation.createErrorResult.mockImplementation(
-      (error: unknown, defaultResponse: Record<string, unknown>) => ({
-        ...defaultResponse,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-        ...(error instanceof Error && 'errorCode' in error
-          ? {
-              errorCode: error.errorCode,
-              ...('errorDetails' in error
-                ? { errorDetails: error.errorDetails }
-                : {}),
-            }
-          : {}),
-      }),
+      normalizedCreateErrorResult,
     );
     const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
       string,
@@ -629,12 +618,17 @@ describe('HyperLiquidProvider', () => {
 
         const result = await provider.updatePositionTPSL(updateParams);
 
-        expect(result.success).toBe(false);
-        // With no valid meta from metaAndAssetCtxs, asset mapping is empty so we fail with asset not found
-        expect(
-          result.error?.includes('Asset ID not found') ||
-            result.error?.includes('Invalid meta response'),
-        ).toBe(true);
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            provider: 'hyperliquid',
+          },
+        });
+        expect(result.error).not.toContain('Asset ID not found');
+        expect(result.error).not.toContain('Invalid meta response');
       });
 
       it('handles meta response without universe property', async () => {
@@ -653,12 +647,17 @@ describe('HyperLiquidProvider', () => {
 
         const result = await provider.updatePositionTPSL(updateParams);
 
-        expect(result.success).toBe(false);
-        // With no valid meta from metaAndAssetCtxs, asset mapping is empty so we fail with asset not found
-        expect(
-          result.error?.includes('Asset ID not found') ||
-            result.error?.includes('Invalid meta response'),
-        ).toBe(true);
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            provider: 'hyperliquid',
+          },
+        });
+        expect(result.error).not.toContain('Asset ID not found');
+        expect(result.error).not.toContain('Invalid meta response');
       });
     });
 
@@ -2158,8 +2157,16 @@ describe('HyperLiquidProvider', () => {
 
         const result = await provider.withdraw(withdrawParams);
 
-        expect(result.success).toBe(false);
-        expect(result.error).toContain('Withdrawal failed: insufficient_funds');
+        expect(result).toMatchObject({
+          success: false,
+          error: PERPS_ERROR_CODES.INSUFFICIENT_BALANCE,
+          errorCode: PERPS_ERROR_CODES.INSUFFICIENT_BALANCE,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.INSUFFICIENT_BALANCE,
+            provider: 'hyperliquid',
+          },
+        });
+        expect(result.error).not.toContain('insufficient_funds');
       });
     });
 
@@ -2270,7 +2277,15 @@ describe('HyperLiquidProvider', () => {
         expect(result.ready).toBe(false);
         expect(result.walletConnected).toBe(false);
         expect(result.networkSupported).toBe(false);
-        expect(result.error).toContain('Client error');
+        expect(result).toMatchObject({
+          error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            provider: 'hyperliquid',
+          },
+        });
+        expect(result.error).not.toContain('Client error');
       });
     });
 
