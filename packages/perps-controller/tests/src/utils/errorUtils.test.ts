@@ -207,6 +207,14 @@ describe('errorUtils', () => {
         'Builder has insufficient balance to be approved.',
         PERPS_ERROR_CODES.UNKNOWN_ERROR,
       ],
+      [
+        'Error placing new order during modify: Post only order would have immediately matched, bbo was 2503.1@2503.2.',
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      ],
+      [
+        'order 0: Only post-only orders allowed immediately after network upgrade',
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+      ],
     ])('maps "%s" to %s with provider details', (message, code) => {
       const cause = new Error(message);
 

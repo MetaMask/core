@@ -13,6 +13,17 @@ const HYPERLIQUID_ERROR_MAPPINGS: readonly {
   pattern: RegExp;
   code: HyperLiquidErrorDetails['code'];
 }[] = [
+  // Post-only rejections come first: the would-cross message embeds raw bbo
+  // prices that the generic patterns below (e.g. status 503) could match.
+  {
+    pattern: /post only order would have immediately matched/iu,
+    code: PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+  },
+  {
+    pattern:
+      /only post-only orders allowed immediately after network upgrade/iu,
+    code: PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+  },
   {
     pattern:
       /isolated position does not have sufficient margin available to decrease leverage|cannot reduce.*leverage|leverage reduction/iu,
