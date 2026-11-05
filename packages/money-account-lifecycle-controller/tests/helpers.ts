@@ -21,6 +21,14 @@ import type {
   FeatureFlags,
   RemoteFeatureFlagControllerState,
 } from '@metamask/remote-feature-flag-controller';
+import type {
+  PreparedSubscriptionDelegation,
+  PrepareSubscriptionDelegationRequest,
+  PricingResponse,
+  Subscription,
+  UpdatePaymentMethodCardResponse,
+  UpdatePaymentMethodOpts,
+} from '@metamask/subscription-controller';
 import type { Hex } from '@metamask/utils';
 import { vi } from 'vitest';
 import type { Mock } from 'vitest';
@@ -77,6 +85,78 @@ export const MIGRATING_IDENTITY: DerivedIdentity & {
   },
 };
 
+export const SUBSCRIPTION_DELEGATION_HASH =
+  '0x1111111111111111111111111111111111111111111111111111111111111111';
+
+export const MONEY_ACCOUNT_PLUS_SUBSCRIPTION: Subscription = {
+  id: 'money-account-plus-subscription-id',
+  products: [
+    {
+      name: 'money_account_plus',
+      currency: 'usd',
+      unitAmount: 999,
+      unitDecimals: 2,
+    },
+  ],
+  currentPeriodStart: '2026-11-01T00:00:00Z',
+  currentPeriodEnd: '2026-12-01T00:00:00Z',
+  status: 'active',
+  interval: 'month',
+  paymentMethod: {
+    type: 'crypto',
+    crypto: {
+      payerAddress: MONEY_ACCOUNT_ADDRESS,
+      chainId: '0x8f',
+      tokenSymbol: 'mUSD',
+    },
+  },
+  cancelType: 'allowed_at_period_end',
+  isEligibleForSupport: true,
+};
+
+const MONEY_ACCOUNT_PLUS_PRICING: PricingResponse = {
+  products: [
+    {
+      name: 'shield',
+      prices: [
+        {
+          interval: 'month',
+          unitAmount: 999,
+          unitDecimals: 2,
+          currency: 'usd',
+          trialPeriodDays: 0,
+          minBillingCycles: 1,
+          minBillingCyclesForBalance: 1,
+        },
+      ],
+    },
+    {
+      name: 'money_account_plus',
+      prices: [
+        {
+          interval: 'year',
+          unitAmount: 9999,
+          unitDecimals: 2,
+          currency: 'usd',
+          trialPeriodDays: 0,
+          minBillingCycles: 1,
+          minBillingCyclesForBalance: 1,
+        },
+        {
+          interval: 'month',
+          unitAmount: 999,
+          unitDecimals: 2,
+          currency: 'usd',
+          trialPeriodDays: 0,
+          minBillingCycles: 12,
+          minBillingCyclesForBalance: 3,
+        },
+      ],
+    },
+  ],
+  paymentMethods: [],
+};
+
 type RootMessenger = Messenger<
   MockAnyNamespace,
   MessengerActions<MoneyAccountLifecycleControllerMessenger>,
@@ -109,6 +189,18 @@ type Mocks = {
     (address: Hex, predecessorAddress: Hex) => Promise<void>
   >;
   registerMigrationIntents: Mock<(predecessorAddress: Hex) => Promise<void>>;
+  getSubscriptions: Mock<() => Promise<Subscription[]>>;
+  getPricing: Mock<() => Promise<PricingResponse>>;
+  prepareDelegation: Mock<
+    (
+      request: PrepareSubscriptionDelegationRequest,
+    ) => Promise<PreparedSubscriptionDelegation>
+  >;
+  updatePaymentMethod: Mock<
+    (
+      opts: UpdatePaymentMethodOpts,
+    ) => Promise<UpdatePaymentMethodCardResponse | Subscription[]>
+  >;
   setDefaultMoneyAccount: Mock<(id: string) => void>;
   isEnabled: Mock<(remoteFeatureFlags: FeatureFlags) => boolean>;
   captureException: Mock<(error: Error) => void>;
@@ -190,6 +282,10 @@ function getMessenger(
       'MoneyAccountUpgradeController:upgradeSuccessorAccount',
       'MoneyAccountUpgradeController:registerMigrationIntents',
       'RemoteFeatureFlagController:getState',
+      'SubscriptionController:getPricing',
+      'SubscriptionController:getSubscriptions',
+      'SubscriptionController:updatePaymentMethod',
+      'SubscriptionDelegationService:prepareDelegation',
     ],
     events: [
       'KeyringController:stateChange',
@@ -274,6 +370,29 @@ export async function withController<ReturnValue>(
     registerMigrationIntents: vi
       .fn<(predecessorAddress: Hex) => Promise<void>>()
       .mockResolvedValue(undefined),
+    getSubscriptions: vi
+      .fn<() => Promise<Subscription[]>>()
+      .mockResolvedValue([]),
+    getPricing: vi
+      .fn<() => Promise<PricingResponse>>()
+      .mockResolvedValue(MONEY_ACCOUNT_PLUS_PRICING),
+    prepareDelegation: vi
+      .fn<
+        (
+          request: PrepareSubscriptionDelegationRequest,
+        ) => Promise<PreparedSubscriptionDelegation>
+      >()
+      .mockResolvedValue({
+        delegationHash: SUBSCRIPTION_DELEGATION_HASH,
+        disposition: 'created',
+      }),
+    updatePaymentMethod: vi
+      .fn<
+        (
+          opts: UpdatePaymentMethodOpts,
+        ) => Promise<UpdatePaymentMethodCardResponse | Subscription[]>
+      >()
+      .mockResolvedValue([]),
     setDefaultMoneyAccount: vi
       .fn<(id: string) => void>()
       .mockImplementation(() => {
@@ -320,6 +439,22 @@ export async function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'MoneyAccountUpgradeController:registerMigrationIntents',
     mocks.registerMigrationIntents,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionController:getSubscriptions',
+    mocks.getSubscriptions,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionController:getPricing',
+    mocks.getPricing,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionDelegationService:prepareDelegation',
+    mocks.prepareDelegation,
+  );
+  rootMessenger.registerActionHandler(
+    'SubscriptionController:updatePaymentMethod',
+    mocks.updatePaymentMethod,
   );
   rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',

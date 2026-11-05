@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release ([#10699](https://github.com/MetaMask/core/pull/10699), [#10698](https://github.com/MetaMask/core/pull/10698), [#10697](https://github.com/MetaMask/core/pull/10697), [#11296](https://github.com/MetaMask/core/pull/11296))
+- Initial release ([#10699](https://github.com/MetaMask/core/pull/10699), [#10698](https://github.com/MetaMask/core/pull/10698), [#10697](https://github.com/MetaMask/core/pull/10697), [#11296](https://github.com/MetaMask/core/pull/11296), [#11317](https://github.com/MetaMask/core/pull/11317))
   - Add `MoneyAccountLifecycleController`, which tracks whether the primary Money Account is a single-factor (SFA) or multi-factor (MFA) account using CHOMP derived identities
   - Add `init`, `refresh`, `getMoneyAccountIdentity`, `upgradeMoneyAccount`, and `startMigration` methods, each also exposed through the messenger
-  - `startMigration` migrates the Money Account to the MPC Money Account, and resumes a migration that is in flight
+  - `startMigration` migrates the Money Account, including a Money Account Plus subscription, to the MPC Money Account, and resumes a migration that is in flight
 
 ### Changed
 

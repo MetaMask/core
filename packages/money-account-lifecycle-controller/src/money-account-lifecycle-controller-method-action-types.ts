@@ -103,14 +103,23 @@ export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
  * the successor of the Money Account and upgrades it, which starts the
  * migration on CHOMP and freezes the Money Account until it completes, and
  * registers the intents the Money Account signs for the migration. Both
- * only do the work CHOMP reports missing. Identities are then refetched, so
- * the recorded lifecycle becomes `migrating`, even when registering the
- * intents fails. CHOMP moves the funds once every step is complete.
+ * only do the work CHOMP reports missing. CHOMP moves the funds once every
+ * step is complete.
  *
- * The subscription intent of a premium migration is not registered.
+ * Before registering those intents, an active Money Account Plus
+ * subscription paid by the Money Account is moved to the MFA address,
+ * because CHOMP only accepts the intents of a premium migration once the
+ * successor holds the premium eligibility. The MFA address signs a new
+ * subscription delegation, which also registers its subscription intent,
+ * and becomes the payer of the subscription.
+ *
+ * Identities are then refetched, so the recorded lifecycle becomes
+ * `migrating`, even when moving the subscription or registering the intents
+ * fails.
  *
  * @throws If a migration or Money Account upgrade is already in flight, the
- * checks fail, or linking the successor or registering the intents fails.
+ * checks fail, or linking the successor, moving the subscription or
+ * registering the intents fails.
  */
 export type MoneyAccountLifecycleControllerStartMigrationAction = {
   type: `MoneyAccountLifecycleController:startMigration`;

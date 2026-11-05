@@ -35,6 +35,20 @@ import type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
+import {
+  CRYPTO_AUTH_METHODS,
+  PAYMENT_TYPES,
+  PRODUCT_TYPES,
+  SUBSCRIPTION_STATUSES,
+} from '@metamask/subscription-controller';
+import type {
+  RecurringInterval,
+  Subscription,
+  SubscriptionControllerGetPricingAction,
+  SubscriptionControllerGetSubscriptionsAction,
+  SubscriptionControllerUpdatePaymentMethodAction,
+  SubscriptionDelegationServicePrepareDelegationAction,
+} from '@metamask/subscription-controller';
 import type { Hex } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 
@@ -46,6 +60,12 @@ import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycleControllerMethodActions } from './money-account-lifecycle-controller-method-action-types.js';
 
 const CONTROLLER_NAME = 'MoneyAccountLifecycleController';
+
+const ACTIVE_SUBSCRIPTION_STATUSES: string[] = [
+  SUBSCRIPTION_STATUSES.active,
+  SUBSCRIPTION_STATUSES.trialing,
+  SUBSCRIPTION_STATUSES.provisional,
+];
 
 export type AddressRegistration = {
   isRegistered: boolean;
@@ -115,7 +135,11 @@ type AllowedActions =
   | MoneyAccountUpgradeControllerRegisterMigrationIntentsAction
   | MoneyAccountUpgradeControllerUpgradeAccountAction
   | MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | SubscriptionControllerGetPricingAction
+  | SubscriptionControllerGetSubscriptionsAction
+  | SubscriptionControllerUpdatePaymentMethodAction
+  | SubscriptionDelegationServicePrepareDelegationAction;
 
 export type MoneyAccountLifecycleControllerStateChangedEvent =
   ControllerStateChangedEvent<
@@ -417,14 +441,23 @@ export class MoneyAccountLifecycleController extends BaseController<
    * the successor of the Money Account and upgrades it, which starts the
    * migration on CHOMP and freezes the Money Account until it completes, and
    * registers the intents the Money Account signs for the migration. Both
-   * only do the work CHOMP reports missing. Identities are then refetched, so
-   * the recorded lifecycle becomes `migrating`, even when registering the
-   * intents fails. CHOMP moves the funds once every step is complete.
+   * only do the work CHOMP reports missing. CHOMP moves the funds once every
+   * step is complete.
    *
-   * The subscription intent of a premium migration is not registered.
+   * Before registering those intents, an active Money Account Plus
+   * subscription paid by the Money Account is moved to the MFA address,
+   * because CHOMP only accepts the intents of a premium migration once the
+   * successor holds the premium eligibility. The MFA address signs a new
+   * subscription delegation, which also registers its subscription intent,
+   * and becomes the payer of the subscription.
+   *
+   * Identities are then refetched, so the recorded lifecycle becomes
+   * `migrating`, even when moving the subscription or registering the intents
+   * fails.
    *
    * @throws If a migration or Money Account upgrade is already in flight, the
-   * checks fail, or linking the successor or registering the intents fails.
+   * checks fail, or linking the successor, moving the subscription or
+   * registering the intents fails.
    */
   async startMigration(): Promise<void> {
     if (this.#isMigrationInFlight) {
@@ -473,6 +506,13 @@ export class MoneyAccountLifecycleController extends BaseController<
     }
 
     try {
+      await this.#moveSubscriptionToSuccessor(
+        moneyAccountAddress,
+        successorAddress,
+      );
+      if (!this.#isReady()) {
+        return;
+      }
       await this.messenger.call(
         'MoneyAccountUpgradeController:registerMigrationIntents',
         moneyAccountAddress,
@@ -483,6 +523,65 @@ export class MoneyAccountLifecycleController extends BaseController<
         await this.#waitForLatestDerivedIdentities().catch(() => undefined);
       }
     }
+  }
+
+  async #moveSubscriptionToSuccessor(
+    moneyAccountAddress: Hex,
+    successorAddress: Hex,
+  ): Promise<void> {
+    const subscriptions = await this.messenger.call(
+      'SubscriptionController:getSubscriptions',
+    );
+    const subscription = subscriptions.find(
+      isActiveMoneyAccountPlusSubscription,
+    );
+    if (
+      subscription?.paymentMethod.type !== PAYMENT_TYPES.byCrypto ||
+      subscription.paymentMethod.crypto.payerAddress.toLowerCase() !==
+        moneyAccountAddress.toLowerCase()
+    ) {
+      return;
+    }
+
+    const { chainId, tokenSymbol } = subscription.paymentMethod.crypto;
+    const recurringInterval = subscription.interval;
+    const billingCycles =
+      await this.#getMoneyAccountPlusBillingCycles(recurringInterval);
+    const { delegationHash } = await this.messenger.call(
+      'SubscriptionDelegationService:prepareDelegation',
+      {
+        product: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+        recurringInterval,
+        payerAddress: successorAddress,
+        isTrialRequested: false,
+      },
+    );
+    await this.messenger.call('SubscriptionController:updatePaymentMethod', {
+      paymentType: PAYMENT_TYPES.byCrypto,
+      subscriptionId: subscription.id,
+      chainId,
+      payerAddress: successorAddress,
+      tokenSymbol,
+      recurringInterval,
+      billingCycles,
+      cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+      delegationHash,
+    });
+  }
+
+  async #getMoneyAccountPlusBillingCycles(
+    recurringInterval: RecurringInterval,
+  ): Promise<number> {
+    const pricing = await this.messenger.call(
+      'SubscriptionController:getPricing',
+    );
+    const price = pricing.products
+      .find((product) => product.name === PRODUCT_TYPES.MONEY_ACCOUNT_PLUS)
+      ?.prices.find((entry) => entry.interval === recurringInterval);
+    if (!price) {
+      throw new Error(`Money Account Plus has no '${recurringInterval}' price`);
+    }
+    return price.minBillingCycles;
   }
 
   async #fetchMigratableIdentities(moneyAccountAddress: Hex): Promise<{
@@ -744,5 +843,16 @@ function isWalletReady({
 }: KeyringControllerState): boolean {
   return (
     isUnlocked && keyrings.some((keyring) => keyring.type === KeyringTypes.hd)
+  );
+}
+
+function isActiveMoneyAccountPlusSubscription(
+  subscription: Subscription,
+): boolean {
+  return (
+    ACTIVE_SUBSCRIPTION_STATUSES.includes(subscription.status) &&
+    subscription.products.some(
+      (product) => product.name === PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
+    )
   );
 }

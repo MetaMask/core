@@ -3,6 +3,7 @@ import type {
   DerivedIdentity,
 } from '@metamask/chomp-api-service';
 import type { MoneyAccount } from '@metamask/money-account-controller';
+import type { Subscription } from '@metamask/subscription-controller';
 import { createDeferredPromise } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { describe, it, expect } from 'vitest';
@@ -15,10 +16,22 @@ import {
   MFA_ACCOUNT_ADDRESS,
   MFA_MONEY_ACCOUNT,
   MIGRATING_IDENTITY,
+  MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+  SUBSCRIPTION_DELEGATION_HASH,
   SUCCESSOR_ADDRESS,
   getLifecycle,
   withController,
 } from '../tests/helpers.js';
+
+function buildCryptoSubscription(payerAddress: Hex): Subscription {
+  return {
+    ...MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+    paymentMethod: {
+      type: 'crypto',
+      crypto: { payerAddress, chainId: '0x8f', tokenSymbol: 'mUSD' },
+    },
+  };
+}
 
 describe('MoneyAccountLifecycleController', () => {
   describe('startMigration', () => {
@@ -323,6 +336,237 @@ describe('MoneyAccountLifecycleController', () => {
         expect(getLifecycle(controller)).toStrictEqual({
           type: 'migrating',
           identity: MIGRATING_IDENTITY,
+        });
+      });
+    });
+
+    describe('when the user has a Money Account Plus subscription', () => {
+      it('moves the subscription to the successor before registering the migration intents', async () => {
+        await withController(async ({ controller, mocks }) => {
+          mocks.getSubscriptions.mockResolvedValue([
+            MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+          ]);
+
+          await controller.startMigration();
+
+          expect(mocks.prepareDelegation).toHaveBeenCalledTimes(1);
+          expect(mocks.prepareDelegation).toHaveBeenCalledWith({
+            product: 'money_account_plus',
+            recurringInterval: 'month',
+            payerAddress: MFA_ACCOUNT_ADDRESS,
+            isTrialRequested: false,
+          });
+          expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+          expect(mocks.updatePaymentMethod).toHaveBeenCalledWith({
+            paymentType: 'crypto',
+            subscriptionId: MONEY_ACCOUNT_PLUS_SUBSCRIPTION.id,
+            chainId: '0x8f',
+            payerAddress: MFA_ACCOUNT_ADDRESS,
+            tokenSymbol: 'mUSD',
+            recurringInterval: 'month',
+            billingCycles: 12,
+            cryptoAuthMethod: 'delegation',
+            delegationHash: SUBSCRIPTION_DELEGATION_HASH,
+          });
+          const [linkOrder] =
+            mocks.upgradeSuccessorAccount.mock.invocationCallOrder;
+          const [prepareOrder] =
+            mocks.prepareDelegation.mock.invocationCallOrder;
+          const [updateOrder] =
+            mocks.updatePaymentMethod.mock.invocationCallOrder;
+          const [registerOrder] =
+            mocks.registerMigrationIntents.mock.invocationCallOrder;
+          expect(prepareOrder).toBeGreaterThan(linkOrder);
+          expect(updateOrder).toBeGreaterThan(prepareOrder);
+          expect(registerOrder).toBeGreaterThan(updateOrder);
+        });
+      });
+
+      it.each(['active', 'trialing', 'provisional'] as const)(
+        'moves a subscription that is %s',
+        async (status) => {
+          await withController(async ({ controller, mocks }) => {
+            mocks.getSubscriptions.mockResolvedValue([
+              { ...MONEY_ACCOUNT_PLUS_SUBSCRIPTION, status },
+            ]);
+
+            await controller.startMigration();
+
+            expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+          });
+        },
+      );
+
+      it('moves a subscription paid by the money account whatever the case of the payer address', async () => {
+        await withController(async ({ controller, mocks }) => {
+          mocks.getSubscriptions.mockResolvedValue([
+            buildCryptoSubscription(MONEY_ACCOUNT_ADDRESS.toLowerCase() as Hex),
+          ]);
+
+          await controller.startMigration();
+
+          expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      it('uses the billing cycles of the subscription interval', async () => {
+        await withController(async ({ controller, mocks }) => {
+          mocks.getSubscriptions.mockResolvedValue([
+            { ...MONEY_ACCOUNT_PLUS_SUBSCRIPTION, interval: 'year' },
+          ]);
+
+          await controller.startMigration();
+
+          expect(mocks.prepareDelegation).toHaveBeenCalledWith(
+            expect.objectContaining({ recurringInterval: 'year' }),
+          );
+          expect(mocks.updatePaymentMethod).toHaveBeenCalledWith(
+            expect.objectContaining({
+              recurringInterval: 'year',
+              billingCycles: 1,
+            }),
+          );
+        });
+      });
+
+      it.each<{ description: string; subscriptions: Subscription[] }>([
+        { description: 'there is no subscription', subscriptions: [] },
+        {
+          description: 'the subscription is canceled',
+          subscriptions: [
+            { ...MONEY_ACCOUNT_PLUS_SUBSCRIPTION, status: 'canceled' },
+          ],
+        },
+        {
+          description: 'the subscription is for another product',
+          subscriptions: [
+            {
+              ...MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+              products: [
+                {
+                  name: 'shield',
+                  currency: 'usd',
+                  unitAmount: 999,
+                  unitDecimals: 2,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          description: 'the subscription is paid by card',
+          subscriptions: [
+            {
+              ...MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+              paymentMethod: {
+                type: 'card',
+                card: { brand: 'visa', last4: '4242' },
+              },
+            },
+          ],
+        },
+        {
+          description: 'the successor already pays for the subscription',
+          subscriptions: [buildCryptoSubscription(MFA_ACCOUNT_ADDRESS)],
+        },
+        {
+          description: 'another address pays for the subscription',
+          subscriptions: [
+            buildCryptoSubscription(
+              '0x00000000000000000000000000000000000000ee',
+            ),
+          ],
+        },
+      ])(
+        'registers the migration intents without moving a subscription when $description',
+        async ({ subscriptions }) => {
+          await withController(async ({ controller, mocks }) => {
+            mocks.getSubscriptions.mockResolvedValue(subscriptions);
+
+            await controller.startMigration();
+
+            expect(mocks.getSubscriptions).toHaveBeenCalledTimes(1);
+            expect(mocks.prepareDelegation).not.toHaveBeenCalled();
+            expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+            expect(mocks.registerMigrationIntents).toHaveBeenCalledTimes(1);
+          });
+        },
+      );
+
+      it('moves the active Money Account Plus subscription when there are several subscriptions', async () => {
+        await withController(async ({ controller, mocks }) => {
+          mocks.getSubscriptions.mockResolvedValue([
+            {
+              ...MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+              id: 'canceled-subscription-id',
+              status: 'canceled',
+            },
+            MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+          ]);
+
+          await controller.startMigration();
+
+          expect(mocks.updatePaymentMethod).toHaveBeenCalledWith(
+            expect.objectContaining({
+              subscriptionId: MONEY_ACCOUNT_PLUS_SUBSCRIPTION.id,
+            }),
+          );
+        });
+      });
+
+      it('throws without moving the subscription when Money Account Plus has no price for the subscription interval', async () => {
+        await withController(async ({ controller, mocks }) => {
+          mocks.getSubscriptions.mockResolvedValue([
+            MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+          ]);
+          mocks.getPricing.mockResolvedValue({
+            products: [],
+            paymentMethods: [],
+          });
+
+          await expect(controller.startMigration()).rejects.toThrow(
+            "Money Account Plus has no 'month' price",
+          );
+          expect(mocks.prepareDelegation).not.toHaveBeenCalled();
+          expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+          expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
+        });
+      });
+
+      it('records the migrating lifecycle before throwing when moving the subscription fails', async () => {
+        await withController(async ({ controller, mocks }) => {
+          mocks.getDerivedIdentities
+            .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+            .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+            .mockResolvedValueOnce({ identities: [MIGRATING_IDENTITY] });
+          mocks.getSubscriptions.mockResolvedValue([
+            MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+          ]);
+          const error = new Error('Failed to update the payment method');
+          mocks.updatePaymentMethod.mockRejectedValueOnce(error);
+
+          await expect(controller.startMigration()).rejects.toThrow(error);
+          expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
+          expect(getLifecycle(controller)).toStrictEqual({
+            type: 'migrating',
+            identity: MIGRATING_IDENTITY,
+          });
+        });
+      });
+
+      it('does not register the migration intents or refetch identities when the wallet locks while moving the subscription', async () => {
+        await withController(async ({ controller, gates, mocks }) => {
+          mocks.getSubscriptions.mockResolvedValue([
+            MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+          ]);
+          mocks.updatePaymentMethod.mockImplementationOnce(async () => {
+            gates.isUnlocked = false;
+            return [];
+          });
+
+          expect(await controller.startMigration()).toBeUndefined();
+          expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
+          expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
         });
       });
     });

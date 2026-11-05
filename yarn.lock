@@ -7305,6 +7305,7 @@ __metadata:
     "@metamask/money-account-controller": "npm:^3.0.0"
     "@metamask/money-account-upgrade-controller": "npm:^6.0.1"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
+    "@metamask/subscription-controller": "npm:^15.2.0"
     "@metamask/utils": "npm:^12.0.1"
     "@typescript/native": "npm:typescript@^7.0.2"
     fast-deep-equal: "npm:^3.1.3"
