@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Include `assetsInfo`, `assetsBalance`, `assetsPrice`, `customAssets`, `assetPreferences` and `selectedCurrency` in state logs (`includeInStateLogs: true`) so support can investigate asset issues ([#11319](https://github.com/MetaMask/core/pull/11319))
 - Bump `@metamask/assets-controllers` from `^113.1.1` to `^113.2.0` ([#11326](https://github.com/MetaMask/core/pull/11326))
 
+### Fixed
+
+- Refresh the Accounts API and RPC chain lists before fetching balances when a network is added or enabled, so the new network's balance shows without switching networks ([#11303](https://github.com/MetaMask/core/pull/11303))
+
 ## [20.2.2]
 
 ### Changed
@@ -47,10 +51,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix the launchpad spam check throwing `TypeError: apiClient.token.fetchV2Assets is not a function` during the unlock spam cleanup, which stopped any spam tokens from being removed ([#11300](https://github.com/MetaMask/core/pull/11300))
   - The check calls `TokenApiClient.fetchV2Assets`, which first ships in `@metamask/core-backend` 14.0.0; the previous `^13.0.0` range could not resolve to a version that has it.
-
-### Fixed
-
-- Refresh the Accounts API and RPC chain lists before fetching balances when a network is added or enabled, so the new network's balance shows without switching networks
 
 ## [20.2.1]
 
