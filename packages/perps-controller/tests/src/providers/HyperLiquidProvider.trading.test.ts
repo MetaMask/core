@@ -1056,7 +1056,7 @@ describe('HyperLiquidProvider', () => {
             size: '0.1',
             price: '52000',
             orderType: 'limit',
-            timeInForce: 'post-only',
+            timeInForce: 'ALO',
           } as OrderParams,
         });
 
