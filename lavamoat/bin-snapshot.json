@@ -1,0 +1,21 @@
+{
+  "allow-scripts": "allow-scripts:npm",
+  "harden": "harden:npm",
+  "auto-changelog": "auto-changelog:npm",
+  "create-release-branch": "create-release-branch:npm",
+  "metamask-skills": "skills:npm",
+  "tsc": "typescript:npm",
+  "bats": "bats:npm",
+  "knip": "knip:npm",
+  "knip-bun": "knip:npm",
+  "oxfmt": "oxfmt:npm",
+  "tsgolint": "oxlint-tsgolint:npm",
+  "oxlint": "oxlint:npm",
+  "prettier": "prettier:npm",
+  "rimraf": "rimraf:npm",
+  "semver": "semver:npm",
+  "simple-git-hooks": "simple-git-hooks:npm",
+  "tsc6": "typescript:patch",
+  "vite": "vite:npm",
+  "vitest": "vitest:npm"
+}
