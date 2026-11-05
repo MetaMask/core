@@ -49,7 +49,7 @@ const HYPERLIQUID_ERROR_MAPPINGS: readonly {
     code: PERPS_ERROR_CODES.NETWORK_ERROR,
   },
   {
-    pattern: /rate limit|too many requests|throttl/iu,
+    pattern: /rate limit|too many .*requests|throttl/iu,
     code: PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED,
   },
   {
@@ -57,7 +57,9 @@ const HYPERLIQUID_ERROR_MAPPINGS: readonly {
     code: PERPS_ERROR_CODES.INSUFFICIENT_MARGIN,
   },
   {
-    pattern: /insufficient balance|not enough balance/iu,
+    // "builder has insufficient balance" is the venue's builder-fee refusal,
+    // not the user's balance. It stays UNKNOWN_ERROR.
+    pattern: /(?<!builder has )insufficient balance|not enough balance/iu,
     code: PERPS_ERROR_CODES.INSUFFICIENT_BALANCE,
   },
   {

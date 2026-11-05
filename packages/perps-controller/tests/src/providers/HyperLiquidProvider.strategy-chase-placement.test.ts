@@ -979,6 +979,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
         orderId: '55',
       });
     });
@@ -1366,6 +1371,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
       expect(transferRequests(transfer)).toStrictEqual([PRE_ORDER_TRANSFER]);
       expect(order).not.toHaveBeenCalled();
@@ -1383,6 +1393,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
       expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+        errorCode: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.EXCHANGE_MULTI_SIG_REQUIRED,
+          provider: 'hyperliquid',
+        },
       });
       expect(transferRequests(transfer)).toStrictEqual([PRE_ORDER_TRANSFER]);
       expect(order).not.toHaveBeenCalled();
@@ -1397,8 +1412,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
       {
         transferError: 'transfer failed',
         reported: [
-          ['transfer failed', 'transferBetweenDexs'],
-          ['transfer failed', 'placeOrder:rollback'],
+          [PERPS_ERROR_CODES.UNKNOWN_ERROR, 'transferBetweenDexs'],
+          [PERPS_ERROR_CODES.UNKNOWN_ERROR, 'placeOrder:rollback'],
           [PERPS_ERROR_CODES.UNKNOWN_ERROR, 'placeOrder'],
         ],
         notes: [],
@@ -1416,6 +1431,11 @@ describe('HyperLiquidProvider - strategy order types', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            provider: 'hyperliquid',
+          },
         });
         expect(transferRequests(transfer)).toStrictEqual([
           PRE_ORDER_TRANSFER,
@@ -1435,8 +1455,8 @@ describe('HyperLiquidProvider - strategy order types', () => {
       {
         transferError: 'transfer failed',
         reported: [
-          ['transfer failed', 'transferBetweenDexs'],
-          ['transfer failed', 'placeOrder:autoRebalance'],
+          [PERPS_ERROR_CODES.UNKNOWN_ERROR, 'transferBetweenDexs'],
+          [PERPS_ERROR_CODES.UNKNOWN_ERROR, 'placeOrder:autoRebalance'],
         ],
         notes: [],
       },

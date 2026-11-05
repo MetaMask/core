@@ -22,6 +22,7 @@ import {
   validateWithdrawalParams,
 } from '../../src/utils/hyperLiquidValidation.js';
 import * as hyperLiquidValidationModule from '../../src/utils/hyperLiquidValidation.js';
+import { normalizedCreateErrorResult } from './normalizedCreateErrorResult.js';
 import {
   createMockInfrastructure,
   createMockMessenger,
@@ -489,11 +490,7 @@ export function setUpStrategyProvider(): {
     contractAddress: '0x1234567890123456789012345678901234567890',
   });
   hyperLiquidValidation.createErrorResult.mockImplementation(
-    (error: unknown, defaultResponse: Record<string, unknown>) => ({
-      ...defaultResponse,
-      success: false,
-      error: error instanceof Error ? error.message : String(error),
-    }),
+    normalizedCreateErrorResult,
   );
   const hyperLiquidAdapter = hyperLiquidAdapterModule as unknown as Record<
     string,

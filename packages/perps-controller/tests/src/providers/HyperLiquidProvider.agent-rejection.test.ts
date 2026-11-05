@@ -151,6 +151,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -193,6 +198,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -334,6 +344,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -355,11 +370,21 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           successCount: 0,
           failureCount: 1,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
           results: [
             {
               symbol: 'BTC',
               success: false,
               error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              errorDetails: {
+                code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+                provider: 'hyperliquid',
+              },
             },
           ],
         });
@@ -382,6 +407,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -413,6 +443,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -437,6 +472,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(exchangeClient.cancel.mock.calls).toStrictEqual([
           [{ cancels: [{ a: 0, o: TAKE_PROFIT_ORDER.oid }] }],
@@ -465,6 +505,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(exchangeClient.cancel.mock.calls).toStrictEqual([
           [{ cancels: [{ a: 0, o: TAKE_PROFIT_ORDER.oid }] }],
@@ -505,6 +550,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           expect(result).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           });
           expect(exchangeClient.cancel.mock.calls).toStrictEqual([
             [{ cancels: [{ a: 0, o: TAKE_PROFIT_ORDER.oid }] }],
@@ -610,6 +660,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           expect(result).toStrictEqual({
             success: false,
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
             childOrderIds: [
               String(STOP_LOSS_ORDER.oid),
               String(RESTING_ORDER_ID),
@@ -699,6 +754,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            provider: 'hyperliquid',
+          },
           childOrderIds: [String(STOP_LOSS_ORDER.oid)],
         });
         expect(exchangeClient.cancel.mock.calls).toStrictEqual([
@@ -775,6 +835,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
           childOrderIds: [String(RESTING_ORDER_ID)],
         });
         expect(
@@ -827,6 +892,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorCode: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.TPSL_PROTECTION_LOST,
+            provider: 'hyperliquid',
+          },
           childOrderIds: [],
         });
         // The replacement and the restoration are both rejected: the agent is
@@ -873,6 +943,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -898,6 +973,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(result).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -946,6 +1026,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, agentSigner.address],
@@ -1000,6 +1085,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(order).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],
@@ -1099,11 +1189,21 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
             success: false,
             orderId: '123',
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           },
           {
             success: false,
             orderId: '124',
             error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            errorDetails: {
+              code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+              provider: 'hyperliquid',
+            },
           },
         ]);
         expect(onAgentRejected.mock.calls).toStrictEqual([
@@ -1150,6 +1250,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         // The host gets its agent's address as it supplied it.
         expect(onAgentRejected.mock.calls).toStrictEqual([
@@ -1275,6 +1380,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
           success: false,
           orderId: '123',
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(loggerError).not.toHaveBeenCalled();
         expect(onAgentRejected.mock.calls).toStrictEqual([
@@ -1304,6 +1414,11 @@ describe('HyperLiquidProvider with accountSigner: agent rejection', () => {
         expect(order).toStrictEqual({
           success: false,
           error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          errorDetails: {
+            code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+            provider: 'hyperliquid',
+          },
         });
         expect(onAgentRejected.mock.calls).toStrictEqual([
           [MAINNET_ACCOUNT, AGENT_ADDRESS],

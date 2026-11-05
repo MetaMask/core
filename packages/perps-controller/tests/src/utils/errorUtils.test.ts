@@ -187,6 +187,10 @@ describe('errorUtils', () => {
         PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED,
       ],
       [
+        'Too many cumulative requests sent',
+        PERPS_ERROR_CODES.RATE_LIMIT_EXCEEDED,
+      ],
+      [
         'Order must have minimum value of $10',
         PERPS_ERROR_CODES.ORDER_SIZE_MIN,
       ],
@@ -197,6 +201,11 @@ describe('errorUtils', () => {
       [
         'Must deposit before performing actions. User: 0xabc',
         PERPS_ERROR_CODES.EXCHANGE_ACCOUNT_NOT_FOUND,
+      ],
+      ['Not enough balance', PERPS_ERROR_CODES.INSUFFICIENT_BALANCE],
+      [
+        'Builder has insufficient balance to be approved.',
+        PERPS_ERROR_CODES.UNKNOWN_ERROR,
       ],
     ])('maps "%s" to %s with provider details', (message, code) => {
       const cause = new Error(message);

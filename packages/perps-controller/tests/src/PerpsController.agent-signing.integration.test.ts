@@ -684,6 +684,11 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       success: false,
       orderId: '1',
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        provider: 'hyperliquid',
+      },
     });
     expect(placed).toStrictEqual(PLACED_ORDER);
     expect(signedWrites()).toStrictEqual([
@@ -713,6 +718,11 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
       success: false,
       orderId: '1',
       error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+      errorDetails: {
+        code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        provider: 'hyperliquid',
+      },
     });
     // The binding is gone, so the host's getAgentSigner answers.
     expect(placed).toStrictEqual(PLACED_ORDER);
@@ -775,6 +785,11 @@ describe('PerpsController agent signing with a real HyperLiquid provider', () =>
         success: false,
         orderId: '1',
         error: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorCode: PERPS_ERROR_CODES.KEYRING_LOCKED,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.KEYRING_LOCKED,
+          provider: 'hyperliquid',
+        },
       });
       // The binding is gone, so the host's getAgentSigner answers.
       expect(placed).toStrictEqual(PLACED_ORDER);
