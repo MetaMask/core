@@ -1030,6 +1030,45 @@ describe('HyperLiquidProvider', () => {
       expect(result.error).not.toContain('Invalid price');
     });
 
+    it.each([
+      [
+        'a post-only edit that would cross the spread',
+        'Error placing new order during modify: Post only order would have immediately matched, bbo was 2503.1@2503.2.',
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+      ],
+      [
+        'an edit during the post-only network-upgrade window',
+        'order 0: Only post-only orders allowed immediately after network upgrade',
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+      ],
+    ])(
+      'returns a stable post-only code without venue text for %s',
+      async (_description, venueMessage, expectedCode) => {
+        (
+          mockClientService.getExchangeClient().modify as Mock
+        ).mockRejectedValueOnce(new Error(venueMessage));
+
+        const result = await provider.editOrder({
+          orderId: '123',
+          newOrder: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            price: '52000',
+            orderType: 'limit',
+            timeInForce: 'post-only',
+          } as OrderParams,
+        });
+
+        expect(result).toStrictEqual({
+          success: false,
+          error: expectedCode,
+          errorCode: expectedCode,
+          errorDetails: { code: expectedCode, provider: 'hyperliquid' },
+        });
+      },
+    );
+
     it('handles editOrder when asset ID is not found', async () => {
       const editParams = {
         orderId: '123',
