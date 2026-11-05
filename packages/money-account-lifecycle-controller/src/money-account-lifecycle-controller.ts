@@ -4,8 +4,10 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { ChompApiError } from '@metamask/chomp-api-service';
 import type {
   ChompApiServiceGetDerivedIdentitiesAction,
+  ChompApiServiceStartFundsTransferAction,
   DerivedIdentitiesResponse,
   DerivedIdentity,
   DerivedIdentityMigration,
@@ -60,6 +62,13 @@ import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycleControllerMethodActions } from './money-account-lifecycle-controller-method-action-types.js';
 
 const CONTROLLER_NAME = 'MoneyAccountLifecycleController';
+
+const FUNDS_TRANSFER_RETRY_DELAY_MS = 2000;
+
+const RETRYABLE_FUNDS_TRANSFER_ERROR_CODES = [
+  'MIGRATION_STEPS_INCOMPLETE',
+  'MIGRATION_TRANSFER_CONFLICT',
+];
 
 const ACTIVE_SUBSCRIPTION_STATUSES: string[] = [
   SUBSCRIPTION_STATUSES.active,
@@ -127,6 +136,7 @@ export type MoneyAccountLifecycleControllerActions =
 
 type AllowedActions =
   | ChompApiServiceGetDerivedIdentitiesAction
+  | ChompApiServiceStartFundsTransferAction
   | KeyringControllerGetStateAction
   | MoneyAccountControllerCreateMoneyAccountAction
   | MoneyAccountControllerGetMoneyAccountAction
@@ -441,8 +451,7 @@ export class MoneyAccountLifecycleController extends BaseController<
    * the successor of the Money Account and upgrades it, which starts the
    * migration on CHOMP and freezes the Money Account until it completes, and
    * registers the intents the Money Account signs for the migration. Both
-   * only do the work CHOMP reports missing. CHOMP moves the funds once every
-   * step is complete.
+   * only do the work CHOMP reports missing.
    *
    * Before registering those intents, an active Money Account Plus
    * subscription paid by the Money Account is moved to the MFA address,
@@ -451,13 +460,20 @@ export class MoneyAccountLifecycleController extends BaseController<
    * subscription delegation, which also registers its subscription intent,
    * and becomes the payer of the subscription.
    *
+   * Finally, asks CHOMP to start moving the funds of the Money Account to the
+   * MFA address. From then on, the migration can no longer be cancelled.
+   * CHOMP refuses while a step is missing, for example while the MFA address
+   * is not yet monitored, or when a concurrent request conflicts, so the
+   * request is retried once after a short delay. If that fails too, calling
+   * this again starts the transfer.
+   *
    * Identities are then refetched, so the recorded lifecycle becomes
-   * `migrating`, even when moving the subscription or registering the intents
-   * fails.
+   * `migrating`, even when any of these steps fails.
    *
    * @throws If a migration or Money Account upgrade is already in flight, the
-   * checks fail, or linking the successor, moving the subscription or
-   * registering the intents fails.
+   * checks fail, the wallet stops being ready part way, or linking the
+   * successor, moving the subscription, registering the intents or starting
+   * the funds transfer fails.
    */
   async startMigration(): Promise<void> {
     if (this.#isMigrationInFlight) {
@@ -477,9 +493,7 @@ export class MoneyAccountLifecycleController extends BaseController<
   }
 
   async #startMigration(): Promise<void> {
-    if (!this.#isReady()) {
-      throw new Error('Money Account migration is not available');
-    }
+    this.#assertReadyToMigrate();
 
     const moneyAccount = this.messenger.call(
       'MoneyAccountController:getMoneyAccount',
@@ -501,27 +515,55 @@ export class MoneyAccountLifecycleController extends BaseController<
       successorAddress,
       moneyAccountAddress,
     );
-    if (!this.#isReady()) {
-      return;
-    }
+    this.#assertReadyToMigrate();
 
     try {
       await this.#moveSubscriptionToSuccessor(
         moneyAccountAddress,
         successorAddress,
       );
-      if (!this.#isReady()) {
-        return;
-      }
+      this.#assertReadyToMigrate();
       await this.messenger.call(
         'MoneyAccountUpgradeController:registerMigrationIntents',
         moneyAccountAddress,
       );
+      this.#assertReadyToMigrate();
+      await this.#startFundsTransfer(moneyAccountAddress);
     } finally {
       if (this.#isReady()) {
         this.#fetchDerivedIdentities();
         await this.#waitForLatestDerivedIdentities().catch(() => undefined);
       }
+    }
+  }
+
+  async #startFundsTransfer(moneyAccountAddress: Hex): Promise<void> {
+    try {
+      await this.messenger.call(
+        'ChompApiService:startFundsTransfer',
+        moneyAccountAddress,
+      );
+    } catch (error) {
+      if (
+        !(error instanceof ChompApiError) ||
+        !RETRYABLE_FUNDS_TRANSFER_ERROR_CODES.includes(error.code ?? '')
+      ) {
+        throw error;
+      }
+      await new Promise((resolve) =>
+        setTimeout(resolve, FUNDS_TRANSFER_RETRY_DELAY_MS),
+      );
+      this.#assertReadyToMigrate();
+      await this.messenger.call(
+        'ChompApiService:startFundsTransfer',
+        moneyAccountAddress,
+      );
+    }
+  }
+
+  #assertReadyToMigrate(): void {
+    if (!this.#isReady()) {
+      throw new Error('Money Account migration is not available');
     }
   }
 
@@ -654,9 +696,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       throw new Error('A Money Account identity is already migrating');
     }
     this.#assertFreshForChomp(mfaAddress, identities);
-    if (!this.#isReady()) {
-      throw new Error('Money Account migration is not available');
-    }
+    this.#assertReadyToMigrate();
     return mfaAddress;
   }
 

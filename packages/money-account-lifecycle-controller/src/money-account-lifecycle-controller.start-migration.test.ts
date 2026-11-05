@@ -1,3 +1,4 @@
+import { ChompApiError } from '@metamask/chomp-api-service';
 import type {
   DerivedIdentitiesResponse,
   DerivedIdentity,
@@ -6,7 +7,7 @@ import type { MoneyAccount } from '@metamask/money-account-controller';
 import type { Subscription } from '@metamask/subscription-controller';
 import { createDeferredPromise } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 
 import {
   MONEY_ACCOUNT_ADDRESS,
@@ -284,13 +285,15 @@ describe('MoneyAccountLifecycleController', () => {
       });
     });
 
-    it('does not register the migration intents or refetch identities when the wallet locks while linking the successor', async () => {
+    it('throws without registering the migration intents or refetching identities when the wallet locks while linking the successor', async () => {
       await withController(async ({ controller, gates, mocks }) => {
         mocks.upgradeSuccessorAccount.mockImplementationOnce(async () => {
           gates.isUnlocked = false;
         });
 
-        expect(await controller.startMigration()).toBeUndefined();
+        await expect(controller.startMigration()).rejects.toThrow(
+          'Money Account migration is not available',
+        );
         expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
         expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
       });
@@ -312,13 +315,16 @@ describe('MoneyAccountLifecycleController', () => {
       });
     });
 
-    it('does not refetch identities when the wallet locks while registering the migration intents', async () => {
+    it('throws without starting the funds transfer or refetching identities when the wallet locks while registering the migration intents', async () => {
       await withController(async ({ controller, gates, mocks }) => {
         mocks.registerMigrationIntents.mockImplementationOnce(async () => {
           gates.isUnlocked = false;
         });
 
-        expect(await controller.startMigration()).toBeUndefined();
+        await expect(controller.startMigration()).rejects.toThrow(
+          'Money Account migration is not available',
+        );
+        expect(mocks.startFundsTransfer).not.toHaveBeenCalled();
         expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
       });
     });
@@ -333,9 +339,148 @@ describe('MoneyAccountLifecycleController', () => {
         mocks.registerMigrationIntents.mockRejectedValueOnce(error);
 
         await expect(controller.startMigration()).rejects.toThrow(error);
+        expect(mocks.startFundsTransfer).not.toHaveBeenCalled();
         expect(getLifecycle(controller)).toStrictEqual({
           type: 'migrating',
           identity: MIGRATING_IDENTITY,
+        });
+      });
+    });
+
+    it('starts the funds transfer of the money account once the migration intents are registered', async () => {
+      await withController(async ({ controller, mocks }) => {
+        await controller.startMigration();
+
+        expect(mocks.startFundsTransfer).toHaveBeenCalledTimes(1);
+        expect(mocks.startFundsTransfer).toHaveBeenCalledWith(
+          MONEY_ACCOUNT_ADDRESS,
+        );
+        expect(
+          mocks.startFundsTransfer.mock.invocationCallOrder[0],
+        ).toBeGreaterThan(
+          mocks.registerMigrationIntents.mock.invocationCallOrder[0],
+        );
+      });
+    });
+
+    it('records the migrating lifecycle before throwing when starting the funds transfer fails', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [MIGRATING_IDENTITY] });
+        const error = new Error('MIGRATION_STEPS_INCOMPLETE');
+        mocks.startFundsTransfer.mockRejectedValueOnce(error);
+
+        await expect(controller.startMigration()).rejects.toThrow(error);
+        expect(getLifecycle(controller)).toStrictEqual({
+          type: 'migrating',
+          identity: MIGRATING_IDENTITY,
+        });
+      });
+    });
+
+    describe('when CHOMP refuses to start the funds transfer', () => {
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it.each(['MIGRATION_STEPS_INCOMPLETE', 'MIGRATION_TRANSFER_CONFLICT'])(
+        'retries once after two seconds when CHOMP answers %s',
+        async (code) => {
+          vi.useFakeTimers();
+          await withController(async ({ controller, mocks }) => {
+            mocks.startFundsTransfer.mockRejectedValueOnce(
+              new ChompApiError(409, 'Conflict', code),
+            );
+
+            const migration = controller.startMigration();
+            await vi.advanceTimersByTimeAsync(1999);
+            expect(mocks.startFundsTransfer).toHaveBeenCalledTimes(1);
+            await vi.advanceTimersByTimeAsync(1);
+
+            expect(await migration).toBeUndefined();
+            expect(mocks.startFundsTransfer).toHaveBeenCalledTimes(2);
+            expect(mocks.startFundsTransfer).toHaveBeenNthCalledWith(
+              2,
+              MONEY_ACCOUNT_ADDRESS,
+            );
+          });
+        },
+      );
+
+      it('throws the error of the retry when it fails too', async () => {
+        vi.useFakeTimers();
+        await withController(async ({ controller, mocks }) => {
+          const retryError = new ChompApiError(
+            409,
+            'Still incomplete',
+            'MIGRATION_STEPS_INCOMPLETE',
+          );
+          mocks.startFundsTransfer
+            .mockRejectedValueOnce(
+              new ChompApiError(
+                409,
+                'Incomplete',
+                'MIGRATION_STEPS_INCOMPLETE',
+              ),
+            )
+            .mockRejectedValueOnce(retryError);
+
+          const migration = controller
+            .startMigration()
+            .catch((error: unknown) => error);
+          await vi.advanceTimersByTimeAsync(2000);
+
+          expect(await migration).toBe(retryError);
+          expect(mocks.startFundsTransfer).toHaveBeenCalledTimes(2);
+        });
+      });
+
+      it.each([
+        {
+          description: 'another CHOMP error code',
+          error: new ChompApiError(409, 'No migration', 'NO_ACTIVE_MIGRATION'),
+        },
+        {
+          description: 'a CHOMP error without a code',
+          error: new ChompApiError(500, 'Server error'),
+        },
+        {
+          description: 'an error that is not from CHOMP',
+          error: new Error('Failed'),
+        },
+      ])('does not retry on $description', async ({ error }) => {
+        await withController(async ({ controller, mocks }) => {
+          mocks.startFundsTransfer.mockRejectedValueOnce(error);
+
+          await expect(controller.startMigration()).rejects.toThrow(error);
+          expect(mocks.startFundsTransfer).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      it('throws without retrying or refetching identities when the wallet locks while waiting to retry', async () => {
+        vi.useFakeTimers();
+        await withController(async ({ controller, gates, mocks }) => {
+          mocks.startFundsTransfer.mockImplementationOnce(async () => {
+            gates.isUnlocked = false;
+            throw new ChompApiError(
+              409,
+              'Incomplete',
+              'MIGRATION_STEPS_INCOMPLETE',
+            );
+          });
+
+          const migration = controller
+            .startMigration()
+            .catch((error: unknown) => error);
+          await vi.advanceTimersByTimeAsync(2000);
+
+          expect(await migration).toStrictEqual(
+            new Error('Money Account migration is not available'),
+          );
+          expect(mocks.startFundsTransfer).toHaveBeenCalledTimes(1);
+          expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
         });
       });
     });
@@ -547,6 +692,7 @@ describe('MoneyAccountLifecycleController', () => {
 
           await expect(controller.startMigration()).rejects.toThrow(error);
           expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
+          expect(mocks.startFundsTransfer).not.toHaveBeenCalled();
           expect(getLifecycle(controller)).toStrictEqual({
             type: 'migrating',
             identity: MIGRATING_IDENTITY,
@@ -554,7 +700,7 @@ describe('MoneyAccountLifecycleController', () => {
         });
       });
 
-      it('does not register the migration intents or refetch identities when the wallet locks while moving the subscription', async () => {
+      it('throws without registering the migration intents or refetching identities when the wallet locks while moving the subscription', async () => {
         await withController(async ({ controller, gates, mocks }) => {
           mocks.getSubscriptions.mockResolvedValue([
             MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
@@ -564,7 +710,9 @@ describe('MoneyAccountLifecycleController', () => {
             return [];
           });
 
-          expect(await controller.startMigration()).toBeUndefined();
+          await expect(controller.startMigration()).rejects.toThrow(
+            'Money Account migration is not available',
+          );
           expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
           expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
         });

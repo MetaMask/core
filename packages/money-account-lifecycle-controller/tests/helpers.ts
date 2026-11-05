@@ -2,6 +2,7 @@ import type {
   DerivedIdentitiesResponse,
   DerivedIdentity,
   DerivedIdentityMigration,
+  FundsTransferStart,
 } from '@metamask/chomp-api-service';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
@@ -175,6 +176,7 @@ type Gates = {
 
 type Mocks = {
   getDerivedIdentities: Mock<() => Promise<DerivedIdentitiesResponse>>;
+  startFundsTransfer: Mock<(address: Hex) => Promise<FundsTransferStart>>;
   createMoneyAccount: Mock<
     (params: CreateMoneyAccountParams) => Promise<MoneyAccount>
   >;
@@ -273,6 +275,7 @@ function getMessenger(
   rootMessenger.delegate({
     actions: [
       'ChompApiService:getDerivedIdentities',
+      'ChompApiService:startFundsTransfer',
       'KeyringController:getState',
       'MoneyAccountController:createMoneyAccount',
       'MoneyAccountController:getMoneyAccount',
@@ -330,6 +333,14 @@ export async function withController<ReturnValue>(
     getDerivedIdentities: vi
       .fn<() => Promise<DerivedIdentitiesResponse>>()
       .mockResolvedValue({ identities: [SFA_IDENTITY] }),
+    startFundsTransfer: vi
+      .fn<(address: Hex) => Promise<FundsTransferStart>>()
+      .mockResolvedValue({
+        from: MONEY_ACCOUNT_KEY as Hex,
+        to: MFA_ACCOUNT_ADDRESS.toLowerCase() as Hex,
+        transfer: { requestId: 'transfer-request-id', status: 'PENDING' },
+        premiumTransfer: null,
+      }),
     createMoneyAccount: vi
       .fn<(params: CreateMoneyAccountParams) => Promise<MoneyAccount>>()
       .mockResolvedValue(MFA_MONEY_ACCOUNT),
@@ -408,6 +419,10 @@ export async function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'ChompApiService:getDerivedIdentities',
     mocks.getDerivedIdentities,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:startFundsTransfer',
+    mocks.startFundsTransfer,
   );
   rootMessenger.registerActionHandler(
     'MoneyAccountController:createMoneyAccount',
