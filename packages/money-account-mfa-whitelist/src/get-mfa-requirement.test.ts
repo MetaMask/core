@@ -1125,6 +1125,36 @@ describe('getMfaRequirement', () => {
         },
       );
 
+      it.each([
+        ['the extension', false],
+        ['Mobile', true],
+      ])(
+        'whitelists a deposit with a deadline and relay redeemers, with caveats ordered as %s orders them',
+        async (_client, mobileOrder) => {
+          expect(
+            await evaluateDelegation(
+              buildSingleUseDelegation(buildDepositCalls(), {
+                mobileOrder,
+                deadline: 1_800_000_000,
+                redeemers: [RECIPIENT, MUSD],
+              }),
+            ),
+          ).toStrictEqual(whitelistedAs('vault-deposit-delegation'));
+        },
+      );
+
+      it('requires MFA for a withdrawal with relay redeemers', async () => {
+        expect(
+          await evaluateDelegation(
+            buildSingleUseDelegation(buildWithdrawCalls(), {
+              redeemers: [RECIPIENT],
+            }),
+          ),
+        ).toStrictEqual(
+          mfaRequired('Delegation executions are not a vault deposit'),
+        );
+      });
+
       it('requires MFA for a withdrawal with a deadline', async () => {
         expect(
           await evaluateDelegation(
@@ -1445,6 +1475,17 @@ describe('getMfaRequirement', () => {
               args: '0x' as Hex,
             };
             caveats.push(deadline, deadline);
+          },
+        ],
+        [
+          'there are two redeemer allowlists',
+          (caveats: UnsignedDelegation['caveats']): void => {
+            const redeemer = {
+              enforcer: CONTRACTS.RedeemerEnforcer,
+              terms: createRedeemerTerms({ redeemers: [RECIPIENT] }),
+              args: '0x' as Hex,
+            };
+            caveats.push(redeemer, redeemer);
           },
         ],
         [

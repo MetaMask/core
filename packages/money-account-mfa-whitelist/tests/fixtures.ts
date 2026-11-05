@@ -275,6 +275,8 @@ export function wrapInExecute(calls: Execution[]): Execution {
  * Mobile does, instead of `LimitedCalls` first, as the extension does.
  * @param options.deadline - Adds a `Timestamp` caveat after `LimitedCalls`
  * that expires at this Unix time, as the transaction controller does.
+ * @param options.redeemers - Adds a `Redeemer` caveat after the deadline that
+ * limits redemption to these addresses, as Mobile's gasless relay does.
  * @returns The unsigned delegation.
  */
 export function buildSingleUseDelegation(
@@ -282,7 +284,8 @@ export function buildSingleUseDelegation(
   {
     mobileOrder = false,
     deadline,
-  }: { mobileOrder?: boolean; deadline?: number } = {},
+    redeemers,
+  }: { mobileOrder?: boolean; deadline?: number; redeemers?: Hex[] } = {},
 ): UnsignedDelegation {
   const limitedCalls = {
     enforcer: CONTRACTS.LimitedCallsEnforcer,
@@ -318,6 +321,15 @@ export function buildSingleUseDelegation(
                 afterThreshold: 0,
                 beforeThreshold: deadline,
               }),
+              args: '0x' as Hex,
+            },
+          ]),
+      ...(redeemers === undefined
+        ? []
+        : [
+            {
+              enforcer: CONTRACTS.RedeemerEnforcer,
+              terms: createRedeemerTerms({ redeemers }),
               args: '0x' as Hex,
             },
           ]),
