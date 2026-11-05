@@ -102,6 +102,7 @@ import {
 } from './validators/quote-request.js';
 import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
 import type { QuoteResponse } from './validators/quote-response.js';
+import { getNetworkClientByChainId } from './utils/controllers/network.js';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {
@@ -622,8 +623,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   ) => {
     try {
       const srcChainIdInHex = formatChainIdToHex(quoteRequest.srcChainId);
-      const provider =
-        this.#getNetworkClientByChainId(srcChainIdInHex)?.provider;
+      const provider = getNetworkClientByChainId(
+        this.messenger,
+        srcChainIdInHex,
+      )?.provider;
       const normalizedSrcTokenAddress = formatAddressToCaipReference(
         quoteRequest.srcTokenAddress,
       );
@@ -654,7 +657,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const isSrcChainNonEVM = isNonEvmChainId(quoteRequest.srcChainId);
     const providerConfig = isSrcChainNonEVM
       ? undefined
-      : this.#getNetworkClientByChainId(
+      : getNetworkClientByChainId(
+          this.messenger,
           formatChainIdToHex(quoteRequest.srcChainId),
         )?.configuration;
 
@@ -1187,21 +1191,6 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     return selectedAccount;
   }
 
-  #getNetworkClientByChainId(chainId: Hex) {
-    const networkClientId = this.messenger.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      chainId,
-    );
-    if (!networkClientId) {
-      throw new Error(`No network client found for chainId: ${chainId}`);
-    }
-    const networkClient = this.messenger.call(
-      'NetworkController:getNetworkClientById',
-      networkClientId,
-    );
-    return networkClient;
-  }
-
   readonly #getJwt = async (): Promise<string | undefined> => {
     try {
       const token = await this.messenger.call(
@@ -1538,8 +1527,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     contractAddress: string,
     destinationChainId: GenericQuoteRequest['destChainId'],
   ): Promise<string> => {
-    const networkClient = this.#getNetworkClientByChainId(CHAIN_IDS.MAINNET);
-    const provider = networkClient?.provider;
+    const provider = getNetworkClientByChainId(
+      this.messenger,
+      CHAIN_IDS.MAINNET,
+    )?.provider;
     if (!provider) {
       throw new Error('No provider found');
     }

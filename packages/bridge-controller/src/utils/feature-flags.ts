@@ -55,13 +55,15 @@ export const processFeatureFlags = (
  * @param messenger - Any messenger with access to RemoteFeatureFlagController:getState
  * @returns The bridge feature flags
  */
-export function getBridgeFeatureFlags<
+export const getBridgeFeatureFlags = <
   T extends {
     call(
       action: 'RemoteFeatureFlagController:getState',
     ): RemoteFeatureFlagControllerState;
   },
->(messenger: T): FeatureFlagsPlatformConfig {
+>(
+  messenger: T,
+): FeatureFlagsPlatformConfig => {
   // This will return the bridgeConfig for the current platform even without specifying the platform
   const remoteFeatureFlagControllerState = messenger.call(
     'RemoteFeatureFlagController:getState',
@@ -80,7 +82,7 @@ export function getBridgeFeatureFlags<
     remoteFeatureFlagControllerState?.remoteFeatureFlags?.bridgeConfig;
 
   return processFeatureFlags(rawMobileFlags || rawBridgeConfig);
-}
+};
 
 /**
  * Checks if the client version is greater than or equal to the minimum required version
