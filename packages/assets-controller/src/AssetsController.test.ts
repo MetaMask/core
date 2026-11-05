@@ -217,7 +217,12 @@ const [MOCK_DEFAULT_TRACKED_ASSET_ID] =
  *
  * @param messenger - The root messenger used to publish lifecycle events.
  */
-type LifecyclePublish = (topic: string, payload?: unknown) => void;
+type LifecyclePublish = (
+  topic: string,
+  payload?: unknown,
+  // Previous value, or the patches array on a `stateChange` event.
+  extra?: unknown,
+) => void;
 
 async function activateTracking(messenger: RootMessenger): Promise<void> {
   (messenger as unknown as { publish: LifecyclePublish }).publish(
@@ -5262,8 +5267,9 @@ describe('AssetsController', () => {
             [],
           );
 
-          // The price poll snapshots state synchronously on an existing
-          // subscription, before this handler yields.
+          // Chain lists refresh before the price subscription snapshots state.
+          await flushPromises();
+
           expect(fetchSpy).toHaveBeenCalled();
           expect(musdPresentAtPriceFetch).toBe(true);
           expect(
