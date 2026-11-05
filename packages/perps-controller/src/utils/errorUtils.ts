@@ -40,7 +40,8 @@ const HYPERLIQUID_ERROR_MAPPINGS: readonly {
     code: PERPS_ERROR_CODES.CONNECTION_TIMEOUT,
   },
   {
-    pattern: /service unavailable|503|temporarily unavailable/iu,
+    pattern:
+      /service unavailable|temporarily unavailable|\bstatus(?: code)?\s*[:=]?\s*503\b|\bhttp(?:\/\d(?:\.\d)?)?\s+503\b/iu,
     code: PERPS_ERROR_CODES.SERVICE_UNAVAILABLE,
   },
   {

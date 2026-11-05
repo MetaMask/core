@@ -238,5 +238,29 @@ describe('errorUtils', () => {
       });
       expect(result.cause).toBe(cause);
     });
+
+    it.each([
+      '503 Service Unavailable',
+      'HTTP 503',
+      'Request failed with status code: 503',
+      'Hyperliquid is temporarily unavailable',
+    ])('maps an explicit service outage message: "%s"', (message) => {
+      expect(normalizeHyperLiquidError(new Error(message)).errorCode).toBe(
+        PERPS_ERROR_CODES.SERVICE_UNAVAILABLE,
+      );
+    });
+
+    it.each([
+      'Invalid wallet 0xabc503def',
+      'Unknown asset ID 1503',
+      'Invalid limit price 503.25',
+    ])(
+      'does not infer a service outage from embedded digits: "%s"',
+      (message) => {
+        expect(normalizeHyperLiquidError(new Error(message)).errorCode).toBe(
+          PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        );
+      },
+    );
   });
 });
