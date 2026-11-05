@@ -830,12 +830,13 @@ describe('HyperLiquidProvider', () => {
         });
         expect(result.error).not.toContain(rawError.message);
         expect(mockPlatformDependencies.logger.error).toHaveBeenCalledTimes(1);
-        const [reportedError] =
-          mockPlatformDependencies.logger.error.mock.calls[0];
-        expect(reportedError).toMatchObject({
-          message: PERPS_ERROR_CODES.UNKNOWN_ERROR,
-          cause: rawError,
-        });
+        expect(mockPlatformDependencies.logger.error).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+            cause: rawError,
+          }),
+          expect.anything(),
+        );
       });
 
       it('normalizes known order failures and retains their raw telemetry cause', async () => {
