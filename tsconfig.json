@@ -355,6 +355,12 @@
     },
     {
       "path": "./packages/eth-sig-util"
+    },
+    {
+      "path": "./packages/money-account-controller"
+    },
+    {
+      "path": "./packages/money-account-utils"
     }
   ],
   "files": [],
