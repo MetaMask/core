@@ -14,8 +14,10 @@ import {
   TxData,
 } from '@metamask/bridge-controller';
 
+import { Operation } from '../types.js';
 import { submitBatchSellHandler } from './batch-sell-strategy.js';
 import { submitBatchHandler } from './batch-strategy.js';
+import { submitDepositHandler } from './deposit-strategy.js';
 import { submitEvmHandler as defaultSubmitHandler } from './evm-strategy.js';
 import { submitIntentHandler } from './intent-strategy.js';
 import { submitNonEvmHandler } from './non-evm-strategy.js';
@@ -75,6 +77,16 @@ const executeSubmitStrategy = (
     isStxEnabled,
     isDelegatedAccount,
   } = params;
+
+  // Deposit after swap
+  if (params.operation === Operation.DEPOSIT && params.historyKey) {
+    if (!validateParams<Trade>(params)) {
+      throw new Error(
+        'Failed to submit deposit transaction: invalid parameters',
+      );
+    }
+    return submitDepositHandler(params);
+  }
 
   // Non-EVM transactions
   if (isNonEvmChainId(quoteResponse.quote.srcChainId)) {
