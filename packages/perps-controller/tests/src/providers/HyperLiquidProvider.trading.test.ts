@@ -30,6 +30,7 @@ import type {
   OrderParams,
   Position,
 } from '../../../src/types/index.js';
+import { getProviderErrorCause } from '../../../src/utils/errorContext.js';
 import * as hyperLiquidAdapterModule from '../../../src/utils/hyperLiquidAdapter.js';
 import {
   validateAssetSupport,
@@ -1221,13 +1222,12 @@ describe('HyperLiquidProvider', () => {
         currentPrice: 0.003918,
       };
 
+      const venueError = new Error('Order must have minimum value of $10');
       mockClientService.getExchangeClient = vi.fn().mockReturnValue({
         ...createMockExchangeClient(),
         order: vi
           .fn()
-          .mockRejectedValueOnce(
-            new Error('Order must have minimum value of $10'),
-          )
+          .mockRejectedValueOnce(venueError)
           .mockResolvedValueOnce({
             status: 'ok',
             response: { data: { statuses: [{ resting: { oid: 456 } }] } },
@@ -1236,11 +1236,16 @@ describe('HyperLiquidProvider', () => {
 
       const result = await provider.placeOrder(orderParams);
 
-      expect(result).toMatchObject({
+      expect(result).toStrictEqual({
         success: false,
         error: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
         errorCode: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+          provider: 'hyperliquid',
+        },
       });
+      expect(getProviderErrorCause(result)?.cause).toBe(venueError);
       expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
         1,
       );
@@ -1978,6 +1983,32 @@ describe('HyperLiquidProvider', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toBe(PERPS_ERROR_CODES.POSITION_NOT_FOUND);
+    });
+
+    it('retains an unknown setup failure as the reporting cause without exposing it', async () => {
+      const setupError = new Error('unexpected setup detail 0xdeadbeef');
+      mockClientService.ensureInitialized = vi.fn(() => {
+        throw setupError;
+      });
+
+      const result = await provider.closePosition({
+        symbol: 'BTC',
+        orderType: 'market',
+      });
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorCode: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+        errorDetails: {
+          code: PERPS_ERROR_CODES.UNKNOWN_ERROR,
+          provider: 'hyperliquid',
+        },
+      });
+      expect(JSON.stringify(result)).not.toContain('0xdeadbeef');
+      const reportedError = getProviderErrorCause(result);
+      expect(reportedError?.message).toBe(PERPS_ERROR_CODES.UNKNOWN_ERROR);
+      expect(reportedError?.cause).toBe(setupError);
     });
 
     it('handles short position close with TP/SL', async () => {
