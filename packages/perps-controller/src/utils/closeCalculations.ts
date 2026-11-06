@@ -8,15 +8,14 @@ import { CLOSE_POSITION_CONFIG } from '../constants/perpsConfig.js';
 import type { PerpsProviderType, Position } from '../types/index.js';
 
 /**
- * Whether a provider's isolated `Position.marginUsed` already holds the
- * position's unrealized PnL at mark. Hyperliquid's does. Lighter's is the
- * initial margin the position requires at its current value. Cross
- * `marginUsed` never holds it.
+ * Whether a provider's isolated `Position.marginUsed` is the collateral
+ * backing the position. Hyperliquid's is, with the unrealized PnL at mark
+ * included. Lighter's is the initial margin the position requires at its
+ * current value; its allocated collateral is not on `Position`, so the margin
+ * a Lighter isolated close returns is unknown. Cross `marginUsed` is taken as
+ * reported and never holds the unrealized PnL.
  */
-const ISOLATED_MARGIN_INCLUDES_UNREALIZED_PNL: Record<
-  PerpsProviderType,
-  boolean
-> = {
+const ISOLATED_MARGIN_USED_IS_COLLATERAL: Record<PerpsProviderType, boolean> = {
   hyperliquid: true,
   lighter: false,
 };
@@ -33,10 +32,10 @@ export type CloseReceiveEstimateParams = {
     leverage: Pick<Position['leverage'], 'type'>;
   };
   /**
-   * Provider holding the position. It decides whether isolated margin already
-   * holds the unrealized PnL; for an unknown provider, isolated margin
-   * returned is undefined. `Position.providerId` is only set under
-   * aggregation, so pass the provider explicitly.
+   * Provider holding the position. It decides whether isolated `marginUsed`
+   * is the position's collateral; for Lighter or an unknown provider,
+   * isolated margin returned is undefined. `Position.providerId` is only set
+   * under aggregation, so pass the provider explicitly.
    */
   providerId: PerpsProviderType;
   /**
@@ -105,12 +104,11 @@ function toPositiveDecimal(
 
 /**
  * The unrealized PnL the position's margin holds: all of it for isolated
- * margin on a provider whose isolated margin holds it, none otherwise.
+ * margin that is the position's collateral, none for cross margin.
  *
  * @param position - The position being closed.
  * @param providerId - Provider holding the position.
- * @returns The held PnL, or undefined while it is needed but unknown,
- * including for isolated margin on an unknown provider.
+ * @returns The held PnL, or undefined when it or the collateral is unknown.
  */
 function heldUnrealizedPnl(
   position: CloseReceiveEstimateParams['position'],
@@ -119,12 +117,13 @@ function heldUnrealizedPnl(
   if (position.leverage.type !== 'isolated') {
     return new BigNumber(0);
   }
-  if (!Object.hasOwn(ISOLATED_MARGIN_INCLUDES_UNREALIZED_PNL, providerId)) {
+  if (
+    !Object.hasOwn(ISOLATED_MARGIN_USED_IS_COLLATERAL, providerId) ||
+    !ISOLATED_MARGIN_USED_IS_COLLATERAL[providerId]
+  ) {
     return undefined;
   }
-  return ISOLATED_MARGIN_INCLUDES_UNREALIZED_PNL[providerId]
-    ? toDecimal(position.unrealizedPnl)
-    : new BigNumber(0);
+  return toDecimal(position.unrealizedPnl);
 }
 
 function roundUsd(value: BigNumber): BigNumber {
@@ -138,9 +137,10 @@ function roundUsd(value: BigNumber): BigNumber {
  * Estimate the cash a close returns: the closed share of the position's
  * backing margin, plus the PnL realized at the close price, minus the fee.
  *
- * Backing margin is `marginUsed`, less the unrealized PnL when the provider's
- * isolated margin holds it (Hyperliquid isolated). Cross margin, and Lighter
- * isolated margin, are taken as reported. The realized PnL replaces the
+ * Backing margin is `marginUsed`, less the unrealized PnL for Hyperliquid
+ * isolated margin, which holds it. Cross margin is taken as reported. Lighter
+ * isolated `marginUsed` is required margin, not the allocated collateral, so
+ * its margin returned and receive are undefined. The realized PnL replaces the
  * mark-price PnL, so a limit close is quoted at its limit price. A close is
  * reduce-only, so a `closeSize` above the position size closes the whole
  * position.

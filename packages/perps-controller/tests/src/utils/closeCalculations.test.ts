@@ -10,6 +10,7 @@ import {
   calculateNetClosedPnl,
   estimateCloseReceive,
 } from '../../../src/utils/closeCalculations.js';
+import { adaptPositionFromLighter } from '../../../src/utils/lighterAdapter.js';
 
 // A long of 1 entered at 2,000 and marked at 2,100: its Hyperliquid isolated
 // margin of 1,100 holds the 100 of unrealized PnL; cross margin of 1,000 does
@@ -45,7 +46,7 @@ function estimate(
   return { marginReturned, realizedPnl, fee, receive };
 }
 
-// Reference rows (TAT-4506). Clients assert the same rows against
+// Reference rows. Clients assert the same rows against
 // `estimateCloseReceive`; the Terminal rows it replaces are carried over with
 // the fee given as a rate.
 const CLOSE_RECEIVE_ROWS: {
@@ -113,13 +114,14 @@ const CLOSE_RECEIVE_ROWS: {
     expected: estimate(5000, -100, 10.04, 4889.96),
   },
   {
-    close: 'a Lighter isolated long, whose margin holds no PnL',
+    // Lighter isolated `marginUsed` is required margin, not the collateral.
+    close: 'a Lighter isolated long, whose margin returned is unknown',
     params: {
       ...isolatedLong,
       position: { ...isolatedLong.position, marginUsed: '1000' },
       providerId: 'lighter',
     },
-    expected: estimate(1000, 100, 1.05, 1098.95),
+    expected: estimate(undefined, 100, 1.05, undefined),
   },
   {
     close: 'a Lighter cross long',
@@ -225,7 +227,7 @@ const CLOSE_RECEIVE_ROWS: {
   },
 ];
 
-// Reference rows (TAT-4506). Clients assert the same rows against
+// Reference rows. Clients assert the same rows against
 // `calculateNetClosedPnl`.
 const NET_CLOSED_PNL_ROWS: {
   fill: string;
@@ -307,10 +309,42 @@ describe('estimateCloseReceive', () => {
     expect(
       estimateCloseReceive({
         ...isolatedLong,
-        position: sameMargin,
+        position: { ...sameMargin, leverage: { type: 'cross' } },
         providerId: 'lighter',
       }).marginReturned,
     ).toBe(1100);
+  });
+
+  it('leaves a Lighter isolated close unknown when required and allocated margin differ', () => {
+    // Entered at 2,000, marked at 2,100, 20% initial margin fraction and 1,000
+    // of allocated collateral: the adapter reports the required 420 as
+    // `marginUsed`, so 420 + 100 would understate the cash by 580.
+    const position = adaptPositionFromLighter({
+      marketId: 0,
+      symbol: 'ETH',
+      initialMarginFraction: '20',
+      openOrderCount: 0,
+      allocatedMargin: '1000',
+      marginMode: 1,
+      sign: 1,
+      position: '1',
+      avgEntryPrice: '2000',
+      positionValue: '2100',
+      unrealizedPnl: '100',
+      realizedPnl: '0',
+      liquidationPrice: '0',
+    });
+
+    expect(position.marginUsed).toBe('420');
+    expect(
+      estimateCloseReceive({
+        position,
+        providerId: 'lighter',
+        closeSize: 1,
+        price: 2100,
+        feeRate: 0,
+      }),
+    ).toStrictEqual(estimate(undefined, 100, 0, undefined));
   });
 
   it('leaves isolated margin returned undefined for an unknown provider', () => {
