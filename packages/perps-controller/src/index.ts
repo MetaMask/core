@@ -609,6 +609,12 @@ export type {
   TpslCalculationParams,
   TpslValidationResult,
 } from './utils/index.js';
+export { estimateCloseReceive, calculateNetClosedPnl } from './utils/index.js';
+export type {
+  CloseReceiveEstimateParams,
+  CloseReceiveEstimate,
+  NetClosedPnlParams,
+} from './utils/index.js';
 export { ensureError, isAbortError } from './utils/index.js';
 export type {
   OrderBookCacheEntry,

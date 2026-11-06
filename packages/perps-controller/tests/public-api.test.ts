@@ -23,11 +23,13 @@ import {
   PerpsController,
   TP_SL_PRECISION_CONFIG,
   calculateAccountSummary,
+  calculateNetClosedPnl,
   calculatePercentageForPrice,
   calculatePriceForPercentage,
   calculatePriceForRoE,
   calculateRoEForPrice,
   calculateSignedRoEForPrice,
+  estimateCloseReceive,
   formatRoePercent,
   getCrossCollateral,
   getMaxStopLossPercentage,
@@ -40,6 +42,9 @@ import {
 } from '../src/index.js';
 import type {
   CalculateAccountSummaryParams,
+  CloseReceiveEstimate,
+  CloseReceiveEstimateParams,
+  NetClosedPnlParams,
   PerpsAccountSummary,
   TpslCalculationParams,
   TpslValidationResult,
@@ -311,6 +316,32 @@ describe('@metamask/perps-controller public API', () => {
       10.4,
     );
     expect(summary.accountLeverage).toBeCloseTo(12.31 / 15.57);
+  });
+
+  it('exports the shared close-receive estimate and net closed PnL', () => {
+    const closeParams: CloseReceiveEstimateParams = {
+      position: {
+        size: '1',
+        entryPrice: '2000',
+        marginUsed: '1100',
+        unrealizedPnl: '100',
+        leverage: { type: 'isolated' },
+      },
+      providerId: 'hyperliquid',
+      closeSize: 0.5,
+      price: 2100,
+      feeRate: 0.0005,
+    };
+    const fill: NetClosedPnlParams = { pnl: '1234.56789', fee: '0.1' };
+    const close: CloseReceiveEstimate = estimateCloseReceive(closeParams);
+
+    expect(close).toStrictEqual({
+      marginReturned: 500,
+      realizedPnl: 50,
+      fee: 0.525,
+      receive: 549.47,
+    });
+    expect(calculateNetClosedPnl(fill)).toBe(1234.46789);
   });
 
   it('exports the optional trading fee grant dependency contract', async () => {
