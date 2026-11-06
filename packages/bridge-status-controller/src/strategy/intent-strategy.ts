@@ -182,22 +182,44 @@ export async function* submitIntentHandler(
     },
   };
 
-  // Update txHistory with synthetic txMeta and order id
-  yield {
-    type: SubmitStep.AddHistoryItem,
-    payload: {
-      // Use orderId as the history key for intent transactions
-      historyKey: orderUid,
-      bridgeTxMeta: {
-        id: syntheticTxMeta?.id,
+  // TODO re-key back to orderUid after deposit to fix activity list?
+  const intentId =
+    args.batchId ??
+    // Use orderId because it's always defined for intent transactions
+    orderUid;
+
+  // If no batchId is provided, add a new history item (intent or deposit)
+  if (args.historyKey) {
+    // If the batchId is provided, withdrawal was executed first
+    yield {
+      type: SubmitStep.UpdateHistoryItem,
+      payload: {
+        historyKey: args.historyKey,
+        txMetaId: syntheticTxMeta?.id,
+        approvalTxId,
+        // Keep original txId for TransactionController updates
+        originalTransactionId: syntheticTxMeta?.id,
+        quote: args.quoteResponses[0].quote,
+        next: args.next,
       },
-      approvalTxId,
-      // Keep original txId for TransactionController updates
-      originalTransactionId: syntheticTxMeta?.id,
-      quoteResponse: args.quoteResponses[0],
-      next: args.next,
-    },
-  };
+    };
+  } else {
+    // Update txHistory with synthetic txMeta and order id
+    yield {
+      type: SubmitStep.AddHistoryItem,
+      payload: {
+        historyKey: intentId,
+        bridgeTxMeta: {
+          id: syntheticTxMeta?.id,
+        },
+        approvalTxId,
+        // Keep original txId for TransactionController updates
+        originalTransactionId: syntheticTxMeta?.id,
+        quoteResponse: args.quoteResponses[0],
+        next: args.next,
+      },
+    };
+  }
 
   // Start polling using the orderId as the history key
   yield {

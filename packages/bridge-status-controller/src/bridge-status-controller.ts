@@ -1229,7 +1229,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   /*
-   * Updates the history item's next actions and adds a new batchId
+   * Generates a new batchId and adds it to history
    * so the upcoming action can't be executed again.
    *
    * @param historyKey - The key of the history item to lock
@@ -1255,7 +1255,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#updateHistoryItem({
       historyKey,
-      next,
       ...(pending.operation === Operation.DEPOSIT && {
         depositTxMeta: {
           batchId,
@@ -1417,7 +1416,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     depositTxMeta,
     next,
     quote,
-    batchId,
   }: {
     historyKey?: string;
     status?: StatusTypes;
@@ -1427,7 +1425,6 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     depositTxMeta?: BridgeHistoryItem['depositTxMeta'];
     next?: BridgeHistoryItem['next'];
     quote?: BridgeHistoryItem['quote'];
-    batchId?: BridgeHistoryItem['batchId'];
   }): void => {
     if (!historyKey) {
       return;
@@ -1457,8 +1454,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       if (quote) {
         currentState.txHistory[historyKey].quote = quote;
       }
-      if (batchId) {
-        currentState.txHistory[historyKey].batchId = batchId;
+      // if (batchId) {
+      //   currentState.txHistory[historyKey].batchId = batchId;
+      // }
+      if (quote) {
+        currentState.txHistory[historyKey].quote = quote;
       }
     });
   };
@@ -1799,7 +1799,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         traceFn: this.#trace,
         batchId,
         operation,
-        // Required when a post-swap deposit or pre-swap withdrawal is required
+        // Populated when a post-swap deposit or pre-swap withdrawal is required
         next:
           operation === Operation.DEPOSIT
             ? [{ operation: Operation.DEPOSIT, partialQuote }]

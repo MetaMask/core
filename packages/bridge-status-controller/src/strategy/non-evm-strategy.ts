@@ -94,32 +94,51 @@ export async function* submitNonEvmHandler(
     payload: { tradeMeta },
   };
 
-  yield {
-    type: SubmitStep.AddHistoryItem,
-    payload: {
-      historyKey: tradeMeta.id,
-      approvalTxId,
-      bridgeTxMeta: {
-        id: tradeMeta.id,
-        hash: tradeMeta.hash,
+  // This strategy doesn't rekey the history item, so key by the next batchId
+  // for the next submit execution
+  let historyKey: string | undefined;
+
+  if (args.historyKey) {
+    historyKey = args.historyKey;
+    yield {
+      type: SubmitStep.UpdateHistoryItem,
+      payload: {
+        historyKey,
+        txMetaId: tradeMeta.id,
+        approvalTxId,
+        quote: quoteResponse.quote,
+        next,
       },
-      quoteResponse,
-      next,
-    },
-  };
+    };
+  } else {
+    historyKey = tradeMeta.id;
+    yield {
+      type: SubmitStep.AddHistoryItem,
+      payload: {
+        historyKey,
+        approvalTxId,
+        bridgeTxMeta: {
+          id: tradeMeta.id,
+          hash: tradeMeta.hash,
+        },
+        quoteResponse,
+        next,
+      },
+    };
+  }
 
   yield {
     type: SubmitStep.StartPolling,
     payload: {
-      historyKey: tradeMeta.id,
+      historyKey,
     },
   };
 
-  if (!isTronChainId(quoteResponse.quote.srcChainId) && !isBridgeTx) {
+  if (!isTronChainId(quoteResponse.quote.srcChainId) && !isBridgeTx && !next) {
     yield {
       type: SubmitStep.PublishCompletedEvent,
       payload: {
-        historyKey: tradeMeta.id,
+        historyKey,
       },
     };
   }

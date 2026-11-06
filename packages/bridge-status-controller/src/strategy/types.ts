@@ -5,6 +5,7 @@ import type {
   QuoteResponseV1,
   Trade,
   TxData,
+  QuoteResponse,
 } from '@metamask/bridge-controller';
 import type {
   TransactionController,
@@ -29,6 +30,7 @@ export enum SubmitStep {
   AddHistoryItem = 'addHistoryItem',
   /**
    * Rekeys and updates the history item keyed by the old history key to the new history key.
+   * If a post-tx action is required, strategies re-key the history item to the next batchId.
    */
   RekeyHistoryItem = 'rekeyHistoryItem',
   /**
@@ -90,7 +92,12 @@ export type SubmitStepResult =
       payload: {
         historyKey: string;
         depositTxMeta?: { id: string };
+        originalTransactionId?: string;
+        approvalTxId?: string;
+        txMetaId?: string;
+        quote?: BridgeHistoryItem['quote'];
         next?: BridgeHistoryItem['next'];
+        actionId?: BridgeHistoryItem['actionId'];
       };
     }
   | {
