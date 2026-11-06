@@ -307,7 +307,7 @@ export type BridgeHistoryItem = {
    */
   inputPrimaryDenomination?: InputPrimaryDenomination;
   /**
-   * The batchId and id for the money account deposit transactions.
+   * The batchId, hash and id for the money account deposit transactions.
    */
   depositTxMeta?: Partial<Pick<TransactionMeta, 'id' | 'batchId' | 'hash'>>;
   /**
