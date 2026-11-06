@@ -270,6 +270,7 @@ type RequiredEventContextFromClientBase = {
     > & {
       action_type: MetricsActionType;
       batch_id?: string;
+      money_account_action?: 'deposit' | 'withdraw';
     } & InputPrimaryDenominationData &
     HashPresenceData;
   [UnifiedSwapBridgeEventName.Completed]: TradeData &
