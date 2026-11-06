@@ -1,7 +1,6 @@
 import type {
   DerivedIdentitiesResponse,
   DerivedIdentity,
-  IntentEntry,
 } from '@metamask/chomp-api-service';
 import type { MoneyAccount } from '@metamask/money-account-controller';
 import { createDeferredPromise } from '@metamask/utils';
@@ -16,26 +15,29 @@ import {
   MFA_ACCOUNT_ADDRESS,
   MFA_MONEY_ACCOUNT,
   MIGRATING_IDENTITY,
+  SUCCESSOR_ADDRESS,
   getLifecycle,
   withController,
 } from '../tests/helpers.js';
 
 describe('MoneyAccountLifecycleController', () => {
   describe('startMigration', () => {
-    it('creates the MPC Money Account and stops at the unimplemented migration once the pre-checks pass', async () => {
+    it('creates the MPC Money Account and links it as the successor of the money account once the checks pass', async () => {
       await withController(async ({ rootMessenger, mocks }) => {
-        await expect(
-          rootMessenger.call('MoneyAccountLifecycleController:startMigration'),
-        ).rejects.toThrow(
-          `Migrating Money Account ${MONEY_ACCOUNT_ADDRESS} to ${MFA_ACCOUNT_ADDRESS} is not implemented yet`,
-        );
+        expect(
+          await rootMessenger.call(
+            'MoneyAccountLifecycleController:startMigration',
+          ),
+        ).toBeUndefined();
 
-        expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(1);
+        expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(3);
+        expect(mocks.upgradeSuccessorAccount).toHaveBeenCalledTimes(1);
+        expect(mocks.upgradeSuccessorAccount).toHaveBeenCalledWith(
+          MFA_ACCOUNT_ADDRESS,
+          MONEY_ACCOUNT_ADDRESS,
+        );
         expect(mocks.createMoneyAccount).toHaveBeenCalledTimes(1);
         expect(mocks.createMoneyAccount).toHaveBeenCalledWith({ type: 'mpc' });
-        expect(mocks.getIntentsByAddress).toHaveBeenCalledWith(
-          MFA_ACCOUNT_ADDRESS.toLowerCase(),
-        );
         expect(mocks.getMoneyAccount).toHaveBeenCalledWith({
           type: 'mnemonic',
         });
@@ -60,7 +62,7 @@ describe('MoneyAccountLifecycleController', () => {
           });
 
           await expect(controller.startMigration()).rejects.toThrow(
-            'A Money Account identity is already migrating',
+            `Money Account ${MONEY_ACCOUNT_ADDRESS} is migrating to ${SUCCESSOR_ADDRESS}, which is not the MPC Money Account of this wallet`,
           );
 
           expect(getLifecycle(controller)).toStrictEqual({
@@ -72,7 +74,6 @@ describe('MoneyAccountLifecycleController', () => {
     });
 
     it.each<{ description: string; identities: DerivedIdentity[] }>([
-      { description: 'the money account', identities: [MIGRATING_IDENTITY] },
       {
         description: 'another identity with a MIGRATING status',
         identities: [
@@ -227,7 +228,8 @@ describe('MoneyAccountLifecycleController', () => {
     it.each([
       'getDerivedIdentities',
       'createMoneyAccount',
-      'getIntentsByAddress',
+      'upgradeSuccessorAccount',
+      'registerMigrationIntents',
     ] as const)(
       'throws the error from %s unchanged, and allows a retry',
       async (mockName) => {
@@ -236,12 +238,271 @@ describe('MoneyAccountLifecycleController', () => {
           mocks[mockName].mockRejectedValueOnce(error);
 
           await expect(controller.startMigration()).rejects.toThrow(error);
-          await expect(controller.startMigration()).rejects.toThrow(
-            'is not implemented yet',
-          );
+          expect(await controller.startMigration()).toBeUndefined();
         });
       },
     );
+
+    it('records the migrating lifecycle once the successor is linked', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [MIGRATING_IDENTITY] });
+
+        await controller.startMigration();
+
+        expect(getLifecycle(controller)).toStrictEqual({
+          type: 'migrating',
+          identity: MIGRATING_IDENTITY,
+        });
+      });
+    });
+
+    it('resolves once the successor is linked even when refetching identities fails', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockRejectedValueOnce(new Error('CHOMP is down'));
+
+        expect(await controller.startMigration()).toBeUndefined();
+        expect(mocks.upgradeSuccessorAccount).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('does not register the migration intents or refetch identities when the wallet locks while linking the successor', async () => {
+      await withController(async ({ controller, gates, mocks }) => {
+        mocks.upgradeSuccessorAccount.mockImplementationOnce(async () => {
+          gates.isUnlocked = false;
+        });
+
+        expect(await controller.startMigration()).toBeUndefined();
+        expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
+        expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('registers the migration intents of the money account once the successor is linked', async () => {
+      await withController(async ({ controller, mocks }) => {
+        await controller.startMigration();
+
+        expect(mocks.registerMigrationIntents).toHaveBeenCalledTimes(1);
+        expect(mocks.registerMigrationIntents).toHaveBeenCalledWith(
+          MONEY_ACCOUNT_ADDRESS,
+        );
+        expect(
+          mocks.registerMigrationIntents.mock.invocationCallOrder[0],
+        ).toBeGreaterThan(
+          mocks.upgradeSuccessorAccount.mock.invocationCallOrder[0],
+        );
+      });
+    });
+
+    it('does not refetch identities when the wallet locks while registering the migration intents', async () => {
+      await withController(async ({ controller, gates, mocks }) => {
+        mocks.registerMigrationIntents.mockImplementationOnce(async () => {
+          gates.isUnlocked = false;
+        });
+
+        expect(await controller.startMigration()).toBeUndefined();
+        expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('records the migrating lifecycle before throwing when registering the migration intents fails', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [MIGRATING_IDENTITY] });
+        const error = new Error('PREMIUM_ELIGIBILITY_NOT_TRANSFERRED');
+        mocks.registerMigrationIntents.mockRejectedValueOnce(error);
+
+        await expect(controller.startMigration()).rejects.toThrow(error);
+        expect(getLifecycle(controller)).toStrictEqual({
+          type: 'migrating',
+          identity: MIGRATING_IDENTITY,
+        });
+      });
+    });
+
+    describe('when the money account is already migrating', () => {
+      const RESUMABLE_IDENTITY: DerivedIdentity = {
+        ...MIGRATING_IDENTITY,
+        migration: {
+          ...MIGRATING_IDENTITY.migration,
+          to: MFA_ACCOUNT_ADDRESS.toLowerCase() as Hex,
+        },
+      };
+
+      it('resumes the migration to the MPC Money Account of this wallet', async () => {
+        await withController(
+          { mpcAccountAddress: MFA_ACCOUNT_ADDRESS },
+          async ({ controller, mocks }) => {
+            mocks.getDerivedIdentities.mockResolvedValue({
+              identities: [RESUMABLE_IDENTITY],
+            });
+
+            expect(await controller.startMigration()).toBeUndefined();
+
+            expect(mocks.createMoneyAccount).not.toHaveBeenCalled();
+            expect(mocks.getMoneyAccount).toHaveBeenCalledWith({ type: 'mpc' });
+            expect(mocks.upgradeSuccessorAccount).toHaveBeenCalledWith(
+              MFA_ACCOUNT_ADDRESS,
+              MONEY_ACCOUNT_ADDRESS,
+            );
+            expect(mocks.registerMigrationIntents).toHaveBeenCalledWith(
+              MONEY_ACCOUNT_ADDRESS,
+            );
+            expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
+          },
+        );
+      });
+
+      it.each([
+        { description: 'there is none', mpcAccountAddress: undefined },
+        {
+          description: 'it has another address',
+          mpcAccountAddress: '0x00000000000000000000000000000000000000ee',
+        },
+      ])(
+        'does not resume a migration to another address than the MPC Money Account of this wallet, when $description',
+        async ({ mpcAccountAddress }) => {
+          await withController(
+            { mpcAccountAddress },
+            async ({ controller, mocks }) => {
+              mocks.getDerivedIdentities.mockResolvedValue({
+                identities: [RESUMABLE_IDENTITY],
+              });
+
+              await expect(controller.startMigration()).rejects.toThrow(
+                `Money Account ${MONEY_ACCOUNT_ADDRESS} is migrating to ${MFA_ACCOUNT_ADDRESS.toLowerCase()}, which is not the MPC Money Account of this wallet`,
+              );
+              expect(mocks.upgradeSuccessorAccount).not.toHaveBeenCalled();
+              expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
+            },
+          );
+        },
+      );
+
+      it('does not resume when CHOMP reports no migration from the money account', async () => {
+        await withController(
+          { mpcAccountAddress: MFA_ACCOUNT_ADDRESS },
+          async ({ controller, mocks }) => {
+            mocks.getDerivedIdentities.mockResolvedValue({
+              identities: [{ ...RESUMABLE_IDENTITY, migration: null }],
+            });
+
+            await expect(controller.startMigration()).rejects.toThrow(
+              `The migration of Money Account ${MONEY_ACCOUNT_ADDRESS} cannot be resumed`,
+            );
+            expect(mocks.upgradeSuccessorAccount).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it('does not resume while another identity is migrating too', async () => {
+        await withController(
+          { mpcAccountAddress: MFA_ACCOUNT_ADDRESS },
+          async ({ controller, mocks }) => {
+            mocks.getDerivedIdentities.mockResolvedValue({
+              identities: [
+                RESUMABLE_IDENTITY,
+                {
+                  ...MIGRATING_IDENTITY,
+                  currentAddress: '0x00000000000000000000000000000000000000ee',
+                },
+              ],
+            });
+
+            await expect(controller.startMigration()).rejects.toThrow(
+              'A Money Account identity is already migrating',
+            );
+            expect(mocks.upgradeSuccessorAccount).not.toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    it('rechecks the identities after creating the MPC Money Account', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [MIGRATING_IDENTITY] });
+
+        await expect(controller.startMigration()).rejects.toThrow(
+          'A Money Account identity is already migrating',
+        );
+        expect(mocks.upgradeSuccessorAccount).not.toHaveBeenCalled();
+      });
+    });
+
+    it('checks the MFA address against the identities fetched after creating the MPC Money Account', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({
+            identities: [
+              SFA_IDENTITY,
+              {
+                ...MFA_IDENTITY,
+                currentAddress: MFA_ACCOUNT_ADDRESS.toLowerCase() as Hex,
+                previousAddresses: [],
+              },
+            ],
+          });
+
+        await expect(controller.startMigration()).rejects.toThrow(
+          `MFA account ${MFA_ACCOUNT_ADDRESS} is already part of a Money Account identity`,
+        );
+        expect(mocks.upgradeSuccessorAccount).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not link the successor when the wallet locks while creating the MPC Money Account', async () => {
+      await withController(async ({ controller, gates, mocks }) => {
+        mocks.createMoneyAccount.mockImplementationOnce(async () => {
+          gates.isUnlocked = false;
+          return MFA_MONEY_ACCOUNT;
+        });
+
+        await expect(controller.startMigration()).rejects.toThrow(
+          'Money Account migration is not available',
+        );
+        expect(mocks.upgradeSuccessorAccount).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not start a migration while a money account upgrade is in flight', async () => {
+      await withController(async ({ controller, mocks }) => {
+        const { promise, resolve } = createDeferredPromise<void>();
+        mocks.upgradeAccount.mockReturnValueOnce(promise);
+
+        const upgrade = controller.upgradeMoneyAccount();
+        await expect(controller.startMigration()).rejects.toThrow(
+          'A Money Account upgrade is in progress',
+        );
+        resolve();
+        await upgrade;
+
+        expect(mocks.createMoneyAccount).not.toHaveBeenCalled();
+      });
+    });
+
+    it('does not upgrade the money account while a migration is in flight', async () => {
+      await withController(async ({ controller, mocks }) => {
+        const { promise, resolve } = createDeferredPromise<MoneyAccount>();
+        mocks.createMoneyAccount.mockReturnValueOnce(promise);
+
+        const migration = controller.startMigration();
+        expect(await controller.upgradeMoneyAccount()).toBeUndefined();
+        resolve(MFA_MONEY_ACCOUNT);
+        await migration;
+
+        expect(mocks.upgradeAccount).not.toHaveBeenCalled();
+      });
+    });
 
     it('does not fall back to earlier identities when a fetch that supersedes its own fails', async () => {
       await withController(async ({ controller, mocks, init, refetch }) => {
@@ -295,29 +556,6 @@ describe('MoneyAccountLifecycleController', () => {
       },
     );
 
-    it('does not migrate to an MFA address that already has intents', async () => {
-      await withController(async ({ controller, mocks }) => {
-        mocks.getIntentsByAddress.mockResolvedValue([
-          {
-            account: MFA_ACCOUNT_ADDRESS,
-            delegationHash: `0x${'ab'.repeat(32)}`,
-            chainId: '0x1',
-            status: 'active',
-            metadata: {
-              allowance: '0x1',
-              tokenAddress: '0x0000000000000000000000000000000000000001',
-              tokenSymbol: 'mUSD',
-              type: 'cash-deposit',
-            },
-          } satisfies IntentEntry,
-        ]);
-
-        await expect(controller.startMigration()).rejects.toThrow(
-          `MFA account ${MFA_ACCOUNT_ADDRESS} already has CHOMP intents`,
-        );
-      });
-    });
-
     it('does not start a migration while another is in flight, and allows one once it settles', async () => {
       await withController(async ({ controller, mocks }) => {
         const { promise, resolve } = createDeferredPromise<MoneyAccount>();
@@ -328,11 +566,9 @@ describe('MoneyAccountLifecycleController', () => {
           'A Money Account migration is already in progress',
         );
         resolve(MFA_MONEY_ACCOUNT);
-        await expect(first).rejects.toThrow('is not implemented yet');
+        expect(await first).toBeUndefined();
 
-        await expect(controller.startMigration()).rejects.toThrow(
-          'is not implemented yet',
-        );
+        expect(await controller.startMigration()).toBeUndefined();
         expect(mocks.createMoneyAccount).toHaveBeenCalledTimes(2);
       });
     });

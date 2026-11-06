@@ -6,9 +6,9 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type {
   ChompApiServiceGetDerivedIdentitiesAction,
-  ChompApiServiceGetIntentsByAddressAction,
   DerivedIdentitiesResponse,
   DerivedIdentity,
+  DerivedIdentityMigration,
 } from '@metamask/chomp-api-service';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
@@ -26,7 +26,9 @@ import type {
 import type {
   MoneyAccountRegistrationStatus,
   MoneyAccountUpgradeControllerGetRegistrationStatusAction,
+  MoneyAccountUpgradeControllerRegisterMigrationIntentsAction,
   MoneyAccountUpgradeControllerUpgradeAccountAction,
+  MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction,
 } from '@metamask/money-account-upgrade-controller';
 import type {
   FeatureFlags,
@@ -105,13 +107,14 @@ export type MoneyAccountLifecycleControllerActions =
 
 type AllowedActions =
   | ChompApiServiceGetDerivedIdentitiesAction
-  | ChompApiServiceGetIntentsByAddressAction
   | KeyringControllerGetStateAction
   | MoneyAccountControllerCreateMoneyAccountAction
   | MoneyAccountControllerGetMoneyAccountAction
   | MoneyAccountControllerSetDefaultMoneyAccountAction
   | MoneyAccountUpgradeControllerGetRegistrationStatusAction
+  | MoneyAccountUpgradeControllerRegisterMigrationIntentsAction
   | MoneyAccountUpgradeControllerUpgradeAccountAction
+  | MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction
   | RemoteFeatureFlagControllerGetStateAction;
 
 export type MoneyAccountLifecycleControllerStateChangedEvent =
@@ -294,19 +297,20 @@ export class MoneyAccountLifecycleController extends BaseController<
    * Triggers the Money Account upgrade process for the primary Money Account,
    * including its EIP-7702 upgrade, through `MoneyAccountUpgradeController`.
    * Only a Money Account that is not in an identity or is a valid SFA is
-   * upgraded, judged from the latest identity fetch. Makes a single attempt;
+   * upgraded, judged from the latest identity fetch, and never while a
+   * migration is in flight. Makes a single attempt;
    * clients decide when to call it and how to retry. Concurrent calls share the
    * attempt in flight. After upgrading, refetches identities so the recorded
    * lifecycle reflects the upgrade.
    *
    * @returns A promise that resolves once the attempt completes, or straight
-   * away when the feature is disabled, the wallet is not ready, or the Money
-   * Account cannot be upgraded.
+   * away when the feature is disabled, the wallet is not ready, a migration is
+   * in flight, or the Money Account cannot be upgraded.
    * @throws When there is no Money Account, or the error from fetching
    * identities before upgrading or from the upgrade, unchanged.
    */
   async upgradeMoneyAccount(): Promise<void> {
-    if (!this.#isReady()) {
+    if (this.#isMigrationInFlight || !this.#isReady()) {
       return;
     }
 
@@ -394,25 +398,41 @@ export class MoneyAccountLifecycleController extends BaseController<
 
   /**
    * Starts migrating the primary Money Account from its SFA address to a new
-   * MFA address.
+   * MFA address, or resumes its migration if one is already in flight.
    *
    * Reads the profile's identities fresh from CHOMP and records them, then
-   * only proceeds when the wallet is still ready, no identity is migrating, and
-   * the Money Account is a valid SFA in no other identity. Asks
-   * `MoneyAccountController` to create the MPC Money Account, or returns the
-   * one an earlier attempt created, and checks that its address is fresh for
-   * CHOMP: not part of any identity, and without intents.
+   * only proceeds when the wallet is still ready and the Money Account is in
+   * no other identity. If the Money Account is migrating, and no other
+   * identity is, the migration is resumed, but only towards the MPC Money
+   * Account of this wallet, which has to sign the successor's steps.
    *
-   * Linking the MFA address to the Money Account and completing the migration
-   * steps are not implemented yet, so this always throws once the checks
-   * pass.
+   * Otherwise, the Money Account must be a valid SFA and no identity may be
+   * migrating. Asks `MoneyAccountController` to create the MPC Money Account,
+   * or returns the one an earlier attempt created. Creating it may run the
+   * MPC setup, so afterwards the identities are read and checked again, and
+   * the MFA address must not be part of any identity. CHOMP itself rejects
+   * linking an MFA address that already has active intents.
    *
-   * @throws If a migration is already in flight, the checks fail, or the
-   * migration is reached.
+   * Then, through `MoneyAccountUpgradeController`, links the MFA address as
+   * the successor of the Money Account and upgrades it, which starts the
+   * migration on CHOMP and freezes the Money Account until it completes, and
+   * registers the intents the Money Account signs for the migration. Both
+   * only do the work CHOMP reports missing. Identities are then refetched, so
+   * the recorded lifecycle becomes `migrating`, even when registering the
+   * intents fails. CHOMP moves the funds once every step is complete.
+   *
+   * The subscription intent of a premium migration is not registered.
+   *
+   * @throws If a migration or Money Account upgrade is already in flight, the
+   * checks fail, or linking the successor or registering the intents fails.
    */
   async startMigration(): Promise<void> {
     if (this.#isMigrationInFlight) {
       throw new Error('A Money Account migration is already in progress');
+    }
+
+    if (this.#upgradesInFlight.size > 0) {
+      throw new Error('A Money Account upgrade is in progress');
     }
 
     this.#isMigrationInFlight = true;
@@ -435,7 +455,40 @@ export class MoneyAccountLifecycleController extends BaseController<
     if (!moneyAccount) {
       throw new Error('There is no Money Account to migrate');
     }
+    const moneyAccountAddress = moneyAccount.address as Hex;
 
+    const { migration } =
+      await this.#fetchMigratableIdentities(moneyAccountAddress);
+    const successorAddress = migration
+      ? this.#getResumableSuccessor(moneyAccountAddress, migration)
+      : await this.#createSuccessor(moneyAccountAddress);
+
+    await this.messenger.call(
+      'MoneyAccountUpgradeController:upgradeSuccessorAccount',
+      successorAddress,
+      moneyAccountAddress,
+    );
+    if (!this.#isReady()) {
+      return;
+    }
+
+    try {
+      await this.messenger.call(
+        'MoneyAccountUpgradeController:registerMigrationIntents',
+        moneyAccountAddress,
+      );
+    } finally {
+      if (this.#isReady()) {
+        this.#fetchDerivedIdentities();
+        await this.#waitForLatestDerivedIdentities().catch(() => undefined);
+      }
+    }
+  }
+
+  async #fetchMigratableIdentities(moneyAccountAddress: Hex): Promise<{
+    identities: DerivedIdentity[];
+    migration: DerivedIdentityMigration | null;
+  }> {
     this.#fetchDerivedIdentities();
     await this.#waitForLatestDerivedIdentities();
     const identities = this.#derivedIdentities;
@@ -443,56 +496,76 @@ export class MoneyAccountLifecycleController extends BaseController<
       throw new Error('Money Account migration is not available');
     }
 
-    if (identities.some(isMigrating)) {
+    if (countIdentityAddresses(moneyAccountAddress, identities) > 1) {
+      throw new Error(
+        `Money Account ${moneyAccountAddress} belongs to more than one identity`,
+      );
+    }
+
+    const lifecycle = getMoneyAccountLifecycle(moneyAccountAddress, identities);
+    const migratingCount = identities.filter(isMigrating).length;
+    if (lifecycle.type === 'migrating' && migratingCount === 1) {
+      const { migration } = lifecycle.identity;
+      if (migration?.from.toLowerCase() !== moneyAccountAddress.toLowerCase()) {
+        throw new Error(
+          `The migration of Money Account ${moneyAccountAddress} cannot be resumed`,
+        );
+      }
+      return { identities, migration };
+    }
+
+    if (migratingCount > 0) {
       throw new Error('A Money Account identity is already migrating');
     }
 
-    if (countIdentityAddresses(moneyAccount.address, identities) > 1) {
-      throw new Error(
-        `Money Account ${moneyAccount.address} belongs to more than one identity`,
-      );
-    }
-
-    const lifecycle = getMoneyAccountLifecycle(
-      moneyAccount.address,
-      identities,
-    );
     if (lifecycle.type !== 'sfa') {
       throw new Error(
-        `Money Account ${moneyAccount.address} cannot be migrated while it is '${lifecycle.type}'`,
+        `Money Account ${moneyAccountAddress} cannot be migrated while it is '${lifecycle.type}'`,
       );
     }
 
+    return { identities, migration: null };
+  }
+
+  #getResumableSuccessor(
+    moneyAccountAddress: Hex,
+    migration: DerivedIdentityMigration,
+  ): Hex {
+    const mpcMoneyAccount = this.messenger.call(
+      'MoneyAccountController:getMoneyAccount',
+      { type: 'mpc' },
+    );
+    if (mpcMoneyAccount?.address.toLowerCase() !== migration.to.toLowerCase()) {
+      throw new Error(
+        `Money Account ${moneyAccountAddress} is migrating to ${migration.to}, which is not the MPC Money Account of this wallet`,
+      );
+    }
+    return mpcMoneyAccount.address as Hex;
+  }
+
+  async #createSuccessor(moneyAccountAddress: Hex): Promise<Hex> {
     const mpcMoneyAccount = await this.messenger.call(
       'MoneyAccountController:createMoneyAccount',
       { type: 'mpc' },
     );
     const mfaAddress = mpcMoneyAccount.address as Hex;
-    await this.#assertFreshForChomp(mfaAddress, identities);
-
-    // TODO: Link the MFA address to the Money Account and drive the migration
-    // steps from the incomplete entries of `migration.steps`.
-    throw new Error(
-      `Migrating Money Account ${moneyAccount.address} to ${mfaAddress} is not implemented yet`,
-    );
+    const { identities, migration } =
+      await this.#fetchMigratableIdentities(moneyAccountAddress);
+    if (migration) {
+      throw new Error('A Money Account identity is already migrating');
+    }
+    this.#assertFreshForChomp(mfaAddress, identities);
+    if (!this.#isReady()) {
+      throw new Error('Money Account migration is not available');
+    }
+    return mfaAddress;
   }
 
-  async #assertFreshForChomp(
-    mfaAddress: Hex,
-    identities: DerivedIdentity[],
-  ): Promise<void> {
+  #assertFreshForChomp(mfaAddress: Hex, identities: DerivedIdentity[]): void {
     if (countIdentityAddresses(mfaAddress, identities) > 0) {
       throw new Error(
         `MFA account ${mfaAddress} is already part of a Money Account identity`,
       );
-    }
-
-    const intents = await this.messenger.call(
-      'ChompApiService:getIntentsByAddress',
-      mfaAddress.toLowerCase() as Hex,
-    );
-    if (intents.length > 0) {
-      throw new Error(`MFA account ${mfaAddress} already has CHOMP intents`);
     }
   }
 
