@@ -36,12 +36,10 @@ const mergeHistoryItems = (
       | 'txMetaId'
       | 'actionId'
       | 'depositTxMeta'
+      | 'originalTransactionId'
+      | 'next'
     > & {
       status?: DeepPartial<BridgeHistoryItem['status']>;
-      /**
-       * After can only be reset, no updates or additions outside of AddHistoryItem
-       */
-      next?: BridgeHistoryItem['next'];
     }
   >,
 ): Partial<BridgeHistoryItem> => {

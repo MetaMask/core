@@ -195,12 +195,14 @@ export async function* submitIntentHandler(
       type: SubmitStep.UpdateHistoryItem,
       payload: {
         historyKey: args.historyKey,
-        txMetaId: syntheticTxMeta?.id,
-        approvalTxId,
-        // Keep original txId for TransactionController updates
-        originalTransactionId: syntheticTxMeta?.id,
-        quote: args.quoteResponses[0].quote,
-        next: args.next,
+        historyItemOverrides: {
+          txMetaId: syntheticTxMeta?.id,
+          approvalTxId,
+          // Keep original txId for TransactionController updates
+          originalTransactionId: syntheticTxMeta?.id,
+          quote: args.quoteResponses[0].quote,
+          next: args.next,
+        },
       },
     };
   } else {

@@ -42,8 +42,7 @@ export async function* submitBatchHandler(
       type: SubmitStep.UpdateHistoryItem,
       payload: {
         historyKey,
-        next,
-        quote: quoteResponse.quote,
+        historyItemOverrides: { next, quote: quoteResponse.quote },
       },
     };
   } else {
