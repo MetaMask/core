@@ -16,13 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `receive` is margin with its PnL less the fee, each rounded to cents (half away from zero) first, so a margin row that includes the PnL and a fee row add up to it
   - A figure is `undefined` while an input it needs is missing or unusable, never 0
   - Types `CloseReceiveEstimateParams` and `CloseReceiveEstimate`
-  - Migration: it replaces Terminal's `estimateCloseReceive` in `close-sizing.ts`, Mobile's `receiveAmount` in `usePerpsClosePositionForm.ts` and Extension's `youWillReceive` in `close-position-modal.tsx`
-  - Terminal passes `feeRate` instead of the quoted fee amount and `providerId` instead of `marginIncludesUnrealizedPnl`, and reads `undefined` where it read `null`. Terminal rounded margin and PnL apart, so a total can move by a cent: 62.42 becomes 62.43 when margin of 62.5625 meets a PnL of -0.125
+  - Migration: it replaces Terminal's `estimateCloseReceive` and `CloseReceiveEstimate` in `src/features/perpetuals/order/utils/close-sizing.ts`, Mobile's `receiveAmount` in `usePerpsClosePositionForm.ts` and Extension's `youWillReceive` in `close-position-modal.tsx`
+  - Terminal calls it in `useCloseReceiveEstimate` (`src/features/perpetuals/order/components/TradeActivityPanel/CloseReceiveBreakdown.tsx`), passes `feeRate` instead of the quoted fee amount and `providerId` instead of `marginIncludesUnrealizedPnl`, and uses `undefined` where it used `null`, for `price` as well as the result. Terminal rounded margin and PnL apart, so a total can move by a cent: 62.42 becomes 62.43 when margin of 62.5625 and a PnL of -0.125 meet a fee of 0.01
   - Mobile and Extension change in four ways. They subtracted unrealized PnL from `marginUsed` on cross positions too, understating a winning cross close and overstating a losing one. Their `Math.round` rounded 1.005 to 1.00 and 8.995 to 8.99, where this gives 1.01 and 9.00. A fee rate not yet quoted gave a fee of 0, where this gives `undefined`. A market close passes the live price, and its PnL is computed at that price rather than read from `unrealizedPnl`
   - On every client, a Lighter isolated close shows no receive amount until Lighter's allocated collateral is on `Position`, where it showed one built on the required margin
 - Export `calculateNetClosedPnl` to show a fill's closed PnL net of its fee: `OrderFill.pnl` less `OrderFill.fee`, or `undefined` when either is missing, empty or not a number
   - Type `NetClosedPnlParams`
-  - Migration: it replaces the net PnL math in Terminal's `formatClosedPnl` (`history-format.ts`) and the PnL-minus-fee in Mobile's and Extension's `transactionTransforms.ts`. Mobile and Extension read a missing fee as 0, where this returns `undefined`
+  - Migration: in Terminal's `formatClosedPnl` (`src/features/perpetuals/order/components/AccountHistory/history-format.ts`) it replaces the net computation (`gross - cost`), and the formatting stays there. Terminal passes `{ pnl: realizedPnl, fee }` and reads `undefined` where it read `null`. It also replaces the PnL-minus-fee in Mobile's and Extension's `transactionTransforms.ts`. Mobile and Extension read a missing fee as 0, where this returns `undefined`
 
 ## [22.2.0]
 
