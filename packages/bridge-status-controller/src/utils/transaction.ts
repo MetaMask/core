@@ -181,6 +181,17 @@ export const checkIsDelegatedAccount = async (
   }
 };
 
+export const getTransactionMetaByBatchId = ({
+  messenger,
+  batchId,
+}: {
+  messenger: BridgeStatusControllerMessenger;
+  batchId: string;
+}): TransactionMeta[] =>
+  getTransactions(messenger).filter(
+    (tx: TransactionMeta) => tx.batchId === batchId,
+  );
+
 const waitForHashAndReturnFinalTxMeta = async (
   messenger: BridgeStatusControllerMessenger,
   hashPromise?: Awaited<
@@ -495,15 +506,19 @@ export const getAddTransactionBatchParams = async ({
   tradeData,
   requireApproval = false,
   isDelegatedAccount,
+  selectedAccount: selectedAccountOverride,
   ...addTransactionBatchParams
 }: Partial<Parameters<TransactionController['addTransactionBatch']>[0]> & {
   messenger: BridgeStatusControllerMessenger;
   tradeData: QuoteAndTxMetadata[];
   requireApproval?: boolean;
   isDelegatedAccount?: boolean;
+  selectedAccount?: { address: `0x${string}` };
 }): Promise<Parameters<TransactionController['addTransactionBatch']>[0]> => {
   const trade = tradeData[0].tx;
-  const selectedAccount = getAccountByAddress(messenger, trade.from);
+  const selectedAccount =
+    selectedAccountOverride ??
+    (trade.from ? getAccountByAddress(messenger, trade.from) : undefined);
   if (!selectedAccount) {
     throw new Error(
       'Failed to submit cross-chain swap batch transaction: unknown account in trade data',
@@ -547,9 +562,7 @@ export const findAllTransactionsInBatch = ({
   tradeData: QuoteAndTxMetadata[];
 }): QuoteAndTxMetadata[] => {
   // Filter for transactions with batchId
-  const txs = getTransactions(messenger).filter(
-    (tx: TransactionMeta) => tx.batchId === batchId,
-  );
+  const txs = getTransactionMetaByBatchId({ messenger, batchId });
 
   return tradeData.map((tradeWithMetadata) => {
     const { tx, type } = tradeWithMetadata;

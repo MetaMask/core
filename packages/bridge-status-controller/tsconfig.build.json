@@ -40,6 +40,18 @@
     },
     {
       "path": "../utils/tsconfig.build.json"
+    },
+    {
+      "path": "../money-account-utils/tsconfig.build.json"
+    },
+    {
+      "path": "../money-account-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../transaction-pay-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../approval-controller/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

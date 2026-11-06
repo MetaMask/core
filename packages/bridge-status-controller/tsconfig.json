@@ -39,6 +39,18 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../money-account-utils"
+    },
+    {
+      "path": "../money-account-controller"
+    },
+    {
+      "path": "../transaction-pay-controller"
+    },
+    {
+      "path": "../approval-controller"
     }
   ],
   "include": ["../../types", "./src", "./test"]
