@@ -405,10 +405,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#updateHistoryItem({
       historyKey,
-      status: StatusTypes.FAILED,
-      // Only update txHash if it's not an approval tx failure
-      txHash: txMeta?.type && isTradeTx(txMeta.type) ? txMeta?.hash : undefined,
-      completionTime: Date.now(),
+      historyItemOverrides: {
+        status: StatusTypes.FAILED,
+        // Only update txHash if it's not an approval tx failure
+        txHash:
+          txMeta?.type && isTradeTx(txMeta.type) ? txMeta?.hash : undefined,
+        completionTime: Date.now(),
+      },
     });
 
     if (txMeta?.status === TransactionStatus.rejected) {
@@ -491,7 +494,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (isBridge) {
       this.#updateHistoryItem({
         historyKey,
-        txHash,
+        historyItemOverrides: {
+          txHash,
+        },
       });
       this.#startPollingForTxId(historyKey);
       return;
@@ -499,9 +504,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#updateHistoryItem({
       historyKey,
-      status: StatusTypes.COMPLETE,
-      txHash: txMeta.hash,
-      completionTime: Date.now(),
+      historyItemOverrides: {
+        status: StatusTypes.COMPLETE,
+        txHash: txMeta.hash,
+        completionTime: Date.now(),
+      },
     });
 
     const updatedHistoryItem = this.state.txHistory[historyKey];
@@ -980,7 +987,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Update the attempts counter
     this.#updateHistoryItem({
       historyKey: bridgeTxMetaId,
-      attempts: newAttempts,
+      historyItemOverrides: {
+        attempts: newAttempts,
+      },
     });
   };
 
@@ -1255,11 +1264,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     this.#updateHistoryItem({
       historyKey,
-      ...(pending.operation === Operation.DEPOSIT && {
-        depositTxMeta: {
-          batchId,
-        },
-      }),
+      historyItemOverrides: {
+        ...(pending.operation === Operation.DEPOSIT && {
+          depositTxMeta: {
+            batchId,
+          },
+        }),
+      },
     });
 
     return {
@@ -1401,7 +1412,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       : undefined;
     this.#updateHistoryItem({
       historyKey: bridgeTxMetaId,
-      txHash: localTxHash,
+      historyItemOverrides: {
+        txHash: localTxHash,
+      },
     });
 
     return localTxHash;
@@ -1409,26 +1422,39 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #updateHistoryItem = ({
     historyKey,
-    status,
-    txHash,
-    attempts,
-    completionTime,
-    depositTxMeta,
-    next,
-    quote,
+    historyItemOverrides,
   }: {
     historyKey?: string;
-    status?: StatusTypes;
-    txHash?: string;
-    attempts?: BridgeHistoryItem['attempts'];
-    completionTime?: BridgeHistoryItem['completionTime'];
-    depositTxMeta?: BridgeHistoryItem['depositTxMeta'];
-    next?: BridgeHistoryItem['next'];
-    quote?: BridgeHistoryItem['quote'];
+    historyItemOverrides?: {
+      status?: StatusTypes;
+      txHash?: string;
+    } & Partial<
+      Pick<
+        BridgeHistoryItem,
+        | 'attempts'
+        | 'completionTime'
+        | 'depositTxMeta'
+        | 'next'
+        | 'quote'
+        | 'batchId'
+      >
+    >;
   }): void => {
-    if (!historyKey) {
+    if (!historyKey || !historyItemOverrides) {
       return;
     }
+
+    const {
+      status,
+      txHash,
+      attempts,
+      completionTime,
+      depositTxMeta,
+      next,
+      quote,
+      batchId,
+    } = historyItemOverrides;
+
     this.update((currentState) => {
       if (status) {
         currentState.txHistory[historyKey].status.status = status;

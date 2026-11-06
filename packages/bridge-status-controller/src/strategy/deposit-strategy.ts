@@ -210,10 +210,12 @@ export async function* submitDepositHandler(
       type: SubmitStep.UpdateHistoryItem,
       payload: {
         historyKey,
-        depositTxMeta: {
-          id: tradeMeta.id,
+        historyItemOverrides: {
+          depositTxMeta: {
+            id: tradeMeta.id,
+          },
+          next,
         },
-        next,
       },
     };
   } catch (error) {

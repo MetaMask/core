@@ -91,13 +91,10 @@ export type SubmitStepResult =
       type: SubmitStep.UpdateHistoryItem;
       payload: {
         historyKey: string;
-        depositTxMeta?: { id: string };
-        originalTransactionId?: string;
-        approvalTxId?: string;
-        txMetaId?: string;
-        quote?: BridgeHistoryItem['quote'];
-        next?: BridgeHistoryItem['next'];
-        actionId?: BridgeHistoryItem['actionId'];
+        historyItemOverrides: Omit<
+          Parameters<typeof rekeyHistoryItemInState>[3],
+          'status'
+        >;
       };
     }
   | {
