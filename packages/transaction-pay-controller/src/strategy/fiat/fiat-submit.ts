@@ -10,6 +10,7 @@ import type {
   TransactionPayFiatOptions,
   TransactionPayControllerMessenger,
 } from '../../types.js';
+import { getEvmAccountOverride } from '../../utils/account.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFiatOrderPollIntervalMs,
@@ -60,6 +61,7 @@ export async function submitFiatQuotes(
   const transactionData = state.transactionData[transactionId];
 
   const walletAddress = getWalletAddress({
+    messenger,
     quotes: request.quotes,
     transaction,
     accountOverride: transactionData?.accountOverride,
@@ -303,17 +305,20 @@ async function submitRelayAfterFiatCompletion({
 }
 
 function getWalletAddress({
+  messenger,
   quotes,
   transaction,
   accountOverride,
 }: {
+  messenger: TransactionPayControllerMessenger;
   quotes: PayStrategyExecuteRequest<FiatQuote>['quotes'];
   transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
-  accountOverride: Hex | undefined;
+  accountOverride: string | undefined;
 }): Hex {
   const address = isDirectMusdMoneyAccountQuote(quotes[0])
     ? transaction.txParams.from
-    : (accountOverride ?? transaction.txParams.from);
+    : (getEvmAccountOverride(messenger, accountOverride) ??
+      transaction.txParams.from);
 
   if (!address) {
     throw new Error('Missing wallet address');

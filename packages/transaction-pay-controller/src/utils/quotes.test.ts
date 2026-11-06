@@ -1,7 +1,7 @@
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type { CaipAssetType, Hex, Json } from '@metamask/utils';
 import { cloneDeep } from 'lodash-es';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockedFunction } from 'vitest';
@@ -22,6 +22,12 @@ import type {
   TransactionPayRequiredToken,
   UpdateTransactionDataCallback,
 } from '../types.js';
+import {
+  getAssetAccount,
+  getEvmAccountAddress,
+  getEvmAccountOverride,
+} from './account.js';
+import type { AssetAccount } from './account.js';
 import type { UpdateQuotesRequest } from './quotes.js';
 import { refreshQuotes, updateQuotes } from './quotes.js';
 import { updateSourceAmounts } from './source-amounts.js';
@@ -31,35 +37,67 @@ import {
   getStrategiesByName,
   getStrategyByName,
 } from './strategy.js';
-import { getLiveTokenBalance, getTokenFiatRate } from './token.js';
+import {
+  getAssetBalance,
+  getAssetFiatRate,
+  getLiveTokenBalance,
+  getTokenFiatRate,
+} from './token.js';
 import { calculateTotals } from './totals.js';
 import { getTransaction, updateTransaction } from './transaction.js';
 import { QuoteError } from './validation.js';
 
 vi.mock(import('./source-amounts.js'));
+vi.mock(import('./account.js'));
 vi.mock(import('./strategy.js'));
 vi.mock(import('./transaction.js'));
 vi.mock(import('./totals.js'));
 vi.mock(import('./token.js'), async (importOriginal) =>
-  mockModuleExcept(await importOriginal(), ['computeTokenAmounts']),
+  mockModuleExcept(await importOriginal(), [
+    'computeTokenAmounts',
+    'getEvmAsset',
+    'getEvmPaymentToken',
+    'getNativeToken',
+    'isNonEvmPaymentToken',
+  ]),
 );
 
 vi.useFakeTimers();
 
 const TRANSACTION_ID_MOCK = '123-456';
 
+const PAYMENT_TOKEN_ADDRESS_MOCK = '0x123' as Hex;
+const PAYMENT_TOKEN_CHAIN_ID_MOCK = '0x123' as Hex;
+
+const PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
+  assetId: `eip155:291/erc20:${PAYMENT_TOKEN_ADDRESS_MOCK}`,
+  balanceFiat: '123.45',
+  balanceHuman: '1.23',
+  balanceRaw: '2000000000000000000',
+  balanceUsd: '234.56',
+  decimals: 6,
+  symbol: 'ETH',
+};
+
+const SOLANA_ADDRESS_MOCK = '7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z';
+const SOLANA_WALLET_ACCOUNT_ID_MOCK = 'solana-account-uuid';
+const SOLANA_ACCOUNT_ID_MOCK = 'selected-solana-account-uuid';
+const SOLANA_ASSET_ID_MOCK: CaipAssetType =
+  'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501';
+
+const NON_EVM_PAYMENT_TOKEN_MOCK: TransactionPaymentToken = {
+  assetId: SOLANA_ASSET_ID_MOCK,
+  balanceFiat: '170',
+  balanceHuman: '2',
+  balanceRaw: '2000000000',
+  balanceUsd: '200',
+  decimals: 9,
+  symbol: 'SOL',
+};
+
 const TRANSACTION_DATA_MOCK: TransactionData = {
   isLoading: false,
-  paymentToken: {
-    address: '0x123',
-    balanceFiat: '123.45',
-    balanceHuman: '1.23',
-    balanceRaw: '2000000000000000000',
-    balanceUsd: '234.56',
-    chainId: '0x123',
-    decimals: 6,
-    symbol: 'ETH',
-  },
+  paymentToken: PAYMENT_TOKEN_MOCK,
   sourceAmounts: [
     {
       sourceAmountRaw: '1000000000000000000',
@@ -124,6 +162,8 @@ describe('Quotes Utils', () => {
   const calculateTotalsMock = vi.mocked(calculateTotals);
   const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalance);
   const getTokenFiatRateMock = vi.mocked(getTokenFiatRate);
+  const getEvmAccountAddressMock = vi.mocked(getEvmAccountAddress);
+  const getEvmAccountOverrideMock = vi.mocked(getEvmAccountOverride);
   const getStrategiesMock = vi.fn();
   const getQuotesMock = vi.fn();
   const getBatchTransactionsMock = vi.fn();
@@ -148,6 +188,10 @@ describe('Quotes Utils', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.clearAllTimers();
+
+    getEvmAccountAddressMock.mockImplementation(
+      (_messenger, _accountOverride, from) => from,
+    );
 
     getKeyringControllerStateMock.mockReturnValue({
       isUnlocked: true,
@@ -1007,8 +1051,8 @@ describe('Quotes Utils', () => {
             sourceBalanceRaw: '5000000',
             sourceTokenAmount:
               TRANSACTION_DATA_MOCK.sourceAmounts?.[0].sourceAmountRaw,
-            sourceChainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
-            sourceTokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
+            sourceChainId: PAYMENT_TOKEN_CHAIN_ID_MOCK,
+            sourceTokenAddress: PAYMENT_TOKEN_ADDRESS_MOCK,
             targetAmountMinimum: TRANSACTION_DATA_MOCK.tokens?.[0].amountRaw,
             targetChainId: TRANSACTION_DATA_MOCK.tokens?.[0].chainId,
             targetTokenAddress: TRANSACTION_DATA_MOCK.tokens?.[0].address,
@@ -1145,16 +1189,40 @@ describe('Quotes Utils', () => {
       const transactionMetaMock = {} as TransactionMeta;
       updateTransactionMock.mock.calls[0][1](transactionMetaMock);
 
-      expect(transactionMetaMock).toMatchObject({
-        metamaskPay: {
-          bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
-          chainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
-          networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
-          strategy: TransactionPayStrategy.Across,
-          targetFiat: TOTALS_MOCK.targetAmount.usd,
-          tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
-          totalFiat: TOTALS_MOCK.total.usd,
-        },
+      expect(transactionMetaMock.metamaskPay).toStrictEqual({
+        bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
+        chainId: PAYMENT_TOKEN_CHAIN_ID_MOCK,
+        isPostQuote: undefined,
+        networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+        strategy: TransactionPayStrategy.Across,
+        targetFiat: TOTALS_MOCK.targetAmount.usd,
+        tokenAddress: PAYMENT_TOKEN_ADDRESS_MOCK,
+        totalFiat: TOTALS_MOCK.total.usd,
+      });
+    });
+
+    it('replaces the previous metadata when the payment token changes', async () => {
+      await run();
+
+      const previousMetamaskPay: TransactionMeta['metamaskPay'] = {
+        chainId: '0x1',
+        tokenAddress: '0x0000000000000000000000000000000000000001',
+      };
+      const transactionMetaMock = {
+        metamaskPay: previousMetamaskPay,
+      } as TransactionMeta;
+
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay).toStrictEqual({
+        bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
+        chainId: PAYMENT_TOKEN_CHAIN_ID_MOCK,
+        isPostQuote: undefined,
+        networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+        strategy: TransactionPayStrategy.Across,
+        targetFiat: TOTALS_MOCK.targetAmount.usd,
+        tokenAddress: PAYMENT_TOKEN_ADDRESS_MOCK,
+        totalFiat: TOTALS_MOCK.total.usd,
       });
     });
 
@@ -1216,10 +1284,10 @@ describe('Quotes Utils', () => {
       expect(transactionMetaMock).toMatchObject({
         metamaskPay: {
           bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
-          chainId: TRANSACTION_DATA_MOCK.paymentToken?.chainId,
+          chainId: PAYMENT_TOKEN_CHAIN_ID_MOCK,
           networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
           targetFiat: TOTALS_MOCK.targetAmount.usd,
-          tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
+          tokenAddress: PAYMENT_TOKEN_ADDRESS_MOCK,
           totalFiat: TOTALS_MOCK.total.usd,
         },
       });
@@ -1245,8 +1313,8 @@ describe('Quotes Utils', () => {
       expect(getLiveTokenBalanceMock).toHaveBeenCalledWith(
         messenger,
         TRANSACTION_META_MOCK.txParams.from,
-        TRANSACTION_DATA_MOCK.paymentToken?.chainId,
-        TRANSACTION_DATA_MOCK.paymentToken?.address,
+        PAYMENT_TOKEN_CHAIN_ID_MOCK,
+        PAYMENT_TOKEN_ADDRESS_MOCK,
       );
 
       const transactionDataMock: Record<string, unknown> = {};
@@ -1751,6 +1819,128 @@ describe('Quotes Utils', () => {
     });
   });
 
+  describe('non-EVM payment token', () => {
+    const TARGET_TOKEN_MOCK = {
+      address: '0x456' as Hex,
+      amountRaw: '1000000',
+      chainId: '0x2105' as Hex,
+    } as TransactionPayRequiredToken;
+
+    const NON_EVM_TRANSACTION_DATA: TransactionData = {
+      isLoading: false,
+      paymentToken: NON_EVM_PAYMENT_TOKEN_MOCK,
+      sourceAmounts: [
+        {
+          sourceAmountHuman: '0.5',
+          sourceAmountRaw: '500000000',
+          targetTokenAddress: TARGET_TOKEN_MOCK.address,
+        },
+      ],
+      tokens: [TARGET_TOKEN_MOCK],
+    };
+
+    const getAssetBalanceMock = vi.mocked(getAssetBalance);
+    const getAssetFiatRateMock = vi.mocked(getAssetFiatRate);
+    const getAssetAccountMock = vi.mocked(getAssetAccount);
+
+    beforeEach(() => {
+      getAssetAccountMock.mockReturnValue({
+        id: SOLANA_WALLET_ACCOUNT_ID_MOCK,
+        address: SOLANA_ADDRESS_MOCK,
+      } as AssetAccount);
+      getAssetBalanceMock.mockReturnValue('3000000000');
+      getAssetFiatRateMock.mockReturnValue({ fiatRate: '85', usdRate: '100' });
+    });
+
+    it('builds no quote requests', async () => {
+      await run({ transactionData: NON_EVM_TRANSACTION_DATA });
+
+      expect(getQuotesMock).not.toHaveBeenCalled();
+
+      const transactionDataMock: Partial<TransactionData> = {};
+
+      updateTransactionDataMock.mock.calls.forEach((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock.quotes).toStrictEqual([]);
+    });
+
+    it('resolves the source account from the transaction account', async () => {
+      await run({
+        transactionData: {
+          ...NON_EVM_TRANSACTION_DATA,
+          accountOverride: SOLANA_ACCOUNT_ID_MOCK,
+        },
+      });
+
+      expect(getAssetAccountMock).toHaveBeenCalledWith(messenger, {
+        accountOverride: SOLANA_ACCOUNT_ID_MOCK,
+        assetId: SOLANA_ASSET_ID_MOCK,
+        from: TRANSACTION_META_MOCK.txParams.from,
+      });
+    });
+
+    it('refreshes balance from AssetsController instead of EVM RPC', async () => {
+      await run({ transactionData: NON_EVM_TRANSACTION_DATA });
+
+      expect(getLiveTokenBalanceMock).not.toHaveBeenCalled();
+      expect(getAssetBalanceMock).toHaveBeenCalledWith(
+        messenger,
+        SOLANA_WALLET_ACCOUNT_ID_MOCK,
+        SOLANA_ASSET_ID_MOCK,
+      );
+
+      const transactionDataMock: Partial<TransactionData> = {};
+
+      updateTransactionDataMock.mock.calls.forEach((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock.paymentToken).toStrictEqual({
+        ...NON_EVM_PAYMENT_TOKEN_MOCK,
+        balanceFiat: '255',
+        balanceHuman: '3',
+        balanceRaw: '3000000000',
+        balanceUsd: '300',
+      });
+    });
+
+    it('keeps the payment token if no fiat rate is available', async () => {
+      getAssetFiatRateMock.mockReturnValue(undefined);
+
+      await run({ transactionData: NON_EVM_TRANSACTION_DATA });
+
+      expect(getAssetBalanceMock).not.toHaveBeenCalled();
+
+      const transactionDataMock: Partial<TransactionData> = {};
+
+      updateTransactionDataMock.mock.calls.forEach((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock.paymentToken).toBeUndefined();
+    });
+
+    it('leaves the EVM payment token fields unset for a non-EVM payment token', async () => {
+      await run({ transactionData: NON_EVM_TRANSACTION_DATA });
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay).toStrictEqual({
+        bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
+        chainId: undefined,
+        isPostQuote: undefined,
+        networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+        strategy: undefined,
+        targetFiat: TOTALS_MOCK.targetAmount.usd,
+        tokenAddress: undefined,
+        totalFiat: TOTALS_MOCK.total.usd,
+      });
+    });
+  });
+
   describe('refreshQuotes', () => {
     it('updates quotes after refresh interval', async () => {
       getControllerStateMock.mockReturnValue({
@@ -2006,13 +2196,14 @@ describe('Quotes Utils', () => {
   });
 
   describe('post-quote (withdrawal) flow', () => {
+    const DESTINATION_TOKEN_ADDRESS_MOCK = '0xdef' as Hex;
+
     const DESTINATION_TOKEN_MOCK: TransactionPaymentToken = {
-      address: '0xdef',
+      assetId: `eip155:56/erc20:${DESTINATION_TOKEN_ADDRESS_MOCK}`,
       balanceFiat: '100.00',
       balanceHuman: '1.00',
       balanceRaw: '1000000000000000000',
       balanceUsd: '100.00',
-      chainId: '0x38',
       decimals: 18,
       symbol: 'BNB',
     };
@@ -2039,7 +2230,7 @@ describe('Quotes Utils', () => {
           sourceBalanceRaw: SOURCE_TOKEN_MOCK.balanceRaw,
           sourceChainId: SOURCE_TOKEN_MOCK.chainId,
           sourceTokenAddress: SOURCE_TOKEN_MOCK.address,
-          targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+          targetTokenAddress: DESTINATION_TOKEN_ADDRESS_MOCK,
         },
       ],
       tokens: [SOURCE_TOKEN_MOCK],
@@ -2064,8 +2255,8 @@ describe('Quotes Utils', () => {
             sourceTokenAddress: SOURCE_TOKEN_MOCK.address,
             sourceTokenAmount: '10000000',
             targetAmountMinimum: '0',
-            targetChainId: DESTINATION_TOKEN_MOCK.chainId,
-            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+            targetChainId: '0x38',
+            targetTokenAddress: DESTINATION_TOKEN_ADDRESS_MOCK,
           },
         ],
         signal: expect.any(AbortSignal),
@@ -2113,17 +2304,23 @@ describe('Quotes Utils', () => {
     });
 
     it.each([
-      ['no account override', undefined],
-      ['an account override', '0xrecipient0000000000000000000000000000001'],
+      ['no account override', undefined, undefined],
+      [
+        'an account override',
+        'override-account-id',
+        '0xa000000000000000000000000000000000000001' as Hex,
+      ],
     ])(
       'uses the transaction account as from for post-quote flow with %s',
-      async (_title, accountOverride) => {
+      async (_title, accountOverride, overrideAddress) => {
         const refundTo = '0xsafe000000000000000000000000000000000001' as Hex;
+
+        getEvmAccountOverrideMock.mockReturnValue(overrideAddress);
 
         await run({
           transactionData: {
             ...POST_QUOTE_TRANSACTION_DATA,
-            accountOverride: accountOverride as Hex | undefined,
+            accountOverride,
             refundTo,
           },
         });
@@ -2140,13 +2337,20 @@ describe('Quotes Utils', () => {
             refundTo,
           }),
         ]);
-        expect(requests[0].accountOverride).toBe(accountOverride);
+        expect(getEvmAccountOverrideMock).toHaveBeenCalledWith(
+          messenger,
+          accountOverride,
+        );
+        expect(requests[0].accountOverride).toBe(overrideAddress);
       },
     );
 
-    it('uses accountOverride as from for non-post-quote flow', async () => {
-      const accountOverride =
-        '0xdelegator0000000000000000000000000000001' as Hex;
+    it('uses the EVM account override as from for non-post-quote flow', async () => {
+      const accountOverride = 'override-account-id';
+      const overrideAddress =
+        '0xb000000000000000000000000000000000000001' as Hex;
+
+      getEvmAccountAddressMock.mockReturnValue(overrideAddress);
 
       await run({
         transactionData: {
@@ -2155,11 +2359,17 @@ describe('Quotes Utils', () => {
         },
       });
 
+      expect(getEvmAccountAddressMock).toHaveBeenCalledWith(
+        messenger,
+        accountOverride,
+        TRANSACTION_META_MOCK.txParams.from,
+      );
+
       expect(getQuotesMock).toHaveBeenCalledWith(
         expect.objectContaining({
           requests: [
             expect.objectContaining({
-              from: accountOverride,
+              from: overrideAddress,
             }),
           ],
         }),
@@ -2210,7 +2420,7 @@ describe('Quotes Utils', () => {
             sourceAmountHuman: '10',
             sourceAmountRaw: '10000000',
             // Missing sourceTokenAddress, sourceChainId, sourceBalanceRaw
-            targetTokenAddress: DESTINATION_TOKEN_MOCK.address,
+            targetTokenAddress: DESTINATION_TOKEN_ADDRESS_MOCK,
           },
         ],
       };

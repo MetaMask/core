@@ -7,6 +7,7 @@ import { createModuleLogger } from '@metamask/utils';
 import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type {
+  EvmPaymentToken,
   QuoteRequest,
   QuoteErrorInfo,
   TransactionData,
@@ -20,6 +21,12 @@ import type {
   UpdateTransactionDataCallback,
 } from '../types.js';
 import { accountSupports7702 } from './7702.js';
+import {
+  getAssetAccount,
+  getEvmAccountAddress,
+  getEvmAccountOverride,
+} from './account.js';
+import type { AssetAccount } from './account.js';
 import { buildNoOpQuote } from './no-op-quote.js';
 import { updateSourceAmounts } from './source-amounts.js';
 import {
@@ -30,8 +37,12 @@ import {
 } from './strategy.js';
 import {
   computeTokenAmounts,
+  getAssetBalance,
+  getAssetFiatRate,
+  getEvmPaymentToken,
   getLiveTokenBalance,
   getTokenFiatRate,
+  isNonEvmPaymentToken,
 } from './token.js';
 import { calculateTotals } from './totals.js';
 import { getTransaction, updateTransaction } from './transaction.js';
@@ -101,7 +112,8 @@ export async function updateQuotes(
     tokens,
   } = transactionData;
 
-  const from = getFrom(transaction, transactionData);
+  const transactionFrom = transaction.txParams.from as Hex;
+  const from = getFrom(messenger, transaction, transactionData);
 
   const controller = abortPreviousAndCreateController(transactionId);
   const { signal } = controller;
@@ -112,11 +124,21 @@ export async function updateQuotes(
   });
 
   try {
+    const sourceAccount =
+      originalPaymentToken && isNonEvmPaymentToken(originalPaymentToken)
+        ? getAssetAccount(messenger, {
+            accountOverride,
+            assetId: originalPaymentToken.assetId,
+            from: transactionFrom,
+          })
+        : undefined;
+
     const paymentToken = await refreshPaymentTokenBalance({
       // Post-quote payment tokens are received by `accountOverride`.
-      from: accountOverride ?? (transaction.txParams.from as Hex),
+      from: getEvmAccountAddress(messenger, accountOverride, transactionFrom),
       messenger,
       paymentToken: originalPaymentToken,
+      sourceAccount,
       signal,
       transactionId,
       updateTransactionData,
@@ -136,7 +158,11 @@ export async function updateQuotes(
       getSourceAmounts(messenger, transactionId) ?? sourceAmounts;
 
     const requests = buildQuoteRequests({
-      accountOverride,
+      // Post-quote output is received by the EVM account override. Other flows
+      // send from the EVM account override, which is already `from`.
+      accountOverride: isPostQuote
+        ? getEvmAccountOverride(messenger, accountOverride)
+        : undefined,
       atomic,
       from,
       isHyperliquidSource,
@@ -228,11 +254,13 @@ export async function updateQuotes(
 /**
  * Get the account that sends quotes for a transaction.
  *
+ * @param messenger - Controller messenger.
  * @param transaction - Transaction metadata.
  * @param transactionData - Transaction pay data.
  * @returns The quote sender address.
  */
 function getFrom(
+  messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
   transactionData: TransactionData,
 ): Hex {
@@ -243,7 +271,11 @@ function getFrom(
     return transactionFrom;
   }
 
-  return transactionData.accountOverride ?? transactionFrom;
+  return getEvmAccountAddress(
+    messenger,
+    transactionData.accountOverride,
+    transactionFrom,
+  );
 }
 
 /**
@@ -310,14 +342,18 @@ function syncTransaction({
         tx.isExternalSign = hasQuotes;
       }
 
+      // The legacy chain ID and token address only describe EVM payment
+      // tokens, so they are unset for a non-EVM payment token.
+      const evmPaymentToken = getEvmPaymentToken(paymentToken);
+
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,
-        chainId: paymentToken?.chainId,
+        chainId: evmPaymentToken?.chainId,
         isPostQuote,
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         strategy,
         targetFiat: totals.targetAmount.usd,
-        tokenAddress: paymentToken?.address,
+        tokenAddress: evmPaymentToken?.address,
         totalFiat: totals.total.usd,
       };
     },
@@ -443,7 +479,10 @@ function getSourceAmounts(
 }
 
 /**
- * Build quote requests required to retrieve quotes.
+ * Build quote requests required to retrieve quotes using an EVM payment token.
+ *
+ * Returns no requests for a non-EVM payment token, which no strategy quotes
+ * yet.
  *
  * @param request - Request parameters.
  * @param request.accountOverride - Optional account receiving post-quote output.
@@ -490,7 +529,9 @@ function buildQuoteRequests({
   tokens: TransactionPayRequiredToken[];
   transactionId: string;
 }): QuoteRequest[] {
-  if (!paymentToken) {
+  const evmPaymentToken = getEvmPaymentToken(paymentToken);
+
+  if (!evmPaymentToken) {
     return [];
   }
 
@@ -498,7 +539,7 @@ function buildQuoteRequests({
     return buildPostQuoteRequests({
       accountOverride,
       atomic,
-      destinationToken: paymentToken,
+      destinationToken: evmPaymentToken,
       from,
       isHyperliquidSource,
       isMaxAmount,
@@ -522,9 +563,9 @@ function buildQuoteRequests({
       isMaxAmount,
       paymentOverride,
       refundTo,
-      sourceBalanceRaw: paymentToken.balanceRaw,
-      sourceChainId: paymentToken.chainId,
-      sourceTokenAddress: paymentToken.address,
+      sourceBalanceRaw: evmPaymentToken.balanceRaw,
+      sourceChainId: evmPaymentToken.chainId,
+      sourceTokenAddress: evmPaymentToken.address,
       sourceTokenAmount: sourceAmount.sourceAmountRaw,
       targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
       targetChainId: token.chainId,
@@ -573,7 +614,7 @@ function buildPostQuoteRequests({
 }: {
   accountOverride?: Hex;
   atomic?: boolean;
-  destinationToken: TransactionPaymentToken;
+  destinationToken: EvmPaymentToken;
   from: Hex;
   isHyperliquidSource?: boolean;
   isMaxAmount: boolean;
@@ -633,6 +674,7 @@ async function refreshPaymentTokenBalance({
   messenger,
   paymentToken,
   signal,
+  sourceAccount,
   transactionId,
   updateTransactionData,
 }: {
@@ -640,6 +682,7 @@ async function refreshPaymentTokenBalance({
   messenger: TransactionPayControllerMessenger;
   paymentToken: TransactionPaymentToken | undefined;
   signal: AbortSignal;
+  sourceAccount: AssetAccount | undefined;
   transactionId: string;
   updateTransactionData: UpdateTransactionDataCallback;
 }): Promise<TransactionPaymentToken | undefined> {
@@ -647,11 +690,23 @@ async function refreshPaymentTokenBalance({
     return undefined;
   }
 
+  if (sourceAccount) {
+    return refreshNonEvmPaymentTokenBalance({
+      messenger,
+      paymentToken,
+      sourceAccount,
+      transactionId,
+      updateTransactionData,
+    });
+  }
+
+  const evmPaymentToken = getEvmPaymentToken(paymentToken) as EvmPaymentToken;
+
   try {
     const fiatRates = getTokenFiatRate(
       messenger,
-      paymentToken.address,
-      paymentToken.chainId,
+      evmPaymentToken.address,
+      evmPaymentToken.chainId,
     );
 
     if (!fiatRates) {
@@ -661,8 +716,8 @@ async function refreshPaymentTokenBalance({
     const liveBalance = await getLiveTokenBalance(
       messenger,
       from,
-      paymentToken.chainId,
-      paymentToken.address,
+      evmPaymentToken.chainId,
+      evmPaymentToken.address,
     );
 
     if (signal.aborted) {
@@ -699,10 +754,71 @@ async function refreshPaymentTokenBalance({
 }
 
 /**
+ * Re-read a non-EVM payment token balance and fiat value from
+ * `AssetsController` state.
+ *
+ * @param request - Request parameters.
+ * @param request.messenger - Controller messenger.
+ * @param request.paymentToken - Non-EVM payment token to refresh.
+ * @param request.sourceAccount - Account holding the payment token.
+ * @param request.transactionId - ID of the transaction.
+ * @param request.updateTransactionData - Callback to update transaction data.
+ * @returns The refreshed payment token, or the original token if no fiat rate is available.
+ */
+function refreshNonEvmPaymentTokenBalance({
+  messenger,
+  paymentToken,
+  sourceAccount,
+  transactionId,
+  updateTransactionData,
+}: {
+  messenger: TransactionPayControllerMessenger;
+  paymentToken: TransactionPaymentToken;
+  sourceAccount: AssetAccount;
+  transactionId: string;
+  updateTransactionData: UpdateTransactionDataCallback;
+}): TransactionPaymentToken {
+  const fiatRates = getAssetFiatRate(messenger, paymentToken.assetId);
+
+  if (!fiatRates) {
+    return paymentToken;
+  }
+
+  const balance = getAssetBalance(
+    messenger,
+    sourceAccount.id,
+    paymentToken.assetId,
+  );
+
+  const {
+    raw: balanceRaw,
+    human: balanceHuman,
+    usd: balanceUsd,
+    fiat: balanceFiat,
+  } = computeTokenAmounts(balance, paymentToken.decimals, fiatRates);
+
+  const updatedToken = {
+    ...paymentToken,
+    balanceFiat,
+    balanceHuman,
+    balanceRaw,
+    balanceUsd,
+  };
+
+  updateTransactionData(transactionId, (data) => {
+    data.paymentToken = updatedToken;
+  });
+
+  log('Refreshed non-EVM payment token balance', { transactionId, balanceRaw });
+
+  return updatedToken;
+}
+
+/**
  * Retrieve quotes for a transaction.
  *
  * @param transaction - Transaction metadata.
- * @param from - Sending wallet address (`txParams.from` for post-quote, otherwise `accountOverride ?? txParams.from`).
+ * @param from - Sending wallet address (`txParams.from` for post-quote, otherwise the EVM account override or `txParams.from`).
  * @param requests - Quote requests.
  * @param paymentToken - Selected payment token, if any.
  * @param isQuoteRequired - Whether a quote is always required for the transaction.
@@ -740,15 +856,16 @@ async function getQuotes(
     },
   );
 
-  if (!requests?.length && !fiatPaymentMethod) {
+  if (!requests.length && !fiatPaymentMethod) {
     // A selected payment token with no conversion requests means the route is
     // direct. Return an explicit no-op quote so clients and the publish hook
     // can distinguish "no conversion needed" from "quote needed but missing".
     // Not applicable when a quote is always required, as an empty requests
     // list then means the source amounts could not be calculated.
+    const evmPaymentToken = getEvmPaymentToken(paymentToken);
     const noOpQuote =
-      paymentToken && !isQuoteRequired
-        ? buildNoOpQuote(from, paymentToken)
+      evmPaymentToken && !isQuoteRequired
+        ? buildNoOpQuote(from, evmPaymentToken)
         : undefined;
 
     if (noOpQuote) {

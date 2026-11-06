@@ -10,9 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add quote simulation to `ServerStrategy`, gated by the `confirmations_pay_extended.payStrategies.server.validationEnabled` feature flag ([#11198](https://github.com/MetaMask/core/pull/11198))
+- Support non-EVM payment tokens, such as Solana SOL and SPL tokens ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - `updatePaymentToken` accepts a non-EVM `assetId`, reading its metadata, balance, and price from `AssetsController` state.
+  - The non-EVM source account defaults to the account in the same account group as the transaction account that supports the asset chain, or is selected explicitly by `accountOverride`.
 
 ### Changed
 
+- **BREAKING:** `TransactionPaymentToken` is identified by its CAIP-19 `assetId` for every chain ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - Remove `address` and `chainId`; derive them from `assetId` where needed.
+- **BREAKING:** `UpdatePaymentTokenRequest` takes `{ transactionId, assetId }` instead of `{ transactionId, tokenAddress, chainId }` ([#10272](https://github.com/MetaMask/core/pull/10272))
+- **BREAKING:** `accountOverride` in `TransactionConfig` and `TransactionData` is now the ID of an `InternalAccount` instead of an address ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - An EVM account overrides the EVM account as before. The account holding a non-EVM payment token is the override account when it supports the payment token chain, otherwise the account in the same account group as the override account, or as the transaction account, that supports that chain.
+  - Fiat payments throw if the account override is not an EVM account.
+- **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getAccountContext` and `AccountTreeController:getAccountGroupObject` actions ([#10272](https://github.com/MetaMask/core/pull/10272))
+- Add dependency on `@metamask/account-tree-controller` `^11.2.0` ([#10272](https://github.com/MetaMask/core/pull/10272))
 - Bump `@metamask/assets-controller` from `^20.2.2` to `^20.3.0` ([#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385))
 
 ## [31.0.0]

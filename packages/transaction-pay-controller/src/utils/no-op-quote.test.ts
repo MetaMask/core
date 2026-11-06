@@ -2,7 +2,7 @@ import type { Hex } from '@metamask/utils';
 import { describe, expect, it } from 'vitest';
 
 import { TransactionPayStrategy } from '../constants.js';
-import type { TransactionPaymentToken } from '../types.js';
+import type { EvmPaymentToken } from '../types.js';
 import { buildNoOpQuote } from './no-op-quote.js';
 
 const FROM_MOCK = '0xabc' as Hex;
@@ -13,7 +13,7 @@ const PAYMENT_TOKEN_MOCK = {
   chainId: '0x89' as Hex,
   decimals: 6,
   symbol: 'pUSD',
-} as TransactionPaymentToken;
+} as EvmPaymentToken;
 
 describe('No-Op Quote Utils', () => {
   describe('buildNoOpQuote', () => {

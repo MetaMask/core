@@ -1,3 +1,7 @@
+import type {
+  AccountTreeControllerGetAccountContextAction,
+  AccountTreeControllerGetAccountGroupObjectAction,
+} from '@metamask/account-tree-controller';
 import type { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 import type {
   AssetsControllerGetStateAction,
@@ -40,7 +44,7 @@ import type {
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type { CaipAssetType, Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type {
@@ -52,6 +56,8 @@ import type {
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types.js';
 
 export type AllowedActions =
+  | AccountTreeControllerGetAccountContextAction
+  | AccountTreeControllerGetAccountGroupObjectAction
   | AccountsControllerGetStateAction
   | AssetsControllerGetStateAction
   | GetGasFeeState
@@ -86,11 +92,17 @@ export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
 /** Configurable properties of a transaction. */
 export type TransactionConfig = {
   /**
-   * Optional address to override the default account used by the transaction.
+   * Optional ID of an `InternalAccount` to override the default account used
+   * by the transaction.
    * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
    * When `isPostQuote` is false, it provides the funds and pays for gas.
+   *
+   * An EVM account overrides the EVM account. The account holding a non-EVM
+   * payment token is the override account when it supports the payment token
+   * chain, otherwise the account in the same account group as the override
+   * account, or as the transaction account, that supports that chain.
    */
-  accountOverride?: Hex;
+  accountOverride?: string;
 
   /**
    * Whether the target transaction (or `paymentOverride` batch) is executed
@@ -307,7 +319,7 @@ export type TransactionPayControllerOptions = {
 
 /** State of the TransactionPayController. */
 export type TransactionPayControllerState = {
-  /** State relating to each transaction, keyed by transaction ID. */
+  /** Transient state relating to each transaction, keyed by transaction ID. */
   transactionData: Record<string, TransactionData>;
 };
 
@@ -323,11 +335,17 @@ export type TransactionPayFiatOptions = {
 /** State relating to a single transaction. */
 export type TransactionData = {
   /**
-   * Optional address to override the default account used by the transaction.
+   * Optional ID of an `InternalAccount` to override the default account used
+   * by the transaction.
    * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
    * When `isPostQuote` is false, it provides the funds and pays for gas.
+   *
+   * An EVM account overrides the EVM account. The account holding a non-EVM
+   * payment token is the override account when it supports the payment token
+   * chain, otherwise the account in the same account group as the override
+   * account, or as the transaction account, that supports that chain.
    */
-  accountOverride?: Hex;
+  accountOverride?: string;
 
   /**
    * Whether the target transaction is executed atomically with the Relay
@@ -519,8 +537,11 @@ export type QuoteErrorInfo = {
 
 /** Source token used to pay for required tokens. */
 export type TransactionPaymentToken = {
-  /** Address of the payment token. */
-  address: Hex;
+  /**
+   * CAIP-19 asset type of the payment token, as keyed in `AssetsController`
+   * state. The chain and, for EVM tokens, the token address are derived from it.
+   */
+  assetId: CaipAssetType;
 
   /** Balance of the payment token in the selected currency. */
   balanceFiat: string;
@@ -534,14 +555,23 @@ export type TransactionPaymentToken = {
   /** Balance of the payment token in USD. */
   balanceUsd: string;
 
-  /** Chain ID of the payment token. */
-  chainId: Hex;
-
   /** Decimals of the payment token. */
   decimals: number;
 
   /** Symbol of the payment token. */
   symbol: string;
+};
+
+/**
+ * Payment token on an EVM chain, with its chain ID and token address derived
+ * from its asset ID. Used internally by the EVM quote and balance paths.
+ */
+export type EvmPaymentToken = TransactionPaymentToken & {
+  /** Address of the payment token, derived from its asset ID. */
+  address: Hex;
+
+  /** Chain ID of the payment token, derived from its asset ID. */
+  chainId: Hex;
 };
 
 /** Callback to update state for a single transaction. */
@@ -880,11 +910,8 @@ export type UpdatePaymentTokenRequest = {
   /** ID of the transaction to update. */
   transactionId: string;
 
-  /** Address of the new payment token. */
-  tokenAddress: Hex;
-
-  /** Chain ID of the new payment token. */
-  chainId: Hex;
+  /** CAIP-19 asset type of the new payment token. */
+  assetId: CaipAssetType;
 };
 
 /** Request to update fiat payment state for a transaction. */
