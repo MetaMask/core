@@ -229,14 +229,84 @@ describe('errorUtils', () => {
       expect(result.cause).toBe(cause);
     });
 
-    it('preserves an existing structured controller error', () => {
+    it('preserves PRICE_MOVED and its local numeric payload', () => {
+      const errorDetails = {
+        code: PERPS_ERROR_CODES.PRICE_MOVED,
+        priceDeltaBps: 150,
+        maxSlippageBps: 100,
+        expectedPrice: 100,
+        currentPrice: 101.5,
+      };
+      const error = new PerpsControllerError(
+        PERPS_ERROR_CODES.PRICE_MOVED,
+        'Price moved too much',
+        errorDetails,
+      );
+
+      const result = normalizeHyperLiquidError(error);
+
+      expect(result).toBe(error);
+      expect(result.errorDetails).toStrictEqual(errorDetails);
+    });
+
+    it('preserves PRICE_MOVED even when it carries no details', () => {
       const error = new PerpsControllerError(
         PERPS_ERROR_CODES.PRICE_MOVED,
         PERPS_ERROR_CODES.PRICE_MOVED,
       );
+
+      expect(normalizeHyperLiquidError(error)).toBe(error);
+    });
+
+    it('preserves a structured controller error that already has details', () => {
+      const error = new PerpsControllerError(
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+        PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+        {
+          code: PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+          provider: 'hyperliquid',
+        },
+      );
+
+      expect(normalizeHyperLiquidError(error)).toBe(error);
+    });
+
+    it('tags an untagged structured error and keeps its original cause', () => {
+      const venueError = new Error(
+        'Order 0: Order must have minimum value of $10',
+      );
+      const error = new PerpsControllerError(
+        PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        undefined,
+        { cause: venueError },
+      );
+
       const result = normalizeHyperLiquidError(error);
 
-      expect(result).toBe(error);
+      expect(result).toBeInstanceOf(PerpsControllerError);
+      expect(result.message).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
+      expect(result.errorCode).toBe(PERPS_ERROR_CODES.ORDER_SIZE_MIN);
+      expect(result.errorDetails).toStrictEqual({
+        code: PERPS_ERROR_CODES.ORDER_SIZE_MIN,
+        provider: 'hyperliquid',
+      });
+      expect(result.cause).toBe(venueError);
+    });
+
+    it('uses the untagged structured error itself as the cause when it has none', () => {
+      const error = new PerpsControllerError(
+        PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+        PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+      );
+
+      const result = normalizeHyperLiquidError(error);
+
+      expect(result.errorDetails).toStrictEqual({
+        code: PERPS_ERROR_CODES.POSITION_NOT_FOUND,
+        provider: 'hyperliquid',
+      });
+      expect(result.cause).toBe(error);
     });
 
     it('returns a safe generic error for an unknown failure and retains the cause', () => {

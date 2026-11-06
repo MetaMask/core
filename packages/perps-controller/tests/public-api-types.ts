@@ -55,6 +55,19 @@ import type {
   SubscribePublicTradesParams,
   PerpsControllerGetPublicTradesAction,
   PerpsControllerSubscribeToPublicTradesAction,
+  PERPS_ERROR_CODES,
+  PerpsErrorCode,
+  PerpsErrorDetails,
+  PriceMovedErrorDetails,
+  HyperLiquidErrorDetails,
+  ClosePositionsResult,
+  DisconnectResult,
+  InitializeResult,
+  MarginResult,
+  ReadyToTradeResult,
+  ToggleTestnetResult,
+  TransferBetweenDexsResult,
+  WithdrawResult,
 } from '@metamask/perps-controller';
 import type {
   LIGHTER_RECOVERY_ACCOUNT_INDEX_LIMIT,
@@ -809,4 +822,99 @@ export type ReplacePositionTPSLLegConsumerContracts = [
     PerpsProvider,
     Omit<PerpsProvider, 'replacePositionTPSLLeg'>
   >,
+];
+type PostOnlyErrorCode =
+  | 'ORDER_POST_ONLY_WOULD_CROSS'
+  | 'ORDER_POST_ONLY_WINDOW';
+
+// Clients key exhaustive `Record<PerpsErrorCode, string>` translation maps
+// (Mobile `translatePerpsError.ts`, Extension `translate-perps-error.ts`), so
+// each new code is a compile-time change for them. A code added or renamed
+// here must come with matching client entries.
+export type PostOnlyErrorCodeConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      (typeof PERPS_ERROR_CODES)['ORDER_POST_ONLY_WOULD_CROSS'],
+      'ORDER_POST_ONLY_WOULD_CROSS'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      (typeof PERPS_ERROR_CODES)['ORDER_POST_ONLY_WINDOW'],
+      'ORDER_POST_ONLY_WINDOW'
+    >
+  >,
+  AssertTrue<
+    IsExact<Extract<PerpsErrorCode, PostOnlyErrorCode>, PostOnlyErrorCode>
+  >,
+  AssertTrue<
+    IsExact<
+      Record<Exclude<PerpsErrorCode, PostOnlyErrorCode>, string> extends Record<
+        PerpsErrorCode,
+        string
+      >
+        ? true
+        : false,
+      false
+    >
+  >,
+];
+
+export type ProviderErrorDetailsConsumerContracts = [
+  AssertTrue<
+    IsExact<PerpsErrorDetails, PriceMovedErrorDetails | HyperLiquidErrorDetails>
+  >,
+  AssertTrue<
+    IsExact<
+      HyperLiquidErrorDetails,
+      {
+        code: Exclude<PerpsErrorCode, 'PRICE_MOVED'>;
+        provider: 'hyperliquid';
+      }
+    >
+  >,
+  // Clients narrow on `code === PRICE_MOVED` before reading the numeric
+  // payload; the provider-tagged variant must never satisfy that check.
+  AssertTrue<
+    IsExact<
+      Extract<PerpsErrorDetails, { code: 'PRICE_MOVED' }>,
+      PriceMovedErrorDetails
+    >
+  >,
+  AssertTrue<
+    IsExact<Extract<HyperLiquidErrorDetails['code'], 'PRICE_MOVED'>, never>
+  >,
+  AssertTrue<
+    IsExact<
+      Extract<HyperLiquidErrorDetails['code'], PostOnlyErrorCode>,
+      PostOnlyErrorCode
+    >
+  >,
+  AssertTrue<
+    IsExact<OrderResult['errorDetails'], PerpsErrorDetails | undefined>
+  >,
+];
+
+type HasNormalizedErrorFields<Result> =
+  IsExact<
+    Result[Extract<keyof Result, 'errorCode'>],
+    PerpsErrorCode | undefined
+  > extends true
+    ? IsExact<
+        Result[Extract<keyof Result, 'errorDetails'>],
+        PerpsErrorDetails | undefined
+      >
+    : false;
+
+export type NormalizedResultErrorFieldsConsumerContracts = [
+  AssertTrue<HasNormalizedErrorFields<OrderResult>>,
+  AssertTrue<HasNormalizedErrorFields<MarginResult>>,
+  AssertTrue<HasNormalizedErrorFields<WithdrawResult>>,
+  AssertTrue<HasNormalizedErrorFields<TransferBetweenDexsResult>>,
+  AssertTrue<HasNormalizedErrorFields<InitializeResult>>,
+  AssertTrue<HasNormalizedErrorFields<ReadyToTradeResult>>,
+  AssertTrue<HasNormalizedErrorFields<DisconnectResult>>,
+  AssertTrue<HasNormalizedErrorFields<ToggleTestnetResult>>,
+  AssertTrue<HasNormalizedErrorFields<ClosePositionsResult>>,
+  AssertTrue<HasNormalizedErrorFields<ClosePositionsResult['results'][number]>>,
 ];

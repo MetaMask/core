@@ -1,3 +1,4 @@
+import { attachProviderErrorCause } from '../../src/utils/errorContext.js';
 import { normalizeHyperLiquidError } from '../../src/utils/errorUtils.js';
 
 /**
@@ -13,13 +14,16 @@ export function normalizedCreateErrorResult(
   defaultResponse: Record<string, unknown>,
 ): Record<string, unknown> {
   const normalizedError = normalizeHyperLiquidError(error);
-  return {
-    ...defaultResponse,
-    success: false,
-    error: normalizedError.message,
-    errorCode: normalizedError.errorCode,
-    ...(normalizedError.errorDetails === undefined
-      ? {}
-      : { errorDetails: normalizedError.errorDetails }),
-  };
+  return attachProviderErrorCause(
+    {
+      ...defaultResponse,
+      success: false,
+      error: normalizedError.message,
+      errorCode: normalizedError.errorCode,
+      ...(normalizedError.errorDetails === undefined
+        ? {}
+        : { errorDetails: normalizedError.errorDetails }),
+    },
+    normalizedError,
+  );
 }

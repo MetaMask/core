@@ -19,6 +19,7 @@ import type {
   PerpsDebugLogger,
 } from '../types/index.js';
 import type { OrderType, TpslLinkage } from '../types/perps-types.js';
+import { attachProviderErrorCause } from './errorContext.js';
 import { normalizeHyperLiquidError } from './errorUtils.js';
 import {
   getTriggerExecution,
@@ -45,7 +46,9 @@ export type ValidationDebugLogger = PerpsDebugLogger | undefined;
  * Every Hyperliquid result that reports failure goes through
  * `normalizeHyperLiquidError`, so the returned message is a stable
  * `PerpsErrorCode`. The original failure stays on the normalized error's
- * `cause` for telemetry and is not copied into the result.
+ * `cause` for telemetry and is not copied into the result's public fields; the
+ * normalized error rides along as internal metadata so a service that owns
+ * reporting can log it (see `getProviderErrorCause`).
  *
  * @param error - The error that occurred
  * @param defaultResponse - The default response object to use as template
@@ -56,15 +59,18 @@ export function createErrorResult<
 >(error: unknown, defaultResponse: TValue): TValue & PerpsErrorResultFields {
   const normalizedError = normalizeHyperLiquidError(error);
 
-  return {
-    ...defaultResponse,
-    success: false,
-    error: normalizedError.message,
-    errorCode: normalizedError.errorCode,
-    ...(normalizedError.errorDetails === undefined
-      ? {}
-      : { errorDetails: normalizedError.errorDetails }),
-  };
+  return attachProviderErrorCause(
+    {
+      ...defaultResponse,
+      success: false,
+      error: normalizedError.message,
+      errorCode: normalizedError.errorCode,
+      ...(normalizedError.errorDetails === undefined
+        ? {}
+        : { errorDetails: normalizedError.errorDetails }),
+    },
+    normalizedError,
+  );
 }
 
 /**

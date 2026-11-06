@@ -4,7 +4,10 @@ import {
   PERPS_ERROR_ACTION,
   PERPS_ERROR_COMPONENT,
   PERPS_ERROR_OPERATION,
+  attachProviderErrorCause,
+  carryProviderErrorCause,
   createPerpsErrorContext,
+  getProviderErrorCause,
   markProviderErrorReported,
   wasProviderErrorReported,
 } from '../../../src/utils/errorContext.js';
@@ -127,5 +130,39 @@ describe('createPerpsErrorContext', () => {
       'error',
       'providerId',
     ]);
+  });
+
+  it('attaches a provider error cause without changing the result shape', () => {
+    const cause = new Error('UNKNOWN_ERROR', {
+      cause: new Error('raw venue detail'),
+    });
+    const result = attachProviderErrorCause(
+      { success: false, error: 'UNKNOWN_ERROR' },
+      cause,
+    );
+
+    expect(getProviderErrorCause(result)).toBe(cause);
+    expect(result).toStrictEqual({ success: false, error: 'UNKNOWN_ERROR' });
+    expect(JSON.stringify(result)).not.toContain('raw venue detail');
+  });
+
+  it('carries a provider error cause onto a derived result', () => {
+    const cause = new Error('UNKNOWN_ERROR');
+    const providerResult = attachProviderErrorCause(
+      { success: false, error: 'UNKNOWN_ERROR' },
+      cause,
+    );
+
+    const routedResult = carryProviderErrorCause(providerResult, {
+      ...providerResult,
+      providerId: 'hyperliquid',
+    });
+
+    expect(getProviderErrorCause(routedResult)).toBe(cause);
+    expect(
+      getProviderErrorCause(
+        carryProviderErrorCause({ success: false }, { success: false }),
+      ),
+    ).toBeUndefined();
   });
 });

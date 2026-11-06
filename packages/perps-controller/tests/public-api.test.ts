@@ -18,8 +18,10 @@ import {
 // Checks the account-signer and agent surface through the package entrypoint,
 // the way a client imports it, so a dropped or renamed export fails here.
 import {
+  createErrorResult,
   HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
   HYPERLIQUID_L1_ACTION_PRIMARY_TYPE,
+  isPerpsErrorCode,
   PERPS_ERROR_CODES,
   PerpsController,
   TP_SL_PRECISION_CONFIG,
@@ -52,6 +54,9 @@ import type {
   PerpsAccountSummary,
   TpslCalculationParams,
   TpslValidationResult,
+  HyperLiquidErrorDetails,
+  PerpsErrorDetails,
+  PriceMovedErrorDetails,
   DirectProviderOrderCapabilities,
   DirectProviderOrderCapabilitiesUnavailableReason,
   GetAccountSupportParams,
@@ -235,6 +240,67 @@ describe('@metamask/perps-controller public API', () => {
     expect(unspecifiedGrid.priceDecimals).toBeUndefined();
     expect(venueGrid.priceDecimals).toBe(2);
     expect(reason).toBe('order_market_unsupported');
+  });
+
+  it('exports the post-only error codes as stable public values', () => {
+    expect(PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS).toBe(
+      'ORDER_POST_ONLY_WOULD_CROSS',
+    );
+    expect(PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW).toBe(
+      'ORDER_POST_ONLY_WINDOW',
+    );
+    expect(isPerpsErrorCode('ORDER_POST_ONLY_WOULD_CROSS')).toBe(true);
+    expect(isPerpsErrorCode('ORDER_POST_ONLY_WINDOW')).toBe(true);
+  });
+
+  it.each([
+    [
+      'Error placing new order during modify: Post only order would have immediately matched, bbo was 2503.1@2503.2.',
+      PERPS_ERROR_CODES.ORDER_POST_ONLY_WOULD_CROSS,
+    ],
+    [
+      'order 0: Only post-only orders allowed immediately after network upgrade',
+      PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+    ],
+    ['Unexpected venue response 0xdeadbeef', PERPS_ERROR_CODES.UNKNOWN_ERROR],
+  ])(
+    'returns provider-tagged details without venue text for "%s"',
+    (venueMessage, code) => {
+      const result = createErrorResult(new Error(venueMessage), {
+        success: false,
+      });
+      const expectedDetails: HyperLiquidErrorDetails = {
+        code,
+        provider: 'hyperliquid',
+      };
+
+      expect(result).toStrictEqual({
+        success: false,
+        error: code,
+        errorCode: code,
+        errorDetails: expectedDetails,
+      });
+      expect(JSON.stringify(result)).not.toContain(venueMessage);
+    },
+  );
+
+  it('keeps PRICE_MOVED details distinguishable from provider-tagged details', () => {
+    const priceMoved: PerpsErrorDetails = {
+      code: PERPS_ERROR_CODES.PRICE_MOVED,
+      priceDeltaBps: 150,
+      maxSlippageBps: 100,
+      expectedPrice: 100,
+      currentPrice: 101.5,
+    } satisfies PriceMovedErrorDetails;
+    const providerTagged: PerpsErrorDetails = {
+      code: PERPS_ERROR_CODES.ORDER_POST_ONLY_WINDOW,
+      provider: 'hyperliquid',
+    };
+
+    expect(priceMoved.code).toBe(PERPS_ERROR_CODES.PRICE_MOVED);
+    expect(priceMoved).toHaveProperty('priceDeltaBps', 150);
+    expect(providerTagged.code).not.toBe(PERPS_ERROR_CODES.PRICE_MOVED);
+    expect(providerTagged).not.toHaveProperty('priceDeltaBps');
   });
 
   it('exports the EIP-712 shape of a HyperLiquid L1 action', () => {

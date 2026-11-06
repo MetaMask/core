@@ -204,6 +204,11 @@ export function isHyperLiquidMultiSigRequiredError(error: unknown): boolean {
  * by `UNKNOWN_ERROR`, while every newly normalized error keeps the original
  * failure in `cause` for telemetry and debugging.
  *
+ * A `PerpsControllerError` that already carries details is returned as is, as
+ * is `PRICE_MOVED`, whose numeric payload is computed locally. Any other
+ * structured error without details is tagged with the provider so every
+ * Hyperliquid result exposes the same details contract.
+ *
  * @param error - Failure thrown by Hyperliquid or its SDK.
  * @returns A structured error safe to expose through provider results.
  */
@@ -211,7 +216,19 @@ export function normalizeHyperLiquidError(
   error: unknown,
 ): PerpsControllerError {
   if (error instanceof PerpsControllerError) {
-    return error;
+    const { errorCode: structuredCode } = error;
+    if (
+      error.errorDetails !== undefined ||
+      structuredCode === PERPS_ERROR_CODES.PRICE_MOVED
+    ) {
+      return error;
+    }
+    return new PerpsControllerError(
+      structuredCode,
+      structuredCode,
+      { code: structuredCode, provider: 'hyperliquid' },
+      { cause: error.cause ?? error },
+    );
   }
 
   const cause = ensureError(error, 'normalizeHyperLiquidError');
