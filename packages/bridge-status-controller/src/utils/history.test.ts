@@ -108,6 +108,42 @@ describe('History Utils', () => {
       expect(result).toBe(true);
       expect(state.txHistory.tx1.status.srcChain.txHash).toBe('0xold');
     });
+
+    it('merges next and depositTxMeta overrides', () => {
+      const state = makeState({
+        txHistory: {
+          action1: {
+            txMetaId: undefined,
+            actionId: 'action1',
+            originalTransactionId: undefined,
+            quote: { srcChainId: 1, destChainId: 10 } as Quote,
+            status: {
+              status: StatusTypes.SUBMITTED,
+              srcChain: { chainId: 1, txHash: '0xold' },
+            },
+            account: '0xaccount',
+            estimatedProcessingTimeInSeconds: 1,
+            slippagePercentage: 0,
+            hasApprovalTx: false,
+            depositTxMeta: { batchId: '0xoldBatch' },
+            startTime: 1,
+          },
+        },
+      });
+
+      const result = rekeyHistoryItemInState(state, 'action1', 'tx1', {
+        txMetaId: 'tx1',
+        next: [],
+        depositTxMeta: { id: 'deposit-1' },
+      });
+
+      expect(result).toBe(true);
+      expect(state.txHistory.tx1.next).toStrictEqual([]);
+      expect(state.txHistory.tx1.depositTxMeta).toStrictEqual({
+        batchId: '0xoldBatch',
+        id: 'deposit-1',
+      });
+    });
   });
 
   describe('getHistoryKey', () => {

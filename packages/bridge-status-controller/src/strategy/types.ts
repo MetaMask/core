@@ -13,6 +13,7 @@ import type {
 
 import type { TraceName } from '../constants.js';
 import type {
+  BridgeHistoryItem,
   BridgeStatusControllerMessenger,
   FetchFunction,
   QuoteAndTxMetadata,
@@ -30,6 +31,10 @@ export enum SubmitStep {
    * Rekeys and updates the history item keyed by the old history key to the new history key.
    */
   RekeyHistoryItem = 'rekeyHistoryItem',
+  /**
+   * Merges history data into the existing history item
+   */
+  UpdateHistoryItem = 'updateHistoryItem',
   /**
    * Triggers polling for the transaction's status
    */
@@ -63,6 +68,7 @@ export type SubmitStepResult =
         quoteResponse: QuoteResponseV1 & QuoteMetadata;
         batchSellData?: BatchSellTradesResponse;
         quoteIds?: string[];
+        next?: BridgeHistoryItem['next'];
       };
     }
   | {
@@ -77,6 +83,14 @@ export type SubmitStepResult =
          */
         tradeMeta?: TransactionMeta;
         historyItemOverrides?: Parameters<typeof rekeyHistoryItemInState>[3];
+      };
+    }
+  | {
+      type: SubmitStep.UpdateHistoryItem;
+      payload: {
+        historyKey: string;
+        depositTxMeta?: { id: string };
+        next?: BridgeHistoryItem['next'];
       };
     }
   | {

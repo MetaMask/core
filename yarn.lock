@@ -5663,6 +5663,7 @@ __metadata:
   resolution: "@metamask/bridge-status-controller@workspace:packages/bridge-status-controller"
   dependencies:
     "@metamask/accounts-controller": "npm:^40.2.0"
+    "@metamask/approval-controller": "npm:^10.0.0"
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/bridge-controller": "npm:^83.1.5"
@@ -5670,12 +5671,15 @@ __metadata:
     "@metamask/gas-fee-controller": "npm:^27.1.1"
     "@metamask/keyring-controller": "npm:^28.2.1"
     "@metamask/messenger": "npm:^3.0.0"
+    "@metamask/money-account-controller": "npm:^3.0.0"
+    "@metamask/money-account-utils": "npm:^2.1.0"
     "@metamask/network-controller": "npm:^38.0.1"
     "@metamask/polling-controller": "npm:^17.0.0"
     "@metamask/profile-sync-controller": "npm:^36.1.2"
     "@metamask/snaps-controllers": "npm:^19.0.1"
     "@metamask/superstruct": "npm:^3.4.1"
     "@metamask/transaction-controller": "npm:^74.0.0"
+    "@metamask/transaction-pay-controller": "npm:^31.1.0"
     "@metamask/utils": "npm:^12.0.2"
     "@typescript/native": "npm:typescript@^7.0.2"
     bignumber.js: "npm:^9.1.2"
@@ -7415,7 +7419,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/money-account-utils@npm:^2.2.1, @metamask/money-account-utils@workspace:packages/money-account-utils":
+"@metamask/money-account-utils@npm:^2.1.0, @metamask/money-account-utils@npm:^2.2.1, @metamask/money-account-utils@workspace:packages/money-account-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-utils@workspace:packages/money-account-utils"
   dependencies:
@@ -8890,7 +8894,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/transaction-pay-controller@workspace:packages/transaction-pay-controller":
+"@metamask/transaction-pay-controller@npm:^31.1.0, @metamask/transaction-pay-controller@workspace:packages/transaction-pay-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-pay-controller@workspace:packages/transaction-pay-controller"
   dependencies:

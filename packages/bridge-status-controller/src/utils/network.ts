@@ -1,3 +1,4 @@
+import { Web3Provider } from '@ethersproject/providers';
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { formatChainIdToHex } from '@metamask/bridge-controller';
 import type { GenericQuoteRequest } from '@metamask/bridge-controller';
@@ -40,4 +41,16 @@ export const getNetworkClientByChainId = (
     networkClientId,
   );
   return networkClient.provider;
+};
+
+export const getWeb3Provider = (
+  messenger: BridgeStatusControllerMessenger,
+  chainId: GenericQuoteRequest['destChainId'],
+): Web3Provider => {
+  const provider = getNetworkClientByChainId(messenger, chainId);
+  if (!provider) {
+    throw new Error(`No provider available for chain ${chainId}`);
+  }
+
+  return new Web3Provider(provider);
 };
