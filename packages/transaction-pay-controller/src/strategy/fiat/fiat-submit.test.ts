@@ -17,6 +17,7 @@ import type {
   TransactionPayFiatOptions,
   TransactionPayQuote,
 } from '../../types.js';
+import { getEvmAccountOverride } from '../../utils/account.js';
 import { buildCaipAssetType } from '../../utils/token.js';
 import {
   collectTransactionIds,
@@ -43,6 +44,7 @@ vi.mock(import('./utils.js'), async (importOriginal) => ({
   deriveFiatAssetForFiatPayment: vi.fn(),
   resolveSourceAmountRaw: vi.fn(),
 }));
+vi.mock(import('../../utils/account.js'));
 vi.mock(import('../../utils/token.js'));
 vi.mock(import('../../utils/transaction.js'));
 vi.mock(import('../relay/relay-quotes.js'));
@@ -225,6 +227,7 @@ function getFiatQuoteMock({
 }
 
 function getRequest({
+  accountOverride,
   fiatOptionsError,
   fiatOptions,
   orderId = ORDER_ID_MOCK,
@@ -233,6 +236,7 @@ function getRequest({
   quotes = [getFiatQuoteMock()],
   transaction = TRANSACTION_MOCK,
 }: {
+  accountOverride?: string;
   fiatOptionsError?: Error;
   fiatOptions?: TransactionPayFiatOptions;
   orderId?: string;
@@ -249,6 +253,7 @@ function getRequest({
       return {
         transactionData: {
           [transaction.id]: {
+            accountOverride,
             fiatPayment: {
               orderId,
               rampsQuote,
@@ -503,6 +508,28 @@ describe('submitFiatQuotes', () => {
     );
     expect(submitRelayQuotesMock).toHaveBeenCalled();
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
+  });
+
+  it('uses the EVM account override as the wallet address', async () => {
+    const accountOverride = 'override-account-id';
+    const overrideAddress = '0x2222222222222222222222222222222222222222';
+
+    vi.mocked(getEvmAccountOverride).mockReturnValue(overrideAddress);
+
+    const { callMock, request } = getRequest({ accountOverride });
+
+    await submitFiatQuotes(request);
+
+    expect(getEvmAccountOverride).toHaveBeenCalledWith(
+      request.messenger,
+      accountOverride,
+    );
+    expect(callMock).toHaveBeenCalledWith(
+      'RampsController:getOrder',
+      'transak-native-staging',
+      ORDER_ID_MOCK,
+      overrideAddress,
+    );
   });
 
   it('uses fiat test funding source instead of polling ramps order', async () => {
