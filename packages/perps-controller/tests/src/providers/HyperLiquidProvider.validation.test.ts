@@ -1126,9 +1126,10 @@ describe('HyperLiquidProvider', () => {
         return;
       }
       expect(result.kind).toBe('increase');
+      // The venue keeps the $400 at 10x; the order adds $100.
       expect(result.resulting.margin).toStrictEqual({
         available: true,
-        value: 300,
+        value: 500,
       });
       expect(result.resulting.direction).toBe('long');
     });
@@ -1162,9 +1163,10 @@ describe('HyperLiquidProvider', () => {
       if (result.status !== 'open') {
         return;
       }
+      // The venue keeps the $400 at 10x; the order adds $100.
       expect(result.resulting.margin).toStrictEqual({
         available: true,
-        value: 300,
+        value: 500,
       });
       expect(result.resulting.liquidationPrice).toStrictEqual({
         available: false,

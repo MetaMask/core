@@ -4,8 +4,13 @@ import type {
   PositionModifyPreviewSource,
   PositionPreviewValue,
 } from '../../../src/types/index.js';
+import type {
+  IsolatedLeverageChange,
+  IsolatedLeverageChangeParams,
+} from '../../../src/utils/hyperLiquidPositionPreview.js';
 import {
   buildMaintenanceSchedule,
+  estimateIsolatedLeverageChange,
   estimateIsolatedLiquidationPrice,
   estimateIsolatedLiquidationPriceAtTier,
   previewHyperLiquidIsolatedPositionModify,
@@ -219,7 +224,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     });
   });
 
-  it('reallocates the existing isolated position when order leverage differs', () => {
+  it('keeps the existing isolated margin when order leverage is higher', () => {
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition(),
       direction: 'long',
@@ -234,24 +239,99 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
       return;
     }
     expect(result.kind).toBe('increase');
-    // Existing 5x $400 is reset to $200 at 10x, then $100 is added for the order.
+    // The venue keeps the existing $400 when leverage rises; the order adds
+    // only its own $100 at 10x.
     expect(result.resulting.margin).toStrictEqual({
       available: true,
-      value: 300,
+      value: 500,
     });
-    expect(result.resulting.leverage).toBeCloseTo(10);
-    const liquidationPrice = availablePreviewValue(
-      result.resulting.liquidationPrice,
-    );
-    const overstatedMarginLiq = estimateIsolatedLiquidationPrice({
-      isLong: true,
-      markPrice: 2000,
-      margin: 500,
-      positionSize: 1.5,
-      maintenanceMarginRate: 1 / 50,
+    // 3,000 of notional on 500 of margin.
+    expect(result.resulting.leverage).toBeCloseTo(6);
+    // (2000 - 500/1.5) / (1 - 1/50)
+    expect(
+      availablePreviewValue(result.resulting.liquidationPrice),
+    ).toBeCloseTo(1700.6802721088);
+  });
+
+  it('matches the venue margin after a leverage rise and a second order', () => {
+    // Hyperliquid testnet: a 0.00014 BTC isolated short at 2x, raised to 3x,
+    // then a second 0.00014 short filled at 76,148 with a 0.015265 fee. The
+    // venue then held 8.869557 of margin with liquidation at 106,493.8166:
+    // the kept 5.331249 (marked at 76,148), plus 10.66072 / 3, less the fee.
+    // Re-margining the whole position would give 21.32144 / 3 - fee = 7.09.
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({
+        size: '-0.00014',
+        entryPrice: '76225',
+        positionValue: '10.66072',
+        marginUsed: '5.331249',
+        leverage: { type: 'isolated', value: 2 },
+        liquidationPrice: '112818.1234567901',
+        maxLeverage: 40,
+      }),
+      direction: 'short',
+      size: '0.00014',
+      price: '76148',
+      leverage: 3,
+      feeAmountUsd: 0.015265,
+      marginTiers: [{ lowerBound: 0, maxLeverage: 40 }],
     });
-    expect(overstatedMarginLiq).not.toBeNull();
-    expect(liquidationPrice).toBeGreaterThan(overstatedMarginLiq ?? 0);
+
+    expect(result).toMatchObject({
+      status: 'open',
+      resulting: {
+        size: expect.closeTo(0.00028, 10),
+        entryPrice: expect.closeTo(76186.5, 6),
+        margin: { available: true, value: expect.closeTo(8.869557, 6) },
+        liquidationPrice: {
+          available: true,
+          value: expect.closeTo(106493.8166, 2),
+        },
+      },
+    });
+  });
+
+  it('keeps margin above the initial margin at a lower order leverage', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({ marginUsed: '1200' }),
+      direction: 'long',
+      size: '0.5',
+      price: '2000',
+      leverage: 4,
+      marginTiers: singleTier25x,
+    });
+
+    // $1,200 covers $2,000 at 4x and stays; the order adds $250.
+    expect(result).toMatchObject({
+      status: 'open',
+      resulting: {
+        margin: { available: true, value: 1450 },
+        leverage: expect.closeTo(3000 / 1450),
+      },
+    });
+  });
+
+  it('keeps the existing margin at a lower order leverage it exactly covers', () => {
+    const result = previewHyperLiquidIsolatedPositionModify({
+      position: isolatedPosition({
+        leverage: { type: 'isolated', value: 10 },
+        marginUsed: '400',
+      }),
+      direction: 'long',
+      size: '0.5',
+      price: '2000',
+      leverage: 5,
+      marginTiers: singleTier25x,
+    });
+
+    // $400 is exactly $2,000 at 5x; the order adds $200.
+    expect(result).toMatchObject({
+      status: 'open',
+      resulting: {
+        margin: { available: true, value: 600 },
+        leverage: expect.closeTo(5),
+      },
+    });
   });
 
   it('reports mark-based leverage when entry differs from mark after a leverage change', () => {
@@ -272,17 +352,19 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     if (result.status !== 'open') {
       return;
     }
+    // The $500 is kept and the order adds $125 at 10x.
     expect(result.resulting.margin).toStrictEqual({
       available: true,
-      value: 375,
+      value: 625,
     });
-    expect(result.resulting.leverage).toBeCloseTo(10);
+    // 3,750 of notional at mark on 625 of margin.
+    expect(result.resulting.leverage).toBeCloseTo(6);
     expect(result.resulting.entryPrice).toBeCloseTo(2166.6666667);
-    // Mark-based liq: (2500 - 375/1.5) / (1 - 1/50) = 2295.918...
-    // Entry-based liq would be ~1955.78 and is wrong for TP/SL.
+    // Mark-based liq: (2500 - 625/1.5) / (1 - 1/50) = 2125.850...
+    // Entry-based liq would be ~1785.71 and is wrong for TP/SL.
     expect(
       availablePreviewValue(result.resulting.liquidationPrice),
-    ).toBeCloseTo(2295.9183673469);
+    ).toBeCloseTo(2125.8503401361);
   });
 
   it('projects a partial decrease using the remaining position direction', () => {
@@ -339,7 +421,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     ).toBeCloseTo(1428.5714285714);
   });
 
-  it('reallocates before a partial decrease when leverage changes', () => {
+  it('keeps the margin share before a partial decrease at higher leverage', () => {
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition(),
       direction: 'short',
@@ -353,9 +435,10 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     if (result.status !== 'open') {
       return;
     }
+    // 60% of the kept $400.
     expect(result.resulting.margin).toStrictEqual({
       available: true,
-      value: 120,
+      value: 240,
     });
     expect(result.resulting.direction).toBe('long');
   });
@@ -618,7 +701,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     });
   });
 
-  it('strips extra isolated margin when leverage increases', () => {
+  it('keeps extra isolated margin when leverage increases', () => {
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition({ marginUsed: '800' }),
       direction: 'long',
@@ -632,36 +715,44 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     if (result.status !== 'open') {
       return;
     }
+    // The venue keeps all $800; the order adds $100 at 10x.
     expect(result.resulting.margin).toStrictEqual({
       available: true,
-      value: 300,
+      value: 900,
     });
   });
 
-  it('adds isolated margin when selected leverage is lower than the position', () => {
-    const result = previewHyperLiquidIsolatedPositionModify({
-      position: isolatedPosition({
-        leverage: { type: 'isolated', value: 10 },
-        marginUsed: '200',
-      }),
-      direction: 'long',
-      size: '0.5',
-      price: '2000',
-      leverage: 5,
-      marginTiers: singleTier25x,
-    });
+  it.each([
+    ['an increase', 'long', '0.5'],
+    ['a decrease', 'short', '0.4'],
+    ['a flip', 'short', '1.5'],
+  ] as const)(
+    'withholds margin and liquidation for %s at a lower leverage the margin cannot cover',
+    (_kind, direction, size) => {
+      // $2,000 at 5x needs $400 and the position holds $200, so Hyperliquid
+      // rejects the leverage decrease the provider sends before the order.
+      const result = previewHyperLiquidIsolatedPositionModify({
+        position: isolatedPosition({
+          leverage: { type: 'isolated', value: 10 },
+          marginUsed: '200',
+        }),
+        direction,
+        size,
+        price: '2000',
+        leverage: 5,
+        marginTiers: singleTier25x,
+      });
 
-    expect(result.status).toBe('open');
-    if (result.status !== 'open') {
-      return;
-    }
-    // Existing $2000 / 5 = $400, plus 0.5 * 2000 / 5 = $200.
-    expect(result.resulting.margin).toStrictEqual({
-      available: true,
-      value: 600,
-    });
-    expect(result.resulting.leverage).toBeCloseTo(5);
-  });
+      expect(result).toMatchObject({
+        status: 'open',
+        resulting: {
+          leverage: 5,
+          margin: { available: false },
+          liquidationPrice: { available: false },
+        },
+      });
+    },
+  );
 
   it('projects a short increase, keeping liquidation above entry', () => {
     const result = previewHyperLiquidIsolatedPositionModify({
@@ -692,7 +783,7 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     ).toBeGreaterThan(2000);
   });
 
-  it('reallocates a short when increasing at higher leverage', () => {
+  it("keeps a short's margin when increasing at higher leverage", () => {
     const result = previewHyperLiquidIsolatedPositionModify({
       position: isolatedPosition({
         size: '-1',
@@ -709,9 +800,10 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
     if (result.status !== 'open') {
       return;
     }
+    // $400 kept plus $100 for the order at 10x.
     expect(result.resulting.margin).toStrictEqual({
       available: true,
-      value: 300,
+      value: 500,
     });
     expect(result.resulting.direction).toBe('short');
   });
@@ -856,4 +948,281 @@ describe('previewHyperLiquidIsolatedPositionModify', () => {
 
     expect(result.status).toBe('none');
   });
+});
+
+const leveragePosition = (
+  overrides: Partial<IsolatedLeverageChangeParams['position']> = {},
+): IsolatedLeverageChangeParams['position'] => ({
+  size: '1',
+  positionValue: '2000',
+  marginUsed: '400',
+  leverage: { type: 'isolated', value: 5 },
+  ...overrides,
+});
+
+/**
+ * Expected leverage change, each known figure matched to 8 decimals.
+ *
+ * @param removableMargin - Expected removable margin.
+ * @param margin - Expected margin afterwards.
+ * @param liquidationPrice - Expected liquidation price.
+ * @returns The expected change for `toStrictEqual`.
+ */
+const change = (
+  removableMargin: number | undefined,
+  margin: number | undefined,
+  liquidationPrice: number | undefined,
+): IsolatedLeverageChange => {
+  const near = (value: number | undefined): number | undefined =>
+    value === undefined ? undefined : (expect.closeTo(value, 8) as number);
+  return {
+    removableMargin: near(removableMargin),
+    margin: near(margin),
+    liquidationPrice: near(liquidationPrice),
+  };
+};
+
+const unknownChange = change(undefined, undefined, undefined);
+
+// Reference rows. Clients assert the same rows against
+// `estimateIsolatedLeverageChange`. A long of 1 marked at 2,000 holds 400 of
+// isolated margin at 5x unless a row says otherwise; ETH's single 25x tier
+// sets the maintenance rate at 2%. A rise frees at most the drop in initial
+// margin, and only down to max(notional / leverage, 10% of notional) plus 1%
+// of notional.
+const LEVERAGE_CHANGE_ROWS: {
+  change: string;
+  params: IsolatedLeverageChangeParams;
+  expected: IsolatedLeverageChange;
+}[] = [
+  {
+    // Frees 400 - 200 = 200 of initial margin; 400 - 200 - 20 = 180 may leave.
+    change: 'raised from 5x to 10x',
+    params: {
+      position: leveragePosition(),
+      providerId: 'hyperliquid',
+      leverage: 10,
+      marginTiers: singleTier25x,
+    },
+    expected: change(180, 220, 1780 / 0.98),
+  },
+  {
+    // 10% of notional (200) binds above the 100 that 20x would need.
+    change: 'raised from 5x to 20x',
+    params: {
+      position: leveragePosition(),
+      providerId: 'hyperliquid',
+      leverage: 20,
+      marginTiers: singleTier25x,
+    },
+    expected: change(180, 220, 1780 / 0.98),
+  },
+  {
+    change: 'raised from 5x to the 25x maximum',
+    params: {
+      position: leveragePosition(),
+      providerId: 'hyperliquid',
+      leverage: 25,
+      marginTiers: singleTier25x,
+    },
+    expected: change(180, 220, 1780 / 0.98),
+  },
+  {
+    // Marked at 2,500 with 400 of margin added and 500 of unrealized profit:
+    // only the 500 - 250 drop in initial margin is freed.
+    change: 'raised from 5x to 10x with margin added and unrealized profit',
+    params: {
+      position: leveragePosition({ positionValue: '2500', marginUsed: '900' }),
+      providerId: 'hyperliquid',
+      leverage: 10,
+      marginTiers: singleTier25x,
+    },
+    expected: change(250, 650, 1850 / 0.98),
+  },
+  {
+    // A small rise frees only 2,500 / 5 - 2,500 / 6, not the added margin.
+    change: 'raised from 5x to 6x with margin added',
+    params: {
+      position: leveragePosition({ positionValue: '2500', marginUsed: '900' }),
+      providerId: 'hyperliquid',
+      leverage: 6,
+      marginTiers: singleTier25x,
+    },
+    expected: change(
+      2500 / 5 - 2500 / 6,
+      900 - (2500 / 5 - 2500 / 6),
+      (2500 - 900 + (2500 / 5 - 2500 / 6)) / 0.98,
+    ),
+  },
+  {
+    // 190 is below 180 + 18 of buffer, so nothing can leave.
+    change: 'raised while the margin is below the new requirement',
+    params: {
+      position: leveragePosition({ positionValue: '1800', marginUsed: '190' }),
+      providerId: 'hyperliquid',
+      leverage: 10,
+      marginTiers: singleTier25x,
+    },
+    expected: change(0, 190, 1610 / 0.98),
+  },
+  {
+    // The Hyperliquid testnet short behind the preview test above, marked at
+    // 76,148 on BTC's 40x tier (maintenance 1.25%).
+    change: 'a 2x BTC short raised to 3x',
+    params: {
+      position: leveragePosition({
+        size: '-0.00014',
+        positionValue: '10.66072',
+        marginUsed: '5.331249',
+        leverage: { type: 'isolated', value: 2 },
+      }),
+      providerId: 'hyperliquid',
+      leverage: 3,
+      marginTiers: [{ lowerBound: 0, maxLeverage: 40 }],
+    },
+    expected: change(
+      5.331249 - 10.66072 / 3 - 0.1066072,
+      10.66072 / 3 + 0.1066072,
+      (76148 + (10.66072 / 3 + 0.1066072) / 0.00014) / 1.0125,
+    ),
+  },
+  {
+    change: 'lowered from 5x to 4x when the margin already covers it',
+    params: {
+      position: leveragePosition({ marginUsed: '600' }),
+      providerId: 'hyperliquid',
+      leverage: 4,
+      marginTiers: singleTier25x,
+    },
+    expected: change(0, 600, 1400 / 0.98),
+  },
+  {
+    change: 'lowered from 5x to 4x when the margin exactly covers it',
+    params: {
+      position: leveragePosition({ marginUsed: '500' }),
+      providerId: 'hyperliquid',
+      leverage: 4,
+      marginTiers: singleTier25x,
+    },
+    expected: change(0, 500, 1500 / 0.98),
+  },
+  {
+    // $2,000 at 2x needs $1,000; Hyperliquid rejects the decrease.
+    change: 'lowered from 5x to 2x without the margin it needs',
+    params: {
+      position: leveragePosition(),
+      providerId: 'hyperliquid',
+      leverage: 2,
+      marginTiers: singleTier25x,
+    },
+    expected: unknownChange,
+  },
+  {
+    change: 'at the same leverage',
+    params: {
+      position: leveragePosition(),
+      providerId: 'hyperliquid',
+      leverage: 5,
+      marginTiers: singleTier25x,
+    },
+    expected: change(0, 400, 1600 / 0.98),
+  },
+];
+
+describe('estimateIsolatedLeverageChange', () => {
+  it.each(LEVERAGE_CHANGE_ROWS)(
+    'matches the reference row $change',
+    ({ params, expected }) => {
+      expect(estimateIsolatedLeverageChange(params)).toStrictEqual(expected);
+    },
+  );
+
+  it('returns undefined for cross margin', () => {
+    expect(
+      estimateIsolatedLeverageChange({
+        position: leveragePosition({ leverage: { type: 'cross', value: 5 } }),
+        providerId: 'hyperliquid',
+        leverage: 10,
+        marginTiers: singleTier25x,
+      }),
+    ).toStrictEqual(unknownChange);
+  });
+
+  it.each(['lighter', 'unknown', 'toString'])(
+    'returns undefined for the %s provider',
+    (providerId) => {
+      expect(
+        estimateIsolatedLeverageChange({
+          position: leveragePosition(),
+          providerId: providerId as IsolatedLeverageChangeParams['providerId'],
+          leverage: 10,
+          marginTiers: singleTier25x,
+        }),
+      ).toStrictEqual(unknownChange);
+    },
+  );
+
+  it.each([
+    ['no leverage', { leverage: undefined }],
+    ['leverage below 1', { leverage: 0.5 }],
+    [
+      'leverage below 1 that the margin would cover',
+      { leverage: 0.5, position: leveragePosition({ marginUsed: '5000' }) },
+    ],
+    ['zero leverage', { leverage: 0 }],
+    ['non-finite leverage', { leverage: Number.POSITIVE_INFINITY }],
+    ['NaN leverage', { leverage: Number.NaN }],
+    ['a leverage above the asset maximum', { leverage: 26 }],
+    ['a zero size', { position: leveragePosition({ size: '0' }) }],
+    ['an empty size', { position: leveragePosition({ size: '' }) }],
+    ['no margin', { position: leveragePosition({ marginUsed: '' }) }],
+    ['zero margin', { position: leveragePosition({ marginUsed: '0' }) }],
+    [
+      'no position value',
+      { position: leveragePosition({ positionValue: '' }) },
+    ],
+    [
+      'no current leverage',
+      {
+        position: leveragePosition({
+          leverage: { type: 'isolated', value: Number.NaN },
+        }),
+      },
+    ],
+    [
+      'a current leverage below 1',
+      {
+        position: leveragePosition({
+          leverage: { type: 'isolated', value: 0 },
+        }),
+      },
+    ],
+  ] as [string, Partial<IsolatedLeverageChangeParams>][])(
+    'returns undefined with %s',
+    (_label, override) => {
+      expect(
+        estimateIsolatedLeverageChange({
+          position: leveragePosition(),
+          providerId: 'hyperliquid',
+          leverage: 10,
+          marginTiers: singleTier25x,
+          ...override,
+        }),
+      ).toStrictEqual(unknownChange);
+    },
+  );
+
+  it.each([undefined, null, []])(
+    'keeps margin but withholds liquidation without margin tiers (%s)',
+    (marginTiers) => {
+      expect(
+        estimateIsolatedLeverageChange({
+          position: leveragePosition(),
+          providerId: 'hyperliquid',
+          leverage: 10,
+          marginTiers,
+        }),
+      ).toStrictEqual(change(180, 220, undefined));
+    },
+  );
 });

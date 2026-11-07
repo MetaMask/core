@@ -23,6 +23,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export `calculateNetClosedPnl` to show a fill's closed PnL net of its fee: `OrderFill.pnl` less `OrderFill.fee`, or `undefined` when either is missing, empty or not a number
   - Type `NetClosedPnlParams`
   - Migration: in Terminal's `formatClosedPnl` (`src/features/perpetuals/order/components/AccountHistory/history-format.ts`) it replaces the net computation (`gross - cost`), and the formatting stays there. Terminal passes `{ pnl: realizedPnl, fee }` and reads `undefined` where it read `null`. It also replaces the PnL-minus-fee in Mobile's and Extension's `transactionTransforms.ts`. Mobile and Extension read a missing fee as 0, where this returns `undefined`
+- Export `estimateIsolatedLeverageChange` so clients show what changing an isolated position's leverage, with no size change, does to its margin and liquidation price
+  - It returns `removableMargin`, `margin` and `liquidationPrice` for `position` moving to `leverage`. Pass the provider as `providerId` and the asset's `marginTiers` from `resolveHyperLiquidMarginTiers`
+  - Hyperliquid keeps an isolated position's margin when its leverage changes. On a rise, `removableMargin` is the drop in initial margin at mark, notional / current leverage less notional / new leverage. It is capped so the margin left covers the larger of the new initial margin and `MARGIN_ADJUSTMENT_CONFIG.MarginRemovalSafetyBuffer` of notional, plus 1% of notional for price movement. Margin the user added and unrealized profit stay. `margin` and `liquidationPrice` assume `removableMargin` is removed
+  - A fall frees nothing. Hyperliquid rejects a fall the margin cannot cover, so every figure is then `undefined`
+  - Every figure is also `undefined` for cross margin, for a provider other than Hyperliquid (Lighter isolated `marginUsed` is the required margin, not the collateral), for a leverage above the asset's highest tier, and for a missing or unusable input. `liquidationPrice` is `undefined` without margin tiers
+  - Types `IsolatedLeverageChangeParams` and `IsolatedLeverageChange`
+  - Migration: Terminal's leverage write, `useUpdateLeverage` in `src/features/perpetuals/queries/update-leverage-mutation.ts` (called from the `OrderFormLeverageEditor` and `OrderFormMarginModeEditor` dialogs), can release `removableMargin` with `updateIsolatedMargin` after `updateLeverage`. This restores the release Terminal removed pending this helper, which computed the amount with its local `calculateMaxRemovableMargin` from `src/features/perpetuals/order/utils/margin-adjustment.ts` at the new leverage. That amount included added margin and unrealized profit
+
+### Fixed
+
+- `previewHyperLiquidIsolatedPositionModify`, and so `PerpsController.previewPositionModify` for Hyperliquid, keeps an isolated position's existing margin when the order leverage differs from the position's, as the venue does, and adds only the order's own margin. It used to re-margin the whole position at the order leverage
+  - A 2x BTC short of 0.00014 raised to 3x, with a second 0.00014 short at 76,148, now previews 8.87 of margin, which Hyperliquid testnet held, where it showed 7.09
+  - At a lower order leverage, margin above the new initial margin now stays: 1,200 on a $2,000 5x long with a 0.5 order at 4x previews 1,450, not 750
+  - At a lower order leverage the existing margin cannot cover, Hyperliquid rejects the leverage change, so `resulting.margin` and `resulting.liquidationPrice` are unavailable and `resulting.leverage` is the order leverage. They used to show the position topped up
+  - `resulting.leverage` is mark notional over the resulting margin, so it can sit below the order leverage when margin is kept from before a rise
 
 ## [22.2.0]
 

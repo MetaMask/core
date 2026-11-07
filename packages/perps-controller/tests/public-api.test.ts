@@ -30,6 +30,7 @@ import {
   calculateRoEForPrice,
   calculateSignedRoEForPrice,
   estimateCloseReceive,
+  estimateIsolatedLeverageChange,
   formatRoePercent,
   getCrossCollateral,
   getMaxStopLossPercentage,
@@ -44,6 +45,8 @@ import type {
   CalculateAccountSummaryParams,
   CloseReceiveEstimate,
   CloseReceiveEstimateParams,
+  IsolatedLeverageChange,
+  IsolatedLeverageChangeParams,
   NetClosedPnlParams,
   PerpsAccountSummary,
   TpslCalculationParams,
@@ -342,6 +345,26 @@ describe('@metamask/perps-controller public API', () => {
       receive: 549.47,
     });
     expect(calculateNetClosedPnl(fill)).toBe(1234.46789);
+  });
+
+  it('exports the isolated leverage change estimate', () => {
+    const params: IsolatedLeverageChangeParams = {
+      position: {
+        size: '1',
+        positionValue: '2000',
+        marginUsed: '400',
+        leverage: { type: 'isolated', value: 5 },
+      },
+      providerId: 'hyperliquid',
+      leverage: 10,
+      marginTiers: [{ lowerBound: 0, maxLeverage: 25 }],
+    };
+    const result: IsolatedLeverageChange =
+      estimateIsolatedLeverageChange(params);
+
+    expect(result.removableMargin).toBeCloseTo(180);
+    expect(result.margin).toBeCloseTo(220);
+    expect(result.liquidationPrice).toBeCloseTo(1780 / 0.98);
   });
 
   it('exports the optional trading fee grant dependency contract', async () => {

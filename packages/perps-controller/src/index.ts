@@ -756,8 +756,13 @@ export {
   buildMaintenanceSchedule,
   estimateIsolatedLiquidationPrice,
   estimateIsolatedLiquidationPriceAtTier,
+  estimateIsolatedLeverageChange,
 } from './utils/index.js';
-export type { HyperLiquidMarginTier } from './utils/index.js';
+export type {
+  HyperLiquidMarginTier,
+  IsolatedLeverageChangeParams,
+  IsolatedLeverageChange,
+} from './utils/index.js';
 export { getEnvironment } from './utils/index.js';
 export type { FiatRangeConfig } from './utils/index.js';
 export {
