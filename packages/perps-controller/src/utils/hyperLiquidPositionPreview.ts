@@ -76,9 +76,10 @@ export type IsolatedLeverageChangeParams = {
   /** Leverage the position moves to, at least 1. Undefined until chosen. */
   leverage: number | undefined;
   /**
-   * Maintenance tiers for the asset, lowest notional first, as
-   * {@link resolveHyperLiquidMarginTiers} returns. Without them the
-   * liquidation price is undefined.
+   * Margin tiers for the asset, as {@link resolveHyperLiquidMarginTiers}
+   * returns. The tier the position's notional is in caps `leverage`; tiers
+   * that do not cover the notional make every figure undefined. Without
+   * tiers the cap is not checked and the liquidation price is undefined.
    */
   marginTiers?: HyperLiquidMarginTier[] | null;
 };
@@ -389,11 +390,13 @@ const isolatedMarginAfterLeverageChange = (params: {
  * @param params.position - The open position.
  * @param params.providerId - Provider holding the position.
  * @param params.leverage - Leverage the position moves to.
- * @param params.marginTiers - Maintenance tiers for the asset.
+ * @param params.marginTiers - Margin tiers for the asset, which cap the
+ * leverage and set the maintenance rate.
  * @returns The change. Every figure is undefined for cross margin, a provider
- * other than Hyperliquid, a leverage above the asset's highest tier
- * leverage, a fall the margin cannot cover, or a missing or unusable input.
- * The liquidation price is undefined without margin tiers.
+ * other than Hyperliquid, a leverage above the max leverage of the margin
+ * tier the position's notional is in, a fall the margin cannot cover, or a
+ * missing or unusable input. Without margin tiers the leverage limit is not
+ * checked and the liquidation price is undefined.
  */
 export function estimateIsolatedLeverageChange({
   position,
@@ -406,8 +409,12 @@ export function estimateIsolatedLeverageChange({
   const currentMargin = parseFiniteNumber(position.marginUsed);
   const notional = parseFiniteNumber(position.positionValue);
   const currentLeverage = position.leverage.value;
-  const maxTierLeverage = marginTiers?.length
-    ? Math.max(...marginTiers.map((tier) => tier.maxLeverage))
+  // The venue caps leverage by the tier the position's notional is in.
+  const schedule = buildMaintenanceSchedule(marginTiers ?? []);
+  const maxLeverage = marginTiers?.length
+    ? schedule.find(
+        (tier) => notional >= tier.lowerBound && notional < tier.upperBound,
+      )?.maxLeverage
     : Number.POSITIVE_INFINITY;
   const unknown: IsolatedLeverageChange = {
     removableMargin: undefined,
@@ -422,7 +429,8 @@ export function estimateIsolatedLeverageChange({
     leverage === undefined ||
     !Number.isFinite(leverage) ||
     leverage < 1 ||
-    leverage > maxTierLeverage ||
+    maxLeverage === undefined ||
+    leverage > maxLeverage ||
     !Number.isFinite(currentLeverage) ||
     currentLeverage < 1 ||
     !isPositiveFinite(size) ||

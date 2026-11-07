@@ -1086,6 +1086,131 @@ const LEVERAGE_CHANGE_ROWS: {
       (76148 + (10.66072 / 3 + 0.1066072) / 0.00014) / 1.0125,
     ),
   },
+  // Testnet ETH tiers: 25x from $0, 10x from $20,000, 5x from $50,000, 3x from
+  // $200,000. The limit is the tier the position's notional is in. Liquidation lands in the
+  // 10x tier (maintenance 5%, deduction 600): (notional - margin - 600) /
+  // (size * 0.95).
+  {
+    // $60,000 is in the 5x tier: frees 15,000 - 12,000 = 3,000; 15,000 -
+    // 12,000 - 600 = 2,400 may leave.
+    change: 'a $60,000 long in the 5x tier raised from 4x to 5x',
+    params: {
+      position: leveragePosition({
+        size: '30',
+        positionValue: '60000',
+        marginUsed: '15000',
+        leverage: { type: 'isolated', value: 4 },
+      }),
+      providerId: 'hyperliquid',
+      leverage: 5,
+      marginTiers: testnetEthTiers,
+    },
+    expected: change(2400, 12600, (60000 - 12600 - 600) / (30 * 0.95)),
+  },
+  {
+    // $10,000 is in the 25x tier, and liquidation stays in it (maintenance
+    // 2%): frees 2,000 - 500 = 1,500; 2,000 - 1,000 - 100 = 900 may leave.
+    change: 'a $10,000 long in the 25x tier raised from 5x to 20x',
+    params: {
+      position: leveragePosition({
+        size: '5',
+        positionValue: '10000',
+        marginUsed: '2000',
+      }),
+      providerId: 'hyperliquid',
+      leverage: 20,
+      marginTiers: testnetEthTiers,
+    },
+    expected: change(900, 1100, (10000 - 1100) / (5 * 0.98)),
+  },
+  {
+    change: 'a $60,000 long in the 5x tier raised from 5x to 10x',
+    params: {
+      position: leveragePosition({
+        size: '30',
+        positionValue: '60000',
+        marginUsed: '12000',
+      }),
+      providerId: 'hyperliquid',
+      leverage: 10,
+      marginTiers: testnetEthTiers,
+    },
+    expected: unknownChange,
+  },
+  {
+    // $40,000 is in the 10x tier: frees 8,000 - 4,000 = 4,000; 8,000 - 4,000
+    // - 400 = 3,600 may leave.
+    change: 'a $40,000 long in the 10x tier raised from 5x to 10x',
+    params: {
+      position: leveragePosition({
+        size: '20',
+        positionValue: '40000',
+        marginUsed: '8000',
+      }),
+      providerId: 'hyperliquid',
+      leverage: 10,
+      marginTiers: testnetEthTiers,
+    },
+    expected: change(3600, 4400, (40000 - 4400 - 600) / (20 * 0.95)),
+  },
+  {
+    change: 'a $40,000 long raised from 5x to 10x with the tiers unsorted',
+    params: {
+      position: leveragePosition({
+        size: '20',
+        positionValue: '40000',
+        marginUsed: '8000',
+      }),
+      providerId: 'hyperliquid',
+      leverage: 10,
+      marginTiers: [...testnetEthTiers].reverse(),
+    },
+    expected: change(3600, 4400, (40000 - 4400 - 600) / (20 * 0.95)),
+  },
+  {
+    change: 'a $40,000 long in the 10x tier raised from 5x to 11x',
+    params: {
+      position: leveragePosition({
+        size: '20',
+        positionValue: '40000',
+        marginUsed: '8000',
+      }),
+      providerId: 'hyperliquid',
+      leverage: 11,
+      marginTiers: testnetEthTiers,
+    },
+    expected: unknownChange,
+  },
+  {
+    // A tier's lower bound is inclusive: $50,000 is in the 5x tier.
+    change: 'a $50,000 long at the 5x tier bound raised from 4x to 5x',
+    params: {
+      position: leveragePosition({
+        size: '25',
+        positionValue: '50000',
+        marginUsed: '12500',
+        leverage: { type: 'isolated', value: 4 },
+      }),
+      providerId: 'hyperliquid',
+      leverage: 5,
+      marginTiers: testnetEthTiers,
+    },
+    expected: change(2000, 10500, (50000 - 10500 - 600) / (25 * 0.95)),
+  },
+  {
+    change: 'a $50,000 long at the 5x tier bound raised from 5x to 6x',
+    params: {
+      position: leveragePosition({
+        size: '25',
+        positionValue: '50000',
+        marginUsed: '10000',
+      }),
+      providerId: 'hyperliquid',
+      leverage: 6,
+      marginTiers: testnetEthTiers,
+    },
+    expected: unknownChange,
+  },
   {
     change: 'lowered from 5x to 4x when the margin already covers it',
     params: {
@@ -1173,6 +1298,14 @@ describe('estimateIsolatedLeverageChange', () => {
     ['non-finite leverage', { leverage: Number.POSITIVE_INFINITY }],
     ['NaN leverage', { leverage: Number.NaN }],
     ['a leverage above the asset maximum', { leverage: 26 }],
+    [
+      'margin tiers that are all invalid',
+      { marginTiers: [{ lowerBound: 0, maxLeverage: 0 }] },
+    ],
+    [
+      'margin tiers that start above the notional',
+      { marginTiers: [{ lowerBound: 100_000, maxLeverage: 40 }] },
+    ],
     ['a zero size', { position: leveragePosition({ size: '0' }) }],
     ['an empty size', { position: leveragePosition({ size: '' }) }],
     ['no margin', { position: leveragePosition({ marginUsed: '' }) }],
