@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `estimateCloseReceive` so Mobile, Extension and Terminal show the same "You'll receive" amount when closing a position
+- Export `estimateCloseReceive` so Mobile, Extension and Terminal show the same "You'll receive" amount when closing a position ([#11378](https://github.com/MetaMask/core/pull/11378))
   - It returns `marginReturned`, `realizedPnl`, `fee` and `receive` in USD for a full or partial close of `closeSize` base units at the close `price`. A `closeSize` above the position size closes the whole position
   - Margin returned is the closed share of `marginUsed`, less the unrealized PnL for Hyperliquid isolated margin, which holds it. Cross margin is taken as reported. Lighter isolated `marginUsed` is the margin the position requires, not its allocated collateral, so a Lighter isolated close has `undefined` `marginReturned` and `receive`. Pass the provider holding the position as `providerId`: `Position.providerId` is only set under aggregation. For isolated margin on an unknown provider, `marginReturned` and `receive` are `undefined` too
   - `fee` is the closed notional times the supplied `feeRate`. Pass `FeeCalculationResult.feeRate` from `calculateFees` for the close: it already applies the maker or taker rate and any fee discount
@@ -20,10 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Terminal calls it in `useCloseReceiveEstimate` (`src/features/perpetuals/order/components/TradeActivityPanel/CloseReceiveBreakdown.tsx`), passes `feeRate` instead of the quoted fee amount and `providerId` instead of `marginIncludesUnrealizedPnl`, and uses `undefined` where it used `null`, for `price` as well as the result. Terminal rounded margin and PnL apart, so a total can move by a cent: 62.42 becomes 62.43 when margin of 62.5625 and a PnL of -0.125 meet a fee of 0.01
   - Mobile and Extension change in four ways. They subtracted unrealized PnL from `marginUsed` on cross positions too, understating a winning cross close and overstating a losing one. Their `Math.round` rounded 1.005 to 1.00 and 8.995 to 8.99, where this gives 1.01 and 9.00. A fee rate not yet quoted gave a fee of 0, where this gives `undefined`. A market close passes the live price, and its PnL is computed at that price rather than read from `unrealizedPnl`
   - On every client, a Lighter isolated close shows no receive amount until Lighter's allocated collateral is on `Position`, where it showed one built on the required margin
-- Export `calculateNetClosedPnl` to show a fill's closed PnL net of its fee: `OrderFill.pnl` less `OrderFill.fee`, or `undefined` when either is missing, empty or not a number
+- Export `calculateNetClosedPnl` to show a fill's closed PnL net of its fee: `OrderFill.pnl` less `OrderFill.fee`, or `undefined` when either is missing, empty or not a number ([#11378](https://github.com/MetaMask/core/pull/11378))
   - Type `NetClosedPnlParams`
   - Migration: in Terminal's `formatClosedPnl` (`src/features/perpetuals/order/components/AccountHistory/history-format.ts`) it replaces the net computation (`gross - cost`), and the formatting stays there. Terminal passes `{ pnl: realizedPnl, fee }` and reads `undefined` where it read `null`. It also replaces the PnL-minus-fee in Mobile's and Extension's `transactionTransforms.ts`. Mobile and Extension read a missing fee as 0, where this returns `undefined`
-- Export `estimateIsolatedLeverageChange` so clients show what changing an isolated position's leverage, with no size change, does to its margin and liquidation price
+- Export `estimateIsolatedLeverageChange` so clients show what changing an isolated position's leverage, with no size change, does to its margin and liquidation price ([#11378](https://github.com/MetaMask/core/pull/11378))
   - It returns `removableMargin`, `margin` and `liquidationPrice` for `position` moving to `leverage`. Pass the provider as `providerId` and the asset's `marginTiers` from `resolveHyperLiquidMarginTiers`
   - Hyperliquid keeps an isolated position's margin when its leverage changes. On a rise, `removableMargin` is the drop in initial margin at mark, notional / current leverage less notional / new leverage. It is capped so the margin left covers the larger of the new initial margin and `MARGIN_ADJUSTMENT_CONFIG.MarginRemovalSafetyBuffer` of notional, plus 1% of notional for price movement. Margin the user added and unrealized profit stay. `margin` and `liquidationPrice` assume `removableMargin` is removed
   - A fall frees nothing. Hyperliquid rejects a fall the margin cannot cover, so every figure is then `undefined`
@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `previewHyperLiquidIsolatedPositionModify`, and so `PerpsController.previewPositionModify` for Hyperliquid, keeps an isolated position's existing margin when the order leverage differs from the position's, as the venue does, and adds only the order's own margin. It used to re-margin the whole position at the order leverage
+- `previewHyperLiquidIsolatedPositionModify`, and so `PerpsController.previewPositionModify` for Hyperliquid, keeps an isolated position's existing margin when the order leverage differs from the position's, as the venue does, and adds only the order's own margin. It used to re-margin the whole position at the order leverage ([#11378](https://github.com/MetaMask/core/pull/11378))
   - A 2x BTC short of 0.00014 raised to 3x, with a second 0.00014 short at 76,148, now previews 8.87 of margin, which Hyperliquid testnet held, where it showed 7.09
   - At a lower order leverage, margin above the new initial margin now stays: 1,200 on a $2,000 5x long with a 0.5 order at 4x previews 1,450, not 750
   - At a lower order leverage the existing margin cannot cover, Hyperliquid rejects the leverage change, so `resulting.margin` and `resulting.liquidationPrice` are unavailable and `resulting.leverage` is the order leverage. They used to show the position topped up
