@@ -63,6 +63,9 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../base-data-service"
     }
   ],
   "include": ["../../types", "./src"]

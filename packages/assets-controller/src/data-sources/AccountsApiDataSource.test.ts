@@ -1,3 +1,5 @@
+import { BrokenCircuitError } from '@metamask/base-data-service';
+import type { QueryStateChangeHandler } from '@metamask/base-data-service';
 import type { V5BalanceItem, V6BalanceItem } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -30,6 +32,13 @@ import {
   AccountsApiDataSource,
   filterResponseToKnownAssets,
 } from './AccountsApiDataSource.js';
+
+const { mockLog } = vi.hoisted(() => ({ mockLog: vi.fn() }));
+
+vi.mock('../logger.js', () => ({
+  projectLogger: {},
+  createModuleLogger: (): typeof mockLog => mockLog,
+}));
 
 type AllActions = AccountsApiDataSourceAllowedActions;
 type AllEvents = AccountsApiDataSourceAllowedEvents;
@@ -199,6 +208,9 @@ async function setupController(
     remoteFeatureFlags?: Record<string, unknown>;
     getAssetsState?: () => AssetsControllerState;
     tokenDetectionEnabled?: () => boolean;
+    useAccountsApiBalancesService?: boolean;
+    fetchBalancesHandler?: Mock;
+    onBalancesQueryStateChange?: QueryStateChangeHandler;
   } = {},
 ): Promise<SetupResult> {
   const {
@@ -212,6 +224,9 @@ async function setupController(
     remoteFeatureFlags = {},
     getAssetsState = (): AssetsControllerState => createAssetsState(),
     tokenDetectionEnabled,
+    useAccountsApiBalancesService,
+    fetchBalancesHandler,
+    onBalancesQueryStateChange,
   } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -244,6 +259,17 @@ async function setupController(
     events: ['RemoteFeatureFlagController:stateChange'],
   });
 
+  if (fetchBalancesHandler) {
+    rootMessenger.registerActionHandler(
+      'AccountsApiBalancesService:fetchBalances',
+      fetchBalancesHandler,
+    );
+    rootMessenger.delegate({
+      messenger: controllerMessenger,
+      actions: ['AccountsApiBalancesService:fetchBalances'],
+    });
+  }
+
   const assetsUpdateHandler = vi.fn().mockResolvedValue(undefined);
   const activeChainsUpdateHandler = vi.fn();
 
@@ -275,6 +301,12 @@ async function setupController(
       }),
     ...(fetchTimeoutMs === undefined ? {} : { fetchTimeoutMs }),
     ...(tokenDetectionEnabled === undefined ? {} : { tokenDetectionEnabled }),
+    ...(useAccountsApiBalancesService === undefined
+      ? {}
+      : { useAccountsApiBalancesService }),
+    ...(onBalancesQueryStateChange === undefined
+      ? {}
+      : { onBalancesQueryStateChange }),
   });
 
   // Wait for async initialization
@@ -1978,6 +2010,424 @@ describe('AccountsApiDataSource', () => {
     expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
 
     controller.destroy();
+  });
+
+  describe('with AccountsApiBalancesService', () => {
+    const MAINNET_ACCOUNT_ID = `eip155:1:${MOCK_ADDRESS}`;
+    const POLYGON_ACCOUNT_ID = `eip155:137:${MOCK_ADDRESS}`;
+
+    function createFetchBalancesHandler(
+      response: Record<string, unknown> = {
+        count: 0,
+        unprocessedNetworks: [],
+        balances: [],
+      },
+    ): Mock {
+      return vi.fn().mockResolvedValue(response);
+    }
+
+    it('uses ApiPlatformClient when the option is off', async () => {
+      const fetchBalancesHandler = createFetchBalancesHandler();
+      const { controller, apiClient } = await setupController({
+        fetchBalancesHandler,
+      });
+
+      await controller.fetch(createDataRequest());
+
+      expect(
+        apiClient.accounts.fetchV5MultiAccountBalances,
+      ).toHaveBeenCalledTimes(1);
+      expect(fetchBalancesHandler).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+
+    it('calls AccountsApiBalancesService:fetchBalances with the same parameters (v5)', async () => {
+      const fetchBalancesHandler = createFetchBalancesHandler({
+        count: 1,
+        unprocessedNetworks: [],
+        balances: [
+          createMockBalanceItem(
+            MAINNET_ACCOUNT_ID,
+            MAINNET_NATIVE,
+            '1000000000000000000',
+          ),
+        ],
+      });
+      const { controller, apiClient } = await setupController({
+        useAccountsApiBalancesService: true,
+        fetchBalancesHandler,
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+      );
+
+      expect(fetchBalancesHandler).toHaveBeenCalledTimes(1);
+      expect(fetchBalancesHandler).toHaveBeenCalledWith({
+        version: 'v5',
+        accountIds: [MAINNET_ACCOUNT_ID, POLYGON_ACCOUNT_ID],
+        forceUpdate: false,
+        bypassServerCache: false,
+      });
+      expect(
+        apiClient.accounts.fetchV5MultiAccountBalances,
+      ).not.toHaveBeenCalled();
+      expect(response.assetsBalance).toStrictEqual({
+        'mock-account-id': {
+          [MAINNET_NATIVE]: { amount: '1000000000000000000' },
+        },
+      });
+      expect(response.updateMode).toBe('merge');
+
+      controller.destroy();
+    });
+
+    it('calls AccountsApiBalancesService:fetchBalances with the same parameters (v6)', async () => {
+      const customToken =
+        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const hiddenToken =
+        'eip155:1/erc20:0x6B175474E89094C44Da98b954EedeAC495271d0F' as Caip19AssetId;
+      const fetchBalancesHandler = createFetchBalancesHandler({
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        balances: [
+          createMockV6BalanceItem(
+            MAINNET_ACCOUNT_ID,
+            MAINNET_NATIVE,
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
+        ],
+      });
+      const { controller, apiClient } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        useAccountsApiBalancesService: true,
+        fetchBalancesHandler,
+        getAssetsState: () =>
+          createAssetsState({
+            customAssets: { 'mock-account-id': [customToken] },
+            assetPreferences: { [hiddenToken]: { hidden: true } },
+          }),
+      });
+
+      const response = await controller.fetch(createDataRequest());
+
+      expect(fetchBalancesHandler).toHaveBeenCalledTimes(1);
+      expect(fetchBalancesHandler).toHaveBeenCalledWith({
+        version: 'v6',
+        accountIds: [MAINNET_ACCOUNT_ID],
+        includeAssetIds: expect.arrayContaining([customToken, MAINNET_MUSD]),
+        excludeAssetIds: [hiddenToken],
+        forceUpdate: false,
+        bypassServerCache: false,
+      });
+      expect(
+        apiClient.accounts.fetchV6MultiAccountBalances,
+      ).not.toHaveBeenCalled();
+      expect(Object.keys({ ...response.assetsBalance })).toStrictEqual([
+        'mock-account-id',
+      ]);
+      expect(
+        response.assetsBalance?.['mock-account-id']?.[MAINNET_NATIVE],
+      ).toStrictEqual({ amount: '1000000000000000000' });
+      expect(response.updateMode).toBe('full');
+
+      controller.destroy();
+    });
+
+    it.each([
+      {
+        request: { forceUpdate: true },
+        expected: { forceUpdate: true, bypassServerCache: false },
+      },
+      {
+        request: { forceUpdate: true, bypassServerCache: true },
+        expected: { forceUpdate: true, bypassServerCache: true },
+      },
+      {
+        request: { bypassServerCache: true },
+        expected: { forceUpdate: true, bypassServerCache: true },
+      },
+      {
+        request: {},
+        expected: { forceUpdate: false, bypassServerCache: false },
+      },
+    ])(
+      'forwards forceUpdate and bypassServerCache for $request',
+      async ({ request, expected }) => {
+        const fetchBalancesHandler = createFetchBalancesHandler();
+        const { controller } = await setupController({
+          useAccountsApiBalancesService: true,
+          fetchBalancesHandler,
+        });
+
+        await controller.fetch(createDataRequest(request));
+
+        expect(fetchBalancesHandler).toHaveBeenCalledWith(
+          expect.objectContaining(expected),
+        );
+
+        controller.destroy();
+      },
+    );
+
+    it('service failure becomes Fetch failed entries and the RPC fallback still runs', async () => {
+      const fetchBalancesHandler = vi
+        .fn()
+        .mockRejectedValue(
+          new Error('Accounts API v5 balances request failed'),
+        );
+      const { controller } = await setupController({
+        useAccountsApiBalancesService: true,
+        fetchBalancesHandler,
+      });
+      const next = vi.fn().mockResolvedValue(undefined);
+      const context = createMiddlewareContext({
+        request: createDataRequest({
+          chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
+        }),
+      });
+
+      await controller.assetsMiddleware(context, next);
+
+      expect(context.response.errors).toStrictEqual({
+        [CHAIN_MAINNET]:
+          'Fetch failed: Accounts API v5 balances request failed',
+        [CHAIN_POLYGON]:
+          'Fetch failed: Accounts API v5 balances request failed',
+      });
+      expect(context.request.chainIds).toStrictEqual([
+        CHAIN_MAINNET,
+        CHAIN_POLYGON,
+      ]);
+      expect(next).toHaveBeenCalledWith(context);
+
+      controller.destroy();
+    });
+
+    it('maps a BrokenCircuitError message to the same per chain error shape', async () => {
+      const error = new BrokenCircuitError();
+      const fetchBalancesHandler = vi.fn().mockRejectedValue(error);
+      const { controller } = await setupController({
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        useAccountsApiBalancesService: true,
+        fetchBalancesHandler,
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+      );
+
+      expect(response.errors).toStrictEqual({
+        [CHAIN_MAINNET]: `Fetch failed: ${error.message}`,
+        [CHAIN_POLYGON]: `Fetch failed: ${error.message}`,
+      });
+      expect(response.assetsBalance).toBeUndefined();
+
+      controller.destroy();
+    });
+
+    it('reports once when the action is not delegated', async () => {
+      mockLog.mockClear();
+      const error = new Error(
+        'A handler for AccountsApiBalancesService:fetchBalances has not been registered',
+      );
+      const fetchBalancesHandler = vi.fn().mockRejectedValue(error);
+      const { controller } = await setupController({
+        useAccountsApiBalancesService: true,
+        fetchBalancesHandler,
+      });
+      const request = createDataRequest({
+        chainIds: [CHAIN_MAINNET, CHAIN_POLYGON],
+      });
+
+      const first = await controller.fetch(request);
+      const second = await controller.fetch(request);
+
+      const warnings = mockLog.mock.calls.filter(([message]) =>
+        String(message).includes('AccountsApiBalancesService:fetchBalances'),
+      );
+      expect(warnings).toHaveLength(1);
+      for (const response of [first, second]) {
+        expect(response.errors).toStrictEqual({
+          [CHAIN_MAINNET]: `Fetch failed: ${error.message}`,
+          [CHAIN_POLYGON]: `Fetch failed: ${error.message}`,
+        });
+      }
+
+      controller.destroy();
+    });
+
+    it('treats a null metadata row from the service like an absent one', async () => {
+      const row = createMockBalanceItem(
+        MAINNET_ACCOUNT_ID,
+        MAINNET_NATIVE,
+        '1000000000000000000',
+      );
+      const run = async (metadata: null | undefined): Promise<unknown> => {
+        const { controller } = await setupController({
+          useAccountsApiBalancesService: true,
+          fetchBalancesHandler: createFetchBalancesHandler({
+            count: 1,
+            unprocessedNetworks: [],
+            balances: [{ ...row, metadata }],
+          }),
+        });
+        const response = await controller.fetch(createDataRequest());
+        controller.destroy();
+        return response.assetsBalance;
+      };
+
+      const withNull = await run(null);
+      const withAbsent = await run(undefined);
+
+      expect(withNull).toStrictEqual(withAbsent);
+      expect(withNull).toStrictEqual({
+        'mock-account-id': {
+          [MAINNET_NATIVE]: { amount: '1000000000000000000' },
+        },
+      });
+    });
+
+    it('a service call slower than fetchTimeoutMs becomes Fetch failed entries', async () => {
+      const fetchBalancesHandler = vi
+        .fn()
+        .mockReturnValue(new Promise(() => undefined));
+      const { controller } = await setupController({
+        useAccountsApiBalancesService: true,
+        fetchBalancesHandler,
+        fetchTimeoutMs: 10,
+      });
+
+      const response = await controller.fetch(createDataRequest());
+
+      expect(response.errors).toStrictEqual({
+        [CHAIN_MAINNET]: 'Fetch failed: Fetch timed out after 10ms',
+      });
+
+      controller.destroy();
+    });
+
+    it('partial failures (unprocessedNetworks, unprocessedIncludeAssetIds) map to chain errors unchanged', async () => {
+      const arbitrumToken =
+        'eip155:42161/erc20:0xaf88d065e77c8cC2239327C5EDb3A432268e5831' as Caip19AssetId;
+      const fetchBalancesHandler = createFetchBalancesHandler({
+        unprocessedNetworks: ['eip155:137'],
+        unprocessedIncludeAssetIds: [arbitrumToken],
+        balances: [
+          createMockV6BalanceItem(
+            MAINNET_ACCOUNT_ID,
+            MAINNET_NATIVE,
+            '1000000000000000000',
+            'token',
+            'native',
+          ),
+          createMockV6BalanceItem(
+            `eip155:42161:${MOCK_ADDRESS}`,
+            'eip155:42161/slip44:60',
+            '3',
+            'token',
+            'native',
+          ),
+        ],
+      });
+      const { controller } = await setupController({
+        supportedChains: [1, 137, 42161],
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        useAccountsApiBalancesService: true,
+        fetchBalancesHandler,
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({
+          chainIds: [CHAIN_MAINNET, CHAIN_POLYGON, CHAIN_ARBITRUM],
+        }),
+      );
+
+      expect(response.errors).toStrictEqual({
+        [CHAIN_POLYGON]: 'Unprocessed by Accounts API',
+        [CHAIN_ARBITRUM]: 'Unresolved includeAssetIds',
+      });
+      expect(response.assetsBalance).toStrictEqual({
+        'mock-account-id': {
+          [MAINNET_NATIVE]: { amount: '1000000000000000000' },
+        },
+      });
+
+      controller.destroy();
+    });
+
+    it('v5 unprocessedNetworks map to chain errors unchanged', async () => {
+      const fetchBalancesHandler = createFetchBalancesHandler({
+        count: 0,
+        unprocessedNetworks: ['eip155:137'],
+        balances: [],
+      });
+      const { controller } = await setupController({
+        useAccountsApiBalancesService: true,
+        fetchBalancesHandler,
+      });
+
+      const response = await controller.fetch(
+        createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+      );
+
+      expect(response.errors).toStrictEqual({
+        [CHAIN_POLYGON]: 'Unprocessed by Accounts API',
+      });
+
+      controller.destroy();
+    });
+
+    it('forwards onBalancesQueryStateChange as onQueryStateChange', async () => {
+      const onBalancesQueryStateChange = vi.fn();
+      const fetchBalancesHandler = createFetchBalancesHandler();
+      const { controller } = await setupController({
+        useAccountsApiBalancesService: true,
+        fetchBalancesHandler,
+        onBalancesQueryStateChange,
+      });
+
+      await controller.fetch(createDataRequest());
+
+      expect(fetchBalancesHandler).toHaveBeenCalledWith({
+        version: 'v5',
+        accountIds: [MAINNET_ACCOUNT_ID],
+        forceUpdate: false,
+        bypassServerCache: false,
+        onQueryStateChange: onBalancesQueryStateChange,
+      });
+
+      controller.destroy();
+    });
+
+    it('routes subscription polls through the service', async () => {
+      const fetchBalancesHandler = createFetchBalancesHandler();
+      const { controller, apiClient, assetsUpdateHandler } =
+        await setupController({
+          useAccountsApiBalancesService: true,
+          fetchBalancesHandler,
+        });
+
+      await controller.subscribe({
+        subscriptionId: 'sub-1',
+        request: createDataRequest(),
+        isUpdate: false,
+        onAssetsUpdate: assetsUpdateHandler,
+      });
+
+      expect(fetchBalancesHandler).toHaveBeenCalledWith(
+        expect.objectContaining({ version: 'v5', forceUpdate: true }),
+      );
+      expect(
+        apiClient.accounts.fetchV5MultiAccountBalances,
+      ).not.toHaveBeenCalled();
+      expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+      controller.destroy();
+    });
   });
 
   describe('tokenDetectionEnabled', () => {

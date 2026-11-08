@@ -81,6 +81,7 @@ import { Mutex } from 'async-mutex';
 import { BigNumber as BigNumberJS } from 'bignumber.js';
 import { isEqual } from 'lodash-es';
 
+import type { AccountsApiBalancesServiceFetchBalancesAction } from './accounts-api-balances-service/accounts-api-balances-service-method-action-types.js';
 import type { AssetsControllerMethodActions } from './AssetsController-method-action-types.js';
 import { AssetsFetchTracker } from './assetsFetchTracker.js';
 import type {
@@ -335,7 +336,9 @@ type AllowedActions =
   // PhishingController
   | PhishingControllerBulkScanTokensAction
   // AccountsApiDataSource (Accounts API v6 balances feature flag)
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  // AccountsApiDataSource (only called when useAccountsApiBalancesService is on)
+  | AccountsApiBalancesServiceFetchBalancesAction;
 
 type AllowedEvents =
   // AssetsController — account tree lifecycle and group switches
@@ -429,6 +432,14 @@ export type AssetsControllerOptions = {
   captureException?: (error: Error) => void;
   /** Optional configuration for AccountsApiDataSource. */
   accountsApiDataSourceConfig?: AccountsApiDataSourceConfig;
+  /**
+   * When true, AccountsApiDataSource fetches v5 and v6 balances through the
+   * `AccountsApiBalancesService:fetchBalances` messenger action instead of
+   * `queryApiClient`. Set it only after registering an
+   * `AccountsApiBalancesService` and delegating that action to this
+   * controller's messenger. Defaults to false.
+   */
+  useAccountsApiBalancesService?: boolean;
   /** Optional configuration for PriceDataSource. */
   priceDataSourceConfig?: PriceDataSourceConfig;
   /** Optional configuration for StakedBalanceDataSource. */
@@ -953,6 +964,7 @@ export class AssetsController extends BaseController<
     trace,
     captureException,
     accountsApiDataSourceConfig,
+    useAccountsApiBalancesService = false,
     priceDataSourceConfig,
     stakedBalanceDataSourceConfig,
     isOnboarded,
@@ -1020,6 +1032,7 @@ export class AssetsController extends BaseController<
       queryApiClient,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...accountsApiDataSourceConfig,
+      useAccountsApiBalancesService,
       isBalanceV6Enabled: (): boolean => this.#isBalanceV6Enabled(),
       getAssetsState: (): AssetsControllerState => this.state,
       getAssetVisibility: this.#getAssetVisibility.bind(this),

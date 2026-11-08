@@ -12,6 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add the `assetsFetchStatus` state field, tracking fetch status per account and per phase (`fast`, `background`) with `fetchStatus`, `errors` and `updatedAt`, plus the exported types `AssetsFetchPhase`, `AssetsFetchPhaseStatus` and `AssetsFetchStatus` ([#11375](https://github.com/MetaMask/core/pull/11375))
 - Add the `isAccountFetching` and `getAccountFetchErrors` selectors ([#11375](https://github.com/MetaMask/core/pull/11375))
   - `getAccountFetchErrors` returns the errors of the `fast` and `background` phases separately.
+- Add the `AccountsApiBalancesService` data service for Accounts API v5 and v6 multi account balances, plus its exported messenger, action, event and `FetchBalancesOptions` and `BalancesResponse` types ([#11377](https://github.com/MetaMask/core/pull/11377))
+  - It is built on `@metamask/base-data-service` and has no persistence.
+  - Clients must not add it to a `DATA_SERVICES` list.
+- Add the `useAccountsApiBalancesService` option to `AssetsControllerOptions` and to the `AccountsApiDataSource` options, default `false` ([#11377](https://github.com/MetaMask/core/pull/11377))
+  - When `true`, balances are fetched through `AccountsApiBalancesService:fetchBalances` instead of the API platform client.
+  - Clients must register the service and delegate `AccountsApiBalancesService:fetchBalances` to the `AssetsController` messenger before enabling it.
+- Add the `onBalancesQueryStateChange` callback to `AccountsApiDataSourceConfig` ([#11377](https://github.com/MetaMask/core/pull/11377))
+- Add the `@metamask/base-data-service@^2.1.0` and `@metamask/superstruct@^3.4.1` dependencies ([#11377](https://github.com/MetaMask/core/pull/11377))
+
+### Changed
+
+- `AssetsControllerMessenger` and `AccountsApiDataSourceAllowedActions` now allow `AccountsApiBalancesService:fetchBalances` ([#11377](https://github.com/MetaMask/core/pull/11377))
+  - Clients only need to delegate it when `useAccountsApiBalancesService` is `true`.
 
 ## [20.2.3]
 

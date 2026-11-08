@@ -289,6 +289,7 @@ type WithControllerOptions = {
     trace: TraceCallback;
     priceDataSourceConfig: PriceDataSourceConfig;
     accountsApiDataSourceConfig: AccountsApiDataSourceConfig;
+    useAccountsApiBalancesService: boolean;
     isEnabled: () => boolean;
     captureException: (error: Error) => void;
     tempMigrateAssetsInfoMetadataAssets3346: () => Assets3346MigrationState;
@@ -1742,6 +1743,87 @@ describe('AssetsController', () => {
 
           expect(fetchV6MultiAccountBalances).toHaveBeenCalled();
           expect(fetchV5MultiAccountBalances).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    describe('useAccountsApiBalancesService', () => {
+      async function runForcedGetAssets(
+        controllerOptions: { useAccountsApiBalancesService?: boolean } = {},
+      ): Promise<{ fetchBalances: Mock; fetchV5MultiAccountBalances: Mock }> {
+        const fetchV5MultiAccountBalances = vi.fn().mockResolvedValue({
+          balances: [],
+          unprocessedNetworks: [],
+        });
+        const fetchBalances = vi.fn().mockResolvedValue({
+          count: 0,
+          balances: [],
+          unprocessedNetworks: [],
+        });
+
+        const queryApiClient = {
+          ...createMockQueryApiClient(),
+          accounts: {
+            fetchV2SupportedNetworks: vi.fn().mockResolvedValue({
+              fullSupport: [1],
+              partialSupport: [],
+            }),
+            fetchV5MultiAccountBalances,
+          },
+        } as unknown as ApiPlatformClient;
+
+        await withController(
+          { queryApiClient, controllerOptions },
+          async ({ controller, messenger }) => {
+            (
+              messenger as {
+                registerActionHandler: (
+                  actionType: string,
+                  handler: () => unknown,
+                ) => void;
+              }
+            ).registerActionHandler(
+              'AccountsApiBalancesService:fetchBalances',
+              fetchBalances,
+            );
+            await flushPromises();
+
+            await controller.getAssets([createMockInternalAccount()], {
+              chainIds: ['eip155:1'],
+              forceUpdate: true,
+            });
+          },
+        );
+
+        return { fetchBalances, fetchV5MultiAccountBalances };
+      }
+
+      it('fetches balances through AccountsApiBalancesService when true', async () => {
+        const { fetchBalances, fetchV5MultiAccountBalances } =
+          await runForcedGetAssets({ useAccountsApiBalancesService: true });
+
+        expect(fetchBalances).toHaveBeenCalledTimes(1);
+        expect(fetchBalances).toHaveBeenCalledWith(
+          expect.objectContaining({
+            version: 'v5',
+            accountIds: [`eip155:1:${createMockInternalAccount().address}`],
+            forceUpdate: true,
+          }),
+        );
+        expect(fetchV5MultiAccountBalances).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        { controllerOptions: { useAccountsApiBalancesService: false } },
+        { controllerOptions: {} },
+      ])(
+        'keeps using ApiPlatformClient with $controllerOptions',
+        async ({ controllerOptions }) => {
+          const { fetchBalances, fetchV5MultiAccountBalances } =
+            await runForcedGetAssets(controllerOptions);
+
+          expect(fetchBalances).not.toHaveBeenCalled();
+          expect(fetchV5MultiAccountBalances).toHaveBeenCalledTimes(1);
         },
       );
     });

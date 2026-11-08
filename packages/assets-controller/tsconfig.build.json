@@ -67,6 +67,9 @@
     },
     {
       "path": "../utils/tsconfig.build.json"
+    },
+    {
+      "path": "../base-data-service/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"],

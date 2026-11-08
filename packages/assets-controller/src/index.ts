@@ -131,6 +131,26 @@ export type {
   AccountsApiDataSourceState,
 } from './data-sources/index.js';
 
+// Data services - AccountsApiBalancesService
+export { AccountsApiBalancesService } from './accounts-api-balances-service/accounts-api-balances-service.js';
+
+export type {
+  AccountsApiBalancesServiceMessenger,
+  AccountsApiBalancesServiceActions,
+  AccountsApiBalancesServiceEvents,
+  AccountsApiBalancesServiceCacheUpdatedEvent,
+  AccountsApiBalancesServiceGranularCacheUpdatedEvent,
+  AccountsApiBalancesServiceInvalidateQueriesAction,
+  FetchBalancesOptions,
+} from './accounts-api-balances-service/accounts-api-balances-service.js';
+
+export type {
+  AccountsApiBalancesServiceFetchBalancesAction,
+  AccountsApiBalancesServiceMethodActions,
+} from './accounts-api-balances-service/accounts-api-balances-service-method-action-types.js';
+
+export type { BalancesResponse } from './accounts-api-balances-service/structs.js';
+
 // Data sources - RPC
 export { RpcDataSource, createRpcDataSource } from './data-sources/index.js';
 
