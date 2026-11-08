@@ -94,6 +94,9 @@ export type {
   DataResponse,
   AssetsUpdateMode,
   AssetsLoadingStatus,
+  AssetsFetchPhase,
+  AssetsFetchPhaseStatus,
+  AssetsFetchStatus,
   // Middleware types
   Context,
   NextFunction,
@@ -197,6 +200,11 @@ export {
   getGroupIdForAccount,
   getInternalAccountsForGroup,
 } from './selectors/balance.js';
+
+export {
+  getAccountFetchErrors,
+  isAccountFetching,
+} from './selectors/fetchStatus.js';
 
 export {
   getAccountGroupLoadingStatus,

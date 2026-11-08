@@ -70,6 +70,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import {
+  getErrorMessage,
   isCaipChainId,
   isStrictHexString,
   KnownCaipNamespace,
@@ -81,6 +82,7 @@ import { BigNumber as BigNumberJS } from 'bignumber.js';
 import { isEqual } from 'lodash-es';
 
 import type { AssetsControllerMethodActions } from './AssetsController-method-action-types.js';
+import { AssetsFetchTracker } from './assetsFetchTracker.js';
 import type {
   AbstractDataSource,
   DataSourceState,
@@ -493,11 +495,32 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
+  assetsFetchStatus: {
+    persist: false,
+    includeInStateLogs: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
 };
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
+
+/**
+ * Map every chain to the message of an error thrown while fetching them.
+ *
+ * @param chainIds - The chains the failed fetch covered.
+ * @param error - The thrown error.
+ * @returns The per chain errors.
+ */
+function buildChainErrors(
+  chainIds: ChainId[],
+  error: unknown,
+): Record<ChainId, string> {
+  const message = getErrorMessage(error);
+  return Object.fromEntries(chainIds.map((chainId) => [chainId, message]));
+}
 
 function extractChainId(assetId: Caip19AssetId): ChainId {
   const parsed = parseCaipAssetType(assetId);
@@ -719,6 +742,13 @@ export class AssetsController extends BaseController<
 
   /** Whether we have already reported first init fetch for this session (reset on #stop). */
   #firstInitFetchReported = false;
+
+  /** Tracks per account fetch status of the fast and background phases. */
+  readonly #fetchTracker = new AssetsFetchTracker((recipe) =>
+    this.update((state) => {
+      recipe(state);
+    }),
+  );
 
   /** Whether we have already reported state size for this session (reset on #stop). */
   #stateSizeReported = false;
@@ -1767,14 +1797,16 @@ export class AssetsController extends BaseController<
       { isBasicFunctionality, includeCustomAssetGraduation: true },
     );
 
-    const fastResponse = await this.#runFastFetchV5({
-      accounts,
-      chainIds,
-      request,
-      pipelineTrace,
-      fastSources,
-      isBasicFunctionality,
-    });
+    const fastResponse = await this.#trackFastPhase(accounts, chainIds, () =>
+      this.#runFastFetchV5({
+        accounts,
+        chainIds,
+        request,
+        pipelineTrace,
+        fastSources,
+        isBasicFunctionality,
+      }),
+    );
     this.#firstInitFetchReported = true;
 
     this.#runBackgroundFetch({
@@ -1812,14 +1844,16 @@ export class AssetsController extends BaseController<
       },
     );
 
-    const fastResponse = await this.#runFastFetchV6({
-      accounts,
-      chainIds,
-      request,
-      pipelineTrace,
-      fastSources,
-      isBasicFunctionality,
-    });
+    const fastResponse = await this.#trackFastPhase(accounts, chainIds, () =>
+      this.#runFastFetchV6({
+        accounts,
+        chainIds,
+        request,
+        pipelineTrace,
+        fastSources,
+        isBasicFunctionality,
+      }),
+    );
     this.#firstInitFetchReported = true;
 
     this.#runBackgroundFetch({
@@ -1829,6 +1863,33 @@ export class AssetsController extends BaseController<
       chainIds: this.#getSlowPipelineChainIds(chainIds, fastResponse),
       isBasicFunctionality,
     });
+  }
+
+  /**
+   * Run the fast phase while tracking its fetch status for the accounts.
+   *
+   * @param accounts - Accounts in this fetch.
+   * @param chainIds - Chains in this fetch, used to report a thrown error.
+   * @param run - Runs the fast phase.
+   * @returns The fast phase response.
+   */
+  async #trackFastPhase(
+    accounts: InternalAccount[],
+    chainIds: ChainId[],
+    run: () => Promise<DataResponse>,
+  ): Promise<DataResponse> {
+    const end = this.#fetchTracker.begin(
+      accounts.map((account) => account.id),
+      'fast',
+    );
+    try {
+      const response = await run();
+      end({ errors: response.errors });
+      return response;
+    } catch (error) {
+      end({ errors: buildChainErrors(chainIds, error) });
+      throw error;
+    }
   }
 
   async #runFastFetchV5({
@@ -1949,6 +2010,10 @@ export class AssetsController extends BaseController<
       ? [this.#snapDataSource, this.#rpcDataSource]
       : [this.#rpcDataSource];
     const slowRequest = { ...request, chainIds };
+    const end = this.#fetchTracker.begin(
+      accounts.map((account) => account.id),
+      'background',
+    );
 
     withTrace({
       name: TRACE_BACKGROUND_FETCH,
@@ -1975,8 +2040,12 @@ export class AssetsController extends BaseController<
           trace: pipelineTrace,
         });
         await this.#updateState(response);
+        end({ errors: response.errors });
       },
-    }).catch((error: unknown) => log('Background pipeline failed', { error }));
+    }).catch((error: unknown) => {
+      end({ errors: buildChainErrors(chainIds, error) });
+      log('Background pipeline failed', { error });
+    });
   }
 
   #emitFastFetchTraces({

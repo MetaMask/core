@@ -421,6 +421,27 @@ export type AssetsUpdateMode = 'full' | 'merge';
 
 export type AssetsLoadingStatus = 'loading' | 'loaded';
 
+/** Fetch phase: the fast first pass, or the slower background pass. */
+export type AssetsFetchPhase = 'fast' | 'background';
+
+/**
+ * Fetch status of a single phase for one account.
+ *
+ * Known limitation: overlapping forced fetches on the same account report the
+ * result of the last one to finish (earlier errors are dropped).
+ */
+export type AssetsFetchPhaseStatus = {
+  fetchStatus: 'idle' | 'fetching';
+  errors: Record<ChainId, string>;
+  updatedAt: number | null;
+};
+
+/** Fetch status of both phases for one account. */
+export type AssetsFetchStatus = Record<
+  AssetsFetchPhase,
+  AssetsFetchPhaseStatus
+>;
+
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)
 // ============================================================================
@@ -503,6 +524,8 @@ export type AssetsControllerState = {
   /** Currently-active ISO 4217 currency code */
   selectedCurrency: SupportedCurrency;
   assetsLoadingStatus?: Record<AccountId, AssetsLoadingStatus>;
+  /** Per phase fetch status and errors per account */
+  assetsFetchStatus?: Record<AccountId, AssetsFetchStatus>;
 };
 
 // ============================================================================

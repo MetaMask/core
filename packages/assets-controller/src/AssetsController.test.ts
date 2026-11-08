@@ -516,6 +516,17 @@ describe('AssetsController', () => {
       });
     });
 
+    it('declares assetsFetchStatus as non persisted, logged and used in the UI', async () => {
+      await withController(({ controller }) => {
+        expect(controller.metadata.assetsFetchStatus).toStrictEqual({
+          persist: false,
+          includeInStateLogs: true,
+          includeInDebugSnapshot: true,
+          usedInUi: true,
+        });
+      });
+    });
+
     it('initializes with provided state', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsInfo: {
@@ -6104,6 +6115,342 @@ describe('AssetsController', () => {
         // assert: no loading status record is created.
         expect(controller.state.assetsLoadingStatus).toBeUndefined();
       });
+    });
+  });
+
+  describe('assets fetch status', () => {
+    /**
+     * Records the fast and background fetch status of one account on every
+     * state change, skipping consecutive duplicates.
+     *
+     * @param messenger - The root messenger to subscribe on.
+     * @param accountId - The account to follow.
+     * @returns The recorded sequence of `[fast, background]` statuses.
+     */
+    const recordFetchStatuses = (
+      messenger: RootMessenger,
+      accountId: string,
+    ): [string, string][] => {
+      const sequence: [string, string][] = [];
+      messenger.subscribe(
+        'AssetsController:stateChange',
+        (state: AssetsControllerState) => {
+          const status = state.assetsFetchStatus?.[accountId];
+          if (!status) {
+            return;
+          }
+          const entry: [string, string] = [
+            status.fast.fetchStatus,
+            status.background.fetchStatus,
+          ];
+          const last = sequence[sequence.length - 1];
+          if (last?.[0] !== entry[0] || last?.[1] !== entry[1]) {
+            sequence.push(entry);
+          }
+        },
+      );
+      return sequence;
+    };
+
+    /**
+     * Makes the RPC data source claim the given chains and answer with the
+     * given middleware, so the background phase can be steered.
+     *
+     * @param chainIds - Chains the RPC data source claims.
+     * @param middleware - Middleware the RPC data source runs.
+     * @returns A function restoring both spies.
+     */
+    const mockRpcDataSource = (
+      chainIds: ChainId[],
+      middleware: Middleware,
+    ): (() => void) => {
+      const activeChainsSpy = vi
+        .spyOn(RpcDataSource.prototype, 'getActiveChainsSync')
+        .mockReturnValue(chainIds);
+      const middlewareGetter = vi
+        .spyOn(
+          RpcDataSource.prototype,
+          // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+          'assetsMiddleware',
+          'get',
+        )
+        .mockReturnValue(middleware as never) as unknown as MockInstance;
+      return (): void => {
+        activeChainsSpy.mockRestore();
+        middlewareGetter.mockRestore();
+      };
+    };
+
+    it.each([
+      { pipeline: 'v5', remoteFeatureFlags: {} },
+      { pipeline: 'v6', remoteFeatureFlags: { assetsAccountsApiV6: true } },
+    ])(
+      'reports fast then background fetching and idle for a forced refresh ($pipeline)',
+      async ({ remoteFeatureFlags }) => {
+        const restore = mockRpcDataSource(['eip155:1'], async (ctx, next) =>
+          next(ctx),
+        );
+
+        try {
+          await withController(
+            { remoteFeatureFlags },
+            async ({ controller, messenger }) => {
+              const account = createMockInternalAccount({
+                id: 'mock-account-id-fetch',
+              });
+              const sequence = recordFetchStatuses(messenger, account.id);
+
+              await controller.getAssets([account], {
+                chainIds: ['eip155:1'],
+                forceUpdate: true,
+              });
+              await flushPromises();
+
+              expect(sequence).toStrictEqual([
+                ['fetching', 'idle'],
+                ['idle', 'idle'],
+                ['idle', 'fetching'],
+                ['idle', 'idle'],
+              ]);
+              expect(
+                controller.state.assetsFetchStatus?.[account.id],
+              ).toStrictEqual({
+                fast: {
+                  fetchStatus: 'idle',
+                  errors: {},
+                  updatedAt: expect.any(Number),
+                },
+                background: {
+                  fetchStatus: 'idle',
+                  errors: {},
+                  updatedAt: expect.any(Number),
+                },
+              });
+            },
+          );
+        } finally {
+          restore();
+        }
+      },
+    );
+
+    it('reports a background failure without affecting getAssets', async () => {
+      const restore = mockRpcDataSource(['eip155:1'], async (ctx) => ({
+        ...ctx,
+        response: { errors: { 'eip155:1': 'rpc failed' } },
+      }));
+
+      try {
+        await withController(async ({ controller }) => {
+          const account = createMockInternalAccount({
+            id: 'mock-account-id-fetch',
+          });
+
+          const result = await controller.getAssets([account], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+          });
+          await flushPromises();
+
+          expect(result).toBeDefined();
+          expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
+            'loaded',
+          );
+          expect(
+            controller.state.assetsFetchStatus?.[account.id],
+          ).toStrictEqual({
+            fast: {
+              fetchStatus: 'idle',
+              errors: {},
+              updatedAt: expect.any(Number),
+            },
+            background: {
+              fetchStatus: 'idle',
+              errors: { 'eip155:1': 'rpc failed' },
+              updatedAt: null,
+            },
+          });
+        });
+      } finally {
+        restore();
+      }
+    });
+
+    it('records a background phase throw without affecting getAssets', async () => {
+      // An invalid asset id makes the background state commit throw.
+      const restore = mockRpcDataSource(['eip155:1'], async (ctx) => ({
+        ...ctx,
+        response: {
+          assetsBalance: {
+            'mock-account-id-fetch': {
+              ['not-a-caip-asset-id' as Caip19AssetId]: { amount: '1' },
+            },
+          },
+        },
+      }));
+
+      try {
+        await withController(async ({ controller }) => {
+          const account = createMockInternalAccount({
+            id: 'mock-account-id-fetch',
+          });
+
+          await controller.getAssets([account], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+          });
+          await flushPromises();
+
+          const status = controller.state.assetsFetchStatus?.[account.id];
+          expect(status?.background.fetchStatus).toBe('idle');
+          expect(status?.background.updatedAt).toBeNull();
+          expect(status?.background.errors['eip155:1']).toStrictEqual(
+            expect.any(String),
+          );
+        });
+      } finally {
+        restore();
+      }
+    });
+
+    it.each([
+      { pipeline: 'v5', remoteFeatureFlags: {} },
+      { pipeline: 'v6', remoteFeatureFlags: { assetsAccountsApiV6: true } },
+    ])(
+      'records a fast phase throw and rethrows ($pipeline)',
+      async ({ remoteFeatureFlags }) => {
+        await withController({ remoteFeatureFlags }, async ({ controller }) => {
+          const account = createMockInternalAccount({
+            id: 'mock-account-id-fetch',
+          });
+          const middlewareGetter = vi
+            .spyOn(
+              AccountsApiDataSource.prototype,
+              // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+              'assetsMiddleware',
+              'get',
+            )
+            .mockImplementation(() => {
+              throw new Error('fast phase exploded');
+            }) as unknown as MockInstance;
+
+          try {
+            await expect(
+              controller.getAssets([account], {
+                chainIds: ['eip155:1', 'eip155:137'],
+                forceUpdate: true,
+              }),
+            ).rejects.toThrow('fast phase exploded');
+          } finally {
+            middlewareGetter.mockRestore();
+          }
+
+          expect(
+            controller.state.assetsFetchStatus?.[account.id],
+          ).toStrictEqual({
+            fast: {
+              fetchStatus: 'idle',
+              errors: {
+                'eip155:1': 'fast phase exploded',
+                'eip155:137': 'fast phase exploded',
+              },
+              updatedAt: null,
+            },
+            background: { fetchStatus: 'idle', errors: {}, updatedAt: null },
+          });
+          expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
+            'loaded',
+          );
+        });
+      },
+    );
+
+    it('records a fast phase chain error reported without a throw', async () => {
+      await withController(async ({ controller }) => {
+        const account = createMockInternalAccount({
+          id: 'mock-account-id-fetch',
+        });
+        const middlewareGetter = vi
+          .spyOn(
+            AccountsApiDataSource.prototype,
+            // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+            'assetsMiddleware',
+            'get',
+          )
+          .mockReturnValue((async (ctx: unknown) => ({
+            ...(ctx as object),
+            response: { errors: { 'eip155:1': 'chain unavailable' } },
+          })) as never) as unknown as MockInstance;
+
+        try {
+          await controller.getAssets([account], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+          });
+          await flushPromises();
+        } finally {
+          middlewareGetter.mockRestore();
+        }
+
+        const status = controller.state.assetsFetchStatus?.[account.id];
+        expect(status?.fast.fetchStatus).toBe('idle');
+        expect(status?.fast.errors).toStrictEqual({
+          'eip155:1': 'chain unavailable',
+        });
+        expect(status?.fast.updatedAt).toBeNull();
+      });
+    });
+
+    it('writes nothing for empty scopes', async () => {
+      await withController(async ({ controller }) => {
+        await controller.getAssets([], { forceUpdate: true });
+        await controller.getAssets([createMockInternalAccount()], {
+          chainIds: [],
+          forceUpdate: true,
+        });
+        await flushPromises();
+
+        expect(controller.state.assetsFetchStatus).toBeUndefined();
+      });
+    });
+
+    it('does not change assetsLoadingStatus semantics', async () => {
+      const { client, arm, release } = createGatedQueryApiClient();
+
+      await withController(
+        { queryApiClient: client },
+        async ({ controller, messenger }) => {
+          await activateTracking(messenger);
+
+          const account = createMockInternalAccount({
+            id: 'mock-account-id-direct',
+          });
+
+          arm();
+          const fetchPromise = controller.getAssets([account], {
+            forceUpdate: true,
+          });
+
+          await waitFor(() =>
+            expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
+              'loading',
+            ),
+          );
+          expect(
+            controller.state.assetsFetchStatus?.[account.id]?.fast.fetchStatus,
+          ).toBe('fetching');
+
+          release();
+          await fetchPromise;
+
+          expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
+            'loaded',
+          );
+          expect(
+            controller.state.assetsFetchStatus?.[account.id]?.fast.fetchStatus,
+          ).toBe('idle');
+        },
+      );
     });
   });
   describe('account tree initialized', () => {

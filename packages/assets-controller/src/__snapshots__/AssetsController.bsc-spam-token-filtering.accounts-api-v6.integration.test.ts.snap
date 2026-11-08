@@ -55,6 +55,20 @@ exports[`AssetsController (Accounts API v6): BNB Chain spam token (CDOGE) > gene
       },
     },
   },
+  "assetsFetchStatus": {
+    "b1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d": {
+      "background": {
+        "errors": {},
+        "fetchStatus": "idle",
+        "updatedAt": null,
+      },
+      "fast": {
+        "errors": {},
+        "fetchStatus": "idle",
+        "updatedAt": 0,
+      },
+    },
+  },
   "assetsInfo": {
     "eip155:56/erc20:0x003d87d02A2A01E9E8a20f507C83E15DD83A33d1": {
       "aggregators": [

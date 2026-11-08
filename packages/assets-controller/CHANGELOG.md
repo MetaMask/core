@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the `assetsFetchStatus` state field, tracking fetch status per account and per phase (`fast`, `background`) with `fetchStatus`, `errors` and `updatedAt`, plus the exported types `AssetsFetchPhase`, `AssetsFetchPhaseStatus` and `AssetsFetchStatus` ([#11375](https://github.com/MetaMask/core/pull/11375))
+- Add the `isAccountFetching` and `getAccountFetchErrors` selectors ([#11375](https://github.com/MetaMask/core/pull/11375))
+  - `getAccountFetchErrors` returns the errors of the `fast` and `background` phases separately.
+
 ## [20.2.3]
 
 ### Changed

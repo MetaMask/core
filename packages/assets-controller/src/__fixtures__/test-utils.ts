@@ -69,11 +69,12 @@ export const getIgnoringCase = (
 };
 
 /**
- * Returns a plain deep clone of the given object with all `lastUpdated`
- * timestamps zeroed, so that snapshots are deterministic.
+ * Returns a plain deep clone of the given object with all `lastUpdated` and
+ * `updatedAt` timestamps zeroed, so that snapshots are deterministic.
  *
  * @param value - The response or state object to normalize.
- * @returns A plain deep clone with all `lastUpdated` timestamps zeroed.
+ * @returns A plain deep clone with all `lastUpdated` and `updatedAt`
+ * timestamps zeroed.
  */
 export const withZeroedTimestamps = <Value>(value: Value): Value => {
   if (Array.isArray(value)) {
@@ -86,7 +87,8 @@ export const withZeroedTimestamps = <Value>(value: Value): Value => {
       value as Record<string, unknown>,
     )) {
       result[key] =
-        key === 'lastUpdated' && typeof entry === 'number'
+        (key === 'lastUpdated' || key === 'updatedAt') &&
+        typeof entry === 'number'
           ? 0
           : withZeroedTimestamps(entry);
     }
