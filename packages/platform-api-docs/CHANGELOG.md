@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replace `@metamask/utils` dependency with `@metamask/node-utils` ([#10970](https://github.com/MetaMask/core/pull/10970))
 - Bump `@metamask/node-utils` from `^0.0.0` to `^0.1.0` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
+### Fixed
+
+- Include `.d.ts` declarations when scanning installed MetaMask packages, so actions and events from ESM-only packages appear in generated documentation ([#10968](https://github.com/MetaMask/core/pull/10968))
+
 ## [0.2.1]
 
 ### Changed
