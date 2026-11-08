@@ -1532,6 +1532,7 @@ describe('SocialService', () => {
         items: [
           {
             ...mockFeedItem,
+            feedItemId: '0b6c3d4e-5f60-4a7b-8c9d-0e1f2a3b4c5d',
             eventId: 'social.v1.feed.all.position-1.2',
             revision: 2,
             occurredAt: '2026-01-02T03:04:05.000Z',
@@ -1616,6 +1617,23 @@ describe('SocialService', () => {
 
       const service = createService();
       const result = await service.fetchFeed();
+
+      expect(result.items).toStrictEqual([mockFeedItem]);
+    });
+
+    it('drops a feed item whose feedItemId is not a string', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [{ ...mockFeedItem, feedItemId: 1 }, mockFeedItem],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'all' });
 
       expect(result.items).toStrictEqual([mockFeedItem]);
     });
