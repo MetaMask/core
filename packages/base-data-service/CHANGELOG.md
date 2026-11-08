@@ -10,9 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Add `onQueryStateChange` option to the protected `fetchQuery` method ([#11162](https://github.com/MetaMask/core/pull/11162))
+  - The callback receives the query state with serialized errors, first with the cached state if one exists, then on every update until the fetch has settled and the query is idle.
+  - Errors thrown by the callback are logged and ignored.
+  - This option is not available on `fetchInfiniteQuery`.
+- Export `CacheUpdatedState`, `DataServiceQueryState`, `QueryStateChangeHandler` and `SerializedQueryError` types ([#11162](https://github.com/MetaMask/core/pull/11162))
 
 ### Changed
 
+- **BREAKING:** Serialize query errors in `:cacheUpdated` and `:cacheUpdated:${hash}` event payloads as `{ name, message }` plus the error's own JSON safe properties and its `cause` instead of the thrown value ([#11162](https://github.com/MetaMask/core/pull/11162))
+  - This applies to both `error` and `fetchFailureReason` on each query state.
+  - Own properties such as `code` or `httpStatus` are kept when they are JSON safe, and an `Error` cause is serialized the same way. The `stack`, non JSON values, circular references and values nested more than 5 levels deep are dropped.
+  - Non `Error` thrown values are serialized with the name `Error`.
+  - Consumers that read non JSON properties or the `stack` from these errors, or that relied on `instanceof Error`, must adapt.
+- Queries in `:cacheUpdated` and `:cacheUpdated:${hash}` event payloads no longer include the non serializable `promise` field of an in flight fetch, so payloads stay JSON safe ([#11162](https://github.com/MetaMask/core/pull/11162))
 - Bump `@tanstack/query-core` from `^5.89.0` to `^5.103.2` ([#10511](https://github.com/MetaMask/core/pull/10511))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 - Bump `uuid` from `^11.1.1` to `^14.0.2` ([#10941](https://github.com/MetaMask/core/pull/10941), [#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
