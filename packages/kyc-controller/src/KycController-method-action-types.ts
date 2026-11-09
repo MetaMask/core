@@ -396,6 +396,38 @@ export type KycControllerLaunchProviderFlowAction = {
 };
 
 /**
+ * POC: see {@link KycController.refreshVendorAccount}.
+ */
+export type KycControllerRefreshVendorAccountAction = {
+  type: `KycController:refreshVendorAccount`;
+  handler: KycController['refreshVendorAccount'];
+};
+
+/**
+ * POC: see {@link KycController.startVendorAccountLink}.
+ */
+export type KycControllerStartVendorAccountLinkAction = {
+  type: `KycController:startVendorAccountLink`;
+  handler: KycController['startVendorAccountLink'];
+};
+
+/**
+ * POC: see {@link KycController.verifyVendorAccountLink}.
+ */
+export type KycControllerVerifyVendorAccountLinkAction = {
+  type: `KycController:verifyVendorAccountLink`;
+  handler: KycController['verifyVendorAccountLink'];
+};
+
+/**
+ * POC: see {@link KycController.activateVendorAccount}.
+ */
+export type KycControllerActivateVendorAccountAction = {
+  type: `KycController:activateVendorAccount`;
+  handler: KycController['activateVendorAccount'];
+};
+
+/**
  * Union of all KycController action types.
  */
 export type KycControllerMethodActions =
@@ -421,6 +453,10 @@ export type KycControllerMethodActions =
   | KycControllerResendVendorEmailOtpAction
   | KycControllerSendVendorPhoneOtpAction
   | KycControllerVerifyVendorPhoneOtpAction
+  | KycControllerRefreshVendorAccountAction
+  | KycControllerStartVendorAccountLinkAction
+  | KycControllerVerifyVendorAccountLinkAction
+  | KycControllerActivateVendorAccountAction
   | KycControllerGetSessionDecisionAction
   | KycControllerDeleteEncryptedStorageAction
   | KycControllerLaunchProviderFlowAction;

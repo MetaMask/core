@@ -58,6 +58,8 @@ import type {
   KycSessionDisclaimers,
   KycSessionStatus,
   KycVendor,
+  KycVendorAccount,
+  KycVendorAccountAdapter,
   KycVendorDisclaimersAcceptance,
   KycVendorSigning,
 } from './types.js';
@@ -154,6 +156,12 @@ export type KycVendorSessionState = {
    * session. `null` when never set (treated as `false`).
    */
   credentialReusabilityConsentGiven: boolean | null;
+
+  /**
+   * POC: the vendor's own account, for vendors whose account outlives the
+   * UKYC session (Kalshi). `null` for other vendors and before it is known.
+   */
+  vendorAccount: KycVendorAccount | null;
 };
 
 /**
@@ -187,6 +195,7 @@ export function getDefaultKycVendorSessionState(): KycVendorSessionState {
     providerDisclaimersAccepted: null,
     idosDisclaimersAccepted: null,
     credentialReusabilityConsentGiven: null,
+    vendorAccount: null,
   };
 }
 
@@ -241,6 +250,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'resendVendorEmailOtp',
   'sendVendorPhoneOtp',
   'verifyVendorPhoneOtp',
+  'refreshVendorAccount',
+  'startVendorAccountLink',
+  'verifyVendorAccountLink',
+  'activateVendorAccount',
   'launchProviderFlow',
   'deleteEncryptedStorage',
 ] as const;
@@ -292,6 +305,11 @@ export type KycControllerOptions = {
    * record nothing. See {@link KycAnalyticsTrackers}.
    */
   trackKycAnalytics?: KycAnalyticsTrackers;
+  /**
+   * POC: platform adapters for vendors with device-signed account calls
+   * (Kalshi). See {@link KycVendorAccountAdapter}.
+   */
+  vendorAccountAdapters?: Partial<Record<KycVendor, KycVendorAccountAdapter>>;
 };
 
 // === CONTROLLER DEFINITION ===
@@ -313,6 +331,10 @@ export class KycController extends BaseController<
   readonly #localUserSecretStore: UkycLocalUserSecretStore;
 
   readonly #trackKycAnalytics?: KycAnalyticsTrackers;
+
+  readonly #vendorAccountAdapters: Partial<
+    Record<KycVendor, KycVendorAccountAdapter>
+  >;
 
   /** Scheduled next session-status poll for each vendor that is polling. */
   readonly #sessionStatusPollTimers = new Map<
@@ -343,6 +365,7 @@ export class KycController extends BaseController<
     state,
     sumsubLauncher,
     trackKycAnalytics,
+    vendorAccountAdapters,
   }: KycControllerOptions) {
     super({
       messenger,
@@ -353,6 +376,7 @@ export class KycController extends BaseController<
 
     this.#sumsubLauncher = sumsubLauncher;
     this.#trackKycAnalytics = trackKycAnalytics;
+    this.#vendorAccountAdapters = vendorAccountAdapters ?? {};
     this.#localUserSecretStore = new UkycLocalUserSecretStore(this.messenger);
 
     this.messenger.registerMethodActionHandlers(
@@ -512,11 +536,19 @@ export class KycController extends BaseController<
             'KycController.startSession: email is required to register this vendor user.',
           );
         }
+        const { email } = params;
+        this.#updateVendorSession(vendor, (entry) => {
+          entry.vendorAccount = {
+            ...(entry.vendorAccount ?? { state: 'none' }),
+            email,
+            updatedAt: new Date().toISOString(),
+          };
+        });
         createdSession = await this.#createUkycSession({
           vendor,
           geoCountry,
           aal2Token: params.aal2Token,
-          email: params.email,
+          email,
         });
       } else {
         if (!partnerIdentity) {
@@ -1510,6 +1542,163 @@ export class KycController extends BaseController<
     );
     this.#updateSessionStatusAndTrackAnalytics(vendor, sessionStatus);
     return sessionStatus;
+  }
+
+  /**
+   * POC: reads the vendor account state through the vendor's adapter and
+   * stores it on the entry.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @returns The stored vendor account.
+   */
+  async refreshVendorAccount({
+    vendor,
+  }: {
+    vendor: KycVendor;
+  }): Promise<KycVendorAccount> {
+    const status = await this.#requireVendorAccountAdapter(vendor).getStatus();
+    return this.#writeVendorAccount(vendor, (account) => {
+      account.state = status.state;
+      if (status.intentStatus === undefined) {
+        delete account.intentStatus;
+      } else {
+        account.intentStatus = status.intentStatus;
+      }
+      if (status.state === 'active') {
+        delete account.mfa;
+      }
+    });
+  }
+
+  /**
+   * POC: opens the vendor's link ceremony and names the email the vendor
+   * user was registered with. The vendor sends a code to it (or to the
+   * account's configured second factor).
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.email - Email to link. Defaults to the one stored at
+   * session creation.
+   * @returns The stored vendor account.
+   */
+  async startVendorAccountLink({
+    vendor,
+    email,
+  }: {
+    vendor: KycVendor;
+    email?: string;
+  }): Promise<KycVendorAccount> {
+    const adapter = this.#requireVendorAccountAdapter(vendor);
+    const linkEmail = email ?? this.state.sessions[vendor]?.vendorAccount?.email;
+    if (!linkEmail) {
+      throw new Error('No email was found to link the vendor account');
+    }
+    const intent = await adapter.createIntent();
+    await adapter.submitEmail(linkEmail);
+    return this.#writeVendorAccount(vendor, (account) => {
+      account.state = 'link_pending';
+      account.intentStatus = intent.intentStatus;
+      account.email = linkEmail;
+      delete account.mfa;
+    });
+  }
+
+  /**
+   * POC: submits a link code. When the vendor asks for another factor, the
+   * entry's `vendorAccount.mfa` says which; submit that code here too.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.code - The code the vendor sent.
+   * @returns The stored vendor account.
+   */
+  async verifyVendorAccountLink({
+    vendor,
+    code,
+  }: {
+    vendor: KycVendor;
+    code: string;
+  }): Promise<KycVendorAccount> {
+    const result = await this.#requireVendorAccountAdapter(vendor).verifyCode(
+      code,
+    );
+    if (!result.verified) {
+      return this.#writeVendorAccount(vendor, (account) => {
+        if (result.mfa) {
+          account.mfa = result.mfa;
+        }
+      });
+    }
+    this.#writeVendorAccount(vendor, (account) => {
+      delete account.mfa;
+      if (result.userId) {
+        account.userId = result.userId;
+      }
+    });
+    return this.refreshVendorAccount({ vendor });
+  }
+
+  /**
+   * POC: binds the payout wallet and activates the vendor account. The
+   * account is usable once its state is `active`.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.walletAddress - Payout wallet address.
+   * @param params.network - Payout wallet network.
+   * @returns The stored vendor account.
+   */
+  async activateVendorAccount({
+    vendor,
+    walletAddress,
+    network,
+  }: {
+    vendor: KycVendor;
+    walletAddress: string;
+    network: string;
+  }): Promise<KycVendorAccount> {
+    const result = await this.#requireVendorAccountAdapter(vendor).activate({
+      walletAddress,
+      network,
+    });
+    this.#writeVendorAccount(vendor, (account) => {
+      account.intentStatus = result.intentStatus;
+      account.walletAddress = walletAddress;
+    });
+    return this.refreshVendorAccount({ vendor });
+  }
+
+  #requireVendorAccountAdapter(vendor: KycVendor): KycVendorAccountAdapter {
+    const adapter = this.#vendorAccountAdapters[vendor];
+    if (!adapter) {
+      throw new Error(`No vendor account adapter for ${vendor}`);
+    }
+    return adapter;
+  }
+
+  #writeVendorAccount(
+    vendor: KycVendor,
+    write: (account: KycVendorAccount) => void,
+  ): KycVendorAccount {
+    this.#updateVendorSession(
+      vendor,
+      (entry) => {
+        const account: KycVendorAccount = entry.vendorAccount ?? {
+          state: 'none',
+          updatedAt: new Date().toISOString(),
+        };
+        write(account);
+        account.updatedAt = new Date().toISOString();
+        entry.vendorAccount = account;
+      },
+      { create: true },
+    );
+    const stored = this.state.sessions[vendor]?.vendorAccount;
+    if (!stored) {
+      throw new Error('Vendor account was not stored');
+    }
+    return stored;
   }
 
   /**

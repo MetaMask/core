@@ -336,3 +336,75 @@ export type KycSessionDisclaimers = {
   /** Whether the user consented to reuse existing idOS credentials. */
   credentialReusabilityConsentGiven: boolean;
 };
+
+/**
+ * POC: a vendor's own account state, for vendors whose account outlives the
+ * UKYC session (Kalshi). UKYC decides identity; the vendor account says
+ * whether the user can actually use the vendor. Values follow the Kalshi
+ * onboarding states predict-api introduced.
+ */
+export const KYC_VENDOR_ACCOUNT_STATES = [
+  'none',
+  'link_pending',
+  'kyc_pending',
+  'kyc_review',
+  'unsupported',
+  'approved',
+  'inconsistent',
+  'cancelled',
+  'active',
+] as const;
+
+export type KycVendorAccountState = (typeof KYC_VENDOR_ACCOUNT_STATES)[number];
+
+/** The second factor a vendor asked for while linking an account. */
+export type KycVendorAccountMfa = {
+  method: 'sms' | 'email' | 'authenticator-app';
+  phoneLast4?: string;
+  obfuscatedEmail?: string;
+};
+
+/**
+ * POC: the vendor account recorded on a session entry.
+ */
+export type KycVendorAccount = {
+  /** Last state the vendor reported, or `none` before any read. */
+  state: KycVendorAccountState;
+  /** Raw vendor status, for logs and debugging. */
+  intentStatus?: string;
+  /** The user id in the vendor's system, once the vendor returned it. */
+  userId?: string;
+  /** Email the vendor user was registered with. Reused to link the account. */
+  email?: string;
+  /** Set while the vendor waits for a second factor to link the account. */
+  mfa?: KycVendorAccountMfa;
+  /** Wallet bound at activation. */
+  walletAddress?: string;
+  /** ISO time of the last update. */
+  updatedAt: string;
+};
+
+/**
+ * POC: platform adapter for a vendor's device-signed account calls. Injected
+ * by the client, because the device key and the vendor token live only on
+ * the phone. The adapter owns signing and idempotency keys.
+ */
+export type KycVendorAccountAdapter = {
+  /** Reads the vendor account state. */
+  getStatus(): Promise<{ state: KycVendorAccountState; intentStatus?: string }>;
+  /** Opens the link ceremony. */
+  createIntent(): Promise<{ intentStatus: string }>;
+  /** Names the email to link. The vendor sends a code. */
+  submitEmail(email: string): Promise<void>;
+  /** Submits a link code. `mfa` is set when another factor is needed. */
+  verifyCode(code: string): Promise<{
+    verified: boolean;
+    userId?: string;
+    mfa?: KycVendorAccountMfa;
+  }>;
+  /** Binds the payout wallet and activates the account. */
+  activate(params: {
+    walletAddress: string;
+    network: string;
+  }): Promise<{ intentStatus: string }>;
+};
