@@ -444,12 +444,29 @@ export class KycController extends BaseController<
     const partnerIdentity = await this.#getPartnerIdentityForVendor(vendor);
     const geoCountry = await this.messenger.call('KycService:getGeoCountry');
 
-    this.#updateVendorSession(vendor, (entry) => {
-      entry.residenceCountry ??= geoCountry;
-      if (entry.sessionStatus === null) {
-        entry.providerFlowStatus = 'not_started';
-      }
-    });
+    this.#updateVendorSession(
+      vendor,
+      (entry) => {
+        if (entry.sessionStatus === null) {
+          // Terms stored before a session exists were accepted for the catalog
+          // of the country they were fetched in. If the session is going to be
+          // created for another country, that acceptance does not apply: drop
+          // it so the user accepts the right documents.
+          if (
+            entry.residenceCountry !== null &&
+            entry.residenceCountry !== geoCountry &&
+            entry.vendorDisclaimersAccepted?.submitted === false
+          ) {
+            entry.vendorDisclaimersAccepted = null;
+          }
+          entry.residenceCountry = geoCountry;
+          entry.providerFlowStatus = 'not_started';
+        } else {
+          entry.residenceCountry ??= geoCountry;
+        }
+      },
+      { create: true },
+    );
 
     const storedSession = this.state.sessions[vendor]?.sessionStatus ?? null;
     if (storedSession === null) {
@@ -481,16 +498,12 @@ export class KycController extends BaseController<
         partnerIdentityToken: partnerIdentity.partnerIdentityToken,
       });
 
-      const createdSession = await this.#createUkycSession({
+      return this.#createUkycSession({
         vendor,
         geoCountry,
         aal2Token: params.aal2Token,
         partnerIdentityToken: partnerIdentity.partnerIdentityToken,
       });
-      this.#updateVendorSession(vendor, (entry) => {
-        entry.residenceCountry = geoCountry;
-      });
-      return createdSession;
     }
     const sessionStatus = await this.messenger.call(
       'KycService:getSessionStatus',
@@ -741,18 +754,29 @@ export class KycController extends BaseController<
   // === VENDOR SESSION ENTRIES ===
 
   /**
-   * Applies a write to the vendor's session entry, creating the entry first
-   * when the vendor has none.
+   * Applies a write to the vendor's session entry.
+   *
+   * A write does nothing when the vendor has no entry, so a request that was
+   * still running when `clearState` / `reset` removed the entry cannot bring a
+   * wiped session back. Only the calls that start a vendor's entry pass
+   * `create: true`.
    *
    * @param vendor - The identity vendor.
    * @param write - Mutates the vendor's entry.
+   * @param options - Write options.
+   * @param options.create - Create the entry first when the vendor has none.
    */
   #updateVendorSession(
     vendor: KycVendor,
     write: (entry: KycVendorSessionState) => void,
+    options: { create?: boolean } = {},
   ): void {
     this.update((state) => {
-      const entry = state.sessions[vendor] ?? getDefaultKycVendorSessionState();
+      const existing = state.sessions[vendor];
+      if (!existing && !options.create) {
+        return;
+      }
+      const entry = existing ?? getDefaultKycVendorSessionState();
       write(entry);
       state.sessions[vendor] = entry;
     });
@@ -1269,16 +1293,20 @@ export class KycController extends BaseController<
     country: string;
     disclaimerIds: string[];
   }): void {
-    this.#updateVendorSession(params.vendor, (entry) => {
-      entry.vendorDisclaimersAccepted = {
-        disclaimerIds: [...params.disclaimerIds],
-        acceptedAt: new Date().toISOString(),
-        submitted: false,
-      };
-      if (entry.sessionStatus === null) {
-        entry.residenceCountry = params.country;
-      }
-    });
+    this.#updateVendorSession(
+      params.vendor,
+      (entry) => {
+        entry.vendorDisclaimersAccepted = {
+          disclaimerIds: [...params.disclaimerIds],
+          acceptedAt: new Date().toISOString(),
+          submitted: false,
+        };
+        if (entry.sessionStatus === null) {
+          entry.residenceCountry = params.country;
+        }
+      },
+      { create: true },
+    );
   }
 
   /**
