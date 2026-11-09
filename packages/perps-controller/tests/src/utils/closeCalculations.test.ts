@@ -348,14 +348,16 @@ describe('estimateCloseReceive', () => {
   });
 
   it('leaves isolated margin returned undefined for an unknown provider', () => {
-    const providerId = 'unknown' as CloseReceiveEstimateParams['providerId'];
+    const providerId = 'unknown';
 
-    expect(estimateCloseReceive({ ...isolatedLong, providerId })).toStrictEqual(
-      estimate(undefined, 100, 1.05, undefined),
-    );
-    expect(estimateCloseReceive({ ...crossLong, providerId })).toStrictEqual(
-      estimate(1000, 100, 1.05, 1098.95),
-    );
+    expect(
+      // @ts-expect-error 'unknown' is not assignable to PerpsProviderType.
+      estimateCloseReceive({ ...isolatedLong, providerId }),
+    ).toStrictEqual(estimate(undefined, 100, 1.05, undefined));
+    expect(
+      // @ts-expect-error 'unknown' is not assignable to PerpsProviderType.
+      estimateCloseReceive({ ...crossLong, providerId }),
+    ).toStrictEqual(estimate(1000, 100, 1.05, 1098.95));
   });
 
   it('closes the whole position for a close size above it', () => {

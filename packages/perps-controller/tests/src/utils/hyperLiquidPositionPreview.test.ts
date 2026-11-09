@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import type {
+  MarketInfo,
   PositionModifyPreviewSource,
   PositionPreviewValue,
 } from '../../../src/types/index.js';
+import { adaptMarketFromSDK } from '../../../src/utils/hyperLiquidAdapter.js';
 import type {
   IsolatedLeverageChange,
   IsolatedLeverageChangeParams,
@@ -984,6 +986,23 @@ const change = (
 
 const unknownChange = change(undefined, undefined, undefined);
 
+type MarginRules = Pick<MarketInfo, 'marginMode' | 'onlyIsolated'>;
+
+/** A market with no margin restriction: Hyperliquid omits both fields. */
+const unrestrictedMarket: MarginRules = {};
+
+/** A HIP-3 market that only rules out cross margin. */
+const noCrossMarket: MarginRules = {
+  onlyIsolated: true,
+  marginMode: 'noCross',
+};
+
+/** A market where margin cannot leave an open position. */
+const strictIsolatedMarket: MarginRules = {
+  onlyIsolated: true,
+  marginMode: 'strictIsolated',
+};
+
 // Reference rows. Clients assert the same rows against
 // `estimateIsolatedLeverageChange`. A long of 1 marked at 2,000 holds 400 of
 // isolated margin at 5x unless a row says otherwise; ETH's single 25x tier
@@ -1001,6 +1020,7 @@ const LEVERAGE_CHANGE_ROWS: {
     params: {
       position: leveragePosition(),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 10,
       marginTiers: singleTier25x,
     },
@@ -1012,6 +1032,7 @@ const LEVERAGE_CHANGE_ROWS: {
     params: {
       position: leveragePosition(),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 20,
       marginTiers: singleTier25x,
     },
@@ -1022,6 +1043,7 @@ const LEVERAGE_CHANGE_ROWS: {
     params: {
       position: leveragePosition(),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 25,
       marginTiers: singleTier25x,
     },
@@ -1034,6 +1056,7 @@ const LEVERAGE_CHANGE_ROWS: {
     params: {
       position: leveragePosition({ positionValue: '2500', marginUsed: '900' }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 10,
       marginTiers: singleTier25x,
     },
@@ -1045,6 +1068,7 @@ const LEVERAGE_CHANGE_ROWS: {
     params: {
       position: leveragePosition({ positionValue: '2500', marginUsed: '900' }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 6,
       marginTiers: singleTier25x,
     },
@@ -1060,6 +1084,7 @@ const LEVERAGE_CHANGE_ROWS: {
     params: {
       position: leveragePosition({ positionValue: '1800', marginUsed: '190' }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 10,
       marginTiers: singleTier25x,
     },
@@ -1077,6 +1102,7 @@ const LEVERAGE_CHANGE_ROWS: {
         leverage: { type: 'isolated', value: 2 },
       }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 3,
       marginTiers: [{ lowerBound: 0, maxLeverage: 40 }],
     },
@@ -1102,6 +1128,7 @@ const LEVERAGE_CHANGE_ROWS: {
         leverage: { type: 'isolated', value: 4 },
       }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 5,
       marginTiers: testnetEthTiers,
     },
@@ -1118,6 +1145,7 @@ const LEVERAGE_CHANGE_ROWS: {
         marginUsed: '2000',
       }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 20,
       marginTiers: testnetEthTiers,
     },
@@ -1132,6 +1160,7 @@ const LEVERAGE_CHANGE_ROWS: {
         marginUsed: '12000',
       }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 10,
       marginTiers: testnetEthTiers,
     },
@@ -1148,6 +1177,7 @@ const LEVERAGE_CHANGE_ROWS: {
         marginUsed: '8000',
       }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 10,
       marginTiers: testnetEthTiers,
     },
@@ -1162,6 +1192,7 @@ const LEVERAGE_CHANGE_ROWS: {
         marginUsed: '8000',
       }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 10,
       marginTiers: [...testnetEthTiers].reverse(),
     },
@@ -1176,6 +1207,7 @@ const LEVERAGE_CHANGE_ROWS: {
         marginUsed: '8000',
       }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 11,
       marginTiers: testnetEthTiers,
     },
@@ -1192,6 +1224,7 @@ const LEVERAGE_CHANGE_ROWS: {
         leverage: { type: 'isolated', value: 4 },
       }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 5,
       marginTiers: testnetEthTiers,
     },
@@ -1206,6 +1239,7 @@ const LEVERAGE_CHANGE_ROWS: {
         marginUsed: '10000',
       }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 6,
       marginTiers: testnetEthTiers,
     },
@@ -1216,6 +1250,7 @@ const LEVERAGE_CHANGE_ROWS: {
     params: {
       position: leveragePosition({ marginUsed: '600' }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 4,
       marginTiers: singleTier25x,
     },
@@ -1226,6 +1261,7 @@ const LEVERAGE_CHANGE_ROWS: {
     params: {
       position: leveragePosition({ marginUsed: '500' }),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 4,
       marginTiers: singleTier25x,
     },
@@ -1237,6 +1273,7 @@ const LEVERAGE_CHANGE_ROWS: {
     params: {
       position: leveragePosition(),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 2,
       marginTiers: singleTier25x,
     },
@@ -1247,10 +1284,61 @@ const LEVERAGE_CHANGE_ROWS: {
     params: {
       position: leveragePosition(),
       providerId: 'hyperliquid',
+      market: unrestrictedMarket,
       leverage: 5,
       marginTiers: singleTier25x,
     },
     expected: change(0, 400, 1600 / 0.98),
+  },
+  // The first rise again, by market margin mode. `noCross` only rules out
+  // cross margin, so margin can still leave. On a strict isolated market it
+  // cannot leave an open position: nothing is removable, and the 400 held
+  // sets the liquidation price.
+  {
+    change: 'raised from 5x to 10x on a noCross market',
+    params: {
+      position: leveragePosition(),
+      providerId: 'hyperliquid',
+      market: noCrossMarket,
+      leverage: 10,
+      marginTiers: singleTier25x,
+    },
+    expected: change(180, 220, 1780 / 0.98),
+  },
+  {
+    change: 'raised from 5x to 10x on a strict isolated market',
+    params: {
+      position: leveragePosition(),
+      providerId: 'hyperliquid',
+      market: strictIsolatedMarket,
+      leverage: 10,
+      marginTiers: singleTier25x,
+    },
+    expected: change(0, 400, 1600 / 0.98),
+  },
+  {
+    change:
+      'raised from 5x to 10x with margin added and unrealized profit on a strict isolated market',
+    params: {
+      position: leveragePosition({ positionValue: '2500', marginUsed: '900' }),
+      providerId: 'hyperliquid',
+      market: strictIsolatedMarket,
+      leverage: 10,
+      marginTiers: singleTier25x,
+    },
+    expected: change(0, 900, 1600 / 0.98),
+  },
+  {
+    change:
+      'lowered from 5x to 2x without the margin it needs on a strict isolated market',
+    params: {
+      position: leveragePosition(),
+      providerId: 'hyperliquid',
+      market: strictIsolatedMarket,
+      leverage: 2,
+      marginTiers: singleTier25x,
+    },
+    expected: unknownChange,
   },
 ];
 
@@ -1267,6 +1355,7 @@ describe('estimateIsolatedLeverageChange', () => {
       estimateIsolatedLeverageChange({
         position: leveragePosition({ leverage: { type: 'cross', value: 5 } }),
         providerId: 'hyperliquid',
+        market: unrestrictedMarket,
         leverage: 10,
         marginTiers: singleTier25x,
       }),
@@ -1279,7 +1368,9 @@ describe('estimateIsolatedLeverageChange', () => {
       expect(
         estimateIsolatedLeverageChange({
           position: leveragePosition(),
-          providerId: providerId as IsolatedLeverageChangeParams['providerId'],
+          // @ts-expect-error A string is not assignable to PerpsProviderType.
+          providerId,
+          market: unrestrictedMarket,
           leverage: 10,
           marginTiers: singleTier25x,
         }),
@@ -1289,6 +1380,13 @@ describe('estimateIsolatedLeverageChange', () => {
 
   it.each([
     ['no leverage', { leverage: undefined }],
+    ['an unknown market', { market: undefined }],
+    [
+      // As Terminal market data maps it: `marginMode` is dropped, so the
+      // market may be strict isolated or `noCross`.
+      'an isolated-only market without marginMode',
+      { market: { onlyIsolated: true } },
+    ],
     ['leverage below 1', { leverage: 0.5 }],
     [
       'leverage below 1 that the margin would cover',
@@ -1337,6 +1435,7 @@ describe('estimateIsolatedLeverageChange', () => {
         estimateIsolatedLeverageChange({
           position: leveragePosition(),
           providerId: 'hyperliquid',
+          market: unrestrictedMarket,
           leverage: 10,
           marginTiers: singleTier25x,
           ...override,
@@ -1352,10 +1451,76 @@ describe('estimateIsolatedLeverageChange', () => {
         estimateIsolatedLeverageChange({
           position: leveragePosition(),
           providerId: 'hyperliquid',
+          market: unrestrictedMarket,
           leverage: 10,
           marginTiers,
         }),
       ).toStrictEqual(change(180, 220, undefined));
+    },
+  );
+
+  it.each(['futureMode', 'toString'])(
+    'returns undefined for the margin mode %s, which it does not know',
+    (marginMode) => {
+      expect(
+        estimateIsolatedLeverageChange({
+          position: leveragePosition(),
+          providerId: 'hyperliquid',
+          // @ts-expect-error A string is not assignable to the marginMode union.
+          market: { marginMode },
+          leverage: 10,
+          marginTiers: singleTier25x,
+        }),
+      ).toStrictEqual(unknownChange);
+    },
+  );
+
+  // A $2,000 2x long holding 1,000, raised to its 3x single-tier maximum
+  // (maintenance 1/6). Where margin can leave, 1,000 - 2,000 / 3 - 20 may.
+  const removableAt3x = 1000 - 2000 / 3 - 20;
+  // Each restriction as Hyperliquid `meta` sends it.
+  it.each([
+    [
+      'no restriction',
+      {},
+      change(removableAt3x, 1000 - removableAt3x, (1000 + removableAt3x) * 1.2),
+    ],
+    [
+      'noCross',
+      { onlyIsolated: true, marginMode: 'noCross' },
+      change(removableAt3x, 1000 - removableAt3x, (1000 + removableAt3x) * 1.2),
+    ],
+    [
+      'strictIsolated',
+      { onlyIsolated: true, marginMode: 'strictIsolated' },
+      change(0, 1000, 1000 * 1.2),
+    ],
+  ] as const)(
+    'takes the market from adaptMarketFromSDK as-is (%s)',
+    (_restriction, rules, expected) => {
+      const market = adaptMarketFromSDK({
+        name: 'ZRO',
+        szDecimals: 0,
+        maxLeverage: 3,
+        marginTableId: 3,
+        ...rules,
+      });
+
+      expect(
+        estimateIsolatedLeverageChange({
+          position: leveragePosition({
+            leverage: { type: 'isolated', value: 2 },
+            marginUsed: '1000',
+          }),
+          providerId: 'hyperliquid',
+          market,
+          leverage: 3,
+          marginTiers: resolveHyperLiquidMarginTiers({
+            marginTableId: market.marginTableId,
+            maxLeverage: market.maxLeverage,
+          }),
+        }),
+      ).toStrictEqual(expected);
     },
   );
 });

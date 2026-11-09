@@ -356,6 +356,7 @@ describe('@metamask/perps-controller public API', () => {
         leverage: { type: 'isolated', value: 5 },
       },
       providerId: 'hyperliquid',
+      market: {},
       leverage: 10,
       marginTiers: [{ lowerBound: 0, maxLeverage: 25 }],
     };

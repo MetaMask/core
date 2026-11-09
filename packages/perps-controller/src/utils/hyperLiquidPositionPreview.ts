@@ -1,5 +1,6 @@
 import { MARGIN_ADJUSTMENT_CONFIG } from '../constants/perpsConfig.js';
 import type {
+  MarketInfo,
   PerpsProviderType,
   Position,
   PositionModifyPreviewCurrent,
@@ -35,6 +36,20 @@ const MARGIN_REMOVAL_PRICE_MOVE_BUFFER = 0.01;
 const ISOLATED_LEVERAGE_CHANGE_MODELLED: Record<PerpsProviderType, boolean> = {
   hyperliquid: true,
   lighter: false,
+};
+
+/**
+ * Whether margin may leave an open isolated position, by the market's
+ * Hyperliquid `marginMode`. `strictIsolated` prohibits it; `noCross` only
+ * rules out cross margin. A market with neither `marginMode` nor
+ * `onlyIsolated` has no restriction.
+ */
+const MARGIN_REMOVAL_ALLOWED: Record<
+  NonNullable<MarketInfo['marginMode']>,
+  boolean
+> = {
+  strictIsolated: false,
+  noCross: true,
 };
 
 export type HyperLiquidMarginTier = {
@@ -73,6 +88,14 @@ export type IsolatedLeverageChangeParams = {
    * modelled; others return undefined.
    */
   providerId: PerpsProviderType;
+  /**
+   * The position's market, whose `marginMode` says whether margin may leave
+   * it. A `MarketInfo` from `getMarkets` can be passed as-is. Undefined while
+   * the market is unknown, which makes every figure undefined. So does
+   * `onlyIsolated` without `marginMode`: Hyperliquid sends both, and the
+   * restriction is lost where `marginMode` was dropped.
+   */
+  market: Pick<MarketInfo, 'marginMode' | 'onlyIsolated'> | undefined;
   /** Leverage the position moves to, at least 1. Undefined until chosen. */
   leverage: number | undefined;
   /**
@@ -91,7 +114,7 @@ export type IsolatedLeverageChange = {
   /**
    * Margin the change frees: the drop in initial margin, notional / current
    * leverage less notional / new leverage, limited to what may leave the
-   * position. 0 unless leverage rises.
+   * position. 0 unless leverage rises, and 0 on a strict isolated market.
    */
   removableMargin: number | undefined;
   /** Margin afterwards, once `removableMargin` is removed. */
@@ -348,6 +371,29 @@ export function estimateIsolatedLiquidationPriceAtTier(params: {
 }
 
 /**
+ * Whether margin may leave an open isolated position on a market.
+ *
+ * @param market - The market, or undefined when unknown.
+ * @returns Whether removal is allowed, or undefined when the market or its
+ * margin mode is unknown, including an isolated-only market without
+ * `marginMode`, which may be strict isolated or `noCross`.
+ */
+const isMarginRemovalAllowed = (
+  market: Pick<MarketInfo, 'marginMode' | 'onlyIsolated'> | undefined,
+): boolean | undefined => {
+  if (market === undefined) {
+    return undefined;
+  }
+  const { marginMode, onlyIsolated } = market;
+  if (marginMode === undefined) {
+    return onlyIsolated ? undefined : true;
+  }
+  return Object.hasOwn(MARGIN_REMOVAL_ALLOWED, marginMode)
+    ? MARGIN_REMOVAL_ALLOWED[marginMode]
+    : undefined;
+};
+
+/**
  * Isolated margin a Hyperliquid position holds once its leverage changes,
  * before any order. The venue keeps the margin, so a later order margins only
  * its own size at the new leverage. It rejects lowering leverage when the
@@ -383,24 +429,31 @@ const isolatedMarginAfterLeverageChange = (params: {
  * leverage and `MARGIN_ADJUSTMENT_CONFIG.MarginRemovalSafetyBuffer` of
  * notional, plus 1% of notional held back for the mark moving. Margin added
  * on top of the initial margin and unrealized profit stay. `margin` assumes
- * `removableMargin` is removed. A fall frees nothing, and the venue rejects
- * one the margin cannot cover.
+ * `removableMargin` is removed. A strict isolated market prohibits removing
+ * margin from an open position, so nothing is removable there and `margin`
+ * is the margin held. A fall frees nothing, and the venue rejects one the
+ * margin cannot cover.
  *
- * @param params - The position, provider, new leverage and margin tiers.
+ * @param params - The position, provider, market, new leverage and margin
+ * tiers.
  * @param params.position - The open position.
  * @param params.providerId - Provider holding the position.
+ * @param params.market - The position's market, which says whether margin may
+ * leave it.
  * @param params.leverage - Leverage the position moves to.
  * @param params.marginTiers - Margin tiers for the asset, which cap the
  * leverage and set the maintenance rate.
  * @returns The change. Every figure is undefined for cross margin, a provider
- * other than Hyperliquid, a leverage above the max leverage of the margin
- * tier the position's notional is in, a fall the margin cannot cover, or a
- * missing or unusable input. Without margin tiers the leverage limit is not
- * checked and the liquidation price is undefined.
+ * other than Hyperliquid, an unknown market or margin mode, a leverage above
+ * the max leverage of the margin tier the position's notional is in, a fall
+ * the margin cannot cover, or a missing or unusable input. Without margin
+ * tiers the leverage limit is not checked and the liquidation price is
+ * undefined.
  */
 export function estimateIsolatedLeverageChange({
   position,
   providerId,
+  market,
   leverage,
   marginTiers,
 }: IsolatedLeverageChangeParams): IsolatedLeverageChange {
@@ -409,6 +462,7 @@ export function estimateIsolatedLeverageChange({
   const currentMargin = parseFiniteNumber(position.marginUsed);
   const notional = parseFiniteNumber(position.positionValue);
   const currentLeverage = position.leverage.value;
+  const marginRemovalAllowed = isMarginRemovalAllowed(market);
   // The venue caps leverage by the tier the position's notional is in.
   const schedule = buildMaintenanceSchedule(marginTiers ?? []);
   const maxLeverage = marginTiers?.length
@@ -426,6 +480,7 @@ export function estimateIsolatedLeverageChange({
     position.leverage.type !== 'isolated' ||
     !Object.hasOwn(ISOLATED_LEVERAGE_CHANGE_MODELLED, providerId) ||
     !ISOLATED_LEVERAGE_CHANGE_MODELLED[providerId] ||
+    marginRemovalAllowed === undefined ||
     leverage === undefined ||
     !Number.isFinite(leverage) ||
     leverage < 1 ||
@@ -454,15 +509,17 @@ export function estimateIsolatedLeverageChange({
     notional / leverage,
     notional * MARGIN_ADJUSTMENT_CONFIG.MarginRemovalSafetyBuffer,
   );
-  const removableMargin = Math.max(
-    0,
-    Math.min(
-      freedInitialMargin,
-      heldMargin -
-        transferMarginRequired -
-        notional * MARGIN_REMOVAL_PRICE_MOVE_BUFFER,
-    ),
-  );
+  const removableMargin = marginRemovalAllowed
+    ? Math.max(
+        0,
+        Math.min(
+          freedInitialMargin,
+          heldMargin -
+            transferMarginRequired -
+            notional * MARGIN_REMOVAL_PRICE_MOVE_BUFFER,
+        ),
+      )
+    : 0;
   const margin = heldMargin - removableMargin;
   const liquidationPrice = estimateIsolatedLiquidationPriceAtTier({
     isLong: signedSize > 0,
