@@ -5,6 +5,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import { SDK } from '@metamask/profile-sync-controller';
+import { onlineManager } from '@tanstack/query-core';
 import nock from 'nock';
 import { isDeepStrictEqual } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -47,6 +48,7 @@ describe('ProfileMetricsService', () => {
 
   afterEach(() => {
     nock.cleanAll();
+    onlineManager.setOnline(true);
     vi.useRealTimers();
   });
 
@@ -269,6 +271,42 @@ describe('ProfileMetricsService', () => {
       vi.advanceTimersByTime(circuitBreakDuration);
 
       expect(await service.submitMetrics(createMockRequest())).toBeUndefined();
+    });
+
+    it('sends the request even when the query client considers the device offline', async () => {
+      onlineManager.setOnline(false);
+      const scope = nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
+        .reply(200, { data: { success: true } });
+      const { service } = getService();
+
+      await service.submitMetrics(createMockRequest());
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('does not keep rescheduling garbage collection while a request is pending', async () => {
+      nock(defaultBaseEndpoint)
+        .put('/profile/accounts')
+        .reply(200, { data: { success: true } });
+      let releaseToken: (token: string) => void = () => undefined;
+      const { service } = getService({
+        bearerTokenHandler: async () =>
+          new Promise<string>((resolve) => {
+            releaseToken = resolve;
+          }),
+      });
+      const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+
+      const submission = service.submitMetrics(createMockRequest());
+      await vi.advanceTimersByTimeAsync(120);
+      releaseToken('mock-bearer-token');
+      await submission;
+
+      const zeroDelayTimers = setTimeoutSpy.mock.calls.filter(
+        ([, delay]) => delay === 0,
+      );
+      expect(zeroDelayTimers.length).toBeLessThan(10);
     });
 
     it('does not put the metametrics ID or entropy source ID in the published cache events', async () => {
@@ -800,7 +838,22 @@ describe('ProfileMetricsService', () => {
       expect(scope.isDone()).toBe(true);
     });
 
+    it('requests nonces even when the query client considers the device offline', async () => {
+      onlineManager.setOnline(false);
+      const scope = nock(defaultBaseEndpoint)
+        .post('/nonce/batch')
+        .reply(200, [
+          { expires_in: 300, identifier: '0xAddressOne', nonce: 'nonce' },
+        ]);
+      const { service } = getService();
+
+      await service.fetchNonces({ identifiers: ['0xAddressOne'] });
+
+      expect(scope.isDone()).toBe(true);
+    });
+
     it('does not put identifiers or the entropy source ID in the published cache event hashes', async () => {
+      // Only the hashes are checked: the event state still carries the response.
       nock(defaultBaseEndpoint)
         .post('/nonce/batch')
         .reply(200, [

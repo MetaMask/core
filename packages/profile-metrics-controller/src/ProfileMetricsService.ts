@@ -303,6 +303,9 @@ export class ProfileMetricsService extends BaseDataService<
     this.#nonceRequestCounter += 1;
     const body = await this.fetchQuery({
       queryKey: [`${this.name}:fetchNonces`, this.#nonceRequestCounter],
+      // The private query client is never mounted, so a request paused while
+      // offline would never resume and would hold the controller's poll mutex.
+      networkMode: 'always',
       staleTime: 0,
       gcTime: 0,
       responseStruct: NonceBatchResponseStruct,
@@ -358,7 +361,8 @@ export class ProfileMetricsService extends BaseDataService<
   async submitMetrics(data: ProfileMetricsSubmitMetricsRequest): Promise<void> {
     await this.executeMutation({
       mutationKey: [`${this.name}:submitMetrics`],
-      gcTime: 0,
+      // See `fetchNoncesChunk`: a paused request would never resume.
+      networkMode: 'always',
       mutationFn: async () => {
         const authToken = await this.messenger.call(
           'AuthenticationController:getBearerToken',

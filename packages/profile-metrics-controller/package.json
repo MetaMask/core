@@ -72,6 +72,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^7.1.0",
     "@metamask/keyring-internal-api": "^12.1.2",
+    "@tanstack/query-core": "^5.103.2",
     "@typescript/native": "npm:typescript@^7.0.2",
     "nock": "^15.0.5",
     "rimraf": "^6.1.3",
