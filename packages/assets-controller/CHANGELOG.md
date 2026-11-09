@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `bootstrap()` to `AbstractDataSource` for setup that reads other controllers or makes requests ([#11351](https://github.com/MetaMask/core/pull/11351))
   - The default implementation does nothing. `AssetsController` calls it on every balance data source the first time the UI opens.
+- Add Matchain (`eip155:698`) and Nomina (`eip155:166`) to `NATIVE_ASSETS` with `slip44:714` and the synthetic `slip44:11111166`, matching the Price API ([#11383](https://github.com/MetaMask/core/pull/11383))
+  - chainid.network lists the testnet `slip44:1` for Nomina, so without this entry its native asset resolved to a wrong ID.
 
 ### Changed
 
