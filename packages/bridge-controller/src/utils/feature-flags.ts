@@ -7,6 +7,7 @@ import {
 import type {
   FeatureFlagsPlatformConfig,
   ChainConfiguration,
+  GenericQuoteRequest,
 } from '../types.js';
 import { validateFeatureFlagsResponse } from '../validators/feature-flags.js';
 import { formatChainIdToCaip } from './caip-formatters.js';
@@ -108,4 +109,23 @@ export const hasMinimumRequiredVersion = (
     clientMinor === minRequiredMinor &&
     clientPatch >= minRequiredPatch
   );
+};
+
+export const getQuoteRefreshRate = <
+  T extends {
+    call(
+      action: 'RemoteFeatureFlagController:getState',
+    ): RemoteFeatureFlagControllerState;
+  },
+>(
+  messenger: T,
+  srcChainId?: GenericQuoteRequest['srcChainId'],
+) => {
+  const bridgeFeatureFlags = getBridgeFeatureFlags(messenger);
+
+  const refreshRateOverride = srcChainId
+    ? bridgeFeatureFlags.chains[formatChainIdToCaip(srcChainId)]?.refreshRate
+    : undefined;
+  const defaultRefreshRate = bridgeFeatureFlags.refreshRate;
+  return refreshRateOverride ?? defaultRefreshRate;
 };
