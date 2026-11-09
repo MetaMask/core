@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [113.3.0]
+
 ### Added
 
 - Add Matchain (`0x2ba`, `eip155:698/slip44:714`) and Nomina (`0xa6`, `eip155:166/slip44:11111166`) to `SPOT_PRICES_SUPPORT_INFO` so the token prices service requests their native prices ([#11383](https://github.com/MetaMask/core/pull/11383))
@@ -3677,7 +3679,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.3.0...HEAD
+[113.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.2.0...@metamask/assets-controllers@113.3.0
 [113.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.1.1...@metamask/assets-controllers@113.2.0
 [113.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.1.0...@metamask/assets-controllers@113.1.1
 [113.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.0.1...@metamask/assets-controllers@113.1.0
