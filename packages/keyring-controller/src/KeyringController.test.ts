@@ -1230,7 +1230,7 @@ describe('KeyringController', () => {
               [privateKey],
             );
           const message = 'Hello, encrypted world!';
-          const encryptedMessage = encrypt({
+          const encryptedMessage = await encrypt({
             publicKey: await controller.getEncryptionPublicKey(
               importedAccountAddress,
             ),
