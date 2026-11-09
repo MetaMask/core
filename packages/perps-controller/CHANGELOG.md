@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.3.0]
+
 ### Added
 
 - Export `estimateCloseReceive` so Mobile, Extension and Terminal show the same "You'll receive" amount when closing a position ([#11378](https://github.com/MetaMask/core/pull/11378))
@@ -1396,7 +1398,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.3.0...HEAD
+[22.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.2.0...@metamask/perps-controller@22.3.0
 [22.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.1.2...@metamask/perps-controller@22.2.0
 [22.1.2]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.1.1...@metamask/perps-controller@22.1.2
 [22.1.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.1.0...@metamask/perps-controller@22.1.1
