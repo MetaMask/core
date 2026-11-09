@@ -10,6 +10,9 @@ export type EthEncryptedData = {
   ciphertext: string;
 };
 
+const DEFAULT_PADDING_LENGTH = 2048;
+const NACL_EXTRA_BYTES = 16;
+
 /**
  * Encrypt a message.
  *
@@ -108,9 +111,6 @@ export function encryptSafely({
     throw new Error('Missing version parameter');
   }
 
-  const DEFAULT_PADDING_LENGTH = 2 ** 11;
-  const NACL_EXTRA_BYTES = 16;
-
   if (typeof data === 'object' && data && 'toJSON' in data) {
     // remove toJSON attack vector
     // TODO, check all possible children
@@ -126,16 +126,11 @@ export function encryptSafely({
   };
 
   // calculate padding
-  const dataLength = Buffer.byteLength(
-    JSON.stringify(dataWithPadding),
-    'utf-8',
-  );
-  const modVal = dataLength % DEFAULT_PADDING_LENGTH;
-  let padLength = 0;
-  // Only pad if necessary
-  if (modVal > 0) {
-    padLength = DEFAULT_PADDING_LENGTH - modVal - NACL_EXTRA_BYTES; // nacl extra bytes
-  }
+  const ciphertextLength =
+    Buffer.byteLength(JSON.stringify(dataWithPadding), 'utf-8') +
+    NACL_EXTRA_BYTES;
+  const remainder = ciphertextLength % DEFAULT_PADDING_LENGTH;
+  const padLength = remainder === 0 ? 0 : DEFAULT_PADDING_LENGTH - remainder;
   dataWithPadding.padding = '0'.repeat(padLength);
 
   const paddedMessage = JSON.stringify(dataWithPadding);
