@@ -64,7 +64,8 @@ export type UsBankDepositInstructions = {
 };
 
 /**
- * SEPA transfer details from an autoramp `deposit_rails` entry (EUR).
+ * SEPA transfer details from an autoramp `deposit_rails` entry (EUR), plus the
+ * autoramp's inbound payment reference when MoonPay uses pay-by-reference.
  * Re-fetched for display; not stored on the autoramp cursor.
  */
 export type SepaDepositInstructions = {
@@ -78,6 +79,12 @@ export type SepaDepositInstructions = {
   bankName?: string;
   /** Address of that bank, when present. */
   bankAddress?: string;
+  /**
+   * Reference to include in the SEPA payment reference so MoonPay can match
+   * the deposit, when the autoramp uses pay-by-reference. Backed by the
+   * autoramp's `inbound_payment_reference`.
+   */
+  paymentReference?: string;
 };
 
 /**

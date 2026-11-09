@@ -828,6 +828,48 @@ describe('NeoBankService', () => {
       });
     });
 
+    it('includes the inbound payment reference on the SEPA rail', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, {
+          id: 'ar-1',
+          status: 'Approved',
+          inbound_payment_reference: 'IR-K7M2QX',
+          deposit_rails: [{ type: 'SEPA', iban: 'DE89370400440532013000' }],
+        });
+
+      const { service } = createService();
+
+      expect(await service.getDepositInstructions('ar-1')).toStrictEqual({
+        type: 'Sepa',
+        iban: 'DE89370400440532013000',
+        paymentReference: 'IR-K7M2QX',
+      });
+    });
+
+    it.each([null, ''] as const)(
+      'omits the inbound payment reference when MoonPay returns %j',
+      async (inboundPaymentReference) => {
+        nock(STAGING_BASE)
+          .get('/neobank/autoramps/ar-1')
+          .query(true)
+          .reply(200, {
+            id: 'ar-1',
+            status: 'Approved',
+            inbound_payment_reference: inboundPaymentReference,
+            deposit_rails: [{ type: 'SEPA', iban: 'DE89370400440532013000' }],
+          });
+
+        const { service } = createService();
+
+        expect(await service.getDepositInstructions('ar-1')).toStrictEqual({
+          type: 'Sepa',
+          iban: 'DE89370400440532013000',
+        });
+      },
+    );
+
     it('prefers PIX over a SEPA rail', async () => {
       nock(STAGING_BASE)
         .get('/neobank/autoramps/ar-1')

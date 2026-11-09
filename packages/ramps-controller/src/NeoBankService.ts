@@ -160,6 +160,12 @@ export type NeoBankAutorampResponse = {
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
   deposit_rails?: unknown[];
+  /**
+   * Reference senders must include on transfers when the autoramp uses
+   * pay-by-reference. Absent or null otherwise.
+   */
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  inbound_payment_reference?: string | null;
 };
 
 /**
@@ -508,6 +514,16 @@ const DEPOSIT_RAIL_CURRENCIES: Readonly<Record<string, string>> = {
 };
 
 /**
+ * Reads a non-empty string.
+ *
+ * @param value - Candidate value.
+ * @returns The value, or undefined when missing, not a string, or empty.
+ */
+function readNonEmptyString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+/**
  * Reads a non-empty string field from a deposit rail.
  *
  * @param record - Deposit rail object.
@@ -518,8 +534,7 @@ function readRailString(
   record: Record<string, unknown>,
   key: string,
 ): string | undefined {
-  const value = record[key];
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
+  return readNonEmptyString(record[key]);
 }
 
 /**
@@ -954,6 +969,8 @@ export class NeoBankService extends BaseDataService<
    *
    * Calls `GET /neobank/autoramps/{id}` and reads the PIX rail, or else a US
    * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`), or else the SEPA rail.
+   * SEPA details also carry the autoramp's `inbound_payment_reference` as
+   * `paymentReference` when MoonPay uses pay-by-reference.
    * Returns null until MoonPay has attached a supported rail. MoonPay only
    * verifies the rail at `Approved`, so callers should not show these details
    * before then.
@@ -974,9 +991,12 @@ export class NeoBankService extends BaseDataService<
           `autoramps/${encodeURIComponent(autorampId)}`,
         ),
     });
-    const { deposit_rails: depositRails } = response as Pick<
+    const {
+      deposit_rails: depositRails,
+      inbound_payment_reference: inboundPaymentReference,
+    } = response as Pick<
       NeoBankAutorampResponse,
-      'deposit_rails'
+      'deposit_rails' | 'inbound_payment_reference'
     >;
     const pix = extractPixDepositInstructions(depositRails);
     if (pix) {
@@ -987,7 +1007,15 @@ export class NeoBankService extends BaseDataService<
       return { type: 'UsBank', ...usBank };
     }
     const sepa = extractSepaDepositInstructions(depositRails);
-    return sepa ? { type: 'Sepa', ...sepa } : null;
+    if (!sepa) {
+      return null;
+    }
+    const paymentReference = readNonEmptyString(inboundPaymentReference);
+    return {
+      type: 'Sepa',
+      ...sepa,
+      ...(paymentReference ? { paymentReference } : {}),
+    };
   }
 
   /**
