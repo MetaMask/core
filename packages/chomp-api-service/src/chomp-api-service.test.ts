@@ -1302,6 +1302,30 @@ describe('ChompApiService', () => {
       });
     });
 
+    it('omits migration steps this client does not know', async () => {
+      nock(BASE_URL)
+        .get('/v1/money-account/identities')
+        .reply(200, {
+          identities: [
+            {
+              ...migratingIdentity,
+              migration: {
+                ...migratingIdentity.migration,
+                steps: [
+                  { step: 'SOME_FUTURE_STEP', completed: false },
+                  ...migratingIdentity.migration.steps,
+                ],
+              },
+            },
+          ],
+        });
+      const { service } = createService();
+
+      expect(await service.getDerivedIdentities()).toStrictEqual({
+        identities: [migratingIdentity],
+      });
+    });
+
     it('lowercases returned addresses', async () => {
       nock(BASE_URL)
         .get('/v1/money-account/identities')
@@ -1380,7 +1404,7 @@ describe('ChompApiService', () => {
       );
     });
 
-    it('throws on an unknown migration step', async () => {
+    it('throws on a malformed migration step', async () => {
       nock(BASE_URL)
         .get('/v1/money-account/identities')
         .reply(200, {
@@ -1389,7 +1413,7 @@ describe('ChompApiService', () => {
               ...migratingIdentity,
               migration: {
                 ...migratingIdentity.migration,
-                steps: [{ step: 'UNKNOWN', completed: false }],
+                steps: [{ completed: false }],
               },
             },
           ],
@@ -1397,7 +1421,7 @@ describe('ChompApiService', () => {
       const { service } = createService();
 
       await expect(service.getDerivedIdentities()).rejects.toThrow(
-        'At path: identities.0.migration.steps.0.step',
+        'At path: identities.0.migration.steps',
       );
     });
   });
@@ -1437,6 +1461,29 @@ describe('ChompApiService', () => {
       );
 
       expect(result).toStrictEqual(addressIdentity);
+    });
+
+    it('omits migration steps this client does not know', async () => {
+      nock(BASE_URL)
+        .get(`/v1/money-account/identities/address/${ADDRESS_B}`)
+        .reply(200, {
+          ...addressIdentity,
+          identity: {
+            ...addressIdentity.identity,
+            migration: {
+              ...addressIdentity.identity.migration,
+              steps: [
+                ...addressIdentity.identity.migration.steps,
+                { step: 'SOME_FUTURE_STEP', completed: false },
+              ],
+            },
+          },
+        });
+      const { service } = createService();
+
+      expect(
+        await service.getDerivedIdentityByAddress(ADDRESS_B),
+      ).toStrictEqual(addressIdentity);
     });
 
     it('returns a pending successor with no successor of its own', async () => {

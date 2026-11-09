@@ -90,6 +90,10 @@ function isChompIntentType(value: string): value is ChompIntentType {
   return (CHOMP_INTENT_TYPES as string[]).includes(value);
 }
 
+function isMigrationStep(value: string): value is MigrationStep {
+  return (MIGRATION_STEPS as string[]).includes(value);
+}
+
 // === GENERAL ===
 
 /**
@@ -271,11 +275,15 @@ const DerivedIdentityStruct = type({
     type({
       from: LowercaseHexAddressStruct,
       to: LowercaseHexAddressStruct,
-      steps: array(
-        type({
-          step: enums(MIGRATION_STEPS),
-          completed: boolean(),
-        }),
+      steps: coerce(
+        array(
+          type({
+            step: enums(MIGRATION_STEPS),
+            completed: boolean(),
+          }),
+        ),
+        array(type({ step: string(), completed: boolean() })),
+        (steps) => steps.filter(({ step }) => isMigrationStep(step)),
       ),
       transfer: MigrationTransferStruct,
       premiumTransfer: MigrationTransferStruct,

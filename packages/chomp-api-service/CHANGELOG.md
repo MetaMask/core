@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `vaultMigrationHelperAddress` to `ServiceDetailsChain` ([#11369](https://github.com/MetaMask/core/pull/11369))
 - Add `startFundsTransfer` method for `POST /v1/money-account/identities/address/:address/funds-transfer`, which starts moving the funds of a migrating Money Account to its successor, and the `FundsTransferStart` type, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
 
+### Changed
+
+- `getDerivedIdentities` and `getDerivedIdentityByAddress` now omit migration steps they don't know instead of throwing ([#11369](https://github.com/MetaMask/core/pull/11369))
+
 ## [7.0.0]
 
 ### Added
