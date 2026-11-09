@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `mapV5ApiTransaction`, which maps a `V5TransactionRecord` from Accounts API `GET /v5/multiaccount/transactions` to an `ActivityItem` ([#11379](https://github.com/MetaMask/core/pull/11379))
+  - It uses the same classification as `mapApiTransaction`, takes the subject account from the record's `accountId`, and reads network fees from the record's `fee`
+  - Request records with `includeTxMetadata: true` so they include `transactionCategory`
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^73.1.1` to `^73.1.2` ([#11390](https://github.com/MetaMask/core/pull/11390))
