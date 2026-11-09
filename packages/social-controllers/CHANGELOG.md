@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
-
 ### Added
 
 - Add optional `feedItemId` (`string`) to the `FeedItem` type and `FeedItemStruct` ([#11380](https://github.com/MetaMask/core/pull/11380))
