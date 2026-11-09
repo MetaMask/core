@@ -459,6 +459,63 @@ describe('RampsController order syncing', () => {
     ]);
   });
 
+  it('does not run a queued sync pass when network access is revoked mid-sync', async () => {
+    let allowed = true;
+    const {
+      controller,
+      performBatchSetStorage,
+      performGetStorageAllFeatureEntries,
+    } = setupControllerWithOrderSyncingMocks({
+      isNetworkAllowed: () => allowed,
+    });
+
+    controller.addOrder(
+      createMockOrder({
+        providerOrderId: 'seed-order',
+        id: '/providers/transak/orders/seed-order',
+      }),
+    );
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+    performBatchSetStorage.mockClear();
+
+    performBatchSetStorage.mockImplementationOnce(async () => {
+      // Host revokes access while the full sync is uploading, then a local
+      // edit lands before the in-flight pass settles.
+      allowed = false;
+      controller.addOrder(
+        createMockOrder({
+          providerOrderId: 'mid-sync-denied',
+          id: '/providers/transak/orders/mid-sync-denied',
+        }),
+      );
+    });
+
+    await controller.syncOrdersWithUserStorage();
+
+    // The in-flight pass may finish its already-started upload, but the queued
+    // follow-up pass must not start another User Storage read or write.
+    expect(performGetStorageAllFeatureEntries).toHaveBeenCalledTimes(1);
+    expect(performBatchSetStorage).toHaveBeenCalledTimes(1);
+    expect(controller.state.orders).toStrictEqual([
+      expect.objectContaining({ providerOrderId: 'seed-order' }),
+      expect.objectContaining({ providerOrderId: 'mid-sync-denied' }),
+    ]);
+
+    allowed = true;
+    await controller.syncOrdersWithUserStorage();
+
+    expect(performGetStorageAllFeatureEntries).toHaveBeenCalledTimes(2);
+    expect(performBatchSetStorage).toHaveBeenCalledTimes(2);
+    const [, entries] = performBatchSetStorage.mock.calls[1];
+    expect(entries).toStrictEqual(
+      expect.arrayContaining([
+        ['mid-sync-denied', expect.stringContaining('mid-sync-denied')],
+      ]),
+    );
+  });
+
   it('does not restore an order when its fetch finishes after removal', async () => {
     const { controller, getOrder } = setupControllerWithOrderSyncingMocks();
     const order = createMockOrder();

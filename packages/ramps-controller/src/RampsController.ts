@@ -3935,6 +3935,12 @@ export class RampsController extends BaseController<
       this.#orderSyncPromise = (async (): Promise<void> => {
         while (this.#orderSyncQueued) {
           this.#orderSyncQueued = false;
+          if (!this.#isNetworkAccessAllowed()) {
+            // Do not start another User Storage pass after the host revoked
+            // access. Local changes stay pending until the next allowed
+            // `syncOrdersWithUserStorage` call.
+            break;
+          }
           await syncOrdersWithUserStorageInternal(
             {
               onOrderSyncErroneousSituation:
