@@ -17,6 +17,7 @@ import { Operation } from '../types.js';
 import {
   mmPayQuotesReadySubscription,
   unapprovedTxSubscription,
+  withdrawUpdateHandler,
 } from './subscriptions.js';
 
 const BATCH_ID = '0x1234BatchId';
@@ -82,6 +83,15 @@ describe('mmPayQuotesReadySubscription', () => {
     const { promise } = mmPayQuotesReadySubscription(messenger, BATCH_ID);
     rootMessenger.publish(
       'TransactionPayController:stateChange',
+      {
+        transactionData: {
+          [TX_ID]: { isLoading: false, tokens: [] },
+        },
+      },
+      [],
+    );
+    rootMessenger.publish(
+      'TransactionPayController:stateChange',
       getMockPayControllerState(TX_ID, [getMockPayQuote()]),
       [],
     );
@@ -115,5 +125,25 @@ describe('unapprovedTxSubscription', () => {
     );
 
     expect(await promise).toBeUndefined();
+  });
+});
+
+describe('withdrawUpdateHandler', () => {
+  it('ignores statuses that are not confirmed or failed', () => {
+    const calls: string[] = [];
+
+    withdrawUpdateHandler({
+      txMeta: depositTxMeta({ status: TransactionStatus.submitted }),
+      historyKey: TX_ID,
+      onTransactionConfirmed: (): void => {
+        calls.push('confirmed');
+      },
+      onTransactionFailed: (): void => {
+        calls.push('failed');
+      },
+      onReportSubmittedOnce: (): void => undefined,
+    });
+
+    expect(calls).toStrictEqual([]);
   });
 });

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Export `getQuoteRefreshRate` util that reads the quote refresh interval from the client's LaunchDarkly config, including per-chain overrides ([#11181](https://github.com/MetaMask/core/pull/11181))
 - Set QuoteRequest parameters based on `isMoneyAccount` value provided by clients. When isMoneyAcount=true, only request `relay` quotes from the backend ([#11602](https://github.com/MetaMask/core/pull/11602))
 - Export getAccountByAddress and getFeatureFlags utils ([#11403](https://github.com/MetaMask/core/pull/11403))
 

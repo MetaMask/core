@@ -65,7 +65,11 @@ export type SubmitStepResult =
       type: SubmitStep.AddHistoryItem;
       payload: Pick<
         StartPollingForBridgeTxStatusArgs,
-        'approvalTxId' | 'bridgeTxMeta' | 'originalTransactionId' | 'orderId'
+        | 'approvalTxId'
+        | 'bridgeTxMeta'
+        | 'originalTransactionId'
+        | 'orderId'
+        | 'withdrawTxMeta'
       > & {
         historyKey: string;
         quoteResponse: QuoteResponseV1 & QuoteMetadata;

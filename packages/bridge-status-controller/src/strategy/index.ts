@@ -22,6 +22,7 @@ import { submitEvmHandler as defaultSubmitHandler } from './evm-strategy.js';
 import { submitIntentHandler } from './intent-strategy.js';
 import { submitNonEvmHandler } from './non-evm-strategy.js';
 import type { SubmitStrategyParams, SubmitStepResult } from './types.js';
+import { submitWithdrawHandler } from './withdraw-strategy.js';
 
 const validateParams = <
   TxDataType extends
@@ -86,6 +87,15 @@ const executeSubmitStrategy = (
       );
     }
     return submitDepositHandler(params);
+  }
+
+  if (params.operation === Operation.WITHDRAW) {
+    if (!validateParams<Trade>(params)) {
+      throw new Error(
+        'Failed to submit withdraw transaction: invalid parameters',
+      );
+    }
+    return submitWithdrawHandler(params);
   }
 
   // Non-EVM transactions

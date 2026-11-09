@@ -97,6 +97,10 @@ export const hasNestedBridgeTransactions = (txMeta: TransactionMeta) =>
 export const hasNestedDepositTransactions = (txMeta: TransactionMeta) =>
   hasNestedTransactions(txMeta, TransactionType.moneyAccountDeposit);
 
+export const hasNestedWithdrawTransferTransactions = (
+  txMeta: TransactionMeta,
+) => hasNestedTransactions(txMeta, TransactionType.moneyAccountWithdraw);
+
 export const isAtomic7702BatchTx = (txMeta: TransactionMeta): boolean =>
   txMeta.type === TransactionType.batch ||
   hasNestedSwapTransactions(txMeta) ||

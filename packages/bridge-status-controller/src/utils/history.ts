@@ -49,6 +49,7 @@ const mergeHistoryItems = (
       | 'depositTxMeta'
       | 'originalTransactionId'
       | 'next'
+      | 'withdrawTxMeta'
     > & {
       status?: DeepPartial<BridgeHistoryItem['status']>;
     }
@@ -88,6 +89,14 @@ const mergeHistoryItems = (
           ...oldHistoryItem.depositTxMeta,
         }),
         ...historyItemOverrides.depositTxMeta,
+      },
+    }),
+    ...(historyItemOverrides?.withdrawTxMeta && {
+      withdrawTxMeta: {
+        ...(oldHistoryItem.withdrawTxMeta && {
+          ...oldHistoryItem.withdrawTxMeta,
+        }),
+        ...historyItemOverrides.withdrawTxMeta,
       },
     }),
   };
@@ -143,6 +152,7 @@ export const updateHistoryItemInState = (
         | 'txMetaId'
         | 'approvalTxId'
         | 'originalTransactionId'
+        | 'withdrawTxMeta'
       >
     >;
   },
@@ -166,6 +176,7 @@ export const updateHistoryItemInState = (
     txMetaId,
     approvalTxId,
     originalTransactionId,
+    withdrawTxMeta,
   } = historyItemOverrides;
 
   if (status) {
@@ -184,6 +195,12 @@ export const updateHistoryItemInState = (
     historyItem.depositTxMeta = {
       ...historyItem.depositTxMeta,
       ...depositTxMeta,
+    };
+  }
+  if (withdrawTxMeta) {
+    historyItem.withdrawTxMeta = {
+      ...historyItem.withdrawTxMeta,
+      ...withdrawTxMeta,
     };
   }
   if (next) {
@@ -241,7 +258,11 @@ export const lockHistoryItem = (
   const { depositTxMeta } = historyItem;
   const [pending, ...next] = historyItem.next ?? [];
 
-  if (!pending || depositTxMeta?.batchId) {
+  if (
+    !pending ||
+    depositTxMeta?.batchId ||
+    (historyItem.batchId && pending.operation === Operation.SWAP)
+  ) {
     throw new Error(
       `${historyItem.batchId ? 'Swap' : 'Deposit'} has already started, skipping`,
     );
@@ -256,6 +277,9 @@ export const lockHistoryItem = (
         depositTxMeta: {
           batchId,
         },
+      }),
+      ...(pending.operation === Operation.SWAP && {
+        batchId,
       }),
     },
   });
@@ -384,6 +408,30 @@ const getMatchingHistoryItemForDepositTxMeta = (
   });
 };
 
+/**
+ * Returns the history entry whose withdrawTxMeta matches the txMeta's batchId
+ *
+ * @param txHistory - The transaction history
+ * @param txMeta - The transaction meta
+ * @returns The history entry that matches the txMeta
+ */
+const getMatchingHistoryItemForWithdrawTxMeta = (
+  txHistory: BridgeStatusControllerState['txHistory'],
+  txMeta: TransactionMeta,
+): [string, BridgeHistoryItem] | undefined => {
+  const historyEntries = Object.entries(txHistory);
+
+  return historyEntries.find(([_, value]) => {
+    if (
+      value.withdrawTxMeta?.batchId &&
+      value.withdrawTxMeta.batchId === txMeta.batchId
+    ) {
+      return true;
+    }
+    return false;
+  });
+};
+
 export const resolveHistoryKeyForTxMeta = (
   { transactionMeta }: { transactionMeta: TransactionMeta },
   txHistory: BridgeStatusControllerState['txHistory'],
@@ -394,7 +442,9 @@ export const resolveHistoryKeyForTxMeta = (
       // Match approval tx
       getMatchingHistoryEntryForApprovalTxMeta(txHistory, transactionMeta) ??
       // Match deposit tx
-      getMatchingHistoryItemForDepositTxMeta(txHistory, transactionMeta))?.[0],
+      getMatchingHistoryItemForDepositTxMeta(txHistory, transactionMeta) ??
+      // Match withdrawal tx
+      getMatchingHistoryItemForWithdrawTxMeta(txHistory, transactionMeta))?.[0],
   txMeta: transactionMeta,
 });
 
@@ -528,6 +578,7 @@ export const getInitialHistoryItem = (
     tokenSecurityTypeDestination,
     inputPrimaryDenomination,
     batchSellData,
+    withdrawTxMeta,
   } = args;
 
   const { status: statusOverride, ...overridesFromTxMeta } =
@@ -578,6 +629,7 @@ export const getInitialHistoryItem = (
       inputPrimaryDenomination,
     }),
     ...(next && { next }),
+    ...(withdrawTxMeta && { withdrawTxMeta }),
   };
 
   if (batchSellData) {

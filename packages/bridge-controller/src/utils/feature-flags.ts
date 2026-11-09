@@ -15,8 +15,10 @@ import { getFeatureFlags } from './controllers/remote-feature-flags.js';
 
 export const formatFeatureFlags = (
   bridgeFeatureFlags: FeatureFlagsPlatformConfig,
-) => {
-  const getChainsObj = (chains: Record<string, ChainConfiguration>) =>
+): FeatureFlagsPlatformConfig => {
+  const getChainsObj = (
+    chains: Record<string, ChainConfiguration>,
+  ): Record<string, ChainConfiguration> =>
     Object.entries(chains).reduce(
       (acc, [chainId, value]) => ({
         ...acc,
@@ -58,13 +60,13 @@ export const processFeatureFlags = (
  * @returns The bridge feature flags
  */
 export const getBridgeFeatureFlags = <
-  T extends {
+  MessengerType extends {
     call(
       action: 'RemoteFeatureFlagController:getState',
     ): RemoteFeatureFlagControllerState;
   },
 >(
-  messenger: T,
+  messenger: MessengerType,
 ): FeatureFlagsPlatformConfig => {
   const remoteFeatureFlags = getFeatureFlags(messenger);
 
@@ -78,6 +80,7 @@ export const getBridgeFeatureFlags = <
   // Extension LaunchDarkly will not have the bridgeConfigV2 field, so we'll continue to use bridgeConfig
   const rawBridgeConfig = remoteFeatureFlags?.bridgeConfig;
 
+  // oxlint-disable-next-line typescript/prefer-nullish-coalescing
   return processFeatureFlags(rawMobileFlags || rawBridgeConfig);
 };
 
@@ -91,7 +94,7 @@ export const getBridgeFeatureFlags = <
 export const hasMinimumRequiredVersion = (
   clientVersion: string,
   minRequiredVersion: string,
-) => {
+): boolean => {
   const [clientMajor, clientMinor, clientPatch] = clientVersion
     .split('.')
     .map(Number);
@@ -112,15 +115,15 @@ export const hasMinimumRequiredVersion = (
 };
 
 export const getQuoteRefreshRate = <
-  T extends {
+  MessengerType extends {
     call(
       action: 'RemoteFeatureFlagController:getState',
     ): RemoteFeatureFlagControllerState;
   },
 >(
-  messenger: T,
+  messenger: MessengerType,
   srcChainId?: GenericQuoteRequest['srcChainId'],
-) => {
+): number => {
   const bridgeFeatureFlags = getBridgeFeatureFlags(messenger);
 
   const refreshRateOverride = srcChainId

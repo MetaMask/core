@@ -76,7 +76,7 @@ describe('setTransactionConfigForMmPay', () => {
       MONEY_ACCOUNT,
       Operation.WITHDRAW,
     );
-    expect(configs).toStrictEqual([{ refundTo: REFUND_TO }]);
+    expect(configs).toStrictEqual([{ isPostQuote: true, refundTo: REFUND_TO }]);
   });
 });
 
