@@ -10,7 +10,7 @@ export type EthEncryptedData = {
   ciphertext: string;
 };
 
-const DEFAULT_PADDING_LENGTH = 2 ** 11;
+const DEFAULT_PADDING_LENGTH = 2048;
 const NACL_EXTRA_BYTES = 16;
 
 /**
