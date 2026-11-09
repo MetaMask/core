@@ -10,7 +10,7 @@ import {
   SignatureRequestType,
 } from '@metamask/signature-controller';
 import type { Mock, MockedFunction } from 'vitest';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   generateMockSignatureRequest,
@@ -144,10 +144,6 @@ function setup({
 }
 
 describe('ShieldApiService', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('defaults fetch to globalThis.fetch when omitted', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
       status: 200,

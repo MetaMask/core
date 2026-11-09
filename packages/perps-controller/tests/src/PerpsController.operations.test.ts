@@ -12,6 +12,7 @@ import type { Mock, Mocked, MockedClass } from 'vitest';
 import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
   createDeferred,
+  createKeyringlessMessenger,
   createMockEvmAccount,
   createMockInfrastructure,
   createMockMessenger,
@@ -598,6 +599,81 @@ describe('PerpsController', () => {
     (mockInfrastructure.logger.error as Mock).mockClear();
     (mockInfrastructure.debugLogger.log as Mock).mockClear();
   });
+
+  describe('account support', () => {
+    it('returns the active provider account support result', async () => {
+      const accountSupport = {
+        isSupported: false,
+        reason: 'multi_sig_account',
+      } as const;
+      mockProvider.getAccountSupport.mockResolvedValue(accountSupport);
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+
+      const result = await controller.getAccountSupport();
+
+      expect(result).toEqual(accountSupport);
+      expect(mockProvider.getAccountSupport).toHaveBeenCalledWith(undefined);
+    });
+
+    it('exposes account support through the public messenger action', async () => {
+      const host = createKeyringlessMessenger();
+      host.rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        () => ({ remoteFeatureFlags: {}, cacheTimestamp: 0 }),
+      );
+      host.rootMessenger.delegate({
+        actions: ['RemoteFeatureFlagController:getState'],
+        events: [
+          'RemoteFeatureFlagController:stateChange',
+          'AccountsController:selectedAccountChange',
+          'AccountTreeController:selectedAccountGroupChange',
+        ],
+        messenger: host.messenger,
+      });
+      const messengerController = new TestablePerpsController({
+        messenger: host.messenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure: createMockInfrastructure(),
+        deferEligibilityCheck: true,
+      });
+      const accountSupport = {
+        isSupported: false,
+        reason: 'multi_sig_account',
+      } as const;
+      mockProvider.getAccountSupport.mockResolvedValue(accountSupport);
+      await messengerController.init();
+      messengerController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+
+      const result = await host.messenger.call(
+        'PerpsController:getAccountSupport',
+        { providerId: 'hyperliquid' },
+      );
+
+      expect(result).toStrictEqual(accountSupport);
+      expect(mockProvider.getAccountSupport).toHaveBeenCalledWith({
+        providerId: 'hyperliquid',
+      });
+    });
+
+    it('treats providers without an account support hook as supported', async () => {
+      const {
+        getAccountSupport: _getAccountSupport,
+        ...providerWithoutAccountSupport
+      } = mockProvider;
+      markControllerAsInitialized();
+      controller.testSetProviders(
+        new Map([['hyperliquid', providerWithoutAccountSupport]]),
+      );
+
+      const result = await controller.getAccountSupport();
+
+      expect(result).toEqual({ isSupported: true });
+    });
+  });
+
   describe('validation methods', () => {
     it('validates close position', async () => {
       const closeParams = {

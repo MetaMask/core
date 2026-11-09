@@ -112,8 +112,7 @@ export const handleMockSocialLogin = (
   onRequest?: (request: { body: unknown; authorization: string }) => void,
 ): nock.Scope => {
   const reply = mockReply ?? { status: 200, body: MOCK_SOCIAL_LOGIN_RESPONSE };
-  // Body and header matchers capture the request, because the arguments
-  // passed to `.reply()` callbacks differ between nock versions.
+  // Body and header matchers record the request for the reply callback.
   let requestBody: unknown;
   let authorization: string | null | undefined;
   const interceptor = nock(MOCK_SOCIAL_LOGIN_URL)
@@ -140,19 +139,13 @@ export const handleMockSrpLogin = (
 ): nock.Scope => {
   const reply = mockReply ?? { status: 200, body: MOCK_SRP_LOGIN_RESPONSE };
   // Nock may run body matchers more than once per request, so the body is
-  // read in the reply callback. Its arguments differ between nock versions:
-  // `(uri, body)` in older ones and `(request)` in newer ones.
+  // read from the `Request` in the reply callback.
   const mockLoginEndpoint = nock(MOCK_SRP_LOGIN_URL)
     .persist()
     .post('')
-    .reply(async (...args: unknown[]) => {
+    .reply(async (request: Request) => {
       if (onBody) {
-        const [first, second] = args;
-        onBody(
-          typeof first === 'string'
-            ? second
-            : await (first as Request).clone().text(),
-        );
+        onBody(await request.clone().text());
       }
       return [reply.status, reply.body];
     });

@@ -1,5 +1,5 @@
 import type { Hex } from '@metamask/utils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { QuoteRequest, TransactionPayQuote } from '../types.js';
 import { reservePostQuoteGas } from './post-quote.js';
@@ -16,10 +16,6 @@ const REQUEST_MOCK = {
 } as unknown as QuoteRequest;
 
 describe('post-quote', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
   describe('reservePostQuoteGas', () => {
     function buildQuote({
       isSourceGasFeeToken = true,

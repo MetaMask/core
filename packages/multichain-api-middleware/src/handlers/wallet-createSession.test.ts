@@ -17,7 +17,7 @@ import type {
   JsonRpcRequest,
   JsonRpcSuccess,
 } from '@metamask/utils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { walletCreateSessionHandler } from './wallet-createSession.js';
 
@@ -165,10 +165,6 @@ describe('wallet_createSession', () => {
     MockChainAgnosticPermission.getSupportedScopeObjects.mockImplementation(
       (scopesObject) => scopesObject,
     );
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   it('throws an error if params is not a plain object', async () => {

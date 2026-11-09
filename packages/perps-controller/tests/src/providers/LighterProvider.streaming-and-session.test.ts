@@ -34,10 +34,6 @@ vi.mock('../../../src/services/LighterWalletService');
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('price streaming', () => {
     class FakeWebSocket implements LighterWebSocketLike {
       static instances: FakeWebSocket[] = [];

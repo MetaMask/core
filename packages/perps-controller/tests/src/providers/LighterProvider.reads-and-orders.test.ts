@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import {
@@ -38,10 +38,6 @@ vi.mock('../../../src/services/LighterWalletService');
 
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
 
   describe('lifecycle', () => {
     it('exposes the lighter protocol id', () => {
@@ -810,6 +806,144 @@ describe('LighterProvider', () => {
       clientInstance.getAccountByIndex.mockRejectedValue(new Error('down'));
       const state = await provider.getAccountState();
       expect(state.totalBalance).toBe('0');
+    });
+
+    it('attaches the cross margin summary from the account positions', async () => {
+      const { provider } = buildProvider();
+      const state = await provider.getAccountState();
+      // BTC cross: value 10000, 20% initial and 1.2% maintenance fractions.
+      expect(state.crossMarginSummary).toStrictEqual({
+        accountValue: '10500',
+        maintenanceMargin: '120',
+        marginUsed: '2000',
+        notional: '10000',
+      });
+    });
+
+    it('does not load market metadata for an account without positions', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [{ ...ACCOUNT, positions: [] }],
+      });
+      const state = await provider.getAccountState();
+      expect(state.crossMarginSummary).toStrictEqual({
+        accountValue: '10000',
+        maintenanceMargin: '0',
+        marginUsed: '0',
+        notional: '0',
+      });
+      expect(clientInstance.getOrderBookDetails).not.toHaveBeenCalled();
+    });
+
+    it('keeps the account state without a summary when margin metadata is unavailable', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getOrderBookDetails.mockRejectedValue(new Error('down'));
+      const state = await provider.getAccountState();
+      expect(state.totalBalance).toBe('10500');
+      expect(state).not.toHaveProperty('crossMarginSummary');
+    });
+
+    it('keeps the account state without a summary when an open cross position has no maintenance fraction', async () => {
+      const { provider, clientInstance } = buildProvider();
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [
+          {
+            ...ACCOUNT,
+            positions: [{ ...ACCOUNT.positions[0], symbol: 'SOL' }],
+          },
+        ],
+      });
+      const state = await provider.getAccountState();
+      expect(state.totalBalance).toBe('10500');
+      expect(state).not.toHaveProperty('crossMarginSummary');
+      await expect(
+        provider.getAccountState({ throwOnUnavailable: true }),
+      ).rejects.toThrow('cross margin summary unavailable');
+    });
+
+    it('keeps the account state without a summary when the response omits positions', async () => {
+      const { provider, clientInstance } = buildProvider();
+      const { positions: _positions, ...withoutPositions } = ACCOUNT;
+      clientInstance.getAccountByIndex.mockResolvedValue({
+        code: 200,
+        accounts: [withoutPositions],
+      });
+      const state = await provider.getAccountState();
+      expect(state.totalBalance).toBe('10000');
+      expect(state).not.toHaveProperty('crossMarginSummary');
+      expect(clientInstance.getOrderBookDetails).not.toHaveBeenCalled();
+      await expect(
+        provider.getAccountState({ throwOnUnavailable: true }),
+      ).rejects.toThrow('cross margin summary unavailable');
+    });
+
+    describe('with throwOnUnavailable', () => {
+      it('returns the same state for a healthy read', async () => {
+        const { provider } = buildProvider();
+        expect(
+          await provider.getAccountState({ throwOnUnavailable: true }),
+        ).toStrictEqual(await provider.getAccountState());
+      });
+
+      it('throws ACCOUNT_STATE_FAILED with the cause instead of zeros', async () => {
+        const { provider, clientInstance } = buildProvider();
+        const cause = new Error('down');
+        clientInstance.getAccountByIndex.mockRejectedValue(cause);
+        const read = provider.getAccountState({ throwOnUnavailable: true });
+        await expect(read).rejects.toThrow(
+          PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED,
+        );
+        await expect(read).rejects.toHaveProperty('cause', cause);
+      });
+
+      it('throws when the venue returns no account for the bound index', async () => {
+        const { provider, clientInstance } = buildProvider();
+        await provider.getAccountState(); // bind the configured index
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [],
+        });
+        expect((await provider.getAccountState()).totalBalance).toBe('0');
+        await expect(
+          provider.getAccountState({ throwOnUnavailable: true }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
+      });
+
+      it('throws when margin metadata for the summary is unavailable', async () => {
+        const { provider, clientInstance } = buildProvider();
+        clientInstance.getOrderBookDetails.mockRejectedValue(new Error('down'));
+        await expect(
+          provider.getAccountState({ throwOnUnavailable: true }),
+        ).rejects.toThrow(PERPS_ERROR_CODES.ACCOUNT_STATE_FAILED);
+      });
+
+      it('still reads a wallet without a Lighter account as empty', async () => {
+        const { provider, clientInstance } = buildProvider({
+          configuredAccountIndex: null,
+        });
+        clientInstance.getAccountsByL1Address.mockResolvedValue({
+          code: 200,
+          l1Address: ACCOUNT.l1Address,
+          subAccounts: [],
+        });
+        const state = await provider.getAccountState({
+          throwOnUnavailable: true,
+        });
+        expect(state.totalBalance).toBe('0');
+      });
+
+      it('surfaces malformed venue numbers unwrapped', async () => {
+        const { provider, clientInstance } = buildProvider();
+        clientInstance.getAccountByIndex.mockResolvedValue({
+          code: 200,
+          accounts: [{ ...ACCOUNT, collateral: '10000USD' }],
+        });
+        await expect(
+          provider.getAccountState({ throwOnUnavailable: true }),
+        ).rejects.toThrow('Invalid Lighter venue data');
+      });
     });
 
     it('surfaces malformed REST account numbers instead of degrading to empty state', async () => {

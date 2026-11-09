@@ -57,6 +57,7 @@ export type {
   TransactionControllerUpdatePreviousGasParamsAction,
   TransactionControllerUpdateSelectedGasFeeTokenAction,
   TransactionControllerUpdateRequiredTransactionIdsAction,
+  TransactionControllerUpdateBatchTransactionsAction,
 } from './TransactionController-method-action-types.js';
 export {
   CANCEL_RATE,

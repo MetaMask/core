@@ -33,6 +33,8 @@ export type {
   SubscriptionControllerClearStateAction,
   SubscriptionControllerTriggerAccessTokenRefreshAction,
   SubscriptionControllerStopAllPollingAction,
+  SubscriptionControllerStartPollingAction,
+  SubscriptionControllerStopPollingByPollingTokenAction,
 } from './SubscriptionController-method-action-types.js';
 export {
   SubscriptionController,

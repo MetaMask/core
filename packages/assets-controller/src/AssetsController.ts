@@ -453,37 +453,37 @@ export type AssetsControllerOptions = {
 const stateMetadata: StateMetadata<AssetsControllerState> = {
   assetsInfo: {
     persist: true,
-    includeInStateLogs: false,
+    includeInStateLogs: true,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
   assetsBalance: {
     persist: true,
-    includeInStateLogs: false,
+    includeInStateLogs: true,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
   assetsPrice: {
     persist: true,
-    includeInStateLogs: false,
+    includeInStateLogs: true,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
   customAssets: {
     persist: true,
-    includeInStateLogs: false,
+    includeInStateLogs: true,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
   assetPreferences: {
     persist: true,
-    includeInStateLogs: false,
+    includeInStateLogs: true,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
   selectedCurrency: {
     persist: true,
-    includeInStateLogs: false,
+    includeInStateLogs: true,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },

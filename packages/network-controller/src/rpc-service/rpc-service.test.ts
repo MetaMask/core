@@ -859,14 +859,8 @@ describe('RpcService', () => {
           result: '0x1',
         });
       const promiseForRequestUrl = new Promise<string>((resolve) => {
-        scope.on('request', (request: unknown) => {
-          // Depending on the version of Nock, this is either a Node.js request
-          // (with `options.href`) or a Fetch API `Request` (with `url`).
-          const { options, url } = request as {
-            options?: { href: string };
-            url?: string;
-          };
-          resolve([options?.href, url].find(Boolean) as string);
+        scope.on('request', (request: Request) => {
+          resolve(request.url);
         });
       });
       const service = new RpcService({
@@ -1150,6 +1144,10 @@ describe('RpcService', () => {
 
     it('calls onDegraded twice with the correct rpcMethodName when two concurrent requests to different methods both respond slowly', async () => {
       const endpointUrl = 'https://rpc.example.chain';
+      let reportFirstRequestDegraded: () => void = () => undefined;
+      const firstRequestDegraded = new Promise<void>((resolve) => {
+        reportFirstRequestDegraded = resolve;
+      });
       nock(endpointUrl)
         .post('/', {
           id: 1,
@@ -1172,7 +1170,8 @@ describe('RpcService', () => {
           method: 'eth_gasPrice',
           params: [],
         })
-        .reply(200, () => {
+        .reply(200, async () => {
+          await firstRequestDegraded;
           vi.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
           return {
             id: 2,
@@ -1180,7 +1179,9 @@ describe('RpcService', () => {
             result: '0x100',
           };
         });
-      const onDegradedListener = vi.fn();
+      const onDegradedListener = vi.fn(() => {
+        reportFirstRequestDegraded();
+      });
       const service = new RpcService({
         fetch,
         btoa,

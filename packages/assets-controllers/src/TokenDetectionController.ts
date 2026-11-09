@@ -158,6 +158,8 @@ type TokenDetectionPollingInput = {
 };
 
 const MESSENGER_EXPOSED_METHODS = [
+  'startPolling',
+  'stopPollingByPollingToken',
   'addDetectedTokensViaWs',
   'addDetectedTokensViaPolling',
   'detectTokens',

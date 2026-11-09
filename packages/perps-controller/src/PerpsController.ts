@@ -98,6 +98,7 @@ import type {
   FlipPositionParams,
   Funding,
   GetAccountStateParams,
+  GetAccountSupportParams,
   GetAvailableDexsParams,
   GetFundingParams,
   GetMarketDataWithPricesParams,
@@ -162,6 +163,7 @@ import type {
   PerpsAgentSigner,
   PerpsPlatformDependencies,
   PerpsActiveProviderMode,
+  PerpsAccountSupport,
   PerpsAnalyticsProperties,
   PerpsAttributionContext,
   PerpsProviderType,
@@ -984,6 +986,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchHistoricalCandles',
   'flipPosition',
   'getAccountState',
+  'getAccountSupport',
   'getActiveProvider',
   'getActiveProviderOrNull',
   'getAttributionContext',
@@ -2954,6 +2957,26 @@ export class PerpsController extends BaseController<
 
       return this.getActiveProvider();
     }
+  }
+
+  /**
+   * Return whether the selected account can submit actions through the active
+   * provider route. Providers without an account-support check remain
+   * supported for backward compatibility.
+   *
+   * @param params - Optional provider route.
+   * @returns The provider-owned account support result.
+   */
+  async getAccountSupport(
+    params?: GetAccountSupportParams,
+  ): Promise<PerpsAccountSupport> {
+    const provider = await this.#getActiveProviderWhenReady();
+    if (this.#hasConflictingProviderRoute(params?.providerId, provider)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    return provider.getAccountSupport
+      ? provider.getAccountSupport(params)
+      : { isSupported: true };
   }
 
   /**

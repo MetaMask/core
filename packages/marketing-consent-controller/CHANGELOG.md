@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/analytics-controller` from `^4.1.0` to `^4.2.0` ([#11323](https://github.com/MetaMask/core/pull/11323))
+
 ## [1.1.0]
 
 ### Added

@@ -3,7 +3,7 @@ import type {
   KeyringControllerMessenger,
   KeyringControllerOptions,
 } from '@metamask/keyring-controller';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { keyringController } from './keyring-controller.js';
 
@@ -13,10 +13,6 @@ vi.mock(import('@metamask/keyring-controller'), async (importOriginal) => ({
 }));
 
 describe('keyringController', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('forwards keyringV2Builders to the KeyringController', () => {
     const keyringV2Builders = [
       Object.assign(vi.fn(), { type: 'Test Keyring V2' }),

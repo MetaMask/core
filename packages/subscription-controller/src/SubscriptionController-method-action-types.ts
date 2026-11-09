@@ -306,6 +306,16 @@ export type SubscriptionControllerTriggerAccessTokenRefreshAction = {
   handler: SubscriptionController['triggerAccessTokenRefresh'];
 };
 
+export type SubscriptionControllerStartPollingAction = {
+  type: `SubscriptionController:startPolling`;
+  handler: SubscriptionController['startPolling'];
+};
+
+export type SubscriptionControllerStopPollingByPollingTokenAction = {
+  type: `SubscriptionController:stopPollingByPollingToken`;
+  handler: SubscriptionController['stopPollingByPollingToken'];
+};
+
 export type SubscriptionControllerStopAllPollingAction = {
   type: `SubscriptionController:stopAllPolling`;
   handler: SubscriptionController['stopAllPolling'];
@@ -339,4 +349,6 @@ export type SubscriptionControllerMethodActions =
   | SubscriptionControllerGetTokenMinimumBalanceAmountAction
   | SubscriptionControllerClearStateAction
   | SubscriptionControllerTriggerAccessTokenRefreshAction
+  | SubscriptionControllerStartPollingAction
+  | SubscriptionControllerStopPollingByPollingTokenAction
   | SubscriptionControllerStopAllPollingAction;

@@ -76,4 +76,17 @@ export const SocialServiceErrorMessage = {
   FETCH_BLOCKED_CONTENT_FAILED: 'SocialService: Blocked content request failed',
   FETCH_BLOCKED_CONTENT_INVALID_RESPONSE:
     'SocialService: Blocked content returned invalid response',
+  FETCH_MODERATION_STATUS_FAILED:
+    'SocialService: Moderation status request failed',
+  FETCH_MODERATION_STATUS_INVALID_RESPONSE:
+    'SocialService: Moderation status returned invalid response',
+  FETCH_QUOTE_TOKENS_FAILED: 'SocialService: Quote tokens request failed',
+  FETCH_QUOTE_TOKENS_INVALID_RESPONSE:
+    'SocialService: Quote tokens returned invalid response',
+  FETCH_TRENDING_GIFS_FAILED: 'SocialService: Trending GIFs request failed',
+  FETCH_TRENDING_GIFS_INVALID_RESPONSE:
+    'SocialService: Trending GIFs returned invalid response',
+  FETCH_SEARCH_GIFS_FAILED: 'SocialService: GIF search request failed',
+  FETCH_SEARCH_GIFS_INVALID_RESPONSE:
+    'SocialService: GIF search returned invalid response',
 } as const;

@@ -3,8 +3,6 @@ import type { V3AssetResponse } from '@metamask/core-backend';
 import type { Json } from '@metamask/utils';
 import nock from 'nock';
 
-import { getRequestUrl } from '../../test-utils.js';
-import type { NockRequestInfo } from '../../test-utils.js';
 import accountsV2SupportedNetworks from './accounts-api/v2-supportedNetworks.js';
 import v5MultiAccountBalances from './accounts-api/v5-multiaccount-balances.js';
 import v6MultiAccountBalances, {
@@ -96,9 +94,9 @@ function mockV5MultiAccountBalances(omitAssetIds: string[] = []): {
     .persist()
     .get('/v5/multiaccount/balances')
     .query(true)
-    .reply(200, (uri: NockRequestInfo) => {
+    .reply(200, (request: Request) => {
       requestedAccountIds.push(
-        readListParam(uri, 'accountIds', API_URLS.ACCOUNTS),
+        readListParam(request, 'accountIds', API_URLS.ACCOUNTS),
       );
       const balances = v5MultiAccountBalances.balances.filter(
         (entry) => !omitted.has(entry.assetId.toLowerCase()),
@@ -158,15 +156,19 @@ function mockV6MultiAccountBalances({
     .persist()
     .get('/v6/multiaccount/balances')
     .query(true)
-    .reply(200, (uri: NockRequestInfo) => {
-      const accountIds = readListParam(uri, 'accountIds', API_URLS.ACCOUNTS);
+    .reply(200, (request: Request) => {
+      const accountIds = readListParam(
+        request,
+        'accountIds',
+        API_URLS.ACCOUNTS,
+      );
       const includeAssetIds = readListParam(
-        uri,
+        request,
         'includeAssetIds',
         API_URLS.ACCOUNTS,
       );
       const excludeAssetIds = readListParam(
-        uri,
+        request,
         'excludeAssetIds',
         API_URLS.ACCOUNTS,
       );
@@ -264,8 +266,8 @@ function mockV3Assets(): BatchRecordingMock {
     .persist()
     .get('/v3/assets')
     .query(true)
-    .reply(200, (uri: NockRequestInfo) => {
-      const assetIds = readListParam(uri, 'assetIds', API_URLS.TOKENS);
+    .reply(200, (request: Request) => {
+      const assetIds = readListParam(request, 'assetIds', API_URLS.TOKENS);
       requestedBatches.push(assetIds);
       return assetIds.map((assetId) => lookupAsset(assetId));
     });
@@ -300,8 +302,8 @@ function mockV3SpotPrices(): BatchRecordingMock {
     .persist()
     .get('/v3/spot-prices')
     .query(true)
-    .reply(200, (uri: NockRequestInfo) => {
-      const assetIds = readListParam(uri, 'assetIds', API_URLS.PRICES);
+    .reply(200, (request: Request) => {
+      const assetIds = readListParam(request, 'assetIds', API_URLS.PRICES);
       requestedBatches.push(assetIds);
 
       const prices: Record<string, Json> = {};
@@ -419,17 +421,17 @@ export function mockBscSpamApisV6({
 /**
  * Read a comma-separated query parameter back off an intercepted request URI.
  *
- * @param uri - The intercepted request URI, path and query.
+ * @param request - The intercepted request.
  * @param param - The query parameter name.
  * @param base - Base URL, so the relative URI can be parsed.
  * @returns The parameter's values.
  */
 function readListParam(
-  uri: NockRequestInfo,
+  request: Request,
   param: string,
   base: string,
 ): string[] {
-  const value = new URL(getRequestUrl(uri), base).searchParams.get(param);
+  const value = new URL(request.url, base).searchParams.get(param);
   return value ? value.split(',') : [];
 }
 

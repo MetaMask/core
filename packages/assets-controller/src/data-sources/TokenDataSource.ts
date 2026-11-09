@@ -19,6 +19,8 @@ import type {
   FungibleAssetMetadata,
   DataResponse,
 } from '../types.js';
+import { findLaunchpadAssetIds } from '../utils/findLaunchpadAssetIds.js';
+import { findLowOccurrenceSpamAssetIds } from '../utils/findLowOccurrenceSpamAssetIds.js';
 import { getAssetIdsForMetadataFetch } from '../utils/getAssetIdsForMetadataFetch.js';
 import { fetchWithTimeout } from '../utils/index.js';
 import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
@@ -53,6 +55,17 @@ export enum CaipAssetNamespace {
 }
 
 const MUSD_ADDRESS_LOWERCASE = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
+
+/**
+ * Whether a CAIP-19 asset ID (any casing) is mUSD, which is exempt from
+ * occurrence-floor filtering.
+ *
+ * @param assetId - CAIP-19 asset ID.
+ * @returns True when the asset is mUSD.
+ */
+function isMusdAssetId(assetId: string): boolean {
+  return assetId.toLowerCase().includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`);
+}
 
 // ============================================================================
 // OPTIONS
@@ -278,6 +291,27 @@ export class TokenDataSource {
   }
 
   /**
+   * Returns the non-malicious launchpad tokens among `assetIds`, which are
+   * exempt from occurrence-floor filtering. Fails closed to an empty set so a
+   * failed lookup never lets extra tokens through.
+   *
+   * @param assetIds - CAIP-19 asset IDs that failed the occurrence floor.
+   * @returns Lower-cased asset IDs of launchpad tokens to keep.
+   */
+  async #getLaunchpadAssetIds(assetIds: string[]): Promise<Set<string>> {
+    try {
+      return await findLaunchpadAssetIds({
+        assetIds,
+        apiClient: this.#apiClient,
+        timeoutMs: this.#fetchTimeoutMs,
+      });
+    } catch (error) {
+      log('Failed to fetch launchpad data', { error });
+      return new Set();
+    }
+  }
+
+  /**
    * Filters asset IDs to only include those from supported networks.
    *
    * @param assetIds - Array of CAIP-19 asset IDs
@@ -435,7 +469,7 @@ export class TokenDataSource {
             knownBalanceIds.has(lowerId) ||
             knownMetadataIds.has(lowerId) ||
             customAssetIds.has(lowerId) ||
-            lowerId.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`)
+            isMusdAssetId(lowerId)
           ) {
             continue;
           }
@@ -482,19 +516,26 @@ export class TokenDataSource {
           ]);
 
         // Only assets the API knows can be judged; missing ones are kept.
-        const spamAssetIds = new Set<string>();
-        for (const assetData of occurrenceResponse) {
-          const candidateId = candidateByLowerId.get(
+        const occurrencesByLowerId = new Map(
+          occurrenceResponse.map((assetData) => [
             assetData.assetId.toLowerCase(),
-          );
-          if (
-            candidateId !== undefined &&
-            (assetData.occurrences ?? 0) <
-              getOccurrenceFloorForAsset(candidateId, suggestedOccurrenceFloors)
-          ) {
-            spamAssetIds.add(candidateId);
-          }
-        }
+            assetData.occurrences,
+          ]),
+        );
+        const judgeableAssetIds = [...candidateByLowerId.values()].filter(
+          (id) => occurrencesByLowerId.has(id.toLowerCase()),
+        );
+        const spamAssetIds = new Set(
+          await findLowOccurrenceSpamAssetIds({
+            assetIds: judgeableAssetIds,
+            isExempt: (id) =>
+              customAssetIds.has(id.toLowerCase()) || isMusdAssetId(id),
+            getOccurrences: (id) => occurrencesByLowerId.get(id.toLowerCase()),
+            getOccurrenceFloor: (id) =>
+              getOccurrenceFloorForAsset(id, suggestedOccurrenceFloors),
+            findLaunchpadAssetIds: (ids) => this.#getLaunchpadAssetIds(ids),
+          }),
+        );
 
         if (spamAssetIds.size > 0) {
           cleanResponseSpam(spamAssetIds, response);
@@ -601,8 +642,8 @@ export class TokenDataSource {
 
         // Split assets by chain type: EVM uses occurrence-count filtering;
         // non-EVM non-native uses Blockaid; native assets are always allowed.
-        const occurrencesByAssetId = new Map(
-          metadataResponse.map((a) => [a.assetId, a.occurrences]),
+        const occurrencesByLowerId = new Map(
+          metadataResponse.map((a) => [a.assetId.toLowerCase(), a.occurrences]),
         );
 
         const evmErc20Ids: string[] = [];
@@ -631,15 +672,21 @@ export class TokenDataSource {
         // can import whatever they want and we must keep their metadata even
         // if the API has fewer aggregator hits than the floor.
         // Balance-only heals also bypass — see `balanceHealAssetIds` below.
-        const allowedEvmIds = new Set(
-          evmErc20Ids.filter(
-            (id) =>
+        const spamEvmIds = new Set(
+          await findLowOccurrenceSpamAssetIds({
+            assetIds: evmErc20Ids,
+            isExempt: (id) =>
               customAssetIds.has(id.toLowerCase()) ||
               balanceHealAssetIds.has(id.toLowerCase()) ||
-              (occurrencesByAssetId.get(id) ?? 0) >=
-                getOccurrenceFloorForAsset(id, suggestedOccurrenceFloors) ||
-              id.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`),
-          ),
+              isMusdAssetId(id),
+            getOccurrences: (id) => occurrencesByLowerId.get(id.toLowerCase()),
+            getOccurrenceFloor: (id) =>
+              getOccurrenceFloorForAsset(id, suggestedOccurrenceFloors),
+            findLaunchpadAssetIds: (ids) => this.#getLaunchpadAssetIds(ids),
+          }),
+        );
+        const allowedEvmIds = new Set(
+          evmErc20Ids.filter((id) => !spamEvmIds.has(id)),
         );
 
         // Non-EVM: Blockaid bulk scan.

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { LighterApiError } from '../../../src/services/LighterClientService.js';
@@ -33,10 +33,6 @@ vi.mock('../../../src/services/LighterWalletService');
 
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
 
   describe('round-15 authoritative settlement identity and recovery', () => {
     /**

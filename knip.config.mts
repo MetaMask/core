@@ -10,7 +10,10 @@ const config: KnipConfig = {
         '.prettierrc.cjs',
       ],
       project: ['scripts/**/*.ts', 'tests/**/*.ts', '*.{js,cjs,mjs,ts}'],
-      ignore: ['scripts/create-package/package-template/**'],
+      ignore: [
+        'scripts/create-package/package-template/**',
+        'merged-packages/**',
+      ],
       // `bats` (used to run the shell script tests) ships a non-standard `bin`
       // field, so it has no `.bin` shim and is invoked by path. knip can't tie
       // that invocation back to the dependency, so both are declared here.

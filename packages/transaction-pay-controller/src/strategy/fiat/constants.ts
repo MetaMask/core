@@ -35,13 +35,23 @@ export const ETH_MAINNET_FIAT_ASSET: TransactionPayFiatAsset = {
 export const FIAT_ASSET_ID_BY_TX_TYPE: Partial<
   Record<TransactionType, TransactionPayFiatAsset>
 > = {
+  [TransactionType.membershipSubscription]: ETH_MAINNET_FIAT_ASSET,
   [TransactionType.moneyAccountDeposit]: ETH_MAINNET_FIAT_ASSET,
   [TransactionType.perpsDeposit]: ARBITRUM_ETH_FIAT_ASSET,
   [TransactionType.predictDeposit]: POLYGON_POL_FIAT_ASSET,
 };
 
-export const FIAT_ENABLED_TYPES: TransactionType[] = [
+/**
+ * Transaction types that deposit into the Money Account vault, so share the
+ * Money Account fiat handling (direct mUSD on-ramp and CHOMP recovery).
+ */
+export const MONEY_ACCOUNT_DEPOSIT_TYPES: TransactionType[] = [
+  TransactionType.membershipSubscription,
   TransactionType.moneyAccountDeposit,
+];
+
+export const FIAT_ENABLED_TYPES: TransactionType[] = [
+  ...MONEY_ACCOUNT_DEPOSIT_TYPES,
   TransactionType.perpsDeposit,
   TransactionType.predictDeposit,
 ];

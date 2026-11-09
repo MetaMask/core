@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "37.1.1",
+  "version": "38.0.0",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "Ethereum",
@@ -32,13 +32,14 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
     "build:docs": "typedoc",
     "build:only-clean": "rimraf './dist' './tsconfig.build.tsbuildinfo'",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/network-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh",
     "lint:tsconfigs": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts",
     "lint:tsconfigs:fix": "node --import ../../scripts/resolver/register.ts ../../scripts/lint-tsconfigs/lint-tsconfigs.ts --fix",
     "messenger-action-types:check": "node --import ../../scripts/resolver/register.ts ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
@@ -46,11 +47,12 @@
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "vitest",
     "test:clean": "vitest --clearCache",
+    "test:coverage": "vitest --coverage",
     "test:verbose": "vitest --reporter=verbose",
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/analytics-controller": "^4.1.0",
+    "@metamask/analytics-controller": "^4.2.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/config-registry-controller": "^5.0.0",
     "@metamask/connectivity-controller": "^1.0.0",
@@ -72,11 +74,11 @@
     "loglevel": "^1.9.2",
     "reselect": "^5.3.0",
     "uri-js": "^4.4.1",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@json-rpc-specification/meta-schema": "^1.0.6",
-    "@metamask/auto-changelog": "^6.2.1",
+    "@metamask/auto-changelog": "^7.1.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "@types/lodash-es": "^4.17.12",
     "@types/node-fetch": "^2.6.12",
@@ -92,7 +94,7 @@
     "typedoc": "^0.28.20",
     "typedoc-plugin-missing-exports": "^4.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "vitest": "^5.0.0"
+    "vitest": "5.0.3"
   },
   "engines": {
     "node": "^22.14.0 || ^24 || ^26"

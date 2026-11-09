@@ -1,75 +1,70 @@
-import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { BigNumber } from 'bignumber.js';
 
-import {
-  ARBITRUM_USDC_ADDRESS,
-  CHAIN_ID_ARBITRUM,
-  CHAIN_ID_HYPERCORE,
-  HYPERCORE_USDC_DECIMALS,
-  USDC_DECIMALS,
-} from '../../constants.js';
+import { CHAIN_ID_HYPERCORE } from '../../constants.js';
 import type { QuoteRequest } from '../../types.js';
+import { normalizePerpsDepositRequest } from '../../utils/perps.js';
+import type { AcrossSwapApprovalResponse } from './types.js';
 
 export const ACROSS_HYPERCORE_USDC_PERPS_ADDRESS =
   '0x2100000000000000000000000000000000000000' as Hex;
 
 /**
- * Detect the quote-time parent transaction shape that Across can map to the
- * new HyperCore USDC-PERPS direct-deposit route.
- *
- * The parent transaction remains `perpsDeposit` while quotes are being
- * selected. `perpsAcrossDeposit` is only assigned later to the generated
- * Across submission transaction(s).
- *
- * @param request - Transaction pay quote request.
- * @param parentTransactionType - Parent transaction type before Across
- * execution.
- * @returns Whether the request matches the supported direct-deposit path.
+ * Decimals Across uses for HyperCore USDC-PERPS. This differs from the 8
+ * decimals of HyperCore USDC used by other strategies, as the HyperCore perps
+ * ledger accounts in 6 decimals.
  */
-export function isSupportedAcrossPerpsDepositRequest(
-  request: Pick<
-    QuoteRequest,
-    'isPostQuote' | 'targetChainId' | 'targetTokenAddress'
-  >,
-  parentTransactionType?: TransactionType,
-): boolean {
-  return (
-    parentTransactionType === TransactionType.perpsDeposit &&
-    request.isPostQuote !== true &&
-    request.targetChainId === CHAIN_ID_ARBITRUM &&
-    request.targetTokenAddress.toLowerCase() ===
-      ARBITRUM_USDC_ADDRESS.toLowerCase()
-  );
-}
+export const ACROSS_HYPERCORE_USDC_PERPS_DECIMALS = 6;
 
 /**
  * Convert the transaction-pay request into the Across route shape required for
- * direct perps deposits.
- *
- * Transaction pay starts from the required on-chain asset identity
- * (Arbitrum USDC, 6 decimals), while Across now expects the HyperCore
- * USDC-PERPS destination token (8 decimals).
+ * direct perps deposits, targeting the HyperCore USDC-PERPS token.
  *
  * @param request - Transaction pay quote request.
- * @param parentTransactionType - Parent transaction type before Across
- * execution.
+ * @param transaction - Parent transaction whose calls are inspected.
  * @returns Normalized request for Across quoting.
  */
 export function normalizeAcrossRequest(
   request: QuoteRequest,
-  parentTransactionType?: TransactionType,
+  transaction: Pick<TransactionMeta, 'txParams' | 'nestedTransactions'>,
 ): QuoteRequest {
-  if (!isSupportedAcrossPerpsDepositRequest(request, parentTransactionType)) {
-    return request;
+  return normalizePerpsDepositRequest(
+    request,
+    transaction,
+    ACROSS_HYPERCORE_USDC_PERPS_ADDRESS,
+    ACROSS_HYPERCORE_USDC_PERPS_DECIMALS,
+  );
+}
+
+/**
+ * Ensure an Across quote for a HyperCore USDC-PERPS deposit uses the decimals
+ * the request amount was scaled to.
+ *
+ * If Across changes the USDC-PERPS decimals again, the requested amount would
+ * be misinterpreted by orders of magnitude. Throwing lets the strategy loop
+ * fall back to the next strategy instead of presenting a mispriced quote.
+ *
+ * @param request - Normalized Across quote request.
+ * @param quote - Across swap approval response.
+ */
+export function validateAcrossPerpsQuote(
+  request: Pick<QuoteRequest, 'targetChainId' | 'targetTokenAddress'>,
+  quote: AcrossSwapApprovalResponse,
+): void {
+  const isPerpsDeposit =
+    request.targetChainId === CHAIN_ID_HYPERCORE &&
+    request.targetTokenAddress.toLowerCase() ===
+      ACROSS_HYPERCORE_USDC_PERPS_ADDRESS.toLowerCase();
+
+  if (!isPerpsDeposit) {
+    return;
   }
 
-  return {
-    ...request,
-    targetAmountMinimum: new BigNumber(request.targetAmountMinimum)
-      .shiftedBy(HYPERCORE_USDC_DECIMALS - USDC_DECIMALS)
-      .toFixed(0),
-    targetChainId: CHAIN_ID_HYPERCORE,
-    targetTokenAddress: ACROSS_HYPERCORE_USDC_PERPS_ADDRESS,
-  };
+  const { decimals } = quote.outputToken;
+
+  if (decimals !== ACROSS_HYPERCORE_USDC_PERPS_DECIMALS) {
+    throw new Error(
+      `Unexpected Across USDC-PERPS decimals - Expected: ${ACROSS_HYPERCORE_USDC_PERPS_DECIMALS} | Received: ${decimals}`,
+    );
+  }
 }
