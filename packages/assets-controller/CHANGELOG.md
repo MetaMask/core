@@ -7,14 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [20.3.0]
-
 ### Added
 
 - Add `bootstrap()` to `AbstractDataSource` for setup that reads other controllers or makes requests ([#11351](https://github.com/MetaMask/core/pull/11351))
   - The default implementation does nothing. `AssetsController` calls it on every balance data source the first time the UI opens.
-- Add Matchain (`eip155:698`) and Nomina (`eip155:166`) to `NATIVE_ASSETS` with `slip44:714` and the synthetic `slip44:11111166`, matching the Price API ([#11383](https://github.com/MetaMask/core/pull/11383))
-  - chainid.network lists the testnet `slip44:1` for Nomina, so without this entry its native asset resolved to a wrong ID.
 
 ### Changed
 
@@ -30,6 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Call `bootstrap()` to fetch the Accounts API supported networks (and start refreshing them), read `NetworkController` state, or discover keyring snaps, respectively. `AssetsController` does this for you.
   - `AccountsApiDataSource` ignores `RemoteFeatureFlagController:stateChange` until it has been bootstrapped.
 - `AssetsController` treats a controller whose actions are not registered (such as `AccountTreeController`, `ClientController` or `KeyringController`) as not ready instead of throwing ([#11351](https://github.com/MetaMask/core/pull/11351))
+
+## [20.3.0]
+
+### Added
+
+- Add Matchain (`eip155:698`) and Nomina (`eip155:166`) to `NATIVE_ASSETS` with `slip44:714` and the synthetic `slip44:11111166`, matching the Price API ([#11383](https://github.com/MetaMask/core/pull/11383))
+  - chainid.network lists the testnet `slip44:1` for Nomina, so without this entry its native asset resolved to a wrong ID.
+
+### Changed
+
 - Bump `@metamask/assets-controllers` from `^113.2.0` to `^113.3.0` ([#11385](https://github.com/MetaMask/core/pull/11385))
 
 ## [20.2.3]
