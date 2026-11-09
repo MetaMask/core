@@ -85,6 +85,45 @@ export type ProfileServiceCheckUsernameAvailabilityAction = {
 };
 
 /**
+ * Checks whether a display name is valid.
+ *
+ * @param displayName - The display name to validate.
+ * @returns An object with a `valid` boolean.
+ * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {StructError} If the response does not match the expected shape.
+ */
+export type ProfileServiceCheckDisplayNameValidityAction = {
+  type: `ProfileService:checkDisplayNameValidity`;
+  handler: ProfileService['checkDisplayNameValidity'];
+};
+
+/**
+ * Checks whether a bio is valid.
+ *
+ * @param bio - The bio to validate.
+ * @returns An object with a `valid` boolean.
+ * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {StructError} If the response does not match the expected shape.
+ */
+export type ProfileServiceCheckBioValidityAction = {
+  type: `ProfileService:checkBioValidity`;
+  handler: ProfileService['checkBioValidity'];
+};
+
+/**
+ * Checks whether the authenticated profile has early access.
+ * The profile is resolved server-side from the verified bearer token.
+ *
+ * @returns An object with a `hasAccess` boolean.
+ * @throws {HttpError} If the API returns a non-2xx response.
+ * @throws {StructError} If the response does not match the expected shape.
+ */
+export type ProfileServiceCheckEarlyAccessAction = {
+  type: `ProfileService:checkEarlyAccess`;
+  handler: ProfileService['checkEarlyAccess'];
+};
+
+/**
  * Fetches the X OAuth PKCE authorization URL and its associated state parameter.
  * The profile is resolved server-side from the verified bearer token.
  *
@@ -153,6 +192,9 @@ export type ProfileServiceMethodActions =
   | ProfileServiceUpdateProfileAction
   | ProfileServiceDeleteProfileAction
   | ProfileServiceCheckUsernameAvailabilityAction
+  | ProfileServiceCheckDisplayNameValidityAction
+  | ProfileServiceCheckBioValidityAction
+  | ProfileServiceCheckEarlyAccessAction
   | ProfileServiceGetXAuthUrlAction
   | ProfileServiceConnectXAction
   | ProfileServiceGetXAccountAction

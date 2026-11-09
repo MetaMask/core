@@ -1298,9 +1298,20 @@ export class KycController extends BaseController<
    * Mints a fresh X25519 keypair, fetches a wrapping key from
    * `POST /deletions`, seals a `delete`-scoped `ukyc_capability_token` (4 hour
    * lifetime, client-presented) for that key, and submits it to
-   * `DELETE /deletions/{deletionId}`. Does not clear controller state.
+   * `DELETE /deletions/{deletionId}`. Both KYC API calls are authenticated
+   * with `params.aal2Token`. Does not clear controller state.
+   *
+   * @param params - The deletion parameters.
+   * @param params.aal2Token - AAL2 authentication token sent as the
+   * Authorization bearer value for both deletion requests.
    */
-  async deleteEncryptedStorage(): Promise<void> {
+  async deleteEncryptedStorage(params: { aal2Token: string }): Promise<void> {
+    if (!params.aal2Token) {
+      throw new Error(
+        'KycController.deleteEncryptedStorage: aal2Token is required to delete encrypted KYC storage.',
+      );
+    }
+
     const sessionClientPrivateKey = x25519.utils.randomSecretKey();
     const sessionClientPublicKey = toBase64Url(
       x25519.getPublicKey(sessionClientPrivateKey),
@@ -1309,6 +1320,7 @@ export class KycController extends BaseController<
     const { deletionId, ukycCapabilityToken: capabilityTokenSchema } =
       await this.messenger.call('KycService:createDeletion', {
         sessionClientPublicKey,
+        aal2Token: params.aal2Token,
       });
 
     await this.#verifyCapabilityTokenSchema(capabilityTokenSchema);
@@ -1325,6 +1337,7 @@ export class KycController extends BaseController<
     await this.messenger.call('KycService:completeDeletion', {
       deletionId,
       wrappedUkycCapabilityToken,
+      aal2Token: params.aal2Token,
     });
   }
 

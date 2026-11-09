@@ -138,7 +138,8 @@ export const TESTNET = {
  * @param options - Optional configuration.
  * @param options.connectivityStatus - The connectivity status to return by default.
  * If not provided, defaults to Online.
- * @param options.rpcFailoverMode - The RPC failover mode to return, defaults to `disabled`.
+ * @param options.rpcFailoverMode - The RPC failover mode that
+ * `RemoteFeatureFlagController` returns.
  * @param options.analyticsId - The analytics ID that `AnalyticsController:getState`
  * returns by default. Defaults to a fixed valid UUIDv4.
  * @param options.trackEvent - The handler registered for
@@ -151,7 +152,7 @@ export const TESTNET = {
  */
 export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
-  rpcFailoverMode = 'disabled',
+  rpcFailoverMode,
   analyticsId = '11111111-1111-4111-8111-111111111111',
   trackEvent = vi.fn(),
   configRegistryNetworkConfigs = [buildMockConfigRegistryControllerNetwork()],
@@ -177,12 +178,18 @@ export function buildRootMessenger({
 
   rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
-    () => ({
-      remoteFeatureFlags: {
-        corePlatformRpcFailoverMode: rpcFailoverMode,
-      },
-      cacheTimestamp: 0,
-    }),
+    () => {
+      const remoteFeatureFlags: {
+        corePlatformRpcFailoverMode?: RpcFailoverMode;
+      } = rpcFailoverMode
+        ? { corePlatformRpcFailoverMode: rpcFailoverMode }
+        : {};
+
+      return {
+        remoteFeatureFlags,
+        cacheTimestamp: 0,
+      };
+    },
   );
 
   rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({

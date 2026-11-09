@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "40.0.0",
+  "version": "40.1.0",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "Ethereum",
@@ -32,6 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -51,16 +52,16 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^40.1.0",
+    "@metamask/accounts-controller": "^40.2.0",
     "@metamask/approval-controller": "^10.0.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/eth-sig-util": "^9.0.0",
-    "@metamask/gator-permissions-controller": "^6.1.0",
+    "@metamask/gator-permissions-controller": "^6.1.1",
     "@metamask/keyring-controller": "^28.2.0",
     "@metamask/logging-controller": "^10.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/network-controller": "^37.1.1",
+    "@metamask/network-controller": "^38.0.0",
     "@metamask/utils": "^12.0.1",
     "jsonschema": "^1.4.1",
     "lodash-es": "^4.18.1",

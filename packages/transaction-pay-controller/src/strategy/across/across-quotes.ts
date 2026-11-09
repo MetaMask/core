@@ -124,7 +124,7 @@ async function getSingleQuote(
   const destination = getAcrossDestinationForRequest(
     transaction,
     request,
-    from,
+    request.accountOverride ?? from,
   );
 
   const quote = await requestAcrossApproval({

@@ -101,7 +101,7 @@ export async function updateQuotes(
     tokens,
   } = transactionData;
 
-  const from = accountOverride ?? (transaction.txParams.from as Hex);
+  const from = getFrom(transaction, transactionData);
 
   const controller = abortPreviousAndCreateController(transactionId);
   const { signal } = controller;
@@ -113,7 +113,8 @@ export async function updateQuotes(
 
   try {
     const paymentToken = await refreshPaymentTokenBalance({
-      from,
+      // Post-quote payment tokens are received by `accountOverride`.
+      from: accountOverride ?? (transaction.txParams.from as Hex),
       messenger,
       paymentToken: originalPaymentToken,
       signal,
@@ -135,6 +136,7 @@ export async function updateQuotes(
       getSourceAmounts(messenger, transactionId) ?? sourceAmounts;
 
     const requests = buildQuoteRequests({
+      accountOverride,
       atomic,
       from,
       isHyperliquidSource,
@@ -221,6 +223,27 @@ export async function updateQuotes(
   }
 
   return true;
+}
+
+/**
+ * Get the account that sends quotes for a transaction.
+ *
+ * @param transaction - Transaction metadata.
+ * @param transactionData - Transaction pay data.
+ * @returns The quote sender address.
+ */
+function getFrom(
+  transaction: TransactionMeta,
+  transactionData: TransactionData,
+): Hex {
+  const transactionFrom = transaction.txParams.from as Hex;
+
+  // Post-quote output goes to `accountOverride`, so the funds holder sends.
+  if (transactionData.isPostQuote) {
+    return transactionFrom;
+  }
+
+  return transactionData.accountOverride ?? transactionFrom;
 }
 
 /**
@@ -423,6 +446,7 @@ function getSourceAmounts(
  * Build quote requests required to retrieve quotes.
  *
  * @param request - Request parameters.
+ * @param request.accountOverride - Optional account receiving post-quote output.
  * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
@@ -438,6 +462,7 @@ function getSourceAmounts(
  * @returns Array of quote requests.
  */
 function buildQuoteRequests({
+  accountOverride,
   atomic,
   from,
   isHyperliquidSource,
@@ -451,6 +476,7 @@ function buildQuoteRequests({
   tokens,
   transactionId,
 }: {
+  accountOverride?: Hex;
   atomic?: boolean;
   from: Hex;
   isHyperliquidSource?: boolean;
@@ -470,6 +496,7 @@ function buildQuoteRequests({
 
   if (isPostQuote) {
     return buildPostQuoteRequests({
+      accountOverride,
       atomic,
       destinationToken: paymentToken,
       from,
@@ -518,6 +545,7 @@ function buildQuoteRequests({
  * and the target is the user's selected destination token (paymentToken).
  *
  * @param request - Request parameters.
+ * @param request.accountOverride - Optional account receiving the output.
  * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
  * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
  * @param request.from - Address from which the transaction is sent.
@@ -531,6 +559,7 @@ function buildQuoteRequests({
  * @returns Array of quote requests for post-quote flow.
  */
 function buildPostQuoteRequests({
+  accountOverride,
   atomic,
   destinationToken,
   from,
@@ -542,6 +571,7 @@ function buildPostQuoteRequests({
   sourceAmounts,
   transactionId,
 }: {
+  accountOverride?: Hex;
   atomic?: boolean;
   destinationToken: TransactionPaymentToken;
   from: Hex;
@@ -573,6 +603,7 @@ function buildPostQuoteRequests({
   }
 
   const request: QuoteRequest = {
+    accountOverride,
     atomic,
     from,
     isHyperliquidSource,
@@ -671,7 +702,7 @@ async function refreshPaymentTokenBalance({
  * Retrieve quotes for a transaction.
  *
  * @param transaction - Transaction metadata.
- * @param from - Resolved wallet address (`accountOverride ?? txParams.from`).
+ * @param from - Sending wallet address (`txParams.from` for post-quote, otherwise `accountOverride ?? txParams.from`).
  * @param requests - Quote requests.
  * @param paymentToken - Selected payment token, if any.
  * @param isQuoteRequired - Whether a quote is always required for the transaction.

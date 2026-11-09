@@ -1,3 +1,4 @@
+import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -103,6 +104,30 @@ describe('ProfileService', () => {
   });
 
   describe('getProfile', () => {
+    it.each([true, false])(
+      'accepts verified=%s in the API response',
+      async (verified) => {
+        mockFetch.mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: async () => ({ ...mockProfileResponse, verified }),
+        });
+        const result = await createService().getProfile('profile-123');
+        expect(result).toStrictEqual({ ...mockProfileResponse, verified });
+      },
+    );
+
+    it('rejects a non-boolean verified field', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ ...mockProfileResponse, verified: 'true' }),
+      });
+      await expect(createService().getProfile('profile-123')).rejects.toThrow(
+        /verified/u,
+      );
+    });
+
     it('fetches profile from correct endpoint', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -142,6 +167,71 @@ describe('ProfileService', () => {
 
       await expect(service.getProfile('profile-123')).rejects.toThrow(
         `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: 404`,
+      );
+    });
+
+    it('includes the API error message from the response body', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: () =>
+          Promise.resolve({ code: 'not_found', message: 'Profile not found' }),
+      });
+
+      const service = createService();
+
+      await expect(service.getProfile('profile-123')).rejects.toThrow(
+        `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: 404: Profile not found`,
+      );
+    });
+
+    it('includes the API error message when the response body has no code', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: () => Promise.resolve({ message: 'Profile not found' }),
+      });
+
+      const service = createService();
+
+      await expect(service.getProfile('profile-123')).rejects.toThrow(
+        `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: 404: Profile not found`,
+      );
+    });
+
+    it('falls back to the generic message when the error body is not JSON', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: () => Promise.reject(new Error('invalid JSON')),
+      });
+
+      const service = createService();
+      const error: unknown = await service
+        .getProfile('profile-123')
+        .catch((caughtError: unknown) => caughtError);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect((error as Error).message).toBe(
+        `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: 500`,
+      );
+    });
+
+    it('falls back to the generic message when the error body has no message', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 400,
+        json: () => Promise.resolve({ code: 'bad_request' }),
+      });
+
+      const service = createService();
+      const error: unknown = await service
+        .getProfile('profile-123')
+        .catch((caughtError: unknown) => caughtError);
+
+      expect(error).toBeInstanceOf(HttpError);
+      expect((error as Error).message).toBe(
+        `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: 400`,
       );
     });
 
@@ -416,6 +506,140 @@ describe('ProfileService', () => {
       const service = createService();
 
       await expect(service.checkUsernameAvailability('alice')).rejects.toThrow(
+        'returned an unexpected response',
+      );
+    });
+  });
+
+  describe('checkDisplayNameValidity', () => {
+    const mockValidityResponse = { valid: true };
+
+    it('fetches display name validity from correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockValidityResponse),
+      });
+
+      const service = createService();
+      const result = await service.checkDisplayNameValidity('Alice Wonderland');
+
+      expect(result).toStrictEqual(mockValidityResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/profiles/display-name/validity?display_name=Alice+Wonderland`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(service.checkDisplayNameValidity('Alice')).rejects.toThrow(
+        `${ProfileServiceErrorMessage.CHECK_DISPLAY_NAME_VALIDITY_FAILED}: 500`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ invalid: 'shape' }),
+      });
+
+      const service = createService();
+
+      await expect(service.checkDisplayNameValidity('Alice')).rejects.toThrow(
+        'returned an unexpected response',
+      );
+    });
+  });
+
+  describe('checkBioValidity', () => {
+    const mockValidityResponse = { valid: true };
+
+    it('fetches bio validity from correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockValidityResponse),
+      });
+
+      const service = createService();
+      const result = await service.checkBioValidity('MetaMask user');
+
+      expect(result).toStrictEqual(mockValidityResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/profiles/bio/validity?bio=MetaMask+user`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(service.checkBioValidity('bio text')).rejects.toThrow(
+        `${ProfileServiceErrorMessage.CHECK_BIO_VALIDITY_FAILED}: 500`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ invalid: 'shape' }),
+      });
+
+      const service = createService();
+
+      await expect(service.checkBioValidity('bio text')).rejects.toThrow(
+        'returned an unexpected response',
+      );
+    });
+  });
+
+  describe('checkEarlyAccess', () => {
+    const mockEarlyAccessResponse = { hasAccess: true };
+
+    it('fetches early access status from correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockEarlyAccessResponse),
+      });
+
+      const service = createService();
+      const result = await service.checkEarlyAccess();
+
+      expect(result).toStrictEqual(mockEarlyAccessResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/early-access`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 403 });
+
+      const service = createService();
+
+      await expect(service.checkEarlyAccess()).rejects.toThrow(
+        `${ProfileServiceErrorMessage.CHECK_EARLY_ACCESS_FAILED}: 403`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ invalid: 'shape' }),
+      });
+
+      const service = createService();
+
+      await expect(service.checkEarlyAccess()).rejects.toThrow(
         'returned an unexpected response',
       );
     });

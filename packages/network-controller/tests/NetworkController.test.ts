@@ -38,6 +38,7 @@ import type {
   NetworkState,
 } from '../src/NetworkController.js';
 import {
+  DEFAULT_RPC_FAILOVER_MODE,
   getAvailableNetworkClientIds,
   getDefaultNetworkControllerState,
   getNetworkConfigurations,
@@ -785,8 +786,8 @@ describe('NetworkController', () => {
     });
   });
 
-  describe('RemoteFeatureFlagController:stateChange (rpcFailoverMode forced)', () => {
-    it('calls setRpcFailoverMode on clients with failover URLs when the flag turns forced', async () => {
+  describe('RemoteFeatureFlagController:stateChange', () => {
+    it('calls setRpcFailoverMode on network clients with failover URLs to match the new corePlatformRpcFailoverMode if the flag is present and different than the current RPC failover mode', async () => {
       const originalCreateAutoManagedNetworkClient =
         createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
       const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
@@ -806,7 +807,7 @@ describe('NetworkController', () => {
       await withController(
         {
           rpcFailoverMode: 'disabled',
-          failoverUrls: { '0x200': ['https://failover.endpoint/1'] },
+          failoverUrls: { [ChainId.mainnet]: ['https://failover.endpoint/1'] },
           state: {
             selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
             networkConfigurationsByChainId: {
@@ -845,15 +846,159 @@ describe('NetworkController', () => {
           expect(autoManagedNetworkClients).toHaveLength(2);
           expect(
             autoManagedNetworkClients[0].setRpcFailoverMode,
-          ).not.toHaveBeenCalledWith('forced');
+          ).toHaveBeenCalledWith('forced');
           expect(
             autoManagedNetworkClients[1].setRpcFailoverMode,
-          ).toHaveBeenCalledWith('forced');
+          ).not.toHaveBeenCalled();
         },
       );
     });
 
-    it('picks up the initial forced value during init()', async () => {
+    it('does not call setRpcFailoverMode on any network clients if corePlatformRpcFailoverMode is present but is the same as the current RPC failover mode', async () => {
+      const originalCreateAutoManagedNetworkClient =
+        createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+      const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+        [];
+      vi.spyOn(
+        createAutoManagedNetworkClientModule,
+        'createAutoManagedNetworkClient',
+      ).mockImplementation((...args) => {
+        const autoManagedNetworkClient = originalCreateAutoManagedNetworkClient(
+          ...args,
+        );
+        vi.spyOn(autoManagedNetworkClient, 'setRpcFailoverMode');
+        autoManagedNetworkClients.push(autoManagedNetworkClient);
+        return autoManagedNetworkClient;
+      });
+
+      await withController(
+        {
+          failoverUrls: { [ChainId.mainnet]: ['https://failover.endpoint/1'] },
+          rpcFailoverMode: 'forced',
+          state: {
+            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            networkConfigurationsByChainId: {
+              [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                InfuraNetworkType.mainnet,
+                {
+                  rpcEndpoints: [
+                    buildInfuraRpcEndpoint(InfuraNetworkType.mainnet),
+                  ],
+                },
+              ),
+              '0x200': buildCustomNetworkConfiguration({
+                chainId: '0x200',
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    url: 'https://test.network/1',
+                  }),
+                ],
+              }),
+            },
+          },
+        },
+        async ({ messenger }) => {
+          messenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            {
+              remoteFeatureFlags: {
+                corePlatformRpcFailoverMode: 'forced',
+              },
+              cacheTimestamp: 0,
+            },
+            [],
+          );
+
+          expect(autoManagedNetworkClients).toHaveLength(2);
+          // `setRpcFailoverMode` has already been called once via `init`;
+          // we test that it's not called again.
+          expect(
+            autoManagedNetworkClients[0].setRpcFailoverMode,
+          ).toHaveBeenCalledWith('forced');
+          expect(
+            autoManagedNetworkClients[0].setRpcFailoverMode,
+          ).toHaveBeenCalledTimes(1);
+          expect(
+            autoManagedNetworkClients[1].setRpcFailoverMode,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not call setRpcFailoverMode on network clients with failover URLs if corePlatformRpcFailoverMode is not present', async () => {
+      const originalCreateAutoManagedNetworkClient =
+        createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+      const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+        [];
+      vi.spyOn(
+        createAutoManagedNetworkClientModule,
+        'createAutoManagedNetworkClient',
+      ).mockImplementation((...args) => {
+        const autoManagedNetworkClient = originalCreateAutoManagedNetworkClient(
+          ...args,
+        );
+        vi.spyOn(autoManagedNetworkClient, 'setRpcFailoverMode');
+        autoManagedNetworkClients.push(autoManagedNetworkClient);
+        return autoManagedNetworkClient;
+      });
+
+      await withController(
+        {
+          failoverUrls: { [ChainId.mainnet]: ['https://failover.endpoint/1'] },
+          rpcFailoverMode: 'forced',
+          state: {
+            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            networkConfigurationsByChainId: {
+              [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                InfuraNetworkType.mainnet,
+                {
+                  rpcEndpoints: [
+                    buildInfuraRpcEndpoint(InfuraNetworkType.mainnet),
+                  ],
+                },
+              ),
+              '0x200': buildCustomNetworkConfiguration({
+                chainId: '0x200',
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    url: 'https://test.network/1',
+                  }),
+                ],
+              }),
+            },
+          },
+        },
+        async ({ messenger }) => {
+          messenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            {
+              remoteFeatureFlags: {},
+              cacheTimestamp: 0,
+            },
+            [],
+          );
+
+          expect(autoManagedNetworkClients).toHaveLength(2);
+          // `setRpcFailoverMode` has already been called once via `init`;
+          // we test that it's not called again.
+          expect(
+            autoManagedNetworkClients[0].setRpcFailoverMode,
+          ).toHaveBeenCalledWith('forced');
+          expect(
+            autoManagedNetworkClients[0].setRpcFailoverMode,
+          ).toHaveBeenCalledTimes(1);
+          expect(
+            autoManagedNetworkClients[1].setRpcFailoverMode,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+  });
+
+  describe('init', () => {
+    it(`calls setRpcFailoverMode on network clients with failover URLs to match the corePlatformRpcFailoverMode feature flag, if it is present and different from the default (${DEFAULT_RPC_FAILOVER_MODE})`, async () => {
       const originalCreateAutoManagedNetworkClient =
         createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
       const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
@@ -909,7 +1054,7 @@ describe('NetworkController', () => {
       );
     });
 
-    it('calls setRpcFailoverMode with forced but not enabled when only the forced mode is set', async () => {
+    it(`does not call setRpcFailoverMode on any network clients if the corePlatformRpcFailoverMode feature flag is present but is the same as the default (${DEFAULT_RPC_FAILOVER_MODE})`, async () => {
       const originalCreateAutoManagedNetworkClient =
         createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
       const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
@@ -928,11 +1073,19 @@ describe('NetworkController', () => {
 
       await withController(
         {
-          rpcFailoverMode: 'disabled',
-          failoverUrls: { '0x200': ['https://failover.endpoint/1'] },
+          rpcFailoverMode: DEFAULT_RPC_FAILOVER_MODE,
+          failoverUrls: { [ChainId.mainnet]: ['https://failover.endpoint/1'] },
           state: {
             selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
             networkConfigurationsByChainId: {
+              [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                InfuraNetworkType.mainnet,
+                {
+                  rpcEndpoints: [
+                    buildInfuraRpcEndpoint(InfuraNetworkType.mainnet),
+                  ],
+                },
+              ),
               '0x200': buildCustomNetworkConfiguration({
                 chainId: '0x200',
                 rpcEndpoints: [
@@ -945,31 +1098,74 @@ describe('NetworkController', () => {
             },
           },
         },
-        async ({ messenger }) => {
-          messenger.publish(
-            'RemoteFeatureFlagController:stateChange',
-            {
-              remoteFeatureFlags: {
-                corePlatformRpcFailoverMode: 'forced',
-              },
-              cacheTimestamp: 0,
-            },
-            [],
-          );
-
-          expect(autoManagedNetworkClients).toHaveLength(1);
+        async () => {
+          expect(autoManagedNetworkClients).toHaveLength(2);
           expect(
             autoManagedNetworkClients[0].setRpcFailoverMode,
-          ).toHaveBeenCalledWith('forced');
+          ).not.toHaveBeenCalled();
           expect(
-            autoManagedNetworkClients[0].setRpcFailoverMode,
-          ).not.toHaveBeenCalledWith('enabled');
+            autoManagedNetworkClients[1].setRpcFailoverMode,
+          ).not.toHaveBeenCalled();
         },
       );
     });
-  });
 
-  describe('init', () => {
+    it('does not call setRpcFailoverMode on any network clients if the corePlatformRpcFailoverMode feature flag is not present', async () => {
+      const originalCreateAutoManagedNetworkClient =
+        createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+      const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+        [];
+      vi.spyOn(
+        createAutoManagedNetworkClientModule,
+        'createAutoManagedNetworkClient',
+      ).mockImplementation((...args) => {
+        const autoManagedNetworkClient = originalCreateAutoManagedNetworkClient(
+          ...args,
+        );
+        vi.spyOn(autoManagedNetworkClient, 'setRpcFailoverMode');
+        autoManagedNetworkClients.push(autoManagedNetworkClient);
+        return autoManagedNetworkClient;
+      });
+
+      await withController(
+        {
+          failoverUrls: { [ChainId.mainnet]: ['https://failover.endpoint/1'] },
+          rpcFailoverMode: undefined,
+          state: {
+            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            networkConfigurationsByChainId: {
+              [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                InfuraNetworkType.mainnet,
+                {
+                  rpcEndpoints: [
+                    buildInfuraRpcEndpoint(InfuraNetworkType.mainnet),
+                  ],
+                },
+              ),
+              '0x200': buildCustomNetworkConfiguration({
+                chainId: '0x200',
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    url: 'https://test.network/1',
+                  }),
+                ],
+              }),
+            },
+          },
+        },
+        async () => {
+          expect(autoManagedNetworkClients).toHaveLength(2);
+          expect(
+            autoManagedNetworkClients[0].setRpcFailoverMode,
+          ).not.toHaveBeenCalled();
+          expect(
+            autoManagedNetworkClients[1].setRpcFailoverMode,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('auto-enables networks that are set as auto-enabled in the config registry', async () => {
       const networkConfig = buildMockConfigRegistryControllerNetwork({
         chainId: 'eip155:9999',

@@ -32,6 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -51,7 +52,7 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^40.1.0",
+    "@metamask/accounts-controller": "^40.2.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/core-backend": "^14.0.0",
     "@metamask/keyring-api": "^24.3.0",

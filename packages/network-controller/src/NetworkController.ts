@@ -98,7 +98,7 @@ import type {
   ResolvedNetworkControllerAnalyticsOptions,
 } from './rpc-service-analytics.js';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service.js';
-import { getRpcFailoverMode } from './selectors.js';
+import { selectRpcFailoverModeFeatureFlag } from './selectors.js';
 import type { RpcFailoverMode } from './selectors.js';
 import { NetworkClientType } from './types.js';
 import type {
@@ -113,6 +113,11 @@ const debugLog = createModuleLogger(projectLogger, 'NetworkController');
 
 const INFURA_URL_REGEX =
   /^https:\/\/(?<networkName>[^.]+)\.infura\.io\/v\d+\/(?<apiKey>.+)$/u;
+
+/**
+ * The failover mode that network clients will be initialized with.
+ */
+export const DEFAULT_RPC_FAILOVER_MODE: RpcFailoverMode = 'enabled';
 
 export type Block = {
   baseFeePerGas?: string;
@@ -1357,7 +1362,7 @@ export class NetworkController extends BaseController<
     NetworkConfiguration
   >;
 
-  #rpcFailoverMode: RpcFailoverMode = 'disabled';
+  #rpcFailoverMode: RpcFailoverMode = DEFAULT_RPC_FAILOVER_MODE;
 
   /**
    * Constructs a NetworkController.
@@ -1367,9 +1372,9 @@ export class NetworkController extends BaseController<
   constructor(options: NetworkControllerOptions) {
     const {
       messenger,
-      state,
       infuraProjectId,
       failoverUrls,
+      state,
       log,
       getRpcServiceOptions,
       getBlockTrackerOptions,
@@ -1474,9 +1479,11 @@ export class NetworkController extends BaseController<
     this.messenger.subscribe(
       'RemoteFeatureFlagController:stateChange',
       (rpcFailoverMode) => {
-        this.#updateRpcFailover(rpcFailoverMode);
+        if (rpcFailoverMode) {
+          this.#updateRpcFailover(rpcFailoverMode);
+        }
       },
-      getRpcFailoverMode,
+      selectRpcFailoverModeFeatureFlag,
     );
 
     this.messenger.subscribe(
@@ -1683,14 +1690,20 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Initialize the NetworkController:
-   *   - Apply the RPC failover mode from the `corePlatformRpcFailoverMode` remote feature flag;
-   *   - Apply the network selection.
-   *   - Auto-add networks for any chains that are configured to be auto-enabled in ConfigRegistryController.
+   * Initialize the NetworkController by:
+   *
+   * - applying the RPC failover mode from the `corePlatformRpcFailoverMode`
+   *   feature flag, if present;
+   * - setting proxies for the globally selected network; and
+   * - auto-adding networks for any chains that are configured to be
+   *   auto-enabled in ConfigRegistryController.
    */
   init(): void {
     const state = this.messenger.call('RemoteFeatureFlagController:getState');
-    this.#updateRpcFailover(getRpcFailoverMode(state));
+    const rpcFailoverMode = selectRpcFailoverModeFeatureFlag(state);
+    if (rpcFailoverMode) {
+      this.#updateRpcFailover(rpcFailoverMode);
+    }
 
     this.#applyNetworkSelection(this.state.selectedNetworkClientId);
 

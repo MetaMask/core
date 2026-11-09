@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "113.1.1",
+  "version": "113.3.1",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "Ethereum",
@@ -32,6 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -57,9 +58,9 @@
     "@ethersproject/bignumber": "^5.8.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.8.0",
-    "@metamask/abi-utils": "^2.0.4",
+    "@metamask/abi-utils": "^3.0.0",
     "@metamask/account-tree-controller": "^11.2.0",
-    "@metamask/accounts-controller": "^40.1.0",
+    "@metamask/accounts-controller": "^40.2.0",
     "@metamask/approval-controller": "^10.0.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/contract-metadata": "^2.5.0",
@@ -71,8 +72,8 @@
     "@metamask/messenger": "^3.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/multichain-account-service": "^14.1.0",
-    "@metamask/network-controller": "^37.1.1",
-    "@metamask/network-enablement-controller": "^7.1.0",
+    "@metamask/network-controller": "^38.0.0",
+    "@metamask/network-enablement-controller": "^7.1.1",
     "@metamask/permission-controller": "^14.1.0",
     "@metamask/phishing-controller": "^18.3.0",
     "@metamask/polling-controller": "^17.0.0",
@@ -84,7 +85,7 @@
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
     "@metamask/storage-service": "^2.0.0",
-    "@metamask/transaction-controller": "^73.1.1",
+    "@metamask/transaction-controller": "^73.1.2",
     "@metamask/utils": "^12.0.1",
     "@tanstack/query-core": "^5.103.2",
     "@types/bn.js": "^5.2.0",
