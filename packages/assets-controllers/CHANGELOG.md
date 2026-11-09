@@ -11,14 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `serviceProfile` string option to `searchTokens`, sent as the `x-mm-service-profile` header on the `/tokens/search` request ([#11274](https://github.com/MetaMask/core/pull/11274))
   - Defaults to `assets--trending-search`, so the header is sent on every search request
-- Add `init` method to `TokensController`, `TokenBalancesController`, `TokenDetectionController`, `TokenRatesController`, `AccountTrackerController`, `NftController`, `MultichainBalancesController`, `MultichainAssetsRatesController`, `MultichainAssetsController` and `TokenListController` ([#11314](https://github.com/MetaMask/core/pull/11314))
+- Add `init` method to `TokensController`, `TokenBalancesController`, `TokenDetectionController`, `TokenRatesController`, `AccountTrackerController`, `NftController`, `MultichainBalancesController`, `MultichainAssetsRatesController`, `MultichainAssetsController` and `TokenListController` ([#11315](https://github.com/MetaMask/core/pull/11315))
   - `init` reads the other controllers that the constructor used to read. Calling it more than once has no effect.
   - `TokenListController.init` calls `initialize` once.
-- Expose `addNfts` through the `NftController` messenger ([#11314](https://github.com/MetaMask/core/pull/11314))
+- Expose `addNfts` through the `NftController` messenger ([#11315](https://github.com/MetaMask/core/pull/11315))
 
 ### Changed
 
-- **BREAKING:** The constructors of `TokensController`, `TokenBalancesController`, `TokenDetectionController`, `TokenRatesController`, `AccountTrackerController`, `NftController`, `MultichainBalancesController`, `MultichainAssetsRatesController` and `MultichainAssetsController` no longer call other controllers or start background work, so they can be constructed in any order ([#11314](https://github.com/MetaMask/core/pull/11314))
+- **BREAKING:** The constructors of `TokensController`, `TokenBalancesController`, `TokenDetectionController`, `TokenRatesController`, `AccountTrackerController`, `NftController`, `MultichainBalancesController`, `MultichainAssetsRatesController` and `MultichainAssetsController` no longer call other controllers or start background work, so they can be constructed in any order ([#11315](https://github.com/MetaMask/core/pull/11315))
   - Call `init` on each of them once the controllers they read from are registered. Until then:
     - `TokensController` does not enrich persisted tokens from the token list, and reads the selected account on demand.
     - `TokenBalancesController`, `TokenDetectionController` and `AccountTrackerController` treat the keyring as locked, and `TokenBalancesController` knows of no tokens.
@@ -29,8 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `MultichainAssetsRatesController` uses `usd` as the current currency.
     - `MultichainAssetsController` does not start the periodic Blockaid re-scan.
   - `TokenDetectionController.init` reports a failure to read `PreferencesController:getState` through `messenger.captureException` instead of throwing, and takes the preference from the next `PreferencesController:stateChange` event.
-- **BREAKING:** `TokensControllerMessenger` must allow the `NetworkController:getSelectedNetworkClient` action ([#11314](https://github.com/MetaMask/core/pull/11314))
-- `TokensController` no longer requires the `chainId` and `provider` options ([#11314](https://github.com/MetaMask/core/pull/11314))
+- **BREAKING:** `TokensControllerMessenger` must allow the `NetworkController:getSelectedNetworkClient` action ([#11315](https://github.com/MetaMask/core/pull/11315))
+- `TokensController` no longer requires the `chainId` and `provider` options ([#11315](https://github.com/MetaMask/core/pull/11315))
   - When `provider` is omitted, the provider of the selected network client (`NetworkController:getSelectedNetworkClient`) is used.
 - Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
 

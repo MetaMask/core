@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add the `@metamask/assets-controllers` controllers to the default initialization configurations ([#11314](https://github.com/MetaMask/core/pull/11314))
+- **BREAKING:** Add the `@metamask/assets-controllers` controllers to the default initialization configurations ([#11315](https://github.com/MetaMask/core/pull/11315))
   - Adds `AccountTrackerController`, `AssetsContractController`, `CurrencyRateController`, `DeFiPositionsController`, `MultichainAssetsController`, `MultichainAssetsRatesController`, `MultichainBalancesController`, `NftController`, `NftDetectionController`, `RatesController`, `TokenBalancesController`, `TokenDetectionController`, `TokenListController`, `TokenRatesController`, `TokensController` and `TokenSearchDiscoveryDataController`.
   - Hosts that already register any of these controllers on the wallet root messenger must remove that registration before upgrading, or messenger registration will collide.
   - Their constructors call no other controller, so they can be constructed in any order. `Wallet.init()` calls their `init` methods, which read the other controllers and start the initial fetches. Polling is still started by the client.
@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add `@metamask/assets-controllers` `^113.1.1` as a dependency ([#11314](https://github.com/MetaMask/core/pull/11314))
+- Add `@metamask/assets-controllers` `^113.1.1` as a dependency ([#11315](https://github.com/MetaMask/core/pull/11315))
 - Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
 - Bump `@metamask/subscription-controller` from `^15.1.2` to `^15.2.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
 - Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300))
