@@ -3176,7 +3176,6 @@ type ServiceHandlers = {
   getPartnerIdentityToken: Mock;
   putIdentitySharingConsent: Mock;
   fetchVendorDisclaimers: Mock;
-  createMoonpaySession: Mock;
   createVendorCustomer: Mock;
   submitVendorDisclaimers: Mock;
   fetchSessionDisclaimersByCountry: Mock;
@@ -3364,7 +3363,6 @@ function withController<ReturnValue>(
     actions: [
       'KycService:getGeoCountry',
       'KycService:fetchVendorDisclaimers',
-      'KycService:createMoonpaySession',
       'KycService:createVendorCustomer',
       'KycService:submitVendorDisclaimers',
       'KycService:fetchSessionDisclaimersByCountry',
@@ -3399,7 +3397,6 @@ function withController<ReturnValue>(
       ),
     putIdentitySharingConsent: vi.fn().mockResolvedValue(undefined),
     fetchVendorDisclaimers: vi.fn().mockResolvedValue([]),
-    createMoonpaySession: vi.fn().mockResolvedValue({ sessionToken: 'sess' }),
     createVendorCustomer: vi.fn().mockResolvedValue({
       id: 'cust-1',
       email: 'a@b.co',
@@ -3444,10 +3441,6 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:fetchVendorDisclaimers',
     handlers.fetchVendorDisclaimers,
-  );
-  rootMessenger.registerActionHandler(
-    'KycService:createMoonpaySession',
-    handlers.createMoonpaySession,
   );
   rootMessenger.registerActionHandler(
     'KycService:createVendorCustomer',

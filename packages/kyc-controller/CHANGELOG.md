@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Remove `selectKycVendor`, `getDefaultKycVendorDisclaimersAccepted`, `getDefaultKycProviderDisclaimersAccepted` and the `KycPhase`, `KycProduct`, `KycVendorDisclaimersAccepted`, `KycProviderDisclaimersAccepted`, `KycIronVendorDisclaimersAccepted` and `KycMoonpayVendorDisclaimersAccepted` types ([#11275](https://github.com/MetaMask/core/pull/11275))
+- **BREAKING:** Remove `KycService.createMoonpaySession`, `CreateMoonpaySessionParams` and the `KycService:createMoonpaySession` action. Sessions are created with `createUkycSession`, which requires `vendor`
 
 ## [0.16.0]
 

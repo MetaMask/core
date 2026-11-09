@@ -121,7 +121,7 @@ Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
 Exposed messenger actions (`MESSENGER_EXPOSED_METHODS`):
 
-`getGeoCountry`, `fetchVendorDisclaimers`, `createSession`, `checkKycRequired`,
+`getGeoCountry`, `fetchVendorDisclaimers`, `checkKycRequired`,
 `createVendorCustomer`, `submitVendorDisclaimers`, `fetchSessionDisclaimersByCountry`, `fetchSessionDisclaimersBySessionId`, `submitSessionDisclaimers`,
 `fetchKycStatus`, `fetchIdosEnclaveJwks`, `fetchIdosRelayJwks`, `createUkycSession`, `setAuthorizations`,
 `createJourney`, `getSessionStatus`.
@@ -131,8 +131,7 @@ Endpoints:
 | Method                               | HTTP   | Endpoint                                     | Purpose                                                                                |
 | ------------------------------------ | ------ | -------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `getGeoCountry`                      | —      | (geolocation action)                         | Resolve alpha-3 country                                                                |
-| `fetchVendorDisclaimers`             | `GET`  | `/vendors/{vendor}/disclaimers?country=`     | Vendor T&Cs to accept (`vendor` defaults to `moonpay`)                                 |
-| `createSession`                      | `POST` | `/vendors/moonpay/sessions`                  | Create MoonPay vendor session                                                          |
+| `fetchVendorDisclaimers`             | `GET`  | `/vendors/{vendor}/disclaimers?country=`     | Vendor T&Cs to accept. `vendor` is required                                            |
 | `checkKycRequired`                   | `POST` | `/vendors/{vendor}/kyc-required`             | Is KYC required? (normalizes `required` → `kycRequired`)                               |
 | `createVendorCustomer`               | `POST` | `/vendors/{vendor}/customers`                | Create or resume an empty-shell vendor customer                                        |
 | `submitVendorDisclaimers`            | `POST` | `/vendors/{vendor}/disclaimers`              | Record vendor T&C signings (`disclaimerIds`)                                           |

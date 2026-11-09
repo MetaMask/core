@@ -50,7 +50,6 @@ export const serviceName = 'KycService';
 const MESSENGER_EXPOSED_METHODS = [
   'getGeoCountry',
   'fetchVendorDisclaimers',
-  'createMoonpaySession',
   'createVendorCustomer',
   'submitVendorDisclaimers',
   'fetchSessionDisclaimersByCountry',
@@ -174,8 +173,6 @@ const VendorSigningStruct = type({
 });
 const VendorSigningsResponseStruct = array(VendorSigningStruct);
 
-const CreateSessionResponseStruct = type({ sessionToken: string() });
-
 // The session server's public key, in JWK-like form, returned inside an
 // encryption schema from `POST /sessions`. `x` is the base64url public key
 // used to wrap a secret for that schema.
@@ -294,12 +291,6 @@ const SessionDisclaimersResponseStruct = type({
 });
 
 // === PARAM TYPES ===
-
-export type CreateMoonpaySessionParams = {
-  partnerIdentityToken: string;
-  termsAcceptedAt: string;
-  disclaimerIds: string[];
-};
 
 export type CreateVendorCustomerParams = {
   vendor: KycVendor;
@@ -583,27 +574,6 @@ export class KycService extends BaseDataService<
       data,
       DisclaimersResponseStruct,
       'disclaimers',
-    );
-  }
-
-  /**
-   * Creates a MoonPay vendor session via the UKYC backend.
-   *
-   * @param params - The session parameters.
-   * @returns The created session token.
-   */
-  async createMoonpaySession(
-    params: CreateMoonpaySessionParams,
-  ): Promise<Infer<typeof CreateSessionResponseStruct>> {
-    const url = new URL('/vendors/moonpay/sessions', this.#baseUrl);
-    const data = await this.#requestJson(url, {
-      method: 'POST',
-      body: JSON.stringify(params),
-    });
-    return this.#validateResponse(
-      data,
-      CreateSessionResponseStruct,
-      'sessions',
     );
   }
 

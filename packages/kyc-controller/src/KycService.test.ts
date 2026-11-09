@@ -157,36 +157,6 @@ describe('KycService', () => {
     });
   });
 
-  describe('createMoonpaySession', () => {
-    it('creates a session and returns the token', async () => {
-      nock(MOCK_API_URL)
-        .post('/vendors/moonpay/sessions')
-        .reply(200, { sessionToken: 'session-1' });
-      const { service } = getService();
-
-      expect(
-        await service.createMoonpaySession({
-          partnerIdentityToken: 'partner-identity-token',
-          termsAcceptedAt: '2026-01-01T00:00:00.000Z',
-          disclaimerIds: ['1'],
-        }),
-      ).toStrictEqual({ sessionToken: 'session-1' });
-    });
-
-    it('throws on a malformed response', async () => {
-      nock(MOCK_API_URL).post('/vendors/moonpay/sessions').reply(200, {});
-      const { service } = getService();
-
-      await expect(
-        service.createMoonpaySession({
-          partnerIdentityToken: 'partner-identity-token',
-          termsAcceptedAt: '2026-01-01T00:00:00.000Z',
-          disclaimerIds: ['1'],
-        }),
-      ).rejects.toThrow(/Malformed response received from sessions API/u);
-    });
-  });
-
   describe('fetchIdosEnclaveJwks', () => {
     it('fetches the JWKS from the idOS enclave well-known path', async () => {
       const response = {
