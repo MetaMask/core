@@ -4186,6 +4186,7 @@ describe('Relay Quotes Utils', () => {
 
         const result = await getRelayQuotes({
           accountSupports7702: true,
+          from: FROM_MOCK,
           messenger,
           requests: [{ ...MONEY_ACCOUNT_MAX_REQUEST, atomicForbidden: true }],
           transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
