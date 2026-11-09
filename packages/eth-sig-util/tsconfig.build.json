@@ -6,9 +6,6 @@
   },
   "references": [
     {
-      "path": "../byte-utils/tsconfig.build.json"
-    },
-    {
       "path": "../cryptography/tsconfig.build.json"
     },
     {

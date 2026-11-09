@@ -2,9 +2,6 @@
   "extends": "../../tsconfig.packages.json",
   "references": [
     {
-      "path": "../byte-utils"
-    },
-    {
       "path": "../cryptography"
     },
     {

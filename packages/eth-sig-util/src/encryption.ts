@@ -4,9 +4,14 @@ import {
   getPublicKey,
   getSharedSecret,
 } from '@metamask/cryptography/x25519';
+import {
+  base64ToBytes,
+  bytesToBase64,
+  bytesToString,
+  stringToBytes,
+} from '@metamask/utils';
 import { hsalsa, secretbox, xsalsa20poly1305 } from '@noble/ciphers/salsa';
 import { u8, u32 } from '@noble/ciphers/utils';
-import { base64, utf8 } from '@scure/base';
 
 import { isNullish } from './utils.js';
 
@@ -19,7 +24,7 @@ export type EthEncryptedData = {
 
 const DEFAULT_PADDING_LENGTH = 2048;
 const NACL_EXTRA_BYTES = 16;
-const HSALSA_SIGMA = u32(utf8.decode('expand 32-byte k'));
+const HSALSA_SIGMA = u32(stringToBytes('expand 32-byte k'));
 
 /**
  * Derive the symmetric key used for `x25519-xsalsa20-poly1305`.
@@ -75,12 +80,12 @@ export async function encrypt({
       // assemble encryption parameters - from string to UInt8
       let pubKeyUInt8Array: Uint8Array<ArrayBuffer>;
       try {
-        pubKeyUInt8Array = base64.decode(publicKey);
+        pubKeyUInt8Array = base64ToBytes(publicKey);
       } catch {
         throw new Error('Bad public key');
       }
 
-      const msgParamsUInt8Array = utf8.decode(data);
+      const msgParamsUInt8Array = stringToBytes(data);
       const nonce = getRandomBytes(xsalsa20poly1305.nonceLength);
 
       // encrypt
@@ -93,9 +98,9 @@ export async function encrypt({
       // handle encrypted data
       const output = {
         version: 'x25519-xsalsa20-poly1305',
-        nonce: base64.encode(nonce),
-        ephemPublicKey: base64.encode(ephemeralKeyPair.publicKey),
-        ciphertext: base64.encode(encryptedMessage),
+        nonce: bytesToBase64(nonce),
+        ephemPublicKey: bytesToBase64(ephemeralKeyPair.publicKey),
+        ciphertext: bytesToBase64(encryptedMessage),
       };
       // return encrypted msg data
       return output;
@@ -187,9 +192,9 @@ export async function decrypt({
       const receiverPrivateKeyUint8Array = Buffer.from(privateKey, 'hex');
 
       // assemble decryption parameters
-      const nonce = base64.decode(encryptedData.nonce);
-      const ciphertext = base64.decode(encryptedData.ciphertext);
-      const ephemPublicKey = base64.decode(encryptedData.ephemPublicKey);
+      const nonce = base64ToBytes(encryptedData.nonce);
+      const ciphertext = base64ToBytes(encryptedData.ciphertext);
+      const ephemPublicKey = base64ToBytes(encryptedData.ephemPublicKey);
 
       // decrypt
       const key = await deriveBoxKey(
@@ -207,7 +212,7 @@ export async function decrypt({
 
       // return decrypted msg data
       try {
-        const output = utf8.encode(decryptedMessage);
+        const output = bytesToString(decryptedMessage);
         // TODO: This is probably extraneous but was kept to minimize changes during refactor
         if (!output) {
           throw new Error();
@@ -264,5 +269,5 @@ export async function getEncryptionPublicKey(
 ): Promise<string> {
   const privateKeyUint8Array = Buffer.from(privateKey, 'hex');
   const encryptionPublicKey = await getPublicKey(privateKeyUint8Array);
-  return base64.encode(encryptionPublicKey);
+  return bytesToBase64(encryptionPublicKey);
 }
