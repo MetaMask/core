@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^73.1.0` to `^73.1.2` ([#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
 - Bump `@metamask/money-account-balance-service` from `^3.1.2` to `^3.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
 - Bump `@metamask/money-account-upgrade-controller` from `^6.0.0` to `^6.0.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.0` ([#11396](https://github.com/MetaMask/core/pull/11396))
 
 ## [15.2.0]
 
