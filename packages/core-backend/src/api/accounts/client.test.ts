@@ -277,6 +277,119 @@ describe('AccountsApiClient', () => {
       expect(calledUrl).not.toContain('bypassServerCache');
     });
 
+    describe.each([
+      {
+        version: 'v5',
+        fetchBalances: (
+          apiClient: ApiPlatformClient,
+          options?: { bypassServerCache?: boolean },
+        ): Promise<V5BalancesResponse | V6BalancesResponse> =>
+          apiClient.accounts.fetchV5MultiAccountBalances(
+            ['eip155:1:0x123'],
+            { networks: ['eip155:1'] },
+            options,
+          ),
+        buildResponse: (marker: string): V5BalancesResponse => ({
+          count: 0,
+          unprocessedNetworks: [marker],
+          balances: [],
+        }),
+      },
+      {
+        version: 'v6',
+        fetchBalances: (
+          apiClient: ApiPlatformClient,
+          options?: { bypassServerCache?: boolean },
+        ): Promise<V5BalancesResponse | V6BalancesResponse> =>
+          apiClient.accounts.fetchV6MultiAccountBalances(
+            ['eip155:1:0x123'],
+            { networks: ['eip155:1'] },
+            options,
+          ),
+        buildResponse: (marker: string): V6BalancesResponse => ({
+          unprocessedNetworks: [marker],
+          unprocessedIncludeAssetIds: [],
+          balances: [],
+        }),
+      },
+    ])(
+      '$version in flight deduplication',
+      ({ fetchBalances, buildResponse }) => {
+        /**
+         * Queues a fetch response that only resolves when the returned
+         * function is called, so the request stays in flight until then.
+         *
+         * @param data - The response body.
+         * @returns A function that resolves the pending response.
+         */
+        const queueGatedResponse = (data: unknown): (() => void) => {
+          let release: () => void = () => undefined;
+          mockFetch.mockImplementationOnce(
+            () =>
+              new Promise((resolve) => {
+                release = (): void => resolve(createMockResponse(data));
+              }),
+          );
+          return () => release();
+        };
+
+        it('does not join an in flight fetch for the same params when bypassServerCache is true', async () => {
+          const releaseFirst = queueGatedResponse(buildResponse('first'));
+          const releaseSecond = queueGatedResponse(buildResponse('second'));
+
+          const firstPromise = fetchBalances(client);
+          const secondPromise = fetchBalances(client, {
+            bypassServerCache: true,
+          });
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          expect(mockFetch).toHaveBeenCalledTimes(2);
+          const firstUrl = new URL(mockFetch.mock.calls[0]?.[0] as string);
+          const secondUrl = new URL(mockFetch.mock.calls[1]?.[0] as string);
+          expect(firstUrl.searchParams.has('bypassServerCache')).toBe(false);
+          expect(secondUrl.searchParams.get('bypassServerCache')).toMatch(
+            /^[a-z0-9]{8}$/u,
+          );
+
+          releaseSecond();
+          releaseFirst();
+
+          expect(await firstPromise).toStrictEqual(buildResponse('first'));
+          expect(await secondPromise).toStrictEqual(buildResponse('second'));
+        });
+
+        it('shares one request between identical in flight fetches when bypassServerCache is true', async () => {
+          const release = queueGatedResponse(buildResponse('shared'));
+
+          const firstPromise = fetchBalances(client, {
+            bypassServerCache: true,
+          });
+          const secondPromise = fetchBalances(client, {
+            bypassServerCache: true,
+          });
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          release();
+
+          expect(await firstPromise).toStrictEqual(buildResponse('shared'));
+          expect(await secondPromise).toStrictEqual(buildResponse('shared'));
+          expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
+
+        it('shares one request between identical in flight fetches without bypassServerCache', async () => {
+          const release = queueGatedResponse(buildResponse('shared'));
+
+          const firstPromise = fetchBalances(client);
+          const secondPromise = fetchBalances(client);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          release();
+
+          expect(await firstPromise).toStrictEqual(buildResponse('shared'));
+          expect(await secondPromise).toStrictEqual(buildResponse('shared'));
+          expect(mockFetch).toHaveBeenCalledTimes(1);
+        });
+      },
+    );
+
     it('fetches v2 balances with additional options', async () => {
       const mockResponse: V2BalancesResponse = {
         count: 1,

@@ -445,6 +445,8 @@ export class AccountsApiClient extends BaseApiClient {
             networks:
               queryOptions.networks && [...queryOptions.networks].sort(),
           },
+          // Keep bypass fetches out of in flight non bypass queries.
+          ...(options?.bypassServerCache ? { bypassServerCache: true } : {}),
         },
       ],
       queryFn: async ({
@@ -568,6 +570,8 @@ export class AccountsApiClient extends BaseApiClient {
               queryOptions.excludeAssetIds &&
               [...queryOptions.excludeAssetIds].sort(),
           },
+          // Keep bypass fetches out of in flight non bypass queries.
+          ...(options?.bypassServerCache ? { bypassServerCache: true } : {}),
         },
       ],
       queryFn: async ({
