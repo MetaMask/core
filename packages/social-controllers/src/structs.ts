@@ -125,6 +125,7 @@ export const FeedItemStruct = assign(
     firstTradeAt: optional(nullable(number())),
     holdTimeMs: optional(nullable(number())),
     entryPriceUsd: optional(nullable(number())),
+    feedItemId: optional(string()),
     eventId: optional(string()),
     revision: optional(number()),
     occurredAt: optional(string()),
@@ -340,6 +341,11 @@ export const ModerationStatusResponseStruct = structType({
   banned: boolean(),
   bannedAt: nullable(number()),
   reason: nullable(string()),
+});
+
+export const QuoteTokensResponseStruct = structType({
+  natives: array(string()),
+  stablecoins: array(string()),
 });
 
 /**

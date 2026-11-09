@@ -51,7 +51,7 @@ export function padWithZeroes(hexString: string, targetLength: number): string {
  * @param value - The value being checked.
  * @returns Whether the value is nullish.
  */
-export function isNullish(value) {
+export function isNullish(value: unknown): boolean {
   return value === null || value === undefined;
 }
 
@@ -62,7 +62,7 @@ export function isNullish(value) {
  * @param value - The value to convert to a Buffer.
  * @returns The given value as a Buffer.
  */
-export function legacyToBuffer(value: ToBufferInputTypes) {
+export function legacyToBuffer(value: ToBufferInputTypes): Buffer {
   return typeof value === 'string' && !isHexString(value)
     ? Buffer.from(value)
     : toBuffer(value);
@@ -121,9 +121,9 @@ export function normalize(input: number | string): string | undefined {
   }
 
   if (typeof input !== 'string') {
-    let msg = 'eth-sig-util.normalize() requires hex string or integer input.';
-    msg += ` received ${typeof input}: ${input as any as string}`;
-    throw new Error(msg);
+    throw new Error(
+      `eth-sig-util.normalize() requires hex string or integer input. received ${typeof input}: ${input as any as string}`,
+    );
   }
 
   return add0x(input.toLowerCase());

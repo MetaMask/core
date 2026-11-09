@@ -81,6 +81,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/eth-block-tracker`](packages/eth-block-tracker)
 - [`@metamask/eth-json-rpc-middleware`](packages/eth-json-rpc-middleware)
 - [`@metamask/eth-json-rpc-provider`](packages/eth-json-rpc-provider)
+- [`@metamask/eth-sig-util`](packages/eth-sig-util)
 - [`@metamask/foundryup`](packages/foundryup)
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/gator-permissions-controller`](packages/gator-permissions-controller)

@@ -3,7 +3,7 @@ import { ecsign, publicToAddress, toBuffer } from '@ethereumjs/util';
 import { bytesToHex, Hex, isValidHexAddress } from '@metamask/utils';
 import { keccak256 } from 'ethereum-cryptography/keccak';
 
-import { concatSig, isNullish, recoverPublicKey } from './utils';
+import { concatSig, isNullish, recoverPublicKey } from './utils.js';
 
 const CHAIN_ID_MAX_BITLENGTH = 256;
 const NONCE_MAX_BITLENGTH = 64;
@@ -112,7 +112,9 @@ export function hashEIP7702Authorization(
  * @param authorization - The authorization object to validate.
  * @throws {Error} If the authorization object or any of its required parameters are missing.
  */
-function validateEIP7702Authorization(authorization: EIP7702Authorization) {
+function validateEIP7702Authorization(
+  authorization: EIP7702Authorization,
+): void {
   if (isNullish(authorization)) {
     throw new Error('Missing authorization parameter');
   }
@@ -133,6 +135,7 @@ function validateEIP7702Authorization(authorization: EIP7702Authorization) {
 
   if (
     typeof chainId !== 'number' ||
+    !Number.isSafeInteger(chainId) ||
     chainId >= 2 ** CHAIN_ID_MAX_BITLENGTH ||
     chainId < 0
   ) {
@@ -143,6 +146,7 @@ function validateEIP7702Authorization(authorization: EIP7702Authorization) {
 
   if (
     typeof nonce !== 'number' ||
+    !Number.isSafeInteger(nonce) ||
     nonce >= 2 ** NONCE_MAX_BITLENGTH ||
     nonce < 0
   ) {

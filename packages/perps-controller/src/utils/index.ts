@@ -5,6 +5,15 @@
  * We use selective exports to avoid the name collision.
  */
 export * from './accountUtils.js';
+export {
+  estimateCloseReceive,
+  calculateNetClosedPnl,
+} from './closeCalculations.js';
+export type {
+  CloseReceiveEstimateParams,
+  CloseReceiveEstimate,
+  NetClosedPnlParams,
+} from './closeCalculations.js';
 export * from './errorUtils.js';
 // hyperLiquidAdapter: selective export to avoid calculatePositionSize clash with orderCalculations
 export {

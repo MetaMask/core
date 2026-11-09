@@ -5,8 +5,8 @@ import {
   getByteLength,
   getLength,
   isArrayType,
-} from '@metamask/abi-utils/dist/parsers';
-import { padStart } from '@metamask/abi-utils/dist/utils';
+} from '@metamask/abi-utils/dist/parsers/index.js';
+import { padStart } from '@metamask/abi-utils/dist/utils/index.js';
 import {
   add0x,
   assert,
@@ -26,7 +26,7 @@ import {
   isNullish,
   legacyToBuffer,
   recoverPublicKey,
-} from './utils';
+} from './utils.js';
 
 /**
  * This is the message format used for `V1` of `signTypedData`.
@@ -139,7 +139,7 @@ export const TYPED_MESSAGE_SCHEMA = {
 function validateVersion(
   version: SignTypedDataVersion,
   allowedVersions?: SignTypedDataVersion[],
-) {
+): void {
   if (!Object.keys(SignTypedDataVersion).includes(version)) {
     throw new Error(`Invalid version: '${version}'`);
   } else if (allowedVersions && !allowedVersions.includes(version)) {
@@ -158,7 +158,7 @@ function validateVersion(
  * @param value - The value to parse.
  * @returns The parsed value.
  */
-function parseNumber(type: string, value: string | number | bigint) {
+function parseNumber(type: string, value: string | number | bigint): bigint {
   assert(
     value !== null,
     `Unable to encode value: Invalid number. Expected a valid number value, but received "${value}".`,
@@ -358,16 +358,16 @@ function encodeField(
       );
     }
     const parsedType = type.slice(0, type.lastIndexOf('['));
-    const typeValuePairs = value.map((item: any) =>
-      encodeField(types, name, parsedType, item, version),
+    const typeValuePairs: ReturnType<typeof encodeField>[] = value.map(
+      (item: any) => encodeField(types, name, parsedType, item, version),
     );
     return [
       'bytes32',
       arrToBufArr(
         keccak256(
           encode(
-            typeValuePairs.map(([t]) => t),
-            typeValuePairs.map(([, v]) => v),
+            typeValuePairs.map(([fieldType]) => fieldType),
+            typeValuePairs.map(([, fieldValue]) => fieldValue),
           ),
         ),
       ),
@@ -440,7 +440,7 @@ function encodeType(
     }
 
     result += `${type}(${types[type]
-      .map(({ name, type: t }) => `${t} ${name}`)
+      .map(({ name, type: propertyType }) => `${propertyType} ${name}`)
       .join(',')})`;
   }
 
@@ -498,8 +498,7 @@ function hashStruct(
 
   const encoded = encodeData(primaryType, data, types, version);
   const hashed = keccak256(encoded);
-  const buf = arrToBufArr(hashed);
-  return buf;
+  return arrToBufArr(hashed);
 }
 
 /**
@@ -528,8 +527,9 @@ function sanitizeData<T extends MessageTypes>(
 ): TypedMessage<T> {
   const sanitizedData: Partial<TypedMessage<T>> = {};
   for (const key in TYPED_MESSAGE_SCHEMA.properties) {
-    if (data[key]) {
-      sanitizedData[key] = data[key];
+    const typedKey = key as keyof TypedMessage<T>;
+    if (data[typedKey]) {
+      Object.assign(sanitizedData, { [typedKey]: data[typedKey] });
     }
   }
 
@@ -579,7 +579,7 @@ function eip712Hash<T extends MessageTypes>(
   validateVersion(version, [SignTypedDataVersion.V3, SignTypedDataVersion.V4]);
 
   const sanitizedData = sanitizeData(typedData);
-  const parts = [hexToBytes('1901')];
+  const parts: Uint8Array[] = [hexToBytes('1901')];
   parts.push(eip712DomainHash(typedData, version));
 
   if (sanitizedData.primaryType !== 'EIP712Domain') {
@@ -865,8 +865,12 @@ export function signTypedData<
     version === SignTypedDataVersion.V1
       ? _typedSignatureHash(data as TypedDataV1)
       : TypedDataUtils.eip712Hash(data as TypedMessage<T>, version);
-  const sig = ecsign(messageHash, privateKey);
-  return concatSig(arrToBufArr(bigIntToBytes(sig.v)), sig.r, sig.s);
+  const signature = ecsign(messageHash, privateKey);
+  return concatSig(
+    arrToBufArr(bigIntToBytes(signature.v)),
+    signature.r,
+    signature.s,
+  );
 }
 
 /**

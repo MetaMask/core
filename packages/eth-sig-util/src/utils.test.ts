@@ -1,4 +1,6 @@
-import { concatSig, padWithZeroes, normalize } from './utils';
+import { describe, expect, it } from 'vitest';
+
+import { concatSig, padWithZeroes, normalize } from './utils.js';
 
 describe('padWithZeroes', function () {
   it('pads a string shorter than the target length with zeroes', function () {

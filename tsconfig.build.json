@@ -345,6 +345,9 @@
     },
     {
       "path": "./packages/watch-only-account-service/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/eth-sig-util/tsconfig.build.json"
     }
   ],
   "files": [],

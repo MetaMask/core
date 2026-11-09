@@ -12,7 +12,7 @@ import {
   isNullish,
   legacyToBuffer,
   recoverPublicKey,
-} from './utils';
+} from './utils.js';
 
 /**
  * Create an Ethereum-specific signature for a message.
@@ -40,9 +40,8 @@ export function personalSign({
 
   const message = legacyToBuffer(data);
   const msgHash = hashPersonalMessage(message);
-  const sig = ecsign(msgHash, privateKey);
-  const serialized = concatSig(toBuffer(sig.v), sig.r, sig.s);
-  return serialized;
+  const signature = ecsign(msgHash, privateKey);
+  return concatSig(toBuffer(signature.v), signature.r, signature.s);
 }
 
 /**

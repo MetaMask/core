@@ -1532,6 +1532,7 @@ describe('SocialService', () => {
         items: [
           {
             ...mockFeedItem,
+            feedItemId: '0b6c3d4e-5f60-4a7b-8c9d-0e1f2a3b4c5d',
             eventId: 'social.v1.feed.all.position-1.2',
             revision: 2,
             occurredAt: '2026-01-02T03:04:05.000Z',
@@ -1616,6 +1617,23 @@ describe('SocialService', () => {
 
       const service = createService();
       const result = await service.fetchFeed();
+
+      expect(result.items).toStrictEqual([mockFeedItem]);
+    });
+
+    it('drops a feed item whose feedItemId is not a string', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [{ ...mockFeedItem, feedItemId: 1 }, mockFeedItem],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'all' });
 
       expect(result.items).toStrictEqual([mockFeedItem]);
     });
@@ -3385,6 +3403,74 @@ describe('SocialService', () => {
       );
 
       expect(result).toStrictEqual(mockBannedStatus);
+    });
+  });
+
+  describe('fetchQuoteTokens', () => {
+    const mockQuoteTokens = {
+      natives: [
+        'eip155:8453/erc20:0x4200000000000000000000000000000000000006',
+        'eip155:8453/slip44:60',
+      ],
+      stablecoins: [
+        'eip155:8453/erc20:0x833589fcd6ed6b6e08f4c7c32d4f71b54bda02913',
+      ],
+    };
+
+    it('fetches quote tokens from /tokens/quote-tokens', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockQuoteTokens),
+      });
+
+      const service = createService();
+      const result = await service.fetchQuoteTokens();
+
+      expect(result).toStrictEqual(mockQuoteTokens);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/tokens/quote-tokens`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(service.fetchQuoteTokens()).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_QUOTE_TOKENS_FAILED}: 500`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ...mockQuoteTokens, natives: [1] }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchQuoteTokens()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_QUOTE_TOKENS_INVALID_RESPONSE,
+      );
+    });
+
+    it('is callable via messenger action', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockQuoteTokens),
+      });
+
+      const messenger = createMessenger();
+      // eslint-disable-next-line no-new
+      new SocialService({ messenger, baseUrl: BASE_URL });
+
+      const result = await messenger.call('SocialService:fetchQuoteTokens');
+
+      expect(result).toStrictEqual(mockQuoteTokens);
     });
   });
 
