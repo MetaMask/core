@@ -7,8 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the optional MetaMask Profile API identity to every profile social-api returns, over HTTP and the realtime feed ([#11400](https://github.com/MetaMask/core/pull/11400))
+  - New `ProfileIdentity` type: `displayName`, `bio`, `createdAt`, `updatedAt`, `connectedToX` and `tradingPrivacy`, all optional and nullable. New `TradingPrivacy` type and `TRADING_PRIVACY_VALUES` constant.
+  - `ProfileSummary` (followers, following, follow, unfollow, blocked profiles, moderation authors, feed actors), `LeaderboardEntry` and `TraderProfile` carry these fields, and their structs validate them.
+  - `normalizeRealtimeFeedItem` copies them from the socket actor's `profile` onto `actor`, as social-api's REST feed does. Fields the payload omits stay absent.
+  - Responses that omit the fields still validate. A response with an unknown `tradingPrivacy` value is rejected.
+
 ### Changed
 
+- `TraderProfile.createdAt` is now the MetaMask profile's creation time, and is omitted for external profiles. Older social-api builds sent the social-api row insert time. ([#11400](https://github.com/MetaMask/core/pull/11400))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.0` ([#11396](https://github.com/MetaMask/core/pull/11396))
 
 ## [3.19.0]
