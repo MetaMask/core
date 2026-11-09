@@ -13,6 +13,7 @@ eslint jest/no-restricted-matchers: [
 
 import * as ethUtil from '@ethereumjs/util';
 import Ajv from 'ajv';
+import { describe, expect, it } from 'vitest';
 
 import {
   recoverTypedSignature,
@@ -21,7 +22,7 @@ import {
   typedSignatureHash,
   SignTypedDataVersion,
   TYPED_MESSAGE_SCHEMA,
-} from './sign-typed-data';
+} from './sign-typed-data.js';
 
 const privateKey = Buffer.from(
   '4af1bceebf7f3634ec3cff8a2c38e51178d5d4ce585c52d6043e5e2cc3418bb0',

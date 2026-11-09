@@ -346,6 +346,9 @@
     },
     {
       "path": "./packages/byte-utils/tsconfig.lint.json"
+    },
+    {
+      "path": "./packages/eth-sig-util/tsconfig.lint.json"
     }
   ]
 }

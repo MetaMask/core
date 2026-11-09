@@ -1,10 +1,12 @@
+import { describe, expect, it } from 'vitest';
+
 import {
   decrypt,
   decryptSafely,
   encrypt,
   encryptSafely,
   getEncryptionPublicKey,
-} from './encryption';
+} from './encryption.js';
 
 describe('encryption', function () {
   const bob = {

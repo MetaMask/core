@@ -1,11 +1,12 @@
 import { bufferToHex, privateToAddress } from '@ethereumjs/util';
+import { describe, expect, it } from 'vitest';
 
 import {
   signEIP7702Authorization,
   recoverEIP7702Authorization,
   EIP7702Authorization,
   hashEIP7702Authorization,
-} from './sign-eip7702-authorization';
+} from './sign-eip7702-authorization.js';
 
 const TEST_PRIVATE_KEY = Buffer.from(
   '4af1bceebf7f3634ec3cff8a2c38e51178d5d4ce585c52d6043e5e2cc3418bb0',

@@ -340,6 +340,14 @@
 /packages/eth-json-rpc-provider/typedoc.json       @MetaMask/core-platform
 /packages/eth-json-rpc-provider/vitest.config.*    @MetaMask/core-platform
 
+### eth-sig-util
+/packages/eth-sig-util                    @MetaMask/core-platform
+/packages/eth-sig-util/CHANGELOG.md       @MetaMask/core-platform
+/packages/eth-sig-util/package.json       @MetaMask/core-platform
+/packages/eth-sig-util/tsconfig.*         @MetaMask/core-platform
+/packages/eth-sig-util/typedoc.json       @MetaMask/core-platform
+/packages/eth-sig-util/vitest.config.*    @MetaMask/core-platform
+
 ### foundryup
 /packages/foundryup                    @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/foundryup/CHANGELOG.md       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform

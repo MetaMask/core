@@ -1,7 +1,7 @@
 import { base64, utf8 } from '@scure/base';
 import * as nacl from 'tweetnacl';
 
-import { isNullish } from './utils';
+import { isNullish } from './utils.js';
 
 export type EthEncryptedData = {
   version: string;
@@ -48,7 +48,7 @@ export function encrypt({
       let pubKeyUInt8Array: Uint8Array;
       try {
         pubKeyUInt8Array = base64.decode(publicKey);
-      } catch (err) {
+      } catch {
         throw new Error('Bad public key');
       }
 
@@ -194,9 +194,9 @@ export function decrypt({
           throw new Error();
         }
         return output;
-      } catch (err) {
-        if (err && typeof err.message === 'string' && err.message.length) {
-          throw new Error(`Decryption failed: ${err.message as string}`);
+      } catch (error) {
+        if (error instanceof Error && error.message.length) {
+          throw new Error(`Decryption failed: ${error.message}`);
         }
         throw new Error(`Decryption failed.`);
       }
