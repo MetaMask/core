@@ -993,6 +993,18 @@ export type ModerationStatusResponse = {
 };
 
 /**
+ * Assets that do not produce indexed positions.
+ *
+ * Returned by `GET /v1/tokens/quote-tokens`.
+ */
+export type QuoteTokensResponse = {
+  /** CAIP-19 ids for native coins and wrapped native assets. */
+  natives: string[];
+  /** CAIP-19 ids for stablecoins. */
+  stablecoins: string[];
+};
+
+/**
  * Query parameters forwarded to the social-api GIF proxy.
  *
  * Keys and values are sent unchanged. The service does not rename them or

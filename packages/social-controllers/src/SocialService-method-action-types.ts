@@ -493,6 +493,19 @@ export type SocialServiceFetchModerationStatusAction = {
 };
 
 /**
+ * Fetches native, wrapped native, and stablecoin assets that do not produce
+ * indexed positions.
+ *
+ * Calls `GET ${baseUrl}/tokens/quote-tokens`.
+ *
+ * @returns CAIP-19 ids grouped by asset category.
+ */
+export type SocialServiceFetchQuoteTokensAction = {
+  type: `SocialService:fetchQuoteTokens`;
+  handler: SocialService['fetchQuoteTokens'];
+};
+
+/**
  * Fetches a page of trending GIFs through the social-api GIF proxy.
  *
  * Calls `GET ${baseUrl}/gifs/trending`. Query parameters are forwarded
@@ -553,5 +566,6 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchBlockedProfilesAction
   | SocialServiceFetchBlockedContentAction
   | SocialServiceFetchModerationStatusAction
+  | SocialServiceFetchQuoteTokensAction
   | SocialServiceFetchTrendingGifsAction
   | SocialServiceSearchGifsAction;
