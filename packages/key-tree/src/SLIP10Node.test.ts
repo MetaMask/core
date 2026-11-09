@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import fixtures from '../tests/fixtures.js';
 import { BIP44PurposeNodeToken } from './constants.js';
-import { pbkdf2Sha512, hmacSha512 } from './cryptography.js';
 import { ed25519, secp256k1 } from './curves/index.js';
 import { compressPublicKey } from './curves/secp256k1.js';
 import { createBip39KeyFromSeed, deriveChildKey } from './derivers/bip39.js';

@@ -246,7 +246,10 @@ describe('Cip3', () => {
       'derives the correct child key for ed25519Bip32 curve from mnemonic',
       async (fixture) => {
         const result = await deriveChildKey({
-          path: mnemonicToEntropy(fixture.mnemonic, wordlist),
+          path: mnemonicToEntropy(
+            fixture.mnemonic,
+            wordlist,
+          ) as Uint8Array<ArrayBuffer>,
           curve: ed25519Bip32,
         });
 

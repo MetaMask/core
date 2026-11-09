@@ -230,7 +230,9 @@ export function isHardened(bip32Token: string): boolean {
  * @param hexString - The hexadecimal string to convert.
  * @returns The `Uint8Array` corresponding to the hexadecimal string.
  */
-export function hexStringToBytes(hexString: string | Uint8Array): Uint8Array {
+export function hexStringToBytes(
+  hexString: string | Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> {
   if (hexString instanceof Uint8Array) {
     return hexString;
   }
@@ -246,8 +248,8 @@ export function hexStringToBytes(hexString: string | Uint8Array): Uint8Array {
  * @returns The `Uint8Array` corresponding to the hexadecimal string.
  */
 export function nullableHexStringToBytes(
-  hexString?: string | Uint8Array,
-): Uint8Array | undefined {
+  hexString?: string | Uint8Array<ArrayBuffer>,
+): Uint8Array<ArrayBuffer> | undefined {
   if (hexString !== undefined) {
     return hexStringToBytes(hexString);
   }

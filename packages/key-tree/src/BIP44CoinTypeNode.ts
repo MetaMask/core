@@ -31,7 +31,7 @@ export type CoinTypeHDPathTuple = [
 ];
 
 export type CoinTypeSeedPathTuple = [
-  Uint8Array,
+  Uint8Array<ArrayBuffer>,
   typeof BIP44PurposeNodeToken,
   HardenedBIP32Node,
 ];
@@ -226,15 +226,15 @@ export class BIP44CoinTypeNode implements BIP44CoinTypeNodeInterface {
     return this.#node.depth;
   }
 
-  public get privateKeyBytes(): Uint8Array | undefined {
+  public get privateKeyBytes(): Uint8Array<ArrayBuffer> | undefined {
     return this.#node.privateKeyBytes;
   }
 
-  public get publicKeyBytes(): Uint8Array {
+  public get publicKeyBytes(): Uint8Array<ArrayBuffer> {
     return this.#node.publicKeyBytes;
   }
 
-  public get chainCodeBytes(): Uint8Array {
+  public get chainCodeBytes(): Uint8Array<ArrayBuffer> {
     return this.#node.chainCodeBytes;
   }
 
@@ -250,7 +250,7 @@ export class BIP44CoinTypeNode implements BIP44CoinTypeNodeInterface {
     return this.#node.compressedPublicKey;
   }
 
-  public get compressedPublicKeyBytes(): Uint8Array {
+  public get compressedPublicKeyBytes(): Uint8Array<ArrayBuffer> {
     return this.#node.compressedPublicKeyBytes;
   }
 

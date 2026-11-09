@@ -2,8 +2,6 @@ import { bytesToHex } from '@metamask/byte-utils';
 import { describe, expect, it, vi } from 'vitest';
 
 import fixtures from '../tests/fixtures.js';
-import type { CryptographicFunctions } from './cryptography.js';
-import { hmacSha512, pbkdf2Sha512 } from './cryptography.js';
 import { encodeExtendedKey } from './extended-keys.js';
 import {
   BIP_44_COIN_TYPE_DEPTH,
@@ -17,23 +15,6 @@ import { mnemonicPhraseToBytes } from './utils.js';
 
 const defaultBip39NodeToken = `bip39:${fixtures.local.mnemonic}` as const;
 const defaultBip39BytesToken = mnemonicPhraseToBytes(fixtures.local.mnemonic);
-
-/**
- * Get mock cryptographic functions for testing. The functions are wrappers
- * around the real implementations, but they also track how many times they
- * were called.
- *
- * @returns The mock cryptographic functions.
- */
-function getMockFunctions(): CryptographicFunctions {
-  const mockHmacSha512 = vi.fn().mockImplementation(hmacSha512);
-  const mockPbkdf2Sha512 = vi.fn().mockImplementation(pbkdf2Sha512);
-
-  return {
-    hmacSha512: mockHmacSha512,
-    pbkdf2Sha512: mockPbkdf2Sha512,
-  };
-}
 
 describe('BIP44CoinTypeNode', () => {
   describe('fromJSON', () => {
@@ -515,7 +496,7 @@ describe('BIP44CoinTypeNode', () => {
 
       const extendedKey = encodeExtendedKey({
         type: 'private',
-        privateKey: node.privateKeyBytes as Uint8Array,
+        privateKey: node.privateKeyBytes as Uint8Array<ArrayBuffer>,
         chainCode: node.chainCodeBytes,
         depth: node.depth,
         parentFingerprint: node.parentFingerprint,
@@ -535,7 +516,7 @@ describe('BIP44CoinTypeNode', () => {
 
       const extendedKey = encodeExtendedKey({
         type: 'private',
-        privateKey: node.privateKeyBytes as Uint8Array,
+        privateKey: node.privateKeyBytes as Uint8Array<ArrayBuffer>,
         chainCode: node.chainCodeBytes,
         depth: node.depth,
         parentFingerprint: node.parentFingerprint,
