@@ -28,6 +28,14 @@ export type {
   KycControllerGetProviderFlowStatusAction,
   KycControllerGetSessionDecisionAction,
   KycControllerRefreshStepAction,
+  KycControllerVerifyVendorEmailOtpAction,
+  KycControllerResendVendorEmailOtpAction,
+  KycControllerSendVendorPhoneOtpAction,
+  KycControllerVerifyVendorPhoneOtpAction,
+  KycControllerRefreshVendorAccountAction,
+  KycControllerStartVendorAccountLinkAction,
+  KycControllerVerifyVendorAccountLinkAction,
+  KycControllerActivateVendorAccountAction,
   KycControllerGetSessionStatusForVendorAction,
   KycControllerHasCompletedSessionDisclaimersAction,
   KycControllerHasCompletedVendorDisclaimersAction,
@@ -105,7 +113,11 @@ export type {
   KycServiceSubmitVendorDisclaimersAction,
 } from './KycService-method-action-types.js';
 
-export { selectKycSession, selectKycSessionStatus } from './selectors.js';
+export {
+  selectIsVendorReady,
+  selectKycSession,
+  selectKycSessionStatus,
+} from './selectors.js';
 
 export {
   KYC_SESSION_DECISIONS,
@@ -129,8 +141,13 @@ export {
   KYC_STATUSES,
   TERMINAL_SESSION_STATUSES,
   VENDORS_REGISTERED_BY_RELAY,
+  KYC_VENDOR_ACCOUNT_STATES,
 } from './types.js';
 export type {
+  KycVendorAccount,
+  KycVendorAccountAdapter,
+  KycVendorAccountMfa,
+  KycVendorAccountState,
   KycCatalogDocument,
   KycConsentDocument,
   KycConsentRecord,
