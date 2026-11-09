@@ -1,4 +1,7 @@
-import type { V1TransactionByHashResponse } from '@metamask/core-backend';
+import type {
+  V1TransactionByHashResponse,
+  V5TransactionRecord,
+} from '@metamask/core-backend';
 import { describe, expect, it, vi } from 'vitest';
 
 import { apiTransactionFixtures } from '../../test/fixtures/api-transactions.js';
@@ -1352,10 +1355,15 @@ describe('mapV5ApiTransaction', () => {
     });
   });
 
-  it('maps a plain native receive with a null method ID', () => {
-    const item = mapV5ApiTransaction({
-      transaction: records.standardReceiveWithNullMethodId,
-    });
+  it('maps a plain native receive when the API sends methodId null', () => {
+    const record = records.standardReceiveWithNullMethodId;
+    // The live API returns null here. V5Transaction.methodId is still
+    // `string | undefined`, so the null is only asserted in this test.
+    const transaction = {
+      ...record,
+      tx: { ...record.tx, methodId: null },
+    } as V5TransactionRecord;
+    const item = mapV5ApiTransaction({ transaction });
 
     expect(item).toStrictEqual({
       type: 'receive',

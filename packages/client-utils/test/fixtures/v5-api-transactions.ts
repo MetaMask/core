@@ -169,7 +169,6 @@ const records = {
         '0x5496182b3a222b6c66b005190647db6e2f14900a16db549d95b33399553a21f0',
       nonce: '142920',
       value: '25000000000000000000',
-      methodId: null,
       transactionType: 'STANDARD',
       transactionCategory: 'STANDARD',
       readable: 'Received ETH',

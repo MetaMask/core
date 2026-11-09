@@ -11,10 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
 
-### Fixed
-
-- Type `V5Transaction.methodId` as `string | null`, matching the `null` the Accounts API returns for plain native transfers ([#11379](https://github.com/MetaMask/core/pull/11379))
-
 ## [14.0.0]
 
 ### Added
