@@ -78,11 +78,19 @@ export async function getRelayMaxQuote(
   // `txParams.from` is the account whose keyring actually signs.
   const requiresMfa = accountRequiresMfa(messenger, transaction.txParams?.from);
 
-  if (
-    isPostQuote ||
-    requiresMfa ||
-    !isAtomicMaxEnabled(messenger, transaction)
-  ) {
+  if (requiresMfa) {
+    // `atomic` must be cleared explicitly: `processTransactions` only skips
+    // embedding the target calls when it is literally `false`, so forwarding
+    // an unset or `true` hint would still request the per-quote delegation
+    // signature this guard exists to avoid.
+    return getRelayMaxGasStationQuote(
+      { ...request, atomic: false },
+      fullRequest,
+      getSingleQuote,
+    );
+  }
+
+  if (isPostQuote || !isAtomicMaxEnabled(messenger, transaction)) {
     return getRelayMaxGasStationQuote(request, fullRequest, getSingleQuote);
   }
 

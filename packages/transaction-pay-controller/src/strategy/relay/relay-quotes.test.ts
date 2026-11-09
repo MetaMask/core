@@ -4203,17 +4203,33 @@ describe('Relay Quotes Utils', () => {
           ],
         });
 
+        // Omit the client's `atomic` hint entirely: the guard must clear it
+        // itself, since an unset hint still embeds the target calls.
+        const { atomic: _atomic, ...requestWithoutAtomicHint } =
+          MONEY_ACCOUNT_MAX_REQUEST;
+
         const result = await getRelayQuotes({
           accountSupports7702: true,
           from: FROM_MOCK,
           messenger,
-          requests: [MONEY_ACCOUNT_MAX_REQUEST],
+          requests: [requestWithoutAtomicHint],
           transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
         });
 
         expect(result[0].request.atomic).toBe(false);
         expect(getAmountDataMock).not.toHaveBeenCalled();
         expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+
+        // The real guarantee: no target calls embedded, so no delegation is
+        // signed per quote.
+        const [, requestInit] = successfulFetchMock.mock.calls[0] as [
+          unknown,
+          RequestInit | undefined,
+        ];
+        const body = JSON.parse(requestInit?.body as string) as {
+          txs?: unknown;
+        };
+        expect(body.txs).toBeUndefined();
       });
 
       it('promotes when a non-MFA keyring holds the signing account', async () => {
