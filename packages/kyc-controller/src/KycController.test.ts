@@ -451,26 +451,71 @@ describe('KycController', () => {
       );
     });
 
-    it('keeps the stored residence country when the resolved country differs', async () => {
+    it("keeps an existing session's residence country", async () => {
       await withController(
         {
           options: {
             state: {
-              sessions: { iron: vendorSession({ residenceCountry: 'USA' }) },
+              sessions: {
+                iron: vendorSession({
+                  residenceCountry: 'USA',
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
             },
           },
         },
         async ({ controller, handlers }) => {
           handlers.getGeoCountry.mockResolvedValue('DEU');
-          handlers.getSessionStatusForVendor.mockResolvedValue(
-            sessionStatus('pending'),
-          );
+          handlers.getSessionStatus.mockResolvedValue(sessionStatus('pending'));
 
           await controller.startSession({ vendor: 'iron' });
 
           expect(controller.state.sessions.iron?.residenceCountry).toBe('USA');
         },
       );
+    });
+
+    it('drops unsubmitted terms accepted for another country than the session', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('DEU');
+        handlers.getSessionStatusForVendor.mockResolvedValue(
+          sessionStatus('pending'),
+        );
+        controller.acceptVendorDisclaimers({
+          vendor: 'iron',
+          country: 'USA',
+          disclaimerIds: ['t1'],
+        });
+
+        await controller.startSession({ vendor: 'iron' });
+
+        expect(controller.state.sessions.iron?.residenceCountry).toBe('DEU');
+        expect(
+          controller.state.sessions.iron?.vendorDisclaimersAccepted,
+        ).toBeNull();
+      });
+    });
+
+    it("keeps unsubmitted terms accepted for the session's country", async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('USA');
+        handlers.getSessionStatusForVendor.mockResolvedValue(
+          sessionStatus('pending'),
+        );
+        controller.acceptVendorDisclaimers({
+          vendor: 'iron',
+          country: 'USA',
+          disclaimerIds: ['t1'],
+        });
+
+        await controller.startSession({ vendor: 'iron' });
+
+        expect(
+          controller.state.sessions.iron?.vendorDisclaimersAccepted
+            ?.disclaimerIds,
+        ).toStrictEqual(['t1']);
+      });
     });
 
     it('throws when no verified email can be resolved', async () => {
@@ -1997,9 +2042,7 @@ describe('KycController', () => {
         expect(handlers.createJourney).not.toHaveBeenCalled();
         expect(handlers.getSessionStatus).not.toHaveBeenCalled();
         expect(launcher.launch).not.toHaveBeenCalled();
-        expect(controller.state.sessions.iron?.providerFlowStatus).toBe(
-          'failed',
-        );
+        expect(controller.state.sessions.iron).toBeUndefined();
       });
     });
 
@@ -3119,6 +3162,43 @@ describe('KycController per-vendor sessions', () => {
         });
 
         await controller.recordVendorDisclaimers({ vendor: 'iron' });
+
+        expect(controller.state.sessions.iron).toBeUndefined();
+      },
+    );
+  });
+
+  it('does not bring a cleared session back from an in-flight status fetch', async () => {
+    await withController(
+      { options: { state: { sessions: { iron: ironEntry() } } } },
+      async ({ controller, handlers }) => {
+        handlers.getSessionStatus.mockImplementation(async () => {
+          controller.clearState();
+          return sessionStatus('approved');
+        });
+
+        await controller.fetchSessionStatusOnce({ vendor: 'iron' });
+
+        expect(controller.state.sessions.iron).toBeUndefined();
+      },
+    );
+  });
+
+  it('does not bring a cleared session back from in-flight consents', async () => {
+    await withController(
+      { options: { state: { sessions: { iron: ironEntry() } } } },
+      async ({ controller, handlers }) => {
+        handlers.submitSessionDisclaimers.mockImplementation(async () => {
+          controller.clearState();
+          return MOCK_SESSION_DISCLAIMERS;
+        });
+
+        await controller.recordSessionDisclaimers({
+          vendor: 'iron',
+          idosDisclaimersAccepted: MOCK_IDOS_DISCLAIMERS_ACCEPTED,
+          providerDisclaimersAccepted: MOCK_SUMSUB_DISCLAIMERS_ACCEPTED,
+          credentialReusabilityConsentGiven: false,
+        });
 
         expect(controller.state.sessions.iron).toBeUndefined();
       },
