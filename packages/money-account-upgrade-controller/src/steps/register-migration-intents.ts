@@ -130,13 +130,7 @@ function getMigrationDelegations(
       step: 'ROOT_DELEGATION',
       type: 'cash-migration-root',
       delegate: successor,
-      caveats: [
-        {
-          enforcer: redeemerEnforcer,
-          terms: createRedeemerTerms({ redeemers: [successor] }),
-          args: '0x',
-        },
-      ],
+      caveats: [],
       tokenAddress: musdTokenAddress,
       tokenSymbol: 'mUSD',
     },
