@@ -9,9 +9,9 @@
 /**
  * Identity vendors supported behind the KYC surface.
  *
- * - `moonpay` — MoonPay Check/Auth frames + SumSub documents.
- * - `iron` — Iron-only Money/VBA path: empty-shell customer → consents →
- *   SumSub, with no MoonPay Check/Auth frames.
+ * - `moonpay` — kept as a second session slot. There is no MoonPay-specific
+ *   session API; sessions are created with `createUkycSession`.
+ * - `iron` — Iron Money/VBA path: empty-shell customer → consents → SumSub.
  */
 export type KycVendor = 'moonpay' | 'iron';
 
