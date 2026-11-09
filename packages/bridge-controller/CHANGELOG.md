@@ -7,14 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [83.1.4]
+
 ### Changed
 
-- Bump `@metamask/assets-controller` from `^20.1.0` to `^20.3.0` ([#11255](https://github.com/MetaMask/core/pull/11255), [#11285](https://github.com/MetaMask/core/pull/11285), [#11300](https://github.com/MetaMask/core/pull/11300), [#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385))
-- Bump `@metamask/assets-controllers` from `^113.0.1` to `^113.3.0` ([#11255](https://github.com/MetaMask/core/pull/11255), [#11300](https://github.com/MetaMask/core/pull/11300), [#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385))
+- Bump `@metamask/assets-controller` from `^20.1.0` to `^20.3.1` ([#11255](https://github.com/MetaMask/core/pull/11255), [#11285](https://github.com/MetaMask/core/pull/11285), [#11300](https://github.com/MetaMask/core/pull/11300), [#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/assets-controllers` from `^113.0.1` to `^113.3.1` ([#11255](https://github.com/MetaMask/core/pull/11255), [#11300](https://github.com/MetaMask/core/pull/11300), [#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385), [#11390](https://github.com/MetaMask/core/pull/11390))
 - Bump `uuid` from `^14.0.0` to `^14.0.2` ([#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
-- Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
-- Bump `@metamask/multichain-network-controller` from `^4.0.0` to `^4.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
-- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300))
+- Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/multichain-network-controller` from `^4.0.0` to `^4.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
 
 ## [83.1.3]
 
@@ -2207,7 +2211,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.4...HEAD
+[83.1.4]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.3...@metamask/bridge-controller@83.1.4
 [83.1.3]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.2...@metamask/bridge-controller@83.1.3
 [83.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.1...@metamask/bridge-controller@83.1.2
 [83.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@83.1.0...@metamask/bridge-controller@83.1.1

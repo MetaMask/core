@@ -7,13 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [31.1.0]
+
 ### Added
 
 - Add quote simulation to `ServerStrategy`, gated by the `confirmations_pay_extended.payStrategies.server.validationEnabled` feature flag ([#11198](https://github.com/MetaMask/core/pull/11198))
 
 ### Changed
 
-- Bump `@metamask/assets-controller` from `^20.2.2` to `^20.3.0` ([#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385))
+- Bump `@metamask/assets-controller` from `^20.2.2` to `^20.3.1` ([#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/gas-fee-controller` from `^27.1.0` to `^27.1.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^73.1.1` to `^73.1.2` ([#11390](https://github.com/MetaMask/core/pull/11390))
 
 ## [31.0.0]
 
@@ -1843,7 +1849,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.1.0...HEAD
+[31.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.0.0...@metamask/transaction-pay-controller@31.1.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.3...@metamask/transaction-pay-controller@31.0.0
 [30.4.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.2...@metamask/transaction-pay-controller@30.4.3
 [30.4.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.1...@metamask/transaction-pay-controller@30.4.2

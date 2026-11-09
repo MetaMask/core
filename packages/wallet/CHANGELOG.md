@@ -20,11 +20,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add `@metamask/assets-controllers` `^113.3.0` as a dependency ([#11315](https://github.com/MetaMask/core/pull/11315))
-- Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
+- Add `@metamask/assets-controllers` `^113.3.1` as a dependency ([#11315](https://github.com/MetaMask/core/pull/11315))
+
+## [21.0.1]
+
+### Changed
+
+- Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11390](https://github.com/MetaMask/core/pull/11390))
 - Bump `@metamask/subscription-controller` from `^15.1.2` to `^15.2.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
-- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300))
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
 - Bump `@metamask/analytics-controller` from `^4.1.0` to `^4.2.0` ([#11323](https://github.com/MetaMask/core/pull/11323))
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-enablement-controller` from `^7.1.0` to `^7.1.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/selected-network-controller` from `^27.0.0` to `^27.1.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
 
 ## [21.0.0]
 
@@ -465,7 +474,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.1...HEAD
+[21.0.1]: https://github.com/MetaMask/core/compare/@metamask/wallet@21.0.0...@metamask/wallet@21.0.1
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@20.0.0...@metamask/wallet@21.0.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.1.0...@metamask/wallet@20.0.0
 [19.1.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@19.0.0...@metamask/wallet@19.1.0
