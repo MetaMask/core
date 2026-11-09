@@ -7,16 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [113.3.0]
-
 ### Added
 
 - Add `init` method to `TokensController`, `TokenBalancesController`, `TokenDetectionController`, `TokenRatesController`, `AccountTrackerController`, `NftController`, `MultichainBalancesController`, `MultichainAssetsRatesController`, `MultichainAssetsController` and `TokenListController` ([#11315](https://github.com/MetaMask/core/pull/11315))
   - `init` reads the other controllers that the constructor used to read. Calling it more than once has no effect.
   - `TokenListController.init` calls `initialize` once.
 - Expose `addNfts` through the `NftController` messenger ([#11315](https://github.com/MetaMask/core/pull/11315))
-- Add Matchain (`0x2ba`, `eip155:698/slip44:714`) and Nomina (`0xa6`, `eip155:166/slip44:11111166`) to `SPOT_PRICES_SUPPORT_INFO` so the token prices service requests their native prices ([#11383](https://github.com/MetaMask/core/pull/11383))
-  - Nomina has no registered SLIP-44 coin type, so it uses the synthetic `slip44:11111<chainId>` form, matching the Price API.
 
 ### Changed
 
@@ -36,12 +32,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The controller subscribes to it and passes updated `nativeAssetIdentifiers` to the token prices service. It also re-reads them before each rate lookup.
 - `TokensController` no longer requires the `chainId` and `provider` options ([#11315](https://github.com/MetaMask/core/pull/11315))
   - When `provider` is omitted, the provider of the selected network client (`NetworkController:getSelectedNetworkClient`) is used.
-- Bump `@metamask/abi-utils` from `^2.0.4` to `^3.0.0` ([#11356](https://github.com/MetaMask/core/pull/11356))
 
 ### Fixed
 
 - `TokenRatesController` applies `nativeAssetIdentifiers` that `NetworkEnablementController` fills or updates after `init`, so CAIP-19 native token rate lookups are not left on the map captured during `init` ([#11315](https://github.com/MetaMask/core/pull/11315))
 - `TokenDetectionController` reads `useTokenDetection` again when detection runs if that preference is still unset, so a `PreferencesController` registered after `init` does not leave non-mainnet detection skipped ([#11315](https://github.com/MetaMask/core/pull/11315))
+
+## [113.3.0]
+
+### Added
+
+- Add Matchain (`0x2ba`, `eip155:698/slip44:714`) and Nomina (`0xa6`, `eip155:166/slip44:11111166`) to `SPOT_PRICES_SUPPORT_INFO` so the token prices service requests their native prices ([#11383](https://github.com/MetaMask/core/pull/11383))
+  - Nomina has no registered SLIP-44 coin type, so it uses the synthetic `slip44:11111<chainId>` form, matching the Price API.
+
+### Changed
+
+- Bump `@metamask/abi-utils` from `^2.0.4` to `^3.0.0` ([#11356](https://github.com/MetaMask/core/pull/11356))
 
 ## [113.2.0]
 
