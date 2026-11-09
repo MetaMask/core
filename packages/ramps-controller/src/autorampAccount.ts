@@ -115,13 +115,16 @@ export function buildBrazilMusdAutorampRequest(
 /**
  * Deposit rails MoonPay needs Active before it accepts a
  * {@link buildMusdAutorampRequest} create, keyed by fiat code. neobank-proxy
- * sends every create as third-party, so that rail is required too.
+ * normally sends creates as third-party, so that rail is required too. EUR is
+ * the exception: the proxy falls back to a first-party autoramp when
+ * `sepa_thirdparty` is not Active, so only the base rail is required.
  */
 const MUSD_AUTORAMP_REQUIRED_DEPOSIT_RAILS: Readonly<
   Record<string, readonly string[]>
 > = {
   BRL: ['pix', 'pix_thirdparty'],
   USD: ['ach', 'ach_thirdparty'],
+  EUR: ['sepa'],
 };
 
 const BLOCKED_ABILITY_STATUSES: ReadonlySet<string> = new Set([

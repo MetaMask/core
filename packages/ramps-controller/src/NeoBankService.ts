@@ -19,6 +19,7 @@ import type {
   AutorampRemoteSnapshot,
   AutorampTransactionSummary,
   PixDepositInstructions,
+  SepaDepositInstructions,
   UsBankDepositInstructions,
   UsBankDepositRail,
 } from './autoramp-types.js';
@@ -552,10 +553,10 @@ function readDepositRailCurrency(depositRails: unknown): string | undefined {
   if (extractUsBankDepositInstructions(depositRails)) {
     return DEPOSIT_RAIL_CURRENCIES.ACH;
   }
-  const sepa = readDepositRails(depositRails).find(
-    (rail) => rail.type === 'SEPA' && readRailString(rail, 'iban'),
-  );
-  return sepa ? DEPOSIT_RAIL_CURRENCIES.SEPA : undefined;
+  if (extractSepaDepositInstructions(depositRails)) {
+    return DEPOSIT_RAIL_CURRENCIES.SEPA;
+  }
+  return undefined;
 }
 
 /**
@@ -598,6 +599,45 @@ export function extractUsBankDepositInstructions(
       }
       return instructions;
     }
+  }
+  return null;
+}
+
+/**
+ * Pulls SEPA transfer details out of an autoramp `deposit_rails` array.
+ *
+ * @param depositRails - MoonPay `deposit_rails` value.
+ * @returns SEPA details, or null when no usable SEPA rail is present.
+ */
+export function extractSepaDepositInstructions(
+  depositRails: unknown,
+): SepaDepositInstructions | null {
+  for (const record of readDepositRails(depositRails)) {
+    if (record.type !== 'SEPA') {
+      continue;
+    }
+    const iban = readRailString(record, 'iban')?.replace(/\s+/gu, '');
+    if (!iban) {
+      continue;
+    }
+    const instructions: SepaDepositInstructions = { iban };
+    const bic = readRailString(record, 'bic');
+    if (bic) {
+      instructions.bic = bic;
+    }
+    const accountHolder = readRailString(record, 'beneficiary_name');
+    if (accountHolder) {
+      instructions.accountHolder = accountHolder;
+    }
+    const bankName = readRailString(record, 'name');
+    if (bankName) {
+      instructions.bankName = bankName;
+    }
+    const bankAddress = readRailString(record, 'address');
+    if (bankAddress) {
+      instructions.bankAddress = bankAddress;
+    }
+    return instructions;
   }
   return null;
 }
@@ -913,9 +953,10 @@ export class NeoBankService extends BaseDataService<
    * Loads deposit details for an autoramp, whichever rail it has.
    *
    * Calls `GET /neobank/autoramps/{id}` and reads the PIX rail, or else a US
-   * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`). Returns null until MoonPay
-   * has attached a supported rail. MoonPay only verifies the rail at
-   * `Approved`, so callers should not show these details before then.
+   * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`), or else the SEPA rail.
+   * Returns null until MoonPay has attached a supported rail. MoonPay only
+   * verifies the rail at `Approved`, so callers should not show these details
+   * before then.
    *
    * @param autorampId - MoonPay autoramp id.
    * @returns Deposit details discriminated by `type`, or null.
@@ -942,7 +983,11 @@ export class NeoBankService extends BaseDataService<
       return { type: 'Pix', ...pix };
     }
     const usBank = extractUsBankDepositInstructions(depositRails);
-    return usBank ? { type: 'UsBank', ...usBank } : null;
+    if (usBank) {
+      return { type: 'UsBank', ...usBank };
+    }
+    const sepa = extractSepaDepositInstructions(depositRails);
+    return sepa ? { type: 'Sepa', ...sepa } : null;
   }
 
   /**

@@ -54,9 +54,10 @@ export type NeoBankServiceGetPixDepositInstructionsAction = {
  * Loads deposit details for an autoramp, whichever rail it has.
  *
  * Calls `GET /neobank/autoramps/{id}` and reads the PIX rail, or else a US
- * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`). Returns null until MoonPay
- * has attached a supported rail. MoonPay only verifies the rail at
- * `Approved`, so callers should not show these details before then.
+ * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`), or else the SEPA rail.
+ * Returns null until MoonPay has attached a supported rail. MoonPay only
+ * verifies the rail at `Approved`, so callers should not show these details
+ * before then.
  *
  * @param autorampId - MoonPay autoramp id.
  * @returns Deposit details discriminated by `type`, or null.
