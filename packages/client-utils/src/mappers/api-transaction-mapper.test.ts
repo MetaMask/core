@@ -1362,7 +1362,7 @@ describe('mapV5ApiTransaction', () => {
     const transaction = {
       ...record,
       tx: { ...record.tx, methodId: null },
-    } as V5TransactionRecord;
+    } as unknown as V5TransactionRecord;
     const item = mapV5ApiTransaction({ transaction });
 
     expect(item).toStrictEqual({
