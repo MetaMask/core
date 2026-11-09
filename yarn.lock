@@ -6453,8 +6453,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/eth-sig-util@workspace:packages/eth-sig-util"
   dependencies:
-    "@ethereumjs/rlp": "npm:^4.0.1"
-    "@ethereumjs/util": "npm:^8.1.0"
+    "@ethereumjs/rlp": "npm:^5.0.2"
+    "@ethereumjs/util": "npm:^9.1.0"
     "@metamask/abi-utils": "npm:^3.0.0"
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/cryptography": "npm:^1.1.2"
