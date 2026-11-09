@@ -215,12 +215,7 @@ export async function decrypt({
 
       // return decrypted msg data
       try {
-        const output = bytesToString(decryptedMessage);
-        // TODO: This is probably extraneous but was kept to minimize changes during refactor
-        if (!output) {
-          throw new Error();
-        }
-        return output;
+        return bytesToString(decryptedMessage);
       } catch (error) {
         if (error instanceof Error && error.message.length) {
           throw new Error(`Decryption failed: ${error.message}`);
