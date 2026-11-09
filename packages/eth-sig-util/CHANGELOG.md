@@ -20,4 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - See [`MetaMask/eth-sig-util`](https://github.com/MetaMask/eth-sig-util/blob/73725fc31a51e4d5f6b72d8e5f470c0b10c9d57f/CHANGELOG.md)
     for the original changelog.
 
+### Fixed
+
+- Correct padding calculation so that every ciphertext is a multiple of 2048 bytes ([#11386](https://github.com/MetaMask/core/pull/11386))
+
 [Unreleased]: https://github.com/MetaMask/core/

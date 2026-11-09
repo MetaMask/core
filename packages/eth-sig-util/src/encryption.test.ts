@@ -59,6 +59,23 @@ describe('encryption', function () {
     expect(result.version).toBe('x25519-xsalsa20-poly1305');
   });
 
+  it('alice encryptsSafely a message too close to a padding boundary', function () {
+    const data = 'a'.repeat(2016);
+    const result = encryptSafely({
+      publicKey: bob.encryptionPublicKey,
+      data,
+      version: 'x25519-xsalsa20-poly1305',
+    });
+
+    expect(result.ciphertext).toHaveLength(5464);
+    expect(
+      decryptSafely({
+        encryptedData: result,
+        privateKey: bob.ethereumPrivateKey,
+      }),
+    ).toBe(data);
+  });
+
   // safe decryption test
   it('bob decryptSafely message that Alice encryptSafely for him', async function () {
     const version = 'x25519-xsalsa20-poly1305';
