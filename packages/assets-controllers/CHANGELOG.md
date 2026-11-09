@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [113.3.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-enablement-controller` from `^7.1.0` to `^7.1.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^73.1.1` to `^73.1.2` ([#11390](https://github.com/MetaMask/core/pull/11390))
+
 ## [113.3.0]
 
 ### Added
@@ -3679,7 +3688,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.3.1...HEAD
+[113.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.3.0...@metamask/assets-controllers@113.3.1
 [113.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.2.0...@metamask/assets-controllers@113.3.0
 [113.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.1.1...@metamask/assets-controllers@113.2.0
 [113.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.1.0...@metamask/assets-controllers@113.1.1

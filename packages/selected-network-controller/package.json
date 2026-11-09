@@ -1,6 +1,6 @@
 {
   "name": "@metamask/selected-network-controller",
-  "version": "27.0.0",
+  "version": "27.1.0",
   "description": "Provides an interface to the currently selected networkClientId for a given domain",
   "keywords": [
     "Ethereum",
@@ -55,7 +55,7 @@
     "@metamask/base-controller": "^10.1.0",
     "@metamask/json-rpc-engine": "^11.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/network-controller": "^37.1.1",
+    "@metamask/network-controller": "^38.0.0",
     "@metamask/permission-controller": "^14.1.0",
     "@metamask/swappable-obj-proxy": "^2.3.0",
     "@metamask/utils": "^12.0.1"
