@@ -1051,6 +1051,47 @@ describe('AssetsController', () => {
       },
     );
 
+    it('does not start tracking when destroyed while bootstrap runs the unlock cleanups', async () => {
+      await withController(
+        { skipBootstrap: true },
+        async ({
+          controller,
+          messenger,
+          setUiOpen,
+          subscribeToBasicFunctionalityChange,
+        }) => {
+          messenger.publish('KeyringController:unlock');
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
+            'AccountTreeController:initialized',
+            {},
+          );
+          await flushPromises();
+          // Bootstrap subscribes just before it awaits the unlock cleanups, so
+          // a destroy queued here runs while those cleanups are awaited.
+          subscribeToBasicFunctionalityChange.mockImplementation(() => {
+            queueMicrotask(() => controller.destroy());
+          });
+          const getAssetsSpy = vi.spyOn(controller, 'getAssets');
+
+          await setUiOpen(true);
+
+          expect(subscribeToBasicFunctionalityChange).toHaveBeenCalled();
+          expect(getAssetsSpy).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not restart tracking on lifecycle events after it is destroyed', async () => {
+      await withController(async ({ controller, messenger }) => {
+        controller.destroy();
+        const getAssetsSpy = vi.spyOn(controller, 'getAssets');
+
+        await activateTracking(messenger);
+
+        expect(getAssetsSpy).not.toHaveBeenCalled();
+      });
+    });
+
     it('does not finish bootstrapping when destroyed while it is in flight', async () => {
       const messenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,

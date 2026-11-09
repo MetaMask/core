@@ -1252,6 +1252,11 @@ export class AssetsController extends BaseController<
       await this.#runUnlockCleanups();
     }
 
+    // `destroy()` may have run while the cleanups were awaited.
+    if (this.#isDestroyed) {
+      return;
+    }
+
     this.#updateActive();
   }
 
@@ -1640,7 +1645,9 @@ export class AssetsController extends BaseController<
    * the keyring is unlocked, and the account tree has finished `init()`.
    */
   #updateActive(): void {
-    if (!this.#isBootstrapped) {
+    // Event subscriptions outlive `destroy()`, so lifecycle events can still
+    // arrive; never start tracking on a destroyed controller.
+    if (!this.#isBootstrapped || this.#isDestroyed) {
       return;
     }
     const shouldRun =

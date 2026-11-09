@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `subscribeToBasicFunctionalityChange` is called before the controller counts as bootstrapped, so a listener called synchronously is ignored rather than skipping the first forced fetch. If it throws, the error is reported through `captureException` and bootstrapping continues.
   - Until then, network, transaction and `KeyringController:unlock` events and `handleBasicFunctionalityChange` are ignored.
   - Enabled chains are no longer cached on the controller; they are read from `NetworkEnablementController:getState` each time they are needed, so they are correct before bootstrap too. They are empty if `NetworkEnablementController` is not registered.
+  - A controller destroyed during or after bootstrap does not start tracking assets.
   - Clients must call `ClientController:setUiOpen(true)` when the UI opens, or assets are never loaded.
 - **BREAKING:** `AccountsApiDataSource`, `RpcDataSource` and `SnapDataSource` no longer call other controllers or make requests in their constructors ([#11351](https://github.com/MetaMask/core/pull/11351))
   - Call `bootstrap()` to fetch the Accounts API supported networks (and start refreshing them), read `NetworkController` state, or discover keyring snaps, respectively. `AssetsController` does this for you.
