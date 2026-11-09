@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.19.0]
+
 ### Uncategorized
 
 - chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
@@ -401,7 +403,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.18.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.19.0...HEAD
+[3.19.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.18.0...@metamask/social-controllers@3.19.0
 [3.18.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.17.0...@metamask/social-controllers@3.18.0
 [3.17.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.16.0...@metamask/social-controllers@3.17.0
 [3.16.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.15.0...@metamask/social-controllers@3.16.0
