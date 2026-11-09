@@ -21,17 +21,27 @@ type CurveSpecification =
     };
 
 export type Curve = {
-  secret: Uint8Array;
+  secret: Uint8Array<ArrayBuffer>;
   deriveUnhardenedKeys: boolean;
   publicKeyLength: number;
   curve: {
     n: bigint;
   };
-  getPublicKey: (privateKey: Uint8Array, compressed?: boolean) => Uint8Array;
-  isValidPrivateKey: (privateKey: Uint8Array) => boolean;
-  publicAdd: (publicKey: Uint8Array, tweak: Uint8Array) => Uint8Array;
-  compressPublicKey: (publicKey: Uint8Array) => Uint8Array;
-  decompressPublicKey: (publicKey: Uint8Array) => Uint8Array;
+  getPublicKey: (
+    privateKey: Uint8Array<ArrayBuffer>,
+    compressed?: boolean,
+  ) => Uint8Array<ArrayBuffer>;
+  isValidPrivateKey: (privateKey: Uint8Array<ArrayBuffer>) => boolean;
+  publicAdd: (
+    publicKey: Uint8Array<ArrayBuffer>,
+    tweak: Uint8Array<ArrayBuffer>,
+  ) => Uint8Array<ArrayBuffer>;
+  compressPublicKey: (
+    publicKey: Uint8Array<ArrayBuffer>,
+  ) => Uint8Array<ArrayBuffer>;
+  decompressPublicKey: (
+    publicKey: Uint8Array<ArrayBuffer>,
+  ) => Uint8Array<ArrayBuffer>;
   privateKeyLength: number;
   compressedPublicKeyLength: number;
 } & CurveSpecification;

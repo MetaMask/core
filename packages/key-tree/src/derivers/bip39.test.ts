@@ -1,5 +1,6 @@
 import { hexToBytes } from '@metamask/byte-utils';
 import { bigIntToBytes, concatBytes } from '@metamask/byte-utils';
+import * as hmac from '@metamask/cryptography/hmac';
 import { mnemonicToEntropy } from '@metamask/scure-bip39';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english.js';
 import { assert } from '@metamask/type-utils';
@@ -165,9 +166,7 @@ describe('createBip39KeyFromSeed', () => {
 
   it('throws if the private key is zero', async () => {
     // Mock the hmac function to return a zero private key.
-    vi.spyOn(cryptography, 'hmacSha512').mockResolvedValueOnce(
-      new Uint8Array(64),
-    );
+    vi.spyOn(hmac, 'hmacSha512').mockResolvedValueOnce(new Uint8Array(64));
 
     await expect(
       createBip39KeyFromSeed(RANDOM_SEED, secp256k1),
@@ -186,7 +185,7 @@ describe('createBip39KeyFromSeed', () => {
       assert(privateKey.length === 32);
 
       // Mock the hmac function to return a private key larger than the curve order.
-      vi.spyOn(cryptography, 'hmacSha512').mockResolvedValueOnce(
+      vi.spyOn(hmac, 'hmacSha512').mockResolvedValueOnce(
         concatBytes([privateKey, new Uint8Array(32)]),
       );
 
@@ -218,31 +217,6 @@ describe('Cip3', () => {
         const result = await entropyToCip3MasterNode(
           hexToBytes(fixture.entropyHex),
           ed25519Bip32,
-        );
-        const { bip39Node } = fixture.nodes;
-        expect(result.privateKey).toBe(bip39Node.privateKey);
-        expect(result.chainCode).toBe(bip39Node.chainCode);
-      },
-    );
-
-    it.each(fixtures.cip3)(
-      'clamps the master key if a custom `pbkdf2Sha512` returns a `Buffer`',
-      async (fixture) => {
-        const result = await entropyToCip3MasterNode(
-          hexToBytes(fixture.entropyHex),
-          ed25519Bip32,
-          undefined,
-          {
-            pbkdf2Sha512: async (password, salt, iterations, keyLength) =>
-              Buffer.from(
-                await cryptography.pbkdf2Sha512(
-                  password,
-                  salt,
-                  iterations,
-                  keyLength,
-                ),
-              ),
-          },
         );
         const { bip39Node } = fixture.nodes;
         expect(result.privateKey).toBe(bip39Node.privateKey);

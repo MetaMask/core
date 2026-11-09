@@ -9,7 +9,6 @@ import type {
   Network,
 } from './constants.js';
 import { BIP_32_HARDENED_OFFSET } from './constants.js';
-import type { CryptographicFunctions } from './cryptography.js';
 import type { SupportedCurve } from './curves/index.js';
 import { deriveChildNode } from './SLIP10Node.js';
 import type { CoinTypeToAddressIndices } from './utils.js';
@@ -87,30 +86,24 @@ export class BIP44CoinTypeNode implements BIP44CoinTypeNodeInterface {
    * @param json - The {@link JsonBIP44Node} for the key of this node.
    * @param coin_type - The coin_type index of this node. Must be a non-negative
    * integer.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A BIP44CoinType node.
    */
   static async fromJSON(
     json: JsonBIP44Node,
     coin_type: number,
-    cryptographicFunctions?: CryptographicFunctions,
   ): Promise<BIP44CoinTypeNode> {
     validateCoinType(coin_type);
     validateCoinTypeNodeDepth(json.depth);
 
-    const node = await BIP44Node.fromExtendedKey(
-      {
-        depth: json.depth,
-        index: json.index,
-        network: json.network,
-        parentFingerprint: json.parentFingerprint,
-        chainCode: hexStringToBytes(json.chainCode),
-        privateKey: nullableHexStringToBytes(json.privateKey),
-        publicKey: hexStringToBytes(json.publicKey),
-      },
-      cryptographicFunctions,
-    );
+    const node = await BIP44Node.fromExtendedKey({
+      depth: json.depth,
+      index: json.index,
+      network: json.network,
+      parentFingerprint: json.parentFingerprint,
+      chainCode: hexStringToBytes(json.chainCode),
+      privateKey: nullableHexStringToBytes(json.privateKey),
+      publicKey: hexStringToBytes(json.publicKey),
+    });
 
     return new BIP44CoinTypeNode(node, coin_type);
   }
@@ -132,24 +125,18 @@ export class BIP44CoinTypeNode implements BIP44CoinTypeNodeInterface {
    * @param derivationPath - The derivation path for the key of this node.
    * @param network - The network for the node. This is only used for extended
    * keys, and defaults to `mainnet`.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A BIP44CoinType node.
    */
   static async fromDerivationPath(
     derivationPath: CoinTypeHDPathTuple,
     network?: Network | undefined,
-    cryptographicFunctions?: CryptographicFunctions,
   ): Promise<BIP44CoinTypeNode> {
     validateCoinTypeNodeDepth(derivationPath.length - 1);
 
-    const node = await BIP44Node.fromDerivationPath(
-      {
-        derivationPath,
-        network,
-      },
-      cryptographicFunctions,
-    );
+    const node = await BIP44Node.fromDerivationPath({
+      derivationPath,
+      network,
+    });
 
     const coinType = getBIP44CoinType(derivationPath);
     return new BIP44CoinTypeNode(node, coinType);
@@ -168,23 +155,18 @@ export class BIP44CoinTypeNode implements BIP44CoinTypeNodeInterface {
    * to derive the key of this node.
    * @param options.network - The network for the node. This is only used for
    * extended keys, and defaults to `mainnet`.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A new BIP-44 node.
    */
-  static async fromSeed(
-    { derivationPath, network }: BIP44CoinTypeSeedOptions,
-    cryptographicFunctions?: CryptographicFunctions,
-  ): Promise<BIP44CoinTypeNode> {
+  static async fromSeed({
+    derivationPath,
+    network,
+  }: BIP44CoinTypeSeedOptions): Promise<BIP44CoinTypeNode> {
     validateCoinTypeNodeDepth(derivationPath.length - 1);
 
-    const node = await BIP44Node.fromSeed(
-      {
-        derivationPath,
-        network,
-      },
-      cryptographicFunctions,
-    );
+    const node = await BIP44Node.fromSeed({
+      derivationPath,
+      network,
+    });
 
     const coinType = getBIP44CoinType(derivationPath);
     return new BIP44CoinTypeNode(node, coinType);
@@ -396,14 +378,11 @@ function validateCoinType(coin_type: unknown): asserts coin_type is number {
  * @param indices.account - The `account` index. Default: `0`.
  * @param indices.change - The `change` index. Default: `0`.
  * @param indices.address_index - The `address_index` index.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The derived `address_index` key for the specified derivation path.
  */
 export async function deriveBIP44AddressKey(
   parentKeyOrNode: BIP44CoinTypeNode | JsonBIP44CoinTypeNode | string,
   { account = 0, change = 0, address_index }: CoinTypeToAddressIndices,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<BIP44Node> {
   const path = getBIP44CoinTypeToAddressPathTuple({
     account,
@@ -411,14 +390,11 @@ export async function deriveBIP44AddressKey(
     address_index,
   });
 
-  const node = await getNode(parentKeyOrNode, cryptographicFunctions);
-  const childNode = await deriveChildNode(
-    {
-      path,
-      node,
-    },
-    cryptographicFunctions,
-  );
+  const node = await getNode(parentKeyOrNode);
+  const childNode = await deriveChildNode({
+    path,
+    node,
+  });
 
   return new BIP44Node(childNode);
 }
@@ -469,19 +445,16 @@ export type BIP44AddressKeyDeriver = {
  * This node contains a BIP-44 key of depth 2, `coin_type`.
  * @param accountAndChangeIndices - The `account` and `change` indices that
  * will be used to derive addresses.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The deriver function for the derivation path specified by the
  * `coin_type` node, `account`, and `change` indices.
  */
 export async function getBIP44AddressKeyDeriver(
   node: BIP44CoinTypeNode | JsonBIP44CoinTypeNode | string,
   accountAndChangeIndices?: Omit<CoinTypeToAddressIndices, 'address_index'>,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<BIP44AddressKeyDeriver> {
   const { account = 0, change = 0 } = accountAndChangeIndices ?? {};
 
-  const actualNode = await getNode(node, cryptographicFunctions);
+  const actualNode = await getNode(node);
 
   const accountNode = getHardenedBIP32NodeToken(account);
   const changeNode = getBIP32NodeToken(change);
@@ -490,19 +463,16 @@ export async function getBIP44AddressKeyDeriver(
     address_index: number,
     isHardened = false,
   ): Promise<BIP44Node> => {
-    const slip10Node = await deriveChildNode(
-      {
-        path: [
-          accountNode,
-          changeNode,
-          isHardened
-            ? getHardenedBIP32NodeToken(address_index)
-            : getUnhardenedBIP32NodeToken(address_index),
-        ],
-        node: actualNode,
-      },
-      cryptographicFunctions,
-    );
+    const slip10Node = await deriveChildNode({
+      path: [
+        accountNode,
+        changeNode,
+        isHardened
+          ? getHardenedBIP32NodeToken(address_index)
+          : getUnhardenedBIP32NodeToken(address_index),
+      ],
+      node: actualNode,
+    });
 
     return new BIP44Node(slip10Node);
   };
@@ -525,14 +495,10 @@ export async function getBIP44AddressKeyDeriver(
  * The depth of the node is validated to be a valid coin type node.
  *
  * @param node - A BIP-44 coin type node, JSON node or extended key.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations. This is
- * only used if the node is an extended key string or JSON object.
  * @returns A BIP44CoinType node.
  */
 async function getNode(
   node: BIP44CoinTypeNode | JsonBIP44CoinTypeNode | string,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<BIP44CoinTypeNode> {
   if (node instanceof BIP44CoinTypeNode) {
     validateCoinTypeNodeDepth(node.depth);
@@ -541,10 +507,7 @@ async function getNode(
   }
 
   if (typeof node === 'string') {
-    const bip44Node = await BIP44Node.fromExtendedKey(
-      node,
-      cryptographicFunctions,
-    );
+    const bip44Node = await BIP44Node.fromExtendedKey(node);
     const coinTypeNode = await BIP44CoinTypeNode.fromNode(
       bip44Node,
       bip44Node.index - BIP_32_HARDENED_OFFSET,
@@ -555,9 +518,5 @@ async function getNode(
     return coinTypeNode;
   }
 
-  return BIP44CoinTypeNode.fromJSON(
-    node,
-    node.coin_type,
-    cryptographicFunctions,
-  );
+  return BIP44CoinTypeNode.fromJSON(node, node.coin_type);
 }

@@ -15,7 +15,6 @@ import {
   MAX_BIP_44_DEPTH,
   MIN_BIP_44_DEPTH,
 } from './constants.js';
-import type { CryptographicFunctions } from './cryptography.js';
 import type { SupportedCurve } from './curves/index.js';
 import { decodeExtendedKey } from './extended-keys.js';
 import { SLIP10Node, validateBIP32Depth } from './SLIP10Node.js';
@@ -120,15 +119,10 @@ export class BIP44Node implements BIP44NodeInterface {
    * for documentation.
    *
    * @param json - The JSON representation of a SLIP-10 node.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A BIP44 node.
    */
-  static async fromJSON(
-    json: JsonBIP44Node,
-    cryptographicFunctions?: CryptographicFunctions,
-  ): Promise<BIP44Node> {
-    return BIP44Node.fromExtendedKey(json, cryptographicFunctions);
+  static async fromJSON(json: JsonBIP44Node): Promise<BIP44Node> {
+    return BIP44Node.fromExtendedKey(json);
   }
 
   /**
@@ -148,13 +142,10 @@ export class BIP44Node implements BIP44NodeInterface {
    * @param options.publicKey - The public key for the node. If a private key is
    * specified, this parameter is ignored.
    * @param options.chainCode - The chain code for the node.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A BIP44 node.
    */
   static async fromExtendedKey(
     options: BIP44ExtendedKeyOptions | string,
-    cryptographicFunctions?: CryptographicFunctions,
   ): Promise<BIP44Node> {
     if (typeof options === 'string') {
       const extendedKey = decodeExtendedKey(options);
@@ -165,32 +156,26 @@ export class BIP44Node implements BIP44NodeInterface {
       if (type === 'private') {
         const { privateKey } = extendedKey;
 
-        return BIP44Node.fromExtendedKey(
-          {
-            depth,
-            parentFingerprint,
-            index,
-            network,
-            privateKey,
-            chainCode,
-          },
-          cryptographicFunctions,
-        );
-      }
-
-      const { publicKey } = extendedKey;
-
-      return BIP44Node.fromExtendedKey(
-        {
+        return BIP44Node.fromExtendedKey({
           depth,
           parentFingerprint,
           index,
           network,
-          publicKey,
+          privateKey,
           chainCode,
-        },
-        cryptographicFunctions,
-      );
+        });
+      }
+
+      const { publicKey } = extendedKey;
+
+      return BIP44Node.fromExtendedKey({
+        depth,
+        parentFingerprint,
+        index,
+        network,
+        publicKey,
+        chainCode,
+      });
     }
 
     const {
@@ -205,19 +190,16 @@ export class BIP44Node implements BIP44NodeInterface {
 
     validateBIP44Depth(depth);
 
-    const node = await SLIP10Node.fromExtendedKey(
-      {
-        privateKey,
-        publicKey,
-        chainCode,
-        depth,
-        parentFingerprint,
-        index,
-        network,
-        curve: 'secp256k1',
-      },
-      cryptographicFunctions,
-    );
+    const node = await SLIP10Node.fromExtendedKey({
+      privateKey,
+      publicKey,
+      chainCode,
+      depth,
+      parentFingerprint,
+      index,
+      network,
+      curve: 'secp256k1',
+    });
 
     return new BIP44Node(node);
   }
@@ -244,25 +226,20 @@ export class BIP44Node implements BIP44NodeInterface {
    * to derive the key of this node.
    * @param options.network - The network for the node. This is only used for
    * extended keys, and defaults to `mainnet`.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A BIP44 node.
    */
-  static async fromDerivationPath(
-    { derivationPath, network }: BIP44DerivationPathOptions,
-    cryptographicFunctions?: CryptographicFunctions,
-  ): Promise<BIP44Node> {
+  static async fromDerivationPath({
+    derivationPath,
+    network,
+  }: BIP44DerivationPathOptions): Promise<BIP44Node> {
     validateBIP44Depth(derivationPath.length - 1);
     validateBIP44DerivationPath(derivationPath, MIN_BIP_44_DEPTH);
 
-    const node = await SLIP10Node.fromDerivationPath(
-      {
-        derivationPath,
-        network,
-        curve: 'secp256k1',
-      },
-      cryptographicFunctions,
-    );
+    const node = await SLIP10Node.fromDerivationPath({
+      derivationPath,
+      network,
+      curve: 'secp256k1',
+    });
 
     return new BIP44Node(node);
   }
@@ -280,25 +257,20 @@ export class BIP44Node implements BIP44NodeInterface {
    * to derive the key of this node.
    * @param options.network - The network for the node. This is only used for
    * extended keys, and defaults to `mainnet`.
-   * @param cryptographicFunctions - The cryptographic functions to use. If
-   * provided, these will be used instead of the built-in implementations.
    * @returns A new BIP-44 node.
    */
-  static async fromSeed(
-    { derivationPath, network }: BIP44SeedOptions,
-    cryptographicFunctions?: CryptographicFunctions,
-  ): Promise<BIP44Node> {
+  static async fromSeed({
+    derivationPath,
+    network,
+  }: BIP44SeedOptions): Promise<BIP44Node> {
     validateBIP44Depth(derivationPath.length - 1);
     validateBIP44DerivationPath(derivationPath, MIN_BIP_44_DEPTH);
 
-    const node = await SLIP10Node.fromSeed(
-      {
-        derivationPath,
-        network,
-        curve: 'secp256k1',
-      },
-      cryptographicFunctions,
-    );
+    const node = await SLIP10Node.fromSeed({
+      derivationPath,
+      network,
+      curve: 'secp256k1',
+    });
 
     return new BIP44Node(node);
   }

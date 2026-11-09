@@ -1,11 +1,10 @@
 import { hexToBytes } from '@metamask/byte-utils';
 import { bytesToBigInt, concatBytes } from '@metamask/byte-utils';
+import { hmacSha512 } from '@metamask/cryptography/hmac';
 import { assert } from '@metamask/type-utils';
 
 import type { Network } from '../constants.js';
 import { BIP_32_HARDENED_OFFSET, UNPREFIXED_PATH_REGEX } from '../constants.js';
-import type { CryptographicFunctions } from '../cryptography.js';
-import { hmacSha512 } from '../cryptography.js';
 import type { Curve } from '../curves/index.js';
 import { mod } from '../curves/index.js';
 import { PUBLIC_KEY_GUARD } from '../guard.js';
@@ -16,7 +15,6 @@ import type { DeriveChildKeyArgs, DerivedKeys } from './index.js';
 type ErrorHandler = (
   error: unknown,
   options: DeriveNodeArgs,
-  cryptographicFunctions?: CryptographicFunctions,
 ) => Promise<DeriveNodeArgs>;
 
 /**
@@ -33,14 +31,11 @@ type ErrorHandler = (
  * extended keys, and defaults to `mainnet`.
  * @param handleError - A function that can handle errors that occur during
  * derivation.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The derived node.
  */
 export async function deriveChildKey(
   { path, node, curve, network }: DeriveChildKeyArgs,
   handleError: ErrorHandler,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<SLIP10Node> {
   validateNode(node);
 
@@ -68,13 +63,10 @@ export async function deriveChildKey(
       curve,
     });
 
-    const entropy = await generateEntropy(
-      {
-        chainCode: node.chainCodeBytes,
-        extension: secretExtension,
-      },
-      cryptographicFunctions,
-    );
+    const entropy = await generateEntropy({
+      chainCode: node.chainCodeBytes,
+      extension: secretExtension,
+    });
 
     return await deriveNode(
       {
@@ -86,7 +78,6 @@ export async function deriveChildKey(
         ...args,
       },
       handleError,
-      cryptographicFunctions,
     );
   }
 
@@ -95,13 +86,10 @@ export async function deriveChildKey(
     childIndex,
   });
 
-  const entropy = await generateEntropy(
-    {
-      chainCode: node.chainCodeBytes,
-      extension: publicExtension,
-    },
-    cryptographicFunctions,
-  );
+  const entropy = await generateEntropy({
+    chainCode: node.chainCodeBytes,
+    extension: publicExtension,
+  });
 
   return await deriveNode(
     {
@@ -110,13 +98,12 @@ export async function deriveChildKey(
       ...args,
     },
     handleError,
-    cryptographicFunctions,
   );
 }
 
 type BaseDeriveNodeArgs = {
-  entropy: Uint8Array;
-  chainCode: Uint8Array;
+  entropy: Uint8Array<ArrayBuffer>;
+  chainCode: Uint8Array<ArrayBuffer>;
   childIndex: number;
   isHardened: boolean;
   depth: number;
@@ -127,20 +114,20 @@ type BaseDeriveNodeArgs = {
 };
 
 type DerivePrivateKeyArgs = BaseDeriveNodeArgs & {
-  privateKey: Uint8Array;
-  publicKey: Uint8Array;
+  privateKey: Uint8Array<ArrayBuffer>;
+  publicKey: Uint8Array<ArrayBuffer>;
 };
 
 type DerivePublicKeyArgs = BaseDeriveNodeArgs & {
-  publicKey: Uint8Array;
+  publicKey: Uint8Array<ArrayBuffer>;
   privateKey?: never | undefined;
 };
 
 export type DeriveNodeArgs = DerivePrivateKeyArgs | DerivePublicKeyArgs;
 
 type DeriveSecretExtensionArgs = {
-  privateKey: Uint8Array;
-  publicKey: Uint8Array;
+  privateKey: Uint8Array<ArrayBuffer>;
+  publicKey: Uint8Array<ArrayBuffer>;
   childIndex: number;
   isHardened: boolean;
   curve: Curve;
@@ -161,14 +148,11 @@ type DeriveSecretExtensionArgs = {
  * @param options.masterFingerprint - The fingerprint of the master key.
  * @param options.curve - The curve to use for deriving the child key.
  * @param handleError - A function to handle errors during derivation.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The derived child key as {@link SLIP10Node}.
  */
 async function deriveNode(
   options: DeriveNodeArgs,
   handleError: ErrorHandler,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<SLIP10Node> {
   const {
     privateKey,
@@ -185,41 +169,31 @@ async function deriveNode(
 
   try {
     if (privateKey) {
-      return await derivePrivateChildKey(
-        {
-          entropy,
-          privateKey,
-          depth,
-          masterFingerprint,
-          parentFingerprint,
-          childIndex,
-          isHardened,
-          curve,
-          network,
-        },
-        cryptographicFunctions,
-      );
-    }
-
-    return await derivePublicChildKey(
-      {
+      return await derivePrivateChildKey({
         entropy,
-        publicKey,
+        privateKey,
         depth,
         masterFingerprint,
         parentFingerprint,
         childIndex,
+        isHardened,
         curve,
         network,
-      },
-      cryptographicFunctions,
-    );
+      });
+    }
+
+    return await derivePublicChildKey({
+      entropy,
+      publicKey,
+      depth,
+      masterFingerprint,
+      parentFingerprint,
+      childIndex,
+      curve,
+      network,
+    });
   } catch (error) {
-    return await deriveNode(
-      await handleError(error, options, cryptographicFunctions),
-      handleError,
-      cryptographicFunctions,
-    );
+    return await deriveNode(await handleError(error, options), handleError);
   }
 }
 
@@ -240,7 +214,7 @@ export async function deriveSecretExtension({
   childIndex,
   isHardened,
   curve,
-}: DeriveSecretExtensionArgs): Promise<Uint8Array> {
+}: DeriveSecretExtensionArgs): Promise<Uint8Array<ArrayBuffer>> {
   if (isHardened) {
     // Hardened child
     return concatBytes([
@@ -256,7 +230,7 @@ export async function deriveSecretExtension({
 }
 
 type DerivePublicExtensionArgs = {
-  parentPublicKey: Uint8Array;
+  parentPublicKey: Uint8Array<ArrayBuffer>;
   childIndex: number;
 };
 
@@ -271,13 +245,13 @@ type DerivePublicExtensionArgs = {
 export function derivePublicExtension({
   parentPublicKey,
   childIndex,
-}: DerivePublicExtensionArgs): Uint8Array {
+}: DerivePublicExtensionArgs): Uint8Array<ArrayBuffer> {
   return concatBytes([parentPublicKey, numberToUint32(childIndex)]);
 }
 
 type GenerateKeyArgs = {
-  privateKey: Uint8Array;
-  entropy: Uint8Array;
+  privateKey: Uint8Array<ArrayBuffer>;
+  entropy: Uint8Array<ArrayBuffer>;
   curve: Curve;
 };
 
@@ -294,7 +268,7 @@ function generateKey({ privateKey, entropy, curve }: GenerateKeyArgs): Omit<
   DerivedKeys,
   'publicKey'
 > & {
-  privateKey: Uint8Array;
+  privateKey: Uint8Array<ArrayBuffer>;
 } {
   const keyMaterial = entropy.slice(0, 32);
   const childChainCode = entropy.slice(32);
@@ -311,8 +285,8 @@ function generateKey({ privateKey, entropy, curve }: GenerateKeyArgs): Omit<
 }
 
 type DerivePrivateChildKeyArgs = {
-  entropy: Uint8Array;
-  privateKey: Uint8Array;
+  entropy: Uint8Array<ArrayBuffer>;
+  privateKey: Uint8Array<ArrayBuffer>;
   depth: number;
   masterFingerprint?: number | undefined;
   parentFingerprint: number;
@@ -336,24 +310,19 @@ type DerivePrivateChildKeyArgs = {
  * @param args.curve - The curve to use for derivation.
  * @param args.network - The network for the node. This is only used for
  * extended keys, and defaults to `mainnet`.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The derived {@link SLIP10Node}.
  */
-async function derivePrivateChildKey(
-  {
-    entropy,
-    privateKey,
-    depth,
-    masterFingerprint,
-    parentFingerprint,
-    childIndex,
-    isHardened,
-    curve,
-    network,
-  }: DerivePrivateChildKeyArgs,
-  cryptographicFunctions?: CryptographicFunctions,
-): Promise<SLIP10Node> {
+async function derivePrivateChildKey({
+  entropy,
+  privateKey,
+  depth,
+  masterFingerprint,
+  parentFingerprint,
+  childIndex,
+  isHardened,
+  curve,
+  network,
+}: DerivePrivateChildKeyArgs): Promise<SLIP10Node> {
   const actualChildIndex =
     childIndex + (isHardened ? BIP_32_HARDENED_OFFSET : 0);
 
@@ -364,25 +333,22 @@ async function derivePrivateChildKey(
       curve,
     });
 
-  return await SLIP10Node.fromExtendedKey(
-    {
-      privateKey: childPrivateKey,
-      chainCode: childChainCode,
-      depth: depth + 1,
-      masterFingerprint,
-      parentFingerprint,
-      index: actualChildIndex,
-      curve: curve.name,
-      network,
-      guard: PUBLIC_KEY_GUARD,
-    },
-    cryptographicFunctions,
-  );
+  return await SLIP10Node.fromExtendedKey({
+    privateKey: childPrivateKey,
+    chainCode: childChainCode,
+    depth: depth + 1,
+    masterFingerprint,
+    parentFingerprint,
+    index: actualChildIndex,
+    curve: curve.name,
+    network,
+    guard: PUBLIC_KEY_GUARD,
+  });
 }
 
 type GeneratePublicKeyArgs = {
-  publicKey: Uint8Array;
-  entropy: Uint8Array;
+  publicKey: Uint8Array<ArrayBuffer>;
+  entropy: Uint8Array<ArrayBuffer>;
   curve: Curve;
 };
 
@@ -413,8 +379,8 @@ function generatePublicKey({
 }
 
 type DerivePublicChildKeyArgs = {
-  entropy: Uint8Array;
-  publicKey: Uint8Array;
+  entropy: Uint8Array<ArrayBuffer>;
+  publicKey: Uint8Array<ArrayBuffer>;
   depth: number;
   masterFingerprint?: number | undefined;
   parentFingerprint: number;
@@ -436,23 +402,18 @@ type DerivePublicChildKeyArgs = {
  * @param args.curve - The curve to use for derivation.
  * @param args.network - The network for the node. This is only used for
  * extended keys, and defaults to `mainnet`.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The derived {@link SLIP10Node}.
  */
-export async function derivePublicChildKey(
-  {
-    entropy,
-    publicKey,
-    depth,
-    masterFingerprint,
-    parentFingerprint,
-    childIndex,
-    curve,
-    network,
-  }: DerivePublicChildKeyArgs,
-  cryptographicFunctions?: CryptographicFunctions,
-): Promise<SLIP10Node> {
+export async function derivePublicChildKey({
+  entropy,
+  publicKey,
+  depth,
+  masterFingerprint,
+  parentFingerprint,
+  childIndex,
+  curve,
+  network,
+}: DerivePublicChildKeyArgs): Promise<SLIP10Node> {
   const { publicKey: childPublicKey, chainCode: childChainCode } =
     generatePublicKey({
       publicKey,
@@ -460,19 +421,16 @@ export async function derivePublicChildKey(
       curve,
     });
 
-  return await SLIP10Node.fromExtendedKey(
-    {
-      publicKey: childPublicKey,
-      chainCode: childChainCode,
-      depth: depth + 1,
-      masterFingerprint,
-      parentFingerprint,
-      index: childIndex,
-      curve: curve.name,
-      network,
-    },
-    cryptographicFunctions,
-  );
+  return await SLIP10Node.fromExtendedKey({
+    publicKey: childPublicKey,
+    chainCode: childChainCode,
+    depth: depth + 1,
+    masterFingerprint,
+    parentFingerprint,
+    index: childIndex,
+    curve: curve.name,
+    network,
+  });
 }
 
 /**
@@ -485,10 +443,10 @@ export async function derivePublicChildKey(
  * @returns The private key with the tweak added to it.
  */
 export function privateAdd(
-  privateKeyBytes: Uint8Array,
-  tweakBytes: Uint8Array,
+  privateKeyBytes: Uint8Array<ArrayBuffer>,
+  tweakBytes: Uint8Array<ArrayBuffer>,
   curve: Curve,
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
   assert(
     isValidBytesKey(tweakBytes, 32),
     'Invalid tweak: Tweak must be a non-zero 32-byte Uint8Array.',
@@ -514,8 +472,8 @@ export function privateAdd(
 }
 
 type GenerateEntropyArgs = {
-  chainCode: Uint8Array;
-  extension: Uint8Array;
+  chainCode: Uint8Array<ArrayBuffer>;
+  extension: Uint8Array<ArrayBuffer>;
 };
 
 /**
@@ -525,15 +483,16 @@ type GenerateEntropyArgs = {
  * @param args - The arguments for generating entropy.
  * @param args.chainCode - The parent chain code bytes.
  * @param args.extension - The extension bytes.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The generated entropy bytes.
  */
-export async function generateEntropy(
-  { chainCode, extension }: GenerateEntropyArgs,
-  cryptographicFunctions?: CryptographicFunctions,
-): Promise<Uint8Array> {
-  return await hmacSha512(chainCode, extension, cryptographicFunctions);
+export async function generateEntropy({
+  chainCode,
+  extension,
+}: GenerateEntropyArgs): Promise<Uint8Array<ArrayBuffer>> {
+  return await hmacSha512(chainCode, extension, {
+    // Chain code length is determined by the specifications.
+    unsafeKeyLength: true,
+  });
 }
 
 /**

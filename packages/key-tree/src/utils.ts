@@ -2,7 +2,11 @@ import { hexToBytes } from '@metamask/byte-utils';
 import { createDataView } from '@metamask/byte-utils';
 import { wordlist as englishWordlist } from '@metamask/scure-bip39/dist/wordlists/english.js';
 import { assert } from '@metamask/type-utils';
-import { base58check as scureBase58check } from '@scure/base';
+import { sha256 } from '@noble/hashes/sha2';
+import {
+  base58check as scureBase58check,
+  createBase58check,
+} from '@scure/base';
 
 import type {
   CoinTypeHDPathTuple,
@@ -25,7 +29,7 @@ import {
   MAX_UNHARDENED_BIP_32_INDEX,
   UNPREFIXED_BIP_32_PATH_REGEX,
 } from './constants.js';
-import { ripemd160, sha256 } from './cryptography.js';
+import { ripemd160 } from './cryptography.js';
 import type { SupportedCurve } from './curves/index.js';
 import { curves } from './curves/index.js';
 
@@ -260,7 +264,7 @@ export function nullableHexStringToBytes(
  * @returns Whether the Uint8Array represents a valid BIP-32 key.
  */
 export function isValidBytesKey(
-  bytes: Uint8Array,
+  bytes: Uint8Array<ArrayBuffer>,
   expectedLength: number,
 ): boolean {
   if (bytes.length !== expectedLength) {
@@ -285,6 +289,12 @@ export function isValidInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
+export function isArrayBufferBacked(
+  bytes: Uint8Array,
+): bytes is Uint8Array<ArrayBuffer> {
+  return bytes.buffer instanceof ArrayBuffer;
+}
+
 /**
  * Get a `Uint8Array` from a hexadecimal string or `Uint8Array`. Validates that the
  * length of the `Uint8Array` matches the specified length, and that the `Uint8Array`
@@ -294,8 +304,11 @@ export function isValidInteger(value: unknown): value is number {
  * @param length - The length to validate the `Uint8Array` against.
  * @returns The `Uint8Array` corresponding to the hexadecimal string.
  */
-export function getBytes(value: unknown, length: number): Uint8Array {
-  if (value instanceof Uint8Array) {
+export function getBytes(
+  value: unknown,
+  length: number,
+): Uint8Array<ArrayBuffer> {
+  if (value instanceof Uint8Array && isArrayBufferBacked(value)) {
     validateBytes(value, length);
 
     return value;
@@ -324,8 +337,11 @@ export function getBytes(value: unknown, length: number): Uint8Array {
  * @param length - The length to validate the `Uint8Array` against.
  * @returns The `Uint8Array` corresponding to the hexadecimal string.
  */
-export function getBytesUnsafe(value: unknown, length: number): Uint8Array {
-  if (value instanceof Uint8Array) {
+export function getBytesUnsafe(
+  value: unknown,
+  length: number,
+): Uint8Array<ArrayBuffer> {
+  if (value instanceof Uint8Array && isArrayBufferBacked(value)) {
     assert(
       value.length === length,
       `Invalid value: Must be a ${length}-byte byte array.`,
@@ -351,9 +367,9 @@ export function getBytesUnsafe(value: unknown, length: number): Uint8Array {
  * @throws An error if the `Uint8Array` is empty or has the wrong length.
  */
 export function validateBytes(
-  bytes: Uint8Array,
+  bytes: Uint8Array<ArrayBuffer>,
   length: number,
-): asserts bytes is Uint8Array {
+): asserts bytes is Uint8Array<ArrayBuffer> {
   if (!isValidBytesKey(bytes, length)) {
     throw new Error(
       `Invalid value: Must be a non-zero ${length}-byte byte array.`,
@@ -373,8 +389,8 @@ export const decodeBase58check = (value: string): Uint8Array => {
   }
 };
 
-export const encodeBase58check = (value: Uint8Array): string => {
-  const base58Check = scureBase58check(sha256);
+export const encodeBase58check = (value: Uint8Array<ArrayBuffer>): string => {
+  const base58Check = createBase58check(sha256);
 
   return base58Check.encode(value);
 };
@@ -387,7 +403,7 @@ export const encodeBase58check = (value: Uint8Array): string => {
  * @returns The fingerprint of the public key.
  */
 export const getFingerprint = (
-  publicKey: Uint8Array,
+  publicKey: Uint8Array<ArrayBuffer>,
   compressedPublicKeyLength: number,
 ): number => {
   if (!isValidBytesKey(publicKey, compressedPublicKeyLength)) {
@@ -412,7 +428,9 @@ export const getFingerprint = (
  * @param mnemonicPhrase - The secret recovery phrase to convert.
  * @returns The `Uint8Array` corresponding to the secret recovery phrase.
  */
-export function mnemonicPhraseToBytes(mnemonicPhrase: string): Uint8Array {
+export function mnemonicPhraseToBytes(
+  mnemonicPhrase: string,
+): Uint8Array<ArrayBuffer> {
   const words = mnemonicPhrase.split(' ');
   const indices = words.map((word) => {
     const index = englishWordlist.indexOf(word);
@@ -462,16 +480,6 @@ export function numberToUint32(
   view.setUint32(0, value, littleEndian);
 
   return bytes;
-}
-
-/**
- * A utility function to check if the Web Crypto API is supported in the current
- * environment.
- *
- * @returns Whether the Web Crypto API is supported.
- */
-export function isWebCryptoSupported(): boolean {
-  return Boolean(globalThis.crypto?.subtle);
 }
 
 /**
