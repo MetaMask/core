@@ -23,9 +23,9 @@ import type { Infer } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
 import { CaipAccountIdStruct } from '@metamask/utils';
 
-import type { ProfileServiceMethodActions } from './ProfileService-method-action-types.js';
-import { ProfileServiceError } from './errors/ProfileServiceError.js';
 import { readProfileApiError } from './errors/parseErrorResponse.js';
+import { ProfileServiceError } from './errors/ProfileServiceError.js';
+import type { ProfileServiceMethodActions } from './ProfileService-method-action-types.js';
 
 export const serviceName = 'ProfileService';
 
@@ -381,7 +381,7 @@ export class ProfileService extends BaseDataService<
    *
    * @param profileId - The profile identifier to fetch.
    * @returns The profile data from the API.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
   async getProfile(profileId: string): Promise<ProfileApiResponse> {
@@ -403,7 +403,7 @@ export class ProfileService extends BaseDataService<
    *
    * @param params - The profile creation parameters.
    * @returns The created profile data.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
    * @throws {StructError} If the response do not match the expected shape.
    */
   async createProfile(
@@ -427,7 +427,7 @@ export class ProfileService extends BaseDataService<
    * @param profileId - The identifier of the profile to replace.
    * @param params - The replacement profile data.
    * @returns The updated profile data.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
    * @throws {StructError} If the response do not match the expected shape.
    */
   async replaceProfile(
@@ -455,7 +455,7 @@ export class ProfileService extends BaseDataService<
    * @param profileId - The identifier of the profile to update.
    * @param params - The fields to update.
    * @returns The updated profile data.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
    * @throws {StructError} If the response do not match the expected shape.
    */
   async updateProfile(
@@ -482,7 +482,7 @@ export class ProfileService extends BaseDataService<
    *
    * @param profileId - The identifier of the profile to delete.
    * @returns The result of the mutation.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
    */
   async deleteProfile(profileId: string): Promise<void> {
     return this.executeMutation({
@@ -500,7 +500,7 @@ export class ProfileService extends BaseDataService<
    *
    * @param username - The username to check.
    * @returns Availability details including validity and normalized form.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
   async checkUsernameAvailability(
@@ -527,7 +527,7 @@ export class ProfileService extends BaseDataService<
    *
    * @param displayName - The display name to validate.
    * @returns An object with a `valid` boolean.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
   async checkDisplayNameValidity(
@@ -550,7 +550,7 @@ export class ProfileService extends BaseDataService<
    *
    * @param bio - The bio to validate.
    * @returns An object with a `valid` boolean.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
   async checkBioValidity(bio: string): Promise<FieldValidityResponse> {
@@ -571,7 +571,7 @@ export class ProfileService extends BaseDataService<
    * The profile is resolved server-side from the verified bearer token.
    *
    * @returns An object with a `hasAccess` boolean.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
   async checkEarlyAccess(): Promise<EarlyAccessResponse> {
@@ -591,7 +591,7 @@ export class ProfileService extends BaseDataService<
    * The profile is resolved server-side from the verified bearer token.
    *
    * @returns An object containing the authorization URL and the state token.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
   async getXAuthUrl(): Promise<XAuthUrlResponse> {
@@ -611,7 +611,7 @@ export class ProfileService extends BaseDataService<
    *
    * @param params - The OAuth callback code and state from the X redirect.
    * @returns The linked X account data.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
   async connectX(params: ConnectXParams): Promise<ConnectXResponse> {
@@ -636,7 +636,7 @@ export class ProfileService extends BaseDataService<
    * The profile is resolved server-side from the verified bearer token.
    *
    * @returns The linked X account data.
-   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response.
    * @throws {StructError} If the response does not match the expected shape.
    */
   async getXAccount(): Promise<XAccountResponse> {
@@ -663,7 +663,7 @@ export class ProfileService extends BaseDataService<
    * invalidated after the disconnection. The API resolves the linked X account
    * from the bearer token, not from this value.
    * @returns The result of the mutation.
-   * @throws {HttpError} If the API returns a non-2xx response other than `404`.
+   * @throws {ProfileServiceError} If the API returns a non-2xx response other than `404`.
    */
   async disconnectX(profileId: string): Promise<void> {
     await this.executeMutation({

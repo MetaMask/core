@@ -52,6 +52,9 @@ export class ProfileServiceError extends HttpError {
  * Clients commonly wrap the service error (for example, an OAuth error wraps
  * the backend error), so the stable code can sit below the surface error. The
  * walk is cycle-safe.
+ *
+ * @param error - The error or wrapper to inspect.
+ * @returns The Profile API service error, or `undefined` when absent.
  */
 export const findProfileServiceError = (
   error: unknown,

@@ -7,12 +7,12 @@ import type {
 } from '@metamask/messenger';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ProfileServiceError } from './errors/index.js';
 import {
   ProfileService,
   ProfileServiceErrorMessage,
   serviceName,
 } from './ProfileService.js';
-import { ProfileServiceError } from './errors/index.js';
 import type {
   ConnectXParams,
   CreateProfileParams,
@@ -268,10 +268,19 @@ describe('ProfileService', () => {
   });
 
   describe('error envelope', () => {
-    const errorResponse = (status: number, body: unknown) => ({
+    type MockErrorResponse = {
+      ok: false;
+      status: number;
+      json: () => Promise<unknown>;
+    };
+
+    const errorResponse = (
+      status: number,
+      body: unknown,
+    ): MockErrorResponse => ({
       ok: false,
       status,
-      json: () => Promise.resolve(body),
+      json: (): Promise<unknown> => Promise.resolve(body),
     });
 
     it('attaches the API error code and metadata to the thrown error', async () => {
@@ -422,6 +431,21 @@ describe('ProfileService', () => {
         .catch((caught: unknown) => caught)) as ProfileServiceError;
 
       expect(error.retryable).toBe(true);
+    });
+
+    it('falls back to the generic message when the error body has an invalid shape', async () => {
+      mockFetch.mockResolvedValue(errorResponse(400, { message: 42 }));
+
+      const service = createService();
+      const error = (await service
+        .getProfile('profile-123')
+        .catch((caught: unknown) => caught)) as ProfileServiceError;
+
+      expect(error).toBeInstanceOf(ProfileServiceError);
+      expect(error.code).toBeUndefined();
+      expect(error.message).toBe(
+        `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: 400`,
+      );
     });
 
     it('leaves the envelope fields undefined when the body is not an error envelope', async () => {

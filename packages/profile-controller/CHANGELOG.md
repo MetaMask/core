@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a `ProfileApiErrorCode` catalogue and move `ProfileServiceError` into a new `errors` module; the error carries the Profile API envelope (`code`, `code_info`, `details`, `retryable`, `requestId`) ([#11381](https://github.com/MetaMask/core/pull/11381))
+- Add a `ProfileApiErrorCode` catalogue and a `ProfileServiceError` class in a new `errors` module; the error carries the Profile API envelope (`code`, `code_info`, `details`, `retryable`, `requestId`) ([#11381](https://github.com/MetaMask/core/pull/11381))
 
 ### Changed
 

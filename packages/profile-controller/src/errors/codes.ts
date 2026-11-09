@@ -66,5 +66,5 @@ export const ProfileApiErrorCode = {
   XAccountLinkConflict: 'X_ACCOUNT_LINK_CONFLICT',
 } as const;
 
-export type ProfileApiErrorCode =
+export type ProfileApiErrorCodeId =
   (typeof ProfileApiErrorCode)[keyof typeof ProfileApiErrorCode];

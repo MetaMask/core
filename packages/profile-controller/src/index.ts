@@ -55,6 +55,7 @@ export {
   findProfileServiceError,
 } from './errors/index.js';
 export type {
+  ProfileApiErrorCodeId,
   ProfileServiceApiError,
   ProfileServiceErrorCodeInfo,
   ProfileServiceErrorDetail,

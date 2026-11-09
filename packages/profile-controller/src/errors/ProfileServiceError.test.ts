@@ -7,24 +7,28 @@ import {
 } from './ProfileServiceError.js';
 
 const createError = (): ProfileServiceError =>
-  new ProfileServiceError(403, 'ProfileService: failed to update profile: 403', {
-    code: 'PROFILE_LINKED_ADDRESSES_COOLDOWN',
-    code_info: {
-      id: 'PROFILE_LINKED_ADDRESSES_COOLDOWN',
-      http_status: 403,
-      category: 'profile',
-      retryable: true,
-    },
-    details: [
-      {
-        code: 'RETRY_AFTER',
-        message: 'Try later',
-        meta: { retry_after_seconds: 60 },
+  new ProfileServiceError(
+    403,
+    'ProfileService: failed to update profile: 403',
+    {
+      code: 'PROFILE_LINKED_ADDRESSES_COOLDOWN',
+      code_info: {
+        id: 'PROFILE_LINKED_ADDRESSES_COOLDOWN',
+        http_status: 403,
+        category: 'profile',
+        retryable: true,
       },
-    ],
-    requestId: 'req_123',
-    traceId: 'trace_123',
-  });
+      details: [
+        {
+          code: 'RETRY_AFTER',
+          message: 'Try later',
+          meta: { retry_after_seconds: 60 },
+        },
+      ],
+      requestId: 'req_123',
+      traceId: 'trace_123',
+    },
+  );
 
 describe('ProfileServiceError', () => {
   it('is an HttpError with the API envelope attached', () => {

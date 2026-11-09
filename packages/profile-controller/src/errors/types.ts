@@ -1,21 +1,21 @@
 /** A field-level detail from a Profile API error response. */
-export interface ProfileServiceErrorDetail {
+export type ProfileServiceErrorDetail = {
   field?: string;
   code: string;
   message: string;
   meta?: Record<string, unknown>;
-}
+};
 
 /** Classification metadata for a Profile API error code. */
-export interface ProfileServiceErrorCodeInfo {
+export type ProfileServiceErrorCodeInfo = {
   id: string;
   http_status: number;
   category: string;
   retryable: boolean;
-}
+};
 
 /** The Profile API error envelope returned on a non-2xx response. */
-export interface ProfileServiceApiError {
+export type ProfileServiceApiError = {
   statusCode?: number;
   error?: string;
   code?: string;
@@ -25,4 +25,4 @@ export interface ProfileServiceApiError {
   traceId?: string;
   retryable?: boolean;
   details?: ProfileServiceErrorDetail[];
-}
+};
