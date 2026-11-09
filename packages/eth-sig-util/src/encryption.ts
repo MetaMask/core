@@ -23,7 +23,7 @@ export type EthEncryptedData = {
 };
 
 const DEFAULT_PADDING_LENGTH = 2048;
-const NACL_EXTRA_BYTES = 16;
+// https://github.com/dchest/tweetnacl-js/blob/master/nacl.js#L128
 const HSALSA_SIGMA = u32(stringToBytes('expand 32-byte k'));
 
 /**
@@ -39,6 +39,7 @@ async function deriveBoxKey(
 ): Promise<Uint8Array> {
   const sharedSecret = await getSharedSecret(privateKey, publicKey);
   const key = new Uint32Array(8);
+  // https://github.com/dchest/tweetnacl-js/blob/master/nacl.js#L451
   hsalsa(HSALSA_SIGMA, u32(sharedSecret), new Uint32Array(4), key);
   return u8(key);
 }
@@ -157,7 +158,7 @@ export async function encryptSafely({
   // calculate padding
   const ciphertextLength =
     Buffer.byteLength(JSON.stringify(dataWithPadding), 'utf-8') +
-    NACL_EXTRA_BYTES;
+    xsalsa20poly1305.tagLength;
   const remainder = ciphertextLength % DEFAULT_PADDING_LENGTH;
   const padLength = remainder === 0 ? 0 : DEFAULT_PADDING_LENGTH - remainder;
   dataWithPadding.padding = '0'.repeat(padLength);
