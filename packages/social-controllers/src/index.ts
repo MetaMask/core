@@ -66,6 +66,7 @@ export {
   DEVELOPER_POSITION_FLAG,
   INSIDER_POSITION_FLAG,
   TRADER_RANKING_TAGS,
+  TRADING_PRIVACY_VALUES,
   TradeStruct,
   UNSUPPORTED_TOKEN_POSITION_FLAG,
 } from './social-types.js';
@@ -133,6 +134,7 @@ export type {
   PerChainBreakdown,
   Position,
   PositionsResponse,
+  ProfileIdentity,
   ProfileSummary,
   QuoteTokensResponse,
   ReactToCommentOptions,
@@ -151,6 +153,7 @@ export type {
   TraderProfileResponse,
   TraderRankingTag,
   TraderStats,
+  TradingPrivacy,
   UnblockProfileOptions,
   UnfollowOptions,
   UnfollowResponse,
