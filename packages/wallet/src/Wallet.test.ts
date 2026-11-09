@@ -1,4 +1,5 @@
 import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
+import { AssetsController } from '@metamask/assets-controller';
 import { getDefaultClaimsControllerState } from '@metamask/claims-controller';
 import {
   ClientController,
@@ -23,6 +24,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor.js';
 import * as initializationModule from './initialization/initialization.js';
+import type { AssetsControllerInstanceOptions } from './initialization/instances/assets-controller/types.js';
 import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter.js';
 import type { WalletOptions } from './types.js';
 import { importSecretRecoveryPhrase } from './utilities.js';
@@ -42,8 +44,25 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
 
 const TEST_ANALYTICS_ID = '11111111-1111-4111-8111-111111111111';
 
+/**
+ * Creates a stub API Platform client for `AssetsController`. The controller
+ * does not use it until the UI is opened.
+ *
+ * @returns A stub API Platform client.
+ */
+function getAssetsQueryApiClient(): AssetsControllerInstanceOptions['queryApiClient'] {
+  return {
+    getCachedData: vi.fn(),
+    setCachedData: vi.fn(),
+    queryClient: { fetchQuery: vi.fn().mockResolvedValue({}) },
+  } as unknown as AssetsControllerInstanceOptions['queryApiClient'];
+}
+
 function getInstanceOptions(): WalletOptions['instanceOptions'] {
   return {
+    assetsController: {
+      queryApiClient: getAssetsQueryApiClient(),
+    },
     analyticsController: {
       platformAdapter: {
         track: vi.fn(),
@@ -192,6 +211,50 @@ describe('Wallet', () => {
       WithMeta: fakeMetadata,
     });
     expect(Object.keys(wallet.state)).toStrictEqual(['WithMeta', 'NoMeta']);
+  });
+
+  it('constructs AssetsController before the controllers it depends on', () => {
+    const wallet = new Wallet({
+      instanceOptions: getInstanceOptions(),
+    });
+
+    const names = Object.keys(wallet.state);
+    expect(wallet.getInstance('AssetsController')).toBeInstanceOf(
+      AssetsController,
+    );
+    // Instances are constructed in order, so AssetsController's constructor
+    // ran before these existed.
+    for (const dependency of [
+      'ClientController',
+      'KeyringController',
+      'NetworkController',
+      'NetworkEnablementController',
+    ]) {
+      expect(names.indexOf('AssetsController')).toBeLessThan(
+        names.indexOf(dependency),
+      );
+    }
+  });
+
+  it('bootstraps AssetsController the first time the UI opens', async () => {
+    const queryApiClient = getAssetsQueryApiClient();
+    const wallet = new Wallet({
+      instanceOptions: {
+        ...getInstanceOptions(),
+        assetsController: { queryApiClient },
+      },
+    });
+    expect(queryApiClient.queryClient.fetchQuery).not.toHaveBeenCalled();
+
+    // Controllers AssetsController reads that are not wallet defaults yet
+    // (such as AccountTreeController) are treated as not ready.
+    wallet.messenger.call('ClientController:setUiOpen', true);
+
+    await vi.waitFor(() =>
+      expect(queryApiClient.queryClient.fetchQuery).toHaveBeenCalled(),
+    );
+
+    await wallet.destroy();
   });
 
   it('calls init on all instances and returns the results', async () => {

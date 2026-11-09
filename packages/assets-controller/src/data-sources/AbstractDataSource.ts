@@ -108,6 +108,22 @@ export abstract class AbstractDataSource<
   }
 
   /**
+   * Finish setting up the data source once the rest of the wallet is ready.
+   *
+   * Constructors must not call other controllers or make network requests,
+   * because the controllers they depend on may not be constructed yet. Work
+   * that needs them (reading other controllers' state, discovering supported
+   * chains, starting timers) belongs here instead. `AssetsController` calls
+   * this the first time the UI is opened.
+   *
+   * Implementations must be safe to call more than once. The default
+   * implementation does nothing.
+   */
+  async bootstrap(): Promise<void> {
+    // No-op by default.
+  }
+
+  /**
    * Subscribe to updates for the given request.
    */
   abstract subscribe(request: SubscriptionRequest): Promise<void>;

@@ -199,6 +199,8 @@ async function setupController(
     remoteFeatureFlags?: Record<string, unknown>;
     getAssetsState?: () => AssetsControllerState;
     tokenDetectionEnabled?: () => boolean;
+    /** When true, the data source is constructed but `bootstrap()` is not called. */
+    skipBootstrap?: boolean;
   } = {},
 ): Promise<SetupResult> {
   const {
@@ -212,6 +214,7 @@ async function setupController(
     remoteFeatureFlags = {},
     getAssetsState = (): AssetsControllerState => createAssetsState(),
     tokenDetectionEnabled,
+    skipBootstrap = false,
   } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -277,8 +280,9 @@ async function setupController(
     ...(tokenDetectionEnabled === undefined ? {} : { tokenDetectionEnabled }),
   });
 
-  // Wait for async initialization
-  await new Promise(process.nextTick);
+  if (!skipBootstrap) {
+    await controller.bootstrap();
+  }
 
   return {
     controller,
@@ -317,6 +321,93 @@ describe('AccountsApiDataSource', () => {
     }
     activeTimers.clear();
     vi.clearAllMocks();
+  });
+
+  describe('bootstrap', () => {
+    it('does not fetch supported networks when constructed', async () => {
+      const { controller, apiClient, activeChainsUpdateHandler } =
+        await setupController({ skipBootstrap: true });
+
+      expect(
+        apiClient.accounts.fetchV2SupportedNetworks,
+      ).not.toHaveBeenCalled();
+      expect(activeChainsUpdateHandler).not.toHaveBeenCalled();
+      expect(await controller.getActiveChains()).toStrictEqual([]);
+
+      controller.destroy();
+    });
+
+    it('fetches supported networks and reports active chains when bootstrapped', async () => {
+      const { controller, apiClient, activeChainsUpdateHandler } =
+        await setupController({ skipBootstrap: true, supportedChains: [1] });
+
+      await controller.bootstrap();
+
+      expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+        'AccountsApiDataSource',
+        [CHAIN_MAINNET],
+        [],
+      );
+
+      controller.destroy();
+    });
+
+    it('only fetches supported networks once when bootstrapped repeatedly', async () => {
+      const { controller, apiClient } = await setupController({
+        skipBootstrap: true,
+      });
+
+      await Promise.all([controller.bootstrap(), controller.bootstrap()]);
+      await controller.bootstrap();
+
+      expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalledTimes(
+        1,
+      );
+
+      controller.destroy();
+    });
+
+    it('does not report active chains or start refreshing when destroyed during bootstrap', async () => {
+      const { controller, activeChainsUpdateHandler } = await setupController({
+        skipBootstrap: true,
+      });
+
+      const bootstrapping = controller.bootstrap();
+      controller.destroy();
+      await bootstrapping;
+
+      expect(activeChainsUpdateHandler).not.toHaveBeenCalled();
+      expect(activeTimers.size).toBe(0);
+    });
+
+    it('ignores migration flag changes before it is bootstrapped', async () => {
+      const { controller, apiClient, messenger } = await setupController({
+        skipBootstrap: true,
+      });
+
+      messenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        {
+          remoteFeatureFlags: {
+            [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+              stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+            },
+          },
+          cacheTimestamp: 0,
+        },
+        [],
+      );
+      await new Promise(process.nextTick);
+
+      expect(
+        apiClient.accounts.fetchV2SupportedNetworks,
+      ).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
   });
 
   it('initializes with correct name', async () => {
@@ -2067,9 +2158,7 @@ describe('AccountsApiDataSource', () => {
       }
 
       const controller = new AccountsApiDataSource(controllerOptions);
-
-      // Wait for async initialization
-      await new Promise(process.nextTick);
+      await controller.bootstrap();
 
       return {
         controller,

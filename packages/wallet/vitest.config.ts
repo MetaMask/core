@@ -1,11 +1,15 @@
 import { basename } from 'node:path';
 import { defineConfig, mergeConfig } from 'vitest/config';
 
+import { lowerDecorators } from '../../scripts/vitest/lower-decorators.js';
 import baseConfig from '../../vitest.config.packages.js';
 
 export default mergeConfig(
   baseConfig,
   defineConfig({
+    // `@metamask/assets-controller` source uses a decorator; see the plugin.
+    plugins: [lowerDecorators()],
+
     test: {
       name: basename(import.meta.dirname),
 

@@ -215,8 +215,6 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       'NetworkEnablementController:stateChange',
       this.#onNetworkEnablementControllerStateChange.bind(this),
     );
-
-    this.#initializeActiveChains();
   }
 
   /**
@@ -463,8 +461,12 @@ export class StakedBalanceDataSource extends AbstractDataSource<
    * Set active chains from NetworkEnablementController state.
    * Only staking-supported chains that are enabled in the network enablement map
    * are active (e.g. if mainnet is not selected we do not fetch).
+   *
+   * Called by `AssetsController` once the UI is first opened, by which time
+   * every controller has been constructed. Before that, active chains only
+   * change through `NetworkEnablementController:stateChange`.
    */
-  #initializeActiveChains(): void {
+  async bootstrap(): Promise<void> {
     try {
       const state = this.#messenger.call(
         'NetworkEnablementController:getState',

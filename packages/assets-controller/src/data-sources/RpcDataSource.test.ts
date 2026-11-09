@@ -141,6 +141,8 @@ type WithControllerOptions = {
   options?: Partial<RpcDataSourceOptions>;
   networkState?: NetworkState;
   actionHandlerOverrides?: ActionHandlerOverrides;
+  /** When true, the data source is constructed but `bootstrap()` is not called. */
+  skipBootstrap?: boolean;
 };
 
 type WithControllerCallback<ReturnValue> = (ctx: {
@@ -164,6 +166,7 @@ async function withController<ReturnValue>(
     options = {},
     networkState = createMockNetworkState(),
     actionHandlerOverrides,
+    skipBootstrap = false,
   } = controllerOptions;
 
   const { rootMessenger, assetsControllerMessenger } = createMockMessengers();
@@ -270,6 +273,10 @@ async function withController<ReturnValue>(
     getAssetsState,
   });
 
+  if (!skipBootstrap) {
+    await controller.bootstrap();
+  }
+
   try {
     return await fn({
       controller,
@@ -331,6 +338,42 @@ describe('createRpcDataSource', () => {
 });
 
 describe('RpcDataSource', () => {
+  describe('bootstrap', () => {
+    it('does not read NetworkController state when constructed', async () => {
+      await withController(
+        { skipBootstrap: true },
+        async ({ controller, messenger, onActiveChainsUpdated }) => {
+          const callSpy = vi.spyOn(messenger, 'call');
+
+          expect(callSpy).not.toHaveBeenCalled();
+          expect(onActiveChainsUpdated).not.toHaveBeenCalled();
+          expect(await controller.getActiveChains()).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('reads NetworkController state and reports active chains when bootstrapped', async () => {
+      await withController(
+        { skipBootstrap: true },
+        async ({ controller, messenger, onActiveChainsUpdated }) => {
+          const callSpy = vi.spyOn(messenger, 'call');
+
+          await controller.bootstrap();
+
+          expect(callSpy).toHaveBeenCalledWith('NetworkController:getState');
+          expect(await controller.getActiveChains()).toStrictEqual([
+            MOCK_CHAIN_ID_CAIP,
+          ]);
+          expect(onActiveChainsUpdated).toHaveBeenCalledWith(
+            'RpcDataSource',
+            [MOCK_CHAIN_ID_CAIP],
+            [],
+          );
+        },
+      );
+    });
+  });
+
   describe('constructor', () => {
     it('initializes with default options', async () => {
       await withController(({ controller }) => {

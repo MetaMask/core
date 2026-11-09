@@ -68,6 +68,31 @@ export function registerKeyringUnlockMock(
   });
 }
 
+/**
+ * Bootstrap an `AssetsController` the way a client does: publish
+ * `ClientController:stateChange` with the UI open, which makes the controller
+ * run `#bootstrap`, then restore the UI state that was registered for
+ * `ClientController:getState`.
+ *
+ * Bootstrapping continues asynchronously; tests that need it finished should
+ * wait for what they assert on (or flush promises).
+ *
+ * @param rootMessenger - The root messenger the controller's messenger is delegated from.
+ */
+export function bootstrapAssetsController(
+  rootMessenger: MockRootMessenger,
+): void {
+  const { isUiOpen } = rootMessenger.call('ClientController:getState');
+  rootMessenger.publish('ClientController:stateChange', { isUiOpen: true }, []);
+  if (!isUiOpen) {
+    rootMessenger.publish(
+      'ClientController:stateChange',
+      { isUiOpen: false },
+      [],
+    );
+  }
+}
+
 export function createMockRootMessenger(): MockRootMessenger {
   return new Messenger({
     namespace: MOCK_ANY_NAMESPACE,

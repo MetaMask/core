@@ -281,6 +281,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
+  /** Set by the first `bootstrap()` call; later calls return the same promise. */
+  #bootstrapPromise: Promise<void> | null = null;
+
+  #isDestroyed = false;
+
   constructor(options: AccountsApiDataSourceOptions) {
     super(CONTROLLER_NAME, {
       ...defaultState,
@@ -314,8 +319,18 @@ export class AccountsApiDataSource extends AbstractDataSource<
       // return a primitive rather than a fresh object.
       (state) => getMigrationStages(state.remoteFeatureFlags).join(','),
     );
+  }
 
-    this.#initializeActiveChains().catch(console.error);
+  /**
+   * Fetch the chains supported by the Accounts API and start refreshing them
+   * periodically.
+   *
+   * Called by `AssetsController` once the UI is first opened. Only the first
+   * call fetches; later calls return the same promise.
+   */
+  async bootstrap(): Promise<void> {
+    this.#bootstrapPromise ??= this.#initializeActiveChains();
+    await this.#bootstrapPromise;
   }
 
   /**
@@ -325,6 +340,11 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * `onActiveChainsUpdated` when the set changes, which drives re-subscription.
    */
   async #handleMigrationFeatureFlagsChanged(): Promise<void> {
+    // Active chains are first fetched by `bootstrap()`, which reads the
+    // current flags itself, so there is nothing to refresh before then.
+    if (!this.#bootstrapPromise) {
+      return;
+    }
     try {
       await this.#refreshActiveChains();
     } catch (error) {
@@ -341,6 +361,9 @@ export class AccountsApiDataSource extends AbstractDataSource<
   async #initializeActiveChains(): Promise<void> {
     try {
       const chains = await this.#fetchActiveChains();
+      if (this.#isDestroyed) {
+        return;
+      }
       const previous = [...this.state.activeChains];
       this.updateActiveChains(chains, (updatedChains) =>
         this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
@@ -1141,6 +1164,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
   // ============================================================================
 
   destroy(): void {
+    this.#isDestroyed = true;
     if (this.#chainsRefreshTimer) {
       clearInterval(this.#chainsRefreshTimer);
     }

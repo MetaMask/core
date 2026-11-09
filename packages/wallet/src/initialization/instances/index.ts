@@ -2,6 +2,7 @@ export { accountsController } from './accounts-controller/accounts-controller.js
 export { addressBookController } from './address-book-controller/address-book-controller.js';
 export { analyticsController } from './analytics-controller/analytics-controller.js';
 export { approvalController } from './approval-controller/approval-controller.js';
+export { assetsController } from './assets-controller/assets-controller.js';
 export { claimsController } from './claims-controller/claims-controller.js';
 export { claimsService } from './claims-service/claims-service.js';
 export { clientController } from './client-controller/client-controller.js';

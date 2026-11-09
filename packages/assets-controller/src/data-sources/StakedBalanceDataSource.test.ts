@@ -69,6 +69,8 @@ type WithControllerOptions = {
   options?: Partial<StakedBalanceDataSourceOptions>;
   enabledNetworkMap?: Record<string, Record<string, boolean>>;
   mockProvider?: ReturnType<typeof createMockWeb3Provider>;
+  /** When true, the data source is constructed but `bootstrap()` is not called. */
+  skipBootstrap?: boolean;
 };
 
 type WithControllerCallback<ReturnValue> = ({
@@ -104,6 +106,7 @@ async function withController<ReturnValue>(
       sharesWei: '1000000000000000000',
       assetsWei: '1500000000000000000',
     }),
+    skipBootstrap = false,
   } = controllerOptions;
 
   const { rootMessenger, assetsControllerMessenger } = createMockMessengers({
@@ -143,6 +146,10 @@ async function withController<ReturnValue>(
     pollInterval: 1000,
   });
 
+  if (!skipBootstrap) {
+    await controller.bootstrap();
+  }
+
   try {
     return await fn({
       controller,
@@ -160,6 +167,74 @@ async function withController<ReturnValue>(
 }
 
 describe('StakedBalanceDataSource', () => {
+  describe('bootstrap', () => {
+    it('does not call other controllers when constructed', async () => {
+      await withController(
+        { skipBootstrap: true },
+        async ({ controller, mockMessengerCall, onActiveChainsUpdated }) => {
+          expect(mockMessengerCall).not.toHaveBeenCalled();
+          expect(onActiveChainsUpdated).not.toHaveBeenCalled();
+          expect(await controller.getActiveChains()).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('reads enabled networks and sets active chains when bootstrapped', async () => {
+      await withController(
+        { skipBootstrap: true },
+        async ({ controller, mockMessengerCall, onActiveChainsUpdated }) => {
+          await controller.bootstrap();
+
+          expect(mockMessengerCall).toHaveBeenCalledWith(
+            'NetworkEnablementController:getState',
+          );
+          expect(await controller.getActiveChains()).toStrictEqual([
+            MAINNET_CHAIN_ID_CAIP,
+          ]);
+          expect(onActiveChainsUpdated).toHaveBeenCalledWith(
+            'StakedBalanceDataSource',
+            [MAINNET_CHAIN_ID_CAIP],
+            [],
+          );
+        },
+      );
+    });
+
+    it('sets active chains from NetworkEnablementController:stateChange before bootstrap', async () => {
+      await withController(
+        { skipBootstrap: true, enabledNetworkMap: {} },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.publish(
+            'NetworkEnablementController:stateChange',
+            {
+              enabledNetworkMap: { eip155: { [MAINNET_CHAIN_ID_HEX]: true } },
+              nativeAssetIdentifiers: {},
+            },
+            [],
+          );
+
+          expect(await controller.getActiveChains()).toStrictEqual([
+            MAINNET_CHAIN_ID_CAIP,
+          ]);
+        },
+      );
+    });
+
+    it('falls back to no active chains when NetworkEnablementController is not registered', async () => {
+      await withController(
+        { skipBootstrap: true },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.unregisterActionHandler(
+            'NetworkEnablementController:getState',
+          );
+
+          expect(await controller.bootstrap()).toBeUndefined();
+          expect(await controller.getActiveChains()).toStrictEqual([]);
+        },
+      );
+    });
+  });
+
   describe('constructor', () => {
     it('initializes with default options', async () => {
       await withController(({ controller }) => {

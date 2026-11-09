@@ -8,7 +8,10 @@ import {
   STATE_PRICES_SURFACE,
   stateBalancesSurface,
 } from './__fixtures__/assetSurfaces.js';
-import { createMockMessengers } from './__fixtures__/MockAssetControllerMessenger.js';
+import {
+  bootstrapAssetsController,
+  createMockMessengers,
+} from './__fixtures__/MockAssetControllerMessenger.js';
 import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from './__fixtures__/mockTokenApi.js';
 import {
@@ -113,6 +116,7 @@ async function withController<ReturnValue>(
     queryApiClient,
     isBasicFunctionality: (): boolean => true,
   });
+  bootstrapAssetsController(rootMessenger);
 
   try {
     return await fn({ controller, messenger: rootMessenger });

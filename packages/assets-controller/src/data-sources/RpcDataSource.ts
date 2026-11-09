@@ -347,6 +347,16 @@ export class RpcDataSource extends AbstractDataSource<
 
     this.#subscribeToNetworkController();
     this.#subscribeToTransactionEvents();
+  }
+
+  /**
+   * Read NetworkController state to set the initial active chains.
+   *
+   * Called by `AssetsController` once the UI is first opened, by which time
+   * every controller has been constructed. Before that, active chains only
+   * change through `NetworkController:stateChange`.
+   */
+  async bootstrap(): Promise<void> {
     this.#initializeFromNetworkController();
   }
 

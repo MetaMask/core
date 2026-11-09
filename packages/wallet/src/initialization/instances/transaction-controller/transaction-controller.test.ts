@@ -11,6 +11,7 @@ import type {
   DefaultEvents,
   RootMessenger,
 } from '../../defaults.js';
+import type { AssetsControllerInstanceOptions } from '../assets-controller/types.js';
 import { AlwaysOnlineAdapter } from '../connectivity-controller/always-online-adapter.js';
 import { transactionController } from './transaction-controller.js';
 
@@ -139,8 +140,25 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
   return rootMessenger;
 }
 
+/**
+ * Creates a stub API Platform client for `AssetsController`. The controller
+ * does not use it until the UI is opened.
+ *
+ * @returns A stub API Platform client.
+ */
+function getAssetsQueryApiClient(): AssetsControllerInstanceOptions['queryApiClient'] {
+  return {
+    getCachedData: vi.fn(),
+    setCachedData: vi.fn(),
+    queryClient: { fetchQuery: vi.fn().mockResolvedValue({}) },
+  } as unknown as AssetsControllerInstanceOptions['queryApiClient'];
+}
+
 function getInstanceOptions(): WalletOptions['instanceOptions'] {
   return {
+    assetsController: {
+      queryApiClient: getAssetsQueryApiClient(),
+    },
     analyticsController: {
       platformAdapter: {
         track: vi.fn(),

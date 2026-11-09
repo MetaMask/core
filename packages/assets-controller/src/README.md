@@ -39,7 +39,7 @@ The `AssetsController` is a unified asset management system that provides real-t
 
 ### 1. Initialization
 
-When the `AssetsController` constructor is called, it performs the following steps **synchronously**:
+When the `AssetsController` constructor is called, it performs the following steps **synchronously**. The constructor never calls other controllers or makes requests, so it does not depend on the order in which the wallet constructs controllers. That work happens in [bootstrap](#17-bootstrap-first-ui-open), the first time the UI opens.
 
 #### 1.1 Base Controller Setup
 
@@ -55,9 +55,9 @@ super({
 #### 1.2 Initialize Internal State
 
 ```typescript
-initializeState()
-├── enabledChains = extractEnabledChains(NetworkEnablementController.getState())
-└── assetsPrice = {}  // In-memory price cache
+// Enabled chains are not cached: they are read from
+// NetworkEnablementController:getState each time they are needed.
+createDataSources()        // Constructed only; their bootstrap() runs later
 
 // Note: selectedAccounts is a getter that calls AccountTreeController
 get selectedAccounts(): InternalAccount[]
@@ -66,14 +66,17 @@ get selectedAccounts(): InternalAccount[]
 
 #### 1.3 Subscribe to External Events
 
-| Event                                              | Handler                          | Purpose                                |
-| -------------------------------------------------- | -------------------------------- | -------------------------------------- |
-| `AccountTreeController:selectedAccountGroupChange` | `handleAccountGroupChanged()`    | Refresh when the user switches groups  |
-| `AccountTreeController:initialized`                | `updateActive()`                 | Start tracking once the tree is built  |
-| `AccountTreeController:uninitialized`              | `updateActive()`                 | Stop tracking when the tree is cleared |
-| `NetworkEnablementController:stateChange`          | `handleEnabledNetworksChanged()` | Track enabled chains                   |
-| `KeyringController:unlock`                         | `start()`                        | Start subscriptions                    |
-| `KeyringController:lock`                           | `stop()`                         | Stop subscriptions                     |
+| Event                                              | Handler                              | Purpose                                              |
+| -------------------------------------------------- | ------------------------------------ | ---------------------------------------------------- |
+| `ClientController:stateChange` (`isUiOpen`)        | `bootstrap()`, then `updateActive()` | Bootstrap on first UI open; then start/stop          |
+| `AccountTreeController:selectedAccountGroupChange` | `handleAccountGroupChanged()`        | Refresh when the user switches groups                |
+| `AccountTreeController:initialized`                | `updateActive()`                     | Start tracking once the tree is built                |
+| `AccountTreeController:uninitialized`              | `updateActive()`                     | Stop tracking when the tree is cleared               |
+| `NetworkEnablementController:stateChange`          | `handleEnabledNetworksChanged()`     | Fetch newly enabled chains (subscribed at bootstrap) |
+| `KeyringController:unlock`                         | `start()`                            | Start subscriptions                                  |
+| `KeyringController:lock`                           | `stop()`                             | Stop subscriptions                                   |
+
+Until bootstrap has finished, handlers only record state; nothing is fetched.
 
 #### 1.4 Register Action Handlers
 
@@ -117,6 +120,26 @@ executeMiddlewares([
 ```
 
 **Order matters**: Middlewares are stacked with `reduceRight`. Balance sources run first. Token and price then choose their own asset sets from the request, controller state, and the balance response. Hidden assets are excluded.
+
+#### 1.7 Bootstrap (first UI open)
+
+The first `ClientController:stateChange` with `isUiOpen: true` runs `bootstrap()` once. By then the wallet has constructed every controller, so it is safe to read their state:
+
+```typescript
+bootstrap()
+├── fetch native asset map
+├── await each balance data source's bootstrap()
+│   ├── AccountsApiDataSource: fetch supported networks, start 20-minute refresh
+│   ├── SnapDataSource: discover keyring snaps
+│   ├── RpcDataSource: read NetworkController state
+│   └── StakedBalanceDataSource: read enabled networks
+├── subscribeToBasicFunctionalityChange(...)
+├── subscribe to NetworkEnablementController:stateChange (diffs previous vs new map)
+├── if keyring unlocked: run unlock cleanups (out-of-scope balances, spam)
+└── updateActive()  // starts tracking if unlocked and the account tree is ready
+```
+
+If a controller that `AssetsController` reads is not registered, it is treated as not ready instead of throwing.
 
 ---
 

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `bootstrap()` to `AbstractDataSource` for setup that reads other controllers or makes requests ([#11351](https://github.com/MetaMask/core/pull/11351))
+  - The default implementation does nothing. `AssetsController` calls it on every balance data source the first time the UI opens.
+
+### Changed
+
+- **BREAKING:** `AssetsController` no longer calls other controllers or makes requests in its constructor; it bootstraps the first time the UI opens ([#11351](https://github.com/MetaMask/core/pull/11351))
+  - The constructor only subscribes to events and registers action handlers, so it no longer depends on the order in which controllers are constructed.
+  - The first `ClientController:stateChange` with `isUiOpen: true` bootstraps the balance data sources, fetches the native asset map, calls `subscribeToBasicFunctionalityChange`, subscribes to `NetworkEnablementController:stateChange`, and runs the unlock cleanups if the keyring is already unlocked. Assets are then tracked as before, once the keyring is unlocked and the account tree is initialized.
+  - `subscribeToBasicFunctionalityChange` is called before the controller counts as bootstrapped, so a listener called synchronously is ignored rather than skipping the first forced fetch. If it throws, the error is reported through `captureException` and bootstrapping continues.
+  - Until then, network, transaction and `KeyringController:unlock` events and `handleBasicFunctionalityChange` are ignored.
+  - Enabled chains are no longer cached on the controller; they are read from `NetworkEnablementController:getState` each time they are needed, so they are correct before bootstrap too. They are empty if `NetworkEnablementController` is not registered.
+  - A controller destroyed during or after bootstrap does not start tracking assets.
+  - Clients must call `ClientController:setUiOpen(true)` when the UI opens, or assets are never loaded.
+- **BREAKING:** `AccountsApiDataSource`, `RpcDataSource` and `SnapDataSource` no longer call other controllers or make requests in their constructors ([#11351](https://github.com/MetaMask/core/pull/11351))
+  - Call `bootstrap()` to fetch the Accounts API supported networks (and start refreshing them), read `NetworkController` state, or discover keyring snaps, respectively. `AssetsController` does this for you.
+  - `AccountsApiDataSource` ignores `RemoteFeatureFlagController:stateChange` until it has been bootstrapped.
+- `AssetsController` treats a controller whose actions are not registered (such as `AccountTreeController`, `ClientController` or `KeyringController`) as not ready instead of throwing ([#11351](https://github.com/MetaMask/core/pull/11351))
+
 ## [20.3.0]
 
 ### Added

@@ -248,6 +248,8 @@ function setupController(
     isBalanceV6Enabled?: () => boolean;
     getAssetVisibility?: GetAssetVisibility;
     getAssetsState?: () => AssetsControllerState;
+    /** When true, the data source is constructed but `bootstrap()` is not called. */
+    skipBootstrap?: boolean;
   } = {},
 ): SetupResult {
   const {
@@ -260,6 +262,7 @@ function setupController(
       hiddenAssetIds: [],
     }),
     getAssetsState = getDefaultAssetsControllerState,
+    skipBootstrap = false,
   } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -339,6 +342,11 @@ function setupController(
   };
 
   const controller = new SnapDataSource(controllerOptions);
+
+  if (!skipBootstrap) {
+    // Snap discovery is synchronous, so bootstrap settles before it returns.
+    controller.bootstrap().catch(() => undefined);
+  }
 
   // Subscribe so that balance updates are reported via onAssetsUpdate
   const chainIdsFromSnaps = Object.values(installedSnaps).flatMap(
@@ -433,6 +441,58 @@ describe('SnapDataSource helper functions', () => {
 });
 
 describe('SnapDataSource', () => {
+  describe('bootstrap', () => {
+    it('does not discover keyring snaps when constructed', async () => {
+      const {
+        controller,
+        mockGetRunnableSnaps,
+        mockGetPermissions,
+        activeChainsUpdateHandler,
+        cleanup,
+      } = setupController({
+        skipBootstrap: true,
+        installedSnaps: {
+          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        },
+      });
+
+      expect(mockGetRunnableSnaps).not.toHaveBeenCalled();
+      expect(mockGetPermissions).not.toHaveBeenCalled();
+      expect(activeChainsUpdateHandler).not.toHaveBeenCalled();
+      expect(await controller.getActiveChains()).toStrictEqual([]);
+
+      cleanup();
+    });
+
+    it('discovers keyring snaps and reports active chains when bootstrapped', async () => {
+      const {
+        controller,
+        mockGetRunnableSnaps,
+        activeChainsUpdateHandler,
+        cleanup,
+      } = setupController({
+        skipBootstrap: true,
+        installedSnaps: {
+          [SOLANA_SNAP_ID]: { version: '1.0.0', chainIds: [SOLANA_MAINNET] },
+        },
+      });
+
+      await controller.bootstrap();
+
+      expect(mockGetRunnableSnaps).toHaveBeenCalled();
+      expect(await controller.getActiveChains()).toStrictEqual([
+        SOLANA_MAINNET,
+      ]);
+      expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+        'SnapDataSource',
+        [SOLANA_MAINNET],
+        [],
+      );
+
+      cleanup();
+    });
+  });
+
   it('initializes with correct name', async () => {
     const { controller, cleanup } = setupController();
     expect(controller.getName()).toBe('SnapDataSource');

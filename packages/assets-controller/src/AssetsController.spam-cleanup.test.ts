@@ -4,6 +4,7 @@ import type { FeatureFlags } from '@metamask/remote-feature-flag-controller';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  bootstrapAssetsController,
   createMockInternalAccount,
   createMockMessengers,
   registerAssetsControllerActions,
@@ -113,13 +114,24 @@ async function withController<ReturnValue>(
       }),
   });
 
+  // `#bootstrap` subscribes to basic-functionality changes once it has read
+  // enabled networks and bootstrapped the data sources; use that as the signal
+  // that the controller is ready, so tests start from a bootstrapped controller.
+  let markBootstrapped: () => void = () => undefined;
+  const bootstrapped = new Promise<void>((resolve) => {
+    markBootstrapped = resolve;
+  });
+
   const controller = new AssetsController({
     messenger: assetsControllerMessenger,
     state,
     queryApiClient,
     isBasicFunctionality,
+    subscribeToBasicFunctionalityChange: (): void => markBootstrapped(),
     captureException,
   });
+  bootstrapAssetsController(rootMessenger);
+  await bootstrapped;
 
   try {
     return await fn({ controller, messenger: rootMessenger });
@@ -360,11 +372,7 @@ describe('AssetsController spam cleanup', () => {
     mockV3Assets();
 
     await withController({}, async ({ controller, messenger }) => {
-      (
-        messenger as unknown as {
-          publish: (topic: string, payload?: unknown) => void;
-        }
-      ).publish('ClientController:stateChanged', { isUiOpen: true });
+      messenger.publish('ClientController:stateChange', { isUiOpen: true }, []);
       messenger.publish('KeyringController:unlock');
       (messenger.publish as CallableFunction)(
         'AccountTreeController:initialized',

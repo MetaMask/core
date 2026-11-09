@@ -20,7 +20,10 @@ import {
   CDOGE_ASSET_ID_CHECKSUM,
   CDOGE_ASSET_ID_LOWERCASE,
 } from './__fixtures__/bsc-spam-token/wallet.js';
-import { createMockMessengers } from './__fixtures__/MockAssetControllerMessenger.js';
+import {
+  bootstrapAssetsController,
+  createMockMessengers,
+} from './__fixtures__/MockAssetControllerMessenger.js';
 import type { MockRootMessenger } from './__fixtures__/MockAssetControllerMessenger.js';
 import { createTestApiClient } from './__fixtures__/mockTokenApi.js';
 import { waitFor, waitUntilStable } from './__fixtures__/test-utils.js';
@@ -70,6 +73,7 @@ async function withController<ReturnValue>(
     queryApiClient,
     isBasicFunctionality: (): boolean => true,
   });
+  bootstrapAssetsController(rootMessenger);
 
   try {
     return await fn({ controller, messenger: rootMessenger });

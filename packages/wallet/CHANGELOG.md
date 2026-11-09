@@ -7,8 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `AssetsController` to the default initialization configurations ([#11351](https://github.com/MetaMask/core/pull/11351))
+  - `instanceOptions.assetsController` is now required. Pass at least `queryApiClient`, the API Platform client your client creates with `createApiPlatformClient`; every other `AssetsController` option is optional.
+  - Prices are polled every 3 minutes and staked balances every 30 seconds by default. `priceDataSourceConfig` and `stakedBalanceDataSourceConfig` passed in `instanceOptions.assetsController` are merged over these defaults.
+  - The controller's constructor does not call other controllers, so it is constructed before the controllers it reads from. It bootstraps the first time the UI opens (`ClientController:setUiOpen(true)`), and starts fetching assets once the keyring is unlocked and the account tree is initialized.
+  - Delegates actions and events of controllers and services that `Wallet` does not construct, including `AccountTreeController`, `SnapController`, `PhishingController`, `PreferencesController`, `MultichainTransactionsController` and `AccountActivityService`. Register them on the wallet messenger (for example through `initializationConfigurations`) before opening the UI; until then, `AssetsController` treats them as not ready.
+- Export the `AssetsControllerInstanceOptions` type ([#11351](https://github.com/MetaMask/core/pull/11351))
+
 ### Changed
 
+- Add `@metamask/assets-controller` as a dependency ([#11351](https://github.com/MetaMask/core/pull/11351))
 - Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
 - Bump `@metamask/subscription-controller` from `^15.1.2` to `^15.2.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
 - Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300))

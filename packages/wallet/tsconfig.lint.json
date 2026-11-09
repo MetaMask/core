@@ -85,6 +85,9 @@
     },
     {
       "path": "../geolocation-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../assets-controller/tsconfig.lint.json"
     }
   ]
 }
