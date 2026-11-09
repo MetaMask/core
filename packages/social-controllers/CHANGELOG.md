@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.19.0]
 
-### Uncategorized
-
-- chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
-
 ### Added
 
 - Add `fetchQuoteTokens` to `SocialService` (`SocialService:fetchQuoteTokens`). Calls `GET /v1/tokens/quote-tokens` and returns native, wrapped native, and stablecoin assets as CAIP-19 ids. ([#11384](https://github.com/MetaMask/core/pull/11384))
