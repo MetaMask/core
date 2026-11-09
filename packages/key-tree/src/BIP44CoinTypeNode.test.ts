@@ -1,5 +1,5 @@
 import { bytesToHex } from '@metamask/byte-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import fixtures from '../tests/fixtures.js';
 import { encodeExtendedKey } from './extended-keys.js';

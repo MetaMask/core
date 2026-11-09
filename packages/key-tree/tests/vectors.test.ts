@@ -1,6 +1,6 @@
 import { hexToBytes } from '@metamask/byte-utils';
 // eslint-disable-next-line n/no-unsupported-features/node-builtins
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { Curve } from '../src/curves/index.js';
 import { ed25519Bip32, ed25519 } from '../src/curves/index.js';
@@ -10,7 +10,6 @@ import {
 } from '../src/derivers/bip39.js';
 import type { SLIP10Node, SLIP10PathTuple } from '../src/index.js';
 import { secp256k1 } from '../src/index.js';
-import * as utils from '../src/utils.js';
 import derivationVectors from './vectors/derivation.json';
 
 type Vector = (typeof derivationVectors.bip32.hardened)[0];

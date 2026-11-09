@@ -1,4 +1,3 @@
-import { hmac as nobleHmac } from '@noble/hashes/hmac';
 import { ripemd160 as nobleRipemd160 } from '@noble/hashes/legacy';
 import { keccak_256 as nobleKeccak256 } from '@noble/hashes/sha3';
 

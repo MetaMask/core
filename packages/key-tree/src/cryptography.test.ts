@@ -1,8 +1,7 @@
 import { bytesToHex } from '@metamask/byte-utils';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { keccak256, ripemd160 } from './cryptography.js';
-import * as utils from './utils.js';
 
 describe('keccak256', () => {
   it('returns the keccak-256 hash of the data', () => {

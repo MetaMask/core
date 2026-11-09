@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { ed25519, secp256k1 } from '../src/curves/index.js';
 import { deriveKeyFromPath } from '../src/derivation.js';
@@ -12,7 +12,6 @@ import {
   getBIP44CoinTypeToAddressPathTuple,
   hexStringToBytes,
 } from '../src/utils.js';
-import * as utils from '../src/utils.js';
 import fixtures from './fixtures.js';
 
 describe('reference implementation tests', () => {

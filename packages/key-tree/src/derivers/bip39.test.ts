@@ -7,7 +7,6 @@ import { assert } from '@metamask/type-utils';
 import { describe, expect, it, vi } from 'vitest';
 
 import fixtures from '../../tests/fixtures.js';
-import * as cryptography from '../cryptography.js';
 import type { Curve } from '../curves/index.js';
 import { secp256k1, ed25519Bip32 } from '../curves/index.js';
 import { mnemonicPhraseToBytes } from '../utils.js';
