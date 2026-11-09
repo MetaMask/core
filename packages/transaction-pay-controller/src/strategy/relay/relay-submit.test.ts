@@ -1522,6 +1522,49 @@ describe('Relay Submit Utils', () => {
         expect(getDelegationTransactionMock).not.toHaveBeenCalled();
       });
 
+      it.each([
+        ['no account override', undefined],
+        ['an account override', '0xaccountOverride'],
+      ])(
+        'submits Predict Safe withdraws from the transaction account with %s',
+        async (_title, accountOverride) => {
+          const safeAddress = '0xsafe' as Hex;
+          const safeExecData = '0x6a761202' as Hex;
+
+          request.quotes[0].request.accountOverride = accountOverride as
+            | Hex
+            | undefined;
+          request.quotes[0].request.refundTo = safeAddress;
+          request.transaction = {
+            id: ORIGINAL_TRANSACTION_ID_MOCK,
+            nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+            txParams: { data: safeExecData, from: FROM_MOCK, to: safeAddress },
+            type: TransactionType.predictWithdraw,
+          } as TransactionMeta;
+
+          await submitRelayQuotes(request);
+
+          expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+          expect(addTransactionBatchMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              from: FROM_MOCK,
+              transactions: [
+                expect.objectContaining({
+                  params: expect.objectContaining({
+                    data: safeExecData,
+                    to: safeAddress,
+                  }),
+                  type: TransactionType.predictWithdraw,
+                }),
+                expect.objectContaining({
+                  type: TransactionType.relayDeposit,
+                }),
+              ],
+            }),
+          );
+        },
+      );
+
       it('activates 7702 mode with single combined post-quote gas limit', async () => {
         request.quotes[0].original.metamask.gasLimits = [203093];
         request.quotes[0].original.metamask.is7702 = true;

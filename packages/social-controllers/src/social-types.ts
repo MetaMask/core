@@ -191,6 +191,16 @@ export const INSIDER_POSITION_FLAG = 'insider' as const;
 /** Known position flag value `developer`. */
 export const DEVELOPER_POSITION_FLAG = 'developer' as const;
 
+/**
+ * Position flag for a token that social-api excludes from PnL for every
+ * trader.
+ *
+ * Those positions are still returned, but they do not count toward the
+ * trader's realized PnL. A position can carry this flag alongside
+ * {@link INSIDER_POSITION_FLAG}.
+ */
+export const UNSUPPORTED_TOKEN_POSITION_FLAG = 'unsupported-token' as const;
+
 /** Values for `TraderProfileResponse.rankingTag` from social-api. */
 export const TRADER_RANKING_TAGS = ['shrimp', 'dolphin', 'whale'] as const;
 
@@ -311,6 +321,14 @@ export type Position = {
   currentValueUSD?: number | null;
   /** Unrealized + realized PnL in USD. */
   pnlValueUsd?: number | null;
+  /**
+   * USD size of the position. For perps this is the leveraged notional,
+   * `|positionAmountWithLeverage|` × mark price, which is the key social-api
+   * ranks an asset's holders by. For spot it equals `currentValueUSD`; `0` for
+   * closed positions. Absent when no price is available, and on social-api
+   * builds that predate the field.
+   */
+  positionValueUSD?: number | null;
   /** PnL as a percentage of cost basis. */
   pnlPercent?: number | null;
   /** Number of detected copy trades for this position. */
@@ -332,9 +350,11 @@ export type Position = {
    * Server flags for this position. {@link INSIDER_POSITION_FLAG} means Codex
    * marked this wallet and token as an insider pair, so the position is
    * excluded from the trader's realized PnL and must not be copy-traded.
-   * {@link DEVELOPER_POSITION_FLAG} is the other known value. The list is
-   * open: unrecognized strings are preserved. Absent on older social-api
-   * builds; `null` when the deployment sends an explicit empty mark.
+   * {@link UNSUPPORTED_TOKEN_POSITION_FLAG} means the token is excluded from
+   * PnL for every trader, so the position does not count toward the trader's
+   * realized PnL. {@link DEVELOPER_POSITION_FLAG} is the other known value.
+   * The list is open: unrecognized strings are preserved. Absent on older
+   * social-api builds; `null` when the deployment sends an explicit empty mark.
    */
   flags?: string[] | null;
 };
@@ -418,8 +438,10 @@ export type FeedItem = Position & {
   /** Unix timestamp (seconds) when the feed item was created. */
   timestamp: number;
   /**
-   * Latest author Call in the current intent phase. Absent on older social-api
-   * builds; `null` when that phase has no comment.
+   * Latest author Call in the current intent phase. On the all and trending
+   * feeds, a comment item carries its own comment instead and a trade item
+   * carries `null`. Absent on older social-api builds; `null` when that phase
+   * has no comment.
    */
   authorComment?: AuthorComment | null;
   /** Author comments on this position. Absent on older social-api builds. */
@@ -446,6 +468,14 @@ export type FeedItem = Position & {
    * `null` when the position is flat. Absent on older social-api builds.
    */
   entryPriceUsd?: number | null;
+  /**
+   * Id of this feed item, the `feedItemId` its `social.v1.feed.all` revisions
+   * carry. A position can hold several items on the all and trending feeds
+   * (its trade plus one per author comment), so key rows on this rather than
+   * `positionId`. Set on the all and trending feeds only; absent on older
+   * social-api builds.
+   */
+  feedItemId?: string;
   /** Stable event ID for the shared feed-all projection. */
   eventId?: string;
   /** Projection revision for the shared feed-all item. */
@@ -960,6 +990,79 @@ export type ModerationStatusResponse = {
   bannedAt: number | null;
   /** The reason the moderation team gave the user, if any. Safe to show. */
   reason: string | null;
+};
+
+/**
+ * Assets that do not produce indexed positions.
+ *
+ * Returned by `GET /v1/tokens/quote-tokens`.
+ */
+export type QuoteTokensResponse = {
+  /** CAIP-19 ids for native coins and wrapped native assets. */
+  natives: string[];
+  /** CAIP-19 ids for stablecoins. */
+  stablecoins: string[];
+};
+
+/**
+ * Query parameters forwarded to the social-api GIF proxy.
+ *
+ * Keys and values are sent unchanged. The service does not rename them or
+ * supply defaults. Typical keys are `q`, `page`, `per_page`, `locale`,
+ * `customer_id`, `content_filter`, and `format_filter`.
+ */
+export type GifQueryParams = Record<
+  string,
+  string | number | boolean | undefined
+>;
+
+/** One rendition of a GIF (`gif`, `webp`, or `mp4`) at a single size. */
+export type GifMediaFile = {
+  url?: string;
+  width?: number;
+  height?: number;
+  size?: number;
+};
+
+/** Formats available for one GIF size (`sm`, `md`, `hd`, `xs`). */
+export type GifMediaSize = {
+  gif?: GifMediaFile;
+  webp?: GifMediaFile;
+  mp4?: GifMediaFile;
+};
+
+/**
+ * One GIF in a provider page.
+ *
+ * Known fields are listed here. The service returns the provider object
+ * itself, so fields beyond this type stay on the value at runtime.
+ */
+export type GifItem = {
+  id?: string | number;
+  slug?: string;
+  title?: string;
+  file?: {
+    hd?: GifMediaSize;
+    md?: GifMediaSize;
+    sm?: GifMediaSize;
+    xs?: GifMediaSize;
+  };
+};
+
+/**
+ * Body of `GET /api/v1/gifs/trending` and `GET /api/v1/gifs/search`.
+ *
+ * This is the GIF provider's page, passed through by social-api. Validation
+ * only checks that `result` and `data` are present, so extra fields are kept.
+ */
+export type GifPageResponse = {
+  result: boolean;
+  data: {
+    data?: GifItem[];
+    current_page?: number;
+    per_page?: number;
+    has_next?: boolean;
+  };
 };
 
 // ---------------------------------------------------------------------------
