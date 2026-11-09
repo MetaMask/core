@@ -4009,7 +4009,7 @@
   },
   "packages/perps-controller/tests/src/utils/hyperLiquidPositionPreview.test.ts": {
     "vitest/no-conditional-in-test": {
-      "count": 27
+      "count": 25
     }
   },
   "packages/perps-controller/tests/src/utils/hyperLiquidValidation.advanced-orders.test.ts": {
