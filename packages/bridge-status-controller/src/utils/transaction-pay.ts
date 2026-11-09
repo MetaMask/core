@@ -14,6 +14,9 @@ export const setTransactionConfigForMmPay = (
     'TransactionPayController:setTransactionConfig',
     txMetaId,
     (config: TransactionConfig) => {
+      if (operation === Operation.WITHDRAW) {
+        config.isPostQuote = true;
+      }
       if (operation === Operation.DEPOSIT) {
         config.paymentOverride = PaymentOverride.MoneyAccount;
         config.accountOverride = refundTo;
