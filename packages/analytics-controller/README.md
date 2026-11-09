@@ -133,7 +133,7 @@ Volume is bounded per controller instance:
 controller.trackErrorAsAnalytics(
   error,
   { source: 'swap-quote-fetch' },
-  { foo: 'bar' },
+  { anonymous: true },
 );
 ```
 

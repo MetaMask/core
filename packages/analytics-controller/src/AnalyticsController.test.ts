@@ -6476,13 +6476,13 @@ describe('AnalyticsController', () => {
           new Error('boom'),
           { source },
           {
-            extra: 'value',
+            anonymous: true,
           },
         );
 
         expect(platformAdapter.track).toHaveBeenCalledTimes(1);
         expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
-          extra: 'value',
+          anonymous: true,
           source,
           error_message: 'boom',
         });
@@ -6497,13 +6497,13 @@ describe('AnalyticsController', () => {
           {
             source: 'spoofed-source',
             error_message: 'spoofed message',
-            extra: 'value',
+            anonymous: true,
           },
         );
 
         expect(platformAdapter.track).toHaveBeenCalledTimes(1);
         expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
-          extra: 'value',
+          anonymous: true,
           source,
           error_message: 'real message',
         });
