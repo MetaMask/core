@@ -15,6 +15,12 @@ export type StepContext = {
    * it as part of the upgrade.
    */
   predecessorAddress?: Hex;
+  /**
+   * The address the Money Account at `address` is expected to migrate to.
+   * Only set when registering migration intents, which are only signed when
+   * CHOMP reports this same successor.
+   */
+  successorAddress?: Hex;
   chainId: Hex;
   allowedCalldataEnforcer: Hex;
   allowedTargetsEnforcer: Hex;

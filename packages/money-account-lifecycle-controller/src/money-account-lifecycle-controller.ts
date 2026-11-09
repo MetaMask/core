@@ -7,6 +7,7 @@ import { BaseController } from '@metamask/base-controller';
 import { ChompApiError } from '@metamask/chomp-api-service';
 import type {
   ChompApiServiceGetDerivedIdentitiesAction,
+  ChompApiServiceGetDerivedIdentityByAddressAction,
   ChompApiServiceStartFundsTransferAction,
   DerivedIdentitiesResponse,
   DerivedIdentity,
@@ -136,6 +137,7 @@ export type MoneyAccountLifecycleControllerActions =
 
 type AllowedActions =
   | ChompApiServiceGetDerivedIdentitiesAction
+  | ChompApiServiceGetDerivedIdentityByAddressAction
   | ChompApiServiceStartFundsTransferAction
   | KeyringControllerGetStateAction
   | MoneyAccountControllerCreateMoneyAccountAction
@@ -459,7 +461,11 @@ export class MoneyAccountLifecycleController extends BaseController<
    * because CHOMP only accepts the intents of a premium migration once the
    * successor holds the premium eligibility. The MFA address signs a new
    * subscription delegation, which also registers its subscription intent,
-   * and becomes the payer of the subscription.
+   * and becomes the payer of the subscription. If CHOMP still reports the
+   * subscription intent of the MFA address missing once the MFA address pays,
+   * its subscription delegation is prepared again to register the intent,
+   * and if no active Money Account Plus subscription is paid by either
+   * address, the migration cannot complete, so this throws.
    *
    * Finally, asks CHOMP to start moving the funds of the Money Account to the
    * MFA address. From then on, the migration can no longer be cancelled.
@@ -511,14 +517,13 @@ export class MoneyAccountLifecycleController extends BaseController<
       ? await this.#getResumableSuccessor(moneyAccountAddress, migration)
       : await this.#createSuccessor(moneyAccountAddress);
 
-    await this.messenger.call(
-      'MoneyAccountUpgradeController:upgradeSuccessorAccount',
-      successorAddress,
-      moneyAccountAddress,
-    );
-    this.#assertReadyToMigrate();
-
     try {
+      await this.messenger.call(
+        'MoneyAccountUpgradeController:upgradeSuccessorAccount',
+        successorAddress,
+        moneyAccountAddress,
+      );
+      this.#assertReadyToMigrate();
       await this.#moveSubscriptionToSuccessor(
         moneyAccountAddress,
         successorAddress,
@@ -527,6 +532,7 @@ export class MoneyAccountLifecycleController extends BaseController<
       await this.messenger.call(
         'MoneyAccountUpgradeController:registerMigrationIntents',
         moneyAccountAddress,
+        successorAddress,
       );
       this.#assertReadyToMigrate();
       await this.#startFundsTransfer(moneyAccountAddress);
@@ -578,38 +584,84 @@ export class MoneyAccountLifecycleController extends BaseController<
     const subscription = subscriptions.find(
       isActiveMoneyAccountPlusSubscription,
     );
+    const cryptoPayment =
+      subscription?.paymentMethod.type === PAYMENT_TYPES.byCrypto
+        ? subscription.paymentMethod.crypto
+        : undefined;
+    const payerAddress = cryptoPayment?.payerAddress.toLowerCase();
+
     if (
-      subscription?.paymentMethod.type !== PAYMENT_TYPES.byCrypto ||
-      subscription.paymentMethod.crypto.payerAddress.toLowerCase() !==
-        moneyAccountAddress.toLowerCase()
+      subscription &&
+      cryptoPayment &&
+      payerAddress === moneyAccountAddress.toLowerCase()
     ) {
+      const recurringInterval = subscription.interval;
+      const billingCycles =
+        await this.#getMoneyAccountPlusBillingCycles(recurringInterval);
+      const delegationHash = await this.#prepareSubscriptionDelegation(
+        successorAddress,
+        recurringInterval,
+      );
+      await this.messenger.call('SubscriptionController:updatePaymentMethod', {
+        paymentType: PAYMENT_TYPES.byCrypto,
+        subscriptionId: subscription.id,
+        chainId: cryptoPayment.chainId,
+        payerAddress: successorAddress,
+        tokenSymbol: cryptoPayment.tokenSymbol,
+        recurringInterval,
+        billingCycles,
+        cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
+        delegationHash,
+      });
       return;
     }
 
-    const { chainId, tokenSymbol } = subscription.paymentMethod.crypto;
-    const recurringInterval = subscription.interval;
-    const billingCycles =
-      await this.#getMoneyAccountPlusBillingCycles(recurringInterval);
+    if (!(await this.#isSubscriptionIntentMissing(moneyAccountAddress))) {
+      return;
+    }
+
+    if (subscription && payerAddress === successorAddress.toLowerCase()) {
+      await this.#prepareSubscriptionDelegation(
+        successorAddress,
+        subscription.interval,
+      );
+      return;
+    }
+
+    throw new Error(
+      `The premium migration of Money Account ${moneyAccountAddress} needs an active Money Account Plus subscription paid in crypto by it or by ${successorAddress}`,
+    );
+  }
+
+  async #prepareSubscriptionDelegation(
+    payerAddress: Hex,
+    recurringInterval: RecurringInterval,
+  ): Promise<Hex> {
     const { delegationHash } = await this.messenger.call(
       'SubscriptionDelegationService:prepareDelegation',
       {
         product: PRODUCT_TYPES.MONEY_ACCOUNT_PLUS,
         recurringInterval,
-        payerAddress: successorAddress,
+        payerAddress,
         isTrialRequested: false,
       },
     );
-    await this.messenger.call('SubscriptionController:updatePaymentMethod', {
-      paymentType: PAYMENT_TYPES.byCrypto,
-      subscriptionId: subscription.id,
-      chainId,
-      payerAddress: successorAddress,
-      tokenSymbol,
-      recurringInterval,
-      billingCycles,
-      cryptoAuthMethod: CRYPTO_AUTH_METHODS.DELEGATION,
-      delegationHash,
-    });
+    return delegationHash;
+  }
+
+  async #isSubscriptionIntentMissing(
+    moneyAccountAddress: Hex,
+  ): Promise<boolean> {
+    const response = await this.messenger.call(
+      'ChompApiService:getDerivedIdentityByAddress',
+      moneyAccountAddress,
+    );
+    return (
+      response?.identity.migration?.steps.some(
+        ({ step, completed }) =>
+          step === 'SUCCESSOR_SUBSCRIPTION_INTENT' && !completed,
+      ) ?? false
+    );
   }
 
   async #getMoneyAccountPlusBillingCycles(

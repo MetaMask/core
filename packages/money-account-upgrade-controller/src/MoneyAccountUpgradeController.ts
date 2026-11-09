@@ -58,7 +58,7 @@ import { buildDelegationStep } from './steps/build-delegations.js';
 import { eip7702AuthorizationStep } from './steps/eip-7702-authorization.js';
 import { registerIntentsStep } from './steps/register-intents.js';
 import { registerMigrationIntentsStep } from './steps/register-migration-intents.js';
-import type { Step } from './steps/step.js';
+import type { Step, StepContext } from './steps/step.js';
 import type { UpgradeConfig } from './types.js';
 
 /**
@@ -130,6 +130,11 @@ export function getDefaultMoneyAccountUpgradeControllerState(): MoneyAccountUpgr
 export type MoneyAccountRegistrationStatus = {
   isRegistered: boolean;
 };
+
+type MigrationAddresses = Pick<
+  StepContext,
+  'predecessorAddress' | 'successorAddress'
+>;
 
 const MESSENGER_EXPOSED_METHODS = [
   'upgradeAccount',
@@ -738,7 +743,7 @@ export class MoneyAccountUpgradeController extends BaseController<
     predecessorAddress: Hex,
   ): Promise<void> {
     const config = await this.#getArmedConfig();
-    await this.#runSteps(address, config, predecessorAddress);
+    await this.#runSteps(address, config, { predecessorAddress });
   }
 
   /**
@@ -757,18 +762,26 @@ export class MoneyAccountUpgradeController extends BaseController<
    *
    * @param predecessorAddress - The current address of the migrating Money
    * Account.
+   * @param successorAddress - The address the Money Account is expected to
+   * migrate to. Nothing is signed unless CHOMP reports this successor.
    * @throws If the controller is not bootstrapped, if the armed config is
    * disarmed or superseded first, or if the step fails (wrapped in a
    * {@link MoneyAccountUpgradeStepError}): `predecessorAddress` is not the
-   * predecessor of a migration, a premium migration is missing the premium
+   * predecessor of a migration to `successorAddress`, a premium migration is missing the premium
    * vault or the vault migration helper, or signing or a CHOMP call fails.
    */
-  async registerMigrationIntents(predecessorAddress: Hex): Promise<void> {
+  async registerMigrationIntents(
+    predecessorAddress: Hex,
+    successorAddress: Hex,
+  ): Promise<void> {
     const config = await this.#getArmedConfig();
     await this.#runStep(
       registerMigrationIntentsStep,
       predecessorAddress,
       config,
+      {
+        successorAddress,
+      },
     );
   }
 
@@ -820,16 +833,16 @@ export class MoneyAccountUpgradeController extends BaseController<
    *
    * @param address - The Money Account address.
    * @param config - The armed config to run against.
-   * @param predecessorAddress - The address `address` succeeds, when
-   * upgrading a successor.
+   * @param migration - The addresses of the migration `address` is part of,
+   * if any.
    */
   async #runSteps(
     address: Hex,
     config: UpgradeConfig & { chainId: Hex },
-    predecessorAddress?: Hex,
+    migration: MigrationAddresses = {},
   ): Promise<void> {
     for (const step of this.#steps) {
-      await this.#runStep(step, address, config, predecessorAddress);
+      await this.#runStep(step, address, config, migration);
     }
 
     this.update((state) => {
@@ -847,14 +860,14 @@ export class MoneyAccountUpgradeController extends BaseController<
    * @param step - The step to run.
    * @param address - The address the step runs for.
    * @param config - The armed config to run against.
-   * @param predecessorAddress - The address `address` succeeds, when
-   * upgrading a successor.
+   * @param migration - The addresses of the migration `address` is part of,
+   * if any.
    */
   async #runStep(
     step: Step,
     address: Hex,
     config: UpgradeConfig & { chainId: Hex },
-    predecessorAddress?: Hex,
+    migration: MigrationAddresses = {},
   ): Promise<void> {
     if (this.#config !== config) {
       throw new Error(
@@ -865,7 +878,7 @@ export class MoneyAccountUpgradeController extends BaseController<
       await step.run({
         messenger: this.messenger,
         address,
-        ...(predecessorAddress ? { predecessorAddress } : {}),
+        ...migration,
         ...config,
       });
     } catch (error) {

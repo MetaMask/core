@@ -344,6 +344,7 @@ async function run(
   return registerMigrationIntentsStep.run({
     messenger,
     address: PREDECESSOR,
+    successorAddress: SUCCESSOR,
     chainId: CHAIN_ID,
     boringVaultAddress: VMUSD,
     delegateAddress: DELEGATE,
@@ -429,6 +430,41 @@ describe('registerMigrationIntentsStep', () => {
       `${PREDECESSOR} is not the predecessor of a Money Account migration`,
     );
     expect(mocks.signDelegation).not.toHaveBeenCalled();
+  });
+
+  it('throws without signing when CHOMP reports another successor than the expected one', async () => {
+    const { messenger, mocks } = setup(
+      migratingIdentity({ to: OTHER_SUCCESSOR }),
+    );
+
+    await expect(run(messenger)).rejects.toThrow(
+      `${PREDECESSOR} is migrating to ${OTHER_SUCCESSOR}, not to ${SUCCESSOR}`,
+    );
+    expect(mocks.listDelegations).not.toHaveBeenCalled();
+    expect(mocks.signDelegation).not.toHaveBeenCalled();
+    expect(mocks.createIntentsV2).not.toHaveBeenCalled();
+  });
+
+  it('throws without signing when no successor is expected', async () => {
+    const { messenger, mocks } = setup();
+
+    await expect(
+      run(messenger, { successorAddress: undefined }),
+    ).rejects.toThrow(
+      'Registering the migration intents requires the expected successor',
+    );
+    expect(mocks.signDelegation).not.toHaveBeenCalled();
+  });
+
+  it('matches the expected successor case-insensitively', async () => {
+    const { messenger, mocks } = setup();
+
+    expect(
+      await run(messenger, {
+        successorAddress: SUCCESSOR.toUpperCase().replace('0X', '0x') as Hex,
+      }),
+    ).toBe('completed');
+    expect(mocks.createIntentsV2).toHaveBeenCalled();
   });
 
   it('matches the predecessor case-insensitively', async () => {
@@ -758,7 +794,7 @@ describe('registerMigrationIntentsStep', () => {
         }),
       ]);
 
-      await run(messenger);
+      await run(messenger, { successorAddress: successor });
 
       expect(mocks.signDelegation).not.toHaveBeenCalled();
       expect(mocks.createIntentsV2).toHaveBeenCalledWith([

@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `upgradeSuccessorAccount` method to upgrade an address as the successor of an existing Money Account, which links it to the Money Account on CHOMP, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
 - Add `getRegistrationStatus` method to check whether an address is part of a Money Account identity on CHOMP, and the `MoneyAccountRegistrationStatus` type, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
-- Add `registerMigrationIntents` method to sign and register the CHOMP intents of the old address in a Money Account migration, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
+- Add `registerMigrationIntents` method to sign and register the CHOMP intents of the old address in a Money Account migration, only when CHOMP reports the expected successor, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
 
 ### Changed
 

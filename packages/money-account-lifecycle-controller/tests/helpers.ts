@@ -1,4 +1,5 @@
 import type {
+  AddressIdentityResponse,
   DerivedIdentitiesResponse,
   DerivedIdentity,
   DerivedIdentityMigration,
@@ -85,6 +86,31 @@ export const MIGRATING_IDENTITY: DerivedIdentity & {
     premiumTransfer: null,
   },
 };
+
+/**
+ * Builds the CHOMP identity response of the money account while it migrates
+ * to the MPC Money Account.
+ *
+ * @param steps - The migration steps CHOMP reports.
+ * @returns The identity response.
+ */
+export function buildLinkedIdentityResponse(
+  steps: DerivedIdentityMigration['steps'] = MIGRATING_IDENTITY.migration.steps,
+): AddressIdentityResponse {
+  const to = MFA_ACCOUNT_ADDRESS.toLowerCase() as Hex;
+  return {
+    identity: {
+      ...MIGRATING_IDENTITY,
+      migration: { ...MIGRATING_IDENTITY.migration, to, steps },
+    },
+    address: {
+      address: MONEY_ACCOUNT_KEY as Hex,
+      role: 'CURRENT',
+      predecessor: null,
+      successor: to,
+    },
+  };
+}
 
 export const SUBSCRIPTION_DELEGATION_HASH =
   '0x1111111111111111111111111111111111111111111111111111111111111111';
@@ -176,6 +202,9 @@ type Gates = {
 
 type Mocks = {
   getDerivedIdentities: Mock<() => Promise<DerivedIdentitiesResponse>>;
+  getDerivedIdentityByAddress: Mock<
+    (address: Hex) => Promise<AddressIdentityResponse | null>
+  >;
   startFundsTransfer: Mock<(address: Hex) => Promise<FundsTransferStart>>;
   createMoneyAccount: Mock<
     (params: CreateMoneyAccountParams) => Promise<MoneyAccount>
@@ -190,7 +219,9 @@ type Mocks = {
   upgradeSuccessorAccount: Mock<
     (address: Hex, predecessorAddress: Hex) => Promise<void>
   >;
-  registerMigrationIntents: Mock<(predecessorAddress: Hex) => Promise<void>>;
+  registerMigrationIntents: Mock<
+    (predecessorAddress: Hex, successorAddress: Hex) => Promise<void>
+  >;
   getSubscriptions: Mock<() => Promise<Subscription[]>>;
   getPricing: Mock<() => Promise<PricingResponse>>;
   prepareDelegation: Mock<
@@ -275,6 +306,7 @@ function getMessenger(
   rootMessenger.delegate({
     actions: [
       'ChompApiService:getDerivedIdentities',
+      'ChompApiService:getDerivedIdentityByAddress',
       'ChompApiService:startFundsTransfer',
       'KeyringController:getState',
       'MoneyAccountController:createMoneyAccount',
@@ -333,6 +365,9 @@ export async function withController<ReturnValue>(
     getDerivedIdentities: vi
       .fn<() => Promise<DerivedIdentitiesResponse>>()
       .mockResolvedValue({ identities: [SFA_IDENTITY] }),
+    getDerivedIdentityByAddress: vi
+      .fn<(address: Hex) => Promise<AddressIdentityResponse | null>>()
+      .mockResolvedValue(buildLinkedIdentityResponse()),
     startFundsTransfer: vi
       .fn<(address: Hex) => Promise<FundsTransferStart>>()
       .mockResolvedValue({
@@ -379,7 +414,7 @@ export async function withController<ReturnValue>(
       .fn<(address: Hex, predecessorAddress: Hex) => Promise<void>>()
       .mockResolvedValue(undefined),
     registerMigrationIntents: vi
-      .fn<(predecessorAddress: Hex) => Promise<void>>()
+      .fn<(predecessorAddress: Hex, successorAddress: Hex) => Promise<void>>()
       .mockResolvedValue(undefined),
     getSubscriptions: vi
       .fn<() => Promise<Subscription[]>>()
@@ -419,6 +454,10 @@ export async function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'ChompApiService:getDerivedIdentities',
     mocks.getDerivedIdentities,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:getDerivedIdentityByAddress',
+    mocks.getDerivedIdentityByAddress,
   );
   rootMessenger.registerActionHandler(
     'ChompApiService:startFundsTransfer',

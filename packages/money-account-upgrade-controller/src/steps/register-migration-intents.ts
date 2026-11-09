@@ -336,9 +336,10 @@ async function signPremiumTransferDestination({
  * vmUSD transfers to the successor and, for a premium migration, the pvmUSD
  * transfer through the vault migration helper.
  *
- * `address` is the predecessor. The successor and the missing steps are read
- * from CHOMP, so only the delegations for incomplete steps are handled, and
- * the step can be re-run to resume a migration. Delegations already in the
+ * `address` is the predecessor. The missing steps are read from CHOMP, so
+ * only the delegations for incomplete steps are handled, and the step can be
+ * re-run to resume a migration. Nothing is signed unless CHOMP reports the
+ * expected `successorAddress` as the successor. Delegations already in the
  * authenticated user storage are registered again rather than signed anew.
  * Every intent is registered in a single `POST /v2/intent`, after all the
  * delegations are stored.
@@ -346,13 +347,19 @@ async function signPremiumTransferDestination({
  * The steps signed by the successor, and `FUNDS_TRANSFERRED`, are left to
  * other flows. Reports `'already-done'` when no predecessor step is missing.
  *
- * @throws If `address` is not the predecessor of a migration, or if a premium
- * migration is missing the premium vault or the vault migration helper.
+ * @throws If `address` is not the predecessor of a migration to
+ * `successorAddress`, or if a premium migration is missing the premium vault
+ * or the vault migration helper.
  */
 export const registerMigrationIntentsStep: Step = {
   name: 'register-migration-intents',
   async run(context) {
-    const { messenger, address, chainId } = context;
+    const { messenger, address, successorAddress, chainId } = context;
+    if (!successorAddress) {
+      throw new Error(
+        'Registering the migration intents requires the expected successor',
+      );
+    }
 
     const response = await messenger.call(
       'ChompApiService:getDerivedIdentityByAddress',
@@ -362,6 +369,11 @@ export const registerMigrationIntentsStep: Step = {
     if (!migration || !equalsIgnoreCase(migration.from, address)) {
       throw new Error(
         `${address} is not the predecessor of a Money Account migration`,
+      );
+    }
+    if (!equalsIgnoreCase(migration.to, successorAddress)) {
+      throw new Error(
+        `${address} is migrating to ${migration.to}, not to ${successorAddress}`,
       );
     }
 

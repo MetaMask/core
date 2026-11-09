@@ -20,6 +20,7 @@ import {
   MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
   SUBSCRIPTION_DELEGATION_HASH,
   SUCCESSOR_ADDRESS,
+  buildLinkedIdentityResponse,
   getLifecycle,
   withController,
 } from '../tests/helpers.js';
@@ -299,6 +300,57 @@ describe('MoneyAccountLifecycleController', () => {
       });
     });
 
+    it('records the migrating lifecycle before throwing when upgrading the successor fails after linking it', async () => {
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [MIGRATING_IDENTITY] });
+        const error = new Error('eip-7702-authorization failed');
+        mocks.upgradeSuccessorAccount.mockRejectedValueOnce(error);
+
+        await expect(controller.startMigration()).rejects.toThrow(error);
+        expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
+        expect(getLifecycle(controller)).toStrictEqual({
+          type: 'migrating',
+          identity: MIGRATING_IDENTITY,
+        });
+      });
+    });
+
+    it('resumes the migration on a retry when upgrading the successor failed after linking it', async () => {
+      const linkedIdentity: DerivedIdentity = {
+        ...MIGRATING_IDENTITY,
+        migration: {
+          ...MIGRATING_IDENTITY.migration,
+          to: MFA_ACCOUNT_ADDRESS.toLowerCase() as Hex,
+        },
+      };
+      await withController(async ({ controller, mocks }) => {
+        mocks.getDerivedIdentities
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValueOnce({ identities: [SFA_IDENTITY] })
+          .mockResolvedValue({ identities: [linkedIdentity] });
+        mocks.upgradeSuccessorAccount.mockRejectedValueOnce(
+          new Error('eip-7702-authorization failed'),
+        );
+
+        await expect(controller.startMigration()).rejects.toThrow(
+          'eip-7702-authorization failed',
+        );
+        expect(await controller.startMigration()).toBeUndefined();
+
+        expect(mocks.upgradeSuccessorAccount).toHaveBeenCalledTimes(2);
+        expect(mocks.upgradeSuccessorAccount).toHaveBeenNthCalledWith(
+          2,
+          MFA_ACCOUNT_ADDRESS,
+          MONEY_ACCOUNT_ADDRESS,
+        );
+        expect(mocks.registerMigrationIntents).toHaveBeenCalledTimes(1);
+        expect(mocks.startFundsTransfer).toHaveBeenCalledTimes(1);
+      });
+    });
+
     it('registers the migration intents of the money account once the successor is linked', async () => {
       await withController(async ({ controller, mocks }) => {
         await controller.startMigration();
@@ -306,6 +358,7 @@ describe('MoneyAccountLifecycleController', () => {
         expect(mocks.registerMigrationIntents).toHaveBeenCalledTimes(1);
         expect(mocks.registerMigrationIntents).toHaveBeenCalledWith(
           MONEY_ACCOUNT_ADDRESS,
+          MFA_ACCOUNT_ADDRESS,
         );
         expect(
           mocks.registerMigrationIntents.mock.invocationCallOrder[0],
@@ -638,6 +691,148 @@ describe('MoneyAccountLifecycleController', () => {
         },
       );
 
+      describe('when CHOMP reports the subscription intent of the successor missing', () => {
+        const SUBSCRIPTION_INTENT_MISSING = buildLinkedIdentityResponse([
+          { step: 'SUCCESSOR_SUBSCRIPTION_INTENT', completed: false },
+          { step: 'ROOT_DELEGATION', completed: false },
+        ]);
+
+        it('moves a subscription the money account pays without asking CHOMP', async () => {
+          await withController(async ({ controller, mocks }) => {
+            mocks.getDerivedIdentityByAddress.mockResolvedValue(
+              SUBSCRIPTION_INTENT_MISSING,
+            );
+            mocks.getSubscriptions.mockResolvedValue([
+              MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+            ]);
+
+            await controller.startMigration();
+
+            expect(mocks.getDerivedIdentityByAddress).not.toHaveBeenCalled();
+            expect(mocks.updatePaymentMethod).toHaveBeenCalledTimes(1);
+          });
+        });
+
+        it('prepares the subscription delegation of the successor again, without updating the payment method, when the successor already pays', async () => {
+          await withController(async ({ controller, mocks }) => {
+            mocks.getDerivedIdentityByAddress.mockResolvedValue(
+              SUBSCRIPTION_INTENT_MISSING,
+            );
+            mocks.getSubscriptions.mockResolvedValue([
+              buildCryptoSubscription(MFA_ACCOUNT_ADDRESS),
+            ]);
+
+            await controller.startMigration();
+
+            expect(mocks.getDerivedIdentityByAddress).toHaveBeenCalledWith(
+              MONEY_ACCOUNT_ADDRESS,
+            );
+            expect(mocks.prepareDelegation).toHaveBeenCalledTimes(1);
+            expect(mocks.prepareDelegation).toHaveBeenCalledWith({
+              product: 'money_account_plus',
+              recurringInterval: 'month',
+              payerAddress: MFA_ACCOUNT_ADDRESS,
+              isTrialRequested: false,
+            });
+            expect(mocks.updatePaymentMethod).not.toHaveBeenCalled();
+            expect(
+              mocks.registerMigrationIntents.mock.invocationCallOrder[0],
+            ).toBeGreaterThan(
+              mocks.prepareDelegation.mock.invocationCallOrder[0],
+            );
+          });
+        });
+
+        it.each<{ description: string; subscriptions: Subscription[] }>([
+          { description: 'there is no subscription', subscriptions: [] },
+          {
+            description: 'the subscription is past due',
+            subscriptions: [
+              { ...MONEY_ACCOUNT_PLUS_SUBSCRIPTION, status: 'past_due' },
+            ],
+          },
+          {
+            description: 'the subscription is paid by card',
+            subscriptions: [
+              {
+                ...MONEY_ACCOUNT_PLUS_SUBSCRIPTION,
+                paymentMethod: {
+                  type: 'card',
+                  card: { brand: 'visa', last4: '4242' },
+                },
+              },
+            ],
+          },
+          {
+            description: 'another address pays for the subscription',
+            subscriptions: [
+              buildCryptoSubscription(
+                '0x00000000000000000000000000000000000000ee',
+              ),
+            ],
+          },
+        ])(
+          'throws before registering the migration intents when $description',
+          async ({ subscriptions }) => {
+            await withController(async ({ controller, mocks }) => {
+              mocks.getDerivedIdentityByAddress.mockResolvedValue(
+                SUBSCRIPTION_INTENT_MISSING,
+              );
+              mocks.getSubscriptions.mockResolvedValue(subscriptions);
+
+              await expect(controller.startMigration()).rejects.toThrow(
+                `The premium migration of Money Account ${MONEY_ACCOUNT_ADDRESS} needs an active Money Account Plus subscription paid in crypto by it or by ${MFA_ACCOUNT_ADDRESS}`,
+              );
+              expect(mocks.prepareDelegation).not.toHaveBeenCalled();
+              expect(mocks.registerMigrationIntents).not.toHaveBeenCalled();
+              expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(3);
+            });
+          },
+        );
+
+        it.each([
+          { description: 'no identity', response: null },
+          {
+            description: 'no migration',
+            response: {
+              ...SUBSCRIPTION_INTENT_MISSING,
+              identity: {
+                ...SUBSCRIPTION_INTENT_MISSING.identity,
+                migration: null,
+              },
+            },
+          },
+        ])(
+          'leaves registering the migration intents to fail when CHOMP reports $description for the money account',
+          async ({ response }) => {
+            await withController(async ({ controller, mocks }) => {
+              mocks.getDerivedIdentityByAddress.mockResolvedValue(response);
+
+              await controller.startMigration();
+
+              expect(mocks.prepareDelegation).not.toHaveBeenCalled();
+              expect(mocks.registerMigrationIntents).toHaveBeenCalledTimes(1);
+            });
+          },
+        );
+
+        it('registers the migration intents without moving a subscription once CHOMP reports the subscription intent complete', async () => {
+          await withController(async ({ controller, mocks }) => {
+            mocks.getDerivedIdentityByAddress.mockResolvedValue(
+              buildLinkedIdentityResponse([
+                { step: 'SUCCESSOR_SUBSCRIPTION_INTENT', completed: true },
+                { step: 'ROOT_DELEGATION', completed: false },
+              ]),
+            );
+
+            await controller.startMigration();
+
+            expect(mocks.prepareDelegation).not.toHaveBeenCalled();
+            expect(mocks.registerMigrationIntents).toHaveBeenCalledTimes(1);
+          });
+        });
+      });
+
       it('moves the active Money Account Plus subscription when there are several subscriptions', async () => {
         await withController(async ({ controller, mocks }) => {
           mocks.getSubscriptions.mockResolvedValue([
@@ -747,8 +942,42 @@ describe('MoneyAccountLifecycleController', () => {
             );
             expect(mocks.registerMigrationIntents).toHaveBeenCalledWith(
               MONEY_ACCOUNT_ADDRESS,
+              MFA_ACCOUNT_ADDRESS,
             );
             expect(mocks.getDerivedIdentities).toHaveBeenCalledTimes(2);
+          },
+        );
+      });
+
+      it('resumes a migration whose funds transfer has already started', async () => {
+        const transferringIdentity: DerivedIdentity = {
+          ...RESUMABLE_IDENTITY,
+          migration: {
+            ...MIGRATING_IDENTITY.migration,
+            to: MFA_ACCOUNT_ADDRESS.toLowerCase() as Hex,
+            steps: MIGRATING_IDENTITY.migration.steps.map(({ step }) => ({
+              step,
+              completed: true,
+            })),
+            transfer: { requestId: 'transfer-request-id', status: 'PENDING' },
+          },
+        };
+        await withController(
+          { mpcAccountAddress: MFA_ACCOUNT_ADDRESS },
+          async ({ controller, mocks }) => {
+            mocks.getDerivedIdentities.mockResolvedValue({
+              identities: [transferringIdentity],
+            });
+
+            expect(await controller.startMigration()).toBeUndefined();
+
+            expect(mocks.startFundsTransfer).toHaveBeenCalledWith(
+              MONEY_ACCOUNT_ADDRESS,
+            );
+            expect(getLifecycle(controller)).toStrictEqual({
+              type: 'migrating',
+              identity: transferringIdentity,
+            });
           },
         );
       });
@@ -772,6 +1001,7 @@ describe('MoneyAccountLifecycleController', () => {
             );
             expect(mocks.registerMigrationIntents).toHaveBeenCalledWith(
               MONEY_ACCOUNT_ADDRESS,
+              MFA_ACCOUNT_ADDRESS,
             );
           },
         );

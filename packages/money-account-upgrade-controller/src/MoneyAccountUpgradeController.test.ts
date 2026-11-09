@@ -2263,7 +2263,10 @@ describe('MoneyAccountUpgradeController', () => {
       controller.init();
 
       await expect(
-        controller.registerMigrationIntents(MOCK_PREDECESSOR_ADDRESS),
+        controller.registerMigrationIntents(
+          MOCK_PREDECESSOR_ADDRESS,
+          MOCK_ACCOUNT_ADDRESS,
+        ),
       ).rejects.toThrow('MoneyAccountUpgradeController is not bootstrapped');
     });
 
@@ -2272,7 +2275,10 @@ describe('MoneyAccountUpgradeController', () => {
       mocks.getDerivedIdentityByAddress.mockResolvedValue(migratingIdentity());
       await bootstrap();
 
-      await controller.registerMigrationIntents(MOCK_PREDECESSOR_ADDRESS);
+      await controller.registerMigrationIntents(
+        MOCK_PREDECESSOR_ADDRESS,
+        MOCK_ACCOUNT_ADDRESS,
+      );
 
       expect(mocks.getDerivedIdentityByAddress).toHaveBeenCalledWith(
         MOCK_PREDECESSOR_ADDRESS,
@@ -2297,12 +2303,39 @@ describe('MoneyAccountUpgradeController', () => {
       expect(mocks.createIntentsV2.mock.calls[0][0]).toHaveLength(3);
     });
 
+    it('signs nothing when CHOMP reports another successor than the expected one', async () => {
+      const OTHER_SUCCESSOR_ADDRESS =
+        '0x6666666666666666666666666666666666666666' as Hex;
+      const { controller, mocks, bootstrap } = setup();
+      mocks.getDerivedIdentityByAddress.mockResolvedValue(migratingIdentity());
+      await bootstrap();
+
+      const error = await controller
+        .registerMigrationIntents(
+          MOCK_PREDECESSOR_ADDRESS,
+          OTHER_SUCCESSOR_ADDRESS,
+        )
+        .catch((caught: unknown) => caught);
+
+      expect(error).toMatchObject({
+        step: 'register-migration-intents',
+        cause: new Error(
+          `${MOCK_PREDECESSOR_ADDRESS} is migrating to ${MOCK_ACCOUNT_ADDRESS}, not to ${OTHER_SUCCESSOR_ADDRESS}`,
+        ),
+      });
+      expect(mocks.signDelegation).not.toHaveBeenCalled();
+      expect(mocks.createIntentsV2).not.toHaveBeenCalled();
+    });
+
     it('does not record an upgrade', async () => {
       const { controller, mocks, bootstrap } = setup();
       mocks.getDerivedIdentityByAddress.mockResolvedValue(migratingIdentity());
       await bootstrap();
 
-      await controller.registerMigrationIntents(MOCK_PREDECESSOR_ADDRESS);
+      await controller.registerMigrationIntents(
+        MOCK_PREDECESSOR_ADDRESS,
+        MOCK_ACCOUNT_ADDRESS,
+      );
 
       expect(controller.state.upgradedAccounts).toStrictEqual({});
     });
@@ -2315,7 +2348,10 @@ describe('MoneyAccountUpgradeController', () => {
       mocks.getDerivedIdentityByAddress.mockResolvedValue(premiumIdentity());
       await bootstrap();
 
-      await controller.registerMigrationIntents(MOCK_PREDECESSOR_ADDRESS);
+      await controller.registerMigrationIntents(
+        MOCK_PREDECESSOR_ADDRESS,
+        MOCK_ACCOUNT_ADDRESS,
+      );
 
       expect(mocks.signDelegation).toHaveBeenCalledWith({
         delegation: expect.objectContaining({
@@ -2344,11 +2380,17 @@ describe('MoneyAccountUpgradeController', () => {
       mocks.getDerivedIdentityByAddress.mockResolvedValue(premiumIdentity());
       await bootstrap();
       await expect(
-        controller.registerMigrationIntents(MOCK_PREDECESSOR_ADDRESS),
+        controller.registerMigrationIntents(
+          MOCK_PREDECESSOR_ADDRESS,
+          MOCK_ACCOUNT_ADDRESS,
+        ),
       ).rejects.toThrow('register-migration-intents');
 
       mocks.getServiceDetails.mockResolvedValue(withVaultMigrationHelper);
-      await controller.registerMigrationIntents(MOCK_PREDECESSOR_ADDRESS);
+      await controller.registerMigrationIntents(
+        MOCK_PREDECESSOR_ADDRESS,
+        MOCK_ACCOUNT_ADDRESS,
+      );
 
       expect(mocks.createIntentsV2).toHaveBeenCalledTimes(1);
     });
@@ -2372,7 +2414,10 @@ describe('MoneyAccountUpgradeController', () => {
           },
         },
       });
-      await controller.registerMigrationIntents(MOCK_PREDECESSOR_ADDRESS);
+      await controller.registerMigrationIntents(
+        MOCK_PREDECESSOR_ADDRESS,
+        MOCK_ACCOUNT_ADDRESS,
+      );
 
       expect(mocks.signDelegation).toHaveBeenCalledWith({
         delegation: expect.objectContaining({
@@ -2396,7 +2441,10 @@ describe('MoneyAccountUpgradeController', () => {
       await bootstrap();
 
       const error = await controller
-        .registerMigrationIntents(MOCK_PREDECESSOR_ADDRESS)
+        .registerMigrationIntents(
+          MOCK_PREDECESSOR_ADDRESS,
+          MOCK_ACCOUNT_ADDRESS,
+        )
         .catch((caught: unknown) => caught);
 
       expect(isMoneyAccountUpgradeStepError(error)).toBe(true);
@@ -2416,6 +2464,7 @@ describe('MoneyAccountUpgradeController', () => {
       await rootMessenger.call(
         'MoneyAccountUpgradeController:registerMigrationIntents',
         MOCK_PREDECESSOR_ADDRESS,
+        MOCK_ACCOUNT_ADDRESS,
       );
 
       expect(mocks.createIntentsV2).toHaveBeenCalledTimes(1);

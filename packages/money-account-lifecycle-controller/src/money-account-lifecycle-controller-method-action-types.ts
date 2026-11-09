@@ -111,7 +111,11 @@ export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
  * because CHOMP only accepts the intents of a premium migration once the
  * successor holds the premium eligibility. The MFA address signs a new
  * subscription delegation, which also registers its subscription intent,
- * and becomes the payer of the subscription.
+ * and becomes the payer of the subscription. If CHOMP still reports the
+ * subscription intent of the MFA address missing once the MFA address pays,
+ * its subscription delegation is prepared again to register the intent,
+ * and if no active Money Account Plus subscription is paid by either
+ * address, the migration cannot complete, so this throws.
  *
  * Finally, asks CHOMP to start moving the funds of the Money Account to the
  * MFA address. From then on, the migration can no longer be cancelled.

@@ -106,10 +106,12 @@ export type MoneyAccountUpgradeControllerUpgradeSuccessorAccountAction = {
  *
  * @param predecessorAddress - The current address of the migrating Money
  * Account.
+ * @param successorAddress - The address the Money Account is expected to
+ * migrate to. Nothing is signed unless CHOMP reports this successor.
  * @throws If the controller is not bootstrapped, if the armed config is
  * disarmed or superseded first, or if the step fails (wrapped in a
  * {@link MoneyAccountUpgradeStepError}): `predecessorAddress` is not the
- * predecessor of a migration, a premium migration is missing the premium
+ * predecessor of a migration to `successorAddress`, a premium migration is missing the premium
  * vault or the vault migration helper, or signing or a CHOMP call fails.
  */
 export type MoneyAccountUpgradeControllerRegisterMigrationIntentsAction = {
