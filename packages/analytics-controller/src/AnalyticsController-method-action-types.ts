@@ -21,9 +21,10 @@ export type AnalyticsControllerTrackEventAction = {
 /**
  * Report a caught error as an `Error Occurred` analytics event.
  *
- * Properties are `source` and a sanitized `error_message`. Whitespace is
- * collapsed and the message is capped at 500 characters. Stack traces are
- * never included.
+ * Properties always include `source` and a sanitized `error_message`.
+ * Whitespace is collapsed and the message is capped at 500 characters.
+ * Stack traces are never included. Optional `properties` are merged in
+ * as well.
  *
  * `source` must uniquely identify the error case (for example
  * `swap-quote-fetch`). Do not reuse one value for every error in a file
@@ -46,6 +47,7 @@ export type AnalyticsControllerTrackEventAction = {
  * @param options - Source and optional volume controls.
  * @param options.source - Unique discriminator for this error case.
  * @param options.volumeControls - Optional sampling, dedup, and session cap.
+ * @param properties - Optional extra properties.
  */
 export type AnalyticsControllerTrackErrorAsAnalyticsAction = {
   type: `AnalyticsController:trackErrorAsAnalytics`;
