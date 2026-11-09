@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `fetchQuoteTokens` to `SocialService` (`SocialService:fetchQuoteTokens`). Calls `GET /v1/tokens/quote-tokens` and returns native, wrapped native, and stablecoin assets as CAIP-19 ids ([#11384](https://github.com/MetaMask/core/pull/11384)).
 - Add optional `feedItemId` (`string`) to the `FeedItem` type and `FeedItemStruct` ([#11380](https://github.com/MetaMask/core/pull/11380))
   - social-api now returns one item per position trade plus one per author comment on the all and trending feeds, so a position can appear on several rows. `feedItemId` identifies the row and matches the `feedItemId` of its `social.v1.feed.all` revisions.
   - On those feeds a comment item carries its own `authorComment`, and a trade item carries `null`.
