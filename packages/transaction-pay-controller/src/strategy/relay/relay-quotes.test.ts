@@ -4181,20 +4181,56 @@ describe('Relay Quotes Utils', () => {
         expect(successfulFetchMock).toHaveBeenCalledTimes(1);
       });
 
-      it('does not attempt promotion when the request forbids atomic execution', async () => {
+      it('does not attempt promotion when the signing keyring requires MFA', async () => {
         mockRelayResponses();
+        // `txParams.from` signs the delegation an atomic quote needs, so the
+        // MFA check reads that rather than the request's payer account.
+        getKeyringControllerStateMock.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'MPC Money Keyring',
+              accounts: [MONEY_ACCOUNT_MAX_TRANSACTION.txParams.from],
+              metadata: { id: 'mpc-money-keyring', name: 'MPC Money Keyring' },
+            },
+          ],
+        });
 
         const result = await getRelayQuotes({
           accountSupports7702: true,
           from: FROM_MOCK,
           messenger,
-          requests: [{ ...MONEY_ACCOUNT_MAX_REQUEST, atomicForbidden: true }],
+          requests: [MONEY_ACCOUNT_MAX_REQUEST],
           transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
         });
 
         expect(result[0].request.atomic).toBe(false);
         expect(getAmountDataMock).not.toHaveBeenCalled();
         expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('promotes when a non-MFA keyring holds the signing account', async () => {
+        mockRelayResponses();
+        getKeyringControllerStateMock.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'Money Keyring',
+              accounts: [MONEY_ACCOUNT_MAX_TRANSACTION.txParams.from],
+              metadata: { id: 'money-keyring', name: 'Money Keyring' },
+            },
+          ],
+        });
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          from: FROM_MOCK,
+          messenger,
+          requests: [MONEY_ACCOUNT_MAX_REQUEST],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+        });
+
+        expect(result[0].request.atomic).toBe(true);
       });
 
       it('does not attempt promotion when the discovery quote is not subsidized', async () => {

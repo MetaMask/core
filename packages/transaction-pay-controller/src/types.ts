@@ -104,27 +104,8 @@ export type TransactionConfig = {
    * For max deposits enabled by `payStrategies.relay.atomicMaxEnabled`, this
    * is a subsidy hint: atomic quotes are retried non-atomically if not
    * subsidized, and subsidized non-atomic quotes are upgraded to atomic.
-   * Set {@link TransactionConfig.atomicForbidden} when the flow cannot
-   * tolerate that promotion.
    */
   atomic?: boolean;
-
-  /**
-   * Whether the target transaction may never be executed atomically with the
-   * Relay quote, regardless of subsidy.
-   *
-   * Unlike {@link TransactionConfig.atomic}, which is a hint the Relay
-   * strategy may override to secure a subsidized atomic max quote, this is a
-   * hard constraint. Set it when embedding the calls in the quote is not just
-   * suboptimal but incorrect for the flow — for example when the target
-   * account's keyring requires multi-factor authentication, so the per-quote
-   * delegation signature an atomic quote needs would prompt the user on every
-   * quote refresh.
-   *
-   * Implies non-atomic execution: callers setting this should also set
-   * `atomic: false`.
-   */
-  atomicForbidden?: boolean;
 
   /**
    * Whether the source of funds is HyperLiquid (HyperCore).
@@ -281,6 +262,19 @@ export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
   'Money Keyring',
 ];
 
+/**
+ * Keyring types whose signing requires multi-factor authentication.
+ *
+ * The MPC keyring splits its key across factors, so every signature it
+ * produces costs the user an MFA confirmation. Quote flows that would
+ * otherwise sign once per quote must avoid doing so for these accounts.
+ *
+ * The SRP-derived `Money Keyring` signs locally and is deliberately absent.
+ */
+export const KEYRING_TYPES_REQUIRING_MFA: `${KeyringTypes}`[] = [
+  'MPC Money Keyring',
+];
+
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
   /**
@@ -353,12 +347,6 @@ export type TransactionData = {
    * quote. See {@link TransactionConfig.atomic}.
    */
   atomic?: boolean;
-
-  /**
-   * Whether the target transaction may never be executed atomically.
-   * See {@link TransactionConfig.atomicForbidden}.
-   */
-  atomicForbidden?: boolean;
 
   /** Fiat payment method state. */
   fiatPayment?: TransactionFiatPayment;
@@ -599,12 +587,6 @@ export type QuoteRequest = {
    * quote. See {@link TransactionConfig.atomic}.
    */
   atomic?: boolean;
-
-  /**
-   * Whether the target transaction may never be executed atomically.
-   * See {@link TransactionConfig.atomicForbidden}.
-   */
-  atomicForbidden?: boolean;
 
   /** Address of the user's account. */
   from: Hex;

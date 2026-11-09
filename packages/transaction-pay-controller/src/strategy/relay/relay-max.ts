@@ -16,6 +16,7 @@ import {
   shouldUseGasStation,
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
+import { accountRequiresMfa } from '../../utils/keyring.js';
 import { getTokenInfo } from '../../utils/token.js';
 import { QuoteError } from '../../utils/validation.js';
 import { ATOMIC_PROMOTION_FAILURE_PREFIX } from './constants.js';
@@ -52,8 +53,10 @@ type MaxAmountQuoteContext = {
 /**
  * Fetch a max quote using the client's atomic hint for subsidized routes.
  *
- * Requests marked `atomicForbidden` skip both promotion paths and always
- * resolve to a non-atomic max quote.
+ * An atomic quote embeds the target calls, which requires a fresh delegation
+ * signature per quote. When the signing account's keyring requires MFA that
+ * costs the user a confirmation on every quote refresh, so those accounts
+ * always resolve to a non-atomic max quote.
  *
  * @param request - Max quote request.
  * @param fullRequest - Full quote context.
@@ -66,15 +69,18 @@ export async function getRelayMaxQuote(
   getSingleQuote: GetSingleQuoteFn,
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger, transaction } = fullRequest;
-  const { atomic, atomicForbidden, isPostQuote } = request;
+  const { atomic, isPostQuote } = request;
 
-  // `atomicForbidden` is a hard constraint rather than the subsidy hint
-  // `atomic` expresses, so neither promotion path below may run: a subsidized
-  // atomic max quote embeds the target calls, which is incorrect for flows
-  // that cannot sign a delegation per quote.
+  // The delegation signed for an atomic quote is signed by the account the
+  // target calls execute from, which is the transaction's own `from`. That is
+  // not necessarily `request.from`: deposits funded by MetaMask Pay set
+  // `accountOverride` to the funding EOA, so `request.from` is the payer while
+  // `txParams.from` is the account whose keyring actually signs.
+  const requiresMfa = accountRequiresMfa(messenger, transaction.txParams?.from);
+
   if (
     isPostQuote ||
-    atomicForbidden ||
+    requiresMfa ||
     !isAtomicMaxEnabled(messenger, transaction)
   ) {
     return getRelayMaxGasStationQuote(request, fullRequest, getSingleQuote);

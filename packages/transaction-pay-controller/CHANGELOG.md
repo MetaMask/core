@@ -7,14 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Always resolve a non-atomic max quote when the transaction's `from` keyring requires MFA
+  - An atomic max quote embeds the target calls, which needs a fresh delegation signature per quote. On an MFA keyring every refresh of an open amount screen would cost the user a confirmation.
+  - The keyring is read from `transaction.txParams.from`, the account that signs the delegation, rather than the quote request's payer account.
+
 ## [31.1.0]
 
 ### Added
 
 - Add quote simulation to `ServerStrategy`, gated by the `confirmations_pay_extended.payStrategies.server.validationEnabled` feature flag ([#11198](https://github.com/MetaMask/core/pull/11198))
-- Add `atomicForbidden` to `TransactionConfig`, forcing non-atomic execution regardless of subsidy
-  - Unlike `atomic`, which the Relay strategy may override to secure a subsidized atomic max quote, this is a hard constraint that skips both atomic max promotion paths.
-  - Intended for flows where embedding the target calls is incorrect rather than merely suboptimal, such as a target account whose keyring requires multi-factor authentication, where the per-quote delegation signature an atomic quote needs would prompt the user on every quote refresh.
 
 ### Changed
 
