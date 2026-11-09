@@ -811,13 +811,24 @@ export class AssetsController extends BaseController<
   #startInFlight = false;
 
   /**
-   * Currently enabled chains from NetworkEnablementController.
+   * Get the currently enabled chains from NetworkEnablementController.
    *
-   * Empty until `NetworkEnablementController:stateChange` is published or the
-   * controller is bootstrapped, because the constructor must not read other
-   * controllers' state.
+   * Read each time they are needed rather than cached, so there is a single
+   * source of truth. Empty if NetworkEnablementController is not registered.
+   *
+   * @returns Set of CAIP-2 chain IDs for all enabled networks.
    */
-  #enabledChains: Set<ChainId> = new Set();
+  #getEnabledChains(): Set<ChainId> {
+    const enabledNetworkMap = this.#callIfRegistered(
+      () =>
+        this.messenger.call('NetworkEnablementController:getState')
+          .enabledNetworkMap,
+      undefined,
+    );
+    return enabledNetworkMap
+      ? this.#extractEnabledChains(enabledNetworkMap)
+      : new Set();
+  }
 
   /**
    * Whether `#bootstrap()` has finished. Until then, event handlers only
@@ -1192,7 +1203,6 @@ export class AssetsController extends BaseController<
   async #runBootstrap(): Promise<void> {
     log('Bootstrapping AssetsController');
 
-    this.#readEnabledChains();
     this.#fetchNativeAssetsMap();
 
     // Data sources report their active chains through `#onActiveChainsUpdated`
@@ -1214,6 +1224,25 @@ export class AssetsController extends BaseController<
     // startup fetch. Nothing is lost: `#updateActive()` below reads the
     // current value through `isBasicFunctionality`.
     this.#subscribeToBasicFunctionality();
+
+    // Subscribed here rather than in the constructor: by now the wallet has
+    // constructed NetworkEnablementController, so the selector starts from its
+    // current state and each change is diffed against the previous one.
+    this.messenger.subscribe(
+      'NetworkEnablementController:stateChange',
+      (
+        enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'],
+        previousEnabledNetworkMap:
+          | NetworkEnablementControllerState['enabledNetworkMap']
+          | undefined,
+      ) => {
+        this.#handleEnabledNetworksChanged(
+          enabledNetworkMap,
+          previousEnabledNetworkMap,
+        ).catch(console.error);
+      },
+      ({ enabledNetworkMap }) => enabledNetworkMap,
+    );
 
     this.#isBootstrapped = true;
 
@@ -1249,29 +1278,6 @@ export class AssetsController extends BaseController<
         error instanceof Error ? error : new Error(String(error)),
       );
     }
-  }
-
-  /**
-   * Read enabled chains from NetworkEnablementController.
-   *
-   * `NetworkEnablementController:stateChange` keeps `#enabledChains` current,
-   * but it is only published when the state changes. If the controller
-   * restored persisted state and nothing has changed since, this read is the
-   * only way to learn which chains are enabled. If the controller is not
-   * registered, the chains received from events are kept.
-   */
-  #readEnabledChains(): void {
-    const enabledNetworkMap = this.#callIfRegistered(
-      () =>
-        this.messenger.call('NetworkEnablementController:getState')
-          .enabledNetworkMap,
-      undefined,
-    );
-    if (enabledNetworkMap) {
-      this.#enabledChains = this.#extractEnabledChains(enabledNetworkMap);
-    }
-
-    log('Read enabled chains', { enabledChains: this.#enabledChains });
   }
 
   /**
@@ -1358,20 +1364,8 @@ export class AssetsController extends BaseController<
       this.#updateActive();
     });
 
-    // Subscribe to network enablement changes (only enabledNetworkMap)
-    this.messenger.subscribe(
-      'NetworkEnablementController:stateChange',
-      ({ enabledNetworkMap }) => {
-        if (!this.#isBootstrapped) {
-          // Only record the chains; `#bootstrap()` starts fetching.
-          this.#enabledChains = this.#extractEnabledChains(enabledNetworkMap);
-          return;
-        }
-        this.#handleEnabledNetworksChanged(enabledNetworkMap).catch(
-          console.error,
-        );
-      },
-    );
+    // `NetworkEnablementController:stateChange` is subscribed to in
+    // `#bootstrap()`; enabled chains are read on demand until then.
 
     // When a network is added or removed from NetworkController, refresh
     // assets across every data source so balances, prices, and metadata
@@ -1669,7 +1663,7 @@ export class AssetsController extends BaseController<
     const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
       await this.getAssets(accounts, {
-        chainIds: [...this.#enabledChains],
+        chainIds: [...this.#getEnabledChains()],
         forceUpdate: true,
       });
       // Seed before subscribe so the price poll / update fetch sees natives
@@ -1814,7 +1808,7 @@ export class AssetsController extends BaseController<
       dataTypes?: DataType[];
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
-    const chainIds = options?.chainIds ?? [...this.#enabledChains];
+    const chainIds = options?.chainIds ?? [...this.#getEnabledChains()];
     const assetTypes = options?.assetTypes ?? ['fungible'];
     const dataTypes = options?.dataTypes ?? ['balance', 'metadata', 'price'];
 
@@ -3008,7 +3002,7 @@ export class AssetsController extends BaseController<
    * @returns Array of native asset IDs, one per enabled chain that has a registered identifier.
    */
   #getNativeAssetIdsForEnabledChains(): Caip19AssetId[] {
-    return this.#resolveNativeAssetIds(this.#enabledChains);
+    return this.#resolveNativeAssetIds(this.#getEnabledChains());
   }
 
   /**
@@ -3128,7 +3122,7 @@ export class AssetsController extends BaseController<
     // why mUSD appears on mainnet/Linea immediately (those are normally
     // enabled at startup) but only appears on Monad once the user
     // turns the Monad network on.
-    const candidateChains = chainsToSeed ?? [...this.#enabledChains];
+    const candidateChains = chainsToSeed ?? [...this.#getEnabledChains()];
     const targetChains = candidateChains.filter((chainId) =>
       CHAINS_WITH_DEFAULT_TRACKED_ASSETS.has(chainId),
     );
@@ -3660,7 +3654,7 @@ export class AssetsController extends BaseController<
    */
   #start(): void {
     const accounts = this.#getSelectedAccounts();
-    const chainIds = [...this.#enabledChains];
+    const chainIds = [...this.#getEnabledChains()];
 
     if (accounts.length === 0 || chainIds.length === 0) {
       return;
@@ -3749,7 +3743,7 @@ export class AssetsController extends BaseController<
    */
   #subscribeAssets(options?: { skipInitialFetch?: boolean }): void {
     const accounts = this.#getSelectedAccounts();
-    const enabledChains = [...this.#enabledChains];
+    const enabledChains = [...this.#getEnabledChains()];
     if (accounts.length === 0 || enabledChains.length === 0) {
       return;
     }
@@ -4132,7 +4126,7 @@ export class AssetsController extends BaseController<
       // Wildcard scope (e.g., "eip155:0" means all enabled chains in that namespace)
       if (reference === '0') {
         // Add enabled chains
-        for (const chain of this.#enabledChains) {
+        for (const chain of this.#getEnabledChains()) {
           if (isCaipChainId(chain)) {
             const chainParsed = parseCaipChainId(chain);
             if (chainParsed.namespace === namespace) {
@@ -4198,7 +4192,7 @@ export class AssetsController extends BaseController<
       this.#ensureDefaultTrackedAssetsSeeded();
       if (accounts.length > 0) {
         await this.getAssets(accounts, {
-          chainIds: [...this.#enabledChains],
+          chainIds: [...this.#getEnabledChains()],
           forceUpdate: true,
         });
       }
@@ -4211,13 +4205,21 @@ export class AssetsController extends BaseController<
 
   async #handleEnabledNetworksChanged(
     enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'],
+    previousEnabledNetworkMap:
+      | NetworkEnablementControllerState['enabledNetworkMap']
+      | undefined,
   ): Promise<void> {
-    const previousChains = this.#enabledChains;
-    this.#enabledChains = this.#extractEnabledChains(enabledNetworkMap);
+    // Without a previous map (no initial state was available when
+    // subscribing), treat every enabled chain as newly enabled: at worst one
+    // extra fetch, never a missed one.
+    const previousChains = previousEnabledNetworkMap
+      ? this.#extractEnabledChains(previousEnabledNetworkMap)
+      : new Set<ChainId>();
+    const enabledChains = this.#extractEnabledChains(enabledNetworkMap);
 
     // Find newly enabled chains (in new set but not in previous)
     const addedChains: ChainId[] = [];
-    for (const chain of this.#enabledChains) {
+    for (const chain of enabledChains) {
       if (!previousChains.has(chain)) {
         addedChains.push(chain);
       }
@@ -4226,14 +4228,14 @@ export class AssetsController extends BaseController<
     // Find disabled chains to clean up (in previous but not in new)
     const removedChains: ChainId[] = [];
     for (const chain of previousChains) {
-      if (!this.#enabledChains.has(chain)) {
+      if (!enabledChains.has(chain)) {
         removedChains.push(chain);
       }
     }
 
     log('Enabled networks changed', {
       previousCount: previousChains.size,
-      newCount: this.#enabledChains.size,
+      newCount: enabledChains.size,
       addedChains,
       removedChains,
     });

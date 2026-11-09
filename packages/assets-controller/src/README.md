@@ -55,7 +55,8 @@ super({
 #### 1.2 Initialize Internal State
 
 ```typescript
-enabledChains = new Set()  // Filled by NetworkEnablementController:stateChange or at bootstrap
+// Enabled chains are not cached: they are read from
+// NetworkEnablementController:getState each time they are needed.
 createDataSources()        // Constructed only; their bootstrap() runs later
 
 // Note: selectedAccounts is a getter that calls AccountTreeController
@@ -71,7 +72,7 @@ get selectedAccounts(): InternalAccount[]
 | `AccountTreeController:selectedAccountGroupChange` | `handleAccountGroupChanged()`        | Refresh when the user switches groups                |
 | `AccountTreeController:initialized`                | `updateActive()`                     | Start tracking once the tree is built                |
 | `AccountTreeController:uninitialized`              | `updateActive()`                     | Stop tracking when the tree is cleared               |
-| `NetworkEnablementController:stateChange`          | `handleEnabledNetworksChanged()`     | Track enabled chains (before bootstrap: record only) |
+| `NetworkEnablementController:stateChange`          | `handleEnabledNetworksChanged()`     | Fetch newly enabled chains (subscribed at bootstrap) |
 | `KeyringController:unlock`                         | `start()`                            | Start subscriptions                                  |
 | `KeyringController:lock`                           | `stop()`                             | Stop subscriptions                                   |
 
@@ -126,7 +127,6 @@ The first `ClientController:stateChange` with `isUiOpen: true` runs `bootstrap()
 
 ```typescript
 bootstrap()
-├── enabledChains = extractEnabledChains(NetworkEnablementController.getState())
 ├── fetch native asset map
 ├── await each balance data source's bootstrap()
 │   ├── AccountsApiDataSource: fetch supported networks, start 20-minute refresh
@@ -134,6 +134,7 @@ bootstrap()
 │   ├── RpcDataSource: read NetworkController state
 │   └── StakedBalanceDataSource: read enabled networks
 ├── subscribeToBasicFunctionalityChange(...)
+├── subscribe to NetworkEnablementController:stateChange (diffs previous vs new map)
 ├── if keyring unlocked: run unlock cleanups (out-of-scope balances, spam)
 └── updateActive()  // starts tracking if unlocked and the account tree is ready
 ```

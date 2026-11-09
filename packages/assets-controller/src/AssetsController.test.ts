@@ -11,6 +11,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
+import type { NetworkEnablementControllerState } from '@metamask/network-enablement-controller';
 import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance, MockedFunction } from 'vitest';
 
@@ -291,6 +292,12 @@ type WithControllerOptions = {
    * bootstraps the controller) and then restores `clientControllerState`.
    */
   skipBootstrap?: boolean;
+  /**
+   * When false, the initial `NetworkEnablementController:stateChange` payload
+   * is not registered, so the first change has no previous state. Defaults to
+   * true, as with a real `NetworkEnablementController`.
+   */
+  registerInitialNetworkEnablementPayload?: boolean;
   /** Extra options passed to AssetsController constructor (e.g. trace). */
   controllerOptions?: Partial<{
     trace: TraceCallback;
@@ -313,6 +320,10 @@ type WithControllerCallback<ReturnValue> = ({
   /** Publish `ClientController:stateChange` with the given UI state and flush. */
   setUiOpen: (open: boolean) => Promise<void>;
   subscribeToBasicFunctionalityChange: Mock;
+  /** Change `NetworkEnablementController` state without publishing `stateChange`. */
+  setNetworkEnablementState: (
+    state: Pick<NetworkEnablementControllerState, 'enabledNetworkMap'>,
+  ) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 async function withController<ReturnValue>(
@@ -335,6 +346,7 @@ async function withController<ReturnValue>(
       remoteFeatureFlags = {},
       queryApiClient = createMockQueryApiClient(),
       skipBootstrap = false,
+      registerInitialNetworkEnablementPayload = true,
       controllerOptions = {},
     },
     fn,
@@ -378,20 +390,47 @@ async function withController<ReturnValue>(
     getSelectedAccountsMock,
   );
 
-  // Mock NetworkEnablementController
+  // Mock NetworkEnablementController. Like the real controller, `getState`
+  // returns the latest published state, and the initial `stateChange` payload
+  // is registered so selector subscriptions start from the current state.
+  let networkEnablementState: NetworkEnablementControllerState = {
+    enabledNetworkMap: {
+      eip155: {
+        '1': true,
+      },
+    },
+    nativeAssetIdentifiers: {
+      'eip155:1': 'eip155:1/slip44:60',
+    },
+  } as unknown as NetworkEnablementControllerState;
   messenger.registerActionHandler(
     'NetworkEnablementController:getState',
-    () => ({
-      enabledNetworkMap: {
-        eip155: {
-          '1': true,
-        },
-      },
-      nativeAssetIdentifiers: {
-        'eip155:1': 'eip155:1/slip44:60',
-      },
-    }),
+    () => networkEnablementState,
   );
+  if (registerInitialNetworkEnablementPayload) {
+    (
+      messenger as unknown as {
+        registerInitialEventPayload: (args: {
+          eventType: string;
+          getPayload: () => unknown[];
+        }) => void;
+      }
+    ).registerInitialEventPayload({
+      eventType: 'NetworkEnablementController:stateChange',
+      getPayload: () => [networkEnablementState, []],
+    });
+  }
+  messenger.subscribe('NetworkEnablementController:stateChange', (newState) => {
+    networkEnablementState = newState;
+  });
+  const setNetworkEnablementState = (
+    newState: Pick<NetworkEnablementControllerState, 'enabledNetworkMap'>,
+  ): void => {
+    networkEnablementState = {
+      ...networkEnablementState,
+      ...newState,
+    };
+  };
 
   (
     messenger as {
@@ -480,6 +519,7 @@ async function withController<ReturnValue>(
       getSelectedAccountsMock,
       setUiOpen,
       subscribeToBasicFunctionalityChange,
+      setNetworkEnablementState,
     });
   } finally {
     await flushPromises();
@@ -669,6 +709,150 @@ describe('AssetsController', () => {
           expect(getSelectedAccountsMock).toHaveBeenCalled();
         },
       );
+    });
+
+    it('reads enabled chains from NetworkEnablementController each time it needs them', async () => {
+      const polygonNative = 'eip155:137/slip44:966' as Caip19AssetId;
+      await withController(
+        {
+          state: {
+            assetsInfo: {
+              [MOCK_NATIVE_ASSET_ID]: {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ether',
+                decimals: 18,
+              },
+              [polygonNative]: {
+                type: 'native',
+                symbol: 'POL',
+                name: 'Polygon',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_NATIVE_ASSET_ID]: { amount: '1' },
+                [polygonNative]: { amount: '2' },
+              },
+            },
+          },
+        },
+        async ({ controller, setNetworkEnablementState }) => {
+          const account = createMockInternalAccount();
+          const before = await controller.getAssets([account]);
+          expect(Object.keys(before[MOCK_ACCOUNT_ID])).toStrictEqual([
+            MOCK_NATIVE_ASSET_ID,
+          ]);
+
+          // No `stateChange` is published, so only a fresh read sees Polygon.
+          setNetworkEnablementState({
+            enabledNetworkMap: { eip155: { '0x1': true, '0x89': true } },
+          });
+
+          const after = await controller.getAssets([account]);
+          expect(Object.keys(after[MOCK_ACCOUNT_ID]).sort()).toStrictEqual(
+            [MOCK_NATIVE_ASSET_ID, polygonNative].sort(),
+          );
+        },
+      );
+    });
+
+    it('returns persisted balances for enabled chains before bootstrap', async () => {
+      await withController(
+        {
+          skipBootstrap: true,
+          state: {
+            assetsInfo: {
+              [MOCK_NATIVE_ASSET_ID]: {
+                type: 'native',
+                symbol: 'ETH',
+                name: 'Ether',
+                decimals: 18,
+              },
+            },
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: { [MOCK_NATIVE_ASSET_ID]: { amount: '1' } },
+            },
+          },
+        },
+        async ({ controller }) => {
+          const assets = await controller.getAssets([
+            createMockInternalAccount(),
+          ]);
+
+          expect(Object.keys(assets[MOCK_ACCOUNT_ID])).toStrictEqual([
+            MOCK_NATIVE_ASSET_ID,
+          ]);
+        },
+      );
+    });
+
+    it('fetches only the newly enabled chains when enabled networks change after bootstrap', async () => {
+      await withController(async ({ controller, messenger }) => {
+        await activateTracking(messenger);
+        const getAssetsSpy = vi.spyOn(controller, 'getAssets');
+
+        (messenger as unknown as { publish: LifecyclePublish }).publish(
+          'NetworkEnablementController:stateChange',
+          {
+            enabledNetworkMap: { eip155: { '1': true, '0x89': true } },
+            nativeAssetIdentifiers: {},
+          },
+          [],
+        );
+        await flushPromises();
+
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+          { chainIds: ['eip155:137'], forceUpdate: true },
+        );
+      });
+    });
+
+    it('fetches every enabled chain when there is no previous network state to compare with', async () => {
+      await withController(
+        { registerInitialNetworkEnablementPayload: false },
+        async ({ controller, messenger }) => {
+          await activateTracking(messenger);
+          const getAssetsSpy = vi.spyOn(controller, 'getAssets');
+
+          (messenger as unknown as { publish: LifecyclePublish }).publish(
+            'NetworkEnablementController:stateChange',
+            {
+              enabledNetworkMap: { eip155: { '1': true, '0x89': true } },
+              nativeAssetIdentifiers: {},
+            },
+            [],
+          );
+          await flushPromises();
+
+          expect(getAssetsSpy).toHaveBeenCalledWith(
+            [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+            { chainIds: ['eip155:1', 'eip155:137'], forceUpdate: true },
+          );
+        },
+      );
+    });
+
+    it('has no enabled chains when NetworkEnablementController is not registered', async () => {
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+      const controller = new AssetsController({
+        messenger: messenger as unknown as AssetsControllerMessenger,
+        queryApiClient: createMockQueryApiClient(),
+        state: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: { [MOCK_NATIVE_ASSET_ID]: { amount: '1' } },
+          },
+        },
+      });
+
+      const assets = await controller.getAssets([createMockInternalAccount()]);
+      expect(Object.keys(assets[MOCK_ACCOUNT_ID])).toStrictEqual([]);
+
+      controller.destroy();
     });
 
     it('does not fetch when enabled networks change before bootstrap', async () => {
