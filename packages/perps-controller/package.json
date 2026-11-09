@@ -1,6 +1,6 @@
 {
   "name": "@metamask/perps-controller",
-  "version": "22.1.2",
+  "version": "22.3.0",
   "description": "Controller for perpetual trading functionality in MetaMask",
   "keywords": [
     "Ethereum",
@@ -76,7 +76,7 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/abi-utils": "^2.0.4",
+    "@metamask/abi-utils": "^3.0.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/messenger": "^3.0.0",

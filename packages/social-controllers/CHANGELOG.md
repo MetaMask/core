@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `feedItemId` (`string`) to the `FeedItem` type and `FeedItemStruct` ([#11380](https://github.com/MetaMask/core/pull/11380))
+  - social-api now returns one item per position trade plus one per author comment on the all and trending feeds, so a position can appear on several rows. `feedItemId` identifies the row and matches the `feedItemId` of its `social.v1.feed.all` revisions.
+  - On those feeds a comment item carries its own `authorComment`, and a trade item carries `null`.
+  - Responses that omit the field still validate.
+
 ## [3.18.0]
 
 ### Added

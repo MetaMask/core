@@ -438,8 +438,10 @@ export type FeedItem = Position & {
   /** Unix timestamp (seconds) when the feed item was created. */
   timestamp: number;
   /**
-   * Latest author Call in the current intent phase. Absent on older social-api
-   * builds; `null` when that phase has no comment.
+   * Latest author Call in the current intent phase. On the all and trending
+   * feeds, a comment item carries its own comment instead and a trade item
+   * carries `null`. Absent on older social-api builds; `null` when that phase
+   * has no comment.
    */
   authorComment?: AuthorComment | null;
   /** Author comments on this position. Absent on older social-api builds. */
@@ -466,6 +468,14 @@ export type FeedItem = Position & {
    * `null` when the position is flat. Absent on older social-api builds.
    */
   entryPriceUsd?: number | null;
+  /**
+   * Id of this feed item, the `feedItemId` its `social.v1.feed.all` revisions
+   * carry. A position can hold several items on the all and trending feeds
+   * (its trade plus one per author comment), so key rows on this rather than
+   * `positionId`. Set on the all and trending feeds only; absent on older
+   * social-api builds.
+   */
+  feedItemId?: string;
   /** Stable event ID for the shared feed-all projection. */
   eventId?: string;
   /** Projection revision for the shared feed-all item. */

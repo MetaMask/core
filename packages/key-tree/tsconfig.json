@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+  "references": [
+    {
+      "path": "../byte-utils"
+    },
+    {
+      "path": "../type-utils"
+    }
+  ],
+  "include": [
+    "../../types",
+    "./scripts",
+    "./src",
+    "./tests",
+    "./tests/vectors/*.json"
+  ]
+}

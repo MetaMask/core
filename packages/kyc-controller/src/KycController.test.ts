@@ -2340,11 +2340,13 @@ describe('KycController', () => {
         mockWrapEncryptionKey.mockClear();
         mockAssertAttestedServerPublicKey.mockClear();
 
-        await controller.deleteEncryptedStorage();
+        await controller.deleteEncryptedStorage({ aal2Token: AAL2_TOKEN });
 
         const createParams = handlers.createDeletion.mock.calls[0][0] as {
           sessionClientPublicKey: string;
+          aal2Token: string;
         };
+        expect(createParams.aal2Token).toBe(AAL2_TOKEN);
         expect(typeof createParams.sessionClientPublicKey).toBe('string');
         expect(createParams.sessionClientPublicKey).not.toHaveLength(0);
         expect(handlers.fetchIdosEnclaveJwks).not.toHaveBeenCalled();
@@ -2387,7 +2389,17 @@ describe('KycController', () => {
         expect(handlers.completeDeletion).toHaveBeenCalledWith({
           deletionId: 'deletion-1',
           wrappedUkycCapabilityToken: { data: 'enc', nonce: 'nonce' },
+          aal2Token: AAL2_TOKEN,
         });
+      });
+    });
+
+    it('does not prepare a deletion when aal2Token is missing', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.deleteEncryptedStorage({ aal2Token: '' }),
+        ).rejects.toThrow(/aal2Token is required/u);
+        expect(handlers.createDeletion).not.toHaveBeenCalled();
       });
     });
 
@@ -2395,9 +2407,9 @@ describe('KycController', () => {
       await withController(async ({ controller, handlers }) => {
         handlers.createDeletion.mockRejectedValue(new Error('prepare failed'));
 
-        await expect(controller.deleteEncryptedStorage()).rejects.toThrow(
-          'prepare failed',
-        );
+        await expect(
+          controller.deleteEncryptedStorage({ aal2Token: AAL2_TOKEN }),
+        ).rejects.toThrow('prepare failed');
         expect(handlers.completeDeletion).not.toHaveBeenCalled();
       });
     });
@@ -2409,13 +2421,13 @@ describe('KycController', () => {
       await withController(async ({ controller, handlers }) => {
         handlers.fetchIdosRelayJwks.mockRejectedValueOnce(fetchError);
 
-        await expect(controller.deleteEncryptedStorage()).rejects.toMatchObject(
-          {
-            message:
-              'KycController.#verifyCapabilityTokenSchema: Unable to fetch JWKS needed to verify wrapping keys.',
-            cause: fetchError,
-          },
-        );
+        await expect(
+          controller.deleteEncryptedStorage({ aal2Token: AAL2_TOKEN }),
+        ).rejects.toMatchObject({
+          message:
+            'KycController.#verifyCapabilityTokenSchema: Unable to fetch JWKS needed to verify wrapping keys.',
+          cause: fetchError,
+        });
         expect(handlers.completeDeletion).not.toHaveBeenCalled();
       });
     });
@@ -2428,13 +2440,13 @@ describe('KycController', () => {
         throw verificationError;
       });
       await withController(async ({ controller, handlers }) => {
-        await expect(controller.deleteEncryptedStorage()).rejects.toMatchObject(
-          {
-            message:
-              'KycController.#verifyCapabilityTokenSchema: Failed to verify the wrapping keys.',
-            cause: verificationError,
-          },
-        );
+        await expect(
+          controller.deleteEncryptedStorage({ aal2Token: AAL2_TOKEN }),
+        ).rejects.toMatchObject({
+          message:
+            'KycController.#verifyCapabilityTokenSchema: Failed to verify the wrapping keys.',
+          cause: verificationError,
+        });
         expect(handlers.completeDeletion).not.toHaveBeenCalled();
       });
     });
