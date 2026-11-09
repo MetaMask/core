@@ -1,5 +1,12 @@
+import { getRandomBytes } from '@metamask/cryptography';
+import {
+  generateKeyPair,
+  getPublicKey,
+  getSharedSecret,
+} from '@metamask/cryptography/x25519';
+import { hsalsa, secretbox, xsalsa20poly1305 } from '@noble/ciphers/salsa';
+import { u8, u32 } from '@noble/ciphers/utils';
 import { base64, utf8 } from '@scure/base';
-import * as nacl from 'tweetnacl';
 
 import { isNullish } from './utils.js';
 
@@ -12,6 +19,24 @@ export type EthEncryptedData = {
 
 const DEFAULT_PADDING_LENGTH = 2048;
 const NACL_EXTRA_BYTES = 16;
+const HSALSA_SIGMA = u32(utf8.decode('expand 32-byte k'));
+
+/**
+ * Derive the symmetric key used for `x25519-xsalsa20-poly1305`.
+ *
+ * @param privateKey - The 32-byte X25519 private key.
+ * @param publicKey - The 32-byte X25519 public key of the peer.
+ * @returns The 32-byte symmetric key.
+ */
+async function deriveBoxKey(
+  privateKey: Uint8Array<ArrayBuffer>,
+  publicKey: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array> {
+  const sharedSecret = await getSharedSecret(privateKey, publicKey);
+  const key = new Uint32Array(8);
+  hsalsa(HSALSA_SIGMA, u32(sharedSecret), new Uint32Array(4), key);
+  return u8(key);
+}
 
 /**
  * Encrypt a message.
@@ -22,7 +47,7 @@ const NACL_EXTRA_BYTES = 16;
  * @param options.version - The type of encryption to use.
  * @returns The encrypted data.
  */
-export function encrypt({
+export async function encrypt({
   publicKey,
   data,
   version,
@@ -30,7 +55,7 @@ export function encrypt({
   publicKey: string;
   data: unknown;
   version: string;
-}): EthEncryptedData {
+}): Promise<EthEncryptedData> {
   if (isNullish(publicKey)) {
     throw new Error('Missing publicKey parameter');
   } else if (isNullish(data)) {
@@ -45,10 +70,10 @@ export function encrypt({
         throw new Error('Message data must be given as a string');
       }
       // generate ephemeral keypair
-      const ephemeralKeyPair = nacl.box.keyPair();
+      const ephemeralKeyPair = await generateKeyPair();
 
       // assemble encryption parameters - from string to UInt8
-      let pubKeyUInt8Array: Uint8Array;
+      let pubKeyUInt8Array: Uint8Array<ArrayBuffer>;
       try {
         pubKeyUInt8Array = base64.decode(publicKey);
       } catch {
@@ -56,15 +81,14 @@ export function encrypt({
       }
 
       const msgParamsUInt8Array = utf8.decode(data);
-      const nonce = nacl.randomBytes(nacl.box.nonceLength);
+      const nonce = getRandomBytes(xsalsa20poly1305.nonceLength);
 
       // encrypt
-      const encryptedMessage = nacl.box(
-        msgParamsUInt8Array,
-        nonce,
+      const key = await deriveBoxKey(
+        ephemeralKeyPair.privateKey,
         pubKeyUInt8Array,
-        ephemeralKeyPair.secretKey,
       );
+      const encryptedMessage = secretbox(key, nonce).seal(msgParamsUInt8Array);
 
       // handle encrypted data
       const output = {
@@ -94,7 +118,7 @@ export function encrypt({
  * @param options.version - The type of encryption to use.
  * @returns The encrypted data.
  */
-export function encryptSafely({
+export async function encryptSafely({
   publicKey,
   data,
   version,
@@ -102,7 +126,7 @@ export function encryptSafely({
   publicKey: string;
   data: unknown;
   version: string;
-}): EthEncryptedData {
+}): Promise<EthEncryptedData> {
   if (isNullish(publicKey)) {
     throw new Error('Missing publicKey parameter');
   } else if (isNullish(data)) {
@@ -145,13 +169,13 @@ export function encryptSafely({
  * @param options.privateKey - The private key to decrypt with.
  * @returns The decrypted message.
  */
-export function decrypt({
+export async function decrypt({
   encryptedData,
   privateKey,
 }: {
   encryptedData: EthEncryptedData;
   privateKey: string;
-}): string {
+}): Promise<string> {
   if (isNullish(encryptedData)) {
     throw new Error('Missing encryptedData parameter');
   } else if (isNullish(privateKey)) {
@@ -161,9 +185,6 @@ export function decrypt({
   switch (encryptedData.version) {
     case 'x25519-xsalsa20-poly1305': {
       const receiverPrivateKeyUint8Array = Buffer.from(privateKey, 'hex');
-      const receiverEncryptionPrivateKey = nacl.box.keyPair.fromSecretKey(
-        receiverPrivateKeyUint8Array,
-      ).secretKey;
 
       // assemble decryption parameters
       const nonce = base64.decode(encryptedData.nonce);
@@ -171,18 +192,21 @@ export function decrypt({
       const ephemPublicKey = base64.decode(encryptedData.ephemPublicKey);
 
       // decrypt
-      const decryptedMessage = nacl.box.open(
-        ciphertext,
-        nonce,
+      const key = await deriveBoxKey(
+        receiverPrivateKeyUint8Array,
         ephemPublicKey,
-        receiverEncryptionPrivateKey,
       );
+      const cipher = secretbox(key, nonce);
+
+      let decryptedMessage: Uint8Array;
+      try {
+        decryptedMessage = cipher.open(ciphertext);
+      } catch {
+        throw new Error('Decryption failed.');
+      }
 
       // return decrypted msg data
       try {
-        if (!decryptedMessage) {
-          throw new Error();
-        }
         const output = utf8.encode(decryptedMessage);
         // TODO: This is probably extraneous but was kept to minimize changes during refactor
         if (!output) {
@@ -210,20 +234,22 @@ export function decrypt({
  * @param options.privateKey - The private key to decrypt with.
  * @returns The decrypted message.
  */
-export function decryptSafely({
+export async function decryptSafely({
   encryptedData,
   privateKey,
 }: {
   encryptedData: EthEncryptedData;
   privateKey: string;
-}): string {
+}): Promise<string> {
   if (isNullish(encryptedData)) {
     throw new Error('Missing encryptedData parameter');
   } else if (isNullish(privateKey)) {
     throw new Error('Missing privateKey parameter');
   }
 
-  const dataWithPadding = JSON.parse(decrypt({ encryptedData, privateKey }));
+  const dataWithPadding = JSON.parse(
+    await decrypt({ encryptedData, privateKey }),
+  );
   return dataWithPadding.data;
 }
 
@@ -233,9 +259,10 @@ export function decryptSafely({
  * @param privateKey - The private key to generate the encryption public key with.
  * @returns The encryption public key.
  */
-export function getEncryptionPublicKey(privateKey: string): string {
+export async function getEncryptionPublicKey(
+  privateKey: string,
+): Promise<string> {
   const privateKeyUint8Array = Buffer.from(privateKey, 'hex');
-  const encryptionPublicKey =
-    nacl.box.keyPair.fromSecretKey(privateKeyUint8Array).publicKey;
+  const encryptionPublicKey = await getPublicKey(privateKeyUint8Array);
   return base64.encode(encryptionPublicKey);
 }
