@@ -506,6 +506,25 @@ export const DECIMAL_PRECISION_CONFIG = {
 } as const;
 
 /**
+ * Decimal places kept by the shared TP/SL calculations.
+ *
+ * A calculated trigger price keeps the decimals of the first band whose
+ * `BelowPrice` it is under, else `TriggerPriceDefaultDecimals`, without
+ * trailing zeros: low-priced assets need more decimals. The provider rounds
+ * the price to the asset's submission precision when the order is sent.
+ */
+export const TP_SL_PRECISION_CONFIG = {
+  TriggerPriceBands: [
+    { BelowPrice: 0.01, Decimals: 8 },
+    { BelowPrice: 1, Decimals: DECIMAL_PRECISION_CONFIG.MaxPriceDecimals },
+    { BelowPrice: 100, Decimals: 4 },
+  ],
+  TriggerPriceDefaultDecimals: 2,
+  // Decimal places of a calculated or displayed RoE or price-move percentage
+  PercentageDecimals: 2,
+} as const;
+
+/**
  * Market sorting configuration
  * Controls sorting behavior and presets for the trending markets view
  */

@@ -21,6 +21,7 @@
   ],
   "sideEffects": false,
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "docusaurus build site",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/wallet-framework-docs",
     "changelog:validate": "../../scripts/validate-changelog.sh",

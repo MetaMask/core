@@ -1935,9 +1935,9 @@ export type PositionModifyPreviewSource = Pick<
 /**
  * Proposed order plus the live position it would modify.
  *
- * Isolated-margin previews apply `leverage` to the *whole* resulting
- * position, matching `updateLeverage` before placement. Cross-margin
- * positions are not projected.
+ * Isolated-margin previews model `updateLeverage` before placement: the venue
+ * keeps the existing margin and the order margins its own size at
+ * `leverage`. Cross-margin positions are not projected.
  */
 export type PositionModifyPreviewParams = {
   position: PositionModifyPreviewSource;
@@ -1953,8 +1953,10 @@ export type PositionModifyPreviewParams = {
    */
   price: string;
   /**
-   * Isolated leverage the provider will set on the asset before placing.
-   * Applied to the entire resulting position, not only the added size.
+   * Isolated leverage the provider will set on the asset before placing. The
+   * order is margined at this leverage and the existing margin is kept. Below
+   * the leverage the existing margin can cover, the venue rejects the change
+   * and the resulting margin and liquidation price are unavailable.
    */
   leverage: number;
   reduceOnly?: boolean;
@@ -1995,8 +1997,10 @@ export type PositionModifyPreviewOpen = {
     size: number;
     entryPrice: number;
     /**
-     * Isolated leverage from mark notional / remaining margin, matching
-     * HyperLiquid's displayed leverage rather than entry notional / margin.
+     * Effective isolated leverage, mark notional / resulting margin. Below the
+     * selected leverage when margin kept from before a leverage rise exceeds
+     * the new initial margin; the selected leverage when margin is
+     * unavailable.
      */
     leverage: number;
     margin: PositionPreviewValue;

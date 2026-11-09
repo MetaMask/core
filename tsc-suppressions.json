@@ -467,6 +467,20 @@
       "count": 1
     }
   },
+  "packages/eth-sig-util/src/sign-typed-data.test.ts": {
+    "TS2322": {
+      "count": 12
+    },
+    "TS2351": {
+      "count": 1
+    },
+    "TS2593": {
+      "count": 1
+    },
+    "TS7053": {
+      "count": 18
+    }
+  },
   "packages/geolocation-controller/src/geolocation-api-service/geolocation-api-service.test.ts": {
     "TS2322": {
       "count": 34

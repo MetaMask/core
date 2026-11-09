@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `feedItemId` (`string`) to the `FeedItem` type and `FeedItemStruct` ([#11380](https://github.com/MetaMask/core/pull/11380))
+  - social-api now returns one item per position trade plus one per author comment on the all and trending feeds, so a position can appear on several rows. `feedItemId` identifies the row and matches the `feedItemId` of its `social.v1.feed.all` revisions.
+  - On those feeds a comment item carries its own `authorComment`, and a trade item carries `null`.
+  - Responses that omit the field still validate.
+
+## [3.18.0]
+
+### Added
+
+- Add optional `positionValueUSD` (`number | null`) to the `Position` type and `PositionStruct`, so it is typed on feed items and on position, positions, and holders responses ([#11311](https://github.com/MetaMask/core/pull/11311))
+  - For perps it is the leveraged notional (`|positionAmountWithLeverage|` × mark price) that social-api ranks an asset's holders by; for spot it equals `currentValueUSD`; closed positions report `0`.
+  - Responses that omit the field still validate.
+
 ## [3.17.0]
 
 ### Added
@@ -381,7 +396,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.17.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.18.0...HEAD
+[3.18.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.17.0...@metamask/social-controllers@3.18.0
 [3.17.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.16.0...@metamask/social-controllers@3.17.0
 [3.16.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.15.0...@metamask/social-controllers@3.16.0
 [3.15.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@3.14.2...@metamask/social-controllers@3.15.0

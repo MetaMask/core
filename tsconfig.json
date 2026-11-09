@@ -159,6 +159,9 @@
       "path": "./packages/json-rpc-middleware-stream"
     },
     {
+      "path": "./packages/key-tree"
+    },
+    {
       "path": "./packages/keyring-controller"
     },
     {
@@ -349,6 +352,9 @@
     },
     {
       "path": "./packages/watch-only-account-service"
+    },
+    {
+      "path": "./packages/eth-sig-util"
     }
   ],
   "files": [],

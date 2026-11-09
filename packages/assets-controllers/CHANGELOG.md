@@ -9,8 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `serviceProfile` string option to `searchTokens`, sent as the `x-mm-service-profile` header on the `/tokens/search` request ([#11274](https://github.com/MetaMask/core/pull/11274))
-  - Defaults to `assets--trending-search`, so the header is sent on every search request
 - Add `init` method to `TokensController`, `TokenBalancesController`, `TokenDetectionController`, `TokenRatesController`, `AccountTrackerController`, `NftController`, `MultichainBalancesController`, `MultichainAssetsRatesController`, `MultichainAssetsController` and `TokenListController` ([#11315](https://github.com/MetaMask/core/pull/11315))
   - `init` reads the other controllers that the constructor used to read. Calling it more than once has no effect.
   - `TokenListController.init` calls `initialize` once.
@@ -32,6 +30,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `TokensControllerMessenger` must allow the `NetworkController:getSelectedNetworkClient` action ([#11315](https://github.com/MetaMask/core/pull/11315))
 - `TokensController` no longer requires the `chainId` and `provider` options ([#11315](https://github.com/MetaMask/core/pull/11315))
   - When `provider` is omitted, the provider of the selected network client (`NetworkController:getSelectedNetworkClient`) is used.
+- Bump `@metamask/abi-utils` from `^2.0.4` to `^3.0.0` ([#11356](https://github.com/MetaMask/core/pull/11356))
+
+## [113.2.0]
+
+### Added
+
+- Add `serviceProfile` string option to `searchTokens`, sent as the `x-mm-service-profile` header on the `/tokens/search` request ([#11274](https://github.com/MetaMask/core/pull/11274))
+  - Defaults to `assets--trending-search`, so the header is sent on every search request
+
+### Changed
+
 - Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
 
 ## [113.1.1]
@@ -3684,7 +3693,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.2.0...HEAD
+[113.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.1.1...@metamask/assets-controllers@113.2.0
 [113.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.1.0...@metamask/assets-controllers@113.1.1
 [113.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.0.1...@metamask/assets-controllers@113.1.0
 [113.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@113.0.0...@metamask/assets-controllers@113.0.1

@@ -32,6 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -57,8 +58,8 @@
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.8.0",
     "@metamask/accounts-controller": "^40.1.0",
-    "@metamask/assets-controller": "^20.2.2",
-    "@metamask/assets-controllers": "^113.1.1",
+    "@metamask/assets-controller": "^20.2.3",
+    "@metamask/assets-controllers": "^113.2.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/gas-fee-controller": "^27.1.0",

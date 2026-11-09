@@ -84,6 +84,7 @@ const mockPerpPosition = {
   perpPositionType: 'long',
   perpLeverage: 10,
   positionAmountWithLeverage: 25,
+  positionValueUSD: 1_125_000,
 };
 
 const MOCK_TOKEN = 'mock-bearer-token';
@@ -794,6 +795,7 @@ describe('SocialService', () => {
       expect(result.positions[0].perpPositionType).toBe('long');
       expect(result.positions[0].perpLeverage).toBe(10);
       expect(result.positions[0].positionAmountWithLeverage).toBe(25);
+      expect(result.positions[0].positionValueUSD).toBe(1_125_000);
       expect(result.positions[0].trades[0].classification).toBe('perp');
       expect(result.positions[0].trades[0].perpPositionType).toBe('long');
       expect(result.positions[0].trades[0].perpLeverage).toBe(10);
@@ -1530,6 +1532,7 @@ describe('SocialService', () => {
         items: [
           {
             ...mockFeedItem,
+            feedItemId: '0b6c3d4e-5f60-4a7b-8c9d-0e1f2a3b4c5d',
             eventId: 'social.v1.feed.all.position-1.2',
             revision: 2,
             occurredAt: '2026-01-02T03:04:05.000Z',
@@ -1614,6 +1617,23 @@ describe('SocialService', () => {
 
       const service = createService();
       const result = await service.fetchFeed();
+
+      expect(result.items).toStrictEqual([mockFeedItem]);
+    });
+
+    it('drops a feed item whose feedItemId is not a string', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [{ ...mockFeedItem, feedItemId: 1 }, mockFeedItem],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'all' });
 
       expect(result.items).toStrictEqual([mockFeedItem]);
     });
@@ -1823,6 +1843,30 @@ describe('SocialService', () => {
       const result = await service.fetchFeed();
 
       expect(result.items).toStrictEqual([flagged]);
+    });
+
+    it('passes positionValueUSD through and drops an item with a non-numeric value', async () => {
+      const valued = { ...mockFeedItem, positionValueUSD: 1500 };
+      const closed = { ...mockFeedItem, positionValueUSD: 0 };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [
+              valued,
+              closed,
+              mockFeedItem,
+              { ...mockFeedItem, positionValueUSD: '1500' },
+            ],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items).toStrictEqual([valued, closed, mockFeedItem]);
     });
 
     // An open position has no final hold; the anchor is what the client

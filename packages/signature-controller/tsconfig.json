@@ -30,6 +30,9 @@
     },
     {
       "path": "../utils"
+    },
+    {
+      "path": "../eth-sig-util"
     }
   ],
   "include": ["../../types", "./src"]

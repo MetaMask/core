@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controller",
-  "version": "20.2.2",
+  "version": "20.2.3",
   "description": "Tracks assets balances/prices and handles token detection across all digital assets",
   "keywords": [
     "Ethereum",
@@ -32,6 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -58,7 +59,7 @@
     "@ethersproject/providers": "^5.8.0",
     "@metamask/account-tree-controller": "^11.2.0",
     "@metamask/accounts-controller": "^40.1.0",
-    "@metamask/assets-controllers": "^113.1.1",
+    "@metamask/assets-controllers": "^113.2.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/client-controller": "^2.0.0",
     "@metamask/config-registry-controller": "^5.0.0",

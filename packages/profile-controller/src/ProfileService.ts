@@ -18,6 +18,7 @@ import {
   sensitive,
   string,
   type as structType,
+  validate,
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
@@ -40,6 +41,11 @@ export const ProfileServiceErrorMessage = {
   DELETE_PROFILE_FAILED: 'ProfileService: failed to delete profile',
   CHECK_USERNAME_AVAILABILITY_FAILED:
     'ProfileService: failed to check username availability',
+  CHECK_DISPLAY_NAME_VALIDITY_FAILED:
+    'ProfileService: failed to check display name validity',
+  CHECK_BIO_VALIDITY_FAILED: 'ProfileService: failed to check bio validity',
+  CHECK_EARLY_ACCESS_FAILED:
+    'ProfileService: failed to check early access status',
   GET_X_AUTH_URL_FAILED: 'ProfileService: failed to get X authentication URL',
   CONNECT_X_FAILED: 'ProfileService: failed to connect X account',
   GET_X_ACCOUNT_FAILED: 'ProfileService: failed to get X account',
@@ -52,6 +58,16 @@ export const ProfileServiceErrorMessage = {
 
 const TradingPrivacyStruct = enums(['public', 'private'] as const);
 
+/**
+ * The body the Profile API returns for a non-2xx response. The `message` is
+ * surfaced to clients so they can react to the specific failure; `code` is
+ * optional because not every error includes one.
+ */
+const ApiErrorResponseStruct = structType({
+  code: optional(string()),
+  message: string(),
+});
+
 const ProfileApiResponseStruct = structType({
   profile_id: string(),
   username: string(),
@@ -63,6 +79,14 @@ const ProfileApiResponseStruct = structType({
   connected_to_x: boolean(),
   created_at: string(),
   updated_at: string(),
+});
+
+const FieldValidityResponseStruct = structType({
+  valid: boolean(),
+});
+
+const EarlyAccessResponseStruct = structType({
+  hasAccess: boolean(),
 });
 
 const UsernameAvailabilityErrorStruct = structType({
@@ -142,6 +166,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateProfile',
   'deleteProfile',
   'checkUsernameAvailability',
+  'checkDisplayNameValidity',
+  'checkBioValidity',
+  'checkEarlyAccess',
   'getXAuthUrl',
   'connectX',
   'getXAccount',
@@ -158,6 +185,12 @@ export type CreateProfileResponse = Infer<typeof CreateProfileResponseStruct>;
 export type UsernameAvailabilityResponse = Infer<
   typeof UsernameAvailabilityResponseStruct
 >;
+
+/** The response shape for display name and bio validity checks. */
+export type FieldValidityResponse = Infer<typeof FieldValidityResponseStruct>;
+
+/** The response shape for the early access check. */
+export type EarlyAccessResponse = Infer<typeof EarlyAccessResponseStruct>;
 
 /** The response shape returned when connecting or fetching an X account. */
 export type ConnectXResponse = Infer<typeof ConnectXResponseStruct>;
@@ -269,6 +302,29 @@ export class ProfileService extends BaseDataService<
   }
 
   /**
+   * Reads the error message from an unsuccessful API response body.
+   *
+   * The Profile API returns errors as `{ code, message }`. If the body is
+   * missing, is not JSON, or does not contain a message, this returns
+   * `undefined` so the caller can fall back to a generic message.
+   *
+   * @param response - The unsuccessful response.
+   * @returns The API-provided error message, or `undefined` if unavailable.
+   */
+  async #readErrorMessage(response: Response): Promise<string | undefined> {
+    try {
+      const body: unknown = await response.json();
+      const [error, result] = validate(body, ApiErrorResponseStruct);
+      if (!error) {
+        return result.message;
+      }
+    } catch {
+      // The body is absent or not valid JSON; fall back to a generic message.
+    }
+    return undefined;
+  }
+
+  /**
    * Executes an authenticated HTTP request and returns the parsed JSON response.
    *
    * @param endpoint - The path relative to the v1 base URL.
@@ -277,7 +333,8 @@ export class ProfileService extends BaseDataService<
    * @param options.error - The error message to use if the response is not OK.
    * @param options.json - Optional JSON body. If provided, sets Content-Type and serializes as body.
    * @returns The parsed JSON response.
-   * @throws {HttpError} If the response is not a 2xx status code.
+   * @throws {HttpError} If the response is not a 2xx status code. The error
+   * message includes the API-provided message when the response body contains one.
    */
   async #fetch(
     endpoint: string,
@@ -324,7 +381,13 @@ export class ProfileService extends BaseDataService<
       ...(json === undefined ? {} : { body: JSON.stringify(json) }),
     });
     if (!response.ok) {
-      throw new HttpError(response.status, `${error}: ${response.status}`);
+      const apiMessage = await this.#readErrorMessage(response);
+      throw new HttpError(
+        response.status,
+        apiMessage
+          ? `${error}: ${response.status}: ${apiMessage}`
+          : `${error}: ${response.status}`,
+      );
     }
     if (method === 'DELETE') {
       return null;
@@ -475,6 +538,70 @@ export class ProfileService extends BaseDataService<
             searchParams: { username },
           },
         ),
+    });
+  }
+
+  /**
+   * Checks whether a display name is valid.
+   *
+   * @param displayName - The display name to validate.
+   * @returns An object with a `valid` boolean.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
+  async checkDisplayNameValidity(
+    displayName: string,
+  ): Promise<FieldValidityResponse> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:checkDisplayNameValidity`, displayName],
+      staleTime: 0,
+      responseStruct: FieldValidityResponseStruct,
+      queryFn: async () =>
+        this.#fetch<FieldValidityResponse>('profiles/display-name/validity', {
+          error: ProfileServiceErrorMessage.CHECK_DISPLAY_NAME_VALIDITY_FAILED,
+          searchParams: { display_name: displayName },
+        }),
+    });
+  }
+
+  /**
+   * Checks whether a bio is valid.
+   *
+   * @param bio - The bio to validate.
+   * @returns An object with a `valid` boolean.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
+  async checkBioValidity(bio: string): Promise<FieldValidityResponse> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:checkBioValidity`, bio],
+      staleTime: 0,
+      responseStruct: FieldValidityResponseStruct,
+      queryFn: async () =>
+        this.#fetch<FieldValidityResponse>('profiles/bio/validity', {
+          error: ProfileServiceErrorMessage.CHECK_BIO_VALIDITY_FAILED,
+          searchParams: { bio },
+        }),
+    });
+  }
+
+  /**
+   * Checks whether the authenticated profile has early access.
+   * The profile is resolved server-side from the verified bearer token.
+   *
+   * @returns An object with a `hasAccess` boolean.
+   * @throws {HttpError} If the API returns a non-2xx response.
+   * @throws {StructError} If the response does not match the expected shape.
+   */
+  async checkEarlyAccess(): Promise<EarlyAccessResponse> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:checkEarlyAccess`],
+      staleTime: 0,
+      responseStruct: EarlyAccessResponseStruct,
+      queryFn: async () =>
+        this.#fetch<EarlyAccessResponse>('early-access', {
+          error: ProfileServiceErrorMessage.CHECK_EARLY_ACCESS_FAILED,
+        }),
     });
   }
 
