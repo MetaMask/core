@@ -164,6 +164,7 @@ export class TransactionPayController extends BaseController<
       const config: TransactionConfig = {
         accountOverride: transactionData.accountOverride,
         atomic: transactionData.atomic,
+        atomicForbidden: transactionData.atomicForbidden,
         isHyperliquidSource: transactionData.isHyperliquidSource,
         isMaxAmount: transactionData.isMaxAmount,
         isPolymarketDepositWallet: transactionData.isPolymarketDepositWallet,

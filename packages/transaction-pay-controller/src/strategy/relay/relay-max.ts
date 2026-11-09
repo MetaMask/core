@@ -52,6 +52,9 @@ type MaxAmountQuoteContext = {
 /**
  * Fetch a max quote using the client's atomic hint for subsidized routes.
  *
+ * Requests marked `atomicForbidden` skip both promotion paths and always
+ * resolve to a non-atomic max quote.
+ *
  * @param request - Max quote request.
  * @param fullRequest - Full quote context.
  * @param getSingleQuote - Fetcher for a single Relay quote.
@@ -63,9 +66,17 @@ export async function getRelayMaxQuote(
   getSingleQuote: GetSingleQuoteFn,
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger, transaction } = fullRequest;
-  const { atomic, isPostQuote } = request;
+  const { atomic, atomicForbidden, isPostQuote } = request;
 
-  if (isPostQuote || !isAtomicMaxEnabled(messenger, transaction)) {
+  // `atomicForbidden` is a hard constraint rather than the subsidy hint
+  // `atomic` expresses, so neither promotion path below may run: a subsidized
+  // atomic max quote embeds the target calls, which is incorrect for flows
+  // that cannot sign a delegation per quote.
+  if (
+    isPostQuote ||
+    atomicForbidden ||
+    !isAtomicMaxEnabled(messenger, transaction)
+  ) {
     return getRelayMaxGasStationQuote(request, fullRequest, getSingleQuote);
   }
 

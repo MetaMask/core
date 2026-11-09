@@ -4181,6 +4181,21 @@ describe('Relay Quotes Utils', () => {
         expect(successfulFetchMock).toHaveBeenCalledTimes(1);
       });
 
+      it('does not attempt promotion when the request forbids atomic execution', async () => {
+        mockRelayResponses();
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [{ ...MONEY_ACCOUNT_MAX_REQUEST, atomicForbidden: true }],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+        });
+
+        expect(result[0].request.atomic).toBe(false);
+        expect(getAmountDataMock).not.toHaveBeenCalled();
+        expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+      });
+
       it('does not attempt promotion when the discovery quote is not subsidized', async () => {
         const unsubsidizedQuote = buildRelayQuote({ subsidizedAmountUsd: '0' });
         successfulFetchMock.mockResolvedValue({

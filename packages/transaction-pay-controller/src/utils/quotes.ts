@@ -88,6 +88,7 @@ export async function updateQuotes(
   const {
     accountOverride,
     atomic,
+    atomicForbidden,
     fiatPayment,
     isHyperliquidSource,
     isMaxAmount,
@@ -138,6 +139,7 @@ export async function updateQuotes(
     const requests = buildQuoteRequests({
       accountOverride,
       atomic,
+      atomicForbidden,
       from,
       isHyperliquidSource,
       isMaxAmount: isMaxAmount ?? false,
@@ -448,6 +450,7 @@ function getSourceAmounts(
  * @param request - Request parameters.
  * @param request.accountOverride - Optional account receiving post-quote output.
  * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
+ * @param request.atomicForbidden - Whether the target transaction may never be executed atomically.
  * @param request.from - Address from which the transaction is sent.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
  * @param request.isMaxAmount - Whether the transaction is a maximum amount transaction.
@@ -464,6 +467,7 @@ function getSourceAmounts(
 function buildQuoteRequests({
   accountOverride,
   atomic,
+  atomicForbidden,
   from,
   isHyperliquidSource,
   isMaxAmount,
@@ -478,6 +482,7 @@ function buildQuoteRequests({
 }: {
   accountOverride?: Hex;
   atomic?: boolean;
+  atomicForbidden?: boolean;
   from: Hex;
   isHyperliquidSource?: boolean;
   isMaxAmount: boolean;
@@ -498,6 +503,7 @@ function buildQuoteRequests({
     return buildPostQuoteRequests({
       accountOverride,
       atomic,
+      atomicForbidden,
       destinationToken: paymentToken,
       from,
       isHyperliquidSource,
@@ -518,6 +524,7 @@ function buildQuoteRequests({
 
     return {
       atomic,
+      atomicForbidden,
       from,
       isMaxAmount,
       paymentOverride,
@@ -547,6 +554,7 @@ function buildQuoteRequests({
  * @param request - Request parameters.
  * @param request.accountOverride - Optional account receiving the output.
  * @param request.atomic - Whether the target transaction is executed atomically with the Relay quote.
+ * @param request.atomicForbidden - Whether the target transaction may never be executed atomically.
  * @param request.destinationToken - Destination token (paymentToken in post-quote mode).
  * @param request.from - Address from which the transaction is sent.
  * @param request.isHyperliquidSource - Whether the source of funds is HyperLiquid.
@@ -561,6 +569,7 @@ function buildQuoteRequests({
 function buildPostQuoteRequests({
   accountOverride,
   atomic,
+  atomicForbidden,
   destinationToken,
   from,
   isHyperliquidSource,
@@ -573,6 +582,7 @@ function buildPostQuoteRequests({
 }: {
   accountOverride?: Hex;
   atomic?: boolean;
+  atomicForbidden?: boolean;
   destinationToken: TransactionPaymentToken;
   from: Hex;
   isHyperliquidSource?: boolean;
@@ -605,6 +615,7 @@ function buildPostQuoteRequests({
   const request: QuoteRequest = {
     accountOverride,
     atomic,
+    atomicForbidden,
     from,
     isHyperliquidSource,
     isMaxAmount,
