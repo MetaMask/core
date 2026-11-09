@@ -12,6 +12,7 @@ import {
   ProfileServiceErrorMessage,
   serviceName,
 } from './ProfileService.js';
+import { ProfileServiceError } from './errors/index.js';
 import type {
   ConnectXParams,
   CreateProfileParams,
@@ -233,6 +234,7 @@ describe('ProfileService', () => {
       expect((error as Error).message).toBe(
         `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: 400`,
       );
+      expect((error as ProfileServiceError).code).toBe('bad_request');
     });
 
     it('throws when response schema is invalid', async () => {
@@ -262,6 +264,180 @@ describe('ProfileService', () => {
 
       expect(result).toStrictEqual(mockProfileResponse);
       expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('error envelope', () => {
+    const errorResponse = (status: number, body: unknown) => ({
+      ok: false,
+      status,
+      json: () => Promise.resolve(body),
+    });
+
+    it('attaches the API error code and metadata to the thrown error', async () => {
+      mockFetch.mockResolvedValue(
+        errorResponse(409, {
+          statusCode: 409,
+          error: 'Conflict',
+          code: 'USERNAME_TAKEN',
+          code_info: {
+            id: 'USERNAME_TAKEN',
+            http_status: 409,
+            category: 'username',
+            retryable: false,
+          },
+          message: 'Username "alice" is already taken.',
+          requestId: 'req_01HX',
+          retryable: false,
+          details: [
+            {
+              field: 'username',
+              code: 'TAKEN',
+              message: 'Username "alice" is already taken.',
+              meta: { source: 'checker' },
+            },
+          ],
+        }),
+      );
+
+      const service = createService();
+      const error = (await service
+        .getProfile('profile-123')
+        .catch((caught: unknown) => caught)) as ProfileServiceError;
+
+      expect(error).toBeInstanceOf(ProfileServiceError);
+      expect(error).toBeInstanceOf(HttpError);
+      expect(error.httpStatus).toBe(409);
+      expect(error.code).toBe('USERNAME_TAKEN');
+      expect(error.code_info).toStrictEqual({
+        id: 'USERNAME_TAKEN',
+        http_status: 409,
+        category: 'username',
+        retryable: false,
+      });
+      expect(error.retryable).toBe(false);
+      expect(error.requestId).toBe('req_01HX');
+      expect(error.details).toStrictEqual([
+        {
+          field: 'username',
+          code: 'TAKEN',
+          message: 'Username "alice" is already taken.',
+          meta: { source: 'checker' },
+        },
+      ]);
+      expect(error.message).toBe(
+        `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: 409: Username "alice" is already taken.`,
+      );
+    });
+
+    it('joins validation messages and keeps the field details', async () => {
+      mockFetch.mockResolvedValue(
+        errorResponse(400, {
+          code: 'VALIDATION_FAILED',
+          code_info: {
+            id: 'VALIDATION_FAILED',
+            http_status: 400,
+            category: 'validation',
+            retryable: false,
+          },
+          message: [
+            'display_name must be shorter than or equal to 32 characters',
+            'bio must be a string',
+          ],
+          retryable: false,
+          details: [
+            {
+              field: 'display_name',
+              code: 'FIELD_TOO_LONG',
+              message:
+                'display_name must be shorter than or equal to 32 characters',
+            },
+            {
+              field: 'bio',
+              code: 'FIELD_INVALID_TYPE',
+              message: 'bio must be a string',
+            },
+          ],
+        }),
+      );
+
+      const service = createService();
+      const error = (await service
+        .getProfile('profile-123')
+        .catch((caught: unknown) => caught)) as ProfileServiceError;
+
+      expect(error.message).toBe(
+        `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: 400: display_name must be shorter than or equal to 32 characters; bio must be a string`,
+      );
+      expect(error.details).toHaveLength(2);
+      expect(error.details?.[1]).toStrictEqual({
+        field: 'bio',
+        code: 'FIELD_INVALID_TYPE',
+        message: 'bio must be a string',
+      });
+    });
+
+    it('keeps the envelope when a validation message is not a string', async () => {
+      mockFetch.mockResolvedValue(
+        errorResponse(400, {
+          code: 'VALIDATION_FAILED',
+          message: ['display_name is required', 42],
+          details: [
+            {
+              field: 'display_name',
+              code: 'FIELD_REQUIRED',
+              message: 'display_name is required',
+            },
+          ],
+        }),
+      );
+
+      const service = createService();
+      const error = (await service
+        .getProfile('profile-123')
+        .catch((caught: unknown) => caught)) as ProfileServiceError;
+
+      expect(error.code).toBe('VALIDATION_FAILED');
+      expect(error.message).toContain('display_name is required; 42');
+      expect(error.details).toHaveLength(1);
+    });
+
+    it('falls back to code_info.retryable when the top-level field is absent', async () => {
+      mockFetch.mockResolvedValue(
+        errorResponse(503, {
+          code: 'SERVICE_UNAVAILABLE',
+          code_info: {
+            id: 'SERVICE_UNAVAILABLE',
+            http_status: 503,
+            category: 'upstream',
+            retryable: true,
+          },
+          message: 'Service temporarily unavailable.',
+        }),
+      );
+
+      const service = createService();
+      const error = (await service
+        .getProfile('profile-123')
+        .catch((caught: unknown) => caught)) as ProfileServiceError;
+
+      expect(error.retryable).toBe(true);
+    });
+
+    it('leaves the envelope fields undefined when the body is not an error envelope', async () => {
+      mockFetch.mockResolvedValue(errorResponse(500, { unexpected: true }));
+
+      const service = createService();
+      const error = (await service
+        .getProfile('profile-123')
+        .catch((caught: unknown) => caught)) as ProfileServiceError;
+
+      expect(error).toBeInstanceOf(ProfileServiceError);
+      expect(error.code).toBeUndefined();
+      expect(error.code_info).toBeUndefined();
+      expect(error.details).toBeUndefined();
+      expect(error.retryable).toBeUndefined();
+      expect(error.requestId).toBeUndefined();
     });
   });
 

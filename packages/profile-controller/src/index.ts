@@ -49,6 +49,16 @@ export {
   ProfileService,
   ProfileServiceErrorMessage,
 } from './ProfileService.js';
+export {
+  ProfileApiErrorCode,
+  ProfileServiceError,
+  findProfileServiceError,
+} from './errors/index.js';
+export type {
+  ProfileServiceApiError,
+  ProfileServiceErrorCodeInfo,
+  ProfileServiceErrorDetail,
+} from './errors/index.js';
 export type {
   ProfileServiceCheckUsernameAvailabilityAction,
   ProfileServiceCheckDisplayNameValidityAction,

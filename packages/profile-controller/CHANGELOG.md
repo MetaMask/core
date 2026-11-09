@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a `ProfileApiErrorCode` catalogue and move `ProfileServiceError` into a new `errors` module; the error carries the Profile API envelope (`code`, `code_info`, `details`, `retryable`, `requestId`) ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ### Changed
 
 - Bump `@metamask/profile-sync-controller` from `^36.1.0` to `^36.1.1` ([#11419](https://github.com/MetaMask/core/pull/11419))

@@ -18,13 +18,14 @@ import {
   sensitive,
   string,
   type as structType,
-  validate,
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
 import { CaipAccountIdStruct } from '@metamask/utils';
 
 import type { ProfileServiceMethodActions } from './ProfileService-method-action-types.js';
+import { ProfileServiceError } from './errors/ProfileServiceError.js';
+import { readProfileApiError } from './errors/parseErrorResponse.js';
 
 export const serviceName = 'ProfileService';
 
@@ -57,16 +58,6 @@ export const ProfileServiceErrorMessage = {
 // ---------------------------------------------------------------------------
 
 const TradingPrivacyStruct = enums(['public', 'private'] as const);
-
-/**
- * The body the Profile API returns for a non-2xx response. The `message` is
- * surfaced to clients so they can react to the specific failure; `code` is
- * optional because not every error includes one.
- */
-const ApiErrorResponseStruct = structType({
-  code: optional(string()),
-  message: string(),
-});
 
 const ProfileApiResponseStruct = structType({
   profile_id: string(),
@@ -254,7 +245,13 @@ export type ProfileServiceMessenger = Messenger<
 // Service
 // ---------------------------------------------------------------------------
 
-/** Communicates with the MetaMask Profile API and exposes all operations via the messenger. */
+/**
+ * Communicates with the MetaMask Profile API and exposes all operations via
+ * the messenger.
+ *
+ * Failed requests throw a {@link ProfileServiceError}, an `HttpError` that
+ * also carries the API error envelope.
+ */
 export class ProfileService extends BaseDataService<
   typeof serviceName,
   ProfileServiceMessenger
@@ -304,29 +301,6 @@ export class ProfileService extends BaseDataService<
   }
 
   /**
-   * Reads the error message from an unsuccessful API response body.
-   *
-   * The Profile API returns errors as `{ code, message }`. If the body is
-   * missing, is not JSON, or does not contain a message, this returns
-   * `undefined` so the caller can fall back to a generic message.
-   *
-   * @param response - The unsuccessful response.
-   * @returns The API-provided error message, or `undefined` if unavailable.
-   */
-  async #readErrorMessage(response: Response): Promise<string | undefined> {
-    try {
-      const body: unknown = await response.json();
-      const [error, result] = validate(body, ApiErrorResponseStruct);
-      if (!error) {
-        return result.message;
-      }
-    } catch {
-      // The body is absent or not valid JSON; fall back to a generic message.
-    }
-    return undefined;
-  }
-
-  /**
    * Executes an authenticated HTTP request and returns the parsed JSON response.
    *
    * @param endpoint - The path relative to the v1 base URL.
@@ -335,8 +309,9 @@ export class ProfileService extends BaseDataService<
    * @param options.error - The error message to use if the response is not OK.
    * @param options.json - Optional JSON body. If provided, sets Content-Type and serializes as body.
    * @returns The parsed JSON response.
-   * @throws {HttpError} If the response is not a 2xx status code. The error
-   * message includes the API-provided message when the response body contains one.
+   * @throws {ProfileServiceError} If the response is not a 2xx status code.
+   * The error carries the API error envelope and includes the API-provided
+   * message when the response body contains one.
    */
   async #fetch(
     endpoint: string,
@@ -383,12 +358,16 @@ export class ProfileService extends BaseDataService<
       ...(json === undefined ? {} : { body: JSON.stringify(json) }),
     });
     if (!response.ok) {
-      const apiMessage = await this.#readErrorMessage(response);
-      throw new HttpError(
+      const apiError = await readProfileApiError(response);
+      const apiMessage = Array.isArray(apiError?.message)
+        ? apiError.message.map(String).join('; ')
+        : apiError?.message;
+      throw new ProfileServiceError(
         response.status,
         apiMessage
           ? `${error}: ${response.status}: ${apiMessage}`
           : `${error}: ${response.status}`,
+        apiError,
       );
     }
     if (method === 'DELETE') {
