@@ -4232,6 +4232,45 @@ describe('Relay Quotes Utils', () => {
         expect(body.txs).toBeUndefined();
       });
 
+      it('keeps a non-max quote non-atomic when the signing keyring requires MFA', async () => {
+        mockRelayResponses();
+        keyringStateMock.mockReturnValue({
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: 'MPC Money Keyring',
+              accounts: [MONEY_ACCOUNT_MAX_TRANSACTION.txParams.from],
+              metadata: { id: 'mpc-money-keyring', name: 'MPC Money Keyring' },
+            },
+          ],
+        });
+
+        // Non-max requests bypass `getRelayMaxQuote` entirely, so the guard
+        // has to live upstream of both paths.
+        const { atomic: _atomic, ...request } = MONEY_ACCOUNT_MAX_REQUEST;
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          from: FROM_MOCK,
+          messenger,
+          requests: [
+            { ...request, isMaxAmount: false, targetAmountMinimum: '1000000' },
+          ],
+          transaction: MONEY_ACCOUNT_MAX_TRANSACTION,
+        });
+
+        expect(result[0].request.atomic).toBe(false);
+
+        const [, requestInit] = successfulFetchMock.mock.calls[0] as [
+          unknown,
+          RequestInit | undefined,
+        ];
+        const body = JSON.parse(requestInit?.body as string) as {
+          txs?: unknown;
+        };
+        expect(body.txs).toBeUndefined();
+      });
+
       it('promotes when a non-MFA keyring holds the signing account', async () => {
         mockRelayResponses();
         keyringStateMock.mockReturnValue({

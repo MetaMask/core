@@ -53,11 +53,6 @@ type MaxAmountQuoteContext = {
 /**
  * Fetch a max quote using the client's atomic hint for subsidized routes.
  *
- * An atomic quote embeds the target calls, which requires a fresh delegation
- * signature per quote. When the signing account's keyring requires MFA that
- * costs the user a confirmation on every quote refresh, so those accounts
- * always resolve to a non-atomic max quote.
- *
  * @param request - Max quote request.
  * @param fullRequest - Full quote context.
  * @param getSingleQuote - Fetcher for a single Relay quote.
@@ -70,25 +65,6 @@ export async function getRelayMaxQuote(
 ): Promise<TransactionPayQuote<RelayQuote>> {
   const { messenger, transaction } = fullRequest;
   const { atomic, isPostQuote } = request;
-
-  // The delegation signed for an atomic quote is signed by the account the
-  // target calls execute from, which is the transaction's own `from`. That is
-  // not necessarily `request.from`: deposits funded by MetaMask Pay set
-  // `accountOverride` to the funding EOA, so `request.from` is the payer while
-  // `txParams.from` is the account whose keyring actually signs.
-  const requiresMfa = accountRequiresMfa(messenger, transaction.txParams?.from);
-
-  if (requiresMfa) {
-    // `atomic` must be cleared explicitly: `processTransactions` only skips
-    // embedding the target calls when it is literally `false`, so forwarding
-    // an unset or `true` hint would still request the per-quote delegation
-    // signature this guard exists to avoid.
-    return getRelayMaxGasStationQuote(
-      { ...request, atomic: false },
-      fullRequest,
-      getSingleQuote,
-    );
-  }
 
   if (isPostQuote || !isAtomicMaxEnabled(messenger, transaction)) {
     return getRelayMaxGasStationQuote(request, fullRequest, getSingleQuote);
@@ -140,6 +116,13 @@ export async function getRelayMaxQuote(
   );
 
   if (!isSubsidizedRelayQuote(quote.original)) {
+    return quote;
+  }
+
+  // A request whose signing keyring requires MFA arrives here already cleared
+  // to `atomic: false` by `normalizeRequest`. Promoting it back would embed
+  // the target calls again and reintroduce the per-quote delegation signature.
+  if (accountRequiresMfa(messenger, transaction.txParams?.from)) {
     return quote;
   }
 
