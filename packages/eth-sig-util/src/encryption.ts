@@ -10,7 +10,7 @@ import {
   bytesToString,
   stringToBytes,
 } from '@metamask/utils';
-import { hsalsa, secretbox, xsalsa20poly1305 } from '@noble/ciphers/salsa';
+import { hsalsa, xsalsa20poly1305 } from '@noble/ciphers/salsa';
 import { u8, u32 } from '@noble/ciphers/utils';
 
 import { isNullish } from './utils.js';
@@ -33,7 +33,7 @@ const HSALSA_SIGMA = u32(stringToBytes('expand 32-byte k'));
  * @param publicKey - The 32-byte X25519 public key of the peer.
  * @returns The 32-byte symmetric key.
  */
-async function deriveBoxKey(
+async function deriveEncryptionKey(
   privateKey: Uint8Array<ArrayBuffer>,
   publicKey: Uint8Array<ArrayBuffer>,
 ): Promise<Uint8Array> {
@@ -90,11 +90,13 @@ export async function encrypt({
       const nonce = getRandomBytes(xsalsa20poly1305.nonceLength);
 
       // encrypt
-      const key = await deriveBoxKey(
+      const key = await deriveEncryptionKey(
         ephemeralKeyPair.privateKey,
         pubKeyUInt8Array,
       );
-      const encryptedMessage = secretbox(key, nonce).seal(msgParamsUInt8Array);
+      const encryptedMessage = xsalsa20poly1305(key, nonce).encrypt(
+        msgParamsUInt8Array,
+      );
 
       // handle encrypted data
       const output = {
@@ -198,15 +200,15 @@ export async function decrypt({
       const ephemPublicKey = base64ToBytes(encryptedData.ephemPublicKey);
 
       // decrypt
-      const key = await deriveBoxKey(
+      const key = await deriveEncryptionKey(
         receiverPrivateKeyUint8Array,
         ephemPublicKey,
       );
-      const cipher = secretbox(key, nonce);
+      const cipher = xsalsa20poly1305(key, nonce);
 
       let decryptedMessage: Uint8Array;
       try {
-        decryptedMessage = cipher.open(ciphertext);
+        decryptedMessage = cipher.decrypt(ciphertext);
       } catch {
         throw new Error('Decryption failed.');
       }
