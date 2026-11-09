@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add Matchain (`0x2ba`, `eip155:698/slip44:714`) and Nomina (`0xa6`, `eip155:166/slip44:11111166`) to `SPOT_PRICES_SUPPORT_INFO` so the token prices service requests their native prices ([#PR_NUMBER](https://github.com/MetaMask/core/pull/PR_NUMBER))
+- Add Matchain (`0x2ba`, `eip155:698/slip44:714`) and Nomina (`0xa6`, `eip155:166/slip44:11111166`) to `SPOT_PRICES_SUPPORT_INFO` so the token prices service requests their native prices ([#11383](https://github.com/MetaMask/core/pull/11383))
   - Nomina has no registered SLIP-44 coin type, so it uses the synthetic `slip44:11111<chainId>` form, matching the Price API.
 
 ### Changed
