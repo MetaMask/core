@@ -793,6 +793,80 @@ describe('AssetsController', () => {
       expect(unsubscribe).toHaveBeenCalledTimes(1);
     });
 
+    it.each([
+      {
+        scenario: 'calls its listener synchronously',
+        subscribe: (onChange: (isBasic: boolean) => void): void =>
+          onChange(true),
+      },
+      {
+        scenario: 'throws',
+        subscribe: (): void => {
+          throw new Error('subscribe failed');
+        },
+      },
+    ])(
+      'still runs the forced startup fetch when subscribeToBasicFunctionalityChange $scenario',
+      async ({ subscribe }) => {
+        await withController(
+          { skipBootstrap: true },
+          async ({
+            controller,
+            messenger,
+            setUiOpen,
+            subscribeToBasicFunctionalityChange,
+          }) => {
+            subscribeToBasicFunctionalityChange.mockImplementation(subscribe);
+            // Unlocked and account tree ready before the UI first opens, so
+            // bootstrap itself starts tracking.
+            messenger.publish('KeyringController:unlock');
+            (messenger as unknown as { publish: LifecyclePublish }).publish(
+              'AccountTreeController:initialized',
+              {},
+            );
+            await flushPromises();
+            const getAssetsSpy = vi.spyOn(controller, 'getAssets');
+
+            await setUiOpen(true);
+
+            expect(subscribeToBasicFunctionalityChange).toHaveBeenCalledTimes(
+              1,
+            );
+            expect(getAssetsSpy).toHaveBeenCalledWith(
+              [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+              expect.objectContaining({ forceUpdate: true }),
+            );
+          },
+        );
+      },
+    );
+
+    it.each([
+      { thrown: new Error('subscribe failed'), reported: 'subscribe failed' },
+      { thrown: 'subscribe failed', reported: 'subscribe failed' },
+    ])(
+      'reports a throwing subscribeToBasicFunctionalityChange via captureException (thrown: $thrown)',
+      async ({ thrown, reported }) => {
+        const captureException = vi.fn();
+        await withController(
+          { skipBootstrap: true, controllerOptions: { captureException } },
+          async ({ setUiOpen, subscribeToBasicFunctionalityChange }) => {
+            subscribeToBasicFunctionalityChange.mockImplementation(() => {
+              // Clients may throw a non-Error value; it must still be reported.
+              // oxlint-disable-next-line typescript/only-throw-error
+              throw thrown;
+            });
+
+            await setUiOpen(true);
+
+            expect(captureException).toHaveBeenCalledWith(
+              expect.objectContaining({ message: reported }),
+            );
+          },
+        );
+      },
+    );
+
     it('does not finish bootstrapping when destroyed while it is in flight', async () => {
       const messenger: RootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,

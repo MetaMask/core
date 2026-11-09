@@ -1208,16 +1208,14 @@ export class AssetsController extends BaseController<
       return;
     }
 
-    this.#isBootstrapped = true;
+    // Subscribe before marking the controller bootstrapped, so a listener the
+    // client calls synchronously is ignored by `handleBasicFunctionalityChange`
+    // instead of subscribing early and making `#start()` skip the forced
+    // startup fetch. Nothing is lost: `#updateActive()` below reads the
+    // current value through `isBasicFunctionality`.
+    this.#subscribeToBasicFunctionality();
 
-    if (this.#subscribeToBasicFunctionalityChange) {
-      const unsubscribe = this.#subscribeToBasicFunctionalityChange((isBasic) =>
-        this.handleBasicFunctionalityChange(isBasic),
-      );
-      if (typeof unsubscribe === 'function') {
-        this.#unsubscribeBasicFunctionality = unsubscribe;
-      }
-    }
+    this.#isBootstrapped = true;
 
     // `KeyringController:unlock` handlers skip their work before bootstrap,
     // so run it now if the wallet was unlocked before the UI opened.
@@ -1226,6 +1224,31 @@ export class AssetsController extends BaseController<
     }
 
     this.#updateActive();
+  }
+
+  /**
+   * Call the client's `subscribeToBasicFunctionalityChange`, keeping the
+   * unsubscribe function it returns. If it throws, the error is logged and
+   * reported, and bootstrapping carries on without the subscription, so
+   * asset tracking still starts.
+   */
+  #subscribeToBasicFunctionality(): void {
+    if (!this.#subscribeToBasicFunctionalityChange) {
+      return;
+    }
+    try {
+      const unsubscribe = this.#subscribeToBasicFunctionalityChange((isBasic) =>
+        this.handleBasicFunctionalityChange(isBasic),
+      );
+      if (typeof unsubscribe === 'function') {
+        this.#unsubscribeBasicFunctionality = unsubscribe;
+      }
+    } catch (error) {
+      log('Failed to subscribe to basic functionality changes', error);
+      this.#captureException?.(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
   }
 
   /**
