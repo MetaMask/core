@@ -42,7 +42,6 @@ export type ProfileMetricsServiceFetchNoncesAction = {
  * nonces.
  *
  * @param data - The data to send in the metrics update request.
- * @returns Nothing, once the API has accepted the request.
  */
 export type ProfileMetricsServiceSubmitMetricsAction = {
   type: `ProfileMetricsService:submitMetrics`;

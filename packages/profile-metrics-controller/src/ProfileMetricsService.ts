@@ -354,8 +354,7 @@ export class ProfileMetricsService extends BaseDataService<
    * nonces.
    *
    * @param data - The data to send in the metrics update request.
-   * @returns Nothing, once the API has accepted the request.
-   */
+  */
   async submitMetrics(data: ProfileMetricsSubmitMetricsRequest): Promise<void> {
     await this.executeMutation({
       mutationKey: [`${this.name}:submitMetrics`],
