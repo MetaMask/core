@@ -119,6 +119,42 @@ describe('signAuthorization', () => {
       );
     });
 
+    it.each([NaN, 1.5, Infinity, Number.MAX_SAFE_INTEGER + 1])(
+      'should throw if chainId is %s',
+      (chainId) => {
+        expect(() =>
+          signEIP7702Authorization({
+            privateKey: TEST_PRIVATE_KEY,
+            authorization: [
+              chainId,
+              TEST_AUTHORIZATION[1],
+              TEST_AUTHORIZATION[2],
+            ],
+          }),
+        ).toThrow(
+          'Invalid chainId: must be a non-negative number less than 2^256',
+        );
+      },
+    );
+
+    it.each([NaN, 1.5, Infinity, Number.MAX_SAFE_INTEGER + 1])(
+      'should throw if nonce is %s',
+      (nonce) => {
+        expect(() =>
+          signEIP7702Authorization({
+            privateKey: TEST_PRIVATE_KEY,
+            authorization: [
+              TEST_AUTHORIZATION[0],
+              TEST_AUTHORIZATION[1],
+              nonce,
+            ],
+          }),
+        ).toThrow(
+          'Invalid nonce: must be a non-negative number less than 2^64',
+        );
+      },
+    );
+
     it('should throw if chainId is negative', () => {
       expect(() =>
         signEIP7702Authorization({
