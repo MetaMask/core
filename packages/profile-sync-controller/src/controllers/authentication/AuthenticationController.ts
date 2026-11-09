@@ -55,6 +55,7 @@ import type {
   RequestMfaApprovalRequest,
   RemoveCredentialRequest,
   VerificationChallenge,
+  AccessToken,
 } from '../../sdk/index.js';
 import {
   assertMessageStartsWithMetamask,
@@ -230,10 +231,13 @@ const MESSENGER_EXPOSED_METHODS = [
   'requestProfilePairing',
   'clearState',
   'refreshEnrolledCredentials',
+  'refreshSocialLoginCredentials',
   'beginCredentialEnrollment',
   'completeCredentialEnrollment',
   'beginCredentialVerification',
   'completeCredentialVerification',
+  'beginSocialLoginVerification',
+  'completeSocialLoginVerification',
   'getVerificationToken',
   'requestMfaApproval',
   'removeCredential',
@@ -473,6 +477,14 @@ export class AuthenticationController extends BaseController<
   #assertIsUnlocked(methodName: string): void {
     if (!this.#isUnlocked) {
       throw new Error(`${methodName} - unable to proceed, wallet is locked`);
+    }
+  }
+
+  #assertIsLocked(methodName: string): void {
+    if (this.#isUnlocked) {
+      throw new Error(
+        `${methodName} - unable to proceed, the wallet is unlocked`,
+      );
     }
   }
 
@@ -1288,6 +1300,101 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
+   * Refreshes the credentials enrolled on the profile a social login is
+   * paired to, while the wallet is locked, for the recovery of a social login
+   * wallet.
+   *
+   * Takes its access token from the social login (see
+   * `exchangeSocialAccessToken`), so no keyring or signing is involved. Throws
+   * when the wallet is unlocked: unlocked features use
+   * `refreshEnrolledCredentials`. Nothing is cached.
+   *
+   * @returns The current supported credentials.
+   */
+  public async refreshSocialLoginCredentials(): Promise<EnrolledCredential[]> {
+    this.#assertIsLocked('refreshSocialLoginCredentials');
+    const { token } = await this.exchangeSocialAccessToken();
+    return await this.#runMfaRequest(
+      'MFA Social Login Credentials Refresh',
+      'credentials.refresh',
+      'all',
+      async () =>
+        await this.#auth.getMfaCredentials(undefined, token.accessToken),
+    );
+  }
+
+  /**
+   * Begins verification with an enrolled credential, while the wallet is
+   * locked, for the recovery of a social login wallet.
+   *
+   * Takes its access token from the social login, like
+   * `refreshSocialLoginCredentials`. Throws when the wallet is unlocked:
+   * unlocked features use `beginCredentialVerification`.
+   *
+   * @param request - Credential type and trace reason.
+   * @returns A challenge for the client-owned ceremony.
+   */
+  public async beginSocialLoginVerification(
+    request: BeginVerificationRequest,
+  ): Promise<VerificationChallenge> {
+    this.#assertIsLocked('beginSocialLoginVerification');
+    assertValidMfaRequest(request, BeginVerificationRequestStruct);
+    const { token } = await this.exchangeSocialAccessToken();
+    return await this.#runMfaRequest(
+      'MFA Social Login Verification Begin',
+      request.reason.operation,
+      request.type,
+      async () =>
+        await this.#auth.beginMfaVerification(
+          request.type,
+          undefined,
+          token.accessToken,
+        ),
+    );
+  }
+
+  /**
+   * Completes verification while the wallet is locked and returns the
+   * verification token, for the recovery of a social login wallet.
+   *
+   * Unlike `completeCredentialVerification`, no verification session is
+   * opened: the token goes to the caller alone, so nothing proven here is
+   * readable once the wallet unlocks. Takes its access token from the social
+   * login. Throws when the wallet is unlocked.
+   *
+   * @param request - Flow identifier, platform or email proof, and trace reason.
+   * @returns The verification token.
+   */
+  public async completeSocialLoginVerification(
+    request: CompleteVerificationRequest,
+  ): Promise<VerificationToken> {
+    this.#assertIsLocked('completeSocialLoginVerification');
+    assertValidMfaRequest(request, CompleteVerificationRequestStruct);
+    const { type } = request.proof;
+    const { operation } = request.reason;
+    const { token } = await this.exchangeSocialAccessToken();
+    const assertion = await this.#runMfaRequest(
+      'MFA Social Login Verification Complete',
+      operation,
+      type,
+      async () =>
+        await this.#auth.completeMfaVerification(
+          request.flowId,
+          request.proof,
+          undefined,
+          token.accessToken,
+        ),
+    );
+    const accessToken = await this.#runMfaRequest(
+      'MFA Token Exchange',
+      operation,
+      type,
+      async () => await this.#auth.exchangeMfaAssertion(assertion.token),
+    );
+    return this.#toVerificationToken(accessToken);
+  }
+
+  /**
    * Exchanges an MFA assertion at Hydra and opens the verification session
    * with the resulting token.
    *
@@ -1321,6 +1428,19 @@ export class AuthenticationController extends BaseController<
     );
     this.#assertAuthSessionEpoch(sessionEpoch, methodName);
 
+    const token = this.#toVerificationToken(accessToken);
+    this.#openVerificationSession(token);
+    return token;
+  }
+
+  /**
+   * Checks the token a verification assertion was exchanged for and reads its
+   * claims.
+   *
+   * @param accessToken - Token returned by the assertion exchange.
+   * @returns The verification token.
+   */
+  #toVerificationToken(accessToken: AccessToken): VerificationToken {
     let decodedClaims: unknown;
     try {
       decodedClaims = decodeJwtPayload(accessToken.accessToken);
@@ -1334,9 +1454,7 @@ export class AuthenticationController extends BaseController<
       );
     }
 
-    const token: VerificationToken = { ...accessToken, claims };
-    this.#openVerificationSession(token);
-    return token;
+    return { ...accessToken, claims };
   }
 
   /**

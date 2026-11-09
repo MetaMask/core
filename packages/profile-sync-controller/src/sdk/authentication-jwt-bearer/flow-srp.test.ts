@@ -608,6 +608,37 @@ describe('SRP MFA methods', () => {
     ]);
   });
 
+  it('uses the given access token instead of signing in', async () => {
+    const auth = createAuth();
+    mockMfaVerify.mockResolvedValue({ flowId: 'flow-id', expiresAt: 1000 });
+    mockMfaVerifyComplete.mockResolvedValue({ token: 'assertion' });
+    mockGetMfaCredentials.mockResolvedValue([]);
+    mockGetNonce.mockClear();
+
+    await auth.beginMfaVerification('email_otp', undefined, 'given-token');
+    await auth.completeMfaVerification(
+      'flow-id',
+      { type: 'email_otp', code: '123456' },
+      undefined,
+      'given-token',
+    );
+    await auth.getMfaCredentials(undefined, 'given-token');
+
+    expect(mockMfaVerify).toHaveBeenLastCalledWith(Env.DEV, 'given-token', {
+      credential_type: 'email_otp',
+    });
+    expect(mockMfaVerifyComplete).toHaveBeenLastCalledWith(
+      Env.DEV,
+      'given-token',
+      { credential_type: 'email_otp', flow_id: 'flow-id', otp_code: '123456' },
+    );
+    expect(mockGetMfaCredentials).toHaveBeenLastCalledWith(
+      Env.DEV,
+      'given-token',
+    );
+    expect(mockGetNonce).not.toHaveBeenCalled();
+  });
+
   it('forwards a passkey assertion and exchanges the resulting JWT', async () => {
     const auth = createAuth();
     const assertion = {

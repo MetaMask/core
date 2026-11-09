@@ -851,6 +851,20 @@ describe('MFA authentication facade', () => {
       expiresIn: 900,
     });
     expect(await auth.getMfaCredentials()).toHaveLength(2);
+    expect(
+      await auth.beginMfaVerification('passkey', undefined, 'given-token'),
+    ).toMatchObject({ flowId: 'verify-passkey-flow-id' });
+    expect(
+      await auth.completeMfaVerification(
+        'flow-id',
+        { type: 'passkey', assertion },
+        undefined,
+        'given-token',
+      ),
+    ).toMatchObject({ expiresIn: 900 });
+    expect(await auth.getMfaCredentials(undefined, 'given-token')).toHaveLength(
+      2,
+    );
     expect(await auth.exchangeMfaAssertion('assertion-jwt')).toMatchObject({
       accessToken: MOCK_ACCESS_JWT,
     });
