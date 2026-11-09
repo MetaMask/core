@@ -2897,6 +2897,38 @@ describe('BridgeStatusController', () => {
         },
       );
     });
+
+    it('swallows a rejected swap-operation-completed trace', async () => {
+      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      mockMessengerCall.mockImplementationOnce(vi.fn());
+      mockMessengerCall.mockResolvedValueOnce({
+        signature: 'signature',
+      });
+      mockMessengerCall.mockReturnValueOnce(mockSolanaAccount);
+      mockMessengerCall.mockReturnValueOnce({
+        transactions: [],
+      });
+      mockTraceFn.mockImplementation(async (request, fn) => {
+        if (request.name === TraceName.SwapOperationCompleted) {
+          throw new Error('trace boom');
+        }
+        return await fn?.();
+      });
+
+      await withController(
+        { mockMessengerCall },
+        async ({ controller, rootMessenger }) => {
+          await expect(
+            rootMessenger.call('BridgeStatusController:submitTx', {
+              accountAddress: 'SOLaccountAddress',
+              quoteResponses: [mockQuoteResponse],
+              isStxEnabled: false,
+            }),
+          ).resolves.toBeDefined();
+          controller.stopAllPolling();
+        },
+      );
+    });
   });
 
   describe('submitTx: Tron swap with approval', () => {
@@ -7366,6 +7398,40 @@ describe('BridgeStatusController', () => {
           ).not.toThrow();
 
           expect(controller.state.txHistory).toStrictEqual({});
+        },
+      );
+    });
+
+    it('ignores a nested-swap batch with no matching history item', async () => {
+      const mockMessengerCall = vi.fn();
+      await withController(
+        { mockMessengerCall },
+        async ({ controller, rootMessenger }) => {
+          mockMessengerCall.mockClear();
+
+          expect(() =>
+            rootMessenger.publish(
+              'TransactionController:transactionStatusUpdated',
+              {
+                transactionMeta: {
+                  chainId: CHAIN_IDS.ARBITRUM,
+                  networkClientId: 'eth-id',
+                  time: Date.now(),
+                  txParams: {} as unknown as TransactionParams,
+                  type: TransactionType.batch,
+                  status: TransactionStatus.failed,
+                  id: 'unmatched-batch-id',
+                  hash: '0xunmatchedBatchHash',
+                  nestedTransactions: [{ type: TransactionType.swap }],
+                  error: { name: 'Error', message: 'tx-error' },
+                },
+              },
+            ),
+          ).not.toThrow();
+
+          expect(controller.state.txHistory).toStrictEqual({});
+          expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+          expect(mockMessengerCall).not.toHaveBeenCalled();
         },
       );
     });
