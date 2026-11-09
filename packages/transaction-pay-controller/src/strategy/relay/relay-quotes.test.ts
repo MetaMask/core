@@ -1,4 +1,5 @@
 import { toHex } from '@metamask/controller-utils';
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type {
   GasFeeToken,
@@ -204,6 +205,12 @@ describe('Relay Quotes Utils', () => {
     getRemoteFeatureFlagControllerStateMock,
     polymarketGetDepositWalletAddressMock,
   } = getMessengerMock();
+
+  // The destructure above widens the mocks to `any`. Re-type the keyring mock
+  // so new assertions do not add `no-unsafe-call` violations to this file.
+  const keyringStateMock = getKeyringControllerStateMock as MockedFunction<
+    KeyringControllerGetStateAction['handler']
+  >;
 
   messenger.registerActionHandler(
     'TransactionPayController:getAmountData',
@@ -4185,7 +4192,7 @@ describe('Relay Quotes Utils', () => {
         mockRelayResponses();
         // `txParams.from` signs the delegation an atomic quote needs, so the
         // MFA check reads that rather than the request's payer account.
-        getKeyringControllerStateMock.mockReturnValue({
+        keyringStateMock.mockReturnValue({
           isUnlocked: true,
           keyrings: [
             {
@@ -4211,7 +4218,7 @@ describe('Relay Quotes Utils', () => {
 
       it('promotes when a non-MFA keyring holds the signing account', async () => {
         mockRelayResponses();
-        getKeyringControllerStateMock.mockReturnValue({
+        keyringStateMock.mockReturnValue({
           isUnlocked: true,
           keyrings: [
             {
