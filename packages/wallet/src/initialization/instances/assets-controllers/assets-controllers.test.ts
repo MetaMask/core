@@ -420,7 +420,11 @@ const TEST_CASES: ConfigurationTestCase[] = [
       'NetworkEnablementController:getState',
       'TokensController:getState',
     ],
-    events: ['NetworkController:stateChange', 'TokensController:stateChange'],
+    events: [
+      'NetworkController:stateChange',
+      'NetworkEnablementController:stateChange',
+      'TokensController:stateChange',
+    ],
     forwardsState: true,
     options: { interval: 5_000, tokenPricesService },
   },

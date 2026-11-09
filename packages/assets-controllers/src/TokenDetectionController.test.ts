@@ -339,6 +339,161 @@ describe('TokenDetectionController construction and init', () => {
       }),
     );
   });
+
+  function setupAvalancheDetection({
+    useTokenDetection,
+  }: {
+    useTokenDetection?: boolean;
+  } = {}): {
+    controller: TokenDetectionController;
+    rootMessenger: RootMessenger;
+    captureException: ReturnType<typeof vi.fn>;
+    getBalancesInSingleCall: ReturnType<typeof vi.fn>;
+    addTokens: ReturnType<typeof vi.fn>;
+    getPreferencesState:
+      | ReturnType<typeof vi.fn<() => PreferencesState>>
+      | undefined;
+    address: string;
+  } {
+    const captureException = vi.fn();
+    const rootMessenger: RootMessenger = new Messenger({
+      namespace: MOCK_ANY_NAMESPACE,
+      captureException,
+    });
+    const account = createMockInternalAccount({
+      address: '0x0000000000000000000000000000000000000001',
+    });
+    rootMessenger.registerActionHandler(
+      'AccountsController:getSelectedAccount',
+      () => account,
+    );
+    rootMessenger.registerActionHandler('KeyringController:getState', () => ({
+      isUnlocked: true,
+      keyrings: [],
+    }));
+    const defaultNetworkState = getDefaultNetworkControllerState();
+    rootMessenger.registerActionHandler('NetworkController:getState', () => ({
+      ...defaultNetworkState,
+      networkConfigurationsByChainId: {
+        ...defaultNetworkState.networkConfigurationsByChainId,
+        ...mockNetworkConfigurationsByChainId,
+      },
+    }));
+    rootMessenger.registerActionHandler('TokensController:getState', () =>
+      getDefaultTokensState(),
+    );
+    const addTokens = vi
+      .fn<TokensController['addTokens']>()
+      .mockResolvedValue(undefined);
+    rootMessenger.registerActionHandler(
+      'TokensController:addTokens',
+      addTokens,
+    );
+    let getPreferencesState:
+      | ReturnType<typeof vi.fn<() => PreferencesState>>
+      | undefined;
+    if (useTokenDetection !== undefined) {
+      getPreferencesState = vi.fn<() => PreferencesState>().mockReturnValue({
+        ...getDefaultPreferencesState(),
+        useTokenDetection,
+      });
+      rootMessenger.registerActionHandler(
+        'PreferencesController:getState',
+        getPreferencesState,
+      );
+    }
+    const getBalancesInSingleCall = vi.fn().mockResolvedValue({
+      [sampleTokenA.address]: new BN(1),
+    });
+    const controller = new TokenDetectionController({
+      disabled: false,
+      getBalancesInSingleCall,
+      trackMetaMetricsEvent: vi.fn(),
+      messenger: buildTokenDetectionControllerMessenger(rootMessenger),
+      tokenListService: {
+        fetchTokensByChainId: vi.fn().mockResolvedValue({
+          [sampleTokenA.address.toLowerCase()]: {
+            address: sampleTokenA.address.toLowerCase(),
+            name: sampleTokenA.name,
+            symbol: sampleTokenA.symbol,
+            decimals: sampleTokenA.decimals,
+            aggregators: formattedSampleAggregators,
+            iconUrl: sampleTokenA.image,
+            occurrences: 1,
+          },
+        }),
+      } as unknown as TokenListService,
+    });
+
+    return {
+      controller,
+      rootMessenger,
+      captureException,
+      getBalancesInSingleCall,
+      addTokens,
+      getPreferencesState,
+      address: account.address,
+    };
+  }
+
+  async function detectOnAvalanche(
+    controller: TokenDetectionController,
+    address: string,
+  ): Promise<void> {
+    await controller.detectTokens({
+      chainIds: ['0xa86a'],
+      selectedAddress: address,
+    });
+  }
+
+  it('reads the token detection preference when detection runs if it is still unset', async () => {
+    const {
+      controller,
+      rootMessenger,
+      captureException,
+      getBalancesInSingleCall,
+      addTokens,
+      address,
+    } = setupAvalancheDetection();
+
+    controller.init();
+    await detectOnAvalanche(controller, address);
+
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(getBalancesInSingleCall).not.toHaveBeenCalled();
+
+    rootMessenger.registerActionHandler(
+      'PreferencesController:getState',
+      () => ({
+        ...getDefaultPreferencesState(),
+        useTokenDetection: true,
+      }),
+    );
+    await detectOnAvalanche(controller, address);
+
+    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(getBalancesInSingleCall).toHaveBeenCalled();
+    expect(addTokens).toHaveBeenCalledWith([sampleTokenA], 'avalanche');
+  });
+
+  it('keeps an explicit disabled detection preference instead of reading it again', async () => {
+    const {
+      controller,
+      getBalancesInSingleCall,
+      getPreferencesState,
+      address,
+    } = setupAvalancheDetection({ useTokenDetection: false });
+
+    controller.init();
+    getPreferencesState?.mockReturnValue({
+      ...getDefaultPreferencesState(),
+      useTokenDetection: true,
+    });
+    await detectOnAvalanche(controller, address);
+
+    expect(getPreferencesState).toHaveBeenCalledTimes(1);
+    expect(getBalancesInSingleCall).not.toHaveBeenCalled();
+  });
 });
 
 describe('TokenDetectionController', () => {

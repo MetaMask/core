@@ -9,7 +9,11 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
-import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
+import type {
+  NativeAssetIdentifiersMap,
+  NetworkEnablementControllerGetStateAction,
+  NetworkEnablementControllerStateChangeEvent,
+} from '@metamask/network-enablement-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { isEqual } from 'lodash-es';
@@ -105,7 +109,8 @@ export type AllowedActions =
  */
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
-  | NetworkControllerStateChangeEvent;
+  | NetworkControllerStateChangeEvent
+  | NetworkEnablementControllerStateChangeEvent;
 
 /**
  * The name of the {@link TokenRatesController}.
@@ -203,6 +208,13 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
   #allDetectedTokens: TokensControllerState['allDetectedTokens'] = {};
 
+  /**
+   * Last native asset identifiers passed to the token prices service.
+   * `undefined` until the first successful read, so an empty map from
+   * `NetworkEnablementController` is still forwarded once.
+   */
+  #nativeAssetIdentifiers?: NativeAssetIdentifiersMap;
+
   #initialized = false;
 
   /**
@@ -255,6 +267,8 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.#subscribeToTokensStateChange();
 
     this.#subscribeToNetworkStateChange();
+
+    this.#subscribeToNetworkEnablementStateChange();
   }
 
   /**
@@ -264,7 +278,11 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * token prices service.
    *
    * The constructor does not call other controllers, so it can run before they
-   * are constructed. Calling it more than once has no effect.
+   * are constructed. `NetworkEnablementController` may fill
+   * `nativeAssetIdentifiers` after this returns (its own `init` is async and
+   * runs alongside this one). Later values are applied from
+   * `NetworkEnablementController:stateChange` and again before each rate
+   * lookup. Calling this more than once has no effect.
    */
   init(): void {
     if (this.#initialized) {
@@ -276,8 +294,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.#allTokens = allTokens;
     this.#allDetectedTokens = allDetectedTokens;
 
-    // Set native asset identifiers from NetworkEnablementController for CAIP-19 native token lookups
-    this.#initNativeAssetIdentifiers();
+    this.#syncNativeAssetIdentifiers();
   }
 
   /**
@@ -359,6 +376,22 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     );
   }
 
+  /**
+   * Apply `nativeAssetIdentifiers` updates that arrive after `init`.
+   *
+   * `Wallet.init()` starts every controller `init` together.
+   * `NetworkEnablementController.init` fills the map only after async work,
+   * and adding or removing a network changes it later.
+   */
+  #subscribeToNetworkEnablementStateChange(): void {
+    this.messenger.subscribe(
+      'NetworkEnablementController:stateChange',
+      ({ nativeAssetIdentifiers }) => {
+        this.#applyNativeAssetIdentifiers(nativeAssetIdentifiers);
+      },
+    );
+  }
+
   #subscribeToNetworkStateChange() {
     this.messenger.subscribe(
       'NetworkController:stateChange',
@@ -384,18 +417,44 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
   }
 
   /**
-   * Initialize the native asset identifiers from NetworkEnablementController.
-   * This provides CAIP-19 native asset IDs for the token prices service.
+   * Read `nativeAssetIdentifiers` and pass them to the token prices service
+   * when they differ from the last value applied.
+   *
+   * Rate lookups call this so a map filled after `init` is visible even when
+   * `NetworkEnablementController:stateChange` was not delivered.
    */
-  #initNativeAssetIdentifiers(): void {
-    if (this.#tokenPricesService.setNativeAssetIdentifiers) {
-      const { nativeAssetIdentifiers } = this.messenger.call(
-        'NetworkEnablementController:getState',
-      );
-      this.#tokenPricesService.setNativeAssetIdentifiers(
-        nativeAssetIdentifiers,
-      );
+  #syncNativeAssetIdentifiers(): void {
+    if (!this.#tokenPricesService.setNativeAssetIdentifiers) {
+      return;
     }
+
+    const { nativeAssetIdentifiers } = this.messenger.call(
+      'NetworkEnablementController:getState',
+    );
+    this.#applyNativeAssetIdentifiers(nativeAssetIdentifiers);
+  }
+
+  /**
+   * Pass `nativeAssetIdentifiers` to the token prices service.
+   *
+   * @param nativeAssetIdentifiers - CAIP-2 chain IDs mapped to native asset IDs.
+   */
+  #applyNativeAssetIdentifiers(
+    nativeAssetIdentifiers: NativeAssetIdentifiersMap,
+  ): void {
+    if (!this.#tokenPricesService.setNativeAssetIdentifiers) {
+      return;
+    }
+    if (
+      this.#nativeAssetIdentifiers !== undefined &&
+      isEqual(this.#nativeAssetIdentifiers, nativeAssetIdentifiers)
+    ) {
+      return;
+    }
+
+    const nextIdentifiers = { ...nativeAssetIdentifiers };
+    this.#nativeAssetIdentifiers = nextIdentifiers;
+    this.#tokenPricesService.setNativeAssetIdentifiers(nextIdentifiers);
   }
 
   /**
@@ -465,6 +524,8 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     if (this.#disabled) {
       return;
     }
+
+    this.#syncNativeAssetIdentifiers();
 
     const marketData: Record<Hex, Record<Hex, MarketDataDetails>> = {};
     const assetsByNativeCurrency: Record<

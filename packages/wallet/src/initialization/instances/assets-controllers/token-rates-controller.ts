@@ -37,7 +37,11 @@ export const tokenRatesController: InitializationConfiguration<
         'NetworkEnablementController:getState',
         'TokensController:getState',
       ],
-      events: ['NetworkController:stateChange', 'TokensController:stateChange'],
+      events: [
+        'NetworkController:stateChange',
+        'NetworkEnablementController:stateChange',
+        'TokensController:stateChange',
+      ],
     });
 
     return messenger;

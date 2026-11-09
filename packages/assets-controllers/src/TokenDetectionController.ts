@@ -202,6 +202,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #isDetectionEnabledFromPreferences: boolean | undefined;
 
+  #reportedMissingTokenDetectionPreference = false;
+
   #initialized = false;
 
   readonly #useTokenDetection: () => boolean;
@@ -305,9 +307,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    *
    * The constructor does not call other controllers, so it can run before they
    * are constructed. Until this is called, the controller treats the keyring as
-   * locked. `PreferencesController` may be registered after this is called; if
-   * it is not available yet, the preference is taken from its next
-   * `stateChange` event. Calling it more than once has no effect.
+   * locked. `PreferencesController` may be registered after this is called. A
+   * missing `PreferencesController:getState` is reported once and the preference
+   * stays unset. Detection reads it again the next time it runs, and while the
+   * controller is still unavailable non-mainnet chains are skipped and mainnet
+   * uses the static token list. `PreferencesController:stateChange` also updates
+   * the preference. Calling this more than once has no effect.
    */
   init(): void {
     if (this.#initialized) {
@@ -320,14 +325,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
     this.#isUnlocked = isUnlocked;
 
-    try {
-      const { useTokenDetection } = this.messenger.call(
-        'PreferencesController:getState',
-      );
-      this.#isDetectionEnabledFromPreferences = useTokenDetection;
-    } catch (error) {
-      this.messenger.captureException?.(error as Error);
-    }
+    this.#readTokenDetectionPreference();
   }
 
   #enforceDisabledState(): void {
@@ -542,6 +540,37 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   /**
+   * Read `useTokenDetection` when it is still unknown.
+   *
+   * `init` can run before `PreferencesController` is registered, and a later
+   * `init` does not retry. A failed read leaves the preference unset so the
+   * next detection attempt tries again. The first failure is reported through
+   * `captureException`; further misses while the controller is still absent
+   * stay quiet so polling does not report the same error on every chain.
+   *
+   * @returns The preference, or `undefined` when it is still unknown.
+   */
+  #readTokenDetectionPreference(): boolean | undefined {
+    if (this.#isDetectionEnabledFromPreferences !== undefined) {
+      return this.#isDetectionEnabledFromPreferences;
+    }
+
+    try {
+      const { useTokenDetection } = this.messenger.call(
+        'PreferencesController:getState',
+      );
+      this.#isDetectionEnabledFromPreferences = useTokenDetection;
+    } catch (error) {
+      if (!this.#reportedMissingTokenDetectionPreference) {
+        this.#reportedMissingTokenDetectionPreference = true;
+        this.messenger.captureException?.(error as Error);
+      }
+    }
+
+    return this.#isDetectionEnabledFromPreferences;
+  }
+
+  /**
    * Returns the token cache for `chainId` if detection should proceed, or `null` if it
    * should be skipped.  Each call fetches a fresh snapshot from `TokenListService` (which
    * may serve from its in-memory cache) so concurrent calls for different chains never
@@ -556,15 +585,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     if (!isTokenDetectionSupportedForNetwork(chainId)) {
       return null;
     }
-    if (
-      !this.#isDetectionEnabledFromPreferences &&
-      chainId !== ChainId.mainnet
-    ) {
+    const isDetectionEnabledFromPreferences =
+      this.#readTokenDetectionPreference();
+    if (!isDetectionEnabledFromPreferences && chainId !== ChainId.mainnet) {
       return null;
     }
 
     const isMainnetDetectionInactive =
-      !this.#isDetectionEnabledFromPreferences && chainId === ChainId.mainnet;
+      !isDetectionEnabledFromPreferences && chainId === ChainId.mainnet;
     if (isMainnetDetectionInactive) {
       return this.#getConvertedStaticMainnetTokenList();
     }

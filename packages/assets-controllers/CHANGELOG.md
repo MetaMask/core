@@ -22,17 +22,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Call `init` on each of them once the controllers they read from are registered. Until then:
     - `TokensController` does not enrich persisted tokens from the token list, and reads the selected account on demand.
     - `TokenBalancesController`, `TokenDetectionController` and `AccountTrackerController` treat the keyring as locked, and `TokenBalancesController` knows of no tokens.
-    - `TokenRatesController` knows of no tokens and does not pass native asset identifiers to the token prices service.
+    - `TokenRatesController` knows of no tokens and does not pass native asset identifiers to the token prices service. After `init`, identifiers that `NetworkEnablementController` fills or changes are passed to the token prices service on `NetworkEnablementController:stateChange` and again before each rate lookup.
     - `AccountTrackerController` starts with an empty `accountsByChainId`; `init` adds an empty entry for the selected network's chain when no `accountsByChainId` state was provided.
     - `NftController` reads the selected account on demand.
     - `MultichainBalancesController` does not fetch the initial non-EVM balances.
     - `MultichainAssetsRatesController` uses `usd` as the current currency.
     - `MultichainAssetsController` does not start the periodic Blockaid re-scan.
-  - `TokenDetectionController.init` reports a failure to read `PreferencesController:getState` through `messenger.captureException` instead of throwing, and takes the preference from the next `PreferencesController:stateChange` event.
+  - `TokenDetectionController.init` reports a failure to read `PreferencesController:getState` through `messenger.captureException` instead of throwing. The preference stays unset after a failed read and is read again the next time detection runs. While it is still unset, non-mainnet detection is skipped and mainnet uses the static token list. `PreferencesController:stateChange` also updates the preference.
 - **BREAKING:** `TokensControllerMessenger` must allow the `NetworkController:getSelectedNetworkClient` action ([#11315](https://github.com/MetaMask/core/pull/11315))
+- **BREAKING:** `TokenRatesControllerMessenger` must allow the `NetworkEnablementController:stateChange` event ([#11315](https://github.com/MetaMask/core/pull/11315))
+  - The controller subscribes to it and passes updated `nativeAssetIdentifiers` to the token prices service. It also re-reads them before each rate lookup.
 - `TokensController` no longer requires the `chainId` and `provider` options ([#11315](https://github.com/MetaMask/core/pull/11315))
   - When `provider` is omitted, the provider of the selected network client (`NetworkController:getSelectedNetworkClient`) is used.
 - Bump `@metamask/abi-utils` from `^2.0.4` to `^3.0.0` ([#11356](https://github.com/MetaMask/core/pull/11356))
+
+### Fixed
+
+- `TokenRatesController` applies `nativeAssetIdentifiers` that `NetworkEnablementController` fills or updates after `init`, so CAIP-19 native token rate lookups are not left on the map captured during `init` ([#11315](https://github.com/MetaMask/core/pull/11315))
+- `TokenDetectionController` reads `useTokenDetection` again when detection runs if that preference is still unset, so a `PreferencesController` registered after `init` does not leave non-mainnet detection skipped ([#11315](https://github.com/MetaMask/core/pull/11315))
 
 ## [113.2.0]
 
