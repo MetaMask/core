@@ -90,7 +90,8 @@ export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
  * only proceeds when the wallet is still ready and the Money Account is in
  * no other identity. If the Money Account is migrating, and no other
  * identity is, the migration is resumed, but only towards the MPC Money
- * Account of this wallet, which has to sign the successor's steps.
+ * Account of this wallet, which has to sign the successor's steps. That
+ * account is restored first when it is missing, as after a reinstall.
  *
  * Otherwise, the Money Account must be a valid SFA and no identity may be
  * migrating. Asks `MoneyAccountController` to create the MPC Money Account,

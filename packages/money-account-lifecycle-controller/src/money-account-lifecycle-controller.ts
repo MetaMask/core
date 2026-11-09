@@ -438,7 +438,8 @@ export class MoneyAccountLifecycleController extends BaseController<
    * only proceeds when the wallet is still ready and the Money Account is in
    * no other identity. If the Money Account is migrating, and no other
    * identity is, the migration is resumed, but only towards the MPC Money
-   * Account of this wallet, which has to sign the successor's steps.
+   * Account of this wallet, which has to sign the successor's steps. That
+   * account is restored first when it is missing, as after a reinstall.
    *
    * Otherwise, the Money Account must be a valid SFA and no identity may be
    * migrating. Asks `MoneyAccountController` to create the MPC Money Account,
@@ -507,7 +508,7 @@ export class MoneyAccountLifecycleController extends BaseController<
     const { migration } =
       await this.#fetchMigratableIdentities(moneyAccountAddress);
     const successorAddress = migration
-      ? this.#getResumableSuccessor(moneyAccountAddress, migration)
+      ? await this.#getResumableSuccessor(moneyAccountAddress, migration)
       : await this.#createSuccessor(moneyAccountAddress);
 
     await this.messenger.call(
@@ -668,15 +669,16 @@ export class MoneyAccountLifecycleController extends BaseController<
     return { identities, migration: null };
   }
 
-  #getResumableSuccessor(
+  async #getResumableSuccessor(
     moneyAccountAddress: Hex,
     migration: DerivedIdentityMigration,
-  ): Hex {
-    const mpcMoneyAccount = this.messenger.call(
-      'MoneyAccountController:getMoneyAccount',
+  ): Promise<Hex> {
+    const mpcMoneyAccount = await this.messenger.call(
+      'MoneyAccountController:createMoneyAccount',
       { type: 'mpc' },
     );
-    if (mpcMoneyAccount?.address.toLowerCase() !== migration.to.toLowerCase()) {
+    this.#assertReadyToMigrate();
+    if (mpcMoneyAccount.address.toLowerCase() !== migration.to.toLowerCase()) {
       throw new Error(
         `Money Account ${moneyAccountAddress} is migrating to ${migration.to}, which is not the MPC Money Account of this wallet`,
       );
