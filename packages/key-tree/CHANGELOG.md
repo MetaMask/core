@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(key-tree): move to `packages` ([#11367](https://github.com/MetaMask/core/pull/11367))
-
 ### Changed
 
 - **BREAKING:** Drop CommonJS support ([#11361](https://github.com/MetaMask/core/pull/11361))

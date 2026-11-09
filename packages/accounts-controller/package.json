@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "40.1.0",
+  "version": "40.2.0",
   "description": "Manages internal accounts",
   "keywords": [
     "Ethereum",
@@ -61,7 +61,7 @@
     "@metamask/keyring-sdk": "^4.1.0",
     "@metamask/keyring-utils": "^5.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/network-controller": "^37.1.1",
+    "@metamask/network-controller": "^38.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.1",
     "@metamask/watch-only-keyring": "^0.1.1",

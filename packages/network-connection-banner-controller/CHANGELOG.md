@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0]
+
 ### Uncategorized
 
 - chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
@@ -102,7 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dismissal, and switching custom RPC endpoints to an available Infura endpoint
   ([#9041](https://github.com/MetaMask/core/pull/9041))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@1.1.0...HEAD
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@1.0.0...@metamask/network-connection-banner-controller@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.2.1...@metamask/network-connection-banner-controller@1.0.0
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.2.0...@metamask/network-connection-banner-controller@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-connection-banner-controller@0.1.2...@metamask/network-connection-banner-controller@0.2.0

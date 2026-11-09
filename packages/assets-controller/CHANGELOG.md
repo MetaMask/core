@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.3.1]
+
 ## [20.3.0]
 
 ### Added
@@ -1270,7 +1272,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.1...HEAD
+[20.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.0...@metamask/assets-controller@20.3.1
 [20.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.3...@metamask/assets-controller@20.3.0
 [20.2.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.2...@metamask/assets-controller@20.2.3
 [20.2.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.1...@metamask/assets-controller@20.2.2

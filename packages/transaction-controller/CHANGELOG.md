@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [73.1.2]
+
 ### Uncategorized
 
 - chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
@@ -2901,7 +2903,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.2...HEAD
+[73.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.1...@metamask/transaction-controller@73.1.2
 [73.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.0...@metamask/transaction-controller@73.1.1
 [73.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.0.0...@metamask/transaction-controller@73.1.0
 [73.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.3.0...@metamask/transaction-controller@73.0.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [40.1.0]
+
 ### Uncategorized
 
 - chore(eth-sig-util): Integrate into `packages/` ([#11362](https://github.com/MetaMask/core/pull/11362))
@@ -898,7 +900,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@40.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@40.1.0...HEAD
+[40.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@40.0.0...@metamask/signature-controller@40.1.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.10...@metamask/signature-controller@40.0.0
 [39.2.10]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.9...@metamask/signature-controller@39.2.10
 [39.2.9]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.8...@metamask/signature-controller@39.2.9

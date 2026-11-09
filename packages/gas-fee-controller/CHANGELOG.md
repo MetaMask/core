@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.1.1]
+
 ### Uncategorized
 
 - chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
@@ -627,7 +629,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.1.1...HEAD
+[27.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.1.0...@metamask/gas-fee-controller@27.1.1
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.0.0...@metamask/gas-fee-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.3.2...@metamask/gas-fee-controller@27.0.0
 [26.3.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.3.1...@metamask/gas-fee-controller@26.3.2

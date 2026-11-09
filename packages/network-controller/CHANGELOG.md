@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [38.0.0]
+
 ### Uncategorized
 
 - chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
@@ -1363,7 +1365,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@37.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@38.0.0...HEAD
+[38.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@37.1.1...@metamask/network-controller@38.0.0
 [37.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@37.1.0...@metamask/network-controller@37.1.1
 [37.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@37.0.1...@metamask/network-controller@37.1.0
 [37.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@37.0.0...@metamask/network-controller@37.0.1

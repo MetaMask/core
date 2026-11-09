@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [42.1.1]
+
 ### Uncategorized
 
 - chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
@@ -723,7 +725,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.1.1...HEAD
+[42.1.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.1.0...@metamask/user-operation-controller@42.1.1
 [42.1.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.0.1...@metamask/user-operation-controller@42.1.0
 [42.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.0.0...@metamask/user-operation-controller@42.0.1
 [42.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.9...@metamask/user-operation-controller@42.0.0

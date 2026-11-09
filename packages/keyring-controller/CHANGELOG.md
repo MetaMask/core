@@ -7,23 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore(eth-sig-util): Integrate into `packages/` ([#11362](https://github.com/MetaMask/core/pull/11362))
-- chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
-- chore(deps): bump uuid from 14.0.1 to 14.0.2 ([#11305](https://github.com/MetaMask/core/pull/11305))
-- test: turn coverage off by default and add test:coverage ([#11061](https://github.com/MetaMask/core/pull/11061))
-- test: switch Vitest coverage provider to `v8` ([#11261](https://github.com/MetaMask/core/pull/11261))
-- chore(deps): bump uuid from 14.0.0 to 14.0.1 ([#11179](https://github.com/MetaMask/core/pull/11179))
-- ci: validate all changelogs in a single run ([#11199](https://github.com/MetaMask/core/pull/11199))
-- test: drop mock reset hooks that duplicate the shared config ([#11066](https://github.com/MetaMask/core/pull/11066))
-- chore(deps): bump uuid from 11.1.1 to 14.0.0 ([#10941](https://github.com/MetaMask/core/pull/10941))
-- test: use import.meta.dirname in Vitest configs ([#11082](https://github.com/MetaMask/core/pull/11082))
-- chore: use TypeScript for Vitest configs ([#10921](https://github.com/MetaMask/core/pull/10921))
-- test: use typed Vitest module mock factories ([#10904](https://github.com/MetaMask/core/pull/10904))
-- test: run keyring-controller on Vitest ([#10552](https://github.com/MetaMask/core/pull/10552))
-- chore: opt into Jest types per package instead of in tsconfig.base.json ([#10862](https://github.com/MetaMask/core/pull/10862))
-
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))

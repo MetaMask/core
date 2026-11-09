@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.1.0]
+
 ### Uncategorized
 
 - chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
@@ -578,7 +580,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@27.1.0...HEAD
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@27.0.0...@metamask/selected-network-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.7...@metamask/selected-network-controller@27.0.0
 [26.1.7]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.6...@metamask/selected-network-controller@26.1.7
 [26.1.6]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.5...@metamask/selected-network-controller@26.1.6
