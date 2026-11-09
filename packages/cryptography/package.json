@@ -41,6 +41,18 @@
       "types": "./dist/hmac.d.ts",
       "default": "./dist/hmac.js"
     },
+    "./ml-dsa-44": {
+      "types": "./dist/ml-dsa/ml-dsa-44.d.ts",
+      "default": "./dist/ml-dsa/ml-dsa-44.js"
+    },
+    "./ml-dsa-65": {
+      "types": "./dist/ml-dsa/ml-dsa-65.d.ts",
+      "default": "./dist/ml-dsa/ml-dsa-65.js"
+    },
+    "./ml-dsa-87": {
+      "types": "./dist/ml-dsa/ml-dsa-87.d.ts",
+      "default": "./dist/ml-dsa/ml-dsa-87.js"
+    },
     "./pbkdf2": {
       "types": "./dist/pbkdf2.d.ts",
       "default": "./dist/pbkdf2.js"
