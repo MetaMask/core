@@ -343,6 +343,11 @@ export const ModerationStatusResponseStruct = structType({
   reason: nullable(string()),
 });
 
+export const QuoteTokensResponseStruct = structType({
+  natives: array(string()),
+  stablecoins: array(string()),
+});
+
 /**
  * Loose check for a GIF provider page.
  *

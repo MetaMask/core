@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/assets-controller` from `^20.1.0` to `^20.2.3` ([#11255](https://github.com/MetaMask/core/pull/11255), [#11285](https://github.com/MetaMask/core/pull/11285), [#11300](https://github.com/MetaMask/core/pull/11300), [#11326](https://github.com/MetaMask/core/pull/11326))
-- Bump `@metamask/assets-controllers` from `^113.0.1` to `^113.2.0` ([#11255](https://github.com/MetaMask/core/pull/11255), [#11300](https://github.com/MetaMask/core/pull/11300), [#11326](https://github.com/MetaMask/core/pull/11326))
+- Bump `@metamask/assets-controller` from `^20.1.0` to `^20.3.0` ([#11255](https://github.com/MetaMask/core/pull/11255), [#11285](https://github.com/MetaMask/core/pull/11285), [#11300](https://github.com/MetaMask/core/pull/11300), [#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385))
+- Bump `@metamask/assets-controllers` from `^113.0.1` to `^113.3.0` ([#11255](https://github.com/MetaMask/core/pull/11255), [#11300](https://github.com/MetaMask/core/pull/11300), [#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385))
 - Bump `uuid` from `^14.0.0` to `^14.0.2` ([#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
 - Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
 - Bump `@metamask/multichain-network-controller` from `^4.0.0` to `^4.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
