@@ -25,6 +25,7 @@ import type {
   BridgeControllerGetStateAction,
   InputPrimaryDenomination,
   Trade,
+  BridgeControllerFetchQuotesAction,
 } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -473,6 +474,7 @@ type AllowedActions =
   | BridgeControllerTrackUnifiedSwapBridgeEventAction
   | BridgeControllerStopPollingForQuotesAction
   | BridgeControllerGetStateAction
+  | BridgeControllerFetchQuotesAction
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction
