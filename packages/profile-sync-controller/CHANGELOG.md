@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor(key-tree)!: use `@metamask/cryptography` ([#11395](https://github.com/MetaMask/core/pull/11395))
+
 ### Fixed
 
 - `AuthenticationController.exchangeSocialAccessToken`, and so `refreshSocialLoginCredentials`, `beginSocialLoginVerification` and `completeSocialLoginVerification`, no longer fail with "the wallet has no social login" before the vault is written ([#11414](https://github.com/MetaMask/core/pull/11414))
