@@ -264,10 +264,7 @@ describe('mapLocalTransaction', () => {
         ...input.initialTransaction,
         txParams: {
           ...input.initialTransaction.txParams,
-          data: input.initialTransaction.txParams.data.replace(
-            '0x87517c45',
-            '0x87517C45',
-          ),
+          data: `0x87517C45${input.initialTransaction.txParams.data.slice(10)}`,
         },
       },
     });
