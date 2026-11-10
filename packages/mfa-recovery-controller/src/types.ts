@@ -292,6 +292,24 @@ export type RecoveredSecret = {
 };
 
 /**
+ * One escrow's enrolled identifiers and record version.
+ */
+export type GetIdentifiersResponse = {
+  identifiers: Identifier[];
+  version: number;
+};
+
+/**
+ * Enrolled identifiers and `epoch`, plus Auth's current identifiers to build
+ * an `updateIdentifiers` set from.
+ */
+export type RecoveryIdentifiers = {
+  identifiers: Identifier[];
+  epoch: number;
+  authIdentifiers: Identifier[];
+};
+
+/**
  * Authenticates the MetaMask profile and issues request-bound attestations.
  */
 export type RecoveryAuthProvider = {
@@ -340,7 +358,12 @@ export type RecoveryEscrowProvider = {
    */
   readonly wrapPublicKey: Uint8Array;
   isAvailable: () => Promise<boolean>;
-  generateChallenge: () => Promise<PoPChallenge>;
+  generateChallenge: (
+    authControllerToken: AuthControllerToken,
+  ) => Promise<PoPChallenge>;
+  getIdentifiers: (
+    authControllerToken: AuthControllerToken,
+  ) => Promise<GetIdentifiersResponse>;
   getSecret: (
     authControllerToken: AuthControllerToken,
     authorization: IdentifierAuthorization,

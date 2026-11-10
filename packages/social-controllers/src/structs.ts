@@ -14,8 +14,21 @@ import {
   union,
 } from '@metamask/superstruct';
 
-import { TRADER_RANKING_TAGS, TradeStruct } from './social-types.js';
+import {
+  AuthorCommentStruct,
+  CommentEngagementStruct,
+  ProfileIdentityStruct,
+  TRADER_RANKING_TAGS,
+  TradeStruct,
+} from './social-types.js';
 import type { FeedItem, FeedResponse } from './social-types.js';
+
+export {
+  AuthorCommentStruct,
+  CommentEngagementStruct,
+  CommentReactionProfileStruct,
+  ProfileIdentityStruct,
+} from './social-types.js';
 
 export const SocialHandlesStruct = structType({
   twitter: optional(nullable(string())),
@@ -24,11 +37,14 @@ export const SocialHandlesStruct = structType({
   lens: optional(nullable(string())),
 });
 
+const profileIdentityFields = ProfileIdentityStruct.schema;
+
 export const ProfileSummaryStruct = structType({
   profileId: string(),
   address: string(),
   name: string(),
   imageUrl: optional(nullable(string())),
+  ...profileIdentityFields,
 });
 
 const FeedActorStruct = assign(
@@ -61,6 +77,7 @@ export const PositionStruct = structType({
   tokenImageUrl: optional(nullable(string())),
   currentValueUSD: optional(nullable(number())),
   pnlValueUsd: optional(nullable(number())),
+  positionValueUSD: optional(nullable(number())),
   pnlPercent: optional(nullable(number())),
   copyCount: optional(number()),
   perpPositionType: optional(nullable(enums(['long', 'short']))),
@@ -68,32 +85,6 @@ export const PositionStruct = structType({
   positionAmountWithLeverage: optional(nullable(number())),
   // Open set: a flag this package does not know yet must still validate.
   flags: optional(nullable(array(string()))),
-});
-
-export const CommentReactionProfileStruct = structType({
-  id: string(),
-  name: string(),
-});
-
-export const CommentEngagementStruct = structType({
-  reactions: array(
-    structType({
-      emotion: string(),
-      count: number(),
-      profiles: array(CommentReactionProfileStruct),
-    }),
-  ),
-  userReaction: nullable(string()),
-  replyCount: optional(number()),
-});
-
-export const AuthorCommentStruct = structType({
-  uid: string(),
-  text: string(),
-  timestamp: number(),
-  sourceLanguage: optional(nullable(string())),
-  translations: optional(record(string(), string())),
-  engagement: CommentEngagementStruct,
 });
 
 export const CommentTranslationStruct = structType({
@@ -139,6 +130,7 @@ export const FeedItemStruct = assign(
     firstTradeAt: optional(nullable(number())),
     holdTimeMs: optional(nullable(number())),
     entryPriceUsd: optional(nullable(number())),
+    feedItemId: optional(string()),
     eventId: optional(string()),
     revision: optional(number()),
     occurredAt: optional(string()),
@@ -204,7 +196,7 @@ export const TraderProfileStruct = structType({
   allAddresses: array(string()),
   name: string(),
   imageUrl: optional(nullable(string())),
-  createdAt: optional(nullable(string())),
+  ...profileIdentityFields,
 });
 
 export const TraderStatsStruct = structType({
@@ -270,6 +262,7 @@ const LeaderboardEntryStruct = structType({
   pnlPerChain: record(string(), number()),
   followerCount: number(),
   socialHandles: SocialHandlesStruct,
+  ...profileIdentityFields,
 });
 
 export const LeaderboardResponseStruct = structType({
@@ -348,4 +341,26 @@ const BlockedContentStruct = structType({
 export const BlockedContentResponseStruct = structType({
   items: array(BlockedContentStruct),
   cursor: nullable(string()),
+});
+
+export const ModerationStatusResponseStruct = structType({
+  banned: boolean(),
+  bannedAt: nullable(number()),
+  reason: nullable(string()),
+});
+
+export const QuoteTokensResponseStruct = structType({
+  natives: array(string()),
+  stablecoins: array(string()),
+});
+
+/**
+ * Loose check for a GIF provider page.
+ *
+ * `type()` allows unknown keys, and callers return the parsed JSON rather
+ * than a masked copy, so provider fields are not stripped.
+ */
+export const GifPageResponseStruct = structType({
+  result: boolean(),
+  data: structType({}),
 });

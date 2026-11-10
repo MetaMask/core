@@ -192,6 +192,23 @@ export type NeoBankServiceGetMicrodepositsAction = {
 };
 
 /**
+ * Reads the customer's rail abilities via neobank-proxy
+ * `GET /neobank/customers/{customer_id}/abilities` (MoonPay
+ * `GET /api/customers/{id}/abilities`).
+ *
+ * MoonPay rejects an autoramp create with a 422 when the rail it needs is not
+ * `Active`, even for an `Active` customer. The customer id is resolved the
+ * same way as in {@link getMicrodeposits}. Any non-2xx response, including a
+ * 404 when there is no customer yet, throws an {@link HttpError}.
+ *
+ * @returns MoonPay customer abilities, unmodified.
+ */
+export type NeoBankServiceGetCustomerAbilitiesAction = {
+  type: `NeoBankService:getCustomerAbilities`;
+  handler: NeoBankService['getCustomerAbilities'];
+};
+
+/**
  * Checks whether a Monad Money Account address is already registered for the
  * given Iron customer.
  *
@@ -234,5 +251,6 @@ export type NeoBankServiceMethodActions =
   | NeoBankServiceGetCustomerByExternalIdAction
   | NeoBankServiceGetMoonpayCustomerIdAction
   | NeoBankServiceGetMicrodepositsAction
+  | NeoBankServiceGetCustomerAbilitiesAction
   | NeoBankServiceGetWalletRegistrationStatusAction
   | NeoBankServiceRegisterSelfHostedWalletAction;

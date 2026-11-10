@@ -14,8 +14,29 @@ import {
   unknown as unknownStruct,
 } from '@metamask/superstruct';
 
-import type { FeedItem, FeedActorSummary, Trade } from './social-types.js';
-import { AuthorCommentStruct, FeedItemStruct } from './structs.js';
+import { ProfileIdentityStruct } from './social-types.js';
+import type {
+  AuthorComment,
+  FeedItem,
+  FeedActorSummary,
+  ProfileIdentity,
+  Trade,
+} from './social-types.js';
+import {
+  AuthorCommentStruct,
+  CommentEngagementStruct,
+  FeedItemStruct,
+} from './structs.js';
+
+const RawTradeCommentStruct = structType({
+  uid: string(),
+  commentText: string(),
+  timestamp: number(),
+  sourceLanguage: optional(nullable(string())),
+  translations: optional(record(string(), string())),
+  metrics: CommentEngagementStruct,
+  replies: optional(array(unknownStruct())),
+});
 
 const RawTradeStruct = assign(
   structType({
@@ -51,6 +72,7 @@ const RawHydratedPositionStruct = structType({
     profile: structType({
       id: string(),
       metadata: record(string(), unknownStruct()),
+      ...ProfileIdentityStruct.schema,
     }),
     followerCount: optional(nullable(number())),
   }),
@@ -102,17 +124,31 @@ const addNullableNumbers = (
   right: number | null,
 ): number | null => (left === null || right === null ? null : left + right);
 
+const PROFILE_IDENTITY_KEYS = Object.keys(
+  ProfileIdentityStruct.schema,
+) as (keyof ProfileIdentity)[];
+
+// Copies only the identity fields the socket payload sent, as the REST
+// payload omits the ones a profile has no value for.
+const toIdentity = (profile: ProfileIdentity): ProfileIdentity =>
+  Object.fromEntries(
+    PROFILE_IDENTITY_KEYS.flatMap((key) =>
+      profile[key] === undefined ? [] : [[key, profile[key]]],
+    ),
+  );
+
 const toActor = (actor: {
   address: string;
   name: string;
   images: { raw: string | null; sm: string | null };
-  profile: { id: string; metadata: Record<string, unknown> };
+  profile: ProfileIdentity & { id: string; metadata: Record<string, unknown> };
   followerCount?: number | null;
 }): FeedActorSummary => ({
   profileId: actor.profile.id,
   address: actor.address,
   name: actor.name,
   imageUrl: actor.images.sm ?? actor.images.raw,
+  ...toIdentity(actor.profile),
   winRate30d: readNullableNumber(actor.profile.metadata.winRate30d),
   pnl30d: readNullableNumber(actor.profile.metadata.pnl30d),
   volumeUsd30d: readNullableNumber(actor.profile.metadata.volumeUsd30d),
@@ -122,6 +158,29 @@ const toActor = (actor: {
     ? {}
     : { followerCount: actor.followerCount }),
 });
+
+// Same mapping as social-api's `mapAuthorComment`, so a socket fill carries
+// the comments the REST payload would. Malformed entries are dropped.
+const toTradeComments = (comments: unknown[]): AuthorComment[] =>
+  comments.flatMap((comment) => {
+    if (!is(comment, RawTradeCommentStruct)) {
+      return [];
+    }
+    return [
+      {
+        uid: comment.uid,
+        text: comment.commentText,
+        timestamp: comment.timestamp,
+        sourceLanguage: comment.sourceLanguage ?? null,
+        translations: comment.translations ?? {},
+        engagement: {
+          reactions: comment.metrics.reactions,
+          userReaction: comment.metrics.userReaction,
+          replyCount: comment.replies?.length ?? 0,
+        },
+      },
+    ];
+  });
 
 const toTrade = (trade: {
   direction: 'buy' | 'sell';
@@ -134,6 +193,7 @@ const toTrade = (trade: {
   marketCap: number | null;
   timestamp: number;
   transactionHash: string;
+  comments: unknown[];
 }): Trade => ({
   direction: trade.direction,
   intent: trade.intent,
@@ -146,6 +206,7 @@ const toTrade = (trade: {
   marketCap: trade.marketCap,
   timestamp: trade.timestamp,
   transactionHash: trade.transactionHash,
+  comments: toTradeComments(trade.comments),
 });
 
 const isNormalizedRealtimeFeedItem = (value: unknown): value is FeedItem =>

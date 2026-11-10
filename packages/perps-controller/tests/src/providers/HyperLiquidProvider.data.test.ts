@@ -641,6 +641,61 @@ describe('HyperLiquidProvider', () => {
       expect(accountState.totalBalance).toBe('90');
     });
 
+    it('returns a decimal-safe unified balance with isolated positions across DEXs', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const clearinghouseState = vi
+        .fn()
+        .mockImplementation(({ dex }: { dex?: string }) => {
+          const dexBalance = dex ? '0.2' : '0.1';
+          return Promise.resolve({
+            marginSummary: {
+              totalMarginUsed: '0',
+              accountValue: dexBalance,
+            },
+            withdrawable: dexBalance,
+            assetPositions: [
+              {
+                position: {
+                  coin: dex ? 'xyz:TSLA' : 'BTC',
+                  unrealizedPnl: '0',
+                  marginUsed: '0',
+                  returnOnEquity: '0',
+                  leverage: { type: 'isolated', value: 10 },
+                },
+                type: 'oneWay',
+              },
+            ],
+          });
+        });
+      const mockInfoClient = createMockInfoClient({
+        perpDexs: vi
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        clearinghouseState,
+        spotClearinghouseState: vi.fn().mockResolvedValue({
+          balances: [{ coin: 'USDC', hold: '2.524821', total: '4.000004' }],
+        }),
+        userAbstraction: vi.fn().mockResolvedValue('unifiedAccount'),
+      });
+
+      mockClientService.getInfoClient = vi.fn().mockReturnValue(mockInfoClient);
+      mockWalletService.getUserAddressWithDefault.mockResolvedValue('0x123');
+
+      const accountState = await hip3Provider.getAccountState();
+
+      expect(accountState.spendableBalance).toBe('1.775183');
+      expect(accountState.withdrawableBalance).toBe('1.775183');
+      expect(accountState.totalBalance).toBe('1.775183');
+      expect(clearinghouseState).toHaveBeenCalledWith({ user: '0x123' });
+      expect(clearinghouseState).toHaveBeenCalledWith({
+        user: '0x123',
+        dex: 'xyz',
+      });
+    });
+
     it.each(['default', 'disabled'] as const)(
       'does not fold USDC spot balance in %s account mode',
       async (abstractionMode) => {

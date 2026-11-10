@@ -711,6 +711,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'speedUpTransaction',
   'stopTransaction',
   'updateAtomicBatchData',
+  'updateBatchTransactions',
   'updateCustodialTransaction',
   'updateEditableParams',
   'updatePreviousGasParams',

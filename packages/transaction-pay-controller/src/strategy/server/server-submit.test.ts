@@ -25,7 +25,7 @@ import {
   sweepPolymarketDepositWallet,
 } from '../../utils/polymarket/withdraw.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
-import { getLiveTokenBalance } from '../../utils/token.js';
+import { getLiveTokenBalanceOrUndefined } from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
@@ -37,7 +37,7 @@ import {
   submitServerIntent,
 } from './server-api.js';
 import { getServerQuotes } from './server-quotes.js';
-import { submitServerQuotes } from './server-submit.js';
+import { getServerSubmitParams, submitServerQuotes } from './server-submit.js';
 import { ServerStatus } from './types.js';
 import type { ServerQuote, ServerSignatureStep } from './types.js';
 
@@ -50,7 +50,7 @@ vi.mock(import('../../utils/polymarket/withdraw.js'));
 vi.mock(import('../../utils/second-leg.js'));
 vi.mock(import('../../utils/token.js'), async (importOriginal) => ({
   ...(await importOriginal()),
-  getLiveTokenBalance: vi.fn(),
+  getLiveTokenBalanceOrUndefined: vi.fn(),
   getTokenFiatRate: vi.fn(),
 }));
 vi.mock(import('../../utils/transaction.js'), async (importOriginal) => ({
@@ -165,7 +165,7 @@ const DELEGATION_MOCK = {
 };
 
 describe('submitServerQuotes', () => {
-  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalance);
+  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalanceOrUndefined);
   const getServerPollingIntervalMock = vi.mocked(getServerPollingInterval);
   const getServerPollingTimeoutMock = vi.mocked(getServerPollingTimeout);
   const getServerStatusMock = vi.mocked(getServerStatus);
@@ -1304,8 +1304,23 @@ describe('submitServerQuotes', () => {
   });
 
   describe('validateSourceBalance', () => {
+    beforeEach(() => {
+      // Needed by the cases that get past the balance check and go on to
+      // submit.
+      vi.mocked(collectTransactionIds).mockImplementation(
+        (_chainId, _from, _messenger, onTransactionId) => {
+          onTransactionId('submitted-tx-id');
+          return { end: vi.fn() };
+        },
+      );
+      vi.mocked(getTransaction).mockReturnValue({
+        hash: '0xsubmitted' as Hex,
+      } as TransactionMeta);
+      vi.mocked(waitForTransactionConfirmed).mockResolvedValue(undefined);
+    });
+
     it('throws when source balance is insufficient', async () => {
-      vi.mocked(getLiveTokenBalance).mockResolvedValue('0');
+      vi.mocked(getLiveTokenBalanceOrUndefined).mockResolvedValue('0');
 
       const quote = cloneDeep(QUOTE_MOCK);
       quote.original.gasless = false;
@@ -1322,10 +1337,10 @@ describe('submitServerQuotes', () => {
       );
     });
 
-    it('wraps getLiveTokenBalance errors with context message', async () => {
-      vi.mocked(getLiveTokenBalance).mockRejectedValue(
-        new Error('RPC timeout'),
-      );
+    it('submits anyway when the live balance is unavailable', async () => {
+      // An unreadable balance is unknown, not insufficient, so submission
+      // proceeds and the server and the chain reject if truly underfunded.
+      vi.mocked(getLiveTokenBalanceOrUndefined).mockResolvedValue(undefined);
 
       const quote = cloneDeep(QUOTE_MOCK);
       quote.original.gasless = false;
@@ -1337,9 +1352,9 @@ describe('submitServerQuotes', () => {
         transaction: cloneDeep(TRANSACTION_META_MOCK),
       };
 
-      await expect(submitServerQuotes(req)).rejects.toThrow(
-        'Cannot validate payment token balance - RPC timeout',
-      );
+      await submitServerQuotes(req);
+
+      expect(addTxMock).toHaveBeenCalled();
     });
   });
 
@@ -1641,5 +1656,29 @@ describe('submitServerQuotes', () => {
 
       expect(addTxMock).toHaveBeenCalled();
     });
+  });
+});
+
+describe('getServerSubmitParams', () => {
+  const { messenger } = getMessengerMock();
+
+  it('returns the params for the quote transaction steps', async () => {
+    const params = await getServerSubmitParams(
+      QUOTE_MOCK,
+      messenger,
+      TRANSACTION_META_MOCK,
+    );
+
+    expect(params).toStrictEqual([
+      {
+        data: '0xstepdata',
+        from: QUOTE_FROM_MOCK,
+        gas: '0x61a8',
+        maxFeePerGas: '0x3b9aca00',
+        maxPriorityFeePerGas: '0x1dcd6500',
+        to: '0x4444444444444444444444444444444444444444',
+        value: '0x10',
+      },
+    ]);
   });
 });

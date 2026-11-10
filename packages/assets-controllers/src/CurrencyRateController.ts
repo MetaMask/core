@@ -47,6 +47,8 @@ export type CurrencyRateState = {
 const name = 'CurrencyRateController';
 
 const MESSENGER_EXPOSED_METHODS = [
+  'startPolling',
+  'stopPollingByPollingToken',
   'setCurrentCurrency',
   'updateExchangeRate',
 ] as const;

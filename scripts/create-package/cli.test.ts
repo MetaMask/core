@@ -9,12 +9,6 @@ vi.mock(import('./utils.ts'), () => ({
   finalizeAndWriteData: vi.fn(),
 }));
 
-// yargs' ESM shim captures `process.exit` by reference when it is loaded, so
-// the spy has to be installed before `cli.ts` pulls yargs in, which is why it
-// is hoisted above the imports. Its implementation is re-armed in
-// `beforeEach`, because `mockReset` clears it between tests.
-const exitSpy = vi.hoisted(() => vi.spyOn(process, 'exit'));
-
 /**
  * Returns a mock `process.argv` array with the provided arguments. Includes
  * default values for `process.argv[0]` and `process.argv[1]`.
@@ -55,7 +49,7 @@ describe('create-package/cli', () => {
   beforeEach(() => {
     // yargs calls process.exit() with 1 on failure and sometimes 0 on success.
     // We have to intercept it.
-    exitSpy.mockImplementation((code) => {
+    vi.spyOn(process, 'exit').mockImplementation((code) => {
       if (code === 1) {
         throw new Error('exit: 1');
       } else {

@@ -7,6 +7,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.3.0]
+
+### Added
+
+- Export `estimateCloseReceive` so Mobile, Extension and Terminal show the same "You'll receive" amount when closing a position ([#11378](https://github.com/MetaMask/core/pull/11378))
+  - It returns `marginReturned`, `realizedPnl`, `fee` and `receive` in USD for a full or partial close of `closeSize` base units at the close `price`. A `closeSize` above the position size closes the whole position
+  - Margin returned is the closed share of `marginUsed`, less the unrealized PnL for Hyperliquid isolated margin, which holds it. Cross margin is taken as reported. Lighter isolated `marginUsed` is the margin the position requires, not its allocated collateral, so a Lighter isolated close has `undefined` `marginReturned` and `receive`. Pass the provider holding the position as `providerId`: `Position.providerId` is only set under aggregation. For isolated margin on an unknown provider, `marginReturned` and `receive` are `undefined` too
+  - `fee` is the closed notional times the supplied `feeRate`. Pass `FeeCalculationResult.feeRate` from `calculateFees` for the close: it already applies the maker or taker rate and any fee discount
+  - `receive` is margin with its PnL less the fee, each rounded to cents (half away from zero) first, so a margin row that includes the PnL and a fee row add up to it
+  - A figure is `undefined` while an input it needs is missing or unusable, never 0
+  - Types `CloseReceiveEstimateParams` and `CloseReceiveEstimate`
+  - Migration: it replaces Terminal's `estimateCloseReceive` and `CloseReceiveEstimate` in `src/features/perpetuals/order/utils/close-sizing.ts`, Mobile's `receiveAmount` in `usePerpsClosePositionForm.ts` and Extension's `youWillReceive` in `close-position-modal.tsx`
+  - Terminal calls it in `useCloseReceiveEstimate` (`src/features/perpetuals/order/components/TradeActivityPanel/CloseReceiveBreakdown.tsx`), passes `feeRate` instead of the quoted fee amount and `providerId` instead of `marginIncludesUnrealizedPnl`, and uses `undefined` where it used `null`, for `price` as well as the result. Terminal rounded margin and PnL apart, so a total can move by a cent: 62.42 becomes 62.43 when margin of 62.5625 and a PnL of -0.125 meet a fee of 0.01
+  - Mobile and Extension change in four ways. They subtracted unrealized PnL from `marginUsed` on cross positions too, understating a winning cross close and overstating a losing one. Their `Math.round` rounded 1.005 to 1.00 and 8.995 to 8.99, where this gives 1.01 and 9.00. A fee rate not yet quoted gave a fee of 0, where this gives `undefined`. A market close passes the live price, and its PnL is computed at that price rather than read from `unrealizedPnl`
+  - On every client, a Lighter isolated close shows no receive amount until Lighter's allocated collateral is on `Position`, where it showed one built on the required margin
+- Export `calculateNetClosedPnl` to show a fill's closed PnL net of its fee: `OrderFill.pnl` less `OrderFill.fee`, or `undefined` when either is missing, empty or not a number ([#11378](https://github.com/MetaMask/core/pull/11378))
+  - Type `NetClosedPnlParams`
+  - Migration: in Terminal's `formatClosedPnl` (`src/features/perpetuals/order/components/AccountHistory/history-format.ts`) it replaces the net computation (`gross - cost`), and the formatting stays there. Terminal passes `{ pnl: realizedPnl, fee }` and reads `undefined` where it read `null`. It also replaces the PnL-minus-fee in Mobile's and Extension's `transactionTransforms.ts`. Mobile and Extension read a missing fee as 0, where this returns `undefined`
+- Export `estimateIsolatedLeverageChange` so clients show what changing an isolated position's leverage, with no size change, does to its margin and liquidation price ([#11378](https://github.com/MetaMask/core/pull/11378))
+  - It returns `removableMargin`, `margin` and `liquidationPrice` for `position` moving to `leverage`. Pass the provider as `providerId`, the position's `MarketInfo` from `getMarkets` as `market`, and the asset's `marginTiers` from `resolveHyperLiquidMarginTiers`
+  - Hyperliquid keeps an isolated position's margin when its leverage changes. On a rise, `removableMargin` is the drop in initial margin at mark, notional / current leverage less notional / new leverage. It is capped so the margin left covers the larger of the new initial margin and `MARGIN_ADJUSTMENT_CONFIG.MarginRemovalSafetyBuffer` of notional, plus 1% of notional for price movement. Margin the user added and unrealized profit stay. `margin` and `liquidationPrice` assume `removableMargin` is removed
+  - On a strict isolated market (`MarketInfo.marginMode` `strictIsolated`), Hyperliquid does not let margin leave an open position, so `removableMargin` is 0 and `margin` and `liquidationPrice` keep the margin held. `noCross` only rules out cross margin, so margin can leave as on a market without `marginMode`
+  - A fall frees nothing. Hyperliquid rejects a fall the margin cannot cover, so every figure is then `undefined`
+  - Every figure is also `undefined` for cross margin, for a provider other than Hyperliquid (Lighter isolated `marginUsed` is the required margin, not the collateral), while `market` is `undefined`, has a `marginMode` this does not know, or has `onlyIsolated` without `marginMode` (as `getMarkets` returns markets from the Terminal API with `useTerminalApi` and no global snapshot URL, which may then be strict isolated or `noCross`), for a leverage above the max leverage of the margin tier the position's notional is in, and for a missing or unusable input. Without margin tiers the leverage cap is not checked and `liquidationPrice` is `undefined`
+  - Types `IsolatedLeverageChangeParams` and `IsolatedLeverageChange`
+  - Migration: Terminal's leverage write, `useUpdateLeverage` in `src/features/perpetuals/queries/update-leverage-mutation.ts` (called from the `OrderFormLeverageEditor` and `OrderFormMarginModeEditor` dialogs), can release `removableMargin` with `updateIsolatedMargin` after `updateLeverage` when it is above 0. This restores the release Terminal removed pending this helper, which computed the amount with its local `calculateMaxRemovableMargin` from `src/features/perpetuals/order/utils/margin-adjustment.ts` at the new leverage. That amount included added margin and unrealized profit
+  - Migration: Terminal's `ControllerPerpsProvider.estimateIsolatedLeverageChange` (`src/features/perpetuals/infra/perps-controller/ControllerPerpsProvider.ts`) must pass `market`, the symbol's `MarketInfo` from `getMarkets`; the call does not compile without it. Treat an `undefined` `removableMargin` as releasing nothing
+
+### Fixed
+
+- `previewHyperLiquidIsolatedPositionModify`, and so `PerpsController.previewPositionModify` for Hyperliquid, keeps an isolated position's existing margin when the order leverage differs from the position's, as the venue does, and adds only the order's own margin. It used to re-margin the whole position at the order leverage ([#11378](https://github.com/MetaMask/core/pull/11378))
+  - A 2x BTC short of 0.00014 raised to 3x, with a second 0.00014 short at 76,148, now previews 8.87 of margin, which Hyperliquid testnet held, where it showed 7.09
+  - At a lower order leverage, margin above the new initial margin now stays: 1,200 on a $2,000 5x long with a 0.5 order at 4x previews 1,450, not 750
+  - At a lower order leverage the existing margin cannot cover, Hyperliquid rejects the leverage change, so `resulting.margin` and `resulting.liquidationPrice` are unavailable and `resulting.leverage` is the order leverage. They used to show the position topped up
+  - `resulting.leverage` is mark notional over the resulting margin, so it can sit below the order leverage when margin is kept from before a rise
+
+## [22.2.0]
+
+### Added
+
+- Export shared TP/SL calculations so Mobile, Extension and Terminal compute the same RoE and trigger prices ([#11343](https://github.com/MetaMask/core/pull/11343))
+  - `calculatePriceForRoE` and `calculateSignedRoEForPrice` convert between a trigger price and a signed RoE (positive at a gain, negative at a loss, for take profit and stop loss alike), scaled by leverage, with a stop loss's loss capped at 99% per 1x of leverage
+  - `calculateRoEForPrice` returns the RoE on the trigger's own side, a take profit's gain or a stop loss's loss, and zero for a trigger on the wrong side
+  - The RoE calculations need a known `leverage`: they return `''` while it is missing rather than assume 1x, and `''` for a non-finite price, leverage or RoE
+  - RoE is measured from `entryPrice` when set and from `currentPrice` when it is omitted; a set `entryPrice` that is not a finite number above zero, such as `0` or `NaN`, gives `''` rather than falling back to `currentPrice`
+  - `calculatePriceForPercentage` and `calculatePercentageForPrice` convert between a trigger price and a price move
+  - `calculatePriceForRoE` and `calculatePriceForPercentage` keep the decimals a trigger price needs at its price, as set by `TP_SL_PRECISION_CONFIG`, without trailing zeros; the provider rounds the price to the asset's precision when the order is sent
+  - `getMaxStopLossPercentage` and `isValidStopLossPercentage` bound the stop loss percentage
+  - `isPositiveTriggerPrice`, `isValidTakeProfitPrice`, `isValidStopLossPrice` and `isStopLossSafeFromLiquidation` check a trigger price's sign, side and distance from liquidation
+  - `validateTPSLPrices` checks a take profit and stop loss pair and returns `valid`, `invalid` or `unresolved`. A set price that does not read as a positive number, or a stop loss beyond liquidation, is `invalid` even without a reference price; a set price that cannot be checked for lack of a reference price, side or readable liquidation price is `unresolved`
+  - `formatRoePercent` rounds a RoE for display
+  - `TP_SL_PRECISION_CONFIG` sets the decimals these calculations keep: per price band on a trigger price, and on a RoE or price-move percentage
+  - Types `TpslCalculationParams` and `TpslValidationResult`
+- Export `calculateAccountSummary` and `getCrossCollateral` to derive account ratio, account leverage and cross margin usage from `AccountState.crossMarginSummary`, with account leverage as cross notional over total account equity, isolated margin included, as Hyperliquid computes it ([#11343](https://github.com/MetaMask/core/pull/11343))
+  - Types `PerpsAccountSummary`, `CalculateAccountSummaryParams` and `CrossMarginSummaryInput`
+
+### Changed
+
+- Bump `@metamask/abi-utils` from `^2.0.4` to `^3.0.0` ([#11356](https://github.com/MetaMask/core/pull/11356))
+
+## [22.1.2]
+
+### Changed
+
+- Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
+
+### Fixed
+
+- Hyperliquid account balance aggregation now uses decimal-safe arithmetic and emits canonical six-decimal USDC balances, preventing equivalent unified-account balances from differing by one atomic unit ([#11253](https://github.com/MetaMask/core/pull/11253))
+- Include `number_orders_canceled` in batch `OrderCancelTransaction` events, counting successful cancellations and reporting zero for empty or failed batches. ([#11276](https://github.com/MetaMask/core/pull/11276))
+
+## [22.1.1]
+
+### Changed
+
+- Bump `uuid` from `^14.0.0` to `^14.0.1` ([#11179](https://github.com/MetaMask/core/pull/11179))
+
+### Fixed
+
+- Prevent HyperLiquid `userFills` from going silent after a WebSocket reconnect when an in-flight subscribe races with `restoreSubscriptions` (same pending + generation pattern TWAP already uses) ([#11160](https://github.com/MetaMask/core/pull/11160))
+  - Without this, live fills can keep attaching to a dead pre-reconnect listener (MetaMask/metamask-extension#47287).
+
 ## [22.1.0]
 
 ### Added
@@ -1316,7 +1398,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.3.0...HEAD
+[22.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.2.0...@metamask/perps-controller@22.3.0
+[22.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.1.2...@metamask/perps-controller@22.2.0
+[22.1.2]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.1.1...@metamask/perps-controller@22.1.2
+[22.1.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.1.0...@metamask/perps-controller@22.1.1
 [22.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.0.0...@metamask/perps-controller@22.1.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@21.0.0...@metamask/perps-controller@22.0.0
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@20.1.0...@metamask/perps-controller@21.0.0

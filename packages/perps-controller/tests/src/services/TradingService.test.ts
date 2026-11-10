@@ -2144,6 +2144,35 @@ describe('TradingService', () => {
       },
     ];
 
+    it.each([
+      { successCount: 2, failureCount: 0 },
+      { successCount: 1, failureCount: 1 },
+      { successCount: 0, failureCount: 2 },
+    ])(
+      'reports $successCount canceled orders in the batch summary',
+      async ({ successCount, failureCount }) => {
+        mockGetOpenOrders.mockResolvedValue(mockOrders);
+        (mockProvider.cancelOrders as Mock).mockResolvedValue({
+          success: successCount > 0,
+          successCount,
+          failureCount,
+          results: [],
+        });
+
+        await tradingService.cancelOrders({
+          provider: mockProvider,
+          params: { cancelAll: true },
+          context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+          withStreamPause: mockWithStreamPause,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.OrderCancelTransaction,
+          expect.objectContaining({ number_orders_canceled: successCount }),
+        );
+      },
+    );
+
     it('cancels all orders excluding TP/SL when cancelAll is true', async () => {
       const params: CancelOrdersParams = {
         cancelAll: true,
@@ -2235,6 +2264,10 @@ describe('TradingService', () => {
       expect(result.success).toBe(false);
       expect(result.results).toEqual([]);
       expect(mockProvider.cancelOrders).not.toHaveBeenCalled();
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.OrderCancelTransaction,
+        expect.objectContaining({ number_orders_canceled: 0 }),
+      );
     });
 
     it('handles partial failures gracefully', async () => {
@@ -2305,6 +2338,10 @@ describe('TradingService', () => {
         }),
       ).rejects.toThrow('Cancel failed');
 
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.OrderCancelTransaction,
+        expect.objectContaining({ number_orders_canceled: 0 }),
+      );
       expect(mockWithStreamPause).toHaveBeenCalled();
     });
 
@@ -2326,6 +2363,10 @@ describe('TradingService', () => {
 
       expect(result.results).toHaveLength(2);
       expect(mockProvider.cancelOrder).toHaveBeenCalledTimes(2);
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenLastCalledWith(
+        PerpsAnalyticsEvent.OrderCancelTransaction,
+        expect.objectContaining({ number_orders_canceled: 2 }),
+      );
     });
 
     it('logs batch error when provider.cancelOrders returns partial/full failure', async () => {

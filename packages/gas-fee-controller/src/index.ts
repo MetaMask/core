@@ -8,4 +8,6 @@ export type {
   GasFeeControllerGetTimeEstimateAction,
   GasFeeControllerEnableNonRPCGasFeeApisAction,
   GasFeeControllerDisableNonRPCGasFeeApisAction,
+  GasFeeControllerStartPollingAction,
+  GasFeeControllerStopPollingByPollingTokenAction,
 } from './GasFeeController-method-action-types.js';

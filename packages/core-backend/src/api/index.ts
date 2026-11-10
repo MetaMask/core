@@ -90,6 +90,8 @@ export type {
   TopGainersSortOption,
   TrendingSortOption,
   V1SuggestedOccurrenceFloorsResponse,
+  V2AssetResponse,
+  V2AssetsQueryOptions,
 } from './token/index.js';
 
 // Tokens API

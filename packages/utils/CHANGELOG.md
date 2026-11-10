@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Build declaration files with `exactOptionalPropertyTypes` ([#11337](https://github.com/MetaMask/core/pull/11337))
+  - This TypeScript compiler option was accidentally dropped from the build in 12.0.1, so this change restores types to what they were prior to this version.
+  - `| undefined` is dropped from `params`, `data` and `stack` fields across `JsonRpcErrorStruct`, `JsonRpcRequestStruct`, `JsonRpcNotificationStruct`, `PendingJsonRpcResponseStruct`, `JsonRpcFailureStruct`, and `JsonRpcResponseStruct`, and in the types inferred from them (e.g., `JsonRpcRequestStruct` and `JsonRpcRequest` now match)
+
 ## [12.0.1]
 
 ### Added
