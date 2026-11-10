@@ -4891,11 +4891,17 @@ export class HyperLiquidSubscriptionService {
     onError?: (error: Error) => void;
   }): () => void {
     const { symbol, accountId, callback, onError } = params;
+    const maxAttempts = 3;
     let subscription: ISubscription | undefined;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
     let retired = false;
-    // Bumped on every (re)open: a pending or open attempt from an older
-    // transport, or one that was retired, drops its frames and subscription.
-    let attempt = 0;
+    // Bumped on every open, failure and retirement: a subscription, frame or
+    // error that an older attempt delivers afterwards is dropped.
+    let generation = 0;
+    // Consecutive failures, at open or after it, since the last frame. One
+    // budget for both paths, so a venue that accepts the subscribe and then
+    // fails it cannot retry forever.
+    let failures = 0;
 
     const unsubscribe = (sub: ISubscription): void => {
       sub.unsubscribe().catch((error: unknown) => {
@@ -4911,47 +4917,56 @@ export class HyperLiquidSubscriptionService {
       });
     };
 
-    const open = (retryAttempt = 1): void => {
-      attempt += 1;
-      const thisAttempt = attempt;
-      const isCurrent = (): boolean => !retired && thisAttempt === attempt;
-      // reopen() has released any previous subscription.
-      subscription = undefined;
+    // Cancel a pending retry and release a live subscription, which may sit
+    // on the current transport (a retry can open there before restore runs).
+    const release = (): void => {
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
+      if (subscription) {
+        unsubscribe(subscription);
+        subscription = undefined;
+      }
+    };
 
-      // Same policy as the assetCtxs subscribeWithRetry: a transient SDK
-      // failure retries on the same transport (3 attempts, attempt * 500 ms);
-      // anything else, or the last attempt, reaches the caller's onError.
-      const fail = (error: unknown, failedAttempt: number): void => {
+    const open = (): void => {
+      release();
+      generation += 1;
+      const thisGeneration = generation;
+      const isCurrent = (): boolean =>
+        !retired && thisGeneration === generation;
+
+      // A transient SDK failure retries on the same transport with the
+      // assetCtxs subscribeWithRetry backoff (attempt * 500 ms). The third
+      // consecutive failure, or any non-transient one, reaches onError once;
+      // the stream then waits for restoreSubscriptions() or a new subscribe.
+      const fail = (error: unknown): void => {
         if (!isCurrent()) {
           return;
         }
-        // Retire this attempt so its late frames and errors are dropped.
-        attempt += 1;
-        const retryGeneration = attempt;
+        generation += 1;
+        // Never opened, or already dropped by the SDK.
         subscription = undefined;
+        failures += 1;
         const safeError = ensureError(
           error,
           'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
         );
-        if (
-          failedAttempt < 3 &&
-          !this.#isClearing &&
-          this.#isTransientSdkError(safeError)
-        ) {
-          const retryDelayMs = failedAttempt * 500;
+        if (failures < maxAttempts && this.#isTransientSdkError(safeError)) {
+          const retryDelayMs = failures * 500;
           this.#deps.debugLogger.log(
             'Transient activeAssetData subscription failure, retrying',
             {
               symbol,
-              attempt: failedAttempt,
+              attempt: failures,
               retryDelayMs,
               error: safeError.message,
             },
           );
-          setTimeout(() => {
-            // A reopen, cleanup or clearAll since the failure wins.
-            if (!retired && retryGeneration === attempt && !this.#isClearing) {
-              open(failedAttempt + 1);
+          const retryGeneration = generation;
+          retryTimer = setTimeout(() => {
+            retryTimer = undefined;
+            if (!retired && retryGeneration === generation) {
+              open();
             }
           }, retryDelayMs);
           return;
@@ -4967,6 +4982,9 @@ export class HyperLiquidSubscriptionService {
         await this.#clientService.ensureSubscriptionClient(
           this.#walletService.createWalletAdapter(),
         );
+        if (!isCurrent()) {
+          return;
+        }
         const subscriptionClient = this.#clientService.getSubscriptionClient();
         if (!subscriptionClient) {
           throw new Error('Subscription client not available');
@@ -4986,13 +5004,14 @@ export class HyperLiquidSubscriptionService {
             ) {
               return;
             }
+            failures = 0;
             callback(data);
           },
           {
             // A failure after the open (a rejected resubscription, a
             // terminated connection): the SDK has already dropped the
-            // subscription. It had opened, so retry with a fresh budget.
-            onError: (error: Error) => fail(error, 1),
+            // subscription.
+            onError: fail,
           },
         );
         if (!isCurrent()) {
@@ -5000,25 +5019,20 @@ export class HyperLiquidSubscriptionService {
           return;
         }
         subscription = sub;
-      })().catch((error: unknown) => fail(error, retryAttempt));
+      })().catch(fail);
     };
 
     const stream = {
       reopen: (): void => {
-        // A retry can open on the replacement transport before restore
-        // reaches this stream; release it instead of orphaning it.
-        if (subscription) {
-          unsubscribe(subscription);
-        }
+        // A replacement transport starts a fresh retry budget.
+        failures = 0;
         open();
       },
       retire: (): void => {
         retired = true;
+        generation += 1;
         this.#activeAssetDataStreams.delete(stream);
-        if (subscription) {
-          unsubscribe(subscription);
-          subscription = undefined;
-        }
+        release();
       },
     };
 
