@@ -30,6 +30,7 @@ const ERC1155Interface = new Interface(abiERC1155);
 const USDCInterface = new Interface(abiFiatTokenV2);
 const Permit2Interface = new Interface([
   'function approve(address token, address spender, uint160 amount, uint48 expiration)',
+  'function transferFrom(address from, address to, uint160 amount, address token)',
 ]);
 
 describe('determineTransactionType', () => {
@@ -184,6 +185,27 @@ describe('determineTransactionType', () => {
     );
     expect(result).toMatchObject({
       type: TransactionType.tokenMethodApprove,
+      getCodeResponse: '0xab',
+    });
+  });
+
+  it('returns a contract interaction type for a Permit2 transferFrom', async () => {
+    vi.mocked(rpcRequest).mockResolvedValue('0xab');
+
+    const result = await determineTransactionType(
+      {
+        ...txParams,
+        data: Permit2Interface.encodeFunctionData('transferFrom', [
+          '0x1234567890123456789012345678901234567890',
+          '0x2234567890123456789012345678901234567890',
+          '1000000',
+          '0x3234567890123456789012345678901234567890',
+        ]),
+      },
+      { messenger: messengerMock, networkClientId: networkClientIdMock },
+    );
+    expect(result).toMatchObject({
+      type: TransactionType.contractInteraction,
       getCodeResponse: '0xab',
     });
   });

@@ -108,9 +108,9 @@ export async function determineTransactionType(
 }
 
 /**
- * Parses transaction data using ABIs for the ERC20, ERC721, ERC1155 and USDC token standards, and the Permit2 `approve` method.
+ * Parses transaction data using the ERC20, ERC721, ERC1155, USDC and Permit2 `approve` ABIs.
  * The data will decode correctly if the transaction is an interaction with a contract that matches one of these
- * contract standards
+ * ABIs.
  *
  * @param data - Encoded transaction data.
  * @param options - Options bag.
