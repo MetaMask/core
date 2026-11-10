@@ -263,7 +263,10 @@ import {
   resolvePositionTriggerSummaryPrice,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
-import { assertExpectedPosition } from '../utils/positionProtection.js';
+import {
+  assertExpectedPosition,
+  toPositionTpslLegPrices,
+} from '../utils/positionProtection.js';
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
@@ -11753,9 +11756,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       {
         symbol,
         ...(expectedPosition && { expectedPosition }),
-        ...(leg === 'tp'
-          ? { takeProfitPrice: triggerPrice }
-          : { stopLossPrice: triggerPrice }),
+        ...toPositionTpslLegPrices({ leg, triggerPrice }),
       },
       { leg, limitPrice },
     );

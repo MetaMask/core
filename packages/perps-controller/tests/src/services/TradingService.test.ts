@@ -3928,6 +3928,31 @@ describe('TradingService', () => {
       );
     });
 
+    it('prices a limit leg at its fill price, not its trigger', async () => {
+      mockProvider.replacePositionTPSLLeg = vi
+        .fn()
+        .mockResolvedValue({ success: true });
+      mockGetPositions.mockResolvedValue([legPosition]);
+
+      await tradingService.replacePositionTPSLLeg({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          leg: 'tp',
+          triggerPrice: '60000',
+          limitPrice: '62000',
+        },
+        context: { ...mockContext, getPositions: mockGetPositions },
+      });
+
+      // 0.5 BTC fills at 62000: 31000, past a 30000 allowance that the
+      // trigger alone would fully cover.
+      expect(mockRewardsIntegrationService.resolveFee).toHaveBeenCalledWith(
+        31000,
+        hyperliquidMainnetScope,
+      );
+    });
+
     it('rejects with the typed unsupported error when the provider cannot replace a leg', async () => {
       mockProvider.replacePositionTPSLLeg = undefined;
       mockGetPositions.mockResolvedValue([legPosition]);

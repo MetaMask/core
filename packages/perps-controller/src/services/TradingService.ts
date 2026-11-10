@@ -56,6 +56,7 @@ import {
   isLimitExecutionOrderType,
   SCALE_ORDER_COUNT,
 } from '../utils/orderTypes.js';
+import { toPositionTpslLegPrices } from '../utils/positionProtection.js';
 import { environmentTypeProperty } from './environmentTypeProperty.js';
 import type { RewardsIntegrationService } from './RewardsIntegrationService.js';
 import type { ServiceContext } from './ServiceContext.js';
@@ -2670,18 +2671,18 @@ export class TradingService {
     context: ServiceContext;
   }): Promise<OrderResult> {
     const { provider, params, context } = options;
-    const { symbol, leg, triggerPrice, trackingData, providerId } = params;
+    const { symbol, leg, triggerPrice, limitPrice, trackingData, providerId } =
+      params;
     return this.#writePositionTpsl({
       provider,
       context,
       params: {
         symbol,
-        ...(leg === 'tp'
-          ? { takeProfitPrice: triggerPrice }
-          : { stopLossPrice: triggerPrice }),
+        ...toPositionTpslLegPrices({ leg, triggerPrice }),
         ...(trackingData && { trackingData }),
         ...(providerId && { providerId }),
       },
+      limitPrice,
       operationName: 'replacePositionTPSLLeg',
       operation: async () => {
         if (!provider.replacePositionTPSLLeg) {
@@ -2699,6 +2700,8 @@ export class TradingService {
    * @param options.provider - The perps provider instance.
    * @param options.params - The TP/SL being written, used for fees, tracing and analytics.
    * @param options.context - The service context for dependencies.
+   * @param options.limitPrice - Fill price of a single replaced leg. The fee
+   * notional uses it instead of the trigger, as the venue fills at it.
    * @param options.operationName - Method name reported in error context.
    * @param options.operation - The provider write to run.
    * @returns The result of the operation.
@@ -2707,10 +2710,12 @@ export class TradingService {
     provider: PerpsProvider;
     params: UpdatePositionTPSLParams;
     context: ServiceContext;
+    limitPrice?: string;
     operationName: 'updatePositionTPSL' | 'replacePositionTPSLLeg';
     operation: () => Promise<OrderResult>;
   }): Promise<OrderResult> {
-    const { provider, params, context, operationName, operation } = options;
+    const { provider, params, context, limitPrice, operationName, operation } =
+      options;
     const traceId = uuidv4();
     const startTime = this.#deps.performance.now();
     let traceData: { success: boolean; error?: string } | undefined;
@@ -2780,7 +2785,8 @@ export class TradingService {
                 triggerSize === undefined
                   ? undefined
                   : Math.abs(Number.parseFloat(triggerSize)).toString(),
-              price,
+              price: limitPrice,
+              triggerPrice: price,
             });
           }),
       );
