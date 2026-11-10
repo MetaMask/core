@@ -43,13 +43,12 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - name: Checkout and setup base commit
+      - name: Checkout and setup pull request head
         uses: MetaMask/action-checkout-and-setup@v3
         with:
-          # GitHub uses the base branch when looking up ownership rules, so we
-          # use the base commit so we can access its copy of the script as well
-          # as `codeowners.ts`.
-          ref: ${{ github.event.pull_request.base.sha }}
+          # Use the pull request's copy of the script, so that it works even if
+          # the base branch doesn't have the script or has an older version.
+          ref: ${{ github.event.pull_request.head.sha }}
           # Pull full history, as Git needs it to find the commit where the pull
           # request branched off from the base branch (the merge base). But to
           # keep things fast, use `filter` to only fetch commits, not file
@@ -59,16 +58,20 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
 
-      - name: Fetch pull request head
-        run: git fetch --no-tags origin "$HEAD_SHA"
+      # GitHub applies the base branch's ownership rules to a pull request, not
+      # any changes to them the pull request makes, so the summary should too.
+      # For instance, if a pull request moves a package to another team, the
+      # package's current team still needs to approve it.
+      - name: Use the base branch's ownership rules
+        run: git checkout "$BASE_SHA" -- codeowners.ts
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
 
       - name: Generate summary
         # Write the output to a file, not GITHUB_OUTPUT, to ensure that GitHub
         # doesn't get confused when it attempts to parse the multiline output string.
         run: |
-          if ! yarn create-codeownership-summary --base-ref "$BASE_SHA" --head-ref "$HEAD_SHA" > "$RUNNER_TEMP/codeownership-summary.md"; then
+          if ! yarn create-codeownership-summary --base-ref "$BASE_SHA" --head-ref HEAD > "$RUNNER_TEMP/codeownership-summary.md"; then
             # Yarn reports some errors, such as a missing script, on stdout,
             # which is redirected above, so show it to explain the failure
             cat "$RUNNER_TEMP/codeownership-summary.md"
@@ -76,7 +79,6 @@ jobs:
           fi
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
 
       - name: Hide previous comments and post new comment
         uses: actions/github-script@v9
