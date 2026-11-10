@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [36.1.1]
+
 ### Fixed
 
 - `AuthenticationController.exchangeSocialAccessToken`, and so `refreshSocialLoginCredentials`, `beginSocialLoginVerification` and `completeSocialLoginVerification`, no longer fail with "the wallet has no social login" before the vault is written ([#11414](https://github.com/MetaMask/core/pull/11414))
@@ -1138,7 +1140,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.1...HEAD
+[36.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.0...@metamask/profile-sync-controller@36.1.1
 [36.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.0.0...@metamask/profile-sync-controller@36.1.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@35.0.0...@metamask/profile-sync-controller@36.0.0
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.1.0...@metamask/profile-sync-controller@35.0.0
