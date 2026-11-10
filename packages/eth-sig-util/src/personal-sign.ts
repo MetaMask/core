@@ -1,8 +1,4 @@
-import {
-  ecsign,
-  hashPersonalMessage,
-  publicToAddress,
-} from '@ethereumjs/util';
+import { ecsign, hashPersonalMessage, publicToAddress } from '@ethereumjs/util';
 import type { ToBytesInputTypes } from '@ethereumjs/util';
 import { bigIntToBytes, bytesToHex } from '@metamask/utils';
 

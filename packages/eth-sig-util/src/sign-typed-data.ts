@@ -1,4 +1,4 @@
-import { arrToBufArr, ecsign, publicToAddress } from '@ethereumjs/util';
+import { ecsign, publicToAddress } from '@ethereumjs/util';
 import { encode, encodePacked } from '@metamask/abi-utils';
 import {
   getArrayType,
@@ -271,16 +271,16 @@ function encodeField(
   // TODO: constrain type on `value`
   value: any,
   version: SignTypedDataVersion.V3 | SignTypedDataVersion.V4,
-): [type: string, value: bigint | Buffer | boolean | string | Uint8Array] {
+): [type: string, value: bigint | boolean | string | Uint8Array] {
   validateVersion(version, [SignTypedDataVersion.V3, SignTypedDataVersion.V4]);
 
   if (types[type] !== undefined) {
     return [
       'bytes32',
-      // TODO: return Buffer, remove string from return type
+      // TODO: return Uint8Array, remove string from return type
       version === SignTypedDataVersion.V4 && value == null // eslint-disable-line no-eq-null
         ? '0x0000000000000000000000000000000000000000000000000000000000000000'
-        : arrToBufArr(keccak256(encodeData(type, value, types, version))),
+        : keccak256(encodeData(type, value, types, version)),
     ];
   }
 
@@ -316,7 +316,7 @@ function encodeField(
     } else if (typeof value === 'string') {
       value = stringToBytes(value);
     }
-    return ['bytes32', arrToBufArr(keccak256(value))];
+    return ['bytes32', keccak256(value)];
   }
 
   if (type.startsWith('bytes') && type !== 'bytes' && !type.includes('[')) {
@@ -348,7 +348,7 @@ function encodeField(
     } else {
       value = stringToBytes(value ?? '');
     }
-    return ['bytes32', arrToBufArr(keccak256(value))];
+    return ['bytes32', keccak256(value)];
   }
 
   if (type.endsWith(']')) {
@@ -363,12 +363,10 @@ function encodeField(
     );
     return [
       'bytes32',
-      arrToBufArr(
-        keccak256(
-          encode(
-            typeValuePairs.map(([fieldType]) => fieldType),
-            typeValuePairs.map(([, fieldValue]) => fieldValue),
-          ),
+      keccak256(
+        encode(
+          typeValuePairs.map(([fieldType]) => fieldType),
+          typeValuePairs.map(([, fieldValue]) => fieldValue),
         ),
       ),
     ];
@@ -391,11 +389,11 @@ function encodeData(
   data: Record<string, unknown>,
   types: Record<string, MessageTypeProperty[]>,
   version: SignTypedDataVersion.V3 | SignTypedDataVersion.V4,
-): Buffer {
+): Uint8Array {
   validateVersion(version, [SignTypedDataVersion.V3, SignTypedDataVersion.V4]);
 
   const encodedTypes = ['bytes32'];
-  const encodedValues: (string | bigint | boolean | Uint8Array | Buffer)[] = [
+  const encodedValues: (string | bigint | boolean | Uint8Array)[] = [
     hashType(primaryType, types),
   ];
 
@@ -414,7 +412,7 @@ function encodeData(
     encodedValues.push(value);
   }
 
-  return arrToBufArr(encode(encodedTypes, encodedValues));
+  return encode(encodedTypes, encodedValues);
 }
 
 /**
@@ -493,12 +491,11 @@ function hashStruct(
   data: Record<string, unknown>,
   types: Record<string, MessageTypeProperty[]>,
   version: SignTypedDataVersion.V3 | SignTypedDataVersion.V4,
-): Buffer {
+): Uint8Array {
   validateVersion(version, [SignTypedDataVersion.V3, SignTypedDataVersion.V4]);
 
   const encoded = encodeData(primaryType, data, types, version);
-  const hashed = keccak256(encoded);
-  return arrToBufArr(hashed);
+  return keccak256(encoded);
 }
 
 /**
@@ -511,9 +508,9 @@ function hashStruct(
 function hashType(
   primaryType: string,
   types: Record<string, MessageTypeProperty[]>,
-): Buffer {
+): Uint8Array {
   const encodedHashType = stringToBytes(encodeType(primaryType, types));
-  return arrToBufArr(keccak256(encodedHashType));
+  return keccak256(encodedHashType);
 }
 
 /**
@@ -551,7 +548,7 @@ function sanitizeData<T extends MessageTypes>(
 function eip712DomainHash<T extends MessageTypes>(
   typedData: TypedMessage<T>,
   version: SignTypedDataVersion.V3 | SignTypedDataVersion.V4,
-): Buffer {
+): Uint8Array {
   validateVersion(version, [SignTypedDataVersion.V3, SignTypedDataVersion.V4]);
 
   const sanitizedData = sanitizeData(typedData);
@@ -575,7 +572,7 @@ function eip712DomainHash<T extends MessageTypes>(
 function eip712Hash<T extends MessageTypes>(
   typedData: TypedMessage<T>,
   version: SignTypedDataVersion.V3 | SignTypedDataVersion.V4,
-): Buffer {
+): Uint8Array {
   validateVersion(version, [SignTypedDataVersion.V3, SignTypedDataVersion.V4]);
 
   const sanitizedData = sanitizeData(typedData);
@@ -593,7 +590,7 @@ function eip712Hash<T extends MessageTypes>(
       ),
     );
   }
-  return arrToBufArr(keccak256(concatBytes(parts)));
+  return keccak256(concatBytes(parts));
 }
 
 /**
@@ -620,8 +617,8 @@ export const TypedDataUtils = {
  * @returns The '0x'-prefixed hex encoded hash representing the type of the provided message.
  */
 export function typedSignatureHash(typedData: TypedDataV1Field[]): string {
-  const hashBuffer = _typedSignatureHash(typedData);
-  return bytesToHex(hashBuffer);
+  const hash = _typedSignatureHash(typedData);
+  return bytesToHex(hash);
 }
 
 /**
@@ -751,7 +748,7 @@ function normalizeIntegers(type: string, values: unknown[]) {
  * @param typedData - The typed message.
  * @returns The hash representing the type of the provided message.
  */
-function _typedSignatureHash(typedData: TypedDataV1): Buffer {
+function _typedSignatureHash(typedData: TypedDataV1): Uint8Array {
   const error = new Error('Expect argument to be non-empty array');
   if (
     typeof typedData !== 'object' ||
@@ -809,15 +806,13 @@ function _typedSignatureHash(typedData: TypedDataV1): Buffer {
     return `${e.type} ${e.name}`;
   });
 
-  return arrToBufArr(
-    keccak256(
-      encodePacked(
-        ['bytes32', 'bytes32'],
-        [
-          keccak256(encodePacked(['string[]'], [schema], true)),
-          keccak256(encodePacked(types, data, true)),
-        ],
-      ),
+  return keccak256(
+    encodePacked(
+      ['bytes32', 'bytes32'],
+      [
+        keccak256(encodePacked(['string[]'], [schema], true)),
+        keccak256(encodePacked(types, data, true)),
+      ],
     ),
   );
 }
@@ -850,7 +845,7 @@ export function signTypedData<
   data,
   version,
 }: {
-  privateKey: Buffer;
+  privateKey: Uint8Array;
   data: V extends 'V1' ? TypedDataV1 : TypedMessage<T>;
   version: V;
 }): string {
@@ -866,11 +861,7 @@ export function signTypedData<
       ? _typedSignatureHash(data as TypedDataV1)
       : TypedDataUtils.eip712Hash(data as TypedMessage<T>, version);
   const signature = ecsign(messageHash, privateKey);
-  return concatSig(
-    arrToBufArr(bigIntToBytes(signature.v)),
-    signature.r,
-    signature.s,
-  );
+  return concatSig(bigIntToBytes(signature.v), signature.r, signature.s);
 }
 
 /**
