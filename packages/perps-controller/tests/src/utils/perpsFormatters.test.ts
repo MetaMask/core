@@ -1273,7 +1273,7 @@ describe('TAT-4574 display formatters', () => {
       'resolves grouping %s at mid %s with szDecimals %s',
       (grouping, midPrice, szDecimals, expected) => {
         expect(
-          getPerpsOrderBookPriceFormat(grouping, midPrice, szDecimals),
+          getPerpsOrderBookPriceFormat(grouping, { midPrice, szDecimals }),
         ).toStrictEqual(expected);
       },
     );
@@ -1281,9 +1281,22 @@ describe('TAT-4574 display formatters', () => {
     it.each([null, undefined, 0, -1, NaN, Infinity])(
       'returns null for grouping %s',
       (grouping) => {
-        expect(getPerpsOrderBookPriceFormat(grouping, 87000, 5)).toBeNull();
+        expect(
+          getPerpsOrderBookPriceFormat(grouping, {
+            midPrice: 87000,
+            szDecimals: 5,
+          }),
+        ).toBeNull();
       },
     );
+
+    it('uses the grouping decimals without ladder context', () => {
+      expect(getPerpsOrderBookPriceFormat(0.01)).toStrictEqual({
+        divisor: 1,
+        suffix: '',
+        decimals: 2,
+      });
+    });
   });
 
   describe('formatPerpsOrderBookPrice', () => {

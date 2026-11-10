@@ -1087,7 +1087,7 @@ function _scaleCompact(
   for (;;) {
     const { divisor, suffix } = COMPACT_SCALES[index];
     const decimals = decimalsFor(divisor);
-    const mantissa = Number((amount / divisor).toFixed(decimals));
+    const mantissa = _roundedMagnitude(amount / divisor, decimals);
     if (mantissa < SCALE_STEP || index === 0) {
       return { mantissa, decimals, suffix };
     }
@@ -1201,6 +1201,16 @@ export type PerpsOrderBookPriceFormat = {
 };
 
 /**
+ * Options for `getPerpsOrderBookPriceFormat`.
+ */
+export type PerpsOrderBookLadderOptions = {
+  /** Ladder mid price, which sets the magnitude of an abbreviation. */
+  midPrice?: number | null;
+  /** Asset size decimals from the market metadata. */
+  szDecimals?: number;
+};
+
+/**
  * Exact decimal places of a number, read from its exponential form so values
  * such as `1e-7` and `0.002` do not depend on a rounded `Math.log10`.
  *
@@ -1284,18 +1294,19 @@ export const formatPerpsOrderBookPrice = (
  * longer than the plain form.
  *
  * @param grouping - Selected price grouping increment, or null when unknown.
- * @param midPrice - Ladder mid price, which sets the magnitude.
- * @param szDecimals - Asset size decimals from the market metadata.
+ * @param options - Ladder context.
+ * @param options.midPrice - Ladder mid price, which sets the magnitude.
+ * @param options.szDecimals - Asset size decimals from the market metadata.
  * @returns The ladder format, or null to use `PRICE_RANGES_UNIVERSAL`.
- * @example getPerpsOrderBookPriceFormat(1000, 87000, 5) => { divisor: 1000, suffix: 'K', decimals: 0 }
- * @example getPerpsOrderBookPriceFormat(1, 87000, 5) => { divisor: 1, suffix: '', decimals: 0 }
- * @example getPerpsOrderBookPriceFormat(0.001, 33.1, 2) => { divisor: 1, suffix: '', decimals: 3 }
+ * @example getPerpsOrderBookPriceFormat(1000, { midPrice: 87000, szDecimals: 5 }) => { divisor: 1000, suffix: 'K', decimals: 0 }
+ * @example getPerpsOrderBookPriceFormat(1, { midPrice: 87000, szDecimals: 5 }) => { divisor: 1, suffix: '', decimals: 0 }
+ * @example getPerpsOrderBookPriceFormat(0.001, { midPrice: 33.1, szDecimals: 2 }) => { divisor: 1, suffix: '', decimals: 3 }
  */
 export const getPerpsOrderBookPriceFormat = (
   grouping: number | null | undefined,
-  midPrice?: number | null,
-  szDecimals?: number,
+  options: PerpsOrderBookLadderOptions = {},
 ): PerpsOrderBookPriceFormat | null => {
+  const { midPrice, szDecimals } = options;
   if (
     typeof grouping !== 'number' ||
     !Number.isFinite(grouping) ||

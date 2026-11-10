@@ -779,6 +779,7 @@ export type {
   PerpsFiatFormatOptions,
   PerpsFundingRateFormatOptions,
   PerpsIntlFormatters,
+  PerpsOrderBookLadderOptions,
   PerpsOrderBookPriceFormat,
   PerpsOrderBookPriceFormatOptions,
   PerpsPercentageFormatOptions,
