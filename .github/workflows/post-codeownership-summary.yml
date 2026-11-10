@@ -67,7 +67,13 @@ jobs:
       - name: Generate summary
         # Write the output to a file, not GITHUB_OUTPUT, to ensure that GitHub
         # doesn't get confused when it attempts to parse the multiline output string.
-        run: yarn create-codeownership-summary --base-ref "$BASE_SHA" --head-ref "$HEAD_SHA" > "$RUNNER_TEMP/codeownership-summary.md"
+        run: |
+          if ! yarn create-codeownership-summary --base-ref "$BASE_SHA" --head-ref "$HEAD_SHA" > "$RUNNER_TEMP/codeownership-summary.md"; then
+            # Yarn reports some errors, such as a missing script, on stdout,
+            # which is redirected above, so show it to explain the failure
+            cat "$RUNNER_TEMP/codeownership-summary.md"
+            exit 1
+          fi
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
