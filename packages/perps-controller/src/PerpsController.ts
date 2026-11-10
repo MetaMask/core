@@ -2402,9 +2402,14 @@ export class PerpsController extends BaseController<
    * Initialize without waiting for disconnect. Reinitialization operations use
    * this after they have claimed the controller lifecycle.
    *
+   * @param options - Initialization options.
+   * @param options.preserveRequestedProvider - Skip the legacy direct-to-
+   * aggregated migration so an explicit `switchProvider` target survives.
    * @returns A promise that resolves when initialization finishes.
    */
-  async #initWithoutDisconnectWait(): Promise<void> {
+  async #initWithoutDisconnectWait(options?: {
+    preserveRequestedProvider?: boolean;
+  }): Promise<void> {
     if (!this.#handlersRegistered) {
       this.messenger.registerMethodActionHandlers(
         this,
@@ -2421,7 +2426,7 @@ export class PerpsController extends BaseController<
       return this.#initializationPromise;
     }
 
-    this.#initializationPromise = this.#performInitialization();
+    this.#initializationPromise = this.#performInitialization(options);
     this.#initializationStartWaiters.forEach((notifyStarted) =>
       notifyStarted(),
     );
@@ -2474,8 +2479,14 @@ export class PerpsController extends BaseController<
 
   /**
    * Actual initialization implementation with retry logic
+   *
+   * @param options - Initialization options.
+   * @param options.preserveRequestedProvider - Skip the legacy direct-to-
+   * aggregated migration so an explicit `switchProvider` target survives.
    */
-  async #performInitialization(): Promise<void> {
+  async #performInitialization(options?: {
+    preserveRequestedProvider?: boolean;
+  }): Promise<void> {
     const maxAttempts = 3;
     const baseDelay = 1000;
 
@@ -2526,8 +2537,11 @@ export class PerpsController extends BaseController<
 
         // Flags may have arrived after construction; re-run the idempotent
         // migration so the aggregated wrapper (when the flag is on) is built
-        // from the migrated state.
-        this.#migrateActiveProviderForMultiProviderIfNeeded();
+        // from the migrated state. An explicit switch preserves its target
+        // instead, so the result, state and active provider agree.
+        if (!options?.preserveRequestedProvider) {
+          this.#migrateActiveProviderForMultiProviderIfNeeded();
+        }
 
         this.#assignActiveProvider();
 
@@ -6451,10 +6465,13 @@ export class PerpsController extends BaseController<
         state.initializationState = InitializationState.Uninitialized;
       });
 
-      // Reset initialization state and reinitialize
+      // Reset initialization state and reinitialize. Preserve the requested
+      // target: the legacy migration must not override an explicit switch.
       this.isInitialized = false;
       this.#initializationPromise = null;
-      await this.#initWithoutDisconnectWait();
+      await this.#initWithoutDisconnectWait({
+        preserveRequestedProvider: true,
+      });
 
       // Check if initialization actually succeeded — performInitialization()
       // does not throw on failure, it sets state to Failed and resolves.
@@ -6490,7 +6507,9 @@ export class PerpsController extends BaseController<
       try {
         this.isInitialized = false;
         this.#initializationPromise = null;
-        await this.#initWithoutDisconnectWait();
+        await this.#initWithoutDisconnectWait({
+          preserveRequestedProvider: true,
+        });
 
         this.#debugLog(
           'PerpsController: Rollback to previous provider succeeded',

@@ -698,6 +698,36 @@ describe('PerpsController default provider', () => {
     });
   });
 
+  describe('explicit provider switches with multi-provider mode enabled', () => {
+    beforeEach(() => {
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: true,
+        minimumVersion: '1.0.0',
+      };
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockReturnValue(true);
+    });
+
+    it('keeps an explicit direct switch, and the result, state and active provider agree', async () => {
+      createController({ activeProvider: 'aggregated' });
+
+      await controller.init();
+      expect(controller.state.activeProvider).toBe('aggregated');
+
+      const result = await controller.switchProvider('hyperliquid');
+
+      expect(result).toStrictEqual({
+        success: true,
+        providerId: 'hyperliquid',
+      });
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+      expect(controller.getActiveProviderOrNull()?.protocolId).toBe(
+        'hyperliquid',
+      );
+    });
+  });
+
   describe('trade configurations are keyed per provider and symbol (AC3)', () => {
     it('stores and reads leverage per provider', () => {
       controller.saveTradeConfiguration('BTC', 10);
