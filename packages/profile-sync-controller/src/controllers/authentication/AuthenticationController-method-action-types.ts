@@ -17,7 +17,8 @@ export type AuthenticationControllerPerformSignInAction = {
  * stores nothing: SRP sessions remain the source of truth for
  * `getBearerToken`.
  *
- * Throws when the wallet has no social vault or no social token, and
+ * Throws when the wallet has no social login (no known `authConnection`,
+ * whether or not the vault is written yet) or no social token, and
  * `SocialIdentifierNotPairedError` when the identifier was never paired to
  * a profile.
  *
