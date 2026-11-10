@@ -10,8 +10,8 @@ import {
   getEIP7702UpgradeContractAddress,
   isServerValidationEnabled,
 } from '../../utils/feature-flags.js';
-import { isMpcMoneyAccountPayer } from '../../utils/keyring.js';
 import { GasPaymentMode } from '../../utils/gas-payment.js';
+import { isMpcMoneyAccountPayer } from '../../utils/keyring.js';
 import {
   buildPolymarketDepositWalletSimulation,
   isPredictWithdraw,

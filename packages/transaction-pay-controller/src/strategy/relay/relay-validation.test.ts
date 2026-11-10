@@ -1,9 +1,11 @@
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import {
   generateEIP7702BatchTransaction,
   TransactionType,
 } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import type { MockedFunction } from 'vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
@@ -163,6 +165,12 @@ describe('validateRelayQuotes', () => {
     polymarketGetDepositWalletAddressMock,
   } = getMessengerMock();
 
+  // The destructure above widens the mocks to `any`. Re-type the keyring mock
+  // so new assertions do not add `no-unsafe-call` violations to this file.
+  const keyringStateMock = getKeyringControllerStateMock as MockedFunction<
+    KeyringControllerGetStateAction['handler']
+  >;
+
   beforeEach(() => {
     vi.resetAllMocks();
 
@@ -186,7 +194,7 @@ describe('validateRelayQuotes', () => {
   });
 
   it('skips validation when the Money Account payer is an MPC keyring', async () => {
-    getKeyringControllerStateMock.mockReturnValue({
+    keyringStateMock.mockReturnValue({
       isUnlocked: true,
       keyrings: [
         {
@@ -213,7 +221,7 @@ describe('validateRelayQuotes', () => {
   });
 
   it('validates a Money Account quote when the payer keyring does not require MFA', async () => {
-    getKeyringControllerStateMock.mockReturnValue({
+    keyringStateMock.mockReturnValue({
       isUnlocked: true,
       keyrings: [
         {
