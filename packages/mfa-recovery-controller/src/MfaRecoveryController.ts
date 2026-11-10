@@ -42,7 +42,7 @@ import {
   pendingPayloadHasIdentifiers,
   pendingPayloadHasRecoverySecret,
 } from './pending-operation-validation.js';
-import { assertAbortAllowed, getRecoveryPhase } from './state-machine.js';
+import { getRecoveryPhase } from './state-machine.js';
 import type {
   Identifier,
   IdentifierAuthorization,
@@ -490,12 +490,19 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
-   * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
+   * Drops `authorizing` pending. Drops `writing` pending only once its approval
+   * has expired and no escrow applied it; otherwise finish it with
+   * {@link resume}.
    */
   async abort(): Promise<void> {
     await this.#withLock(async () => {
       const pending = await this.#loadPending();
-      assertAbortAllowed(pending);
+      if (pending?.phase === 'writing' && !(await this.#isUnapplied(pending))) {
+        throw new MfaRecoveryError(
+          'Cannot abort a mutation that may have been applied',
+          'abort_not_allowed',
+        );
+      }
       if (pending) {
         await this.#clearPending();
       }
@@ -508,6 +515,30 @@ export class MfaRecoveryController extends BaseController<
   async getPhase(): Promise<RecoveryPhase> {
     return await this.#withLock(async () =>
       getRecoveryPhase(await this.#loadPending()),
+    );
+  }
+
+  // No write can land after its approval expires, and escrow versions only
+  // grow, so every escrow still at `expectedVersion` means none applied it.
+  async #isUnapplied({
+    mutation,
+    authControllerToken,
+  }: WritingPendingOperation): Promise<boolean> {
+    const claims = decodeAuthControllerToken(authControllerToken);
+    if (claims && claims.exp > this.#now()) {
+      return false;
+    }
+    const { approval } = await this.#authProvider.authorizeRecoveryRequest({
+      requestHash: await hash({ operation: 'getIdentifiers' }),
+      audiences: this.#escrows.map((escrow) => escrow.authAudience),
+    });
+    const responses = await Promise.all(
+      this.#escrows.map(
+        async (escrow) => await escrow.getIdentifiers(approval),
+      ),
+    );
+    return responses.every(
+      ({ version }) => version === mutation.expectedVersion,
     );
   }
 
