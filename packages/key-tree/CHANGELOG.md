@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consumers that bundle this package for environments that do not support `ES2022` must transpile it.
 - **BREAKING:** Replace cryptography implementations with `@metamask/cryptography` ([#11395](https://github.com/MetaMask/core/pull/11395))
   - The custom `cryptographicFunctions` option was removed. Consumers that passed it must stop doing so, as the package now always uses `@metamask/cryptography`.
+- **BREAKING:** Replace curve objects with simple objects containing only the curve parameters ([#11395](https://github.com/MetaMask/core/pull/11395))
 - All functions now use `Uint8Array<ArrayBuffer>` instead of `Uint8Array` ([#11395](https://github.com/MetaMask/core/pull/11395))
   - `Uint8Array`s backed by a `SharedArrayBuffer` were never properly supported, so this only makes the types reflect the existing runtime behaviour.
 - Replace the `@metamask/utils` dependency with `@metamask/byte-utils` and `@metamask/type-utils` ([#11361](https://github.com/MetaMask/core/pull/11361))
