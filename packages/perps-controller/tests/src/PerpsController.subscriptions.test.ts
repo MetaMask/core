@@ -14,12 +14,18 @@ import {
   createMockPosition,
 } from '../helpers/providerMocks.js';
 import {
+  createKeyringlessMessenger,
   createMockInfrastructure,
   createMockMessenger,
 } from '../helpers/serviceMocks.js';
 
 vi.mock('@nktkas/hyperliquid', () => ({}));
 
+import type {
+  PerpsAvailableToTrade,
+  PerpsControllerSubscribeToAvailableToTradeAction,
+  SubscribeAvailableToTradeParams,
+} from '../../src/index.js';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
@@ -684,6 +690,41 @@ describe('PerpsController', () => {
         expect.objectContaining({ message: 'socket closed' }),
         expect.anything(),
       );
+    });
+
+    it('serves package consumers through the registered messenger action', async () => {
+      const { messenger } = createKeyringlessMessenger();
+      const consumerController = new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      consumerController.testMarkInitialized();
+      // init() registers the messenger actions; already initialized, it stops there.
+      await consumerController.init();
+      consumerController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+      const providerCleanup = vi.fn();
+      mockProvider.subscribeToAvailableToTrade = vi.fn(
+        (params: SubscribeAvailableToTradeParams) => {
+          params.callback(venueValue);
+          return providerCleanup;
+        },
+      );
+      const received: PerpsAvailableToTrade[] = [];
+      const params: SubscribeAvailableToTradeParams = {
+        symbol: 'BTC',
+        callback: (value) => received.push(value),
+      };
+      const action: PerpsControllerSubscribeToAvailableToTradeAction['type'] =
+        'PerpsController:subscribeToAvailableToTrade';
+
+      const cleanup = messenger.call(action, params);
+      cleanup();
+
+      expect(received).toStrictEqual([venueValue]);
+      expect(providerCleanup).toHaveBeenCalledTimes(1);
     });
   });
 

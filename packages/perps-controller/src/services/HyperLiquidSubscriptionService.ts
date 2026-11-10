@@ -223,6 +223,14 @@ export class HyperLiquidSubscriptionService {
 
   readonly #globalActiveAssetSubscriptions = new Map<string, ISubscription>();
 
+  // Per-caller activeAssetData streams (available to trade). The service owns
+  // them so restoreSubscriptions() can reopen them on a replacement transport
+  // and clearAll() can retire pending and open ones.
+  readonly #activeAssetDataStreams = new Set<{
+    reopen: () => void;
+    retire: () => void;
+  }>();
+
   // Track in-progress activeAssetCtx subscription promises to prevent leaks
   // when cleanup fires before the async subscription resolves (#28141)
   readonly #pendingActiveAssetPromises = new Map<
@@ -4862,9 +4870,10 @@ export class HyperLiquidSubscriptionService {
 
   /**
    * Stream the venue's `activeAssetData` for one account and market. Each
-   * caller gets its own venue subscription, which the SDK resubscribes after
-   * a reconnect. The venue pushes a new frame when the market's position,
-   * leverage or mark price changes.
+   * caller gets its own venue subscription, which restoreSubscriptions()
+   * reopens on a replacement transport and clearAll() retires. The venue
+   * pushes a new frame when the market's position, leverage or mark price
+   * changes.
    *
    * @param params - Subscription parameters.
    * @param params.symbol - Market symbol, including any DEX prefix.
@@ -4881,7 +4890,10 @@ export class HyperLiquidSubscriptionService {
   }): () => void {
     const { symbol, accountId, callback, onError } = params;
     let subscription: ISubscription | undefined;
-    let cancelled = false;
+    let retired = false;
+    // Bumped on every (re)open: a pending or open attempt from an older
+    // transport, or one that was retired, drops its frames and subscription.
+    let attempt = 0;
 
     const unsubscribe = (sub: ISubscription): void => {
       sub.unsubscribe().catch((error: unknown) => {
@@ -4897,58 +4909,74 @@ export class HyperLiquidSubscriptionService {
       });
     };
 
-    (async (): Promise<void> => {
-      await this.#clientService.ensureSubscriptionClient(
-        this.#walletService.createWalletAdapter(),
-      );
-      const subscriptionClient = this.#clientService.getSubscriptionClient();
-      if (!subscriptionClient) {
-        throw new Error('Subscription client not available');
-      }
-      const user =
-        await this.#walletService.getUserAddressWithDefault(accountId);
-      if (cancelled) {
-        return;
-      }
-      const sub = await subscriptionClient.activeAssetData(
-        { user, coin: symbol },
-        (data: ActiveAssetDataWsEvent) => {
-          if (
-            cancelled ||
-            data.coin !== symbol ||
-            data.user.toLowerCase() !== user.toLowerCase()
-          ) {
-            return;
-          }
-          callback(data);
-        },
-      );
-      if (cancelled) {
-        unsubscribe(sub);
-        return;
-      }
-      subscription = sub;
-    })().catch((error: unknown) => {
-      const safeError = ensureError(
-        error,
-        'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
-      );
-      this.#logErrorUnlessClearing(
-        safeError,
-        this.#getErrorContext('subscribeToActiveAssetData', { symbol }),
-      );
-      if (!cancelled) {
-        onError?.(safeError);
-      }
-    });
+    const open = (): void => {
+      attempt += 1;
+      const thisAttempt = attempt;
+      const isCurrent = (): boolean => !retired && thisAttempt === attempt;
+      // On reopen the previous subscription belongs to the closed transport.
+      subscription = undefined;
 
-    return () => {
-      cancelled = true;
-      if (subscription) {
-        unsubscribe(subscription);
-        subscription = undefined;
-      }
+      (async (): Promise<void> => {
+        await this.#clientService.ensureSubscriptionClient(
+          this.#walletService.createWalletAdapter(),
+        );
+        const subscriptionClient = this.#clientService.getSubscriptionClient();
+        if (!subscriptionClient) {
+          throw new Error('Subscription client not available');
+        }
+        const user =
+          await this.#walletService.getUserAddressWithDefault(accountId);
+        if (!isCurrent()) {
+          return;
+        }
+        const sub = await subscriptionClient.activeAssetData(
+          { user, coin: symbol },
+          (data: ActiveAssetDataWsEvent) => {
+            if (
+              !isCurrent() ||
+              data.coin !== symbol ||
+              data.user.toLowerCase() !== user.toLowerCase()
+            ) {
+              return;
+            }
+            callback(data);
+          },
+        );
+        if (!isCurrent()) {
+          unsubscribe(sub);
+          return;
+        }
+        subscription = sub;
+      })().catch((error: unknown) => {
+        const safeError = ensureError(
+          error,
+          'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
+        );
+        this.#logErrorUnlessClearing(
+          safeError,
+          this.#getErrorContext('subscribeToActiveAssetData', { symbol }),
+        );
+        if (isCurrent()) {
+          onError?.(safeError);
+        }
+      });
     };
+
+    const stream = {
+      reopen: open,
+      retire: (): void => {
+        retired = true;
+        this.#activeAssetDataStreams.delete(stream);
+        if (subscription) {
+          unsubscribe(subscription);
+          subscription = undefined;
+        }
+      },
+    };
+
+    this.#activeAssetDataStreams.add(stream);
+    open();
+    return stream.retire;
   }
 
   /**
@@ -5217,6 +5245,10 @@ export class HyperLiquidSubscriptionService {
       );
     }
 
+    // Reopen activeAssetData streams on the replacement transport. A failure
+    // reaches the caller's onError.
+    this.#activeAssetDataStreams.forEach((stream) => stream.reopen());
+
     // Re-establish user data subscriptions if there are user data subscribers
     if (
       this.#positionSubscribers.size > 0 ||
@@ -5407,6 +5439,10 @@ export class HyperLiquidSubscriptionService {
     this.#accountSubscribers.clear();
     this.#marketDataSubscribers.clear();
     this.#orderBookSubscribers.clear();
+
+    // Retire activeAssetData streams: pending opens drop their subscription
+    // and open ones stop delivering frames.
+    this.#activeAssetDataStreams.forEach((stream) => stream.retire());
 
     // Clear order fill subscriptions; generations were bumped above.
     this.#orderFillSubscriptions.forEach((subscription) => {
