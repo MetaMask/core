@@ -753,6 +753,7 @@ type TpslProtectionRestorationOutcome = {
 type PositionTpslLegScope = {
   leg: PositionTPSLLeg;
   limitPrice?: string;
+  maxSlippageBps?: number;
 };
 
 type BuilderFeeSetupContext = {
@@ -11737,7 +11738,14 @@ export class HyperLiquidProvider implements PerpsProvider {
   async replacePositionTPSLLeg(
     params: ReplacePositionTPSLLegParams,
   ): Promise<OrderResult> {
-    const { symbol, leg, triggerPrice, limitPrice, expectedPosition } = params;
+    const {
+      symbol,
+      leg,
+      triggerPrice,
+      limitPrice,
+      maxSlippageBps,
+      expectedPosition,
+    } = params;
     if (leg !== 'tp' && leg !== 'sl') {
       return { success: false, error: `Unknown TP/SL leg: ${String(leg)}` };
     }
@@ -11758,7 +11766,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         ...(expectedPosition && { expectedPosition }),
         ...toPositionTpslLegPrices({ leg, triggerPrice }),
       },
-      { leg, limitPrice },
+      { leg, limitPrice, maxSlippageBps },
     );
   }
 
@@ -12213,15 +12221,40 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Build orders array for TP/SL
       const orders: SDKOrderParams[] = [];
 
+      // The limit HyperLiquid fills a leg at once triggered. A replaced market
+      // leg is capped like any market trigger: its trigger moved against the
+      // closing side by the slippage tolerance. A whole-position update keeps
+      // its existing prices.
+      const legOrderPrice = (
+        orderType: 'take_profit_market' | 'stop_market',
+        triggerPrice: string,
+        fillPrice: string | undefined,
+      ): string =>
+        legScope && fillPrice === undefined
+          ? calculateOrderPriceAndSize({
+              orderType,
+              isBuy: !isLong,
+              finalPositionSize: 0,
+              currentPrice: 0,
+              triggerPrice,
+              maxSlippageBps: legScope.maxSlippageBps,
+              szDecimals: assetInfo.szDecimals,
+            }).formattedPrice
+          : formatHyperLiquidPrice({
+              price: parseFloat(fillPrice ?? triggerPrice),
+              szDecimals: assetInfo.szDecimals,
+            });
+
       // Take Profit order
       if (takeProfitPrice) {
         const tpOrder: SDKOrderParams = {
           a: assetId,
           b: !isLong, // Opposite side to close position
-          p: formatHyperLiquidPrice({
-            price: parseFloat(takeProfitFillPrice ?? takeProfitPrice),
-            szDecimals: assetInfo.szDecimals,
-          }),
+          p: legOrderPrice(
+            'take_profit_market',
+            takeProfitPrice,
+            takeProfitFillPrice,
+          ),
           s: resolveTpslSize(takeProfitSize),
           r: true, // Always reduce-only for position TP
           t: {
@@ -12243,10 +12276,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         const slOrder: SDKOrderParams = {
           a: assetId,
           b: !isLong, // Opposite side to close position
-          p: formatHyperLiquidPrice({
-            price: parseFloat(stopLossFillPrice ?? stopLossPrice),
-            szDecimals: assetInfo.szDecimals,
-          }),
+          p: legOrderPrice('stop_market', stopLossPrice, stopLossFillPrice),
           s: resolveTpslSize(stopLossSize),
           r: true, // Always reduce-only for position SL
           t: {

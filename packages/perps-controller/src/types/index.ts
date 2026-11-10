@@ -2519,6 +2519,11 @@ export type ReplacePositionTPSLLegParams = {
    */
   limitPrice?: string;
   /**
+   * Max slippage in basis points for a market leg (no `limitPrice`). Omit to
+   * use the saved `maxSlippageBps` preference, else the 10% TP/SL default.
+   */
+  maxSlippageBps?: number;
+  /**
    * Optional mutation precondition, checked against authoritative position data
    * before setup and again before protection writes. Size is signed base units.
    */

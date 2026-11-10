@@ -3671,10 +3671,13 @@ export class PerpsController extends BaseController<
       providerId: params.providerId,
     });
     this.#ensureTradingServiceDeps();
+    // A market leg uses the caller's tolerance, else the saved preference.
+    const maxSlippageBps = params.maxSlippageBps ?? this.state.maxSlippageBps;
 
     return this.#tradingService.replacePositionTPSLLeg({
       provider,
-      params,
+      params:
+        maxSlippageBps === undefined ? params : { ...params, maxSlippageBps },
       context: this.#createServiceContext('replacePositionTPSLLeg'),
     });
   }

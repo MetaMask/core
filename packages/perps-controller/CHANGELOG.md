@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `PerpsController.replacePositionTPSLLeg` (messenger action `PerpsController:replacePositionTPSLLeg`) to replace only the take profit or only the stop loss of an open position
-  - Takes `{ symbol, leg: 'tp' | 'sl', triggerPrice, limitPrice?, expectedPosition?, trackingData?, providerId? }`. Omit `limitPrice` to execute at market when the trigger fires
+  - Takes `{ symbol, leg: 'tp' | 'sl', triggerPrice, limitPrice?, maxSlippageBps?, expectedPosition?, trackingData?, providerId? }`. Omit `limitPrice` to execute at market when the trigger fires, capped by `maxSlippageBps`, else the saved `maxSlippageBps` preference, else the 10% TP/SL default
   - Hyperliquid cancels only triggers on the requested side and places the new leg position-bound (whole position, size 0). The other leg keeps its order id. `updatePositionTPSL` is unchanged
   - Lighter, or any provider without the method, rejects with the new `TPSL_LEG_REPLACE_UNSUPPORTED` error code without cancelling or placing any order
   - `TPSL_LEG_REPLACE_UNSUPPORTED` widens the exported `PerpsErrorCode` union. Clients that key an exhaustive `Record<PerpsErrorCode, …>` must add an entry when they upgrade: Mobile's `app/components/UI/Perps/utils/translatePerpsError.ts` and Extension's `ui/components/app/perps/utils/translate-perps-error.ts`

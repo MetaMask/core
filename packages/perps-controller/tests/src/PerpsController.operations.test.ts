@@ -804,6 +804,39 @@ describe('PerpsController', () => {
       ).not.toHaveBeenCalled();
     });
 
+    it.each([
+      ['the saved preference when unset', undefined, 250],
+      ['the caller tolerance over the saved one', 400, 400],
+    ])(
+      'replaces a market leg with %s',
+      async (_label, maxSlippageBps, expectedBps) => {
+        const params = {
+          symbol: 'BTC',
+          leg: 'tp' as const,
+          triggerPrice: '61000',
+          ...(maxSlippageBps !== undefined && { maxSlippageBps }),
+        };
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        controller.testUpdate((state) => {
+          state.maxSlippageBps = 250;
+        });
+        mockTradingServiceInstance.replacePositionTPSLLeg.mockResolvedValue({
+          success: true,
+        });
+
+        await controller.replacePositionTPSLLeg(params);
+
+        expect(
+          mockTradingServiceInstance.replacePositionTPSLLeg,
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({
+            params: { ...params, maxSlippageBps: expectedBps },
+          }),
+        );
+      },
+    );
+
     it('calculates maintenance margin', async () => {
       const marginParams = {
         symbol: 'BTC',

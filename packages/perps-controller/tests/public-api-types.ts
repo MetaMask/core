@@ -717,6 +717,7 @@ export type ReplacePositionTPSLLegConsumerContracts = [
         leg: PositionTPSLLeg;
         triggerPrice: string;
         limitPrice?: string;
+        maxSlippageBps?: number;
         expectedPosition?: UpdatePositionTPSLParams['expectedPosition'];
         trackingData?: UpdatePositionTPSLParams['trackingData'];
         providerId?: UpdatePositionTPSLParams['providerId'];

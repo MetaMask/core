@@ -2572,13 +2572,59 @@ describe('HyperLiquidProvider', () => {
           b: false,
           s: '0',
           r: true,
-          p: execution === 'limit' ? limitFor(leg) : trigger,
+          // A market leg is capped 10% below its trigger: the long closes by selling.
+          p:
+            execution === 'limit'
+              ? limitFor(leg)
+              : { tp: '54900', sl: '39600' }[leg],
           t: {
             trigger: {
               isMarket: execution === 'market',
               triggerPx: trigger,
               tpsl: leg,
             },
+          },
+        });
+      },
+    );
+
+    it.each([
+      ['long', '0.1', 'sl', '44000', undefined, '39600'],
+      ['long', '0.1', 'tp', '61000', 300, '59170'],
+      ['short', '-0.1', 'sl', '61000', 300, '62830'],
+      ['short', '-0.1', 'tp', '44000', undefined, '48400'],
+    ] as const)(
+      'caps a %s %s-size market %s leg at its trigger %s with slippage %s',
+      async (_side, szi, leg, triggerPrice, maxSlippageBps, cappedPrice) => {
+        const info = mockClientService.getInfoClient();
+        const { assetPositions } =
+          await createMockInfoClient().clearinghouseState();
+        (info.clearinghouseState as Mock).mockResolvedValue({
+          ...(await createMockInfoClient().clearinghouseState()),
+          assetPositions: assetPositions.map(
+            (entry: { position: { coin: string } }) =>
+              entry.position.coin === 'BTC'
+                ? { ...entry, position: { ...entry.position, szi } }
+                : entry,
+          ),
+        });
+        setOpenOrders([rawPositionTrigger(leg)]);
+
+        const result = await provider.replacePositionTPSLLeg({
+          symbol: 'BTC',
+          leg,
+          triggerPrice,
+          ...(maxSlippageBps !== undefined && { maxSlippageBps }),
+        });
+
+        expect(result.success).toBe(true);
+        const [request] = (mockClientService.getExchangeClient().order as Mock)
+          .mock.calls[0];
+        expect(request.orders[0]).toMatchObject({
+          b: szi.startsWith('-'),
+          p: cappedPrice,
+          t: {
+            trigger: { isMarket: true, triggerPx: triggerPrice, tpsl: leg },
           },
         });
       },
