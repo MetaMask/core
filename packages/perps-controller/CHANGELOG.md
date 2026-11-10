@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PerpsController.replacePositionTPSLLeg` (messenger action `PerpsController:replacePositionTPSLLeg`) to replace only the take profit or only the stop loss of an open position ([#11410](https://github.com/MetaMask/core/pull/11410))
+  - Takes `{ symbol, leg: 'tp' | 'sl', triggerPrice, limitPrice?, maxSlippageBps?, expectedPosition?, trackingData?, providerId? }`. Omit `limitPrice` to execute at market when the trigger fires, capped by `maxSlippageBps`, else the saved `maxSlippageBps` preference, else the 10% TP/SL default
+  - Hyperliquid cancels only triggers on the requested side and places the new leg position-bound (whole position, size 0). The other leg keeps its order id. `updatePositionTPSL` is unchanged
+  - Lighter, or any provider without the method, rejects with the new `TPSL_LEG_REPLACE_UNSUPPORTED` error code without cancelling or placing any order
+  - `TPSL_LEG_REPLACE_UNSUPPORTED` widens the exported `PerpsErrorCode` union. Clients that key an exhaustive `Record<PerpsErrorCode, …>` must add an entry when they upgrade: Mobile's `app/components/UI/Perps/utils/translatePerpsError.ts` and Extension's `ui/components/app/perps/utils/translate-perps-error.ts`
+  - New optional `PerpsProvider.replacePositionTPSLLeg` member, and types `PositionTPSLLeg`, `ReplacePositionTPSLLegParams` and `PerpsControllerReplacePositionTPSLLegAction`
+- Add a `formatters`, `decimals` and `sign` options object to the display formatters so Mobile, Extension and Terminal can drop their local copies ([#11406](https://github.com/MetaMask/core/pull/11406))
+  - `formatPercentage(value, decimalsOrOptions)` and `formatPositionSize(size, szDecimalsOrOptions)` still take the number they took before, or an options object
+  - `formatPnl(pnl, options)`, `formatPerpsFiat(balance, options)` and `formatFundingRate(value, options)` take the same `formatters`, `decimals` and `sign` options
+  - `formatters` gives the locale: pass `createFormatters({ locale })` from `@metamask/client-utils`, built once per locale. `formatPnl(1234.5, { formatters: createFormatters({ locale: 'es' }) })` returns `+1234,50 $`. Without it the output stays `en-US`. This package does not depend on `@metamask/client-utils`
+  - `sign` is `auto`, `always`, `exceptZero` or `never`. Defaults keep today's output: `always` for `formatPercentage` and `formatPnl`, `auto` otherwise
+  - Types `PerpsDisplayFormatOptions`, `PerpsFiatFormatOptions`, `PerpsFundingRateFormatOptions`, `PerpsIntlFormatters` and `PerpsSignDisplay`
+- Add `PERPS_DISPLAY_PRECISION`, the decimals to pass as `decimals` for each displayed value ([#11406](https://github.com/MetaMask/core/pull/11406))
+  - `RoePercent` 1, `SlippageEstimatePercent` 4, `FundingRatePercent` 4, `FeeRatePercent` 3, `Percentage` 2, `Pnl` 2, `Fee` 2 and `MaxPriceDecimals` 6
+
+### Changed
+
+- **BREAKING:** Display formatters render the shared placeholder for a missing value (`undefined`, `null`, an empty or non-numeric string, `NaN` or an infinite value) instead of a formatted zero ([#11406](https://github.com/MetaMask/core/pull/11406))
+  - `formatPercentage` and `formatFundingRate` return `--%` (`PERPS_CONSTANTS.FallbackPercentageDisplay`) instead of `0.00%` and `0.0000%`; `formatFundingRate` with `showZero: false` still returns an empty string
+  - `formatPnl` and `formatPerpsFiat` return `$---` (`PERPS_CONSTANTS.FallbackPriceDisplay`) instead of `$0.00`, or `<$0.01` for `null`
+  - `formatPositionSize` returns `--` (`PERPS_CONSTANTS.FallbackDataDisplay`) instead of `0`
+  - `formatPercentage(null)` and `formatPositionSize(null)` no longer throw
+  - Migration: code that detects a missing value by comparing the output with a zero string must compare it with the placeholder instead, before reading a leading `-` as a negative value. Mobile's `PerpsMarketStatisticsCard` compares `formatFundingRate` output with `FUNDING_RATE_CONFIG.ZeroDisplay` and then reads `startsWith('-')` as a negative rate, so a missing rate would show `--%` in the negative colour; it must check `PERPS_CONSTANTS.FallbackPercentageDisplay` first. This ships with the Mobile upgrade (TAT-4533). Terminal's order book parses `formatPositionSize` output with `Number`, so a `NaN` size there shows `NaN` instead of `0` until Terminal adopts the placeholder (TAT-4568). Extension's TP/SL price editor strips `formatPerpsFiat` output, but only for a finite price
+- A value that rounds to zero at the displayed precision has no minus sign: `formatPercentage(-0.004)` returns `+0.00%` instead of `-0.00%`, and `formatPositionSize(-0.004, 0)` returns `0` instead of `-0` ([#11406](https://github.com/MetaMask/core/pull/11406))
+- `formatPerpsFiat` keeps the sign of a negative value below the range threshold: `formatPerpsFiat(-0.004)` returns `-<$0.01` instead of `<$0.01` ([#11406](https://github.com/MetaMask/core/pull/11406))
+- `formatPerpsFiat` returns a range's `customFormat` output unchanged instead of stripping its trailing zeros ([#11406](https://github.com/MetaMask/core/pull/11406))
+- `formatPercentage` and `formatFundingRate` group thousands: `formatPercentage(1234.56)` returns `+1,234.56%` instead of `+1234.56%` ([#11406](https://github.com/MetaMask/core/pull/11406))
+
 ## [22.3.0]
 
 ### Added

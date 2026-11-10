@@ -1170,6 +1170,43 @@ describe('AggregatedPerpsProvider', () => {
     );
   });
 
+  describe('Write Operations - replacePositionTPSLLeg', () => {
+    it('routes to the specified provider and tags the result', async () => {
+      const replacePositionTPSLLeg = vi
+        .fn()
+        .mockResolvedValue({ success: true, orderId: 'TP/SL orders placed' });
+      Object.assign(mockLighterProvider, { replacePositionTPSLLeg });
+      const params = {
+        symbol: 'BTC',
+        leg: 'tp' as const,
+        triggerPrice: '60000',
+        providerId: 'lighter' as const,
+      };
+
+      const result = await aggregatedProvider.replacePositionTPSLLeg(params);
+
+      expect(replacePositionTPSLLeg).toHaveBeenCalledWith(params);
+      expect(result).toStrictEqual({
+        success: true,
+        orderId: 'TP/SL orders placed',
+        providerId: 'lighter',
+      });
+    });
+
+    it('rejects with the typed unsupported error when the provider cannot replace a leg', async () => {
+      await expect(
+        aggregatedProvider.replacePositionTPSLLeg({
+          symbol: 'BTC',
+          leg: 'sl',
+          triggerPrice: '45000',
+        }),
+      ).rejects.toMatchObject({
+        errorCode: PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
+      });
+      expect(mockHLProvider.updatePositionTPSL).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Write Operations - closePosition', () => {
     it('routes to specified provider', async () => {
       await aggregatedProvider.closePosition({
