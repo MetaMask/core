@@ -1028,6 +1028,25 @@ export type PerpsControllerSubscribeToOrderBookAction = {
 };
 
 /**
+ * Stream one market's per-side available to trade, as the venue reports it,
+ * through the provider route used by order placement. The venue pushes a
+ * new value when the market's position, leverage or mark price changes.
+ *
+ * The callback only ever receives venue values. Until the first arrives the
+ * value is unknown (`undefined` in clients). When no provider is active, the
+ * route conflicts with the active provider, or the provider cannot read the
+ * value from its venue, this returns a no-op cleanup and the value stays
+ * unknown.
+ *
+ * @param params - Market, optional route/account, callback and error handler.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToAvailableToTradeAction = {
+  type: `PerpsController:subscribeToAvailableToTrade`;
+  handler: PerpsController['subscribeToAvailableToTrade'];
+};
+
+/**
  * Subscribe to live candle updates
  *
  * @param params - The operation parameters.
@@ -1700,6 +1719,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToOrdersAction
   | PerpsControllerSubscribeToAccountAction
   | PerpsControllerSubscribeToOrderBookAction
+  | PerpsControllerSubscribeToAvailableToTradeAction
   | PerpsControllerSubscribeToCandlesAction
   | PerpsControllerSubscribeToOICapsAction
   | PerpsControllerSetLiveDataConfigAction

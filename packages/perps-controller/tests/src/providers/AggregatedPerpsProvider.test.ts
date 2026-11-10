@@ -2500,6 +2500,86 @@ describe('AggregatedPerpsProvider', () => {
 
       expect(mockHLProvider.subscribeToOrderBook).toHaveBeenCalled();
     });
+
+    describe('subscribeToAvailableToTrade', () => {
+      it('routes to the default provider when no route is given', () => {
+        const unsubscribe = vi.fn();
+        mockHLProvider.subscribeToAvailableToTrade = vi
+          .fn()
+          .mockReturnValue(unsubscribe);
+        const callback = vi.fn();
+
+        const cleanup = aggregatedProvider.subscribeToAvailableToTrade({
+          symbol: 'BTC',
+          callback,
+        });
+
+        expect(mockHLProvider.subscribeToAvailableToTrade).toHaveBeenCalledWith(
+          { symbol: 'BTC', providerId: 'hyperliquid', callback },
+        );
+        expect(cleanup).toBe(unsubscribe);
+      });
+
+      it('routes to the explicit provider', () => {
+        mockLighterProvider.subscribeToAvailableToTrade = vi
+          .fn()
+          .mockReturnValue(vi.fn());
+        mockHLProvider.subscribeToAvailableToTrade = vi.fn();
+        const callback = vi.fn();
+
+        aggregatedProvider.subscribeToAvailableToTrade({
+          symbol: 'BTC',
+          providerId: 'lighter',
+          callback,
+        });
+
+        expect(
+          mockLighterProvider.subscribeToAvailableToTrade,
+        ).toHaveBeenCalledWith({
+          symbol: 'BTC',
+          providerId: 'lighter',
+          callback,
+        });
+        expect(
+          mockHLProvider.subscribeToAvailableToTrade,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('leaves the value unknown when the routed provider has no venue value', () => {
+        mockHLProvider.subscribeToAvailableToTrade = vi.fn();
+        const callback = vi.fn();
+
+        const cleanup = aggregatedProvider.subscribeToAvailableToTrade({
+          symbol: 'BTC',
+          providerId: 'lighter',
+          callback,
+        });
+        cleanup();
+
+        expect(
+          mockHLProvider.subscribeToAvailableToTrade,
+        ).not.toHaveBeenCalled();
+        expect(callback).not.toHaveBeenCalled();
+      });
+
+      it('leaves the value unknown when the route is not registered', () => {
+        const providerWithoutLighter = new AggregatedPerpsProvider({
+          providers: new Map([['hyperliquid', mockHLProvider]]),
+          defaultProvider: 'hyperliquid',
+          infrastructure: mockInfrastructure,
+        });
+        const callback = vi.fn();
+
+        const cleanup = providerWithoutLighter.subscribeToAvailableToTrade({
+          symbol: 'BTC',
+          providerId: 'lighter',
+          callback,
+        });
+        cleanup();
+
+        expect(callback).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('WebSocket', () => {

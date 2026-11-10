@@ -148,6 +148,7 @@ import type {
   SubscribeAccountParams,
   SubscribeCandlesParams,
   SubscribeOICapsParams,
+  SubscribeAvailableToTradeParams,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
@@ -16625,6 +16626,29 @@ export class HyperLiquidProvider implements PerpsProvider {
    */
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void {
     return this.#subscriptionService.subscribeToOrderBook(params);
+  }
+
+  /**
+   * Stream one market's available to trade from the venue's
+   * `activeAssetData`, whose `availableToTrade` is `[buy, sell]` in USD.
+   * Values are passed through as the venue reports them.
+   *
+   * @param params - Market, optional account, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToAvailableToTrade(
+    params: SubscribeAvailableToTradeParams,
+  ): () => void {
+    const { symbol, accountId, callback, onError } = params;
+    return this.#subscriptionService.subscribeToActiveAssetData({
+      symbol,
+      accountId,
+      onError,
+      callback: (data) => {
+        const [long, short] = data.availableToTrade;
+        callback({ providerId: this.protocolId, symbol, long, short });
+      },
+    });
   }
 
   /**
