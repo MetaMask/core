@@ -27,6 +27,7 @@ export type {
   KycControllerGetDataSharesAction,
   KycControllerGetProviderFlowStatusAction,
   KycControllerGetSessionDecisionAction,
+  KycControllerRefreshStepAction,
   KycControllerGetSessionStatusForVendorAction,
   KycControllerHasCompletedSessionDisclaimersAction,
   KycControllerHasCompletedVendorDisclaimersAction,
@@ -77,6 +78,7 @@ export type {
   SetAuthorizationsParams,
   SubmitSessionDisclaimersParams,
   SubmitVendorDisclaimersParams,
+  SubmitVendorDisclaimersResult,
   UkycSessionResponse,
 } from './KycService.js';
 export type {
@@ -91,6 +93,8 @@ export type {
   KycServiceFetchSessionDisclaimersBySessionIdAction,
   KycServiceFetchVendorDisclaimersAction,
   KycServiceGetDataSharesAction,
+  KycServiceGetStepAction,
+  KycServiceMarkProviderSubmittedAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetSessionStatusForVendorAction,
@@ -119,6 +123,8 @@ export type {
 
 export {
   KYC_CURRENT_STEPS,
+  KYC_STEPS,
+  toKycStep,
   KYC_STATUSES,
   TERMINAL_SESSION_STATUSES,
 } from './types.js';
@@ -132,6 +138,7 @@ export type {
   KycDisclaimersCatalog,
   KycSessionDisclaimers,
   KycSessionStatus,
+  KycStep,
   KycVendor,
   KycVendorDisclaimersAcceptance,
   KycVendorSigning,

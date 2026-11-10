@@ -47,6 +47,7 @@ import {
   FINAL_STATUSES_TO_STOP_POLLING,
   KYC_CURRENT_STEPS,
   KYC_STATUSES,
+  toKycStep,
 } from './types.js';
 import type {
   KycConsentRecord,
@@ -55,6 +56,7 @@ import type {
   KycDisclaimersCatalog,
   KycSessionDisclaimers,
   KycSessionStatus,
+  KycStep,
   KycVendor,
   KycVendorDisclaimersAcceptance,
   KycVendorSigning,
@@ -152,6 +154,12 @@ export type KycVendorSessionState = {
    * session. `null` when never set (treated as `false`).
    */
   credentialReusabilityConsentGiven: boolean | null;
+
+  /**
+   * The onboarding step kyc-api returned most recently for this vendor, or
+   * `null` before the first answer. Clients map it to a screen.
+   */
+  nextStep: KycStep | null;
 };
 
 /**
@@ -185,6 +193,7 @@ export function getDefaultKycVendorSessionState(): KycVendorSessionState {
     providerDisclaimersAccepted: null,
     idosDisclaimersAccepted: null,
     credentialReusabilityConsentGiven: null,
+    nextStep: null,
   };
 }
 
@@ -235,6 +244,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'recordVendorDisclaimers',
   'hasCompletedVendorDisclaimers',
   'getSessionDecision',
+  'refreshStep',
   'launchProviderFlow',
   'deleteEncryptedStorage',
 ] as const;
@@ -459,6 +469,7 @@ export class KycController extends BaseController<
           },
           { create: true },
         );
+        await this.#refreshStepQuietly(vendor);
         return this.#refreshAuthorizationsIfNeeded(vendor);
       }
 
@@ -495,6 +506,7 @@ export class KycController extends BaseController<
       entry.residenceCountry ??= geoCountry;
     });
     this.#updateSessionStatusAndTrackAnalytics(vendor, sessionStatus);
+    await this.#refreshStepQuietly(vendor);
     // TODO: Should we resume polling here?
     return this.#refreshAuthorizationsIfNeeded(vendor);
   }
@@ -999,6 +1011,7 @@ export class KycController extends BaseController<
     );
     const {
       sessionId,
+      nextStep,
       encryptionDataKey: encryptionDataKeySchema,
       ukycCapabilityToken: capabilityTokenSchema,
     } = await this.messenger.call('KycService:createUkycSession', {
@@ -1013,6 +1026,9 @@ export class KycController extends BaseController<
       params.vendor,
       (entry) => {
         this.#prepareEntryForNewSession(entry, params.geoCountry);
+        if (nextStep) {
+          entry.nextStep = toKycStep(nextStep);
+        }
       },
       { create: true },
     );
@@ -1232,14 +1248,19 @@ export class KycController extends BaseController<
       params.providerDisclaimersAccepted,
     );
 
+    let nextStep: KycStep | undefined;
     try {
-      await this.messenger.call('KycService:submitSessionDisclaimers', {
-        sessionId,
-        idOS,
-        kycProvider,
-        credentialReusabilityConsentGiven:
-          params.credentialReusabilityConsentGiven,
-      });
+      const recorded = await this.messenger.call(
+        'KycService:submitSessionDisclaimers',
+        {
+          sessionId,
+          idOS,
+          kycProvider,
+          credentialReusabilityConsentGiven:
+            params.credentialReusabilityConsentGiven,
+        },
+      );
+      nextStep = recorded.nextStep ? toKycStep(recorded.nextStep) : undefined;
     } catch {
       // A 409 means the session already recorded these consents.
     }
@@ -1248,7 +1269,13 @@ export class KycController extends BaseController<
       entry.idosDisclaimersAccepted = params.idosDisclaimersAccepted;
       entry.credentialReusabilityConsentGiven =
         params.credentialReusabilityConsentGiven;
+      if (nextStep) {
+        entry.nextStep = nextStep;
+      }
     });
+    if (!nextStep) {
+      await this.#refreshStepQuietly(vendor);
+    }
   }
 
   /**
@@ -1332,37 +1359,62 @@ export class KycController extends BaseController<
   /**
    * Submits the vendor T&C acceptance stored by
    * {@link acceptVendorDisclaimers} via
-   * {@link KycService.submitVendorDisclaimers}, then marks it submitted.
+   * {@link KycService.submitVendorDisclaimers}, marks it submitted, and
+   * stores the step kyc-api returns. Works before a session exists: kyc-api
+   * keeps the acceptance and records it with the vendor once the vendor's
+   * customer exists.
    *
    * @param params - The parameters.
    * @param params.vendor - The identity vendor.
-   * @returns The vendor signing records.
-   * @throws If the vendor has no stored acceptance, or no session yet (the
-   * vendor records terms against a customer that session creation creates).
+   * @returns The vendor signing records (empty until the customer exists).
+   * @throws If the vendor has no stored acceptance.
    */
   async recordVendorDisclaimers({
     vendor,
   }: {
     vendor: KycVendor;
   }): Promise<KycVendorSigning[]> {
-    const accepted = this.state.sessions[vendor]?.vendorDisclaimersAccepted;
+    const stored = this.state.sessions[vendor];
+    const accepted = stored?.vendorDisclaimersAccepted;
     if (!accepted) {
       throw new Error('No vendor disclaimer acceptance was found');
     }
-    this.#requireSessionStatus(vendor);
 
-    const signings = await this.messenger.call(
+    // kyc-api keeps the acceptance and records it with the vendor once the
+    // vendor's customer exists, so no session is needed.
+    const { signings, nextStep } = await this.messenger.call(
       'KycService:submitVendorDisclaimers',
       {
         vendor,
         disclaimerIds: accepted.disclaimerIds,
+        ...(stored?.residenceCountry
+          ? { country: stored.residenceCountry }
+          : {}),
       },
     );
+    this.#updateVendorSession(vendor, (entry) => {
+      entry.nextStep = nextStep;
+    });
 
-    // The entry can be cleared, or the customer can accept different terms,
-    // while the request is in flight. Mark only the acceptance that was sent,
-    // and do not recreate a cleared entry.
-    const submittedIds = new Set(accepted.disclaimerIds);
+    this.#markVendorDisclaimersSubmitted(vendor, accepted.disclaimerIds);
+
+    return signings;
+  }
+
+  /**
+   * Marks the stored vendor T&C acceptance submitted when it still holds the
+   * ids that were sent. The entry can be cleared, or the customer can accept
+   * different terms, while the request is in flight, so only the acceptance
+   * that was sent is marked, and a cleared entry is not recreated.
+   *
+   * @param vendor - The identity vendor.
+   * @param disclaimerIds - The ids that were submitted.
+   */
+  #markVendorDisclaimersSubmitted(
+    vendor: KycVendor,
+    disclaimerIds: string[],
+  ): void {
+    const submittedIds = new Set(disclaimerIds);
     this.update((state) => {
       const current = state.sessions[vendor]?.vendorDisclaimersAccepted;
       if (
@@ -1373,8 +1425,70 @@ export class KycController extends BaseController<
         current.submitted = true;
       }
     });
+  }
 
-    return signings;
+  /**
+   * Fetches the vendor's onboarding step from kyc-api and stores it on the
+   * vendor's entry, creating the entry when there is none. kyc-api decides the
+   * step; clients map `sessions[vendor].nextStep` to a screen.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @returns The step.
+   */
+  async refreshStep({ vendor }: { vendor: KycVendor }): Promise<KycStep> {
+    const nextStep = await this.messenger.call('KycService:getStep', vendor);
+    this.#updateVendorSession(
+      vendor,
+      (entry) => {
+        entry.nextStep = nextStep;
+      },
+      { create: true },
+    );
+    return nextStep;
+  }
+
+  /**
+   * Refreshes the step after an action whose response carried none. A failure
+   * leaves the stored step as it was; the next refresh corrects it.
+   *
+   * @param vendor - The identity vendor.
+   */
+  async #refreshStepQuietly(vendor: KycVendor): Promise<void> {
+    try {
+      const nextStep = await this.messenger.call('KycService:getStep', vendor);
+      // An entry cleared while the request was in flight stays cleared.
+      this.#updateVendorSession(vendor, (entry) => {
+        entry.nextStep = nextStep;
+      });
+    } catch {
+      // Keep the stored step.
+    }
+  }
+
+  /**
+   * Tells kyc-api the provider flow was submitted, so a reinstall does not
+   * reopen it, and stores the step it returns. A failure falls back to a
+   * plain step refresh.
+   *
+   * @param vendor - The identity vendor.
+   * @param sessionId - The session the provider flow ran for.
+   */
+  async #markProviderSubmitted(
+    vendor: KycVendor,
+    sessionId: string,
+  ): Promise<void> {
+    try {
+      const nextStep = await this.messenger.call(
+        'KycService:markProviderSubmitted',
+        { sessionId },
+      );
+      this.#updateVendorSession(vendor, (entry) => {
+        entry.nextStep = nextStep;
+      });
+    } catch {
+      await this.#refreshStepQuietly(vendor);
+    }
   }
 
   /**
@@ -1611,6 +1725,7 @@ export class KycController extends BaseController<
           },
         );
         this.startSessionStatusPolling({ vendor });
+        await this.#markProviderSubmitted(vendor, sessionId);
         return 'submitted';
       }
 

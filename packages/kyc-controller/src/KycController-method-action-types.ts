@@ -268,17 +268,33 @@ export type KycControllerAcceptVendorDisclaimersAction = {
 /**
  * Submits the vendor T&C acceptance stored by
  * {@link acceptVendorDisclaimers} via
- * {@link KycService.submitVendorDisclaimers}, then marks it submitted.
+ * {@link KycService.submitVendorDisclaimers}, marks it submitted, and
+ * stores the step kyc-api returns. Works before a session exists: kyc-api
+ * keeps the acceptance and records it with the vendor once the vendor's
+ * customer exists.
  *
  * @param params - The parameters.
  * @param params.vendor - The identity vendor.
- * @returns The vendor signing records.
- * @throws If the vendor has no stored acceptance, or no session yet (the
- * vendor records terms against a customer that session creation creates).
+ * @returns The vendor signing records (empty until the customer exists).
+ * @throws If the vendor has no stored acceptance.
  */
 export type KycControllerRecordVendorDisclaimersAction = {
   type: `KycController:recordVendorDisclaimers`;
   handler: KycController['recordVendorDisclaimers'];
+};
+
+/**
+ * Fetches the vendor's onboarding step from kyc-api and stores it on the
+ * vendor's entry, creating the entry when there is none. kyc-api decides the
+ * step; clients map `sessions[vendor].nextStep` to a screen.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @returns The step.
+ */
+export type KycControllerRefreshStepAction = {
+  type: `KycController:refreshStep`;
+  handler: KycController['refreshStep'];
 };
 
 /**
@@ -365,6 +381,7 @@ export type KycControllerMethodActions =
   | KycControllerFetchVendorDisclaimersAction
   | KycControllerAcceptVendorDisclaimersAction
   | KycControllerRecordVendorDisclaimersAction
+  | KycControllerRefreshStepAction
   | KycControllerHasCompletedVendorDisclaimersAction
   | KycControllerGetSessionDecisionAction
   | KycControllerDeleteEncryptedStorageAction

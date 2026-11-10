@@ -25,7 +25,7 @@ import type { QueryClientConfig } from '@tanstack/query-core';
 
 import { alpha2ToAlpha3 } from './countryCodes.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
-import { patchKycSessionStatus } from './types.js';
+import { patchKycSessionStatus, toKycStep } from './types.js';
 import type {
   KycConsentRecord,
   KycDataShare,
@@ -33,6 +33,7 @@ import type {
   KycDisclaimersCatalog,
   KycSessionDisclaimers,
   KycSessionStatus,
+  KycStep,
   KycVendor,
   KycVendorSigning,
 } from './types.js';
@@ -66,6 +67,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSessionStatus',
   'getSessionStatusForVendor',
   'getDataShares',
+  'getStep',
+  'markProviderSubmitted',
 ] as const;
 
 /**
@@ -171,7 +174,16 @@ const VendorSigningStruct = type({
   customer_id: string(),
   content_id: optional(string()),
 });
-const VendorSigningsResponseStruct = array(VendorSigningStruct);
+const VendorSigningsResponseStruct = type({
+  signings: array(VendorSigningStruct),
+  nextStep: string(),
+});
+
+/** `{ nextStep }`, returned by kyc-api actions that move onboarding on. */
+const NextStepResponseStruct = type({ nextStep: string() });
+
+/** `GET /vendors/{vendor}/step`. */
+const StepResponseStruct = type({ vendor: string(), nextStep: string() });
 
 // The session server's public key, in JWK-like form, returned inside an
 // encryption schema from `POST /sessions`. `x` is the base64url public key
@@ -204,6 +216,7 @@ export type JwksResponse = Infer<typeof JwksResponseStruct>;
 
 const UkycSessionResponseStruct = type({
   sessionId: string(),
+  nextStep: optional(string()),
   // Per-secret wrapping material so the client can seal the
   // `data_encryption_key` and the `ukyc_capability_token` independently.
   encryptionDataKey: EncryptionSchemaStruct,
@@ -288,6 +301,7 @@ const SessionDisclaimersResponseStruct = type({
   idOS: array(ConsentDocumentStruct),
   kycProvider: array(ConsentDocumentStruct),
   credentialReusabilityConsentGiven: boolean(),
+  nextStep: optional(string()),
 });
 
 // === PARAM TYPES ===
@@ -302,6 +316,14 @@ export type SubmitVendorDisclaimersParams = {
   vendor: KycVendor;
   /** Disclaimer ids from {@link KycService.fetchVendorDisclaimers}. */
   disclaimerIds: string[];
+  /** ISO 3166-1 alpha-3 country the terms were fetched for. */
+  country?: string;
+};
+
+/** Vendor T&C signings plus the next onboarding step. */
+export type SubmitVendorDisclaimersResult = {
+  signings: KycVendorSigning[];
+  nextStep: KycStep;
 };
 
 export type FetchSessionDisclaimersByCountryParams = {
@@ -620,20 +642,69 @@ export class KycService extends BaseDataService<
    */
   async submitVendorDisclaimers(
     params: SubmitVendorDisclaimersParams,
-  ): Promise<KycVendorSigning[]> {
+  ): Promise<SubmitVendorDisclaimersResult> {
     const url = new URL(
       `/vendors/${encodeURIComponent(params.vendor)}/disclaimers`,
       this.#baseUrl,
     );
     const data = await this.#requestJson(url, {
       method: 'POST',
-      body: JSON.stringify({ disclaimerIds: params.disclaimerIds }),
+      body: JSON.stringify({
+        disclaimerIds: params.disclaimerIds,
+        ...(params.country ? { country: params.country } : {}),
+      }),
     });
-    return this.#validateResponse(
+    const { signings, nextStep } = this.#validateResponse(
       data,
       VendorSigningsResponseStruct,
       'vendor disclaimers',
     );
+    return { signings, nextStep: toKycStep(nextStep) };
+  }
+
+  /**
+   * Fetches the vendor's current onboarding step
+   * (`GET /vendors/{vendor}/step`). kyc-api computes it from what it knows
+   * about the user; the client maps it to a screen.
+   *
+   * @param vendor - Identity vendor.
+   * @returns The step.
+   */
+  async getStep(vendor: KycVendor): Promise<KycStep> {
+    const url = new URL(
+      `/vendors/${encodeURIComponent(vendor)}/step`,
+      this.#baseUrl,
+    );
+    const data = await this.#requestJson(url, { method: 'GET' });
+    const { nextStep } = this.#validateResponse(
+      data,
+      StepResponseStruct,
+      'vendor step',
+    );
+    return toKycStep(nextStep);
+  }
+
+  /**
+   * Tells kyc-api the identity provider flow was submitted for a session
+   * (`POST /sessions/{sessionId}/provider-submitted`), so the step survives a
+   * reinstall.
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - The UKYC session id.
+   * @returns The next step.
+   */
+  async markProviderSubmitted(params: { sessionId: string }): Promise<KycStep> {
+    const url = new URL(
+      `/sessions/${encodeURIComponent(params.sessionId)}/provider-submitted`,
+      this.#baseUrl,
+    );
+    const data = await this.#requestJson(url, { method: 'POST' });
+    const { nextStep } = this.#validateResponse(
+      data,
+      NextStepResponseStruct,
+      'provider submitted',
+    );
+    return toKycStep(nextStep);
   }
 
   /**

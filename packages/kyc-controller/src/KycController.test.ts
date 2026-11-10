@@ -1756,6 +1756,20 @@ describe('KycController', () => {
     });
   });
 
+  describe('refreshStep', () => {
+    it('stores the step from kyc-api, creating the vendor entry', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getStep.mockResolvedValue('vendor_terms');
+
+        expect(await controller.refreshStep({ vendor: 'iron' })).toBe(
+          'vendor_terms',
+        );
+        expect(handlers.getStep).toHaveBeenCalledWith('iron');
+        expect(controller.state.sessions.iron?.nextStep).toBe('vendor_terms');
+      });
+    });
+  });
+
   describe('recordVendorDisclaimers', () => {
     it('submits the stored acceptance for the vendor', async () => {
       const signings = [
@@ -1774,7 +1788,10 @@ describe('KycController', () => {
           },
         },
         async ({ controller, handlers }) => {
-          handlers.submitVendorDisclaimers.mockResolvedValue(signings);
+          handlers.submitVendorDisclaimers.mockResolvedValue({
+            signings,
+            nextStep: 'identity_verification',
+          });
           controller.acceptVendorDisclaimers({
             vendor: 'iron',
             country: 'USA',
@@ -1785,10 +1802,12 @@ describe('KycController', () => {
             await controller.recordVendorDisclaimers({ vendor: 'iron' }),
           ).toStrictEqual(signings);
           expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
-          expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
-            vendor: 'iron',
-            disclaimerIds: ['d1'],
-          });
+          expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith(
+            expect.objectContaining({ vendor: 'iron', disclaimerIds: ['d1'] }),
+          );
+          expect(controller.state.sessions.iron?.nextStep).toBe(
+            'identity_verification',
+          );
           expect(
             controller.state.sessions.iron?.vendorDisclaimersAccepted
               ?.submitted,
@@ -1997,6 +2016,41 @@ describe('KycController', () => {
           expect(launcher.launch).toHaveBeenCalled();
           expect(controller.state.sessions.iron?.providerFlowStatus).toBe(
             'submitted',
+          );
+          expect(handlers.markProviderSubmitted).toHaveBeenCalledWith({
+            sessionId: 'sid',
+          });
+          expect(controller.state.sessions.iron?.nextStep).toBe('kyc_pending');
+        },
+      );
+    });
+
+    it('refreshes the step when reporting the submission fails', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
+        async ({ controller, handlers, launcher }) => {
+          launcher.launch.mockResolvedValue({ status: 'Completed' });
+          handlers.markProviderSubmitted.mockRejectedValue(new Error('down'));
+          handlers.getStep.mockResolvedValue('identity_verification');
+
+          await controller.launchProviderFlow({
+            vendor: 'iron',
+            locale: 'en',
+            debug: false,
+          });
+
+          expect(controller.state.sessions.iron?.nextStep).toBe(
+            'identity_verification',
           );
         },
       );
@@ -3255,7 +3309,7 @@ describe('KycController per-vendor sessions', () => {
       );
     });
 
-    it('recordVendorDisclaimers needs a session and leaves acceptance unsubmitted', async () => {
+    it('recordVendorDisclaimers submits before a session exists and stores the next step', async () => {
       await withController(async ({ controller, handlers }) => {
         controller.acceptVendorDisclaimers({
           vendor: 'iron',
@@ -3263,13 +3317,17 @@ describe('KycController per-vendor sessions', () => {
           disclaimerIds: ['t1'],
         });
 
-        await expect(
-          controller.recordVendorDisclaimers({ vendor: 'iron' }),
-        ).rejects.toThrow('No session was found');
-        expect(handlers.submitVendorDisclaimers).not.toHaveBeenCalled();
+        await controller.recordVendorDisclaimers({ vendor: 'iron' });
+
+        expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
+          vendor: 'iron',
+          disclaimerIds: ['t1'],
+          country: 'BRA',
+        });
         expect(
           controller.state.sessions.iron?.vendorDisclaimersAccepted?.submitted,
-        ).toBe(false);
+        ).toBe(true);
+        expect(controller.state.sessions.iron?.nextStep).toBe('verify_email');
       });
     });
 
@@ -3291,10 +3349,9 @@ describe('KycController per-vendor sessions', () => {
 
           await controller.recordVendorDisclaimers({ vendor: 'iron' });
 
-          expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith({
-            vendor: 'iron',
-            disclaimerIds: ['t1'],
-          });
+          expect(handlers.submitVendorDisclaimers).toHaveBeenCalledWith(
+            expect.objectContaining({ vendor: 'iron', disclaimerIds: ['t1'] }),
+          );
           expect(
             controller.state.sessions.iron?.vendorDisclaimersAccepted
               ?.submitted,
@@ -3322,7 +3379,7 @@ describe('KycController per-vendor sessions', () => {
         });
         handlers.submitVendorDisclaimers.mockImplementation(async () => {
           controller.clearState();
-          return [];
+          return { signings: [], nextStep: 'verify_email' };
         });
 
         await controller.recordVendorDisclaimers({ vendor: 'iron' });
@@ -3436,6 +3493,8 @@ type ServiceHandlers = {
   getSessionStatus: Mock;
   getSessionStatusForVendor: Mock;
   getDataShares: Mock;
+  getStep: Mock;
+  markProviderSubmitted: Mock;
   performGetStorage: Mock;
   performSetStorage: Mock;
 };
@@ -3623,6 +3682,8 @@ function withController<ReturnValue>(
       'KycService:getSessionStatus',
       'KycService:getSessionStatusForVendor',
       'KycService:getDataShares',
+      'KycService:getStep',
+      'KycService:markProviderSubmitted',
       'UserStorageController:performGetStorage',
       'UserStorageController:performSetStorage',
       'AuthenticationController:getPartnerIdentityToken',
@@ -3646,7 +3707,9 @@ function withController<ReturnValue>(
       email: 'a@b.co',
       status: 'SigningsRequired',
     }),
-    submitVendorDisclaimers: vi.fn().mockResolvedValue([]),
+    submitVendorDisclaimers: vi
+      .fn()
+      .mockResolvedValue({ signings: [], nextStep: 'verify_email' }),
     fetchSessionDisclaimersByCountry: vi.fn().mockResolvedValue({
       idOS: [],
       kycProvider: [],
@@ -3674,6 +3737,8 @@ function withController<ReturnValue>(
     getSessionStatus: vi.fn().mockResolvedValue(sessionStatus('approved')),
     getSessionStatusForVendor: vi.fn().mockResolvedValue(null),
     getDataShares: vi.fn().mockResolvedValue([]),
+    getStep: vi.fn().mockResolvedValue('vendor_terms'),
+    markProviderSubmitted: vi.fn().mockResolvedValue('kyc_pending'),
     performGetStorage: vi.fn().mockResolvedValue(null),
     performSetStorage: vi.fn().mockResolvedValue(undefined),
   };
@@ -3749,6 +3814,11 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:getDataShares',
     handlers.getDataShares,
+  );
+  rootMessenger.registerActionHandler('KycService:getStep', handlers.getStep);
+  rootMessenger.registerActionHandler(
+    'KycService:markProviderSubmitted',
+    handlers.markProviderSubmitted,
   );
   rootMessenger.registerActionHandler(
     'AuthenticationController:getPartnerIdentityToken',

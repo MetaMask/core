@@ -326,4 +326,37 @@ export type KycSessionDisclaimers = {
   kycProvider: KycConsentDocument[];
   /** Whether the user consented to reuse existing idOS credentials. */
   credentialReusabilityConsentGiven: boolean;
+  /** The next onboarding step, returned when consents are recorded. */
+  nextStep?: string;
 };
+
+/**
+ * Steps kyc-api can return for a vendor's onboarding. The server decides the
+ * step; clients map each id to a screen and never compute it themselves.
+ */
+export const KYC_STEPS = [
+  'vendor_terms',
+  'verify_email',
+  'identity_verification',
+  'kyc_pending',
+  'kyc_retry',
+  'kyc_rejected',
+  'approved',
+  'error',
+] as const;
+
+/** A step returned by kyc-api. See {@link KYC_STEPS}. */
+export type KycStep = (typeof KYC_STEPS)[number];
+
+/**
+ * Narrows a step string from kyc-api. A step this client version does not
+ * know becomes `error`, so a newer server cannot strand an older client.
+ *
+ * @param value - The step string from the API.
+ * @returns The step, or `error` when unknown.
+ */
+export function toKycStep(value: string): KycStep {
+  return (KYC_STEPS as readonly string[]).includes(value)
+    ? (value as KycStep)
+    : 'error';
+}
