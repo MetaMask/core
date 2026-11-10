@@ -353,17 +353,18 @@ export async function deriveChildKey(
       publicKeyBytes,
     };
 
-    const privateKey = await derivePrivateKey({
-      parentNode,
-      childIndex,
-      isHardened,
-    });
-
-    const chainCode = await deriveChainCode({
-      parentNode,
-      childIndex,
-      isHardened,
-    });
+    const [privateKey, chainCode] = await Promise.all([
+      derivePrivateKey({
+        parentNode,
+        childIndex,
+        isHardened,
+      }),
+      deriveChainCode({
+        parentNode,
+        childIndex,
+        isHardened,
+      }),
+    ]);
 
     return SLIP10Node.fromExtendedKey({
       privateKey: bytesToHex(privateKey),
@@ -386,18 +387,19 @@ export async function deriveChildKey(
     publicKeyBytes,
   };
 
-  const publicKey = await derivePublicKey({
-    parentNode,
-    childIndex,
-    isHardened: false,
-    curve,
-  });
-
-  const chainCode = await deriveChainCode({
-    parentNode,
-    childIndex,
-    isHardened: false,
-  });
+  const [publicKey, chainCode] = await Promise.all([
+    derivePublicKey({
+      parentNode,
+      childIndex,
+      isHardened: false,
+      curve,
+    }),
+    deriveChainCode({
+      parentNode,
+      childIndex,
+      isHardened: false,
+    }),
+  ]);
 
   return SLIP10Node.fromExtendedKey({
     publicKey: bytesToHex(publicKey),
