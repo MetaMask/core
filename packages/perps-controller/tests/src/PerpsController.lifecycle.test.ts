@@ -2193,7 +2193,11 @@ describe('PerpsController', () => {
       expect(controller.testGetProviders().has('hyperliquid')).toBe(true);
       expect(mockMessenger.registerMethodActionHandlers).toHaveBeenCalledWith(
         controller,
-        expect.arrayContaining(['getOrderCapabilities', 'getMarginModeLock']),
+        expect.arrayContaining([
+          'getOrderCapabilities',
+          'getMarginModeLock',
+          'replacePositionTPSLLeg',
+        ]),
       );
     });
 

@@ -118,15 +118,12 @@ const approve = async (args: SubmitStrategyParams, actionId?: string) => {
     });
   }
 
-  if (approval) {
-    const approvalTxMeta = await handleSingleTx({
-      ...args,
-      transactionType,
-      trade: approval,
-      actionId,
-    });
-    return approvalTxMeta;
-  }
+  return await handleSingleTx({
+    ...args,
+    transactionType,
+    trade: approval,
+    actionId,
+  });
 };
 
 export const handleEvmApprovals = async (

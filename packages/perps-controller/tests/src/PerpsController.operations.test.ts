@@ -145,6 +145,7 @@ const mockTradingServiceInstance = {
   closePosition: vi.fn(),
   closePositions: vi.fn(),
   updatePositionTPSL: vi.fn(),
+  replacePositionTPSLLeg: vi.fn(),
   updateMargin: vi.fn(),
   flipPosition: vi.fn(),
   setControllerDependencies: vi.fn(),
@@ -770,6 +771,71 @@ describe('PerpsController', () => {
         }),
       );
     });
+
+    it('replaces one position TP/SL leg through the trading service', async () => {
+      const params = {
+        symbol: 'BTC',
+        leg: 'sl' as const,
+        triggerPrice: '45000',
+        limitPrice: '44900',
+      };
+      const replaceResult = { success: true, childOrderIds: ['702'] };
+
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockTradingServiceInstance.replacePositionTPSLLeg.mockResolvedValue(
+        replaceResult,
+      );
+
+      const result = await controller.replacePositionTPSLLeg(params);
+
+      expect(result).toStrictEqual(replaceResult);
+      expect(
+        mockTradingServiceInstance.replacePositionTPSLLeg,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: mockProvider,
+          params,
+          context: expect.any(Object),
+        }),
+      );
+      expect(
+        mockTradingServiceInstance.updatePositionTPSL,
+      ).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['the saved preference when unset', undefined, 250],
+      ['the caller tolerance over the saved one', 400, 400],
+    ])(
+      'replaces a market leg with %s',
+      async (_label, maxSlippageBps, expectedBps) => {
+        const params = {
+          symbol: 'BTC',
+          leg: 'tp' as const,
+          triggerPrice: '61000',
+          ...(maxSlippageBps !== undefined && { maxSlippageBps }),
+        };
+        markControllerAsInitialized();
+        controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+        controller.testUpdate((state) => {
+          state.maxSlippageBps = 250;
+        });
+        mockTradingServiceInstance.replacePositionTPSLLeg.mockResolvedValue({
+          success: true,
+        });
+
+        await controller.replacePositionTPSLLeg(params);
+
+        expect(
+          mockTradingServiceInstance.replacePositionTPSLLeg,
+        ).toHaveBeenCalledWith(
+          expect.objectContaining({
+            params: { ...params, maxSlippageBps: expectedBps },
+          }),
+        );
+      },
+    );
 
     it('calculates maintenance margin', async () => {
       const marginParams = {
