@@ -1096,6 +1096,100 @@ describe('HyperLiquidSubscriptionService', () => {
         }),
       );
     });
+
+    const deferOpen = (): {
+      resolveOpen: (sub: MockSubscription) => void;
+    } => {
+      const deferred = {
+        resolveOpen: (_sub: MockSubscription): void => undefined,
+      };
+      mockSubscriptionClient.activeAssetData = vi.fn(
+        () =>
+          new Promise<MockSubscription>((resolve) => {
+            deferred.resolveOpen = resolve;
+          }),
+      );
+      return deferred;
+    };
+
+    it('reopens an open stream on the replacement transport', async () => {
+      const previous = captureListener();
+      const callback = vi.fn();
+      service.subscribeToActiveAssetData({ symbol: 'BTC', callback });
+      await vi.advanceTimersByTimeAsync(0);
+
+      const replacement = captureListener();
+      await service.restoreSubscriptions();
+      await vi.advanceTimersByTimeAsync(0);
+      previous.emit(frame);
+      replacement.emit(frame);
+
+      expect(mockSubscriptionClient.activeAssetData).toHaveBeenCalledWith(
+        { user: '0x123', coin: 'BTC' },
+        expect.any(Function),
+      );
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledWith(frame);
+    });
+
+    it('drops an open that was pending when the transport was replaced', async () => {
+      const pending = deferOpen();
+      const callback = vi.fn();
+      const onError = vi.fn();
+      service.subscribeToActiveAssetData({ symbol: 'BTC', callback, onError });
+      await vi.advanceTimersByTimeAsync(0);
+
+      const replacement = captureListener();
+      await service.restoreSubscriptions();
+      await vi.advanceTimersByTimeAsync(0);
+      const stale: MockSubscription = {
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      };
+      pending.resolveOpen(stale);
+      await vi.advanceTimersByTimeAsync(0);
+      replacement.emit(frame);
+
+      expect(stale.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('retires open streams on clearAll', async () => {
+      const { emit, subscription } = captureListener();
+      const callback = vi.fn();
+      service.subscribeToActiveAssetData({ symbol: 'BTC', callback });
+      await vi.advanceTimersByTimeAsync(0);
+
+      service.clearAll();
+      emit(frame);
+      await service.restoreSubscriptions();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(subscription.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(callback).not.toHaveBeenCalled();
+      expect(mockSubscriptionClient.activeAssetData).toHaveBeenCalledTimes(1);
+    });
+
+    it('retires pending streams on clearAll', async () => {
+      const pending = deferOpen();
+      const onError = vi.fn();
+      service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        onError,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      service.clearAll();
+      const late: MockSubscription = {
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      };
+      pending.resolveOpen(late);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(late.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(onError).not.toHaveBeenCalled();
+    });
   });
 
   describe('Position Subscriptions', () => {
