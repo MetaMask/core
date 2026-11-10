@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Types `PerpsDisplayFormatOptions`, `PerpsFiatFormatOptions`, `PerpsFundingRateFormatOptions`, `PerpsIntlFormatters` and `PerpsSignDisplay`
 - Add `PERPS_DISPLAY_PRECISION`, the decimals to pass as `decimals` for each displayed value ([#11406](https://github.com/MetaMask/core/pull/11406))
   - `RoePercent` 1, `SlippageEstimatePercent` 4, `FundingRatePercent` 4, `FeeRatePercent` 3, `Percentage` 2, `Pnl` 2, `Fee` 2 and `MaxPriceDecimals` 6
+- Add `PerpsController.subscribeToAvailableToTrade` and the `PerpsController:subscribeToAvailableToTrade` messenger action to stream one market's available to trade per side, as the venue reports it
+  - The callback receives `PerpsAvailableToTrade` (`providerId`, `symbol`, `long`, `short`, decimal USD strings). Hyperliquid reads it from `activeAssetData.availableToTrade`, which includes the market's open position, its PnL, resting orders and leverage, and pushes a new value when they change
+  - Until the first value arrives it is unknown: clients keep `undefined` and show a placeholder. Providers that cannot read it from their venue (Lighter today) never call back, so it stays `undefined`; nothing is computed locally
+  - Optional provider method `PerpsProvider.subscribeToAvailableToTrade`; types `PerpsAvailableToTrade`, `SubscribeAvailableToTradeParams` and `PerpsControllerSubscribeToAvailableToTradeAction`
+  - `AccountState.spendableBalance` and `withdrawableBalance` are unchanged: they stay the account-wide withdrawable that clients label "Available" today
 
 ### Changed
 
