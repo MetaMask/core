@@ -606,10 +606,25 @@ export class AuthenticationController extends BaseController<
       return 'SRP';
     }
 
+    return this.#identifierTypeFromAuthConnection(state.authConnection);
+  }
+
+  /**
+   * Maps the social provider SeedlessOnboarding recorded at login to a login
+   * identifier type. It is known as soon as the user has logged in, before the
+   * vault is written.
+   *
+   * @param authConnection - Social provider id (`google` / `apple` /
+   * `telegram`).
+   * @returns The social provider identifier type, or `SRP`.
+   */
+  #identifierTypeFromAuthConnection(
+    authConnection?: string,
+  ): LoginIdentifierType {
     // Match provider strings from SeedlessOnboarding state rather than
     // importing AuthConnection — a value import would load that package
     // (and its heavy deps) whenever this controller is imported.
-    switch (state.authConnection) {
+    switch (authConnection) {
       case 'google':
         return 'GOOGLE';
       case 'apple':
@@ -779,16 +794,22 @@ export class AuthenticationController extends BaseController<
    * stores nothing: SRP sessions remain the source of truth for
    * `getBearerToken`.
    *
-   * Throws when the wallet has no social vault or no social token, and
+   * Throws when the wallet has no social login (no known `authConnection`,
+   * whether or not the vault is written yet) or no social token, and
    * `SocialIdentifierNotPairedError` when the identifier was never paired to
    * a profile.
    *
    * @returns The access token and canonical profile.
    */
   public async exchangeSocialAccessToken(): Promise<LoginResponse> {
-    const identifierType = this.#identifierTypeFromSeedlessState(
-      this.messenger.call('SeedlessOnboardingController:getState'),
+    // The provider is known from `authConnection` right after the social
+    // login, before the password creates the vault, so the vault is not
+    // required here (unlike for sign-in and pairing).
+    const { authConnection } = this.messenger.call(
+      'SeedlessOnboardingController:getState',
     );
+    const identifierType =
+      this.#identifierTypeFromAuthConnection(authConnection);
     if (identifierType === 'SRP') {
       throw new Error(
         'exchangeSocialAccessToken - the wallet has no social login',

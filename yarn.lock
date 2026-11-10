@@ -6806,6 +6806,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/byte-utils": "npm:^0.1.0"
+    "@metamask/cryptography": "npm:^1.1.2"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/type-utils": "npm:^0.1.0"
     "@noble/curves": "npm:^1.9.7"

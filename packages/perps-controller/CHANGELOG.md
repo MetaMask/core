@@ -47,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `formatPerpsFiat` returns a range's `customFormat` output unchanged instead of stripping its trailing zeros ([#11406](https://github.com/MetaMask/core/pull/11406))
 - `formatPercentage` and `formatFundingRate` group thousands: `formatPercentage(1234.56)` returns `+1,234.56%` instead of `+1234.56%` ([#11406](https://github.com/MetaMask/core/pull/11406))
 
+### Fixed
+
+- Bound `subscribeToAvailableToTrade` retries on Hyperliquid: open and post-open transient failures share one 3-attempt budget that resets only when a value arrives, so a venue that accepts the stream and then keeps failing it now reaches `onError` once instead of retrying indefinitely ([#11413](https://github.com/MetaMask/core/pull/11413))
+
 ## [22.3.0]
 
 ### Added
