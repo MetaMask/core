@@ -1,6 +1,11 @@
 /* eslint-disable */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
+import {
+  PERPS_CONSTANTS,
+  PERPS_DISPLAY_PRECISION,
+} from '../../../src/constants/perpsConfig.js';
+import * as PackageEntry from '../../../src/index.js';
 import {
   formatFundingRate,
   formatPercentage,
@@ -167,8 +172,8 @@ describe('formatPositionSize', () => {
     expect(formatPositionSize(0)).toBe('0');
   });
 
-  it('returns "0" for NaN', () => {
-    expect(formatPositionSize('invalid')).toBe('0');
+  it('returns the data placeholder for NaN', () => {
+    expect(formatPositionSize('invalid')).toBe('--');
   });
 
   it('uses szDecimals when provided', () => {
@@ -221,8 +226,8 @@ describe('formatPnl', () => {
     expect(formatPnl(0)).toBe('+$0.00');
   });
 
-  it('returns zero display for NaN', () => {
-    expect(formatPnl('invalid')).toBe('$0.00');
+  it('returns the price placeholder for NaN', () => {
+    expect(formatPnl('invalid')).toBe('$---');
   });
 
   it('handles string input', () => {
@@ -248,8 +253,8 @@ describe('formatPercentage', () => {
     expect(formatPercentage(0)).toBe('+0.00%');
   });
 
-  it('returns "0.00%" for NaN', () => {
-    expect(formatPercentage('not-a-number')).toBe('0.00%');
+  it('returns the percentage placeholder for NaN', () => {
+    expect(formatPercentage('not-a-number')).toBe('--%');
   });
 
   it('respects custom decimals', () => {
@@ -263,12 +268,12 @@ describe('formatPercentage', () => {
 });
 
 describe('formatFundingRate', () => {
-  it('returns zero display for undefined', () => {
-    expect(formatFundingRate(undefined)).toBe('0.0000%');
+  it('returns the percentage placeholder for undefined', () => {
+    expect(formatFundingRate(undefined)).toBe('--%');
   });
 
-  it('returns zero display for null', () => {
-    expect(formatFundingRate(null)).toBe('0.0000%');
+  it('returns the percentage placeholder for null', () => {
+    expect(formatFundingRate(null)).toBe('--%');
   });
 
   it('formats positive funding rate as percentage', () => {
@@ -311,5 +316,378 @@ describe('formatFundingRate', () => {
 
   it('still formats non-zero when showZero is false', () => {
     expect(formatFundingRate(0.001, { showZero: false })).toBe('0.1000%');
+  });
+});
+
+describe('display formatter options', () => {
+  // No-break spaces Intl puts between a number and its currency symbol
+  const NBSP = String.fromCharCode(0xa0);
+  const NNBSP = String.fromCharCode(0x202f);
+  const {
+    FallbackPriceDisplay,
+    FallbackPercentageDisplay,
+    FallbackDataDisplay,
+  } = PERPS_CONSTANTS;
+  const missingInputs = [undefined, null, '', '  ', 'abc', NaN, Infinity];
+
+  describe('PERPS_DISPLAY_PRECISION', () => {
+    it('is exported from the package entry with the shared display precisions', () => {
+      expect(PackageEntry.PERPS_DISPLAY_PRECISION).toStrictEqual({
+        Percentage: 2,
+        RoePercent: 1,
+        Pnl: 2,
+        Fee: 2,
+        FeeRatePercent: 3,
+        FundingRatePercent: 4,
+        SlippageEstimatePercent: 4,
+        MaxPriceDecimals: 6,
+      });
+    });
+
+    it('exports the formatters from the package entry', () => {
+      expect(PackageEntry.formatPercentage).toBe(formatPercentage);
+      expect(PackageEntry.formatPnl).toBe(formatPnl);
+      expect(PackageEntry.formatPerpsFiat).toBe(formatPerpsFiat);
+      expect(PackageEntry.formatPositionSize).toBe(formatPositionSize);
+      expect(PackageEntry.formatFundingRate).toBe(formatFundingRate);
+    });
+  });
+
+  describe('formatPercentage', () => {
+    it.each(missingInputs)(
+      'returns the percentage placeholder for %p',
+      (input) => {
+        expect(formatPercentage(input as never)).toBe(
+          FallbackPercentageDisplay,
+        );
+        expect(
+          formatPercentage(input as never, { decimals: 1, sign: 'never' }),
+        ).toBe(FallbackPercentageDisplay);
+      },
+    );
+
+    it('formats RoE with the shared 1-decimal precision', () => {
+      expect(
+        formatPercentage(10.25, {
+          decimals: PERPS_DISPLAY_PRECISION.RoePercent,
+        }),
+      ).toBe('+10.3%');
+      expect(
+        formatPercentage(-3.04, {
+          decimals: PERPS_DISPLAY_PRECISION.RoePercent,
+        }),
+      ).toBe('-3.0%');
+    });
+
+    it('formats estimated slippage with the shared 4-decimal precision', () => {
+      expect(
+        formatPercentage(0.0021, {
+          decimals: PERPS_DISPLAY_PRECISION.SlippageEstimatePercent,
+          sign: 'never',
+        }),
+      ).toBe('0.0021%');
+    });
+
+    it('formats a fee rate with the shared 3-decimal precision', () => {
+      expect(
+        formatPercentage(0.045, {
+          decimals: PERPS_DISPLAY_PRECISION.FeeRatePercent,
+          sign: 'never',
+        }),
+      ).toBe('0.045%');
+    });
+
+    it.each([
+      ['auto', '+5.25', '5.25%'],
+      ['auto', '-5.25', '-5.25%'],
+      ['auto', '0', '0.00%'],
+      ['always', '5.25', '+5.25%'],
+      ['always', '0', '+0.00%'],
+      ['always', '-5.25', '-5.25%'],
+      ['exceptZero', '5.25', '+5.25%'],
+      ['exceptZero', '0', '0.00%'],
+      ['exceptZero', '-5.25', '-5.25%'],
+      ['never', '-5.25', '5.25%'],
+      ['never', '5.25', '5.25%'],
+    ] as const)('applies sign %s to %s', (sign, input, expected) => {
+      expect(formatPercentage(input, { sign })).toBe(expected);
+    });
+
+    it.each(['always', 'auto', 'exceptZero'] as const)(
+      'never shows a minus sign for a negative value that rounds to zero (sign %s)',
+      (sign) => {
+        expect(formatPercentage(-0.004, { sign })).not.toContain('-');
+        expect(formatPercentage(-0, { sign })).not.toContain('-');
+      },
+    );
+
+    it('keeps the legacy default of a plus sign on zero and a rounded negative', () => {
+      expect(formatPercentage(-0.004)).toBe('+0.00%');
+      expect(formatPercentage(-0)).toBe('+0.00%');
+    });
+
+    it.each([
+      ['en', '+1,234.50%'],
+      ['es', '+1234,50%'],
+      ['de', '+1.234,50%'],
+      ['ja', '+1,234.50%'],
+      ['ko', '+1,234.50%'],
+      ['zh', '+1,234.50%'],
+    ])('uses the %s separators', (locale, expected) => {
+      expect(formatPercentage(1234.5, { locale })).toBe(expected);
+    });
+
+    it('formats a negative value in a locale', () => {
+      expect(formatPercentage(-12345.67, { decimals: 1, locale: 'es' })).toBe(
+        '-12.345,7%',
+      );
+    });
+
+    it('keeps the legacy positional decimals argument', () => {
+      expect(formatPercentage(5.25, 1)).toBe('+5.3%');
+      expect(formatPercentage(5.25, { decimals: 1 })).toBe('+5.3%');
+    });
+  });
+
+  describe('formatPnl', () => {
+    it.each(missingInputs)('returns the price placeholder for %p', (input) => {
+      expect(formatPnl(input as never)).toBe(FallbackPriceDisplay);
+    });
+
+    it.each([
+      ['always', 0, '+$0.00'],
+      ['exceptZero', 0, '$0.00'],
+      ['auto', 12.5, '$12.50'],
+      ['never', -12.5, '$12.50'],
+      ['exceptZero', -12.5, '-$12.50'],
+      ['always', -0.004, '+$0.00'],
+    ] as const)('applies sign %s to %p', (sign, input, expected) => {
+      expect(formatPnl(input, { sign })).toBe(expected);
+    });
+
+    it('uses the decimals option', () => {
+      expect(formatPnl(1234.567, { decimals: 0 })).toBe('+$1,235');
+    });
+
+    it.each([
+      ['es', `+1234,50${NBSP}$`],
+      ['de', `+1.234,50${NBSP}$`],
+      ['ja', '+$1,234.50'],
+    ])('formats PnL in %s', (locale, expected) => {
+      expect(formatPnl(1234.5, { locale })).toBe(expected);
+    });
+
+    it('formats a negative PnL in a locale', () => {
+      expect(formatPnl(-1234.5, { locale: 'es' })).toBe(`-1234,50${NBSP}$`);
+    });
+  });
+
+  describe('formatPerpsFiat', () => {
+    it.each(missingInputs)('returns the price placeholder for %p', (input) => {
+      expect(formatPerpsFiat(input as never)).toBe(FallbackPriceDisplay);
+      expect(
+        formatPerpsFiat(input as never, { ranges: PRICE_RANGES_UNIVERSAL }),
+      ).toBe(FallbackPriceDisplay);
+    });
+
+    it('formats zero without a sign', () => {
+      expect(formatPerpsFiat(0)).toBe('$0');
+      expect(formatPerpsFiat(-0, { sign: 'exceptZero' })).toBe('$0');
+      expect(formatPerpsFiat(0, { sign: 'always' })).toBe('+$0');
+    });
+
+    it('keeps the sign of a negative value below the threshold', () => {
+      expect(formatPerpsFiat(-0.004)).toBe('-<$0.01');
+      expect(formatPerpsFiat(0.004)).toBe('<$0.01');
+      expect(formatPerpsFiat(0.004, { sign: 'always' })).toBe('+<$0.01');
+    });
+
+    it.each([
+      ['auto', -1234.5, '-$1,234.50'],
+      ['always', 1234.5, '+$1,234.50'],
+      ['never', -1234.5, '$1,234.50'],
+    ] as const)('applies sign %s to %p', (sign, input, expected) => {
+      expect(formatPerpsFiat(input, { sign })).toBe(expected);
+    });
+
+    it.each([
+      ['de', 1234.5, `1.234,50${NBSP}$`],
+      ['de', 1250, `1.250${NBSP}$`],
+      ['es', 13.4, `13,40${NBSP}$`],
+      ['ja', 1234.5, '$1,234.50'],
+      ['ko', 1250, '$1,250'],
+      ['zh', 0.004, '<$0.01'],
+    ])(
+      'formats with the %s locale and strips .00 by parts (%p)',
+      (locale, input, expected) => {
+        expect(formatPerpsFiat(input, { locale })).toBe(expected);
+      },
+    );
+
+    it('strips trailing zeros by parts in a locale with universal ranges', () => {
+      expect(
+        formatPerpsFiat(1.5, { locale: 'de', ranges: PRICE_RANGES_UNIVERSAL }),
+      ).toBe(`1,5${NBSP}$`);
+      expect(
+        formatPerpsFiat(12.3, { locale: 'de', ranges: PRICE_RANGES_UNIVERSAL }),
+      ).toBe(`12,3${NBSP}$`);
+    });
+
+    it('strips trailing zeros for locales with other digits', () => {
+      expect(formatPerpsFiat(1250, { locale: 'ar-EG' })).not.toContain('٫');
+      expect(
+        formatPerpsFiat(1.5, {
+          locale: 'ar-EG',
+          ranges: PRICE_RANGES_UNIVERSAL,
+        }),
+      ).toBe(formatPerpsFiat(1.5, { locale: 'ar-EG', decimals: 1 }));
+    });
+
+    it('does not depend on Intl formatToParts (single literal part on Hermes)', () => {
+      const spy = vi
+        .spyOn(Intl.NumberFormat.prototype, 'formatToParts')
+        .mockImplementation(function (this: Intl.NumberFormat, value) {
+          return [{ type: 'literal', value: this.format(value as number) }];
+        });
+      try {
+        expect(formatPerpsFiat(1250, { locale: 'fr' })).toBe(
+          `1${NNBSP}250${NBSP}$`,
+        );
+        expect(formatPerpsFiat(12.5, { ranges: PRICE_RANGES_UNIVERSAL })).toBe(
+          '$12.5',
+        );
+        expect(formatPerpsFiat(0, { ranges: PRICE_RANGES_UNIVERSAL })).toBe(
+          '$0',
+        );
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('falls back to en-US for a locale that is not a BCP 47 tag', () => {
+      expect(formatPerpsFiat(1250, { locale: 'zh_CN' })).toBe('$1,250');
+      expect(formatPercentage(1234.5, { locale: 'pt_BR' })).toBe('+1,234.50%');
+    });
+
+    it('formats a fee with the shared fee precision', () => {
+      expect(
+        formatPerpsFiat(1.5, {
+          decimals: PERPS_DISPLAY_PRECISION.Fee,
+          stripTrailingZeros: false,
+        }),
+      ).toBe('$1.50');
+    });
+
+    it('lets minimumDecimals and maximumDecimals override decimals', () => {
+      expect(
+        formatPerpsFiat(1.23456, {
+          decimals: 2,
+          maximumDecimals: 4,
+          stripTrailingZeros: false,
+        }),
+      ).toBe('$1.2346');
+    });
+
+    it('returns a range customFormat output unchanged', () => {
+      expect(
+        formatPerpsFiat(-5, {
+          locale: 'de',
+          ranges: [
+            {
+              condition: () => true,
+              minimumDecimals: 0,
+              maximumDecimals: 0,
+              customFormat: (value, locale, currency) =>
+                `${value}|${locale}|${currency}`,
+            },
+          ],
+        }),
+      ).toBe('-5|de|USD');
+    });
+
+    it('falls back to 2 decimals when no range matches', () => {
+      expect(
+        formatPerpsFiat(-1.5, {
+          ranges: [
+            { condition: () => false, minimumDecimals: 0, maximumDecimals: 0 },
+          ],
+          stripTrailingZeros: false,
+        }),
+      ).toBe('-$1.50');
+    });
+  });
+
+  describe('formatPositionSize', () => {
+    it.each(missingInputs)('returns the data placeholder for %p', (input) => {
+      expect(formatPositionSize(input as never)).toBe(FallbackDataDisplay);
+      expect(formatPositionSize(input as never, 4)).toBe(FallbackDataDisplay);
+    });
+
+    it('formats zero and a negative value that rounds to zero as "0"', () => {
+      expect(formatPositionSize(0, { sign: 'always' })).toBe('+0');
+      expect(formatPositionSize(-0.004, 0)).toBe('0');
+      expect(formatPositionSize(-0)).toBe('0');
+    });
+
+    it('keeps the minus sign of a negative size', () => {
+      expect(formatPositionSize(-1.5, 2)).toBe('-1.5');
+      expect(formatPositionSize(-1.5, { decimals: 2, sign: 'never' })).toBe(
+        '1.5',
+      );
+    });
+
+    it('uses locale separators without grouping', () => {
+      expect(formatPositionSize(-1234.5, { decimals: 2, locale: 'es' })).toBe(
+        '-1234,5',
+      );
+      expect(formatPositionSize(12345.678, { decimals: 2, locale: 'de' })).toBe(
+        '12345,68',
+      );
+      expect(formatPositionSize(0.0024, { locale: 'ja' })).toBe('0.0024');
+    });
+
+    it('treats an options object without decimals like the magnitude fallback', () => {
+      expect(formatPositionSize(0.00009, {})).toBe('0.00009');
+      expect(formatPositionSize(0.25678, { locale: 'de' })).toBe('0,2568');
+      expect(formatPositionSize(44.567, { locale: 'en' })).toBe('44.57');
+    });
+  });
+
+  describe('formatFundingRate', () => {
+    it.each([...missingInputs])(
+      'returns the percentage placeholder for %p',
+      (input) => {
+        expect(formatFundingRate(input as never)).toBe(
+          FallbackPercentageDisplay,
+        );
+        expect(formatFundingRate(input as never, { showZero: false })).toBe('');
+      },
+    );
+
+    it('formats a string rate', () => {
+      expect(formatFundingRate('0.0005')).toBe('0.0500%');
+    });
+
+    it.each([
+      ['auto', 0.0005, '0.0500%'],
+      ['always', 0.0005, '+0.0500%'],
+      ['always', 0, '+0.0000%'],
+      ['exceptZero', 0, '0.0000%'],
+      ['exceptZero', -0.0005, '-0.0500%'],
+      ['never', -0.0005, '0.0500%'],
+      ['always', 0.000000059, '+<0.0001%'],
+      ['never', -0.000000059, '<0.0001%'],
+    ] as const)('applies sign %s to %p', (sign, input, expected) => {
+      expect(formatFundingRate(input, { sign })).toBe(expected);
+    });
+
+    it('uses the locale and decimals options', () => {
+      expect(formatFundingRate(-0.000125, { locale: 'es' })).toBe('-0,0125%');
+      expect(formatFundingRate(0.0005, { locale: 'ko', sign: 'always' })).toBe(
+        '+0.0500%',
+      );
+      expect(formatFundingRate(0.000000059, { locale: 'de' })).toBe('<0,0001%');
+      expect(formatFundingRate(0.000125, { decimals: 2 })).toBe('0.01%');
+    });
   });
 });

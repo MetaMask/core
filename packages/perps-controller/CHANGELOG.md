@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add a `locale`, `decimals` and `sign` options object to the display formatters so Mobile, Extension and Terminal can drop their local copies ([#00000](https://github.com/MetaMask/core/pull/00000))
+  - `formatPercentage(value, decimalsOrOptions)` and `formatPositionSize(size, szDecimalsOrOptions)` still take the number they took before, or an options object
+  - `formatPnl(pnl, options)`, `formatPerpsFiat(balance, options)` and `formatFundingRate(value, options)` take the same `locale`, `decimals` and `sign` options
+  - `locale` is a BCP 47 locale (default `en-US`): `formatPnl(1234.5, { locale: 'es' })` returns `+1234,50 $`
+  - `sign` is `auto`, `always`, `exceptZero` or `never`. Defaults keep today's output: `always` for `formatPercentage` and `formatPnl`, `auto` otherwise
+  - Types `PerpsDisplayFormatOptions`, `PerpsFiatFormatOptions`, `PerpsFundingRateFormatOptions` and `PerpsSignDisplay`
+- Add `PERPS_DISPLAY_PRECISION`, the decimals to pass as `decimals` for each displayed value ([#00000](https://github.com/MetaMask/core/pull/00000))
+  - `RoePercent` 1, `SlippageEstimatePercent` 4, `FundingRatePercent` 4, `FeeRatePercent` 3, `Percentage` 2, `Pnl` 2, `Fee` 2 and `MaxPriceDecimals` 6
+
+### Changed
+
+- Display formatters render the shared placeholder for a missing value (`undefined`, `null`, an empty or non-numeric string, `NaN` or an infinite value) instead of a formatted zero ([#00000](https://github.com/MetaMask/core/pull/00000))
+  - `formatPercentage` and `formatFundingRate` return `--%` (`PERPS_CONSTANTS.FallbackPercentageDisplay`) instead of `0.00%` and `0.0000%`; `formatFundingRate` with `showZero: false` still returns an empty string
+  - `formatPnl` and `formatPerpsFiat` return `$---` (`PERPS_CONSTANTS.FallbackPriceDisplay`) instead of `$0.00`, or `<$0.01` for `null`
+  - `formatPositionSize` returns `--` (`PERPS_CONSTANTS.FallbackDataDisplay`) instead of `0`
+  - `formatPercentage(null)` and `formatPositionSize(null)` no longer throw
+- A value that rounds to zero at the displayed precision has no minus sign: `formatPercentage(-0.004)` returns `+0.00%` instead of `-0.00%`, and `formatPositionSize(-0.004, 0)` returns `0` instead of `-0` ([#00000](https://github.com/MetaMask/core/pull/00000))
+- `formatPerpsFiat` keeps the sign of a negative value below the range threshold: `formatPerpsFiat(-0.004)` returns `-<$0.01` instead of `<$0.01` ([#00000](https://github.com/MetaMask/core/pull/00000))
+- `formatPerpsFiat` returns a range's `customFormat` output unchanged instead of stripping its trailing zeros ([#00000](https://github.com/MetaMask/core/pull/00000))
+- `formatPercentage` and `formatFundingRate` group thousands: `formatPercentage(1234.56)` returns `+1,234.56%` instead of `+1234.56%` ([#00000](https://github.com/MetaMask/core/pull/00000))
+
 ## [22.3.0]
 
 ### Added
