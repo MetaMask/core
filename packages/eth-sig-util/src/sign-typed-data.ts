@@ -100,7 +100,7 @@ export type TypedMessage<T extends MessageTypes> = {
     version?: string;
     chainId?: number;
     verifyingContract?: string;
-    salt?: ArrayBuffer;
+    salt?: string | Uint8Array;
   };
   message: Record<string, unknown>;
 };
