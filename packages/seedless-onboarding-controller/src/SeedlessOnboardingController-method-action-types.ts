@@ -361,6 +361,9 @@ export type SeedlessOnboardingControllerMigrateToEnvelopeAction = {
  * global password ({@link resetPasswordWithVaultKeys}), the password counts
  * as outdated.
  *
+ * Any pending envelope migration checkpoint is discarded, since it belongs
+ * to the vault this call replaces.
+ *
  * Authenticate with social login and call {@link authenticateForRecovery}
  * first.
  *
