@@ -1086,9 +1086,16 @@ describe('HyperLiquidSubscriptionService', () => {
       });
       await vi.advanceTimersByTimeAsync(0);
 
+      expect(onError).toHaveBeenCalledTimes(1);
       expect(onError).toHaveBeenCalledWith(
         expect.objectContaining({ message: 'subscribe error' }),
       );
+
+      // A non-transient failure is not retried.
+      await vi.advanceTimersByTimeAsync(5000);
+
+      expect(mockSubscriptionClient.activeAssetData).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledTimes(1);
     });
 
     it('reports a missing subscription client', async () => {
@@ -1239,6 +1246,120 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(retry.subscription.unsubscribe).toHaveBeenCalledTimes(1);
       expect(replacement.subscription.unsubscribe).not.toHaveBeenCalled();
       expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports post-open transient failures once and stops after three', async () => {
+      const { fail } = captureListener();
+      const onError = vi.fn();
+      service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        onError,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      fail(transientError());
+      await vi.advanceTimersByTimeAsync(500);
+      fail(transientError());
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(mockSubscriptionClient.activeAssetData).toHaveBeenCalledTimes(3);
+      expect(onError).not.toHaveBeenCalled();
+
+      fail(transientError());
+      await vi.advanceTimersByTimeAsync(5000);
+
+      expect(mockSubscriptionClient.activeAssetData).toHaveBeenCalledTimes(3);
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'connection terminated' }),
+      );
+    });
+
+    it('resets the retry budget when a frame arrives', async () => {
+      const { emit, fail } = captureListener();
+      const onError = vi.fn();
+      service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        onError,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      fail(transientError());
+      await vi.advanceTimersByTimeAsync(500);
+      fail(transientError());
+      await vi.advanceTimersByTimeAsync(1000);
+      emit(frame);
+      fail(transientError());
+      await vi.advanceTimersByTimeAsync(500);
+      fail(transientError());
+      await vi.advanceTimersByTimeAsync(1000);
+
+      expect(mockSubscriptionClient.activeAssetData).toHaveBeenCalledTimes(5);
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('reports one failure when the open rejects and the SDK reports it too', async () => {
+      const failure = new Error('subscribe error');
+      mockSubscriptionClient.activeAssetData = vi.fn(
+        (
+          _params: unknown,
+          _callback: unknown,
+          options?: { onError?: (error: Error) => void },
+        ) => {
+          options?.onError?.(failure);
+          return Promise.reject(failure);
+        },
+      );
+      const onError = vi.fn();
+      service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        onError,
+      });
+      await vi.advanceTimersByTimeAsync(5000);
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(mockSubscriptionClient.activeAssetData).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not subscribe again after clearAll during a pending retry', async () => {
+      const { fail } = captureListener();
+      const onError = vi.fn();
+      service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        onError,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      fail(transientError());
+      service.clearAll();
+      await vi.advanceTimersByTimeAsync(5000);
+
+      expect(mockSubscriptionClient.activeAssetData).toHaveBeenCalledTimes(1);
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('reopens an exhausted stream on the replacement transport', async () => {
+      mockSubscriptionClient.activeAssetData = vi
+        .fn()
+        .mockRejectedValue(transientError());
+      const callback = vi.fn();
+      const onError = vi.fn();
+      service.subscribeToActiveAssetData({ symbol: 'BTC', callback, onError });
+      await vi.advanceTimersByTimeAsync(1500);
+
+      expect(onError).toHaveBeenCalledTimes(1);
+
+      const replacement = captureListener();
+      await service.restoreSubscriptions();
+      await vi.advanceTimersByTimeAsync(0);
+      replacement.emit(frame);
+
+      expect(callback).toHaveBeenCalledWith(frame);
+      expect(onError).toHaveBeenCalledTimes(1);
     });
 
     it('retries a transient failure after the stream opened', async () => {
