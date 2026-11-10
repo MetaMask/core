@@ -11,6 +11,7 @@ import {
   isTransactionPayStrategy,
   TransactionPayStrategy,
 } from './constants.js';
+import type { TransactionPayClientId } from './constants.js';
 import { QuoteRefresher } from './helpers/QuoteRefresher.js';
 import type {
   GetAmountDataCallback,
@@ -38,6 +39,7 @@ import {
 
 const MESSENGER_EXPOSED_METHODS = [
   'getAmountData',
+  'getClientId',
   'getDelegationTransaction',
   'getFiatOptions',
   'getPaymentOverrideData',
@@ -67,6 +69,8 @@ export class TransactionPayController extends BaseController<
   TransactionPayControllerState,
   TransactionPayControllerMessenger
 > {
+  readonly #clientId?: TransactionPayClientId;
+
   readonly #fiatOptions?: TransactionPayFiatOptions;
 
   readonly #getAmountData?: GetAmountDataCallback;
@@ -88,6 +92,7 @@ export class TransactionPayController extends BaseController<
   readonly #polymarket?: PolymarketCallbacks;
 
   constructor({
+    clientId,
     fiatOptions,
     getAmountData,
     getBalance,
@@ -106,6 +111,7 @@ export class TransactionPayController extends BaseController<
       state: { ...getDefaultState(), ...state },
     });
 
+    this.#clientId = clientId;
     this.#fiatOptions = fiatOptions;
     this.#getAmountData = getAmountData;
     this.#getBalance = getBalance;
@@ -134,6 +140,7 @@ export class TransactionPayController extends BaseController<
 
     // eslint-disable-next-line no-new
     new QuoteRefresher({
+      getBalance: this.#getBalance,
       getStrategies: this.#getStrategiesWithFallback.bind(this),
       messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
@@ -213,6 +220,19 @@ export class TransactionPayController extends BaseController<
       messenger: this.messenger,
       updateTransactionData: this.#updateTransactionData.bind(this),
     });
+  }
+
+  /**
+   * Returns the configured client identifier.
+   *
+   * Used to set the `X-Client-Id` header on intents API requests so the
+   * server can distinguish Mobile from Extension traffic. This is
+   * intentionally not stored in controller state.
+   *
+   * @returns The client identifier, if configured.
+   */
+  getClientId(): TransactionPayClientId | undefined {
+    return this.#clientId;
   }
 
   /**

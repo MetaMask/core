@@ -25,7 +25,6 @@ import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook.
 import { GasFeeEstimateLevel, TransactionStatus } from '../index.js';
 import type {
   BatchTransactionParams,
-  GetSimulationConfig,
   PublishBatchHookRequest,
   TransactionController,
   TransactionControllerMessenger,
@@ -47,6 +46,7 @@ import type {
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedResultEntry,
   TransactionBatchMeta,
+  GetSimulationConfig,
 } from '../types.js';
 import type { TransactionBatchResult, TransactionParams } from '../types.js';
 import {
@@ -82,7 +82,7 @@ type AddTransactionBatchRequest = {
   getPendingTransactionTracker: (
     networkClientId: string,
   ) => PendingTransactionTracker;
-  getSimulationConfig: GetSimulationConfig;
+  getSimulationConfig?: GetSimulationConfig;
   getTransaction: (id: string) => TransactionMeta;
   isSimulationEnabled: (transactionMeta?: TransactionMeta) => boolean;
   messenger: TransactionControllerMessenger;
@@ -1080,6 +1080,7 @@ async function prepareApprovalData({
     chainId,
     from,
     getSimulationConfig,
+    messenger,
     transactions: nestedTransactions,
   });
 

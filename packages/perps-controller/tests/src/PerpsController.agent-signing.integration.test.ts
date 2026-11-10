@@ -75,9 +75,25 @@ const mockVenue = {
   revokedAgents: new Set<Hex>(),
 };
 
+type MockTransport = {
+  isTestnet: boolean;
+  request<Result>(
+    endpoint: 'info' | 'exchange',
+    payload: unknown,
+    signal?: AbortSignal,
+  ): Promise<Result>;
+};
+
 class MockHttpTransport {
+  readonly isTestnet: boolean;
+
   constructor({ isTestnet }: { isTestnet: boolean }) {
+    this.isTestnet = isTestnet;
     mockVenue.networks.push(isTestnet ? 'testnet' : 'mainnet');
+  }
+
+  async request<Result>(): Promise<Result> {
+    return undefined as Result;
   }
 }
 
@@ -99,8 +115,18 @@ class MockWebSocketTransport {
 class MockExchangeClient {
   readonly #wallet: HyperLiquidWalletParams;
 
-  constructor({ wallet }: { wallet: HyperLiquidWalletParams }) {
+  readonly config_: {
+    wallet: HyperLiquidWalletParams;
+    transport: MockTransport;
+  };
+
+  constructor(options: {
+    wallet: HyperLiquidWalletParams;
+    transport: MockTransport;
+  }) {
+    const { wallet } = options;
     this.#wallet = wallet;
+    this.config_ = options;
   }
 
   async order(params: unknown): Promise<unknown> {
@@ -142,7 +168,12 @@ class MockExchangeClient {
     params: unknown,
     payload: PerpsTypedDataPayload,
   ): Promise<void> {
-    const signer = SIGNERS.get(await signThroughWallet(this.#wallet, payload));
+    const signature = await signThroughWallet(this.#wallet, payload);
+    await this.config_.transport.request('exchange', {
+      action: params,
+      signature: { r: signature },
+    });
+    const signer = SIGNERS.get(signature);
     mockVenue.writes.push({ write, params, signer });
     if (signer && mockVenue.revokedAgents.has(signer)) {
       throw unknownWalletError(signer);
@@ -175,6 +206,7 @@ vi.mock('@nktkas/hyperliquid', () => ({
   },
   ExchangeClient: function ExchangeClient(options: {
     wallet: HyperLiquidWalletParams;
+    transport: MockTransport;
   }): MockExchangeClient {
     return new MockExchangeClient(options);
   },

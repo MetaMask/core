@@ -17,20 +17,27 @@ import type {
 import {
   getServerPollingInterval,
   getServerPollingTimeout,
+  getSlippage,
+  isEIP7702Chain,
 } from '../../utils/feature-flags.js';
 import {
   submitPolymarketWithdraw,
   sweepPolymarketDepositWallet,
 } from '../../utils/polymarket/withdraw.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
-import { getLiveTokenBalance } from '../../utils/token.js';
+import { getLiveTokenBalanceOrUndefined } from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction.js';
-import { getServerStatus, submitServerIntent } from './server-api.js';
-import { submitServerQuotes } from './server-submit.js';
+import {
+  fetchServerQuote,
+  getServerStatus,
+  submitServerIntent,
+} from './server-api.js';
+import { getServerQuotes } from './server-quotes.js';
+import { getServerSubmitParams, submitServerQuotes } from './server-submit.js';
 import { ServerStatus } from './types.js';
 import type { ServerQuote, ServerSignatureStep } from './types.js';
 
@@ -43,7 +50,8 @@ vi.mock(import('../../utils/polymarket/withdraw.js'));
 vi.mock(import('../../utils/second-leg.js'));
 vi.mock(import('../../utils/token.js'), async (importOriginal) => ({
   ...(await importOriginal()),
-  getLiveTokenBalance: vi.fn(),
+  getLiveTokenBalanceOrUndefined: vi.fn(),
+  getTokenFiatRate: vi.fn(),
 }));
 vi.mock(import('../../utils/transaction.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -157,7 +165,7 @@ const DELEGATION_MOCK = {
 };
 
 describe('submitServerQuotes', () => {
-  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalance);
+  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalanceOrUndefined);
   const getServerPollingIntervalMock = vi.mocked(getServerPollingInterval);
   const getServerPollingTimeoutMock = vi.mocked(getServerPollingTimeout);
   const getServerStatusMock = vi.mocked(getServerStatus);
@@ -358,6 +366,62 @@ describe('submitServerQuotes', () => {
 
       expect(submitSecondLegMock).toHaveBeenCalledWith(
         expect.objectContaining({ from: RECIPIENT_MOCK }),
+      );
+    });
+
+    it('funds and submits deferred calls from the execution account when payer and payout differ', async () => {
+      vi.mocked(isEIP7702Chain).mockReturnValue(true);
+      vi.mocked(getSlippage).mockReturnValue(0.005);
+      vi.mocked(fetchServerQuote).mockResolvedValue({
+        results: [
+          {
+            provider: ORIGINAL_QUOTE_MOCK.provider,
+            quote: { ...ORIGINAL_QUOTE_MOCK, callsDeferred: true },
+          },
+        ],
+      });
+
+      const transaction: TransactionMeta = {
+        ...request.transaction,
+        isGasFeeSponsored: true,
+        nestedTransactions: [{ data: '0x1234', to: ORIGINAL_FROM_MOCK }],
+      };
+      const quotes = await getServerQuotes({
+        accountSupports7702: true,
+        from: QUOTE_FROM_MOCK,
+        messenger: request.messenger,
+        requests: [
+          {
+            ...QUOTE_MOCK.request,
+            atomic: true,
+            recipient: RECIPIENT_MOCK,
+          },
+        ],
+        transaction,
+      });
+
+      expect(fetchServerQuote).toHaveBeenCalledTimes(1);
+      expect(fetchServerQuote).toHaveBeenCalledWith(
+        request.messenger,
+        expect.objectContaining({
+          recipient: ORIGINAL_FROM_MOCK,
+          sender: QUOTE_FROM_MOCK,
+          supportsDeferredCalls: true,
+        }),
+        undefined,
+      );
+      expect(quotes).toHaveLength(1);
+      expect(quotes[0].request.recipient).toBe(ORIGINAL_FROM_MOCK);
+      expect(quotes[0].requiresSecondLeg).toBe(true);
+
+      await submitServerQuotes({ ...request, quotes, transaction });
+
+      expect(submitSecondLegMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: ORIGINAL_FROM_MOCK,
+          settlementHash: TARGET_HASH_MOCK,
+          transaction,
+        }),
       );
     });
 
@@ -1240,8 +1304,23 @@ describe('submitServerQuotes', () => {
   });
 
   describe('validateSourceBalance', () => {
+    beforeEach(() => {
+      // Needed by the cases that get past the balance check and go on to
+      // submit.
+      vi.mocked(collectTransactionIds).mockImplementation(
+        (_chainId, _from, _messenger, onTransactionId) => {
+          onTransactionId('submitted-tx-id');
+          return { end: vi.fn() };
+        },
+      );
+      vi.mocked(getTransaction).mockReturnValue({
+        hash: '0xsubmitted' as Hex,
+      } as TransactionMeta);
+      vi.mocked(waitForTransactionConfirmed).mockResolvedValue(undefined);
+    });
+
     it('throws when source balance is insufficient', async () => {
-      vi.mocked(getLiveTokenBalance).mockResolvedValue('0');
+      vi.mocked(getLiveTokenBalanceOrUndefined).mockResolvedValue('0');
 
       const quote = cloneDeep(QUOTE_MOCK);
       quote.original.gasless = false;
@@ -1258,10 +1337,10 @@ describe('submitServerQuotes', () => {
       );
     });
 
-    it('wraps getLiveTokenBalance errors with context message', async () => {
-      vi.mocked(getLiveTokenBalance).mockRejectedValue(
-        new Error('RPC timeout'),
-      );
+    it('submits anyway when the live balance is unavailable', async () => {
+      // An unreadable balance is unknown, not insufficient, so submission
+      // proceeds and the server and the chain reject if truly underfunded.
+      vi.mocked(getLiveTokenBalanceOrUndefined).mockResolvedValue(undefined);
 
       const quote = cloneDeep(QUOTE_MOCK);
       quote.original.gasless = false;
@@ -1273,9 +1352,9 @@ describe('submitServerQuotes', () => {
         transaction: cloneDeep(TRANSACTION_META_MOCK),
       };
 
-      await expect(submitServerQuotes(req)).rejects.toThrow(
-        'Cannot validate payment token balance - RPC timeout',
-      );
+      await submitServerQuotes(req);
+
+      expect(addTxMock).toHaveBeenCalled();
     });
   });
 
@@ -1577,5 +1656,29 @@ describe('submitServerQuotes', () => {
 
       expect(addTxMock).toHaveBeenCalled();
     });
+  });
+});
+
+describe('getServerSubmitParams', () => {
+  const { messenger } = getMessengerMock();
+
+  it('returns the params for the quote transaction steps', async () => {
+    const params = await getServerSubmitParams(
+      QUOTE_MOCK,
+      messenger,
+      TRANSACTION_META_MOCK,
+    );
+
+    expect(params).toStrictEqual([
+      {
+        data: '0xstepdata',
+        from: QUOTE_FROM_MOCK,
+        gas: '0x61a8',
+        maxFeePerGas: '0x3b9aca00',
+        maxPriorityFeePerGas: '0x1dcd6500',
+        to: '0x4444444444444444444444444444444444444444',
+        value: '0x10',
+      },
+    ]);
   });
 });

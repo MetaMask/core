@@ -1,6 +1,6 @@
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import * as tokenMetadata from './token-metadata.js';
 import {
@@ -28,10 +28,6 @@ const MANTLE_TRANSACTION: TransactionMeta = {
 };
 
 describe('transaction helpers', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   describe('isNftStandard', () => {
     it('detects nft transfer types', () => {
       expect(isNftStandard('erc721')).toBe(true);

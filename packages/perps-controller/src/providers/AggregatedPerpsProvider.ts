@@ -46,6 +46,7 @@ import type {
   FeeCalculationResult,
   Funding,
   GetAccountStateParams,
+  GetAccountSupportParams,
   GetAvailableDexsParams,
   GetFundingParams,
   GetHistoricalPortfolioParams,
@@ -74,6 +75,7 @@ import type {
   OrderParams,
   OrderResult,
   PerpsMarketData,
+  PerpsAccountSupport,
   PerpsOrderCapabilities,
   PerpsMarginModeLock,
   PerpsScalePriceLadder,
@@ -302,6 +304,22 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   getWithdrawalRoutes(params?: GetSupportedPathsParams): AssetRoute[] {
     return this.#getDefaultProvider().getWithdrawalRoutes(params);
+  }
+
+  /**
+   * Route account support through the same explicit-provider/default-provider
+   * selection used by writes.
+   *
+   * @param params - Optional provider route.
+   * @returns The selected provider's account support result.
+   */
+  async getAccountSupport(
+    params?: GetAccountSupportParams,
+  ): Promise<PerpsAccountSupport> {
+    const [, provider] = this.#getProviderOrDefault(params?.providerId);
+    return provider.getAccountSupport
+      ? provider.getAccountSupport(params)
+      : { isSupported: true };
   }
 
   /**

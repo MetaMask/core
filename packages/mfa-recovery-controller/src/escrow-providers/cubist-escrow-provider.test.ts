@@ -328,6 +328,31 @@ describe('CubistEscrowProvider', () => {
       });
     });
 
+    it.each([null, { publicKey: 'pk' }])(
+      'strips unknown fields while preserving verifier %j',
+      async (verifier) => {
+        const identifiers = [
+          ...APPROVED,
+          { ...AUTHORIZATION.token.identifier, verifier },
+        ];
+        const { provider } = createProvider({
+          stdout: {
+            identifiers: identifiers.map((identifier) => ({
+              ...identifier,
+              extra: 'ignored',
+            })),
+            version: 2,
+            extra: 'ignored',
+          },
+        });
+
+        expect(await provider.getIdentifiers(TOKEN)).toStrictEqual({
+          identifiers,
+          version: 2,
+        });
+      },
+    );
+
     it.each([
       ['missing identifiers', { version: 2 }],
       ['a malformed identifier', { identifiers: [{}], version: 2 }],

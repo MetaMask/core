@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { toHex } from '@metamask/controller-utils';
 import { parseCaipAssetId } from '@metamask/utils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
 import { DepositService } from '../../../src/services/DepositService.js';
@@ -95,10 +95,6 @@ describe('DepositService', () => {
     });
 
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.resetAllMocks();
   });
 
   describe('prepareTransaction', () => {

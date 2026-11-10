@@ -18,7 +18,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
@@ -234,10 +234,6 @@ describe('buildDelegationStep', () => {
     mockHashDelegation
       .mockReturnValueOnce(MOCK_MUSD_DELEGATION_HASH as never)
       .mockReturnValueOnce(MOCK_VMUSD_DELEGATION_HASH as never);
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   it('is named "build-delegation"', () => {

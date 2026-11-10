@@ -260,6 +260,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getTimeEstimate',
   'resetPolling',
   'stopPolling',
+  'startPolling',
+  'stopPollingByPollingToken',
 ] as const;
 
 export type GasFeeStateChange = ControllerStateChangeEvent<

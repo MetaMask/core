@@ -18,6 +18,7 @@ import {
   buildBrazilMusdAutorampRequest,
 } from './autorampAccount.js';
 import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags.js';
+import type { NeoBankCustomerAbilities } from './NeoBankService.js';
 import type {
   AutorampTransactionStatusChangedPayload,
   RampsControllerMessenger,
@@ -203,6 +204,7 @@ describe('RampsController', () => {
             },
             "userRegion": null,
             "vbaAutorampListFetchedAt": null,
+            "vbaCustomerAbilities": null,
           }
         `);
       });
@@ -283,6 +285,7 @@ describe('RampsController', () => {
             },
             "userRegion": null,
             "vbaAutorampListFetchedAt": null,
+            "vbaCustomerAbilities": null,
           }
         `);
       });
@@ -2658,6 +2661,7 @@ describe('RampsController', () => {
             },
             "userRegion": null,
             "vbaAutorampListFetchedAt": null,
+            "vbaCustomerAbilities": null,
           }
         `);
       });
@@ -2703,6 +2707,7 @@ describe('RampsController', () => {
               "selected": null,
             },
             "userRegion": null,
+            "vbaCustomerAbilities": null,
           }
         `);
       });
@@ -2794,6 +2799,7 @@ describe('RampsController', () => {
             },
             "userRegion": null,
             "vbaAutorampListFetchedAt": null,
+            "vbaCustomerAbilities": null,
           }
         `);
       });
@@ -10157,6 +10163,60 @@ describe('RampsController', () => {
       });
     });
 
+    describe('refreshCustomerAbilities', () => {
+      const abilities: NeoBankCustomerAbilities = {
+        fiat_deposit: {
+          usd: { ach: 'Pending', ach_thirdparty: 'Pending' },
+        },
+        fiat_payout: {},
+        currencies: [
+          {
+            currency: { type: 'Fiat', code: 'USD' },
+            flows: ['Onramp', 'Offramp'],
+            counterparts: [],
+          },
+        ],
+        blocking_abilities: {},
+      };
+
+      it('stores and returns the abilities from NeoBankService', async () => {
+        await withController(async ({ controller, rootMessenger }) => {
+          const getCustomerAbilities = vi.fn().mockResolvedValue(abilities);
+          rootMessenger.registerActionHandler(
+            'NeoBankService:getCustomerAbilities',
+            getCustomerAbilities,
+          );
+
+          expect(await controller.refreshCustomerAbilities()).toStrictEqual(
+            abilities,
+          );
+          expect(getCustomerAbilities).toHaveBeenCalledTimes(1);
+          expect(controller.state.vbaCustomerAbilities).toStrictEqual(
+            abilities,
+          );
+        });
+      });
+
+      it('keeps the stored abilities when the fetch fails', async () => {
+        await withController(
+          { options: { state: { vbaCustomerAbilities: abilities } } },
+          async ({ controller, rootMessenger }) => {
+            rootMessenger.registerActionHandler(
+              'NeoBankService:getCustomerAbilities',
+              vi.fn().mockRejectedValue(new Error('proxy down')),
+            );
+
+            await expect(controller.refreshCustomerAbilities()).rejects.toThrow(
+              'proxy down',
+            );
+            expect(controller.state.vbaCustomerAbilities).toStrictEqual(
+              abilities,
+            );
+          },
+        );
+      });
+    });
+
     it('injects the Profile Sync customer id and applies the created autoramp', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         rootMessenger.registerActionHandler(
@@ -11023,8 +11083,8 @@ describe('RampsController', () => {
     const sessionWithStatus = (finalStatus: string): KycSession => ({
       id: 'session-1',
       finalStatus,
-      // Relay and vendor decisions agree in these cases; the relay-approved,
-      // vendor-pending divergence is covered by its own test below.
+      // Relay and vendor decisions agree in these cases; status divergence is
+      // covered by dedicated tests below.
       kycStatus: finalStatus,
       vendorStatus: finalStatus,
       externalUserId: CANONICAL_PROFILE_ID,
@@ -11272,6 +11332,14 @@ describe('RampsController', () => {
                 },
               },
               vbaAutorampListFetchedAt: 2,
+              vbaCustomerAbilities: {
+                fiat_deposit: {
+                  brl: { pix: 'Active', pix_thirdparty: 'Active' },
+                },
+                fiat_payout: {},
+                currencies: [],
+                blocking_abilities: {},
+              },
             },
           },
         },
@@ -11305,6 +11373,7 @@ describe('RampsController', () => {
           expect(controller.state.autoramps).toStrictEqual([]);
           expect(controller.state.autorampTransactionRecords).toStrictEqual({});
           expect(controller.state.vbaAutorampListFetchedAt).toBeNull();
+          expect(controller.state.vbaCustomerAbilities).toBeNull();
         },
       );
     });
@@ -11489,9 +11558,9 @@ describe('RampsController', () => {
       });
     });
 
-    it('treats a relay-approved session as approved without signing or creating', async () => {
+    it('keeps a relay-approved session pending until the vendor approves it', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        registerKycHandlers(rootMessenger, {
+        const handlers = registerKycHandlers(rootMessenger, {
           session: {
             ...approvedSession,
             finalStatus: 'pending',
@@ -11506,15 +11575,32 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'pending' }));
+
+        expect(handlers.getCustomerByExternalId).not.toHaveBeenCalled();
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        expect(createAutoramp).not.toHaveBeenCalled();
+        expect(registerWallet).not.toHaveBeenCalled();
+      });
+    });
+
+    it('uses final provider approval when the relay status lags', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger, {
+          session: {
+            ...approvedSession,
+            kycStatus: 'pending',
+          },
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
             autorampStatus: 'needs_wallet_registration',
           }),
         );
-
-        expect(createAutoramp).not.toHaveBeenCalled();
-        expect(registerWallet).not.toHaveBeenCalled();
       });
     });
 

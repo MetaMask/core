@@ -100,6 +100,7 @@ export const PERPS_EVENT_PROPERTY = {
   AMOUNT_FILLED: 'amount_filled',
   REMAINING_AMOUNT: 'remaining_amount',
   NUMBER_POSITIONS_CLOSED: 'number_positions_closed',
+  NUMBER_ORDERS_CANCELED: 'number_orders_canceled',
 
   // Tutorial carousel navigation properties
   PREVIOUS_SCREEN: 'previous_screen',

@@ -69,6 +69,20 @@ export enum PaymentOverride {
   Predict = 'predict',
 }
 
+/**
+ * Identifies the MetaMask client making MM Pay requests.
+ *
+ * Sent as the `X-Client-Id` header on requests to the intents API so the
+ * server can distinguish Mobile traffic from Extension traffic.
+ */
+export enum TransactionPayClientId {
+  Extension = 'extension',
+  Mobile = 'mobile',
+}
+
+/** Header used to identify the calling client to the intents API. */
+export const CLIENT_ID_HEADER = 'X-Client-Id';
+
 export enum TransactionPayStrategy {
   Across = 'across',
   Fiat = 'fiat',

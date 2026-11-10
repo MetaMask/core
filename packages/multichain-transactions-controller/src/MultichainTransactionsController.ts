@@ -9,6 +9,10 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import type {
+  AccountActivityServiceTransactionUpdatedEvent,
+  Transaction as AccountActivityTransaction,
+} from '@metamask/core-backend';
 import { isEvmAccountType, TransactionStatus } from '@metamask/keyring-api';
 import type {
   Transaction,
@@ -21,6 +25,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
+import { isCaipChainId } from '@metamask/utils';
 import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
@@ -147,7 +152,8 @@ type AllowedActions =
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | AccountsControllerAccountTransactionsUpdatedEvent;
+  | AccountsControllerAccountTransactionsUpdatedEvent
+  | AccountActivityServiceTransactionUpdatedEvent;
 
 /**
  * {@link MultichainTransactionsController}'s metadata.
@@ -227,6 +233,11 @@ export class MultichainTransactionsController extends BaseController<
       'AccountsController:accountTransactionsUpdated',
       (transactionsUpdate: AccountTransactionsUpdatedEventPayload) =>
         this.#handleOnAccountTransactionsUpdated(transactionsUpdate),
+    );
+    this.messenger.subscribe(
+      'AccountActivityService:transactionUpdated',
+      (transaction: AccountActivityTransaction) =>
+        this.#handleOnBackendTransactionUpdated(transaction),
     );
   }
 
@@ -405,6 +416,67 @@ export class MultichainTransactionsController extends BaseController<
         'MultichainTransactionsController:transactionFailed',
         updatedTransaction,
       );
+    }
+  }
+
+  /**
+   * Drives a pending transaction to a terminal status when the backend
+   * account-activity WebSocket reports it. Matches by transaction id and
+   * chain; unknown ids are ignored (history is served by the Accounts API,
+   * not by this controller).
+   *
+   * @param transaction - The transaction update from the WebSocket.
+   */
+  #handleOnBackendTransactionUpdated(
+    transaction: AccountActivityTransaction,
+  ): void {
+    const status = transaction.status.toLowerCase();
+    if (
+      status !== TransactionStatus.Confirmed &&
+      status !== TransactionStatus.Failed
+    ) {
+      return;
+    }
+
+    let updatedTransaction: Transaction | undefined;
+
+    if (!isCaipChainId(transaction.chain)) {
+      return;
+    }
+
+    // Captured with an explicit type: indexing with the narrowed value
+    // directly triggers excessively-deep type instantiation in lint.
+    const chain: CaipChainId = transaction.chain;
+
+    this.update((state: Draft<MultichainTransactionsControllerState>) => {
+      for (const chains of Object.values(state.nonEvmTransactions)) {
+        const entry = chains[chain];
+        const index = entry?.transactions.findIndex(
+          (tx) =>
+            tx.id === transaction.id &&
+            tx.status !== TransactionStatus.Confirmed &&
+            tx.status !== TransactionStatus.Failed,
+        );
+
+        if (!entry || index === -1) {
+          continue;
+        }
+
+        updatedTransaction = {
+          ...entry.transactions[index],
+          // Cast is safe here as the status is already validated above as
+          // either `TransactionStatus.Confirmed` or `TransactionStatus.Failed`.
+          status: status as TransactionStatus,
+          timestamp: transaction.timestamp,
+        };
+        entry.transactions[index] = updatedTransaction;
+        entry.lastUpdated = Date.now();
+        break;
+      }
+    });
+
+    if (updatedTransaction) {
+      this.#publishTransactionUpdateEvent(updatedTransaction);
     }
   }
 

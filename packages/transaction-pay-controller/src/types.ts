@@ -46,6 +46,7 @@ import type { Draft } from 'immer';
 import type {
   CONTROLLER_NAME,
   PaymentOverride,
+  TransactionPayClientId,
   TransactionPayStrategy,
 } from './constants.js';
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types.js';
@@ -263,6 +264,13 @@ export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
 
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
+  /**
+   * Identifies the MetaMask client, sent as the `X-Client-Id` header on
+   * requests to the intents API so the server can distinguish Mobile from
+   * Extension traffic.
+   */
+  clientId?: TransactionPayClientId;
+
   /** Optional callback to re-encode nested transaction calldata for a given amount. */
   getAmountData?: GetAmountDataCallback;
 
@@ -481,6 +489,11 @@ export type TransactionPaySourceAmount = {
  * and `detail` on {@link QuoteErrorInfo}.
  */
 export type QuoteErrorReason =
+  /**
+   * @deprecated No longer emitted. An unreadable live balance is treated as
+   * unknown rather than insufficient, so it no longer blocks the quote. Kept
+   * so existing consumers and historical analytics still type-check.
+   */
   | 'balance-unavailable'
   | 'insufficient-source-balance'
   | 'insufficient-transfer-balance'
@@ -550,6 +563,12 @@ export type FiatRates = {
 
 /** Request for a quote to retrieve a required token. */
 export type QuoteRequest = {
+  /**
+   * Selected account receiving post-quote output.
+   * See {@link TransactionConfig.accountOverride}.
+   */
+  accountOverride?: Hex;
+
   /**
    * Whether the target transaction is executed atomically with the Relay
    * quote. See {@link TransactionConfig.atomic}.
@@ -700,8 +719,8 @@ export type PayStrategyGetQuotesRequest = {
   fiatPaymentMethod?: string;
 
   /**
-   * Resolved wallet address for the transaction.
-   * This is `accountOverride ?? txParams.from`, pre-computed by the quote
+   * Account sending the quotes: `txParams.from` for post-quote flows,
+   * otherwise `accountOverride ?? txParams.from`. Pre-computed by the quote
    * orchestrator so that individual strategies do not need to re-derive it.
    */
   from: Hex;
@@ -775,6 +794,9 @@ export type PayStrategyGetRefreshIntervalRequest = {
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
+
+  /** ID of the transaction whose refresh interval is being resolved. */
+  transactionId: string;
 };
 
 /** Strategy used to obtain required tokens for a transaction. */

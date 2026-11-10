@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { LighterApiError } from '../../../src/services/LighterClientService.js';
 import type { OrderParams } from '../../../src/types/index.js';
@@ -28,10 +28,6 @@ vi.mock('../../../src/services/LighterWalletService');
 
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
 
   describe('native attached placement', () => {
     const attachedIntent: OrderParams = {

@@ -1,6 +1,6 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { TransactionStatus } from '@metamask/transaction-controller';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock, MockInstance } from 'vitest';
 
 import {
@@ -160,10 +160,6 @@ async function withController<ReturnValue>(
 }
 
 describe('StakedBalanceDataSource', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('constructor', () => {
     it('initializes with default options', async () => {
       await withController(({ controller }) => {

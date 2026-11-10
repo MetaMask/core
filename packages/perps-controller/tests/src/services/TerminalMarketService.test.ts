@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mocked } from 'vitest';
 
 import { TERMINAL_API_CONFIG } from '../../../src/constants/perpsConfig.js';
@@ -117,10 +117,6 @@ describe('TerminalMarketService', () => {
     mockDeps = createMockInfrastructure();
     service = new TerminalMarketService(mockDeps);
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   describe('fetchMarkets', () => {

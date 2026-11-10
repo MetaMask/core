@@ -1,15 +1,8 @@
-import type {
-  TransactionMeta,
-  TransactionType,
-} from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  ARBITRUM_USDC_ADDRESS,
-  CHAIN_ID_ARBITRUM,
-  PERPS_DEPOSIT_TYPES,
-} from '../constants.js';
+import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants.js';
 import type {
   TransactionPayControllerMessenger,
   TransactionPaymentToken,
@@ -23,6 +16,7 @@ import type {
   TransactionData,
   TransactionPayRequiredToken,
 } from '../types.js';
+import { isPerpsDepositTransaction } from './perps.js';
 import { getTokenFiatRate, isSameToken } from './token.js';
 import { getTransaction } from './transaction.js';
 
@@ -229,14 +223,14 @@ function calculateSourceAmount(
     return undefined;
   }
 
-  const { parentTransactionType, strategy } = getStrategyContext(
+  const { strategy, transaction } = getStrategyContext(
     transactionId,
     messenger,
   );
   const isAlwaysRequired = isQuoteAlwaysRequired(
     token,
     strategy,
-    parentTransactionType,
+    transaction,
     isQuoteRequired,
   );
 
@@ -285,14 +279,14 @@ function calculateSourceAmount(
  *
  * @param token - Target token.
  * @param strategy - Payment strategy.
- * @param parentTransactionType - Parent transaction type, if available.
+ * @param transaction - Parent transaction.
  * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
  * @returns True if a quote is always required, false otherwise.
  */
 function isQuoteAlwaysRequired(
   token: TransactionPayRequiredToken,
   strategy: TransactionPayStrategy,
-  parentTransactionType?: TransactionType,
+  transaction: TransactionMeta,
   isQuoteRequired?: boolean,
 ): boolean {
   if (isQuoteRequired) {
@@ -307,8 +301,7 @@ function isQuoteAlwaysRequired(
     isHyperliquidDeposit &&
     (strategy === TransactionPayStrategy.Relay ||
       (strategy === TransactionPayStrategy.Across &&
-        parentTransactionType !== undefined &&
-        PERPS_DEPOSIT_TYPES.includes(parentTransactionType)))
+        isPerpsDepositTransaction(transaction)))
   );
 }
 
@@ -316,8 +309,8 @@ function getStrategyContext(
   transactionId: string,
   messenger: TransactionPayControllerMessenger,
 ): {
-  parentTransactionType?: TransactionType;
   strategy: TransactionPayStrategy;
+  transaction: TransactionMeta;
 } {
   const transaction = getTransaction(
     transactionId,
@@ -325,10 +318,10 @@ function getStrategyContext(
   ) as TransactionMeta;
 
   return {
-    parentTransactionType: transaction.type,
     strategy: messenger.call(
       'TransactionPayController:getStrategy',
       transaction,
     ),
+    transaction,
   };
 }

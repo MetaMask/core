@@ -1,7 +1,7 @@
 import { defaultAbiCoder, Interface } from '@ethersproject/abi';
 import * as controllerUtils from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked } from 'vitest';
 
 import type {
@@ -90,10 +90,6 @@ describe('MulticallClient', () => {
       getProvider: getProviderMock,
       getMulticall3AddressForChain: getMulticall3AddressForChainMock,
     });
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   describe('constructor', () => {

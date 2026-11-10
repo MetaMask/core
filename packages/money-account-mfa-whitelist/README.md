@@ -52,14 +52,14 @@ if (requirement.mfaRequired) {
 
 ### Whitelist rules
 
-| Rule                        | Method                     | Payload                                                                                                                                                                      |
-| --------------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `chomp-authentication`      | `signPersonalMessage`      | `CHOMP Authentication <timestamp>`, within `maxMessageAge` of now                                                                                                            |
-| `rewards-binding`           | `signPersonalMessage`      | `metamask-rewards:money-account-binding:<subject>:<address>:<timestamp>` for the signing account, within `maxMessageAge` of now                                              |
-| `card-sign-in`              | `signPersonalMessage`      | A SIWE message for `cardSignInDomain` and the Money Account chain, signed by the account, that is not expired                                                                |
-| `eip7702-authorization`     | `signEip7702Authorization` | An authorization to `EIP7702StatelessDeleGatorImpl` on the Money Account chain                                                                                               |
-| `vault-standing-delegation` | `signTypedData` (V4)       | A root delegation to the CHOMP delegate with exactly a `ValueLte(0)`, an `ERC20TransferAmount` of mUSD or vault shares, and a `Redeemer` of that vault's adapter             |
-| `vault-deposit-delegation`  | `signTypedData` (V4)       | A single-use root delegation (`LimitedCalls(1)`) whose exact executions are `mUSD.approve(boringVault, amount)` followed by `teller.deposit(mUSD, amount, minimumMint, 0x0)` |
+| Rule                        | Method                     | Payload                                                                                                                                                                                                                |
+| --------------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chomp-authentication`      | `signPersonalMessage`      | `CHOMP Authentication <timestamp>`, within `maxMessageAge` of now                                                                                                                                                      |
+| `rewards-binding`           | `signPersonalMessage`      | `metamask-rewards:money-account-binding:<subject>:<address>:<timestamp>` for the signing account, within `maxMessageAge` of now                                                                                        |
+| `card-sign-in`              | `signPersonalMessage`      | A SIWE message for `cardSignInDomain` and the Money Account chain, signed by the account, that is not expired                                                                                                          |
+| `eip7702-authorization`     | `signEip7702Authorization` | An authorization to `EIP7702StatelessDeleGatorImpl` on the Money Account chain                                                                                                                                         |
+| `vault-standing-delegation` | `signTypedData` (V4)       | A root delegation to the CHOMP delegate with exactly a `ValueLte(0)`, an `ERC20TransferAmount` of mUSD or vault shares, and a `Redeemer` of that vault's adapter                                                       |
+| `vault-deposit-delegation`  | `signTypedData` (V4)       | A single-use root delegation (`LimitedCalls(1)`, optionally with one `Timestamp` deadline) whose exact executions are `mUSD.approve(boringVault, amount)` followed by `teller.deposit(mUSD, amount, minimumMint, 0x0)` |
 
 Every delegation must be signed by the delegator, use the root authority, and be verified by the pinned `DelegationManager` on the Money Account chain.
 

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { QuoteStatusState } from './constants.js';
@@ -80,10 +80,6 @@ function createStore({
 describe('QuoteStatusEntryStore', () => {
   beforeEach(() => {
     vi.spyOn(Date, 'now').mockReturnValue(NOW);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   describe('hash', () => {

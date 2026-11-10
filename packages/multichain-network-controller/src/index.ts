@@ -25,6 +25,7 @@ export type {
 export type {
   MultichainNetworkControllerSetActiveNetworkAction,
   MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction,
+  MultichainNetworkControllerRemoveNetworkAction,
 } from './MultichainNetworkController/MultichainNetworkController-method-action-types.js';
 export {
   checkIfSupportedCaipChainId,

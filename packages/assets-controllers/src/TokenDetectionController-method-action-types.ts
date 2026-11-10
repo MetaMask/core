@@ -91,6 +91,16 @@ export type TokenDetectionControllerAddDetectedTokensViaPollingAction = {
   handler: TokenDetectionController['addDetectedTokensViaPolling'];
 };
 
+export type TokenDetectionControllerStartPollingAction = {
+  type: `TokenDetectionController:startPolling`;
+  handler: TokenDetectionController['startPolling'];
+};
+
+export type TokenDetectionControllerStopPollingByPollingTokenAction = {
+  type: `TokenDetectionController:stopPollingByPollingToken`;
+  handler: TokenDetectionController['stopPollingByPollingToken'];
+};
+
 /**
  * Union of all TokenDetectionController action types.
  */
@@ -101,4 +111,6 @@ export type TokenDetectionControllerMethodActions =
   | TokenDetectionControllerStopAction
   | TokenDetectionControllerDetectTokensAction
   | TokenDetectionControllerAddDetectedTokensViaWsAction
-  | TokenDetectionControllerAddDetectedTokensViaPollingAction;
+  | TokenDetectionControllerAddDetectedTokensViaPollingAction
+  | TokenDetectionControllerStartPollingAction
+  | TokenDetectionControllerStopPollingByPollingTokenAction;

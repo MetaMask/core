@@ -480,6 +480,61 @@ export type SocialServiceFetchBlockedContentAction = {
 };
 
 /**
+ * Fetches whether the moderation team has banned the current user.
+ *
+ * Calls `GET ${baseUrl}/moderation/status`. The caller is identified
+ * server-side from the JWT sub claim carried in the Authorization header.
+ *
+ * @returns The current user's ban status, with the reason they may be shown.
+ */
+export type SocialServiceFetchModerationStatusAction = {
+  type: `SocialService:fetchModerationStatus`;
+  handler: SocialService['fetchModerationStatus'];
+};
+
+/**
+ * Fetches native, wrapped native, and stablecoin assets that do not produce
+ * indexed positions.
+ *
+ * Calls `GET ${baseUrl}/tokens/quote-tokens`.
+ *
+ * @returns CAIP-19 ids grouped by asset category.
+ */
+export type SocialServiceFetchQuoteTokensAction = {
+  type: `SocialService:fetchQuoteTokens`;
+  handler: SocialService['fetchQuoteTokens'];
+};
+
+/**
+ * Fetches a page of trending GIFs through the social-api GIF proxy.
+ *
+ * Calls `GET ${baseUrl}/gifs/trending`. Query parameters are forwarded
+ * unchanged, and the return value is the provider page itself.
+ *
+ * @param params - Provider query parameters (`page`, `per_page`, `locale`,
+ * `content_filter`, `format_filter`, and any others the caller sets).
+ * @returns The GIF page response.
+ */
+export type SocialServiceFetchTrendingGifsAction = {
+  type: `SocialService:fetchTrendingGifs`;
+  handler: SocialService['fetchTrendingGifs'];
+};
+
+/**
+ * Searches GIFs through the social-api GIF proxy.
+ *
+ * Calls `GET ${baseUrl}/gifs/search`. Query parameters are forwarded
+ * unchanged, and the return value is the provider page itself.
+ *
+ * @param params - Provider query parameters. `q` is the search text.
+ * @returns The GIF page response.
+ */
+export type SocialServiceSearchGifsAction = {
+  type: `SocialService:searchGifs`;
+  handler: SocialService['searchGifs'];
+};
+
+/**
  * Union of all SocialService action types.
  */
 export type SocialServiceMethodActions =
@@ -509,4 +564,8 @@ export type SocialServiceMethodActions =
   | SocialServiceBlockAction
   | SocialServiceUnblockProfileAction
   | SocialServiceFetchBlockedProfilesAction
-  | SocialServiceFetchBlockedContentAction;
+  | SocialServiceFetchBlockedContentAction
+  | SocialServiceFetchModerationStatusAction
+  | SocialServiceFetchQuoteTokensAction
+  | SocialServiceFetchTrendingGifsAction
+  | SocialServiceSearchGifsAction;

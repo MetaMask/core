@@ -11,11 +11,14 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import {
+  isPerpsDepositRequest,
+  isPerpsDepositTransaction,
+} from '../../utils/perps.js';
 import { getAcrossDestination } from './across-actions.js';
 import { getAcrossQuotes } from './across-quotes.js';
 import { submitAcrossQuotes } from './across-submit.js';
 import { hasUnsupportedTransactionAuthorizationList } from './authorization-list.js';
-import { isSupportedAcrossPerpsDepositRequest } from './perps.js';
 import { isAcrossQuoteRequest } from './requests.js';
 import type { AcrossQuote } from './types.js';
 
@@ -33,12 +36,9 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return false;
     }
 
-    if (request.transaction?.type === TransactionType.perpsDeposit) {
+    if (isPerpsDepositTransaction(request.transaction)) {
       const supportsPerpsDeposit = actionableRequests.every((singleRequest) =>
-        isSupportedAcrossPerpsDepositRequest(
-          singleRequest,
-          request.transaction?.type,
-        ),
+        isPerpsDepositRequest(singleRequest, request.transaction),
       );
 
       if (!supportsPerpsDeposit) {
