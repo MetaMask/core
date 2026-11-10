@@ -1,3 +1,4 @@
+import { hexToBytes, numberToBytes } from '@metamask/utils';
 import { describe, expect, it } from 'vitest';
 
 import { concatSig, padWithZeroes, normalize } from './utils.js';
@@ -40,63 +41,43 @@ describe('padWithZeroes', function () {
 });
 
 describe('concatSig', function () {
+  const empty = new Uint8Array();
+
   it('should concatenate an extended ECDSA signature', function () {
-    expect(
-      concatSig(
-        Buffer.from('1', 'hex'),
-        Buffer.from('1', 'hex'),
-        Buffer.from('1', 'hex'),
-      ),
-    ).toMatchInlineSnapshot(
+    expect(concatSig(empty, empty, empty)).toMatchInlineSnapshot(
       `"0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"`,
     );
   });
 
   it('should concatenate an all-zero extended ECDSA signature', function () {
-    expect(
-      concatSig(
-        Buffer.from('0', 'hex'),
-        Buffer.from('0', 'hex'),
-        Buffer.from('0', 'hex'),
-      ),
-    ).toMatchInlineSnapshot(
+    const zero = new Uint8Array([0]);
+    expect(concatSig(zero, zero, zero)).toMatchInlineSnapshot(
       `"0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"`,
     );
   });
 
   it('should return a hex-prefixed string', function () {
-    const signature = concatSig(
-      Buffer.from('1', 'hex'),
-      Buffer.from('1', 'hex'),
-      Buffer.from('1', 'hex'),
-    );
+    const signature = concatSig(empty, empty, empty);
 
     expect(typeof signature).toBe('string');
     expect(signature.slice(0, 2)).toBe('0x');
   });
 
   it('should encode an impossibly large extended ECDSA signature', function () {
-    const largeNumber = Number.MAX_SAFE_INTEGER.toString(16);
+    const largeNumber = numberToBytes(Number.MAX_SAFE_INTEGER);
     expect(
-      concatSig(
-        Buffer.from(largeNumber, 'hex'),
-        Buffer.from(largeNumber, 'hex'),
-        Buffer.from(largeNumber, 'hex'),
-      ),
+      concatSig(largeNumber, largeNumber, largeNumber),
     ).toMatchInlineSnapshot(
       `"0x000000000000000000000000000000000000000000000000001fffffffffffff000000000000000000000000000000000000000000000000001fffffffffffff1fffffffffffff"`,
     );
   });
 
   it('should throw if a portion of the signature is larger than the maximum safe integer', function () {
-    const largeNumber = '20000000000000'; // This is Number.MAX_SAFE_INTEGER + 1, in hex
-    expect(() =>
-      concatSig(
-        Buffer.from(largeNumber, 'hex'),
-        Buffer.from(largeNumber, 'hex'),
-        Buffer.from(largeNumber, 'hex'),
-      ),
-    ).toThrow('Number exceeds 53 bits');
+    // This is Number.MAX_SAFE_INTEGER + 1, in hex
+    const largeNumber = hexToBytes('20000000000000');
+    expect(() => concatSig(largeNumber, largeNumber, largeNumber)).toThrow(
+      'Number exceeds 53 bits',
+    );
   });
 });
 
