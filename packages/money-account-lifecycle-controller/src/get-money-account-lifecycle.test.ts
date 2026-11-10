@@ -75,6 +75,40 @@ describe('getMoneyAccountLifecycle', () => {
     ).toStrictEqual({ type: 'migrating', identity });
   });
 
+  it.each<{ description: string; identity: DerivedIdentity }>([
+    {
+      description: 'a MIGRATING status without a migration',
+      identity: {
+        currentAddress: MONEY_ACCOUNT_ADDRESS_LOWERCASE,
+        previousAddresses: [],
+        status: 'MIGRATING',
+        migration: null,
+      },
+    },
+    {
+      description: 'a migration without a MIGRATING status',
+      identity: {
+        currentAddress: MONEY_ACCOUNT_ADDRESS_LOWERCASE,
+        previousAddresses: [],
+        status: 'DONE',
+        migration: {
+          from: MONEY_ACCOUNT_ADDRESS_LOWERCASE,
+          to: SUCCESSOR_ADDRESS_LOWERCASE,
+          steps: [{ step: 'ROOT_DELEGATION', completed: false }],
+          transfer: null,
+          premiumTransfer: null,
+        },
+      },
+    },
+  ])(
+    'returns migrating when the address is the current address of an identity with $description',
+    ({ identity }) => {
+      expect(
+        getMoneyAccountLifecycle(MONEY_ACCOUNT_ADDRESS, [identity]),
+      ).toStrictEqual({ type: 'migrating', identity });
+    },
+  );
+
   it('returns mfa when the address is a previous address of a done identity, ignoring case', () => {
     const identity: DerivedIdentity = {
       currentAddress: SUCCESSOR_ADDRESS,

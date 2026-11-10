@@ -9,8 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release ([#10699](https://github.com/MetaMask/core/pull/10699))
+- Initial release ([#10699](https://github.com/MetaMask/core/pull/10699), [#10698](https://github.com/MetaMask/core/pull/10698))
   - Add `MoneyAccountLifecycleController`, which tracks whether the primary Money Account is a single-factor (SFA) or multi-factor (MFA) account using CHOMP derived identities
-  - Add `init`, `refresh`, `getMoneyAccountIdentity`, and `upgradeMoneyAccount` methods, each also exposed through the messenger
+  - Add `init`, `refresh`, `getMoneyAccountIdentity`, `upgradeMoneyAccount`, and `startMigration` methods, each also exposed through the messenger
+
+### Changed
+
+- Bump `@metamask/money-account-upgrade-controller` from `^6.0.0` to `^6.0.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
 
 [Unreleased]: https://github.com/MetaMask/core/

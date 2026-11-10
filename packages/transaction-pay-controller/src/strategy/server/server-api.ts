@@ -1,5 +1,7 @@
 import { createModuleLogger } from '@metamask/utils';
 
+import { CLIENT_ID_HEADER } from '../../constants.js';
+import type { TransactionPayClientId } from '../../constants.js';
 import { projectLogger } from '../../logger.js';
 import type { TransactionPayControllerMessenger } from '../../types.js';
 import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
@@ -31,7 +33,7 @@ export async function fetchServerQuote(
 
   log('Fetching quote', { url: quoteUrl });
 
-  const response = await serverFetch(quoteUrl, {
+  const response = await serverFetch(messenger, quoteUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -57,7 +59,7 @@ export async function submitServerIntent(
 
   log('Submitting intent', { url: submitUrl });
 
-  const response = await serverFetch(submitUrl, {
+  const response = await serverFetch(messenger, submitUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -92,7 +94,7 @@ export async function getServerStatus(
 
   log('Fetching status', { url });
 
-  const response = await serverFetch(url, { method: 'GET' });
+  const response = await serverFetch(messenger, url, { method: 'GET' });
 
   return (await response.json()) as ServerStatusResponse;
 }
@@ -103,12 +105,26 @@ export async function getServerStatus(
  * responses so the server's actual reason is preserved without leaking the
  * request URL.
  *
+ * Adds the `X-Client-Id` header so the intents API can distinguish Mobile
+ * from Extension traffic.
+ *
+ * @param messenger - Controller messenger.
  * @param url - The endpoint to fetch.
  * @param init - Fetch init options.
  * @returns The successful response.
  */
-async function serverFetch(url: string, init?: RequestInit): Promise<Response> {
-  const response = await fetch(url, init);
+async function serverFetch(
+  messenger: TransactionPayControllerMessenger,
+  url: string,
+  init?: RequestInit,
+): Promise<Response> {
+  const clientId = getClientId(messenger);
+
+  const headers = clientId
+    ? { ...init?.headers, [CLIENT_ID_HEADER]: clientId }
+    : init?.headers;
+
+  const response = await fetch(url, { ...init, ...(headers && { headers }) });
 
   if (!response.ok) {
     let detail: string | undefined;
@@ -127,4 +143,24 @@ async function serverFetch(url: string, init?: RequestInit): Promise<Response> {
   }
 
   return response;
+}
+
+/**
+ * Retrieve the client identifier from the controller.
+ *
+ * Returns `undefined` if the client did not configure one, so requests are
+ * still made without the header rather than failing.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The client identifier, if configured.
+ */
+function getClientId(
+  messenger: TransactionPayControllerMessenger,
+): TransactionPayClientId | undefined {
+  try {
+    return messenger.call('TransactionPayController:getClientId');
+  } catch (error) {
+    log('Failed to retrieve client ID', error);
+    return undefined;
+  }
 }

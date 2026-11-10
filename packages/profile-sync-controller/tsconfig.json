@@ -24,6 +24,9 @@
     },
     {
       "path": "../cryptography"
+    },
+    {
+      "path": "../key-tree"
     }
   ],
   "include": ["../../types", "./src"]

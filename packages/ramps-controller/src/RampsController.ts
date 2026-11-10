@@ -498,9 +498,11 @@ function toVbaKycStatus(value: string | undefined): VbaKycStatus {
 /**
  * Maps a KYC session onto the snapshot vocabulary.
  *
- * Relay approval (`kycStatus: 'approved'`) counts even when `finalStatus` is
- * still `pending`. A non-approved session whose provider flow was submitted,
- * or whose status is pending, is `pending`.
+ * Only provider approval (`finalStatus: 'approved'`) is final. Relay approval
+ * (`kycStatus: 'approved'`) can represent completed document review while the
+ * provider is still deciding, so that state remains `pending`. A non-approved
+ * session whose provider flow was submitted, or whose status is pending, is
+ * also `pending`.
  *
  * @param session - Persisted or freshly fetched KYC session.
  * @param providerFlowStatus - Durable provider-flow outcome.
@@ -510,7 +512,7 @@ function resolveVbaKycStatus(
   session: KycControllerSessionStatus,
   providerFlowStatus: VbaProviderFlowStatus,
 ): VbaKycStatus {
-  if (session.finalStatus === 'approved' || session.kycStatus === 'approved') {
+  if (session.finalStatus === 'approved') {
     return 'approved';
   }
   const mapped = toVbaKycStatus(session.finalStatus);

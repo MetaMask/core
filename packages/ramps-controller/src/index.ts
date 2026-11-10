@@ -101,6 +101,9 @@ export type {
   RampsServiceActions,
   RampsServiceEvents,
   RampsServiceMessenger,
+  RampsServiceInvalidateQueriesAction,
+  RampsServiceCacheUpdatedEvent,
+  RampsServiceGranularCacheUpdatedEvent,
   Country,
   State,
   SupportedActions,
@@ -237,7 +240,10 @@ export {
 } from './order-syncing/index.js';
 export type {
   TransakServiceActions,
+  TransakServiceCacheUpdatedEvent,
   TransakServiceEvents,
+  TransakServiceGranularCacheUpdatedEvent,
+  TransakServiceInvalidateQueriesAction,
   TransakServiceMessenger,
   TransakAccessToken,
   TransakUserDetails,
@@ -321,7 +327,10 @@ export type {
 } from './autoramp-types.js';
 export type {
   NeoBankServiceActions,
+  NeoBankServiceCacheUpdatedEvent,
   NeoBankServiceEvents,
+  NeoBankServiceGranularCacheUpdatedEvent,
+  NeoBankServiceInvalidateQueriesAction,
   NeoBankServiceMessenger,
   NeoBankAutorampResponse,
   NeoBankMicrodeposit,

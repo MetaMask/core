@@ -387,6 +387,19 @@ export type TransactionControllerUpdateAtomicBatchDataAction = {
 };
 
 /**
+ * Update the batch transactions associated with a transaction.
+ * These transactions will be submitted with the main transaction as a batch.
+ *
+ * @param request - The request object.
+ * @param request.transactionId - The ID of the transaction to update.
+ * @param request.batchTransactions - The new batch transactions.
+ */
+export type TransactionControllerUpdateBatchTransactionsAction = {
+  type: `TransactionController:updateBatchTransactions`;
+  handler: TransactionController['updateBatchTransactions'];
+};
+
+/**
  * Update the selected gas fee token for a transaction.
  *
  * @param transactionId - The ID of the transaction to update.
@@ -473,6 +486,7 @@ export type TransactionControllerMethodActions =
   | TransactionControllerClearUnapprovedTransactionsAction
   | TransactionControllerAbortTransactionSigningAction
   | TransactionControllerUpdateAtomicBatchDataAction
+  | TransactionControllerUpdateBatchTransactionsAction
   | TransactionControllerUpdateSelectedGasFeeTokenAction
   | TransactionControllerUpdateRequiredTransactionIdsAction
   | TransactionControllerEmulateNewTransactionAction

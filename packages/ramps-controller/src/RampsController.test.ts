@@ -11083,8 +11083,8 @@ describe('RampsController', () => {
     const sessionWithStatus = (finalStatus: string): KycSession => ({
       id: 'session-1',
       finalStatus,
-      // Relay and vendor decisions agree in these cases; the relay-approved,
-      // vendor-pending divergence is covered by its own test below.
+      // Relay and vendor decisions agree in these cases; status divergence is
+      // covered by dedicated tests below.
       kycStatus: finalStatus,
       vendorStatus: finalStatus,
       externalUserId: CANONICAL_PROFILE_ID,
@@ -11558,9 +11558,9 @@ describe('RampsController', () => {
       });
     });
 
-    it('treats a relay-approved session as approved without signing or creating', async () => {
+    it('keeps a relay-approved session pending until the vendor approves it', async () => {
       await withController(async ({ controller, rootMessenger }) => {
-        registerKycHandlers(rootMessenger, {
+        const handlers = registerKycHandlers(rootMessenger, {
           session: {
             ...approvedSession,
             finalStatus: 'pending',
@@ -11575,15 +11575,32 @@ describe('RampsController', () => {
 
         expect(
           await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
+        ).toStrictEqual(factsSnapshot({ kycStatus: 'pending' }));
+
+        expect(handlers.getCustomerByExternalId).not.toHaveBeenCalled();
+        expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
+        expect(createAutoramp).not.toHaveBeenCalled();
+        expect(registerWallet).not.toHaveBeenCalled();
+      });
+    });
+
+    it('uses final provider approval when the relay status lags', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger, {
+          session: {
+            ...approvedSession,
+            kycStatus: 'pending',
+          },
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({ walletAddress: '0xabc' }),
         ).toStrictEqual(
           factsSnapshot({
             kycStatus: 'approved',
             autorampStatus: 'needs_wallet_registration',
           }),
         );
-
-        expect(createAutoramp).not.toHaveBeenCalled();
-        expect(registerWallet).not.toHaveBeenCalled();
       });
     });
 

@@ -44,6 +44,7 @@ const mockMappedProfile: Profile = {
   avatarUrl: 'https://example.com/avatar.png',
   tradingPrivacy: 'public',
   connectedToX: false,
+  verified: false,
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-02T00:00:00Z',
 };
@@ -160,6 +161,7 @@ describe('ProfileController', () => {
           avatarUrl: '',
           tradingPrivacy: 'public',
           connectedToX: false,
+          verified: false,
           createdAt: '',
           updatedAt: '',
         },
@@ -168,6 +170,20 @@ describe('ProfileController', () => {
   });
 
   describe('constructor', () => {
+    it('defaults verification in legacy persisted profiles to false', () => {
+      const { verified: _verified, ...legacyProfile } = mockMappedProfile;
+      const { controller } = createController({
+        state: { profile: legacyProfile as Profile },
+      });
+      expect(controller.state.profile).toStrictEqual(mockMappedProfile);
+    });
+
+    it('preserves verification from persisted profiles', () => {
+      const { controller } = createController({
+        state: { profile: { ...mockMappedProfile, verified: true } },
+      });
+      expect(controller.state.profile.verified).toBe(true);
+    });
     it('initializes with default state', () => {
       const { controller } = createController();
 
@@ -245,6 +261,27 @@ describe('ProfileController', () => {
   });
 
   describe('createProfile', () => {
+    it.each([true, false])('maps verified=%s into state', async (verified) => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'ProfileService:createProfile',
+        vi.fn().mockResolvedValue({ ...mockProfileResponse, verified }),
+      );
+      const { controller } = createController({ rootMessenger });
+      await controller.createProfile({
+        profile_id: 'canonical-123',
+        username: 'alice',
+        display_name: 'Alice Wonderland',
+        linked_addresses: [],
+        trading_privacy: 'public',
+      });
+      expect(controller.state.profile).toStrictEqual({
+        ...mockMappedProfile,
+        verified,
+      });
+    });
+
     it('calls ProfileService:createProfile and updates state', async () => {
       const rootMessenger = getRootMessenger();
       const createProfileMock = vi.fn().mockResolvedValue(mockProfileResponse);

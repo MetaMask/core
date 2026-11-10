@@ -12,10 +12,7 @@ import {
   MetricsSwapType,
   MetricsActionType,
 } from '@metamask/bridge-controller';
-import type {
-  TransactionMeta,
-  TransactionError,
-} from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import { describe, expect, it } from 'vitest';

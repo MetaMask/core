@@ -299,6 +299,43 @@ export async function getLiveTokenBalance(
 }
 
 /**
+ * Read the live on-chain token balance, returning `undefined` instead of
+ * throwing when the RPC request fails.
+ *
+ * An RPC failure means the balance is *unknown*, which is not the same as the
+ * balance being *insufficient*. Callers use the balance to fail fast before
+ * simulation and submission; when it cannot be read they should skip that
+ * optimisation rather than block the user, since simulation and the on-chain
+ * transaction still catch a genuine shortfall.
+ *
+ * @param messenger - Controller messenger.
+ * @param account - Address of the account.
+ * @param chainId - Chain ID.
+ * @param tokenAddress - Address of the token contract.
+ * @returns Raw token balance as a decimal string, or `undefined` if the
+ * balance could not be read.
+ */
+export async function getLiveTokenBalanceOrUndefined(
+  messenger: TransactionPayControllerMessenger,
+  account: Hex,
+  chainId: Hex,
+  tokenAddress: Hex,
+): Promise<string | undefined> {
+  try {
+    return await getLiveTokenBalance(messenger, account, chainId, tokenAddress);
+  } catch (error) {
+    log('Could not read live token balance, skipping balance check', {
+      account,
+      chainId,
+      error,
+      tokenAddress,
+    });
+
+    return undefined;
+  }
+}
+
+/**
  * Request a balance using the `pending` block tag, falling back to `latest`
  * if the `pending` query throws.
  *

@@ -2,6 +2,7 @@ import { createSandbox } from '@metamask/node-utils';
 import { execa } from 'execa';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import type { Project } from 'ts-morph';
 import { describe, expect, it, vi } from 'vitest';
 
 import { generate, resolveRepoUrl } from './generate.js';
@@ -9,6 +10,17 @@ import { generate, resolveRepoUrl } from './generate.js';
 const { withinSandbox } = createSandbox('platform-api-docs/generate');
 
 vi.setConfig({ testTimeout: 30_000 });
+
+vi.mock(import('./ts-project.js'), async (importOriginal) => {
+  const { createProject } = await importOriginal();
+  return {
+    createProject: (): Project => {
+      const project = createProject();
+      project.compilerOptions.set({ noLib: true });
+      return project;
+    },
+  };
+});
 
 /**
  * Initialize a git repository in the given directory with an `origin` remote

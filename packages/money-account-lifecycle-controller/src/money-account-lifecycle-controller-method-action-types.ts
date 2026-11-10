@@ -82,10 +82,34 @@ export type MoneyAccountLifecycleControllerUpgradeMoneyAccountAction = {
 };
 
 /**
+ * Starts migrating the primary Money Account from its SFA address to a new
+ * MFA address.
+ *
+ * Reads the profile's identities fresh from CHOMP and records them, then
+ * only proceeds when the wallet is still ready, no identity is migrating, and
+ * the Money Account is a valid SFA in no other identity. Asks
+ * `MoneyAccountController` to create the MPC Money Account, or returns the
+ * one an earlier attempt created, and checks that its address is fresh for
+ * CHOMP: not part of any identity, and without intents.
+ *
+ * Linking the MFA address to the Money Account and completing the migration
+ * steps are not implemented yet, so this always throws once the checks
+ * pass.
+ *
+ * @throws If a migration is already in flight, the checks fail, or the
+ * migration is reached.
+ */
+export type MoneyAccountLifecycleControllerStartMigrationAction = {
+  type: `MoneyAccountLifecycleController:startMigration`;
+  handler: MoneyAccountLifecycleController['startMigration'];
+};
+
+/**
  * Union of all MoneyAccountLifecycleController action types.
  */
 export type MoneyAccountLifecycleControllerMethodActions =
   | MoneyAccountLifecycleControllerInitAction
   | MoneyAccountLifecycleControllerGetMoneyAccountIdentityAction
   | MoneyAccountLifecycleControllerRefreshAction
-  | MoneyAccountLifecycleControllerUpgradeMoneyAccountAction;
+  | MoneyAccountLifecycleControllerUpgradeMoneyAccountAction
+  | MoneyAccountLifecycleControllerStartMigrationAction;

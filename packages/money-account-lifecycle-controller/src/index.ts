@@ -18,5 +18,6 @@ export type {
   MoneyAccountLifecycleControllerGetMoneyAccountIdentityAction,
   MoneyAccountLifecycleControllerInitAction,
   MoneyAccountLifecycleControllerRefreshAction,
+  MoneyAccountLifecycleControllerStartMigrationAction,
   MoneyAccountLifecycleControllerUpgradeMoneyAccountAction,
 } from './money-account-lifecycle-controller-method-action-types.js';

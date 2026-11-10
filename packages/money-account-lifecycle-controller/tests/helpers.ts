@@ -2,6 +2,7 @@ import type {
   DerivedIdentitiesResponse,
   DerivedIdentity,
   DerivedIdentityMigration,
+  IntentEntry,
 } from '@metamask/chomp-api-service';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
@@ -12,6 +13,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import type {
+  CreateMoneyAccountParams,
   GetMoneyAccountSelector,
   MoneyAccount,
 } from '@metamask/money-account-controller';
@@ -51,6 +53,13 @@ export const MFA_IDENTITY: DerivedIdentity = {
   migration: null,
 };
 
+export const MFA_ACCOUNT_ADDRESS = '0x00000000000000000000000000000000000000Dd';
+
+export const MFA_MONEY_ACCOUNT = {
+  id: MPC_ACCOUNT_ID,
+  address: MFA_ACCOUNT_ADDRESS,
+} as MoneyAccount;
+
 export const MIGRATING_IDENTITY: DerivedIdentity & {
   migration: DerivedIdentityMigration;
 } = {
@@ -87,6 +96,10 @@ type Gates = {
 
 type Mocks = {
   getDerivedIdentities: Mock<() => Promise<DerivedIdentitiesResponse>>;
+  getIntentsByAddress: Mock<(address: Hex) => Promise<IntentEntry[]>>;
+  createMoneyAccount: Mock<
+    (params: CreateMoneyAccountParams) => Promise<MoneyAccount>
+  >;
   getMoneyAccount: Mock<
     (selector?: GetMoneyAccountSelector) => MoneyAccount | undefined
   >;
@@ -164,7 +177,9 @@ function getMessenger(
   rootMessenger.delegate({
     actions: [
       'ChompApiService:getDerivedIdentities',
+      'ChompApiService:getIntentsByAddress',
       'KeyringController:getState',
+      'MoneyAccountController:createMoneyAccount',
       'MoneyAccountController:getMoneyAccount',
       'MoneyAccountController:setDefaultMoneyAccount',
       'MoneyAccountUpgradeController:getRegistrationStatus',
@@ -214,6 +229,12 @@ export async function withController<ReturnValue>(
     getDerivedIdentities: vi
       .fn<() => Promise<DerivedIdentitiesResponse>>()
       .mockResolvedValue({ identities: [SFA_IDENTITY] }),
+    getIntentsByAddress: vi
+      .fn<(address: Hex) => Promise<IntentEntry[]>>()
+      .mockResolvedValue([]),
+    createMoneyAccount: vi
+      .fn<(params: CreateMoneyAccountParams) => Promise<MoneyAccount>>()
+      .mockResolvedValue(MFA_MONEY_ACCOUNT),
     getMoneyAccount: vi
       .fn<(selector?: GetMoneyAccountSelector) => MoneyAccount | undefined>()
       .mockImplementation((selector) => {
@@ -260,6 +281,14 @@ export async function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'ChompApiService:getDerivedIdentities',
     mocks.getDerivedIdentities,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:getIntentsByAddress',
+    mocks.getIntentsByAddress,
+  );
+  rootMessenger.registerActionHandler(
+    'MoneyAccountController:createMoneyAccount',
+    mocks.createMoneyAccount,
   );
   rootMessenger.registerActionHandler('KeyringController:getState', () =>
     buildKeyringControllerState(gates),

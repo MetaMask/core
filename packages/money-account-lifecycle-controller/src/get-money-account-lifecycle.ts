@@ -1,21 +1,25 @@
-import type {
-  DerivedIdentity,
-  DerivedIdentityMigration,
-} from '@metamask/chomp-api-service';
+import type { DerivedIdentity } from '@metamask/chomp-api-service';
 
 export type MoneyAccountLifecycle =
   | { type: 'notInIdentity' }
-  | { type: 'sfa' | 'mfa'; identity: DerivedIdentity }
-  | {
-      type: 'migrating';
-      identity: DerivedIdentity & { migration: DerivedIdentityMigration };
-    };
+  | { type: 'sfa' | 'migrating' | 'mfa'; identity: DerivedIdentity };
+
+/**
+ * Whether an identity is migrating to a successor. CHOMP validates `status`
+ * and `migration` independently, so either one signalling a migration counts.
+ *
+ * @param identity - The derived identity.
+ * @returns Whether the identity is migrating.
+ */
+export function isMigrating(identity: DerivedIdentity): boolean {
+  return identity.status === 'MIGRATING' || identity.migration !== null;
+}
 
 /**
  * Classifies a Money Account against the derived identities. A Money Account
  * that is an identity's current address is `migrating` while that identity
- * has a pending migration, and an `sfa` otherwise. A Money Account that is one
- * of an identity's previous addresses is an `mfa`.
+ * is migrating, and an `sfa` otherwise. A Money Account that is one of an
+ * identity's previous addresses is an `mfa`.
  *
  * @param moneyAccountAddress - The address of the Money Account.
  * @param identities - The derived identities to search.
@@ -33,10 +37,10 @@ export function getMoneyAccountLifecycle(
     isMoneyAccountAddress(currentAddress),
   );
   if (sfaIdentity) {
-    const { migration } = sfaIdentity;
-    return migration
-      ? { type: 'migrating', identity: { ...sfaIdentity, migration } }
-      : { type: 'sfa', identity: sfaIdentity };
+    return {
+      type: isMigrating(sfaIdentity) ? 'migrating' : 'sfa',
+      identity: sfaIdentity,
+    };
   }
 
   const mfaIdentity = identities.find(({ previousAddresses }) =>

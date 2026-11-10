@@ -203,6 +203,17 @@ describe('utils/perps', () => {
       });
     });
 
+    it('shifts the target amount to the given decimals', () => {
+      const result = normalizePerpsDepositRequest(
+        baseRequest,
+        bridgeTransferTransaction,
+        HYPERCORE_ADDRESS_MOCK,
+        6,
+      );
+
+      expect(result.targetAmountMinimum).toBe('1000000');
+    });
+
     it('returns the original request when not a perps deposit', () => {
       const result = normalizePerpsDepositRequest(
         baseRequest,

@@ -62,6 +62,7 @@ import {
 import { Source } from './constants.js';
 import { getNftOwnershipForMultipleNfts } from './multicall.js';
 import type { NftOwnershipResult } from './multicall.js';
+import type { NftControllerMethodActions } from './NftController-method-action-types.js';
 import type {
   ApiNftContract,
   ReservoirResponse,
@@ -293,11 +294,23 @@ type NftToAdd = {
  */
 const controllerName = 'NftController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'addNft',
+  'addNftVerifyOwnership',
+  'removeAndIgnoreNft',
+  'removeNft',
+  'checkAndUpdateAllNftsOwnershipStatus',
+  'checkAndUpdateSingleNftOwnershipStatus',
+  'isNftOwner',
+] as const;
+
 export type NftControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   NftControllerState
 >;
-export type NftControllerActions = NftControllerGetStateAction;
+export type NftControllerActions =
+  | NftControllerGetStateAction
+  | NftControllerMethodActions;
 
 /**
  * The external actions available to the {@link NftController}.
@@ -433,6 +446,11 @@ export class NftController extends BaseController<
     this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
       this.#onSelectedAccountChange.bind(this),
+    );
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

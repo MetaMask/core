@@ -85,3 +85,16 @@ export function createPriceMovedError(params: {
     },
   );
 }
+
+/**
+ * Creates the error a provider raises when it cannot replace one position
+ * TP/SL leg on its own.
+ *
+ * @returns A typed `TPSL_LEG_REPLACE_UNSUPPORTED` error.
+ */
+export function createTpslLegReplaceUnsupportedError(): PerpsControllerError {
+  return new PerpsControllerError(
+    PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
+    PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED,
+  );
+}

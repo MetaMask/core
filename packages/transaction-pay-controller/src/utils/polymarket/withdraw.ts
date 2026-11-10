@@ -16,8 +16,8 @@ import type {
   QuoteRequest,
   TransactionPayControllerMessenger,
 } from '../../types.js';
+import type { QuoteSimulation } from '../simulation.js';
 import { getLiveTokenBalance } from '../token.js';
-import type { QuoteSimulation } from '../validation.js';
 import {
   encodeApprove,
   encodeUnwrap,

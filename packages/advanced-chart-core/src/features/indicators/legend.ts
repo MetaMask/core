@@ -128,7 +128,14 @@ function injectHideLegendButtonsCSS(): void {
   const style = targetDoc.createElement('style');
   style.id = styleId;
   style.textContent =
-    '.chart-controls-bar .apply-common-tooltip,' +
+    // The price scale's auto-fit and logarithmic buttons, which no featureset
+    // covers. TradingView sanctions CSS for elements without a featureset but
+    // cautions that internal classes, IDs and DOM structure are not stable
+    // API. The substring match therefore survives a change to the hash suffix
+    // but not a rename of the base class; it also catches
+    // `priceScaleModeButtons__buttonWrapper`, so the row gives up its layout
+    // space rather than leaving a gap.
+    '[class*="priceScaleModeButton"],' +
     '.legendElement .showHide,' +
     '.legendElement button[data-name="legend-show-hide-action"],' +
     '.legendElement button[data-name="legend-settings-action"],' +

@@ -6,6 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type {
   ChompApiServiceGetDerivedIdentitiesAction,
+  ChompApiServiceGetIntentsByAddressAction,
   DerivedIdentitiesResponse,
   DerivedIdentity,
 } from '@metamask/chomp-api-service';
@@ -17,6 +18,7 @@ import type {
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
+  MoneyAccountControllerCreateMoneyAccountAction,
   MoneyAccountControllerGetMoneyAccountAction,
   MoneyAccountControllerSetDefaultMoneyAccountAction,
   MoneyAccountControllerStateChangeEvent,
@@ -30,7 +32,10 @@ import type {
 import type { Hex } from '@metamask/utils';
 import deepEqual from 'fast-deep-equal';
 
-import { getMoneyAccountLifecycle } from './get-money-account-lifecycle.js';
+import {
+  getMoneyAccountLifecycle,
+  isMigrating,
+} from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycle } from './get-money-account-lifecycle.js';
 import type { MoneyAccountLifecycleControllerMethodActions } from './money-account-lifecycle-controller-method-action-types.js';
 import type {
@@ -80,6 +85,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMoneyAccountIdentity',
   'refresh',
   'upgradeMoneyAccount',
+  'startMigration',
 ] as const;
 
 export type MoneyAccountIdentity = Pick<
@@ -99,7 +105,9 @@ export type MoneyAccountLifecycleControllerActions =
 
 type AllowedActions =
   | ChompApiServiceGetDerivedIdentitiesAction
+  | ChompApiServiceGetIntentsByAddressAction
   | KeyringControllerGetStateAction
+  | MoneyAccountControllerCreateMoneyAccountAction
   | MoneyAccountControllerGetMoneyAccountAction
   | MoneyAccountControllerSetDefaultMoneyAccountAction
   | MoneyAccountUpgradeControllerGetRegistrationStatusAction
@@ -153,6 +161,8 @@ export class MoneyAccountLifecycleController extends BaseController<
     string,
     Promise<RegistrationStatus>
   >();
+
+  #isMigrationInFlight = false;
 
   constructor({
     messenger,
@@ -382,6 +392,110 @@ export class MoneyAccountLifecycleController extends BaseController<
     );
   }
 
+  /**
+   * Starts migrating the primary Money Account from its SFA address to a new
+   * MFA address.
+   *
+   * Reads the profile's identities fresh from CHOMP and records them, then
+   * only proceeds when the wallet is still ready, no identity is migrating, and
+   * the Money Account is a valid SFA in no other identity. Asks
+   * `MoneyAccountController` to create the MPC Money Account, or returns the
+   * one an earlier attempt created, and checks that its address is fresh for
+   * CHOMP: not part of any identity, and without intents.
+   *
+   * Linking the MFA address to the Money Account and completing the migration
+   * steps are not implemented yet, so this always throws once the checks
+   * pass.
+   *
+   * @throws If a migration is already in flight, the checks fail, or the
+   * migration is reached.
+   */
+  async startMigration(): Promise<void> {
+    if (this.#isMigrationInFlight) {
+      throw new Error('A Money Account migration is already in progress');
+    }
+
+    this.#isMigrationInFlight = true;
+    try {
+      await this.#startMigration();
+    } finally {
+      this.#isMigrationInFlight = false;
+    }
+  }
+
+  async #startMigration(): Promise<void> {
+    if (!this.#isReady()) {
+      throw new Error('Money Account migration is not available');
+    }
+
+    const moneyAccount = this.messenger.call(
+      'MoneyAccountController:getMoneyAccount',
+      { type: 'mnemonic' },
+    );
+    if (!moneyAccount) {
+      throw new Error('There is no Money Account to migrate');
+    }
+
+    this.#fetchDerivedIdentities();
+    await this.#waitForLatestDerivedIdentities();
+    const identities = this.#derivedIdentities;
+    if (!this.#isReady() || !identities) {
+      throw new Error('Money Account migration is not available');
+    }
+
+    if (identities.some(isMigrating)) {
+      throw new Error('A Money Account identity is already migrating');
+    }
+
+    if (countIdentityAddresses(moneyAccount.address, identities) > 1) {
+      throw new Error(
+        `Money Account ${moneyAccount.address} belongs to more than one identity`,
+      );
+    }
+
+    const lifecycle = getMoneyAccountLifecycle(
+      moneyAccount.address,
+      identities,
+    );
+    if (lifecycle.type !== 'sfa') {
+      throw new Error(
+        `Money Account ${moneyAccount.address} cannot be migrated while it is '${lifecycle.type}'`,
+      );
+    }
+
+    const mpcMoneyAccount = await this.messenger.call(
+      'MoneyAccountController:createMoneyAccount',
+      { type: 'mpc' },
+    );
+    const mfaAddress = mpcMoneyAccount.address as Hex;
+    await this.#assertFreshForChomp(mfaAddress, identities);
+
+    // TODO: Link the MFA address to the Money Account and drive the migration
+    // steps from the incomplete entries of `migration.steps`.
+    throw new Error(
+      `Migrating Money Account ${moneyAccount.address} to ${mfaAddress} is not implemented yet`,
+    );
+  }
+
+  async #assertFreshForChomp(
+    mfaAddress: Hex,
+    identities: DerivedIdentity[],
+  ): Promise<void> {
+    if (countIdentityAddresses(mfaAddress, identities) > 0) {
+      throw new Error(
+        `MFA account ${mfaAddress} is already part of a Money Account identity`,
+      );
+    }
+
+    const intents = await this.messenger.call(
+      'ChompApiService:getIntentsByAddress',
+      mfaAddress.toLowerCase() as Hex,
+    );
+    if (intents.length > 0) {
+      throw new Error(`MFA account ${mfaAddress} already has CHOMP intents`);
+    }
+  }
+
   #sync(): void {
     try {
       const { remoteFeatureFlags } = this.messenger.call(
@@ -428,6 +542,7 @@ export class MoneyAccountLifecycleController extends BaseController<
           this.#syncedRemoteFeatureFlags = undefined;
           this.#derivedIdentitiesRequest = undefined;
           this.#isFetchingDerivedIdentities = false;
+          this.#derivedIdentities = undefined;
         }
         this.#reportError(error);
       });
@@ -533,6 +648,21 @@ export class MoneyAccountLifecycleController extends BaseController<
       error instanceof Error ? error : new Error(String(error)),
     );
   }
+}
+
+function countIdentityAddresses(
+  address: string,
+  identities: DerivedIdentity[],
+): number {
+  const normalizedAddress = address.toLowerCase();
+  return identities
+    .flatMap(({ currentAddress, previousAddresses }) => [
+      currentAddress,
+      ...previousAddresses,
+    ])
+    .filter(
+      (identityAddress) => identityAddress.toLowerCase() === normalizedAddress,
+    ).length;
 }
 
 function isWalletReady({
