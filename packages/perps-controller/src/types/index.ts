@@ -2503,6 +2503,37 @@ export type UpdatePositionTPSLParams = {
   position?: Position;
 };
 
+/** One side of a position's protection: take profit or stop loss. */
+export type PositionTPSLLeg = 'tp' | 'sl';
+
+export type ReplacePositionTPSLLegParams = {
+  /** Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA'). */
+  symbol: string;
+  /** The leg to replace. The other leg is left as it is. */
+  leg: PositionTPSLLeg;
+  /** New trigger price for the leg. */
+  triggerPrice: string;
+  /**
+   * Price the leg fills at once triggered. Omit to execute at market when the
+   * trigger fires.
+   */
+  limitPrice?: string;
+  /**
+   * Max slippage in basis points for a market leg (no `limitPrice`). Omit to
+   * use the saved `maxSlippageBps` preference, else the 10% TP/SL default.
+   */
+  maxSlippageBps?: number;
+  /**
+   * Optional mutation precondition, checked against authoritative position data
+   * before setup and again before protection writes. Size is signed base units.
+   */
+  expectedPosition?: { size: string; entryPrice: string };
+  /** Optional tracking data for MetaMetrics events. */
+  trackingData?: TPSLTrackingData;
+  /** Multi-provider: optional provider override for routing. */
+  providerId?: PerpsProviderType;
+};
+
 export type Order = {
   orderId: string; // Order ID
   symbol: string; // Asset symbol (e.g., 'ETH', 'BTC')
@@ -2647,6 +2678,15 @@ export type PerpsProvider = {
   closePosition(params: ClosePositionParams): Promise<OrderResult>;
   closePositions?(params: ClosePositionsParams): Promise<ClosePositionsResult>; // Optional: batch close for protocols that support it
   updatePositionTPSL(params: UpdatePositionTPSLParams): Promise<OrderResult>;
+  /**
+   * Replace one TP/SL leg of a position and leave the other leg untouched. The
+   * new leg protects the whole position. A provider that cannot do this from
+   * its venue rejects with `TPSL_LEG_REPLACE_UNSUPPORTED` before any write;
+   * callers treat a provider without this method the same way.
+   */
+  replacePositionTPSLLeg?(
+    params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult>;
   updateMargin(params: UpdateMarginParams): Promise<MarginResult>;
   // Durable-settlement surfacing (optional: providers with durable local
   // settlement state — Lighter). Read-only listings plus selective,

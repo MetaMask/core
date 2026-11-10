@@ -283,6 +283,20 @@ export type PerpsControllerUpdatePositionTPSLAction = {
 };
 
 /**
+ * Replace only the take profit or only the stop loss of an existing
+ * position. The other leg is left as it is, and the new leg keeps protecting
+ * the whole position. Providers that cannot do this reject with
+ * `TPSL_LEG_REPLACE_UNSUPPORTED`.
+ *
+ * @param params - The leg, its new trigger price and optional limit price.
+ * @returns The order result from the leg replacement.
+ */
+export type PerpsControllerReplacePositionTPSLLegAction = {
+  type: `PerpsController:replacePositionTPSLLeg`;
+  handler: PerpsController['replacePositionTPSLLeg'];
+};
+
+/**
  * Update margin for an existing position (add or remove)
  *
  * @param params - The operation parameters.
@@ -1626,6 +1640,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerClosePositionAction
   | PerpsControllerClosePositionsAction
   | PerpsControllerUpdatePositionTPSLAction
+  | PerpsControllerReplacePositionTPSLLegAction
   | PerpsControllerUpdateMarginAction
   | PerpsControllerFlipPositionAction
   | PerpsControllerDepositWithConfirmationAction

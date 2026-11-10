@@ -162,6 +162,8 @@ import type {
   TwapOrderStatus,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
+  PositionTPSLLeg,
+  ReplacePositionTPSLLegParams,
   UserHistoryItem,
   WithdrawParams,
   WithdrawResult,
@@ -261,7 +263,10 @@ import {
   resolvePositionTriggerSummaryPrice,
   toSDKTimeInForce,
 } from '../utils/orderTypes.js';
-import { assertExpectedPosition } from '../utils/positionProtection.js';
+import {
+  assertExpectedPosition,
+  toPositionTpslLegPrices,
+} from '../utils/positionProtection.js';
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
@@ -742,6 +747,13 @@ type RestorableTpslOrder = {
 type TpslProtectionRestorationOutcome = {
   restoredOrderIds: string[];
   success: boolean;
+};
+
+/** Restricts a TP/SL write to one leg and chooses how that leg fills. */
+type PositionTpslLegScope = {
+  leg: PositionTPSLLeg;
+  limitPrice?: string;
+  maxSlippageBps?: number;
 };
 
 type BuilderFeeSetupContext = {
@@ -11703,6 +11715,77 @@ export class HyperLiquidProvider implements PerpsProvider {
   async updatePositionTPSL(
     params: UpdatePositionTPSLParams,
   ): Promise<OrderResult> {
+    return this.#replacePositionTpsl(params);
+  }
+
+  /**
+   * Replace one TP/SL leg of a position and leave the other leg untouched.
+   *
+   * Only triggers on the requested side are cancelled (position-bound ones, and
+   * standalone ones so two triggers on one side never rest together). The new
+   * leg is placed with 'positionTpsl' grouping and size 0, so it keeps
+   * protecting the whole position. The sibling leg keeps its order id. Triggers
+   * that belong to a pending order are never touched.
+   *
+   * @param params - The operation parameters.
+   * @param params.symbol - Asset symbol of the position
+   * @param params.leg - 'tp' or 'sl'
+   * @param params.triggerPrice - New trigger price for the leg
+   * @param params.limitPrice - Fill price once triggered; omit for market
+   * @param params.expectedPosition - Optional position precondition
+   * @returns A promise that resolves to the result.
+   */
+  async replacePositionTPSLLeg(
+    params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult> {
+    const {
+      symbol,
+      leg,
+      triggerPrice,
+      limitPrice,
+      maxSlippageBps,
+      expectedPosition,
+    } = params;
+    if (leg !== 'tp' && leg !== 'sl') {
+      return { success: false, error: `Unknown TP/SL leg: ${String(leg)}` };
+    }
+    // An empty or non-positive trigger would read as "remove this leg" below.
+    // A replace never clears, so refuse it before anything is touched.
+    if (!(parseFloat(triggerPrice) > 0)) {
+      return {
+        success: false,
+        error: PERPS_ERROR_CODES.ORDER_TRIGGER_PRICE_POSITIVE,
+      };
+    }
+    if (limitPrice !== undefined && !(parseFloat(limitPrice) > 0)) {
+      return { success: false, error: PERPS_ERROR_CODES.ORDER_PRICE_POSITIVE };
+    }
+    return this.#replacePositionTpsl(
+      {
+        symbol,
+        ...(expectedPosition && { expectedPosition }),
+        ...toPositionTpslLegPrices({ leg, triggerPrice }),
+      },
+      { leg, limitPrice, maxSlippageBps },
+    );
+  }
+
+  /**
+   * Shared write path for {@link updatePositionTPSL} and
+   * {@link replacePositionTPSLLeg}. Without a leg scope it replaces every
+   * TP/SL on the market; with one it only touches that leg.
+   *
+   * @param params - The TP/SL update parameters.
+   * @param legScope - Restricts the replace to one leg and its execution.
+   * @returns A promise that resolves to the result.
+   */
+  async #replacePositionTpsl(
+    params: UpdatePositionTPSLParams,
+    legScope?: PositionTpslLegScope,
+  ): Promise<OrderResult> {
+    const operationName = legScope
+      ? 'replacePositionTPSLLeg'
+      : 'updatePositionTPSL';
     const expectedPosition =
       params.expectedPosition === undefined
         ? undefined
@@ -11731,7 +11814,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       };
       const assertScope = async (): Promise<void> => {
         const current = await this.#walletService.getUserAddressWithDefault();
-        this.#assertProviderLifecycleCurrent(lifecycle, 'updatePositionTPSL');
+        this.#assertProviderLifecycleCurrent(lifecycle, operationName);
         if (
           current.toLowerCase() !== userAddress.toLowerCase() ||
           this.#clientService.isTestnetMode() !== isTestnet
@@ -11854,6 +11937,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       }
 
       const precision = validateOrderPrecision({
+        price: legScope?.limitPrice,
         takeProfitPrice,
         stopLossPrice,
         takeProfitSize,
@@ -11897,6 +11981,14 @@ export class HyperLiquidProvider implements PerpsProvider {
       // HyperLiquid accepts one builder context for the whole TP/SL action.
       // Position TP/SL has no parent policy to inherit, so resolve every
       // included trigger and charge the batch when any child policy charges.
+      // The price each leg fills at once triggered; undefined executes at
+      // market. A whole-position update fills TP as a limit at its trigger and
+      // SL at market. A leg replace fills at its limit price, else at market.
+      const takeProfitFillPrice = legScope
+        ? legScope.limitPrice
+        : takeProfitPrice;
+      const stopLossFillPrice = legScope?.limitPrice;
+
       const feePolicyContexts = [
         ...(takeProfitPrice
           ? [
@@ -11904,8 +11996,13 @@ export class HyperLiquidProvider implements PerpsProvider {
                 symbol,
                 isBuy: !isLong,
                 size: resolveTpslSize(takeProfitSize),
-                orderType: 'take_profit_limit',
-                price: takeProfitPrice,
+                orderType:
+                  takeProfitFillPrice === undefined
+                    ? 'take_profit_market'
+                    : 'take_profit_limit',
+                ...(takeProfitFillPrice !== undefined && {
+                  price: takeProfitFillPrice,
+                }),
                 triggerPrice: takeProfitPrice,
                 reduceOnly: true,
               } satisfies OrderParams,
@@ -11917,7 +12014,13 @@ export class HyperLiquidProvider implements PerpsProvider {
                 symbol,
                 isBuy: !isLong,
                 size: resolveTpslSize(stopLossSize),
-                orderType: 'stop_market',
+                orderType:
+                  stopLossFillPrice === undefined
+                    ? 'stop_market'
+                    : 'stop_limit',
+                ...(stopLossFillPrice !== undefined && {
+                  price: stopLossFillPrice,
+                }),
                 triggerPrice: stopLossPrice,
                 reduceOnly: true,
               } satisfies OrderParams,
@@ -11995,6 +12098,17 @@ export class HyperLiquidProvider implements PerpsProvider {
         });
       };
 
+      // A leg replace cancels only triggers on its own side, so the sibling
+      // leg keeps its order. A whole-position update considers both sides.
+      const isInLegScope = (orderType: string | undefined): boolean => {
+        if (!legScope) {
+          return true;
+        }
+        return Boolean(
+          orderType?.includes(legScope.leg === 'tp' ? 'Take Profit' : 'Stop'),
+        );
+      };
+
       // Use atomic getter to prevent race condition between check and get
       const cachedOrders =
         this.#subscriptionService.getOrdersCacheIfInitialized();
@@ -12018,7 +12132,8 @@ export class HyperLiquidProvider implements PerpsProvider {
               Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
             order.detailedOrderType &&
             (order.detailedOrderType.includes('Take Profit') ||
-              order.detailedOrderType.includes('Stop')),
+              order.detailedOrderType.includes('Stop')) &&
+            isInLegScope(order.detailedOrderType),
         ),
       );
 
@@ -12059,7 +12174,8 @@ export class HyperLiquidProvider implements PerpsProvider {
               !childOrderIds.has(order.oid)) &&
             order.isTrigger &&
             (order.orderType.includes('Take Profit') ||
-              order.orderType.includes('Stop')),
+              order.orderType.includes('Stop')) &&
+            isInLegScope(order.orderType),
         );
 
         captureRestorableTpslOrders(
@@ -12092,7 +12208,8 @@ export class HyperLiquidProvider implements PerpsProvider {
               Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
             order.detailedOrderType &&
             (order.detailedOrderType.includes('Take Profit') ||
-              order.detailedOrderType.includes('Stop')),
+              order.detailedOrderType.includes('Stop')) &&
+            isInLegScope(order.detailedOrderType),
         );
         captureRestorableTpslOrders(tpslOrders);
         cancelRequests = tpslOrders.map((order) => ({
@@ -12104,20 +12221,45 @@ export class HyperLiquidProvider implements PerpsProvider {
       // Build orders array for TP/SL
       const orders: SDKOrderParams[] = [];
 
+      // The limit HyperLiquid fills a leg at once triggered. A replaced market
+      // leg is capped like any market trigger: its trigger moved against the
+      // closing side by the slippage tolerance. A whole-position update keeps
+      // its existing prices.
+      const legOrderPrice = (
+        orderType: 'take_profit_market' | 'stop_market',
+        triggerPrice: string,
+        fillPrice: string | undefined,
+      ): string =>
+        legScope && fillPrice === undefined
+          ? calculateOrderPriceAndSize({
+              orderType,
+              isBuy: !isLong,
+              finalPositionSize: 0,
+              currentPrice: 0,
+              triggerPrice,
+              maxSlippageBps: legScope.maxSlippageBps,
+              szDecimals: assetInfo.szDecimals,
+            }).formattedPrice
+          : formatHyperLiquidPrice({
+              price: parseFloat(fillPrice ?? triggerPrice),
+              szDecimals: assetInfo.szDecimals,
+            });
+
       // Take Profit order
       if (takeProfitPrice) {
         const tpOrder: SDKOrderParams = {
           a: assetId,
           b: !isLong, // Opposite side to close position
-          p: formatHyperLiquidPrice({
-            price: parseFloat(takeProfitPrice),
-            szDecimals: assetInfo.szDecimals,
-          }),
+          p: legOrderPrice(
+            'take_profit_market',
+            takeProfitPrice,
+            takeProfitFillPrice,
+          ),
           s: resolveTpslSize(takeProfitSize),
           r: true, // Always reduce-only for position TP
           t: {
             trigger: {
-              isMarket: false, // Limit order when triggered
+              isMarket: takeProfitFillPrice === undefined,
               triggerPx: formatHyperLiquidPrice({
                 price: parseFloat(takeProfitPrice),
                 szDecimals: assetInfo.szDecimals,
@@ -12134,15 +12276,12 @@ export class HyperLiquidProvider implements PerpsProvider {
         const slOrder: SDKOrderParams = {
           a: assetId,
           b: !isLong, // Opposite side to close position
-          p: formatHyperLiquidPrice({
-            price: parseFloat(stopLossPrice),
-            szDecimals: assetInfo.szDecimals,
-          }),
+          p: legOrderPrice('stop_market', stopLossPrice, stopLossFillPrice),
           s: resolveTpslSize(stopLossSize),
           r: true, // Always reduce-only for position SL
           t: {
             trigger: {
-              isMarket: true, // Market order when triggered for faster execution
+              isMarket: stopLossFillPrice === undefined,
               triggerPx: formatHyperLiquidPrice({
                 price: parseFloat(stopLossPrice),
                 szDecimals: assetInfo.szDecimals,
@@ -12350,7 +12489,7 @@ export class HyperLiquidProvider implements PerpsProvider {
                 restorationFailure ??
                   new Error(PERPS_ERROR_CODES.TPSL_PROTECTION_LOST),
                 this.#getErrorContext(
-                  'updatePositionTPSL',
+                  operationName,
                   {
                     symbol,
                     stage: 'restoration',
@@ -12408,7 +12547,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         oldCancellation.signerFailure &&
         (orders.length === 0 || oldCancellation.cancelledOrderIds.length === 0)
       ) {
-        this.#logRetryableSignerFailure('updatePositionTPSL', { symbol });
+        this.#logRetryableSignerFailure(operationName, { symbol });
         return createErrorResult(oldCancellation.signerFailure, {
           success: false,
         });
@@ -12450,7 +12589,7 @@ export class HyperLiquidProvider implements PerpsProvider {
               symbol,
               error: ensureError(
                 error,
-                'HyperLiquidProvider.updatePositionTPSL.reconcileProtection',
+                `HyperLiquidProvider.${operationName}.reconcileProtection`,
               ).message,
             },
           );
@@ -12478,7 +12617,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           ]),
         ];
         if (oldCancellation.signerFailure) {
-          this.#logRetryableSignerFailure('updatePositionTPSL', { symbol });
+          this.#logRetryableSignerFailure(operationName, { symbol });
           return createErrorResult(oldCancellation.signerFailure, {
             success: false,
             childOrderIds: survivingOrderIds,
@@ -12488,7 +12627,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#deps.logger.error(
           updateError,
           this.#getErrorContext(
-            'updatePositionTPSL',
+            operationName,
             {
               symbol: params.symbol,
               hasTakeProfit: params.takeProfitPrice !== undefined,
@@ -12691,7 +12830,7 @@ export class HyperLiquidProvider implements PerpsProvider {
         this.#deps.logger.error(
           cleanupFailure,
           this.#getErrorContext(
-            'updatePositionTPSL',
+            operationName,
             {
               symbol,
               stage: 'cleanup',
@@ -12743,16 +12882,16 @@ export class HyperLiquidProvider implements PerpsProvider {
     } catch (error) {
       const signerFailure = await this.#handleSignerFailure(
         error,
-        'updatePositionTPSL',
+        operationName,
         { symbol: params.symbol },
       );
       if (signerFailure) {
         return createErrorResult(signerFailure, { success: false });
       }
       this.#deps.logger.error(
-        ensureError(error, 'HyperLiquidProvider.updatePositionTPSL'),
+        ensureError(error, `HyperLiquidProvider.${operationName}`),
         this.#getErrorContext(
-          'updatePositionTPSL',
+          operationName,
           {
             symbol: params.symbol,
             hasTakeProfit: params.takeProfitPrice !== undefined,
