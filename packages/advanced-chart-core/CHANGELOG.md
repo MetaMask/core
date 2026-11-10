@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix a second price scale appearing and a moving-average overlay rendering offset after switching chart type (e.g. line → candle) with a moving average enabled ([#11422](https://github.com/MetaMask/core/pull/11422))
+  - The main series is no longer re-detached to a new right price scale when it is already on one
+
 ## [1.1.0]
 
 ### Added
