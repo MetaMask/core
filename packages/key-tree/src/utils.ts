@@ -290,6 +290,14 @@ export function isValidInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
+/**
+ * Check if the underlying buffer of a `Uint8Array` is an `ArrayBuffer`. This is
+ * used to ensure that the `Uint8Array` is not backed by a `SharedArrayBuffer`,
+ * which is not supported by this package.
+ *
+ * @param bytes - The `Uint8Array` to check.
+ * @returns Whether the `Uint8Array` is backed by an `ArrayBuffer`.
+ */
 function isArrayBufferBacked(
   bytes: Uint8Array,
 ): bytes is Uint8Array<ArrayBuffer> {
