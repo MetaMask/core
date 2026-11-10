@@ -1,5 +1,6 @@
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
 
+// Temporary change to test partial test runs in CI.
 export const CONTROLLER_NAME = 'ClaimsController';
 
 export const SERVICE_NAME = 'ClaimsService';
