@@ -7,12 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `ProfileMetricsServiceInvalidateQueriesAction`, `ProfileMetricsServiceCacheUpdatedEvent` and `ProfileMetricsServiceGranularCacheUpdatedEvent`, also included in `ProfileMetricsServiceActions` and `ProfileMetricsServiceEvents` ([#11215](https://github.com/MetaMask/core/pull/11215))
+
 ### Changed
 
+- **BREAKING:** `ProfileMetricsService` now extends `BaseDataService` from `@metamask/base-data-service` ([#11215](https://github.com/MetaMask/core/pull/11215))
+- `fetchNonces` and `submitMetrics` now share one circuit breaker instead of having one each ([#11215](https://github.com/MetaMask/core/pull/11215))
+  - `submitMetrics` is never retried, so its failures now count one at a time toward `maxConsecutiveFailures` (default 12) instead of the previous default of 3.
+- `fetchNonces` responses that do not match the expected shape or whose identifiers do not match the request now fail immediately instead of being retried, and no longer count toward the circuit breaker ([#11215](https://github.com/MetaMask/core/pull/11215))
+  - The shape error is now `Query function for "ProfileMetricsService:fetchNonces" returned an unexpected response: …`, instead of `Malformed response received from <url>`.
+- Add dependency `@metamask/base-data-service` ([#11215](https://github.com/MetaMask/core/pull/11215))
 - Bump `uuid` from `^14.0.0` to `^14.0.2` ([#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
 - Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
 - Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.0` ([#11396](https://github.com/MetaMask/core/pull/11396))
+
+### Removed
+
+- **BREAKING:** Remove `onRetry`, `onBreak` and `onDegraded` from `ProfileMetricsService` ([#11215](https://github.com/MetaMask/core/pull/11215))
 
 ## [5.2.1]
 

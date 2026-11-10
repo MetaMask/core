@@ -54,6 +54,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^40.2.0",
     "@metamask/base-controller": "^10.1.0",
+    "@metamask/base-data-service": "^2.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/keyring-controller": "^28.2.0",
     "@metamask/messenger": "^3.0.0",
@@ -71,6 +72,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^7.1.0",
     "@metamask/keyring-internal-api": "^12.1.2",
+    "@tanstack/query-core": "^5.103.2",
     "@typescript/native": "npm:typescript@^7.0.2",
     "nock": "^15.0.5",
     "rimraf": "^6.1.3",
