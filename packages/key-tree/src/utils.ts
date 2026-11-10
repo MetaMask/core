@@ -3,10 +3,7 @@ import { createDataView } from '@metamask/byte-utils';
 import { wordlist as englishWordlist } from '@metamask/scure-bip39/dist/wordlists/english.js';
 import { assert } from '@metamask/type-utils';
 import { sha256 } from '@noble/hashes/sha2';
-import {
-  base58check as scureBase58check,
-  createBase58check,
-} from '@scure/base';
+import { createBase58check } from '@scure/base';
 
 import type {
   CoinTypeHDPathTuple,
@@ -32,6 +29,8 @@ import {
 import { ripemd160 } from './cryptography.js';
 import type { SupportedCurve } from './curves/index.js';
 import { curves } from './curves/index.js';
+
+const base58Check = createBase58check(sha256);
 
 /**
  * Gets a string representation of a BIP-44 path of depth 2, i.e.:
@@ -380,8 +379,6 @@ export function validateBytes(
 }
 
 export const decodeBase58check = (value: string): Uint8Array => {
-  const base58Check = scureBase58check(sha256);
-
   try {
     return base58Check.decode(value);
   } catch {
@@ -392,8 +389,6 @@ export const decodeBase58check = (value: string): Uint8Array => {
 };
 
 export const encodeBase58check = (value: Uint8Array<ArrayBuffer>): string => {
-  const base58Check = createBase58check(sha256);
-
   return base58Check.encode(value);
 };
 
