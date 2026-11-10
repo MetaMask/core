@@ -11,6 +11,7 @@ import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsP
 import type {
   PerpsProvider,
   PerpsProviderType,
+  AccountState,
   OrderParams,
   Position,
   MarketInfo,
@@ -645,6 +646,29 @@ describe('AggregatedPerpsProvider', () => {
       const result = await aggregatedProvider.getAccountState();
 
       expect(result).toEqual({ ...mockState, providerId: 'hyperliquid' });
+    });
+
+    it('attributes a balance response to the provider that served it when the default changes mid-request', async () => {
+      const mockState: AccountState = {
+        spendableBalance: '1000',
+        withdrawableBalance: '1000',
+        totalBalance: '1000',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      };
+      const pending = createDeferred<AccountState>();
+      mockHLProvider.getAccountState.mockReturnValueOnce(pending.promise);
+
+      const request = aggregatedProvider.getAccountState();
+      aggregatedProvider.setDefaultProvider('lighter');
+      pending.resolve(mockState);
+
+      await expect(request).resolves.toEqual({
+        ...mockState,
+        providerId: 'hyperliquid',
+      });
+      expect(mockLighterProvider.getAccountState).not.toHaveBeenCalled();
     });
   });
 

@@ -505,10 +505,13 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   }
 
   async getAccountState(params?: GetAccountStateParams): Promise<AccountState> {
-    // Return account state from default provider with providerId injected
+    // Capture the route before awaiting: `setDefaultProvider` can run while
+    // the venue request is in flight, and the response must stay attributed to
+    // the provider that served it (the user-data preloader buckets by this id).
+    const providerId = this.#defaultProvider;
     const provider = this.#getDefaultProvider();
     const state = await provider.getAccountState(params);
-    return { ...state, providerId: this.#defaultProvider };
+    return { ...state, providerId };
   }
 
   async getMarkets(params?: GetMarketsParams): Promise<MarketInfo[]> {
