@@ -49,6 +49,7 @@ export function getAccountTreeControllerMessenger(
       'AccountsController:selectedAccountChange',
       'UserStorageController:stateChange',
       'MultichainAccountService:walletStatusChange',
+      'MultichainAccountService:groupStatusChange',
     ],
     actions: [
       'AccountsController:listMultichainAccounts',
@@ -62,6 +63,8 @@ export function getAccountTreeControllerMessenger(
       'UserStorageController:performSetStorage',
       'UserStorageController:performBatchSetStorage',
       'AuthenticationController:getSessionProfile',
+      'MultichainAccountService:getMultichainAccountGroup',
+      'MultichainAccountService:getMultichainAccountWallet',
       'MultichainAccountService:createMultichainAccountGroup',
       'MultichainAccountService:createMultichainAccountGroups',
       'MultichainAccountService:createMultichainAccountWallet',

@@ -68,6 +68,7 @@ export function makeLocalMnemonicWallet(
               {
                 id: groupId,
                 type: AccountGroupType.MultichainAccount,
+                status: 'uninitialized',
                 accounts,
                 metadata: {
                   name,

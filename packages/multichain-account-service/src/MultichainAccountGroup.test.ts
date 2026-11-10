@@ -7,7 +7,7 @@ import {
 } from '@metamask/account-api';
 import { EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { RootMessenger, MockAccountProvider } from '../tests/index.js';
 import {
@@ -28,6 +28,7 @@ import type { MultichainAccountServiceMessenger } from './types.js';
 
 function setup({
   groupIndex = 0,
+  initialize = true,
   messenger = getRootMessenger(),
   accounts = [
     [MOCK_WALLET_1_EVM_ACCOUNT],
@@ -40,6 +41,7 @@ function setup({
   ],
 }: {
   groupIndex?: number;
+  initialize?: boolean;
   messenger?: RootMessenger;
   accounts?: InternalAccount[][];
 } = {}): {
@@ -80,7 +82,9 @@ function setup({
     return state;
   }, {});
 
-  group.init(groupState);
+  if (initialize) {
+    group.init(groupState);
+  }
 
   return { wallet, group, providers, messenger: serviceMessenger };
 }
@@ -184,6 +188,225 @@ describe('MultichainAccountGroup', () => {
       const { group } = setup({ accounts: [[MOCK_WALLET_1_EVM_ACCOUNT]] });
 
       expect(group.select({ scopes: [SolScope.Mainnet] })).toStrictEqual([]);
+    });
+  });
+
+  describe('status', () => {
+    it.each(['aligned', 'misaligned'] as const)(
+      'publishes the initial %s status',
+      (status) => {
+        const { group, providers, messenger } = setup({ initialize: false });
+        providers.forEach((provider) => {
+          provider.isAligned.mockReturnValue(status === 'aligned');
+        });
+        const publishSpy = vi.spyOn(messenger, 'publish');
+
+        group.init({});
+
+        expect(group.status).toBe(status);
+        expect(publishSpy).toHaveBeenCalledWith(
+          'MultichainAccountService:groupStatusChange',
+          group.id,
+          status,
+        );
+      },
+    );
+
+    it('starts as uninitialized before init()', () => {
+      const serviceMessenger =
+        getMultichainAccountServiceMessenger(getRootMessenger());
+      const providers = [
+        setupBip44AccountProvider({
+          name: 'Provider 1',
+          accounts: [MOCK_WALLET_1_EVM_ACCOUNT],
+        }),
+      ];
+      const wallet = new MultichainAccountWallet({
+        entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
+        messenger: serviceMessenger,
+        providers,
+      });
+      const group = new MultichainAccountGroup({
+        wallet,
+        groupIndex: 0,
+        providers,
+        messenger: serviceMessenger,
+      });
+
+      expect(group.status).toBe('uninitialized');
+    });
+
+    it('is aligned after init() when all providers have accounts', () => {
+      const { group } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
+      });
+
+      expect(group.status).toBe('aligned');
+    });
+
+    it('is misaligned after init() when a provider has no accounts', () => {
+      const { group } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+
+      expect(group.status).toBe('misaligned');
+    });
+
+    it('publishes groupStatusChange event when withState transitions to in-progress then settles', async () => {
+      const { group, messenger: serviceMessenger } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+      const publishSpy = vi.spyOn(serviceMessenger, 'publish');
+
+      await group.withState('in-progress:alignment', async () => {
+        expect(group.status).toBe('in-progress:alignment');
+      });
+
+      expect(group.status).toBe('misaligned');
+      expect(publishSpy).toHaveBeenCalledWith(
+        'MultichainAccountService:groupStatusChange',
+        group.id,
+        'in-progress:alignment',
+      );
+      expect(publishSpy).toHaveBeenCalledWith(
+        'MultichainAccountService:groupStatusChange',
+        group.id,
+        'misaligned',
+      );
+    });
+
+    it('preserves the outer status after a nested operation succeeds', async () => {
+      const { group, providers, messenger } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      const result = await group.withState(
+        'in-progress:create-accounts',
+        async () => {
+          const innerOperation = group.withState(
+            'in-progress:alignment',
+            async () => {
+              expect(group.status).toBe('in-progress:create-accounts');
+              return 'result';
+            },
+          );
+
+          expect(await innerOperation).toBe('result');
+
+          expect(group.status).toBe('in-progress:create-accounts');
+          providers[1].isAligned.mockReturnValue(true);
+          group.update({ 'Provider 1': [MOCK_WALLET_1_EVM_ACCOUNT.id] });
+          expect(group.status).toBe('in-progress:create-accounts');
+
+          return 'result';
+        },
+      );
+
+      expect(result).toBe('result');
+      expect(group.status).toBe('aligned');
+      expect(
+        publishSpy.mock.calls.filter(
+          ([event]) => event === 'MultichainAccountService:groupStatusChange',
+        ),
+      ).toStrictEqual([
+        [
+          'MultichainAccountService:groupStatusChange',
+          group.id,
+          'in-progress:create-accounts',
+        ],
+        ['MultichainAccountService:groupStatusChange', group.id, 'aligned'],
+      ]);
+    });
+
+    it('preserves the outer status after a nested rejection and finalizes when the outer operation rejects', async () => {
+      const { group, providers } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+      const error = new Error('Operation failed');
+
+      await expect(
+        group.withState('in-progress:create-accounts', async () => {
+          await expect(
+            group.withState('in-progress:alignment', async () => {
+              throw error;
+            }),
+          ).rejects.toBe(error);
+
+          expect(group.status).toBe('in-progress:create-accounts');
+          providers[1].isAligned.mockReturnValue(true);
+          group.update({ 'Provider 1': [MOCK_WALLET_1_EVM_ACCOUNT.id] });
+          expect(group.status).toBe('in-progress:create-accounts');
+          throw error;
+        }),
+      ).rejects.toBe(error);
+
+      expect(group.status).toBe('aligned');
+    });
+
+    it('updates accounts before initialization without changing status or publishing events', () => {
+      const { group, messenger } = setup({
+        initialize: false,
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT]],
+      });
+      const publishSpy = vi.spyOn(messenger, 'publish');
+
+      group.update({ 'Provider 1': [MOCK_WALLET_1_EVM_ACCOUNT.id] });
+
+      expect(group.getAccountIds()).toStrictEqual([
+        MOCK_WALLET_1_EVM_ACCOUNT.id,
+      ]);
+      expect(group.status).toBe('uninitialized');
+      expect(publishSpy).not.toHaveBeenCalled();
+    });
+
+    it('publishes misaligned status when an update leaves a provider unaligned', () => {
+      const { group, providers, messenger } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
+      });
+      const publishSpy = vi.spyOn(messenger, 'publish');
+      expect(group.status).toBe('aligned');
+      providers[1].isAligned.mockReturnValue(false);
+
+      group.update({ 'Provider 2': [] });
+
+      expect(group.status).toBe('misaligned');
+      expect(group.getAccountIds(providers[1])).toStrictEqual([]);
+      expect(publishSpy).toHaveBeenCalledWith(
+        'MultichainAccountService:groupStatusChange',
+        group.id,
+        'misaligned',
+      );
+    });
+
+    it('auto-corrects status on update() when not in an in-progress state', () => {
+      const { group, providers } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+      expect(group.status).toBe('misaligned');
+
+      // Simulate provider 2 now being considered aligned (e.g. disabled wrapper)
+      providers[1].isAligned.mockReturnValue(true);
+      group.update({
+        'Provider 1': [MOCK_WALLET_1_EVM_ACCOUNT.id],
+      });
+
+      expect(group.status).toBe('aligned');
+    });
+
+    it('does not override in-progress status on update()', async () => {
+      const { group, providers } = setup({
+        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+      });
+
+      await group.withState('in-progress:alignment', async () => {
+        // update() called inside withState should NOT change the status
+        providers[1].isAligned.mockReturnValue(true);
+        group.update({ 'Provider 1': [MOCK_WALLET_1_EVM_ACCOUNT.id] });
+        expect(group.status).toBe('in-progress:alignment');
+      });
+
+      // After withState finalizes, status should reflect isAligned()
+      expect(group.status).toBe('aligned');
     });
   });
 

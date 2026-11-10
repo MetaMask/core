@@ -44,6 +44,7 @@ import type {
   RemoveMultichainAccountWalletFailureContext,
 } from './MultichainAccountService.js';
 import { MultichainAccountService } from './MultichainAccountService.js';
+import { MultichainAccountWallet } from './MultichainAccountWallet.js';
 import { AccountProviderWrapper } from './providers/AccountProviderWrapper.js';
 import {
   BTC_ACCOUNT_PROVIDER_NAME,
@@ -359,6 +360,35 @@ async function setup({
 }
 
 describe('MultichainAccountService', () => {
+  describe('init', () => {
+    it('publishes initial group and wallet statuses', async () => {
+      const { service, rootMessenger } = await setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+      });
+      const groupStatusChange = vi.fn();
+      const walletStatusChange = vi.fn();
+      rootMessenger.subscribe(
+        'MultichainAccountService:groupStatusChange',
+        groupStatusChange,
+      );
+      rootMessenger.subscribe(
+        'MultichainAccountService:walletStatusChange',
+        walletStatusChange,
+      );
+
+      await service.init();
+
+      expect(groupStatusChange).toHaveBeenCalledTimes(1);
+      expect(walletStatusChange).toHaveBeenCalledTimes(1);
+      const wallet = service.getMultichainAccountWallet({
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      });
+      const group = wallet.getMultichainAccountGroup(0);
+      expect(groupStatusChange).toHaveBeenCalledWith(group?.id, group?.status);
+      expect(walletStatusChange).toHaveBeenCalledWith(wallet.id, 'ready');
+    });
+  });
+
   describe('constructor', () => {
     it('forwards configs to each provider', async () => {
       const providerConfigs: MultichainAccountServiceOptions['providerConfigs'] =
@@ -1926,6 +1956,60 @@ describe('MultichainAccountService', () => {
   });
 
   describe('createMultichainAccountWallet', () => {
+    it('does not register the wallet when first-group creation fails', async () => {
+      const { mocks, service } = await setup({
+        accounts: [],
+        keyrings: [],
+      });
+      const error = new Error('Group creation failed');
+      mocks.KeyringController.getKeyringsByType.mockReturnValueOnce([]);
+      mocks.KeyringController.addNewKeyring.mockReturnValueOnce({
+        id: 'abc',
+        name: '',
+      });
+      vi.spyOn(
+        MultichainAccountWallet.prototype,
+        'createMultichainAccountGroup',
+      ).mockRejectedValueOnce(error);
+
+      await expect(
+        service.createMultichainAccountWallet({
+          mnemonic: mnemonicPhraseToBytes(MOCK_MNEMONIC),
+          type: 'import',
+        }),
+      ).rejects.toBe(error);
+
+      expect(service.getMultichainAccountWallets()).toStrictEqual([]);
+      expect(() =>
+        service.getMultichainAccountWallet({ entropySource: 'abc' }),
+      ).toThrow('Unknown wallet, no wallet matching this entropy source');
+    });
+
+    it('does not register the wallet when initialization fails', async () => {
+      const { mocks, service } = await setup({ accounts: [], keyrings: [] });
+      const error = new Error('Initialization failed');
+      mocks.KeyringController.getKeyringsByType.mockReturnValueOnce([]);
+      mocks.KeyringController.addNewKeyring.mockReturnValueOnce({
+        id: 'abc',
+        name: '',
+      });
+      vi.spyOn(
+        MultichainAccountWallet.prototype,
+        'init',
+      ).mockImplementationOnce(() => {
+        throw error;
+      });
+
+      await expect(
+        service.createMultichainAccountWallet({
+          mnemonic: mnemonicPhraseToBytes(MOCK_MNEMONIC),
+          type: 'import',
+        }),
+      ).rejects.toBe(error);
+
+      expect(service.getMultichainAccountWallets()).toStrictEqual([]);
+    });
+
     describe('createWalletByImport', () => {
       it('creates a new multichain account wallet by the import flow', async () => {
         const { mocks, service } = await setup({

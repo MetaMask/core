@@ -332,6 +332,8 @@ function setup({
     };
     // eslint-disable-next-line @typescript-eslint/naming-convention
     MultichainAccountService: {
+      getMultichainAccountGroup: Mock;
+      getMultichainAccountWallet: Mock;
       removeMultichainAccountWallet: Mock;
     };
     // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -366,6 +368,14 @@ function setup({
     },
     MultichainAccountService: {
       removeMultichainAccountWallet: vi.fn().mockResolvedValue(undefined),
+      // Default: service has no record yet. The query helpers catch the throw and
+      // fall back to 'uninitialized'. Individual tests can override via mockReturnValue.
+      getMultichainAccountGroup: vi.fn().mockImplementation(() => {
+        throw new Error('Group not found');
+      }),
+      // Default: service is initialized and wallet is ready (the common case).
+      // Individual tests can override via mockReturnValue to test other statuses.
+      getMultichainAccountWallet: vi.fn().mockReturnValue({ status: 'ready' }),
     },
     AccountsController: {
       accounts,
@@ -391,6 +401,15 @@ function setup({
       }),
     },
   };
+
+  messenger.registerActionHandler(
+    'MultichainAccountService:getMultichainAccountGroup',
+    mocks.MultichainAccountService.getMultichainAccountGroup,
+  );
+  messenger.registerActionHandler(
+    'MultichainAccountService:getMultichainAccountWallet',
+    mocks.MultichainAccountService.getMultichainAccountWallet,
+  );
 
   if (accounts) {
     mocks.AccountsController.listMultichainAccounts.mockImplementation(
@@ -890,6 +909,7 @@ describe('AccountTreeController', () => {
                 [expectedWalletId1Group]: {
                   id: expectedWalletId1Group,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   accounts: [MOCK_HD_ACCOUNT_1.id],
                   metadata: {
                     name: 'Account 1',
@@ -917,6 +937,7 @@ describe('AccountTreeController', () => {
                 [expectedWalletId2Group1]: {
                   id: expectedWalletId2Group1,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   accounts: [MOCK_HD_ACCOUNT_2.id],
                   metadata: {
                     name: 'Account 1', // Updated: per-wallet numbering (wallet 2, account 1)
@@ -931,6 +952,7 @@ describe('AccountTreeController', () => {
                 [expectedWalletId2Group2]: {
                   id: expectedWalletId2Group2,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   accounts: [MOCK_SNAP_ACCOUNT_1.id],
                   metadata: {
                     name: 'Account 2', // Updated: per-wallet sequential numbering (wallet 2, account 2)
@@ -1355,6 +1377,121 @@ describe('AccountTreeController', () => {
       expect(groupIds[1]).toBe(toMultichainAccountGroupId(walletId, 1));
       expect(groupIds[2]).toBe(toMultichainAccountGroupId(walletId, 2));
     });
+
+    it('reads wallet status from the service when it is already initialized', () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      mocks.MultichainAccountService.getMultichainAccountWallet.mockReturnValue(
+        {
+          status: 'in-progress:alignment',
+        },
+      );
+
+      controller.init();
+
+      const walletId = MOCK_PREPOPULATED_WALLET_ID;
+      expect(controller.state.accountTree.wallets[walletId]?.status).toBe(
+        'in-progress:alignment',
+      );
+    });
+
+    it('falls back to uninitialized for wallet when the service has no record yet', () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      mocks.MultichainAccountService.getMultichainAccountWallet.mockImplementation(
+        () => {
+          throw new Error('Wallet not found');
+        },
+      );
+
+      controller.init();
+
+      const walletId = MOCK_PREPOPULATED_WALLET_ID;
+      expect(controller.state.accountTree.wallets[walletId]?.status).toBe(
+        'uninitialized',
+      );
+    });
+
+    it.each(['aligned', 'misaligned'] as const)(
+      'recovers uninitialized wallet and group statuses when the service initializes a %s group',
+      (status) => {
+        const { controller, mocks, messenger } = setup({
+          accounts: [MOCK_HD_ACCOUNT_1],
+          keyrings: [MOCK_HD_KEYRING_1],
+        });
+        mocks.MultichainAccountService.getMultichainAccountWallet.mockImplementation(
+          () => {
+            throw new Error('Wallet not found');
+          },
+        );
+        controller.init();
+        expect(
+          controller.state.accountTree.wallets[MOCK_PREPOPULATED_WALLET_ID],
+        ).toMatchObject({
+          status: 'uninitialized',
+          groups: { [MOCK_PREPOPULATED_GROUP_ID]: { status: 'uninitialized' } },
+        });
+
+        messenger.publish(
+          'MultichainAccountService:groupStatusChange',
+          MOCK_PREPOPULATED_GROUP_ID,
+          status,
+        );
+        messenger.publish(
+          'MultichainAccountService:walletStatusChange',
+          MOCK_PREPOPULATED_WALLET_ID,
+          'ready',
+        );
+
+        expect(
+          controller.state.accountTree.wallets[MOCK_PREPOPULATED_WALLET_ID],
+        ).toMatchObject({
+          status: 'ready',
+          groups: { [MOCK_PREPOPULATED_GROUP_ID]: { status } },
+        });
+      },
+    );
+
+    it('reads group status from the service when it is already initialized', () => {
+      const { controller, mocks } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      // Simulate the service having already initialized and the group being aligned.
+      mocks.MultichainAccountService.getMultichainAccountGroup.mockReturnValue({
+        status: 'aligned',
+      });
+
+      controller.init();
+
+      const groupId = MOCK_PREPOPULATED_GROUP_ID;
+      const walletId = MOCK_PREPOPULATED_WALLET_ID;
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId],
+      ).toMatchObject({ status: 'aligned' });
+    });
+
+    it('falls back to uninitialized when the service has no record for the group yet', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      // Default setup handler throws — fallback should apply.
+      controller.init();
+
+      const groupId = MOCK_PREPOPULATED_GROUP_ID;
+      const walletId = MOCK_PREPOPULATED_WALLET_ID;
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId],
+      ).toMatchObject({ status: 'uninitialized' });
+    });
   });
 
   describe('getAccountGroupObject', () => {
@@ -1609,6 +1746,7 @@ describe('AccountTreeController', () => {
                   id: nonEvmGroupId,
                   type: AccountGroupType.MultichainAccount,
                   accounts: [MOCK_TRX_ACCOUNT_1.id],
+                  status: 'uninitialized',
                   metadata: {
                     name: 'Tron Group',
                     entropy: { groupIndex: 0 },
@@ -1666,6 +1804,7 @@ describe('AccountTreeController', () => {
                 [emptyGroupId]: {
                   id: emptyGroupId,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   accounts: [],
                   metadata: {
                     name: 'Empty Group',
@@ -1816,6 +1955,7 @@ describe('AccountTreeController', () => {
                 [walletId1Group]: {
                   id: walletId1Group,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   metadata: {
                     name: 'Account 1',
                     entropy: {
@@ -1907,6 +2047,7 @@ describe('AccountTreeController', () => {
                 [walletId1Group2]: {
                   id: walletId1Group2,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   metadata: {
                     name: 'Account 2',
                     entropy: {
@@ -2142,6 +2283,7 @@ describe('AccountTreeController', () => {
                 [walletId1Group]: {
                   id: walletId1Group,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   metadata: {
                     name: 'Account 1',
                     entropy: {
@@ -2293,6 +2435,7 @@ describe('AccountTreeController', () => {
                 [walletId1Group]: {
                   id: walletId1Group,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   metadata: {
                     name: 'Account 1',
                     entropy: {
@@ -2321,6 +2464,7 @@ describe('AccountTreeController', () => {
                 [walletId2Group]: {
                   id: walletId2Group,
                   type: AccountGroupType.MultichainAccount,
+                  status: 'uninitialized',
                   metadata: {
                     name: 'Account 1', // Updated: per-wallet naming (different wallet)
                     entropy: {
@@ -2441,6 +2585,57 @@ describe('AccountTreeController', () => {
       expect(controller.state.accountTree.wallets[walletId]?.status).toBe(
         'ready',
       );
+    });
+  });
+
+  describe('on MultichainAccountService:groupStatusChange', () => {
+    it('updates the group status when the event is published', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      const walletId = MOCK_PREPOPULATED_WALLET_ID;
+      const groupId = MOCK_PREPOPULATED_GROUP_ID;
+
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId],
+      ).toMatchObject({ status: 'uninitialized' });
+
+      messenger.publish(
+        'MultichainAccountService:groupStatusChange',
+        groupId,
+        'in-progress:alignment',
+      );
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId],
+      ).toMatchObject({ status: 'in-progress:alignment' });
+
+      messenger.publish(
+        'MultichainAccountService:groupStatusChange',
+        groupId,
+        'aligned',
+      );
+      expect(
+        controller.state.accountTree.wallets[walletId]?.groups[groupId],
+      ).toMatchObject({ status: 'aligned' });
+    });
+
+    it('does nothing when the group ID is unknown', () => {
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+      controller.init();
+
+      expect(() =>
+        messenger.publish(
+          'MultichainAccountService:groupStatusChange',
+          'unknown-group-id' as ReturnType<typeof toMultichainAccountGroupId>,
+          'aligned',
+        ),
+      ).not.toThrow();
     });
   });
 

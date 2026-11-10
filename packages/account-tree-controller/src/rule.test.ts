@@ -74,6 +74,7 @@ describe('BaseRule', () => {
         ),
         type: AccountGroupType.MultichainAccount,
         accounts: [MOCK_HD_ACCOUNT_1.id],
+        status: 'uninitialized',
         metadata: {
           name: MOCK_HD_ACCOUNT_1.metadata.name,
           entropy: {
@@ -105,6 +106,7 @@ describe('BaseRule', () => {
         ),
         type: AccountGroupType.MultichainAccount,
         accounts: [MOCK_HD_ACCOUNT_1.id],
+        status: 'uninitialized',
         metadata: {
           name: MOCK_HD_ACCOUNT_1.metadata.name,
           entropy: {
