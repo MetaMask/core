@@ -2277,11 +2277,6 @@
       "count": 7
     }
   },
-  "packages/eth-sig-util/src/sign-eip7702-authorization.ts": {
-    "no-undef": {
-      "count": 3
-    }
-  },
   "packages/eth-sig-util/src/sign-typed-data.test.ts": {
     "id-denylist": {
       "count": 2
@@ -2362,9 +2357,6 @@
       "count": 3
     },
     "no-param-reassign": {
-      "count": 1
-    },
-    "no-undef": {
       "count": 1
     },
     "typescript/no-explicit-any": {
