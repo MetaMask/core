@@ -14,6 +14,7 @@
  * only needs the `PerpsIntlFormatters` shape. Without `formatters`, an
  * `en-US` fallback keeps the legacy call signatures working.
  */
+import { BASIS_POINTS_DIVISOR } from '../constants/hyperLiquidConfig.js';
 import {
   DECIMAL_PRECISION_CONFIG,
   FUNDING_RATE_CONFIG,
@@ -271,6 +272,8 @@ function _roundsToWhole(
  * @param options.maximumFractionDigits - Maximum decimal digits.
  * @param options.strip - `fiat` drops an all-zero two-digit fraction (`.00`),
  * `all` drops every trailing fraction zero, `none` keeps them.
+ * @param options.symbol - `false` formats the number without the currency
+ * symbol, for chart labels (default `true`).
  * @returns Formatted currency string.
  */
 function _formatCurrency(
@@ -281,6 +284,7 @@ function _formatCurrency(
     minimumFractionDigits: number;
     maximumFractionDigits: number;
     strip: StripMode;
+    symbol?: boolean;
   },
 ): string {
   let { minimumFractionDigits, maximumFractionDigits } = options;
@@ -295,11 +299,61 @@ function _formatCurrency(
     }
   }
 
+  if (options.symbol === false) {
+    return formatters.formatNumber(amount, {
+      minimumFractionDigits,
+      maximumFractionDigits,
+    });
+  }
   return formatters.formatCurrency(amount, options.currency, {
     currencyDisplay: 'narrowSymbol',
     minimumFractionDigits,
     maximumFractionDigits,
   });
+}
+
+/**
+ * Formats a non-negative USD amount with fixed decimals and appends a
+ * magnitude suffix (`K`, `M`, `B`, `T`) right after the number, wherever the
+ * locale puts the currency symbol: `$1.23M`, `1,23M $`.
+ *
+ * The suffix is placed by finding the formatted number in the currency
+ * output, not through `formatToParts` or `notation: 'compact'`, which Hermes
+ * does not reliably support.
+ *
+ * @param formatters - Locale-bound formatters.
+ * @param amount - Non-negative amount, already divided by the scale.
+ * @param options - Formatting options.
+ * @param options.decimals - Fraction digits always shown.
+ * @param options.suffix - Magnitude suffix, or an empty string.
+ * @param options.symbol - `false` formats without the currency symbol.
+ * @returns The formatted amount.
+ */
+function _formatScaledUsd(
+  formatters: PerpsIntlFormatters,
+  amount: number,
+  options: { decimals: number; suffix: string; symbol: boolean },
+): string {
+  const { decimals, suffix, symbol } = options;
+  if (!symbol) {
+    return `${_formatDecimal(formatters, amount, decimals, decimals, true)}${suffix}`;
+  }
+  const money = _formatCurrency(formatters, amount, {
+    currency: 'USD',
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    strip: 'none',
+  });
+  if (!suffix) {
+    return money;
+  }
+  const number = _formatDecimal(formatters, amount, decimals, decimals, true);
+  const index = money.indexOf(number);
+  if (index === -1) {
+    return `${money}${suffix}`;
+  }
+  const end = index + number.length;
+  return `${money.slice(0, end)}${suffix}${money.slice(end)}`;
 }
 
 /**
@@ -590,6 +644,11 @@ export type PerpsFiatFormatOptions = PerpsDisplayFormatOptions & {
    * locale comes from `formatters`.
    */
   locale?: string;
+  /**
+   * `false` formats the number without the currency symbol, e.g. chart axis
+   * and crosshair labels: `87,123` (default `true`).
+   */
+  symbol?: boolean;
 };
 
 /**
@@ -608,14 +667,17 @@ export type PerpsFiatFormatOptions = PerpsDisplayFormatOptions & {
  * @param options.currency - Currency code (default: 'USD').
  * @param options.stripTrailingZeros - Strip trailing zeros from output. `false` keeps them; otherwise the range decides (default: strip).
  * @param options.locale - Locale passed to a range's `customFormat` only (default `en-US`).
+ * @param options.symbol - `false` omits the currency symbol, for chart labels (default `true`).
  * @returns Formatted currency string, or `PERPS_CONSTANTS.FallbackPriceDisplay`
- * (`$---`) for a missing value.
+ * (`$---`) for a missing value (`PERPS_CONSTANTS.FallbackDataDisplay`, `--`,
+ * without the symbol).
  * @example
  * formatPerpsFiat(1234.56) => "$1,234.56"
  * formatPerpsFiat(1250) => "$1,250"         // fiat-style stripping of .00
  * formatPerpsFiat(-0.004) => "-<$0.01"      // below the range threshold
  * formatPerpsFiat(1234.5, { formatters: createFormatters({ locale: 'de' }) }) => "1.234,50 $"
  * formatPerpsFiat(12345.67, { ranges: PRICE_RANGES_UNIVERSAL }) => "$12,346"
+ * formatPerpsFiat(2480.37, { ranges: PRICE_RANGES_UNIVERSAL, symbol: false }) => "2,480.4"
  * formatPerpsFiat(undefined) => "$---"
  */
 export const formatPerpsFiat = (
@@ -625,7 +687,9 @@ export const formatPerpsFiat = (
   const value = _parseDisplayNumber(balance);
   if (value === undefined) {
     // Placeholder for missing values to avoid confusion with actual $0 values
-    return PERPS_CONSTANTS.FallbackPriceDisplay;
+    return options?.symbol === false
+      ? PERPS_CONSTANTS.FallbackDataDisplay
+      : PERPS_CONSTANTS.FallbackPriceDisplay;
   }
 
   const currency = options?.currency ?? 'USD';
@@ -689,6 +753,7 @@ export const formatPerpsFiat = (
       minimumFractionDigits: minDecimals,
       maximumFractionDigits: maxDecimals,
       strip,
+      symbol: options?.symbol,
     },
   );
   const isZero = !isBelowThreshold && _currencyShowsZero(amount, maxDecimals);
@@ -795,6 +860,17 @@ export const formatPnl = (
 };
 
 /**
+ * Options for `formatPercentage`.
+ */
+export type PerpsPercentageFormatOptions = PerpsDisplayFormatOptions & {
+  /**
+   * Drop trailing fraction zeros, showing at most `decimals`: TWAP progress
+   * `25%`, `33.33%` (default `false`: always `decimals`).
+   */
+  stripTrailingZeros?: boolean;
+};
+
+/**
  * Formats a percentage value (change, RoE, fee rate, slippage) with a sign
  * prefix and locale separators. Pick the precision from
  * `PERPS_DISPLAY_PRECISION`.
@@ -802,7 +878,8 @@ export const formatPnl = (
  * @param value - Raw percentage value (e.g., 5.25 for 5.25%, not 0.0525)
  * @param decimalsOrOptions - Decimal places (default:
  * `PERPS_DISPLAY_PRECISION.Percentage`, 2), or options: `decimals`,
- * `formatters` (default `en-US`) and `sign` (default `always`).
+ * `formatters` (default `en-US`), `sign` (default `always`) and
+ * `stripTrailingZeros` (default `false`).
  * @returns Format: "+X.XX%" or "-X.XX%", or
  * `PERPS_CONSTANTS.FallbackPercentageDisplay` (`--%`) for a missing value.
  * @example formatPercentage(5.25) => "+5.25%"
@@ -811,16 +888,18 @@ export const formatPnl = (
  * @example formatPercentage(10.25, { decimals: PERPS_DISPLAY_PRECISION.RoePercent }) => "+10.3%"
  * @example formatPercentage(0.0021, { decimals: PERPS_DISPLAY_PRECISION.SlippageEstimatePercent, sign: 'never' }) => "0.0021%"
  * @example formatPercentage(-12345.67, { decimals: 1, formatters: createFormatters({ locale: 'es' }) }) => "-12.345,7%"
+ * @example formatPercentage(25, { decimals: PERPS_DISPLAY_PRECISION.TwapProgressPercent, stripTrailingZeros: true, sign: 'never' }) => "25%"
  * @example formatPercentage(undefined) => "--%"
  */
 export const formatPercentage = (
   value: string | number | null | undefined,
-  decimalsOrOptions?: number | PerpsDisplayFormatOptions,
+  decimalsOrOptions?: number | PerpsPercentageFormatOptions,
 ): string => {
   const {
     formatters = _fallbackFormatters,
     decimals = PERPS_DISPLAY_PRECISION.Percentage,
     sign = 'always',
+    stripTrailingZeros = false,
   } = typeof decimalsOrOptions === 'number'
     ? { decimals: decimalsOrOptions }
     : (decimalsOrOptions ?? {});
@@ -830,7 +909,7 @@ export const formatPercentage = (
   }
 
   return `${_formatSignedDecimal(formatters, parsed, {
-    minimumFractionDigits: decimals,
+    minimumFractionDigits: stripTrailingZeros ? 0 : decimals,
     maximumFractionDigits: decimals,
     useGrouping: true,
     sign,
@@ -897,4 +976,542 @@ export const formatFundingRate = (
     useGrouping: true,
     sign,
   })}%`;
+};
+
+/**
+ * Formats a fee rate in basis points with the locale's separators.
+ *
+ * @param rate - Fee rate as a decimal (0.00045 for 0.045%).
+ * @param options - `formatters` (default `en-US`), `decimals` (at most,
+ * default `PERPS_DISPLAY_PRECISION.FeeBps`, 2; trailing zeros are dropped) and
+ * `sign` (default `auto`).
+ * @returns Format: "X.XX bps", or `PERPS_CONSTANTS.FallbackDataDisplay` (`--`)
+ * for a missing rate.
+ * @example formatFeeBps(0.00045) => "4.5 bps"
+ * @example formatFeeBps(0.000144) => "1.44 bps"
+ * @example formatFeeBps(0.0007) => "7 bps"
+ * @example formatFeeBps(0.00045, { formatters: createFormatters({ locale: 'de' }) }) => "4,5 bps"
+ * @example formatFeeBps(undefined) => "--"
+ */
+export const formatFeeBps = (
+  rate: string | number | null | undefined,
+  options: PerpsDisplayFormatOptions = {},
+): string => {
+  const {
+    formatters = _fallbackFormatters,
+    decimals = PERPS_DISPLAY_PRECISION.FeeBps,
+    sign = 'auto',
+  } = options;
+  const parsed = _parseDisplayNumber(rate);
+  if (parsed === undefined) {
+    return PERPS_CONSTANTS.FallbackDataDisplay;
+  }
+
+  return `${_formatSignedDecimal(formatters, parsed * BASIS_POINTS_DIVISOR, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimals,
+    useGrouping: true,
+    sign,
+  })} bps`;
+};
+
+/**
+ * Formats how far, in percent of the entry price, the price must move to
+ * reach the liquidation price.
+ *
+ * @param entryPrice - Entry (or mark) price.
+ * @param liquidationPrice - Liquidation price.
+ * @param options - `formatters` (default `en-US`), `decimals` (default
+ * `PERPS_DISPLAY_PRECISION.LiquidationDistancePercent`, 2) and `sign`
+ * (default `never`).
+ * @returns Format: "X.XX%", or `PERPS_CONSTANTS.FallbackPercentageDisplay`
+ * (`--%`) when either price is missing or not positive.
+ * @example formatLiquidationDistance(100, 70) => "30.00%"
+ * @example formatLiquidationDistance(100, '130') => "30.00%"
+ * @example formatLiquidationDistance(100, 70, { formatters: createFormatters({ locale: 'de' }) }) => "30,00%"
+ * @example formatLiquidationDistance(100, undefined) => "--%"
+ */
+export const formatLiquidationDistance = (
+  entryPrice: string | number | null | undefined,
+  liquidationPrice: string | number | null | undefined,
+  options: PerpsDisplayFormatOptions = {},
+): string => {
+  const entry = _parseDisplayNumber(entryPrice);
+  const liquidation = _parseDisplayNumber(liquidationPrice);
+  if (
+    entry === undefined ||
+    liquidation === undefined ||
+    entry <= 0 ||
+    liquidation <= 0
+  ) {
+    return PERPS_CONSTANTS.FallbackPercentageDisplay;
+  }
+
+  return formatPercentage((Math.abs(entry - liquidation) / entry) * 100, {
+    formatters: options.formatters,
+    decimals:
+      options.decimals ?? PERPS_DISPLAY_PRECISION.LiquidationDistancePercent,
+    sign: options.sign ?? 'never',
+  });
+};
+
+/** Each magnitude scale is this many times the next smaller one. */
+const SCALE_STEP = 1000;
+
+/** Magnitude scales of compact values, largest first. */
+const COMPACT_SCALES = [
+  { divisor: 1_000_000_000_000, suffix: 'T' },
+  { divisor: 1_000_000_000, suffix: 'B' },
+  { divisor: 1_000_000, suffix: 'M' },
+  { divisor: SCALE_STEP, suffix: 'K' },
+  { divisor: 1, suffix: '' },
+] as const;
+
+/**
+ * Picks the magnitude scale of a non-negative amount and rounds it. A
+ * mantissa that rounds up to 1000 moves to the next scale, so 999999 shows as
+ * `1.00M`, not `1000K`.
+ *
+ * @param amount - Non-negative amount.
+ * @param decimalsFor - Fraction digits shown at a scale divisor.
+ * @returns The rounded mantissa, its decimals and suffix.
+ */
+function _scaleCompact(
+  amount: number,
+  decimalsFor: (divisor: number) => number,
+): { mantissa: number; decimals: number; suffix: string } {
+  let index = COMPACT_SCALES.findIndex(({ divisor }) => amount >= divisor);
+  if (index === -1) {
+    index = COMPACT_SCALES.length - 1;
+  }
+  for (;;) {
+    const { divisor, suffix } = COMPACT_SCALES[index];
+    const decimals = decimalsFor(divisor);
+    const mantissa = Number((amount / divisor).toFixed(decimals));
+    if (mantissa < SCALE_STEP || index === 0) {
+      return { mantissa, decimals, suffix };
+    }
+    index -= 1;
+  }
+}
+
+/**
+ * The value a compact number stands for, which sets its unit and precision.
+ *
+ * - `volume`: USD volume or open interest: `$1.23M`, `$123K`, `$999.50`.
+ * - `orderBookUsd`: USD order book size or total: `$2.1K` from 1,000 up,
+ * `PRICE_RANGES_UNIVERSAL` below.
+ * - `orderBookSize`: base-asset order book size or total: `604.9K` from 1,000
+ * up, `formatPositionSize` with `szDecimals` below.
+ */
+export type PerpsCompactField = 'volume' | 'orderBookUsd' | 'orderBookSize';
+
+/**
+ * Options for `formatPerpsCompact`.
+ */
+export type PerpsCompactFormatOptions = PerpsDisplayFormatOptions & {
+  /** The value being shown, which sets the unit and precision. */
+  field: PerpsCompactField;
+  /** Asset size decimals for an `orderBookSize` value below 1,000. */
+  szDecimals?: number;
+};
+
+/**
+ * Formats a large number with a magnitude suffix (`K`, `M`, `B`, `T`), with
+ * the unit and precision of the field it shows.
+ *
+ * @param value - Raw value (USD for `volume` and `orderBookUsd`, base asset
+ * for `orderBookSize`).
+ * @param options - Formatting options.
+ * @param options.field - `volume`, `orderBookUsd` or `orderBookSize`.
+ * @param options.formatters - Locale-bound formatters, e.g. `createFormatters({ locale })` from `@metamask/client-utils` (default `en-US`).
+ * @param options.decimals - Decimals of abbreviated values, overriding the
+ * field's `PERPS_DISPLAY_PRECISION` (`VolumeCompact`, `VolumeCompactThousands`
+ * or `OrderBookCompact`).
+ * @param options.sign - Sign display (default `auto`).
+ * @param options.szDecimals - Asset size decimals for an `orderBookSize` value below 1,000.
+ * @returns The compact value, or `PERPS_CONSTANTS.FallbackPriceDisplay`
+ * (`$---`, `--` for `orderBookSize`) for a missing value.
+ * @example formatPerpsCompact(1234567, { field: 'volume' }) => "$1.23M"
+ * @example formatPerpsCompact(123456, { field: 'volume' }) => "$123K"
+ * @example formatPerpsCompact(999.5, { field: 'volume' }) => "$999.50"
+ * @example formatPerpsCompact(1234567, { field: 'volume', formatters: createFormatters({ locale: 'de' }) }) => "1,23M $"
+ * @example formatPerpsCompact(2100, { field: 'orderBookUsd' }) => "$2.1K"
+ * @example formatPerpsCompact(604900, { field: 'orderBookSize' }) => "604.9K"
+ */
+export const formatPerpsCompact = (
+  value: string | number | null | undefined,
+  options: PerpsCompactFormatOptions,
+): string => {
+  const {
+    field,
+    formatters = _fallbackFormatters,
+    decimals,
+    sign = 'auto',
+    szDecimals,
+  } = options;
+  const isUsd = field !== 'orderBookSize';
+  const parsed = _parseDisplayNumber(value);
+  if (parsed === undefined) {
+    return isUsd
+      ? PERPS_CONSTANTS.FallbackPriceDisplay
+      : PERPS_CONSTANTS.FallbackDataDisplay;
+  }
+
+  const amount = Math.abs(parsed);
+  if (field !== 'volume' && amount < SCALE_STEP) {
+    return field === 'orderBookUsd'
+      ? formatPerpsFiat(parsed, {
+          ranges: PRICE_RANGES_UNIVERSAL,
+          formatters,
+          sign,
+        })
+      : formatPositionSize(parsed, { decimals: szDecimals, formatters, sign });
+  }
+
+  const scaled = _scaleCompact(amount, (divisor) => {
+    if (decimals !== undefined) {
+      return decimals;
+    }
+    if (field !== 'volume') {
+      return PERPS_DISPLAY_PRECISION.OrderBookCompact;
+    }
+    return divisor === SCALE_STEP
+      ? PERPS_DISPLAY_PRECISION.VolumeCompactThousands
+      : PERPS_DISPLAY_PRECISION.VolumeCompact;
+  });
+  return `${_signPrefix(parsed, scaled.mantissa === 0, sign)}${_formatScaledUsd(
+    formatters,
+    scaled.mantissa,
+    { decimals: scaled.decimals, suffix: scaled.suffix, symbol: isUsd },
+  )}`;
+};
+
+/**
+ * How every price of an order book ladder renders: divided by `divisor`, with
+ * `decimals` fixed decimals and `suffix` after the number.
+ */
+export type PerpsOrderBookPriceFormat = {
+  /** Value each price is divided by before formatting. */
+  divisor: number;
+  /** Magnitude suffix appended after the number, or an empty string. */
+  suffix: string;
+  /** Fixed decimals shown after dividing. */
+  decimals: number;
+};
+
+/**
+ * Exact decimal places of a number, read from its exponential form so values
+ * such as `1e-7` and `0.002` do not depend on a rounded `Math.log10`.
+ *
+ * @param value - The number.
+ * @returns Its decimal places.
+ */
+function _countDecimalPlaces(value: number): number {
+  const [mantissa, exponent] = Math.abs(value).toExponential().split('e');
+  return Math.max(0, (mantissa.split('.')[1] ?? '').length - Number(exponent));
+}
+
+/**
+ * Options for `formatPerpsOrderBookPrice`.
+ */
+export type PerpsOrderBookPriceFormatOptions = {
+  /**
+   * Locale-bound formatters, e.g. `createFormatters({ locale })` from
+   * `@metamask/client-utils`. Default: `en-US`.
+   */
+  formatters?: PerpsIntlFormatters;
+  /** `false` omits the currency symbol (default `true`). */
+  symbol?: boolean;
+};
+
+/**
+ * Formats an order book price with the ladder format from
+ * `getPerpsOrderBookPriceFormat`, keeping trailing zeros so every row has the
+ * same width.
+ *
+ * @param price - Raw price.
+ * @param format - Ladder format, or null for `PRICE_RANGES_UNIVERSAL`.
+ * @param options - `formatters` (default `en-US`) and `symbol` (default `true`).
+ * @returns The price, or `PERPS_CONSTANTS.FallbackPriceDisplay` (`$---`; `--`
+ * without the symbol) for a missing price.
+ * @example formatPerpsOrderBookPrice(87000, { divisor: 1000, suffix: 'K', decimals: 0 }) => "$87K"
+ * @example formatPerpsOrderBookPrice(33.1, { divisor: 1, suffix: '', decimals: 3 }) => "$33.100"
+ * @example formatPerpsOrderBookPrice(87000, { divisor: 1, suffix: '', decimals: 0 }, { symbol: false }) => "87,000"
+ */
+export const formatPerpsOrderBookPrice = (
+  price: string | number | null | undefined,
+  format: PerpsOrderBookPriceFormat | null,
+  options: PerpsOrderBookPriceFormatOptions = {},
+): string => {
+  const { formatters = _fallbackFormatters, symbol = true } = options;
+  const value = _parseDisplayNumber(price);
+  if (value === undefined) {
+    return symbol
+      ? PERPS_CONSTANTS.FallbackPriceDisplay
+      : PERPS_CONSTANTS.FallbackDataDisplay;
+  }
+  if (format === null) {
+    return formatPerpsFiat(value, {
+      ranges: PRICE_RANGES_UNIVERSAL,
+      formatters,
+      symbol,
+    });
+  }
+
+  const amount = Math.abs(value) / format.divisor;
+  return `${_signPrefix(
+    value,
+    _currencyShowsZero(amount, format.decimals),
+    'auto',
+  )}${_formatScaledUsd(formatters, amount, {
+    decimals: format.decimals,
+    suffix: format.suffix,
+    symbol,
+  })}`;
+};
+
+/**
+ * Resolves the one price format an order book ladder renders with, from the
+ * selected price grouping (tick) increment.
+ *
+ * Decimals match the grouping, capped at the asset's price precision
+ * (`PERPS_DISPLAY_PRECISION.MaxPriceDecimals − szDecimals`), so neighbouring
+ * levels never collapse into the same string and every row has the same
+ * width. The ladder is abbreviated (`$87K`) at the magnitude of `midPrice`
+ * only when that needs at most
+ * `PERPS_DISPLAY_PRECISION.OrderBookAbbreviatedPriceMax` decimals and is no
+ * longer than the plain form.
+ *
+ * @param grouping - Selected price grouping increment, or null when unknown.
+ * @param midPrice - Ladder mid price, which sets the magnitude.
+ * @param szDecimals - Asset size decimals from the market metadata.
+ * @returns The ladder format, or null to use `PRICE_RANGES_UNIVERSAL`.
+ * @example getPerpsOrderBookPriceFormat(1000, 87000, 5) => { divisor: 1000, suffix: 'K', decimals: 0 }
+ * @example getPerpsOrderBookPriceFormat(1, 87000, 5) => { divisor: 1, suffix: '', decimals: 0 }
+ * @example getPerpsOrderBookPriceFormat(0.001, 33.1, 2) => { divisor: 1, suffix: '', decimals: 3 }
+ */
+export const getPerpsOrderBookPriceFormat = (
+  grouping: number | null | undefined,
+  midPrice?: number | null,
+  szDecimals?: number,
+): PerpsOrderBookPriceFormat | null => {
+  if (
+    typeof grouping !== 'number' ||
+    !Number.isFinite(grouping) ||
+    grouping <= 0
+  ) {
+    return null;
+  }
+
+  const maxDecimals =
+    typeof szDecimals === 'number' && Number.isFinite(szDecimals)
+      ? Math.max(0, PERPS_DISPLAY_PRECISION.MaxPriceDecimals - szDecimals)
+      : PERPS_DISPLAY_PRECISION.MaxPriceDecimals;
+  const plain: PerpsOrderBookPriceFormat = {
+    divisor: 1,
+    suffix: '',
+    decimals: Math.min(_countDecimalPlaces(grouping), maxDecimals),
+  };
+  if (typeof midPrice !== 'number' || !Number.isFinite(midPrice)) {
+    return plain;
+  }
+
+  const magnitude = Math.abs(midPrice);
+  const scale = COMPACT_SCALES.find(
+    ({ divisor }) =>
+      divisor > 1 && magnitude >= divisor && magnitude < divisor * SCALE_STEP,
+  );
+  if (!scale) {
+    return plain;
+  }
+  const decimals = _countDecimalPlaces(grouping / scale.divisor);
+  if (decimals > PERPS_DISPLAY_PRECISION.OrderBookAbbreviatedPriceMax) {
+    return plain;
+  }
+
+  const abbreviated: PerpsOrderBookPriceFormat = {
+    divisor: scale.divisor,
+    suffix: scale.suffix,
+    decimals,
+  };
+  return formatPerpsOrderBookPrice(midPrice, abbreviated).length <=
+    formatPerpsOrderBookPrice(midPrice, plain).length
+    ? abbreviated
+    : plain;
+};
+
+/**
+ * Options for `formatPerpsUsdInput`.
+ */
+export type PerpsUsdInputFormatOptions = {
+  /**
+   * Locale-bound formatters, e.g. `createFormatters({ locale })` from
+   * `@metamask/client-utils`. Default: `en-US`.
+   */
+  formatters?: PerpsIntlFormatters;
+  /** Most fraction digits (default `PERPS_DISPLAY_PRECISION.UsdInput`, 2). */
+  decimals?: number;
+  /**
+   * Most digits, integer and fraction together (default
+   * `PERPS_DISPLAY_PRECISION.UsdInputMaxDigits`, 9; at most 15).
+   */
+  maxDigits?: number;
+  /**
+   * What `input` is: `typed` text in the locale's format, e.g. the field's
+   * display plus a keystroke (default), or a stored canonical `value` with a
+   * `.` decimal separator, e.g. a preset amount.
+   */
+  source?: 'typed' | 'value';
+};
+
+/** Most digits a USD input keeps exact when grouped through a number. */
+const MAX_EXACT_INPUT_DIGITS = 15;
+
+/**
+ * A masked USD input: `value` to store and parse, `display` to show.
+ */
+export type PerpsUsdInput = {
+  /** Canonical amount with a `.` decimal separator: `1234567.5`. */
+  value: string;
+  /** The amount with the locale's grouping and decimal separator. */
+  display: string;
+};
+
+type LocaleNumberSymbols = {
+  decimal: string;
+  grouping: string;
+  // The locale's glyphs for 0-9
+  digits: string[];
+};
+
+/** Separators and digits per formatter set, read once. */
+const _localeSymbolsCache = new WeakMap<
+  PerpsIntlFormatters,
+  LocaleNumberSymbols
+>();
+
+/**
+ * Reads the decimal separator, grouping separator and digits of a locale from
+ * formatted samples, without `formatToParts`.
+ *
+ * @param formatters - Locale-bound formatters.
+ * @returns The locale's number symbols.
+ */
+function _getLocaleNumberSymbols(
+  formatters: PerpsIntlFormatters,
+): LocaleNumberSymbols {
+  let symbols = _localeSymbolsCache.get(formatters);
+  if (!symbols) {
+    // "1234567890" in the locale's digits: glyph of 1, 2, ..., 9, 0
+    const sample = Array.from(
+      formatters.formatNumber(1234567890, { useGrouping: false }),
+    );
+    symbols = {
+      decimal: Array.from(
+        formatters.formatNumber(1.5, {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }),
+      )
+        .slice(1, -1)
+        .join(''),
+      grouping: Array.from(formatters.formatNumber(10000))
+        .slice(2, -3)
+        .join(''),
+      digits:
+        sample.length === 10
+          ? [sample[9], ...sample.slice(0, 9)]
+          : Array.from('0123456789'),
+    };
+    _localeSymbolsCache.set(formatters, symbols);
+  }
+  return symbols;
+}
+
+/**
+ * Masks a USD amount input: keeps digits and one decimal separator, drops
+ * leading zeros, caps the decimals and the number of digits, and groups the
+ * integer part for the locale. Passing `display` back in with the next
+ * keystroke returns the same amount.
+ *
+ * Typed text reads the locale's decimal separator as the decimal. A `.` also
+ * reads as the decimal where the locale uses `.` for neither (`fr`: `12.5` is
+ * 12.5); where `.` groups thousands (`de`, `es`), it stays a separator, so
+ * `1.2345` is 12345.
+ *
+ * @param input - Typed text, or a stored canonical value with `source: 'value'`.
+ * @param options - `formatters` (default `en-US`), `decimals` (default
+ * `PERPS_DISPLAY_PRECISION.UsdInput`, 2), `maxDigits` (default
+ * `PERPS_DISPLAY_PRECISION.UsdInputMaxDigits`, 9) and `source` (default
+ * `typed`).
+ * @returns The canonical `value` and the locale `display`; both are empty for
+ * input without digits.
+ * @example formatPerpsUsdInput('0012.345') => { value: '12.34', display: '12.34' }
+ * @example formatPerpsUsdInput('1234.') => { value: '1234.', display: '1,234.' }
+ * @example formatPerpsUsdInput('1.2345', { formatters: createFormatters({ locale: 'de' }) }) => { value: '12345', display: '12.345' }
+ * @example formatPerpsUsdInput('1234567.5', { formatters: createFormatters({ locale: 'de' }), source: 'value' }) => { value: '1234567.5', display: '1.234.567,5' }
+ */
+export const formatPerpsUsdInput = (
+  input: string,
+  options: PerpsUsdInputFormatOptions = {},
+): PerpsUsdInput => {
+  const {
+    formatters = _fallbackFormatters,
+    decimals = PERPS_DISPLAY_PRECISION.UsdInput,
+    maxDigits: requestedMaxDigits = PERPS_DISPLAY_PRECISION.UsdInputMaxDigits,
+    source = 'typed',
+  } = options;
+  const maxDigits = Math.min(requestedMaxDigits, MAX_EXACT_INPUT_DIGITS);
+  const symbols = _getLocaleNumberSymbols(formatters);
+  const text = Array.from(input, (character) => {
+    const digit = symbols.digits.indexOf(character);
+    return digit === -1 ? character : String(digit);
+  }).join('');
+
+  let decimalSeparator: string | undefined;
+  if (source === 'value') {
+    decimalSeparator = '.';
+  } else if (symbols.decimal && text.includes(symbols.decimal)) {
+    decimalSeparator = symbols.decimal;
+  } else if (symbols.grouping !== '.') {
+    decimalSeparator = '.';
+  }
+
+  let integer = '';
+  let fraction = '';
+  let seenDecimal = false;
+  for (const character of text) {
+    if (character === decimalSeparator && !seenDecimal) {
+      seenDecimal = true;
+    } else if (character >= '0' && character <= '9') {
+      if (seenDecimal) {
+        fraction += character;
+      } else {
+        integer += character;
+      }
+    }
+  }
+  const hasDecimal = seenDecimal && decimals > 0;
+  if (!integer && !hasDecimal) {
+    return { value: '', display: '' };
+  }
+
+  integer = integer.replace(/^0+(?=\d)/u, '') || '0';
+  integer = integer.slice(0, maxDigits);
+  fraction = fraction.slice(
+    0,
+    Math.max(0, Math.min(decimals, maxDigits - integer.length)),
+  );
+  const fractionText = hasDecimal ? `.${fraction}` : '';
+  const localizedFraction = Array.from(
+    fraction,
+    (digit) => symbols.digits[Number(digit)],
+  ).join('');
+  return {
+    value: `${integer}${fractionText}`,
+    display: `${formatters.formatNumber(Number(integer), {
+      maximumFractionDigits: 0,
+    })}${hasDecimal ? `${symbols.decimal}${localizedFraction}` : ''}`,
+  };
 };

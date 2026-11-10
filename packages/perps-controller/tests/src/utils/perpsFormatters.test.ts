@@ -8,12 +8,18 @@ import {
 } from '../../../src/constants/perpsConfig.js';
 import * as PackageEntry from '../../../src/index.js';
 import {
+  formatFeeBps,
   formatFundingRate,
+  formatLiquidationDistance,
   formatPercentage,
+  formatPerpsCompact,
   formatPerpsFiat,
+  formatPerpsOrderBookPrice,
+  formatPerpsUsdInput,
   formatPnl,
   formatPositionSize,
   formatWithSignificantDigits,
+  getPerpsOrderBookPriceFormat,
   PRICE_RANGES_MINIMAL_VIEW,
   PRICE_RANGES_UNIVERSAL,
   PRICE_THRESHOLD,
@@ -394,6 +400,15 @@ describe('display formatter options', () => {
         FundingRatePercent: 4,
         SlippageEstimatePercent: 4,
         MaxPriceDecimals: 6,
+        FeeBps: 2,
+        LiquidationDistancePercent: 2,
+        TwapProgressPercent: 2,
+        UsdInput: 2,
+        UsdInputMaxDigits: 9,
+        VolumeCompact: 2,
+        VolumeCompactThousands: 0,
+        OrderBookCompact: 1,
+        OrderBookAbbreviatedPriceMax: 3,
       });
     });
 
@@ -403,6 +418,18 @@ describe('display formatter options', () => {
       expect(PackageEntry.formatPerpsFiat).toBe(formatPerpsFiat);
       expect(PackageEntry.formatPositionSize).toBe(formatPositionSize);
       expect(PackageEntry.formatFundingRate).toBe(formatFundingRate);
+      expect(PackageEntry.formatFeeBps).toBe(formatFeeBps);
+      expect(PackageEntry.formatLiquidationDistance).toBe(
+        formatLiquidationDistance,
+      );
+      expect(PackageEntry.formatPerpsCompact).toBe(formatPerpsCompact);
+      expect(PackageEntry.getPerpsOrderBookPriceFormat).toBe(
+        getPerpsOrderBookPriceFormat,
+      );
+      expect(PackageEntry.formatPerpsOrderBookPrice).toBe(
+        formatPerpsOrderBookPrice,
+      );
+      expect(PackageEntry.formatPerpsUsdInput).toBe(formatPerpsUsdInput);
     });
   });
 
@@ -904,6 +931,624 @@ describe('display formatter options', () => {
         '$0.000001',
       );
       expect(formatPerpsFiat(4e-7, { ranges: sixDecimalsFromZero })).toBe('$0');
+    });
+  });
+});
+
+describe('existing formatter outputs (characterization)', () => {
+  const NBSP = String.fromCharCode(0xa0);
+  const deFormatters: PerpsIntlFormatters = {
+    formatNumber: (value, options) =>
+      new Intl.NumberFormat('de', options).format(value),
+    formatCurrency: (value, currency, options) =>
+      new Intl.NumberFormat('de', {
+        style: 'currency',
+        currency,
+        ...options,
+      }).format(value),
+  };
+
+  it.each([
+    ['formatPerpsFiat(1234.56)', () => formatPerpsFiat(1234.56), '$1,234.56'],
+    ['formatPerpsFiat(1250)', () => formatPerpsFiat(1250), '$1,250'],
+    ['formatPerpsFiat(-0.004)', () => formatPerpsFiat(-0.004), '-<$0.01'],
+    [
+      'formatPerpsFiat(87123.45, UNIVERSAL)',
+      () => formatPerpsFiat(87123.45, { ranges: PRICE_RANGES_UNIVERSAL }),
+      '$87,123',
+    ],
+    [
+      'formatPerpsFiat(2480.37, UNIVERSAL)',
+      () => formatPerpsFiat(2480.37, { ranges: PRICE_RANGES_UNIVERSAL }),
+      '$2,480.4',
+    ],
+    [
+      'formatPerpsFiat(0.001824, UNIVERSAL)',
+      () => formatPerpsFiat(0.001824, { ranges: PRICE_RANGES_UNIVERSAL }),
+      '$0.001824',
+    ],
+    [
+      'formatPerpsFiat(2480.37, UNIVERSAL, de)',
+      () =>
+        formatPerpsFiat(2480.37, {
+          ranges: PRICE_RANGES_UNIVERSAL,
+          formatters: deFormatters,
+        }),
+      `2.480,4${NBSP}$`,
+    ],
+    [
+      'formatPerpsFiat(33.1, 3 decimals, no strip)',
+      () => formatPerpsFiat(33.1, { decimals: 3, stripTrailingZeros: false }),
+      '$33.100',
+    ],
+    ['formatPnl(-500)', () => formatPnl(-500), '-$500.00'],
+    ['formatPercentage(25)', () => formatPercentage(25), '+25.00%'],
+    [
+      'formatPercentage(25, 2 decimals, never)',
+      () => formatPercentage(25, { decimals: 2, sign: 'never' }),
+      '25.00%',
+    ],
+    ['formatPercentage(30, 2)', () => formatPercentage(30, 2), '+30.00%'],
+    [
+      'formatPercentage(1234.5, 2)',
+      () => formatPercentage(1234.5, 2),
+      '+1,234.50%',
+    ],
+    ['formatPositionSize(0.5, 5)', () => formatPositionSize(0.5, 5), '0.5'],
+    ['formatFundingRate(0.0005)', () => formatFundingRate(0.0005), '0.0500%'],
+  ])('%s keeps its output', (_label, format, expected) => {
+    expect(format()).toBe(expected);
+  });
+});
+
+describe('TAT-4574 display formatters', () => {
+  const NBSP = String.fromCharCode(0xa0);
+  const intl = (locale: string): PerpsIntlFormatters => {
+    const cache = new Map<string, Intl.NumberFormat>();
+    const get = (options: Intl.NumberFormatOptions): Intl.NumberFormat => {
+      const key = JSON.stringify(options);
+      let format = cache.get(key);
+      if (!format) {
+        format = new Intl.NumberFormat(locale, options);
+        cache.set(key, format);
+      }
+      return format;
+    };
+    return {
+      formatNumber: (value, options = {}) => get(options).format(value),
+      formatCurrency: (value, currency, options = {}) =>
+        get({ style: 'currency', currency, ...options }).format(value),
+    };
+  };
+  const de = intl('de');
+  const ar = intl('ar-EG');
+  const missingInputs = [undefined, null, '', 'abc', NaN, Infinity];
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  describe('formatFeeBps', () => {
+    it.each([
+      [0.00045, '4.5 bps'],
+      [0.000144, '1.44 bps'],
+      [0.0007, '7 bps'],
+      [0.0000144, '0.14 bps'],
+      ['0.00045', '4.5 bps'],
+      [0, '0 bps'],
+      [-0.0001, '-1 bps'],
+      [0.12345, '1,234.5 bps'],
+    ])('formats %s as %s', (rate, expected) => {
+      expect(formatFeeBps(rate)).toBe(expected);
+    });
+
+    it.each(missingInputs)('renders the placeholder for %s', (rate) => {
+      expect(formatFeeBps(rate)).toBe(PERPS_CONSTANTS.FallbackDataDisplay);
+    });
+
+    it('takes the locale, decimals and sign options', () => {
+      expect(formatFeeBps(0.00045, { formatters: de })).toBe('4,5 bps');
+      expect(formatFeeBps(0.000144, { decimals: 1 })).toBe('1.4 bps');
+      expect(formatFeeBps(0.00045, { sign: 'always' })).toBe('+4.5 bps');
+    });
+  });
+
+  describe('formatLiquidationDistance', () => {
+    it.each([
+      [100, 70, '30.00%'],
+      [100, '130', '30.00%'],
+      ['100', 99.6, '0.40%'],
+      [10, 130, '1,200.00%'],
+    ])('formats entry %s and liquidation %s as %s', (entry, liq, expected) => {
+      expect(formatLiquidationDistance(entry, liq)).toBe(expected);
+    });
+
+    it.each([
+      [100, undefined],
+      [undefined, 70],
+      [null, 70],
+      [100, 'abc'],
+      [0, 70],
+      [100, 0],
+      [-100, 70],
+      [100, -70],
+    ])(
+      'renders the placeholder for entry %s and liquidation %s',
+      (entry, liq) => {
+        expect(formatLiquidationDistance(entry, liq)).toBe(
+          PERPS_CONSTANTS.FallbackPercentageDisplay,
+        );
+      },
+    );
+
+    it('takes the locale, decimals and sign options', () => {
+      expect(formatLiquidationDistance(100, 70, { formatters: de })).toBe(
+        '30,00%',
+      );
+      expect(formatLiquidationDistance(100, 69.6, { decimals: 0 })).toBe('30%');
+      expect(formatLiquidationDistance(100, 70, { sign: 'always' })).toBe(
+        '+30.00%',
+      );
+    });
+  });
+
+  describe('formatPercentage stripTrailingZeros (TWAP progress)', () => {
+    const twap = {
+      decimals: PERPS_DISPLAY_PRECISION.TwapProgressPercent,
+      stripTrailingZeros: true,
+      sign: 'never' as const,
+    };
+
+    it.each([
+      [25, '25%'],
+      [33.33, '33.33%'],
+      [33.3, '33.3%'],
+      [33.333, '33.33%'],
+      [99.999, '100%'],
+      [0, '0%'],
+    ])('formats %s as %s', (value, expected) => {
+      expect(formatPercentage(value, twap)).toBe(expected);
+    });
+
+    it('keeps the decimals without the option', () => {
+      expect(formatPercentage(25, { ...twap, stripTrailingZeros: false })).toBe(
+        '25.00%',
+      );
+    });
+  });
+
+  describe('formatPerpsFiat symbol', () => {
+    it.each([
+      [87123.45, '87,123'],
+      [2480.37, '2,480.4'],
+      [0.001824, '0.001824'],
+      [-2480.37, '-2,480.4'],
+    ])('formats %s as %s without the symbol', (value, expected) => {
+      expect(
+        formatPerpsFiat(value, {
+          ranges: PRICE_RANGES_UNIVERSAL,
+          symbol: false,
+        }),
+      ).toBe(expected);
+    });
+
+    it('formats in the locale and keeps fiat-style stripping', () => {
+      expect(
+        formatPerpsFiat(2480.37, {
+          ranges: PRICE_RANGES_UNIVERSAL,
+          symbol: false,
+          formatters: de,
+        }),
+      ).toBe('2.480,4');
+      expect(formatPerpsFiat(1250, { symbol: false })).toBe('1,250');
+      expect(formatPerpsFiat(13.4, { symbol: false })).toBe('13.40');
+    });
+
+    it('renders the symbol-less placeholder for a missing price', () => {
+      expect(formatPerpsFiat(undefined, { symbol: false })).toBe(
+        PERPS_CONSTANTS.FallbackDataDisplay,
+      );
+      expect(formatPerpsFiat(undefined, { symbol: true })).toBe(
+        PERPS_CONSTANTS.FallbackPriceDisplay,
+      );
+    });
+  });
+
+  describe('formatPerpsCompact', () => {
+    it.each([
+      [1234567, '$1.23M'],
+      [12345678, '$12.35M'],
+      [1234567890, '$1.23B'],
+      [2e9, '$2.00B'],
+      [1.5e12, '$1.50T'],
+      [1.5e15, '$1,500.00T'],
+      [123456, '$123K'],
+      [1234, '$1K'],
+      [999.5, '$999.50'],
+      [0, '$0.00'],
+      [999999, '$1.00M'],
+      [999.996, '$1K'],
+      [-1234567, '-$1.23M'],
+      ['1234567', '$1.23M'],
+    ])('formats volume %s as %s', (value, expected) => {
+      expect(formatPerpsCompact(value, { field: 'volume' })).toBe(expected);
+    });
+
+    it.each([
+      [2100, '$2.1K'],
+      [2000, '$2.0K'],
+      [1234567, '$1.2M'],
+      [999950, '$1.0M'],
+      [950, '$950'],
+      [0.5, '$0.5'],
+      [-2100, '-$2.1K'],
+    ])('formats order book USD %s as %s', (value, expected) => {
+      expect(formatPerpsCompact(value, { field: 'orderBookUsd' })).toBe(
+        expected,
+      );
+    });
+
+    it.each([
+      [604900, undefined, '604.9K'],
+      [1000, undefined, '1.0K'],
+      [0.5, 5, '0.5'],
+      [0.123456, 2, '0.12'],
+      [12.5, undefined, '12.5'],
+    ])(
+      'formats order book size %s (szDecimals %s) as %s',
+      (value, szDecimals, expected) => {
+        expect(
+          formatPerpsCompact(value, { field: 'orderBookSize', szDecimals }),
+        ).toBe(expected);
+      },
+    );
+
+    it.each(missingInputs)('renders the placeholder for %s', (value) => {
+      expect(formatPerpsCompact(value, { field: 'volume' })).toBe(
+        PERPS_CONSTANTS.FallbackPriceDisplay,
+      );
+      expect(formatPerpsCompact(value, { field: 'orderBookUsd' })).toBe(
+        PERPS_CONSTANTS.FallbackPriceDisplay,
+      );
+      expect(formatPerpsCompact(value, { field: 'orderBookSize' })).toBe(
+        PERPS_CONSTANTS.FallbackDataDisplay,
+      );
+    });
+
+    it('puts the suffix after the number where the locale puts the symbol', () => {
+      expect(
+        formatPerpsCompact(1234567, { field: 'volume', formatters: de }),
+      ).toBe(`1,23M${NBSP}$`);
+      expect(
+        formatPerpsCompact(604900, { field: 'orderBookSize', formatters: de }),
+      ).toBe('604,9K');
+      expect(
+        formatPerpsCompact(950, { field: 'orderBookUsd', formatters: de }),
+      ).toBe(`950${NBSP}$`);
+    });
+
+    it('takes the decimals and sign options', () => {
+      expect(formatPerpsCompact(1234, { field: 'volume', decimals: 1 })).toBe(
+        '$1.2K',
+      );
+      expect(
+        formatPerpsCompact(1234567, { field: 'orderBookUsd', decimals: 2 }),
+      ).toBe('$1.23M');
+      expect(
+        formatPerpsCompact(1234567, { field: 'volume', sign: 'always' }),
+      ).toBe('+$1.23M');
+      expect(formatPerpsCompact(0, { field: 'volume', sign: 'always' })).toBe(
+        '+$0.00',
+      );
+    });
+
+    it('appends the suffix when the currency output does not contain the number', () => {
+      const formatters: PerpsIntlFormatters = {
+        formatNumber: (value) => `N${value}`,
+        formatCurrency: (value) => `C${value}`,
+      };
+
+      expect(formatPerpsCompact(1234567, { field: 'volume', formatters })).toBe(
+        'C1.23M',
+      );
+    });
+  });
+
+  describe('getPerpsOrderBookPriceFormat', () => {
+    it.each([
+      [1000, 87000, 5, { divisor: 1000, suffix: 'K', decimals: 0 }],
+      [1, 87000, 5, { divisor: 1, suffix: '', decimals: 0 }],
+      [10, 87000, 5, { divisor: 1000, suffix: 'K', decimals: 2 }],
+      [0.001, 33.1, 2, { divisor: 1, suffix: '', decimals: 3 }],
+      [0.000001, 0.002, 0, { divisor: 1, suffix: '', decimals: 6 }],
+      [0.0001, 33.1, 4, { divisor: 1, suffix: '', decimals: 2 }],
+      [0.01, 33.1, undefined, { divisor: 1, suffix: '', decimals: 2 }],
+      [1e-7, 1, undefined, { divisor: 1, suffix: '', decimals: 6 }],
+      [1000, 5_000_000, 5, { divisor: 1_000_000, suffix: 'M', decimals: 3 }],
+      [1, 61470, 5, { divisor: 1, suffix: '', decimals: 0 }],
+      [0.1, 61470, 4, { divisor: 1, suffix: '', decimals: 1 }],
+      [1, 87000, undefined, { divisor: 1, suffix: '', decimals: 0 }],
+      [1, null, 5, { divisor: 1, suffix: '', decimals: 0 }],
+    ])(
+      'resolves grouping %s at mid %s with szDecimals %s',
+      (grouping, midPrice, szDecimals, expected) => {
+        expect(
+          getPerpsOrderBookPriceFormat(grouping, midPrice, szDecimals),
+        ).toStrictEqual(expected);
+      },
+    );
+
+    it.each([null, undefined, 0, -1, NaN, Infinity])(
+      'returns null for grouping %s',
+      (grouping) => {
+        expect(getPerpsOrderBookPriceFormat(grouping, 87000, 5)).toBeNull();
+      },
+    );
+  });
+
+  describe('formatPerpsOrderBookPrice', () => {
+    const plain = (decimals: number) => ({ divisor: 1, suffix: '', decimals });
+
+    it.each([
+      [87000, { divisor: 1000, suffix: 'K', decimals: 0 }, '$87K'],
+      [87010, { divisor: 1000, suffix: 'K', decimals: 2 }, '$87.01K'],
+      [87000, plain(0), '$87,000'],
+      [33.123, plain(3), '$33.123'],
+      [33.1, plain(3), '$33.100'],
+      ['0.002101', plain(6), '$0.002101'],
+      [0.0000004, plain(6), '$0.000000'],
+      [-33.1, plain(1), '-$33.1'],
+      [1.005, plain(2), '$1.01'],
+      [-0.004, plain(2), '$0.00'],
+    ])('formats %s with %o as %s', (price, format, expected) => {
+      expect(formatPerpsOrderBookPrice(price, format)).toBe(expected);
+    });
+
+    it('uses the universal price ranges without a format', () => {
+      expect(formatPerpsOrderBookPrice(87123.45, null)).toBe('$87,123');
+      expect(formatPerpsOrderBookPrice(87123.45, null, { symbol: false })).toBe(
+        '87,123',
+      );
+    });
+
+    it('takes the locale and symbol options', () => {
+      expect(
+        formatPerpsOrderBookPrice(87000, plain(0), { formatters: de }),
+      ).toBe(`87.000${NBSP}$`);
+      expect(
+        formatPerpsOrderBookPrice(
+          87000,
+          { divisor: 1000, suffix: 'K', decimals: 0 },
+          { formatters: de },
+        ),
+      ).toBe(`87K${NBSP}$`);
+      expect(
+        formatPerpsOrderBookPrice(87000, plain(0), { symbol: false }),
+      ).toBe('87,000');
+      expect(
+        formatPerpsOrderBookPrice(
+          87000,
+          { divisor: 1000, suffix: 'K', decimals: 0 },
+          { symbol: false },
+        ),
+      ).toBe('87K');
+    });
+
+    it.each(missingInputs)('renders the placeholder for %s', (price) => {
+      expect(formatPerpsOrderBookPrice(price, plain(0))).toBe(
+        PERPS_CONSTANTS.FallbackPriceDisplay,
+      );
+      expect(formatPerpsOrderBookPrice(price, null, { symbol: false })).toBe(
+        PERPS_CONSTANTS.FallbackDataDisplay,
+      );
+    });
+  });
+
+  describe('formatPerpsUsdInput', () => {
+    it.each([
+      ['0012.34', '12.34', '12.34'],
+      ['12.345', '12.34', '12.34'],
+      ['1234567.5', '1234567.5', '1,234,567.5'],
+      ['1,234,567.5', '1234567.5', '1,234,567.5'],
+      ['$1,234.56', '1234.56', '1,234.56'],
+      ['1234.', '1234.', '1,234.'],
+      ['.5', '0.5', '0.5'],
+      ['.', '0.', '0.'],
+      ['000', '0', '0'],
+      ['1234567890', '123456789', '123,456,789'],
+      ['1234567.89', '1234567.89', '1,234,567.89'],
+      ['12345678.9', '12345678.9', '12,345,678.9'],
+      ['123456789.5', '123456789.', '123,456,789.'],
+      ['1.2.3', '1.23', '1.23'],
+      ['-12', '12', '12'],
+      ['', '', ''],
+      ['abc', '', ''],
+    ])('masks %s as value %s, display %s', (input, value, display) => {
+      expect(formatPerpsUsdInput(input)).toStrictEqual({ value, display });
+    });
+
+    it.each([
+      ['1.234.567,5', '1234567.5', '1.234.567,5'],
+      ['1234,5', '1234.5', '1.234,5'],
+      ['1.234', '1234', '1.234'],
+      ['1.2345', '12345', '12.345'],
+      ['12.45', '1245', '1.245'],
+      ['12.5', '125', '125'],
+    ])(
+      'masks typed %s in de as value %s, display %s',
+      (input, value, display) => {
+        expect(formatPerpsUsdInput(input, { formatters: de })).toStrictEqual({
+          value,
+          display,
+        });
+      },
+    );
+
+    it('keeps the grouping dot while typing digit by digit in de and es', () => {
+      for (const formatters of [de, intl('es')]) {
+        let display = '';
+        for (const key of '123456') {
+          ({ display } = formatPerpsUsdInput(`${display}${key}`, {
+            formatters,
+          }));
+        }
+        expect(formatPerpsUsdInput(display, { formatters }).value).toBe(
+          '123456',
+        );
+      }
+    });
+
+    it('reads a typed dot as the decimal where the locale does not group with it', () => {
+      expect(
+        formatPerpsUsdInput('1234.5', { formatters: intl('fr') }),
+      ).toStrictEqual({
+        value: '1234.5',
+        display: `1${String.fromCharCode(0x202f)}234,5`,
+      });
+    });
+
+    it.each([
+      ['1234567.5', '1234567.5', '1.234.567,5'],
+      ['1.234', '1.23', '1,23'],
+      ['0012.5', '12.5', '12,5'],
+    ])(
+      'masks the stored value %s in de as value %s, display %s',
+      (input, value, display) => {
+        expect(
+          formatPerpsUsdInput(input, { formatters: de, source: 'value' }),
+        ).toStrictEqual({ value, display });
+      },
+    );
+
+    it('reads and writes the locale digits', () => {
+      const { display } = formatPerpsUsdInput('1234.5', { formatters: ar });
+
+      expect(display).toBe(
+        `${new Intl.NumberFormat('ar-EG').format(1234)}${new Intl.NumberFormat(
+          'ar-EG',
+          { minimumFractionDigits: 1 },
+        )
+          .format(1.5)
+          .slice(1)}`,
+      );
+      expect(formatPerpsUsdInput(display, { formatters: ar }).value).toBe(
+        '1234.5',
+      );
+    });
+
+    it('returns the same input for its own display', () => {
+      for (const input of ['0', '1234.', '1234567.89', '0.05']) {
+        const masked = formatPerpsUsdInput(input, { formatters: de });
+        expect(
+          formatPerpsUsdInput(masked.display, { formatters: de }),
+        ).toStrictEqual(masked);
+      }
+    });
+
+    it('takes the decimals and maxDigits options', () => {
+      expect(formatPerpsUsdInput('12.34', { decimals: 0 })).toStrictEqual({
+        value: '12',
+        display: '12',
+      });
+      expect(formatPerpsUsdInput('.', { decimals: 0 })).toStrictEqual({
+        value: '',
+        display: '',
+      });
+      expect(formatPerpsUsdInput('12345.67', { maxDigits: 6 })).toStrictEqual({
+        value: '12345.6',
+        display: '12,345.6',
+      });
+      expect(
+        formatPerpsUsdInput('12345678901234567890', { maxDigits: 20 }),
+      ).toStrictEqual({
+        value: '123456789012345',
+        display: '123,456,789,012,345',
+      });
+    });
+
+    it('reads the locale symbols once per formatter set', () => {
+      const formatters = intl('it');
+      const formatNumber = vi.spyOn(formatters, 'formatNumber');
+      formatPerpsUsdInput('1', { formatters });
+      formatNumber.mockClear();
+
+      formatPerpsUsdInput('1234,5', { formatters });
+
+      expect(formatNumber).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to ASCII digits when the locale sample is not ten glyphs', () => {
+      const formatters: PerpsIntlFormatters = {
+        formatNumber: (value, options) =>
+          new Intl.NumberFormat('en-US', options).format(value),
+        formatCurrency: (value) => String(value),
+      };
+      vi.spyOn(formatters, 'formatNumber').mockImplementation(
+        (value, options) =>
+          value === 1234567890
+            ? '1,234,567,890'
+            : new Intl.NumberFormat('en-US', options).format(value),
+      );
+
+      expect(formatPerpsUsdInput('1234.5', { formatters })).toStrictEqual({
+        value: '1234.5',
+        display: '1,234.5',
+      });
+    });
+  });
+
+  describe('Intl construction', () => {
+    it('constructs no Intl formatter with injected formatters', () => {
+      const formatters = intl('fr');
+      const calls: string[] = [];
+      const recording: PerpsIntlFormatters = {
+        formatNumber: (value, options) => {
+          calls.push('number');
+          return formatters.formatNumber(value, options);
+        },
+        formatCurrency: (value, currency, options) => {
+          calls.push('currency');
+          return formatters.formatCurrency(value, currency, options);
+        },
+      };
+
+      const formatAll = (): void => {
+        formatFeeBps(0.00045, { formatters: recording });
+        formatLiquidationDistance(100, 70, { formatters: recording });
+        formatPerpsCompact(1234567, { field: 'volume', formatters: recording });
+        formatPerpsOrderBookPrice(87000, null, { formatters: recording });
+        formatPerpsUsdInput('1234.5', { formatters: recording });
+      };
+      // The first pass fills the injected formatters' own cache
+      formatAll();
+      const constructor = vi.spyOn(Intl, 'NumberFormat');
+      formatAll();
+
+      expect(calls.length).toBeGreaterThan(0);
+      expect(constructor).not.toHaveBeenCalled();
+    });
+
+    it('builds the en-US fallback once per option set', () => {
+      const constructor = vi.spyOn(Intl, 'NumberFormat');
+      const formatAll = (index: number): void => {
+        formatFeeBps(0.00045 + index / 1e7);
+        formatPerpsCompact(1234567 + index, { field: 'volume' });
+        formatPerpsUsdInput(`${1234 + index}.5`);
+        formatPerpsOrderBookPrice(87000 + index, {
+          divisor: 1,
+          suffix: '',
+          decimals: 0,
+        });
+        formatLiquidationDistance(100, 70 + index / 10);
+      };
+      formatAll(0);
+      constructor.mockClear();
+
+      for (let index = 1; index < 100; index += 1) {
+        formatAll(index);
+      }
+
+      expect(constructor).not.toHaveBeenCalled();
     });
   });
 });
