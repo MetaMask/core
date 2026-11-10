@@ -58,10 +58,9 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
 
-      # GitHub applies the base branch's ownership rules to a pull request, not
-      # any changes to them the pull request makes, so the summary should too.
-      # For instance, if a pull request moves a package to another team, the
-      # package's current team still needs to approve it.
+      # GitHub uses the base branch to apply ownership rules to a pull request,
+      # so in order to be accurate, the summary should use the same logic that
+      # generated those rules.
       - name: Use the base branch's ownership rules
         run: git checkout "$BASE_SHA" -- codeowners.ts
         env:
@@ -72,10 +71,9 @@ jobs:
         # doesn't get confused when it attempts to parse the multiline output string.
         run: |
           if ! yarn create-codeownership-summary --base-ref "$BASE_SHA" --head-ref HEAD > "$RUNNER_TEMP/codeownership-summary.md"; then
-            # Yarn reports some errors, such as a missing script, on stdout,
-            # which is redirected above, so show it to explain the failure
+            exitcode=$?
             cat "$RUNNER_TEMP/codeownership-summary.md"
-            exit 1
+            exit $exitcode
           fi
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
