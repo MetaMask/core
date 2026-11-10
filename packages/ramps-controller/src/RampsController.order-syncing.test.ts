@@ -55,7 +55,7 @@ function setupControllerWithOrderSyncingMocks(args?: {
     errorMessage: string,
     sentryContext?: Record<string, unknown>,
   ) => void;
-  isNetworkAllowed?: () => boolean;
+  isNetworkAccessAllowed?: () => boolean;
 }): {
   controller: RampsController;
   performBatchSetStorage: Mock;
@@ -105,7 +105,7 @@ function setupControllerWithOrderSyncingMocks(args?: {
 
   const controller = new RampsController({
     messenger,
-    isNetworkAllowed: args?.isNetworkAllowed,
+    isNetworkAccessAllowed: args?.isNetworkAccessAllowed,
     onOrderSyncErroneousSituation: args?.onOrderSyncErroneousSituation,
   });
 
@@ -397,7 +397,7 @@ describe('RampsController order syncing', () => {
     let allowed = false;
     const { controller, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks({
-        isNetworkAllowed: () => allowed,
+        isNetworkAccessAllowed: () => allowed,
       });
     const order = createMockOrder({
       id: '/providers/transak/orders/deferred-add',
@@ -428,7 +428,7 @@ describe('RampsController order syncing', () => {
     let allowed = true;
     const { controller, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks({
-        isNetworkAllowed: () => allowed,
+        isNetworkAccessAllowed: () => allowed,
       });
 
     controller.addOrder(createMockOrder());
@@ -466,7 +466,7 @@ describe('RampsController order syncing', () => {
       performBatchSetStorage,
       performGetStorageAllFeatureEntries,
     } = setupControllerWithOrderSyncingMocks({
-      isNetworkAllowed: () => allowed,
+      isNetworkAccessAllowed: () => allowed,
     });
 
     controller.addOrder(

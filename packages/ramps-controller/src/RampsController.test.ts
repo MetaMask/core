@@ -13238,7 +13238,7 @@ describe('RampsController', () => {
       let allowed = true;
 
       await withController(
-        { options: { isNetworkAllowed: () => allowed } },
+        { options: { isNetworkAccessAllowed: () => allowed } },
         async ({ rootMessenger }) => {
           const order = createMockOrder({
             providerOrderId: 'denied-poll-1',
@@ -15429,7 +15429,7 @@ describe('RampsController', () => {
     for (const testCase of gatedCases) {
       it(`rejects ${testCase.name} without a request when the check returns false`, async () => {
         await withController(
-          { options: { isNetworkAllowed: () => false } },
+          { options: { isNetworkAccessAllowed: () => false } },
           async ({ controller, messenger, rootMessenger }) => {
             const callSpy = vi.spyOn(messenger, 'call');
             const stateBefore = structuredClone(controller.state);
@@ -15455,7 +15455,7 @@ describe('RampsController', () => {
       let allowed = false;
 
       await withController(
-        { options: { isNetworkAllowed: () => allowed } },
+        { options: { isNetworkAccessAllowed: () => allowed } },
         async ({ controller, rootMessenger }) => {
           const getCountriesHandler = vi.fn(async () => []);
           rootMessenger.registerActionHandler(
@@ -15485,7 +15485,7 @@ describe('RampsController', () => {
 
     it('does not invoke a direct executeRequest fetcher while denied', async () => {
       await withController(
-        { options: { isNetworkAllowed: () => false } },
+        { options: { isNetworkAccessAllowed: () => false } },
         async ({ controller }) => {
           const fetcher = vi.fn(async () => 'data');
 
@@ -15501,7 +15501,7 @@ describe('RampsController', () => {
 
     it('addOrder keeps the local order and skips the remote write', async () => {
       await withController(
-        { options: { isNetworkAllowed: () => false } },
+        { options: { isNetworkAccessAllowed: () => false } },
         async ({ controller, messenger, rootMessenger }) => {
           const callSpy = vi.spyOn(messenger, 'call');
           const order = createMockOrder();
@@ -15520,7 +15520,7 @@ describe('RampsController', () => {
 
     it('addPrecreatedOrder keeps the local stub and skips the remote write', async () => {
       await withController(
-        { options: { isNetworkAllowed: () => false } },
+        { options: { isNetworkAccessAllowed: () => false } },
         async ({ controller, messenger, rootMessenger }) => {
           const callSpy = vi.spyOn(messenger, 'call');
 
@@ -15548,7 +15548,7 @@ describe('RampsController', () => {
         {
           options: {
             state: { orders: [createMockOrder()] },
-            isNetworkAllowed: () => false,
+            isNetworkAccessAllowed: () => false,
           },
         },
         async ({ controller, messenger, rootMessenger }) => {
@@ -15565,7 +15565,7 @@ describe('RampsController', () => {
 
     it('transakLogout clears the local session and skips the remote call', async () => {
       await withController(
-        { options: { isNetworkAllowed: () => false } },
+        { options: { isNetworkAccessAllowed: () => false } },
         async ({ controller, rootMessenger }) => {
           const logoutHandler = vi.fn(async () => 'logged out');
           rootMessenger.registerActionHandler(

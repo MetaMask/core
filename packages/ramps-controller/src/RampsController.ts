@@ -629,6 +629,8 @@ function isFullAutorampAccount(
  */
 const DEFAULT_QUOTES_TTL = 15000;
 
+const allowNetworkAccess = (): boolean => true;
+
 const CIRCUIT_BREAKER_OPEN_ERROR =
   'Execution prevented because the circuit breaker is open';
 
@@ -1281,14 +1283,14 @@ export type RampsControllerOptions = {
   /** Maximum number of entries in the request cache. Defaults to 250. */
   requestCacheMaxSize?: number;
   /**
-   * Optional host check for whether this controller may be used to reach the
-   * network. Evaluated at the start of every gated method, so a denied call
-   * throws `NETWORK_ACCESS_DENIED` before any state write or request, even
-   * when a non-expired request-cache entry exists. Read already-fetched data
-   * from controller state to render while access is denied.
-   * Omitted means network access is allowed.
+   * Host check for whether this controller may be used to reach the network.
+   * Evaluated at the start of every gated method, so a denied call throws
+   * `NETWORK_ACCESS_DENIED` before any state write or request, even when a
+   * non-expired request-cache entry exists. Read already-fetched data from
+   * controller state to render while access is denied.
+   * Defaults to allowing network access.
    */
-  isNetworkAllowed?: () => boolean;
+  isNetworkAccessAllowed?: () => boolean;
   /**
    * Optional callback for order-sync failures (full sync parse/fetch/merge and
    * incremental remote push/delete). Context never includes full order JSON.
@@ -1570,7 +1572,7 @@ export class RampsController extends BaseController<
    */
   readonly #requestCacheMaxSize: number;
 
-  readonly #isNetworkAllowed?: () => boolean;
+  readonly #isNetworkAccessAllowed: () => boolean;
 
   readonly #onOrderSyncErroneousSituation?: (
     errorMessage: string,
@@ -1731,16 +1733,6 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Whether the host currently allows this controller to make network
-   * requests. An omitted check allows access.
-   *
-   * @returns Whether network access is allowed.
-   */
-  #isNetworkAccessAllowed(): boolean {
-    return this.#isNetworkAllowed?.() !== false;
-  }
-
-  /**
    * Throws before any request bookkeeping or state write when the host has
    * revoked network access. Cache entries are not served while denied.
    * Callers match on `errorKey`, never the message.
@@ -1763,7 +1755,7 @@ export class RampsController extends BaseController<
    * controller. Missing properties will be filled in with defaults.
    * @param args.requestCacheTTL - Time to live for cached requests in milliseconds.
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
-   * @param args.isNetworkAllowed - Optional host check for network access.
+   * @param args.isNetworkAccessAllowed - Host check for network access. Defaults to allowing access.
    * @param args.onOrderSyncErroneousSituation - Optional order-sync error reporter.
    * @param args.trace - Optional performance tracing callback for order sync.
    * @param args.trackAutorampTransactionStatusChanged - Optional callback for a new autoramp transaction or a status change.
@@ -1773,7 +1765,7 @@ export class RampsController extends BaseController<
     state = {},
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
-    isNetworkAllowed,
+    isNetworkAccessAllowed = allowNetworkAccess,
     onOrderSyncErroneousSituation,
     trace,
     trackAutorampTransactionStatusChanged,
@@ -1792,7 +1784,7 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
-    this.#isNetworkAllowed = isNetworkAllowed;
+    this.#isNetworkAccessAllowed = isNetworkAccessAllowed;
     this.#onOrderSyncErroneousSituation = onOrderSyncErroneousSituation;
     this.#trace = trace;
     this.#trackAutorampTransactionStatusChanged =
