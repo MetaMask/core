@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import { PaymentOverride } from '../../constants.js';
 import type { TransactionPayQuote } from '../../types.js';
 import { validateQuoteExecution } from '../../utils/validation.js';
 import type { ValidateQuotesRequest } from '../../utils/validation.js';
@@ -157,6 +158,7 @@ const generateEIP7702BatchTransactionMock = vi.mocked(
 describe('validateRelayQuotes', () => {
   const {
     messenger,
+    getKeyringControllerStateMock,
     getRemoteFeatureFlagControllerStateMock,
     polymarketGetDepositWalletAddressMock,
   } = getMessengerMock();
@@ -181,6 +183,60 @@ describe('validateRelayQuotes', () => {
       to: '0xbatchto',
       value: '0x0',
     });
+  });
+
+  it('skips validation when the Money Account payer is an MPC keyring', async () => {
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'MPC Money Keyring',
+          accounts: [REFUND_TO_MOCK],
+          metadata: { id: 'mpc-money-keyring', name: 'MPC Money Keyring' },
+        },
+      ],
+    });
+
+    const quote = buildQuote({
+      paymentOverride: PaymentOverride.MoneyAccount,
+      refundTo: REFUND_TO_MOCK,
+    });
+
+    await validateRelayQuotes({
+      messenger,
+      quotes: [quote],
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getRelaySubmitCallsMock).not.toHaveBeenCalled();
+    expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
+  });
+
+  it('validates a Money Account quote when the payer keyring does not require MFA', async () => {
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'Money Keyring',
+          accounts: [REFUND_TO_MOCK],
+          metadata: { id: 'money-keyring', name: 'Money Keyring' },
+        },
+      ],
+    });
+
+    const quote = buildQuote({
+      paymentOverride: PaymentOverride.MoneyAccount,
+      refundTo: REFUND_TO_MOCK,
+    });
+
+    await validateRelayQuotes({
+      messenger,
+      quotes: [quote],
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getRelaySubmitCallsMock).toHaveBeenCalledTimes(1);
+    expect(validateQuoteExecutionMock).toHaveBeenCalledTimes(1);
   });
 
   it('skips validation for Hyperliquid source quotes', async () => {

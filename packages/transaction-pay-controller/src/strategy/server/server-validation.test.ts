@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import { PaymentOverride } from '../../constants.js';
 import type { TransactionPayQuote } from '../../types.js';
 import { GasPaymentMode } from '../../utils/gas-payment.js';
 import { buildPolymarketDepositWalletSimulation } from '../../utils/polymarket/withdraw.js';
@@ -161,9 +162,14 @@ function buildQuote({
   };
 }
 
+const REFUND_TO_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
+
 describe('validateServerQuotes', () => {
-  const { messenger, getRemoteFeatureFlagControllerStateMock } =
-    getMessengerMock();
+  const {
+    messenger,
+    getKeyringControllerStateMock,
+    getRemoteFeatureFlagControllerStateMock,
+  } = getMessengerMock();
 
   const buildPolymarketDepositWalletSimulationMock = vi.mocked(
     buildPolymarketDepositWalletSimulation,
@@ -415,6 +421,64 @@ describe('validateServerQuotes', () => {
     expect(validateQuoteExecutionMock.mock.calls[0][0].simulation).toBe(
       simulation,
     );
+  });
+
+  it('skips validation when the Money Account payer is an MPC keyring', async () => {
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'MPC Money Keyring',
+          accounts: [REFUND_TO_MOCK],
+          metadata: { id: 'mpc-money-keyring', name: 'MPC Money Keyring' },
+        },
+      ],
+    });
+
+    await validateServerQuotes({
+      messenger,
+      quotes: [
+        buildQuote({
+          request: {
+            paymentOverride: PaymentOverride.MoneyAccount,
+            refundTo: REFUND_TO_MOCK,
+          },
+        }),
+      ],
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getServerSubmitParamsMock).not.toHaveBeenCalled();
+    expect(validateQuoteExecutionMock).not.toHaveBeenCalled();
+  });
+
+  it('validates a Money Account quote when the payer keyring does not require MFA', async () => {
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'Money Keyring',
+          accounts: [REFUND_TO_MOCK],
+          metadata: { id: 'money-keyring', name: 'Money Keyring' },
+        },
+      ],
+    });
+
+    await validateServerQuotes({
+      messenger,
+      quotes: [
+        buildQuote({
+          request: {
+            paymentOverride: PaymentOverride.MoneyAccount,
+            refundTo: REFUND_TO_MOCK,
+          },
+        }),
+      ],
+      transaction: TRANSACTION_MOCK,
+    });
+
+    expect(getServerSubmitParamsMock).toHaveBeenCalledTimes(1);
+    expect(validateQuoteExecutionMock).toHaveBeenCalledTimes(1);
   });
 
   it.each([
