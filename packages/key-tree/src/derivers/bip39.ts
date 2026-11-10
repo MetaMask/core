@@ -17,7 +17,7 @@ import type { Curve, SupportedCurve } from '../curves/index.js';
 import { getCurveByName } from '../curves/index.js';
 import { PUBLIC_KEY_GUARD } from '../guard.js';
 import { SLIP10Node } from '../SLIP10Node.js';
-import { getFingerprint, isArrayBufferBacked } from '../utils.js';
+import { getFingerprint } from '../utils.js';
 import type { DeriveChildKeyArgs } from './index.js';
 
 const MNEMONIC_PHRASE_LENGTHS = [12, 15, 18, 21, 24];
@@ -117,11 +117,6 @@ export function multipathToBip39Mnemonic(
   value: BIP39Node,
 ): string | Uint8Array<ArrayBuffer> {
   if (value instanceof Uint8Array) {
-    assert(
-      isArrayBufferBacked(value),
-      'Invalid HD path segment: The BIP-39 path must be a Uint8Array backed by an ArrayBuffer.',
-    );
-
     return value;
   }
 
@@ -163,7 +158,11 @@ export async function getDerivationPathWithSeed({
     }
 
     case 'cip3': {
-      const seed = mnemonicToEntropy(plainMnemonicPhrase, englishWordlist);
+      const seed = mnemonicToEntropy(
+        plainMnemonicPhrase,
+        englishWordlist,
+      ) as Uint8Array<ArrayBuffer>;
+
       return [seed, ...rest];
     }
 

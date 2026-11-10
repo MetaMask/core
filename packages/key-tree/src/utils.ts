@@ -290,7 +290,7 @@ export function isValidInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
-export function isArrayBufferBacked(
+function isArrayBufferBacked(
   bytes: Uint8Array,
 ): bytes is Uint8Array<ArrayBuffer> {
   return bytes.buffer instanceof ArrayBuffer;
