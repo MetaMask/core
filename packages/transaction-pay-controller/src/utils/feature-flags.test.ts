@@ -1,13 +1,16 @@
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import { TransactionPayStrategy } from '../constants.js';
 import type { TransactionPayFiatAsset } from '../strategy/fiat/constants.js';
 import { FIAT_ENABLED_TYPES } from '../strategy/fiat/constants.js';
+import type { TransactionPayControllerMessenger } from '../types.js';
 import {
   DEFAULT_ACROSS_API_BASE,
   DEFAULT_FALLBACK_GAS_ESTIMATE,
@@ -39,10 +42,12 @@ import {
   isRelayExecuteEnabled,
   isAtomicMaxEnabled,
   isRelayValidationEnabled,
+  isServerValidationEnabled,
   getFeatureFlags,
   getGasBuffer,
   getHyperliquidActivationFeeConfig,
   DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+  getMaxBalanceRefreshInterval,
   getPayStrategiesConfig,
   getSlippage,
   getStrategy,
@@ -592,6 +597,73 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(isRelayExecuteEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('isServerValidationEnabled', () => {
+    it('returns false when no feature flags are set', () => {
+      expect(isServerValidationEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when default is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: { validationEnabled: { default: true } },
+            },
+          },
+        },
+      });
+
+      expect(isServerValidationEnabled(messenger)).toBe(true);
+    });
+
+    it('ignores the relay validation flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              relay: { validationEnabled: { default: true } },
+            },
+          },
+        },
+      });
+
+      expect(isServerValidationEnabled(messenger)).toBe(false);
+    });
+
+    it('applies a per-type override over the default', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                validationEnabled: {
+                  default: false,
+                  transactionTypes: {
+                    [TransactionType.perpsDeposit]: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        isServerValidationEnabled(messenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBe(true);
+      expect(
+        isServerValidationEnabled(messenger, {
+          type: TransactionType.simpleSend,
+        } as TransactionMeta),
+      ).toBe(false);
     });
   });
 
@@ -1188,6 +1260,64 @@ describe('Feature Flags Utils', () => {
       const { server } = getPayStrategiesConfig(messenger);
 
       expect(server.baseUrl).toBe('https://server.test');
+    });
+  });
+
+  describe('getMaxBalanceRefreshInterval', () => {
+    const typedMessenger = messenger as TransactionPayControllerMessenger;
+    const typedGetStateMock =
+      getRemoteFeatureFlagControllerStateMock as MockedFunction<
+        RemoteFeatureFlagControllerGetStateAction['handler']
+      >;
+
+    beforeEach(() => {
+      typedGetStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            maxBalanceRefreshInterval: {
+              [TransactionType.perpsWithdraw]: 5000,
+            },
+          },
+        },
+      });
+    });
+
+    it('returns undefined when no interval is configured', () => {
+      typedGetStateMock.mockReturnValue(
+        getDefaultRemoteFeatureFlagControllerState(),
+      );
+
+      expect(
+        getMaxBalanceRefreshInterval(typedMessenger, {
+          type: TransactionType.perpsWithdraw,
+        } as TransactionMeta),
+      ).toBeUndefined();
+    });
+
+    it('returns the interval for a matching transaction type', () => {
+      expect(
+        getMaxBalanceRefreshInterval(typedMessenger, {
+          type: TransactionType.perpsWithdraw,
+        } as TransactionMeta),
+      ).toBe(5000);
+    });
+
+    it('returns the interval for a matching nested transaction type', () => {
+      expect(
+        getMaxBalanceRefreshInterval(typedMessenger, {
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.perpsWithdraw }],
+        } as TransactionMeta),
+      ).toBe(5000);
+    });
+
+    it('returns undefined for a non-matching transaction type', () => {
+      expect(
+        getMaxBalanceRefreshInterval(typedMessenger, {
+          type: TransactionType.perpsDeposit,
+        } as TransactionMeta),
+      ).toBeUndefined();
     });
   });
 

@@ -549,4 +549,52 @@ describe('parseRealtimeFeedItem', () => {
       parseRealtimeFeedItem({ ...normalized, flags: 'insider' }),
     ).toBeUndefined();
   });
+
+  it('copies the Profile API identity from the actor profile', () => {
+    const identity = {
+      displayName: 'Alice',
+      bio: 'gm',
+      createdAt: '2025-11-02T10:00:00.000Z',
+      updatedAt: '2026-10-30T08:30:00.000Z',
+      connectedToX: false,
+      tradingPrivacy: 'private',
+    };
+    const value = {
+      ...fullHydratedPosition,
+      actor: {
+        ...fullHydratedPosition.actor,
+        profile: { ...fullHydratedPosition.actor.profile, ...identity },
+      },
+    };
+
+    const item = normalizeRealtimeFeedItem(value);
+
+    expect(item?.actor).toMatchObject(identity);
+  });
+
+  it('leaves the Profile API identity absent when the actor profile has none', () => {
+    const item = normalizeRealtimeFeedItem(fullHydratedPosition);
+
+    expect(item?.actor).not.toHaveProperty('displayName');
+    expect(item?.actor).not.toHaveProperty('bio');
+    expect(item?.actor).not.toHaveProperty('createdAt');
+    expect(item?.actor).not.toHaveProperty('updatedAt');
+    expect(item?.actor).not.toHaveProperty('connectedToX');
+    expect(item?.actor).not.toHaveProperty('tradingPrivacy');
+  });
+
+  it('rejects a realtime item whose actor trading privacy is unknown', () => {
+    const value = {
+      ...fullHydratedPosition,
+      actor: {
+        ...fullHydratedPosition.actor,
+        profile: {
+          ...fullHydratedPosition.actor.profile,
+          tradingPrivacy: 'friends',
+        },
+      },
+    };
+
+    expect(parseRealtimeFeedItem(value)).toBeUndefined();
+  });
 });

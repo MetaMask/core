@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [42.1.1]
+
 ### Changed
 
-- Bump `uuid` from `^14.0.0` to `^14.0.1` ([#11179](https://github.com/MetaMask/core/pull/11179))
-- Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
-- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.0` ([#11289](https://github.com/MetaMask/core/pull/11289))
+- Bump `uuid` from `^14.0.0` to `^14.0.2` ([#11179](https://github.com/MetaMask/core/pull/11179), [#11305](https://github.com/MetaMask/core/pull/11305))
+- Bump `@metamask/gas-fee-controller` from `^27.0.0` to `^27.1.1` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^73.0.0` to `^73.1.2` ([#11289](https://github.com/MetaMask/core/pull/11289), [#11300](https://github.com/MetaMask/core/pull/11300), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
 
 ## [42.1.0]
 
@@ -716,7 +719,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.1.1...HEAD
+[42.1.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.1.0...@metamask/user-operation-controller@42.1.1
 [42.1.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.0.1...@metamask/user-operation-controller@42.1.0
 [42.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@42.0.0...@metamask/user-operation-controller@42.0.1
 [42.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.9...@metamask/user-operation-controller@42.0.0

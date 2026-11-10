@@ -14,12 +14,18 @@ import {
   createMockPosition,
 } from '../helpers/providerMocks.js';
 import {
+  createKeyringlessMessenger,
   createMockInfrastructure,
   createMockMessenger,
 } from '../helpers/serviceMocks.js';
 
 vi.mock('@nktkas/hyperliquid', () => ({}));
 
+import type {
+  PerpsAvailableToTrade,
+  PerpsControllerSubscribeToAvailableToTradeAction,
+  SubscribeAvailableToTradeParams,
+} from '../../src/index.js';
 import {
   PerpsController,
   getDefaultPerpsControllerState,
@@ -588,6 +594,137 @@ describe('PerpsController', () => {
 
       expect(unsubscribe).toBe(mockUnsubscribe);
       expect(mockProvider.subscribeToPositions).toHaveBeenCalledWith(params);
+    });
+  });
+
+  describe('subscribeToAvailableToTrade', () => {
+    const venueValue = {
+      providerId: 'hyperliquid' as const,
+      symbol: 'BTC',
+      long: '421.412267',
+      short: '426.425907',
+    };
+
+    beforeEach(() => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+    });
+
+    it('streams the active provider venue values unchanged', () => {
+      const mockUnsubscribe = vi.fn();
+      const subscribe = vi.fn((params) => {
+        params.callback(venueValue);
+        return mockUnsubscribe;
+      });
+      mockProvider.subscribeToAvailableToTrade = subscribe;
+      const callback = vi.fn();
+      const params = { symbol: 'BTC', callback };
+
+      const unsubscribe = controller.subscribeToAvailableToTrade(params);
+
+      expect(subscribe).toHaveBeenCalledWith(params);
+      expect(callback).toHaveBeenCalledWith(venueValue);
+      expect(unsubscribe).toBe(mockUnsubscribe);
+    });
+
+    it('leaves the value unknown when the provider cannot read it from its venue', () => {
+      delete (mockProvider as { subscribeToAvailableToTrade?: unknown })
+        .subscribeToAvailableToTrade;
+      const callback = vi.fn();
+
+      const unsubscribe = controller.subscribeToAvailableToTrade({
+        symbol: 'BTC',
+        callback,
+      });
+      unsubscribe();
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('leaves the value unknown when no provider is active', () => {
+      const subscribe = vi.fn();
+      mockProvider.subscribeToAvailableToTrade = subscribe;
+      controller.testSetInitialized(false);
+      const callback = vi.fn();
+
+      const unsubscribe = controller.subscribeToAvailableToTrade({
+        symbol: 'BTC',
+        callback,
+      });
+      unsubscribe();
+
+      expect(subscribe).not.toHaveBeenCalled();
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('leaves the value unknown for a route the active provider does not serve', () => {
+      const subscribe = vi.fn();
+      mockProvider.subscribeToAvailableToTrade = subscribe;
+      const callback = vi.fn();
+
+      const unsubscribe = controller.subscribeToAvailableToTrade({
+        symbol: 'BTC',
+        providerId: 'lighter',
+        callback,
+      });
+      unsubscribe();
+
+      expect(subscribe).not.toHaveBeenCalled();
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('logs and leaves the value unknown when the provider throws', () => {
+      mockProvider.subscribeToAvailableToTrade = vi.fn(() => {
+        throw new Error('socket closed');
+      });
+      const callback = vi.fn();
+
+      const unsubscribe = controller.subscribeToAvailableToTrade({
+        symbol: 'BTC',
+        callback,
+      });
+      unsubscribe();
+
+      expect(callback).not.toHaveBeenCalled();
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'socket closed' }),
+        expect.anything(),
+      );
+    });
+
+    it('serves package consumers through the registered messenger action', async () => {
+      const { messenger } = createKeyringlessMessenger();
+      const consumerController = new TestablePerpsController({
+        messenger,
+        state: getDefaultPerpsControllerState(),
+        infrastructure: mockInfrastructure,
+      });
+      consumerController.testMarkInitialized();
+      // init() registers the messenger actions; already initialized, it stops there.
+      await consumerController.init();
+      consumerController.testSetProviders(
+        new Map([['hyperliquid', mockProvider]]),
+      );
+      const providerCleanup = vi.fn();
+      mockProvider.subscribeToAvailableToTrade = vi.fn(
+        (params: SubscribeAvailableToTradeParams) => {
+          params.callback(venueValue);
+          return providerCleanup;
+        },
+      );
+      const received: PerpsAvailableToTrade[] = [];
+      const params: SubscribeAvailableToTradeParams = {
+        symbol: 'BTC',
+        callback: (value) => received.push(value),
+      };
+      const action: PerpsControllerSubscribeToAvailableToTradeAction['type'] =
+        'PerpsController:subscribeToAvailableToTrade';
+
+      const cleanup = messenger.call(action, params);
+      cleanup();
+
+      expect(received).toStrictEqual([venueValue]);
+      expect(providerCleanup).toHaveBeenCalledTimes(1);
     });
   });
 
