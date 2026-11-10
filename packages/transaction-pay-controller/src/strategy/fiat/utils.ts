@@ -19,7 +19,11 @@ import { buildCaipAssetType } from '../../utils/token.js';
 import { getTransferredAmountFromTxHash } from '../../utils/transaction.js';
 import type { RelayQuote } from '../relay/types.js';
 import type { TransactionPayFiatAsset } from './constants.js';
-import { DEFAULT_FIAT_CURRENCY, FIAT_ENABLED_TYPES } from './constants.js';
+import {
+  DEFAULT_FIAT_CURRENCY,
+  FIAT_ENABLED_TYPES,
+  MONEY_ACCOUNT_DEPOSIT_TYPES,
+} from './constants.js';
 
 const log = createModuleLogger(projectLogger, 'fiat-utils');
 
@@ -63,8 +67,9 @@ export function resolveTransactionType(
 /**
  * Checks whether a transaction is a Money Account deposit.
  *
- * Handles both direct `moneyAccountDeposit` transactions and EIP-7702
- * batch transactions that contain a `moneyAccountDeposit` nested call.
+ * Matches any of `MONEY_ACCOUNT_DEPOSIT_TYPES` (`moneyAccountDeposit` and
+ * `membershipSubscription`), either as the transaction type or as a nested
+ * call in an EIP-7702 batch.
  * Uses {@link resolveTransactionType} with `FIAT_ENABLED_TYPES` to
  * correctly skip non-deposit nested types (e.g. `tokenMethodApprove`).
  *
@@ -74,10 +79,9 @@ export function resolveTransactionType(
 export function isMoneyAccountDepositTransaction(
   transaction: TransactionMeta,
 ): boolean {
-  return (
-    resolveTransactionType(transaction, FIAT_ENABLED_TYPES) ===
-    TransactionType.moneyAccountDeposit
-  );
+  const type = resolveTransactionType(transaction, FIAT_ENABLED_TYPES);
+
+  return type !== undefined && MONEY_ACCOUNT_DEPOSIT_TYPES.includes(type);
 }
 
 /**

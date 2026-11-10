@@ -36,6 +36,8 @@ export type {
   UpdateProfileParams,
   ConnectXParams,
   UsernameAvailabilityResponse,
+  FieldValidityResponse,
+  EarlyAccessResponse,
   XAuthUrlResponse,
   ConnectXResponse,
   XAccountResponse,
@@ -47,15 +49,11 @@ export {
   ProfileService,
   ProfileServiceErrorMessage,
 } from './ProfileService.js';
-export type { MockProfileServiceHandlers } from './ProfileServiceMock.js';
-export {
-  buildMockProfileService,
-  MOCK_PROFILE_API_RESPONSE,
-  MOCK_X_CONNECT_RESPONSE,
-  MOCK_X_AUTH_URL_RESPONSE,
-} from './ProfileServiceMock.js';
 export type {
   ProfileServiceCheckUsernameAvailabilityAction,
+  ProfileServiceCheckDisplayNameValidityAction,
+  ProfileServiceCheckBioValidityAction,
+  ProfileServiceCheckEarlyAccessAction,
   ProfileServiceConnectXAction,
   ProfileServiceCreateProfileAction,
   ProfileServiceDeleteProfileAction,

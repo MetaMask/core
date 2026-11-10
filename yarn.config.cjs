@@ -22,7 +22,10 @@ const { inspect } = require('util');
  * Only intended as temporary measures to faciliate upgrades and releases.
  * This should trend towards empty.
  */
-const ALLOWED_INCONSISTENT_DEPENDENCIES = {};
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {
+  '@ethereumjs/util': ['^8.1.0'],
+  '@ethereumjs/rlp': ['^4.0.1'],
+};
 
 /**
  * Whether `yarn constraints --fix` may resolve a dependency range disagreement
@@ -243,6 +246,14 @@ module.exports = defineConfig({
       }
 
       if (isChildWorkspace) {
+        // All non-root packages must have a "scripts.allow-scripts" script that
+        // calls the root package's "allow-scripts" script.
+        expectWorkspaceField(
+          workspace,
+          'scripts.allow-scripts',
+          `yarn workspace ${rootWorkspace.manifest.name} run allow-scripts`,
+        );
+
         // The list of files included in all non-root packages must only include
         // files generated during the build process.
         expectWorkspaceArrayField(workspace, 'files', 'dist/');

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/advanced-chart-core",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Platform-agnostic TradingView Advanced Charts WebView engine shared across MetaMask clients",
   "keywords": [
     "Ethereum",
@@ -36,6 +36,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",

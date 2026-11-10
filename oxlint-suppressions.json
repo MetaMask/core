@@ -1322,12 +1322,17 @@
       "count": 1
     }
   },
+  "packages/authenticated-user-storage/src/authenticated-user-storage.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    }
+  },
   "packages/authenticated-user-storage/src/authenticated-user-storage.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 5
+      "count": 6
     },
     "typescript/no-unsafe-return": {
-      "count": 5
+      "count": 6
     }
   },
   "packages/base-data-service/src/BaseDataService.ts": {
@@ -1683,16 +1688,16 @@
       "count": 3
     },
     "typescript/no-unsafe-call": {
-      "count": 1
+      "count": 2
     },
     "typescript/no-unsafe-member-access": {
-      "count": 6
+      "count": 7
     },
     "typescript/no-unsafe-return": {
-      "count": 3
+      "count": 5
     },
     "vitest/no-conditional-in-test": {
-      "count": 19
+      "count": 18
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.ts": {
@@ -1753,14 +1758,14 @@
       "count": 8
     }
   },
-  "packages/bridge-status-controller/src/utils/metrics.test.ts": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "packages/bridge-status-controller/src/utils/snaps.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 3
+    }
+  },
+  "packages/bridge-status-controller/src/utils/swap-received-amount.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
     }
   },
   "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {
@@ -2248,6 +2253,129 @@
       "count": 1
     }
   },
+  "packages/eth-sig-util/src/encryption.test.ts": {
+    "typescript/no-explicit-any": {
+      "count": 16
+    }
+  },
+  "packages/eth-sig-util/src/encryption.ts": {
+    "no-undef": {
+      "count": 3
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    }
+  },
+  "packages/eth-sig-util/src/personal-sign.test.ts": {
+    "typescript/no-explicit-any": {
+      "count": 6
+    }
+  },
+  "packages/eth-sig-util/src/sign-eip7702-authorization.test.ts": {
+    "typescript/no-explicit-any": {
+      "count": 7
+    }
+  },
+  "packages/eth-sig-util/src/sign-eip7702-authorization.ts": {
+    "no-undef": {
+      "count": 3
+    }
+  },
+  "packages/eth-sig-util/src/sign-typed-data.test.ts": {
+    "id-denylist": {
+      "count": 2
+    },
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 3
+    },
+    "typescript/no-base-to-string": {
+      "count": 2
+    },
+    "typescript/no-explicit-any": {
+      "count": 40
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 18
+    },
+    "typescript/no-unsafe-call": {
+      "count": 2
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 1
+    },
+    "typescript/prefer-nullish-coalescing": {
+      "count": 18
+    },
+    "vitest/no-restricted-matchers": {
+      "count": 82
+    }
+  },
+  "packages/eth-sig-util/src/sign-typed-data.ts": {
+    "guard-for-in": {
+      "count": 1
+    },
+    "id-length": {
+      "count": 11
+    },
+    "no-param-reassign": {
+      "count": 6
+    },
+    "typescript/explicit-function-return-type": {
+      "count": 2
+    },
+    "typescript/no-explicit-any": {
+      "count": 5
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 9
+    },
+    "typescript/no-unsafe-assignment": {
+      "count": 3
+    },
+    "typescript/no-unsafe-call": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 1
+    },
+    "typescript/no-unsafe-return": {
+      "count": 2
+    }
+  },
+  "packages/eth-sig-util/src/utils.test.ts": {
+    "typescript/no-explicit-any": {
+      "count": 6
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 6
+    }
+  },
+  "packages/eth-sig-util/src/utils.ts": {
+    "id-length": {
+      "count": 3
+    },
+    "no-param-reassign": {
+      "count": 1
+    },
+    "no-undef": {
+      "count": 1
+    },
+    "typescript/no-explicit-any": {
+      "count": 1
+    }
+  },
   "packages/foundryup/src/download.ts": {
     "typescript/explicit-function-return-type": {
       "count": 1
@@ -2572,6 +2700,63 @@
     },
     "typescript/no-unsafe-call": {
       "count": 11
+    }
+  },
+  "packages/key-tree/src/BIP44CoinTypeNode.test.ts": {
+    "typescript/no-explicit-any": {
+      "count": 12
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 12
+    }
+  },
+  "packages/key-tree/src/BIP44Node.test.ts": {
+    "typescript/no-explicit-any": {
+      "count": 11
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    }
+  },
+  "packages/key-tree/src/SLIP10Node.test.ts": {
+    "typescript/no-base-to-string": {
+      "count": 2
+    },
+    "typescript/no-explicit-any": {
+      "count": 9
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 4
+    },
+    "vitest/no-conditional-in-test": {
+      "count": 4
+    }
+  },
+  "packages/key-tree/src/curves/ed25519Bip32.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 2
+    }
+  },
+  "packages/key-tree/src/derivation.test.ts": {
+    "typescript/no-explicit-any": {
+      "count": 6
+    },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    }
+  },
+  "packages/key-tree/tests/reference-implementations.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 2
     }
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
@@ -3952,7 +4137,7 @@
   },
   "packages/perps-controller/tests/src/utils/hyperLiquidPositionPreview.test.ts": {
     "vitest/no-conditional-in-test": {
-      "count": 27
+      "count": 25
     }
   },
   "packages/perps-controller/tests/src/utils/hyperLiquidValidation.advanced-orders.test.ts": {
@@ -5392,10 +5577,10 @@
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.test.ts": {
     "typescript/no-unsafe-call": {
-      "count": 86
+      "count": 87
     },
     "typescript/no-unsafe-member-access": {
-      "count": 220
+      "count": 221
     },
     "vitest/no-conditional-in-test": {
       "count": 5
@@ -5465,6 +5650,9 @@
     "typescript/no-unnecessary-type-assertion": {
       "count": 4
     },
+    "typescript/no-unsafe-argument": {
+      "count": 1
+    },
     "typescript/no-unsafe-call": {
       "count": 23
     },
@@ -5472,15 +5660,23 @@
       "count": 31
     }
   },
-  "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 141
-    },
+  "packages/transaction-pay-controller/src/strategy/server/server-validation.test.ts": {
     "typescript/no-unsafe-call": {
-      "count": 108
+      "count": 1
     },
     "typescript/no-unsafe-member-access": {
-      "count": 108
+      "count": 1
+    }
+  },
+  "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 146
+    },
+    "typescript/no-unsafe-call": {
+      "count": 111
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 111
     }
   },
   "packages/transaction-pay-controller/src/utils/gas-payment.test.ts": {
@@ -5635,7 +5831,7 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 60
+      "count": 63
     },
     "typescript/no-unsafe-call": {
       "count": 59
@@ -5679,7 +5875,7 @@
   },
   "packages/transaction-pay-controller/src/utils/validation.test.ts": {
     "typescript/no-unsafe-member-access": {
-      "count": 22
+      "count": 23
     }
   },
   "packages/transaction-pay-controller/src/utils/validation.ts": {

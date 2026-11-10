@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-network-controller",
-  "version": "4.0.0",
+  "version": "4.1.1",
   "description": "Multichain network controller",
   "keywords": [
     "Ethereum",
@@ -32,6 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -51,13 +52,13 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^40.1.0",
+    "@metamask/accounts-controller": "^40.2.0",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/keyring-api": "^24.3.0",
     "@metamask/keyring-internal-api": "^12.1.2",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/network-controller": "^37.1.1",
+    "@metamask/network-controller": "^38.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.1",
     "@solana/addresses": "^2.3.0",

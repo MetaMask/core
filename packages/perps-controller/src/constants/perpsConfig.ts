@@ -506,6 +506,25 @@ export const DECIMAL_PRECISION_CONFIG = {
 } as const;
 
 /**
+ * Decimal places kept by the shared TP/SL calculations.
+ *
+ * A calculated trigger price keeps the decimals of the first band whose
+ * `BelowPrice` it is under, else `TriggerPriceDefaultDecimals`, without
+ * trailing zeros: low-priced assets need more decimals. The provider rounds
+ * the price to the asset's submission precision when the order is sent.
+ */
+export const TP_SL_PRECISION_CONFIG = {
+  TriggerPriceBands: [
+    { BelowPrice: 0.01, Decimals: 8 },
+    { BelowPrice: 1, Decimals: DECIMAL_PRECISION_CONFIG.MaxPriceDecimals },
+    { BelowPrice: 100, Decimals: 4 },
+  ],
+  TriggerPriceDefaultDecimals: 2,
+  // Decimal places of a calculated or displayed RoE or price-move percentage
+  PercentageDecimals: 2,
+} as const;
+
+/**
  * Market sorting configuration
  * Controls sorting behavior and presets for the trending markets view
  */
@@ -706,6 +725,51 @@ export const FUNDING_RATE_CONFIG = {
   ZeroDisplay: '0.0000%',
   // Multiplier to convert decimal funding rate to percentage
   PercentageMultiplier: 100,
+} as const;
+
+/**
+ * Decimal places shown for each displayed perps value, shared by Mobile,
+ * Extension and Terminal. Pass one as the `decimals` option of the display
+ * formatters (`formatPercentage`, `formatPnl`, `formatPerpsFiat`,
+ * `formatFundingRate`, `formatFeeBps`, `formatLiquidationDistance`,
+ * `formatPerpsCompact`, `formatPerpsUsdInput`). Prices follow
+ * `PRICE_RANGES_UNIVERSAL` instead.
+ */
+export const PERPS_DISPLAY_PRECISION = {
+  // Generic percentage, such as the 24h change: "+5.25%"
+  Percentage: 2,
+  // Return on equity: "+10.3%"
+  RoePercent: 1,
+  // Profit and loss in USD: "+$12.34"
+  Pnl: 2,
+  // Fee amount in USD: "$1.50"
+  Fee: 2,
+  // Fee rate as a percentage: "0.045%"
+  FeeRatePercent: 3,
+  // Funding rate as a percentage: "0.0125%"
+  FundingRatePercent: FUNDING_RATE_CONFIG.Decimals,
+  // Estimated slippage of an order as a percentage: "0.0021%"
+  SlippageEstimatePercent: 4,
+  // Most decimals a displayed price may have (Hyperliquid limit)
+  MaxPriceDecimals: DECIMAL_PRECISION_CONFIG.MaxPriceDecimals,
+  // Most decimals of a fee in basis points: "4.5 bps", "1.44 bps"
+  FeeBps: 2,
+  // Distance from the liquidation price as a percentage: "30.00%"
+  LiquidationDistancePercent: 2,
+  // Most decimals of TWAP progress as a percentage: "25%", "33.33%"
+  TwapProgressPercent: 2,
+  // Most decimals of a typed USD amount: "12.34"
+  UsdInput: 2,
+  // Most digits of a typed USD amount, integer and fraction together
+  UsdInputMaxDigits: 9,
+  // Volume and open interest from $1M up, and below $1K: "$1.23M", "$999.50"
+  VolumeCompact: 2,
+  // Volume and open interest in thousands: "$123K"
+  VolumeCompactThousands: 0,
+  // Order book size and total from 1K up: "$2.1K", "604.9K"
+  OrderBookCompact: 1,
+  // Most decimals of an abbreviated order book price: "$61.47K"
+  OrderBookAbbreviatedPriceMax: 3,
 } as const;
 
 /**

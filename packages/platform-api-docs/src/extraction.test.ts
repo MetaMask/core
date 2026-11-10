@@ -52,6 +52,7 @@ async function extractFromWrittenFile(
   await fs.promises.writeFile(filePath, content);
   const parentDir = path.dirname(filePath);
   const project = createProject();
+  project.compilerOptions.set({ noLib: true });
   project.addSourceFilesAtPaths([
     path.join(parentDir, '**/*.ts'),
     path.join(parentDir, '**/*.d.cts'),

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import type { TransactionPayControllerMessenger } from '../../types.js';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
@@ -135,6 +136,25 @@ describe('Fiat Utils', () => {
 
       expect(result).toStrictEqual(
         FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.perpsDeposit],
+      );
+    });
+
+    it('returns hardcoded asset for nested membershipSubscription in batch', () => {
+      const transaction = {
+        nestedTransactions: [
+          { type: TransactionType.tokenMethodApprove },
+          { type: TransactionType.membershipSubscription },
+        ],
+        type: TransactionType.batch,
+      } as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(
+        transaction,
+        messenger as TransactionPayControllerMessenger,
+      );
+
+      expect(result).toStrictEqual(
+        FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.membershipSubscription],
       );
     });
 
@@ -376,6 +396,26 @@ describe('Fiat Utils', () => {
           { type: TransactionType.moneyAccountDeposit },
         ],
       } as unknown as TransactionMeta;
+
+      expect(isMoneyAccountDepositTransaction(transaction)).toBe(true);
+    });
+
+    it('returns true for batch transaction with membershipSubscription nested type', () => {
+      const transaction = {
+        type: TransactionType.batch,
+        nestedTransactions: [
+          { type: TransactionType.tokenMethodApprove },
+          { type: TransactionType.membershipSubscription },
+        ],
+      } as unknown as TransactionMeta;
+
+      expect(isMoneyAccountDepositTransaction(transaction)).toBe(true);
+    });
+
+    it('returns true for membershipSubscription transaction type', () => {
+      const transaction = {
+        type: TransactionType.membershipSubscription,
+      } as TransactionMeta;
 
       expect(isMoneyAccountDepositTransaction(transaction)).toBe(true);
     });

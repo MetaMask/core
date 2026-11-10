@@ -1,6 +1,6 @@
 {
   "name": "@metamask/sample-controllers",
-  "version": "6.0.0",
+  "version": "6.1.0",
   "description": "Sample package to illustrate best practices for controllers",
   "keywords": [
     "Ethereum",
@@ -32,6 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -54,7 +55,7 @@
     "@metamask/base-controller": "^10.1.0",
     "@metamask/base-data-service": "^2.1.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/network-controller": "^37.1.1",
+    "@metamask/network-controller": "^38.0.0",
     "@metamask/superstruct": "^3.4.1",
     "@metamask/utils": "^12.0.1",
     "@tanstack/query-core": "^5.103.2"

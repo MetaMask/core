@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-controller",
-  "version": "83.1.3",
+  "version": "83.1.4",
   "description": "Manages bridge-related quote fetching functionality for MetaMask",
   "keywords": [
     "Ethereum",
@@ -32,6 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -56,26 +57,26 @@
     "@ethersproject/constants": "^5.8.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.8.0",
-    "@metamask/accounts-controller": "^40.1.0",
-    "@metamask/assets-controller": "^20.2.0",
-    "@metamask/assets-controllers": "^113.1.0",
+    "@metamask/accounts-controller": "^40.2.0",
+    "@metamask/assets-controller": "^20.3.1",
+    "@metamask/assets-controllers": "^113.3.1",
     "@metamask/base-controller": "^10.1.0",
     "@metamask/controller-utils": "^13.0.0",
-    "@metamask/gas-fee-controller": "^27.0.0",
+    "@metamask/gas-fee-controller": "^27.1.1",
     "@metamask/keyring-api": "^24.3.0",
     "@metamask/messenger": "^3.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/multichain-network-controller": "^4.0.0",
-    "@metamask/network-controller": "^37.1.1",
+    "@metamask/multichain-network-controller": "^4.1.1",
+    "@metamask/network-controller": "^38.0.0",
     "@metamask/polling-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^36.0.0",
+    "@metamask/profile-sync-controller": "^36.1.1",
     "@metamask/remote-feature-flag-controller": "^7.0.0",
     "@metamask/snaps-controllers": "^19.0.1",
-    "@metamask/transaction-controller": "^73.0.0",
+    "@metamask/transaction-controller": "^73.1.2",
     "@metamask/utils": "^12.0.1",
     "bignumber.js": "^9.1.2",
     "reselect": "^5.3.0",
-    "uuid": "^14.0.1"
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^7.1.0",
