@@ -1345,6 +1345,9 @@ export type PerpsControllerSaveTradeConfigurationAction = {
  * @param config.reduceOnly - Whether the order may only reduce a position.
  * @param config.direction - Long or short.
  * @param config.selectedPaymentToken - The selected payment token.
+ * @param providerId - Optional venue to key the configuration under.
+ * Defaults to the active provider, or the default provider in aggregated
+ * mode.
  */
 export type PerpsControllerSavePendingTradeConfigurationAction = {
   type: `PerpsController:savePendingTradeConfiguration`;
@@ -1356,6 +1359,9 @@ export type PerpsControllerSavePendingTradeConfigurationAction = {
  * Returns undefined if config doesn't exist or has expired.
  *
  * @param symbol - Market symbol
+ * @param providerId - Optional venue the configuration was saved for.
+ * Defaults to the active provider, or the default provider in aggregated
+ * mode.
  * @returns Pending trade configuration or undefined
  */
 export type PerpsControllerGetPendingTradeConfigurationAction = {
@@ -1536,6 +1542,8 @@ export type PerpsControllerResetSelectedPaymentTokenAction = {
  * Get saved order book grouping for a market
  *
  * @param symbol - Market symbol
+ * @param providerId - Optional venue the grouping was saved for. Defaults to
+ * the active provider, or the default provider in aggregated mode.
  * @returns The saved grouping value or undefined if not set
  */
 export type PerpsControllerGetOrderBookGroupingAction = {
@@ -1561,6 +1569,8 @@ export type PerpsControllerSaveOrderBookGroupingAction = {
  * network. Clients should still let a venue-enforced mode take priority.
  *
  * @param symbol - Market symbol
+ * @param providerId - Optional venue the mode was saved for. Defaults to the
+ * active provider, or the default provider in aggregated mode.
  * @returns The saved margin mode or undefined if not set
  */
 export type PerpsControllerGetMarginModeAction = {
