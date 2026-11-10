@@ -42,8 +42,9 @@ import {
   pendingPayloadHasIdentifiers,
   pendingPayloadHasRecoverySecret,
 } from './pending-operation-validation.js';
-import { assertAbortAllowed, getRecoveryPhase } from './state-machine.js';
+import { getRecoveryPhase } from './state-machine.js';
 import type {
+  GetIdentifiersResponse,
   Identifier,
   IdentifierAuthorization,
   IdentifierSession,
@@ -448,18 +449,9 @@ export class MfaRecoveryController extends BaseController<
           'no_available_escrow',
         );
       }
-      const { approval, identifiers: authIdentifiers } =
-        await this.#authProvider.authorizeRecoveryRequest({
-          requestHash: await hash({ operation: 'getIdentifiers' }),
-          audiences: available.map((escrow) => escrow.authAudience),
-        });
-      const responses = (
-        await Promise.allSettled(
-          available.map(
-            async (escrow) => await escrow.getIdentifiers(approval),
-          ),
-        )
-      )
+      const { authIdentifiers, results } =
+        await this.#authorizeAndReadIdentifiers(available);
+      const responses = results
         .filter(isFulfilledResult)
         .map((result) => result.value);
       if (responses.length === 0) {
@@ -490,12 +482,19 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
-   * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
+   * Drops `authorizing` pending. Drops `writing` pending only once its approval
+   * has expired and no escrow applied it; otherwise finish it with
+   * {@link resume}.
    */
   async abort(): Promise<void> {
     await this.#withLock(async () => {
       const pending = await this.#loadPending();
-      assertAbortAllowed(pending);
+      if (pending?.phase === 'writing' && !(await this.#isUnapplied(pending))) {
+        throw new MfaRecoveryError(
+          'Cannot abort a mutation that may have been applied',
+          'abort_not_allowed',
+        );
+      }
       if (pending) {
         await this.#clearPending();
       }
@@ -509,6 +508,42 @@ export class MfaRecoveryController extends BaseController<
     return await this.#withLock(async () =>
       getRecoveryPhase(await this.#loadPending()),
     );
+  }
+
+  // No write can land after its approval expires, and escrow versions only
+  // grow, so every escrow still at `expectedVersion` means none applied it.
+  async #isUnapplied({
+    mutation,
+    authControllerToken,
+  }: WritingPendingOperation): Promise<boolean> {
+    const claims = decodeAuthControllerToken(authControllerToken);
+    if (claims && claims.exp > this.#now()) {
+      return false;
+    }
+    const { results } = await this.#authorizeAndReadIdentifiers(this.#escrows);
+    return results.every(
+      (result) =>
+        isFulfilledResult(result) &&
+        result.value.version === mutation.expectedVersion,
+    );
+  }
+
+  // Read approvals need no 2FA.
+  async #authorizeAndReadIdentifiers(
+    escrows: RecoveryEscrowProvider[],
+  ): Promise<{
+    authIdentifiers: Identifier[];
+    results: PromiseSettledResult<GetIdentifiersResponse>[];
+  }> {
+    const { approval, identifiers } =
+      await this.#authProvider.authorizeRecoveryRequest({
+        requestHash: await hash({ operation: 'getIdentifiers' }),
+        audiences: escrows.map((escrow) => escrow.authAudience),
+      });
+    const results = await Promise.allSettled(
+      escrows.map(async (escrow) => await escrow.getIdentifiers(approval)),
+    );
+    return { authIdentifiers: identifiers, results };
   }
 
   async #mutate(params: MutateParams): Promise<void> {

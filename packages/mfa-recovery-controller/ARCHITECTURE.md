@@ -92,8 +92,10 @@ stateDiagram-v2
 
 Rules:
 
-- **`abort()`** drops `authorizing` only. `writing` must `resume()`
-  (`abort_not_allowed`).
+- **`abort()`** drops `authorizing`. It drops `writing` only once the write
+  approval has expired, so no write can still land, and every escrow still
+  reports `expectedVersion`, so none applied it. Otherwise `writing` must
+  `resume()` (`abort_not_allowed`).
 - `writing` is persisted before the **first escrow apply**, after the
   AuthController token is issued, every target escrow has accepted identifier
   authorization, and the per-escrow payloads are wrapped. An ambiguous apply

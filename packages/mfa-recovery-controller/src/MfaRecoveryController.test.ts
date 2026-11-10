@@ -720,13 +720,20 @@ describe('MfaRecoveryController', () => {
     });
 
     it('cannot abort a writing mutation that may have been applied', async () => {
-      await withController(async ({ controller, escrowA }) => {
+      let now = unixNow();
+      await withController(async ({ escrowA, options }) => {
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          now: (): number => now,
+        });
         await controller.register(SECRET, IDENTIFIERS);
         escrowA.failNextApplyCount = 1;
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
         expect(await controller.getPhase()).toBe('writing');
+        now += 10 * 60;
         await expect(controller.abort()).rejects.toThrow(
           'Cannot abort a mutation that may have been applied',
         );
@@ -1109,6 +1116,65 @@ describe('MfaRecoveryController', () => {
         expect(await resumed.getPhase()).toBe('idle');
         expect(availabilityA).not.toHaveBeenCalled();
         expect(availabilityB).not.toHaveBeenCalled();
+      });
+    });
+
+    it('aborts a writing mutation no escrow applied once its approval expires', async () => {
+      let now = unixNow();
+      await withController(async ({ escrowA, escrowB, options }) => {
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          now: (): number => now,
+        });
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.failNextApplyCount = 1;
+        escrowB.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+        await expect(controller.abort()).rejects.toThrow(
+          'Cannot abort a mutation that may have been applied',
+        );
+
+        now += 10 * 60;
+        vi.spyOn(escrowB, 'getIdentifiers').mockRejectedValueOnce(
+          new Error('offline'),
+        );
+        await expect(controller.abort()).rejects.toThrow(
+          'Cannot abort a mutation that may have been applied',
+        );
+        await controller.abort();
+
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+
+    it('aborts a writing register no escrow applied once its approval expires', async () => {
+      let now = unixNow();
+      await withController(async ({ escrowA, escrowB, options }) => {
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          now: (): number => now,
+        });
+        escrowA.failNextApplyCount = 1;
+        escrowB.failNextApplyCount = 1;
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+        // Escrows read a missing record as version 0.
+        for (const escrow of [escrowA, escrowB]) {
+          vi.spyOn(escrow, 'getIdentifiers').mockResolvedValue({
+            identifiers: [],
+            version: 0,
+          });
+        }
+
+        now += 10 * 60;
+        await controller.abort();
+
+        expect(await controller.getPhase()).toBe('idle');
       });
     });
 
