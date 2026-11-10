@@ -14,7 +14,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
@@ -227,10 +227,6 @@ describe('registerIntentsStep', () => {
     // picks the hex overload, but `vi.mocked()` picks the bytes overload, so
     // cast through `never` to satisfy both.
     mockCreateRedeemerTerms.mockReturnValue(MOCK_REDEEMER_TERMS as never);
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   it('is named "register-intents"', () => {

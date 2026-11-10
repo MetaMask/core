@@ -402,20 +402,8 @@
     }
   },
   "packages/client-utils/src/mappers/helpers/transactions.test.ts": {
-    "TS2322": {
-      "count": 9
-    },
-    "TS2345": {
-      "count": 1
-    },
     "TS2352": {
       "count": 12
-    },
-    "TS2739": {
-      "count": 3
-    },
-    "TS2741": {
-      "count": 1
     }
   },
   "packages/client-utils/test/fixtures/api-transactions.ts": {
@@ -465,6 +453,20 @@
   "packages/core-backend/src/ws/ohlcv/OHLCVService.test.ts": {
     "TS2741": {
       "count": 1
+    }
+  },
+  "packages/eth-sig-util/src/sign-typed-data.test.ts": {
+    "TS2322": {
+      "count": 12
+    },
+    "TS2351": {
+      "count": 1
+    },
+    "TS2593": {
+      "count": 1
+    },
+    "TS7053": {
+      "count": 18
     }
   },
   "packages/geolocation-controller/src/geolocation-api-service/geolocation-api-service.test.ts": {
@@ -895,14 +897,6 @@
       "count": 1
     }
   },
-  "packages/ramps-controller/src/NeoBankService.test.ts": {
-    "TS2322": {
-      "count": 2
-    },
-    "TS2345": {
-      "count": 2
-    }
-  },
   "packages/ramps-controller/src/NeoBankService.ts": {
     "TS6307": {
       "count": 1
@@ -1158,9 +1152,6 @@
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/relay-api.test.ts": {
-    "TS2741": {
-      "count": 2
-    },
     "TS2820": {
       "count": 1
     }
@@ -1216,7 +1207,7 @@
       "count": 7
     },
     "TS2741": {
-      "count": 55
+      "count": 52
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-submit.test.ts": {

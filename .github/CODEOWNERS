@@ -340,6 +340,14 @@
 /packages/eth-json-rpc-provider/typedoc.json       @MetaMask/core-platform
 /packages/eth-json-rpc-provider/vitest.config.*    @MetaMask/core-platform
 
+### eth-sig-util
+/packages/eth-sig-util                    @MetaMask/core-platform
+/packages/eth-sig-util/CHANGELOG.md       @MetaMask/core-platform
+/packages/eth-sig-util/package.json       @MetaMask/core-platform
+/packages/eth-sig-util/tsconfig.*         @MetaMask/core-platform
+/packages/eth-sig-util/typedoc.json       @MetaMask/core-platform
+/packages/eth-sig-util/vitest.config.*    @MetaMask/core-platform
+
 ### foundryup
 /packages/foundryup                    @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/foundryup/CHANGELOG.md       @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
@@ -395,6 +403,14 @@
 /packages/json-rpc-middleware-stream/tsconfig.*         @MetaMask/core-platform
 /packages/json-rpc-middleware-stream/typedoc.json       @MetaMask/core-platform
 /packages/json-rpc-middleware-stream/vitest.config.*    @MetaMask/core-platform
+
+### key-tree
+/packages/key-tree                    @MetaMask/core-platform
+/packages/key-tree/CHANGELOG.md       @MetaMask/core-platform
+/packages/key-tree/package.json       @MetaMask/core-platform
+/packages/key-tree/tsconfig.*         @MetaMask/core-platform
+/packages/key-tree/typedoc.json       @MetaMask/core-platform
+/packages/key-tree/vitest.config.*    @MetaMask/core-platform
 
 ### keyring-controller
 /packages/keyring-controller                    @MetaMask/accounts-engineers @MetaMask/core-platform
@@ -491,6 +507,14 @@
 /packages/money-account-controller/tsconfig.*         @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/money-account-controller/typedoc.json       @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/money-account-controller/vitest.config.*    @MetaMask/accounts-engineers @MetaMask/core-platform
+
+### money-account-lifecycle-controller
+/packages/money-account-lifecycle-controller                    @MetaMask/earn
+/packages/money-account-lifecycle-controller/CHANGELOG.md       @MetaMask/core-platform @MetaMask/earn
+/packages/money-account-lifecycle-controller/package.json       @MetaMask/core-platform @MetaMask/earn
+/packages/money-account-lifecycle-controller/tsconfig.*         @MetaMask/core-platform @MetaMask/earn
+/packages/money-account-lifecycle-controller/typedoc.json       @MetaMask/core-platform @MetaMask/earn
+/packages/money-account-lifecycle-controller/vitest.config.*    @MetaMask/core-platform @MetaMask/earn
 
 ### money-account-mfa-whitelist
 /packages/money-account-mfa-whitelist                    @MetaMask/earn

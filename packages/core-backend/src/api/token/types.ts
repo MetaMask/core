@@ -167,6 +167,40 @@ export type TokenSecurityData = {
 };
 
 /**
+ * Query options for Token API `GET /v2/assets`.
+ */
+export type V2AssetsQueryOptions = {
+  /** Include token list occurrences in response. */
+  includeOccurrences?: boolean;
+  /** Include token security data (Blockaid) in response. */
+  includeTokenSecurityData?: boolean;
+  /** Include launchpad data (and the `launchpad` identifier) in response. */
+  includeLaunchpadData?: boolean;
+};
+
+/**
+ * Asset from Token API `GET /v2/assets`. Optional fields appear only when
+ * their include flag is set.
+ */
+export type V2AssetResponse = {
+  /** CAIP-19 asset ID. */
+  assetId: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  /** Number of token list occurrences. */
+  occurrences?: number;
+  /** Token security data. `resultType` may be null when not scanned. */
+  securityData?: Partial<Omit<TokenSecurityData, 'resultType'>> & {
+    resultType?: string | null;
+  };
+  /** Launchpad identifier (e.g. `flap`); present only for launchpad tokens. */
+  launchpad?: string | null;
+  /** Launchpad details; present only for launchpad tokens. */
+  launchpadData?: Record<string, unknown> | null;
+};
+
+/**
  * Trending token data from Token API v3 /tokens/trending endpoint
  */
 export type TrendingToken = {

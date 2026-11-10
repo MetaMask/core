@@ -32,6 +32,7 @@ import {
 const MESSENGER_EXPOSED_METHODS = [
   'setActiveNetwork',
   'getNetworksWithTransactionActivityByAccounts',
+  'removeNetwork',
 ] as const;
 
 /**

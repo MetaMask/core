@@ -27,6 +27,7 @@ import type { MockedFunction } from 'vitest';
 
 import type { TransactionPayControllerMessenger } from '../src/index.js';
 import type {
+  TransactionPayControllerGetClientIdAction,
   TransactionPayControllerGetDelegationTransactionAction,
   TransactionPayControllerGetFiatOptionsAction,
   TransactionPayControllerGetPaymentOverrideDataAction,
@@ -111,6 +112,10 @@ export function getMessengerMock({
 
   const getDelegationTransactionMock: MockedFunction<
     TransactionPayControllerGetDelegationTransactionAction['handler']
+  > = vi.fn();
+
+  const getClientIdMock: MockedFunction<
+    TransactionPayControllerGetClientIdAction['handler']
   > = vi.fn();
 
   const getFiatOptionsMock: MockedFunction<
@@ -229,6 +234,11 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
+      'TransactionPayController:getClientId',
+      getClientIdMock,
+    );
+
+    messenger.registerActionHandler(
       'TransactionPayController:getFiatOptions',
       getFiatOptionsMock,
     );
@@ -289,6 +299,7 @@ export function getMessengerMock({
     estimateGasMock,
     estimateGasBatchMock,
     findNetworkClientIdByChainIdMock,
+    getClientIdMock,
     getControllerStateMock,
     getDelegationTransactionMock,
     getFiatOptionsMock,

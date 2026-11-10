@@ -7,14 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.1.1]
+
+### Changed
+
+- Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+
+## [27.1.0]
+
 ### Added
 
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
+- Expose `startPolling` and `stopPollingByToken` methods through the GasFeeController messenger ([#11250](https://github.com/MetaMask/core/pull/11250))
 
 ### Changed
 
 - Bump `@types/uuid` from `^8.3.0` to `^9.0.8` ([#10117](https://github.com/MetaMask/core/pull/10117))
-- Bump `uuid` from `^8.3.2` to `^14.0.0` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243), [#10941](https://github.com/MetaMask/core/pull/10941))
+- Bump `uuid` from `^8.3.2` to `^14.0.1` ([#10117](https://github.com/MetaMask/core/pull/10117), [#10243](https://github.com/MetaMask/core/pull/10243), [#10941](https://github.com/MetaMask/core/pull/10941), [#11179](https://github.com/MetaMask/core/pull/11179))
 - Bump `@metamask/utils` from `^11.12.0` to `^12.0.1` ([#10192](https://github.com/MetaMask/core/pull/10192), [#11107](https://github.com/MetaMask/core/pull/11107))
 - Bump `@types/bn.js` from `^5.1.5` to `^5.2.0` ([#10362](https://github.com/MetaMask/core/pull/10362))
 - Bump `bn.js` from `^5.2.1` to `^5.2.5` ([#10362](https://github.com/MetaMask/core/pull/10362))
@@ -616,7 +626,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.1.1...HEAD
+[27.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.1.0...@metamask/gas-fee-controller@27.1.1
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@27.0.0...@metamask/gas-fee-controller@27.1.0
 [27.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.3.2...@metamask/gas-fee-controller@27.0.0
 [26.3.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.3.1...@metamask/gas-fee-controller@26.3.2
 [26.3.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.3.0...@metamask/gas-fee-controller@26.3.1

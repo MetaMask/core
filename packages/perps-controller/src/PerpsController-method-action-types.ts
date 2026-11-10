@@ -74,6 +74,19 @@ export type PerpsControllerGetActiveProviderAction = {
 };
 
 /**
+ * Return whether the selected account can submit actions through the active
+ * provider route. Providers without an account-support check remain
+ * supported for backward compatibility.
+ *
+ * @param params - Optional provider route.
+ * @returns The provider-owned account support result.
+ */
+export type PerpsControllerGetAccountSupportAction = {
+  type: `PerpsController:getAccountSupport`;
+  handler: PerpsController['getAccountSupport'];
+};
+
+/**
  * Get the currently active provider, returning null if not available
  * Use this method when the caller can gracefully handle a missing provider
  * (e.g., UI components during initialization or reconnection)
@@ -1596,6 +1609,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerGetUserDataSnapshotAction
   | PerpsControllerInitAction
   | PerpsControllerGetActiveProviderAction
+  | PerpsControllerGetAccountSupportAction
   | PerpsControllerGetActiveProviderOrNullAction
   | PerpsControllerGetOrderCapabilitiesAction
   | PerpsControllerGetMarginModeLockAction

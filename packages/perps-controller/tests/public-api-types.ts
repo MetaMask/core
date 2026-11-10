@@ -1,12 +1,15 @@
 import type {
   ChaseOrder,
   PerpsController,
+  GetAccountSupportParams,
   GetChaseOrderOwnershipParams,
+  PerpsAccountSupport,
   PerpsChaseOrderOwner,
   PerpsChaseOrderChild,
   PerpsChaseOrderDispatch,
   PerpsChaseOrderOwnership,
   PerpsControllerGetChaseOrderOwnershipAction,
+  PerpsControllerGetAccountSupportAction,
   ReconcileChaseOrderCancellationParams,
   ReconcileChaseOrderCancellationResult,
   PerpsControllerReconcileChaseOrderCancellationAction,
@@ -78,6 +81,33 @@ type IsExact<Actual, Expected> =
     ? true
     : false;
 type AssertTrue<Value extends true> = Value;
+export type AccountSupportConsumerContracts = [
+  AssertTrue<
+    IsExact<
+      Parameters<PerpsControllerGetAccountSupportAction['handler']>,
+      [params?: GetAccountSupportParams]
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsControllerGetAccountSupportAction['handler']>,
+      Promise<PerpsAccountSupport>
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      PerpsControllerGetAccountSupportAction['type'],
+      'PerpsController:getAccountSupport'
+    >
+  >,
+  AssertTrue<
+    IsExact<
+      ReturnType<PerpsController['getAccountSupport']>,
+      Promise<PerpsAccountSupport>
+    >
+  >,
+];
+
 export type NativeEditConsumerContracts = [
   AssertTrue<
     IsExact<NonNullable<OrderResult['orderEdit']>, OrderEditObservation>

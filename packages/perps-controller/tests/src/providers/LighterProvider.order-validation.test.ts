@@ -39,10 +39,6 @@ vi.mock('../../../src/services/LighterWalletService');
 describe('LighterProvider', () => {
   finishPendingTimersAfterEach();
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   describe('round-11 TP/SL local preflight', () => {
     it('malformed live position sizes abort TP/SL replacement before any cancellation or signer call', async () => {
       const { provider, calls, clientInstance } = buildProvider();
@@ -2537,6 +2533,36 @@ describe('LighterProvider', () => {
       const result = await delayedRead;
       // Cancelled → empty state, never account A's balances.
       expect(result.totalBalance).toBe('0');
+    });
+
+    it('a delayed cross margin metadata read never surfaces the old account', async () => {
+      const { provider, clientInstance, getUserAddressMock } = buildProvider({
+        configuredAccountIndex: null,
+      });
+      clientInstance.getAccountsByL1Address.mockImplementation(
+        perAddressLookup(),
+      );
+      let releaseMetadata = (): void => undefined;
+      let signalMetadataRead = (): void => undefined;
+      const metadataReadStarted = new Promise<void>((resolve) => {
+        signalMetadataRead = resolve;
+      });
+      const metadata = await clientInstance.getOrderBookDetails();
+      clientInstance.getOrderBookDetails.mockImplementationOnce(
+        async (): Promise<unknown> => {
+          signalMetadataRead();
+          return await new Promise((resolve) => {
+            releaseMetadata = (): void => resolve(metadata);
+          });
+        },
+      );
+      const delayedRead = provider.getAccountState();
+      await metadataReadStarted;
+      getUserAddressMock.mockReturnValue('0xbbbb');
+      releaseMetadata();
+      const result = await delayedRead;
+      expect(result.totalBalance).toBe('0');
+      expect(result).not.toHaveProperty('crossMarginSummary');
     });
 
     it('getOpenOrders returns nothing when the account switches between index and token', async () => {

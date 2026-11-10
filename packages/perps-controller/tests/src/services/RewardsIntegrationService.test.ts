@@ -59,10 +59,6 @@ describe('RewardsIntegrationService', () => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
-
   describe('calculateUserFeeDiscount', () => {
     it('calculates fee discount successfully with valid discount', async () => {
       const mockDiscountBips = 6500; // 65%

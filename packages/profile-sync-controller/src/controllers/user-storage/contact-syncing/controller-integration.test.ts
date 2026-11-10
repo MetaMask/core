@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { AddressBookEntry } from '@metamask/address-book-controller';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema.js';
 import {
@@ -102,10 +102,6 @@ describe('user-storage/contact-syncing/controller-integration - syncContactsWith
       ContactSyncingUtils,
       'canPerformContactSyncing',
     ).mockImplementation(() => true);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it('returns void if contact syncing is not enabled', async () => {
@@ -412,10 +408,6 @@ describe('user-storage/contact-syncing/controller-integration - updateContactInR
     ).mockImplementation(() => true);
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('returns void if contact syncing is not enabled', async () => {
     const { options, controller } = await arrangeMocks({
       stateOverrides: {
@@ -514,10 +506,6 @@ describe('user-storage/contact-syncing/controller-integration - deleteContactInR
       ContactSyncingUtils,
       'canPerformContactSyncing',
     ).mockImplementation(() => true);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it('returns void if contact syncing is not enabled', async () => {

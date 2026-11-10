@@ -23,6 +23,7 @@ import {
   getNativeToken,
   isSameToken,
   getLiveTokenBalance,
+  getLiveTokenBalanceOrUndefined,
   normalizeTokenAddress,
   TokenAddressTarget,
 } from './token.js';
@@ -1421,6 +1422,52 @@ describe('Token Utils', () => {
         method: 'eth_call',
         params: [{ to: ERC20_ADDRESS_MOCK, data: calldata }, 'latest'],
       });
+    });
+  });
+
+  describe('getLiveTokenBalanceOrUndefined', () => {
+    it('returns the balance when the RPC request succeeds', async () => {
+      PROVIDER_MOCK.request.mockResolvedValue('0x4C4B40');
+
+      expect(
+        await getLiveTokenBalanceOrUndefined(
+          messenger,
+          ACCOUNT_MOCK,
+          CHAIN_ID_MOCK,
+          ERC20_ADDRESS_MOCK,
+        ),
+      ).toBe('5000000');
+    });
+
+    it('returns undefined when the RPC request fails', async () => {
+      // Both the `pending` and the `latest` attempt fail.
+      PROVIDER_MOCK.request.mockRejectedValue(
+        new Error('Request is being rate limited.'),
+      );
+
+      expect(
+        await getLiveTokenBalanceOrUndefined(
+          messenger,
+          ACCOUNT_MOCK,
+          CHAIN_ID_MOCK,
+          ERC20_ADDRESS_MOCK,
+        ),
+      ).toBeUndefined();
+    });
+
+    it('returns a zero balance rather than undefined', async () => {
+      // A successful read of an empty account is real data, not an unknown
+      // balance, so it must still be returned and still gate the caller.
+      PROVIDER_MOCK.request.mockResolvedValue('0x0');
+
+      expect(
+        await getLiveTokenBalanceOrUndefined(
+          messenger,
+          ACCOUNT_MOCK,
+          CHAIN_ID_MOCK,
+          ERC20_ADDRESS_MOCK,
+        ),
+      ).toBe('0');
     });
   });
 

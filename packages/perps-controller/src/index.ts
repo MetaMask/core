@@ -81,6 +81,7 @@ export type {
   PerpsControllerFetchHistoricalCandlesAction,
   PerpsControllerFlipPositionAction,
   PerpsControllerGetAccountStateAction,
+  PerpsControllerGetAccountSupportAction,
   PerpsControllerGetActiveProviderAction,
   PerpsControllerGetActiveProviderOrNullAction,
   PerpsControllerGetAttributionContextAction,
@@ -247,6 +248,7 @@ export type {
   PerpsRecoveryProtectionResult,
   Position,
   AccountState,
+  CrossMarginSummary,
   ClosePositionParams,
   ClosePositionsParams,
   ClosePositionsResult,
@@ -323,6 +325,9 @@ export type {
   PositionModifyPreviewNone,
   FeeCalculationParams,
   FeeCalculationResult,
+  GetAccountSupportParams,
+  PerpsAccountSupport,
+  PerpsAccountUnsupportedReason,
   GetOrderCapabilitiesParams,
   GetMarginModeLockParams,
   MarginModeLockReason,
@@ -562,9 +567,11 @@ export {
   MARGIN_ADJUSTMENT_CONFIG,
   DATA_LAKE_API_CONFIG,
   DECIMAL_PRECISION_CONFIG,
+  TP_SL_PRECISION_CONFIG,
   MARKET_SORTING_CONFIG,
   PROVIDER_CONFIG,
   FUNDING_RATE_CONFIG,
+  PERPS_DISPLAY_PRECISION,
 } from './constants/index.js';
 export type { SortOptionId } from './constants/index.js';
 
@@ -575,8 +582,40 @@ export {
   getSelectedEvmAccount,
   calculateWeightedReturnOnEquity,
   aggregateAccountStates,
+  getCrossCollateral,
+  calculateAccountSummary,
 } from './utils/index.js';
-export type { ReturnOnEquityInput } from './utils/index.js';
+export type {
+  ReturnOnEquityInput,
+  CrossMarginSummaryInput,
+  PerpsAccountSummary,
+  CalculateAccountSummaryParams,
+} from './utils/index.js';
+export {
+  calculatePriceForRoE,
+  calculateSignedRoEForPrice,
+  calculateRoEForPrice,
+  calculatePriceForPercentage,
+  calculatePercentageForPrice,
+  getMaxStopLossPercentage,
+  isValidStopLossPercentage,
+  isPositiveTriggerPrice,
+  isValidTakeProfitPrice,
+  isValidStopLossPrice,
+  isStopLossSafeFromLiquidation,
+  validateTPSLPrices,
+  formatRoePercent,
+} from './utils/index.js';
+export type {
+  TpslCalculationParams,
+  TpslValidationResult,
+} from './utils/index.js';
+export { estimateCloseReceive, calculateNetClosedPnl } from './utils/index.js';
+export type {
+  CloseReceiveEstimateParams,
+  CloseReceiveEstimate,
+  NetClosedPnlParams,
+} from './utils/index.js';
 export { ensureError, isAbortError } from './utils/index.js';
 export type {
   OrderBookCacheEntry,
@@ -718,10 +757,22 @@ export {
   buildMaintenanceSchedule,
   estimateIsolatedLiquidationPrice,
   estimateIsolatedLiquidationPriceAtTier,
+  estimateIsolatedLeverageChange,
 } from './utils/index.js';
-export type { HyperLiquidMarginTier } from './utils/index.js';
+export type {
+  HyperLiquidMarginTier,
+  IsolatedLeverageChangeParams,
+  IsolatedLeverageChange,
+} from './utils/index.js';
 export { getEnvironment } from './utils/index.js';
-export type { FiatRangeConfig } from './utils/index.js';
+export type {
+  FiatRangeConfig,
+  PerpsDisplayFormatOptions,
+  PerpsFiatFormatOptions,
+  PerpsFundingRateFormatOptions,
+  PerpsIntlFormatters,
+  PerpsSignDisplay,
+} from './utils/index.js';
 export {
   PRICE_THRESHOLD,
   formatWithSignificantDigits,

@@ -6,7 +6,7 @@ import type {
   PhishingControllerBulkScanTokensAction,
 } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import type { AssetsControllerMessenger } from '../AssetsController.js';
@@ -46,6 +46,7 @@ type MockApiClient = {
   };
   token: {
     fetchV1SuggestedOccurrenceFloors: Mock;
+    fetchV2Assets: Mock;
   };
 };
 
@@ -85,6 +86,7 @@ function createMockApiClient(
       fetchV1SuggestedOccurrenceFloors: vi
         .fn()
         .mockResolvedValue(suggestedOccurrenceFloors),
+      fetchV2Assets: vi.fn().mockResolvedValue([]),
     },
   };
 }
@@ -196,10 +198,6 @@ function setupController(options: {
 }
 
 describe('TokenDataSource', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('initializes with correct name', () => {
     const { controller } = setupController({
       messenger: createTestMessenger(),
@@ -391,6 +389,132 @@ describe('TokenDataSource', () => {
           | undefined
       )?.[spamAsset],
     ).toBeUndefined();
+  });
+
+  describe('launchpad tokens', () => {
+    const launchpadAsset =
+      'eip155:1/erc20:0x3333333333333333333333333333333333333333' as Caip19AssetId;
+
+    function setupLaunchpad(
+      v2Assets: unknown[] | Error,
+    ): ReturnType<typeof setupController> {
+      const setup = setupController({
+        messenger: createTestMessenger(),
+        supportedNetworks: ['eip155:1'],
+        assetsResponse: [
+          createMockAssetResponse(launchpadAsset, { occurrences: 0 }),
+        ],
+        suggestedOccurrenceFloors: { '1': 3 },
+      });
+      if (v2Assets instanceof Error) {
+        setup.apiClient.token.fetchV2Assets.mockRejectedValue(v2Assets);
+      } else {
+        setup.apiClient.token.fetchV2Assets.mockResolvedValue(v2Assets);
+      }
+      return setup;
+    }
+
+    async function run(
+      controller: TokenDataSource,
+    ): Promise<ReturnType<typeof createMiddlewareContext>> {
+      const context = createMiddlewareContext({
+        response: {
+          assetsBalance: {
+            'mock-account-id': { [launchpadAsset]: { amount: '50' } },
+          },
+        },
+      });
+      await controller.assetsMiddleware(
+        context,
+        vi.fn().mockResolvedValue(undefined),
+      );
+      return context;
+    }
+
+    it('keeps low-occurrence launchpad tokens', async () => {
+      const { controller, apiClient } = setupLaunchpad([
+        {
+          assetId: launchpadAsset,
+          launchpad: 'flap',
+          securityData: { resultType: null },
+        },
+      ]);
+
+      const context = await run(controller);
+
+      expect(context.response.assetsInfo?.[launchpadAsset]).toBeDefined();
+      expect(apiClient.token.fetchV2Assets).toHaveBeenCalledWith(
+        [launchpadAsset],
+        { includeLaunchpadData: true, includeTokenSecurityData: true },
+        undefined,
+      );
+    });
+
+    it('matches launchpad and occurrence data regardless of asset ID casing', async () => {
+      const checksummedId =
+        'eip155:1/erc20:0xAbCdEf0123456789aBcDeF0123456789AbCdEf01' as Caip19AssetId;
+      const { controller, apiClient } = setupController({
+        messenger: createTestMessenger(),
+        supportedNetworks: ['eip155:1'],
+        assetsResponse: [
+          createMockAssetResponse(checksummedId.toLowerCase(), {
+            occurrences: 0,
+          }),
+        ],
+        suggestedOccurrenceFloors: { '1': 3 },
+      });
+      apiClient.token.fetchV2Assets.mockResolvedValue([
+        { assetId: checksummedId.toLowerCase(), launchpad: 'flap' },
+      ]);
+
+      const context = createMiddlewareContext({
+        response: {
+          assetsBalance: {
+            'mock-account-id': { [checksummedId]: { amount: '50' } },
+          },
+        },
+      });
+      await controller.assetsMiddleware(
+        context,
+        vi.fn().mockResolvedValue(undefined),
+      );
+
+      expect(
+        context.response.assetsInfo?.[
+          checksummedId.toLowerCase() as Caip19AssetId
+        ],
+      ).toBeDefined();
+    });
+
+    it('filters launchpad tokens classified as malicious', async () => {
+      const { controller } = setupLaunchpad([
+        {
+          assetId: launchpadAsset,
+          launchpad: 'flap',
+          securityData: { resultType: 'Malicious' },
+        },
+      ]);
+
+      const context = await run(controller);
+
+      expect(context.response.assetsInfo?.[launchpadAsset]).toBeUndefined();
+    });
+
+    it('filters low-occurrence tokens that are not launchpad tokens', async () => {
+      const { controller } = setupLaunchpad([{ assetId: launchpadAsset }]);
+
+      const context = await run(controller);
+
+      expect(context.response.assetsInfo?.[launchpadAsset]).toBeUndefined();
+    });
+
+    it('filters low-occurrence tokens when the launchpad lookup fails', async () => {
+      const { controller } = setupLaunchpad(new Error('boom'));
+
+      const context = await run(controller);
+
+      expect(context.response.assetsInfo?.[launchpadAsset]).toBeUndefined();
+    });
   });
 
   it('middleware skips a response token whose metadata is already complete', async () => {
@@ -1104,6 +1228,46 @@ describe('TokenDataSource', () => {
     expect(accountBalances[spamAsset]).toBeUndefined();
     expect(context.response.assetsInfo?.[spamAsset]).toBeUndefined();
     expect(next).toHaveBeenCalled();
+  });
+
+  it('occurrenceFilterMiddleware keeps new low-occurrence launchpad tokens', async () => {
+    const launchpadAsset =
+      'eip155:1/erc20:0x4444444444444444444444444444444444444444' as Caip19AssetId;
+
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [
+        createMockAssetResponse(launchpadAsset, { occurrences: 0 }),
+      ],
+      suggestedOccurrenceFloors: { '1': 3 },
+      getAssetsState: (): Partial<AssetsControllerState> => ({
+        assetsBalance: {},
+        assetsInfo: {},
+      }),
+    });
+    apiClient.token.fetchV2Assets.mockResolvedValue([
+      { assetId: launchpadAsset, launchpad: 'flap' },
+    ]);
+
+    const context = createMiddlewareContext({
+      request: createDataRequest({ dataTypes: ['balance'] }),
+      response: {
+        assetsBalance: {
+          'mock-account-id': { [launchpadAsset]: { amount: '50' } },
+        },
+      },
+    });
+
+    await controller.occurrenceFilterMiddleware(
+      context,
+      vi.fn().mockResolvedValue(undefined),
+    );
+
+    const accountBalances = context.response.assetsBalance?.[
+      'mock-account-id'
+    ] as Record<string, unknown>;
+    expect(accountBalances[launchpadAsset]).toBeDefined();
   });
 
   it('occurrenceFilterMiddleware keeps holdings already in state balances when the response uses a different address case', async () => {

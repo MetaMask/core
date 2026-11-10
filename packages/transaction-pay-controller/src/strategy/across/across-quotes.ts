@@ -31,7 +31,7 @@ import { getTokenFiatRate } from '../../utils/token.js';
 import type { AcrossDestination } from './across-actions.js';
 import { getAcrossDestination } from './across-actions.js';
 import { hasUnsupportedTransactionAuthorizationList } from './authorization-list.js';
-import { normalizeAcrossRequest } from './perps.js';
+import { normalizeAcrossRequest, validateAcrossPerpsQuote } from './perps.js';
 import { isAcrossQuoteRequest } from './requests.js';
 import {
   getAcrossOrderedTransactions,
@@ -97,7 +97,7 @@ async function getSingleQuote(
   fullRequest: PayStrategyGetQuotesRequest,
 ): Promise<TransactionPayQuote<AcrossQuote>> {
   const { messenger, signal, transaction } = fullRequest;
-  const normalizedRequest = normalizeAcrossRequest(request, transaction.type);
+  const normalizedRequest = normalizeAcrossRequest(request, transaction);
   const {
     from,
     isMaxAmount,
@@ -124,7 +124,7 @@ async function getSingleQuote(
   const destination = getAcrossDestinationForRequest(
     transaction,
     request,
-    from,
+    request.accountOverride ?? from,
   );
 
   const quote = await requestAcrossApproval({
@@ -142,6 +142,8 @@ async function getSingleQuote(
     slippage: slippageDecimal,
     tradeType,
   });
+
+  validateAcrossPerpsQuote(normalizedRequest, quote);
 
   const originalQuote: AcrossQuoteWithoutMetaMask = {
     quote,

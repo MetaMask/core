@@ -47,6 +47,8 @@ export * from './CurrencyRateController.js';
 export type {
   CurrencyRateControllerSetCurrentCurrencyAction,
   CurrencyRateControllerUpdateExchangeRateAction,
+  CurrencyRateControllerStartPollingAction,
+  CurrencyRateControllerStopPollingByPollingTokenAction,
 } from './CurrencyRateController-method-action-types.js';
 export type {
   NftControllerState,
@@ -64,6 +66,15 @@ export {
   getDefaultNftControllerState,
   NftController,
 } from './NftController.js';
+export type {
+  NftControllerIsNftOwnerAction,
+  NftControllerAddNftVerifyOwnershipAction,
+  NftControllerAddNftAction,
+  NftControllerRemoveNftAction,
+  NftControllerRemoveAndIgnoreNftAction,
+  NftControllerCheckAndUpdateSingleNftOwnershipStatusAction,
+  NftControllerCheckAndUpdateAllNftsOwnershipStatusAction,
+} from './NftController-method-action-types.js';
 export type {
   NftDetectionControllerMessenger,
   ApiNft,
@@ -87,6 +98,7 @@ export type {
   Price,
   Metadata,
 } from './NftDetectionController.js';
+export type { NftDetectionControllerDetectNftsAction } from './NftDetectionController-method-action-types.js';
 export { NftDetectionController } from './NftDetectionController.js';
 export type {
   TokenBalancesControllerActions,
@@ -119,6 +131,8 @@ export type {
   TokenDetectionControllerDetectTokensAction,
   TokenDetectionControllerAddDetectedTokensViaWsAction,
   TokenDetectionControllerAddDetectedTokensViaPollingAction,
+  TokenDetectionControllerStartPollingAction,
+  TokenDetectionControllerStopPollingByPollingTokenAction,
 } from './TokenDetectionController-method-action-types.js';
 export { TokenDetectionController } from './TokenDetectionController.js';
 export type {
@@ -282,6 +296,10 @@ export type {
   DeFiPositionsControllerV2Messenger,
 } from './DeFiPositionsController/DeFiPositionsControllerV2.js';
 export type { DeFiPositionsControllerV2FetchDeFiPositionsAction } from './DeFiPositionsController/DeFiPositionsControllerV2-method-action-types.js';
+export type {
+  DeFiPositionsControllerStartPollingAction,
+  DeFiPositionsControllerStopPollingByPollingTokenAction,
+} from './DeFiPositionsController/DeFiPositionsController-method-action-types.js';
 export {
   DEFI_POSITION_TYPES,
   DEFI_POSITION_LIABILITY_TYPES,

@@ -447,7 +447,6 @@ describe('Batch Utils', () => {
         getGasFeeEstimates: getGasFeeEstimatesMock,
         getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
         getPendingTransactionTracker: getPendingTransactionTrackerMock,
-        getSimulationConfig: vi.fn(),
         getTransaction: getTransactionMock,
         isSimulationEnabled: vi.fn().mockReturnValue(true),
         messenger: MESSENGER_MOCK,
@@ -2619,7 +2618,7 @@ describe('Batch Utils', () => {
         expect(simulateGasBatchMock).toHaveBeenCalledWith({
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
-          getSimulationConfig: request.getSimulationConfig,
+          messenger: MESSENGER_MOCK,
           transactions: TRANSACTIONS_BATCH_MOCK,
         });
         expect(getGasFeesMock).toHaveBeenCalledTimes(1);

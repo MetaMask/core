@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MockedFunction } from 'vitest';
 
 import type { AccountGroupMultichainAccountObject } from '../../group.js';
@@ -66,10 +66,6 @@ describe('BackupAndSync - UserStorage - FormatUtils', () => {
       name: 'Test Group',
       metadata: { entropy: { groupIndex: 0 } },
     } as unknown as AccountGroupMultichainAccountObject;
-  });
-
-  afterEach(() => {
-    vi.clearAllMocks();
   });
 
   describe('formatWalletForUserStorageUsage', () => {

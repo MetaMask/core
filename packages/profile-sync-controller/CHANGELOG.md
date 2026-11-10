@@ -7,8 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [36.1.0]
+
+### Added
+
+- Add `AuthenticationController.refreshSocialLoginCredentials`, `beginSocialLoginVerification` and `completeSocialLoginVerification`, also exposed as `AuthenticationController:*` messenger actions, which verify an enrolled MFA credential while the wallet is locked, for the recovery of a social login wallet ([#11371](https://github.com/MetaMask/core/pull/11371))
+  - They take the access token from the social login (see `exchangeSocialAccessToken`) at each call, so no keyring or signing is involved, and accept no token from the caller
+  - They throw when the wallet is unlocked: unlocked features keep using `refreshEnrolledCredentials`, `beginCredentialVerification` and `completeCredentialVerification`
+  - `completeSocialLoginVerification` returns the verification token without opening a verification session, so nothing proven while locked is readable once the wallet unlocks
+  - Nothing is cached in state, and enrollment stays unavailable while the wallet is locked
+  - Exports the `AuthenticationControllerRefreshSocialLoginCredentialsAction`, `AuthenticationControllerBeginSocialLoginVerificationAction` and `AuthenticationControllerCompleteSocialLoginVerificationAction` types
+
 ### Changed
 
+- `JwtBearerAuth.getMfaCredentials`, `beginMfaVerification` and `completeMfaVerification` accept an optional `accessToken` to use instead of signing in with the entropy source ([#11371](https://github.com/MetaMask/core/pull/11371))
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 
 ## [36.0.0]
@@ -1120,7 +1132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.1.0...HEAD
+[36.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@36.0.0...@metamask/profile-sync-controller@36.1.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@35.0.0...@metamask/profile-sync-controller@36.0.0
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.1.0...@metamask/profile-sync-controller@35.0.0
 [34.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@34.0.3...@metamask/profile-sync-controller@34.1.0

@@ -6,7 +6,7 @@ import type {
   PermissionConstraint,
   SubjectPermissions,
 } from '@metamask/permission-controller';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 
 import { getDefaultAssetsControllerState } from '../AssetsController.js';
@@ -433,10 +433,6 @@ describe('SnapDataSource helper functions', () => {
 });
 
 describe('SnapDataSource', () => {
-  afterEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('initializes with correct name', async () => {
     const { controller, cleanup } = setupController();
     expect(controller.getName()).toBe('SnapDataSource');

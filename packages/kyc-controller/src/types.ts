@@ -66,6 +66,34 @@ export const KYC_STATUSES = {
 } as const;
 
 /**
+ * Steps of a UKYC session, as reported by the kyc-api on session-status
+ * responses.
+ *
+ * - `processing` — the vendor is working and the applicant has nothing to do.
+ * - `emailOtpCollection` — waiting for the applicant's email one-time code.
+ * - `phoneOtpCollection` — waiting for the applicant's phone one-time code.
+ * - `capabilityAuthorization` — waiting for the capability authorization token.
+ * - `kyc` — waiting for the applicant to finish document verification.
+ * - `approved` — the session was approved.
+ * - `rejected` — the session was rejected.
+ */
+export const KYC_CURRENT_STEPS = {
+  processing: 'processing',
+  emailOtpCollection: 'emailOtpCollection',
+  phoneOtpCollection: 'phoneOtpCollection',
+  capabilityAuthorization: 'capabilityAuthorization',
+  kyc: 'kyc',
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+/**
+ * A step of a UKYC session. See {@link KYC_CURRENT_STEPS}.
+ */
+export type KycCurrentStep =
+  (typeof KYC_CURRENT_STEPS)[keyof typeof KYC_CURRENT_STEPS];
+
+/**
  * `finalStatus` values that end session-status polling.
  */
 export const FINAL_STATUSES_TO_STOP_POLLING: ReadonlySet<string> = new Set([
@@ -129,8 +157,12 @@ export type KycSessionStatus = {
   id: string;
   /**
    * The overall status of the session. Values in `TERMINAL_SESSION_STATUSES`
-   * (`approved`, `rejected`, `retry`) are finished decisions; any other value
-   * (e.g. `pending`) means the vendor is still processing.
+   * (`approved`, `rejected`, `retry`) are finished decisions. `pending` means
+   * the vendor is still processing.
+   *
+   * Taken from the kyc-api response as-is, except when that response reports
+   * `pending` while {@link KycSessionStatus.currentStep} is `kyc`. `finalStatus`
+   * is `new` in that case.
    */
   finalStatus: string;
   /** Optional human-readable message describing the status. */
@@ -148,7 +180,42 @@ export type KycSessionStatus = {
   idOSStatus?: string;
   /** The capability-authorization status of the session. */
   capabilityAuthorizationStatus?: string;
+  /**
+   * Where the applicant is in the KYC flow. Known values are
+   * {@link KYC_CURRENT_STEPS}. Absent on sessions saved before this field
+   * existed, and when the kyc-api response does not include it.
+   */
+  currentStep?: string;
 };
+
+/**
+ * Adjusts a kyc-api session status before it is returned to consumers.
+ *
+ * `finalStatus` is kept, except when the API reports `pending` while
+ * `currentStep` is `kyc`. That session is waiting on document verification,
+ * so `finalStatus` is reported as `new`. This is a workaround because previously
+ * the idOS API would only report `finalStatus` as `pending` when Sumsub was
+ * fully submitted and processing, but not when only partially submitted. This is
+ * no longer true, but the easiest way to patch this behavioral change for now
+ * is to use currentStep as a fallback when `finalStatus` is `pending`.
+ *
+ * @param sessionStatus - The session status parsed from a kyc-api response.
+ * @returns The session status consumers should store and act on.
+ */
+export function patchKycSessionStatus(
+  sessionStatus: KycSessionStatus,
+): KycSessionStatus {
+  if (
+    sessionStatus.finalStatus === KYC_STATUSES.pending &&
+    sessionStatus.currentStep === KYC_CURRENT_STEPS.kyc
+  ) {
+    return {
+      ...sessionStatus,
+      finalStatus: 'new',
+    };
+  }
+  return sessionStatus;
+}
 
 /**
  * Whether the session's capability authorization should be submitted (or

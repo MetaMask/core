@@ -116,6 +116,7 @@ const SAFE_INTERFACE = new Interface([
 ]);
 
 const TRANSFER_RECIPIENT = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd';
+const HYPERLIQUID_BRIDGE_ADDRESS = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const FACTORY_ADDRESS = '0xfac7fac7fac7fac7fac7fac7fac7fac7fac7fac7' as Hex;
 const SAFE_ADDRESS = '0x5afe5afe5afe5afe5afe5afe5afe5afe5afe5afe' as Hex;
@@ -374,6 +375,47 @@ describe('Across Quotes', () => {
       expect(params.get('refundAddress')).toBe(refundTo);
       expect(getRequestBody().actions).toStrictEqual([]);
     });
+
+    it.each([
+      ['no account override', undefined, FROM_MOCK],
+      [
+        'an account override',
+        '0xaa00000000000000000000000000000000000002',
+        '0xaa00000000000000000000000000000000000002',
+      ],
+    ])(
+      'quotes Predict Safe withdraws from the transaction account with %s',
+      async (_title, accountOverride, recipient) => {
+        const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+        successfulFetchMock.mockResolvedValue({
+          json: async () => QUOTE_MOCK,
+        } as Response);
+
+        await getAcrossQuotes({
+          accountSupports7702: false,
+          from: FROM_MOCK,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              accountOverride: accountOverride as Hex | undefined,
+              isPostQuote: true,
+              refundTo,
+              targetAmountMinimum: '0',
+            },
+          ],
+          transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+        });
+
+        const [url] = successfulFetchMock.mock.calls[0];
+        const params = new URL(url as string).searchParams;
+
+        expect(params.get('depositor')).toBe(FROM_MOCK);
+        expect(params.get('recipient')).toBe(recipient);
+        expect(params.get('refundAddress')).toBe(refundTo);
+      },
+    );
 
     it('ignores invalid original transaction gas for post-quote predict withdraws', async () => {
       successfulFetchMock.mockResolvedValue({
@@ -1535,11 +1577,10 @@ describe('Across Quotes', () => {
         ],
         transaction: {
           ...TRANSACTION_META_MOCK,
-          type: TransactionType.perpsDeposit,
           txParams: {
             from: FROM_MOCK,
             to: ARBITRUM_USDC_ADDRESS,
-            data: buildTransferData(TRANSFER_RECIPIENT, 1),
+            data: buildTransferData(HYPERLIQUID_BRIDGE_ADDRESS, 1),
           },
         },
       });
@@ -1547,7 +1588,7 @@ describe('Across Quotes', () => {
       const [url] = successfulFetchMock.mock.calls[0];
       const params = new URL(url as string).searchParams;
 
-      expect(params.get('amount')).toBe('100000000');
+      expect(params.get('amount')).toBe('1000000');
       expect(params.get('destinationChainId')).toBe(
         String(parseInt(CHAIN_ID_HYPERCORE, 16)),
       );
@@ -1556,6 +1597,46 @@ describe('Across Quotes', () => {
       );
       expect(params.get('recipient')).toBe(FROM_MOCK);
       expect(getRequestBody().actions).toStrictEqual([]);
+    });
+
+    it('throws if Across returns unexpected USDC-PERPS decimals for perps deposits', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          outputToken: {
+            ...QUOTE_MOCK.outputToken,
+            address: ACROSS_HYPERCORE_USDC_PERPS_ADDRESS,
+            chainId: parseInt(CHAIN_ID_HYPERCORE, 16),
+            decimals: 8,
+          },
+        }),
+      } as Response);
+
+      await expect(
+        getAcrossQuotes({
+          accountSupports7702: true,
+          from: FROM_MOCK,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              targetAmountMinimum: '1000000',
+              targetChainId: CHAIN_ID_ARBITRUM,
+              targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+            },
+          ],
+          transaction: {
+            ...TRANSACTION_META_MOCK,
+            txParams: {
+              from: FROM_MOCK,
+              to: ARBITRUM_USDC_ADDRESS,
+              data: buildTransferData(HYPERLIQUID_BRIDGE_ADDRESS, 1),
+            },
+          },
+        }),
+      ).rejects.toThrow(
+        'Unexpected Across USDC-PERPS decimals - Expected: 6 | Received: 8',
+      );
     });
 
     it('uses transfer recipient for token transfer transactions', async () => {
