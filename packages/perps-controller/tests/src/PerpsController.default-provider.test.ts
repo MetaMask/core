@@ -18,6 +18,7 @@ import type { Mock, Mocked, MockedClass } from 'vitest';
 
 import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
 import {
+  createDeferred,
   createMockInfrastructure,
   createMockMessenger,
 } from '../helpers/serviceMocks.js';
@@ -48,6 +49,8 @@ vi.mock('../../../util/transaction-controller', () => ({
 vi.mock('../../src/utils/wait', () => ({
   wait: vi.fn().mockResolvedValue(undefined),
 }));
+
+import { wait as mockWait } from '../../src/utils/wait.js';
 
 const mockStreamManager = {
   positions: { pause: vi.fn(), resume: vi.fn() },
@@ -725,6 +728,56 @@ describe('PerpsController default provider', () => {
       expect(controller.getActiveProviderOrNull()?.protocolId).toBe(
         'hyperliquid',
       );
+    });
+  });
+
+  describe('multi-provider flag arriving after construction', () => {
+    it('refuses an unrouted write queued across the cold-start migration to aggregated', async () => {
+      // Flag off at construction: the persisted mode stays direct.
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = undefined;
+      createController({ activeProvider: 'hyperliquid' });
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+
+      // The flag arrives before initialization settles.
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: true,
+        minimumVersion: '1.0.0',
+      };
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockReturnValue(true);
+
+      const pendingInitialization = createDeferred<void>();
+      vi.mocked(mockWait).mockImplementationOnce(
+        () => pendingInitialization.promise,
+      );
+
+      const initPromise = controller.init();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Initializing,
+      );
+
+      // Submitted while the mode is still direct, then carried across the
+      // migration the initialization performs.
+      const writePromise = controller.placeOrder({
+        symbol: 'BTC',
+        isBuy: true,
+        size: '1',
+        orderType: 'market',
+      });
+
+      pendingInitialization.resolve();
+      await initPromise;
+      expect(controller.state.activeProvider).toBe('aggregated');
+
+      await expect(writePromise).resolves.toStrictEqual({
+        success: false,
+        error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+      });
+      expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+      expect(mockProvider.placeOrder).not.toHaveBeenCalled();
     });
   });
 

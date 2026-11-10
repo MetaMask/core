@@ -3427,16 +3427,26 @@ export class PerpsController extends BaseController<
    * provider. Direct single-provider modes are unaffected: their writes
    * already have exactly one destination.
    *
+   * Call it once before any expensive work (using the current state) and again
+   * after the provider is resolved: a cold start can migrate direct state to
+   * aggregated, so a write queued across that transition must be checked
+   * against the provider it actually reaches.
+   *
    * @param providerId - Explicit provider route, when supplied.
+   * @param provider - Resolved provider, when initialization has settled.
    * @returns The refusal result, or undefined when the write may proceed.
    */
   #getUnroutedAggregatedWriteRefusal(
     providerId: PerpsProviderType | undefined,
+    provider?: PerpsProvider,
   ): { success: false; error: string } | undefined {
-    if (
-      this.state.activeProvider !== 'aggregated' ||
-      providerId !== undefined
-    ) {
+    if (providerId !== undefined) {
+      return undefined;
+    }
+    const isAggregated = provider
+      ? provider.protocolId === 'aggregated'
+      : this.state.activeProvider === 'aggregated';
+    if (!isAggregated) {
       return undefined;
     }
     return { success: false, error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED };
@@ -3495,6 +3505,13 @@ export class PerpsController extends BaseController<
       orderType: capturedParams.orderType,
       providerId: capturedParams.providerId,
     });
+    const resolvedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      capturedParams.providerId,
+      provider,
+    );
+    if (resolvedRefusal) {
+      return resolvedRefusal;
+    }
     this.#ensureTradingServiceDeps();
 
     const result = await this.#tradingService.placeOrder({
@@ -3547,6 +3564,13 @@ export class PerpsController extends BaseController<
       orderType: params.newOrder.orderType,
       providerId: params.newOrder.providerId,
     });
+    const resolvedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.newOrder.providerId,
+      provider,
+    );
+    if (resolvedRefusal) {
+      return resolvedRefusal;
+    }
     this.#ensureTradingServiceDeps();
 
     return this.#tradingService.editOrder({
@@ -3574,6 +3598,13 @@ export class PerpsController extends BaseController<
       orderType: params.orderType,
       providerId: params.providerId,
     });
+    const resolvedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+      provider,
+    );
+    if (resolvedRefusal) {
+      return resolvedRefusal;
+    }
 
     return this.#tradingService.cancelOrder({
       provider,
@@ -3805,6 +3836,13 @@ export class PerpsController extends BaseController<
       orderType: params.orderType,
       providerId: params.providerId,
     });
+    const resolvedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+      provider,
+    );
+    if (resolvedRefusal) {
+      return resolvedRefusal;
+    }
     this.#ensureTradingServiceDeps();
 
     return this.#tradingService.closePosition({
@@ -3860,6 +3898,13 @@ export class PerpsController extends BaseController<
       orderType: undefined,
       providerId: params.providerId,
     });
+    const resolvedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+      provider,
+    );
+    if (resolvedRefusal) {
+      return resolvedRefusal;
+    }
     this.#ensureTradingServiceDeps();
 
     return this.#tradingService.updatePositionTPSL({
@@ -3892,6 +3937,13 @@ export class PerpsController extends BaseController<
       orderType: undefined,
       providerId: params.providerId,
     });
+    const resolvedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+      provider,
+    );
+    if (resolvedRefusal) {
+      return resolvedRefusal;
+    }
     this.#ensureTradingServiceDeps();
     // A market leg uses the caller's tolerance, else the saved preference.
     const maxSlippageBps = params.maxSlippageBps ?? this.state.maxSlippageBps;
@@ -3919,6 +3971,13 @@ export class PerpsController extends BaseController<
     }
 
     const provider = await this.#getActiveProviderWhenReady();
+    const resolvedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+      provider,
+    );
+    if (resolvedRefusal) {
+      return resolvedRefusal;
+    }
     this.#ensureTradingServiceDeps();
 
     return this.#tradingService.updateMargin({
@@ -3947,6 +4006,13 @@ export class PerpsController extends BaseController<
     }
 
     const provider = await this.#getActiveProviderWhenReady();
+    const resolvedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.position.providerId,
+      provider,
+    );
+    if (resolvedRefusal) {
+      return resolvedRefusal;
+    }
     this.#ensureTradingServiceDeps();
 
     return this.#tradingService.flipPosition({
