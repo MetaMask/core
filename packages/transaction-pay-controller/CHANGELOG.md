@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Skip Relay and Server quote simulation when the payer is an MPC Money account
+- Skip Relay and Server quote simulation when the payer is an MPC Money account ([#11408](https://github.com/MetaMask/core/pull/11408))
   - Perps and Predict deposits funded by a Money Account set `paymentOverride` to `moneyAccount` and put that account on `refundTo`. Simulation rebuilds the submit calls, which signs a delegation and prompts for MFA. Submit still signs once.
 - Always request non-atomic quotes when the transaction's `from` keyring requires MFA ([#11389](https://github.com/MetaMask/core/pull/11389))
   - An atomic quote embeds the target calls, which needs a fresh delegation signature per quote. On an MFA keyring every refresh of an open amount screen would cost the user a confirmation.
