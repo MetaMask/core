@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `AuthenticationController.exchangeSocialAccessToken`, and so `refreshSocialLoginCredentials`, `beginSocialLoginVerification` and `completeSocialLoginVerification`, no longer fail with "the wallet has no social login" before the vault is written ([#XXXXX](https://github.com/MetaMask/core/pull/XXXXX))
+- `AuthenticationController.exchangeSocialAccessToken`, and so `refreshSocialLoginCredentials`, `beginSocialLoginVerification` and `completeSocialLoginVerification`, no longer fail with "the wallet has no social login" before the vault is written ([#11414](https://github.com/MetaMask/core/pull/11414))
   - The social provider is taken from `authConnection` alone, which is known right after the social login and before the password creates the vault, so social login recovery can verify an MFA credential at that point
   - Sign-in and profile pairing are unchanged and still treat a wallet without a vault as `SRP`
 
