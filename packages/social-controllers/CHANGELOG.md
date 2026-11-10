@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `following_v1` to `FeedScope`, so `fetchFeed` can request the following feed in the shape of the all feed ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `following_v1` to `FeedScope`, so `fetchFeed` can request the following feed in the shape of the all feed ([#11424](https://github.com/MetaMask/core/pull/11424))
   - social-api returns the all-feed items of the profiles the user follows and the user's own: one item per position trade plus one per author comment, ordered by `occurredAt`, each with `feedItemId`, `eventId`, `revision` and `occurredAt`.
   - Its cursors are the all-feed cursors, so they cannot be passed to `following`, and vice versa.
   - `following` is unchanged.
