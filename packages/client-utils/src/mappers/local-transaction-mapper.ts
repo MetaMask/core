@@ -76,7 +76,7 @@ export function mapLocalTransaction(
   // Keep this mapper thin: still classify the activity as an approve, but omit
   // the token rather than surfacing the wrong one — the API mapper provides
   // accurate token data.
-  const isPermit2Approve = methodId === permit2ApproveMethodId;
+  const isPermit2Approve = methodId?.toLowerCase() === permit2ApproveMethodId;
   const tokenContractAddress = isPermit2Approve
     ? undefined
     : (transferInformation?.contractAddress ?? (to || undefined));
