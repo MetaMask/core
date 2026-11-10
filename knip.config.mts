@@ -21,11 +21,12 @@ const config: KnipConfig = {
       ignoreDependencies: ['bats'],
     },
     'packages/perps-controller': {
-      // Run directly (`npx tsx tests/e2e/...`) rather than imported, so knip
-      // needs telling it is an entry point — otherwise the dependencies only
-      // it uses look unused.
+      // Run directly (`yarn workspace @metamask/perps-controller exec tsx
+      // tests/e2e/...`) rather than imported, so knip needs telling it is an
+      // entry point — otherwise the dependencies only it uses look unused. It
+      // can't tie the `tsx` runner itself back to those scripts either.
       entry: ['tests/e2e/*.ts'],
-      ignoreDependencies: ['@metamask/accounts-controller'],
+      ignoreDependencies: ['@metamask/accounts-controller', 'tsx'],
     },
 
     // -- Per-workspace `ignoreDependencies` snapshots --
