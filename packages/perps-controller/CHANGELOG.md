@@ -22,6 +22,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add a `stripTrailingZeros` option to `formatPercentage`, for TWAP progress: `formatPercentage(25, { decimals: PERPS_DISPLAY_PRECISION.TwapProgressPercent, stripTrailingZeros: true, sign: 'never' })` returns `25%` ([#11415](https://github.com/MetaMask/core/pull/11415))
   - It takes a percentage: Mobile's `formatTwapProgressPercent` takes basis points and clamps to 0–100%, so callers divide by 100 and clamp before switching
 - Add `PERPS_DISPLAY_PRECISION` values for these displays, following Mobile: `FeeBps` 2, `LiquidationDistancePercent` 2, `TwapProgressPercent` 2, `UsdInput` 2, `UsdInputMaxDigits` 9, `VolumeCompact` 2, `VolumeCompactThousands` 0, `OrderBookCompact` 1 and `OrderBookAbbreviatedPriceMax` 3 ([#11415](https://github.com/MetaMask/core/pull/11415))
+- Add `PerpsController.setDefaultProvider` (messenger action `PerpsController:setDefaultProvider`) to save the default venue for aggregated-mode routing, and a persisted `defaultProvider` state field separate from `activeProvider` ([#11420](https://github.com/MetaMask/core/pull/11420))
+  - Unlike `switchProvider`, changing the default never re-initializes the controller or reconnects a stream: the live aggregated provider's routing default is updated in place and both venues stay connected
+  - Returns the new `SetDefaultProviderResult` type (`{ success, defaultProvider, error? }`)
+  - When the version-gated `perpsMultiProviderModeEnabled` remote feature flag (TAT-4394) is on, a persisted direct `activeProvider` (`hyperliquid` or `lighter`) migrates to `aggregated` with `defaultProvider` set to the previous value, so both venues' positions and balances are read at the same time
+  - New messenger action type `PerpsControllerSetDefaultProviderAction`
+- Add a structured `PROVIDER_ROUTE_REQUIRED` error code: in aggregated mode, a write that does not name a venue is refused with it instead of silently falling back to the default provider ([#11420](https://github.com/MetaMask/core/pull/11420))
+  - Applies to `placeOrder`, `editOrder`, `cancelOrder`, `closePosition`, `updatePositionTPSL`, `replacePositionTPSLLeg`, `updateMargin` and `flipPosition` (a flip names its venue through `position.providerId`)
+  - Direct single-provider modes are unchanged: their writes already have exactly one destination
+  - `PROVIDER_ROUTE_REQUIRED` widens the exported `PerpsErrorCode` union. Clients that key an exhaustive `Record<PerpsErrorCode, …>` must add an entry when they upgrade
+  - `updateMargin` now also forwards its `providerId` to the venue, so an explicit route reaches the right provider in aggregated mode instead of the default
+
+### Changed
+
+- **BREAKING:** `tradeConfigurations` state is keyed by provider and then market symbol (`{ [network]: { [providerId]: { [symbol]: config } } }`), so leverage, order-book grouping, margin mode and pending config saved for one venue no longer apply to the same symbol on another venue ([#11420](https://github.com/MetaMask/core/pull/11420))
+  - Persisted state written by older versions migrates automatically: entries move under the venue that was active when they were saved
+  - The trade-configuration methods (`getTradeConfiguration`, `saveTradeConfiguration`, `savePendingTradeConfiguration`, `getPendingTradeConfiguration`, `clearPendingTradeConfiguration`, `getOrderBookGrouping`, `saveOrderBookGrouping`, `getMarginMode`, `saveMarginMode`) and the `selectTradeConfiguration`, `selectPendingTradeConfiguration`, `selectOrderBookGrouping` and `selectMarginMode` selectors take an optional trailing `providerId` argument. Omitting it keeps the previous behaviour: the active provider in direct mode, the default provider in aggregated mode
+  - Types `PerpsPendingTradeConfiguration`, `PerpsTradeConfiguration` and `PerpsProviderTradeConfigurations`
+
+### Fixed
+
+- Fix `updateMargin` dropping its `providerId` route before reaching the provider, so an explicit venue now answers in aggregated mode ([#11420](https://github.com/MetaMask/core/pull/11420))
 
 ## [23.0.0]
 

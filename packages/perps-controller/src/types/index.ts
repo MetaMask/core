@@ -15,6 +15,7 @@ import type { LighterProvider } from '../providers/LighterProvider.js';
 import type { LighterSignerBridge } from './lighter-types.js';
 import type {
   CandleData,
+  OrderDirection,
   OrderType,
   StrategyOrderType,
   TpslLinkage,
@@ -1271,6 +1272,56 @@ export type SwitchProviderResult = {
   success: boolean;
   providerId: PerpsActiveProviderMode;
   error?: string;
+};
+
+/**
+ * Result of setting the default provider used by aggregated-mode routing.
+ *
+ * `setDefaultProvider` never re-initializes the controller or reconnects
+ * any stream, so there is no asynchronous work to await.
+ */
+export type SetDefaultProviderResult = {
+  success: boolean;
+  defaultProvider: PerpsProviderType;
+  error?: string;
+};
+
+/**
+ * Temporary trade configuration captured while a placement flow is
+ * interrupted. Expires after `PERPS_CONSTANTS.PendingTradeConfigurationTtlMs`.
+ */
+export type PerpsPendingTradeConfiguration = {
+  amount?: string; // Order size in USD
+  leverage?: number; // Leverage
+  takeProfitPrice?: string; // Take profit price
+  stopLossPrice?: string; // Stop loss price
+  limitPrice?: string; // Limit price (for limit orders)
+  orderType?: OrderType; // Market vs limit
+  reduceOnly?: boolean; // Whether the order may only reduce a position
+  direction?: OrderDirection; // Long vs short
+  /** When user used pay-with-token in PerpsPayRow: minimal token shape to restore selection */
+  selectedPaymentToken?: PerpsSelectedPaymentToken | null;
+  timestamp: number; // When the config was saved (for expiration check)
+};
+
+/**
+ * Persisted per-market trade configuration: leverage, order-book grouping,
+ * margin mode and the expiring pending config.
+ */
+export type PerpsTradeConfiguration = {
+  leverage?: number; // Last used leverage for this market
+  orderBookGrouping?: number; // Persisted price grouping for order book
+  marginMode?: MarginMode; // Last Isolated/Cross pick for this market
+  pendingConfig?: PerpsPendingTradeConfiguration;
+};
+
+/**
+ * Trade configurations keyed by provider id and then market symbol, so a
+ * value saved for one venue (for example HyperLiquid BTC) never applies to
+ * the same symbol on another venue.
+ */
+export type PerpsProviderTradeConfigurations = {
+  [providerId: string]: { [marketSymbol: string]: PerpsTradeConfiguration };
 };
 
 export type CancelOrderParams = {

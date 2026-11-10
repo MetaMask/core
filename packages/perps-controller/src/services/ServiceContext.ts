@@ -3,6 +3,7 @@ import type {
   Order,
   PerpsFeeResolution,
   PerpsGlobalSnapshotRequest,
+  PerpsProviderType,
   PerpsSubscriptionFeeWaiverStatus,
   Position,
 } from '../types/index.js';
@@ -94,9 +95,15 @@ export type ServiceContext = {
   feeResolution?: PerpsFeeResolution;
 
   /**
-   * Callback functions for controller-specific operations
+   * Callback functions for controller-specific operations. `providerId` is
+   * the venue the placement was routed to; it keys the persisted trade
+   * configuration so a value saved on one venue never applies to another.
    */
-  saveTradeConfiguration?: (symbol: string, leverage: number) => void;
+  saveTradeConfiguration?: (
+    symbol: string,
+    leverage: number,
+    providerId?: PerpsProviderType,
+  ) => void;
 
   /**
    * Feature flag configuration callbacks

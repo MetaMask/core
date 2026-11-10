@@ -890,6 +890,22 @@ export type PerpsControllerSwitchProviderAction = {
 };
 
 /**
+ * Set the default provider used by aggregated-mode routing.
+ *
+ * Persists the choice and, when the active provider is the aggregated
+ * wrapper, updates its routing default in place. Unlike `switchProvider`
+ * this never re-initializes the controller and never reconnects a stream:
+ * both venues stay connected and per-venue writes are unaffected.
+ *
+ * @param providerId - The provider to use as the aggregated default.
+ * @returns The result with the new default provider.
+ */
+export type PerpsControllerSetDefaultProviderAction = {
+  type: `PerpsController:setDefaultProvider`;
+  handler: PerpsController['setDefaultProvider'];
+};
+
+/**
  * Get current network (mainnet/testnet)
  *
  * @returns Either 'mainnet' or 'testnet' based on the current configuration.
@@ -1287,9 +1303,12 @@ export type PerpsControllerClearPendingTransactionRequestsAction = {
 };
 
 /**
- * Get saved trade configuration for a market
+ * Get saved trade configuration for a market on a venue
  *
  * @param symbol - The trading pair symbol.
+ * @param providerId - Optional venue the configuration was saved for.
+ * Defaults to the active provider, or the default provider in aggregated
+ * mode.
  * @returns The resulting string value.
  */
 export type PerpsControllerGetTradeConfigurationAction = {
@@ -1298,10 +1317,13 @@ export type PerpsControllerGetTradeConfigurationAction = {
 };
 
 /**
- * Save trade configuration for a market
+ * Save trade configuration for a market on a venue
  *
  * @param symbol - Market symbol
  * @param leverage - Leverage value
+ * @param providerId - Optional venue to key the configuration under.
+ * Defaults to the active provider, or the default provider in aggregated
+ * mode.
  */
 export type PerpsControllerSaveTradeConfigurationAction = {
   type: `PerpsController:saveTradeConfiguration`;
@@ -1342,9 +1364,12 @@ export type PerpsControllerGetPendingTradeConfigurationAction = {
 };
 
 /**
- * Clear pending trade configuration for a market
+ * Clear pending trade configuration for a market on a venue
  *
  * @param symbol - Market symbol
+ * @param providerId - Optional venue the configuration was saved for.
+ * Defaults to the active provider, or the default provider in aggregated
+ * mode.
  */
 export type PerpsControllerClearPendingTradeConfigurationAction = {
   type: `PerpsController:clearPendingTradeConfiguration`;
@@ -1519,10 +1544,12 @@ export type PerpsControllerGetOrderBookGroupingAction = {
 };
 
 /**
- * Save order book grouping for a market
+ * Save order book grouping for a market on a venue
  *
  * @param symbol - Market symbol
  * @param grouping - Price grouping value
+ * @param providerId - Optional venue to key the grouping under. Defaults to
+ * the active provider, or the default provider in aggregated mode.
  */
 export type PerpsControllerSaveOrderBookGroupingAction = {
   type: `PerpsController:saveOrderBookGrouping`;
@@ -1542,11 +1569,13 @@ export type PerpsControllerGetMarginModeAction = {
 };
 
 /**
- * Save the margin mode (Isolated/Cross) picked for a market on the current
- * network. Values other than `isolated` or `cross` are ignored.
+ * Save the margin mode (Isolated/Cross) picked for a market on a venue on
+ * the current network. Values other than `isolated` or `cross` are ignored.
  *
  * @param symbol - Market symbol
  * @param marginMode - Margin mode to persist
+ * @param providerId - Optional venue to key the mode under. Defaults to the
+ * active provider, or the default provider in aggregated mode.
  */
 export type PerpsControllerSaveMarginModeAction = {
   type: `PerpsController:saveMarginMode`;
@@ -1707,6 +1736,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerClearAttributionContextAction
   | PerpsControllerToggleTestnetAction
   | PerpsControllerSwitchProviderAction
+  | PerpsControllerSetDefaultProviderAction
   | PerpsControllerGetCurrentNetworkAction
   | PerpsControllerGetMarketCategoriesAction
   | PerpsControllerGetWebSocketConnectionStateAction

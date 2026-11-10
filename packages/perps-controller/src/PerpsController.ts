@@ -151,6 +151,7 @@ import type {
   SubscribePricesParams,
   ReadyToTradeResult,
   SwitchProviderResult,
+  SetDefaultProviderResult,
   ToggleTestnetResult,
   TwapOrder,
   UpdateMarginParams,
@@ -169,6 +170,8 @@ import type {
   PerpsAnalyticsProperties,
   PerpsAttributionContext,
   PerpsProviderType,
+  PerpsProviderTradeConfigurations,
+  PerpsTradeConfiguration,
   PerpsUserDataSnapshot,
   PerpsSelectedPaymentToken,
   PerpsRemoteFeatureFlagState,
@@ -379,6 +382,13 @@ export type {
 export type PerpsControllerState = {
   // Active provider
   activeProvider: PerpsActiveProviderMode;
+  /**
+   * Default venue for aggregated-mode routing: the venue a write reaches when
+   * it does not name one, and the venue whose data backs default-routed reads.
+   * Separate from `activeProvider`, which selects the provider *mode*
+   * (direct single venue vs `aggregated`). Persisted.
+   */
+  defaultProvider: PerpsProviderType;
   isTestnet: boolean; // Dev toggle for testnet
 
   // Initialization state machine
@@ -491,46 +501,12 @@ export type PerpsControllerState = {
     mainnet: { symbol: string; viewedAt: number }[];
   };
 
-  // Trade configurations per market (per network)
+  // Trade configurations per market (per network, per provider). Keyed by
+  // provider first so leverage or margin mode saved on one venue never
+  // applies to the same symbol on another venue.
   tradeConfigurations: {
-    testnet: {
-      [marketSymbol: string]: {
-        leverage?: number; // Last used leverage for this market
-        orderBookGrouping?: number; // Persisted price grouping for order book
-        marginMode?: MarginMode; // Last Isolated/Cross pick for this market
-        // Pending trade configuration (temporary, expires after 30 seconds)
-        pendingConfig?: {
-          amount?: string; // Order size in USD
-          leverage?: number; // Leverage
-          takeProfitPrice?: string; // Take profit price
-          stopLossPrice?: string; // Stop loss price
-          limitPrice?: string; // Limit price (for limit orders)
-          orderType?: OrderType; // Market vs limit
-          reduceOnly?: boolean; // Whether the order may only reduce a position
-          direction?: OrderDirection; // Long vs short
-          timestamp: number; // When the config was saved (for expiration check)
-        };
-      };
-    };
-    mainnet: {
-      [marketSymbol: string]: {
-        leverage?: number;
-        orderBookGrouping?: number; // Persisted price grouping for order book
-        marginMode?: MarginMode; // Last Isolated/Cross pick for this market
-        // Pending trade configuration (temporary, expires after 30 seconds)
-        pendingConfig?: {
-          amount?: string; // Order size in USD
-          leverage?: number; // Leverage
-          takeProfitPrice?: string; // Take profit price
-          stopLossPrice?: string; // Stop loss price
-          limitPrice?: string; // Limit price (for limit orders)
-          orderType?: OrderType; // Market vs limit
-          reduceOnly?: boolean; // Whether the order may only reduce a position
-          direction?: OrderDirection; // Long vs short
-          timestamp: number; // When the config was saved (for expiration check)
-        };
-      };
-    };
+    testnet: PerpsProviderTradeConfigurations;
+    mainnet: PerpsProviderTradeConfigurations;
   };
 
   // Max slippage tolerance in basis points (e.g. 300 = 3%). Global user preference.
@@ -610,6 +586,7 @@ export type PerpsControllerState = {
  */
 export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
   activeProvider: 'hyperliquid',
+  defaultProvider: 'hyperliquid',
   isTestnet: false, // Default to mainnet
   initializationState: InitializationState.Uninitialized,
   initializationError: null,
@@ -691,6 +668,12 @@ const metadata: StateMetadata<PerpsControllerState> = {
     usedInUi: true,
   },
   activeProvider: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  defaultProvider: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: false,
@@ -1068,6 +1051,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'saveTradeConfiguration',
   'setAgentSigner',
   'setAttributionContext',
+  'setDefaultProvider',
   'setLiveDataConfig',
   'setSelectedPaymentToken',
   'setVisibleCandleCount',
@@ -1442,6 +1426,12 @@ export class PerpsController extends BaseController<
 
     // Migrate old persisted data without accountAddress
     this.#migrateRequestsIfNeeded();
+
+    // Migrate persisted state shapes/values written by older versions. Trade
+    // configurations must move under their venue key before the multi-provider
+    // migration can flip `activeProvider` (the venue key is derived from it).
+    this.#migrateTradeConfigurationsIfNeeded();
+    this.#migrateActiveProviderForMultiProviderIfNeeded();
 
     // Eagerly hydrate in-memory caches from disk so hooks see data on first render.
     // Must happen at construction time — before any React component mounts.
@@ -2095,6 +2085,117 @@ export class PerpsController extends BaseController<
     });
   }
 
+  /**
+   * Re-key persisted trade configurations from `{ network: { symbol: config } }`
+   * to `{ network: { provider: { symbol: config } } }` (TAT-4394).
+   *
+   * Entries saved by older versions were written under whichever venue was
+   * active, so they move under that venue's key: `activeProvider` when it is a
+   * direct venue, else `defaultProvider`. Idempotent: the legacy shape is
+   * detected by a config field (`leverage`, `orderBookGrouping`, `marginMode`,
+   * `pendingConfig`) sitting directly under a symbol key.
+   */
+  #migrateTradeConfigurationsIfNeeded(): void {
+    const configFieldNames: (keyof PerpsTradeConfiguration)[] = [
+      'leverage',
+      'orderBookGrouping',
+      'marginMode',
+      'pendingConfig',
+    ];
+    const { activeProvider, defaultProvider } = this.state;
+    const destinationProvider: PerpsProviderType =
+      activeProvider === 'hyperliquid' || activeProvider === 'lighter'
+        ? activeProvider
+        : defaultProvider;
+
+    this.update((state) => {
+      for (const network of ['testnet', 'mainnet'] as const) {
+        const entries = state.tradeConfigurations?.[network];
+        if (!entries) {
+          continue;
+        }
+        const isLegacyShape = Object.values(entries).some(
+          (symbolEntry) =>
+            symbolEntry !== null &&
+            typeof symbolEntry === 'object' &&
+            configFieldNames.some(
+              (field) => field in (symbolEntry as PerpsTradeConfiguration),
+            ),
+        );
+        if (!isLegacyShape) {
+          continue;
+        }
+        state.tradeConfigurations[network] = {
+          [destinationProvider]: entries,
+        };
+        this.#debugLog(
+          'PerpsController: Migrated trade configurations to provider-keyed shape',
+          { network, provider: destinationProvider },
+        );
+      }
+    });
+  }
+
+  /**
+   * Whether the multi-provider (aggregated) mode flag is on (TAT-4394).
+   *
+   * Version-gated like `perpsLighterProviderEnabled`: enabled only when the
+   * flag is on and the app version meets its minimum.
+   *
+   * @returns True when the flag is enabled for the current app version.
+   */
+  #isMultiProviderModeEnabled(): boolean {
+    try {
+      const remoteState = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      const remoteFlag =
+        remoteState.remoteFeatureFlags?.perpsMultiProviderModeEnabled;
+
+      if (isVersionGatedFeatureFlag(remoteFlag)) {
+        const validated =
+          this.#options.infrastructure.featureFlags.validateVersionGated(
+            remoteFlag,
+          );
+        return validated ?? false;
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Migrate a persisted direct `activeProvider` to aggregated mode (TAT-4394).
+   *
+   * When the multi-provider flag is on and the persisted mode is a direct
+   * venue, the venue becomes the persisted `defaultProvider` and the mode
+   * becomes `aggregated`, so both venues' positions and balances are read at
+   * the same time and each order goes to the venue the user picks. Idempotent;
+   * runs at construction (flags may not be loaded yet, in which case it also
+   * runs from `#performInitialization` before the active provider is assigned).
+   */
+  #migrateActiveProviderForMultiProviderIfNeeded(): void {
+    if (!this.#isMultiProviderModeEnabled()) {
+      return;
+    }
+    const { activeProvider } = this.state;
+    if (activeProvider !== 'hyperliquid' && activeProvider !== 'lighter') {
+      return;
+    }
+
+    this.update((state) => {
+      state.defaultProvider = activeProvider;
+      state.activeProvider = 'aggregated';
+    });
+
+    this.#debugLog(
+      'PerpsController: Migrated direct provider to aggregated mode',
+      { previousProvider: activeProvider, defaultProvider: activeProvider },
+    );
+  }
+
   protected setBlockedRegionList(
     list: string[],
     source: 'remote' | 'fallback',
@@ -2406,6 +2507,11 @@ export class PerpsController extends BaseController<
         ]);
         this.#lighterRegistrationPromise = null;
 
+        // Flags may have arrived after construction; re-run the idempotent
+        // migration so the aggregated wrapper (when the flag is on) is built
+        // from the migrated state.
+        this.#migrateActiveProviderForMultiProviderIfNeeded();
+
         this.#assignActiveProvider();
 
         this.isInitialized = true;
@@ -2690,9 +2796,20 @@ export class PerpsController extends BaseController<
     }
 
     if (activeProvider === 'aggregated') {
+      // The persisted default venue routes writes that do not name one and
+      // backs default-routed reads. Fall back to HyperLiquid when the saved
+      // default is not registered (for example Lighter failed to load).
+      const defaultProvider = this.providers.has(this.state.defaultProvider)
+        ? this.state.defaultProvider
+        : 'hyperliquid';
+      if (defaultProvider !== this.state.defaultProvider) {
+        this.update((state) => {
+          state.defaultProvider = defaultProvider;
+        });
+      }
       this.activeProviderInstance = new AggregatedPerpsProvider({
         providers: this.providers,
-        defaultProvider: 'hyperliquid',
+        defaultProvider,
         infrastructure: this.#options.infrastructure,
         isTestnet: this.state.isTestnet,
       });
@@ -3271,6 +3388,30 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Structured refusal for an aggregated-mode write that does not name a venue.
+   *
+   * In aggregated mode both venues are live at once, so a write without a
+   * `providerId` has no unambiguous destination and is refused with
+   * `PROVIDER_ROUTE_REQUIRED` instead of silently falling back to the default
+   * provider. Direct single-provider modes are unaffected: their writes
+   * already have exactly one destination.
+   *
+   * @param providerId - Explicit provider route, when supplied.
+   * @returns The refusal result, or undefined when the write may proceed.
+   */
+  #getUnroutedAggregatedWriteRefusal(
+    providerId: PerpsProviderType | undefined,
+  ): { success: false; error: string } | undefined {
+    if (
+      this.state.activeProvider !== 'aggregated' ||
+      providerId !== undefined
+    ) {
+      return undefined;
+    }
+    return { success: false, error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED };
+  }
+
+  /**
    * Resolve one routed order operation after any in-flight initialization.
    *
    * @param params - Routed operation context.
@@ -3302,6 +3443,13 @@ export class PerpsController extends BaseController<
    * @returns The order result with order ID and status.
    */
   async placeOrder(params: OrderParams): Promise<OrderResult> {
+    const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+    );
+    if (unroutedRefusal) {
+      return unroutedRefusal;
+    }
+
     let capturedParams: OrderParams;
     try {
       capturedParams = captureScaleOrderParams(params);
@@ -3322,15 +3470,21 @@ export class PerpsController extends BaseController<
       provider,
       params: capturedParams,
       context: this.#createServiceContext('placeOrder', {
-        saveTradeConfiguration: (symbol: string, leverage: number) =>
-          this.saveTradeConfiguration(symbol, leverage),
+        saveTradeConfiguration: (
+          symbol: string,
+          leverage: number,
+          providerId?: PerpsProviderType,
+        ) => this.saveTradeConfiguration(symbol, leverage, providerId),
       }),
       reportOrderToDataLake: (dataLakeParams) =>
         this.reportOrderToDataLake(dataLakeParams),
     });
 
     if (result.success) {
-      this.clearPendingTradeConfiguration(capturedParams.symbol);
+      this.clearPendingTradeConfiguration(
+        capturedParams.symbol,
+        capturedParams.providerId,
+      );
     }
 
     return result;
@@ -3349,6 +3503,13 @@ export class PerpsController extends BaseController<
         success: false,
         error: PERPS_ERROR_CODES.ORDER_EDIT_STRATEGY_UNSUPPORTED,
       };
+    }
+
+    const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.newOrder.providerId,
+    );
+    if (unroutedRefusal) {
+      return unroutedRefusal;
     }
 
     const provider = await this.#resolveRoutedOrderProvider({
@@ -3371,6 +3532,13 @@ export class PerpsController extends BaseController<
    * @returns The cancellation result with status.
    */
   async cancelOrder(params: CancelOrderParams): Promise<CancelOrderResult> {
+    const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+    );
+    if (unroutedRefusal) {
+      return unroutedRefusal;
+    }
+
     const provider = await this.#resolveRoutedOrderProvider({
       orderType: params.orderType,
       providerId: params.providerId,
@@ -3595,6 +3763,13 @@ export class PerpsController extends BaseController<
    * @returns The order result from the close position request.
    */
   async closePosition(params: ClosePositionParams): Promise<OrderResult> {
+    const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+    );
+    if (unroutedRefusal) {
+      return unroutedRefusal;
+    }
+
     const provider = await this.#resolveRoutedOrderProvider({
       orderType: params.orderType,
       providerId: params.providerId,
@@ -3643,6 +3818,13 @@ export class PerpsController extends BaseController<
   async updatePositionTPSL(
     params: UpdatePositionTPSLParams,
   ): Promise<OrderResult> {
+    const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+    );
+    if (unroutedRefusal) {
+      return unroutedRefusal;
+    }
+
     const provider = await this.#resolveRoutedOrderProvider({
       orderType: undefined,
       providerId: params.providerId,
@@ -3668,6 +3850,13 @@ export class PerpsController extends BaseController<
   async replacePositionTPSLLeg(
     params: ReplacePositionTPSLLegParams,
   ): Promise<OrderResult> {
+    const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+    );
+    if (unroutedRefusal) {
+      return unroutedRefusal;
+    }
+
     const provider = await this.#resolveRoutedOrderProvider({
       orderType: undefined,
       providerId: params.providerId,
@@ -3691,6 +3880,13 @@ export class PerpsController extends BaseController<
    * @returns The margin update result.
    */
   async updateMargin(params: UpdateMarginParams): Promise<MarginResult> {
+    const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.providerId,
+    );
+    if (unroutedRefusal) {
+      return unroutedRefusal;
+    }
+
     const provider = await this.#getActiveProviderWhenReady();
     this.#ensureTradingServiceDeps();
 
@@ -3698,6 +3894,7 @@ export class PerpsController extends BaseController<
       provider,
       symbol: params.symbol,
       amount: params.amount,
+      providerId: params.providerId,
       context: this.#createServiceContext('updateMargin'),
     });
   }
@@ -3709,6 +3906,15 @@ export class PerpsController extends BaseController<
    * @returns The order result from the position flip.
    */
   async flipPosition(params: FlipPositionParams): Promise<OrderResult> {
+    // The flip is executed as a placement against the position's venue, so the
+    // position must carry one in aggregated mode.
+    const unroutedRefusal = this.#getUnroutedAggregatedWriteRefusal(
+      params.position.providerId,
+    );
+    if (unroutedRefusal) {
+      return unroutedRefusal;
+    }
+
     const provider = await this.#getActiveProviderWhenReady();
     this.#ensureTradingServiceDeps();
 
@@ -6317,6 +6523,46 @@ export class PerpsController extends BaseController<
   }
 
   /**
+   * Set the default provider used by aggregated-mode routing.
+   *
+   * Persists the choice and, when the active provider is the aggregated
+   * wrapper, updates its routing default in place. Unlike `switchProvider`
+   * this never re-initializes the controller and never reconnects a stream:
+   * both venues stay connected and per-venue writes are unaffected.
+   *
+   * @param providerId - The provider to use as the aggregated default.
+   * @returns The result with the new default provider.
+   */
+  setDefaultProvider(providerId: PerpsProviderType): SetDefaultProviderResult {
+    // Before initialization the provider registry is empty; accept the
+    // choice so it is persisted and used once providers are created.
+    if (this.providers.size > 0 && !this.providers.has(providerId)) {
+      return {
+        success: false,
+        defaultProvider: this.state.defaultProvider,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      };
+    }
+
+    this.update((state) => {
+      state.defaultProvider = providerId;
+    });
+
+    // Keep the live aggregated wrapper's routing in sync without any
+    // re-initialization or reconnection.
+    if (this.activeProviderInstance instanceof AggregatedPerpsProvider) {
+      this.activeProviderInstance.setDefaultProvider(providerId);
+    }
+
+    this.#debugLog('PerpsController: Default provider updated', {
+      defaultProvider: providerId,
+      activeProvider: this.state.activeProvider,
+    });
+
+    return { success: true, defaultProvider: providerId };
+  }
+
+  /**
    * Get current network (mainnet/testnet)
    *
    * @returns Either 'mainnet' or 'testnet' based on the current configuration.
@@ -7335,14 +7581,41 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Get saved trade configuration for a market
+   * Resolve the venue key trade configurations are stored under.
+   *
+   * An explicit `providerId` always wins. Otherwise the active direct venue is
+   * used, and in aggregated mode the persisted default venue.
+   *
+   * @param providerId - Explicit venue, when supplied.
+   * @returns The provider id trade configurations are keyed by.
+   */
+  #resolveTradeConfigProviderKey(
+    providerId?: PerpsProviderType,
+  ): PerpsProviderType {
+    if (providerId) {
+      return providerId;
+    }
+    const { activeProvider, defaultProvider } = this.state;
+    return activeProvider === 'aggregated' ? defaultProvider : activeProvider;
+  }
+
+  /**
+   * Get saved trade configuration for a market on a venue
    *
    * @param symbol - The trading pair symbol.
+   * @param providerId - Optional venue the configuration was saved for.
+   * Defaults to the active provider, or the default provider in aggregated
+   * mode.
    * @returns The resulting string value.
    */
-  getTradeConfiguration(symbol: string): { leverage?: number } | undefined {
+  getTradeConfiguration(
+    symbol: string,
+    providerId?: PerpsProviderType,
+  ): { leverage?: number } | undefined {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
-    const config = this.state.tradeConfigurations[network]?.[symbol];
+    const provider = this.#resolveTradeConfigProviderKey(providerId);
+    const config =
+      this.state.tradeConfigurations[network]?.[provider]?.[symbol];
 
     if (!config?.leverage) {
       return undefined;
@@ -7351,6 +7624,7 @@ export class PerpsController extends BaseController<
     this.#debugLog('PerpsController: Retrieved trade config', {
       symbol,
       network,
+      provider,
       leverage: config.leverage,
     });
 
@@ -7358,17 +7632,26 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Save trade configuration for a market
+   * Save trade configuration for a market on a venue
    *
    * @param symbol - Market symbol
    * @param leverage - Leverage value
+   * @param providerId - Optional venue to key the configuration under.
+   * Defaults to the active provider, or the default provider in aggregated
+   * mode.
    */
-  saveTradeConfiguration(symbol: string, leverage: number): void {
+  saveTradeConfiguration(
+    symbol: string,
+    leverage: number,
+    providerId?: PerpsProviderType,
+  ): void {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+    const provider = this.#resolveTradeConfigProviderKey(providerId);
 
     this.#debugLog('PerpsController: Saving trade configuration', {
       symbol,
       network,
+      provider,
       leverage,
       timestamp: new Date().toISOString(),
     });
@@ -7377,9 +7660,13 @@ export class PerpsController extends BaseController<
       if (!state.tradeConfigurations[network]) {
         state.tradeConfigurations[network] = {};
       }
+      if (!state.tradeConfigurations[network][provider]) {
+        state.tradeConfigurations[network][provider] = {};
+      }
 
-      const existingConfig = state.tradeConfigurations[network][symbol] || {};
-      state.tradeConfigurations[network][symbol] = {
+      const existingConfig =
+        state.tradeConfigurations[network][provider][symbol] || {};
+      state.tradeConfigurations[network][provider][symbol] = {
         ...existingConfig,
         leverage,
       };
@@ -7401,6 +7688,9 @@ export class PerpsController extends BaseController<
    * @param config.reduceOnly - Whether the order may only reduce a position.
    * @param config.direction - Long or short.
    * @param config.selectedPaymentToken - The selected payment token.
+   * @param providerId - Optional venue to key the configuration under.
+   * Defaults to the active provider, or the default provider in aggregated
+   * mode.
    */
   savePendingTradeConfiguration(
     symbol: string,
@@ -7416,12 +7706,15 @@ export class PerpsController extends BaseController<
       /** When user used pay-with-token in PerpsPayRow: minimal token shape to restore selection */
       selectedPaymentToken?: PerpsSelectedPaymentToken | null;
     },
+    providerId?: PerpsProviderType,
   ): void {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+    const provider = this.#resolveTradeConfigProviderKey(providerId);
 
     this.#debugLog('PerpsController: Saving pending trade configuration', {
       symbol,
       network,
+      provider,
       config,
       timestamp: new Date().toISOString(),
     });
@@ -7430,9 +7723,13 @@ export class PerpsController extends BaseController<
       if (!state.tradeConfigurations[network]) {
         state.tradeConfigurations[network] = {};
       }
+      if (!state.tradeConfigurations[network][provider]) {
+        state.tradeConfigurations[network][provider] = {};
+      }
 
-      const existingConfig = state.tradeConfigurations[network][symbol] || {};
-      state.tradeConfigurations[network][symbol] = {
+      const existingConfig =
+        state.tradeConfigurations[network][provider][symbol] || {};
+      state.tradeConfigurations[network][provider][symbol] = {
         ...existingConfig,
         pendingConfig: {
           ...config,
@@ -7450,9 +7747,15 @@ export class PerpsController extends BaseController<
    * Returns undefined if config doesn't exist or has expired.
    *
    * @param symbol - Market symbol
+   * @param providerId - Optional venue the configuration was saved for.
+   * Defaults to the active provider, or the default provider in aggregated
+   * mode.
    * @returns Pending trade configuration or undefined
    */
-  getPendingTradeConfiguration(symbol: string):
+  getPendingTradeConfiguration(
+    symbol: string,
+    providerId?: PerpsProviderType,
+  ):
     | {
         amount?: string;
         leverage?: number;
@@ -7466,8 +7769,10 @@ export class PerpsController extends BaseController<
       }
     | undefined {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+    const provider = this.#resolveTradeConfigProviderKey(providerId);
     const config =
-      this.state.tradeConfigurations[network]?.[symbol]?.pendingConfig;
+      this.state.tradeConfigurations[network]?.[provider]?.[symbol]
+        ?.pendingConfig;
 
     if (!config) {
       return undefined;
@@ -7480,13 +7785,18 @@ export class PerpsController extends BaseController<
       this.#debugLog('PerpsController: Pending trade config expired', {
         symbol,
         network,
+        provider,
         age,
         timestamp: config.timestamp,
       });
       // Clear expired config
       this.update((state) => {
-        if (state.tradeConfigurations[network]?.[symbol]?.pendingConfig) {
-          delete state.tradeConfigurations[network][symbol].pendingConfig;
+        if (
+          state.tradeConfigurations[network]?.[provider]?.[symbol]
+            ?.pendingConfig
+        ) {
+          delete state.tradeConfigurations[network][provider][symbol]
+            .pendingConfig;
         }
       });
       return undefined;
@@ -7495,6 +7805,7 @@ export class PerpsController extends BaseController<
     this.#debugLog('PerpsController: Retrieved pending trade config', {
       symbol,
       network,
+      provider,
       config,
       age,
     });
@@ -7505,22 +7816,33 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Clear pending trade configuration for a market
+   * Clear pending trade configuration for a market on a venue
    *
    * @param symbol - Market symbol
+   * @param providerId - Optional venue the configuration was saved for.
+   * Defaults to the active provider, or the default provider in aggregated
+   * mode.
    */
-  clearPendingTradeConfiguration(symbol: string): void {
+  clearPendingTradeConfiguration(
+    symbol: string,
+    providerId?: PerpsProviderType,
+  ): void {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+    const provider = this.#resolveTradeConfigProviderKey(providerId);
 
     this.#debugLog('PerpsController: Clearing pending trade configuration', {
       symbol,
       network,
+      provider,
       timestamp: new Date().toISOString(),
     });
 
     this.update((state) => {
-      if (state.tradeConfigurations[network]?.[symbol]?.pendingConfig) {
-        delete state.tradeConfigurations[network][symbol].pendingConfig;
+      if (
+        state.tradeConfigurations[network]?.[provider]?.[symbol]?.pendingConfig
+      ) {
+        delete state.tradeConfigurations[network][provider][symbol]
+          .pendingConfig;
       }
     });
   }
@@ -7815,17 +8137,25 @@ export class PerpsController extends BaseController<
    * Get saved order book grouping for a market
    *
    * @param symbol - Market symbol
+   * @param providerId - Optional venue the grouping was saved for. Defaults to
+   * the active provider, or the default provider in aggregated mode.
    * @returns The saved grouping value or undefined if not set
    */
-  getOrderBookGrouping(symbol: string): number | undefined {
+  getOrderBookGrouping(
+    symbol: string,
+    providerId?: PerpsProviderType,
+  ): number | undefined {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+    const provider = this.#resolveTradeConfigProviderKey(providerId);
     const grouping =
-      this.state.tradeConfigurations[network]?.[symbol]?.orderBookGrouping;
+      this.state.tradeConfigurations[network]?.[provider]?.[symbol]
+        ?.orderBookGrouping;
 
     if (grouping !== undefined) {
       this.#debugLog('PerpsController: Retrieved order book grouping', {
         symbol,
         network,
+        provider,
         grouping,
       });
     }
@@ -7834,17 +8164,25 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Save order book grouping for a market
+   * Save order book grouping for a market on a venue
    *
    * @param symbol - Market symbol
    * @param grouping - Price grouping value
+   * @param providerId - Optional venue to key the grouping under. Defaults to
+   * the active provider, or the default provider in aggregated mode.
    */
-  saveOrderBookGrouping(symbol: string, grouping: number): void {
+  saveOrderBookGrouping(
+    symbol: string,
+    grouping: number,
+    providerId?: PerpsProviderType,
+  ): void {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+    const provider = this.#resolveTradeConfigProviderKey(providerId);
 
     this.#debugLog('PerpsController: Saving order book grouping', {
       symbol,
       network,
+      provider,
       grouping,
       timestamp: new Date().toISOString(),
     });
@@ -7853,9 +8191,13 @@ export class PerpsController extends BaseController<
       if (!state.tradeConfigurations[network]) {
         state.tradeConfigurations[network] = {};
       }
+      if (!state.tradeConfigurations[network][provider]) {
+        state.tradeConfigurations[network][provider] = {};
+      }
 
-      const existingConfig = state.tradeConfigurations[network][symbol] || {};
-      state.tradeConfigurations[network][symbol] = {
+      const existingConfig =
+        state.tradeConfigurations[network][provider][symbol] || {};
+      state.tradeConfigurations[network][provider][symbol] = {
         ...existingConfig,
         orderBookGrouping: grouping,
       };
@@ -7867,30 +8209,45 @@ export class PerpsController extends BaseController<
    * network. Clients should still let a venue-enforced mode take priority.
    *
    * @param symbol - Market symbol
+   * @param providerId - Optional venue the mode was saved for. Defaults to the
+   * active provider, or the default provider in aggregated mode.
    * @returns The saved margin mode or undefined if not set
    */
-  getMarginMode(symbol: string): MarginMode | undefined {
+  getMarginMode(
+    symbol: string,
+    providerId?: PerpsProviderType,
+  ): MarginMode | undefined {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
-    return this.state.tradeConfigurations[network]?.[symbol]?.marginMode;
+    const provider = this.#resolveTradeConfigProviderKey(providerId);
+    return this.state.tradeConfigurations[network]?.[provider]?.[symbol]
+      ?.marginMode;
   }
 
   /**
-   * Save the margin mode (Isolated/Cross) picked for a market on the current
-   * network. Values other than `isolated` or `cross` are ignored.
+   * Save the margin mode (Isolated/Cross) picked for a market on a venue on
+   * the current network. Values other than `isolated` or `cross` are ignored.
    *
    * @param symbol - Market symbol
    * @param marginMode - Margin mode to persist
+   * @param providerId - Optional venue to key the mode under. Defaults to the
+   * active provider, or the default provider in aggregated mode.
    */
-  saveMarginMode(symbol: string, marginMode: MarginMode): void {
+  saveMarginMode(
+    symbol: string,
+    marginMode: MarginMode,
+    providerId?: PerpsProviderType,
+  ): void {
     if (marginMode !== 'isolated' && marginMode !== 'cross') {
       return;
     }
 
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
+    const provider = this.#resolveTradeConfigProviderKey(providerId);
 
     this.#debugLog('PerpsController: Saving margin mode', {
       symbol,
       network,
+      provider,
       marginMode,
     });
 
@@ -7898,9 +8255,13 @@ export class PerpsController extends BaseController<
       if (!state.tradeConfigurations[network]) {
         state.tradeConfigurations[network] = {};
       }
+      if (!state.tradeConfigurations[network][provider]) {
+        state.tradeConfigurations[network][provider] = {};
+      }
 
-      const existingConfig = state.tradeConfigurations[network][symbol] || {};
-      state.tradeConfigurations[network][symbol] = {
+      const existingConfig =
+        state.tradeConfigurations[network][provider][symbol] || {};
+      state.tradeConfigurations[network][provider][symbol] = {
         ...existingConfig,
         marginMode,
       };

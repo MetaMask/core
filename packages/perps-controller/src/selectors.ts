@@ -20,9 +20,34 @@ import type {
   MarginMode,
   OrderDirection,
   OrderType,
+  PerpsProviderType,
   PerpsSelectedPaymentToken,
   SortDirection,
 } from './types/index.js';
+
+/**
+ * Resolve the venue key trade configurations are stored under.
+ *
+ * An explicit `providerId` always wins. Otherwise the active direct venue is
+ * used, and in aggregated mode the persisted default venue.
+ *
+ * @param state - PerpsController state.
+ * @param providerId - Explicit venue, when supplied.
+ * @returns The provider id trade configurations are keyed by.
+ */
+const resolveTradeConfigProviderKey = (
+  state: PerpsControllerState | undefined,
+  providerId?: PerpsProviderType,
+): string => {
+  if (providerId) {
+    return providerId;
+  }
+  const activeProvider = state?.activeProvider;
+  if (activeProvider === 'aggregated') {
+    return state?.defaultProvider ?? 'hyperliquid';
+  }
+  return activeProvider ?? 'hyperliquid';
+};
 
 /**
  * Select whether the user is a first-time perps user
@@ -111,10 +136,12 @@ export const selectRecentlyViewedMarkets = (
  * Select trade configuration for a specific market on the current network.
  * Uses memoization to return stable object references and prevent unnecessary re-renders.
  *
- * Usage: selectTradeConfiguration(state, coin)
+ * Usage: selectTradeConfiguration(state, coin, providerId?)
  *
  * @param state - The perps controller state.
  * @param coin - The market coin symbol.
+ * @param providerId - Optional venue the configuration was saved for. Defaults
+ * to the active provider, or the default provider in aggregated mode.
  * @returns The trade configuration for the specified market, or undefined.
  */
 
@@ -126,11 +153,16 @@ export const selectTradeConfiguration = createSelector(
       _coin: string,
     ): PerpsControllerState['tradeConfigurations'] | undefined =>
       state?.tradeConfigurations,
+    (
+      state: PerpsControllerState,
+      _coin: string,
+      providerId?: PerpsProviderType,
+    ): string => resolveTradeConfigProviderKey(state, providerId),
     (_state: PerpsControllerState, coin: string): string => coin,
   ],
-  (isTestnet, configs, coin): { leverage?: number } | undefined => {
+  (isTestnet, configs, provider, coin): { leverage?: number } | undefined => {
     const network = isTestnet ? 'testnet' : 'mainnet';
-    const config = configs?.[network]?.[coin];
+    const config = configs?.[network]?.[provider]?.[coin];
 
     if (!config?.leverage) {
       return undefined;
@@ -178,15 +210,21 @@ const selectRawPendingTradeConfiguration = createSelector(
       _coin: string,
     ): PerpsControllerState['tradeConfigurations'] | undefined =>
       state?.tradeConfigurations,
+    (
+      state: PerpsControllerState,
+      _coin: string,
+      providerId?: PerpsProviderType,
+    ): string => resolveTradeConfigProviderKey(state, providerId),
     (_state: PerpsControllerState, coin: string): string => coin,
   ],
   (
     isTestnet,
     configs,
+    provider,
     coin,
   ): { timestamp: number; config: PendingTradeConfiguration } | undefined => {
     const network = isTestnet ? 'testnet' : 'mainnet';
-    const config = configs?.[network]?.[coin]?.pendingConfig;
+    const config = configs?.[network]?.[provider]?.[coin]?.pendingConfig;
 
     if (!config) {
       return undefined;
@@ -211,13 +249,16 @@ const selectRawPendingTradeConfiguration = createSelector(
  *
  * @param state - The perps controller state.
  * @param coin - The market coin symbol.
+ * @param providerId - Optional venue the configuration was saved for. Defaults
+ * to the active provider, or the default provider in aggregated mode.
  * @returns The pending trade configuration, or undefined if expired or not found.
  */
 export const selectPendingTradeConfiguration = (
   state: PerpsControllerState,
   coin: string,
+  providerId?: PerpsProviderType,
 ): PendingTradeConfiguration | undefined => {
-  const raw = selectRawPendingTradeConfiguration(state, coin);
+  const raw = selectRawPendingTradeConfiguration(state, coin, providerId);
 
   if (!raw) {
     return undefined;
@@ -359,11 +400,16 @@ export const selectOrderBookGrouping = createSelector(
       _coin: string,
     ): PerpsControllerState['tradeConfigurations'] | undefined =>
       state?.tradeConfigurations,
+    (
+      state: PerpsControllerState,
+      _coin: string,
+      providerId?: PerpsProviderType,
+    ): string => resolveTradeConfigProviderKey(state, providerId),
     (_state: PerpsControllerState, coin: string): string => coin,
   ],
-  (isTestnet, configs, coin): number | undefined => {
+  (isTestnet, configs, provider, coin): number | undefined => {
     const network = isTestnet ? 'testnet' : 'mainnet';
-    return configs?.[network]?.[coin]?.orderBookGrouping;
+    return configs?.[network]?.[provider]?.[coin]?.orderBookGrouping;
   },
 );
 
@@ -384,10 +430,15 @@ export const selectMarginMode = createSelector(
       _coin: string,
     ): PerpsControllerState['tradeConfigurations'] | undefined =>
       state?.tradeConfigurations,
+    (
+      state: PerpsControllerState,
+      _coin: string,
+      providerId?: PerpsProviderType,
+    ): string => resolveTradeConfigProviderKey(state, providerId),
     (_state: PerpsControllerState, coin: string): string => coin,
   ],
-  (isTestnet, configs, coin): MarginMode | undefined => {
+  (isTestnet, configs, provider, coin): MarginMode | undefined => {
     const network = isTestnet ? 'testnet' : 'mainnet';
-    return configs?.[network]?.[coin]?.marginMode;
+    return configs?.[network]?.[provider]?.[coin]?.marginMode;
   },
 );

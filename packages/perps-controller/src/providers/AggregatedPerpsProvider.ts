@@ -169,7 +169,8 @@ export class AggregatedPerpsProvider implements PerpsProvider {
 
   readonly #providers: Map<PerpsProviderType, PerpsProvider>;
 
-  readonly #defaultProvider: PerpsProviderType;
+  /** Default provider used when an operation does not name a venue. */
+  #defaultProvider: PerpsProviderType;
 
   readonly #aggregationMode: AggregationMode;
 
@@ -248,6 +249,30 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    */
   getWriteProviderId(providerId?: PerpsProviderType): PerpsProviderType {
     return providerId ?? this.#defaultProvider;
+  }
+
+  /**
+   * Change the default provider used when an operation does not name a venue.
+   *
+   * Only the routing default changes: no provider is re-initialized and no
+   * stream is reconnected, so the call is synchronous.
+   *
+   * @param providerId - New default provider. Must be registered.
+   * @throws If the provider is not registered.
+   */
+  setDefaultProvider(providerId: PerpsProviderType): void {
+    if (!this.#providers.has(providerId)) {
+      throw new Error(
+        `[AggregatedPerpsProvider] Default provider '${providerId}' not available`,
+      );
+    }
+    this.#defaultProvider = providerId;
+    this.#router.setDefaultProvider(providerId);
+
+    this.#deps.debugLogger.log(
+      '[AggregatedPerpsProvider] Default provider changed',
+      { defaultProvider: providerId },
+    );
   }
 
   /**
