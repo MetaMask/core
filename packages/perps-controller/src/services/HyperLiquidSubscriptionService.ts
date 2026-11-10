@@ -8,6 +8,7 @@ import type {
   UserTwapHistoryWsEvent,
   TwapHistoryResponse,
   ActiveAssetCtxWsEvent,
+  ActiveAssetDataWsEvent,
   ActiveSpotAssetCtxWsEvent,
   BboWsEvent,
   L2BookResponse,
@@ -4855,6 +4856,97 @@ export class HyperLiquidSubscriptionService {
             }),
           );
         });
+      }
+    };
+  }
+
+  /**
+   * Stream the venue's `activeAssetData` for one account and market. Each
+   * caller gets its own venue subscription, which the SDK resubscribes after
+   * a reconnect. The venue pushes a new frame when the market's position,
+   * leverage or mark price changes.
+   *
+   * @param params - Subscription parameters.
+   * @param params.symbol - Market symbol, including any DEX prefix.
+   * @param params.accountId - Optional CAIP account ID; defaults to the selected account.
+   * @param params.callback - Receives each frame for this account and market.
+   * @param params.onError - Receives a failure to open the subscription.
+   * @returns Cleanup function to unsubscribe.
+   */
+  public subscribeToActiveAssetData(params: {
+    symbol: string;
+    accountId?: CaipAccountId;
+    callback: (data: ActiveAssetDataWsEvent) => void;
+    onError?: (error: Error) => void;
+  }): () => void {
+    const { symbol, accountId, callback, onError } = params;
+    let subscription: ISubscription | undefined;
+    let cancelled = false;
+
+    const unsubscribe = (sub: ISubscription): void => {
+      sub.unsubscribe().catch((error: unknown) => {
+        this.#logErrorUnlessClearing(
+          ensureError(
+            error,
+            'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
+          ),
+          this.#getErrorContext('subscribeToActiveAssetData.unsubscribe', {
+            symbol,
+          }),
+        );
+      });
+    };
+
+    (async (): Promise<void> => {
+      await this.#clientService.ensureSubscriptionClient(
+        this.#walletService.createWalletAdapter(),
+      );
+      const subscriptionClient = this.#clientService.getSubscriptionClient();
+      if (!subscriptionClient) {
+        throw new Error('Subscription client not available');
+      }
+      const user =
+        await this.#walletService.getUserAddressWithDefault(accountId);
+      if (cancelled) {
+        return;
+      }
+      const sub = await subscriptionClient.activeAssetData(
+        { user, coin: symbol },
+        (data: ActiveAssetDataWsEvent) => {
+          if (
+            cancelled ||
+            data.coin !== symbol ||
+            data.user.toLowerCase() !== user.toLowerCase()
+          ) {
+            return;
+          }
+          callback(data);
+        },
+      );
+      if (cancelled) {
+        unsubscribe(sub);
+        return;
+      }
+      subscription = sub;
+    })().catch((error: unknown) => {
+      const safeError = ensureError(
+        error,
+        'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
+      );
+      this.#logErrorUnlessClearing(
+        safeError,
+        this.#getErrorContext('subscribeToActiveAssetData', { symbol }),
+      );
+      if (!cancelled) {
+        onError?.(safeError);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      if (subscription) {
+        unsubscribe(subscription);
+        subscription = undefined;
       }
     };
   }

@@ -591,6 +591,102 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('subscribeToAvailableToTrade', () => {
+    const venueValue = {
+      providerId: 'hyperliquid' as const,
+      symbol: 'BTC',
+      long: '421.412267',
+      short: '426.425907',
+    };
+
+    beforeEach(() => {
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+    });
+
+    it('streams the active provider venue values unchanged', () => {
+      const mockUnsubscribe = vi.fn();
+      const subscribe = vi.fn((params) => {
+        params.callback(venueValue);
+        return mockUnsubscribe;
+      });
+      mockProvider.subscribeToAvailableToTrade = subscribe;
+      const callback = vi.fn();
+      const params = { symbol: 'BTC', callback };
+
+      const unsubscribe = controller.subscribeToAvailableToTrade(params);
+
+      expect(subscribe).toHaveBeenCalledWith(params);
+      expect(callback).toHaveBeenCalledWith(venueValue);
+      expect(unsubscribe).toBe(mockUnsubscribe);
+    });
+
+    it('leaves the value unknown when the provider cannot read it from its venue', () => {
+      delete (mockProvider as { subscribeToAvailableToTrade?: unknown })
+        .subscribeToAvailableToTrade;
+      const callback = vi.fn();
+
+      const unsubscribe = controller.subscribeToAvailableToTrade({
+        symbol: 'BTC',
+        callback,
+      });
+      unsubscribe();
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('leaves the value unknown when no provider is active', () => {
+      const subscribe = vi.fn();
+      mockProvider.subscribeToAvailableToTrade = subscribe;
+      controller.testSetInitialized(false);
+      const callback = vi.fn();
+
+      const unsubscribe = controller.subscribeToAvailableToTrade({
+        symbol: 'BTC',
+        callback,
+      });
+      unsubscribe();
+
+      expect(subscribe).not.toHaveBeenCalled();
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('leaves the value unknown for a route the active provider does not serve', () => {
+      const subscribe = vi.fn();
+      mockProvider.subscribeToAvailableToTrade = subscribe;
+      const callback = vi.fn();
+
+      const unsubscribe = controller.subscribeToAvailableToTrade({
+        symbol: 'BTC',
+        providerId: 'lighter',
+        callback,
+      });
+      unsubscribe();
+
+      expect(subscribe).not.toHaveBeenCalled();
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('logs and leaves the value unknown when the provider throws', () => {
+      mockProvider.subscribeToAvailableToTrade = vi.fn(() => {
+        throw new Error('socket closed');
+      });
+      const callback = vi.fn();
+
+      const unsubscribe = controller.subscribeToAvailableToTrade({
+        symbol: 'BTC',
+        callback,
+      });
+      unsubscribe();
+
+      expect(callback).not.toHaveBeenCalled();
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'socket closed' }),
+        expect.anything(),
+      );
+    });
+  });
+
   describe('withdraw', () => {
     it('withdraws successfully', async () => {
       const withdrawParams = {
