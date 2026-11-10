@@ -1828,6 +1828,45 @@ export type SubscribeTwapOrdersParams = {
   accountId?: CaipAccountId; // Optional: defaults to selected account
 };
 
+/**
+ * USD amount the venue lets the account commit to a new order on one market,
+ * per side. It is the venue's own figure (Hyperliquid: `activeAssetData`
+ * `availableToTrade`), so it reflects the market's open position, its
+ * unrealized PnL, resting orders and leverage. It differs from the
+ * account-wide `AccountState.spendableBalance` whenever those apply.
+ */
+export type PerpsAvailableToTrade = Readonly<{
+  /** Provider that reported the value. */
+  providerId: PerpsProviderType;
+  /** Market the value applies to, as subscribed. */
+  symbol: string;
+  /** Available to open or increase a long (buy), as a decimal USD string. */
+  long: string;
+  /** Available to open or increase a short (sell), as a decimal USD string. */
+  short: string;
+}>;
+
+/**
+ * Subscription to one market's available to trade.
+ *
+ * The callback receives venue values only. Until the first one arrives the
+ * value is unknown and clients should render a placeholder. A provider that
+ * cannot read the value from its venue never invokes the callback, so the
+ * value stays unknown: no provider computes an estimate.
+ */
+export type SubscribeAvailableToTradeParams = {
+  /** Provider-specific market identifier, including any routing prefix. */
+  symbol: string;
+  /** Explicit provider route; defaults to the active/default provider. */
+  providerId?: PerpsProviderType;
+  /** Optional: defaults to the selected account. */
+  accountId?: CaipAccountId;
+  /** Receives each venue update for the market. */
+  callback: (availableToTrade: PerpsAvailableToTrade) => void;
+  /** Receives a failure to open the stream; the value is unknown again. */
+  onError?: (error: Error) => void;
+};
+
 export type SubscribeAccountParams = {
   callback: (account: AccountState | null) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
@@ -2801,6 +2840,14 @@ export type PerpsProvider = {
   subscribeToOICaps(params: SubscribeOICapsParams): () => void;
   subscribeToCandles(params: SubscribeCandlesParams): () => void;
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void;
+  /**
+   * Stream one market's per-side available to trade as the venue reports it.
+   * Optional: a provider whose venue has no per-market value omits it, and the
+   * value stays unknown (`undefined`) for clients. Never computed locally.
+   */
+  subscribeToAvailableToTrade?(
+    params: SubscribeAvailableToTradeParams,
+  ): () => void;
 
   // Live data configuration
   setLiveDataConfig(config: Partial<LiveDataConfig>): void;

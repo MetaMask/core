@@ -937,6 +937,261 @@ describe('HyperLiquidSubscriptionService', () => {
     });
   });
 
+  describe('subscribeToActiveAssetData', () => {
+    const frame = {
+      user: '0x123',
+      coin: 'BTC',
+      leverage: { type: 'isolated', value: 2, rawUsd: '-7.4688' },
+      maxTradeSzs: ['0.01095', '0.01135'],
+      availableToTrade: ['413.904112', '429.016554'],
+      markPx: '75580.0',
+    };
+
+    const captureListener = (): {
+      emit: (data: unknown) => void;
+      subscription: MockSubscription;
+    } => {
+      const subscription: MockSubscription = {
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      };
+      let listener: ((data: unknown) => void) | undefined;
+      mockSubscriptionClient.activeAssetData = vi.fn(
+        (_params: unknown, callback: (data: unknown) => void) => {
+          listener = callback;
+          return Promise.resolve(subscription);
+        },
+      );
+      return { emit: (data) => listener?.(data), subscription };
+    };
+
+    it('streams frames for the selected account and market only', async () => {
+      const { emit } = captureListener();
+      const callback = vi.fn();
+
+      service.subscribeToActiveAssetData({ symbol: 'BTC', callback });
+      await vi.advanceTimersByTimeAsync(0);
+      emit(frame);
+      emit({ ...frame, coin: 'ETH' });
+      emit({ ...frame, user: '0x456' });
+
+      expect(mockSubscriptionClient.activeAssetData).toHaveBeenCalledWith(
+        { user: '0x123', coin: 'BTC' },
+        expect.any(Function),
+      );
+      expect(mockWalletService.getUserAddressWithDefault).toHaveBeenCalledWith(
+        undefined,
+      );
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledWith(frame);
+    });
+
+    it('stops streaming and unsubscribes on cleanup', async () => {
+      const { emit, subscription } = captureListener();
+      const callback = vi.fn();
+
+      const cleanup = service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      cleanup();
+      emit(frame);
+
+      expect(subscription.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('never opens a venue subscription when cleaned up first', async () => {
+      captureListener();
+
+      const cleanup = service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+      });
+      cleanup();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(mockSubscriptionClient.activeAssetData).not.toHaveBeenCalled();
+    });
+
+    it('drops a venue subscription that opens after cleanup', async () => {
+      const subscription: MockSubscription = {
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      };
+      let resolveOpen: (sub: MockSubscription) => void = () => undefined;
+      mockSubscriptionClient.activeAssetData = vi.fn(
+        () =>
+          new Promise<MockSubscription>((resolve) => {
+            resolveOpen = resolve;
+          }),
+      );
+      const onError = vi.fn();
+
+      const cleanup = service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        onError,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      cleanup();
+      resolveOpen(subscription);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(subscription.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('logs a failed unsubscribe without throwing', async () => {
+      const { subscription } = captureListener();
+      vi.mocked(subscription.unsubscribe).mockRejectedValue(
+        new Error('socket closed'),
+      );
+
+      const cleanup = service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      cleanup();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(mockDeps.logger.error).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'socket closed' }),
+        expect.anything(),
+      );
+    });
+
+    it('reports a stream that cannot open', async () => {
+      mockSubscriptionClient.activeAssetData = vi
+        .fn()
+        .mockRejectedValue(new Error('subscribe error'));
+      const onError = vi.fn();
+
+      service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        onError,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'subscribe error' }),
+      );
+    });
+
+    it('reports a missing subscription client', async () => {
+      mockClientService.getSubscriptionClient.mockReturnValue(undefined);
+      const onError = vi.fn();
+
+      service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        onError,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Subscription client not available',
+        }),
+      );
+    });
+
+    const deferOpen = (): {
+      resolveOpen: (sub: MockSubscription) => void;
+    } => {
+      const deferred = {
+        resolveOpen: (_sub: MockSubscription): void => undefined,
+      };
+      mockSubscriptionClient.activeAssetData = vi.fn(
+        () =>
+          new Promise<MockSubscription>((resolve) => {
+            deferred.resolveOpen = resolve;
+          }),
+      );
+      return deferred;
+    };
+
+    it('reopens an open stream on the replacement transport', async () => {
+      const previous = captureListener();
+      const callback = vi.fn();
+      service.subscribeToActiveAssetData({ symbol: 'BTC', callback });
+      await vi.advanceTimersByTimeAsync(0);
+
+      const replacement = captureListener();
+      await service.restoreSubscriptions();
+      await vi.advanceTimersByTimeAsync(0);
+      previous.emit(frame);
+      replacement.emit(frame);
+
+      expect(mockSubscriptionClient.activeAssetData).toHaveBeenCalledWith(
+        { user: '0x123', coin: 'BTC' },
+        expect.any(Function),
+      );
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledWith(frame);
+    });
+
+    it('drops an open that was pending when the transport was replaced', async () => {
+      const pending = deferOpen();
+      const callback = vi.fn();
+      const onError = vi.fn();
+      service.subscribeToActiveAssetData({ symbol: 'BTC', callback, onError });
+      await vi.advanceTimersByTimeAsync(0);
+
+      const replacement = captureListener();
+      await service.restoreSubscriptions();
+      await vi.advanceTimersByTimeAsync(0);
+      const stale: MockSubscription = {
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      };
+      pending.resolveOpen(stale);
+      await vi.advanceTimersByTimeAsync(0);
+      replacement.emit(frame);
+
+      expect(stale.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('retires open streams on clearAll', async () => {
+      const { emit, subscription } = captureListener();
+      const callback = vi.fn();
+      service.subscribeToActiveAssetData({ symbol: 'BTC', callback });
+      await vi.advanceTimersByTimeAsync(0);
+
+      service.clearAll();
+      emit(frame);
+      await service.restoreSubscriptions();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(subscription.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(callback).not.toHaveBeenCalled();
+      expect(mockSubscriptionClient.activeAssetData).toHaveBeenCalledTimes(1);
+    });
+
+    it('retires pending streams on clearAll', async () => {
+      const pending = deferOpen();
+      const onError = vi.fn();
+      service.subscribeToActiveAssetData({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        onError,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      service.clearAll();
+      const late: MockSubscription = {
+        unsubscribe: vi.fn().mockResolvedValue(undefined),
+      };
+      pending.resolveOpen(late);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(late.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(onError).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Position Subscriptions', () => {
     it('should subscribe to position updates successfully', async () => {
       const mockCallback = vi.fn();
