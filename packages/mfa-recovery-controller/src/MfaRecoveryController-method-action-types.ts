@@ -88,7 +88,9 @@ export type MfaRecoveryControllerResumeAction = {
 };
 
 /**
- * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
+ * Drops `authorizing` pending. Drops `writing` pending only once its approval
+ * has expired and no escrow applied it; otherwise finish it with
+ * {@link resume}.
  */
 export type MfaRecoveryControllerAbortAction = {
   type: `MfaRecoveryController:abort`;
