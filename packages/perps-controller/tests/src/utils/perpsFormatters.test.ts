@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  FUNDING_RATE_CONFIG,
   PERPS_CONSTANTS,
   PERPS_DISPLAY_PRECISION,
 } from '../../../src/constants/perpsConfig.js';
@@ -271,6 +272,32 @@ describe('formatPercentage', () => {
 describe('formatFundingRate', () => {
   it('returns the percentage placeholder for undefined', () => {
     expect(formatFundingRate(undefined)).toBe('--%');
+  });
+
+  it('tells a missing rate from a negative one once a consumer checks the placeholder first', () => {
+    // Consumer pattern (Mobile market statistics): a string other than the
+    // zero display that starts with "-" was read as a negative rate. The
+    // placeholder also starts with "-", so it must be checked first.
+    const readRate = (
+      display: string,
+    ): 'missing' | 'zero' | 'negative' | 'positive' => {
+      if (display === PERPS_CONSTANTS.FallbackPercentageDisplay) {
+        return 'missing';
+      }
+      if (display === FUNDING_RATE_CONFIG.ZeroDisplay) {
+        return 'zero';
+      }
+      return display.startsWith('-') ? 'negative' : 'positive';
+    };
+
+    expect(formatFundingRate(undefined)).not.toBe(
+      FUNDING_RATE_CONFIG.ZeroDisplay,
+    );
+    expect(readRate(formatFundingRate(undefined))).toBe('missing');
+    expect(readRate(formatFundingRate(Number.NaN))).toBe('missing');
+    expect(readRate(formatFundingRate(0))).toBe('zero');
+    expect(readRate(formatFundingRate(-0.0001))).toBe('negative');
+    expect(readRate(formatFundingRate(0.0001))).toBe('positive');
   });
 
   it('returns the percentage placeholder for null', () => {

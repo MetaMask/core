@@ -168,6 +168,63 @@ function _formatDecimal(
 }
 
 /**
+ * The magnitude of `value` rounded with `toFixed`, as the decimal formatters
+ * (size, percentage, funding) display it.
+ *
+ * @param value - The signed value.
+ * @param decimals - Fraction digits shown.
+ * @returns The rounded non-negative value.
+ */
+function _roundedMagnitude(value: number, decimals: number): number {
+  return Number(Math.abs(value).toFixed(decimals));
+}
+
+/**
+ * Formats a signed number with `toFixed` rounding and the locale's
+ * separators. A value that rounds to zero is zero for the sign.
+ *
+ * @param formatters - Locale-bound formatters.
+ * @param value - The signed value.
+ * @param options - Formatting options.
+ * @param options.minimumFractionDigits - Fraction digits always shown.
+ * @param options.maximumFractionDigits - Fraction digits at most shown.
+ * @param options.useGrouping - Whether to group thousands as the locale does.
+ * @param options.sign - The sign display mode.
+ * @returns The sign prefix and formatted magnitude.
+ */
+function _formatSignedDecimal(
+  formatters: PerpsIntlFormatters,
+  value: number,
+  options: {
+    minimumFractionDigits: number;
+    maximumFractionDigits: number;
+    useGrouping: boolean;
+    sign: PerpsSignDisplay;
+  },
+): string {
+  const rounded = _roundedMagnitude(value, options.maximumFractionDigits);
+  return `${_signPrefix(value, rounded === 0, options.sign)}${_formatDecimal(
+    formatters,
+    rounded,
+    options.minimumFractionDigits,
+    options.maximumFractionDigits,
+    options.useGrouping,
+  )}`;
+}
+
+/**
+ * Whether a currency amount shows as zero at `decimals`, with the half away
+ * from zero rounding `Intl` applies.
+ *
+ * @param amount - Non-negative amount.
+ * @param decimals - Fraction digits shown.
+ * @returns True when the displayed amount is zero.
+ */
+function _currencyShowsZero(amount: number, decimals: number): boolean {
+  return Math.round(amount * 10 ** decimals) === 0;
+}
+
+/**
  * Whether `amount` rounded to `maximumFractionDigits` has an all-zero
  * fraction, decided without an `Intl` call.
  *
@@ -634,8 +691,7 @@ export const formatPerpsFiat = (
       strip,
     },
   );
-  const isZero =
-    !isBelowThreshold && Math.round(amount * 10 ** maxDecimals) === 0;
+  const isZero = !isBelowThreshold && _currencyShowsZero(amount, maxDecimals);
 
   return `${_signPrefix(value, isZero, options?.sign ?? 'auto')}${
     isBelowThreshold ? '<' : ''
@@ -691,15 +747,12 @@ export const formatPositionSize = (
       maxDecimals = 2;
     }
   }
-  const rounded = Number(abs.toFixed(maxDecimals));
-
-  return `${_signPrefix(value, rounded === 0, sign)}${_formatDecimal(
-    formatters,
-    rounded,
-    0,
-    maxDecimals,
-    false,
-  )}`;
+  return _formatSignedDecimal(formatters, value, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxDecimals,
+    useGrouping: false,
+    sign,
+  });
 };
 
 /**
@@ -738,9 +791,7 @@ export const formatPnl = (
     maximumFractionDigits: decimals,
     strip: 'none',
   });
-  const isZero = Math.round(amount * 10 ** decimals) === 0;
-
-  return `${_signPrefix(value, isZero, sign)}${formatted}`;
+  return `${_signPrefix(value, _currencyShowsZero(amount, decimals), sign)}${formatted}`;
 };
 
 /**
@@ -778,15 +829,12 @@ export const formatPercentage = (
     return PERPS_CONSTANTS.FallbackPercentageDisplay;
   }
 
-  const rounded = Number(Math.abs(parsed).toFixed(decimals));
-
-  return `${_signPrefix(parsed, rounded === 0, sign)}${_formatDecimal(
-    formatters,
-    rounded,
-    decimals,
-    decimals,
-    true,
-  )}%`;
+  return `${_formatSignedDecimal(formatters, parsed, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    useGrouping: true,
+    sign,
+  })}%`;
 };
 
 /**
@@ -831,10 +879,8 @@ export const formatFundingRate = (
   }
 
   const percentage = rate * FUNDING_RATE_CONFIG.PercentageMultiplier;
-  const rounded = Number(Math.abs(percentage).toFixed(decimals));
-
   // A non-zero rate below the display precision shows "<0.0001%"
-  if (rate !== 0 && rounded === 0) {
+  if (rate !== 0 && _roundedMagnitude(percentage, decimals) === 0) {
     const minimum = _formatDecimal(
       formatters,
       10 ** -decimals,
@@ -845,11 +891,10 @@ export const formatFundingRate = (
     return `${_signPrefix(rate, false, sign)}<${minimum}%`;
   }
 
-  return `${_signPrefix(rate, rounded === 0, sign)}${_formatDecimal(
-    formatters,
-    rounded,
-    decimals,
-    decimals,
-    true,
-  )}%`;
+  return `${_formatSignedDecimal(formatters, percentage, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    useGrouping: true,
+    sign,
+  })}%`;
 };

@@ -20,11 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Display formatters render the shared placeholder for a missing value (`undefined`, `null`, an empty or non-numeric string, `NaN` or an infinite value) instead of a formatted zero ([#00000](https://github.com/MetaMask/core/pull/00000))
+- **BREAKING:** Display formatters render the shared placeholder for a missing value (`undefined`, `null`, an empty or non-numeric string, `NaN` or an infinite value) instead of a formatted zero ([#00000](https://github.com/MetaMask/core/pull/00000))
   - `formatPercentage` and `formatFundingRate` return `--%` (`PERPS_CONSTANTS.FallbackPercentageDisplay`) instead of `0.00%` and `0.0000%`; `formatFundingRate` with `showZero: false` still returns an empty string
   - `formatPnl` and `formatPerpsFiat` return `$---` (`PERPS_CONSTANTS.FallbackPriceDisplay`) instead of `$0.00`, or `<$0.01` for `null`
   - `formatPositionSize` returns `--` (`PERPS_CONSTANTS.FallbackDataDisplay`) instead of `0`
   - `formatPercentage(null)` and `formatPositionSize(null)` no longer throw
+  - Migration: code that detects a missing value by comparing the output with a zero string must compare it with the placeholder instead, before reading a leading `-` as a negative value. Mobile's `PerpsMarketStatisticsCard` compares `formatFundingRate` output with `FUNDING_RATE_CONFIG.ZeroDisplay` and then reads `startsWith('-')` as a negative rate, so a missing rate would show `--%` in the negative colour; it must check `PERPS_CONSTANTS.FallbackPercentageDisplay` first. This ships with the Mobile upgrade (TAT-4533). Terminal's order book parses `formatPositionSize` output with `Number`, so a `NaN` size there shows `NaN` instead of `0` until Terminal adopts the placeholder (TAT-4568). Extension's TP/SL price editor strips `formatPerpsFiat` output, but only for a finite price
 - A value that rounds to zero at the displayed precision has no minus sign: `formatPercentage(-0.004)` returns `+0.00%` instead of `-0.00%`, and `formatPositionSize(-0.004, 0)` returns `0` instead of `-0` ([#00000](https://github.com/MetaMask/core/pull/00000))
 - `formatPerpsFiat` keeps the sign of a negative value below the range threshold: `formatPerpsFiat(-0.004)` returns `-<$0.01` instead of `<$0.01` ([#00000](https://github.com/MetaMask/core/pull/00000))
 - `formatPerpsFiat` returns a range's `customFormat` output unchanged instead of stripping its trailing zeros ([#00000](https://github.com/MetaMask/core/pull/00000))
