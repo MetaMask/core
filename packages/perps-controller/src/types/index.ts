@@ -1863,7 +1863,12 @@ export type SubscribeAvailableToTradeParams = {
   accountId?: CaipAccountId;
   /** Receives each venue update for the market. */
   callback: (availableToTrade: PerpsAvailableToTrade) => void;
-  /** Receives a failure to open the stream; the value is unknown again. */
+  /**
+   * Receives a failure to open the stream, or one that stops it after it
+   * opened (for example a rejected resubscription). The value is unknown again.
+   * Not terminal: keep the subscription, since the stream reopens when the
+   * WebSocket transport is replaced.
+   */
   onError?: (error: Error) => void;
 };
 

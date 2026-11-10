@@ -4879,7 +4879,8 @@ export class HyperLiquidSubscriptionService {
    * @param params.symbol - Market symbol, including any DEX prefix.
    * @param params.accountId - Optional CAIP account ID; defaults to the selected account.
    * @param params.callback - Receives each frame for this account and market.
-   * @param params.onError - Receives a failure to open the subscription.
+   * @param params.onError - Receives a failure to open the subscription, or
+   * one that stops it after it opened.
    * @returns Cleanup function to unsubscribe.
    */
   public subscribeToActiveAssetData(params: {
@@ -4940,6 +4941,28 @@ export class HyperLiquidSubscriptionService {
               return;
             }
             callback(data);
+          },
+          {
+            // A failure after the open (a rejected resubscription, a
+            // terminated connection): the SDK has already dropped the
+            // subscription, so the consumer's value no longer updates.
+            onError: (error: Error) => {
+              if (!isCurrent()) {
+                return;
+              }
+              subscription = undefined;
+              const safeError = ensureError(
+                error,
+                'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
+              );
+              this.#logErrorUnlessClearing(
+                safeError,
+                this.#getErrorContext('subscribeToActiveAssetData', {
+                  symbol,
+                }),
+              );
+              onError?.(safeError);
+            },
           },
         );
         if (!isCurrent()) {
