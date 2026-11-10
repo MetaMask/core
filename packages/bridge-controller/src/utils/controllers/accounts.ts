@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import type { AccountsControllerGetAccountByAddressAction } from '../../../../accounts-controller/src/AccountsController-method-action-types.js';
+import type { AccountsControllerGetAccountByAddressAction } from '@metamask/accounts-controller';
 
 export const getAccountByAddress = <
   T extends {
