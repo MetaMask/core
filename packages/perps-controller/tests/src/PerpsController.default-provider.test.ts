@@ -732,6 +732,78 @@ describe('PerpsController default provider', () => {
     });
   });
 
+  describe('record-key hardening (CodeQL prototype pollution)', () => {
+    it('never writes a trade configuration under an unsafe symbol key', () => {
+      controller.saveTradeConfiguration('__proto__', 10);
+      controller.saveMarginMode('constructor', 'cross');
+      controller.saveOrderBookGrouping('prototype', 10);
+      controller.savePendingTradeConfiguration('__proto__', { amount: '100' });
+
+      expect(
+        Object.keys(controller.state.tradeConfigurations.mainnet),
+      ).toStrictEqual([]);
+      // Object.prototype was not polluted through any of the writes.
+      expect(({} as any).leverage).toBeUndefined();
+      expect(({} as any).marginMode).toBeUndefined();
+      expect(({} as any).orderBookGrouping).toBeUndefined();
+      expect(({} as any).pendingConfig).toBeUndefined();
+    });
+
+    it('never writes a trade configuration under an unsafe provider key', () => {
+      controller.saveTradeConfiguration('BTC', 10, '__proto__' as never);
+      controller.saveMarginMode('BTC', 'cross', 'constructor' as never);
+      controller.savePendingTradeConfiguration(
+        'BTC',
+        { amount: '100' },
+        '__proto__' as never,
+      );
+
+      expect(controller.state.tradeConfigurations.mainnet).toStrictEqual({});
+      expect(({} as any).leverage).toBeUndefined();
+      expect(({} as any).marginMode).toBeUndefined();
+    });
+
+    it('reads and clears nothing for unsafe keys', () => {
+      expect(controller.getTradeConfiguration('__proto__')).toBeUndefined();
+      expect(controller.getMarginMode('constructor')).toBeUndefined();
+      expect(controller.getOrderBookGrouping('prototype')).toBeUndefined();
+      expect(
+        controller.getPendingTradeConfiguration('__proto__'),
+      ).toBeUndefined();
+
+      controller.clearPendingTradeConfiguration('__proto__');
+      expect(controller.state.tradeConfigurations.mainnet).toStrictEqual({});
+    });
+
+    it('rejects a setDefaultProvider value that is not a direct venue', () => {
+      const result = controller.setDefaultProvider('__proto__' as never);
+
+      expect(result).toStrictEqual({
+        success: false,
+        defaultProvider: 'hyperliquid',
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      });
+      expect(controller.state.defaultProvider).toBe('hyperliquid');
+    });
+
+    it('migrates legacy trade configurations to hyperliquid when the persisted venue ids are unsafe', () => {
+      createController({
+        activeProvider: '__proto__' as never,
+        defaultProvider: 'constructor' as never,
+        tradeConfigurations: {
+          mainnet: { BTC: { leverage: 10 } },
+          testnet: {},
+        },
+      } as Partial<PerpsControllerState>);
+
+      expect(controller.state.tradeConfigurations.mainnet).toStrictEqual({
+        hyperliquid: { BTC: { leverage: 10 } },
+      });
+      // The migrated record kept a plain prototype.
+      expect(({} as any).BTC).toBeUndefined();
+    });
+  });
+
   describe('state migrations', () => {
     it('migrates legacy trade configurations under the active direct provider', () => {
       createController({

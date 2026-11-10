@@ -222,6 +222,18 @@ import {
 import type { DiskCacheUserEntry } from './utils/perpsDiskPersistence.js';
 import { wait } from './utils/wait.js';
 
+/**
+ * Keys that must never index into a persisted state record. Assigning under
+ * `__proto__` on a plain object redirects its prototype instead of adding an
+ * own entry, and `constructor`/`prototype` shadow built-ins. Mirrors the
+ * `isOwnStringKey` guard in `advanced-chart-core`.
+ *
+ * @param key - A caller-supplied record key.
+ * @returns True when the key must not be used.
+ */
+const isUnsafeRecordKey = (key: string): boolean =>
+  key === '__proto__' || key === 'constructor' || key === 'prototype';
+
 const CONNECTION_ERROR_TAGS: PerpsErrorTags = {
   operation: PERPS_ERROR_OPERATION.ConnectionManagement,
   component: PERPS_ERROR_COMPONENT.ConnectionManager,
@@ -2103,10 +2115,15 @@ export class PerpsController extends BaseController<
       'pendingConfig',
     ];
     const { activeProvider, defaultProvider } = this.state;
-    const destinationProvider: PerpsProviderType =
-      activeProvider === 'hyperliquid' || activeProvider === 'lighter'
-        ? activeProvider
-        : defaultProvider;
+    // Both ids come from persisted state, so the destination is validated
+    // against the closed set of venues: an unexpected value (including
+    // `__proto__`) must never become a record key.
+    let destinationProvider: PerpsProviderType = 'hyperliquid';
+    if (activeProvider === 'hyperliquid' || activeProvider === 'lighter') {
+      destinationProvider = activeProvider;
+    } else if (defaultProvider === 'lighter') {
+      destinationProvider = 'lighter';
+    }
 
     this.update((state) => {
       for (const network of ['testnet', 'mainnet'] as const) {
@@ -6534,6 +6551,16 @@ export class PerpsController extends BaseController<
    * @returns The result with the new default provider.
    */
   setDefaultProvider(providerId: PerpsProviderType): SetDefaultProviderResult {
+    // Runtime hardening for JS callers: the value reaches persisted state and
+    // the provider registry, so it must be a known direct venue.
+    if (providerId !== 'hyperliquid' && providerId !== 'lighter') {
+      return {
+        success: false,
+        defaultProvider: this.state.defaultProvider,
+        error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
+      };
+    }
+
     // Before initialization the provider registry is empty; accept the
     // choice so it is persisted and used once providers are created.
     if (this.providers.size > 0 && !this.providers.has(providerId)) {
@@ -7583,20 +7610,31 @@ export class PerpsController extends BaseController<
   /**
    * Resolve the venue key trade configurations are stored under.
    *
-   * An explicit `providerId` always wins. Otherwise the active direct venue is
-   * used, and in aggregated mode the persisted default venue.
+   * An explicit `providerId` wins, and the state-derived fallback is the
+   * active direct venue, or the persisted default venue in aggregated mode.
+   * Both are validated against the closed set of venues before use: the key
+   * reaches persisted state, so an unexpected value (including `__proto__`
+   * from a JS caller or tampered persisted state) must never become a record
+   * key (CodeQL prototype-polluting assignment).
    *
    * @param providerId - Explicit venue, when supplied.
-   * @returns The provider id trade configurations are keyed by.
+   * @returns The validated provider key, or null when an explicit venue is not
+   * a known direct provider.
    */
   #resolveTradeConfigProviderKey(
     providerId?: PerpsProviderType,
-  ): PerpsProviderType {
-    if (providerId) {
-      return providerId;
+  ): PerpsProviderType | null {
+    if (providerId !== undefined) {
+      return providerId === 'hyperliquid' || providerId === 'lighter'
+        ? providerId
+        : null;
     }
     const { activeProvider, defaultProvider } = this.state;
-    return activeProvider === 'aggregated' ? defaultProvider : activeProvider;
+    const stateKey =
+      activeProvider === 'aggregated' ? defaultProvider : activeProvider;
+    return stateKey === 'hyperliquid' || stateKey === 'lighter'
+      ? stateKey
+      : 'hyperliquid';
   }
 
   /**
@@ -7614,6 +7652,10 @@ export class PerpsController extends BaseController<
   ): { leverage?: number } | undefined {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
     const provider = this.#resolveTradeConfigProviderKey(providerId);
+    if (provider === null || isUnsafeRecordKey(symbol)) {
+      return undefined;
+    }
+
     const config =
       this.state.tradeConfigurations[network]?.[provider]?.[symbol];
 
@@ -7647,6 +7689,9 @@ export class PerpsController extends BaseController<
   ): void {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
     const provider = this.#resolveTradeConfigProviderKey(providerId);
+    if (provider === null || isUnsafeRecordKey(symbol)) {
+      return;
+    }
 
     this.#debugLog('PerpsController: Saving trade configuration', {
       symbol,
@@ -7710,6 +7755,9 @@ export class PerpsController extends BaseController<
   ): void {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
     const provider = this.#resolveTradeConfigProviderKey(providerId);
+    if (provider === null || isUnsafeRecordKey(symbol)) {
+      return;
+    }
 
     this.#debugLog('PerpsController: Saving pending trade configuration', {
       symbol,
@@ -7770,6 +7818,10 @@ export class PerpsController extends BaseController<
     | undefined {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
     const provider = this.#resolveTradeConfigProviderKey(providerId);
+    if (provider === null || isUnsafeRecordKey(symbol)) {
+      return undefined;
+    }
+
     const config =
       this.state.tradeConfigurations[network]?.[provider]?.[symbol]
         ?.pendingConfig;
@@ -7829,6 +7881,9 @@ export class PerpsController extends BaseController<
   ): void {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
     const provider = this.#resolveTradeConfigProviderKey(providerId);
+    if (provider === null || isUnsafeRecordKey(symbol)) {
+      return;
+    }
 
     this.#debugLog('PerpsController: Clearing pending trade configuration', {
       symbol,
@@ -8147,6 +8202,10 @@ export class PerpsController extends BaseController<
   ): number | undefined {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
     const provider = this.#resolveTradeConfigProviderKey(providerId);
+    if (provider === null || isUnsafeRecordKey(symbol)) {
+      return undefined;
+    }
+
     const grouping =
       this.state.tradeConfigurations[network]?.[provider]?.[symbol]
         ?.orderBookGrouping;
@@ -8178,6 +8237,9 @@ export class PerpsController extends BaseController<
   ): void {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
     const provider = this.#resolveTradeConfigProviderKey(providerId);
+    if (provider === null || isUnsafeRecordKey(symbol)) {
+      return;
+    }
 
     this.#debugLog('PerpsController: Saving order book grouping', {
       symbol,
@@ -8219,6 +8281,10 @@ export class PerpsController extends BaseController<
   ): MarginMode | undefined {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
     const provider = this.#resolveTradeConfigProviderKey(providerId);
+    if (provider === null || isUnsafeRecordKey(symbol)) {
+      return undefined;
+    }
+
     return this.state.tradeConfigurations[network]?.[provider]?.[symbol]
       ?.marginMode;
   }
@@ -8243,6 +8309,9 @@ export class PerpsController extends BaseController<
 
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
     const provider = this.#resolveTradeConfigProviderKey(providerId);
+    if (provider === null || isUnsafeRecordKey(symbol)) {
+      return;
+    }
 
     this.#debugLog('PerpsController: Saving margin mode', {
       symbol,
