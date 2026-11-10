@@ -21,6 +21,15 @@ const mockProfileSummary = {
   imageUrl: 'https://example.com/avatar.png',
 };
 
+const mockProfileIdentity = {
+  displayName: 'Alice',
+  bio: 'gm',
+  createdAt: '2025-11-02T10:00:00.000Z',
+  updatedAt: '2026-10-30T08:30:00.000Z',
+  connectedToX: true,
+  tradingPrivacy: 'public',
+};
+
 const mockSocialHandles = {
   twitter: '@traderalice',
   farcaster: 'traderalice.eth',
@@ -177,6 +186,24 @@ describe('SocialService', () => {
       expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard`, {
         headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
       });
+    });
+
+    it('accepts and returns the Profile API identity on each trader', async () => {
+      const withIdentity = {
+        traders: [
+          { ...mockLeaderboardResponse.traders[0], ...mockProfileIdentity },
+        ],
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withIdentity),
+      });
+      const service = createService();
+
+      const result = await service.fetchLeaderboard();
+
+      expect(result).toStrictEqual(withIdentity);
     });
 
     it('appends sort, chains, and limit query params', async () => {
@@ -600,6 +627,47 @@ describe('SocialService', () => {
           }),
       });
 
+      const service = createService();
+
+      await expect(
+        service.fetchTraderProfile({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
+      );
+    });
+
+    it('accepts and returns the Profile API identity', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockProfileResponse,
+            profile: { ...mockProfileResponse.profile, ...mockProfileIdentity },
+          }),
+      });
+      const service = createService();
+
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.profile).toMatchObject(mockProfileIdentity);
+    });
+
+    it('throws when the trading privacy is unknown', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockProfileResponse,
+            profile: {
+              ...mockProfileResponse.profile,
+              tradingPrivacy: 'friends',
+            },
+          }),
+      });
       const service = createService();
 
       await expect(
@@ -1082,6 +1150,23 @@ describe('SocialService', () => {
         `${V1_URL}/traders/0x1234/followers`,
         { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
       );
+    });
+
+    it('accepts and returns the Profile API identity on each follower', async () => {
+      const withIdentity = {
+        followers: [{ ...mockProfileSummary, ...mockProfileIdentity }],
+        count: 1,
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withIdentity),
+      });
+      const service = createService();
+
+      const result = await service.fetchFollowers({ addressOrId: '0x1234' });
+
+      expect(result).toStrictEqual(withIdentity);
     });
 
     it('appends mutuals=true when mutuals option is set', async () => {

@@ -143,6 +143,7 @@ export type {
   PerpsControllerReconnectAction,
   PerpsControllerRecordMarketViewedAction,
   PerpsControllerRefreshEligibilityAction,
+  PerpsControllerReplacePositionTPSLLegAction,
   PerpsControllerResetFirstTimeUserStateAction,
   PerpsControllerResetSelectedPaymentTokenAction,
   PerpsControllerSaveMarginModeAction,
@@ -166,6 +167,7 @@ export type {
   PerpsControllerStopEligibilityMonitoringAction,
   PerpsControllerStopMarketDataPreloadAction,
   PerpsControllerSubscribeToAccountAction,
+  PerpsControllerSubscribeToAvailableToTradeAction,
   PerpsControllerSubscribeToCandlesAction,
   PerpsControllerSubscribeToConnectionStateAction,
   PerpsControllerSubscribeToOICapsAction,
@@ -305,6 +307,8 @@ export type {
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
   SubscribeTwapOrdersParams,
+  SubscribeAvailableToTradeParams,
+  PerpsAvailableToTrade,
   SubscribeAccountParams,
   SubscribeOICapsParams,
   SubscribeCandlesParams,
@@ -350,6 +354,8 @@ export type {
   PerpsFeeResolution,
   PerpsTradingFeeGrant,
   UpdatePositionTPSLParams,
+  PositionTPSLLeg,
+  ReplacePositionTPSLLegParams,
   Order,
   Funding,
   PerpsProvider,
@@ -571,6 +577,7 @@ export {
   MARKET_SORTING_CONFIG,
   PROVIDER_CONFIG,
   FUNDING_RATE_CONFIG,
+  PERPS_DISPLAY_PRECISION,
 } from './constants/index.js';
 export type { SortOptionId } from './constants/index.js';
 
@@ -764,7 +771,14 @@ export type {
   IsolatedLeverageChange,
 } from './utils/index.js';
 export { getEnvironment } from './utils/index.js';
-export type { FiatRangeConfig } from './utils/index.js';
+export type {
+  FiatRangeConfig,
+  PerpsDisplayFormatOptions,
+  PerpsFiatFormatOptions,
+  PerpsFundingRateFormatOptions,
+  PerpsIntlFormatters,
+  PerpsSignDisplay,
+} from './utils/index.js';
 export {
   PRICE_THRESHOLD,
   formatWithSignificantDigits,

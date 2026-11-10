@@ -17,6 +17,7 @@ import {
 import {
   AuthorCommentStruct,
   CommentEngagementStruct,
+  ProfileIdentityStruct,
   TRADER_RANKING_TAGS,
   TradeStruct,
 } from './social-types.js';
@@ -26,6 +27,7 @@ export {
   AuthorCommentStruct,
   CommentEngagementStruct,
   CommentReactionProfileStruct,
+  ProfileIdentityStruct,
 } from './social-types.js';
 
 export const SocialHandlesStruct = structType({
@@ -35,11 +37,14 @@ export const SocialHandlesStruct = structType({
   lens: optional(nullable(string())),
 });
 
+const profileIdentityFields = ProfileIdentityStruct.schema;
+
 export const ProfileSummaryStruct = structType({
   profileId: string(),
   address: string(),
   name: string(),
   imageUrl: optional(nullable(string())),
+  ...profileIdentityFields,
 });
 
 const FeedActorStruct = assign(
@@ -191,7 +196,7 @@ export const TraderProfileStruct = structType({
   allAddresses: array(string()),
   name: string(),
   imageUrl: optional(nullable(string())),
-  createdAt: optional(nullable(string())),
+  ...profileIdentityFields,
 });
 
 export const TraderStatsStruct = structType({
@@ -257,6 +262,7 @@ const LeaderboardEntryStruct = structType({
   pnlPerChain: record(string(), number()),
   followerCount: number(),
   socialHandles: SocialHandlesStruct,
+  ...profileIdentityFields,
 });
 
 export const LeaderboardResponseStruct = structType({
