@@ -43,7 +43,6 @@ import {
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
-import { accountRequiresMfa } from '../../utils/keyring.js';
 import {
   normalizePerpsDepositRequest,
   normalizePerpsWithdrawRequest,
@@ -115,11 +114,7 @@ export async function getRelayQuotes(
           return hasTargetMinimum || isPostQuote || isExactInputRequest;
         })
         .map((singleRequest) =>
-          normalizeRequest(
-            singleRequest,
-            request.transaction,
-            request.messenger,
-          ),
+          normalizeRequest(singleRequest, request.transaction),
         )
         .map((normalizedRequest) =>
           applyHyperliquidActivationFee(
@@ -482,28 +477,15 @@ async function processTransactions(
  *
  * @param request - Quote request to normalize.
  * @param transaction - Parent transaction metadata, inspected to detect
- * Hyperliquid perps deposits and to resolve the signing account's keyring.
- * @param messenger - Controller messenger used to look up that keyring.
+ * Hyperliquid perps deposits.
  * @returns Normalized request.
  */
 function normalizeRequest(
   request: QuoteRequest,
   transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
 ): QuoteRequest {
-  // An atomic quote embeds the target calls, which needs a fresh delegation
-  // signed by the account they execute from — `transaction.txParams.from`,
-  // not `request.from`, which `accountOverride` may point at the funding EOA.
-  // When that keyring requires MFA each quote refresh costs the user a
-  // confirmation, so atomic execution is never acceptable for those accounts.
-  // Applied here so it covers both the max and non-max quote paths.
-  const atomic = accountRequiresMfa(messenger, transaction.txParams?.from)
-    ? false
-    : request.atomic;
-
   const newRequest = {
     ...request,
-    atomic,
     sourceTokenAddress: normalizeTokenAddress(
       request.sourceTokenAddress,
       request.sourceChainId,

@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Always resolve a non-atomic max quote when the transaction's `from` keyring requires MFA ([#11389](https://github.com/MetaMask/core/pull/11389))
-  - An atomic max quote embeds the target calls, which needs a fresh delegation signature per quote. On an MFA keyring every refresh of an open amount screen would cost the user a confirmation.
+- Always request non-atomic quotes when the transaction's `from` keyring requires MFA ([#11389](https://github.com/MetaMask/core/pull/11389))
+  - An atomic quote embeds the target calls, which needs a fresh delegation signature per quote. On an MFA keyring every refresh of an open amount screen would cost the user a confirmation.
   - The keyring is read from `transaction.txParams.from`, the account that signs the delegation, rather than the quote request's payer account.
+  - Resolved when building quote requests, so it applies to every strategy and to both the max and non-max quote paths.
 
 ## [31.1.0]
 

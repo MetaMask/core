@@ -10,7 +10,6 @@ import type {
   KeyringControllerGetStateAction,
   KeyringControllerSignTypedMessageAction,
   KeyringControllerUnlockEvent,
-  KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
@@ -251,29 +250,6 @@ export type TransactionPayControllerMessenger = Messenger<
   TransactionPayControllerActions | AllowedActions,
   TransactionPayControllerEvents | AllowedEvents
 >;
-
-/**
- * Keyring types that support EIP-7702 authorization signing.
- * Hardware wallets, snap keyrings, and custody keyrings are excluded.
- */
-export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
-  'HD Key Tree',
-  'Simple Key Pair',
-  'Money Keyring',
-];
-
-/**
- * Keyring types whose signing requires multi-factor authentication.
- *
- * The MPC keyring splits its key across factors, so every signature it
- * produces costs the user an MFA confirmation. Quote flows that would
- * otherwise sign once per quote must avoid doing so for these accounts.
- *
- * The SRP-derived `Money Keyring` signs locally and is deliberately absent.
- */
-export const KEYRING_TYPES_REQUIRING_MFA: `${KeyringTypes}`[] = [
-  'MPC Money Keyring',
-];
 
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
