@@ -1,25 +1,20 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 
-import type {
-  BridgeControllerMessenger,
-  GenericQuoteRequest,
-} from '../../types.js';
-import { formatChainIdToHex } from '../caip-formatters.js';
+import type { BridgeControllerMessenger } from '../../types.js';
 
 const getNetworkClientIdByChainId = (
   messenger: BridgeControllerMessenger,
-  chainId: GenericQuoteRequest['srcChainId'],
+  chainId: `0x${string}`,
 ) => {
-  const hexChainId = formatChainIdToHex(chainId);
   return messenger.call(
     'NetworkController:findNetworkClientIdByChainId',
-    hexChainId,
+    chainId,
   );
 };
 
 export const getNetworkClientByChainId = (
   messenger: BridgeControllerMessenger,
-  chainId: GenericQuoteRequest['srcChainId'],
+  chainId: `0x${string}`,
 ) => {
   const networkClientId = getNetworkClientIdByChainId(messenger, chainId);
   if (!networkClientId) {
