@@ -175,7 +175,7 @@ export const derivePrivateKey = async ({
   parentNode,
   childIndex,
   isHardened,
-}: DeriveWithPrivateArgs): Promise<Uint8Array> => {
+}: DeriveWithPrivateArgs): Promise<Uint8Array<ArrayBuffer>> => {
   // extension = i >= 2^31 ? (0x00||kp||i) : (0x02||Ap||i)
   const extension = isHardened
     ? getKeyExtension(
@@ -234,7 +234,9 @@ export const deriveChainCode = async ({
   parentNode,
   childIndex,
   isHardened,
-}: DeriveWithPrivateArgs | DeriveWithoutPrivateArgs): Promise<Uint8Array> => {
+}: DeriveWithPrivateArgs | DeriveWithoutPrivateArgs): Promise<
+  Uint8Array<ArrayBuffer>
+> => {
   // extension = i >= 2^31 ? (0x01||kp||i) : (0x03||Ap||i)
   const extension = isHardened
     ? getKeyExtension(
@@ -283,7 +285,7 @@ export const derivePublicKey = async ({
   parentNode,
   childIndex,
   curve,
-}: DerivePublicKeyArgs): Promise<Uint8Array> => {
+}: DerivePublicKeyArgs): Promise<Uint8Array<ArrayBuffer>> => {
   // extension = (0x02||Ap||i)
   const extension = getKeyExtension(
     PUBLIC_KEY_TAGS.normal,
