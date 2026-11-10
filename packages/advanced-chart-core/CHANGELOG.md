@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.2.0]
+## [1.1.1]
 
 ### Fixed
 
@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release: platform-agnostic TradingView Advanced Charts WebView engine copied verbatim from `metamask-mobile`'s `AdvancedChart/webview/src` ([#9762](https://github.com/MetaMask/core/pull/9762), [#10521](https://github.com/MetaMask/core/pull/10521))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.2.0...HEAD
-[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.0...@metamask/advanced-chart-core@1.2.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.1...HEAD
+[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.1.0...@metamask/advanced-chart-core@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/advanced-chart-core@1.0.0...@metamask/advanced-chart-core@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/advanced-chart-core@1.0.0
