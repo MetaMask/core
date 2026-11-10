@@ -30,7 +30,7 @@ async function flushPromises(): Promise<void> {
   }
 }
 
-type AusFixtureMessenger = { call: Mock };
+type AusFixtureMessenger = { call: Mock; captureException: Mock };
 
 type AusMockOptions = {
   /** The blob `getUserAssets` serves (defaults to `null`, i.e. no blob). */
@@ -73,7 +73,10 @@ function installAusMock(
  * control.
  */
 class AusSyncFixture {
-  readonly messenger: AusFixtureMessenger = { call: vi.fn() };
+  readonly messenger: AusFixtureMessenger = {
+    call: vi.fn(),
+    captureException: vi.fn(),
+  };
 
   /** When set, `addCustomAsset` resolves only when this promise does. */
   pending?: Promise<void>;
@@ -418,10 +421,31 @@ describe('syncAusUserAssets', () => {
       }
 
       // The local method ran and its result was unaffected; the AUS failure
-      // was swallowed (no unhandled rejection) and debug-logged.
+      // was swallowed (no unhandled rejection) and reported.
       expect(fixture.localCalls).toContain('addCustomAsset');
       expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
       expect(unhandledRejections).toStrictEqual([]);
+      expect(fixture.messenger.captureException).toHaveBeenCalledTimes(1);
+      expect(fixture.messenger.captureException).toHaveBeenCalledWith(
+        new Error('Failed to sync user assets to AUS', {
+          cause: new Error('AUS unavailable'),
+        }),
+      );
+    });
+
+    it('swallows a throwing error reporter', async () => {
+      const fixture = new AusSyncFixture();
+      installAusMock(fixture.messenger, {
+        rejectWith: new Error('AUS unavailable'),
+      });
+      fixture.messenger.captureException.mockImplementation(() => {
+        throw new Error('reporter broke');
+      });
+
+      fixture.hideAsset(MOCK_ASSET_ID);
+      await flushPromises();
+
+      expect(fixture.messenger.captureException).toHaveBeenCalledTimes(1);
     });
   });
 

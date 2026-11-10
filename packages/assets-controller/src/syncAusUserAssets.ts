@@ -34,7 +34,7 @@ type AusSyncConfig = MergeConfig | StripConfig;
 
 /** The controller surface the AUS sync needs (`messenger` is protected). */
 type AusSyncCaller = {
-  messenger: Pick<AssetsControllerMessenger, 'call'>;
+  messenger: Pick<AssetsControllerMessenger, 'call' | 'captureException'>;
 };
 
 /**
@@ -106,8 +106,31 @@ async function syncUserAssetsToAus(
 }
 
 /**
- * Fire the AUS sync, swallowing and debug-logging any failure so it can
- * never block or roll back the local state change that already happened.
+ * Report a failed AUS sync. Never throws, so it can never block or roll back
+ * the local state change that already happened.
+ *
+ * @param caller - The controller whose messenger reports the error.
+ * @param assetId - The CAIP-19 asset ID the method was invoked with.
+ * @param error - The error the sync failed with.
+ */
+function reportAusSyncError(
+  caller: AusSyncCaller,
+  assetId: Caip19AssetId,
+  error: unknown,
+): void {
+  log('Failed to sync user assets to AUS', { assetId, error });
+  try {
+    caller.messenger.captureException?.(
+      new Error('Failed to sync user assets to AUS', { cause: error }),
+    );
+  } catch {
+    // Never let telemetry throw.
+  }
+}
+
+/**
+ * Fire the AUS sync, reporting any failure instead of propagating it so it
+ * can never block or roll back the local state change that already happened.
  *
  * @param caller - The controller whose messenger to call AUS actions on.
  * @param config - The AUS behavior configured for the invoked method.
@@ -118,9 +141,9 @@ function fireAusSync(
   config: AusSyncConfig,
   assetId: Caip19AssetId,
 ): void {
-  syncUserAssetsToAus(caller, config, assetId).catch((error: unknown) => {
-    log('Failed to sync user assets to AUS', { assetId, error });
-  });
+  syncUserAssetsToAus(caller, config, assetId).catch((error: unknown) =>
+    reportAusSyncError(caller, assetId, error),
+  );
 }
 
 /**
