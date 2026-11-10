@@ -468,9 +468,6 @@
     }
   },
   "packages/eth-sig-util/src/sign-typed-data.test.ts": {
-    "TS2322": {
-      "count": 12
-    },
     "TS2351": {
       "count": 1
     },
