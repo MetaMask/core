@@ -1,11 +1,10 @@
 import {
-  bufferToHex,
   ecsign,
   hashPersonalMessage,
   publicToAddress,
-  toBuffer,
-  ToBufferInputTypes,
 } from '@ethereumjs/util';
+import type { ToBytesInputTypes } from '@ethereumjs/util';
+import { bigIntToBytes, bytesToHex } from '@metamask/utils';
 
 import {
   concatSig,
@@ -29,8 +28,8 @@ export function personalSign({
   privateKey,
   data,
 }: {
-  privateKey: Buffer;
-  data: ToBufferInputTypes;
+  privateKey: Uint8Array;
+  data: ToBytesInputTypes;
 }): string {
   if (isNullish(data)) {
     throw new Error('Missing data parameter');
@@ -41,7 +40,7 @@ export function personalSign({
   const message = legacyToBuffer(data);
   const msgHash = hashPersonalMessage(message);
   const signature = ecsign(msgHash, privateKey);
-  return concatSig(toBuffer(signature.v), signature.r, signature.s);
+  return concatSig(bigIntToBytes(signature.v), signature.r, signature.s);
 }
 
 /**
@@ -57,7 +56,7 @@ export function recoverPersonalSignature({
   data,
   signature,
 }: {
-  data: ToBufferInputTypes;
+  data: ToBytesInputTypes;
   signature: string;
 }): string {
   if (isNullish(data)) {
@@ -68,7 +67,7 @@ export function recoverPersonalSignature({
 
   const publicKey = getPublicKeyFor(data, signature);
   const sender = publicToAddress(publicKey);
-  const senderHex = bufferToHex(sender);
+  const senderHex = bytesToHex(sender);
   return senderHex;
 }
 
@@ -85,7 +84,7 @@ export function extractPublicKey({
   data,
   signature,
 }: {
-  data: ToBufferInputTypes;
+  data: ToBytesInputTypes;
   signature: string;
 }): string {
   if (isNullish(data)) {
@@ -95,7 +94,7 @@ export function extractPublicKey({
   }
 
   const publicKey = getPublicKeyFor(data, signature);
-  return `0x${publicKey.toString('hex')}`;
+  return bytesToHex(publicKey);
 }
 
 /**
@@ -106,9 +105,9 @@ export function extractPublicKey({
  * @returns The public key of the signer.
  */
 function getPublicKeyFor(
-  message: ToBufferInputTypes,
+  message: ToBytesInputTypes,
   signature: string,
-): Buffer {
+): Uint8Array {
   const messageHash = hashPersonalMessage(legacyToBuffer(message));
   return recoverPublicKey(messageHash, signature);
 }
