@@ -862,7 +862,7 @@ export type FetchFeedOptions = {
    * Which feed to fetch: `following` (personalized to the current user,
    * identified server-side from the JWT; one item per position, ordered by its
    * latest trade), `following_v1` (the `all` items of the profiles the current
-   * user follows and the user's own, ordered by `occurredAt`, with
+   * user follows, without the user's own, ordered by `occurredAt`, with
    * `feedItemId`), `leaderboard` (generic, shared by all users), `all` (the
    * shared feed-all projection), or `trending`. Defaults to `following`
    * server-side when omitted.
