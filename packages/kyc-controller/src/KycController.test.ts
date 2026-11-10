@@ -1789,6 +1789,88 @@ describe('KycController', () => {
             vendor: 'iron',
             disclaimerIds: ['d1'],
           });
+          expect(
+            controller.state.sessions.iron?.vendorDisclaimersAccepted
+              ?.submitted,
+          ).toBe(true);
+        },
+      );
+    });
+
+    it('leaves newer terms accepted during the request unsubmitted', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          controller.acceptVendorDisclaimers({
+            vendor: 'iron',
+            country: 'USA',
+            disclaimerIds: ['d1'],
+          });
+          handlers.submitVendorDisclaimers.mockImplementation(async () => {
+            controller.acceptVendorDisclaimers({
+              vendor: 'iron',
+              country: 'USA',
+              disclaimerIds: ['d1', 'd2'],
+            });
+            return [];
+          });
+
+          await controller.recordVendorDisclaimers({ vendor: 'iron' });
+
+          expect(
+            controller.state.sessions.iron?.vendorDisclaimersAccepted,
+          ).toMatchObject({
+            disclaimerIds: ['d1', 'd2'],
+            submitted: false,
+          });
+        },
+      );
+    });
+
+    it('marks the terms submitted when they were re-accepted unchanged during the request', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              sessions: {
+                iron: vendorSession({
+                  sessionStatus: sessionStatus('pending'),
+                }),
+              },
+            },
+          },
+        },
+        async ({ controller, handlers }) => {
+          controller.acceptVendorDisclaimers({
+            vendor: 'iron',
+            country: 'USA',
+            disclaimerIds: ['d1', 'd2'],
+          });
+          handlers.submitVendorDisclaimers.mockImplementation(async () => {
+            controller.acceptVendorDisclaimers({
+              vendor: 'iron',
+              country: 'USA',
+              disclaimerIds: ['d2', 'd1'],
+            });
+            return [];
+          });
+
+          await controller.recordVendorDisclaimers({ vendor: 'iron' });
+
+          expect(
+            controller.state.sessions.iron?.vendorDisclaimersAccepted
+              ?.submitted,
+          ).toBe(true);
         },
       );
     });

@@ -1359,12 +1359,18 @@ export class KycController extends BaseController<
       },
     );
 
-    // The entry can be cleared while the request is in flight; do not
-    // recreate it.
+    // The entry can be cleared, or the customer can accept different terms,
+    // while the request is in flight. Mark only the acceptance that was sent,
+    // and do not recreate a cleared entry.
+    const submittedIds = new Set(accepted.disclaimerIds);
     this.update((state) => {
-      const entry = state.sessions[vendor];
-      if (entry?.vendorDisclaimersAccepted) {
-        entry.vendorDisclaimersAccepted.submitted = true;
+      const current = state.sessions[vendor]?.vendorDisclaimersAccepted;
+      if (
+        current &&
+        current.disclaimerIds.length === submittedIds.size &&
+        current.disclaimerIds.every((id) => submittedIds.has(id))
+      ) {
+        current.submitted = true;
       }
     });
 
