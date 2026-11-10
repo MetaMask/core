@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Match the Permit2 `approve` method ID case-insensitively in `mapLocalTransaction`, so a Permit2 approval with an uppercase method ID no longer surfaces the Permit2 contract as the approved token ([#11416](https://github.com/MetaMask/core/pull/11416))
+
 ## [3.2.0]
 
 ### Added
