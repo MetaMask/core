@@ -3,11 +3,11 @@ import {
   QuoteResponseV1,
   QuoteMetadata,
   Trade,
-  type QuoteMetadataMigrationPhase,
+  isQuoteResponseV2,
+  toQuoteMetadataV1,
+  toQuoteResponseV1,
 } from '@metamask/bridge-controller';
-import { isQuoteResponseV2 } from '@metamask/bridge-controller';
-import { toQuoteMetadataV1 } from '@metamask/bridge-controller';
-import { toQuoteResponseV1 } from '@metamask/bridge-controller';
+import type { QuoteMetadataMigrationPhase } from '@metamask/bridge-controller';
 
 /**
  * Convert quote responses to V1 format and preserve metadata for consistency

@@ -3,10 +3,8 @@ import {
   isCrossChain,
   isNonEvmChainId,
   isTronChainId,
-  type ChainId,
-  type DeepPartial,
-  type Trade,
 } from '@metamask/bridge-controller';
+import type { ChainId, DeepPartial } from '@metamask/bridge-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
@@ -176,7 +174,7 @@ export const getMatchingHistoryEntryForApprovalTxMeta = (
 export const resolveHistoryKeyForTxMeta = (
   { transactionMeta }: { transactionMeta: TransactionMeta },
   txHistory: BridgeStatusControllerState['txHistory'],
-) => ({
+): { historyKey?: string; txMeta: TransactionMeta } => ({
   historyKey:
     // Match swap/bridge/batch src tx
     (getMatchingHistoryEntryForTxMeta(txHistory, transactionMeta) ??
@@ -270,7 +268,7 @@ export const getHistoryOverridesFromTxMeta = (
   txMeta?: Partial<
     Pick<TransactionMeta, 'actionId' | 'id' | 'status' | 'hash' | 'batchId'>
   >,
-) => {
+): Pick<BridgeHistoryItem, 'txMetaId' | 'actionId' | 'batchId' | 'status'> => {
   return {
     txMetaId: txMeta?.id,
     actionId: txMeta?.actionId,

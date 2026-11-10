@@ -1,13 +1,14 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 
 export const getFeatureFlags = <
-  T extends {
+  MessengerType extends {
     call(
       action: RemoteFeatureFlagControllerGetStateAction['type'],
     ): ReturnType<RemoteFeatureFlagControllerGetStateAction['handler']>;
   },
 >(
-  messenger: T,
+  messenger: MessengerType,
 ) => {
   const remoteFeatureFlags = messenger.call(
     'RemoteFeatureFlagController:getState',

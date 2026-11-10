@@ -31,7 +31,7 @@ export const tradeUpdateHandler = ({
   onTransactionConfirmed,
   onTransactionFailed,
   onReportSubmittedOnce,
-}: SubscriptionHandlerParams) => {
+}: SubscriptionHandlerParams): void => {
   const { type, status } = txMeta;
 
   // Allow event publishing if the txMeta is a swap/bridge OR if the
@@ -75,7 +75,7 @@ export const approvalUpdateHandler = ({
   txMeta,
   historyKey,
   onTransactionFailed,
-}: SubscriptionHandlerParams) => {
+}: SubscriptionHandlerParams): void => {
   if (!historyKey) {
     return;
   }
