@@ -116,7 +116,6 @@
     "yargs": "^18.2.0"
   },
   "resolutions": {
-    "@metamask/toprf-secure-backup": "portal:../toprf-secure-backup/packages/toprf-secure-backup",
     "@typescript/old": "patch:typescript@npm%3A6.0.3#~/.yarn/patches/typescript-npm-6.0.3-585eecd158.patch",
     "@yarnpkg/core": "4.9.1"
   },
