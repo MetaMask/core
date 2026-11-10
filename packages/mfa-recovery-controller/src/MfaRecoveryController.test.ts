@@ -1221,6 +1221,33 @@ describe('MfaRecoveryController', () => {
       });
     });
 
+    it('aborts a writing mutation no escrow applied when an escrow lags', async () => {
+      let now = unixNow();
+      await withController(async ({ escrowA, escrowB, options }) => {
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          now: (): number => now,
+        });
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.patchRecord('profile-1', { version: REGISTERED_EPOCH + 1 });
+        escrowA.failNextApplyCount = 1;
+        escrowB.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(
+            PASSKEY,
+            SECRET_2,
+            REGISTERED_EPOCH + 1,
+          ),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+
+        now += 10 * 60;
+        await controller.abort();
+
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+
     it('aborts a writing register no escrow applied once its approval expires', async () => {
       let now = unixNow();
       await withController(async ({ escrowA, escrowB, options }) => {

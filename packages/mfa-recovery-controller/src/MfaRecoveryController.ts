@@ -514,7 +514,7 @@ export class MfaRecoveryController extends BaseController<
   }
 
   // No write can land after its approval expires, and escrow versions only
-  // grow, so every escrow still at `expectedVersion` means none applied it.
+  // grow, so every escrow below `newVersion` means none applied it.
   async #isUnapplied({
     mutation,
     authControllerToken,
@@ -526,8 +526,7 @@ export class MfaRecoveryController extends BaseController<
     const { results } = await this.#authorizeAndReadIdentifiers(this.#escrows);
     return results.every(
       (result) =>
-        isFulfilledResult(result) &&
-        result.value.version === mutation.expectedVersion,
+        isFulfilledResult(result) && result.value.version < mutation.newVersion,
     );
   }
 
