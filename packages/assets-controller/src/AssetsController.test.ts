@@ -6105,6 +6105,129 @@ describe('AssetsController', () => {
         expect(controller.state.assetsLoadingStatus).toBeUndefined();
       });
     });
+
+    describe('background loading status', () => {
+      it('keeps the background status loading after getAssets resolves until the slow pipeline settles', async () => {
+        // arrange: an RPC middleware that holds the slow pipeline in flight.
+        let releaseRpc: () => void = () => undefined;
+        const rpcGate = new Promise<void>((resolve) => {
+          releaseRpc = resolve;
+        });
+        const rpcMiddleware: Middleware = async (ctx, next) => {
+          await rpcGate;
+          return next(ctx);
+        };
+        const rpcMiddlewareGetter = vi
+          .spyOn(
+            RpcDataSource.prototype,
+            // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+            'assetsMiddleware',
+            'get',
+          )
+          .mockReturnValue(rpcMiddleware as never) as unknown as MockInstance;
+
+        await withController(async ({ controller }) => {
+          const account = createMockInternalAccount({
+            id: 'mock-account-id-background',
+          });
+
+          // act: force-fetch a chain the Accounts API does not cover, so it
+          // goes through the background pipeline.
+          await controller.getAssets([account], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+          });
+
+          // assert: the initial load has settled, but the background fetch
+          // is still in flight.
+          expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
+            'loaded',
+          );
+          expect(
+            controller.state.assetsBackgroundLoadingStatus?.[account.id],
+          ).toBe('loading');
+
+          // act: let the slow pipeline finish.
+          releaseRpc();
+
+          // assert: the background status settles too.
+          await waitFor(() =>
+            expect(
+              controller.state.assetsBackgroundLoadingStatus?.[account.id],
+            ).toBe('loaded'),
+          );
+        });
+
+        rpcMiddlewareGetter.mockRestore();
+      });
+
+      it('settles the background status when the slow pipeline fails', async () => {
+        // arrange: an RPC middleware that rejects.
+        const rpcMiddleware: Middleware = async () => {
+          throw new Error('rpc failed');
+        };
+        const rpcMiddlewareGetter = vi
+          .spyOn(
+            RpcDataSource.prototype,
+            // @ts-expect-error -- Vitest supports `get` for accessor spies; `Spyable` typings omit prototype getters.
+            'assetsMiddleware',
+            'get',
+          )
+          .mockReturnValue(rpcMiddleware as never) as unknown as MockInstance;
+
+        await withController(async ({ controller }) => {
+          const account = createMockInternalAccount({
+            id: 'mock-account-id-background-failure',
+          });
+
+          // act: force-fetch a chain that goes through the background pipeline.
+          await controller.getAssets([account], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+          });
+
+          // assert: the background status settles despite the failure.
+          await waitFor(() =>
+            expect(
+              controller.state.assetsBackgroundLoadingStatus?.[account.id],
+            ).toBe('loaded'),
+          );
+        });
+
+        rpcMiddlewareGetter.mockRestore();
+      });
+
+      it('does not write a background status when the fast fetch covers every chain', async () => {
+        // arrange: an Accounts API that fully supports the requested chain.
+        const { client } = createGatedQueryApiClient();
+
+        await withController(
+          { queryApiClient: client },
+          async ({ controller, messenger }) => {
+            await activateTracking(messenger);
+
+            const account = createMockInternalAccount({
+              id: 'mock-account-id-fast-only',
+            });
+
+            // act: force-fetch only the chain the Accounts API covers.
+            await controller.getAssets([account], {
+              chainIds: ['eip155:1'],
+              forceUpdate: true,
+            });
+            await flushPromises();
+
+            // assert: the initial load settled, and no background fetch ran.
+            expect(controller.state.assetsLoadingStatus?.[account.id]).toBe(
+              'loaded',
+            );
+            expect(
+              controller.state.assetsBackgroundLoadingStatus?.[account.id],
+            ).toBeUndefined();
+          },
+        );
+      });
+    });
   });
   describe('account tree initialized', () => {
     it('triggers start when the tree initializes after unlock with empty accounts', async () => {
