@@ -363,6 +363,64 @@ export type KycControllerVerifyVendorPhoneOtpAction = {
 };
 
 /**
+ * POC: reads the vendor account state through the vendor's adapter and
+ * stores it on the entry.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @returns The stored vendor account.
+ */
+export type KycControllerRefreshVendorAccountAction = {
+  type: `KycController:refreshVendorAccount`;
+  handler: KycController['refreshVendorAccount'];
+};
+
+/**
+ * POC: opens the vendor's link ceremony and names the email the vendor
+ * user was registered with. The vendor sends a code to it (or to the
+ * account's configured second factor).
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @param params.email - Email to link. Defaults to the one stored at
+ * session creation.
+ * @returns The stored vendor account.
+ */
+export type KycControllerStartVendorAccountLinkAction = {
+  type: `KycController:startVendorAccountLink`;
+  handler: KycController['startVendorAccountLink'];
+};
+
+/**
+ * POC: submits a link code. When the vendor asks for another factor, the
+ * entry's `vendorAccount.mfa` says which; submit that code here too.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @param params.code - The code the vendor sent.
+ * @returns The stored vendor account.
+ */
+export type KycControllerVerifyVendorAccountLinkAction = {
+  type: `KycController:verifyVendorAccountLink`;
+  handler: KycController['verifyVendorAccountLink'];
+};
+
+/**
+ * POC: binds the payout wallet and activates the vendor account. The
+ * account is usable once its state is `active`.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @param params.walletAddress - Payout wallet address.
+ * @param params.network - Payout wallet network.
+ * @returns The stored vendor account.
+ */
+export type KycControllerActivateVendorAccountAction = {
+  type: `KycController:activateVendorAccount`;
+  handler: KycController['activateVendorAccount'];
+};
+
+/**
  * Returns one verdict for the vendor's KYC session. See
  * {@link KycSessionDecision}.
  *
@@ -409,38 +467,6 @@ export type KycControllerDeleteEncryptedStorageAction = {
 export type KycControllerLaunchProviderFlowAction = {
   type: `KycController:launchProviderFlow`;
   handler: KycController['launchProviderFlow'];
-};
-
-/**
- * POC: see {@link KycController.refreshVendorAccount}.
- */
-export type KycControllerRefreshVendorAccountAction = {
-  type: `KycController:refreshVendorAccount`;
-  handler: KycController['refreshVendorAccount'];
-};
-
-/**
- * POC: see {@link KycController.startVendorAccountLink}.
- */
-export type KycControllerStartVendorAccountLinkAction = {
-  type: `KycController:startVendorAccountLink`;
-  handler: KycController['startVendorAccountLink'];
-};
-
-/**
- * POC: see {@link KycController.verifyVendorAccountLink}.
- */
-export type KycControllerVerifyVendorAccountLinkAction = {
-  type: `KycController:verifyVendorAccountLink`;
-  handler: KycController['verifyVendorAccountLink'];
-};
-
-/**
- * POC: see {@link KycController.activateVendorAccount}.
- */
-export type KycControllerActivateVendorAccountAction = {
-  type: `KycController:activateVendorAccount`;
-  handler: KycController['activateVendorAccount'];
 };
 
 /**
