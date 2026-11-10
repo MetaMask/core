@@ -9,12 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [23.0.0]
 
-### Uncategorized
-
-- chore(perps-controller): declare tsx for the e2e scripts ([#11393](https://github.com/MetaMask/core/pull/11393))
-- Release 1408.0.0 ([#11396](https://github.com/MetaMask/core/pull/11396))
-- Release/1406.0.0 ([#11390](https://github.com/MetaMask/core/pull/11390))
-
 ### Added
 
 - Add `PerpsController.replacePositionTPSLLeg` (messenger action `PerpsController:replacePositionTPSLLeg`) to replace only the take profit or only the stop loss of an open position ([#11410](https://github.com/MetaMask/core/pull/11410))

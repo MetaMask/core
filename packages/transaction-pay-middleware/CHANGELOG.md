@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.3]
 
+### Changed
+
+- Bump `@metamask/perps-controller` from `^22.3.0` to `^23.0.0`
+
 ## [2.0.2]
 
 ### Changed
