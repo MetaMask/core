@@ -1,4 +1,5 @@
 import type {
+  BridgeAsset,
   QuoteMetadata,
   QuoteResponseV1,
   TxData,
@@ -9,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import { normalizeQuoteResponses } from './quotes.js';
 
-const nativeAsset = (chainId: number) => ({
+const nativeAsset = (chainId: number): BridgeAsset => ({
   address: '0x0000000000000000000000000000000000000000',
   assetId: `eip155:${chainId}/slip44:60` as CaipAssetType,
   chainId,

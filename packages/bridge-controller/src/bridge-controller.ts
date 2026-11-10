@@ -7,7 +7,7 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
-import type { CaipAssetType, Hex } from '@metamask/utils';
+import type { CaipAssetType } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
 import { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2.js';
@@ -40,7 +40,6 @@ import type {
 } from './types.js';
 import { getAssetIdsForToken, toExchangeRates } from './utils/assets.js';
 import { hasSufficientBalance } from './utils/balance.js';
-import { getAccountByAddress } from './utils/controllers/accounts.js';
 import {
   getDefaultBridgeControllerState,
   isCrossChain,
@@ -53,6 +52,8 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
 } from './utils/caip-formatters.js';
+import { getAccountByAddress } from './utils/controllers/accounts.js';
+import { getNetworkClientByChainId } from './utils/controllers/network.js';
 import {
   getBridgeFeatureFlags,
   hasMinimumRequiredVersion,
@@ -103,7 +104,6 @@ import {
 } from './validators/quote-request.js';
 import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
 import type { QuoteResponse } from './validators/quote-response.js';
-import { getNetworkClientByChainId } from './utils/controllers/network.js';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {

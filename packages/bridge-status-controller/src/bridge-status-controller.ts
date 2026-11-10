@@ -108,8 +108,10 @@ import { normalizeQuoteResponses } from './utils/quotes.js';
 import {
   approvalUpdateHandler,
   tradeUpdateHandler,
-  type SubscriptionHandlerInputs,
-  type SubscriptionHandlerParams,
+} from './utils/subscriptions.js';
+import type {
+  SubscriptionHandlerInputs,
+  SubscriptionHandlerParams,
 } from './utils/subscriptions.js';
 import {
   getSwapOperationCompletedTraceParams,
@@ -452,8 +454,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   /**
    * Handles the confirmed status for EVM swap, bridge src, batch or deposit txs
-   * @param txMeta - The transaction meta
-   * @param historyKey - The history key
+   * @param params - The parameters for the transaction confirmed handler
+   * @param params.txMeta - The transaction meta
+   * @param params.historyKey - The history key
    */
   readonly #onTransactionConfirmed = ({
     txMeta,
@@ -1317,7 +1320,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    *******************************************************
    */
 
+  // oxlint-disable-next-line jsdoc/require-returns
   readonly #executeSubmitStrategy = async (
+    // oxlint-disable-next-line jsdoc/require-param
     params: SubmitStrategyParams<Trade>,
     sharedHistoryItemProperties: {
       startTime: number;
