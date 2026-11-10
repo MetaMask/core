@@ -4880,7 +4880,8 @@ export class HyperLiquidSubscriptionService {
    * @param params.accountId - Optional CAIP account ID; defaults to the selected account.
    * @param params.callback - Receives each frame for this account and market.
    * @param params.onError - Receives a failure to open the subscription, or
-   * one that stops it after it opened.
+   * one that stops it after it opened, once transient failures have been
+   * retried on the same transport.
    * @returns Cleanup function to unsubscribe.
    */
   public subscribeToActiveAssetData(params: {
@@ -4910,12 +4911,57 @@ export class HyperLiquidSubscriptionService {
       });
     };
 
-    const open = (): void => {
+    const open = (retryAttempt = 1): void => {
       attempt += 1;
       const thisAttempt = attempt;
       const isCurrent = (): boolean => !retired && thisAttempt === attempt;
       // On reopen the previous subscription belongs to the closed transport.
       subscription = undefined;
+
+      // Same policy as the assetCtxs subscribeWithRetry: a transient SDK
+      // failure retries on the same transport (3 attempts, attempt * 500 ms);
+      // anything else, or the last attempt, reaches the caller's onError.
+      const fail = (error: unknown, failedAttempt: number): void => {
+        if (!isCurrent()) {
+          return;
+        }
+        // Retire this attempt so its late frames and errors are dropped.
+        attempt += 1;
+        const retryGeneration = attempt;
+        subscription = undefined;
+        const safeError = ensureError(
+          error,
+          'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
+        );
+        if (
+          failedAttempt < 3 &&
+          !this.#isClearing &&
+          this.#isTransientSdkError(safeError)
+        ) {
+          const retryDelayMs = failedAttempt * 500;
+          this.#deps.debugLogger.log(
+            'Transient activeAssetData subscription failure, retrying',
+            {
+              symbol,
+              attempt: failedAttempt,
+              retryDelayMs,
+              error: safeError.message,
+            },
+          );
+          setTimeout(() => {
+            // A reopen, cleanup or clearAll since the failure wins.
+            if (!retired && retryGeneration === attempt && !this.#isClearing) {
+              open(failedAttempt + 1);
+            }
+          }, retryDelayMs);
+          return;
+        }
+        this.#logErrorUnlessClearing(
+          safeError,
+          this.#getErrorContext('subscribeToActiveAssetData', { symbol }),
+        );
+        onError?.(safeError);
+      };
 
       (async (): Promise<void> => {
         await this.#clientService.ensureSubscriptionClient(
@@ -4945,24 +4991,8 @@ export class HyperLiquidSubscriptionService {
           {
             // A failure after the open (a rejected resubscription, a
             // terminated connection): the SDK has already dropped the
-            // subscription, so the consumer's value no longer updates.
-            onError: (error: Error) => {
-              if (!isCurrent()) {
-                return;
-              }
-              subscription = undefined;
-              const safeError = ensureError(
-                error,
-                'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
-              );
-              this.#logErrorUnlessClearing(
-                safeError,
-                this.#getErrorContext('subscribeToActiveAssetData', {
-                  symbol,
-                }),
-              );
-              onError?.(safeError);
-            },
+            // subscription. It had opened, so retry with a fresh budget.
+            onError: (error: Error) => fail(error, 1),
           },
         );
         if (!isCurrent()) {
@@ -4970,23 +5000,11 @@ export class HyperLiquidSubscriptionService {
           return;
         }
         subscription = sub;
-      })().catch((error: unknown) => {
-        const safeError = ensureError(
-          error,
-          'HyperLiquidSubscriptionService.subscribeToActiveAssetData',
-        );
-        this.#logErrorUnlessClearing(
-          safeError,
-          this.#getErrorContext('subscribeToActiveAssetData', { symbol }),
-        );
-        if (isCurrent()) {
-          onError?.(safeError);
-        }
-      });
+      })().catch((error: unknown) => fail(error, retryAttempt));
     };
 
     const stream = {
-      reopen: open,
+      reopen: (): void => open(),
       retire: (): void => {
         retired = true;
         this.#activeAssetDataStreams.delete(stream);
