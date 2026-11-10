@@ -770,6 +770,7 @@ export type {
   PerpsDisplayFormatOptions,
   PerpsFiatFormatOptions,
   PerpsFundingRateFormatOptions,
+  PerpsIntlFormatters,
   PerpsSignDisplay,
 } from './utils/index.js';
 export {

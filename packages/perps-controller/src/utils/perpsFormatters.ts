@@ -1,14 +1,18 @@
 /**
  * Portable perps display formatters.
  *
- * These are the canonical implementations, exported from the controller so
- * Mobile, Extension and Terminal format every displayed perps value the same
- * way. Each formatter takes one options object (`locale`, `decimals`, `sign`)
+ * These are the canonical perps display rules, exported from the controller
+ * so Mobile, Extension and Terminal format every displayed perps value the
+ * same way: price ranges, precision constants, sign and placeholder rules.
+ * Each formatter takes one options object (`formatters`, `decimals`, `sign`)
  * and renders the shared placeholder from `PERPS_CONSTANTS` for a missing
- * value. No client-specific imports.
+ * value.
  *
- * Intl.NumberFormat instances are cached in a module-level Map keyed by
- * locale and serialized options, avoiding repeated construction costs.
+ * The locale-aware `Intl` formatting comes from the client: pass
+ * `createFormatters({ locale })` from `@metamask/client-utils` (built once per
+ * locale) as `formatters`. This package does not depend on client-utils; it
+ * only needs the `PerpsIntlFormatters` shape. Without `formatters`, an
+ * `en-US` fallback keeps the legacy call signatures working.
  */
 import {
   DECIMAL_PRECISION_CONFIG,
@@ -17,7 +21,21 @@ import {
   PERPS_DISPLAY_PRECISION,
 } from '../constants/perpsConfig.js';
 
-const DEFAULT_LOCALE = 'en-US';
+/**
+ * Locale-bound number formatting the perps rules run on. The `Formatters`
+ * returned by `createFormatters({ locale })` from `@metamask/client-utils`
+ * satisfy it, with a cached `Intl.NumberFormat` per locale and options.
+ */
+export type PerpsIntlFormatters = {
+  /** Formats a number with `Intl.NumberFormat` options. */
+  formatNumber(value: number, options?: Intl.NumberFormatOptions): string;
+  /** Formats a currency amount with `Intl.NumberFormat` options. */
+  formatCurrency(
+    value: number,
+    currency: string,
+    options?: Intl.NumberFormatOptions,
+  ): string;
+};
 
 /**
  * When a formatter prefixes a sign, using the `Intl.NumberFormat`
@@ -35,8 +53,12 @@ export type PerpsSignDisplay = 'auto' | 'always' | 'exceptZero' | 'never';
  * Options shared by every perps display formatter.
  */
 export type PerpsDisplayFormatOptions = {
-  /** BCP 47 locale for separators and symbol placement (default `en-US`). */
-  locale?: string;
+  /**
+   * Locale-bound formatters from the client, e.g.
+   * `createFormatters({ locale })` from `@metamask/client-utils`, built once
+   * per locale. Default: `en-US`.
+   */
+  formatters?: PerpsIntlFormatters;
   /** Fraction digits to show; pass a `PERPS_DISPLAY_PRECISION` value. */
   decimals?: number;
   /** When to show a sign; each formatter documents its default. */
@@ -45,26 +67,37 @@ export type PerpsDisplayFormatOptions = {
 
 type StripMode = 'none' | 'fiat' | 'all';
 
-// Module-level Intl.NumberFormat cache (keyed by locale and options).
-const _fmtCache = new Map<string, Intl.NumberFormat>();
+/**
+ * `Intl.NumberFormat` cache of the `en-US` fallback, keyed by options.
+ * Constructing a formatter costs far more than formatting, so none is built
+ * per call. Bounded by the option sets the formatters use.
+ */
+const _fallbackFormatCache = new Map<string, Intl.NumberFormat>();
 
-function _getNumberFormat(
-  locale: string,
+function _getFallbackFormat(
   options: Intl.NumberFormatOptions,
 ): Intl.NumberFormat {
-  const key = `${locale}:${JSON.stringify(options)}`;
-  let formatter = _fmtCache.get(key);
+  const key = JSON.stringify(options);
+  let formatter = _fallbackFormatCache.get(key);
   if (!formatter) {
-    try {
-      formatter = new Intl.NumberFormat(locale, options);
-    } catch {
-      // A tag that is not BCP 47 (e.g. "zh_CN") must not break rendering
-      formatter = new Intl.NumberFormat(DEFAULT_LOCALE, options);
-    }
-    _fmtCache.set(key, formatter);
+    formatter = new Intl.NumberFormat('en-US', options);
+    _fallbackFormatCache.set(key, formatter);
   }
   return formatter;
 }
+
+/**
+ * `en-US` formatters used when the caller passes no `formatters`, so the
+ * legacy call signatures keep their output.
+ */
+const _fallbackFormatters: PerpsIntlFormatters = {
+  formatNumber: (value, options = {}) =>
+    _getFallbackFormat(options).format(value),
+  formatCurrency: (value, currency, options = {}) =>
+    _getFallbackFormat({ style: 'currency', currency, ...options }).format(
+      value,
+    ),
+};
 
 /**
  * Parses a displayable number. Missing input (`undefined`, `null`, an empty or
@@ -112,41 +145,71 @@ function _signPrefix(
  * Formats a non-negative number with the locale's separators. Callers that
  * must keep `toFixed` rounding pass a value already rounded with it.
  *
+ * @param formatters - Locale-bound formatters.
  * @param value - Non-negative value.
- * @param locale - BCP 47 locale.
  * @param minimumFractionDigits - Fraction digits always shown.
  * @param maximumFractionDigits - Fraction digits at most shown.
  * @param useGrouping - Whether to group thousands as the locale does.
  * @returns The formatted number.
  */
 function _formatDecimal(
+  formatters: PerpsIntlFormatters,
   value: number,
-  locale: string,
   minimumFractionDigits: number,
   maximumFractionDigits: number,
   useGrouping: boolean,
 ): string {
-  return _getNumberFormat(locale, {
+  return formatters.formatNumber(value, {
     minimumFractionDigits,
     maximumFractionDigits,
     // Omitted keeps the locale's own grouping rule (es: "1234,5", "12.345,7")
     ...(useGrouping ? {} : { useGrouping: false }),
-  }).format(value);
+  });
+}
+
+/**
+ * Whether `amount` rounded to `maximumFractionDigits` has an all-zero
+ * fraction, decided without an `Intl` call.
+ *
+ * `Intl.NumberFormat` rounds the shortest decimal form of a number
+ * (`String(amount)`) half away from zero, so this reads that form's digits as
+ * text: exact for any magnitude, including exponent forms such as `1.5e+21`
+ * and `5e-7`.
+ *
+ * @param amount - Non-negative amount.
+ * @param maximumFractionDigits - Fraction digits the amount is rounded to.
+ * @returns True when the rounded amount is a whole number.
+ */
+function _roundsToWhole(
+  amount: number,
+  maximumFractionDigits: number,
+): boolean {
+  const [mantissa, exponentText = '0'] = String(amount).split('e');
+  const [integerPart, fractionPart = ''] = mantissa.split('.');
+  // Fraction digits once the exponent is applied
+  const shift = Number(exponentText);
+  // An exponent form has one integer digit: "1.23e-7" → "000000123"
+  const fraction =
+    shift >= 0
+      ? fractionPart.slice(shift)
+      : `${'0'.repeat(-shift - 1)}${integerPart}${fractionPart}`;
+  const kept = fraction.slice(0, maximumFractionDigits);
+  const roundsUp = (fraction[maximumFractionDigits] ?? '0') >= '5';
+  return roundsUp ? /^9*$/u.test(kept) : /^0*$/u.test(kept);
 }
 
 /**
  * Formats a non-negative currency amount, stripping trailing fraction zeros.
  *
- * The digits to keep are read from a canonical `en-US` rendering of the same
- * rounding, then the amount is formatted in the target locale with exactly
- * that many digits. This works for any decimal separator or digit set and
- * does not rely on `formatToParts`, which some Hermes builds return as one
- * literal part.
+ * Stripping is done through the fraction-digit options, so the amount is
+ * formatted once. This works for any decimal separator or digit set and does
+ * not rely on `formatToParts`, which some Hermes builds return as one literal
+ * part.
  *
+ * @param formatters - Locale-bound formatters.
  * @param amount - Non-negative amount.
  * @param options - Formatting options.
  * @param options.currency - ISO 4217 currency code.
- * @param options.locale - BCP 47 locale.
  * @param options.minimumFractionDigits - Minimum decimal digits.
  * @param options.maximumFractionDigits - Maximum decimal digits.
  * @param options.strip - `fiat` drops an all-zero two-digit fraction (`.00`),
@@ -154,39 +217,32 @@ function _formatDecimal(
  * @returns Formatted currency string.
  */
 function _formatCurrency(
+  formatters: PerpsIntlFormatters,
   amount: number,
   options: {
     currency: string;
-    locale: string;
     minimumFractionDigits: number;
     maximumFractionDigits: number;
     strip: StripMode;
   },
 ): string {
   let { minimumFractionDigits, maximumFractionDigits } = options;
-  if (options.strip !== 'none') {
-    const [, fraction = ''] = _formatDecimal(
-      amount,
-      DEFAULT_LOCALE,
-      minimumFractionDigits,
-      maximumFractionDigits,
-      false,
-    ).split('.');
-    const kept =
-      options.strip === 'fiat' && fraction !== '00'
-        ? fraction
-        : fraction.replace(/0+$/u, '');
-    minimumFractionDigits = kept.length;
-    maximumFractionDigits = kept.length;
+  if (options.strip === 'all') {
+    // Intl drops trailing fraction zeros down to the minimum
+    minimumFractionDigits = 0;
+  } else if (options.strip === 'fiat' && minimumFractionDigits === 2) {
+    if (_roundsToWhole(amount, maximumFractionDigits)) {
+      // Fiat-style: only an all-zero ".00" fraction is dropped
+      minimumFractionDigits = 0;
+      maximumFractionDigits = 0;
+    }
   }
 
-  return _getNumberFormat(options.locale, {
-    style: 'currency',
-    currency: options.currency,
+  return formatters.formatCurrency(amount, options.currency, {
     currencyDisplay: 'narrowSymbol',
     minimumFractionDigits,
     maximumFractionDigits,
-  }).format(amount);
+  });
 }
 
 /**
@@ -472,6 +528,11 @@ export type PerpsFiatFormatOptions = PerpsDisplayFormatOptions & {
   currency?: string;
   /** Strip trailing zeros; `false` keeps them whatever the range says. */
   stripTrailingZeros?: boolean;
+  /**
+   * Locale passed to a range's `customFormat` (default `en-US`). The output
+   * locale comes from `formatters`.
+   */
+  locale?: string;
 };
 
 /**
@@ -480,7 +541,7 @@ export type PerpsFiatFormatOptions = PerpsDisplayFormatOptions & {
  *
  * @param balance - Raw numeric value (e.g., 1234.56, not token minimal denomination).
  * @param options - Formatting options.
- * @param options.locale - BCP 47 locale (default `en-US`): `es` gives `1234,50 $`.
+ * @param options.formatters - Locale-bound formatters, e.g. `createFormatters({ locale: 'de' })` from `@metamask/client-utils` (default `en-US`).
  * @param options.decimals - Fixed decimal places (e.g. `PERPS_DISPLAY_PRECISION.Fee`), overriding the range.
  * @param options.sign - Sign display (default `auto`: `-` for negative values only).
  * @param options.minimumDecimals - Global minimum decimal places (overrides `decimals` and range configs).
@@ -489,13 +550,14 @@ export type PerpsFiatFormatOptions = PerpsDisplayFormatOptions & {
  * @param options.ranges - Custom range configurations (defaults to PRICE_RANGES_MINIMAL_VIEW).
  * @param options.currency - Currency code (default: 'USD').
  * @param options.stripTrailingZeros - Strip trailing zeros from output. `false` keeps them; otherwise the range decides (default: strip).
+ * @param options.locale - Locale passed to a range's `customFormat` only (default `en-US`).
  * @returns Formatted currency string, or `PERPS_CONSTANTS.FallbackPriceDisplay`
  * (`$---`) for a missing value.
  * @example
  * formatPerpsFiat(1234.56) => "$1,234.56"
  * formatPerpsFiat(1250) => "$1,250"         // fiat-style stripping of .00
  * formatPerpsFiat(-0.004) => "-<$0.01"      // below the range threshold
- * formatPerpsFiat(1234.5, { locale: 'de' }) => "1.234,50 $"
+ * formatPerpsFiat(1234.5, { formatters: createFormatters({ locale: 'de' }) }) => "1.234,50 $"
  * formatPerpsFiat(12345.67, { ranges: PRICE_RANGES_UNIVERSAL }) => "$12,346"
  * formatPerpsFiat(undefined) => "$---"
  */
@@ -510,7 +572,6 @@ export const formatPerpsFiat = (
   }
 
   const currency = options?.currency ?? 'USD';
-  const locale = options?.locale ?? DEFAULT_LOCALE;
   const ranges = options?.ranges ?? PRICE_RANGES_MINIMAL_VIEW;
   // Find the first matching range configuration
   const rangeConfig = ranges.find((range) => range.condition(value));
@@ -518,7 +579,11 @@ export const formatPerpsFiat = (
   const sigDigits =
     options?.significantDigits ?? rangeConfig?.significantDigits;
   if (rangeConfig?.customFormat && !sigDigits) {
-    return rangeConfig.customFormat(value, locale, currency);
+    return rangeConfig.customFormat(
+      value,
+      options?.locale ?? 'en-US',
+      currency,
+    );
   }
 
   // Strip trailing zeros unless explicitly disabled. Priority: explicit
@@ -559,13 +624,16 @@ export const formatPerpsFiat = (
   // A non-zero amount below the threshold shows "<$threshold"
   const threshold = rangeConfig?.threshold ?? PRICE_THRESHOLD.LOW;
   const isBelowThreshold = amount !== 0 && amount < threshold;
-  const body = _formatCurrency(isBelowThreshold ? threshold : amount, {
-    currency,
-    locale,
-    minimumFractionDigits: minDecimals,
-    maximumFractionDigits: maxDecimals,
-    strip,
-  });
+  const body = _formatCurrency(
+    options?.formatters ?? _fallbackFormatters,
+    isBelowThreshold ? threshold : amount,
+    {
+      currency,
+      minimumFractionDigits: minDecimals,
+      maximumFractionDigits: maxDecimals,
+      strip,
+    },
+  );
   const isZero =
     !isBelowThreshold && Math.round(amount * 10 ** maxDecimals) === 0;
 
@@ -581,7 +649,7 @@ export const formatPerpsFiat = (
  * @param size - Raw position size value
  * @param szDecimalsOrOptions - Asset-specific decimal precision from Hyperliquid metadata
  * (e.g., BTC=5, ETH=4, DOGE=1), or options:
- * `decimals` (the same precision), `locale` (default `en-US`) and `sign` (default `auto`).
+ * `decimals` (the same precision), `formatters` (default `en-US`) and `sign` (default `auto`).
  * @returns Format varies by size or uses asset-specific decimals, with trailing zeros removed:
  * If decimals are provided: Uses at most those decimals (e.g., 0.00009 BTC with szDecimals=5 => "0.00009")
  * Otherwise falls back to magnitude-based logic:
@@ -592,7 +660,7 @@ export const formatPerpsFiat = (
  * @example formatPositionSize(0.00009, 5) => "0.00009" (uses szDecimals)
  * @example formatPositionSize(44.00, 1) => "44" (uses szDecimals, trailing zeros removed)
  * @example formatPositionSize(0.0024) => "0.0024" (no szDecimals, uses magnitude logic)
- * @example formatPositionSize(-1234.5, { decimals: 2, locale: 'es' }) => "-1234,5"
+ * @example formatPositionSize(-1234.5, { decimals: 2, formatters: createFormatters({ locale: 'es' }) }) => "-1234,5"
  * @example formatPositionSize(undefined) => "--"
  */
 export const formatPositionSize = (
@@ -600,7 +668,7 @@ export const formatPositionSize = (
   szDecimalsOrOptions?: number | PerpsDisplayFormatOptions,
 ): string => {
   const {
-    locale = DEFAULT_LOCALE,
+    formatters = _fallbackFormatters,
     decimals,
     sign = 'auto',
   } = typeof szDecimalsOrOptions === 'number'
@@ -626,8 +694,8 @@ export const formatPositionSize = (
   const rounded = Number(abs.toFixed(maxDecimals));
 
   return `${_signPrefix(value, rounded === 0, sign)}${_formatDecimal(
+    formatters,
     rounded,
-    locale,
     0,
     maxDecimals,
     false,
@@ -638,7 +706,7 @@ export const formatPositionSize = (
  * Formats a PnL (Profit and Loss) value as USD with a sign prefix
  *
  * @param pnl - Raw numeric PnL value (positive for profit, negative for loss)
- * @param options - `locale` (default `en-US`), `decimals` (default
+ * @param options - `formatters` (default `en-US`), `decimals` (default
  * `PERPS_DISPLAY_PRECISION.Pnl`, 2) and `sign` (default `always`).
  * @returns Format: "+$X,XXX.XX" or "-$X,XXX.XX", or
  * `PERPS_CONSTANTS.FallbackPriceDisplay` (`$---`) for a missing value.
@@ -646,7 +714,7 @@ export const formatPositionSize = (
  * @example formatPnl(-500) => "-$500.00"
  * @example formatPnl(0) => "+$0.00"
  * @example formatPnl(0, { sign: 'exceptZero' }) => "$0.00"
- * @example formatPnl(1234.5, { locale: 'es' }) => "+1234,50 $"
+ * @example formatPnl(1234.5, { formatters: createFormatters({ locale: 'es' }) }) => "+1234,50 $"
  * @example formatPnl(undefined) => "$---"
  */
 export const formatPnl = (
@@ -654,7 +722,7 @@ export const formatPnl = (
   options: PerpsDisplayFormatOptions = {},
 ): string => {
   const {
-    locale = DEFAULT_LOCALE,
+    formatters = _fallbackFormatters,
     decimals = PERPS_DISPLAY_PRECISION.Pnl,
     sign = 'always',
   } = options;
@@ -664,9 +732,8 @@ export const formatPnl = (
   }
 
   const amount = Math.abs(value);
-  const formatted = _formatCurrency(amount, {
+  const formatted = _formatCurrency(formatters, amount, {
     currency: 'USD',
-    locale,
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
     strip: 'none',
@@ -684,7 +751,7 @@ export const formatPnl = (
  * @param value - Raw percentage value (e.g., 5.25 for 5.25%, not 0.0525)
  * @param decimalsOrOptions - Decimal places (default:
  * `PERPS_DISPLAY_PRECISION.Percentage`, 2), or options: `decimals`,
- * `locale` (default `en-US`) and `sign` (default `always`).
+ * `formatters` (default `en-US`) and `sign` (default `always`).
  * @returns Format: "+X.XX%" or "-X.XX%", or
  * `PERPS_CONSTANTS.FallbackPercentageDisplay` (`--%`) for a missing value.
  * @example formatPercentage(5.25) => "+5.25%"
@@ -692,7 +759,7 @@ export const formatPnl = (
  * @example formatPercentage(0) => "+0.00%"
  * @example formatPercentage(10.25, { decimals: PERPS_DISPLAY_PRECISION.RoePercent }) => "+10.3%"
  * @example formatPercentage(0.0021, { decimals: PERPS_DISPLAY_PRECISION.SlippageEstimatePercent, sign: 'never' }) => "0.0021%"
- * @example formatPercentage(-12345.67, { decimals: 1, locale: 'es' }) => "-12.345,7%"
+ * @example formatPercentage(-12345.67, { decimals: 1, formatters: createFormatters({ locale: 'es' }) }) => "-12.345,7%"
  * @example formatPercentage(undefined) => "--%"
  */
 export const formatPercentage = (
@@ -700,7 +767,7 @@ export const formatPercentage = (
   decimalsOrOptions?: number | PerpsDisplayFormatOptions,
 ): string => {
   const {
-    locale = DEFAULT_LOCALE,
+    formatters = _fallbackFormatters,
     decimals = PERPS_DISPLAY_PRECISION.Percentage,
     sign = 'always',
   } = typeof decimalsOrOptions === 'number'
@@ -714,8 +781,8 @@ export const formatPercentage = (
   const rounded = Number(Math.abs(parsed).toFixed(decimals));
 
   return `${_signPrefix(parsed, rounded === 0, sign)}${_formatDecimal(
+    formatters,
     rounded,
-    locale,
     decimals,
     decimals,
     true,
@@ -736,7 +803,7 @@ export type PerpsFundingRateFormatOptions = PerpsDisplayFormatOptions & {
  * @param value - Raw funding rate value (decimal, not percentage)
  * @param options - Optional formatting options
  * @param options.showZero - `false` returns an empty string instead of the placeholder for a missing rate (default: true)
- * @param options.locale - BCP 47 locale (default `en-US`)
+ * @param options.formatters - Locale-bound formatters, e.g. `createFormatters({ locale })` from `@metamask/client-utils` (default `en-US`)
  * @param options.decimals - Decimal places (default `PERPS_DISPLAY_PRECISION.FundingRatePercent`, 4)
  * @param options.sign - Sign display (default `auto`: `-` for negative rates only)
  * @returns Formatted funding rate as percentage string, or
@@ -745,7 +812,7 @@ export type PerpsFundingRateFormatOptions = PerpsDisplayFormatOptions & {
  * @example formatFundingRate(-0.0001) => "-0.0100%"
  * @example formatFundingRate(0.000000059) => "<0.0001%"
  * @example formatFundingRate(-0.000000059) => "-<0.0001%"
- * @example formatFundingRate(0.0005, { sign: 'always', locale: 'es' }) => "+0,0500%"
+ * @example formatFundingRate(0.0005, { sign: 'always', formatters: createFormatters({ locale: 'es' }) }) => "+0,0500%"
  * @example formatFundingRate(undefined) => "--%"
  */
 export const formatFundingRate = (
@@ -754,7 +821,7 @@ export const formatFundingRate = (
 ): string => {
   const {
     showZero = true,
-    locale = DEFAULT_LOCALE,
+    formatters = _fallbackFormatters,
     decimals = PERPS_DISPLAY_PRECISION.FundingRatePercent,
     sign = 'auto',
   } = options;
@@ -769,8 +836,8 @@ export const formatFundingRate = (
   // A non-zero rate below the display precision shows "<0.0001%"
   if (rate !== 0 && rounded === 0) {
     const minimum = _formatDecimal(
+      formatters,
       10 ** -decimals,
-      locale,
       decimals,
       decimals,
       true,
@@ -779,8 +846,8 @@ export const formatFundingRate = (
   }
 
   return `${_signPrefix(rate, rounded === 0, sign)}${_formatDecimal(
+    formatters,
     rounded,
-    locale,
     decimals,
     decimals,
     true,

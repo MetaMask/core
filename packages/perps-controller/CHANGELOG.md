@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add a `locale`, `decimals` and `sign` options object to the display formatters so Mobile, Extension and Terminal can drop their local copies ([#00000](https://github.com/MetaMask/core/pull/00000))
+- Add a `formatters`, `decimals` and `sign` options object to the display formatters so Mobile, Extension and Terminal can drop their local copies ([#00000](https://github.com/MetaMask/core/pull/00000))
   - `formatPercentage(value, decimalsOrOptions)` and `formatPositionSize(size, szDecimalsOrOptions)` still take the number they took before, or an options object
-  - `formatPnl(pnl, options)`, `formatPerpsFiat(balance, options)` and `formatFundingRate(value, options)` take the same `locale`, `decimals` and `sign` options
-  - `locale` is a BCP 47 locale (default `en-US`): `formatPnl(1234.5, { locale: 'es' })` returns `+1234,50 $`
+  - `formatPnl(pnl, options)`, `formatPerpsFiat(balance, options)` and `formatFundingRate(value, options)` take the same `formatters`, `decimals` and `sign` options
+  - `formatters` gives the locale: pass `createFormatters({ locale })` from `@metamask/client-utils`, built once per locale. `formatPnl(1234.5, { formatters: createFormatters({ locale: 'es' }) })` returns `+1234,50 $`. Without it the output stays `en-US`. This package does not depend on `@metamask/client-utils`
   - `sign` is `auto`, `always`, `exceptZero` or `never`. Defaults keep today's output: `always` for `formatPercentage` and `formatPnl`, `auto` otherwise
-  - Types `PerpsDisplayFormatOptions`, `PerpsFiatFormatOptions`, `PerpsFundingRateFormatOptions` and `PerpsSignDisplay`
+  - Types `PerpsDisplayFormatOptions`, `PerpsFiatFormatOptions`, `PerpsFundingRateFormatOptions`, `PerpsIntlFormatters` and `PerpsSignDisplay`
 - Add `PERPS_DISPLAY_PRECISION`, the decimals to pass as `decimals` for each displayed value ([#00000](https://github.com/MetaMask/core/pull/00000))
   - `RoePercent` 1, `SlippageEstimatePercent` 4, `FundingRatePercent` 4, `FeeRatePercent` 3, `Percentage` 2, `Pnl` 2, `Fee` 2 and `MaxPriceDecimals` 6
 

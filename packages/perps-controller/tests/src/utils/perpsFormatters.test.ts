@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   PERPS_CONSTANTS,
@@ -17,6 +17,7 @@ import {
   PRICE_RANGES_UNIVERSAL,
   PRICE_THRESHOLD,
 } from '../../../src/utils/perpsFormatters.js';
+import type { PerpsIntlFormatters } from '../../../src/utils/perpsFormatters.js';
 
 describe('PRICE_THRESHOLD', () => {
   it('exports expected boundary values', () => {
@@ -323,6 +324,31 @@ describe('display formatter options', () => {
   // No-break spaces Intl puts between a number and its currency symbol
   const NBSP = String.fromCharCode(0xa0);
   const NNBSP = String.fromCharCode(0x202f);
+
+  /**
+   * Same shape and caching as `createFormatters({ locale })` from
+   * `@metamask/client-utils`, which clients inject as `formatters`.
+   *
+   * @param locale - BCP 47 locale.
+   * @returns Locale-bound formatters.
+   */
+  const intl = (locale: string): PerpsIntlFormatters => {
+    const cache = new Map<string, Intl.NumberFormat>();
+    const get = (options: Intl.NumberFormatOptions): Intl.NumberFormat => {
+      const key = JSON.stringify(options);
+      let format = cache.get(key);
+      if (!format) {
+        format = new Intl.NumberFormat(locale, options);
+        cache.set(key, format);
+      }
+      return format;
+    };
+    return {
+      formatNumber: (value, options = {}) => get(options).format(value),
+      formatCurrency: (value, currency, options = {}) =>
+        get({ style: 'currency', currency, ...options }).format(value),
+    };
+  };
   const {
     FallbackPriceDisplay,
     FallbackPercentageDisplay,
@@ -434,13 +460,15 @@ describe('display formatter options', () => {
       ['ko', '+1,234.50%'],
       ['zh', '+1,234.50%'],
     ])('uses the %s separators', (locale, expected) => {
-      expect(formatPercentage(1234.5, { locale })).toBe(expected);
+      expect(formatPercentage(1234.5, { formatters: intl(locale) })).toBe(
+        expected,
+      );
     });
 
     it('formats a negative value in a locale', () => {
-      expect(formatPercentage(-12345.67, { decimals: 1, locale: 'es' })).toBe(
-        '-12.345,7%',
-      );
+      expect(
+        formatPercentage(-12345.67, { decimals: 1, formatters: intl('es') }),
+      ).toBe('-12.345,7%');
     });
 
     it('keeps the legacy positional decimals argument', () => {
@@ -474,11 +502,13 @@ describe('display formatter options', () => {
       ['de', `+1.234,50${NBSP}$`],
       ['ja', '+$1,234.50'],
     ])('formats PnL in %s', (locale, expected) => {
-      expect(formatPnl(1234.5, { locale })).toBe(expected);
+      expect(formatPnl(1234.5, { formatters: intl(locale) })).toBe(expected);
     });
 
     it('formats a negative PnL in a locale', () => {
-      expect(formatPnl(-1234.5, { locale: 'es' })).toBe(`-1234,50${NBSP}$`);
+      expect(formatPnl(-1234.5, { formatters: intl('es') })).toBe(
+        `-1234,50${NBSP}$`,
+      );
     });
   });
 
@@ -518,29 +548,39 @@ describe('display formatter options', () => {
       ['ko', 1250, '$1,250'],
       ['zh', 0.004, '<$0.01'],
     ])(
-      'formats with the %s locale and strips .00 by parts (%p)',
+      'formats with the %s locale and strips .00 (%p)',
       (locale, input, expected) => {
-        expect(formatPerpsFiat(input, { locale })).toBe(expected);
+        expect(formatPerpsFiat(input, { formatters: intl(locale) })).toBe(
+          expected,
+        );
       },
     );
 
-    it('strips trailing zeros by parts in a locale with universal ranges', () => {
+    it('strips trailing zeros in a locale with universal ranges', () => {
       expect(
-        formatPerpsFiat(1.5, { locale: 'de', ranges: PRICE_RANGES_UNIVERSAL }),
+        formatPerpsFiat(1.5, {
+          formatters: intl('de'),
+          ranges: PRICE_RANGES_UNIVERSAL,
+        }),
       ).toBe(`1,5${NBSP}$`);
       expect(
-        formatPerpsFiat(12.3, { locale: 'de', ranges: PRICE_RANGES_UNIVERSAL }),
+        formatPerpsFiat(12.3, {
+          formatters: intl('de'),
+          ranges: PRICE_RANGES_UNIVERSAL,
+        }),
       ).toBe(`12,3${NBSP}$`);
     });
 
     it('strips trailing zeros for locales with other digits', () => {
-      expect(formatPerpsFiat(1250, { locale: 'ar-EG' })).not.toContain('٫');
+      expect(
+        formatPerpsFiat(1250, { formatters: intl('ar-EG') }),
+      ).not.toContain('٫');
       expect(
         formatPerpsFiat(1.5, {
-          locale: 'ar-EG',
+          formatters: intl('ar-EG'),
           ranges: PRICE_RANGES_UNIVERSAL,
         }),
-      ).toBe(formatPerpsFiat(1.5, { locale: 'ar-EG', decimals: 1 }));
+      ).toBe(formatPerpsFiat(1.5, { formatters: intl('ar-EG'), decimals: 1 }));
     });
 
     it('does not depend on Intl formatToParts (single literal part on Hermes)', () => {
@@ -550,7 +590,7 @@ describe('display formatter options', () => {
           return [{ type: 'literal', value: this.format(value as number) }];
         });
       try {
-        expect(formatPerpsFiat(1250, { locale: 'fr' })).toBe(
+        expect(formatPerpsFiat(1250, { formatters: intl('fr') })).toBe(
           `1${NNBSP}250${NBSP}$`,
         );
         expect(formatPerpsFiat(12.5, { ranges: PRICE_RANGES_UNIVERSAL })).toBe(
@@ -562,11 +602,6 @@ describe('display formatter options', () => {
       } finally {
         spy.mockRestore();
       }
-    });
-
-    it('falls back to en-US for a locale that is not a BCP 47 tag', () => {
-      expect(formatPerpsFiat(1250, { locale: 'zh_CN' })).toBe('$1,250');
-      expect(formatPercentage(1234.5, { locale: 'pt_BR' })).toBe('+1,234.50%');
     });
 
     it('formats a fee with the shared fee precision', () => {
@@ -592,6 +627,7 @@ describe('display formatter options', () => {
       expect(
         formatPerpsFiat(-5, {
           locale: 'de',
+          formatters: intl('fr'),
           ranges: [
             {
               condition: () => true,
@@ -637,19 +673,25 @@ describe('display formatter options', () => {
     });
 
     it('uses locale separators without grouping', () => {
-      expect(formatPositionSize(-1234.5, { decimals: 2, locale: 'es' })).toBe(
-        '-1234,5',
+      expect(
+        formatPositionSize(-1234.5, { decimals: 2, formatters: intl('es') }),
+      ).toBe('-1234,5');
+      expect(
+        formatPositionSize(12345.678, { decimals: 2, formatters: intl('de') }),
+      ).toBe('12345,68');
+      expect(formatPositionSize(0.0024, { formatters: intl('ja') })).toBe(
+        '0.0024',
       );
-      expect(formatPositionSize(12345.678, { decimals: 2, locale: 'de' })).toBe(
-        '12345,68',
-      );
-      expect(formatPositionSize(0.0024, { locale: 'ja' })).toBe('0.0024');
     });
 
     it('treats an options object without decimals like the magnitude fallback', () => {
       expect(formatPositionSize(0.00009, {})).toBe('0.00009');
-      expect(formatPositionSize(0.25678, { locale: 'de' })).toBe('0,2568');
-      expect(formatPositionSize(44.567, { locale: 'en' })).toBe('44.57');
+      expect(formatPositionSize(0.25678, { formatters: intl('de') })).toBe(
+        '0,2568',
+      );
+      expect(formatPositionSize(44.567, { formatters: intl('en') })).toBe(
+        '44.57',
+      );
     });
   });
 
@@ -682,12 +724,159 @@ describe('display formatter options', () => {
     });
 
     it('uses the locale and decimals options', () => {
-      expect(formatFundingRate(-0.000125, { locale: 'es' })).toBe('-0,0125%');
-      expect(formatFundingRate(0.0005, { locale: 'ko', sign: 'always' })).toBe(
-        '+0.0500%',
+      expect(formatFundingRate(-0.000125, { formatters: intl('es') })).toBe(
+        '-0,0125%',
       );
-      expect(formatFundingRate(0.000000059, { locale: 'de' })).toBe('<0,0001%');
+      expect(
+        formatFundingRate(0.0005, { formatters: intl('ko'), sign: 'always' }),
+      ).toBe('+0.0500%');
+      expect(formatFundingRate(0.000000059, { formatters: intl('de') })).toBe(
+        '<0,0001%',
+      );
       expect(formatFundingRate(0.000125, { decimals: 2 })).toBe('0.01%');
+    });
+  });
+  describe('Intl formatter injection and caching', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('applies the perps rules on the injected formatters and constructs no Intl formatter', () => {
+      const constructor = vi.spyOn(Intl, 'NumberFormat');
+      const calls: unknown[][] = [];
+      const formatters: PerpsIntlFormatters = {
+        formatNumber: (value, options) => {
+          calls.push(['number', value, options]);
+          return `N${value}`;
+        },
+        formatCurrency: (value, currency, options) => {
+          calls.push(['currency', value, currency, options]);
+          return `C${value}`;
+        },
+      };
+
+      expect(formatPercentage(-10.25, { formatters, decimals: 1 })).toBe(
+        '-N10.3%',
+      );
+      expect(formatPnl(0, { formatters })).toBe('+C0');
+      expect(formatPerpsFiat(1250, { formatters })).toBe('C1250');
+      expect(formatPerpsFiat(-0.004, { formatters })).toBe('-<C0.01');
+      expect(formatPositionSize(1.5, { formatters, decimals: 4 })).toBe('N1.5');
+      expect(formatFundingRate(0.0005, { formatters, sign: 'always' })).toBe(
+        '+N0.05%',
+      );
+      expect(calls).toStrictEqual([
+        [
+          'number',
+          10.3,
+          { minimumFractionDigits: 1, maximumFractionDigits: 1 },
+        ],
+        [
+          'currency',
+          0,
+          'USD',
+          {
+            currencyDisplay: 'narrowSymbol',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          },
+        ],
+        [
+          'currency',
+          1250,
+          'USD',
+          {
+            currencyDisplay: 'narrowSymbol',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          },
+        ],
+        [
+          'currency',
+          0.01,
+          'USD',
+          {
+            currencyDisplay: 'narrowSymbol',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          },
+        ],
+        [
+          'number',
+          1.5,
+          {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 4,
+            useGrouping: false,
+          },
+        ],
+        [
+          'number',
+          0.05,
+          { minimumFractionDigits: 4, maximumFractionDigits: 4 },
+        ],
+      ]);
+      expect(constructor).not.toHaveBeenCalled();
+    });
+
+    it('constructs one en-US fallback formatter for the same options formatted twice', () => {
+      const constructor = vi.spyOn(Intl, 'NumberFormat');
+      // Seven decimals: an option set no other test formats
+      const options = { decimals: 7, stripTrailingZeros: false };
+
+      expect(formatPerpsFiat(1.23456789, options)).toBe('$1.2345679');
+      expect(formatPerpsFiat(9.87654321, options)).toBe('$9.8765432');
+      expect(formatPercentage(1.5, { decimals: 7 })).toBe('+1.5000000%');
+      expect(formatPercentage(2.5, { decimals: 7 })).toBe('+2.5000000%');
+
+      expect(constructor).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the Intl rounding of a tie when deciding the digits to strip', () => {
+      // 1.005 is stored below 1.005; Intl rounds its shortest form to 1.01
+      expect(formatPerpsFiat(1.005, { ranges: PRICE_RANGES_UNIVERSAL })).toBe(
+        '$1.005',
+      );
+      expect(formatPerpsFiat(1.005)).toBe('$1.01');
+      expect(formatPerpsFiat(0.995)).toBe('$1');
+      expect(
+        formatPerpsFiat(1e-7, {
+          ranges: [
+            {
+              condition: () => true,
+              minimumDecimals: 0,
+              maximumDecimals: 8,
+              threshold: 0,
+            },
+          ],
+        }),
+      ).toBe('$0.0000001');
+    });
+
+    it('strips trailing zeros of large and exponent-form amounts', () => {
+      const sixDecimalsFromZero = [
+        {
+          condition: () => true,
+          minimumDecimals: 0,
+          maximumDecimals: 6,
+          threshold: 0,
+        },
+      ];
+
+      expect(formatPerpsFiat(13402822611156.994)).toBe(
+        '$13,402,822,611,156.99',
+      );
+      expect(formatPerpsFiat(1234567890.1234567, { decimals: 6 })).toBe(
+        '$1,234,567,890.123457',
+      );
+      expect(formatPerpsFiat(1.5e21)).toBe('$1,500,000,000,000,000,000,000');
+      expect(formatPerpsFiat(1.5e21, { ranges: PRICE_RANGES_UNIVERSAL })).toBe(
+        '$1,500,000,000,000,000,000,000',
+      );
+      expect(formatPerpsFiat(5e-7, { ranges: sixDecimalsFromZero })).toBe(
+        '$0.000001',
+      );
+      expect(formatPerpsFiat(4e-7, { ranges: sixDecimalsFromZero })).toBe('$0');
     });
   });
 });
