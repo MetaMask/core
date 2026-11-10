@@ -7,12 +7,6 @@ import type { CoverageOptions } from 'vitest/node';
 
 import { getAllWorkspaces, ROOT_WORKSPACE } from './workspaces.ts';
 
-/**
- * Packages whose tests are not run as part of the root Vitest projects. The
- * docs package isn't tested in CI, and its tests currently fail.
- */
-const EXCLUDED_PACKAGES = ['packages/wallet-framework-docs'];
-
 const CONFIG_EXTENSIONS = ['ts', 'mts'];
 
 /**
@@ -55,12 +49,8 @@ async function getConfigPath(directory: string): Promise<string | undefined> {
  * @returns The directories that are included in the root projects.
  */
 async function getTestedPackages(directories: string[]): Promise<string[]> {
-  const candidates = directories.filter(
-    (directory) => !EXCLUDED_PACKAGES.includes(directory),
-  );
-
-  const configPaths = await Promise.all(candidates.map(getConfigPath));
-  return candidates.filter((_directory, index) => configPaths[index]);
+  const configPaths = await Promise.all(directories.map(getConfigPath));
+  return directories.filter((_directory, index) => configPaths[index]);
 }
 
 /**
