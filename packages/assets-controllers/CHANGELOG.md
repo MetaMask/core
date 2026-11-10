@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `TokenRatesController` applies `nativeAssetIdentifiers` that `NetworkEnablementController` fills or updates after `init`, so CAIP-19 native token rate lookups are not left on the map captured during `init` ([#11315](https://github.com/MetaMask/core/pull/11315))
 - `TokenDetectionController` reads `useTokenDetection` again when detection runs if that preference is still unset, so a `PreferencesController` registered after `init` does not leave non-mainnet detection skipped ([#11315](https://github.com/MetaMask/core/pull/11315))
+- `MultichainAssetsController` retries the Blockaid re-scan every minute when `PhishingController:bulkScanTokens` is not registered yet, then returns to the configured interval after that action can be called ([#11315](https://github.com/MetaMask/core/pull/11315))
+  - The first missing handler is reported through `messenger.captureException`. Stored tokens stay unchanged until a scan reaches `PhishingController`. A scan that reaches the controller and fails stays on the configured interval.
 
 ## [113.3.1]
 

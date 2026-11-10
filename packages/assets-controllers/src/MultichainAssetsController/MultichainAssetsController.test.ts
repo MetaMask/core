@@ -1868,6 +1868,118 @@ describe('MultichainAssetsController', () => {
       controller.stopAllPolling();
     });
 
+    it('retries a Blockaid rescan soon when PhishingController is not registered yet', async () => {
+      const captureException = vi.fn();
+      const rootMessenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+        captureException,
+      });
+      const messenger: MultichainAssetsControllerMessenger = new Messenger({
+        namespace: 'MultichainAssetsController',
+        parent: rootMessenger,
+      });
+      rootMessenger.delegate({
+        messenger,
+        actions: ['PhishingController:bulkScanTokens'],
+      });
+      const accountId = 'account1';
+      const maliciousToken =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Bad' as CaipAssetType;
+      const benignToken =
+        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Good' as CaipAssetType;
+      const configuredInterval = 120_000;
+      const controller = new MultichainAssetsController({
+        messenger,
+        blockaidTokenRescanInterval: configuredInterval,
+        state: {
+          accountsAssets: { [accountId]: [maliciousToken, benignToken] },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        },
+      });
+      controller.init();
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(controller.state.accountsAssets[accountId]).toStrictEqual([
+        maliciousToken,
+        benignToken,
+      ]);
+      expect(captureException).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(controller.state.accountsAssets[accountId]).toStrictEqual([
+        maliciousToken,
+        benignToken,
+      ]);
+
+      const bulkScanTokens = vi.fn().mockResolvedValue({
+        Bad: {
+          result_type: TokenScanResultType.Malicious,
+          chain: 'solana',
+          address: 'Bad',
+        },
+        Good: {
+          result_type: TokenScanResultType.Benign,
+          chain: 'solana',
+          address: 'Good',
+        },
+      });
+      rootMessenger.registerActionHandler(
+        'PhishingController:bulkScanTokens',
+        bulkScanTokens,
+      );
+
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(bulkScanTokens).toHaveBeenCalledTimes(1);
+      expect(controller.state.accountsAssets[accountId]).toStrictEqual([
+        benignToken,
+      ]);
+      expect(controller.state.allIgnoredAssets[accountId]).toStrictEqual([
+        maliciousToken,
+      ]);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(bulkScanTokens).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(configuredInterval);
+
+      expect(bulkScanTokens).toHaveBeenCalledTimes(2);
+      controller.stopAllPolling();
+    });
+
+    it('does not retry a Blockaid rescan early when the scan handler rejects', async () => {
+      const accountId = 'account1';
+      const token = 'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:SomeAddr';
+      const { controller, mockBulkScanTokens } = setupController({
+        blockaidTokenRescanInterval: 120_000,
+        state: {
+          accountsAssets: { [accountId]: [token] },
+          assetsMetadata: {},
+          allIgnoredAssets: {},
+        },
+      });
+      mockBulkScanTokens.mockRejectedValue(new Error('network error'));
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(mockBulkScanTokens).toHaveBeenCalledTimes(1);
+      expect(controller.state.accountsAssets[accountId]).toStrictEqual([token]);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(mockBulkScanTokens).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(mockBulkScanTokens).toHaveBeenCalledTimes(2);
+      controller.stopAllPolling();
+    });
+
     it('periodic rescan ignores SPL tokens that Blockaid later marks malicious', async () => {
       const mockAccountId = 'account1';
       const token =
