@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { getReceivedERC20Amount } from './swap-received-amount.js';
+import type { BridgeHistoryItem } from '../types.js';
+import {
+  getActualSwapReceivedAmount,
+  getReceivedERC20Amount,
+} from './swap-received-amount.js';
 
 const WALLET = '0x30e8ccad5a980bdf30447f8c2c48e70989d9d294';
 const OTHER_WALLET = '0x0a2854fbbd9b3ef66f17d47284e7f899b9509330';
@@ -40,5 +44,38 @@ describe('getReceivedERC20Amount', () => {
         transferLog({ amount: 50 }),
       ])?.toString(10),
     ).toBe('150');
+  });
+
+  it('skips matching transfer logs that have no data', () => {
+    expect(
+      getReceivedERC20Amount(WALLET, TOKEN, [
+        { ...transferLog({ amount: 100 }), data: undefined },
+        transferLog({ amount: 40 }),
+      ])?.toString(10),
+    ).toBe('40');
+  });
+});
+
+describe('getActualSwapReceivedAmount', () => {
+  it('returns a null native amount when gas is missing', () => {
+    const historyItem = {
+      account: WALLET,
+      quote: {
+        destTokenAmount: '1000000000000000000',
+        destAsset: {
+          address: '0x0000000000000000000000000000000000000000',
+          decimals: 18,
+        },
+      },
+      pricingData: { quotedReturnInUsd: '1' },
+    } as BridgeHistoryItem;
+
+    expect(
+      getActualSwapReceivedAmount(historyItem, null, {
+        preTxBalance: '0x1',
+        postTxBalance: '0x2',
+        txReceipt: { status: '0x1' },
+      } as never),
+    ).toEqual({ amount: null, usd: null });
   });
 });
