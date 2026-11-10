@@ -1221,6 +1221,26 @@ describe('HyperLiquidSubscriptionService', () => {
       );
     });
 
+    it('releases a retried subscription when the transport is replaced', async () => {
+      const first = captureListener();
+      const callback = vi.fn();
+      service.subscribeToActiveAssetData({ symbol: 'BTC', callback });
+      await vi.advanceTimersByTimeAsync(0);
+
+      first.fail(transientError());
+      const retry = captureListener();
+      await vi.advanceTimersByTimeAsync(500);
+      const replacement = captureListener();
+      await service.restoreSubscriptions();
+      await vi.advanceTimersByTimeAsync(0);
+      retry.emit(frame);
+      replacement.emit(frame);
+
+      expect(retry.subscription.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(replacement.subscription.unsubscribe).not.toHaveBeenCalled();
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+
     it('retries a transient failure after the stream opened', async () => {
       const first = captureListener();
       const callback = vi.fn();

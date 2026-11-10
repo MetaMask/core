@@ -4915,7 +4915,7 @@ export class HyperLiquidSubscriptionService {
       attempt += 1;
       const thisAttempt = attempt;
       const isCurrent = (): boolean => !retired && thisAttempt === attempt;
-      // On reopen the previous subscription belongs to the closed transport.
+      // reopen() has released any previous subscription.
       subscription = undefined;
 
       // Same policy as the assetCtxs subscribeWithRetry: a transient SDK
@@ -5004,7 +5004,14 @@ export class HyperLiquidSubscriptionService {
     };
 
     const stream = {
-      reopen: (): void => open(),
+      reopen: (): void => {
+        // A retry can open on the replacement transport before restore
+        // reaches this stream; release it instead of orphaning it.
+        if (subscription) {
+          unsubscribe(subscription);
+        }
+        open();
+      },
       retire: (): void => {
         retired = true;
         this.#activeAssetDataStreams.delete(stream);
