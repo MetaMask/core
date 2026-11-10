@@ -654,7 +654,7 @@ describe('KycController', () => {
         ).rejects.toThrow(/aal2Token is required to create a KYC session/u);
         expect(handlers.createVendorCustomer).not.toHaveBeenCalled();
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
-        expect(controller.state.sessions.iron?.sessionStatus).toBeNull();
+        expect(controller.state.sessions.iron).toBeUndefined();
       });
     });
 
@@ -672,7 +672,89 @@ describe('KycController', () => {
           }),
         ).rejects.toThrow('customer failed');
         expect(handlers.createUkycSession).not.toHaveBeenCalled();
-        expect(controller.state.sessions.iron?.sessionStatus).toBeNull();
+        expect(controller.state.sessions.iron).toBeUndefined();
+      });
+    });
+
+    it.each([
+      [
+        'the session lookup fails',
+        (handlers: ServiceHandlers): void => {
+          handlers.getSessionStatusForVendor.mockRejectedValue(
+            new Error('lookup failed'),
+          );
+        },
+        'lookup failed',
+      ],
+      [
+        'creating the vendor customer fails',
+        (handlers: ServiceHandlers): void => {
+          handlers.getSessionStatusForVendor.mockResolvedValue(null);
+          handlers.createVendorCustomer.mockRejectedValue(
+            new Error('customer failed'),
+          );
+        },
+        'customer failed',
+      ],
+      [
+        'creating the UKYC session fails',
+        (handlers: ServiceHandlers): void => {
+          handlers.getSessionStatusForVendor.mockResolvedValue(null);
+          handlers.createUkycSession.mockRejectedValue(
+            new Error('session failed'),
+          );
+        },
+        'session failed',
+      ],
+    ])(
+      'keeps the stored terms and country when %s',
+      async (_name, arrange, message) => {
+        await withController(async ({ controller, handlers }) => {
+          handlers.getGeoCountry.mockResolvedValue('DEU');
+          controller.acceptVendorDisclaimers({
+            vendor: 'iron',
+            country: 'USA',
+            disclaimerIds: ['t1'],
+          });
+          arrange(handlers);
+
+          await expect(
+            controller.startSession({
+              vendor: 'iron',
+              aal2Token: AAL2_TOKEN,
+            }),
+          ).rejects.toThrow(message);
+
+          expect(controller.state.sessions.iron?.residenceCountry).toBe('USA');
+          expect(
+            controller.state.sessions.iron?.vendorDisclaimersAccepted,
+          ).toMatchObject({
+            disclaimerIds: ['t1'],
+            submitted: false,
+          });
+        });
+      },
+    );
+
+    it('drops unsubmitted terms accepted for another country once a session is created', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getGeoCountry.mockResolvedValue('DEU');
+        handlers.getSessionStatusForVendor.mockResolvedValue(null);
+        controller.acceptVendorDisclaimers({
+          vendor: 'iron',
+          country: 'USA',
+          disclaimerIds: ['t1'],
+        });
+
+        await controller.startSession({
+          vendor: 'iron',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(controller.state.sessions.iron?.residenceCountry).toBe('DEU');
+        expect(
+          controller.state.sessions.iron?.vendorDisclaimersAccepted,
+        ).toBeNull();
       });
     });
 

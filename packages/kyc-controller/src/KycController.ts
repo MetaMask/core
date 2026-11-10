@@ -444,30 +444,6 @@ export class KycController extends BaseController<
     const partnerIdentity = await this.#getPartnerIdentityForVendor(vendor);
     const geoCountry = await this.messenger.call('KycService:getGeoCountry');
 
-    this.#updateVendorSession(
-      vendor,
-      (entry) => {
-        if (entry.sessionStatus === null) {
-          // Terms stored before a session exists were accepted for the catalog
-          // of the country they were fetched in. If the session is going to be
-          // created for another country, that acceptance does not apply: drop
-          // it so the user accepts the right documents.
-          if (
-            entry.residenceCountry !== null &&
-            entry.residenceCountry !== geoCountry &&
-            entry.vendorDisclaimersAccepted?.submitted === false
-          ) {
-            entry.vendorDisclaimersAccepted = null;
-          }
-          entry.residenceCountry = geoCountry;
-          entry.providerFlowStatus = 'not_started';
-        } else {
-          entry.residenceCountry ??= geoCountry;
-        }
-      },
-      { create: true },
-    );
-
     const storedSession = this.state.sessions[vendor]?.sessionStatus ?? null;
     if (storedSession === null) {
       const sessionStatus = await this.messenger.call(
@@ -475,9 +451,14 @@ export class KycController extends BaseController<
         vendor,
       );
       if (sessionStatus !== null) {
-        this.#updateVendorSession(vendor, (entry) => {
-          entry.sessionStatus = sessionStatus;
-        });
+        this.#updateVendorSession(
+          vendor,
+          (entry) => {
+            this.#prepareEntryForNewSession(entry, geoCountry);
+            entry.sessionStatus = sessionStatus;
+          },
+          { create: true },
+        );
         return this.#refreshAuthorizationsIfNeeded(vendor);
       }
 
@@ -510,6 +491,9 @@ export class KycController extends BaseController<
       { sessionId: storedSession.id },
     );
 
+    this.#updateVendorSession(vendor, (entry) => {
+      entry.residenceCountry ??= geoCountry;
+    });
     this.#updateSessionStatusAndTrackAnalytics(vendor, sessionStatus);
     // TODO: Should we resume polling here?
     return this.#refreshAuthorizationsIfNeeded(vendor);
@@ -783,6 +767,34 @@ export class KycController extends BaseController<
   }
 
   /**
+   * Resets a vendor entry that has no session yet for the session being
+   * attached to it. Terms stored before a session exists were accepted for the
+   * catalog of the country they were fetched in. If the session belongs to
+   * another country, that acceptance does not apply, so it is dropped and the
+   * user accepts the right documents.
+   *
+   * Call this only once a session exists. A `startSession` that fails earlier
+   * must leave the stored terms and country untouched.
+   *
+   * @param entry - The vendor's entry, mutated in place.
+   * @param geoCountry - Country the session was resumed or created for.
+   */
+  #prepareEntryForNewSession(
+    entry: KycVendorSessionState,
+    geoCountry: string,
+  ): void {
+    if (
+      entry.residenceCountry !== null &&
+      entry.residenceCountry !== geoCountry &&
+      entry.vendorDisclaimersAccepted?.submitted === false
+    ) {
+      entry.vendorDisclaimersAccepted = null;
+    }
+    entry.residenceCountry = geoCountry;
+    entry.providerFlowStatus = 'not_started';
+  }
+
+  /**
    * Returns the vendor's stored session status.
    *
    * @param vendor - The identity vendor.
@@ -996,6 +1008,14 @@ export class KycController extends BaseController<
       aal2Token: params.aal2Token,
       partnerIdentityToken: params.partnerIdentityToken,
     });
+
+    this.#updateVendorSession(
+      params.vendor,
+      (entry) => {
+        this.#prepareEntryForNewSession(entry, params.geoCountry);
+      },
+      { create: true },
+    );
 
     return this.#setAuthorizations({
       vendor: params.vendor,
