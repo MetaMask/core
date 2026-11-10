@@ -80,7 +80,9 @@ export type MfaRecoveryControllerGetIdentifiersAction = {
 };
 
 /**
- * Completes a persisted pending mutation, if any.
+ * Completes a persisted pending mutation, if any. Clears a `writing` one,
+ * throwing `MutationRejectedError`, once its approval has expired and no
+ * escrow applied it.
  */
 export type MfaRecoveryControllerResumeAction = {
   type: `MfaRecoveryController:resume`;
