@@ -22,15 +22,15 @@ const getGetPublicKey = (): ((
   privateKey: Uint8Array<ArrayBuffer>,
   _compressed?: boolean,
 ) => Uint8Array<ArrayBuffer>) => {
-  let hasSetWindowSize = false;
+  let hasPrecomputed = false;
 
   const getPublicKey = (
     privateKey: Uint8Array<ArrayBuffer>,
     _compressed?: boolean,
   ): Uint8Array<ArrayBuffer> => {
-    if (!hasSetWindowSize) {
-      ed25519.ExtendedPoint.BASE._setWindowSize(4);
-      hasSetWindowSize = true;
+    if (!hasPrecomputed) {
+      ed25519.Point.BASE.precompute(4);
+      hasPrecomputed = true;
     }
     const publicKey = ed25519.getPublicKey(privateKey);
     return concatBytes([new Uint8Array([0]), publicKey]);
