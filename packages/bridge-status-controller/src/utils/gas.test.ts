@@ -8,9 +8,9 @@ describe('calcActualGasUsed', () => {
     expect(
       calcActualGasUsed(
         { pricingData: { quotedGasAmount: '1' } } as BridgeHistoryItem,
-        { gasUsed: '0x10', effectiveGasPrice: '0x10' } as never,
+        { gasUsed: '0x10', effectiveGasPrice: '0x10' },
       ),
-    ).toEqual({
+    ).toStrictEqual({
       amount: '256',
       usd: '0',
     });

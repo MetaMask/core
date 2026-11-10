@@ -1,3 +1,4 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import { describe, expect, it } from 'vitest';
 
 import type { BridgeHistoryItem } from '../types.js';
@@ -13,8 +14,10 @@ const OTHER_TOKEN = '0x0000000000000000000000000000000000000001';
 const TRANSFER_TOPIC =
   '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
-const toTopic = (address: string) => `0x${address.slice(2).padStart(64, '0')}`;
-const toData = (amount: number) => `0x${amount.toString(16).padStart(64, '0')}`;
+const toTopic = (address: string): `0x${string}` =>
+  `0x${address.slice(2).padStart(64, '0')}`;
+const toData = (amount: number): `0x${string}` =>
+  `0x${amount.toString(16).padStart(64, '0')}`;
 
 const transferLog = ({
   token = TOKEN,
@@ -75,7 +78,7 @@ describe('getActualSwapReceivedAmount', () => {
         preTxBalance: '0x1',
         postTxBalance: '0x2',
         txReceipt: { status: '0x1' },
-      } as never),
-    ).toEqual({ amount: null, usd: null });
+      } as TransactionMeta),
+    ).toStrictEqual({ amount: null, usd: null });
   });
 });

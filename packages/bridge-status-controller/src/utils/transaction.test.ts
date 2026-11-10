@@ -100,12 +100,12 @@ describe('Bridge Status Controller Transaction Utils', () => {
           }),
       } as unknown as BridgeStatusControllerMessenger;
 
-      await expect(
-        waitForTxConfirmation(messenger, 'tx1', {
+      expect(
+        await waitForTxConfirmation(messenger, 'tx1', {
           timeoutMs: 50,
           pollMs: 1,
         }),
-      ).resolves.toStrictEqual(expect.objectContaining({ id: 'tx1' }));
+      ).toStrictEqual(expect.objectContaining({ id: 'tx1' }));
     });
 
     it('times out when status never changes', async () => {

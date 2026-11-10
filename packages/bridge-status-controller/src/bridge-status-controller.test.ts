@@ -97,13 +97,13 @@ vi.mock('uuid', () => ({
 const mockIsEthUsdt = vi.fn();
 vi.mock(import('@metamask/bridge-controller'), async (importOriginal) => ({
   ...(await importOriginal()),
-  isEthUsdt: () => mockIsEthUsdt(),
+  isEthUsdt: (): boolean => mockIsEthUsdt(),
 }));
 
 const mockGenerateBatchId = vi.fn();
 vi.mock(import('@metamask/transaction-controller'), async (importOriginal) => ({
   ...(await importOriginal()),
-  generateBatchId: () => mockGenerateBatchId(),
+  generateBatchId: (): `0x${string}` => mockGenerateBatchId(),
 }));
 
 const EMPTY_INIT_STATE: BridgeStatusControllerState = {
@@ -1243,7 +1243,7 @@ describe('BridgeStatusController', () => {
     vi.clearAllMocks();
     vi.clearAllTimers();
     vi.spyOn(historyUtils, 'isHistoryItemTooOld').mockReturnValue(false);
-    mockTraceFn = vi.fn(async (_request, fn) => await fn?.());
+    mockTraceFn = vi.fn(async (_request, fn): Promise<void> => await fn?.());
     mockGenerateBatchId.mockReturnValue('0x1234BatchId');
   });
 
