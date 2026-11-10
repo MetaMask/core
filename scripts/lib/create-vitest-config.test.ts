@@ -101,22 +101,6 @@ describe('createRootConfig', () => {
       ]);
     });
 
-    it('skips the docs package', async () => {
-      mockPackageConfigs({
-        'packages/a/vitest.config.ts': {},
-        'packages/wallet-framework-docs/vitest.config.mts': {},
-      });
-
-      const config = await createRootConfig([
-        'packages/a',
-        'packages/wallet-framework-docs',
-      ]);
-
-      expect(config.test?.projects).toStrictEqual([
-        'packages/a/vitest.config.{ts,mts}',
-      ]);
-    });
-
     it('does not load the package configs', async () => {
       mockPackageConfigs({ 'packages/a/vitest.config.ts': {} });
 

@@ -137,8 +137,8 @@ function translateThresholds(
  * checked when merging reports (`--merge-reports --coverage`).
  *
  * @param directories - The package directories to test, relative to the
- * monorepo root (e.g., `packages/foo`). Packages without a Vitest config, and
- * packages that aren't tested in CI, are skipped.
+ * monorepo root (e.g., `packages/foo`). Packages without a Vitest config are
+ * skipped
  * @returns The Vitest config.
  */
 export async function createRootConfig(
