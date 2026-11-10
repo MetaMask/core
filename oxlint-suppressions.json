@@ -1753,11 +1753,6 @@
       "count": 8
     }
   },
-  "packages/bridge-status-controller/src/utils/metrics.test.ts": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "packages/bridge-status-controller/src/utils/snaps.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 3
