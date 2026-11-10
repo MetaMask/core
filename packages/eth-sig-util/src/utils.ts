@@ -59,12 +59,15 @@ export function isNullish(value: unknown): boolean {
 
 /**
  * Convert a value to bytes. This function should be equivalent to the `toBuffer` function in
- * `ethereumjs-util@5.2.1`.
+ * `ethereumjs-util@5.2.1`, with the following exceptions:
+ *
+ * - It returns a `Uint8Array` instead of a `Buffer`.
+ * - Objects with a `toArray` or `toBuffer` method are not supported.
  *
  * @param value - The value to convert to bytes.
  * @returns The given value as a `Uint8Array`.
  */
-export function legacyToBuffer(value: ToBytesInputTypes): Uint8Array {
+export function legacyToBytes(value: ToBytesInputTypes): Uint8Array {
   return typeof value === 'string' && !isHexString(value)
     ? stringToBytes(value)
     : toBytes(value);

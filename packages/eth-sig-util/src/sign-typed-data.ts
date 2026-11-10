@@ -24,7 +24,7 @@ import { keccak256 } from 'ethereum-cryptography/keccak';
 import {
   concatSig,
   isNullish,
-  legacyToBuffer,
+  legacyToBytes,
   recoverPublicKey,
 } from './utils.js';
 
@@ -790,7 +790,7 @@ function _typedSignatureHash(typedData: TypedDataV1): Uint8Array {
       return e.value;
     }
 
-    return legacyToBuffer(e.value);
+    return legacyToBytes(e.value);
   });
   const types = normalizedData.map((e) => {
     if (e.type === 'function') {

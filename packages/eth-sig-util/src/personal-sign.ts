@@ -5,7 +5,7 @@ import { bigIntToBytes, bytesToHex } from '@metamask/utils';
 import {
   concatSig,
   isNullish,
-  legacyToBuffer,
+  legacyToBytes,
   recoverPublicKey,
 } from './utils.js';
 
@@ -33,7 +33,7 @@ export function personalSign({
     throw new Error('Missing privateKey parameter');
   }
 
-  const message = legacyToBuffer(data);
+  const message = legacyToBytes(data);
   const msgHash = hashPersonalMessage(message);
   const signature = ecsign(msgHash, privateKey);
   return concatSig(bigIntToBytes(signature.v), signature.r, signature.s);
@@ -104,6 +104,6 @@ function getPublicKeyFor(
   message: ToBytesInputTypes,
   signature: string,
 ): Uint8Array {
-  const messageHash = hashPersonalMessage(legacyToBuffer(message));
+  const messageHash = hashPersonalMessage(legacyToBytes(message));
   return recoverPublicKey(messageHash, signature);
 }

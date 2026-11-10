@@ -1,13 +1,7 @@
-import type { ToBytesInputTypes } from '@ethereumjs/util';
 import { hexToBytes, numberToBytes } from '@metamask/utils';
 import { describe, expect, it } from 'vitest';
 
-import {
-  concatSig,
-  legacyToBuffer,
-  padWithZeroes,
-  normalize,
-} from './utils.js';
+import { concatSig, padWithZeroes, normalize } from './utils.js';
 
 describe('padWithZeroes', function () {
   it('pads a string shorter than the target length with zeroes', function () {
