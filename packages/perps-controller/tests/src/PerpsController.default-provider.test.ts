@@ -476,6 +476,46 @@ describe('PerpsController default provider', () => {
       expect(mockProvider.getOrderCapabilities).not.toHaveBeenCalled();
     });
 
+    it('moves a live account subscription to the new venue and clears the cached snapshot', () => {
+      setupAggregatedMode('hyperliquid');
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      mockProvider.subscribeToAccount.mockReturnValue(hlCleanup);
+      (lighterProvider as any).subscribeToAccount.mockReturnValue(
+        lighterCleanup,
+      );
+      const callback = vi.fn();
+      const accountState = (totalBalance: string) => ({
+        spendableBalance: totalBalance,
+        withdrawableBalance: totalBalance,
+        totalBalance,
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      });
+
+      controller.subscribeToAccount({ callback });
+      // HyperLiquid pushes a snapshot; the controller caches it.
+      const hlCallback =
+        mockProvider.subscribeToAccount.mock.calls[0][0].callback;
+      hlCallback(accountState('100'));
+      expect(controller.state.accountState?.totalBalance).toBe('100');
+
+      controller.setDefaultProvider('lighter');
+
+      // The previous venue's snapshot is dropped until the new venue answers.
+      expect(controller.state.accountState).toBeNull();
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect((lighterProvider as any).subscribeToAccount).toHaveBeenCalledTimes(
+        1,
+      );
+
+      const lighterCallback = (lighterProvider as any).subscribeToAccount.mock
+        .calls[0][0].callback;
+      lighterCallback(accountState('200'));
+      expect(controller.state.accountState?.totalBalance).toBe('200');
+    });
+
     it('persists the choice before initialization when no provider is registered yet', () => {
       // Providers map is empty before init.
       const result = controller.setDefaultProvider('lighter');

@@ -135,6 +135,19 @@ export class ChaseOrderSuspensionError extends Error {
 }
 
 /**
+ * A stream whose venue is chosen by the aggregated default.
+ *
+ * `setDefaultProvider` re-opens these on the new venue, so a stream started
+ * before a default change does not keep feeding the previous venue's data.
+ */
+type DefaultRoutedSubscription = {
+  /** Re-open the stream on the current default, returning its cleanup. */
+  reopen: () => () => void;
+  /** Cleanup for the stream currently open. */
+  unsubscribe: () => void;
+};
+
+/**
  * AggregatedPerpsProvider implements PerpsProvider by coordinating
  * multiple backend providers.
  *
@@ -181,6 +194,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   readonly #router: ProviderRouter;
 
   readonly #subscriptionMux: SubscriptionMultiplexer;
+
+  /** Streams that follow the routing default and must move with it. */
+  readonly #defaultRoutedSubscriptions = new Set<DefaultRoutedSubscription>();
 
   constructor(config: AggregatedProviderConfig) {
     this.#providers = config.providers;
@@ -266,13 +282,60 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         `[AggregatedPerpsProvider] Default provider '${providerId}' not available`,
       );
     }
+    if (providerId === this.#defaultProvider) {
+      return;
+    }
     this.#defaultProvider = providerId;
     this.#router.setDefaultProvider(providerId);
+    this.#rerouteDefaultSubscriptions();
 
     this.#deps.debugLogger.log(
       '[AggregatedPerpsProvider] Default provider changed',
       { defaultProvider: providerId },
     );
+  }
+
+  /**
+   * Register a stream that follows the routing default.
+   *
+   * The returned cleanup detaches the stream from whichever venue it is
+   * currently open on, so it stays valid across a default change.
+   *
+   * @param subscribe - Opens the stream on a given provider.
+   * @returns A cleanup function that closes the stream.
+   */
+  #trackDefaultRoutedSubscription(
+    subscribe: (provider: PerpsProvider) => () => void,
+  ): () => void {
+    const subscription: DefaultRoutedSubscription = {
+      reopen: () => subscribe(this.#getDefaultProvider()),
+      unsubscribe: () => undefined,
+    };
+    subscription.unsubscribe = subscription.reopen();
+    this.#defaultRoutedSubscriptions.add(subscription);
+
+    return () => {
+      if (!this.#defaultRoutedSubscriptions.delete(subscription)) {
+        return;
+      }
+      subscription.unsubscribe();
+    };
+  }
+
+  /**
+   * Move every default-routed stream to the current default venue.
+   *
+   * Only the stream's subscription is torn down and re-opened; the venue
+   * transports stay connected. The caller's cleanup function keeps working.
+   */
+  #rerouteDefaultSubscriptions(): void {
+    if (this.#defaultRoutedSubscriptions.size === 0) {
+      return;
+    }
+    for (const subscription of this.#defaultRoutedSubscriptions) {
+      subscription.unsubscribe();
+      subscription.unsubscribe = subscription.reopen();
+    }
   }
 
   /**
@@ -1277,50 +1340,53 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    * native TWAP push channel.
    */
   subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
-    const defaultProviderId = this.#defaultProvider;
-    // Read the map directly: #getDefaultProvider throws when the default is
-    // unavailable, and this method's contract is a no-op cleanup, not a throw.
-    const provider = this.#providers.get(defaultProviderId);
-    if (!provider?.subscribeToTwapOrders) {
-      return () => {
-        // No-op: default provider exposes no native TWAP push channel
-      };
-    }
-    return provider.subscribeToTwapOrders({
-      ...params,
-      // Stamp the same way getTwapOrders does, so swapping a poll for this
-      // subscription does not silently drop providerId from every schedule.
-      callback: (twapOrders, isSnapshot) =>
-        params.callback(
-          twapOrders.map((order) => ({
-            ...order,
-            providerId: defaultProviderId,
-          })),
-          isSnapshot,
-        ),
+    return this.#trackDefaultRoutedSubscription((provider) => {
+      if (!provider.subscribeToTwapOrders) {
+        return () => {
+          // No-op: default provider exposes no native TWAP push channel
+        };
+      }
+      return provider.subscribeToTwapOrders({
+        ...params,
+        // Stamp the same way getTwapOrders does, so swapping a poll for this
+        // subscription does not silently drop providerId from every schedule.
+        // Read the current default so a re-route re-stamps the venue.
+        callback: (twapOrders, isSnapshot) =>
+          params.callback(
+            twapOrders.map((order) => ({
+              ...order,
+              providerId: this.#defaultProvider,
+            })),
+            isSnapshot,
+          ),
+      });
     });
   }
 
   subscribeToAccount(params: SubscribeAccountParams): () => void {
-    // For account subscriptions, we emit as array for multi-provider
-    // but the callback expects single AccountState
-    // Delegate to default provider for now
-    return this.#getDefaultProvider().subscribeToAccount(params);
+    // Account, candles, order book and OI caps have no per-venue route of
+    // their own, so they follow the routing default and move with it.
+    return this.#trackDefaultRoutedSubscription((provider) =>
+      provider.subscribeToAccount(params),
+    );
   }
 
   subscribeToOICaps(params: SubscribeOICapsParams): () => void {
-    // Delegate to default provider
-    return this.#getDefaultProvider().subscribeToOICaps(params);
+    return this.#trackDefaultRoutedSubscription((provider) =>
+      provider.subscribeToOICaps(params),
+    );
   }
 
   subscribeToCandles(params: SubscribeCandlesParams): () => void {
-    // Delegate to default provider
-    return this.#getDefaultProvider().subscribeToCandles(params);
+    return this.#trackDefaultRoutedSubscription((provider) =>
+      provider.subscribeToCandles(params),
+    );
   }
 
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void {
-    // Delegate to default provider
-    return this.#getDefaultProvider().subscribeToOrderBook(params);
+    return this.#trackDefaultRoutedSubscription((provider) =>
+      provider.subscribeToOrderBook(params),
+    );
   }
 
   /**

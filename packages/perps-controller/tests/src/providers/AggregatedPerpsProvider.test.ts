@@ -2606,6 +2606,108 @@ describe('AggregatedPerpsProvider', () => {
     });
   });
 
+  describe('setDefaultProvider re-routes default-routed streams', () => {
+    it('moves an account subscription to the new venue without reconnecting transports', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      mockHLProvider.subscribeToAccount.mockReturnValue(hlCleanup);
+      mockLighterProvider.subscribeToAccount.mockReturnValue(lighterCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToAccount({ callback });
+      expect(mockHLProvider.subscribeToAccount).toHaveBeenCalledWith({
+        callback,
+      });
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledWith({
+        callback,
+      });
+      expect(mockHLProvider.disconnect).not.toHaveBeenCalled();
+      expect(mockLighterProvider.disconnect).not.toHaveBeenCalled();
+
+      cleanup();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves a candles subscription to the new venue when the default changes', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      mockHLProvider.subscribeToCandles.mockReturnValue(hlCleanup);
+      mockLighterProvider.subscribeToCandles.mockReturnValue(lighterCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: CandlePeriod.OneHour,
+        callback,
+      });
+      expect(mockHLProvider.subscribeToCandles).toHaveBeenCalledTimes(1);
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToCandles).toHaveBeenCalledTimes(1);
+
+      cleanup();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves an order-book subscription to the new venue when the default changes', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      mockHLProvider.subscribeToOrderBook.mockReturnValue(hlCleanup);
+      mockLighterProvider.subscribeToOrderBook.mockReturnValue(lighterCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToOrderBook({
+        symbol: 'BTC',
+        callback,
+      });
+      expect(mockHLProvider.subscribeToOrderBook).toHaveBeenCalledTimes(1);
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToOrderBook).toHaveBeenCalledTimes(1);
+
+      cleanup();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('moves an OI-caps subscription to the new venue when the default changes', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      mockHLProvider.subscribeToOICaps.mockReturnValue(hlCleanup);
+      mockLighterProvider.subscribeToOICaps.mockReturnValue(lighterCleanup);
+      const callback = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToOICaps({ callback });
+      expect(mockHLProvider.subscribeToOICaps).toHaveBeenCalledTimes(1);
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(mockLighterProvider.subscribeToOICaps).toHaveBeenCalledTimes(1);
+
+      cleanup();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it('is a no-op when the default does not change', () => {
+      const hlCleanup = vi.fn();
+      mockHLProvider.subscribeToAccount.mockReturnValue(hlCleanup);
+
+      aggregatedProvider.subscribeToAccount({ callback: vi.fn() });
+      aggregatedProvider.setDefaultProvider('hyperliquid');
+
+      expect(hlCleanup).not.toHaveBeenCalled();
+      expect(mockLighterProvider.subscribeToAccount).not.toHaveBeenCalled();
+    });
+  });
+
   describe('WebSocket', () => {
     it('delegates getWebSocketConnectionState to default provider', () => {
       // Arrange

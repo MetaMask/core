@@ -6571,14 +6571,26 @@ export class PerpsController extends BaseController<
       };
     }
 
+    const aggregatedProvider =
+      this.activeProviderInstance instanceof AggregatedPerpsProvider
+        ? this.activeProviderInstance
+        : null;
+    const defaultChanged = this.state.defaultProvider !== providerId;
+
     this.update((state) => {
       state.defaultProvider = providerId;
+      // The cached snapshot came from the previous default venue's stream, so
+      // drop it until the new venue delivers matching data.
+      if (defaultChanged && aggregatedProvider) {
+        state.accountState = null;
+      }
     });
 
     // Keep the live aggregated wrapper's routing in sync without any
-    // re-initialization or reconnection.
-    if (this.activeProviderInstance instanceof AggregatedPerpsProvider) {
-      this.activeProviderInstance.setDefaultProvider(providerId);
+    // re-initialization or reconnection. Default-routed streams move to the
+    // new venue with it.
+    if (aggregatedProvider) {
+      aggregatedProvider.setDefaultProvider(providerId);
     }
 
     this.#debugLog('PerpsController: Default provider updated', {
