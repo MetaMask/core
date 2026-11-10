@@ -17,10 +17,10 @@
 module.exports = {
   name: '@yarnpkg/plugin-runner',
   factory: function (/** @type {NodeJS.Require} */ require) {
-    const { tmpdir } = require('node:os');
-    const { scriptUtils, structUtils } = require('@yarnpkg/core');
-    const path = require('node:path');
-    const fs = require('node:fs');
+    const { tmpdir } = require('node:os')
+    const { scriptUtils, structUtils } = require('@yarnpkg/core')
+    const path = require('node:path')
+    const fs = require('node:fs')
     return {
       hooks: {
         /**
@@ -28,70 +28,75 @@ module.exports = {
          */
         afterAllInstalled: async (project, options) => {
           if (options.mode === 'update-lockfile') {
-            return;
+            return
           }
 
           // Pick a workspace (e.g., the root workspace, or iterate through project.workspaces)
-          const workspace = project.topLevelWorkspace;
+          const workspace = project.topLevelWorkspace
 
           const accessibleBinaries =
-            await scriptUtils.getWorkspaceAccessibleBinaries(workspace);
+            await scriptUtils.getWorkspaceAccessibleBinaries(workspace)
 
           /** @type {{ [binName: string]: string }} */
-          const mapping = {};
+          const mapping = {}
           for (let [
             // eslint-disable-next-line prefer-const
             binName,
             [pkg],
           ] of accessibleBinaries.entries()) {
             if (structUtils.isVirtualLocator(pkg)) {
-              pkg = structUtils.devirtualizeLocator(pkg);
+              pkg = structUtils.devirtualizeLocator(pkg)
             }
-            mapping[binName] = `${pkg.name}:${pkg.reference.split(':')[0]}`;
+            mapping[binName] = `${pkg.name}:${pkg.reference.split(':')[0]}`
           }
 
           // read lavamoat/bin-snapshot.json and compare with mapping
-          const binSnapshotPath = path.resolve('lavamoat/bin-snapshot.json');
+          const binSnapshotPath = path.resolve(
+            project.cwd,
+            'lavamoat/bin-snapshot.json'
+          )
           /** @type {{ [binName: string]: string }} */
-          let binSnapshot = {};
+          let binSnapshot = {}
           if (fs.existsSync(binSnapshotPath)) {
-            binSnapshot = JSON.parse(fs.readFileSync(binSnapshotPath, 'utf-8'));
+            binSnapshot = JSON.parse(fs.readFileSync(binSnapshotPath, 'utf-8'))
           }
 
-          if (process.env.UPDATE_BIN_SNAPSHOT) {
-            const forbiddenBins = ['node', 'node-gyp', 'yarn', 'npm'];
-            for (const bin of forbiddenBins) {
-              if (mapping[bin]) {
+          const forbiddenBins = new Set(['node', 'node-gyp', 'yarn', 'npm'])
+
+          let mismatch = false
+          for (const [binName, pkg] of Object.entries(mapping)) {
+            if (!binSnapshot[binName]) {
+              if (forbiddenBins.has(binName)) {
                 console.error(
-                  `[LavaMoat][CAUTION]: This should not be a local bin: ${bin} -> ${mapping[bin]}`,
-                );
+                  `[LavaMoat][CAUTION]: ${pkg} is defining a cli named: ${binName}. It looks like a bin confusion attack.`
+                )
+                mismatch = true
+              } else {
+                console.error(
+                  `[LavaMoat][INFO]: Adding new bin entry: ${binName} -> ${pkg}. Check your snapshot.`
+                )
+                binSnapshot[binName] = pkg
               }
+              continue
             }
+            if (binSnapshot[binName] !== pkg) {
+              console.error(
+                `[LavaMoat][ERROR] Possible bin confusion attack: ${binName} -> ${pkg}, expected ${binSnapshot[binName]}. If the change is valid, delete the old entry for ${binName} in lavamoat/bin-snapshot.json and try again.`
+              )
+              mismatch = true
+            }
+          }
+          if (mismatch) {
+            console.error(
+              `[LavaMoat][ERROR] Bin snapshot mismatch detected. Fix it before running any scripts.`
+            )
+            process.exit(1)
+          } else {
             fs.writeFileSync(
               binSnapshotPath,
-              JSON.stringify(mapping, null, 2),
-              'utf-8',
-            );
-          } else {
-            let mismatch = false;
-            for (const [binName, pkg] of Object.entries(mapping)) {
-              if (!binSnapshot[binName]) {
-                console.error(
-                  `Binary missing in snapshot: ${binName} -> ${pkg} - update with: --bin-snapshot`,
-                );
-                mismatch = true;
-                continue;
-              }
-              if (binSnapshot[binName] !== pkg) {
-                console.error(
-                  `Binary mismatch: ${binName} -> ${pkg}, expected ${binSnapshot[binName]}`,
-                );
-                mismatch = true;
-              }
-            }
-            if (mismatch) {
-              process.exit(1);
-            }
+              JSON.stringify(binSnapshot, null, 2),
+              'utf-8'
+            )
           }
         },
         /** @type {WrapScriptExecutionHook} */
@@ -100,9 +105,9 @@ module.exports = {
           project,
           locator,
           scriptName,
-          extra,
+          extra
         ) => {
-          const workspace = project.tryWorkspaceByLocator(locator);
+          const workspace = project.tryWorkspaceByLocator(locator)
 
           if (!workspace) {
             // a script is being executed outside of a workspace context, so we
@@ -112,13 +117,13 @@ module.exports = {
             // "Do nothing" - return the original executor immediately
             // without running any custom plugin logic or reading manifests.
             // TODO: implement wrapping these scripts with reasonable defaults
-            return executor;
+            return executor
           }
 
-          const pkgJson = workspace.manifest.raw;
+          const pkgJson = workspace.manifest.raw
           // Abundance of caution. It seems yarn is not adding
           // any node_modules/.bin locations to the PATH by default.
-          const binFolder = `node_modules${path.sep}.bin`;
+          const binFolder = `node_modules${path.sep}.bin`
           // const berryBin = extra.env.BERRY_BIN_FOLDER
 
           const wrapper = makeRunScriptWrapper(
@@ -130,7 +135,7 @@ module.exports = {
                 // BERRY_BIN_FOLDER is controlled by yarn and yarn prevents abuse of yarn and node commands
                 // see: https://github.com/yarnpkg/berry/blob/8f638c0806ec8f3758adb13d93567fc782f9c903/packages/yarnpkg-core/sources/scriptUtils.ts#L131-L136
                 // Therefore, we only match the binFolder to prevent artifacts from weird setups.
-                return fragment.endsWith(binFolder);
+                return fragment.endsWith(binFolder)
               },
               customizePermissionsConfig: addMandatoryReads,
               readPackageJson: () => pkgJson,
@@ -144,23 +149,23 @@ module.exports = {
               realpathSync: fs.realpathSync,
               lstatSync: fs.lstatSync,
               readlinkSync: fs.readlinkSync,
-            },
-          );
+            }
+          )
 
           // extra.env is a reference to the mutable object, but a
           // different variable containing that reference is used within
           // execute, so we must amend not replace it.
-          const newEnv = wrapper.processEnv(extra.env);
+          const newEnv = wrapper.processEnv(extra.env)
           for (const key of Object.keys(extra.env)) {
-            delete extra.env[key];
+            delete extra.env[key]
           }
-          Object.assign(extra.env, newEnv);
-          return executor;
+          Object.assign(extra.env, newEnv)
+          return executor
         },
       },
-    };
+    }
   },
-};
+}
 
 /**
  * @param {Record<string, boolean | string | string[]>} configOptions
@@ -168,11 +173,12 @@ module.exports = {
  */
 function addMandatoryReads(configOptions, _env) {
   if (!configOptions['--permission']) {
-    return;
+    return
   }
-  configOptions['--allow-fs-tmp'] = true; // yarn always uses tmp dirs.
+  configOptions['--allow-fs-tmp'] = true // yarn always uses tmp dirs.
 }
 
+;;
 /// <reference path="./make-run-script-wrapper.global.d.ts" />
 
 /**
@@ -199,13 +205,13 @@ function makeRunScriptWrapper(
     realpathSync,
     lstatSync,
     readlinkSync,
-  },
+  }
 ) {
-  const DEFAULT_PERMISSION_KEY = '#default';
+  const DEFAULT_PERMISSION_KEY = '#default'
 
   /** @param {string} filePath */
   function readJsonFile(filePath) {
-    return JSON.parse(readFileSync(filePath, 'utf8'));
+    return JSON.parse(readFileSync(filePath, 'utf8'))
   }
 
   /**
@@ -216,17 +222,17 @@ function makeRunScriptWrapper(
    * @param {any} config
    */
   function additiveCompose(parent, config) {
-    const composed = { ...parent, ...config };
+    const composed = { ...parent, ...config }
     for (const key of Object.keys(parent)) {
       if (key in config) {
         if (Array.isArray(parent[key]) || Array.isArray(config[key])) {
-          composed[key] = [parent[key], config[key]].flat();
+          composed[key] = [parent[key], config[key]].flat()
         } else if (typeof config[key] === 'object') {
-          composed[key] = additiveCompose(parent[key], config[key]);
+          composed[key] = additiveCompose(parent[key], config[key])
         }
       }
     }
-    return composed;
+    return composed
   }
 
   /**
@@ -237,22 +243,22 @@ function makeRunScriptWrapper(
    * @returns {Record<string, any>} - The processed configuration object
    */
   function readScriptConfig(filePath, depth = 0) {
-    const conf = readJsonFile(filePath);
+    const conf = readJsonFile(filePath)
     if (typeof conf !== 'object' || conf === null || depth > 10) {
       throw Error(
-        `Failed to load config.${depth > 10 ? ' (maximum extend depth exceeded)' : ''}`,
-      );
+        `Failed to load config.${depth > 10 ? ' (maximum extend depth exceeded)' : ''}`
+      )
     }
-    const { extends: parentPath, ...config } = conf;
+    const { extends: parentPath, ...config } = conf
     if (!parentPath) {
-      return config;
+      return config
     }
     const parent = readScriptConfig(
       pathJoin(filePath, '..', parentPath),
-      depth + 1,
-    );
+      depth + 1
+    )
 
-    return additiveCompose(parent, config);
+    return additiveCompose(parent, config)
   }
 
   /**
@@ -261,19 +267,19 @@ function makeRunScriptWrapper(
    * @returns {string | undefined}
    */
   function prefixMatch(configs, scriptName) {
-    const keys = Object.keys(configs);
+    const keys = Object.keys(configs)
     const matchingKeys = keys
       .filter((k) => k.endsWith('*'))
-      .filter((k) => scriptName.startsWith(k.slice(0, -1)));
+      .filter((k) => scriptName.startsWith(k.slice(0, -1)))
 
     if (matchingKeys.length === 0) {
-      return undefined;
+      return undefined
     }
     // longest prefix match wins
     const bestMatch = matchingKeys.reduce((a, b) =>
-      a.length > b.length ? a : b,
-    );
-    return configs[bestMatch];
+      a.length > b.length ? a : b
+    )
+    return configs[bestMatch]
   }
 
   /**
@@ -289,32 +295,32 @@ function makeRunScriptWrapper(
     projectRoot,
   }) {
     if (!scriptsConfig) {
-      return { config: {} };
+      return { config: {} }
     }
     const configName =
       scriptsConfig[scriptName] ||
       prefixMatch(scriptsConfig, scriptName) ||
-      scriptsConfig[DEFAULT_PERMISSION_KEY];
+      scriptsConfig[DEFAULT_PERMISSION_KEY]
 
     // config needs to be optional, because it's opt-in first and specifying a default turns it opt-out.
     if (!configName) {
-      return { config: {} };
+      return { config: {} }
     }
-    const configPath = pathJoin(projectRoot, configName);
-    let conf;
+    const configPath = pathJoin(projectRoot, configName)
+    let conf
     try {
-      conf = readScriptConfig(configPath);
+      conf = readScriptConfig(configPath)
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err)
       throw Error(
         `[LavaMoat] Error loading script config file "${configPath}": ${message}`,
-        { cause: err },
-      );
+        { cause: err }
+      )
     }
     return {
       config: conf,
       name: configName,
-    };
+    }
   }
 
   /**
@@ -332,39 +338,39 @@ function makeRunScriptWrapper(
      * @returns {string}
      */
     const replaceEnvVar = (value) => {
-      const envVarMatch = value.match(/^\$([A-Z_][A-Z0-9_]*)$/i);
+      const envVarMatch = value.match(/^\$([A-Z_][A-Z0-9_]*)$/i)
       if (envVarMatch) {
-        const envVarName = envVarMatch[1];
+        const envVarName = envVarMatch[1]
         if (env[envVarName] !== undefined) {
-          return env[envVarName];
+          return env[envVarName]
         } else {
           console.error(
-            `[LavaMoat] Environment variable "${envVarName}" referenced in config but not found in environment`,
-          );
+            `[LavaMoat] Environment variable "${envVarName}" referenced in config but not found in environment`
+          )
         }
       }
-      return value;
-    };
+      return value
+    }
 
     for (const key of ['--allow-fs-read', '--allow-fs-write']) {
       if (Array.isArray(configOptions[key])) {
-        configOptions[key] = configOptions[key].map(replaceEnvVar);
+        configOptions[key] = configOptions[key].map(replaceEnvVar)
       }
     }
 
     // 2. tmp write - crossplatform
     if (configOptions['--allow-fs-tmp'] === true) {
-      delete configOptions['--allow-fs-tmp'];
-      const tmp = tmpdir();
-      let tmpRealPath = tmp;
+      delete configOptions['--allow-fs-tmp']
+      const tmp = tmpdir()
+      let tmpRealPath = tmp
       try {
-        tmpRealPath = realpathSync(tmp);
+        tmpRealPath = realpathSync(tmp)
       } catch {
         // if realpathSync fails, it's been restricted by permissions
         try {
-          const stats = lstatSync(tmp);
+          const stats = lstatSync(tmp)
           if (stats.isSymbolicLink()) {
-            tmpRealPath = readlinkSync(tmp);
+            tmpRealPath = readlinkSync(tmp)
           }
         } catch {
           // silence the error and continue with no separate tmpRealPath
@@ -372,28 +378,28 @@ function makeRunScriptWrapper(
       }
       // write doesn't grant read, sadly
       for (const perm of ['write', 'read']) {
-        const allowOption = `--allow-fs-${perm}`;
+        const allowOption = `--allow-fs-${perm}`
         if (configOptions[allowOption]) {
           if (configOptions[allowOption] === true) {
-            continue; // all of fs allowed, nothing to add
+            continue // all of fs allowed, nothing to add
           }
           if (typeof configOptions[allowOption] === 'string') {
             // need to expand to multiple paths
-            configOptions[allowOption] = [configOptions[allowOption]];
+            configOptions[allowOption] = [configOptions[allowOption]]
           }
           if (!Array.isArray(configOptions[allowOption])) {
             throw Error(
-              `Unexpected type for ${allowOption}: ${typeof configOptions[allowOption]}`,
-            );
+              `Unexpected type for ${allowOption}: ${typeof configOptions[allowOption]}`
+            )
           }
         } else {
           // do this for both undefined and false
-          configOptions[allowOption] = [];
+          configOptions[allowOption] = []
         }
-        configOptions[allowOption].push(tmp);
+        configOptions[allowOption].push(tmp)
         // because macos is being weird
         if (tmpRealPath !== tmp) {
-          configOptions[allowOption].push(tmpRealPath);
+          configOptions[allowOption].push(tmpRealPath)
         }
       }
     }
@@ -404,15 +410,15 @@ function makeRunScriptWrapper(
     return Object.entries(configOptions)
       .map(([arg, value]) => {
         if (typeof value === 'boolean') {
-          return value ? arg : '';
+          return value ? arg : ''
         } else if (Array.isArray(value)) {
-          return value.map((v) => `${arg}="${v}"`).join(' ');
+          return value.map((v) => `${arg}="${v}"`).join(' ')
         } else {
-          return `${arg}="${value}"`;
+          return `${arg}="${value}"`
         }
       })
       .filter(Boolean)
-      .join(' ');
+      .join(' ')
   }
 
   /**
@@ -422,11 +428,11 @@ function makeRunScriptWrapper(
    * @param {NodeJS.ProcessEnv} env
    */
   function installNodeOptions(configOptions, env) {
-    const existingOptions = env.NODE_OPTIONS;
-    const inLavaMoatEnvAlready = !!env.LAVAMOAT_RUN_CONF;
+    const existingOptions = env.NODE_OPTIONS
+    const inLavaMoatEnvAlready = !!env.LAVAMOAT_RUN_CONF
 
     if (!configOptions) {
-      return existingOptions || '';
+      return existingOptions || ''
     }
     // Calls to run can be nested, so existing NODE_OPTIONS are not to be preserved.
     // If end user needs to set some options, let them put those in the script config json too.
@@ -439,17 +445,17 @@ function makeRunScriptWrapper(
       existingOptions.length > 0
     ) {
       console.error(
-        `[LavaMoat] Warning: Replacing existing NODE_OPTIONS. Move them to the relevant JSON file in lavamoat/ if they were intentional.`,
-      );
+        `[LavaMoat] Warning: Replacing existing NODE_OPTIONS. Move them to the relevant JSON file in lavamoat/ if they were intentional.`
+      )
     }
 
-    customizePermissionsConfig(configOptions, env);
+    customizePermissionsConfig(configOptions, env)
 
-    permissionsModelCompatibilityExtensions(configOptions, env);
+    permissionsModelCompatibilityExtensions(configOptions, env)
 
-    const confOption = makeFlagsFromConfig(configOptions);
+    const confOption = makeFlagsFromConfig(configOptions)
 
-    return confOption.trim();
+    return confOption.trim()
   }
 
   /**
@@ -460,84 +466,84 @@ function makeRunScriptWrapper(
    * @returns {NodeJS.ProcessEnv}
    */
   function filterEnv(env, lavamoatDir) {
-    const banFilePath = pathJoin(lavamoatDir, '.env.ban.json');
-    let banConfig;
+    const banFilePath = pathJoin(lavamoatDir, '.env.ban.json')
+    let banConfig
 
     try {
-      banConfig = readJsonFile(banFilePath);
+      banConfig = readJsonFile(banFilePath)
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err)
       console.error(
-        `[LavaMoat] Warning: Failed to read .env.ban.json: ${message}.`,
-      );
-      return env;
+        `[LavaMoat] Warning: Failed to read .env.ban.json: ${message}.`
+      )
+      return env
     }
-    let banKeywords = [];
+    let banKeywords = []
     try {
       if (Array.isArray(banConfig)) {
-        banKeywords.push(...banConfig);
+        banKeywords.push(...banConfig)
       } else {
-        throw Error(`Expected .env.ban.json to contain an array of keywords`);
+        throw Error(`Expected .env.ban.json to contain an array of keywords`)
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err)
       console.error(
-        `[LavaMoat] Warning: Failed to read .env.ban.json: ${message}.`,
-      );
-      return env;
+        `[LavaMoat] Warning: Failed to read .env.ban.json: ${message}.`
+      )
+      return env
     }
 
     /** @type {NodeJS.ProcessEnv} */
-    const filteredEnv = {};
-    const bannedEnv = [];
-    banKeywords = banKeywords.map((keyword) => keyword.toLowerCase());
+    const filteredEnv = {}
+    const bannedEnv = []
+    banKeywords = banKeywords.map((keyword) => keyword.toLowerCase())
     for (const [key, value] of Object.entries(env)) {
       if (
         !key.toLowerCase().startsWith('npm_config') &&
         banKeywords.some((keyword) => key.toLowerCase().includes(keyword))
       ) {
-        bannedEnv.push(key);
+        bannedEnv.push(key)
       } else {
-        filteredEnv[key] = value;
+        filteredEnv[key] = value
       }
     }
     if (bannedEnv.length > 0) {
       console.error(
-        `[LavaMoat] Warning: The following environment variables were banned: ${bannedEnv.join(', ')}`,
-      );
+        `[LavaMoat] Warning: The following environment variables were banned: ${bannedEnv.join(', ')}`
+      )
     }
-    return filteredEnv;
+    return filteredEnv
   }
 
   /** @param {string} PATH */
   function envPathOpinions(PATH) {
-    const pathFragments = PATH.split(pathDelimiter);
+    const pathFragments = PATH.split(pathDelimiter)
     // This is to eliminate bin confusion attacks.
     // Find node_modules/.bin and remove it, put it on the end that gets looked up last when looking for a name in the path.
 
     /** @type {string[]} */
-    const filteredFragments = [];
+    const filteredFragments = []
     /** @type {string[]} */
-    const nodeModulesBinFragments = [];
+    const nodeModulesBinFragments = []
 
     for (const fragment of pathFragments) {
       if (pathBinMatcher(fragment)) {
-        nodeModulesBinFragments.push(fragment);
+        nodeModulesBinFragments.push(fragment)
       } else {
-        filteredFragments.push(fragment);
+        filteredFragments.push(fragment)
       }
     }
     // This should preserve order of items.
     const uniqueNodeModulesBinFragments = Array.from(
-      new Set(nodeModulesBinFragments),
-    );
+      new Set(nodeModulesBinFragments)
+    )
 
     // Why would there even be multiple bin fragments? ecause
     // npm happily adds entries for hypothetical node_modules/.bin
     // in all parent dirs
-    filteredFragments.push(...uniqueNodeModulesBinFragments);
+    filteredFragments.push(...uniqueNodeModulesBinFragments)
 
-    return filteredFragments.join(pathDelimiter);
+    return filteredFragments.join(pathDelimiter)
   }
 
   /**
@@ -550,10 +556,10 @@ function makeRunScriptWrapper(
    */
   function binOverrides(pkgJson) {
     if (!prepareBinOverrides) {
-      return;
+      return
     }
-    const nodeModules = pathJoin(projectRoot, 'node_modules');
-    const overrideDir = pathJoin(nodeModules, '.bin_override');
+    const nodeModules = pathJoin(projectRoot, 'node_modules')
+    const overrideDir = pathJoin(nodeModules, '.bin_override')
     // Skip if already created (a clean install removes it) or if running
     // under permissions - a nested run where fs access to even check
     // might be limited.
@@ -569,51 +575,53 @@ function makeRunScriptWrapper(
             ...pkgJson.devDependencies,
           }),
           overrideDir,
-        });
+        })
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        const message = err instanceof Error ? err.message : String(err)
         console.error(
-          `[LavaMoat] Warning: Failed to create ${overrideDir}: ${message}`,
-        );
+          `[LavaMoat] Warning: Failed to create ${overrideDir}: ${message}`
+        )
       }
     }
-    return existsSync(overrideDir) ? overrideDir : undefined;
+    return existsSync(overrideDir) ? overrideDir : undefined
   }
 
   return {
     processEnv: (existingEnv) => {
-      const pkgJson = readPackageJson(projectRoot) || {};
+      const pkgJson = readPackageJson(projectRoot) || {}
       const { config, name: configName } = readConfig({
         scriptsConfig: pkgJson.scriptsConfig,
         scriptName,
         projectRoot,
-      });
+      })
 
       // Smell: Windows environment variables are case-insensitive, but Node's process.env
       // might expose it as 'Path' instead of 'PATH'. Checking both ensures it doesn't get wiped out.
 
-      const existingPath = existingEnv.PATH || existingEnv.Path || '';
-      const overrideDir = binOverrides(pkgJson);
-      let PATH = envPathOpinions(existingPath);
+      const existingPath = existingEnv.PATH || existingEnv.Path || ''
+      const overrideDir = binOverrides(pkgJson)
+      let PATH = envPathOpinions(existingPath)
       // nested runs already have overrideDir in PATH
       if (
         overrideDir &&
         !`${pathDelimiter}${PATH}${pathDelimiter}`.includes(
-          `${pathDelimiter}${overrideDir}${pathDelimiter}`,
+          `${pathDelimiter}${overrideDir}${pathDelimiter}`
         )
       ) {
-        PATH = `${overrideDir}${pathDelimiter}${PATH}`;
+        PATH = `${overrideDir}${pathDelimiter}${PATH}`
       }
 
-      const lavamoatDir = pathJoin(projectRoot, 'lavamoat');
+      const lavamoatDir = pathJoin(projectRoot, 'lavamoat')
 
       const fixedEnv = {
         ...filterEnv(existingEnv, lavamoatDir),
         LAVAMOAT_RUN_CONF: configName,
         PATH,
         NODE_OPTIONS: installNodeOptions(config.nodeOptions, existingEnv),
-      };
-      return fixedEnv;
+      }
+      return fixedEnv
     },
-  };
+  }
 }
+
+
