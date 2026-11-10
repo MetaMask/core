@@ -154,6 +154,7 @@ import type {
   TwapOrder,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   WithdrawParams,
   WithdrawResult,
   GetHistoricalPortfolioParams,
@@ -1049,6 +1050,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'reconnect',
   'recordMarketViewed',
   'refreshEligibility',
+  'replacePositionTPSLLeg',
   'resetFirstTimeUserState',
   'resetSelectedPaymentToken',
   'getMaxSlippage',
@@ -3649,6 +3651,31 @@ export class PerpsController extends BaseController<
       provider,
       params,
       context: this.#createServiceContext('updatePositionTPSL'),
+    });
+  }
+
+  /**
+   * Replace only the take profit or only the stop loss of an existing
+   * position. The other leg is left as it is, and the new leg keeps protecting
+   * the whole position. Providers that cannot do this reject with
+   * `TPSL_LEG_REPLACE_UNSUPPORTED`.
+   *
+   * @param params - The leg, its new trigger price and optional limit price.
+   * @returns The order result from the leg replacement.
+   */
+  async replacePositionTPSLLeg(
+    params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult> {
+    const provider = await this.#resolveRoutedOrderProvider({
+      orderType: undefined,
+      providerId: params.providerId,
+    });
+    this.#ensureTradingServiceDeps();
+
+    return this.#tradingService.replacePositionTPSLLeg({
+      provider,
+      params,
+      context: this.#createServiceContext('replacePositionTPSLLeg'),
     });
   }
 

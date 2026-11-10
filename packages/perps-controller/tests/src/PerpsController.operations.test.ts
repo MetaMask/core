@@ -145,6 +145,7 @@ const mockTradingServiceInstance = {
   closePosition: vi.fn(),
   closePositions: vi.fn(),
   updatePositionTPSL: vi.fn(),
+  replacePositionTPSLLeg: vi.fn(),
   updateMargin: vi.fn(),
   flipPosition: vi.fn(),
   setControllerDependencies: vi.fn(),
@@ -769,6 +770,38 @@ describe('PerpsController', () => {
           context: expect.any(Object),
         }),
       );
+    });
+
+    it('replaces one position TP/SL leg through the trading service', async () => {
+      const params = {
+        symbol: 'BTC',
+        leg: 'sl' as const,
+        triggerPrice: '45000',
+        limitPrice: '44900',
+      };
+      const replaceResult = { success: true, childOrderIds: ['702'] };
+
+      markControllerAsInitialized();
+      controller.testSetProviders(new Map([['hyperliquid', mockProvider]]));
+      mockTradingServiceInstance.replacePositionTPSLLeg.mockResolvedValue(
+        replaceResult,
+      );
+
+      const result = await controller.replacePositionTPSLLeg(params);
+
+      expect(result).toStrictEqual(replaceResult);
+      expect(
+        mockTradingServiceInstance.replacePositionTPSLLeg,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: mockProvider,
+          params,
+          context: expect.any(Object),
+        }),
+      );
+      expect(
+        mockTradingServiceInstance.updatePositionTPSL,
+      ).not.toHaveBeenCalled();
     });
 
     it('calculates maintenance margin', async () => {

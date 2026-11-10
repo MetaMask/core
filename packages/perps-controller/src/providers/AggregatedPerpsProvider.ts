@@ -18,6 +18,7 @@ import type { CaipAccountId } from '@metamask/utils';
 
 import { SubscriptionMultiplexer } from '../aggregation/SubscriptionMultiplexer.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
+import { createTpslLegReplaceUnsupportedError } from '../errors.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { ProviderRouter } from '../routing/ProviderRouter.js';
 import { isProviderOnTestnet } from '../services/providerNetwork.js';
@@ -102,6 +103,7 @@ import type {
   TwapOrder,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   UserHistoryItem,
   WithdrawParams,
   WithdrawResult,
@@ -896,6 +898,19 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       params.providerId,
     );
     const result = await provider.updatePositionTPSL(params);
+    return { ...result, providerId };
+  }
+
+  async replacePositionTPSLLeg(
+    params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult> {
+    const [providerId, provider] = this.#getProviderOrDefault(
+      params.providerId,
+    );
+    if (!provider.replacePositionTPSLLeg) {
+      throw createTpslLegReplaceUnsupportedError();
+    }
+    const result = await provider.replacePositionTPSLLeg(params);
     return { ...result, providerId };
   }
 
