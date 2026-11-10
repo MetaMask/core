@@ -44,6 +44,7 @@ import {
 } from './pending-operation-validation.js';
 import { assertAbortAllowed, getRecoveryPhase } from './state-machine.js';
 import type {
+  AuthControllerToken,
   Identifier,
   IdentifierSession,
   Mutation,
@@ -57,6 +58,7 @@ import type {
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
+  RecoveryIdentifiers,
   RecoveryPhase,
   RecoveredSecret,
   WrappedSecret,
@@ -71,6 +73,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'updateIdentifiers',
   'authenticateIdentifier',
   'getRecoverySecret',
+  'getIdentifiers',
   'resume',
   'abort',
   'getPhase',
@@ -391,6 +394,7 @@ export class MfaRecoveryController extends BaseController<
       const authorizedEscrows = await authorizeEscrowsWithToken({
         escrows: available,
         credential: session,
+        authControllerToken: approval,
       });
       const results = await Promise.allSettled(
         authorizedEscrows.map(async ({ escrow, authorization }) => {
@@ -423,6 +427,54 @@ export class MfaRecoveryController extends BaseController<
         recoverySecret: selected.recoverySecret,
         epoch: selected.version,
       };
+    });
+  }
+
+  /**
+   * Reads the enrolled identifiers from available escrows at the highest
+   * consistent version, with Auth's current identifiers. Needs no recent MFA,
+   * so a new device can build an {@link updateIdentifiers} call from it.
+   *
+   * @returns Enrolled identifiers, `epoch`, and Auth's identifiers.
+   */
+  async getIdentifiers(): Promise<RecoveryIdentifiers> {
+    return await this.#withLock(async () => {
+      const available = await this.#getAvailableEscrows();
+      if (available.length === 0) {
+        throw new MfaRecoveryError(
+          'No escrow is available',
+          'no_available_escrow',
+        );
+      }
+      const { approval, identifiers: authIdentifiers } =
+        await this.#authProvider.authorizeRecoveryRequest({
+          requestHash: await hash({ operation: 'getIdentifiers' }),
+          audiences: available.map((escrow) => escrow.authAudience),
+        });
+      const responses = (
+        await Promise.allSettled(
+          available.map(
+            async (escrow) => await escrow.getIdentifiers(approval),
+          ),
+        )
+      )
+        .filter(isFulfilledResult)
+        .map((result) => result.value);
+      if (responses.length === 0) {
+        throw new MfaRecoveryError(
+          'No escrow returned identifiers',
+          'read_failed',
+        );
+      }
+      const epoch = Math.max(...responses.map(({ version }) => version));
+      const highest = responses.filter(({ version }) => version === epoch);
+      const hashes = await Promise.all(
+        highest.map(async ({ identifiers }) => await hash(identifiers)),
+      );
+      if (new Set(hashes).size !== 1) {
+        throw new MfaRecoveryError('Replica corruption', 'replica_corruption');
+      }
+      return { identifiers: highest[0].identifiers, epoch, authIdentifiers };
     });
   }
 
@@ -563,6 +615,7 @@ export class MfaRecoveryController extends BaseController<
             escrows: remainingEscrows,
             identifier: identifier as Identifier,
             requestHash: mutation.requestHash,
+            authControllerToken: writing.authControllerToken,
           });
     if (
       authorizedEscrows !== null &&
@@ -692,10 +745,12 @@ export class MfaRecoveryController extends BaseController<
     escrows,
     identifier,
     requestHash,
+    authControllerToken,
   }: {
     escrows: RecoveryEscrowProvider[];
     identifier: Identifier;
     requestHash: string;
+    authControllerToken: AuthControllerToken;
   }): Promise<AuthorizedEscrow[]> {
     getIdentifierAuthMode(identifier.type);
     const credential = await requestKeyBoundIdentifierToken({
@@ -703,7 +758,11 @@ export class MfaRecoveryController extends BaseController<
       requestHash,
       identifierAuthProvider: this.#identifierAuthProvider,
     });
-    return await authorizeEscrowsWithToken({ escrows, credential });
+    return await authorizeEscrowsWithToken({
+      escrows,
+      credential,
+      authControllerToken,
+    });
   }
 
   async #payloadForEscrow(
