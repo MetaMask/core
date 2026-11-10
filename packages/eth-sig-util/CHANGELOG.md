@@ -26,5 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Correct padding calculation so that every ciphertext is a multiple of 2048 bytes ([#11386](https://github.com/MetaMask/core/pull/11386))
+- Reject non-integer and unsafe-integer `chainId` and `nonce` values in `signEIP7702Authorization`, `recoverEIP7702Authorization`, and `hashEIP7702Authorization` ([#11392](https://github.com/MetaMask/core/pull/11392))
 
 [Unreleased]: https://github.com/MetaMask/core/

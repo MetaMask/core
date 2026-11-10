@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Add `@metamask/assets-controllers` `^113.3.1` as a dependency ([#11315](https://github.com/MetaMask/core/pull/11315))
+- Bump `@metamask/analytics-controller` from `^4.2.0` to `^4.3.0` ([#11391](https://github.com/MetaMask/core/pull/11391))
 
 ## [21.0.1]
 

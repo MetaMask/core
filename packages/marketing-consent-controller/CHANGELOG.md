@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/analytics-controller` from `^4.1.0` to `^4.2.0` ([#11323](https://github.com/MetaMask/core/pull/11323))
+- Bump `@metamask/analytics-controller` from `^4.1.0` to `^4.3.0` ([#11323](https://github.com/MetaMask/core/pull/11323), [#11391](https://github.com/MetaMask/core/pull/11391))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.0` ([#11396](https://github.com/MetaMask/core/pull/11396))
 
 ## [1.1.0]
 

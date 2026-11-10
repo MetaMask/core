@@ -13,6 +13,13 @@ export default mergeConfig(
       include: ['content/**/*.test.ts'],
 
       coverage: {
+        include: ['content/**/*.ts'],
+
+        exclude: [
+          // This file doesn't need tests, it's just a stub
+          'content/data-services/writing-data-services/01-getting-started/orders-service.ts',
+        ],
+
         thresholds: {
           branches: 100,
           functions: 100,

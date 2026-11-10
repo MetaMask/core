@@ -22,6 +22,10 @@ included): the controller rejects any other identifier before writing, and the
 mutation can then be aborted. Set `CubistEscrowProviderOptions.authAudience` to the escrow's
 `AUTH_CONTROLLER_AUDIENCE`.
 
+Before `updateIdentifiers`, call `getIdentifiers()` (AAL1) for the enrolled
+identifiers, their `epoch` (pass as `expectedEpoch`), and Auth's identifiers;
+build the new set from Auth's entries.
+
 ## Installation
 
 `yarn add @metamask/mfa-recovery-controller`
