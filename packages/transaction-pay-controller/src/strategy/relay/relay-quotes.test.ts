@@ -1815,6 +1815,71 @@ describe('Relay Quotes Utils', () => {
       );
     });
 
+    it.each([
+      ['no account override', undefined, FROM_MOCK],
+      [
+        'an account override',
+        '0xaa00000000000000000000000000000000000001',
+        '0xaa00000000000000000000000000000000000001',
+      ],
+    ])(
+      'quotes Predict Safe withdraws from the transaction account with %s',
+      async (_title, accountOverride, recipient) => {
+        const safeAddress = '0x5afe000000000000000000000000000000000001' as Hex;
+        const withdrawCall = {
+          data: '0xa9059cbb' as Hex,
+          to: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+        };
+
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => QUOTE_MOCK,
+        });
+
+        estimateGasBatchMock.mockResolvedValue({
+          totalGasLimit: 100000,
+          gasLimits: [50000, 50000],
+        });
+
+        const result = await getRelayQuotes({
+          accountSupports7702: true,
+          from: FROM_MOCK,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              accountOverride: accountOverride as Hex | undefined,
+              isPostQuote: true,
+              refundTo: safeAddress,
+              targetAmountMinimum: '0',
+            },
+          ],
+          transaction: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+            chainId: '0x1',
+            txParams: { ...withdrawCall, from: FROM_MOCK },
+          },
+        });
+
+        expect(result[0].original.request).toStrictEqual(
+          expect.objectContaining({
+            recipient,
+            refundTo: safeAddress,
+            user: FROM_MOCK,
+          }),
+        );
+        expect(estimateGasBatchMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            from: safeAddress,
+            transactions: [
+              expect.objectContaining(withdrawCall),
+              expect.objectContaining({ data: '0x123', to: '0x2' }),
+            ],
+          }),
+        );
+      },
+    );
+
     it('uses original from for non-predictWithdraw post-quote gas estimation', async () => {
       const quoteMock = cloneDeep(QUOTE_MOCK);
       delete quoteMock.steps[0].items[0].data.gas;

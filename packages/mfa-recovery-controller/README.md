@@ -16,10 +16,12 @@ Without a recent MFA verification, approvals reject with `StepUpRequiredError`:
 verify, then call `resume()` or retry the read.
 
 `register` and `updateIdentifiers` send the approval's `identifiers` to each
-escrow as `approvedIdentifiers`; the escrow rejects payload identifiers outside
-that list. Build payload identifiers from those entries unchanged (verifier
-included): the controller rejects any other identifier before writing, and the
-mutation can then be aborted. Set `CubistEscrowProviderOptions.authAudience` to the escrow's
+escrow as `approvedIdentifiers`; the escrow rejects non-SIWE payload
+identifiers outside that list. Build those from Auth's entries unchanged
+(verifier included): the controller rejects any other before writing, and the
+mutation can then be aborted. Each SIWE wallet a mutation adds is proven
+through `identifierAuthProvider` instead, including at `register`. Set
+`CubistEscrowProviderOptions.authAudience` to the escrow's
 `AUTH_CONTROLLER_AUDIENCE`.
 
 Before `updateIdentifiers`, call `getIdentifiers()` (AAL1) for the enrolled

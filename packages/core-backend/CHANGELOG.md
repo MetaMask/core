@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
+- Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.0` ([#11396](https://github.com/MetaMask/core/pull/11396))
+
+## [14.0.0]
+
 ### Added
 
 - Add `TokenApiClient.fetchV2Assets` and `getV2AssetsQueryOptions` for Token API `GET /v2/assets`, supporting `includeLaunchpadData` and `includeTokenSecurityData`, along with `V2AssetResponse` and `V2AssetsQueryOptions` types ([#11251](https://github.com/MetaMask/core/pull/11251))
@@ -544,7 +551,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@13.0.0...@metamask/core-backend@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.3.0...@metamask/core-backend@13.0.0
 [12.3.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.2.0...@metamask/core-backend@12.3.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@12.1.0...@metamask/core-backend@12.2.0

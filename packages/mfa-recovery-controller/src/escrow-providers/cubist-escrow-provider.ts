@@ -11,6 +11,7 @@ import {
   min,
   string,
   type,
+  unknown,
 } from '@metamask/superstruct';
 import {
   bytesToHex,
@@ -180,16 +181,16 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   /**
    * @param mutation - Mutation to apply.
    * @param authControllerToken - Request-bound AuthController token.
-   * @param identifierAuthorization - Identifier proof. `null` for register.
+   * @param identifierAuthorizations - Identifier proofs sharing one challenge.
    * @param payload - Per-escrow mutation payload.
-   * @param approvedIdentifiers - The approval's identifiers, which payload
-   * identifiers must be drawn from.
+   * @param approvedIdentifiers - The approval's identifiers, which non-SIWE
+   * payload identifiers must be drawn from.
    * @returns The escrow's mutation receipt.
    */
   async applyMutation(
     mutation: Mutation,
     authControllerToken: AuthControllerToken,
-    identifierAuthorization: IdentifierAuthorization | null,
+    identifierAuthorizations: IdentifierAuthorization[],
     payload: MutationPayload,
     approvedIdentifiers: Identifier[],
   ): Promise<MutationReceipt> {
@@ -198,7 +199,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
       {
         mutation,
         authControllerToken,
-        identifierAuthorization,
+        identifierAuthorizations,
         payload,
         approvedIdentifiers,
       },
@@ -313,7 +314,12 @@ const ChallengeStruct = type({
 
 const IdentifiersStruct = type({
   identifiers: array(
-    type({ type: string(), namespace: string(), value: string() }),
+    type({
+      type: string(),
+      namespace: string(),
+      value: string(),
+      verifier: unknown(),
+    }),
   ),
   version: min(integer(), 0),
 });
@@ -355,7 +361,17 @@ function parseIdentifiers(value: unknown): GetIdentifiersResponse {
       'escrow_response_invalid',
     );
   }
-  return { identifiers: value.identifiers, version: value.version };
+  return {
+    identifiers: value.identifiers.map((identifier) => ({
+      type: identifier.type,
+      namespace: identifier.namespace,
+      value: identifier.value,
+      ...(identifier.verifier === undefined
+        ? {}
+        : { verifier: identifier.verifier }),
+    })),
+    version: value.version,
+  };
 }
 
 /**

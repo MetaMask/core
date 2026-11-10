@@ -25,7 +25,7 @@ import {
 import * as polymarketWithdraw from '../../utils/polymarket/withdraw.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
-  getLiveTokenBalance,
+  getLiveTokenBalanceOrUndefined,
   normalizeTokenAddress,
 } from '../../utils/token.js';
 import {
@@ -149,7 +149,7 @@ describe('Relay Submit Utils', () => {
   const getTransactionMock = vi.mocked(getTransaction);
   const collectTransactionIdsMock = vi.mocked(collectTransactionIds);
   const getFeatureFlagsMock = vi.mocked(getFeatureFlags);
-  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalance);
+  const getLiveTokenBalanceMock = vi.mocked(getLiveTokenBalanceOrUndefined);
   const normalizeTokenAddressMock = vi.mocked(normalizeTokenAddress);
   const getRelayPollingIntervalMock = vi.mocked(getRelayPollingInterval);
   const getRelayPollingTimeoutMock = vi.mocked(getRelayPollingTimeout);
@@ -1522,6 +1522,49 @@ describe('Relay Submit Utils', () => {
         expect(getDelegationTransactionMock).not.toHaveBeenCalled();
       });
 
+      it.each([
+        ['no account override', undefined],
+        ['an account override', '0xaccountOverride'],
+      ])(
+        'submits Predict Safe withdraws from the transaction account with %s',
+        async (_title, accountOverride) => {
+          const safeAddress = '0xsafe' as Hex;
+          const safeExecData = '0x6a761202' as Hex;
+
+          request.quotes[0].request.accountOverride = accountOverride as
+            | Hex
+            | undefined;
+          request.quotes[0].request.refundTo = safeAddress;
+          request.transaction = {
+            id: ORIGINAL_TRANSACTION_ID_MOCK,
+            nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+            txParams: { data: safeExecData, from: FROM_MOCK, to: safeAddress },
+            type: TransactionType.predictWithdraw,
+          } as TransactionMeta;
+
+          await submitRelayQuotes(request);
+
+          expect(getDelegationTransactionMock).not.toHaveBeenCalled();
+          expect(addTransactionBatchMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+              from: FROM_MOCK,
+              transactions: [
+                expect.objectContaining({
+                  params: expect.objectContaining({
+                    data: safeExecData,
+                    to: safeAddress,
+                  }),
+                  type: TransactionType.predictWithdraw,
+                }),
+                expect.objectContaining({
+                  type: TransactionType.relayDeposit,
+                }),
+              ],
+            }),
+          );
+        },
+      );
+
       it('activates 7702 mode with single combined post-quote gas limit', async () => {
         request.quotes[0].original.metamask.gasLimits = [203093];
         request.quotes[0].original.metamask.is7702 = true;
@@ -1711,12 +1754,14 @@ describe('Relay Submit Utils', () => {
       expect(addTransactionMock).toHaveBeenCalledTimes(1);
     });
 
-    it('throws descriptive error if balance check fails', async () => {
-      getLiveTokenBalanceMock.mockRejectedValue(new Error('RPC timeout'));
+    it('submits anyway if the live balance is unavailable', async () => {
+      // An unreadable balance is unknown, not insufficient, so submission
+      // proceeds and the Relay and the chain reject if truly underfunded.
+      getLiveTokenBalanceMock.mockResolvedValue(undefined);
 
-      await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Relay: Cannot validate payment token balance - RPC timeout',
-      );
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
     });
 
     describe('HyperLiquid source', () => {

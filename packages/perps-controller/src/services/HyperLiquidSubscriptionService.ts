@@ -53,8 +53,8 @@ import type {
 } from '../types/index.js';
 import {
   addSpotBalanceToAccountState,
+  aggregateAccountStates,
   calculateWeightedReturnOnEquity,
-  sumCrossMarginSummaries,
 } from '../utils/accountUtils.js';
 import type { AddSpotBalanceOptions } from '../utils/accountUtils.js';
 import {
@@ -1399,11 +1399,6 @@ export class HyperLiquidSubscriptionService {
         totalBalance: string;
       }
     > = {};
-    let totalSpendableBalance = 0;
-    let totalWithdrawableBalance = 0;
-    let totalBalance = 0;
-    let totalMarginUsed = 0;
-    let totalUnrealizedPnl = 0;
 
     // Collect account states for weighted ROE calculation
     const accountStatesForROE: {
@@ -1420,11 +1415,6 @@ export class HyperLiquidSubscriptionService {
           withdrawableBalance: state.withdrawableBalance,
           totalBalance: state.totalBalance,
         };
-        totalSpendableBalance += parseFloat(state.spendableBalance);
-        totalWithdrawableBalance += parseFloat(state.withdrawableBalance);
-        totalBalance += parseFloat(state.totalBalance);
-        totalMarginUsed += parseFloat(state.marginUsed);
-        totalUnrealizedPnl += parseFloat(state.unrealizedPnl);
 
         // Collect data for weighted ROE calculation
         accountStatesForROE.push({
@@ -1439,7 +1429,7 @@ export class HyperLiquidSubscriptionService {
       this.#dexAccountCache.values().next().value ?? ({} as AccountState);
     const { crossMarginSummary: _firstDexSummary, ...firstDexBase } =
       firstDexAccount;
-    const crossMarginSummary = sumCrossMarginSummaries(
+    const aggregatedAccountState = aggregateAccountStates(
       Array.from(this.#dexAccountCache.values()),
     );
 
@@ -1449,12 +1439,7 @@ export class HyperLiquidSubscriptionService {
     return addSpotBalanceToAccountState(
       {
         ...firstDexBase,
-        ...(crossMarginSummary ? { crossMarginSummary } : {}),
-        spendableBalance: totalSpendableBalance.toString(),
-        withdrawableBalance: totalWithdrawableBalance.toString(),
-        totalBalance: totalBalance.toString(),
-        marginUsed: totalMarginUsed.toString(),
-        unrealizedPnl: totalUnrealizedPnl.toString(),
+        ...aggregatedAccountState,
         subAccountBreakdown,
         returnOnEquity,
       },

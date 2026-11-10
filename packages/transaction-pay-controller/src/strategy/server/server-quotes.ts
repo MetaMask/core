@@ -40,6 +40,7 @@ import { getQuotePricing, TradeType } from '../../utils/trade-type.js';
 import { hasServerDepositStep } from './deposit-step.js';
 import { normalizeServerPerpsRequest } from './perps.js';
 import { fetchServerQuote } from './server-api.js';
+import { validateServerQuotes } from './server-validation.js';
 import type {
   ServerQuote,
   ServerQuotePayload,
@@ -104,13 +105,24 @@ export async function getServerQuotes(
 
   log('Fetching quotes', { quoteRequests });
 
-  const quotes = await Promise.all(
-    quoteRequests.map((quoteRequest) =>
-      getQuotesForRequest(quoteRequest, request),
-    ),
-  );
+  const quotes = (
+    await Promise.all(
+      quoteRequests.map((quoteRequest) =>
+        getQuotesForRequest(quoteRequest, request),
+      ),
+    )
+  ).flat();
 
-  return quotes.flat();
+  if (quotes.length) {
+    await validateServerQuotes({
+      messenger: request.messenger,
+      quotes,
+      signal: request.signal,
+      transaction: request.transaction,
+    });
+  }
+
+  return quotes;
 }
 
 async function getQuotesForRequest(

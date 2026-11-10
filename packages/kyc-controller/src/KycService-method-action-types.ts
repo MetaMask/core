@@ -223,9 +223,14 @@ export type KycServiceSetAuthorizationsAction = {
  * a `delete`-scoped capability token and submit it via
  * {@link KycService.completeDeletion}.
  *
+ * Authenticated with `params.aal2Token` as the `Authorization` bearer
+ * value. The KYC API requires `ext.aal` of at least 2.
+ *
  * @param params - The deletion parameters.
  * @param params.sessionClientPublicKey - Per-request X25519 public key
  * (unpadded base64url).
+ * @param params.aal2Token - AAL2 authentication token used as the
+ * Authorization bearer value.
  * @returns The deletion id and the capability-token encryption schema.
  */
 export type KycServiceCreateDeletionAction = {
@@ -238,9 +243,14 @@ export type KycServiceCreateDeletionAction = {
  * forwarding the wrapped `delete`-scoped uKYC capability token. Relay
  * redacts the encrypted blobs for the user named by that token.
  *
+ * Authenticated with `params.aal2Token` as the `Authorization` bearer
+ * value. The KYC API requires `ext.aal` of at least 2.
+ *
  * @param params - The wrapped deletion.
  * @param params.deletionId - Deletion id from {@link KycService.createDeletion}.
  * @param params.wrappedUkycCapabilityToken - Sealed `delete`-scoped token.
+ * @param params.aal2Token - AAL2 authentication token used as the
+ * Authorization bearer value.
  */
 export type KycServiceCompleteDeletionAction = {
   type: `KycService:completeDeletion`;

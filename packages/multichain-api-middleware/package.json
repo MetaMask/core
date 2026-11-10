@@ -1,6 +1,6 @@
 {
   "name": "@metamask/multichain-api-middleware",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "JSON-RPC methods and middleware to support the MetaMask Multichain API",
   "keywords": [
     "Ethereum",
@@ -32,6 +32,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "allow-scripts": "yarn workspace @metamask/core-monorepo run allow-scripts",
     "build": "tsc --project tsconfig.build.json",
     "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
@@ -49,12 +50,12 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^40.1.0",
+    "@metamask/accounts-controller": "^40.2.0",
     "@metamask/api-specs": "^0.15.0",
     "@metamask/chain-agnostic-permission": "^2.1.0",
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/json-rpc-engine": "^11.0.0",
-    "@metamask/network-controller": "^37.1.1",
+    "@metamask/network-controller": "^38.0.0",
     "@metamask/permission-controller": "^14.1.0",
     "@metamask/rpc-errors": "^7.0.3",
     "@metamask/snaps-controllers": "^19.0.1",

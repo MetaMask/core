@@ -1,3 +1,4 @@
+import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -5,9 +6,14 @@ import { TransactionPayStrategy } from '../../constants.js';
 import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
+  TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
-import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import {
+  getMaxBalanceRefreshInterval,
+  getPayStrategiesConfig,
+} from '../../utils/feature-flags.js';
+import { getTransaction } from '../../utils/transaction.js';
 import { getRelayQuotes } from './relay-quotes.js';
 import { submitRelayQuotes } from './relay-submit.js';
 import { RelayStrategy } from './RelayStrategy.js';
@@ -16,6 +22,7 @@ import type { RelayQuote } from './types.js';
 vi.mock(import('./relay-quotes.js'));
 vi.mock(import('./relay-submit.js'));
 vi.mock(import('../../utils/feature-flags.js'));
+vi.mock(import('../../utils/transaction.js'));
 
 describe('RelayStrategy', () => {
   const getRelayQuotesMock = vi.mocked(getRelayQuotes);
@@ -98,6 +105,60 @@ describe('RelayStrategy', () => {
     const strategy = new RelayStrategy();
     expect(await strategy.getQuotes(request)).toStrictEqual([quote]);
     expect(getRelayQuotesMock).toHaveBeenCalledWith(request);
+  });
+
+  describe('getRefreshInterval', () => {
+    const getMaxBalanceRefreshIntervalMock = vi.mocked(
+      getMaxBalanceRefreshInterval,
+    );
+    const getTransactionMock = vi.mocked(getTransaction);
+    const transactionMock = { id: 'tx-1' } as TransactionMeta;
+    const getStateMock = vi.fn();
+    const refreshMessenger = {
+      call: getStateMock,
+    } as unknown as TransactionPayControllerMessenger;
+    const refreshRequest = {
+      chainId: '0x1' as Hex,
+      messenger: refreshMessenger,
+      transactionId: 'tx-1',
+    };
+
+    beforeEach(() => {
+      getTransactionMock.mockReturnValue(transactionMock);
+      getStateMock.mockReturnValue({
+        transactionData: { 'tx-1': { isMaxAmount: true } },
+      });
+    });
+
+    it('returns undefined when not max amount', async () => {
+      getStateMock.mockReturnValue({ transactionData: {} });
+
+      const strategy = new RelayStrategy();
+
+      expect(await strategy.getRefreshInterval(refreshRequest)).toBeUndefined();
+      expect(getTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it('returns max balance refresh interval for max amount', async () => {
+      getMaxBalanceRefreshIntervalMock.mockReturnValue(5000);
+
+      const strategy = new RelayStrategy();
+
+      expect(await strategy.getRefreshInterval(refreshRequest)).toBe(5000);
+      expect(getTransactionMock).toHaveBeenCalledWith('tx-1', refreshMessenger);
+      expect(getMaxBalanceRefreshIntervalMock).toHaveBeenCalledWith(
+        refreshMessenger,
+        transactionMock,
+      );
+    });
+
+    it('returns undefined when no interval is configured', async () => {
+      getMaxBalanceRefreshIntervalMock.mockReturnValue(undefined);
+
+      const strategy = new RelayStrategy();
+
+      expect(await strategy.getRefreshInterval(refreshRequest)).toBeUndefined();
+    });
   });
 
   it('delegates execute', async () => {

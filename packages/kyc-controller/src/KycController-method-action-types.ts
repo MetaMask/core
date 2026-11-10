@@ -263,7 +263,12 @@ export type KycControllerHasCompletedVendorDisclaimersAction = {
  * Mints a fresh X25519 keypair, fetches a wrapping key from
  * `POST /deletions`, seals a `delete`-scoped `ukyc_capability_token` (4 hour
  * lifetime, client-presented) for that key, and submits it to
- * `DELETE /deletions/{deletionId}`. Does not clear controller state.
+ * `DELETE /deletions/{deletionId}`. Both KYC API calls are authenticated
+ * with `params.aal2Token`. Does not clear controller state.
+ *
+ * @param params - The deletion parameters.
+ * @param params.aal2Token - AAL2 authentication token sent as the
+ * Authorization bearer value for both deletion requests.
  */
 export type KycControllerDeleteEncryptedStorageAction = {
   type: `KycController:deleteEncryptedStorage`;
