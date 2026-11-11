@@ -503,6 +503,11 @@ export type AssetsControllerState = {
   /** Currently-active ISO 4217 currency code */
   selectedCurrency: SupportedCurrency;
   assetsLoadingStatus?: Record<AccountId, AssetsLoadingStatus>;
+  /**
+   * Per-account status of the background (Snap + RPC) fetch that runs after
+   * the initial balance has resolved. Tracked on every forced fetch.
+   */
+  assetsBackgroundLoadingStatus?: Record<AccountId, AssetsLoadingStatus>;
 };
 
 // ============================================================================

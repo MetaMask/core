@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TokenDetectionController` reads `useTokenDetection` again when detection runs if that preference is still unset, so a `PreferencesController` registered after `init` does not leave non-mainnet detection skipped ([#11315](https://github.com/MetaMask/core/pull/11315))
 - `MultichainAssetsController` retries the Blockaid re-scan every minute when `PhishingController:bulkScanTokens` is not registered yet, then returns to the configured interval after that action can be called ([#11315](https://github.com/MetaMask/core/pull/11315))
   - The first missing handler is reported through `messenger.captureException`. Stored tokens stay unchanged until a scan reaches `PhishingController`. A scan that reaches the controller and fails stays on the configured interval.
+- Stop passing `data:` NFT token URIs to `fetch`, which crashed clients whose `fetch` cannot decode `data:` URLs (e.g. MetaMask Mobile) ([#11308](https://github.com/MetaMask/core/pull/11308))
+  - `NftController` now decodes JSON `data:` token URIs (`data:application/json`, base64 or percent-encoded, with optional parameters such as `;charset=utf-8`) inline when adding or refreshing NFTs, and falls back to empty metadata for malformed or non-JSON `data:` token URIs
+  - `ERC721Standard.getDetails` and `ERC1155Standard.getDetails` decode JSON `data:` token URIs inline instead of fetching them
 
 ## [113.3.1]
 
