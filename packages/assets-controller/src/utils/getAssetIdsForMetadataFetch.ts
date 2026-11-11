@@ -1,6 +1,9 @@
 import { parseCaipAssetType } from '@metamask/utils';
 
-import { isStakingContractAssetId } from '../data-sources/evm-rpc-services/index.js';
+import {
+  getSupportedStakingChainIds,
+  isStakingContractAssetId,
+} from '../data-sources/evm-rpc-services/index.js';
 import type {
   AssetMetadata,
   AssetsControllerState,
@@ -53,27 +56,39 @@ export function getAssetIdsForMetadataFetch({
   response,
 }: GetAssetIdsForMetadataFetchParams): GetAssetIdsForMetadataFetchResult {
   const stateMetadata = state.assetsInfo ?? {};
+  const responseMetadata = response.assetsInfo;
   const accountFilter = buildAccountFilter(request);
   const chainFilter = buildChainFilter(request);
   const hiddenAssetIds = collectHiddenAssetIdKeys(state.assetPreferences);
-  const knownMetadataIds = new Set(
-    Object.keys(stateMetadata).map((assetId) => assetId.toLowerCase()),
-  );
+  const knownMetadataIds = new Set<string>();
   const assetIdsNeedingMetadata = new Set<string>();
   const balanceHealAssetIds = new Set<string>();
   const stateBalanceIds = new Set<string>();
 
-  const needsMetadata = (assetId: string): boolean => {
-    if (hiddenAssetIds.has(assetId.toLowerCase())) {
+  // A staking-contract asset ID must start with
+  // `${chainId}/erc20:` for some chain ID with a staking contract (the CAIP
+  // asset type regex anchors the chain ID and asset namespace at the start of
+  // the ID, and `getStakingContractAddress` is defined only for
+  // `getSupportedStakingChainIds()`). Checking that prefix first lets the
+  // common case skip the CAIP parse behind `isStakingContractAssetId`.
+  const stakingAssetIdPrefixes = getSupportedStakingChainIds().map(
+    (chainId) => `${chainId}/erc20:`,
+  );
+
+  const needsMetadata = (assetId: string, lowerAssetId: string): boolean => {
+    if (hiddenAssetIds.has(lowerAssetId)) {
       return false;
     }
     if (
-      hasMetadataUsedByClients(response.assetsInfo?.[assetId as Caip19AssetId])
+      hasMetadataUsedByClients(responseMetadata?.[assetId as Caip19AssetId])
     ) {
       return false;
     }
     if (hasMetadataUsedByClients(stateMetadata[assetId as Caip19AssetId])) {
       return false;
+    }
+    if (!stakingAssetIdPrefixes.some((p) => assetId.startsWith(p))) {
+      return true;
     }
     return !isStakingContractAssetId(assetId);
   };
@@ -90,31 +105,40 @@ export function getAssetIdsForMetadataFetch({
     }
   };
 
-  for (const [accountId, accountBalances] of Object.entries(
-    state.assetsBalance ?? {},
-  )) {
+  for (const assetId of Object.keys(stateMetadata)) {
+    knownMetadataIds.add(assetId.toLowerCase());
+  }
+
+  const stateBalances = state.assetsBalance ?? {};
+  for (const accountId of Object.keys(stateBalances)) {
     if (accountFilter && !accountFilter.has(accountId)) {
       continue;
     }
-    for (const assetId of Object.keys(accountBalances)) {
-      stateBalanceIds.add(assetId.toLowerCase());
-      if (!inRequestChains(assetId) || !needsMetadata(assetId)) {
+    for (const assetId of Object.keys(stateBalances[accountId])) {
+      const lowerAssetId = assetId.toLowerCase();
+      stateBalanceIds.add(lowerAssetId);
+      // Cheap verdicts first: the hidden/metadata/prefix checks run before
+      // the CAIP parse behind the chain filter.
+      if (!needsMetadata(assetId, lowerAssetId) || !inRequestChains(assetId)) {
         continue;
       }
       assetIdsNeedingMetadata.add(assetId);
-      balanceHealAssetIds.add(assetId.toLowerCase());
+      balanceHealAssetIds.add(lowerAssetId);
     }
   }
 
   for (const accountBalances of Object.values(response.assetsBalance ?? {})) {
     for (const assetId of Object.keys(accountBalances)) {
-      if (!needsMetadata(assetId)) {
+      const lowerAssetId = assetId.toLowerCase();
+      if (!needsMetadata(assetId, lowerAssetId)) {
         continue;
       }
       assetIdsNeedingMetadata.add(assetId);
-      const lowerId = assetId.toLowerCase();
-      if (stateBalanceIds.has(lowerId) || knownMetadataIds.has(lowerId)) {
-        balanceHealAssetIds.add(lowerId);
+      if (
+        stateBalanceIds.has(lowerAssetId) ||
+        knownMetadataIds.has(lowerAssetId)
+      ) {
+        balanceHealAssetIds.add(lowerAssetId);
       }
     }
   }
