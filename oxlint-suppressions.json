@@ -844,10 +844,7 @@
       "count": 2
     },
     "typescript/no-unsafe-assignment": {
-      "count": 7
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 3
+      "count": 4
     },
     "typescript/prefer-nullish-coalescing": {
       "count": 6
@@ -930,16 +927,13 @@
   },
   "packages/assets-controllers/src/Standards/NftStandards/ERC1155/ERC1155Standard.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 6
+      "count": 5
     },
     "typescript/no-unsafe-assignment": {
-      "count": 4
+      "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 7
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
+      "count": 6
     },
     "typescript/no-unsafe-return": {
       "count": 4
@@ -961,16 +955,10 @@
       "count": 4
     },
     "typescript/no-unsafe-argument": {
-      "count": 7
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 3
+      "count": 6
     },
     "typescript/no-unsafe-call": {
-      "count": 7
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
+      "count": 6
     },
     "typescript/no-unsafe-return": {
       "count": 6
@@ -1878,10 +1866,10 @@
   },
   "packages/chomp-api-service/src/chomp-api-service.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 12
+      "count": 14
     },
     "typescript/no-unsafe-return": {
-      "count": 12
+      "count": 14
     }
   },
   "packages/claims-controller/src/ClaimsService.test.ts": {
@@ -2282,11 +2270,6 @@
       "count": 7
     }
   },
-  "packages/eth-sig-util/src/sign-eip7702-authorization.ts": {
-    "no-undef": {
-      "count": 3
-    }
-  },
   "packages/eth-sig-util/src/sign-typed-data.test.ts": {
     "id-denylist": {
       "count": 2
@@ -2367,9 +2350,6 @@
       "count": 3
     },
     "no-param-reassign": {
-      "count": 1
-    },
-    "no-undef": {
       "count": 1
     },
     "typescript/no-explicit-any": {
@@ -6175,7 +6155,7 @@
       "count": 6
     },
     "typescript/no-unsafe-return": {
-      "count": 3
+      "count": 1
     }
   },
   "scripts/lint-teams-json.ts": {

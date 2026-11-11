@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Sync custom-token changes to Authenticated User Storage: adding or hiding a custom asset now mirrors it to the user's AUS user-assets blob (fire-and-forget; failures are reported via the messenger's `captureException` and never roll back local state), and removing or unhiding strips the asset from the corresponding AUS list ([#10336](https://github.com/MetaMask/core/pull/10336))
+- Add `assetsBackgroundLoadingStatus` to `AssetsControllerState`, a transient per-account status of the background (Snap + RPC) fetch that runs after the initial balance has resolved ([#11412](https://github.com/MetaMask/core/pull/11412))
+  - Unlike `assetsLoadingStatus`, which only tracks an account's first load, it is set to `'loading'` on every forced fetch that has slow-pipeline chains and settles to `'loaded'` once every overlapping background fetch for the account has finished, whether it succeeded or failed.
+- Add `getAccountBackgroundLoadingStatus`, `isAccountBackgroundLoading`, `getAccountGroupBackgroundLoadingStatus`, `isAccountGroupBackgroundLoading` and `getIsAssetsBackgroundLoadingForSelectedAccountGroup` selectors ([#11412](https://github.com/MetaMask/core/pull/11412))
+- Log `assetsLoadingStatus` and `assetsBackgroundLoadingStatus` transitions, and accounts skipped because their first load already settled, under the `metamask:assets-controller:trackAssetsLoading` debug namespace ([#11412](https://github.com/MetaMask/core/pull/11412))
+
 ### Changed
 
 - Enrich native asset metadata (name, decimals, image) from the config registry via `ConfigRegistryController:getNetworkConfigByCaip2ChainId`, and upgrade previously emitted imageless native metadata stubs with the registry image ([#11420](https://github.com/MetaMask/core/pull/11420))

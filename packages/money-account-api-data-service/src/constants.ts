@@ -67,3 +67,22 @@ export const MONEY_ACCOUNT_SIWE_CHALLENGE_TTL_MS = 300_000;
  * still rejects future-dated challenges on its own clock.
  */
 export const MONEY_ACCOUNT_SIWE_CLOCK_SKEW_MS = 60_000;
+
+/**
+ * Maximum number of distinct transaction hashes the Money Account API accepts
+ * per vault share valuations request.
+ */
+export const VAULT_SHARE_VALUATIONS_MAX_TX_HASHES = 50;
+
+/**
+ * Stale time (ms) for a vault share valuations batch where every requested
+ * transaction is indexed. Matches the API's `private, max-age=86400`.
+ */
+export const VAULT_SHARE_VALUATIONS_COMPLETE_STALE_TIME_MS = 86_400_000;
+
+/**
+ * Stale time (ms) for a batch with any missing transaction, which may only mean
+ * the transaction is newer than the indexer cursor. Matches the API's
+ * `private, max-age=30`.
+ */
+export const VAULT_SHARE_VALUATIONS_PARTIAL_STALE_TIME_MS = 30_000;

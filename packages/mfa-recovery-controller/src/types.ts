@@ -328,10 +328,19 @@ export type RecoveryEscrowProvider = {
     requestId: string,
     pkE: Uint8Array,
   ) => Promise<GetRecoverySecretResponse>;
+  /**
+   * On first application, `identifierAuthorizations` share one challenge: one
+   * proof per SIWE identifier the escrow has not enrolled, plus one
+   * enrolled-identifier proof for updates.
+   *
+   * An escrow that already applied the mutation returns its matching stored
+   * receipt before validating proofs, which may include SIWE identifiers still
+   * missing from other escrows.
+   */
   applyMutation: (
     mutation: Mutation,
     authControllerToken: AuthControllerToken,
-    identifierAuthorization: IdentifierAuthorization | null,
+    identifierAuthorizations: IdentifierAuthorization[],
     payload: MutationPayload,
     approvedIdentifiers: Identifier[],
   ) => Promise<MutationReceipt>;
