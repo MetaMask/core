@@ -5,7 +5,9 @@ import {
   CAPABILITY_AUTHORIZATION_STATUSES,
   KYC_CURRENT_STEPS,
   KYC_STATUSES,
+  KYC_STEPS,
   needsCapabilityAuthorizationRefresh,
+  toKycStep,
 } from './types.js';
 import type { KycCurrentStep, KycSessionStatus } from './types.js';
 
@@ -145,5 +147,19 @@ describe('patchKycSessionStatus', () => {
     delete session.currentStep;
 
     expect(patchKycSessionStatus(session)).toBe(session);
+  });
+});
+
+describe('toKycStep', () => {
+  it.each(KYC_STEPS)('keeps the known step %s', (step) => {
+    expect(toKycStep(step)).toBe(step);
+  });
+
+  it('turns a step this version does not know into error', () => {
+    expect(toKycStep('brand_new_step')).toBe('error');
+  });
+
+  it('does not accept the old step name', () => {
+    expect(toKycStep('verify_email')).toBe('error');
   });
 });

@@ -971,6 +971,135 @@ describe('KycService', () => {
     });
   });
 
+  describe('getStep', () => {
+    it('returns the step kyc-api decides for the vendor', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/kalshi/step')
+        .matchHeader('authorization', 'Bearer test-bearer')
+        .reply(200, { vendor: 'kalshi', nextStep: 'account_link' });
+      const { service } = getService();
+
+      expect(await service.getStep('kalshi')).toBe('account_link');
+    });
+
+    it('turns a step this version does not know into error', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/iron/step')
+        .reply(200, { vendor: 'iron', nextStep: 'brand_new_step' });
+      const { service } = getService();
+
+      expect(await service.getStep('iron')).toBe('error');
+    });
+
+    it('throws on a malformed response', async () => {
+      nock(MOCK_API_URL).get('/vendors/iron/step').reply(200, {});
+      const { service } = getService();
+
+      await expect(service.getStep('iron')).rejects.toThrow(
+        /Malformed response received from vendor step API/u,
+      );
+    });
+  });
+
+  describe('acceptVendorTerms', () => {
+    it('records the terms and returns the next step', async () => {
+      nock(MOCK_API_URL)
+        .post('/vendors/kalshi/disclaimers', {
+          disclaimerIds: ['tos-v1'],
+          country: 'USA',
+        })
+        .reply(200, { signings: [], nextStep: 'account_link' });
+      const { service } = getService();
+
+      expect(
+        await service.acceptVendorTerms({
+          vendor: 'kalshi',
+          disclaimerIds: ['tos-v1'],
+          country: 'USA',
+        }),
+      ).toBe('account_link');
+    });
+
+    it('leaves the country out when none is given', async () => {
+      nock(MOCK_API_URL)
+        .post('/vendors/iron/disclaimers', { disclaimerIds: ['tos-v1'] })
+        .reply(200, { nextStep: 'confirm_identity' });
+      const { service } = getService();
+
+      expect(
+        await service.acceptVendorTerms({
+          vendor: 'iron',
+          disclaimerIds: ['tos-v1'],
+        }),
+      ).toBe('confirm_identity');
+    });
+
+    it('throws when the response has no next step', async () => {
+      nock(MOCK_API_URL).post('/vendors/iron/disclaimers').reply(200, []);
+      const { service } = getService();
+
+      await expect(
+        service.acceptVendorTerms({ vendor: 'iron', disclaimerIds: ['a'] }),
+      ).rejects.toThrow(/Malformed response received from vendor terms API/u);
+    });
+  });
+
+  describe('markProviderSubmitted', () => {
+    it('posts to the session and returns the next step', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/provider-submitted')
+        .reply(200, { nextStep: 'kyc_pending' });
+      const { service } = getService();
+
+      expect(await service.markProviderSubmitted({ sessionId: 'sid-1' })).toBe(
+        'kyc_pending',
+      );
+    });
+  });
+
+  describe('postOnboardingStep', () => {
+    const status = {
+      id: 'sid-1',
+      finalStatus: 'new',
+      externalUserId: 'ext-1',
+      kycStatus: 'new',
+      vendor: 'kalshi',
+      vendorStatus: 'new',
+      currentStep: 'phoneOtpCollection',
+    };
+
+    it('posts the payload to the onboarding step and returns the status', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/phone/send-otp', {
+          phoneNumber: '+18888888888',
+        })
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(
+        await service.postOnboardingStep({
+          sessionId: 'sid-1',
+          step: 'phone/send-otp',
+          body: { phoneNumber: '+18888888888' },
+        }),
+      ).toStrictEqual(status);
+    });
+
+    it('sends an empty body when the step has no payload', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid-1/onboarding/email/resend-otp', {})
+        .reply(200, status);
+      const { service } = getService();
+
+      expect(
+        await service.postOnboardingStep({
+          sessionId: 'sid-1',
+          step: 'email/resend-otp',
+        }),
+      ).toStrictEqual(status);
+    });
+  });
+
   describe('getDataShares', () => {
     const shares = [
       {

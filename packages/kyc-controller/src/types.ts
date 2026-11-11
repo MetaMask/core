@@ -378,3 +378,43 @@ export type KycSessionDisclaimers = {
   /** Whether the user consented to reuse existing idOS credentials. */
   credentialReusabilityConsentGiven: boolean;
 };
+
+/**
+ * Vendors that onboard through {@link KycFlowController}. Separate from
+ * {@link KycVendor}, which the older `KycController` flow uses.
+ */
+export type KycFlowVendor = 'iron' | 'kalshi';
+
+/**
+ * The steps kyc-api can send for a vendor. The client maps each step to a
+ * screen it already has; kyc-api never sends copy or layout.
+ */
+export const KYC_STEPS = [
+  'vendor_terms',
+  'account_link',
+  'account_link_code',
+  'confirm_identity',
+  'identity_verification',
+  'kyc_pending',
+  'kyc_retry',
+  'kyc_rejected',
+  'approved',
+  'error',
+] as const;
+
+/** A step returned by kyc-api. See {@link KYC_STEPS}. */
+export type KycStep = (typeof KYC_STEPS)[number];
+
+/**
+ * Narrows a step string from kyc-api. A step this client version does not
+ * know is `error`, so an older app shows its error screen instead of
+ * guessing a screen.
+ *
+ * @param value - The step string from kyc-api.
+ * @returns The known step, or `error`.
+ */
+export function toKycStep(value: string): KycStep {
+  return (KYC_STEPS as readonly string[]).includes(value)
+    ? (value as KycStep)
+    : 'error';
+}

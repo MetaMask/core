@@ -39,6 +39,36 @@ export type {
   KycControllerStartSessionStatusPollingAction,
 } from './KycController-method-action-types.js';
 
+export {
+  KycFlowController,
+  flowControllerName,
+  getDefaultKycFlowControllerState,
+} from './KycFlowController.js';
+export type {
+  KycAccountLinkAdapter,
+  KycAccountLinkMfaMethod,
+  KycFlowControllerActions,
+  KycFlowControllerEvents,
+  KycFlowControllerGetStateAction,
+  KycFlowControllerMessenger,
+  KycFlowControllerOptions,
+  KycFlowControllerState,
+  KycFlowControllerStateChangeEvent,
+  KycFlowVendorState,
+} from './KycFlowController.js';
+export type {
+  KycFlowControllerAcceptTermsAction,
+  KycFlowControllerMarkProviderSubmittedAction,
+  KycFlowControllerRefreshStepAction,
+  KycFlowControllerResendEmailCodeAction,
+  KycFlowControllerResetAction,
+  KycFlowControllerStartAccountLinkAction,
+  KycFlowControllerSubmitEmailCodeAction,
+  KycFlowControllerSubmitPhoneAction,
+  KycFlowControllerSubmitPhoneCodeAction,
+  KycFlowControllerVerifyAccountLinkAction,
+} from './KycFlowController-method-action-types.js';
+
 export { KYC_ANALYTICS_STATUSES, getKycAnalyticsStatus } from './analytics.js';
 export type {
   KycAnalyticsStatus,
@@ -63,6 +93,7 @@ export type {
   FetchSessionDisclaimersBySessionIdParams,
   GetDataSharesParams,
   GetSessionStatusParams,
+  KycOnboardingStep,
   ResetWrappingKeysParams,
   VendorCustomerResponse,
   JwksResponse,
@@ -79,6 +110,7 @@ export type {
   UkycSessionResponse,
 } from './KycService.js';
 export type {
+  KycServiceAcceptVendorTermsAction,
   KycServiceCreateVendorCustomerAction,
   KycServiceCompleteDeletionAction,
   KycServiceCreateDeletionAction,
@@ -94,6 +126,9 @@ export type {
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetSessionStatusForVendorAction,
+  KycServiceGetStepAction,
+  KycServiceMarkProviderSubmittedAction,
+  KycServicePostOnboardingStepAction,
   KycServiceResetWrappingKeysAction,
   KycServiceSetAuthorizationsAction,
   KycServiceSubmitSessionDisclaimersAction,
@@ -114,7 +149,9 @@ export type {
 export {
   KYC_CURRENT_STEPS,
   KYC_STATUSES,
+  KYC_STEPS,
   TERMINAL_SESSION_STATUSES,
+  toKycStep,
 } from './types.js';
 export type {
   KycCatalogDocument,
@@ -124,11 +161,13 @@ export type {
   KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
+  KycFlowVendor,
   KycPhase,
   KycProduct,
   KycProviderDisclaimersAccepted,
   KycSessionDisclaimers,
   KycSessionStatus,
+  KycStep,
   KycVendor,
   KycIronVendorDisclaimersAccepted,
   KycMoonpayVendorDisclaimersAccepted,

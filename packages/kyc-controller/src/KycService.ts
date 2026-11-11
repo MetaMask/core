@@ -25,14 +25,16 @@ import type { QueryClientConfig } from '@tanstack/query-core';
 
 import { alpha2ToAlpha3 } from './countryCodes.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
-import { patchKycSessionStatus } from './types.js';
+import { patchKycSessionStatus, toKycStep } from './types.js';
 import type {
   KycConsentRecord,
   KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
+  KycFlowVendor,
   KycSessionDisclaimers,
   KycSessionStatus,
+  KycStep,
   KycVendor,
   KycVendorSigning,
 } from './types.js';
@@ -67,6 +69,10 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSessionStatus',
   'getSessionStatusForVendor',
   'getDataShares',
+  'getStep',
+  'acceptVendorTerms',
+  'markProviderSubmitted',
+  'postOnboardingStep',
 ] as const;
 
 /**
@@ -173,6 +179,12 @@ const VendorSigningStruct = type({
   content_id: optional(string()),
 });
 const VendorSigningsResponseStruct = array(VendorSigningStruct);
+
+/** `{ nextStep }`, returned by kyc-api actions that move onboarding on. */
+const NextStepResponseStruct = type({ nextStep: string() });
+
+/** `GET /vendors/{vendor}/step`. */
+const StepResponseStruct = type({ vendor: string(), nextStep: string() });
 
 const CreateSessionResponseStruct = type({ sessionToken: string() });
 
@@ -336,6 +348,15 @@ export type SubmitSessionDisclaimersParams = {
   /** Consent to reuse the user's existing idOS credentials. */
   credentialReusabilityConsentGiven: boolean;
 };
+
+/**
+ * Vendor onboarding steps under `POST /sessions/{id}/onboarding/...`.
+ */
+export type KycOnboardingStep =
+  | 'email/verify-otp'
+  | 'email/resend-otp'
+  | 'phone/send-otp'
+  | 'phone/verify-otp';
 
 export type CreateUkycSessionParams = {
   /**
@@ -574,7 +595,7 @@ export class KycService extends BaseDataService<
     vendor = 'moonpay',
     country,
   }: {
-    vendor?: KycVendor;
+    vendor?: KycVendor | KycFlowVendor;
     country: string;
   }): Promise<KycDisclaimer[]> {
     const url = new URL(`/vendors/${vendor}/disclaimers`, this.#baseUrl);
@@ -1082,7 +1103,7 @@ export class KycService extends BaseDataService<
    * @returns The session status, or `null` when no latest session exists.
    */
   async getSessionStatusForVendor(
-    vendor: KycVendor,
+    vendor: KycVendor | KycFlowVendor,
   ): Promise<KycSessionStatus | null> {
     const url = new URL(
       `/sessions/latest/status/${encodeURIComponent(vendor)}`,
@@ -1100,6 +1121,114 @@ export class KycService extends BaseDataService<
       }
       throw error;
     }
+  }
+
+  /**
+   * Fetches the vendor's current onboarding step
+   * (`GET /vendors/{vendor}/step`). kyc-api works it out from what it knows
+   * about the user, so the answer is the same on every device.
+   *
+   * @param vendor - The vendor to get the step for.
+   * @returns The step.
+   */
+  async getStep(vendor: KycFlowVendor): Promise<KycStep> {
+    const url = new URL(
+      `/vendors/${encodeURIComponent(vendor)}/step`,
+      this.#baseUrl,
+    );
+    const data = await this.#requestJson(url, { method: 'GET' });
+    const { nextStep } = this.#validateResponse(
+      data,
+      StepResponseStruct,
+      'vendor step',
+    );
+    return toKycStep(nextStep);
+  }
+
+  /**
+   * Records the user's acceptance of a vendor's terms
+   * (`POST /vendors/{vendor}/disclaimers`). Needs no session. kyc-api stores
+   * the acceptance, so the next step moves on.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The vendor whose terms were accepted.
+   * @param params.disclaimerIds - Accepted terms ids from the vendor catalog.
+   * @param params.country - ISO 3166-1 alpha-3 country the terms were fetched
+   * for.
+   * @returns The next step.
+   */
+  async acceptVendorTerms(params: {
+    vendor: KycFlowVendor;
+    disclaimerIds: string[];
+    country?: string;
+  }): Promise<KycStep> {
+    const url = new URL(
+      `/vendors/${encodeURIComponent(params.vendor)}/disclaimers`,
+      this.#baseUrl,
+    );
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        disclaimerIds: params.disclaimerIds,
+        ...(params.country ? { country: params.country } : {}),
+      }),
+    });
+    const { nextStep } = this.#validateResponse(
+      data,
+      NextStepResponseStruct,
+      'vendor terms',
+    );
+    return toKycStep(nextStep);
+  }
+
+  /**
+   * Tells kyc-api the identity provider flow was submitted for a session
+   * (`POST /sessions/{sessionId}/provider-submitted`), so the step survives a
+   * reinstall.
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - The UKYC session id.
+   * @returns The next step.
+   */
+  async markProviderSubmitted(params: { sessionId: string }): Promise<KycStep> {
+    const url = new URL(
+      `/sessions/${encodeURIComponent(params.sessionId)}/provider-submitted`,
+      this.#baseUrl,
+    );
+    const data = await this.#requestJson(url, { method: 'POST' });
+    const { nextStep } = this.#validateResponse(
+      data,
+      NextStepResponseStruct,
+      'provider submitted',
+    );
+    return toKycStep(nextStep);
+  }
+
+  /**
+   * Runs one vendor onboarding step for a session
+   * (`POST /sessions/{id}/onboarding/{step}`): verify or resend the vendor's
+   * email code, or send or verify its SMS code.
+   *
+   * @param params - The parameters.
+   * @param params.sessionId - UKYC session id.
+   * @param params.step - The onboarding step.
+   * @param params.body - Step payload: `{ otp }` or `{ phoneNumber }`.
+   * @returns The session status after the step.
+   */
+  async postOnboardingStep(params: {
+    sessionId: string;
+    step: KycOnboardingStep;
+    body?: Record<string, string>;
+  }): Promise<KycSessionStatus> {
+    const url = new URL(
+      `/sessions/${encodeURIComponent(params.sessionId)}/onboarding/${params.step}`,
+      this.#baseUrl,
+    );
+    const data = await this.#requestJson(url, {
+      method: 'POST',
+      body: JSON.stringify(params.body ?? {}),
+    });
+    return this.#validateAndPatchSessionStatus(data, 'onboarding step');
   }
 
   /**
