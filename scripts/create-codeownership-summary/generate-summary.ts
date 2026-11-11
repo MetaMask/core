@@ -250,9 +250,7 @@ function renderSummary({
   codeownershipGroups: CodeownershipGroup[];
   coOwnedFilePaths: string[];
 }): string {
-  let summary = `## Codeownership summary
-
-## 🛑 Files requiring codeowner review
+  let summary = `## 🛑 Files requiring codeowner review
 
 ${renderApprovalInstructions(codeownershipGroups)}
 `;

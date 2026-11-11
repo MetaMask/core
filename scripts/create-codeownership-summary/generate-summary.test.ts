@@ -49,8 +49,6 @@ describe('generateCodeownershipSummary', () => {
 
     expect(summary).toBe(
       [
-        '## Codeownership summary',
-        '',
         '## 🛑 Files requiring codeowner review',
         '',
         "To merge this PR, you'll need to get approvals from the following owner groups.",
