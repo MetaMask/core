@@ -63,7 +63,7 @@
     "@metamask/delegation-deployments": "^1.4.0",
     "@metamask/geolocation-controller": "^2.0.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/money-account-balance-service": "^3.2.0",
+    "@metamask/money-account-balance-service": "^3.2.1",
     "@metamask/money-account-upgrade-controller": "^7.0.0",
     "@metamask/money-account-utils": "^2.2.0",
     "@metamask/polling-controller": "^17.0.0",
