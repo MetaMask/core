@@ -327,6 +327,79 @@ describe('syncAusUserAssets', () => {
       // The add settling late fires no further AUS write.
       expect(fixture.messenger.call).toHaveBeenCalledTimes(3);
     });
+    it('does not let an in-flight import undo a later strip', async () => {
+      const fixture = new AusSyncFixture();
+      // A stateful AUS: the import only lands when released, like a slow PUT.
+      let blob: UserAssetsBlob = {
+        version: 1,
+        importedAssets: [OTHER_ASSET_ID],
+        hiddenAssets: [],
+      };
+      let releaseImport: () => void = () => undefined;
+      const handlers: Record<string, (payload: unknown) => Promise<unknown>> = {
+        [IMPORT_TOKENS]: async (payload) => {
+          await new Promise<void>((resolve) => {
+            releaseImport = resolve;
+          });
+          blob = {
+            ...blob,
+            importedAssets: [
+              ...blob.importedAssets,
+              ...(payload as Caip19AssetId[]),
+            ],
+          };
+          return blob;
+        },
+        [GET_USER_ASSETS]: async () => blob,
+        [SET_USER_ASSETS]: async (payload) => {
+          blob = payload as UserAssetsBlob;
+        },
+      };
+      fixture.messenger.call.mockImplementation(
+        async (actionType: string, payload: unknown) =>
+          handlers[actionType](payload),
+      );
+
+      await fixture.addCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+      fixture.removeCustomAsset(MOCK_ACCOUNT_ID, MOCK_ASSET_ID);
+      await flushPromises();
+
+      // The strip waits for the in-flight import instead of reading the
+      // stale blob and skipping its write.
+      expect(fixture.messenger.call).toHaveBeenCalledTimes(1);
+
+      releaseImport();
+      await flushPromises();
+
+      expect(fixture.messenger.call).toHaveBeenNthCalledWith(
+        2,
+        GET_USER_ASSETS,
+      );
+      expect(blob.importedAssets).toStrictEqual([OTHER_ASSET_ID]);
+    });
+
+    it('keeps serializing syncs after one of them fails', async () => {
+      const fixture = new AusSyncFixture();
+      const handlers: Record<string, () => Promise<unknown>> = {
+        [HIDE_TOKENS]: async () => {
+          throw new Error('AUS unavailable');
+        },
+        [GET_USER_ASSETS]: async () => null,
+      };
+      fixture.messenger.call.mockImplementation(async (actionType: string) =>
+        handlers[actionType](),
+      );
+
+      fixture.hideAsset(MOCK_ASSET_ID);
+      fixture.unhideAsset(MOCK_ASSET_ID);
+      await flushPromises();
+
+      expect(fixture.messenger.captureException).toHaveBeenCalledTimes(1);
+      expect(fixture.messenger.call).toHaveBeenNthCalledWith(
+        2,
+        GET_USER_ASSETS,
+      );
+    });
   });
 
   describe('local failures', () => {

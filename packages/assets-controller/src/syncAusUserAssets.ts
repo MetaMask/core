@@ -64,6 +64,11 @@ const AUS_SYNC_METHODS = {
 } as const satisfies Record<string, AusSyncConfig>;
 
 /**
+ * The tail of each controller instance's pending AUS sync queue.
+ */
+const ausSyncQueues = new WeakMap<AusSyncCaller, Promise<void>>();
+
+/**
  * Mirror a custom-token action to AUS user assets.
  *
  * @param caller - The controller whose messenger to call AUS actions on.
@@ -141,9 +146,26 @@ function fireAusSync(
   config: AusSyncConfig,
   assetId: Caip19AssetId,
 ): void {
-  syncUserAssetsToAus(caller, config, assetId).catch((error: unknown) =>
-    reportAusSyncError(caller, assetId, error),
-  );
+  const run = async (): Promise<void> =>
+    syncUserAssetsToAus(caller, config, assetId).catch((error: unknown) =>
+      reportAusSyncError(caller, assetId, error),
+    );
+
+  // Serialize syncs per controller instance: each one is a read-modify-write
+  // of the whole AUS blob, so a sync must not read until the previous write
+  // has landed (and invalidated the service's cached read). When idle, start
+  // right away; `run` never rejects, so one failure cannot stall the queue.
+  const previous = ausSyncQueues.get(caller);
+  const next = previous ? previous.then(run) : run();
+  ausSyncQueues.set(caller, next);
+  // Drop the queue once it drains, so an idle caller starts synchronously.
+  next
+    .then(() => {
+      if (ausSyncQueues.get(caller) === next) {
+        ausSyncQueues.delete(caller);
+      }
+    })
+    .catch(() => undefined);
 }
 
 /**
