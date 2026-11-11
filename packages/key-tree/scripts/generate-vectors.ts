@@ -45,7 +45,7 @@ function getRandomIndex(hardened: boolean = getRandomBoolean()): number {
  * @returns A random seed.
  */
 // eslint-disable-next-line no-restricted-globals
-function getRandomSeed(length = randomInt(16, 64)): Buffer {
+function getRandomSeed(length = randomInt(16, 64)): Uint8Array<ArrayBuffer> {
   return randomBytes(length);
 }
 

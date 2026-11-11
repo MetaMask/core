@@ -57,6 +57,13 @@ const SOCIAL: Identifier = {
 
 const OTHER_PASSKEY: Identifier = { ...PASSKEY, value: 'cred-2' };
 
+const WALLET: Identifier = {
+  type: 'siwe',
+  namespace: 'example.com:1',
+  value: '0xAbC0000000000000000000000000000000000001',
+  verifier: { domain: 'example.com', chainId: 1 },
+};
+
 const IDENTIFIERS = [PASSKEY, SOCIAL];
 
 const SECRET = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
@@ -1367,13 +1374,20 @@ describe('MfaRecoveryController', () => {
     });
 
     it('cannot abort a writing mutation that may have been applied', async () => {
-      await withController(async ({ controller, escrowA }) => {
+      let now = unixNow();
+      await withController(async ({ escrowA, options }) => {
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          now: (): number => now,
+        });
         await controller.register(SECRET, IDENTIFIERS);
         escrowA.failNextApplyCount = 1;
         await expect(
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toBeInstanceOf(IncompleteMutationError);
         expect(await controller.getPhase()).toBe('writing');
+        now += 10 * 60;
         await expect(controller.abort()).rejects.toThrow(
           'Cannot abort a mutation that may have been applied',
         );
@@ -1555,6 +1569,137 @@ describe('MfaRecoveryController', () => {
     );
   });
 
+  describe('SIWE identifiers', () => {
+    const LOWERCASE_WALLET = { ...WALLET, value: WALLET.value.toLowerCase() };
+    it.each([
+      [
+        'only address casing variants',
+        [WALLET, LOWERCASE_WALLET],
+        'too_few_identifiers',
+      ],
+      [
+        'address casing duplicates',
+        [PASSKEY, WALLET, LOWERCASE_WALLET],
+        'duplicate_identifier',
+      ],
+      [
+        'a malformed address',
+        [PASSKEY, { ...WALLET, value: '0x1234' }],
+        'invalid_identifier',
+      ],
+      ...['example.com/login', 'example .com'].map((domain) => [
+        `the domain ${domain}`,
+        [
+          PASSKEY,
+          {
+            ...WALLET,
+            namespace: `${domain}:1`,
+            verifier: { domain, chainId: 1 },
+          },
+        ],
+        'invalid_identifier',
+      ]),
+      [
+        'more than 16 identifiers',
+        Array.from({ length: 17 }, (_, index) => ({
+          ...SOCIAL,
+          value: `user-${index}`,
+        })),
+        'too_many_identifiers',
+      ],
+    ] as [string, Identifier[], string][])(
+      'rejects %s before authorization',
+      async (_, identifiers, code) => {
+        await withController(async ({ controller, authProvider, options }) => {
+          const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+          const login = vi.spyOn(
+            options.identifierAuthProvider,
+            'getKeyBoundIdentifierLogin',
+          );
+
+          await expect(
+            controller.register(SECRET, identifiers),
+          ).rejects.toMatchObject({ code });
+          await expect(
+            controller.updateIdentifiers(
+              PASSKEY,
+              identifiers,
+              REGISTERED_EPOCH,
+            ),
+          ).rejects.toMatchObject({ code });
+          expect(authorize).not.toHaveBeenCalled();
+          expect(login).not.toHaveBeenCalled();
+          expect(controller.state.pendingOperation).toBeNull();
+        });
+      },
+    );
+
+    it('proves each SIWE identifier at register', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+        await controller.register(SECRET, [PASSKEY, WALLET]);
+        expect(
+          apply.mock.calls[0][2].map(({ token }) => token.identifier),
+        ).toStrictEqual([WALLET]);
+      });
+    });
+
+    it('proves an added SIWE identifier with the enrolled identifier on one challenge', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+        await controller.updateIdentifiers(
+          PASSKEY,
+          [SOCIAL, WALLET],
+          REGISTERED_EPOCH,
+        );
+        const authorizations = apply.mock.calls[0][2];
+        expect(
+          authorizations.map(({ token }) => token.identifier),
+        ).toStrictEqual([PASSKEY, WALLET]);
+        expect(
+          new Set(authorizations.map(({ proof }) => proof.challengeId)).size,
+        ).toBe(1);
+      });
+    });
+
+    it('does not prove an enrolled SIWE identifier in another address case', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, [PASSKEY, WALLET]);
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+        await controller.updateIdentifiers(
+          PASSKEY,
+          [SOCIAL, { ...WALLET, value: WALLET.value.toLowerCase() }],
+          REGISTERED_EPOCH,
+        );
+        expect(
+          apply.mock.calls[0][2].map(({ token }) => token.identifier),
+        ).toStrictEqual([PASSKEY]);
+      });
+    });
+
+    it('does not prove SIWE identifiers to an escrow that already applied the mutation', async () => {
+      await withController(async ({ controller, escrowA }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.invalidReceipts = true;
+        await expect(
+          controller.updateIdentifiers(
+            PASSKEY,
+            [SOCIAL, WALLET],
+            REGISTERED_EPOCH,
+          ),
+        ).rejects.toThrow('Invalid mutation receipt');
+        escrowA.invalidReceipts = false;
+        const apply = vi.spyOn(escrowA, 'applyMutation');
+        await controller.resume();
+        expect(
+          apply.mock.calls[0][2].map(({ token }) => token.identifier),
+        ).toStrictEqual([PASSKEY]);
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+  });
+
   describe('resume and abort', () => {
     it('resumes a persisted writing mutation after a replica failure', async () => {
       await withController(async ({ controller, escrowA }) => {
@@ -1665,6 +1810,123 @@ describe('MfaRecoveryController', () => {
         expect(await resumed.getPhase()).toBe('idle');
         expect(availabilityA).not.toHaveBeenCalled();
         expect(availabilityB).not.toHaveBeenCalled();
+      });
+    });
+
+    it('aborts a writing mutation no escrow applied once its approval expires', async () => {
+      let now = unixNow();
+      await withController(async ({ escrowA, escrowB, options }) => {
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          now: (): number => now,
+        });
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.failNextApplyCount = 1;
+        escrowB.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+        await expect(controller.abort()).rejects.toThrow(
+          'Cannot abort a mutation that may have been applied',
+        );
+
+        now += 10 * 60;
+        vi.spyOn(escrowB, 'getIdentifiers').mockRejectedValueOnce(
+          new Error('offline'),
+        );
+        await expect(controller.abort()).rejects.toThrow(
+          'Cannot abort a mutation that may have been applied',
+        );
+        await controller.abort();
+
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+
+    it('clears instead of resuming a writing mutation no escrow applied once its approval expires', async () => {
+      let now = unixNow();
+      await withController(async ({ escrowA, escrowB, options }) => {
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          now: (): number => now,
+        });
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.failNextApplyCount = 1;
+        escrowB.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+        const authorize = vi.spyOn(
+          options.authProvider,
+          'authorizeRecoveryRequest',
+        );
+
+        now += 10 * 60;
+        await expect(controller.resume()).rejects.toBeInstanceOf(
+          MutationRejectedError,
+        );
+
+        expect(await controller.getPhase()).toBe('idle');
+        expect(authorize).not.toHaveBeenCalledWith(
+          expect.objectContaining({ requireTwoFactor: true }),
+        );
+      });
+    });
+
+    it('aborts a writing mutation no escrow applied when an escrow lags', async () => {
+      let now = unixNow();
+      await withController(async ({ escrowA, escrowB, options }) => {
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          now: (): number => now,
+        });
+        await controller.register(SECRET, IDENTIFIERS);
+        escrowA.patchRecord('profile-1', { version: REGISTERED_EPOCH + 1 });
+        escrowA.failNextApplyCount = 1;
+        escrowB.failNextApplyCount = 1;
+        await expect(
+          controller.updateRecoverySecret(
+            PASSKEY,
+            SECRET_2,
+            REGISTERED_EPOCH + 1,
+          ),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+
+        now += 10 * 60;
+        await controller.abort();
+
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+
+    it('aborts a writing register no escrow applied once its approval expires', async () => {
+      let now = unixNow();
+      await withController(async ({ escrowA, escrowB, options }) => {
+        const controller = new MfaRecoveryController({
+          ...options,
+          messenger: getMessenger(getRootMessenger()),
+          now: (): number => now,
+        });
+        escrowA.failNextApplyCount = 1;
+        escrowB.failNextApplyCount = 1;
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toBeInstanceOf(IncompleteMutationError);
+        // Escrows read a missing record as version 0.
+        for (const escrow of [escrowA, escrowB]) {
+          vi.spyOn(escrow, 'getIdentifiers').mockResolvedValue({
+            identifiers: [],
+            version: 0,
+          });
+        }
+
+        now += 10 * 60;
+        await controller.abort();
+
+        expect(await controller.getPhase()).toBe('idle');
       });
     });
 
@@ -2437,6 +2699,59 @@ describe('MfaRecoveryController', () => {
         });
       },
     );
+
+    it.each([
+      { ...WALLET, namespace: 'example.com:2' },
+      { ...WALLET, verifier: undefined },
+      ...[
+        {},
+        { domain: 1, chainId: 1 },
+        { domain: '', chainId: 1 },
+        { domain: 'example.com' },
+        { domain: 'example.com', chainId: '1' },
+        { domain: 'example.com', chainId: -1 },
+        { domain: 'example.com', chainId: 1.5 },
+        { domain: 'example.com', chainId: NaN },
+        { domain: 'example.com', chainId: Infinity },
+        { domain: 'example.com', chainId: Number.MAX_SAFE_INTEGER + 1 },
+      ].map((verifier) => ({
+        ...WALLET,
+        verifier,
+        namespace: `${String(verifier.domain)}:${String(verifier.chainId)}`,
+      })),
+    ])(
+      'rejects a SIWE identifier with an invalid verifier or namespace',
+      async (wallet) => {
+        await withController(async ({ controller, authProvider }) => {
+          const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
+          await expect(
+            controller.register(SECRET, [PASSKEY, wallet]),
+          ).rejects.toMatchObject({ code: 'invalid_identifier' });
+          await expect(
+            controller.updateIdentifiers(PASSKEY, [PASSKEY, wallet], 0),
+          ).rejects.toMatchObject({ code: 'invalid_identifier' });
+          expect(authorize).not.toHaveBeenCalled();
+          expect(controller.state.pendingOperation).toBeNull();
+        });
+      },
+    );
+
+    it.each([
+      { domain: 'localhost:3010', chainId: 1 },
+      { domain: 'example.com', chainId: 0 },
+      { domain: 'example.com', chainId: Number.MAX_SAFE_INTEGER },
+    ])('accepts valid SIWE verifier %j', async (verifier) => {
+      await withController(async ({ controller }) => {
+        const wallet = {
+          ...WALLET,
+          verifier,
+          namespace: `${verifier.domain}:${verifier.chainId}`,
+        };
+        expect(
+          await controller.register(SECRET, [PASSKEY, wallet]),
+        ).toBeUndefined();
+      });
+    });
   });
 });
 
