@@ -9,18 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `KycFlowController`, which follows the onboarding step kyc-api decides for a vendor ([#11440](https://github.com/MetaMask/core/pull/11440))
+- Add `KycFlowController`, which follows the onboarding step kyc-api decides for a vendor ([#11441](https://github.com/MetaMask/core/pull/11441))
   - State is `vendors[vendor] = { step, sessionId }`. Terms, consents and account link state stay on the server
   - Actions: `refreshStep`, `acceptTerms`, `startAccountLink`, `verifyAccountLink`, `startSession`, `submitPhone`, `submitPhoneCode`, `submitEmailCode`, `resendEmailCode`, `markProviderSubmitted` and `reset`
   - The device-signed account link calls are supplied by the client through the `accountLinkAdapters` option
   - `startSession` opens the vendor's UKYC session, or picks up the one kyc-api already has, and sends the wrapped encryption key and capability token. It does not create a vendor customer
   - It shares `KycService` with `KycController` and does not touch `KycController` state
-- Add `KycService.getStep`, `acceptVendorTerms`, `markProviderSubmitted` and `postOnboardingStep`, with the matching `KycService:*` messenger actions ([#11440](https://github.com/MetaMask/core/pull/11440))
-- Add the `KYC_STEPS` list, the `KycStep` and `KycFlowVendor` types, and `toKycStep`, which turns a step the client does not know into `error` ([#11440](https://github.com/MetaMask/core/pull/11440))
+- Add `KycService.getStep`, `acceptVendorTerms`, `markProviderSubmitted` and `postOnboardingStep`, with the matching `KycService:*` messenger actions ([#11441](https://github.com/MetaMask/core/pull/11441))
+- Add the `KYC_STEPS` list, the `KycStep` and `KycFlowVendor` types, and `toKycStep`, which turns a step the client does not know into `error` ([#11441](https://github.com/MetaMask/core/pull/11441))
 
 ### Changed
 
-- `KycService.fetchVendorDisclaimers`, `getSessionStatusForVendor` and `createUkycSession` accept the `kalshi` vendor, and `createUkycSession` takes an optional `email` ([#11440](https://github.com/MetaMask/core/pull/11440))
+- `KycService.fetchVendorDisclaimers`, `getSessionStatusForVendor` and `createUkycSession` accept the `kalshi` vendor, and `createUkycSession` takes an optional `email` ([#11441](https://github.com/MetaMask/core/pull/11441))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
 
 ## [0.16.0]
