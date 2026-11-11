@@ -5544,17 +5544,6 @@
       "count": 1
     }
   },
-  "packages/transaction-pay-controller/src/strategy/relay/relay-max.test.ts": {
-    "typescript/no-unsafe-argument": {
-      "count": 31
-    },
-    "typescript/no-unsafe-call": {
-      "count": 21
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 21
-    }
-  },
   "packages/transaction-pay-controller/src/strategy/relay/relay-quotes.test.ts": {
     "typescript/no-unsafe-call": {
       "count": 87
