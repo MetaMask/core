@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `getAccountBackgroundLoadingStatus`, `isAccountBackgroundLoading`, `getAccountGroupBackgroundLoadingStatus`, `isAccountGroupBackgroundLoading` and `getIsAssetsBackgroundLoadingForSelectedAccountGroup` selectors ([#11412](https://github.com/MetaMask/core/pull/11412))
 - Log `assetsLoadingStatus` and `assetsBackgroundLoadingStatus` transitions, and accounts skipped because their first load already settled, under the `metamask:assets-controller:trackAssetsLoading` debug namespace ([#11412](https://github.com/MetaMask/core/pull/11412))
 
+### Changed
+
+- Enrich native asset metadata (name, decimals, image) from the config registry via `ConfigRegistryController:getNetworkConfigByCaip2ChainId`, and upgrade previously emitted imageless native metadata stubs with the registry image ([#11420](https://github.com/MetaMask/core/pull/11420))
+
 ## [20.3.1]
 
 ### Changed
