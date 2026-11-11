@@ -346,6 +346,9 @@ export type KycSessionDisclaimers = {
 export const KYC_STEPS = [
   'vendor_terms',
   'verify_email',
+  // Kalshi: the phone creates or links the Kalshi account before the session.
+  'account_link',
+  'account_link_code',
   'identity_verification',
   'kyc_pending',
   'kyc_retry',
