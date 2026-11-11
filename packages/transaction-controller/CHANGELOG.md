@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `sourceAssetId` to the external Solana execution checkpoint, so support diagnostics can classify the source asset without other transaction metadata ([#10274](https://github.com/MetaMask/core/pull/10274))
 - Add the phase-aware external Solana execution checkpoint `metamaskPay.solanaExecution` and its `MetamaskPaySolanaExecution` types, without changing legacy EVM Pay fields ([#10273](https://github.com/MetaMask/core/pull/10273))
 - Add externally handled publish results and lifecycle finalization for hashless non-EVM parent transactions ([#10273](https://github.com/MetaMask/core/pull/10273))
   - The `hooks.publish` constructor option may now return any `PublishHookResult`, including an empty result for the default EVM fallback or an externally handled outcome.

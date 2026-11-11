@@ -1271,6 +1271,7 @@ describe('TransactionController', () => {
         requestId: 'request-id',
         requiresNonAtomicFollowUp: false,
         sourceAmountRaw: '1000',
+        sourceAssetId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
         sourceChainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
         sourceStatus: 'pending',
         sourceTransactionId: 'signature',

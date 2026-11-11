@@ -284,6 +284,7 @@ describe('submitRelayNonEvmQuote', () => {
         phase: 'attempting',
         requestId: 'relay-request-123',
         sourceAmountRaw: '10000000',
+        sourceAssetId: `${SOLANA_CHAIN_ID}/slip44:501`,
         sourceChainId: SOLANA_CHAIN_ID,
         sourceWalletAccountId: WALLET_ACCOUNT_ID,
       });
@@ -453,6 +454,7 @@ describe('submitRelayNonEvmQuote', () => {
         requestId: 'relay-request-123',
         requiresNonAtomicFollowUp: false,
         sourceAmountRaw: '10000000',
+        sourceAssetId: `${SOLANA_CHAIN_ID}/slip44:501`,
         sourceChainId: SOLANA_CHAIN_ID,
         sourceStatus: 'not-observed',
         sourceWalletAccountId: WALLET_ACCOUNT_ID,

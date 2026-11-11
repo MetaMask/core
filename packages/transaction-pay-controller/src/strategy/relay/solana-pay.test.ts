@@ -81,6 +81,7 @@ function getExecution(
     requestId: 'relay-request-123',
     requiresNonAtomicFollowUp: false,
     sourceAmountRaw: '1000000',
+    sourceAssetId: `${SOLANA_CHAIN_ID}/slip44:501`,
     sourceChainId: SOLANA_CHAIN_ID,
     sourceStatus: 'not-observed',
     sourceWalletAccountId: 'wallet-account-uuid',
@@ -1081,7 +1082,15 @@ describe('Solana Relay Pay', () => {
     ['refund', 'refund'],
     ['refunded', 'refund'],
     ['waiting', 'pending'],
+    ['depositing', 'pending'],
+    ['pending', 'pending'],
+    ['submitted', 'pending'],
+    ['delayed', 'pending'],
   ] as const)('maps Relay status %s to %s', (relayStatus, expected) => {
     expect(mapRelayStatus(relayStatus)).toBe(expected);
+  });
+
+  it('fails closed for an unrecognized Relay status', () => {
+    expect(mapRelayStatus('new-provider-status' as 'waiting')).toBe('unknown');
   });
 });

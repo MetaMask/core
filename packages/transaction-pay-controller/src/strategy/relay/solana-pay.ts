@@ -384,7 +384,15 @@ export function mapRelayStatus(
     return 'refund';
   }
 
-  return 'pending';
+  if (
+    ['waiting', 'depositing', 'pending', 'submitted', 'delayed'].includes(
+      status,
+    )
+  ) {
+    return 'pending';
+  }
+
+  return 'unknown';
 }
 
 /**

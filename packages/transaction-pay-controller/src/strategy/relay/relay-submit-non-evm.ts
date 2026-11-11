@@ -143,6 +143,7 @@ export async function submitRelayNonEvmQuote({
     targetChainId: request.targetChainId,
     targetTokenAddress: request.targetTokenAddress,
     sourceAmountRaw: quote.sourceAmount.raw,
+    sourceAssetId: request.sourceAssetId,
     sourceChainId: scope,
     sourceStatus: 'not-observed',
     sourceWalletAccountId,

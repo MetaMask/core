@@ -4,7 +4,7 @@ import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { CaipChainId, Hex, Json } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId, Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
 import type { TransactionControllerMessenger } from './TransactionController.js';
@@ -2248,6 +2248,9 @@ type MetamaskPaySolanaExecutionBase = {
 
   /** CAIP-2 chain of the source asset. */
   sourceChainId: CaipChainId;
+
+  /** CAIP-19 type of the source asset. */
+  sourceAssetId: CaipAssetType;
 
   /** Immutable atomic source amount for this executable request. */
   sourceAmountRaw: string;
