@@ -5,6 +5,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { describe, expect, it, vi } from 'vitest';
+import type { MockedFunction } from 'vitest';
 
 import {
   getDefaultKycFlowControllerState,
@@ -16,6 +17,38 @@ import type {
   KycFlowControllerOptions,
 } from './KycFlowController.js';
 import type { KycSessionStatus, KycStep } from './types.js';
+import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
+import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+
+vi.mock(import('./ukyc/jwtChain.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  assertAttestedServerPublicKey: vi.fn(),
+}));
+vi.mock(import('./ukyc/wrapEncryptionKey.js'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  wrapEncryptionKey: vi.fn(),
+}));
+
+const mockAssertAttestedServerPublicKey =
+  assertAttestedServerPublicKey as MockedFunction<
+    typeof assertAttestedServerPublicKey
+  >;
+const mockWrapEncryptionKey = wrapEncryptionKey as MockedFunction<
+  typeof wrapEncryptionKey
+>;
+
+const AAL2_TOKEN = 'aal2-token';
+
+const ENCRYPTION_SCHEMA = {
+  serverPublicKey: { kty: 'OKP', crv: 'X25519', x: 'spk-x' },
+  jwtChain: 'jwt.chain.sig',
+};
+
+const UKYC_SESSION = {
+  sessionId: 'sid-1',
+  encryptionDataKey: ENCRYPTION_SCHEMA,
+  ukycCapabilityToken: ENCRYPTION_SCHEMA,
+};
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -413,6 +446,170 @@ describe('KycFlowController', () => {
     });
   });
 
+  describe('startSession', () => {
+    it('creates and authorizes a session, then reads the step', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getStep.mockResolvedValue('identity_verification');
+
+        const step = await controller.startSession({
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+          email: 'a@b.co',
+        });
+
+        expect(step).toBe('identity_verification');
+        expect(handlers.getGeoCountry).toHaveBeenCalledOnce();
+        expect(handlers.createUkycSession).toHaveBeenCalledWith({
+          sessionClientPublicKey: expect.any(String),
+          residenceCountry: 'USA',
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+          email: 'a@b.co',
+        });
+        expect(handlers.setAuthorizations).toHaveBeenCalledWith({
+          sessionId: 'sid-1',
+          wrappedEncryptionDataKey: { data: 'enc', nonce: 'nonce' },
+          wrappedUkycCapabilityToken: { data: 'enc', nonce: 'nonce' },
+        });
+        expect(controller.state.vendors.kalshi).toStrictEqual({
+          step: 'identity_verification',
+          sessionId: 'sid-1',
+        });
+      });
+    });
+
+    it('leaves the email out when none is given', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.startSession({
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(handlers.createUkycSession.mock.calls[0][0]).not.toHaveProperty(
+          'email',
+        );
+      });
+    });
+
+    it('verifies both wrapping keys before it trusts them', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.startSession({
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(handlers.fetchIdosEnclaveJwks).toHaveBeenCalledOnce();
+        expect(handlers.fetchIdosRelayJwks).toHaveBeenCalledOnce();
+        expect(mockAssertAttestedServerPublicKey).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('creates the local user secret when the user has none', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await controller.startSession({
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+        });
+
+        expect(handlers.performGetStorage).toHaveBeenCalled();
+        expect(handlers.performSetStorage).toHaveBeenCalledOnce();
+      });
+    });
+
+    it('does not create a session when kyc-api already has one', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(SESSION_STATUS);
+        handlers.getStep.mockResolvedValue('kyc_pending');
+
+        const step = await controller.startSession({ vendor: 'kalshi' });
+
+        expect(step).toBe('kyc_pending');
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+        expect(controller.state.vendors.kalshi?.sessionId).toBe('sid-1');
+      });
+    });
+
+    it.each(['new', 'expired'])(
+      'sends fresh authorizations when the session says they are %s',
+      async (capabilityAuthorizationStatus) => {
+        await withController(async ({ controller, handlers }) => {
+          handlers.getSessionStatusForVendor.mockResolvedValue({
+            ...SESSION_STATUS,
+            capabilityAuthorizationStatus,
+          });
+
+          await controller.startSession({ vendor: 'kalshi' });
+
+          expect(handlers.resetWrappingKeys).toHaveBeenCalledWith({
+            sessionId: 'sid-1',
+            sessionClientPublicKey: expect.any(String),
+          });
+          expect(handlers.setAuthorizations).toHaveBeenCalledOnce();
+          expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        });
+      },
+    );
+
+    it('leaves authorizations alone once KYC has finished', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue({
+          ...SESSION_STATUS,
+          finalStatus: 'approved',
+          capabilityAuthorizationStatus: 'expired',
+        });
+
+        await controller.startSession({ vendor: 'kalshi' });
+
+        expect(handlers.resetWrappingKeys).not.toHaveBeenCalled();
+      });
+    });
+
+    it('needs an AAL2 token to create a session', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.startSession({ vendor: 'kalshi' }),
+        ).rejects.toThrow('aal2Token is required');
+
+        expect(handlers.createUkycSession).not.toHaveBeenCalled();
+        expect(controller.state.vendors).toStrictEqual({});
+      });
+    });
+
+    it('does not save a session when the wrapping keys fail to verify', async () => {
+      await withController(async ({ controller, handlers }) => {
+        mockAssertAttestedServerPublicKey.mockImplementationOnce(() => {
+          throw new Error('bad key');
+        });
+
+        await expect(
+          controller.startSession({
+            vendor: 'kalshi',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toThrow('Failed to verify the wrapping keys');
+
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+        expect(controller.state.vendors).toStrictEqual({});
+      });
+    });
+
+    it('explains when the issuer keys cannot be fetched', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.fetchIdosRelayJwks.mockRejectedValue(new Error('offline'));
+
+        await expect(
+          controller.startSession({
+            vendor: 'kalshi',
+            aal2Token: AAL2_TOKEN,
+          }),
+        ).rejects.toThrow('Unable to fetch JWKS');
+
+        expect(handlers.setAuthorizations).not.toHaveBeenCalled();
+      });
+    });
+  });
+
   describe('markProviderSubmitted', () => {
     it('tells kyc-api and saves the next step', async () => {
       await withController(
@@ -490,6 +687,14 @@ type ServiceHandlers = {
   markProviderSubmitted: ReturnType<typeof vi.fn>;
   postOnboardingStep: ReturnType<typeof vi.fn>;
   getSessionStatusForVendor: ReturnType<typeof vi.fn>;
+  getGeoCountry: ReturnType<typeof vi.fn>;
+  createUkycSession: ReturnType<typeof vi.fn>;
+  resetWrappingKeys: ReturnType<typeof vi.fn>;
+  setAuthorizations: ReturnType<typeof vi.fn>;
+  fetchIdosEnclaveJwks: ReturnType<typeof vi.fn>;
+  fetchIdosRelayJwks: ReturnType<typeof vi.fn>;
+  performGetStorage: ReturnType<typeof vi.fn>;
+  performSetStorage: ReturnType<typeof vi.fn>;
 };
 
 type WithControllerOptions = {
@@ -530,6 +735,14 @@ function withController<ReturnValue>(
       'KycService:markProviderSubmitted',
       'KycService:postOnboardingStep',
       'KycService:getSessionStatusForVendor',
+      'KycService:getGeoCountry',
+      'KycService:createUkycSession',
+      'KycService:resetWrappingKeys',
+      'KycService:setAuthorizations',
+      'KycService:fetchIdosEnclaveJwks',
+      'KycService:fetchIdosRelayJwks',
+      'UserStorageController:performGetStorage',
+      'UserStorageController:performSetStorage',
     ],
     events: [],
     messenger,
@@ -541,6 +754,14 @@ function withController<ReturnValue>(
     markProviderSubmitted: vi.fn().mockResolvedValue('kyc_pending'),
     postOnboardingStep: vi.fn().mockResolvedValue(SESSION_STATUS),
     getSessionStatusForVendor: vi.fn().mockResolvedValue(null),
+    getGeoCountry: vi.fn().mockResolvedValue('USA'),
+    createUkycSession: vi.fn().mockResolvedValue(UKYC_SESSION),
+    resetWrappingKeys: vi.fn().mockResolvedValue(UKYC_SESSION),
+    setAuthorizations: vi.fn().mockResolvedValue(SESSION_STATUS),
+    fetchIdosEnclaveJwks: vi.fn().mockResolvedValue({ keys: [] }),
+    fetchIdosRelayJwks: vi.fn().mockResolvedValue({ keys: [] }),
+    performGetStorage: vi.fn().mockResolvedValue(null),
+    performSetStorage: vi.fn().mockResolvedValue(undefined),
   };
   rootMessenger.registerActionHandler('KycService:getStep', handlers.getStep);
   rootMessenger.registerActionHandler(
@@ -559,6 +780,41 @@ function withController<ReturnValue>(
     'KycService:getSessionStatusForVendor',
     handlers.getSessionStatusForVendor,
   );
+  rootMessenger.registerActionHandler(
+    'KycService:getGeoCountry',
+    handlers.getGeoCountry,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:createUkycSession',
+    handlers.createUkycSession,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:resetWrappingKeys',
+    handlers.resetWrappingKeys,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:setAuthorizations',
+    handlers.setAuthorizations,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchIdosEnclaveJwks',
+    handlers.fetchIdosEnclaveJwks,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchIdosRelayJwks',
+    handlers.fetchIdosRelayJwks,
+  );
+  rootMessenger.registerActionHandler(
+    'UserStorageController:performGetStorage',
+    handlers.performGetStorage,
+  );
+  rootMessenger.registerActionHandler(
+    'UserStorageController:performSetStorage',
+    handlers.performSetStorage,
+  );
+  mockAssertAttestedServerPublicKey.mockReset();
+  mockWrapEncryptionKey.mockReset();
+  mockWrapEncryptionKey.mockReturnValue({ data: 'enc', nonce: 'nonce' });
 
   const controller = new KycFlowController({ messenger, ...options });
   return testFunction({ controller, rootMessenger, handlers });
