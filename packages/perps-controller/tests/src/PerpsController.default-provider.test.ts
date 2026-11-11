@@ -454,6 +454,10 @@ describe('PerpsController default provider', () => {
         'hyperliquid',
       );
       expect(controller.state.defaultProvider).toBe('hyperliquid');
+      expect(controller.state.hasExplicitDefaultProviderSelection).toBe(false);
+      expect(
+        controller.metadata.hasExplicitDefaultProviderSelection.persist,
+      ).toBe(true);
     });
 
     it('updates the aggregated default without re-initializing or reconnecting (AC1)', () => {
@@ -589,6 +593,7 @@ describe('PerpsController default provider', () => {
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
       });
       expect(controller.state.defaultProvider).toBe('hyperliquid');
+      expect(controller.state.hasExplicitDefaultProviderSelection).toBe(false);
     });
   });
 
@@ -995,6 +1000,81 @@ describe('PerpsController default provider', () => {
   });
 
   describe('multi-provider flag arriving after construction', () => {
+    it.each([false, true])(
+      'infers the direct venue after an automatic default is persisted and reloaded (marker present: %s)',
+      (withMarker) => {
+        createController({ activeProvider: 'lighter' });
+        const persisted = JSON.parse(JSON.stringify(controller.state));
+        if (!withMarker) {
+          delete persisted.hasExplicitDefaultProviderSelection;
+        }
+        expect(persisted.defaultProvider).toBe('hyperliquid');
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(true);
+
+        createController(persisted);
+
+        expect(controller.state.activeProvider).toBe('aggregated');
+        expect(controller.state.defaultProvider).toBe('lighter');
+        expect(controller.state.hasExplicitDefaultProviderSelection).toBe(
+          false,
+        );
+      },
+    );
+
+    it('infers the direct venue when the flag arrives after reloading an automatic default', async () => {
+      createController({ activeProvider: 'lighter' });
+      const persisted = JSON.parse(JSON.stringify(controller.state));
+      createController(persisted, true);
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: true,
+        minimumVersion: '1.0.0',
+      };
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockReturnValue(true);
+
+      await controller.init();
+
+      expect(controller.state.activeProvider).toBe('aggregated');
+      expect(controller.state.defaultProvider).toBe('lighter');
+      expect(
+        (
+          controller.getActiveProviderOrNull() as AggregatedPerpsProvider
+        ).getWriteProviderId(),
+      ).toBe('lighter');
+    });
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'preserves an explicitly saved %s default after a restart before migration',
+      (defaultProvider) => {
+        createController({
+          activeProvider:
+            defaultProvider === 'lighter' ? 'hyperliquid' : 'lighter',
+        });
+        controller.setDefaultProvider(defaultProvider);
+        const persisted = JSON.parse(JSON.stringify(controller.state));
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(true);
+
+        createController(persisted);
+
+        expect(controller.state.activeProvider).toBe('aggregated');
+        expect(controller.state.defaultProvider).toBe(defaultProvider);
+        expect(controller.state.hasExplicitDefaultProviderSelection).toBe(true);
+      },
+    );
+
     it.each(['hyperliquid', 'lighter'] as const)(
       'preserves a %s default saved before the flag arrives and initialization',
       async (defaultProvider) => {
@@ -1313,6 +1393,7 @@ describe('PerpsController default provider', () => {
           activeProvider:
             defaultProvider === 'lighter' ? 'hyperliquid' : 'lighter',
           defaultProvider,
+          hasExplicitDefaultProviderSelection: true,
         });
 
         expect(controller.state.activeProvider).toBe('aggregated');

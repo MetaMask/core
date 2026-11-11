@@ -402,6 +402,12 @@ export type PerpsControllerState = {
    */
   defaultProvider: PerpsProviderType;
   /**
+   * Whether `setDefaultProvider` explicitly saved a venue, even if it matched
+   * the initial fallback. Persisted so migration can distinguish user intent
+   * from an automatically persisted `defaultProvider` across cold starts.
+   */
+  hasExplicitDefaultProviderSelection: boolean;
+  /**
    * Whether the user explicitly chose a direct `activeProvider`. Set by
    * `switchProvider` so ordinary initialization (network toggle, disconnect/
    * init, cold start) does not reinterpret the choice as unmigrated legacy
@@ -606,6 +612,7 @@ export type PerpsControllerState = {
 export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
   activeProvider: 'hyperliquid',
   defaultProvider: 'hyperliquid',
+  hasExplicitDefaultProviderSelection: false,
   hasExplicitProviderSelection: false,
   isTestnet: false, // Default to mainnet
   initializationState: InitializationState.Uninitialized,
@@ -698,6 +705,12 @@ const metadata: StateMetadata<PerpsControllerState> = {
     persist: true,
     includeInDebugSnapshot: false,
     usedInUi: true,
+  },
+  hasExplicitDefaultProviderSelection: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
   },
   hasExplicitProviderSelection: {
     includeInStateLogs: true,
@@ -1284,10 +1297,6 @@ export class PerpsController extends BaseController<
 
   #userDiskWrite: Promise<void> = Promise.resolve();
 
-  // Distinguish a persisted/user-saved default from the initial fallback so
-  // delayed multi-provider migration only infers a venue for legacy state.
-  #hasSavedDefaultProvider: boolean;
-
   // Store options for dependency injection (allows core package to inject platform-specific services)
   readonly #options: PerpsControllerOptions;
 
@@ -1331,7 +1340,6 @@ export class PerpsController extends BaseController<
       state: { ...getDefaultPerpsControllerState(), ...state },
     });
 
-    this.#hasSavedDefaultProvider = state.defaultProvider !== undefined;
     this.#eligibilityCheckDeferred = deferEligibilityCheck;
 
     // Store options for dependency injection
@@ -2206,8 +2214,8 @@ export class PerpsController extends BaseController<
    * Migrate a persisted direct `activeProvider` to aggregated mode (TAT-4394).
    *
    * When the multi-provider flag is on and the persisted mode is a direct
-   * venue, the venue becomes the persisted `defaultProvider` only if no default
-   * has already been saved. The mode becomes `aggregated`, so both venues'
+   * venue, the venue becomes the persisted `defaultProvider` unless the user
+   * explicitly saved one. The mode becomes `aggregated`, so both venues'
    * positions and balances are read at the same time and each order goes to
    * the venue the user picks. Idempotent;
    * runs at construction (flags may not be loaded yet, in which case it also
@@ -2228,12 +2236,11 @@ export class PerpsController extends BaseController<
     }
 
     this.update((state) => {
-      if (!this.#hasSavedDefaultProvider) {
+      if (!state.hasExplicitDefaultProviderSelection) {
         state.defaultProvider = activeProvider;
       }
       state.activeProvider = 'aggregated';
     });
-    this.#hasSavedDefaultProvider = true;
 
     this.#debugLog(
       'PerpsController: Migrated direct provider to aggregated mode',
@@ -6700,10 +6707,10 @@ export class PerpsController extends BaseController<
     const defaultChanged =
       (aggregatedProvider?.getWriteProviderId() ??
         this.state.defaultProvider) !== providerId;
-    this.#hasSavedDefaultProvider = true;
 
     this.update((state) => {
       state.defaultProvider = providerId;
+      state.hasExplicitDefaultProviderSelection = true;
       // The cached snapshot came from the previous default venue's stream, so
       // drop it until the new venue delivers matching data.
       if (defaultChanged && aggregatedProvider) {

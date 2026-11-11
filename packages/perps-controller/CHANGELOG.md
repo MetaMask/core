@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Returns the new `SetDefaultProviderResult` type (`{ success, defaultProvider, error? }`)
   - When the version-gated `perpsMultiProviderModeEnabled` remote feature flag (TAT-4394) is on, a persisted direct `activeProvider` (`hyperliquid` or `lighter`) migrates to `aggregated`, preserving an existing saved `defaultProvider` or inferring it from the previous direct venue for legacy state, so both venues' positions and balances are read at the same time
   - A default saved with `setDefaultProvider` before initialization is preserved even if the multi-provider flag arrives later
+  - Persist `hasExplicitDefaultProviderSelection` when `setDefaultProvider` succeeds, including unchanged defaults, so migration preserves user choices across cold starts but still infers the direct venue when `defaultProvider` was only automatically persisted ([#11421](https://github.com/MetaMask/core/pull/11421))
   - New messenger action type `PerpsControllerSetDefaultProviderAction`
 - Add a structured `PROVIDER_ROUTE_REQUIRED` error code: in aggregated mode, a write that does not name a venue is refused with it instead of silently falling back to the default provider ([#11420](https://github.com/MetaMask/core/pull/11420))
   - Applies to `placeOrder`, `editOrder`, `cancelOrder`, `closePosition`, `updatePositionTPSL`, `replacePositionTPSLLeg`, `updateMargin` and `flipPosition` (a flip names its venue through `position.providerId`)
