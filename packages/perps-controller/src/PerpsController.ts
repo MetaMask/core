@@ -308,6 +308,13 @@ export function resolveWatchlistExchangeKey(
   return map[activeProvider] ?? null;
 }
 
+/** A Core subscription whose cleanup survives automatic provider replacement. */
+type RebindableProviderSubscription = {
+  open: (provider: PerpsProvider) => () => void;
+  unsubscribe: () => void;
+  onInvalidate?: () => void;
+};
+
 /** A watchlist toggle, recorded so it can be replayed onto a remote list. */
 type WatchlistEdit = {
   network: 'testnet' | 'mainnet';
@@ -1325,6 +1332,8 @@ export class PerpsController extends BaseController<
 
   #userDiskWrite: Promise<void> = Promise.resolve();
 
+  readonly #providerSubscriptions = new Set<RebindableProviderSubscription>();
+
   // Store options for dependency injection (allows core package to inject platform-specific services)
   readonly #options: PerpsControllerOptions;
 
@@ -2334,7 +2343,8 @@ export class PerpsController extends BaseController<
     this.#migrateActiveProviderForMultiProviderIfNeeded();
     this.isInitialized = false;
     this.#initializationPromise = null;
-    this.#initWithoutDisconnectWait()
+    this.#initWithoutDisconnectWait(true)
+      .then(() => this.#restoreProviderSubscriptions())
       .catch((error: unknown) => {
         this.#logError(
           ensureError(error, 'PerpsController.multiProviderRollback'),
@@ -2534,9 +2544,12 @@ export class PerpsController extends BaseController<
    * Initialize without waiting for disconnect. Reinitialization operations use
    * this after they have claimed the controller lifecycle.
    *
+   * @param preserveSubscriptions - Keep Core registrations during automatic rollback.
    * @returns A promise that resolves when initialization finishes.
    */
-  async #initWithoutDisconnectWait(): Promise<void> {
+  async #initWithoutDisconnectWait(
+    preserveSubscriptions = false,
+  ): Promise<void> {
     if (!this.#handlersRegistered) {
       this.messenger.registerMethodActionHandlers(
         this,
@@ -2553,7 +2566,9 @@ export class PerpsController extends BaseController<
       return this.#initializationPromise;
     }
 
-    this.#initializationPromise = this.#performInitialization();
+    this.#initializationPromise = this.#performInitialization(
+      preserveSubscriptions,
+    );
     this.#initializationStartWaiters.forEach((notifyStarted) =>
       notifyStarted(),
     );
@@ -2605,11 +2620,15 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Actual initialization implementation with retry logic
+   * Actual initialization implementation with retry logic.
+   *
+   * @param preserveSubscriptions - Keep Core registrations for automatic rollback.
    */
-  async #performInitialization(): Promise<void> {
+  async #performInitialization(preserveSubscriptions: boolean): Promise<void> {
     const maxAttempts = 3;
     const baseDelay = 1000;
+
+    this.#detachProviderSubscriptions(!preserveSubscriptions);
 
     this.update((state) => {
       state.initializationState = InitializationState.Initializing;
@@ -6923,7 +6942,17 @@ export class PerpsController extends BaseController<
     try {
       const provider = this.getActiveProvider();
       if (provider.subscribeToConnectionState) {
-        return provider.subscribeToConnectionState(listener);
+        return this.#trackProviderSubscription(provider, (nextProvider) => {
+          if (nextProvider.subscribeToConnectionState) {
+            return nextProvider.subscribeToConnectionState(listener);
+          }
+          listener(
+            nextProvider.getWebSocketConnectionState?.() ??
+              WebSocketConnectionState.Disconnected,
+            0,
+          );
+          return () => undefined;
+        });
       }
       // Fallback: immediately call with current state and return no-op unsubscribe
       listener(this.getWebSocketConnectionState(), 0);
@@ -6970,6 +6999,103 @@ export class PerpsController extends BaseController<
     }
   }
 
+  /**
+   * Remember aggregated-session subscriptions for automatic rollback only.
+   * Direct-session and caller-driven reconnect semantics remain unchanged.
+   *
+   * @param provider - Initially active provider.
+   * @param open - Opens this subscription on a provider.
+   * @param onInvalidate - Invalidates a cached value while the route is detached.
+   * @returns Cleanup that always removes the current binding.
+   */
+  #trackProviderSubscription(
+    provider: PerpsProvider,
+    open: (provider: PerpsProvider) => () => void,
+    onInvalidate?: () => void,
+  ): () => void {
+    if (provider.protocolId !== 'aggregated') {
+      return open(provider);
+    }
+    const subscription: RebindableProviderSubscription = {
+      open,
+      unsubscribe: open(provider),
+      onInvalidate,
+    };
+    this.#providerSubscriptions.add(subscription);
+    return () => {
+      if (!this.#providerSubscriptions.delete(subscription)) {
+        return;
+      }
+      const { unsubscribe } = subscription;
+      subscription.unsubscribe = (): void => undefined;
+      unsubscribe();
+    };
+  }
+
+  /**
+   * Detach registrations before their providers are disconnected.
+   *
+   * @param discard - Drop registrations for a caller-initiated lifecycle change.
+   */
+  #detachProviderSubscriptions(discard: boolean): void {
+    const subscriptions = [...this.#providerSubscriptions];
+    if (discard) {
+      this.#providerSubscriptions.clear();
+    }
+    for (const subscription of subscriptions) {
+      const { unsubscribe } = subscription;
+      subscription.unsubscribe = (): void => undefined;
+      try {
+        unsubscribe();
+      } catch (error) {
+        this.#logProviderSubscriptionError(error);
+      }
+      if (!discard && this.#providerSubscriptions.has(subscription)) {
+        try {
+          subscription.onInvalidate?.();
+        } catch (error) {
+          this.#logProviderSubscriptionError(error);
+        }
+      }
+    }
+  }
+
+  /** Reattach surviving registrations after successful automatic rollback. */
+  #restoreProviderSubscriptions(): void {
+    const provider = this.activeProviderInstance;
+    if (!this.isInitialized || !provider) {
+      return;
+    }
+    for (const subscription of [...this.#providerSubscriptions]) {
+      if (!this.#providerSubscriptions.has(subscription)) {
+        continue;
+      }
+      try {
+        const unsubscribe = subscription.open(provider);
+        // A synchronous first update may cause the caller to unsubscribe.
+        if (this.#providerSubscriptions.has(subscription)) {
+          subscription.unsubscribe = unsubscribe;
+        } else {
+          unsubscribe();
+        }
+      } catch (error) {
+        this.#logProviderSubscriptionError(error);
+      }
+    }
+  }
+
+  /**
+   * Isolate subscription failures so other consumers can still recover.
+   *
+   * @param error - Subscription cleanup, invalidation or restoration failure.
+   */
+  #logProviderSubscriptionError(error: unknown): void {
+    this.#logError(
+      ensureError(error, 'PerpsController.providerSubscriptionRollback'),
+      this.#getErrorContext('providerSubscriptionRollback'),
+    );
+  }
+
   // Live data delegation (NO Redux) - delegates to active provider
 
   /**
@@ -6986,7 +7112,9 @@ export class PerpsController extends BaseController<
       };
     }
     try {
-      return provider.subscribeToPrices(params);
+      return this.#trackProviderSubscription(provider, (nextProvider) =>
+        nextProvider.subscribeToPrices(params),
+      );
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToPrices'),
@@ -7018,7 +7146,9 @@ export class PerpsController extends BaseController<
       };
     }
     try {
-      return provider.subscribeToPositions(params);
+      return this.#trackProviderSubscription(provider, (nextProvider) =>
+        nextProvider.subscribeToPositions(params),
+      );
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToPositions'),
@@ -7050,7 +7180,9 @@ export class PerpsController extends BaseController<
       };
     }
     try {
-      return provider.subscribeToOrderFills(params);
+      return this.#trackProviderSubscription(provider, (nextProvider) =>
+        nextProvider.subscribeToOrderFills(params),
+      );
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToOrderFills'),
@@ -7086,7 +7218,12 @@ export class PerpsController extends BaseController<
       };
     }
     try {
-      return provider.subscribeToTwapOrders(params);
+      return this.#trackProviderSubscription(
+        provider,
+        (nextProvider) =>
+          nextProvider.subscribeToTwapOrders?.(params) ?? (() => undefined),
+        () => params.callback([], true),
+      );
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToTwapOrders'),
@@ -7118,7 +7255,9 @@ export class PerpsController extends BaseController<
       };
     }
     try {
-      return provider.subscribeToOrders(params);
+      return this.#trackProviderSubscription(provider, (nextProvider) =>
+        nextProvider.subscribeToOrders(params),
+      );
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToOrders'),
@@ -7153,19 +7292,24 @@ export class PerpsController extends BaseController<
     }
     try {
       const originalCallback = params.callback;
-      return provider.subscribeToAccount({
-        ...params,
-        callback: (account: AccountState | null) => {
-          if (account) {
-            this.update((state) => {
-              state.accountState = account;
-              state.lastUpdateTimestamp = Date.now();
-              state.lastError = null;
-            });
-          }
-          originalCallback(account);
-        },
-      });
+      return this.#trackProviderSubscription(
+        provider,
+        (nextProvider) =>
+          nextProvider.subscribeToAccount({
+            ...params,
+            callback: (account: AccountState | null) => {
+              if (account) {
+                this.update((state) => {
+                  state.accountState = account;
+                  state.lastUpdateTimestamp = Date.now();
+                  state.lastError = null;
+                });
+              }
+              originalCallback(account);
+            },
+          }),
+        () => originalCallback(null),
+      );
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToAccount'),
@@ -7198,7 +7342,9 @@ export class PerpsController extends BaseController<
       };
     }
     try {
-      return provider.subscribeToOrderBook(params);
+      return this.#trackProviderSubscription(provider, (nextProvider) =>
+        nextProvider.subscribeToOrderBook(params),
+      );
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToOrderBook'),
@@ -7245,7 +7391,16 @@ export class PerpsController extends BaseController<
       return noop;
     }
     try {
-      return provider.subscribeToAvailableToTrade(params);
+      return this.#trackProviderSubscription(
+        provider,
+        (nextProvider) =>
+          this.#hasConflictingProviderRoute(params.providerId, nextProvider)
+            ? () => undefined
+            : (nextProvider.subscribeToAvailableToTrade?.(params) ??
+              (() => undefined)),
+        () =>
+          params.onError?.(new Error('Available-to-trade provider replaced')),
+      );
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToAvailableToTrade'),
@@ -7273,7 +7428,9 @@ export class PerpsController extends BaseController<
       };
     }
     try {
-      return provider.subscribeToCandles(params);
+      return this.#trackProviderSubscription(provider, (nextProvider) =>
+        nextProvider.subscribeToCandles(params),
+      );
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToCandles'),
@@ -7308,7 +7465,9 @@ export class PerpsController extends BaseController<
       };
     }
     try {
-      return provider.subscribeToOICaps(params);
+      return this.#trackProviderSubscription(provider, (nextProvider) =>
+        nextProvider.subscribeToOICaps(params),
+      );
     } catch (error) {
       this.#logError(
         ensureError(error, 'PerpsController.subscribeToOICaps'),
@@ -7607,6 +7766,7 @@ export class PerpsController extends BaseController<
    * @returns A promise that resolves when teardown finishes.
    */
   async #performDisconnect(): Promise<void> {
+    this.#detachProviderSubscriptions(true);
     this.#lifecycleGeneration += 1;
     this.#debugLog(
       'PerpsController: Disconnecting provider to cleanup subscriptions',

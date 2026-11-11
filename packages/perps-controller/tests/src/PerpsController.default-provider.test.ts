@@ -16,7 +16,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, Mocked, MockedClass } from 'vitest';
 
-import { createMockHyperLiquidProvider } from '../helpers/providerMocks.js';
+import {
+  createMockHyperLiquidProvider,
+  createMockOrder,
+  createMockPosition,
+} from '../helpers/providerMocks.js';
 import {
   createDeferred,
   createMockInfrastructure,
@@ -40,6 +44,7 @@ import {
   selectOrderBookGrouping,
   selectMarginMode,
 } from '../../src/selectors.js';
+import { WebSocketConnectionState } from '../../src/types/index.js';
 import type {
   AccountState,
   PerpsProvider,
@@ -1430,6 +1435,394 @@ describe('PerpsController default provider', () => {
   });
 
   describe('multi-provider kill switch', () => {
+    it.each([
+      'subscribeToAccount',
+      'subscribeToOrders',
+      'subscribeToPositions',
+      'subscribeToPrices',
+      'subscribeToOrderFills',
+      'subscribeToTwapOrders',
+      'subscribeToOrderBook',
+      'subscribeToAvailableToTrade',
+      'subscribeToCandles',
+      'subscribeToOICaps',
+      'subscribeToConnectionState',
+    ] as const)(
+      'rebinds an existing %s subscription to the replacement and preserves its original cleanup',
+      async (method) => {
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(true);
+        createController({ activeProvider: 'hyperliquid' }, true);
+        const replacement = createMockHyperLiquidProvider();
+        const oldListeners = new Set<(...args: any[]) => void>();
+        const newListeners = new Set<(...args: any[]) => void>();
+        const oldCleanup = vi.fn();
+        const newCleanup = vi.fn();
+        const oldSubscribe = vi.fn((params) => {
+          const callback =
+            typeof params === 'function' ? params : params.callback;
+          oldListeners.add(callback);
+          return () => {
+            oldListeners.delete(callback);
+            oldCleanup();
+          };
+        });
+        const newSubscribe = vi.fn((params) => {
+          const callback =
+            typeof params === 'function' ? params : params.callback;
+          newListeners.add(callback);
+          return () => {
+            newListeners.delete(callback);
+            newCleanup();
+          };
+        });
+        (mockProvider as any)[method] = oldSubscribe;
+        (replacement as any)[method] = newSubscribe;
+        (lighterProvider as any)[method] = vi.fn().mockReturnValue(vi.fn());
+        mockProvider.disconnect.mockImplementation(async () => {
+          oldListeners.clear();
+          return { success: true };
+        });
+        (HyperLiquidProvider as Mock)
+          .mockImplementationOnce(function () {
+            return mockProvider;
+          })
+          .mockImplementationOnce(function () {
+            return replacement;
+          });
+        await controller.init();
+        const callback = vi.fn();
+        const params = {
+          callback,
+          symbols: ['BTC'],
+          symbol: 'BTC',
+          interval: '1h',
+        };
+        const cleanup = (
+          controller[method] as (params: any) => () => void
+        ).call(
+          controller,
+          method === 'subscribeToConnectionState' ? callback : params,
+        );
+        const updates: Record<string, unknown> = {
+          subscribeToAccount: {
+            totalBalance: '200',
+            spendableBalance: '200',
+            withdrawableBalance: '200',
+            marginUsed: '0',
+            unrealizedPnl: '0',
+            returnOnEquity: '0',
+          },
+          subscribeToOrders: [createMockOrder()],
+          subscribeToPositions: [createMockPosition()],
+          subscribeToPrices: [
+            { symbol: 'BTC', price: '100', timestamp: Date.now() },
+          ],
+          subscribeToConnectionState: WebSocketConnectionState.Connected,
+          subscribeToAvailableToTrade: {
+            providerId: 'hyperliquid',
+            symbol: 'BTC',
+            long: '10',
+            short: '20',
+          },
+          subscribeToCandles: { symbol: 'BTC', interval: '1h', candles: [] },
+          subscribeToOrderBook: {
+            bids: [],
+            asks: [],
+            spread: '0',
+            spreadPercentage: '0',
+            midPrice: '100',
+            lastUpdated: Date.now(),
+            maxTotal: '0',
+          },
+        };
+        const update = updates[method] ?? [];
+        const args =
+          method === 'subscribeToConnectionState' ? [update, 0] : [update];
+        const emit = (listeners: Set<(...args: any[]) => void>) => {
+          for (const listener of listeners) {
+            listener(...args);
+          }
+        };
+        emit(oldListeners);
+        expect(callback).toHaveBeenCalled();
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: false,
+          minimumVersion: '1.0.0',
+        };
+        const onFlagsChanged = mockMessenger.subscribe.mock.calls.find(
+          ([event]) => event === 'RemoteFeatureFlagController:stateChange',
+        )?.[1] as (state: {
+          remoteFeatureFlags: Record<string, unknown>;
+        }) => void;
+        onFlagsChanged({ remoteFeatureFlags });
+        await controller.init();
+
+        expect(controller.getActiveProviderOrNull()).toBe(replacement);
+        expect(newSubscribe).toHaveBeenCalledTimes(1);
+        const callsAfterRollback = callback.mock.calls.length;
+        emit(newListeners);
+        expect(callback).toHaveBeenCalledTimes(callsAfterRollback + 1);
+        expect(callback).toHaveBeenLastCalledWith(...args);
+        if (method === 'subscribeToAccount') {
+          expect(controller.state.accountState?.totalBalance).toBe('200');
+        }
+        cleanup();
+        cleanup();
+        emit(newListeners);
+        expect(callback).toHaveBeenCalledTimes(callsAfterRollback + 1);
+        expect(newCleanup).toHaveBeenCalledTimes(1);
+        expect(oldCleanup).toHaveBeenCalledTimes(1);
+        expect(oldListeners.size).toBe(0);
+      },
+    );
+
+    describe('subscription restoration edge cases', () => {
+      let replacement: ReturnType<typeof createMockHyperLiquidProvider>;
+      let disableMultiProvider: () => void;
+
+      beforeEach(async () => {
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(true);
+        createController({ activeProvider: 'hyperliquid' }, true);
+        replacement = createMockHyperLiquidProvider();
+        (HyperLiquidProvider as Mock)
+          .mockImplementationOnce(function () {
+            return mockProvider;
+          })
+          .mockImplementationOnce(function () {
+            return replacement;
+          });
+        for (const method of [
+          'subscribeToPrices',
+          'subscribeToPositions',
+        ] as const) {
+          mockProvider[method].mockReturnValue(vi.fn());
+          replacement[method].mockReturnValue(vi.fn());
+          (lighterProvider[method] as Mock).mockReturnValue(vi.fn());
+        }
+        mockProvider.subscribeToAccount.mockReturnValue(vi.fn());
+        replacement.subscribeToAccount.mockReturnValue(vi.fn());
+        await controller.init();
+        const onFlagsChanged = mockMessenger.subscribe.mock.calls.find(
+          ([event]) => event === 'RemoteFeatureFlagController:stateChange',
+        )?.[1] as (state: {
+          remoteFeatureFlags: Record<string, unknown>;
+        }) => void;
+        disableMultiProvider = () => {
+          remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+            enabled: false,
+            minimumVersion: '1.0.0',
+          };
+          onFlagsChanged({ remoteFeatureFlags });
+        };
+      });
+
+      it('cleans up a new binding cancelled by its synchronous first update', async () => {
+        const newCleanup = vi.fn();
+        const callback = vi.fn();
+        const cleanup = controller.subscribeToPositions({ callback });
+        callback.mockImplementation(() => cleanup());
+        replacement.subscribeToPositions.mockImplementation(
+          ({ callback: onUpdate }) => {
+            onUpdate([]);
+            return newCleanup;
+          },
+        );
+
+        disableMultiProvider();
+        await controller.init();
+
+        expect(callback).toHaveBeenCalledWith([]);
+        expect(newCleanup).toHaveBeenCalledTimes(1);
+        cleanup();
+        expect(newCleanup).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not reopen a sibling cancelled by a synchronous first update', async () => {
+        controller.subscribeToPrices({
+          symbols: ['BTC'],
+          callback: () => cancelPositions(),
+        });
+        const cancelPositions = controller.subscribeToPositions({
+          callback: vi.fn(),
+        });
+        replacement.subscribeToPrices.mockImplementation(({ callback }) => {
+          callback([]);
+          return vi.fn();
+        });
+
+        disableMultiProvider();
+        await controller.init();
+
+        expect(replacement.subscribeToPrices).toHaveBeenCalledTimes(1);
+        expect(replacement.subscribeToPositions).not.toHaveBeenCalled();
+      });
+
+      it('isolates cleanup, invalidation and reopening failures from other streams', async () => {
+        mockProvider.subscribeToPrices.mockReturnValue(() => {
+          throw new Error('cleanup failed');
+        });
+        controller.subscribeToPrices({ symbols: ['BTC'], callback: vi.fn() });
+        const accountCallback = vi.fn(() => {
+          throw new Error('invalidation failed');
+        });
+        controller.subscribeToAccount({ callback: accountCallback });
+        replacement.subscribeToAccount.mockImplementation(() => {
+          throw new Error('reopen failed');
+        });
+        const positionsCallback = vi.fn();
+        const cleanup = controller.subscribeToPositions({
+          callback: positionsCallback,
+        });
+
+        disableMultiProvider();
+        await controller.init();
+
+        expect(replacement.subscribeToPositions).toHaveBeenCalledTimes(1);
+        replacement.subscribeToPositions.mock.calls[0][0].callback([]);
+        expect(positionsCallback).toHaveBeenCalledWith([]);
+        for (const message of [
+          'cleanup failed',
+          'invalidation failed',
+          'reopen failed',
+        ]) {
+          expect(mockInfrastructure.logger.error).toHaveBeenCalledWith(
+            expect.objectContaining({ message }),
+            expect.anything(),
+          );
+        }
+        cleanup();
+      });
+
+      it('does not reinterpret an explicit available-to-trade route on the replacement venue', async () => {
+        const oldCleanup = vi.fn();
+        lighterProvider.subscribeToAvailableToTrade = vi
+          .fn()
+          .mockReturnValue(oldCleanup);
+        replacement.subscribeToAvailableToTrade = vi
+          .fn()
+          .mockReturnValue(vi.fn());
+        const onError = vi.fn();
+        const cleanup = controller.subscribeToAvailableToTrade({
+          symbol: 'BTC',
+          providerId: 'lighter',
+          callback: vi.fn(),
+          onError,
+        });
+
+        disableMultiProvider();
+        await controller.init();
+
+        expect(onError).toHaveBeenCalledTimes(1);
+        expect(oldCleanup).toHaveBeenCalledTimes(1);
+        expect(replacement.subscribeToAvailableToTrade).not.toHaveBeenCalled();
+        expect(() => cleanup()).not.toThrow();
+      });
+
+      it('reports the current connection state if the replacement cannot stream it', async () => {
+        const listener = vi.fn();
+        const cleanup = controller.subscribeToConnectionState(listener);
+        delete (replacement as any).subscribeToConnectionState;
+        replacement.getWebSocketConnectionState.mockReturnValue(
+          WebSocketConnectionState.Connected,
+        );
+        listener.mockClear();
+
+        disableMultiProvider();
+        await controller.init();
+
+        expect(listener).toHaveBeenLastCalledWith(
+          WebSocketConnectionState.Connected,
+          0,
+        );
+        expect(() => cleanup()).not.toThrow();
+      });
+
+      it('invalidates TWAP data even when the replacement has no native stream', async () => {
+        const oldCleanup = vi.fn();
+        mockProvider.subscribeToTwapOrders = vi
+          .fn()
+          .mockReturnValue(oldCleanup);
+        const callback = vi.fn();
+        const cleanup = controller.subscribeToTwapOrders({ callback });
+
+        disableMultiProvider();
+        await controller.init();
+
+        expect(callback).toHaveBeenCalledWith([], true);
+        expect(oldCleanup).toHaveBeenCalledTimes(1);
+        expect(() => cleanup()).not.toThrow();
+      });
+
+      it('does not replay old registrations after a caller-initiated disconnect', async () => {
+        const oldCleanup = vi.fn();
+        mockProvider.subscribeToAccount.mockReturnValue(oldCleanup);
+        const cleanup = controller.subscribeToAccount({ callback: vi.fn() });
+        await controller.disconnect();
+        await controller.init();
+        disableMultiProvider();
+        await controller.init();
+
+        expect(replacement.subscribeToAccount).not.toHaveBeenCalled();
+        expect(oldCleanup).toHaveBeenCalledTimes(1);
+        cleanup();
+        expect(oldCleanup).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('does not restore a subscription cancelled while rollback is replacing providers', async () => {
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: true,
+        minimumVersion: '1.0.0',
+      };
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockReturnValue(true);
+      createController({ activeProvider: 'hyperliquid' }, true);
+      const replacement = createMockHyperLiquidProvider();
+      replacement.subscribeToAccount.mockReturnValue(vi.fn());
+      mockProvider.subscribeToAccount.mockReturnValue(vi.fn());
+      (HyperLiquidProvider as Mock)
+        .mockImplementationOnce(function () {
+          return mockProvider;
+        })
+        .mockImplementationOnce(function () {
+          return replacement;
+        });
+      await controller.init();
+      const cleanup = controller.subscribeToAccount({ callback: vi.fn() });
+      const resumeDisconnect = createDeferred<void>();
+      mockProvider.disconnect.mockImplementationOnce(() =>
+        resumeDisconnect.promise.then(() => ({ success: true })),
+      );
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: false,
+        minimumVersion: '1.0.0',
+      };
+      const onFlagsChanged = mockMessenger.subscribe.mock.calls.find(
+        ([event]) => event === 'RemoteFeatureFlagController:stateChange',
+      )?.[1] as (state: {
+        remoteFeatureFlags: Record<string, unknown>;
+      }) => void;
+      onFlagsChanged({ remoteFeatureFlags });
+      cleanup();
+      resumeDisconnect.resolve();
+      await controller.init();
+
+      expect(replacement.subscribeToAccount).not.toHaveBeenCalled();
+    });
+
     it.each([false, true])(
       'preserves an automatically inferred default after rollback fallback and flag re-enablement (restart: %s)',
       async (restart) => {
