@@ -403,8 +403,9 @@ export type PerpsControllerState = {
   defaultProvider: PerpsProviderType;
   /**
    * Live venue for implicit reads, streams and trade configurations, including
-   * an in-memory fallback when the saved default is unavailable. Null before
-   * provider assignment and after disconnect. Not persisted.
+   * an in-memory fallback when the saved default is unavailable. Null while
+   * initializing or switching providers/networks, and after disconnect.
+   * Not persisted.
    */
   effectiveProvider: PerpsProviderType | null;
   /**
@@ -2537,6 +2538,9 @@ export class PerpsController extends BaseController<
 
     this.update((state) => {
       state.initializationState = InitializationState.Initializing;
+      // The previous route is no longer authoritative during reconnection.
+      // Implicit configurations use the selected destination until assignment.
+      state.effectiveProvider = null;
       state.initializationError = null;
       state.initializationAttempts = 0;
     });
@@ -2653,6 +2657,7 @@ export class PerpsController extends BaseController<
     this.isInitialized = false;
     this.update((state) => {
       state.initializationState = InitializationState.Failed;
+      state.effectiveProvider = null;
       state.initializationError = lastError?.message ?? 'Unknown error';
     });
     this.#initializationPromise = null; // Clear promise to allow retry
@@ -6437,6 +6442,7 @@ export class PerpsController extends BaseController<
 
       this.update((state) => {
         state.isTestnet = !state.isTestnet;
+        state.effectiveProvider = null;
       });
 
       const newNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
@@ -6472,6 +6478,7 @@ export class PerpsController extends BaseController<
       // Rollback isTestnet to previous value
       this.update((state) => {
         state.isTestnet = previousIsTestnet;
+        state.effectiveProvider = null;
       });
 
       return {
@@ -6598,6 +6605,8 @@ export class PerpsController extends BaseController<
       // Update state with new provider (market data cache preserved per-provider)
       this.update((state) => {
         state.activeProvider = providerId;
+        // Publish the new selection and invalidate its old live route together.
+        state.effectiveProvider = null;
         // Record whether this is an explicit direct selection so a later
         // network toggle or disconnect/init does not migrate it away.
         state.hasExplicitProviderSelection = providerId !== 'aggregated';
@@ -6628,6 +6637,7 @@ export class PerpsController extends BaseController<
       // Rollback state to previous provider
       this.update((state) => {
         state.activeProvider = previousProvider;
+        state.effectiveProvider = null;
         state.hasExplicitProviderSelection = previousSelectionExplicit;
       });
 
@@ -6727,7 +6737,11 @@ export class PerpsController extends BaseController<
       };
     }
 
+    // During reinitialization the instance may still be the previous wrapper.
+    // Persist the preference, but let provider assignment publish the new route.
     const aggregatedProvider =
+      this.state.activeProvider === 'aggregated' &&
+      this.state.effectiveProvider !== null &&
       this.activeProviderInstance instanceof AggregatedPerpsProvider
         ? this.activeProviderInstance
         : null;
@@ -7788,7 +7802,8 @@ export class PerpsController extends BaseController<
    * Resolve the venue key trade configurations are stored under.
    *
    * An explicit `providerId` wins, otherwise use the live effective venue.
-   * Before initialization, use the active direct or saved default venue.
+   * Before or during initialization, use the selected direct or saved default
+   * venue until a live provider is assigned.
    * Both are validated against the closed set of venues before use: the key
    * reaches persisted state, so an unexpected value (including `__proto__`
    * from a JS caller or tampered persisted state) must never become a record

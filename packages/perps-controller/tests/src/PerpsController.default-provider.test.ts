@@ -288,6 +288,7 @@ describe('PerpsController default provider', () => {
     controller.testUpdate((state) => {
       state.activeProvider = 'aggregated';
       state.defaultProvider = defaultProvider;
+      state.effectiveProvider = defaultProvider;
     });
     controller.testSetProviders(
       new Map<PerpsProviderType, PerpsProvider>([
@@ -1130,6 +1131,236 @@ describe('PerpsController default provider', () => {
       expect(
         mockTradingServiceInstance.placeOrder.mock.calls[0][0].provider,
       ).toBe(mockProvider);
+    });
+  });
+
+  describe('configuration routing during reinitialization', () => {
+    it.each([
+      ['hyperliquid', 'lighter', 'lighter'],
+      ['lighter', 'hyperliquid', 'hyperliquid'],
+      ['aggregated', 'lighter', 'lighter'],
+      ['lighter', 'aggregated', 'hyperliquid'],
+    ] as const)(
+      'uses the destination configuration while switching from %s to %s',
+      async (from, to, destination) => {
+        createController(
+          { activeProvider: from, defaultProvider: 'hyperliquid' },
+          true,
+        );
+        await controller.init();
+        for (const providerId of ['hyperliquid', 'lighter'] as const) {
+          const leverage = providerId === 'lighter' ? 20 : 10;
+          controller.saveTradeConfiguration('BTC', leverage, providerId);
+          controller.saveOrderBookGrouping('BTC', leverage, providerId);
+          controller.saveMarginMode(
+            'BTC',
+            providerId === 'lighter' ? 'isolated' : 'cross',
+            providerId,
+          );
+          controller.savePendingTradeConfiguration(
+            'BTC',
+            { amount: String(leverage) },
+            providerId,
+          );
+        }
+        const disconnectStarted = createDeferred<void>();
+        const resumeDisconnect = createDeferred<void>();
+        mockProvider.disconnect.mockImplementationOnce(() => {
+          disconnectStarted.resolve();
+          return resumeDisconnect.promise.then(() => ({ success: true }));
+        });
+        mockMessenger.publish.mockClear();
+        const switching = controller.switchProvider(to);
+        await disconnectStarted.promise;
+
+        try {
+          const firstDestinationState = mockMessenger.publish.mock.calls.find(
+            ([event, state]) =>
+              event === 'PerpsController:stateChanged' &&
+              (state as PerpsControllerState).activeProvider === to,
+          )?.[1] as PerpsControllerState;
+          expect(firstDestinationState.effectiveProvider).toBeNull();
+          expect(controller.state.activeProvider).toBe(to);
+          expect(controller.state.effectiveProvider).toBeNull();
+          const leverage = destination === 'lighter' ? 20 : 10;
+          const marginMode = destination === 'lighter' ? 'isolated' : 'cross';
+          expect(controller.getTradeConfiguration('BTC')).toStrictEqual({
+            leverage,
+          });
+          expect(
+            selectTradeConfiguration(controller.state, 'BTC'),
+          ).toStrictEqual({ leverage });
+          expect(controller.getOrderBookGrouping('BTC')).toBe(leverage);
+          expect(selectOrderBookGrouping(firstDestinationState, 'BTC')).toBe(
+            leverage,
+          );
+          expect(controller.getMarginMode('BTC')).toBe(marginMode);
+          expect(selectMarginMode(controller.state, 'BTC')).toBe(marginMode);
+          expect(controller.getPendingTradeConfiguration('BTC')).toStrictEqual({
+            amount: String(leverage),
+          });
+          expect(
+            selectPendingTradeConfiguration(controller.state, 'BTC'),
+          ).toStrictEqual({ amount: String(leverage) });
+
+          controller.saveTradeConfiguration('BTC', 30);
+          controller.saveOrderBookGrouping('BTC', 30);
+          controller.saveMarginMode(
+            'BTC',
+            marginMode === 'cross' ? 'isolated' : 'cross',
+          );
+          controller.savePendingTradeConfiguration('BTC', { amount: '30' });
+          expect(
+            controller.getTradeConfiguration('BTC', destination),
+          ).toStrictEqual({ leverage: 30 });
+          expect(controller.getOrderBookGrouping('BTC', destination)).toBe(30);
+          expect(controller.getMarginMode('BTC', destination)).toBe(
+            marginMode === 'cross' ? 'isolated' : 'cross',
+          );
+          expect(
+            controller.getPendingTradeConfiguration('BTC', destination),
+          ).toStrictEqual({ amount: '30' });
+          controller.clearPendingTradeConfiguration('BTC');
+          expect(
+            controller.getPendingTradeConfiguration('BTC', destination),
+          ).toBeUndefined();
+          const previous =
+            destination === 'lighter' ? 'hyperliquid' : 'lighter';
+          expect(
+            controller.getTradeConfiguration('BTC', previous),
+          ).toStrictEqual({ leverage: previous === 'lighter' ? 20 : 10 });
+          expect(
+            controller.getPendingTradeConfiguration('BTC', previous),
+          ).toStrictEqual({ amount: previous === 'lighter' ? '20' : '10' });
+        } finally {
+          resumeDisconnect.resolve();
+          await switching;
+        }
+        expect(controller.state.effectiveProvider).toBe(destination);
+        expect(controller.getOrderBookGrouping('BTC')).toBe(30);
+      },
+    );
+
+    it('uses the rollback destination while a failed switch reconnects the previous provider', async () => {
+      createController({}, true);
+      await controller.init();
+      controller.saveOrderBookGrouping('BTC', 10, 'hyperliquid');
+      controller.saveOrderBookGrouping('BTC', 1, 'lighter');
+      const rollbackStarted = createDeferred<void>();
+      const resumeRollback = createDeferred<void>();
+      mockProvider.disconnect
+        .mockRejectedValueOnce(new Error('Disconnect failed'))
+        .mockRejectedValueOnce(new Error('Disconnect failed'))
+        .mockRejectedValueOnce(new Error('Disconnect failed'))
+        .mockImplementationOnce(() => {
+          rollbackStarted.resolve();
+          return resumeRollback.promise.then(() => ({ success: true }));
+        });
+      const switching = controller.switchProvider('lighter');
+      await rollbackStarted.promise;
+      try {
+        expect(controller.state.activeProvider).toBe('hyperliquid');
+        expect(controller.state.effectiveProvider).toBeNull();
+        expect(controller.getOrderBookGrouping('BTC')).toBe(10);
+        expect(selectOrderBookGrouping(controller.state, 'BTC')).toBe(10);
+        controller.saveOrderBookGrouping('BTC', 20);
+        expect(controller.getOrderBookGrouping('BTC', 'hyperliquid')).toBe(20);
+        expect(controller.getOrderBookGrouping('BTC', 'lighter')).toBe(1);
+      } finally {
+        resumeRollback.resolve();
+        await switching;
+      }
+      await expect(switching).resolves.toMatchObject({ success: false });
+      expect(controller.state.effectiveProvider).toBe('hyperliquid');
+    });
+
+    it('leaves no effective route after a failed network reinitialization', async () => {
+      createController({}, true);
+      await controller.init();
+      mockProvider.disconnect.mockRejectedValue(new Error('Disconnect failed'));
+
+      const result = await controller.toggleTestnet();
+
+      expect(result.success).toBe(false);
+      expect(controller.state.initializationState).toBe(
+        InitializationState.Failed,
+      );
+      expect(controller.state.effectiveProvider).toBeNull();
+    });
+
+    it('does not republish the old aggregated route when a default is saved during a direct switch', async () => {
+      createController(
+        { activeProvider: 'aggregated', defaultProvider: 'hyperliquid' },
+        true,
+      );
+      await controller.init();
+      const oldWrapper =
+        controller.getActiveProviderOrNull() as AggregatedPerpsProvider;
+      const disconnectStarted = createDeferred<void>();
+      const resumeDisconnect = createDeferred<void>();
+      mockProvider.disconnect.mockImplementationOnce(() => {
+        disconnectStarted.resolve();
+        return resumeDisconnect.promise.then(() => ({ success: true }));
+      });
+      const switching = controller.switchProvider('lighter');
+      await disconnectStarted.promise;
+      try {
+        expect(controller.setDefaultProvider('hyperliquid').success).toBe(true);
+        expect(controller.state.effectiveProvider).toBeNull();
+        expect(controller.state.defaultProvider).toBe('hyperliquid');
+        expect(oldWrapper.getWriteProviderId()).toBe('hyperliquid');
+      } finally {
+        resumeDisconnect.resolve();
+        await switching;
+      }
+      expect(controller.state.effectiveProvider).toBe('lighter');
+    });
+
+    it('clears a fallback route as soon as a network toggle starts and restores the resolved venue afterward', async () => {
+      createController(
+        { activeProvider: 'aggregated', defaultProvider: 'lighter' },
+        true,
+      );
+      loadLighterProvider.mockRejectedValueOnce(
+        new Error('Temporary chunk load failure'),
+      );
+      await controller.init();
+      expect(controller.state.effectiveProvider).toBe('hyperliquid');
+      controller.testUpdate((state) => {
+        state.tradeConfigurations.testnet = {
+          hyperliquid: { BTC: { orderBookGrouping: 10 } },
+          lighter: { BTC: { orderBookGrouping: 1 } },
+        };
+      });
+      const disconnectStarted = createDeferred<void>();
+      const resumeDisconnect = createDeferred<void>();
+      mockProvider.disconnect.mockImplementationOnce(() => {
+        disconnectStarted.resolve();
+        return resumeDisconnect.promise.then(() => ({ success: true }));
+      });
+      mockMessenger.publish.mockClear();
+      const toggling = controller.toggleTestnet();
+      await disconnectStarted.promise;
+
+      try {
+        const firstTestnetState = mockMessenger.publish.mock.calls.find(
+          ([event, state]) =>
+            event === 'PerpsController:stateChanged' &&
+            (state as PerpsControllerState).isTestnet,
+        )?.[1] as PerpsControllerState;
+        expect(firstTestnetState.effectiveProvider).toBeNull();
+        expect(controller.state.effectiveProvider).toBeNull();
+        expect(selectOrderBookGrouping(firstTestnetState, 'BTC')).toBe(1);
+        expect(controller.getOrderBookGrouping('BTC')).toBe(1);
+        controller.saveOrderBookGrouping('BTC', 2);
+        expect(controller.getOrderBookGrouping('BTC', 'lighter')).toBe(2);
+        expect(controller.getOrderBookGrouping('BTC', 'hyperliquid')).toBe(10);
+      } finally {
+        resumeDisconnect.resolve();
+        await toggling;
+      }
+      expect(controller.state.effectiveProvider).toBe('lighter');
+      expect(controller.getOrderBookGrouping('BTC')).toBe(2);
     });
   });
 

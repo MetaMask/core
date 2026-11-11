@@ -29,8 +29,8 @@ import type {
  * Resolve the venue key trade configurations are stored under.
  *
  * An explicit `providerId` always wins. Otherwise use the live effective
- * venue, including temporary fallbacks. Before initialization, use the active
- * direct venue or, in aggregated mode, the saved default venue.
+ * venue, including temporary fallbacks. Before or during initialization, use
+ * the selected direct venue or, in aggregated mode, the saved default venue.
  *
  * @param state - PerpsController state.
  * @param providerId - Explicit venue, when supplied.

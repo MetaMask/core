@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Clear `effectiveProvider` when switching providers or networks and during initialization, so implicit trade-configuration reads, writes and selectors use the selected destination while reconnecting instead of the previous venue's settings ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Resolve implicit trade-configuration reads, writes and selectors against the live venue during fallback and recovery, rather than the saved preference. Expose this route as non-persisted `effectiveProvider` state while keeping `defaultProvider` unchanged; explicit `providerId` routes still take priority ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Preserve the saved `defaultProvider` when its venue is temporarily unavailable: aggregated mode uses HyperLiquid as an in-memory fallback, accepts its account balances, and restores the saved route on a later successful initialization ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Fix `updateMargin` dropping its `providerId` route before reaching the provider, so an explicit venue now answers in aggregated mode ([#11420](https://github.com/MetaMask/core/pull/11420))
