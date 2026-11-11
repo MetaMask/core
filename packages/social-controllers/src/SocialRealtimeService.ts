@@ -52,6 +52,12 @@ const normalizeScopes = (
   return normalized;
 };
 
+const haveSameScopes = (
+  left: readonly SocialFeedRealtimeScope[],
+  right: readonly SocialFeedRealtimeScope[],
+): boolean =>
+  left.length === right.length && left.every((scope) => right.includes(scope));
+
 const scopeForChannel = (
   channel: string,
 ): SocialFeedRealtimeScope | undefined =>
@@ -195,6 +201,10 @@ export class SocialRealtimeService {
       return;
     }
 
+    if (this.#subscription && haveSameScopes(this.#scopes, normalizedScopes)) {
+      return;
+    }
+
     const previousScopes = this.#scopes;
     const connectionVersion = this.#connectionVersion;
     this.#scopes = normalizedScopes;
@@ -313,7 +323,14 @@ export class SocialRealtimeService {
     const replacementSubscription = this.#subscription as
       | WebSocketSubscription
       | undefined;
-    if (existingSubscription && existingSubscription !== this.#subscription) {
+    // The backend answers a repeat subscribe to the same channels with the same
+    // subscription id. Unsubscribing the old handle would end the replacement.
+    if (
+      existingSubscription &&
+      existingSubscription !== this.#subscription &&
+      existingSubscription.subscriptionId !==
+        replacementSubscription?.subscriptionId
+    ) {
       try {
         await existingSubscription.unsubscribe();
       } catch (error) {

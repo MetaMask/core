@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/profile-sync-controller` from `^36.1.0` to `^36.1.1` ([#11419](https://github.com/MetaMask/core/pull/11419))
 
+### Fixed
+
+- Keep the realtime feed subscribed when `SocialRealtimeService.setScopes` is called with the scopes already active ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+  - `setScopes` no longer resubscribes when the scope set is unchanged.
+  - A scope replacement no longer unsubscribes the previous subscription when the backend returns the same subscription id for it. The backend does this for a repeat subscribe to the same channels, so the unsubscribe ended the replacement and the feed stopped receiving events.
+
 ## [3.20.0]
 
 ### Added
