@@ -77,6 +77,8 @@ const ProfileApiResponseStruct = structType({
   avatar_url: string(),
   trading_privacy: TradingPrivacyStruct,
   connected_to_x: boolean(),
+  // Optional for compatibility with servers that predate profile verification.
+  verified: optional(boolean()),
   created_at: string(),
   updated_at: string(),
 });

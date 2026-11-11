@@ -283,6 +283,20 @@ export type PerpsControllerUpdatePositionTPSLAction = {
 };
 
 /**
+ * Replace only the take profit or only the stop loss of an existing
+ * position. The other leg is left as it is, and the new leg keeps protecting
+ * the whole position. Providers that cannot do this reject with
+ * `TPSL_LEG_REPLACE_UNSUPPORTED`.
+ *
+ * @param params - The leg, its new trigger price and optional limit price.
+ * @returns The order result from the leg replacement.
+ */
+export type PerpsControllerReplacePositionTPSLLegAction = {
+  type: `PerpsController:replacePositionTPSLLeg`;
+  handler: PerpsController['replacePositionTPSLLeg'];
+};
+
+/**
  * Update margin for an existing position (add or remove)
  *
  * @param params - The operation parameters.
@@ -1014,6 +1028,25 @@ export type PerpsControllerSubscribeToOrderBookAction = {
 };
 
 /**
+ * Stream one market's per-side available to trade, as the venue reports it,
+ * through the provider route used by order placement. The venue pushes a
+ * new value when the market's position, leverage or mark price changes.
+ *
+ * The callback only ever receives venue values. Until the first arrives the
+ * value is unknown (`undefined` in clients). When no provider is active, the
+ * route conflicts with the active provider, or the provider cannot read the
+ * value from its venue, this returns a no-op cleanup and the value stays
+ * unknown.
+ *
+ * @param params - Market, optional route/account, callback and error handler.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToAvailableToTradeAction = {
+  type: `PerpsController:subscribeToAvailableToTrade`;
+  handler: PerpsController['subscribeToAvailableToTrade'];
+};
+
+/**
  * Subscribe to live candle updates
  *
  * @param params - The operation parameters.
@@ -1626,6 +1659,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerClosePositionAction
   | PerpsControllerClosePositionsAction
   | PerpsControllerUpdatePositionTPSLAction
+  | PerpsControllerReplacePositionTPSLLegAction
   | PerpsControllerUpdateMarginAction
   | PerpsControllerFlipPositionAction
   | PerpsControllerDepositWithConfirmationAction
@@ -1685,6 +1719,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToOrdersAction
   | PerpsControllerSubscribeToAccountAction
   | PerpsControllerSubscribeToOrderBookAction
+  | PerpsControllerSubscribeToAvailableToTradeAction
   | PerpsControllerSubscribeToCandlesAction
   | PerpsControllerSubscribeToOICapsAction
   | PerpsControllerSetLiveDataConfigAction

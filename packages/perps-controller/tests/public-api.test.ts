@@ -20,14 +20,18 @@ import {
 import {
   HYPERLIQUID_L1_ACTION_DOMAIN_NAME,
   HYPERLIQUID_L1_ACTION_PRIMARY_TYPE,
+  PERPS_ERROR_CODES,
   PerpsController,
   TP_SL_PRECISION_CONFIG,
   calculateAccountSummary,
+  calculateNetClosedPnl,
   calculatePercentageForPrice,
   calculatePriceForPercentage,
   calculatePriceForRoE,
   calculateRoEForPrice,
   calculateSignedRoEForPrice,
+  estimateCloseReceive,
+  estimateIsolatedLeverageChange,
   formatRoePercent,
   getCrossCollateral,
   getMaxStopLossPercentage,
@@ -40,6 +44,11 @@ import {
 } from '../src/index.js';
 import type {
   CalculateAccountSummaryParams,
+  CloseReceiveEstimate,
+  CloseReceiveEstimateParams,
+  IsolatedLeverageChange,
+  IsolatedLeverageChangeParams,
+  NetClosedPnlParams,
   PerpsAccountSummary,
   TpslCalculationParams,
   TpslValidationResult,
@@ -47,6 +56,7 @@ import type {
   DirectProviderOrderCapabilitiesUnavailableReason,
   GetAccountSupportParams,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   MarketInfo,
   PerpsAccountSupport,
   PerpsAccountSigner,
@@ -56,6 +66,7 @@ import type {
   PerpsControllerGetAccountSupportAction,
   PerpsControllerReconcileChaseOrderCancellationAction,
   PerpsControllerPrepareTradingWalletAction,
+  PerpsControllerReplacePositionTPSLLegAction,
   PerpsControllerSetAgentSignerAction,
   PerpsFeeResolverScope,
   PerpsPlatformDependencies,
@@ -136,6 +147,26 @@ describe('@metamask/perps-controller public API', () => {
       reason: 'multi_sig_account',
     });
     expect(action).toBe('PerpsController:getAccountSupport');
+  });
+
+  it('exports the single-leg TP/SL replace method, action and error code', () => {
+    const params: ReplacePositionTPSLLegParams = {
+      symbol: 'BTC',
+      leg: 'sl',
+      triggerPrice: '45000',
+      limitPrice: '44900',
+    };
+    const action: PerpsControllerReplacePositionTPSLLegAction['type'] =
+      'PerpsController:replacePositionTPSLLeg';
+
+    expect(typeof PerpsController.prototype.replacePositionTPSLLeg).toBe(
+      'function',
+    );
+    expect(params.leg).toBe('sl');
+    expect(action).toBe('PerpsController:replacePositionTPSLLeg');
+    expect(PERPS_ERROR_CODES.TPSL_LEG_REPLACE_UNSUPPORTED).toBe(
+      'TPSL_LEG_REPLACE_UNSUPPORTED',
+    );
   });
 
   it('exports the trading configuration constants', () => {
@@ -311,6 +342,53 @@ describe('@metamask/perps-controller public API', () => {
       10.4,
     );
     expect(summary.accountLeverage).toBeCloseTo(12.31 / 15.57);
+  });
+
+  it('exports the shared close-receive estimate and net closed PnL', () => {
+    const closeParams: CloseReceiveEstimateParams = {
+      position: {
+        size: '1',
+        entryPrice: '2000',
+        marginUsed: '1100',
+        unrealizedPnl: '100',
+        leverage: { type: 'isolated' },
+      },
+      providerId: 'hyperliquid',
+      closeSize: 0.5,
+      price: 2100,
+      feeRate: 0.0005,
+    };
+    const fill: NetClosedPnlParams = { pnl: '1234.56789', fee: '0.1' };
+    const close: CloseReceiveEstimate = estimateCloseReceive(closeParams);
+
+    expect(close).toStrictEqual({
+      marginReturned: 500,
+      realizedPnl: 50,
+      fee: 0.525,
+      receive: 549.47,
+    });
+    expect(calculateNetClosedPnl(fill)).toBe(1234.46789);
+  });
+
+  it('exports the isolated leverage change estimate', () => {
+    const params: IsolatedLeverageChangeParams = {
+      position: {
+        size: '1',
+        positionValue: '2000',
+        marginUsed: '400',
+        leverage: { type: 'isolated', value: 5 },
+      },
+      providerId: 'hyperliquid',
+      market: {},
+      leverage: 10,
+      marginTiers: [{ lowerBound: 0, maxLeverage: 25 }],
+    };
+    const result: IsolatedLeverageChange =
+      estimateIsolatedLeverageChange(params);
+
+    expect(result.removableMargin).toBeCloseTo(180);
+    expect(result.margin).toBeCloseTo(220);
+    expect(result.liquidationPrice).toBeCloseTo(1780 / 0.98);
   });
 
   it('exports the optional trading fee grant dependency contract', async () => {
