@@ -43,17 +43,34 @@ jobs:
       contents: read
       pull-requests: write
     steps:
+      # The summary compares the pull request with the commit where it
+      # branched off from the base branch (the merge base). Rather than fetching
+      # the repository's full history so that Git can find that commit, ask
+      # GitHub for it, along with how many commits the pull request has, so
+      # that only those commits need to be fetched.
+      - name: Get merge base
+        id: merge-base
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" \
+            --jq '"merge-base=\(.merge_base_commit.sha)\nfetch-depth=\(.ahead_by + 1)"' \
+            >> "$GITHUB_OUTPUT"
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_TOKEN: ${{ github.token }}
+
       - name: Checkout and setup pull request head
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           # Use the pull request's copy of the script, so that it works even if
           # the base branch doesn't have the script or has an older version.
           ref: ${{ github.event.pull_request.head.sha }}
-          # Pull full history, as Git needs it to find the commit where the pull
-          # request branched off from the base branch (the merge base). But to
-          # keep things fast, use `filter` to only fetch commits, not file
-          # contents (Git will download file contents only when requested).
-          fetch-depth: 0
+          # Every commit on the pull request is fewer than this many commits
+          # away from its head, so this depth reaches back to the merge base,
+          # which lets Git compare the pull request against it. To keep things
+          # fast, use `filter` to only fetch commits, not file contents (Git
+          # will download file contents only when requested).
+          fetch-depth: ${{ steps.merge-base.outputs.fetch-depth }}
           filter: blob:none
           is-high-risk-environment: false
           persist-credentials: false
@@ -67,7 +84,9 @@ jobs:
       # `persist-credentials` is false, because this repository is public, and
       # fetching from a public repository doesn't require credentials.
       - name: Use the base branch's ownership rules
-        run: git checkout "$BASE_SHA" -- codeowners.ts
+        run: |
+          git fetch --depth=1 --no-tags origin "$BASE_SHA"
+          git checkout "$BASE_SHA" -- codeowners.ts
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
 
@@ -75,7 +94,7 @@ jobs:
         # Write the output to a file, not GITHUB_OUTPUT, to ensure that GitHub
         # doesn't get confused when it attempts to parse the multiline output string.
         run: |
-          if yarn create-codeownership-summary --base-ref "$BASE_SHA" --head-ref HEAD > "$RUNNER_TEMP/codeownership-summary.md"; then
+          if yarn create-codeownership-summary --base-ref "$MERGE_BASE" --head-ref HEAD > "$RUNNER_TEMP/codeownership-summary.md"; then
             exit 0
           else
             exitcode=$?
@@ -83,7 +102,7 @@ jobs:
             exit "$exitcode"
           fi
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          MERGE_BASE: ${{ steps.merge-base.outputs.merge-base }}
 
       - name: Hide previous comments and post new comment
         uses: actions/github-script@v9
