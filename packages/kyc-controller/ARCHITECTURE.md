@@ -7,6 +7,10 @@ the end-to-end KYC / identity-verification flow used across MetaMask clients
 vendor-neutral, per-product surface consumed by features such as **ramps** and
 **card**.
 
+For the **target** multi-vendor model (Iron / MoonPay / Kalshi requirements as a
+dependency graph, retirement at durable backend outcomes, recompute-on-resume),
+see [`docs/vendor-flow-architecture.md`](./docs/vendor-flow-architecture.md).
+
 This document explains:
 
 - The package's internal building blocks and responsibilities.
