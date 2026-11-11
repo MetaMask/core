@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Clears a `writing` mutation in `abort()` and `resume()` once its approval has expired and no escrow applied it; `resume()` then throws `MutationRejectedError` ([#11151](https://github.com/MetaMask/core/pull/11151))
   - Exports `MfaRecoveryController`, `getDefaultMfaRecoveryControllerState`, and the controller's action, event, messenger, state, and options types.
   - Exports `AuthApiRecoveryAuthProvider`, `AuthApiRecoveryAuthProviderOptions` and `AuthApiRecoveryAuthProviderMessenger` for requesting approvals through `AuthenticationController:requestMfaApproval`, using the profile id from `AuthenticationController:refreshCanonicalProfileId` ([#10883](https://github.com/MetaMask/core/pull/10883))
-  - Exports `CubistEscrowProvider` and `CubistEscrowProviderOptions` for storing recovery secrets with CubeSigner. `CubistEscrowProviderOptions` takes a `getClient` callback instead of a CubeSigner client so callers can create and refresh the session lazily, and `isAvailable` rethrows `getClient` errors.
+  - Exports `CubistEscrowProvider` and `CubistEscrowProviderOptions` for storing recovery secrets with CubeSigner. `CubistEscrowProviderOptions` takes a `getClient` callback instead of a CubeSigner client so callers can create and refresh the session lazily, and `isAvailable` rethrows `getClient` errors ([#11280](https://github.com/MetaMask/core/pull/11280))
   - Exports `MfaRecoveryError`, `IncompleteMutationError`, and `MutationRejectedError`.
   - Exports `MIN_IDENTIFIERS`, `IDENTIFIER_AUTH_MODES`, and `getIdentifierAuthMode` for identifier authentication.
   - Exports types for the recovery providers (`RecoveryAuthProvider`, `RecoveryIdentifierAuthProvider`, `RecoveryEscrowProvider`) and the pending operation encryptor (`PendingOperationEncryptor`), along with the related identifier, mutation, and recovery phase types, including `GetIdentifiersResponse` and `RecoveryIdentifiers` ([#11149](https://github.com/MetaMask/core/pull/11149))
@@ -33,6 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Propagate errors thrown by `RecoveryEscrowProvider.isAvailable`, such as `feature_disabled` or a failed registration, instead of treating them as an unavailable escrow
+- Propagate errors thrown by `RecoveryEscrowProvider.isAvailable`, such as `feature_disabled` or a failed registration, instead of treating them as an unavailable escrow ([#11280](https://github.com/MetaMask/core/pull/11280))
 
 [Unreleased]: https://github.com/MetaMask/core/
