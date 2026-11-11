@@ -166,15 +166,14 @@ async function readCodeownersFile({
  */
 function parseCodeowners(content: string): CodeownersRule[] {
   return content.split('\n').flatMap((line) => {
-    const [pattern, ...tokens] = line.trim().split(/\s+/u);
-    if (pattern === undefined || pattern === '' || pattern.startsWith('#')) {
+    const commentIndex = line.indexOf('#');
+    const rule = commentIndex === -1 ? line : line.slice(0, commentIndex);
+    const comment = commentIndex === -1 ? '' : line.slice(commentIndex);
+    const [pattern, ...owners] = rule.trim().split(/\s+/u);
+    if (pattern === undefined || pattern === '') {
       return [];
     }
 
-    const commentIndex = tokens.findIndex((token) => token.startsWith('#'));
-    const owners = commentIndex === -1 ? tokens : tokens.slice(0, commentIndex);
-    const comment =
-      commentIndex === -1 ? '' : tokens.slice(commentIndex).join(' ');
     // Only owners on the rule itself own the matching files, so ignore any
     // others the comment lists
     const maintenanceOwners = parseMaintenanceOwners(comment).filter((owner) =>
