@@ -1322,12 +1322,17 @@
       "count": 1
     }
   },
+  "packages/authenticated-user-storage/src/authenticated-user-storage.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    }
+  },
   "packages/authenticated-user-storage/src/authenticated-user-storage.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 5
+      "count": 6
     },
     "typescript/no-unsafe-return": {
-      "count": 5
+      "count": 6
     }
   },
   "packages/base-data-service/src/BaseDataService.ts": {
@@ -2277,11 +2282,6 @@
       "count": 7
     }
   },
-  "packages/eth-sig-util/src/sign-eip7702-authorization.ts": {
-    "no-undef": {
-      "count": 3
-    }
-  },
   "packages/eth-sig-util/src/sign-typed-data.test.ts": {
     "id-denylist": {
       "count": 2
@@ -2362,9 +2362,6 @@
       "count": 3
     },
     "no-param-reassign": {
-      "count": 1
-    },
-    "no-undef": {
       "count": 1
     },
     "typescript/no-explicit-any": {
@@ -2751,7 +2748,7 @@
   },
   "packages/key-tree/tests/reference-implementations.test.ts": {
     "vitest/no-conditional-in-test": {
-      "count": 4
+      "count": 2
     }
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
@@ -6170,7 +6167,7 @@
       "count": 6
     },
     "typescript/no-unsafe-return": {
-      "count": 3
+      "count": 1
     }
   },
   "scripts/lint-teams-json.ts": {

@@ -167,6 +167,7 @@ export type {
   PerpsControllerStopEligibilityMonitoringAction,
   PerpsControllerStopMarketDataPreloadAction,
   PerpsControllerSubscribeToAccountAction,
+  PerpsControllerSubscribeToAvailableToTradeAction,
   PerpsControllerSubscribeToCandlesAction,
   PerpsControllerSubscribeToConnectionStateAction,
   PerpsControllerSubscribeToOICapsAction,
@@ -306,6 +307,8 @@ export type {
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
   SubscribeTwapOrdersParams,
+  SubscribeAvailableToTradeParams,
+  PerpsAvailableToTrade,
   SubscribeAccountParams,
   SubscribeOICapsParams,
   SubscribeCandlesParams,
@@ -770,11 +773,19 @@ export type {
 export { getEnvironment } from './utils/index.js';
 export type {
   FiatRangeConfig,
+  PerpsCompactField,
+  PerpsCompactFormatOptions,
   PerpsDisplayFormatOptions,
   PerpsFiatFormatOptions,
   PerpsFundingRateFormatOptions,
   PerpsIntlFormatters,
+  PerpsOrderBookLadderOptions,
+  PerpsOrderBookPriceFormat,
+  PerpsOrderBookPriceFormatOptions,
+  PerpsPercentageFormatOptions,
   PerpsSignDisplay,
+  PerpsUsdInput,
+  PerpsUsdInputFormatOptions,
 } from './utils/index.js';
 export {
   PRICE_THRESHOLD,
@@ -786,6 +797,12 @@ export {
   formatPnl,
   formatPercentage,
   formatFundingRate,
+  formatFeeBps,
+  formatLiquidationDistance,
+  formatPerpsCompact,
+  getPerpsOrderBookPriceFormat,
+  formatPerpsOrderBookPrice,
+  formatPerpsUsdInput,
 } from './utils/index.js';
 
 // Error codes (explicit named exports)

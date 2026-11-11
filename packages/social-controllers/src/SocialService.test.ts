@@ -1656,6 +1656,42 @@ describe('SocialService', () => {
       });
     });
 
+    it('fetches the following_v1 scope with projection metadata and cursors', async () => {
+      const followingResponse = {
+        items: [
+          {
+            ...mockFeedItem,
+            feedItemId: '0b6c3d4e-5f60-4a7b-8c9d-0e1f2a3b4c5d',
+            eventId: 'social.v1.feed.all.position-1.1',
+            revision: 1,
+            occurredAt: '2026-01-02T03:04:05.000Z',
+          },
+        ],
+        pagination: {
+          olderCursor:
+            'eyJvY2N1cnJlZEF0IjoiMjAyNi0wMS0wMlQwMzowNDowNS4wMDBaIn0=',
+          newerCursor: null,
+        },
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(followingResponse),
+      });
+      const service = createService();
+
+      const result = await service.fetchFeed({
+        scope: 'following_v1',
+        olderThan: 'older-cursor',
+      });
+
+      expect(result).toStrictEqual(followingResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/feed?scope=following_v1&olderThan=older-cursor`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
+    });
+
     it('validates a perp feed item', async () => {
       mockFetch.mockResolvedValue({
         ok: true,

@@ -93,6 +93,7 @@ import type {
   SubscribeAccountParams,
   SubscribeCandlesParams,
   SubscribeOICapsParams,
+  SubscribeAvailableToTradeParams,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
@@ -1292,6 +1293,29 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void {
     // Delegate to default provider
     return this.#getDefaultProvider().subscribeToOrderBook(params);
+  }
+
+  /**
+   * Stream available to trade from the explicit route, else the default
+   * provider, as order placement routes. A route without support returns a
+   * no-op cleanup and never calls back, so the value stays unknown.
+   *
+   * @param params - Market, optional route/account, callback and error handler.
+   * @returns A cleanup function to unsubscribe.
+   */
+  subscribeToAvailableToTrade(
+    params: SubscribeAvailableToTradeParams,
+  ): () => void {
+    const providerId = params.providerId ?? this.#defaultProvider;
+    // Read the map directly: #getProviderOrDefault throws when the route is
+    // unavailable, and this method's contract is a no-op cleanup.
+    const provider = this.#providers.get(providerId);
+    if (!provider?.subscribeToAvailableToTrade) {
+      return () => {
+        // No-op: route missing or without a venue value
+      };
+    }
+    return provider.subscribeToAvailableToTrade({ ...params, providerId });
   }
 
   // ============================================================================

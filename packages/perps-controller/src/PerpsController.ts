@@ -142,6 +142,7 @@ import type {
   SubscribeAccountParams,
   SubscribeCandlesParams,
   SubscribeOICapsParams,
+  SubscribeAvailableToTradeParams,
   SubscribeOrderBookParams,
   SubscribeOrderFillsParams,
   SubscribeOrdersParams,
@@ -1075,6 +1076,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'stopEligibilityMonitoring',
   'stopMarketDataPreload',
   'subscribeToAccount',
+  'subscribeToAvailableToTrade',
   'subscribeToCandles',
   'subscribeToConnectionState',
   'subscribeToOICaps',
@@ -6661,6 +6663,48 @@ export class PerpsController extends BaseController<
       return () => {
         // No-op
       };
+    }
+  }
+
+  /**
+   * Stream one market's per-side available to trade, as the venue reports it,
+   * through the provider route used by order placement. The venue pushes a
+   * new value when the market's position, leverage or mark price changes.
+   *
+   * The callback only ever receives venue values. Until the first arrives the
+   * value is unknown (`undefined` in clients). When no provider is active, the
+   * route conflicts with the active provider, or the provider cannot read the
+   * value from its venue, this returns a no-op cleanup and the value stays
+   * unknown.
+   *
+   * @param params - Market, optional route/account, callback and error handler.
+   * @returns A cleanup function to remove the subscription.
+   */
+  subscribeToAvailableToTrade(
+    params: SubscribeAvailableToTradeParams,
+  ): () => void {
+    const noop = (): void => {
+      // No-op: value unavailable for this route
+    };
+    const provider = this.getActiveProviderOrNull();
+    if (
+      !provider?.subscribeToAvailableToTrade ||
+      this.#hasConflictingProviderRoute(params.providerId, provider)
+    ) {
+      return noop;
+    }
+    try {
+      return provider.subscribeToAvailableToTrade(params);
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.subscribeToAvailableToTrade'),
+        this.#getErrorContext(
+          'subscribeToAvailableToTrade',
+          { symbol: params.symbol, providerId: params.providerId },
+          CONNECTION_ERROR_TAGS,
+        ),
+      );
+      return noop;
     }
   }
 
