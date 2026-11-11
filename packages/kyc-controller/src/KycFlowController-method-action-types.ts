@@ -126,6 +126,27 @@ export type KycFlowControllerAcceptSessionDisclaimersAction = {
 };
 
 /**
+ * Presents the identity provider flow (SumSub) for the vendor's session.
+ * When the user finishes it, kyc-api is told, so the step survives a
+ * reinstall, and the next step is read. Nothing about the flow is kept on
+ * the phone.
+ *
+ * The session must already have its authorizations (see
+ * {@link KycFlowController.startSession}) and its consents (see
+ * {@link KycFlowController.acceptSessionDisclaimers}).
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The vendor.
+ * @param params.locale - BCP-47 locale for the SDK UI.
+ * @param params.debug - Enables SDK debug logging.
+ * @returns How the flow ended.
+ */
+export type KycFlowControllerLaunchProviderFlowAction = {
+  type: `KycFlowController:launchProviderFlow`;
+  handler: KycFlowController['launchProviderFlow'];
+};
+
+/**
  * Sends the vendor's SMS code to the phone number.
  *
  * @param params - The parameters.
@@ -212,6 +233,7 @@ export type KycFlowControllerMethodActions =
   | KycFlowControllerStartSessionAction
   | KycFlowControllerFetchSessionDisclaimersAction
   | KycFlowControllerAcceptSessionDisclaimersAction
+  | KycFlowControllerLaunchProviderFlowAction
   | KycFlowControllerSubmitPhoneAction
   | KycFlowControllerSubmitPhoneCodeAction
   | KycFlowControllerSubmitEmailCodeAction

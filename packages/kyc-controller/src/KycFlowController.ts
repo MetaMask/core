@@ -13,6 +13,11 @@ import type {
 import type { KycFlowControllerMethodActions } from './KycFlowController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type { KycOnboardingStep } from './KycService.js';
+import {
+  isSumSubFlowCompleted,
+  isSumSubFlowFailed,
+} from './providers/sumsub.js';
+import type { KycSumSubLauncher } from './providers/sumsub.js';
 import { needsCapabilityAuthorizationRefresh } from './types.js';
 import type {
   KycConsentRecord,
@@ -111,6 +116,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'startSession',
   'fetchSessionDisclaimers',
   'acceptSessionDisclaimers',
+  'launchProviderFlow',
   'submitPhone',
   'submitPhoneCode',
   'submitEmailCode',
@@ -152,6 +158,13 @@ export type KycFlowControllerMessenger = Messenger<
 >;
 
 /**
+ * How the identity provider flow ended. `submitted` means the user finished
+ * it and kyc-api was told. `abandoned` means they closed it first, so the
+ * screen should offer to try again. `failed` means it could not run.
+ */
+export type KycFlowProviderOutcome = 'submitted' | 'abandoned' | 'failed';
+
+/**
  * Options for constructing a {@link KycFlowController}.
  */
 export type KycFlowControllerOptions = {
@@ -162,6 +175,12 @@ export type KycFlowControllerOptions = {
    * that link an account (Kalshi).
    */
   accountLinkAdapters?: Partial<Record<KycFlowVendor, KycAccountLinkAdapter>>;
+  /**
+   * Platform adapter that presents the SumSub SDK. Injected by each client so
+   * the controller stays platform-agnostic. Without it, `launchProviderFlow`
+   * reports `failed`.
+   */
+  sumsubLauncher?: KycSumSubLauncher;
 };
 
 // === CONTROLLER DEFINITION ===
@@ -184,6 +203,8 @@ export class KycFlowController extends BaseController<
     Record<KycFlowVendor, KycAccountLinkAdapter>
   >;
 
+  readonly #sumsubLauncher?: KycSumSubLauncher;
+
   /**
    * The newest step request per vendor. An answer that arrives after a newer
    * request started is ignored, so a slow response cannot undo a later one.
@@ -198,11 +219,13 @@ export class KycFlowController extends BaseController<
    * @param options.state - Partial initial state; merged over defaults.
    * @param options.accountLinkAdapters - The device-signed account link
    * calls, by vendor.
+   * @param options.sumsubLauncher - The platform SumSub launcher adapter.
    */
   constructor({
     messenger,
     state,
     accountLinkAdapters,
+    sumsubLauncher,
   }: KycFlowControllerOptions) {
     super({
       messenger,
@@ -212,6 +235,7 @@ export class KycFlowController extends BaseController<
     });
 
     this.#accountLinkAdapters = accountLinkAdapters ?? {};
+    this.#sumsubLauncher = sumsubLauncher;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -420,6 +444,77 @@ export class KycFlowController extends BaseController<
         params.credentialReusabilityConsentGiven,
     });
     return this.refreshStep({ vendor: params.vendor });
+  }
+
+  /**
+   * Presents the identity provider flow (SumSub) for the vendor's session.
+   * When the user finishes it, kyc-api is told, so the step survives a
+   * reinstall, and the next step is read. Nothing about the flow is kept on
+   * the phone.
+   *
+   * The session must already have its authorizations (see
+   * {@link KycFlowController.startSession}) and its consents (see
+   * {@link KycFlowController.acceptSessionDisclaimers}).
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The vendor.
+   * @param params.locale - BCP-47 locale for the SDK UI.
+   * @param params.debug - Enables SDK debug logging.
+   * @returns How the flow ended.
+   */
+  async launchProviderFlow(params: {
+    vendor: KycFlowVendor;
+    locale?: string;
+    debug?: boolean;
+  }): Promise<KycFlowProviderOutcome> {
+    const launcher = this.#sumsubLauncher;
+    if (!launcher?.isAvailable()) {
+      return 'failed';
+    }
+    try {
+      const sessionId = await this.#getSessionId(params.vendor);
+      const { applicantAccessToken } = await this.messenger.call(
+        'KycService:createJourney',
+        sessionId,
+      );
+
+      // A resolved `launch` alone does not mean success: the user may have
+      // closed the SDK, or the SDK may have reported that it could not run.
+      let reachedCompletion = false;
+      let sdkFailed = false;
+      const result = await launcher.launch({
+        applicantAccessToken,
+        onTokenExpiration: async () => {
+          const journey = await this.messenger.call(
+            'KycService:createJourney',
+            sessionId,
+          );
+          return journey.applicantAccessToken;
+        },
+        onStatusChange: (_previous, next) => {
+          reachedCompletion ||= isSumSubFlowCompleted(next);
+          sdkFailed ||= isSumSubFlowFailed(next);
+        },
+        locale: params.locale ?? 'en',
+        debug: params.debug ?? false,
+      });
+      // Some native SDKs resolve with their final status without first
+      // delivering the state-change callback.
+      reachedCompletion ||= isSumSubFlowCompleted(result.status);
+      sdkFailed ||= isSumSubFlowFailed(result.status);
+
+      if (sdkFailed) {
+        return 'failed';
+      }
+      if (!reachedCompletion) {
+        return 'abandoned';
+      }
+      // The SDK result is not the decision. kyc-api and the relay decide.
+      await this.markProviderSubmitted({ vendor: params.vendor });
+      return 'submitted';
+    } catch {
+      return 'failed';
+    }
   }
 
   /**
