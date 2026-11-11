@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - An atomic quote embeds the target calls, which needs a fresh delegation signature per quote. On an MFA keyring every refresh of an open amount screen would cost the user a confirmation.
   - The keyring is read from `transaction.txParams.from`, the account that signs the delegation, rather than the quote request's payer account.
   - Resolved when building quote requests, so it applies to every strategy and to both the max and non-max quote paths.
+- Make the max-amount gas station in `RelayStrategy` tolerate small gas cost changes between the probe and adjusted quotes ([#11434](https://github.com/MetaMask/core/pull/11434))
+  - Reserve a buffer on top of the probe's gas cost when reducing the source amount, configurable with the `confirmations_pay_extended.gasStationCostBuffer` feature flag (defaults to `1.0`, no buffer).
+  - Remove the gas limit checks on the adjusted quote, since the affordability check already covers any gas cost change.
 
 ## [31.1.0]
 

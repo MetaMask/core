@@ -12,7 +12,10 @@ import type {
 } from '../../types.js';
 import { accountRequiresMfa } from '../../utils/account.js';
 import { prefixError } from '../../utils/error-prefix.js';
-import { isAtomicMaxEnabled } from '../../utils/feature-flags.js';
+import {
+  getGasStationCostBuffer,
+  isAtomicMaxEnabled,
+} from '../../utils/feature-flags.js';
 import {
   shouldUseGasStation,
   resolveGasStationCost,
@@ -149,9 +152,10 @@ export async function getRelayMaxQuote(
  * Returns a Relay max-amount quote using a two-phase gas-station fallback.
  *
  * It first requests a standard max quote (phase 1), then when needed estimates
- * gas in source-token units (directly or via a probe quote), requests an
- * adjusted max quote (phase 2), and accepts phase 2 only if validation passes
- * (source gas fee token selected, gas-limit checks, affordability).
+ * gas in source-token units via a probe quote, requests an adjusted max quote
+ * (phase 2) with the source amount reduced by that cost plus a buffer, and
+ * accepts phase 2 only if validation passes (source gas fee token selected,
+ * affordability).
  *
  * If any step fails or validation is unsafe, it safely falls back to phase 1.
  * Successful phase-2 quotes are tagged with `metamask.isMaxGasStation = true`.
@@ -210,7 +214,9 @@ export async function getRelayMaxGasStationQuote(
   }
 
   const initialGasEstimate: GasCostEstimate = {
-    amount: probeCost,
+    amount: probeCost
+      .multipliedBy(getGasStationCostBuffer(messenger))
+      .integerValue(BigNumber.ROUND_UP),
     source: GasCostEstimateSource.Probe,
   };
 
@@ -243,34 +249,6 @@ export async function getRelayMaxGasStationQuote(
     return fallbackToPhase1(
       phase1Quote,
       'Adjusted quote did not return source gas fee token pricing',
-    );
-  }
-
-  const phase1GasLimits = phase1Quote.original.metamask.gasLimits ?? [];
-  const phase2GasLimits = phase2Quote.original.metamask.gasLimits ?? [];
-
-  if (!hasMatchingGasLimitShape(phase1GasLimits, phase2GasLimits)) {
-    return fallbackToPhase1(
-      phase1Quote,
-      'Adjusted quote gas limit shape changed between phases',
-      {
-        phase1GasLimits,
-        phase2GasLimits,
-      },
-    );
-  }
-
-  const phase1TotalGasLimit = getTotalGasLimit(phase1GasLimits);
-  const phase2TotalGasLimit = getTotalGasLimit(phase2GasLimits);
-
-  if (phase2TotalGasLimit > phase1TotalGasLimit) {
-    return fallbackToPhase1(
-      phase1Quote,
-      'Adjusted quote total gas limit increased between phases',
-      {
-        phase1TotalGasLimit,
-        phase2TotalGasLimit,
-      },
     );
   }
 
@@ -506,14 +484,6 @@ function fallbackToPhase1(
 ): TransactionPayQuote<RelayQuote> {
   log(message, paramsToLog);
   return phase1Quote;
-}
-
-function hasMatchingGasLimitShape(phase1: number[], phase2: number[]): boolean {
-  return phase1.length === phase2.length;
-}
-
-function getTotalGasLimit(gasLimits: number[]): number {
-  return gasLimits.reduce((total, gasLimit) => total + gasLimit, 0);
 }
 
 function markQuoteAsMaxGasStation(
