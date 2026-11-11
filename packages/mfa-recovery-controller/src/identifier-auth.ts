@@ -19,6 +19,11 @@ import type {
 export const MIN_IDENTIFIERS = 2;
 
 /**
+ * Maximum identifier count escrows accept.
+ */
+export const MAX_IDENTIFIERS = 16;
+
+/**
  * Distinct identifier identities (`type` + `namespace` + `value`).
  *
  * @param identifiers - Identifier list.
@@ -45,7 +50,7 @@ export function getSiweNamespace(identifier: Identifier): string | undefined {
   const { domain, chainId } = verifier;
   if (
     typeof domain !== 'string' ||
-    domain.length === 0 ||
+    !/^[^/ ]+$/u.test(domain) ||
     typeof chainId !== 'number' ||
     !Number.isSafeInteger(chainId) ||
     chainId < 0

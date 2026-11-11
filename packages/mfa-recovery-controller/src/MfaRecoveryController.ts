@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
-import { bytesToHex, hexToBytes } from '@metamask/utils';
+import { bytesToHex, hexToBytes, isHexAddress } from '@metamask/utils';
 
 import { decodeAuthControllerToken } from './auth-controller-token.js';
 import {
@@ -33,6 +33,7 @@ import {
   countDistinctIdentifiers,
   getIdentifierAuthMode,
   getSiweNamespace,
+  MAX_IDENTIFIERS,
   MIN_IDENTIFIERS,
   requestKeyBoundIdentifierToken,
 } from './identifier-auth.js';
@@ -42,8 +43,9 @@ import {
   pendingPayloadHasIdentifiers,
   pendingPayloadHasRecoverySecret,
 } from './pending-operation-validation.js';
-import { assertAbortAllowed, getRecoveryPhase } from './state-machine.js';
+import { getRecoveryPhase } from './state-machine.js';
 import type {
+  GetIdentifiersResponse,
   Identifier,
   IdentifierAuthorization,
   IdentifierSession,
@@ -335,7 +337,7 @@ export class MfaRecoveryController extends BaseController<
     identifiers: Identifier[],
   ): Promise<void> {
     this.#assertValidIdentifiers(identifiers);
-    this.#assertMinIdentifiers(identifiers);
+    this.#assertIdentifierSet(identifiers);
     await this.#mutate({
       operation: 'register',
       payload: {
@@ -384,7 +386,7 @@ export class MfaRecoveryController extends BaseController<
     epoch: number,
   ): Promise<void> {
     this.#assertValidIdentifiers([identifier, ...identifiers]);
-    this.#assertMinIdentifiers(identifiers);
+    this.#assertIdentifierSet(identifiers);
     await this.#mutate({
       operation: 'updateIdentifiers',
       payload: { identifiers },
@@ -518,18 +520,9 @@ export class MfaRecoveryController extends BaseController<
           'no_available_escrow',
         );
       }
-      const { approval, identifiers: authIdentifiers } =
-        await this.#authProvider.authorizeRecoveryRequest({
-          requestHash: await hash({ operation: 'getIdentifiers' }),
-          audiences: available.map((escrow) => escrow.authAudience),
-        });
-      const responses = (
-        await Promise.allSettled(
-          available.map(
-            async (escrow) => await escrow.getIdentifiers(approval),
-          ),
-        )
-      )
+      const { authIdentifiers, results } =
+        await this.#authorizeAndReadIdentifiers(available);
+      const responses = results
         .filter(isFulfilledResult)
         .map((result) => result.value);
       if (responses.length === 0) {
@@ -551,7 +544,9 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
-   * Completes a persisted pending mutation, if any.
+   * Completes a persisted pending mutation, if any. Clears a `writing` one,
+   * throwing `MutationRejectedError`, once its approval has expired and no
+   * escrow applied it.
    */
   async resume(): Promise<void> {
     await this.#withLock(async () => {
@@ -560,12 +555,19 @@ export class MfaRecoveryController extends BaseController<
   }
 
   /**
-   * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
+   * Drops `authorizing` pending. Drops `writing` pending only once its approval
+   * has expired and no escrow applied it; otherwise finish it with
+   * {@link resume}.
    */
   async abort(): Promise<void> {
     await this.#withLock(async () => {
       const pending = await this.#loadPending();
-      assertAbortAllowed(pending);
+      if (pending?.phase === 'writing' && !(await this.#isUnapplied(pending))) {
+        throw new MfaRecoveryError(
+          'Cannot abort a mutation that may have been applied',
+          'abort_not_allowed',
+        );
+      }
       if (pending) {
         await this.#clearPending();
       }
@@ -579,6 +581,41 @@ export class MfaRecoveryController extends BaseController<
     return await this.#withLock(async () =>
       getRecoveryPhase(await this.#loadPending()),
     );
+  }
+
+  // No write can land after its approval expires, and escrow versions only
+  // grow, so every escrow below `newVersion` means none applied it.
+  async #isUnapplied({
+    mutation,
+    authControllerToken,
+  }: WritingPendingOperation): Promise<boolean> {
+    const claims = decodeAuthControllerToken(authControllerToken);
+    if (claims && claims.exp > this.#now()) {
+      return false;
+    }
+    const { results } = await this.#authorizeAndReadIdentifiers(this.#escrows);
+    return results.every(
+      (result) =>
+        isFulfilledResult(result) && result.value.version < mutation.newVersion,
+    );
+  }
+
+  // Read approvals need no 2FA.
+  async #authorizeAndReadIdentifiers(
+    escrows: RecoveryEscrowProvider[],
+  ): Promise<{
+    authIdentifiers: Identifier[];
+    results: PromiseSettledResult<GetIdentifiersResponse>[];
+  }> {
+    const { approval, identifiers } =
+      await this.#authProvider.authorizeRecoveryRequest({
+        requestHash: await hash({ operation: 'getIdentifiers' }),
+        audiences: escrows.map((escrow) => escrow.authAudience),
+      });
+    const results = await Promise.allSettled(
+      escrows.map(async (escrow) => await escrow.getIdentifiers(approval)),
+    );
+    return { authIdentifiers: identifiers, results };
   }
 
   async #mutate(params: MutateParams): Promise<void> {
@@ -668,7 +705,13 @@ export class MfaRecoveryController extends BaseController<
       return;
     }
 
-    // writing phase
+    // writing phase. Renewing would only prompt for MFA again.
+    if (await this.#isUnapplied(pending)) {
+      await this.#clearPending();
+      throw new MutationRejectedError(
+        'No escrow applied the mutation before its approval expired',
+      );
+    }
     await this.#replicateMutation(pending);
   }
 
@@ -936,21 +979,35 @@ export class MfaRecoveryController extends BaseController<
       getIdentifierAuthMode(identifier.type);
       if (
         identifier.type === 'siwe' &&
-        identifier.namespace !== getSiweNamespace(identifier)
+        (!isHexAddress(identifier.value.toLowerCase()) ||
+          identifier.namespace !== getSiweNamespace(identifier))
       ) {
         throw new MfaRecoveryError(
-          'SIWE namespace must be the verifier domain:chainId',
+          'SIWE value must be an address and namespace the verifier domain:chainId',
           'invalid_identifier',
         );
       }
     }
   }
 
-  #assertMinIdentifiers(identifiers: Identifier[]): void {
-    if (countDistinctIdentifiers(identifiers) < MIN_IDENTIFIERS) {
+  #assertIdentifierSet(identifiers: Identifier[]): void {
+    const distinct = countDistinctIdentifiers(identifiers);
+    if (distinct < MIN_IDENTIFIERS) {
       throw new MfaRecoveryError(
         `Requires at least ${MIN_IDENTIFIERS} identifiers`,
         'too_few_identifiers',
+      );
+    }
+    if (distinct !== identifiers.length) {
+      throw new MfaRecoveryError(
+        'Duplicate identifier',
+        'duplicate_identifier',
+      );
+    }
+    if (identifiers.length > MAX_IDENTIFIERS) {
+      throw new MfaRecoveryError(
+        `Supports at most ${MAX_IDENTIFIERS} identifiers`,
+        'too_many_identifiers',
       );
     }
   }

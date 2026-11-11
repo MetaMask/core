@@ -9,7 +9,7 @@ export default {
     seed: mnemonicToSeedSync(
       'romance hurry grit huge rifle ordinary loud toss sound congress upset twist',
       wordlist,
-    ),
+    ) as Uint8Array<ArrayBuffer>,
     addresses: [
       '0x5df603999c3d5ca2ab828339a9883585b1bce11b',
       '0x441c07e32a609afd319ffbb66432b424058bcfe9',

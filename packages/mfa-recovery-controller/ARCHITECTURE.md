@@ -96,7 +96,9 @@ stateDiagram-v2
 
 Rules:
 
-- **`abort()`** drops `authorizing` only. `writing` must `resume()`
+- **`abort()`** drops `authorizing`, or `writing` once its approval has expired
+  and every escrow is still below `newVersion`; `resume()` then does the same
+  and throws `MutationRejectedError`. Otherwise `writing` must `resume()`
   (`abort_not_allowed`).
 - `writing` is persisted before the **first escrow apply**, after the
   AuthController token is issued, every target escrow has accepted identifier
