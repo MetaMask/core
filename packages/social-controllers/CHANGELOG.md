@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Keep the realtime feed subscribed when `SocialRealtimeService.setScopes` is called with the scopes already active ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Keep the realtime feed subscribed when `SocialRealtimeService.setScopes` is called with the scopes already active ([#11438](https://github.com/MetaMask/core/pull/11438))
   - `setScopes` no longer resubscribes when the scope set is unchanged.
   - A scope replacement no longer unsubscribes the previous subscription when the backend returns the same subscription id for it. The backend does this for a repeat subscribe to the same channels, so the unsubscribe ended the replacement and the feed stopped receiving events.
 
