@@ -11,6 +11,7 @@ import type {
 } from '@metamask/controller-utils';
 import { handleWhen, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { Struct } from '@metamask/superstruct';
 import { validate } from '@metamask/superstruct';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
@@ -297,6 +298,43 @@ export class MoneyAccountApiDataService extends BaseDataService<
   }
 
   /**
+   * Fetches a URL with the best-effort profile bearer token and validates the
+   * response body.
+   *
+   * @param url - The request URL.
+   * @param responseStruct - The struct that defines the expected body.
+   * @param endpointLabel - Endpoint name used in error messages.
+   * @returns The validated response body.
+   */
+  async #fetchValidated<Response>(
+    url: URL,
+    responseStruct: Struct<Response>,
+    endpointLabel: string,
+  ): Promise<Response> {
+    const response = await fetch(url, {
+      headers: await this.#getRequestHeaders(),
+    });
+
+    if (!response.ok) {
+      throw await MoneyAccountApiHttpError.fromResponse(
+        response,
+        `Money Account API ${endpointLabel} request failed with status '${response.status}'`,
+      );
+    }
+
+    const json: unknown = await response.json();
+
+    const [error, validated] = validate(json, responseStruct);
+    if (error) {
+      throw new MoneyAccountApiResponseValidationError(
+        `Malformed response from ${endpointLabel} endpoint: ${error.message}`,
+      );
+    }
+
+    return validated;
+  }
+
+  /**
    * Fetches the current vault positions for a given user address.
    *
    * @param address - The user's Ethereum address.
@@ -434,29 +472,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
             name: TRACES.INTEREST_API,
             data: { operation: 'fetchInterest' },
           },
-          async () => {
-            const response = await fetch(url, {
-              headers: await this.#getRequestHeaders(),
-            });
-
-            if (!response.ok) {
-              throw await MoneyAccountApiHttpError.fromResponse(
-                response,
-                `Money Account API interest request failed with status '${response.status}'`,
-              );
-            }
-
-            const json: unknown = await response.json();
-
-            const [error, validated] = validate(json, InterestResponseStruct);
-            if (error) {
-              throw new MoneyAccountApiResponseValidationError(
-                `Malformed response from interest endpoint: ${error.message}`,
-              );
-            }
-
-            return validated;
-          },
+          async () =>
+            this.#fetchValidated(url, InterestResponseStruct, 'interest'),
         );
       },
     });
@@ -519,29 +536,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
               name: TRACES.HISTORY_API,
               data: { operation: 'fetchHistory' },
             },
-            async () => {
-              const response = await fetch(url, {
-                headers: await this.#getRequestHeaders(),
-              });
-
-              if (!response.ok) {
-                throw await MoneyAccountApiHttpError.fromResponse(
-                  response,
-                  `Money Account API history request failed with status '${response.status}'`,
-                );
-              }
-
-              const json: unknown = await response.json();
-
-              const [error, validated] = validate(json, HistoryResponseStruct);
-              if (error) {
-                throw new MoneyAccountApiResponseValidationError(
-                  `Malformed response from history endpoint: ${error.message}`,
-                );
-              }
-
-              return validated;
-            },
+            async () =>
+              this.#fetchValidated(url, HistoryResponseStruct, 'history'),
           );
         },
       },
@@ -589,32 +585,12 @@ export class MoneyAccountApiDataService extends BaseDataService<
             name: TRACES.RATE_HISTORY_API,
             data: { operation: 'fetchRateHistory' },
           },
-          async () => {
-            const response = await fetch(url, {
-              headers: await this.#getRequestHeaders(),
-            });
-
-            if (!response.ok) {
-              throw await MoneyAccountApiHttpError.fromResponse(
-                response,
-                `Money Account API rate-history request failed with status '${response.status}'`,
-              );
-            }
-
-            const json: unknown = await response.json();
-
-            const [error, validated] = validate(
-              json,
+          async () =>
+            this.#fetchValidated(
+              url,
               RateHistoryResponseStruct,
-            );
-            if (error) {
-              throw new MoneyAccountApiResponseValidationError(
-                `Malformed response from rate-history endpoint: ${error.message}`,
-              );
-            }
-
-            return validated;
-          },
+              'rate-history',
+            ),
         );
       },
     });
@@ -655,29 +631,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
             name: TRACES.VAULT_RATE_API,
             data: { operation: 'fetchVaultRate' },
           },
-          async () => {
-            const response = await fetch(url, {
-              headers: await this.#getRequestHeaders(),
-            });
-
-            if (!response.ok) {
-              throw await MoneyAccountApiHttpError.fromResponse(
-                response,
-                `Money Account API vault rate request failed with status '${response.status}'`,
-              );
-            }
-
-            const json: unknown = await response.json();
-
-            const [error, validated] = validate(json, VaultRateResponseStruct);
-            if (error) {
-              throw new MoneyAccountApiResponseValidationError(
-                `Malformed response from vault rate endpoint: ${error.message}`,
-              );
-            }
-
-            return validated;
-          },
+          async () =>
+            this.#fetchValidated(url, VaultRateResponseStruct, 'vault rate'),
         );
       },
     });
@@ -744,32 +699,12 @@ export class MoneyAccountApiDataService extends BaseDataService<
             name: TRACES.VAULT_SHARE_VALUATIONS_API,
             data: { operation: 'fetchVaultShareValuations' },
           },
-          async () => {
-            const response = await fetch(url, {
-              headers: await this.#getRequestHeaders(),
-            });
-
-            if (!response.ok) {
-              throw await MoneyAccountApiHttpError.fromResponse(
-                response,
-                `Money Account API vault share valuations request failed with status '${response.status}'`,
-              );
-            }
-
-            const json: unknown = await response.json();
-
-            const [error, validated] = validate(
-              json,
+          async () =>
+            this.#fetchValidated(
+              url,
               VaultShareValuationsResponseStruct,
-            );
-            if (error) {
-              throw new MoneyAccountApiResponseValidationError(
-                `Malformed response from vault share valuations endpoint: ${error.message}`,
-              );
-            }
-
-            return validated;
-          },
+              'vault share valuations',
+            ),
         );
       },
     });
