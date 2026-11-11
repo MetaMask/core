@@ -1126,6 +1126,39 @@ describe('KycService', () => {
     });
   });
 
+  describe('getStep', () => {
+    it('returns the step for the vendor', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/iron/step')
+        .reply(200, { vendor: 'iron', nextStep: 'kyc_pending' });
+      const { service } = getService();
+
+      expect(await service.getStep('iron')).toBe('kyc_pending');
+    });
+
+    it('maps an unknown step to error', async () => {
+      nock(MOCK_API_URL)
+        .get('/vendors/iron/step')
+        .reply(200, { vendor: 'iron', nextStep: 'phone_otp' });
+      const { service } = getService();
+
+      expect(await service.getStep('iron')).toBe('error');
+    });
+  });
+
+  describe('markProviderSubmitted', () => {
+    it('posts the submission and returns the next step', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions/sid/provider-submitted')
+        .reply(200, { nextStep: 'kyc_pending' });
+      const { service } = getService();
+
+      expect(await service.markProviderSubmitted({ sessionId: 'sid' })).toBe(
+        'kyc_pending',
+      );
+    });
+  });
+
   describe('submitVendorDisclaimers', () => {
     const signings = [
       { id: 'sign-1', customer_id: 'cust-1', content_id: 'disc-1' },
@@ -1137,7 +1170,7 @@ describe('KycService', () => {
         .post('/vendors/iron/disclaimers', {
           disclaimerIds: ['disc-1', 'disc-2'],
         })
-        .reply(200, signings);
+        .reply(200, { signings, nextStep: 'verify_email' });
       const { service } = getService();
 
       expect(
@@ -1145,13 +1178,16 @@ describe('KycService', () => {
           vendor: 'iron',
           disclaimerIds: ['disc-1', 'disc-2'],
         }),
-      ).toStrictEqual(signings);
+      ).toStrictEqual({ signings, nextStep: 'verify_email' });
     });
 
     it('accepts extra signing fields and an omitted content_id', async () => {
       nock(MOCK_API_URL)
         .post('/vendors/iron/disclaimers', { disclaimerIds: ['disc-1'] })
-        .reply(200, [{ id: 'sign-1', customer_id: 'cust-1', signed: true }]);
+        .reply(200, {
+          signings: [{ id: 'sign-1', customer_id: 'cust-1', signed: true }],
+          nextStep: 'some_future_step',
+        });
       const { service } = getService();
 
       expect(
@@ -1159,7 +1195,10 @@ describe('KycService', () => {
           vendor: 'iron',
           disclaimerIds: ['disc-1'],
         }),
-      ).toMatchObject([{ id: 'sign-1', customer_id: 'cust-1' }]);
+      ).toMatchObject({
+        signings: [{ id: 'sign-1', customer_id: 'cust-1' }],
+        nextStep: 'error',
+      });
     });
 
     it('throws on a malformed response', async () => {

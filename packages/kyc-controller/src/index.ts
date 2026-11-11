@@ -27,6 +27,15 @@ export type {
   KycControllerGetDataSharesAction,
   KycControllerGetProviderFlowStatusAction,
   KycControllerGetSessionDecisionAction,
+  KycControllerRefreshStepAction,
+  KycControllerVerifyVendorEmailOtpAction,
+  KycControllerResendVendorEmailOtpAction,
+  KycControllerSendVendorPhoneOtpAction,
+  KycControllerVerifyVendorPhoneOtpAction,
+  KycControllerRefreshVendorAccountAction,
+  KycControllerStartVendorAccountLinkAction,
+  KycControllerVerifyVendorAccountLinkAction,
+  KycControllerActivateVendorAccountAction,
   KycControllerGetSessionStatusForVendorAction,
   KycControllerHasCompletedSessionDisclaimersAction,
   KycControllerHasCompletedVendorDisclaimersAction,
@@ -64,6 +73,7 @@ export type {
   FetchSessionDisclaimersBySessionIdParams,
   GetDataSharesParams,
   GetSessionStatusParams,
+  KycOnboardingStep,
   ResetWrappingKeysParams,
   VendorCustomerResponse,
   JwksResponse,
@@ -77,6 +87,7 @@ export type {
   SetAuthorizationsParams,
   SubmitSessionDisclaimersParams,
   SubmitVendorDisclaimersParams,
+  SubmitVendorDisclaimersResult,
   UkycSessionResponse,
 } from './KycService.js';
 export type {
@@ -91,6 +102,8 @@ export type {
   KycServiceFetchSessionDisclaimersBySessionIdAction,
   KycServiceFetchVendorDisclaimersAction,
   KycServiceGetDataSharesAction,
+  KycServiceGetStepAction,
+  KycServiceMarkProviderSubmittedAction,
   KycServiceGetGeoCountryAction,
   KycServiceGetSessionStatusAction,
   KycServiceGetSessionStatusForVendorAction,
@@ -100,7 +113,11 @@ export type {
   KycServiceSubmitVendorDisclaimersAction,
 } from './KycService-method-action-types.js';
 
-export { selectKycSession, selectKycSessionStatus } from './selectors.js';
+export {
+  selectIsVendorReady,
+  selectKycSession,
+  selectKycSessionStatus,
+} from './selectors.js';
 
 export {
   KYC_SESSION_DECISIONS,
@@ -119,10 +136,18 @@ export type {
 
 export {
   KYC_CURRENT_STEPS,
+  KYC_STEPS,
+  toKycStep,
   KYC_STATUSES,
   TERMINAL_SESSION_STATUSES,
+  VENDORS_REGISTERED_BY_RELAY,
+  KYC_VENDOR_ACCOUNT_STATES,
 } from './types.js';
 export type {
+  KycVendorAccount,
+  KycVendorAccountAdapter,
+  KycVendorAccountMfa,
+  KycVendorAccountState,
   KycCatalogDocument,
   KycConsentDocument,
   KycConsentRecord,
@@ -132,6 +157,7 @@ export type {
   KycDisclaimersCatalog,
   KycSessionDisclaimers,
   KycSessionStatus,
+  KycStep,
   KycVendor,
   KycVendorDisclaimersAcceptance,
   KycVendorSigning,

@@ -268,17 +268,33 @@ export type KycControllerAcceptVendorDisclaimersAction = {
 /**
  * Submits the vendor T&C acceptance stored by
  * {@link acceptVendorDisclaimers} via
- * {@link KycService.submitVendorDisclaimers}, then marks it submitted.
+ * {@link KycService.submitVendorDisclaimers}, marks it submitted, and
+ * stores the step kyc-api returns. Works before a session exists: kyc-api
+ * keeps the acceptance and records it with the vendor once the vendor's
+ * customer exists.
  *
  * @param params - The parameters.
  * @param params.vendor - The identity vendor.
- * @returns The vendor signing records.
- * @throws If the vendor has no stored acceptance, or no session yet (the
- * vendor records terms against a customer that session creation creates).
+ * @returns The vendor signing records (empty until the customer exists).
+ * @throws If the vendor has no stored acceptance.
  */
 export type KycControllerRecordVendorDisclaimersAction = {
   type: `KycController:recordVendorDisclaimers`;
   handler: KycController['recordVendorDisclaimers'];
+};
+
+/**
+ * Fetches the vendor's onboarding step from kyc-api and stores it on the
+ * vendor's entry, creating the entry when there is none. kyc-api decides the
+ * step; clients map `sessions[vendor].nextStep` to a screen.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @returns The step.
+ */
+export type KycControllerRefreshStepAction = {
+  type: `KycController:refreshStep`;
+  handler: KycController['refreshStep'];
 };
 
 /**
@@ -293,6 +309,115 @@ export type KycControllerRecordVendorDisclaimersAction = {
 export type KycControllerHasCompletedVendorDisclaimersAction = {
   type: `KycController:hasCompletedVendorDisclaimers`;
   handler: KycController['hasCompletedVendorDisclaimers'];
+};
+
+/**
+ * Verifies the code a vendor emailed during onboarding.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @param params.otp - The code the vendor sent.
+ * @returns The session status after the step.
+ */
+export type KycControllerVerifyVendorEmailOtpAction = {
+  type: `KycController:verifyVendorEmailOtp`;
+  handler: KycController['verifyVendorEmailOtp'];
+};
+
+/**
+ * Asks the vendor to email a new onboarding code.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @returns The session status after the step.
+ */
+export type KycControllerResendVendorEmailOtpAction = {
+  type: `KycController:resendVendorEmailOtp`;
+  handler: KycController['resendVendorEmailOtp'];
+};
+
+/**
+ * Asks the vendor to text an onboarding code to a phone number.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @param params.phoneNumber - Phone number in E.164 format.
+ * @returns The session status after the step.
+ */
+export type KycControllerSendVendorPhoneOtpAction = {
+  type: `KycController:sendVendorPhoneOtp`;
+  handler: KycController['sendVendorPhoneOtp'];
+};
+
+/**
+ * Verifies the code a vendor texted during onboarding.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @param params.otp - The code the vendor sent.
+ * @returns The session status after the step.
+ */
+export type KycControllerVerifyVendorPhoneOtpAction = {
+  type: `KycController:verifyVendorPhoneOtp`;
+  handler: KycController['verifyVendorPhoneOtp'];
+};
+
+/**
+ * POC: reads the vendor account state through the vendor's adapter and
+ * stores it on the entry.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @returns The stored vendor account.
+ */
+export type KycControllerRefreshVendorAccountAction = {
+  type: `KycController:refreshVendorAccount`;
+  handler: KycController['refreshVendorAccount'];
+};
+
+/**
+ * POC: opens the vendor's link ceremony and names the email the vendor
+ * user was registered with. The vendor sends a code to it (or to the
+ * account's configured second factor).
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @param params.email - Email to link. Defaults to the one stored at
+ * session creation.
+ * @returns The stored vendor account.
+ */
+export type KycControllerStartVendorAccountLinkAction = {
+  type: `KycController:startVendorAccountLink`;
+  handler: KycController['startVendorAccountLink'];
+};
+
+/**
+ * POC: submits a link code. When the vendor asks for another factor, the
+ * entry's `vendorAccount.mfa` says which; submit that code here too.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @param params.code - The code the vendor sent.
+ * @returns The stored vendor account.
+ */
+export type KycControllerVerifyVendorAccountLinkAction = {
+  type: `KycController:verifyVendorAccountLink`;
+  handler: KycController['verifyVendorAccountLink'];
+};
+
+/**
+ * POC: binds the payout wallet and activates the vendor account. The
+ * account is usable once its state is `active`.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The identity vendor.
+ * @param params.walletAddress - Payout wallet address.
+ * @param params.network - Payout wallet network.
+ * @returns The stored vendor account.
+ */
+export type KycControllerActivateVendorAccountAction = {
+  type: `KycController:activateVendorAccount`;
+  handler: KycController['activateVendorAccount'];
 };
 
 /**
@@ -365,7 +490,16 @@ export type KycControllerMethodActions =
   | KycControllerFetchVendorDisclaimersAction
   | KycControllerAcceptVendorDisclaimersAction
   | KycControllerRecordVendorDisclaimersAction
+  | KycControllerRefreshStepAction
   | KycControllerHasCompletedVendorDisclaimersAction
+  | KycControllerVerifyVendorEmailOtpAction
+  | KycControllerResendVendorEmailOtpAction
+  | KycControllerSendVendorPhoneOtpAction
+  | KycControllerVerifyVendorPhoneOtpAction
+  | KycControllerRefreshVendorAccountAction
+  | KycControllerStartVendorAccountLinkAction
+  | KycControllerVerifyVendorAccountLinkAction
+  | KycControllerActivateVendorAccountAction
   | KycControllerGetSessionDecisionAction
   | KycControllerDeleteEncryptedStorageAction
   | KycControllerLaunchProviderFlowAction;

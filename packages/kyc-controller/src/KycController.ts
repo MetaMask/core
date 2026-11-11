@@ -29,6 +29,7 @@ import type { KycServiceMethodActions } from './KycService-method-action-types.j
 import type {
   CapabilityAuthorization,
   EncryptionSchema,
+  KycOnboardingStep,
 } from './KycService.js';
 import {
   getEmailFromPartnerIdentityToken,
@@ -47,6 +48,8 @@ import {
   FINAL_STATUSES_TO_STOP_POLLING,
   KYC_CURRENT_STEPS,
   KYC_STATUSES,
+  toKycStep,
+  VENDORS_REGISTERED_BY_RELAY,
 } from './types.js';
 import type {
   KycConsentRecord,
@@ -55,7 +58,10 @@ import type {
   KycDisclaimersCatalog,
   KycSessionDisclaimers,
   KycSessionStatus,
+  KycStep,
   KycVendor,
+  KycVendorAccount,
+  KycVendorAccountAdapter,
   KycVendorDisclaimersAcceptance,
   KycVendorSigning,
 } from './types.js';
@@ -152,6 +158,18 @@ export type KycVendorSessionState = {
    * session. `null` when never set (treated as `false`).
    */
   credentialReusabilityConsentGiven: boolean | null;
+
+  /**
+   * The onboarding step kyc-api returned most recently for this vendor, or
+   * `null` before the first answer. Clients map it to a screen.
+   */
+  nextStep: KycStep | null;
+
+  /**
+   * POC: the vendor's own account, for vendors whose account outlives the
+   * UKYC session (Kalshi). `null` for other vendors and before it is known.
+   */
+  vendorAccount: KycVendorAccount | null;
 };
 
 /**
@@ -185,6 +203,8 @@ export function getDefaultKycVendorSessionState(): KycVendorSessionState {
     providerDisclaimersAccepted: null,
     idosDisclaimersAccepted: null,
     credentialReusabilityConsentGiven: null,
+    nextStep: null,
+    vendorAccount: null,
   };
 }
 
@@ -235,6 +255,15 @@ const MESSENGER_EXPOSED_METHODS = [
   'recordVendorDisclaimers',
   'hasCompletedVendorDisclaimers',
   'getSessionDecision',
+  'refreshStep',
+  'verifyVendorEmailOtp',
+  'resendVendorEmailOtp',
+  'sendVendorPhoneOtp',
+  'verifyVendorPhoneOtp',
+  'refreshVendorAccount',
+  'startVendorAccountLink',
+  'verifyVendorAccountLink',
+  'activateVendorAccount',
   'launchProviderFlow',
   'deleteEncryptedStorage',
 ] as const;
@@ -286,6 +315,11 @@ export type KycControllerOptions = {
    * record nothing. See {@link KycAnalyticsTrackers}.
    */
   trackKycAnalytics?: KycAnalyticsTrackers;
+  /**
+   * POC: platform adapters for vendors with device-signed account calls
+   * (Kalshi). See {@link KycVendorAccountAdapter}.
+   */
+  vendorAccountAdapters?: Partial<Record<KycVendor, KycVendorAccountAdapter>>;
 };
 
 // === CONTROLLER DEFINITION ===
@@ -307,6 +341,10 @@ export class KycController extends BaseController<
   readonly #localUserSecretStore: UkycLocalUserSecretStore;
 
   readonly #trackKycAnalytics?: KycAnalyticsTrackers;
+
+  readonly #vendorAccountAdapters: Partial<
+    Record<KycVendor, KycVendorAccountAdapter>
+  >;
 
   /** Scheduled next session-status poll for each vendor that is polling. */
   readonly #sessionStatusPollTimers = new Map<
@@ -337,6 +375,7 @@ export class KycController extends BaseController<
     state,
     sumsubLauncher,
     trackKycAnalytics,
+    vendorAccountAdapters,
   }: KycControllerOptions) {
     super({
       messenger,
@@ -347,6 +386,7 @@ export class KycController extends BaseController<
 
     this.#sumsubLauncher = sumsubLauncher;
     this.#trackKycAnalytics = trackKycAnalytics;
+    this.#vendorAccountAdapters = vendorAccountAdapters ?? {};
     this.#localUserSecretStore = new UkycLocalUserSecretStore(this.messenger);
 
     this.messenger.registerMethodActionHandlers(
@@ -439,9 +479,19 @@ export class KycController extends BaseController<
   async startSession(params: {
     vendor: KycVendor;
     aal2Token?: string;
+    /**
+     * Email the relay registers the vendor user with. Required to create a
+     * session for vendors in `VENDORS_REGISTERED_BY_RELAY`; ignored otherwise.
+     */
+    email?: string;
   }): Promise<KycSessionStatus> {
     const { vendor } = params;
-    const partnerIdentity = await this.#getPartnerIdentityForVendor(vendor);
+    const registeredByRelay = VENDORS_REGISTERED_BY_RELAY.has(vendor);
+    // No partner identity audience exists for relay-registered vendors yet;
+    // they sign up with the email the caller supplies.
+    const partnerIdentity = registeredByRelay
+      ? null
+      : await this.#getPartnerIdentityForVendor(vendor);
     const geoCountry = await this.messenger.call('KycService:getGeoCountry');
 
     const storedSession = this.state.sessions[vendor]?.sessionStatus ?? null;
@@ -459,6 +509,7 @@ export class KycController extends BaseController<
           },
           { create: true },
         );
+        await this.#refreshStepQuietly(vendor);
         return this.#refreshAuthorizationsIfNeeded(vendor);
       }
 
@@ -470,21 +521,45 @@ export class KycController extends BaseController<
         );
       }
 
-      if (!partnerIdentity) {
-        throw new Error('KycController missing verified email for vendor');
+      let createdSession: KycSessionStatus;
+      if (registeredByRelay) {
+        if (!params.email) {
+          throw new Error(
+            'KycController.startSession: email is required to register this vendor user.',
+          );
+        }
+        const { email } = params;
+        this.#updateVendorSession(vendor, (entry) => {
+          entry.vendorAccount = {
+            ...(entry.vendorAccount ?? { state: 'none' }),
+            email,
+            updatedAt: new Date().toISOString(),
+          };
+        });
+        createdSession = await this.#createUkycSession({
+          vendor,
+          geoCountry,
+          aal2Token: params.aal2Token,
+          email,
+        });
+      } else {
+        if (!partnerIdentity) {
+          throw new Error('KycController missing verified email for vendor');
+        }
+
+        await this.messenger.call('KycService:createVendorCustomer', {
+          vendor,
+          partnerIdentityToken: partnerIdentity.partnerIdentityToken,
+        });
+
+        createdSession = await this.#createUkycSession({
+          vendor,
+          geoCountry,
+          aal2Token: params.aal2Token,
+          partnerIdentityToken: partnerIdentity.partnerIdentityToken,
+        });
       }
-
-      await this.messenger.call('KycService:createVendorCustomer', {
-        vendor,
-        partnerIdentityToken: partnerIdentity.partnerIdentityToken,
-      });
-
-      return this.#createUkycSession({
-        vendor,
-        geoCountry,
-        aal2Token: params.aal2Token,
-        partnerIdentityToken: partnerIdentity.partnerIdentityToken,
-      });
+      return createdSession;
     }
     const sessionStatus = await this.messenger.call(
       'KycService:getSessionStatus',
@@ -495,6 +570,7 @@ export class KycController extends BaseController<
       entry.residenceCountry ??= geoCountry;
     });
     this.#updateSessionStatusAndTrackAnalytics(vendor, sessionStatus);
+    await this.#refreshStepQuietly(vendor);
     // TODO: Should we resume polling here?
     return this.#refreshAuthorizationsIfNeeded(vendor);
   }
@@ -987,7 +1063,8 @@ export class KycController extends BaseController<
     vendor: KycVendor;
     geoCountry: string;
     aal2Token: string;
-    partnerIdentityToken: string;
+    partnerIdentityToken?: string;
+    email?: string;
   }): Promise<KycSessionStatus> {
     // Establish a per-session X25519 keypair used to seal both secrets. The
     // private half stays on the device; the public half is registered on the
@@ -999,6 +1076,7 @@ export class KycController extends BaseController<
     );
     const {
       sessionId,
+      nextStep,
       encryptionDataKey: encryptionDataKeySchema,
       ukycCapabilityToken: capabilityTokenSchema,
     } = await this.messenger.call('KycService:createUkycSession', {
@@ -1006,13 +1084,19 @@ export class KycController extends BaseController<
       residenceCountry: params.geoCountry,
       vendor: params.vendor,
       aal2Token: params.aal2Token,
-      partnerIdentityToken: params.partnerIdentityToken,
+      ...(params.partnerIdentityToken && {
+        partnerIdentityToken: params.partnerIdentityToken,
+      }),
+      ...(params.email && { email: params.email }),
     });
 
     this.#updateVendorSession(
       params.vendor,
       (entry) => {
         this.#prepareEntryForNewSession(entry, params.geoCountry);
+        if (nextStep) {
+          entry.nextStep = toKycStep(nextStep);
+        }
       },
       { create: true },
     );
@@ -1232,14 +1316,19 @@ export class KycController extends BaseController<
       params.providerDisclaimersAccepted,
     );
 
+    let nextStep: KycStep | undefined;
     try {
-      await this.messenger.call('KycService:submitSessionDisclaimers', {
-        sessionId,
-        idOS,
-        kycProvider,
-        credentialReusabilityConsentGiven:
-          params.credentialReusabilityConsentGiven,
-      });
+      const recorded = await this.messenger.call(
+        'KycService:submitSessionDisclaimers',
+        {
+          sessionId,
+          idOS,
+          kycProvider,
+          credentialReusabilityConsentGiven:
+            params.credentialReusabilityConsentGiven,
+        },
+      );
+      nextStep = recorded.nextStep ? toKycStep(recorded.nextStep) : undefined;
     } catch {
       // A 409 means the session already recorded these consents.
     }
@@ -1248,7 +1337,13 @@ export class KycController extends BaseController<
       entry.idosDisclaimersAccepted = params.idosDisclaimersAccepted;
       entry.credentialReusabilityConsentGiven =
         params.credentialReusabilityConsentGiven;
+      if (nextStep) {
+        entry.nextStep = nextStep;
+      }
     });
+    if (!nextStep) {
+      await this.#refreshStepQuietly(vendor);
+    }
   }
 
   /**
@@ -1332,37 +1427,62 @@ export class KycController extends BaseController<
   /**
    * Submits the vendor T&C acceptance stored by
    * {@link acceptVendorDisclaimers} via
-   * {@link KycService.submitVendorDisclaimers}, then marks it submitted.
+   * {@link KycService.submitVendorDisclaimers}, marks it submitted, and
+   * stores the step kyc-api returns. Works before a session exists: kyc-api
+   * keeps the acceptance and records it with the vendor once the vendor's
+   * customer exists.
    *
    * @param params - The parameters.
    * @param params.vendor - The identity vendor.
-   * @returns The vendor signing records.
-   * @throws If the vendor has no stored acceptance, or no session yet (the
-   * vendor records terms against a customer that session creation creates).
+   * @returns The vendor signing records (empty until the customer exists).
+   * @throws If the vendor has no stored acceptance.
    */
   async recordVendorDisclaimers({
     vendor,
   }: {
     vendor: KycVendor;
   }): Promise<KycVendorSigning[]> {
-    const accepted = this.state.sessions[vendor]?.vendorDisclaimersAccepted;
+    const stored = this.state.sessions[vendor];
+    const accepted = stored?.vendorDisclaimersAccepted;
     if (!accepted) {
       throw new Error('No vendor disclaimer acceptance was found');
     }
-    this.#requireSessionStatus(vendor);
 
-    const signings = await this.messenger.call(
+    // kyc-api keeps the acceptance and records it with the vendor once the
+    // vendor's customer exists, so no session is needed.
+    const { signings, nextStep } = await this.messenger.call(
       'KycService:submitVendorDisclaimers',
       {
         vendor,
         disclaimerIds: accepted.disclaimerIds,
+        ...(stored?.residenceCountry
+          ? { country: stored.residenceCountry }
+          : {}),
       },
     );
+    this.#updateVendorSession(vendor, (entry) => {
+      entry.nextStep = nextStep;
+    });
 
-    // The entry can be cleared, or the customer can accept different terms,
-    // while the request is in flight. Mark only the acceptance that was sent,
-    // and do not recreate a cleared entry.
-    const submittedIds = new Set(accepted.disclaimerIds);
+    this.#markVendorDisclaimersSubmitted(vendor, accepted.disclaimerIds);
+
+    return signings;
+  }
+
+  /**
+   * Marks the stored vendor T&C acceptance submitted when it still holds the
+   * ids that were sent. The entry can be cleared, or the customer can accept
+   * different terms, while the request is in flight, so only the acceptance
+   * that was sent is marked, and a cleared entry is not recreated.
+   *
+   * @param vendor - The identity vendor.
+   * @param disclaimerIds - The ids that were submitted.
+   */
+  #markVendorDisclaimersSubmitted(
+    vendor: KycVendor,
+    disclaimerIds: string[],
+  ): void {
+    const submittedIds = new Set(disclaimerIds);
     this.update((state) => {
       const current = state.sessions[vendor]?.vendorDisclaimersAccepted;
       if (
@@ -1373,8 +1493,70 @@ export class KycController extends BaseController<
         current.submitted = true;
       }
     });
+  }
 
-    return signings;
+  /**
+   * Fetches the vendor's onboarding step from kyc-api and stores it on the
+   * vendor's entry, creating the entry when there is none. kyc-api decides the
+   * step; clients map `sessions[vendor].nextStep` to a screen.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @returns The step.
+   */
+  async refreshStep({ vendor }: { vendor: KycVendor }): Promise<KycStep> {
+    const nextStep = await this.messenger.call('KycService:getStep', vendor);
+    this.#updateVendorSession(
+      vendor,
+      (entry) => {
+        entry.nextStep = nextStep;
+      },
+      { create: true },
+    );
+    return nextStep;
+  }
+
+  /**
+   * Refreshes the step after an action whose response carried none. A failure
+   * leaves the stored step as it was; the next refresh corrects it.
+   *
+   * @param vendor - The identity vendor.
+   */
+  async #refreshStepQuietly(vendor: KycVendor): Promise<void> {
+    try {
+      const nextStep = await this.messenger.call('KycService:getStep', vendor);
+      // An entry cleared while the request was in flight stays cleared.
+      this.#updateVendorSession(vendor, (entry) => {
+        entry.nextStep = nextStep;
+      });
+    } catch {
+      // Keep the stored step.
+    }
+  }
+
+  /**
+   * Tells kyc-api the provider flow was submitted, so a reinstall does not
+   * reopen it, and stores the step it returns. A failure falls back to a
+   * plain step refresh.
+   *
+   * @param vendor - The identity vendor.
+   * @param sessionId - The session the provider flow ran for.
+   */
+  async #markProviderSubmitted(
+    vendor: KycVendor,
+    sessionId: string,
+  ): Promise<void> {
+    try {
+      const nextStep = await this.messenger.call(
+        'KycService:markProviderSubmitted',
+        { sessionId },
+      );
+      this.#updateVendorSession(vendor, (entry) => {
+        entry.nextStep = nextStep;
+      });
+    } catch {
+      await this.#refreshStepQuietly(vendor);
+    }
   }
 
   /**
@@ -1408,6 +1590,255 @@ export class KycController extends BaseController<
       entry.vendorDisclaimersAccepted,
       fetched,
     );
+  }
+
+  /**
+   * Verifies the code a vendor emailed during onboarding.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.otp - The code the vendor sent.
+   * @returns The session status after the step.
+   */
+  verifyVendorEmailOtp({
+    vendor,
+    otp,
+  }: {
+    vendor: KycVendor;
+    otp: string;
+  }): Promise<KycSessionStatus> {
+    return this.#onboardingStep(vendor, 'email/verify-otp', { otp });
+  }
+
+  /**
+   * Asks the vendor to email a new onboarding code.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @returns The session status after the step.
+   */
+  resendVendorEmailOtp({
+    vendor,
+  }: {
+    vendor: KycVendor;
+  }): Promise<KycSessionStatus> {
+    return this.#onboardingStep(vendor, 'email/resend-otp');
+  }
+
+  /**
+   * Asks the vendor to text an onboarding code to a phone number.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.phoneNumber - Phone number in E.164 format.
+   * @returns The session status after the step.
+   */
+  sendVendorPhoneOtp({
+    vendor,
+    phoneNumber,
+  }: {
+    vendor: KycVendor;
+    phoneNumber: string;
+  }): Promise<KycSessionStatus> {
+    return this.#onboardingStep(vendor, 'phone/send-otp', { phoneNumber });
+  }
+
+  /**
+   * Verifies the code a vendor texted during onboarding.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.otp - The code the vendor sent.
+   * @returns The session status after the step.
+   */
+  verifyVendorPhoneOtp({
+    vendor,
+    otp,
+  }: {
+    vendor: KycVendor;
+    otp: string;
+  }): Promise<KycSessionStatus> {
+    return this.#onboardingStep(vendor, 'phone/verify-otp', { otp });
+  }
+
+  /**
+   * Runs one vendor onboarding step for the vendor's session and stores the
+   * resulting status on its entry.
+   *
+   * @param vendor - The identity vendor.
+   * @param step - The onboarding step.
+   * @param body - Step payload.
+   * @returns The session status after the step.
+   */
+  async #onboardingStep(
+    vendor: KycVendor,
+    step: KycOnboardingStep,
+    body?: Record<string, string>,
+  ): Promise<KycSessionStatus> {
+    const { id: sessionId } = this.#requireSessionStatus(vendor);
+    const sessionStatus = await this.messenger.call(
+      'KycService:postOnboardingStep',
+      { sessionId, step, ...(body && { body }) },
+    );
+    this.#updateSessionStatusAndTrackAnalytics(vendor, sessionStatus);
+    return sessionStatus;
+  }
+
+  /**
+   * POC: reads the vendor account state through the vendor's adapter and
+   * stores it on the entry.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @returns The stored vendor account.
+   */
+  async refreshVendorAccount({
+    vendor,
+  }: {
+    vendor: KycVendor;
+  }): Promise<KycVendorAccount> {
+    const status = await this.#requireVendorAccountAdapter(vendor).getStatus();
+    return this.#writeVendorAccount(vendor, (account) => {
+      account.state = status.state;
+      if (status.intentStatus === undefined) {
+        delete account.intentStatus;
+      } else {
+        account.intentStatus = status.intentStatus;
+      }
+      if (status.state === 'active') {
+        delete account.mfa;
+      }
+    });
+  }
+
+  /**
+   * POC: opens the vendor's link ceremony and names the email the vendor
+   * user was registered with. The vendor sends a code to it (or to the
+   * account's configured second factor).
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.email - Email to link. Defaults to the one stored at
+   * session creation.
+   * @returns The stored vendor account.
+   */
+  async startVendorAccountLink({
+    vendor,
+    email,
+  }: {
+    vendor: KycVendor;
+    email?: string;
+  }): Promise<KycVendorAccount> {
+    const adapter = this.#requireVendorAccountAdapter(vendor);
+    const linkEmail = email ?? this.state.sessions[vendor]?.vendorAccount?.email;
+    if (!linkEmail) {
+      throw new Error('No email was found to link the vendor account');
+    }
+    const intent = await adapter.createIntent();
+    await adapter.submitEmail(linkEmail);
+    return this.#writeVendorAccount(vendor, (account) => {
+      account.state = 'link_pending';
+      account.intentStatus = intent.intentStatus;
+      account.email = linkEmail;
+      delete account.mfa;
+    });
+  }
+
+  /**
+   * POC: submits a link code. When the vendor asks for another factor, the
+   * entry's `vendorAccount.mfa` says which; submit that code here too.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.code - The code the vendor sent.
+   * @returns The stored vendor account.
+   */
+  async verifyVendorAccountLink({
+    vendor,
+    code,
+  }: {
+    vendor: KycVendor;
+    code: string;
+  }): Promise<KycVendorAccount> {
+    const result = await this.#requireVendorAccountAdapter(vendor).verifyCode(
+      code,
+    );
+    if (!result.verified) {
+      return this.#writeVendorAccount(vendor, (account) => {
+        if (result.mfa) {
+          account.mfa = result.mfa;
+        }
+      });
+    }
+    this.#writeVendorAccount(vendor, (account) => {
+      delete account.mfa;
+      if (result.userId) {
+        account.userId = result.userId;
+      }
+    });
+    return this.refreshVendorAccount({ vendor });
+  }
+
+  /**
+   * POC: binds the payout wallet and activates the vendor account. The
+   * account is usable once its state is `active`.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The identity vendor.
+   * @param params.walletAddress - Payout wallet address.
+   * @param params.network - Payout wallet network.
+   * @returns The stored vendor account.
+   */
+  async activateVendorAccount({
+    vendor,
+    walletAddress,
+    network,
+  }: {
+    vendor: KycVendor;
+    walletAddress: string;
+    network: string;
+  }): Promise<KycVendorAccount> {
+    const result = await this.#requireVendorAccountAdapter(vendor).activate({
+      walletAddress,
+      network,
+    });
+    this.#writeVendorAccount(vendor, (account) => {
+      account.intentStatus = result.intentStatus;
+      account.walletAddress = walletAddress;
+    });
+    return this.refreshVendorAccount({ vendor });
+  }
+
+  #requireVendorAccountAdapter(vendor: KycVendor): KycVendorAccountAdapter {
+    const adapter = this.#vendorAccountAdapters[vendor];
+    if (!adapter) {
+      throw new Error(`No vendor account adapter for ${vendor}`);
+    }
+    return adapter;
+  }
+
+  #writeVendorAccount(
+    vendor: KycVendor,
+    write: (account: KycVendorAccount) => void,
+  ): KycVendorAccount {
+    this.#updateVendorSession(
+      vendor,
+      (entry) => {
+        const account: KycVendorAccount = entry.vendorAccount ?? {
+          state: 'none',
+          updatedAt: new Date().toISOString(),
+        };
+        write(account);
+        account.updatedAt = new Date().toISOString();
+        entry.vendorAccount = account;
+      },
+      { create: true },
+    );
+    const stored = this.state.sessions[vendor]?.vendorAccount;
+    if (!stored) {
+      throw new Error('Vendor account was not stored');
+    }
+    return stored;
   }
 
   /**
@@ -1611,6 +2042,7 @@ export class KycController extends BaseController<
           },
         );
         this.startSessionStatusPolling({ vendor });
+        await this.#markProviderSubmitted(vendor, sessionId);
         return 'submitted';
       }
 

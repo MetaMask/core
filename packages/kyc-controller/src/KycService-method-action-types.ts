@@ -66,6 +66,33 @@ export type KycServiceSubmitVendorDisclaimersAction = {
 };
 
 /**
+ * Fetches the vendor's current onboarding step
+ * (`GET /vendors/{vendor}/step`). kyc-api computes it from what it knows
+ * about the user; the client maps it to a screen.
+ *
+ * @param vendor - Identity vendor.
+ * @returns The step.
+ */
+export type KycServiceGetStepAction = {
+  type: `KycService:getStep`;
+  handler: KycService['getStep'];
+};
+
+/**
+ * Tells kyc-api the identity provider flow was submitted for a session
+ * (`POST /sessions/{sessionId}/provider-submitted`), so the step survives a
+ * reinstall.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - The UKYC session id.
+ * @returns The next step.
+ */
+export type KycServiceMarkProviderSubmittedAction = {
+  type: `KycService:markProviderSubmitted`;
+  handler: KycService['markProviderSubmitted'];
+};
+
+/**
  * Fetches the global idOS + KYC-provider disclaimer catalog
  * (`GET /disclaimers?country=`). Carries no consent state — per-document
  * `consented` flags and `credentialReusabilityConsentGiven` are
@@ -272,6 +299,22 @@ export type KycServiceGetSessionStatusAction = {
 };
 
 /**
+ * Runs one vendor onboarding step for a session
+ * (`POST /sessions/{id}/onboarding/{step}`): verify or resend the vendor's
+ * email code, or send or verify its SMS code.
+ *
+ * @param params - The parameters.
+ * @param params.sessionId - UKYC session id.
+ * @param params.step - The onboarding step.
+ * @param params.body - Step payload: `{ otp }` or `{ phoneNumber }`.
+ * @returns The session status after the step.
+ */
+export type KycServicePostOnboardingStepAction = {
+  type: `KycService:postOnboardingStep`;
+  handler: KycService['postOnboardingStep'];
+};
+
+/**
  * Fetches the latest UKYC session status for an identity vendor
  * (`GET /sessions/latest/status/{vendor}`).
  *
@@ -308,6 +351,8 @@ export type KycServiceMethodActions =
   | KycServiceFetchVendorDisclaimersAction
   | KycServiceCreateVendorCustomerAction
   | KycServiceSubmitVendorDisclaimersAction
+  | KycServiceGetStepAction
+  | KycServiceMarkProviderSubmittedAction
   | KycServiceFetchSessionDisclaimersByCountryAction
   | KycServiceFetchSessionDisclaimersBySessionIdAction
   | KycServiceSubmitSessionDisclaimersAction
@@ -320,5 +365,6 @@ export type KycServiceMethodActions =
   | KycServiceCompleteDeletionAction
   | KycServiceCreateJourneyAction
   | KycServiceGetSessionStatusAction
+  | KycServicePostOnboardingStepAction
   | KycServiceGetSessionStatusForVendorAction
   | KycServiceGetDataSharesAction;

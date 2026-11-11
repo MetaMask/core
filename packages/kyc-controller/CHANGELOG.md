@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add server-driven onboarding steps: kyc-api decides each vendor's next step and the controller stores it at `sessions[vendor].nextStep` ([#11399](https://github.com/MetaMask/core/pull/11399))
+  - Add `KycController.refreshStep({ vendor })`, `KycService.getStep(vendor)` and `KycService.markProviderSubmitted({ sessionId })`, with their messenger actions
+  - Export `KYC_STEPS`, the `KycStep` type and `toKycStep`, which maps a step this version does not know to `error`
+  - `startSession`, `recordSessionDisclaimers`, `recordVendorDisclaimers` and a submitted `launchProviderFlow` store the step kyc-api returns
+
 - Add `KycController.getSessionDecision({ vendor })` and the `KycController:getSessionDecision` messenger action, which reduce a vendor's session to one of `none`, `new`, `pending`, `approved`, `rejected` or `retry` ([#11399](https://github.com/MetaMask/core/pull/11399))
   - Export the pure `getKycSessionDecision` function, the `KycSessionDecision` type and `KYC_SESSION_DECISIONS`
   - Only the vendor's own `finalStatus: approved` counts as approved. It is not a "ready" verdict and says nothing about vendor work after approval
@@ -17,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `KycService.submitVendorDisclaimers` returns `{ signings, nextStep }` instead of the signings array, and accepts an optional `country` ([#11399](https://github.com/MetaMask/core/pull/11399))
+- `KycController.recordVendorDisclaimers` no longer requires a session; kyc-api keeps the acceptance until the vendor's customer exists ([#11399](https://github.com/MetaMask/core/pull/11399))
 - **BREAKING:** Replace the single-session state with `sessions`, keyed by vendor ([#11399](https://github.com/MetaMask/core/pull/11399))
   - Each entry holds `sessionStatus`, `providerFlowStatus`, `residenceCountry`, `vendorDisclaimersAccepted`, `providerDisclaimersAccepted`, `idosDisclaimersAccepted` and `credentialReusabilityConsentGiven` for that vendor
   - The `email`, `vendor` and `geoCountry` fields are removed. Clients must migrate persisted state
