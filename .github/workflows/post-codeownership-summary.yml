@@ -112,31 +112,33 @@ jobs:
               issue_number: context.issue.number,
               per_page: 100,
             });
-            // There should be at most one, but earlier versions of this workflow
-            // posted a new comment on each run, so update the latest
             const existingComment = comments.findLast(
               (comment) =>
                 comment.user?.login === 'github-actions[bot]' &&
                 comment.body?.startsWith(marker),
             );
 
-            if (summary && existingComment) {
-              if (existingComment.body !== body) {
-                await github.rest.issues.updateComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: existingComment.id,
-                  body,
-                });
-              }
-            } else if (summary) {
+            if (summary && existingComment && existingComment.body !== body) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body,
+              });
+              return;
+            }
+
+            if (summary && !existingComment) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
                 body,
               });
-            } else if (existingComment) {
+              return;
+            }
+
+            if (!summary && existingComment) {
               await github.rest.issues.deleteComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
