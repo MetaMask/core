@@ -2696,6 +2696,22 @@ describe('AggregatedPerpsProvider', () => {
       expect(lighterCleanup).toHaveBeenCalledTimes(1);
     });
 
+    it('emits an unavailable account snapshot before the new venue delivers data', () => {
+      mockHLProvider.subscribeToAccount.mockReturnValue(vi.fn());
+      mockLighterProvider.subscribeToAccount.mockReturnValue(vi.fn());
+      const callback = vi.fn();
+
+      aggregatedProvider.subscribeToAccount({ callback });
+      expect(callback).not.toHaveBeenCalled();
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      // The consumer's cached balance is invalidated before the new venue's
+      // first snapshot is accepted.
+      expect(callback).toHaveBeenCalledWith(null);
+      expect(callback).toHaveBeenCalledTimes(1);
+    });
+
     it('continues rerouting after one subscription throws and retries it later', () => {
       mockHLProvider.subscribeToAccount.mockReturnValue(vi.fn());
       mockLighterProvider.subscribeToAccount.mockReturnValue(vi.fn());

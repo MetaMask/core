@@ -1455,6 +1455,10 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     // their own, so they follow the routing default and move with it.
     return this.#trackDefaultRoutedSubscription({
       open: (provider) => provider.subscribeToAccount(params),
+      // Emit an unavailable snapshot so a consumer that caches the balance
+      // (for example Mobile's account stream channel) does not keep showing
+      // the previous venue's value while the new venue's first update pends.
+      onInvalidate: () => params.callback(null),
     });
   }
 
