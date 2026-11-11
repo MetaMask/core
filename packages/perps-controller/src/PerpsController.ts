@@ -1334,6 +1334,9 @@ export class PerpsController extends BaseController<
 
   readonly #providerSubscriptions = new Set<RebindableProviderSubscription>();
 
+  // A failed automatic rollback does not end the consumers' subscription context.
+  #hasPendingSubscriptionRecovery = false;
+
   // Store options for dependency injection (allows core package to inject platform-specific services)
   readonly #options: PerpsControllerOptions;
 
@@ -2344,7 +2347,6 @@ export class PerpsController extends BaseController<
     this.isInitialized = false;
     this.#initializationPromise = null;
     this.#initWithoutDisconnectWait(true)
-      .then(() => this.#restoreProviderSubscriptions())
       .catch((error: unknown) => {
         this.#logError(
           ensureError(error, 'PerpsController.multiProviderRollback'),
@@ -2536,7 +2538,9 @@ export class PerpsController extends BaseController<
         continue;
       }
 
-      return this.#initWithoutDisconnectWait();
+      return this.#initWithoutDisconnectWait(
+        this.#hasPendingSubscriptionRecovery,
+      );
     }
   }
 
@@ -2544,7 +2548,7 @@ export class PerpsController extends BaseController<
    * Initialize without waiting for disconnect. Reinitialization operations use
    * this after they have claimed the controller lifecycle.
    *
-   * @param preserveSubscriptions - Keep Core registrations during automatic rollback.
+   * @param preserveSubscriptions - Keep Core registrations during rollback or recovery.
    * @returns A promise that resolves when initialization finishes.
    */
   async #initWithoutDisconnectWait(
@@ -2716,6 +2720,9 @@ export class PerpsController extends BaseController<
             this.#watchlistEditsDuringHydration.delete(editsDuringHydration);
           });
 
+        if (preserveSubscriptions) {
+          this.#restoreProviderSubscriptions();
+        }
         return; // Exit retry loop on success
       } catch (error) {
         lastError = ensureError(error, 'PerpsController.performInitialization');
@@ -7039,6 +7046,7 @@ export class PerpsController extends BaseController<
    */
   #detachProviderSubscriptions(discard: boolean): void {
     const subscriptions = [...this.#providerSubscriptions];
+    this.#hasPendingSubscriptionRecovery = !discard;
     if (discard) {
       this.#providerSubscriptions.clear();
     }
@@ -7060,12 +7068,13 @@ export class PerpsController extends BaseController<
     }
   }
 
-  /** Reattach surviving registrations after successful automatic rollback. */
+  /** Reattach surviving registrations after rollback or a later recovery. */
   #restoreProviderSubscriptions(): void {
     const provider = this.activeProviderInstance;
     if (!this.isInitialized || !provider) {
       return;
     }
+    this.#hasPendingSubscriptionRecovery = false;
     for (const subscription of [...this.#providerSubscriptions]) {
       if (!this.#providerSubscriptions.has(subscription)) {
         continue;

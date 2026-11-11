@@ -1628,6 +1628,103 @@ describe('PerpsController default provider', () => {
         };
       });
 
+      it.each([
+        'retry',
+        'retry-twice',
+        'unsubscribe',
+        'disconnect',
+        'switch',
+        'network',
+      ] as const)(
+        'preserves rollback subscriber ownership after initialization fails until %s',
+        async (recovery) => {
+          const callback = vi.fn();
+          const oldCleanup = vi.fn();
+          mockProvider.subscribeToPositions.mockReturnValue(oldCleanup);
+          const cleanup = controller.subscribeToPositions({ callback });
+          const listeners = new Set<(positions: any[]) => void>();
+          const newCleanup = vi.fn();
+          replacement.subscribeToPositions.mockImplementation(
+            ({ callback: onUpdate }) => {
+              listeners.add(onUpdate);
+              return () => {
+                listeners.delete(onUpdate);
+                newCleanup();
+              };
+            },
+          );
+          (HyperLiquidProvider as Mock)
+            .mockReset()
+            .mockImplementation(function () {
+              throw new Error('Rollback initialization unavailable');
+            });
+
+          disableMultiProvider();
+          await vi.waitFor(() =>
+            expect(controller.isCurrentlyReinitializing()).toBe(false),
+          );
+          expect(controller.state.initializationState).toBe(
+            InitializationState.Failed,
+          );
+          expect(controller.state.initializationAttempts).toBe(3);
+          expect(HyperLiquidProvider).toHaveBeenCalledTimes(3);
+          expect(oldCleanup).toHaveBeenCalledTimes(1);
+          expect(replacement.subscribeToPositions).not.toHaveBeenCalled();
+
+          if (recovery === 'retry-twice') {
+            await controller.init();
+            expect(controller.state.initializationState).toBe(
+              InitializationState.Failed,
+            );
+            expect(HyperLiquidProvider).toHaveBeenCalledTimes(6);
+          }
+          const expectDelivery =
+            recovery === 'retry' || recovery === 'retry-twice';
+          (HyperLiquidProvider as Mock).mockImplementation(function () {
+            return replacement;
+          });
+          if (recovery === 'unsubscribe') {
+            cleanup();
+          }
+          if (recovery === 'disconnect') {
+            await controller.disconnect();
+          }
+          if (recovery === 'switch') {
+            await controller.switchProvider('hyperliquid');
+          }
+          if (recovery === 'network') {
+            await controller.toggleTestnet();
+          }
+          await controller.init();
+
+          expect(controller.state.initializationState).toBe(
+            InitializationState.Initialized,
+          );
+          expect(controller.getActiveProviderOrNull()).toBe(replacement);
+          const update = [createMockPosition({ size: '1.5' })];
+          for (const listener of listeners) {
+            listener(update);
+          }
+          if (expectDelivery) {
+            expect(replacement.subscribeToPositions).toHaveBeenCalledTimes(1);
+            expect(callback).toHaveBeenCalledExactlyOnceWith(update);
+          } else {
+            expect(replacement.subscribeToPositions).not.toHaveBeenCalled();
+            expect(callback).not.toHaveBeenCalled();
+          }
+
+          cleanup();
+          cleanup();
+          for (const listener of listeners) {
+            listener([createMockPosition({ size: '2' })]);
+          }
+          expect(listeners.size).toBe(0);
+          expect(callback).toHaveBeenCalledTimes(expectDelivery ? 1 : 0);
+          expect(newCleanup).toHaveBeenCalledTimes(expectDelivery ? 1 : 0);
+          expect(oldCleanup).toHaveBeenCalledTimes(1);
+        },
+      );
+
       it('cleans up a new binding cancelled by its synchronous first update', async () => {
         const newCleanup = vi.fn();
         const callback = vi.fn();
