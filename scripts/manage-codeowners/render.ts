@@ -1,4 +1,4 @@
-import type { CodeownersSection } from './types.ts';
+import type { CodeownersRule, CodeownersSection } from './types.ts';
 
 /**
  * Renders a section in the CODEOWNERS file. This can either be a team section,
@@ -30,7 +30,8 @@ export function renderCodeownersSection(
         .map(
           (rule) =>
             rule.pattern.padEnd(patternLengthWithPadding) +
-            rule.owners.join(' '),
+            rule.owners.join(' ') +
+            renderMaintenanceOwnersComment(rule),
         )
         .join('\n'),
     );
@@ -71,4 +72,20 @@ function renderHeading(
   }
 
   return `${'#'.repeat(headingLevel)} ${section.title}`;
+}
+
+/**
+ * Renders the inline comment that notes a rule's maintenance owners, which
+ * GitHub ignores but tools reading CODEOWNERS can use.
+ *
+ * @param rule - The rule whose comment should be rendered.
+ * @returns The comment, preceded by a space, or an empty string if the rule
+ * has no maintenance owners.
+ */
+function renderMaintenanceOwnersComment(rule: CodeownersRule): string {
+  if (rule.maintenanceOwners === undefined) {
+    return '';
+  }
+
+  return ` # maintenance-owner: ${rule.maintenanceOwners.join(' ')}`;
 }

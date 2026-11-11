@@ -85,6 +85,7 @@ function buildPackageRules(
   const releaseOwners = [
     ...new Set([...packageInfo.teams, CORE_PLATFORM_TEAM]),
   ].sort();
+  const isOwnedByCorePlatform = packageInfo.teams.includes(CORE_PLATFORM_TEAM);
   const workspacePath = `/packages/${packageDirectoryName}`;
   rules.push(
     ...[
@@ -97,6 +98,9 @@ function buildPackageRules(
       pattern: `${workspacePath}/${fileName}`,
       owners: releaseOwners,
       primaryOwners: owners,
+      ...(isOwnedByCorePlatform
+        ? {}
+        : { maintenanceOwners: [CORE_PLATFORM_TEAM] }),
     })),
   );
 

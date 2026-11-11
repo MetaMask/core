@@ -38,6 +38,26 @@ describe('renderCodeownersSection', () => {
     );
   });
 
+  it('notes the maintenance owners of a rule in an inline comment', () => {
+    const section = {
+      title: 'example',
+      rules: [
+        { pattern: '/packages/example', owners: ['@MetaMask/team'] },
+        {
+          pattern: '/packages/example/CHANGELOG.md',
+          owners: ['@MetaMask/core-platform', '@MetaMask/team'],
+          maintenanceOwners: ['@MetaMask/core-platform'],
+        },
+      ],
+    };
+
+    expect(renderCodeownersSection(section, 3)).toBe(
+      '### example\n' +
+        '/packages/example                 @MetaMask/team\n' +
+        '/packages/example/CHANGELOG.md    @MetaMask/core-platform @MetaMask/team # maintenance-owner: @MetaMask/core-platform',
+    );
+  });
+
   it('underlines a top-level section heading', () => {
     expect(
       renderCodeownersSection({

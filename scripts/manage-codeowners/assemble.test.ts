@@ -38,6 +38,7 @@ describe('assembleCodeownersSections', () => {
                   '@MetaMask/core-platform',
                 ],
                 primaryOwners: ['@MetaMask/a-team', '@MetaMask/b-team'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
               {
                 pattern: '/packages/alpha/package.json',
@@ -47,6 +48,7 @@ describe('assembleCodeownersSections', () => {
                   '@MetaMask/core-platform',
                 ],
                 primaryOwners: ['@MetaMask/a-team', '@MetaMask/b-team'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
               {
                 pattern: '/packages/alpha/tsconfig.*',
@@ -56,6 +58,7 @@ describe('assembleCodeownersSections', () => {
                   '@MetaMask/core-platform',
                 ],
                 primaryOwners: ['@MetaMask/a-team', '@MetaMask/b-team'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
               {
                 pattern: '/packages/alpha/typedoc.json',
@@ -65,6 +68,7 @@ describe('assembleCodeownersSections', () => {
                   '@MetaMask/core-platform',
                 ],
                 primaryOwners: ['@MetaMask/a-team', '@MetaMask/b-team'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
               {
                 pattern: '/packages/alpha/vitest.config.*',
@@ -74,6 +78,7 @@ describe('assembleCodeownersSections', () => {
                   '@MetaMask/core-platform',
                 ],
                 primaryOwners: ['@MetaMask/a-team', '@MetaMask/b-team'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
             ],
           },
@@ -88,26 +93,31 @@ describe('assembleCodeownersSections', () => {
                 pattern: '/packages/zebra/CHANGELOG.md',
                 owners: ['@MetaMask/core-platform', '@MetaMask/z-team'],
                 primaryOwners: ['@MetaMask/z-team'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
               {
                 pattern: '/packages/zebra/package.json',
                 owners: ['@MetaMask/core-platform', '@MetaMask/z-team'],
                 primaryOwners: ['@MetaMask/z-team'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
               {
                 pattern: '/packages/zebra/tsconfig.*',
                 owners: ['@MetaMask/core-platform', '@MetaMask/z-team'],
                 primaryOwners: ['@MetaMask/z-team'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
               {
                 pattern: '/packages/zebra/typedoc.json',
                 owners: ['@MetaMask/core-platform', '@MetaMask/z-team'],
                 primaryOwners: ['@MetaMask/z-team'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
               {
                 pattern: '/packages/zebra/vitest.config.*',
                 owners: ['@MetaMask/core-platform', '@MetaMask/z-team'],
                 primaryOwners: ['@MetaMask/z-team'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
             ],
           },
@@ -197,7 +207,34 @@ describe('assembleCodeownersSections', () => {
           '@MetaMask/core-platform',
         ],
         primaryOwners: ['@MetaMask/a-team', '@MetaMask/b-team'],
+        maintenanceOwners: ['@MetaMask/core-platform'],
       })),
+    ]);
+  });
+
+  it('does not make Core Platform a maintenance owner of files in packages it owns', () => {
+    const config: CodeownersConfig = {
+      packages: {
+        'shared-controller': {
+          teams: ['@MetaMask/core-platform', '@MetaMask/a-team'],
+        },
+      },
+      overrides: [],
+    };
+
+    const sections = assembleCodeownersSections(config);
+
+    expect(
+      sections[0]?.subsections?.[0]?.rules.map(
+        ({ maintenanceOwners }) => maintenanceOwners,
+      ),
+    ).toStrictEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
     ]);
   });
 
@@ -258,6 +295,7 @@ describe('assembleCodeownersSections', () => {
                   '@MetaMask/core-platform',
                 ],
                 primaryOwners: ['@MetaMask/accounts-engineers'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
               {
                 pattern: '/packages/accounts-controller/package.json',
@@ -266,6 +304,7 @@ describe('assembleCodeownersSections', () => {
                   '@MetaMask/core-platform',
                 ],
                 primaryOwners: ['@MetaMask/accounts-engineers'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
               {
                 pattern: '/packages/accounts-controller/tsconfig.*',
@@ -274,6 +313,7 @@ describe('assembleCodeownersSections', () => {
                   '@MetaMask/core-platform',
                 ],
                 primaryOwners: ['@MetaMask/accounts-engineers'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
               {
                 pattern: '/packages/accounts-controller/typedoc.json',
@@ -282,6 +322,7 @@ describe('assembleCodeownersSections', () => {
                   '@MetaMask/core-platform',
                 ],
                 primaryOwners: ['@MetaMask/accounts-engineers'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
               {
                 pattern: '/packages/accounts-controller/vitest.config.*',
@@ -290,6 +331,7 @@ describe('assembleCodeownersSections', () => {
                   '@MetaMask/core-platform',
                 ],
                 primaryOwners: ['@MetaMask/accounts-engineers'],
+                maintenanceOwners: ['@MetaMask/core-platform'],
               },
             ],
           },

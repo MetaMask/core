@@ -25,6 +25,19 @@ export type CodeownersRule = {
    * CODEOWNERS file.
    */
   primaryOwners?: string[];
+
+  /**
+   * Owners that are included only to help maintain the matched files, and
+   * whose approval isn't expected.
+   *
+   * Core Platform co-owns certain files in every package, such as changelogs
+   * and manifests, so that it can maintain them across the monorepo. These
+   * owners are noted in CODEOWNERS with an inline `# maintenance-owner:`
+   * comment, which GitHub ignores, so that tools reading CODEOWNERS, such as
+   * `create-codeownership-summary`, can tell engineers whose approval is
+   * actually needed.
+   */
+  maintenanceOwners?: string[];
 };
 
 /**
