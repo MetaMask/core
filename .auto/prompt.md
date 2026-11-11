@@ -102,6 +102,24 @@ parity and production semantics must come from the real dependencies.
 
 (run 0) Baseline: untouched source. See `.auto/log.jsonl`.
 
+## Provenance of log entries (added 09:58 UTC, second worker)
+
+- **Runs 1–8 were manually authored** by the first worker via
+  `.auto/log-entry.mjs` from real `./.auto/measure.sh` outputs — the
+  pi-autoresearch extension tools were NOT invoked for them. Their metric
+  values are genuine bench outputs, but their `confidence` fields (including
+  the 39.24 figure on run 8) are hand calculations, not extension-derived.
+- **Runs 9–25 are recorded by the actual pi-autoresearch extension**
+  (`run_experiment` / `log_experiment`), mostly as clean repeat controls of
+  the committed candidate for a genuine, extension-computed noise floor and
+  confidence figure that supersedes the manual one. No manual log generation
+  from run 9 onward; `.auto/log-entry.mjs` is retained only as provenance
+  for runs 1–8.
+- The original baseline (`.auto/bench/original/`, SHA-pinned) is immutable
+  and `baseline_ms` continues to be measured in-process every run.
+- `packages/assets-controller/CHANGELOG.md` was restored to `origin/main`
+  (single production file policy for this research branch).
+
 ## Parent diagnostic (09:34)
 The DIRECT native esbuild binary hangs on a trivial standalone `print(42)` bundle too (Python subprocess 10sec timeout), although --version works. This is NOT your import graph. Stop bisecting imports. Try alternative TypeScript transpileModule + manual dependency concatenation, or mark blocked/no win. Do not spend whole session on esbuild. Need commit specialized harness BEFORE measuring, then bounded loop or honest blocked outcome, push branch even no win.
 

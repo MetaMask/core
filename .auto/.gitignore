@@ -3,6 +3,3 @@ bench/bundle.js
 bench/run_*.out
 bench/staging/
 bench/node_modules/
-
-# Session state written by the loop
-log.jsonl
