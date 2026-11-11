@@ -60,6 +60,14 @@ export function getAssetIdsForMetadataFetch({
   const accountFilter = buildAccountFilter(request);
   const chainFilter = buildChainFilter(request);
   const hiddenAssetIds = collectHiddenAssetIdKeys(state.assetPreferences);
+  // `parseCaipAssetType` anchors the chain ID at the start of the asset ID
+  // and chain IDs cannot contain `/`, so an asset ID whose chain is in the
+  // request's chain filter must start with `${chainId}/`. Checking those
+  // prefixes first lets out-of-scope assets (and malformed IDs) skip the
+  // CAIP parse entirely.
+  const chainFilterPrefixes = chainFilter
+    ? Array.from(chainFilter, (chainId) => `${chainId}/`)
+    : undefined;
   const knownMetadataIds = new Set<string>();
   const assetIdsNeedingMetadata = new Set<string>();
   const balanceHealAssetIds = new Set<string>();
@@ -94,8 +102,18 @@ export function getAssetIdsForMetadataFetch({
   };
 
   const inRequestChains = (assetId: string): boolean => {
-    if (!chainFilter) {
+    if (!chainFilter || !chainFilterPrefixes) {
       return true;
+    }
+    let inScope = false;
+    for (const prefix of chainFilterPrefixes) {
+      if (assetId.startsWith(prefix)) {
+        inScope = true;
+        break;
+      }
+    }
+    if (!inScope) {
+      return false;
     }
     try {
       const { chainId } = parseCaipAssetType(assetId as Caip19AssetId);
