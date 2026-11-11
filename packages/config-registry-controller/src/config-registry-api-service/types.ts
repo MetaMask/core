@@ -36,7 +36,10 @@ const RpcProviderSchema = type({
 
 const RpcProvidersSchema = type({
   default: RpcProviderSchema,
-  fallbacks: array(string()),
+  // The registry API historically served plain RPC URL strings here and now
+  // also serves full provider objects; both shapes are accepted so a single
+  // new-style chain does not fail validation for the entire response.
+  fallbacks: array(union([string(), RpcProviderSchema])),
 });
 
 const BlockExplorerUrlsSchema = type({
