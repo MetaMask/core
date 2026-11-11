@@ -259,6 +259,7 @@ describe('PerpsController default provider', () => {
   let mockMessenger: ReturnType<typeof createMockMessenger>;
   let lighterProvider: PerpsProvider;
   let aggregatedProvider: AggregatedPerpsProvider;
+  let loadLighterProvider: Mock;
 
   const remoteFeatureFlags: Record<string, unknown> = {
     perpsPerpTradingGeoBlockedCountriesV2: { blockedRegions: [] },
@@ -322,6 +323,11 @@ describe('PerpsController default provider', () => {
     });
 
     mockMessenger = createMockMessenger({ call: mockCall });
+    loadLighterProvider = vi.fn(async () => ({
+      LighterProvider: function () {
+        return lighterProvider;
+      } as any,
+    }));
     controller = new TestablePerpsController({
       messenger: mockMessenger,
       state,
@@ -330,11 +336,7 @@ describe('PerpsController default provider', () => {
             providerCredentials: {
               lighter: {
                 enabled: true,
-                loadProvider: async () => ({
-                  LighterProvider: function () {
-                    return lighterProvider;
-                  } as any,
-                }),
+                loadProvider: loadLighterProvider,
               },
             },
           }
@@ -548,6 +550,28 @@ describe('PerpsController default provider', () => {
       expect(controller.state.defaultProvider).toBe('lighter');
     });
 
+    it('clears a fallback snapshot when the saved default becomes routable again', () => {
+      setupAggregatedMode('hyperliquid');
+      controller.testUpdate((state) => {
+        // The live route fell back while the saved Lighter venue was unavailable.
+        state.defaultProvider = 'lighter';
+        state.accountState = {
+          providerId: 'hyperliquid',
+          spendableBalance: '100',
+          withdrawableBalance: '100',
+          totalBalance: '100',
+          marginUsed: '0',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+        };
+      });
+
+      controller.setDefaultProvider('lighter');
+
+      expect(aggregatedProvider.getWriteProviderId()).toBe('lighter');
+      expect(controller.state.accountState).toBeNull();
+    });
+
     it('rejects a provider that is not registered', () => {
       setupAggregatedMode('hyperliquid');
       // Unregister lighter, then try to make it the default.
@@ -565,6 +589,38 @@ describe('PerpsController default provider', () => {
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
       });
       expect(controller.state.defaultProvider).toBe('hyperliquid');
+    });
+  });
+
+  describe('unavailable saved default', () => {
+    it('preserves the preference through a temporary Lighter load failure and restores its route on reinitialization', async () => {
+      createController(
+        { activeProvider: 'aggregated', defaultProvider: 'lighter' },
+        true,
+      );
+      loadLighterProvider.mockRejectedValueOnce(
+        new Error('Temporary chunk load failure'),
+      );
+
+      await controller.init();
+
+      expect(controller.state.defaultProvider).toBe('lighter');
+      expect(
+        (
+          controller.getActiveProviderOrNull() as AggregatedPerpsProvider
+        ).getWriteProviderId(),
+      ).toBe('hyperliquid');
+      // The failed load is retried during ordinary reinitialization.
+      await controller.disconnect();
+      await controller.init();
+
+      expect(loadLighterProvider).toHaveBeenCalledTimes(2);
+      expect(controller.state.defaultProvider).toBe('lighter');
+      expect(
+        (
+          controller.getActiveProviderOrNull() as AggregatedPerpsProvider
+        ).getWriteProviderId(),
+      ).toBe('lighter');
     });
   });
 
@@ -627,6 +683,57 @@ describe('PerpsController default provider', () => {
         expect(controller.state.accountState).toStrictEqual(account);
       },
     );
+
+    it('commits fallback balances without overwriting the saved default and rejects them after recovery', async () => {
+      createController(
+        { activeProvider: 'aggregated', defaultProvider: 'lighter' },
+        true,
+      );
+      loadLighterProvider.mockRejectedValueOnce(
+        new Error('Temporary chunk load failure'),
+      );
+      await controller.init();
+      const { MarketDataService: RealMarketDataService } =
+        await vi.importActual<
+          typeof import('../../src/services/MarketDataService.js')
+        >('../../src/services/MarketDataService.js');
+      const service = new RealMarketDataService(mockInfrastructure as never);
+      mockMarketDataServiceInstance.getAccountState.mockImplementation(
+        (options: never) => service.getAccountState(options),
+      );
+      const account: AccountState = {
+        providerId: 'hyperliquid',
+        spendableBalance: '100',
+        withdrawableBalance: '100',
+        totalBalance: '100',
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      };
+      mockProvider.getAccountState.mockResolvedValue(account);
+
+      await controller.getAccountState();
+
+      expect(controller.state.accountState).toStrictEqual(account);
+      expect(controller.state.defaultProvider).toBe('lighter');
+      const pendingFallback = createDeferred<AccountState>();
+      mockProvider.getAccountState.mockReturnValueOnce(pendingFallback.promise);
+      const oldRequest = controller.getAccountState();
+      await controller.disconnect();
+      await controller.init();
+      (lighterProvider.getAccountState as Mock).mockResolvedValue({
+        ...account,
+        providerId: 'lighter',
+        totalBalance: '200',
+      });
+      await controller.getAccountState();
+      expect(controller.state.accountState?.totalBalance).toBe('200');
+
+      pendingFallback.resolve(account);
+      await oldRequest;
+
+      expect(controller.state.accountState?.totalBalance).toBe('200');
+    });
 
     it('does not let an old venue balance overwrite the new venue snapshot', async () => {
       setupAggregatedMode('hyperliquid');

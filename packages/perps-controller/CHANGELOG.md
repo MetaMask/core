@@ -49,6 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve the saved `defaultProvider` when its venue is temporarily unavailable: aggregated mode uses HyperLiquid as an in-memory fallback, accepts its account balances, and restores the saved route on a later successful initialization ([#11421](https://github.com/MetaMask/core/pull/11421))
 - Fix `updateMargin` dropping its `providerId` route before reaching the provider, so an explicit venue now answers in aggregated mode ([#11420](https://github.com/MetaMask/core/pull/11420))
 - Attribute `getAccountState` responses to the provider that served them: the provider id is captured before the venue request is awaited, so changing the default mid-request no longer mislabels the balance in the user-data preloader's provider bucket ([#11420](https://github.com/MetaMask/core/pull/11420))
 - Discard a `getAccountState` response that belongs to a previous venue: the REST write is guarded by the response's captured `providerId`, so a request that resolves after the default moved cannot overwrite the new venue's balance snapshot ([#11420](https://github.com/MetaMask/core/pull/11420))

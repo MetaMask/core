@@ -894,8 +894,9 @@ export type PerpsControllerSwitchProviderAction = {
  *
  * Persists the choice and, when the active provider is the aggregated
  * wrapper, updates its routing default in place. Unlike `switchProvider`
- * this never re-initializes the controller and never reconnects a stream:
- * both venues stay connected and per-venue writes are unaffected.
+ * this never re-initializes the controller or reconnects provider transports:
+ * default-routed streams move, but both venues stay connected and per-venue
+ * writes are unaffected.
  *
  * @param providerId - The provider to use as the aggregated default.
  * @returns The result with the new default provider.

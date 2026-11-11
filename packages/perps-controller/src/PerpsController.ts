@@ -2846,16 +2846,12 @@ export class PerpsController extends BaseController<
 
     if (activeProvider === 'aggregated') {
       // The persisted default venue routes writes that do not name one and
-      // backs default-routed reads. Fall back to HyperLiquid when the saved
-      // default is not registered (for example Lighter failed to load).
+      // backs default-routed reads. Fall back to HyperLiquid in memory when
+      // the saved default is not registered (for example Lighter failed to
+      // load), but preserve the preference for a later successful initialization.
       const defaultProvider = this.providers.has(this.state.defaultProvider)
         ? this.state.defaultProvider
         : 'hyperliquid';
-      if (defaultProvider !== this.state.defaultProvider) {
-        this.update((state) => {
-          state.defaultProvider = defaultProvider;
-        });
-      }
       this.activeProviderInstance = new AggregatedPerpsProvider({
         providers: this.providers,
         defaultProvider,
@@ -5103,14 +5099,14 @@ export class PerpsController extends BaseController<
       params,
       context: this.#createServiceContext('getAccountState', {
         accountDataContext: {
-          // The response must match the current account venue: the active
-          // direct provider, or the default venue in aggregated mode. Read
-          // the route when the response arrives to reject stale balances.
+          // Match the live account venue, including a temporary fallback when
+          // the saved default is unavailable. Read the route when the response
+          // arrives to reject balances from a previous venue.
           isCurrent: (accountState) =>
             accountState.providerId === undefined ||
             accountState.providerId ===
-              (this.state.activeProvider === 'aggregated'
-                ? this.state.defaultProvider
+              (this.activeProviderInstance instanceof AggregatedPerpsProvider
+                ? this.activeProviderInstance.getWriteProviderId()
                 : this.state.activeProvider),
         },
       }),
@@ -6701,7 +6697,9 @@ export class PerpsController extends BaseController<
       this.activeProviderInstance instanceof AggregatedPerpsProvider
         ? this.activeProviderInstance
         : null;
-    const defaultChanged = this.state.defaultProvider !== providerId;
+    const defaultChanged =
+      (aggregatedProvider?.getWriteProviderId() ??
+        this.state.defaultProvider) !== providerId;
     this.#hasSavedDefaultProvider = true;
 
     this.update((state) => {
