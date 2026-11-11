@@ -772,7 +772,7 @@ describe('PerpsController default provider', () => {
       ).mockReturnValue(true);
     });
 
-    it('keeps an explicit direct switch, and the result, state and active provider agree', async () => {
+    it('keeps an explicit direct switch across later initialization', async () => {
       createController({ activeProvider: 'aggregated' });
 
       await controller.init();
@@ -788,6 +788,41 @@ describe('PerpsController default provider', () => {
       expect(controller.getActiveProviderOrNull()?.protocolId).toBe(
         'hyperliquid',
       );
+      expect(controller.state.hasExplicitProviderSelection).toBe(true);
+
+      // A network toggle must not reinterpret the explicit choice as legacy
+      // state and migrate it back to aggregated.
+      await controller.toggleTestnet();
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+      expect(controller.getActiveProviderOrNull()?.protocolId).toBe(
+        'hyperliquid',
+      );
+
+      // A later disconnect/init cycle must preserve it too.
+      await controller.disconnect();
+      await controller.init();
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+      expect(controller.getActiveProviderOrNull()?.protocolId).toBe(
+        'hyperliquid',
+      );
+    });
+
+    it('records an explicit no-op direct switch as a selection', async () => {
+      // Flag off so construction does not migrate the direct state away.
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = undefined;
+      createController({
+        activeProvider: 'hyperliquid',
+        hasExplicitProviderSelection: false,
+      });
+      controller.testMarkInitialized();
+
+      const result = await controller.switchProvider('hyperliquid');
+
+      expect(result).toStrictEqual({
+        success: true,
+        providerId: 'hyperliquid',
+      });
+      expect(controller.state.hasExplicitProviderSelection).toBe(true);
     });
   });
 
