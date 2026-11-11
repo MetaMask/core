@@ -1426,6 +1426,9 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    */
   subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
     return this.#trackDefaultRoutedSubscription({
+      // A full empty snapshot replaces the previous venue's cached schedules,
+      // including when the new venue exposes no native TWAP stream.
+      onInvalidate: () => params.callback([], true),
       open: (provider) => {
         if (!provider.subscribeToTwapOrders) {
           return () => {

@@ -1429,6 +1429,265 @@ describe('PerpsController default provider', () => {
     });
   });
 
+  describe('multi-provider kill switch', () => {
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'restores direct %s mode from a migrated snapshot after the flag is disabled',
+      async (activeProvider) => {
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(true);
+        createController({ activeProvider }, true);
+        expect(controller.state.activeProvider).toBe('aggregated');
+        const persisted = JSON.parse(JSON.stringify(controller.state));
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: false,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(false);
+
+        createController(persisted, true);
+        expect(controller.state.activeProvider).toBe(activeProvider);
+        expect(controller.state.defaultProvider).toBe(activeProvider);
+        expect(controller.state.effectiveProvider).toBeNull();
+        expect(controller.state.hasExplicitProviderSelection).toBe(false);
+        await controller.init();
+        expect(controller.getActiveProviderOrNull()?.protocolId).toBe(
+          activeProvider,
+        );
+        const result = await controller.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '1',
+          orderType: 'market',
+        });
+        expect(result.success).toBe(true);
+        expect(
+          mockTradingServiceInstance.placeOrder.mock.calls[0][0].provider
+            .protocolId,
+        ).toBe(activeProvider);
+
+        // An automatic rollback must not become an explicit direct selection.
+        await controller.disconnect();
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(true);
+        await controller.init();
+        expect(controller.state.activeProvider).toBe('aggregated');
+      },
+    );
+
+    it('applies a disabled flag arriving after construction, with a safe fallback for an unavailable saved venue', async () => {
+      createController(
+        { activeProvider: 'aggregated', defaultProvider: 'lighter' },
+        true,
+      );
+      loadLighterProvider.mockRejectedValueOnce(
+        new Error('Temporary chunk load failure'),
+      );
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: false,
+        minimumVersion: '1.0.0',
+      };
+      // An explicit disable must not depend on version-validator availability.
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockReturnValue(undefined);
+
+      await controller.init();
+
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+      expect(controller.state.effectiveProvider).toBe('hyperliquid');
+      expect(controller.state.defaultProvider).toBe('lighter');
+      expect(
+        (
+          await controller.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '1',
+            orderType: 'market',
+          })
+        ).success,
+      ).toBe(true);
+    });
+
+    it('does not mistake an unvalidated flag for an explicit disable', async () => {
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: true,
+        minimumVersion: '1.0.0',
+      };
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockReturnValue(undefined);
+      createController(
+        { activeProvider: 'aggregated', defaultProvider: 'lighter' },
+        true,
+      );
+
+      await controller.init();
+
+      expect(controller.state.activeProvider).toBe('aggregated');
+      expect(controller.state.effectiveProvider).toBe('lighter');
+    });
+
+    it('uses a validated disabled result when the client does not meet the flag version gate', async () => {
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: true,
+        minimumVersion: '999.0.0',
+      };
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockReturnValue(false);
+      createController({
+        activeProvider: 'aggregated',
+        defaultProvider: 'hyperliquid',
+      });
+
+      await controller.init();
+
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+      expect(controller.getActiveProviderOrNull()?.protocolId).toBe(
+        'hyperliquid',
+      );
+    });
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'rolls back a live aggregated session to %s and lets unrouted writes wait',
+      async (activeProvider) => {
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(true);
+        createController({ activeProvider }, true);
+        await controller.init();
+        expect(controller.state.activeProvider).toBe('aggregated');
+        const resumeDisconnect = createDeferred<void>();
+        mockProvider.disconnect.mockImplementationOnce(() =>
+          resumeDisconnect.promise.then(() => ({ success: true })),
+        );
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: false,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(false);
+        const onFlagsChanged = mockMessenger.subscribe.mock.calls.find(
+          ([event]) => event === 'RemoteFeatureFlagController:stateChange',
+        )?.[1] as (state: {
+          remoteFeatureFlags: Record<string, unknown>;
+        }) => void;
+        onFlagsChanged({ remoteFeatureFlags });
+
+        try {
+          expect(controller.state.activeProvider).toBe(activeProvider);
+          expect(controller.state.effectiveProvider).toBeNull();
+          expect(controller.isCurrentlyReinitializing()).toBe(true);
+          const write = controller.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '1',
+            orderType: 'market',
+          });
+          resumeDisconnect.resolve();
+          await controller.init();
+          expect((await write).success).toBe(true);
+          expect(
+            mockTradingServiceInstance.placeOrder.mock.calls[0][0].provider
+              .protocolId,
+          ).toBe(activeProvider);
+          expect(controller.state.hasExplicitProviderSelection).toBe(false);
+          expect(controller.state.effectiveProvider).toBe(activeProvider);
+        } finally {
+          resumeDisconnect.resolve();
+          await controller.init();
+        }
+      },
+    );
+
+    it('refuses an explicit switch back to aggregated mode while the kill switch is off', async () => {
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: false,
+        minimumVersion: '1.0.0',
+      };
+      createController({}, true);
+      await controller.init();
+
+      const result = await controller.switchProvider('aggregated');
+
+      expect(result).toMatchObject({
+        success: false,
+        providerId: 'hyperliquid',
+      });
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+      expect(controller.getActiveProviderOrNull()?.protocolId).toBe(
+        'hyperliquid',
+      );
+    });
+
+    it('does not report an aggregated switch as successful if the flag is disabled during initialization', async () => {
+      createController(
+        {
+          defaultProvider: 'lighter',
+          hasExplicitDefaultProviderSelection: true,
+        },
+        true,
+      );
+      await controller.init();
+      const waitStarted = createDeferred<void>();
+      const resumeInitialization = createDeferred<void>();
+      vi.mocked(mockWait).mockImplementationOnce(() => {
+        waitStarted.resolve();
+        return resumeInitialization.promise;
+      });
+      const switching = controller.switchProvider('aggregated');
+      await waitStarted.promise;
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: false,
+        minimumVersion: '1.0.0',
+      };
+      const onFlagsChanged = mockMessenger.subscribe.mock.calls.find(
+        ([event]) => event === 'RemoteFeatureFlagController:stateChange',
+      )?.[1] as (state: {
+        remoteFeatureFlags: Record<string, unknown>;
+      }) => void;
+      // The in-flight switch owns lifecycle reconciliation; don't start another.
+      onFlagsChanged({ remoteFeatureFlags });
+      resumeInitialization.resolve();
+
+      const result = await switching;
+
+      expect(result).toMatchObject({ success: false, providerId: 'lighter' });
+      expect(controller.state.activeProvider).toBe('lighter');
+      expect(controller.getActiveProviderOrNull()?.protocolId).toBe('lighter');
+    });
+
+    it('does not use an unsafe saved default as the direct rollback venue', () => {
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: false,
+        minimumVersion: '1.0.0',
+      };
+      createController({
+        activeProvider: 'aggregated',
+        defaultProvider: '__proto__' as never,
+      });
+
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+    });
+  });
+
   describe('multi-provider flag arriving after construction', () => {
     it.each([false, true])(
       'infers the direct venue after an automatic default is persisted and reloaded (marker present: %s)',

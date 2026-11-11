@@ -2206,9 +2206,10 @@ export class PerpsController extends BaseController<
    * Version-gated like `perpsLighterProviderEnabled`: enabled only when the
    * flag is on and the app version meets its minimum.
    *
-   * @returns True when the flag is enabled for the current app version.
+   * @returns Whether the flag is enabled for the current app version, or
+   * undefined when flags or version validation are not available yet.
    */
-  #isMultiProviderModeEnabled(): boolean {
+  #getMultiProviderModeEnabled(): boolean | undefined {
     try {
       const remoteState = this.messenger.call(
         'RemoteFeatureFlagController:getState',
@@ -2217,16 +2218,19 @@ export class PerpsController extends BaseController<
         remoteState.remoteFeatureFlags?.perpsMultiProviderModeEnabled;
 
       if (isVersionGatedFeatureFlag(remoteFlag)) {
-        const validated =
-          this.#options.infrastructure.featureFlags.validateVersionGated(
-            remoteFlag,
-          );
-        return validated ?? false;
+        // An explicit kill switch does not require version validation. Missing
+        // flags/validation, on the other hand, must not undo a persisted mode.
+        if (!remoteFlag.enabled) {
+          return false;
+        }
+        return this.#options.infrastructure.featureFlags.validateVersionGated(
+          remoteFlag,
+        );
       }
 
-      return false;
+      return undefined;
     } catch {
-      return false;
+      return undefined;
     }
   }
 
@@ -2240,9 +2244,23 @@ export class PerpsController extends BaseController<
    * the venue the user picks. Idempotent;
    * runs at construction (flags may not be loaded yet, in which case it also
    * runs from `#performInitialization` before the active provider is assigned).
+   * An explicitly disabled flag restores direct mode using the saved default,
+   * without recording an explicit user selection or erasing the preference.
    */
   #migrateActiveProviderForMultiProviderIfNeeded(): void {
-    if (!this.#isMultiProviderModeEnabled()) {
+    const enabled = this.#getMultiProviderModeEnabled();
+    if (enabled === undefined) {
+      return;
+    }
+    if (!enabled) {
+      if (this.state.activeProvider === 'aggregated') {
+        this.update((state) => {
+          state.activeProvider =
+            state.defaultProvider === 'lighter' ? 'lighter' : 'hyperliquid';
+          state.effectiveProvider = null;
+          state.accountState = null;
+        });
+      }
       return;
     }
     // An explicit selection is a user choice, not unmigrated legacy state, so
@@ -2269,6 +2287,41 @@ export class PerpsController extends BaseController<
         defaultProvider: this.state.defaultProvider,
       },
     );
+  }
+
+  /**
+   * Apply the multi-provider kill switch to an already connected session.
+   * In-flight lifecycle operations reconcile the flag during initialization;
+   * otherwise claim the same lifecycle lock used by provider/network switches.
+   */
+  #refreshMultiProviderModeOnFeatureFlagChange(): void {
+    if (
+      this.state.activeProvider !== 'aggregated' ||
+      this.#getMultiProviderModeEnabled() !== false ||
+      this.isCurrentlyReinitializing() ||
+      this.#disconnectOperationPromise ||
+      this.state.initializationState === InitializationState.Initializing
+    ) {
+      return;
+    }
+
+    if (!this.isInitialized) {
+      this.#migrateActiveProviderForMultiProviderIfNeeded();
+      return;
+    }
+
+    const completeReinitialization = this.#beginReinitialization();
+    this.#migrateActiveProviderForMultiProviderIfNeeded();
+    this.isInitialized = false;
+    this.#initializationPromise = null;
+    this.#initWithoutDisconnectWait()
+      .catch((error: unknown) => {
+        this.#logError(
+          ensureError(error, 'PerpsController.multiProviderRollback'),
+          this.#getErrorContext('multiProviderRollback'),
+        );
+      })
+      .finally(completeReinitialization);
   }
 
   protected setBlockedRegionList(
@@ -2347,6 +2400,7 @@ export class PerpsController extends BaseController<
         },
       ),
     });
+    this.#refreshMultiProviderModeOnFeatureFlagChange();
   }
 
   /**
@@ -6579,7 +6633,9 @@ export class PerpsController extends BaseController<
       // registry. Otherwise a switch queued behind disconnect can observe the
       // intentionally empty teardown state.
       const isValidProvider =
-        providerId === 'aggregated' || this.providers.has(providerId);
+        providerId === 'aggregated'
+          ? this.#getMultiProviderModeEnabled() !== false
+          : this.providers.has(providerId);
 
       if (!isValidProvider) {
         return {
@@ -6626,6 +6682,19 @@ export class PerpsController extends BaseController<
         throw new Error(
           this.state.initializationError ?? 'Provider initialization failed',
         );
+      }
+
+      // The kill switch may have restored a direct mode while initialization
+      // was pending. Do not report the requested aggregated mode as active.
+      if (
+        providerId === 'aggregated' &&
+        this.state.activeProvider !== 'aggregated'
+      ) {
+        return {
+          success: false,
+          providerId: this.state.activeProvider,
+          error: 'Provider aggregated not available',
+        };
       }
 
       this.#debugLog('PerpsController: Provider switch completed', {
