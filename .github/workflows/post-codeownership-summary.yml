@@ -7,8 +7,8 @@
 # etc.) are separated and hidden by default, so that authors do not ask this
 # team for reviews when they shouldn't.
 #
-# To ensure that the comment does not get buried, it is re-created whenever the
-# branch is updated (earlier instances are hidden as outdated).
+# Only one such comment is kept on a pull request: it is updated whenever the
+# branch is updated, and removed if no changed files have codeowners.
 #
 # You can run `yarn create-codeownership-summary` to see the content of the
 # comment locally.
@@ -104,7 +104,7 @@ jobs:
         env:
           MERGE_BASE: ${{ steps.merge-base.outputs.merge-base }}
 
-      - name: Hide previous comments and post new comment
+      - name: Create, update, or delete comment
         uses: actions/github-script@v9
         env:
           SUMMARY_PATH: ${{ runner.temp }}/codeownership-summary.md
@@ -114,6 +114,7 @@ jobs:
 
             const marker = '<!-- CODEOWNERSHIP SUMMARY -->';
             const summary = fs.readFileSync(process.env.SUMMARY_PATH, 'utf8');
+            const body = `${marker}\n${summary}`;
 
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
@@ -121,54 +122,34 @@ jobs:
               issue_number: context.issue.number,
               per_page: 100,
             });
+            // There should be at most one, but earlier versions of this workflow
+            // posted a new comment on each run, so update the latest
+            const existingComment = comments.findLast(
+              (comment) =>
+                comment.user?.login === 'github-actions[bot]' &&
+                comment.body?.startsWith(marker),
+            );
 
-            const summaryCommentIds = comments
-              .filter(
-                (comment) =>
-                  comment.user?.login === 'github-actions[bot]' &&
-                  comment.body?.startsWith(marker),
-              )
-              .map((comment) => comment.node_id);
-
-            // The REST API doesn't say whether a comment is hidden, so look
-            // that up, 100 comments at a time (the most `nodes` accepts).
-            for (let i = 0; i < summaryCommentIds.length; i += 100) {
-              const { nodes } = await github.graphql(`
-                query($ids: [ID!]!) {
-                  nodes(ids: $ids) {
-                    ... on IssueComment {
-                      id
-                      isMinimized
-                    }
-                  }
-                }
-              `, {
-                ids: summaryCommentIds.slice(i, i + 100),
-              });
-
-              for (const node of nodes) {
-                if (node && !node.isMinimized) {
-                  await github.graphql(`
-                    mutation($commentId: ID!, $classifier: ReportedContentClassifiers!) {
-                      minimizeComment(input: {subjectId: $commentId, classifier: $classifier}) {
-                        minimizedComment {
-                          isMinimized
-                        }
-                      }
-                    }
-                  `, {
-                    commentId: node.id,
-                    classifier: 'OUTDATED',
-                  });
-                }
+            if (!summary) {
+              if (existingComment) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existingComment.id,
+                });
               }
-            }
-
-            if (summary) {
+            } else if (!existingComment) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: `${marker}\n${summary}`,
+                body,
+              });
+            } else if (existingComment.body !== body) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body,
               });
             }
