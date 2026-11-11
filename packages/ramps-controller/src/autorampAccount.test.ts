@@ -133,10 +133,18 @@ describe('autorampAccount', () => {
               "type": "Fiat",
             },
           ],
-          "source_is_third_party": false,
         }
       `);
     });
+
+    it.each(['BRL', 'USD', 'EUR'] as const)(
+      'leaves source_is_third_party to the proxy for %s creates',
+      (sourceCurrencyCode) => {
+        expect(
+          buildMusdAutorampRequest('0xabc', sourceCurrencyCode),
+        ).not.toHaveProperty('source_is_third_party');
+      },
+    );
   });
 
   describe('buildBrazilMusdAutorampRequest', () => {
@@ -159,7 +167,6 @@ describe('autorampAccount', () => {
               "type": "Fiat",
             },
           ],
-          "source_is_third_party": false,
         }
       `);
     });

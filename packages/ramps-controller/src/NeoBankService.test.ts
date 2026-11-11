@@ -870,6 +870,47 @@ describe('NeoBankService', () => {
       },
     );
 
+    it.each([true, false] as const)(
+      'includes isThirdParty on the SEPA rail when MoonPay returns %j',
+      async (isThirdParty) => {
+        nock(STAGING_BASE)
+          .get('/neobank/autoramps/ar-1')
+          .query(true)
+          .reply(200, {
+            id: 'ar-1',
+            status: 'Approved',
+            is_third_party: isThirdParty,
+            deposit_rails: [{ type: 'SEPA', iban: 'DE89370400440532013000' }],
+          });
+
+        const { service } = createService();
+
+        expect(await service.getDepositInstructions('ar-1')).toStrictEqual({
+          type: 'Sepa',
+          iban: 'DE89370400440532013000',
+          isThirdParty,
+        });
+      },
+    );
+
+    it('omits isThirdParty when MoonPay does not return it', async () => {
+      nock(STAGING_BASE)
+        .get('/neobank/autoramps/ar-1')
+        .query(true)
+        .reply(200, {
+          id: 'ar-1',
+          status: 'Approved',
+          deposit_rails: [{ type: 'SEPA', iban: 'DE89370400440532013000' }],
+        });
+
+      const { service } = createService();
+
+      expect(await service.getDepositInstructions('ar-1')).toStrictEqual({
+        type: 'Sepa',
+        iban: 'DE89370400440532013000',
+      });
+    });
+
     it('prefers PIX over a SEPA rail', async () => {
       nock(STAGING_BASE)
         .get('/neobank/autoramps/ar-1')

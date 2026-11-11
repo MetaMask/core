@@ -166,6 +166,13 @@ export type NeoBankAutorampResponse = {
    */
   // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
   inbound_payment_reference?: string | null;
+  /**
+   * Whether the autoramp accepts third-party payments. MoonPay derives it
+   * from the create and can auto-enable it for some currencies depending on
+   * the eligible rail, so the response is authoritative.
+   */
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- MoonPay API field
+  is_third_party?: boolean;
 };
 
 /**
@@ -970,7 +977,8 @@ export class NeoBankService extends BaseDataService<
    * Calls `GET /neobank/autoramps/{id}` and reads the PIX rail, or else a US
    * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`), or else the SEPA rail.
    * SEPA details also carry the autoramp's `inbound_payment_reference` as
-   * `paymentReference` when MoonPay uses pay-by-reference.
+   * `paymentReference` when MoonPay uses pay-by-reference, and `is_third_party`
+   * as `isThirdParty` when the response has one.
    * Returns null until MoonPay has attached a supported rail. MoonPay only
    * verifies the rail at `Approved`, so callers should not show these details
    * before then.
@@ -994,9 +1002,10 @@ export class NeoBankService extends BaseDataService<
     const {
       deposit_rails: depositRails,
       inbound_payment_reference: inboundPaymentReference,
+      is_third_party: isThirdParty,
     } = response as Pick<
       NeoBankAutorampResponse,
-      'deposit_rails' | 'inbound_payment_reference'
+      'deposit_rails' | 'inbound_payment_reference' | 'is_third_party'
     >;
     const pix = extractPixDepositInstructions(depositRails);
     if (pix) {
@@ -1015,6 +1024,7 @@ export class NeoBankService extends BaseDataService<
       type: 'Sepa',
       ...sepa,
       ...(paymentReference ? { paymentReference } : {}),
+      ...(typeof isThirdParty === 'boolean' ? { isThirdParty } : {}),
     };
   }
 

@@ -73,6 +73,9 @@ export type CreateAutorampRequest = Record<string, unknown>;
  * `customer_id` is omitted; {@link RampsController.createAutoramp} injects it.
  * The fiat code is required: this helper does not default to BRL.
  *
+ * The body does not set `source_is_third_party`: neobank-proxy overwrites it
+ * on every market create, choosing per customer from the eligible rails.
+ *
  * @param walletAddress - Money Account address that receives mUSD.
  * @param sourceCurrencyCode - Fiat code placed in `source_currencies[0].code`.
  * @returns MoonPay `POST /autoramps` market body.
@@ -93,7 +96,6 @@ export function buildMusdAutorampRequest(
       chain: 'Monad',
       address: walletAddress,
     },
-    source_is_third_party: false,
   };
 }
 

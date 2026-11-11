@@ -56,7 +56,8 @@ export type NeoBankServiceGetPixDepositInstructionsAction = {
  * Calls `GET /neobank/autoramps/{id}` and reads the PIX rail, or else a US
  * bank rail (`ACH`, `Wire`, `RTP`, or `FedNow`), or else the SEPA rail.
  * SEPA details also carry the autoramp's `inbound_payment_reference` as
- * `paymentReference` when MoonPay uses pay-by-reference.
+ * `paymentReference` when MoonPay uses pay-by-reference, and `is_third_party`
+ * as `isThirdParty` when the response has one.
  * Returns null until MoonPay has attached a supported rail. MoonPay only
  * verifies the rail at `Approved`, so callers should not show these details
  * before then.

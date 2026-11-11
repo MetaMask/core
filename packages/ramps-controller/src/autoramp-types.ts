@@ -85,6 +85,12 @@ export type SepaDepositInstructions = {
    * autoramp's `inbound_payment_reference`.
    */
   paymentReference?: string;
+  /**
+   * Whether the autoramp accepts third-party payments; false means only a
+   * transfer from a bank account in the customer's own name is accepted.
+   * Backed by the autoramp's `is_third_party`.
+   */
+  isThirdParty?: boolean;
 };
 
 /**
