@@ -172,16 +172,16 @@ export type VaultRateResponse = Infer<typeof VaultRateResponseStruct>;
 export type VaultShareValuation = {
   vault_address: string;
   vault_key: string;
-  asset_symbol: string;
+  asset_symbol: string | null;
   asset_decimals: number;
   type: CashFlowType;
-  log_index: number;
-  block_number: number;
-  timestamp: string;
-  shares_wei: string;
+  log_index: number | null;
+  block_number: number | null;
+  timestamp: string | null;
+  shares_wei: string | null;
   assets_wei: string;
-  rate: string;
-  source: CashFlowSource;
+  rate: string | null;
+  source: string;
 };
 
 /**

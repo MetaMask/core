@@ -1460,6 +1460,74 @@ describe('MoneyAccountApiDataService', () => {
       service.destroy();
     });
 
+    it('accepts null unused fields and new source values', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithNulls = {
+        ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE,
+        results: [
+          {
+            ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0],
+            valuations: [
+              {
+                ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0]
+                  .valuations[0],
+                asset_symbol: null,
+                log_index: null,
+                block_number: null,
+                timestamp: null,
+                shares_wei: null,
+                rate: null,
+                source: 'future_source',
+              },
+            ],
+          },
+        ],
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .reply(200, responseWithNulls);
+
+      const result = await service.fetchVaultShareValuations(MOCK_ADDRESS, {
+        txHashes: [MOCK_TX_HASH],
+      });
+      expect(result).toStrictEqual(responseWithNulls);
+      service.destroy();
+    });
+
+    it('rejects a null required valuation field', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithNullRequiredField = {
+        ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE,
+        results: [
+          {
+            ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0],
+            valuations: [
+              {
+                ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0]
+                  .valuations[0],
+                assets_wei: null,
+              },
+            ],
+          },
+        ],
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .once()
+        .reply(200, responseWithNullRequiredField);
+
+      await expect(
+        service.fetchVaultShareValuations(MOCK_ADDRESS, {
+          txHashes: [MOCK_TX_HASH],
+        }),
+      ).rejects.toThrow(MoneyAccountApiResponseValidationError);
+      service.destroy();
+    });
+
     it('is callable via messenger action', async () => {
       const { rootMessenger, service } = createService(Env.DEV);
 

@@ -158,22 +158,16 @@ export const VaultRateResponseStruct = type({
 const VaultShareValuationStruct = type({
   vault_address: string(),
   vault_key: string(),
-  asset_symbol: string(),
+  asset_symbol: nullable(string()),
   asset_decimals: number(),
   type: enums(['deposit', 'withdraw', 'transfer_in', 'transfer_out']),
-  log_index: number(),
-  block_number: number(),
-  timestamp: string(),
-  shares_wei: string(),
+  log_index: nullable(number()),
+  block_number: nullable(number()),
+  timestamp: nullable(string()),
+  shares_wei: nullable(string()),
   assets_wei: string(),
-  rate: string(),
-  source: enums([
-    'teller',
-    'withdraw_queue',
-    'atomic_queue',
-    'erc20_transfer',
-    'cross_chain',
-  ]),
+  rate: nullable(string()),
+  source: string(),
 });
 
 const VaultShareValuationResultStruct = type({
