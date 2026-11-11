@@ -249,11 +249,10 @@ For a single-escrow walkthrough, see [Cubist test sequence](CUBIST_TEST_SEQUENCE
 
 ## Read sequence (`getRecoverySecret`)
 
-Reads tolerate down replicas (`isAvailable` resolves `false`). An `isAvailable`
-rejection propagates; it is not treated as a down replica. Reads do **not**
-repair pending writes. The selected replica version is returned as `epoch` so
-a later `updateRecoverySecret` / `updateIdentifiers` can be formed without a
-locally stored version.
+Reads tolerate down replicas. They do **not** repair pending writes. The
+selected replica version is returned as `epoch` so a later
+`updateRecoverySecret` / `updateIdentifiers` can be formed without a locally
+stored version.
 
 ```mermaid
 sequenceDiagram
@@ -270,7 +269,7 @@ sequenceDiagram
   M-->>C: IdentifierSession
   C->>M: getRecoverySecret(session)
   M->>M: recompute and validate requestHash
-  M->>E: isAvailable (unavailable replicas skipped)
+  M->>E: isAvailable (failures skipped)
   alt none available
     M-->>C: no_available_escrow
   end

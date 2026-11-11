@@ -883,14 +883,16 @@ export class MfaRecoveryController extends BaseController<
   async #getAvailableEscrows(
     escrows: RecoveryEscrowProvider[] = this.#escrows,
   ): Promise<RecoveryEscrowProvider[]> {
-    const flags = await Promise.all(
+    const flags = await Promise.allSettled(
       escrows.map(async (escrow) => ({
         escrow,
         available: await escrow.isAvailable(),
       })),
     );
-    return flags.flatMap(({ escrow, available }) =>
-      available ? [escrow] : [],
+    return flags.flatMap((result) =>
+      isFulfilledResult(result) && result.value.available
+        ? [result.value.escrow]
+        : [],
     );
   }
 
