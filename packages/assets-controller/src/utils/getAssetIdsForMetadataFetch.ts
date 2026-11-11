@@ -88,7 +88,10 @@ export function getAssetIdsForMetadataFetch({
       return false;
     }
     const responseEntry = responseMetadata?.[assetId as Caip19AssetId];
-    if (responseEntry !== undefined && hasMetadataUsedByClients(responseEntry)) {
+    if (
+      responseEntry !== undefined &&
+      hasMetadataUsedByClients(responseEntry)
+    ) {
       return false;
     }
     const stateEntry = stateMetadata[assetId as Caip19AssetId];
