@@ -93,6 +93,39 @@ export type KycFlowControllerStartSessionAction = {
 };
 
 /**
+ * Fetches the idOS and identity provider (SumSub) documents the user
+ * consents to once the vendor session exists, with which ones are already
+ * consented. Nothing is saved on the phone.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The vendor.
+ * @returns The documents and the reusability consent.
+ */
+export type KycFlowControllerFetchSessionDisclaimersAction = {
+  type: `KycFlowController:fetchSessionDisclaimers`;
+  handler: KycFlowController['fetchSessionDisclaimers'];
+};
+
+/**
+ * Records the user's idOS and identity provider consents with kyc-api right
+ * away, then reads the next step. Nothing is kept on the phone.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The vendor.
+ * @param params.idOS - Accepted idOS documents (`key` and `version` from
+ * {@link KycFlowController.fetchSessionDisclaimers}).
+ * @param params.kycProvider - Accepted identity provider documents.
+ * @param params.credentialReusabilityConsentGiven - Whether the user lets
+ * idOS reuse their existing credentials. The screen asks for it, so it is
+ * an argument and never a default.
+ * @returns The next step.
+ */
+export type KycFlowControllerAcceptSessionDisclaimersAction = {
+  type: `KycFlowController:acceptSessionDisclaimers`;
+  handler: KycFlowController['acceptSessionDisclaimers'];
+};
+
+/**
  * Sends the vendor's SMS code to the phone number.
  *
  * @param params - The parameters.
@@ -177,6 +210,8 @@ export type KycFlowControllerMethodActions =
   | KycFlowControllerStartAccountLinkAction
   | KycFlowControllerVerifyAccountLinkAction
   | KycFlowControllerStartSessionAction
+  | KycFlowControllerFetchSessionDisclaimersAction
+  | KycFlowControllerAcceptSessionDisclaimersAction
   | KycFlowControllerSubmitPhoneAction
   | KycFlowControllerSubmitPhoneCodeAction
   | KycFlowControllerSubmitEmailCodeAction
