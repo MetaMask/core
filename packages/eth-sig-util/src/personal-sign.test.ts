@@ -1,8 +1,5 @@
-import {
-  addHexPrefix,
-  privateToAddress,
-  privateToPublic,
-} from '@ethereumjs/util';
+import { privateToAddress, privateToPublic } from '@ethereumjs/util';
+import { bytesToHex, hexToBytes, stringToBytes } from '@metamask/utils';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -11,9 +8,8 @@ import {
   recoverPersonalSignature,
 } from './personal-sign.js';
 
-const privateKey = Buffer.from(
-  '4af1bceebf7f3634ec3cff8a2c38e51178d5d4ce585c52d6043e5e2cc3418bb0',
-  'hex',
+const privateKey = hexToBytes(
+  '0x4af1bceebf7f3634ec3cff8a2c38e51178d5d4ce585c52d6043e5e2cc3418bb0',
 );
 
 describe('personalSign', function () {
@@ -21,7 +17,7 @@ describe('personalSign', function () {
   // the top-level `privateKey` variable.
   const helloWorldSignature =
     '0x90a938f7457df6e8f741264c32697fc52f9a8f867c52dd70713d9d2d472f2e415d9c94148991bbe1f4a1818d1dff09165782749c877f5cf1eff4ef126e55714d1c';
-  const helloWorldMessage = `0x${Buffer.from('Hello, world!').toString('hex')}`;
+  const helloWorldMessage = bytesToHex(stringToBytes('Hello, world!'));
 
   it('should sign a message', function () {
     expect(personalSign({ privateKey, data: helloWorldMessage })).toBe(
@@ -30,7 +26,7 @@ describe('personalSign', function () {
   });
 
   it('should recover the address from a signature', function () {
-    const address = addHexPrefix(privateToAddress(privateKey).toString('hex'));
+    const address = bytesToHex(privateToAddress(privateKey));
 
     expect(
       recoverPersonalSignature({
@@ -41,7 +37,7 @@ describe('personalSign', function () {
   });
 
   it('should recover the public key from a signature', function () {
-    const publicKey = addHexPrefix(privateToPublic(privateKey).toString('hex'));
+    const publicKey = bytesToHex(privateToPublic(privateKey));
 
     expect(
       extractPublicKey({
@@ -52,7 +48,7 @@ describe('personalSign', function () {
   });
 
   it('should sign a message and recover the address of the signer', function () {
-    const address = addHexPrefix(privateToAddress(privateKey).toString('hex'));
+    const address = bytesToHex(privateToAddress(privateKey));
     const signature = personalSign({
       privateKey,
       data: helloWorldMessage,
@@ -67,7 +63,7 @@ describe('personalSign', function () {
   });
 
   it('should sign a message and recover the public key of the signer', function () {
-    const publicKey = addHexPrefix(privateToPublic(privateKey).toString('hex'));
+    const publicKey = bytesToHex(privateToPublic(privateKey));
     const signature = personalSign({
       privateKey,
       data: helloWorldMessage,
@@ -92,9 +88,8 @@ describe('personalSign', function () {
       signature:
         '0xce909e8ea6851bc36c007a0072d0524b07a3ff8d4e623aca4c71ca8e57250c4d0a3fc38fa8fbaaa81ead4b9f6bd03356b6f8bf18bccad167d78891636e1d69561b',
       addressHex: '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
-      key: Buffer.from(
-        '6969696969696969696969696969696969696969696969696969696969696969',
-        'hex',
+      key: hexToBytes(
+        '0x6969696969696969696969696969696969696969696969696969696969696969',
       ),
     },
     {
@@ -105,9 +100,8 @@ describe('personalSign', function () {
       signature:
         '0x9ff8350cc7354b80740a3580d0e0fd4f1f02062040bc06b893d70906f8728bb5163837fd376bf77ce03b55e9bd092b32af60e86abce48f7b8d3539988ee5a9be1c',
       addressHex: '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
-      key: Buffer.from(
-        '6969696969696969696969696969696969696969696969696969696969696969',
-        'hex',
+      key: hexToBytes(
+        '0x6969696969696969696969696969696969696969696969696969696969696969',
       ),
     },
     {
@@ -120,9 +114,8 @@ describe('personalSign', function () {
       signature:
         '0xa2870db1d0c26ef93c7b72d2a0830fa6b841e0593f7186bc6c7cc317af8cf3a42fda03bd589a49949aa05db83300cdb553116274518dbe9d90c65d0213f4af491b',
       addressHex: '0xe0da1edcea030875cd0f199d96eb70f6ab78faf2',
-      key: Buffer.from(
-        '4545454545454545454545454545454545454545454545454545454545454545',
-        'hex',
+      key: hexToBytes(
+        '0x4545454545454545454545454545454545454545454545454545454545454545',
       ),
     },
   ];

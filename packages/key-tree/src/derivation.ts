@@ -10,7 +10,6 @@ import {
   SLIP_10_PATH_REGEX,
   CIP_3_PATH_REGEX,
 } from './constants.js';
-import type { CryptographicFunctions } from './cryptography.js';
 import type { SupportedCurve } from './curves/index.js';
 import { getCurveByName } from './curves/index.js';
 import type { Deriver } from './derivers/index.js';
@@ -65,13 +64,10 @@ type DeriveKeyFromPathArgs =
  * BIP-39 seed phrases must be lowercase, space-delimited, and 12-24 words long.
  * @param args.node - The node to derive from.
  * @param args.depth - The depth of the segment.
- * @param cryptographicFunctions - The cryptographic functions to use. If
- * provided, these will be used instead of the built-in implementations.
  * @returns The derived key.
  */
 export async function deriveKeyFromPath(
   args: DeriveKeyFromPathArgs,
-  cryptographicFunctions?: CryptographicFunctions,
 ): Promise<SLIP10Node> {
   const { path, depth = path.length } = args;
 
@@ -105,9 +101,9 @@ export async function deriveKeyFromPath(
   // Derive through each part of path. `pathSegment` needs to be cast because
   // `HDPathTuple.reduce()` doesn't work. Note that the first element of the
   // path can be a Uint8Array.
-  return await (path as readonly [Uint8Array | string, ...string[]]).reduce<
-    Promise<SLIP10Node>
-  >(
+  return await (
+    path as readonly [Uint8Array<ArrayBuffer> | string, ...string[]]
+  ).reduce<Promise<SLIP10Node>>(
     async (promise, pathNode, index) => {
       const derivedNode = await promise;
 
@@ -119,29 +115,23 @@ export async function deriveKeyFromPath(
         assert(hasDeriver(pathType), `Unknown derivation type: "${pathType}".`);
 
         const deriver = derivers[pathType] as Deriver;
-        return await deriver.deriveChildKey(
-          {
-            path: pathPart,
-            node: derivedNode,
-            curve: getCurveByName(curve),
-            network,
-          },
-          cryptographicFunctions,
-        );
+        return await deriver.deriveChildKey({
+          path: pathPart,
+          node: derivedNode,
+          curve: getCurveByName(curve),
+          network,
+        });
       }
 
       // Only the first path segment can be a Uint8Array.
       assert(index === 0, getMalformedError());
 
-      return await derivers.bip39.deriveChildKey(
-        {
-          path: pathNode,
-          node: derivedNode,
-          curve: getCurveByName(curve),
-          network,
-        },
-        cryptographicFunctions,
-      );
+      return await derivers.bip39.deriveChildKey({
+        path: pathNode,
+        node: derivedNode,
+        curve: getCurveByName(curve),
+        network,
+      });
     },
     Promise.resolve(node as SLIP10Node),
   );

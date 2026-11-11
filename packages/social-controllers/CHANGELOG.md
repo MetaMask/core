@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `following_v1` to `FeedScope`, so `fetchFeed` can request the following feed in the shape of the all feed ([#11424](https://github.com/MetaMask/core/pull/11424))
+  - social-api returns the all-feed items of the profiles the user follows, without the user's own: one item per position trade plus one per author comment, ordered by `occurredAt`, each with `feedItemId`, `eventId`, `revision` and `occurredAt`.
+  - Its cursors are the all-feed cursors, so they cannot be passed to `following`, and vice versa.
+  - `following` is unchanged.
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^36.1.0` to `^36.1.1` ([#11419](https://github.com/MetaMask/core/pull/11419))
+
 ## [3.20.0]
 
 ### Added

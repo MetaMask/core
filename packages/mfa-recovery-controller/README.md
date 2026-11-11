@@ -3,7 +3,8 @@
 Coordinates MFA recovery through injected auth and escrow providers.
 
 Pending mutations are encrypted in controller state. `resume()` completes them;
-`abort()` is allowed only before writing. See [Architecture](ARCHITECTURE.md).
+`abort()` is allowed before writing, or once the write approval has expired and
+no escrow applied the mutation. See [Architecture](ARCHITECTURE.md).
 
 ## Auth API Integration
 
