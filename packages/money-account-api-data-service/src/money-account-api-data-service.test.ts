@@ -158,6 +158,42 @@ const MOCK_VAULT_RATE_RESPONSE = {
   indexer_lag_seconds: 4,
 };
 
+const MOCK_TX_HASH =
+  '0x8b6975a5d81b44bbe4487b5e5237e25be7ffc71e38d48146e8a501299fddc9f1';
+const MOCK_OTHER_TX_HASH =
+  '0x6c6975a5d81b44bbe4487b5e5237e25be7ffc71e38d48146e8a501299fddc9f2';
+
+const MOCK_VAULT_SHARE_VALUATIONS_RESPONSE = {
+  address: MOCK_ADDRESS,
+  chain_id: 143,
+  results: [
+    {
+      tx_hash: MOCK_TX_HASH,
+      found: true,
+      valuations: [
+        {
+          vault_address: MOCK_VAULT_ADDRESS,
+          vault_key: 'standard',
+          asset_symbol: 'mUSD',
+          asset_decimals: 6,
+          type: 'transfer_out' as const,
+          log_index: 156,
+          block_number: 108974623,
+          timestamp: '2026-09-29T07:17:22Z',
+          shares_wei: '951755696',
+          assets_wei: '968399999',
+          rate: '1.017488',
+          source: 'erc20_transfer' as const,
+        },
+      ],
+    },
+  ],
+  as_of_block: 121037906,
+  as_of_timestamp: '2026-11-10T12:34:56Z',
+  data_freshness: 'live' as const,
+  indexer_lag_seconds: 4,
+};
+
 const MOCK_SIWE_NONCE = 'a'.repeat(64);
 const MOCK_SIWE_OTHER_ADDRESS = '0x3333333333333333333333333333333333333333';
 const MOCK_SIWE_ISSUED_AT = Date.parse('2026-10-22T12:00:00.000Z');
@@ -384,6 +420,13 @@ describe('MoneyAccountApiDataService', () => {
       )
         .get(`/v1/vaults/${MOCK_VAULT_ADDRESS}/rate`)
         .reply(200, MOCK_VAULT_RATE_RESPONSE);
+      const vaultShareValuationsScope = nock(
+        MONEY_ACCOUNT_API_URL_MAP[Env.DEV],
+        requestHeaders,
+      )
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
 
       await service.fetchPositions(MOCK_ADDRESS);
       await service.fetchInterest(MOCK_ADDRESS, {
@@ -393,13 +436,17 @@ describe('MoneyAccountApiDataService', () => {
       await service.fetchHistory(MOCK_ADDRESS);
       await service.fetchRateHistory(MOCK_VAULT_ADDRESS);
       await service.fetchVaultRate(MOCK_VAULT_ADDRESS);
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, {
+        txHashes: [MOCK_TX_HASH],
+      });
 
-      expect(getBearerToken).toHaveBeenCalledTimes(5);
+      expect(getBearerToken).toHaveBeenCalledTimes(6);
       positionsScope.done();
       interestScope.done();
       historyScope.done();
       rateHistoryScope.done();
       vaultRateScope.done();
+      vaultShareValuationsScope.done();
       service.destroy();
     });
 
@@ -1213,6 +1260,188 @@ describe('MoneyAccountApiDataService', () => {
     });
   });
 
+  describe('fetchVaultShareValuations', () => {
+    it('returns valuations, lowercases the address, and omits chain_id', async () => {
+      const { service } = createService(Env.DEV);
+      const mixedCaseAddress = '0xAbCd111111111111111111111111111111111111';
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(
+          `/v1/positions/${mixedCaseAddress.toLowerCase()}/vault-share-valuations`,
+        )
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+
+      const result = await service.fetchVaultShareValuations(mixedCaseAddress, {
+        txHashes: [MOCK_TX_HASH],
+      });
+
+      expect(result).toStrictEqual(MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+      service.destroy();
+    });
+
+    it('sends chain_id when provided', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH, chain_id: '143' })
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+
+      const result = await service.fetchVaultShareValuations(MOCK_ADDRESS, {
+        txHashes: [MOCK_TX_HASH],
+        chainId: 143,
+      });
+
+      expect(result).toStrictEqual(MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+      service.destroy();
+    });
+
+    it('lowercases and de-duplicates tx hashes in first-seen order', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: `${MOCK_TX_HASH},${MOCK_OTHER_TX_HASH}` })
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, {
+        txHashes: [
+          MOCK_TX_HASH,
+          MOCK_OTHER_TX_HASH.toUpperCase(),
+          MOCK_TX_HASH.toUpperCase(),
+        ],
+      });
+
+      expect(nock.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('rejects an empty batch before making a request', async () => {
+      const { service } = createService(Env.DEV);
+
+      await expect(
+        service.fetchVaultShareValuations(MOCK_ADDRESS, { txHashes: [] }),
+      ).rejects.toThrow('At least one transaction hash is required');
+      service.destroy();
+    });
+
+    it('rejects more than 50 distinct tx hashes before making a request', async () => {
+      const { service } = createService(Env.DEV);
+      const txHashes = Array.from(
+        { length: 51 },
+        (_, index) => `0x${index.toString(16).padStart(64, '0')}`,
+      );
+
+      await expect(
+        service.fetchVaultShareValuations(MOCK_ADDRESS, { txHashes }),
+      ).rejects.toThrow('At most 50 distinct transaction hashes are supported');
+      service.destroy();
+    });
+
+    it('caches a fully found batch for 24 hours', async () => {
+      const { service } = createService(Env.DEV);
+      const now = Date.parse('2026-11-11T12:00:00Z');
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .twice()
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+      const options = { txHashes: [MOCK_TX_HASH] };
+
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+      nowSpy.mockReturnValue(now + 23 * 60 * 60 * 1000);
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+      expect(scope.isDone()).toBe(false);
+
+      nowSpy.mockReturnValue(now + 24 * 60 * 60 * 1000 + 1);
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('refetches a partial batch after 30 seconds', async () => {
+      const { service } = createService(Env.DEV);
+      const now = Date.parse('2026-11-11T12:00:00Z');
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+      const partialResponse = {
+        ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE,
+        results: [
+          MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0],
+          { tx_hash: MOCK_OTHER_TX_HASH, found: false, valuations: [] },
+        ],
+      };
+      const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: `${MOCK_TX_HASH},${MOCK_OTHER_TX_HASH}` })
+        .twice()
+        .reply(200, partialResponse);
+      const options = { txHashes: [MOCK_TX_HASH, MOCK_OTHER_TX_HASH] };
+
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+      nowSpy.mockReturnValue(now + 29_000);
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+      expect(scope.isDone()).toBe(false);
+
+      nowSpy.mockReturnValue(now + 31_000);
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('throws HttpError on a 404 response', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(404);
+
+      await expect(
+        service.fetchVaultShareValuations(MOCK_ADDRESS, {
+          txHashes: [MOCK_TX_HASH],
+        }),
+      ).rejects.toThrow(HttpError);
+      service.destroy();
+    });
+
+    it('throws MoneyAccountApiResponseValidationError on a malformed response', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .once()
+        .reply(200, { not: 'valid' });
+
+      await expect(
+        service.fetchVaultShareValuations(MOCK_ADDRESS, {
+          txHashes: [MOCK_TX_HASH],
+        }),
+      ).rejects.toThrow(MoneyAccountApiResponseValidationError);
+      service.destroy();
+    });
+
+    it('is callable via messenger action', async () => {
+      const { rootMessenger, service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH, chain_id: '143' })
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+
+      const result = await rootMessenger.call(
+        'MoneyAccountApiDataService:fetchVaultShareValuations',
+        MOCK_ADDRESS,
+        { txHashes: [MOCK_TX_HASH], chainId: 143 },
+      );
+      expect(result).toStrictEqual(MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+      service.destroy();
+    });
+  });
+
   describe('tracing', () => {
     let mockTrace: Mock<MoneyAccountApiDataServiceTraceCallback>;
 
@@ -1340,6 +1569,33 @@ describe('MoneyAccountApiDataService', () => {
       expect(request.data).toStrictEqual(
         expect.objectContaining({
           operation: 'fetchVaultRate',
+          success: true,
+        }),
+      );
+      service.destroy();
+    });
+
+    it('emits a trace for fetchVaultShareValuations on cache miss', async () => {
+      const { service } = createService(Env.DEV, { trace: mockTrace });
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+
+      await service.fetchVaultShareValuations(MOCK_ADDRESS, {
+        txHashes: [MOCK_TX_HASH],
+      });
+
+      expect(mockTrace).toHaveBeenCalledTimes(1);
+      const [request] = mockTrace.mock.calls[0] as [
+        MoneyAccountApiDataServiceTraceRequest,
+        unknown,
+      ];
+      expect(request.name).toBe(TRACES.VAULT_SHARE_VALUATIONS_API);
+      expect(request.data).toStrictEqual(
+        expect.objectContaining({
+          operation: 'fetchVaultShareValuations',
           success: true,
         }),
       );
@@ -1557,6 +1813,38 @@ describe('MoneyAccountApiDataService', () => {
         .reply(200, responseWithExtras);
 
       const result = await service.fetchVaultRate(MOCK_VAULT_ADDRESS);
+      expect(result).toStrictEqual(responseWithExtras);
+      service.destroy();
+    });
+
+    it('accepts unknown fields on vault share valuations responses without stripping them', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithExtras = {
+        ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE,
+        future_valuations_field: 'ok',
+        results: [
+          {
+            ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0],
+            future_result_field: 42,
+            valuations: [
+              {
+                ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0]
+                  .valuations[0],
+                future_valuation_field: true,
+              },
+            ],
+          },
+        ],
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+        .query({ tx_hashes: MOCK_TX_HASH })
+        .reply(200, responseWithExtras);
+
+      const result = await service.fetchVaultShareValuations(MOCK_ADDRESS, {
+        txHashes: [MOCK_TX_HASH],
+      });
       expect(result).toStrictEqual(responseWithExtras);
       service.destroy();
     });

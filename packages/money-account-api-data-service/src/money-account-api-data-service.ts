@@ -20,6 +20,9 @@ import {
   MONEY_ACCOUNT_API_URL_MAP,
   RATE_HISTORY_STALE_TIME_MS,
   VAULT_RATE_STALE_TIME_MS,
+  VAULT_SHARE_VALUATIONS_COMPLETE_STALE_TIME_MS,
+  VAULT_SHARE_VALUATIONS_MAX_TX_HASHES,
+  VAULT_SHARE_VALUATIONS_PARTIAL_STALE_TIME_MS,
 } from './constants.js';
 import {
   MoneyAccountApiHttpError,
@@ -33,6 +36,7 @@ import type {
   PositionResponse,
   RateHistoryResponse,
   VaultRateResponse,
+  VaultShareValuationsResponse,
   VbaSiweChallengeResponse,
   VbaTransfersResponse,
 } from './response.types.js';
@@ -47,6 +51,7 @@ import {
   PositionResponseStruct,
   RateHistoryResponseStruct,
   VaultRateResponseStruct,
+  VaultShareValuationsResponseStruct,
   VbaSiweChallengeResponseStruct,
   VbaSiweSessionResponseStruct,
   VbaTransfersResponseStruct,
@@ -57,6 +62,7 @@ import type {
   RateHistoryOptions,
   FetchPositionsOptions,
   VaultRateOptions,
+  VaultShareValuationsOptions,
   FetchVbaTransfersOptions,
 } from './types.js';
 
@@ -84,6 +90,7 @@ export const TRACES = {
   HISTORY_API: 'Money Account API Fetch History',
   RATE_HISTORY_API: 'Money Account API Fetch Rate History',
   VAULT_RATE_API: 'Money Account API Fetch Vault Rate',
+  VAULT_SHARE_VALUATIONS_API: 'Money Account API Fetch Vault Share Valuations',
 } as const;
 
 export type MoneyAccountApiDataServiceTraceName =
@@ -110,6 +117,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchHistory',
   'fetchRateHistory',
   'fetchVaultRate',
+  'fetchVaultShareValuations',
   'fetchVbaTransfers',
 ] as const;
 
@@ -665,6 +673,98 @@ export class MoneyAccountApiDataService extends BaseDataService<
             if (error) {
               throw new MoneyAccountApiResponseValidationError(
                 `Malformed response from vault rate endpoint: ${error.message}`,
+              );
+            }
+
+            return validated;
+          },
+        );
+      },
+    });
+  }
+
+  /**
+   * Batch-values vault share movements in past transactions. Each result
+   * reports the shares moved and what they were worth in the vault's
+   * underlying asset at that block. Unknown transactions come back with
+   * `found: false` instead of failing the batch.
+   *
+   * @param address - The user's Ethereum address.
+   * @param options - Transaction hashes to value and an optional chain ID.
+   * @param options.txHashes - Transaction hashes. At most 50 distinct hashes
+   * after lowercasing and de-duplication.
+   * @param options.chainId - Chain ID of the transactions. Omitted requests use
+   * the API default (Monad, 143).
+   * @returns One result per requested hash, in request order.
+   * @throws An `Error` before any request when `txHashes` is empty or contains
+   * more than 50 distinct hashes.
+   */
+  async fetchVaultShareValuations(
+    address: string,
+    { txHashes, chainId }: VaultShareValuationsOptions,
+  ): Promise<VaultShareValuationsResponse> {
+    const normalizedAddress = address.toLowerCase();
+    const distinctTxHashes = [
+      ...new Set(txHashes.map((hash) => hash.toLowerCase())),
+    ];
+
+    if (distinctTxHashes.length === 0) {
+      throw new Error('At least one transaction hash is required');
+    }
+    if (distinctTxHashes.length > VAULT_SHARE_VALUATIONS_MAX_TX_HASHES) {
+      throw new Error(
+        `At most ${VAULT_SHARE_VALUATIONS_MAX_TX_HASHES} distinct transaction hashes are supported`,
+      );
+    }
+
+    const txHashesParam = distinctTxHashes.join(',');
+    const url = new URL(
+      `/v1/positions/${normalizedAddress}/vault-share-valuations`,
+      this.#baseUrl,
+    );
+    url.searchParams.append('tx_hashes', txHashesParam);
+    if (chainId !== undefined) {
+      url.searchParams.append('chain_id', String(chainId));
+    }
+
+    return this.fetchQuery({
+      queryKey: [
+        `${this.name}:fetchVaultShareValuations`,
+        normalizedAddress,
+        txHashesParam,
+        chainId ?? null,
+      ],
+      staleTime: (query) =>
+        query.state.data?.results.every((result) => result.found)
+          ? VAULT_SHARE_VALUATIONS_COMPLETE_STALE_TIME_MS
+          : VAULT_SHARE_VALUATIONS_PARTIAL_STALE_TIME_MS,
+      queryFn: async () => {
+        return this.#traceNetworkRequest(
+          {
+            name: TRACES.VAULT_SHARE_VALUATIONS_API,
+            data: { operation: 'fetchVaultShareValuations' },
+          },
+          async () => {
+            const response = await fetch(url, {
+              headers: await this.#getRequestHeaders(),
+            });
+
+            if (!response.ok) {
+              throw await MoneyAccountApiHttpError.fromResponse(
+                response,
+                `Money Account API vault share valuations request failed with status '${response.status}'`,
+              );
+            }
+
+            const json: unknown = await response.json();
+
+            const [error, validated] = validate(
+              json,
+              VaultShareValuationsResponseStruct,
+            );
+            if (error) {
+              throw new MoneyAccountApiResponseValidationError(
+                `Malformed response from vault share valuations endpoint: ${error.message}`,
               );
             }
 

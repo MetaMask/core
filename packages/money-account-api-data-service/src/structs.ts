@@ -155,6 +155,43 @@ export const VaultRateResponseStruct = type({
   indexer_lag_seconds: number(),
 });
 
+const VaultShareValuationStruct = type({
+  vault_address: string(),
+  vault_key: string(),
+  asset_symbol: string(),
+  asset_decimals: number(),
+  type: enums(['deposit', 'withdraw', 'transfer_in', 'transfer_out']),
+  log_index: number(),
+  block_number: number(),
+  timestamp: string(),
+  shares_wei: string(),
+  assets_wei: string(),
+  rate: string(),
+  source: enums([
+    'teller',
+    'withdraw_queue',
+    'atomic_queue',
+    'erc20_transfer',
+    'cross_chain',
+  ]),
+});
+
+const VaultShareValuationResultStruct = type({
+  tx_hash: string(),
+  found: boolean(),
+  valuations: array(VaultShareValuationStruct),
+});
+
+export const VaultShareValuationsResponseStruct = type({
+  address: string(),
+  chain_id: number(),
+  results: array(VaultShareValuationResultStruct),
+  as_of_block: number(),
+  as_of_timestamp: string(),
+  data_freshness: DataFreshnessStruct,
+  indexer_lag_seconds: number(),
+});
+
 export const VbaSiweChallengeResponseStruct = type({
   nonce: string(),
   message: string(),
