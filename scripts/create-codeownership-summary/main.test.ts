@@ -47,7 +47,11 @@ describe('main', () => {
 
     await withinSandbox(async ({ directoryPath }) => {
       await initializeRepository(directoryPath);
-      await commitFiles(directoryPath, { 'README.md': 'Base\n' });
+      await commitFiles(directoryPath, {
+        'README.md': 'Base\n',
+        '.github/CODEOWNERS':
+          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
+      });
       await createBranch(directoryPath, 'feature');
       await commitFiles(directoryPath, {
         'packages/accounts-controller/src/index.ts': 'export {};\n',
@@ -72,7 +76,16 @@ describe('main', () => {
 
     await withinSandbox(async ({ directoryPath }) => {
       await initializeRepository(directoryPath);
-      await commitFiles(directoryPath, { 'README.md': 'Base\n' });
+      await commitFiles(directoryPath, {
+        'README.md': 'Base\n',
+        '.github/CODEOWNERS': [
+          '/packages/accounts-controller @MetaMask/accounts-engineers',
+          '/packages/accounts-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform # maintenance-owner: @MetaMask/core-platform',
+          '/packages/sample-controllers @MetaMask/core-platform',
+          '/packages/sample-controllers/package.json @MetaMask/core-platform',
+          '',
+        ].join('\n'),
+      });
       await createBranch(directoryPath, 'feature');
       await commitFiles(directoryPath, {
         'packages/accounts-controller/src/index.ts': 'export {};\n',
@@ -103,16 +116,15 @@ describe('main', () => {
           '',
           '- `packages/sample-controllers/package.json`',
           '',
-          '<details><summary><h2>ℹ️ Files co-owned by Core Platform (expand for more)</h2></summary>',
+          '<details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code> (expand for more)</h2></summary>',
           '',
           '> [!NOTE]',
-          '> For convenience in maintaining this repo, the Core Platform team co-owns',
-          '> certain files across all packages, such as manifests and changelogs. **It is',
-          '> not required to seek approval from Core Platform to change these files. This',
-          '> section is purely informational.**',
+          '> For convenience in maintaining this repo, `@MetaMask/core-platform` co-owns',
+          '> the following files. **It is not required to seek approval from',
+          '> `@MetaMask/core-platform` to change these files. This section is purely',
+          '> informational.**',
           '',
           '- `packages/accounts-controller/CHANGELOG.md`',
-          '- `packages/sample-controllers/package.json`',
           '</details>',
           '',
         ].join('\n'),
@@ -125,7 +137,11 @@ describe('main', () => {
 
     await withinSandbox(async ({ directoryPath }) => {
       await initializeRepository(directoryPath);
-      await commitFiles(directoryPath, { 'README.md': 'Base\n' });
+      await commitFiles(directoryPath, {
+        'README.md': 'Base\n',
+        '.github/CODEOWNERS':
+          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
+      });
       await createBranch(directoryPath, 'feature');
       await commitFiles(directoryPath, {
         'packages/accounts-controller/src/index.ts': 'export {};\n',
@@ -158,7 +174,11 @@ describe('main', () => {
 
     await withinSandbox(async ({ directoryPath }) => {
       await initializeRepository(directoryPath);
-      await commitFiles(directoryPath, { 'README.md': 'Base\n' });
+      await commitFiles(directoryPath, {
+        'README.md': 'Base\n',
+        '.github/CODEOWNERS':
+          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
+      });
       await createBranch(directoryPath, 'feature');
       await commitFiles(directoryPath, {
         'packages/accounts-controller/src/feature.ts': 'export {};\n',
@@ -195,6 +215,8 @@ describe('main', () => {
       await initializeRepository(directoryPath);
       await commitFiles(directoryPath, {
         'packages/accounts-controller/src/old.ts': 'export {};\n',
+        '.github/CODEOWNERS':
+          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
       });
       await createBranch(directoryPath, 'feature');
       await execa(
@@ -222,12 +244,47 @@ describe('main', () => {
     });
   });
 
+  it("uses the base ref's CODEOWNERS file, not the head ref's", async () => {
+    expect.assertions(2);
+
+    await withinSandbox(async ({ directoryPath }) => {
+      await initializeRepository(directoryPath);
+      await commitFiles(directoryPath, {
+        '.github/CODEOWNERS':
+          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
+      });
+      await createBranch(directoryPath, 'feature');
+      await commitFiles(directoryPath, {
+        '.github/CODEOWNERS':
+          '/packages/accounts-controller @MetaMask/new-team\n',
+        'packages/accounts-controller/src/index.ts': 'export {};\n',
+      });
+      const { stdout, stderr, output } = createStreams();
+
+      await main({
+        argv: ['node', 'create-codeownership-summary.ts'],
+        stdout,
+        stderr,
+        cwd: directoryPath,
+      });
+
+      expect(output.stdout).toContain(
+        '**@MetaMask/accounts-engineers** (1 file)',
+      );
+      expect(output.stdout).not.toContain('new-team');
+    });
+  });
+
   it('prints nothing to stdout when no changed files have codeowners', async () => {
     expect.assertions(1);
 
     await withinSandbox(async ({ directoryPath }) => {
       await initializeRepository(directoryPath);
-      await commitFiles(directoryPath, { 'README.md': 'Base\n' });
+      await commitFiles(directoryPath, {
+        'README.md': 'Base\n',
+        '.github/CODEOWNERS':
+          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
+      });
       await createBranch(directoryPath, 'feature');
       await commitFiles(directoryPath, { 'unowned.txt': 'Text\n' });
       const { stdout, stderr, output } = createStreams();
@@ -248,7 +305,11 @@ describe('main', () => {
 
     await withinSandbox(async ({ directoryPath }) => {
       await initializeRepository(directoryPath);
-      await commitFiles(directoryPath, { 'README.md': 'Base\n' });
+      await commitFiles(directoryPath, {
+        'README.md': 'Base\n',
+        '.github/CODEOWNERS':
+          '/packages/accounts-controller @MetaMask/accounts-engineers\n',
+      });
       await createBranch(directoryPath, 'feature');
       await commitFiles(directoryPath, { 'unowned.txt': 'Text\n' });
       const { stdout, stderr, output } = createStreams();

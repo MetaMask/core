@@ -97,7 +97,6 @@ function buildPackageRules(
     ].map((fileName) => ({
       pattern: `${workspacePath}/${fileName}`,
       owners: releaseOwners,
-      primaryOwners: owners,
       ...(isOwnedByCorePlatform
         ? {}
         : { maintenanceOwners: [CORE_PLATFORM_TEAM] }),

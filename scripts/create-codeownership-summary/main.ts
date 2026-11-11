@@ -1,6 +1,5 @@
 import yargs from 'yargs';
 
-import codeownersConfig from '../../codeowners.ts';
 import { generateCodeownershipSummary } from './generate-summary.ts';
 
 /**
@@ -34,13 +33,13 @@ export async function main({
   const options = await yargs()
     .scriptName('create-codeownership-summary')
     .usage(
-      'Print which codeowners own the files changed on a branch, using the rules in codeowners.ts.\n\nThis is the summary that the Post Codeownership Summary workflow posts on pull requests.',
+      'Print which codeowners own the files changed on a branch, using the CODEOWNERS file on the branch being merged into.\n\nThis is the summary that the Post Codeownership Summary workflow posts on pull requests.',
     )
     .option('base-ref', {
       type: 'string',
       default: 'main',
       description:
-        'The branch being merged into. Files are compared from its merge base with the head ref.',
+        'The branch being merged into. Its CODEOWNERS file determines who owns each file, and files are compared from its merge base with the head ref.',
     })
     .option('head-ref', {
       type: 'string',
@@ -78,7 +77,6 @@ export async function main({
     repositoryDirectoryPath: cwd,
     baseRef: options.baseRef,
     headRef: options.headRef,
-    codeownersConfig,
   });
   if (summary) {
     stdout.write(summary);

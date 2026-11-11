@@ -1,21 +1,21 @@
 import { execa } from 'execa';
 import { describe, expect, it, vi } from 'vitest';
 
-import config from '../../codeowners.ts';
-import type { CodeownersConfig } from '../manage-codeowners/types.ts';
 import { generateCodeownershipSummary } from './generate-summary.ts';
 
 vi.mock(import('execa'), () => ({ execa: vi.fn() }));
 
 describe('generateCodeownershipSummary', () => {
   it('asks Git for each path changed since the merge base, including both paths of renamed files', async () => {
-    mockChangedFilePaths([]);
+    mockGitRepository({
+      filesAtBaseRef: { '.github/CODEOWNERS': '* @MetaMask/team-a\n' },
+      changedFilePaths: [],
+    });
 
     await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'feature',
-      codeownersConfig: config,
     });
 
     expect(execa).toHaveBeenCalledWith(
@@ -25,26 +25,99 @@ describe('generateCodeownershipSummary', () => {
     );
   });
 
-  it('lists files by the teams whose approval is required, then lists files co-owned by Core Platform', async () => {
-    mockChangedFilePaths([
-      'packages/example-controller/src/index.ts',
-      'packages/example-controller/CHANGELOG.md',
-      'packages/shared-controller/package.json',
-    ]);
+  it('uses the ownership rules in the CODEOWNERS file at the base ref', async () => {
+    mockGitRepository({
+      filesAtBaseRef: { '.github/CODEOWNERS': '*.ts @MetaMask/team-a\n' },
+      changedFilePaths: ['a.ts'],
+    });
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      codeownersConfig: {
-        packages: {
-          'example-controller': { teams: ['@MetaMask/team-a'] },
-          'shared-controller': {
-            teams: ['@MetaMask/team-b', '@MetaMask/team-c'],
-          },
-        },
-        overrides: [],
+    });
+
+    expect(execa).toHaveBeenCalledWith(
+      'git',
+      ['show', 'main:.github/CODEOWNERS'],
+      { cwd: '/path/to/repository' },
+    );
+    expect(summary).toContain('**@MetaMask/team-a** (1 file)');
+  });
+
+  it.each(['CODEOWNERS', 'docs/CODEOWNERS'])(
+    'uses %s when the base ref has no .github/CODEOWNERS',
+    async (codeownersPath) => {
+      mockGitRepository({
+        filesAtBaseRef: { [codeownersPath]: '*.ts @MetaMask/team-a\n' },
+        changedFilePaths: ['a.ts'],
+      });
+
+      const summary = await generateCodeownershipSummary({
+        repositoryDirectoryPath: '/path/to/repository',
+        baseRef: 'main',
+        headRef: 'HEAD',
+      });
+
+      expect(summary).toContain('**@MetaMask/team-a** (1 file)');
+    },
+  );
+
+  it('prefers .github/CODEOWNERS over CODEOWNERS files elsewhere, as GitHub does', async () => {
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS': '*.ts @MetaMask/team-a\n',
+        CODEOWNERS: '*.ts @MetaMask/team-b\n',
+        'docs/CODEOWNERS': '*.ts @MetaMask/team-c\n',
       },
+      changedFilePaths: ['a.ts'],
+    });
+
+    const summary = await generateCodeownershipSummary({
+      repositoryDirectoryPath: '/path/to/repository',
+      baseRef: 'main',
+      headRef: 'HEAD',
+    });
+
+    expect(summary).toContain('**@MetaMask/team-a** (1 file)');
+  });
+
+  it('throws if the base ref has no CODEOWNERS file', async () => {
+    mockGitRepository({ filesAtBaseRef: {}, changedFilePaths: ['a.ts'] });
+
+    const promiseForGenerating = generateCodeownershipSummary({
+      repositoryDirectoryPath: '/path/to/repository',
+      baseRef: 'main',
+      headRef: 'HEAD',
+    });
+
+    await expect(promiseForGenerating).rejects.toThrow(
+      'Could not find a CODEOWNERS file at main (looked for .github/CODEOWNERS, CODEOWNERS, and docs/CODEOWNERS)',
+    );
+  });
+
+  it('lists files by the teams whose approval is required, then lists files co-owned by maintenance owners', async () => {
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS': [
+          '/packages/example-controller @MetaMask/team-a',
+          '/packages/example-controller/CHANGELOG.md @MetaMask/core-platform @MetaMask/team-a # maintenance-owner: @MetaMask/core-platform',
+          '/packages/shared-controller @MetaMask/team-b @MetaMask/team-c',
+          '/packages/shared-controller/package.json @MetaMask/core-platform @MetaMask/team-b @MetaMask/team-c # maintenance-owner: @MetaMask/core-platform',
+          '',
+        ].join('\n'),
+      },
+      changedFilePaths: [
+        'packages/example-controller/src/index.ts',
+        'packages/example-controller/CHANGELOG.md',
+        'packages/shared-controller/package.json',
+      ],
+    });
+
+    const summary = await generateCodeownershipSummary({
+      repositoryDirectoryPath: '/path/to/repository',
+      baseRef: 'main',
+      headRef: 'HEAD',
     });
 
     expect(summary).toBe(
@@ -63,13 +136,13 @@ describe('generateCodeownershipSummary', () => {
         '',
         '- `packages/shared-controller/package.json`',
         '',
-        '<details><summary><h2>ℹ️ Files co-owned by Core Platform (expand for more)</h2></summary>',
+        '<details><summary><h2>ℹ️ Files co-owned by <code>@MetaMask/core-platform</code> (expand for more)</h2></summary>',
         '',
         '> [!NOTE]',
-        '> For convenience in maintaining this repo, the Core Platform team co-owns',
-        '> certain files across all packages, such as manifests and changelogs. **It is',
-        '> not required to seek approval from Core Platform to change these files. This',
-        '> section is purely informational.**',
+        '> For convenience in maintaining this repo, `@MetaMask/core-platform` co-owns',
+        '> the following files. **It is not required to seek approval from',
+        '> `@MetaMask/core-platform` to change these files. This section is purely',
+        '> informational.**',
         '',
         '- `packages/example-controller/CHANGELOG.md`',
         '- `packages/shared-controller/package.json`',
@@ -80,15 +153,15 @@ describe('generateCodeownershipSummary', () => {
   });
 
   it('only asks for approvals from the listed owners when no files have multiple owners', async () => {
-    mockChangedFilePaths(['a.ts']);
+    mockGitRepository({
+      filesAtBaseRef: { '.github/CODEOWNERS': '*.ts @MetaMask/team-a\n' },
+      changedFilePaths: ['a.ts'],
+    });
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      codeownersConfig: createConfig([
-        { pattern: '*.ts', owners: ['@MetaMask/team-a'] },
-      ]),
     });
 
     expect(summary).toContain(
@@ -97,104 +170,130 @@ describe('generateCodeownershipSummary', () => {
     expect(summary).not.toContain('approval from one owner is sufficient');
   });
 
-  it('omits the section about files co-owned by Core Platform when none changed', async () => {
-    mockChangedFilePaths(['packages/accounts-controller/src/index.ts']);
+  it('omits the section about co-owned files when no changed files have maintenance owners', async () => {
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS': [
+          '/packages/example-controller @MetaMask/team-a',
+          '/packages/example-controller/CHANGELOG.md @MetaMask/core-platform @MetaMask/team-a # maintenance-owner: @MetaMask/core-platform',
+          '',
+        ].join('\n'),
+      },
+      changedFilePaths: ['packages/example-controller/src/index.ts'],
+    });
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      codeownersConfig: config,
     });
 
-    expect(summary).not.toContain('Files co-owned by Core Platform');
+    expect(summary).not.toContain('Files co-owned by');
   });
 
-  it("requires approval only from a package's own teams for its changelog and manifest", async () => {
-    mockChangedFilePaths([
-      'packages/accounts-controller/src/index.ts',
-      'packages/accounts-controller/CHANGELOG.md',
-      'packages/accounts-controller/package.json',
-    ]);
+  it("requires approval only from a file's other owners when it has a maintenance owner", async () => {
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS':
+          '/packages/example-controller/CHANGELOG.md @MetaMask/core-platform @MetaMask/team-a # maintenance-owner: @MetaMask/core-platform\n',
+      },
+      changedFilePaths: ['packages/example-controller/CHANGELOG.md'],
+    });
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      codeownersConfig: config,
     });
 
-    expect(summary).toContain('**@MetaMask/accounts-engineers** (3 files)');
-    expect(summary).not.toContain(
-      '**@MetaMask/accounts-engineers** _or_ **@MetaMask/core-platform**',
-    );
+    expect(summary).toContain('**@MetaMask/team-a** (1 file)');
+    expect(summary).not.toContain('**@MetaMask/core-platform**');
   });
 
-  it('lists the changelog and manifest of a package owned by Core Platform as co-owned', async () => {
-    mockChangedFilePaths([
-      'packages/sample-controllers/CHANGELOG.md',
-      'packages/sample-controllers/package.json',
-    ]);
+  it('requires approval from maintenance owners when they are the only owners of a file', async () => {
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS':
+          '/packages/example-controller/CHANGELOG.md @MetaMask/core-platform # maintenance-owner: @MetaMask/core-platform\n',
+      },
+      changedFilePaths: ['packages/example-controller/CHANGELOG.md'],
+    });
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      codeownersConfig: config,
     });
 
-    expect(summary).toContain('**@MetaMask/core-platform** (2 files)');
+    expect(summary).toContain('**@MetaMask/core-platform** (1 file)');
+    expect(summary).not.toContain('Files co-owned by');
+  });
+
+  it('lists the files co-owned by each maintenance owner separately', async () => {
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS': [
+          'a.md @MetaMask/team-a @MetaMask/maintainers-1 # maintenance-owner: @MetaMask/maintainers-1',
+          'b.md @MetaMask/team-a @MetaMask/maintainers-2 # maintenance-owner: @MetaMask/maintainers-2',
+          '',
+        ].join('\n'),
+      },
+      changedFilePaths: ['a.md', 'b.md'],
+    });
+
+    const summary = await generateCodeownershipSummary({
+      repositoryDirectoryPath: '/path/to/repository',
+      baseRef: 'main',
+      headRef: 'HEAD',
+    });
+
     expect(summary).toContain(
-      '<h2>ℹ️ Files co-owned by Core Platform (expand for more)</h2>',
+      '<h2>ℹ️ Files co-owned by <code>@MetaMask/maintainers-1</code> (expand for more)</h2>',
     );
-  });
-
-  it('lets overrides take precedence over package rules', async () => {
-    mockChangedFilePaths([
-      'packages/eth-json-rpc-middleware/src/methods/index.ts',
-    ]);
-
-    const summary = await generateCodeownershipSummary({
-      repositoryDirectoryPath: '/path/to/repository',
-      baseRef: 'main',
-      headRef: 'HEAD',
-      codeownersConfig: config,
-    });
-
     expect(summary).toContain(
-      '**@MetaMask/confirmations** _or_ **@MetaMask/core-platform**',
+      '<h2>ℹ️ Files co-owned by <code>@MetaMask/maintainers-2</code> (expand for more)</h2>',
     );
   });
 
-  it('lets initialization rules take precedence over the Wallet package rule', async () => {
-    mockChangedFilePaths([
-      'packages/wallet/src/initialization/instances/accounts-controller/index.ts',
-    ]);
+  it('ignores comments and blank lines in CODEOWNERS', async () => {
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS': [
+          '# The team that owns TypeScript files',
+          '',
+          '*.ts @MetaMask/team-a # Not an owner: @MetaMask/team-b',
+          '',
+        ].join('\n'),
+      },
+      changedFilePaths: ['a.ts'],
+    });
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      codeownersConfig: config,
     });
 
-    expect(summary).toContain('**@MetaMask/accounts-engineers**');
+    expect(summary).toContain('**@MetaMask/team-a** (1 file)');
+    expect(summary).not.toContain('team-b');
   });
 
   it('uses only the last matching rule', async () => {
-    mockChangedFilePaths(['packages/example/src/index.ts']);
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS': [
+          '* @MetaMask/core-platform',
+          '/packages/example @MetaMask/accounts-engineers',
+          '',
+        ].join('\n'),
+      },
+      changedFilePaths: ['packages/example/src/index.ts'],
+    });
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      codeownersConfig: createConfig([
-        { pattern: '*', owners: ['@MetaMask/core-platform'] },
-        {
-          pattern: '/packages/example',
-          owners: ['@MetaMask/accounts-engineers'],
-        },
-      ]),
     });
 
     expect(summary).not.toContain('**@MetaMask/core-platform**');
@@ -202,26 +301,21 @@ describe('generateCodeownershipSummary', () => {
   });
 
   it('normalizes shared owner sets so each file is listed once', async () => {
-    mockChangedFilePaths(['a.ts', 'b.ts']);
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS': [
+          'a.ts @MetaMask/mobile-platform @MetaMask/extension-platform',
+          'b.ts @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/mobile-platform',
+          '',
+        ].join('\n'),
+      },
+      changedFilePaths: ['a.ts', 'b.ts'],
+    });
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      codeownersConfig: createConfig([
-        {
-          pattern: 'a.ts',
-          owners: ['@MetaMask/mobile-platform', '@MetaMask/extension-platform'],
-        },
-        {
-          pattern: 'b.ts',
-          owners: [
-            '@MetaMask/extension-platform',
-            '@MetaMask/mobile-platform',
-            '@MetaMask/mobile-platform',
-          ],
-        },
-      ]),
     });
 
     expect(summary).toContain(
@@ -230,69 +324,78 @@ describe('generateCodeownershipSummary', () => {
   });
 
   it('lists full paths in sorted order', async () => {
-    mockChangedFilePaths(['z/index.ts', 'a/nested/index.ts']);
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS': '*.ts @MetaMask/core-platform\n',
+      },
+      changedFilePaths: ['z/index.ts', 'a/nested/index.ts'],
+    });
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      codeownersConfig: createConfig([
-        { pattern: '*.ts', owners: ['@MetaMask/core-platform'] },
-      ]),
     });
 
     expect(summary).toContain('- `a/nested/index.ts`\n- `z/index.ts`\n');
   });
 
   it('matches paths case-sensitively', async () => {
-    mockChangedFilePaths(['guide.md']);
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS': '/Guide.md @MetaMask/core-platform\n',
+      },
+      changedFilePaths: ['guide.md'],
+    });
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      codeownersConfig: createConfig([
-        { pattern: '/Guide.md', owners: ['@MetaMask/core-platform'] },
-      ]),
     });
 
     expect(summary).toBe('');
   });
 
   it('treats a rule without owners as clearing ownership', async () => {
-    mockChangedFilePaths(['src/a.ts']);
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS': [
+          '/src @MetaMask/accounts-engineers',
+          '/src/a.ts',
+          '',
+        ].join('\n'),
+      },
+      changedFilePaths: ['src/a.ts'],
+    });
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      codeownersConfig: createConfig([
-        { pattern: '/src', owners: ['@MetaMask/accounts-engineers'] },
-        { pattern: '/src/a.ts', owners: [] },
-      ]),
     });
 
     expect(summary).toBe('');
   });
 
   it('keeps oversized summaries below the GitHub comment limit with an explicit warning', async () => {
-    mockChangedFilePaths(
-      Array.from(
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS': Array.from(
+          { length: 400 },
+          (_value, index) => `/group-${index}/ @MetaMask/team-${index}\n`,
+        ).join(''),
+      },
+      changedFilePaths: Array.from(
         { length: 400 },
         (_value, index) => `group-${index}/${'long-path-'.repeat(15)}.ts`,
       ),
-    );
+    });
 
     const summary = await generateCodeownershipSummary({
       repositoryDirectoryPath: '/path/to/repository',
       baseRef: 'main',
       headRef: 'HEAD',
-      codeownersConfig: createConfig(
-        Array.from({ length: 400 }, (_value, index) => ({
-          pattern: `/group-${index}/`,
-          owners: [`@MetaMask/team-${index}`],
-        })),
-      ),
     });
 
     expect(summary.length).toBeLessThan(65_536);
@@ -303,25 +406,40 @@ describe('generateCodeownershipSummary', () => {
 });
 
 /**
- * Make `git diff --name-only -z` report the given paths as changed.
+ * Make Git behave as if the base ref `main` contained the given files and the
+ * given paths had changed since the merge base.
  *
- * @param filePaths - Repository-relative paths of the changed files.
+ * @param options - The options.
+ * @param options.filesAtBaseRef - File contents at `main`, keyed by
+ * repository-relative path. Asking Git for any other file at `main` fails.
+ * @param options.changedFilePaths - Repository-relative paths of the changed
+ * files.
  */
-function mockChangedFilePaths(filePaths: string[]): void {
-  // @ts-expect-error: Partial mock.
-  vi.mocked(execa).mockResolvedValue({
-    stdout: filePaths.map((filePath) => `${filePath}\0`).join(''),
-  });
-}
+function mockGitRepository({
+  filesAtBaseRef,
+  changedFilePaths,
+}: {
+  filesAtBaseRef: Record<string, string>;
+  changedFilePaths: string[];
+}): void {
+  vi.mocked(execa)
+    // @ts-expect-error: Partial mock.
+    .mockImplementation(async (command: string, args: string[]) => {
+      if (args[0] === 'diff') {
+        return {
+          stdout: changedFilePaths.map((filePath) => `${filePath}\0`).join(''),
+        };
+      }
 
-/**
- * Build a configuration with only the given rules.
- *
- * @param overrides - Rules in precedence order, with later rules winning.
- * @returns A configuration with no packages.
- */
-function createConfig(
-  overrides: CodeownersConfig['overrides'],
-): CodeownersConfig {
-  return { packages: {}, overrides };
+      const filePath = args[1]?.replace(/^main:/u, '');
+      if (args[0] === 'show' && filePath !== undefined) {
+        const content = filesAtBaseRef[filePath];
+        if (content !== undefined) {
+          return { stdout: content };
+        }
+        throw new Error(`fatal: path '${filePath}' does not exist in 'main'`);
+      }
+
+      throw new Error(`Unexpected execa call: ${command} ${args.join(' ')}`);
+    });
 }

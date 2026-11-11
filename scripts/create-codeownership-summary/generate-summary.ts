@@ -1,13 +1,6 @@
 import { execa } from 'execa';
 import ignore from 'ignore';
 
-import { assembleCodeownersSections } from '../manage-codeowners/assemble.ts';
-import type {
-  CodeownersConfig,
-  CodeownersRule,
-  CodeownersSection,
-} from '../manage-codeowners/types.ts';
-
 /**
  * Leaves room below GitHub's comment size limit for the workflow's comment
  * marker and truncation notices.
@@ -15,7 +8,37 @@ import type {
 const MAX_SUMMARY_LENGTH = 60_000;
 
 /**
- * A changed file and the CODEOWNERS rule that determines its owners.
+ * Where GitHub looks for a CODEOWNERS file, in the order it looks.
+ */
+const CODEOWNERS_PATHS = [
+  '.github/CODEOWNERS',
+  'CODEOWNERS',
+  'docs/CODEOWNERS',
+];
+
+/**
+ * A rule in a CODEOWNERS file.
+ */
+type CodeownersRule = {
+  /**
+   * The pattern that files must match for the rule to apply.
+   */
+  pattern: string;
+  /**
+   * The owners of matching files.
+   */
+  owners: string[];
+  /**
+   * Owners listed in an inline `# maintenance-owner:` comment. These help
+   * maintain the matching files, but their approval isn't needed when the
+   * files have other owners.
+   */
+  maintenanceOwners: string[];
+};
+
+/**
+ * A changed file and whose approval it needs, based on the last CODEOWNERS
+ * rule that matches it, which GitHub uses.
  */
 type MatchedFile = {
   /**
@@ -23,9 +46,14 @@ type MatchedFile = {
    */
   filePath: string;
   /**
-   * The last rule whose pattern matches the file, which GitHub uses.
+   * Sorted, unique owners; any one can approve the file.
    */
-  codeownerRule: CodeownersRule;
+  requiredOwners: string[];
+  /**
+   * Sorted, unique owners that also own the file but whose approval isn't
+   * needed.
+   */
+  maintenanceOwners: string[];
 };
 
 /**
@@ -44,14 +72,30 @@ type CodeownershipGroup = {
 };
 
 /**
+ * Files that a maintenance owner co-owns.
+ */
+type MaintainedFileGroup = {
+  /**
+   * The maintenance owner.
+   */
+  maintenanceOwner: string;
+  /**
+   * Repository-relative paths of the changed files it co-owns.
+   */
+  filePaths: string[];
+};
+
+/**
  * Generate a Markdown summary of which codeowners own the files changed on a
  * branch. The summary is what the Post Codeownership Summary workflow posts on
  * pull requests.
  *
- * Files are grouped by the exact set of teams whose approval is needed. Core
- * Platform co-owns some files in every package, such as changelogs and
- * manifests, but the package's own teams can approve changes to them, so those
- * files are grouped with the package's teams and listed again in a separate,
+ * Ownership comes from the CODEOWNERS file at the base ref, as GitHub uses for
+ * a pull request. Files are grouped by the exact set of owners whose approval
+ * is needed. Some owners only help maintain certain files, such as Core
+ * Platform with package changelogs and manifests in this repository, and are
+ * marked as such in CODEOWNERS; their approval isn't needed when the files
+ * have other owners, so the files they co-own are listed again in a separate,
  * informational section.
  *
  * @param options - The options.
@@ -59,64 +103,120 @@ type CodeownershipGroup = {
  * repository to inspect.
  * @param options.baseRef - The branch being merged into.
  * @param options.headRef - The branch being merged.
- * @param options.codeownersConfig - The configuration that
- * `.github/CODEOWNERS` is generated from.
  * @returns The summary, or an empty string if no changed files have owners.
  */
 export async function generateCodeownershipSummary({
   repositoryDirectoryPath,
   baseRef,
   headRef,
-  codeownersConfig,
 }: {
   repositoryDirectoryPath: string;
   baseRef: string;
   headRef: string;
-  codeownersConfig: CodeownersConfig;
 }): Promise<string> {
+  const codeownerRules = parseCodeowners(
+    await readCodeownersFile({ repositoryDirectoryPath, ref: baseRef }),
+  );
   const changedFilePaths = await listChangedFilePaths({
     repositoryDirectoryPath,
     baseRef,
     headRef,
   });
-  const codeownerRules = getFlatCodeownerRules(
-    assembleCodeownersSections(codeownersConfig),
-  );
   const matchedFiles = matchFilesToCodeownerRules(
     changedFilePaths,
     codeownerRules,
   );
   const codeownershipGroups = groupFilesByOwners(matchedFiles);
-  const coOwnedFilePaths = matchedFiles
-    .filter(({ codeownerRule }) => codeownerRule.primaryOwners !== undefined)
-    .map(({ filePath }) => filePath);
+  const maintainedFileGroups = groupFilesByMaintenanceOwners(matchedFiles);
 
   return codeownershipGroups.length > 0
-    ? renderSummary({ codeownershipGroups, coOwnedFilePaths })
+    ? renderSummary({ codeownershipGroups, maintainedFileGroups })
     : '';
 }
 
 /**
- * List rules in the order they appear in `.github/CODEOWNERS`.
+ * Read the CODEOWNERS file at a ref, from the first place GitHub looks for it.
  *
- * @param sections - Sections assembled from `codeowners.ts`.
- * @returns Rules in precedence order, with later rules winning.
+ * @param options - The options.
+ * @param options.repositoryDirectoryPath - A directory within the Git
+ * repository to inspect.
+ * @param options.ref - The ref to read the file at.
+ * @returns The contents of the file.
+ * @throws If there is no CODEOWNERS file at the ref.
  */
-function getFlatCodeownerRules(
-  sections: CodeownersSection[],
-): CodeownersRule[] {
-  return sections.flatMap((section) => [
-    ...section.rules,
-    ...getFlatCodeownerRules(section.subsections ?? []),
-  ]);
+async function readCodeownersFile({
+  repositoryDirectoryPath,
+  ref,
+}: {
+  repositoryDirectoryPath: string;
+  ref: string;
+}): Promise<string> {
+  for (const codeownersPath of CODEOWNERS_PATHS) {
+    try {
+      const { stdout } = await execa(
+        'git',
+        ['show', `${ref}:${codeownersPath}`],
+        {
+          cwd: repositoryDirectoryPath,
+        },
+      );
+      return stdout;
+    } catch {
+      // Git fails if the file doesn't exist, so try the next location
+    }
+  }
+
+  throw new Error(
+    `Could not find a CODEOWNERS file at ${ref} (looked for ${CODEOWNERS_PATHS.slice(0, -1).join(', ')}, and ${CODEOWNERS_PATHS.at(-1)})`,
+  );
 }
 
 /**
- * Find the codeowner rule that determines the owners of each changed file.
+ * Parse the rules in a CODEOWNERS file.
+ *
+ * Each rule is a pattern followed by owners, optionally followed by an inline
+ * comment. An inline comment of the form `# maintenance-owner: <owners>` marks
+ * owners that only help maintain the matching files.
+ *
+ * @param content - The contents of the CODEOWNERS file.
+ * @returns The rules, in the order they appear, with later rules winning.
+ */
+function parseCodeowners(content: string): CodeownersRule[] {
+  return content.split('\n').flatMap((line) => {
+    const [pattern, ...tokens] = line.trim().split(/\s+/u);
+    if (pattern === undefined || pattern === '' || pattern.startsWith('#')) {
+      return [];
+    }
+
+    const commentIndex = tokens.findIndex((token) => token.startsWith('#'));
+    const owners = commentIndex === -1 ? tokens : tokens.slice(0, commentIndex);
+    const comment =
+      commentIndex === -1 ? '' : tokens.slice(commentIndex).join(' ');
+    return [
+      { pattern, owners, maintenanceOwners: parseMaintenanceOwners(comment) },
+    ];
+  });
+}
+
+/**
+ * Get the owners listed in a `# maintenance-owner:` comment.
+ *
+ * @param comment - An inline comment from a CODEOWNERS rule, such as
+ * `# maintenance-owner: @MetaMask/core-platform`.
+ * @returns The listed owners, or an empty array for any other comment.
+ */
+function parseMaintenanceOwners(comment: string): string[] {
+  const match = /^#\s*maintenance-owner:\s*(.*)$/u.exec(comment);
+  return (match?.[1] ?? '').split(/\s+/u).filter((owner) => owner !== '');
+}
+
+/**
+ * Find the codeowner rule that determines the owners of each changed file,
+ * and work out whose approval the file needs.
  *
  * @param changedFilePaths - Repository-relative paths of changed files.
  * @param codeownerRules - Ownership rules in precedence order.
- * @returns The changed files that match a rule, along with that rule.
+ * @returns The changed files that match a rule, along with their owners.
  */
 function matchFilesToCodeownerRules(
   changedFilePaths: string[],
@@ -137,32 +237,54 @@ function matchFilesToCodeownerRules(
       matches(filePath),
     );
     return codeownerMatcher
-      ? [{ filePath, codeownerRule: codeownerMatcher.codeownerRule }]
+      ? [{ filePath, ...splitOwners(codeownerMatcher.codeownerRule) }]
       : [];
   });
 }
 
 /**
- * Group changed files by the teams whose approval is needed for them: the
- * primary owners of a rule, if it has them, or else all of its owners.
+ * Separate a rule's owners into those whose approval is needed and those that
+ * only help maintain the matching files.
  *
- * @param matchedFiles - Changed files and the rules that determine their
- * owners.
+ * Maintenance owners are only set apart when the rule has other owners who can
+ * approve changes; otherwise, their approval is needed after all.
+ *
+ * @param codeownerRule - The rule.
+ * @returns The required and maintenance owners, each sorted and unique.
+ */
+function splitOwners(
+  codeownerRule: CodeownersRule,
+): Pick<MatchedFile, 'requiredOwners' | 'maintenanceOwners'> {
+  const owners = [...new Set(codeownerRule.owners)].sort();
+  const maintenanceOwners = owners.filter((owner) =>
+    codeownerRule.maintenanceOwners.includes(owner),
+  );
+  const requiredOwners = owners.filter(
+    (owner) => !maintenanceOwners.includes(owner),
+  );
+
+  if (requiredOwners.length === 0) {
+    return { requiredOwners: owners, maintenanceOwners: [] };
+  }
+  return { requiredOwners, maintenanceOwners };
+}
+
+/**
+ * Group changed files by the owners whose approval is needed for them.
+ *
+ * @param matchedFiles - Changed files and their owners.
  * @returns Groups of changed files ordered by their owners.
  */
 function groupFilesByOwners(matchedFiles: MatchedFile[]): CodeownershipGroup[] {
   const groups = new Map<string, CodeownershipGroup>();
-  for (const { filePath, codeownerRule } of matchedFiles) {
-    const owners = [
-      ...new Set(codeownerRule.primaryOwners ?? codeownerRule.owners),
-    ].sort();
-    if (owners.length === 0) {
+  for (const { filePath, requiredOwners } of matchedFiles) {
+    if (requiredOwners.length === 0) {
       continue;
     }
-    const key = JSON.stringify(owners);
+    const key = JSON.stringify(requiredOwners);
     let group = groups.get(key);
     if (!group) {
-      group = { owners, filePaths: [] };
+      group = { owners: requiredOwners, filePaths: [] };
       groups.set(key, group);
     }
     group.filePaths.push(filePath);
@@ -171,6 +293,29 @@ function groupFilesByOwners(matchedFiles: MatchedFile[]): CodeownershipGroup[] {
   return [...groups.entries()]
     .sort(([first], [second]) => first.localeCompare(second))
     .map(([, group]) => group);
+}
+
+/**
+ * Group changed files by the maintenance owners that co-own them.
+ *
+ * @param matchedFiles - Changed files and their owners.
+ * @returns Groups of changed files ordered by maintenance owner.
+ */
+function groupFilesByMaintenanceOwners(
+  matchedFiles: MatchedFile[],
+): MaintainedFileGroup[] {
+  const filePathsByMaintenanceOwner = new Map<string, string[]>();
+  for (const { filePath, maintenanceOwners } of matchedFiles) {
+    for (const maintenanceOwner of maintenanceOwners) {
+      const filePaths = filePathsByMaintenanceOwner.get(maintenanceOwner) ?? [];
+      filePaths.push(filePath);
+      filePathsByMaintenanceOwner.set(maintenanceOwner, filePaths);
+    }
+  }
+
+  return [...filePathsByMaintenanceOwner.entries()]
+    .sort(([first], [second]) => first.localeCompare(second))
+    .map(([maintenanceOwner, filePaths]) => ({ maintenanceOwner, filePaths }));
 }
 
 /**
@@ -234,30 +379,31 @@ async function listChangedFilePaths({
 
 /**
  * Build the Markdown-formatted string that will be used to post a comment on a
- * PR. It has two sections: first a list of changed files for each set of
- * primary owners (whose approval is required), then the files co-owned by Core
- * Platform (whose approval is not required).
+ * PR. It has two parts: first a list of changed files for each set of owners
+ * whose approval is required, then the files co-owned by each maintenance
+ * owner, whose approval is not required.
  *
  * @param options - The options.
  * @param options.codeownershipGroups - Mutually exclusive ownership groups.
- * @param options.coOwnedFilePaths - Changed files that Core Platform co-owns.
+ * @param options.maintainedFileGroups - Changed files co-owned by each
+ * maintenance owner.
  * @returns A Markdown summary short enough to post as a GitHub comment.
  */
 function renderSummary({
   codeownershipGroups,
-  coOwnedFilePaths,
+  maintainedFileGroups,
 }: {
   codeownershipGroups: CodeownershipGroup[];
-  coOwnedFilePaths: string[];
+  maintainedFileGroups: MaintainedFileGroup[];
 }): string {
   let summary = `## 🛑 Files requiring codeowner review
 
 ${renderApprovalInstructions(codeownershipGroups)}
 `;
-  const sections = codeownershipGroups.map(renderCodeownershipGroup);
-  if (coOwnedFilePaths.length > 0) {
-    sections.push(renderCorePlatformCoOwnedFiles(coOwnedFilePaths));
-  }
+  const sections = [
+    ...codeownershipGroups.map(renderCodeownershipGroup),
+    ...maintainedFileGroups.map(renderMaintainedFileGroup),
+  ];
 
   for (const section of sections) {
     if (summary.length + section.length > MAX_SUMMARY_LENGTH) {
@@ -301,20 +447,30 @@ ${renderFileList(group.filePaths)}`;
 }
 
 /**
- * Render the files co-owned by Core Platform.
+ * Render the files co-owned by a maintenance owner, explaining that its
+ * approval isn't needed for them.
  *
- * @param filePaths - Changed files that Core Platform co-owns.
+ * The owner is shown as code so that the comment doesn't mention, and notify,
+ * a team whose review isn't needed.
+ *
+ * @param group - The maintenance owner and the files it co-owns.
+ * @param group.maintenanceOwner - The maintenance owner.
+ * @param group.filePaths - Repository-relative paths of the changed files it
+ * co-owns.
  * @returns A collapsible Markdown section.
  */
-function renderCorePlatformCoOwnedFiles(filePaths: string[]): string {
+function renderMaintainedFileGroup({
+  maintenanceOwner,
+  filePaths,
+}: MaintainedFileGroup): string {
   return `
-<details><summary><h2>ℹ️ Files co-owned by Core Platform (expand for more)</h2></summary>
+<details><summary><h2>ℹ️ Files co-owned by <code>${maintenanceOwner}</code> (expand for more)</h2></summary>
 
 > [!NOTE]
-> For convenience in maintaining this repo, the Core Platform team co-owns
-> certain files across all packages, such as manifests and changelogs. **It is
-> not required to seek approval from Core Platform to change these files. This
-> section is purely informational.**
+> For convenience in maintaining this repo, \`${maintenanceOwner}\` co-owns
+> the following files. **It is not required to seek approval from
+> \`${maintenanceOwner}\` to change these files. This section is purely
+> informational.**
 
 ${renderFileList(filePaths)}</details>
 `;
