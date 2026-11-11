@@ -1,4 +1,7 @@
-import type { AnalyticsTrackingEvent } from './AnalyticsPlatformAdapter.types.js';
+import type {
+  AnalyticsEventProperties,
+  AnalyticsTrackingEvent,
+} from './AnalyticsPlatformAdapter.types.js';
 
 /**
  * Analytics event emitted for a caught error.
@@ -194,6 +197,7 @@ function resolveNonNegativeNumber(
  * @param session - Mutable per-controller volume-control state.
  * @param error - The caught value to report.
  * @param options - Source and optional volume controls.
+ * @param properties - Optional extra properties merged into the payload.
  * @param now - Current time in milliseconds. Defaults to `Date.now()`.
  * @param randomSample - Sample in [0, 1). Defaults to `Math.random()`.
  * @returns The event to send and its reservation, or `undefined` when the
@@ -203,6 +207,7 @@ export function reserveErrorOccurredEvent(
   session: ErrorTrackingSession,
   error: unknown,
   options: TrackErrorAsAnalyticsOptions,
+  properties?: AnalyticsEventProperties,
   now: number = Date.now(),
   randomSample: number = Math.random(),
 ): ReservedErrorOccurredEvent | undefined {
@@ -251,6 +256,7 @@ export function reserveErrorOccurredEvent(
     event: {
       name: ERROR_OCCURRED_EVENT_NAME,
       properties: {
+        ...(properties ?? {}),
         source,
         error_message: errorMessage,
       },

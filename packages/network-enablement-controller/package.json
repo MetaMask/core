@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-enablement-controller",
-  "version": "7.1.0",
+  "version": "7.1.1",
   "description": "Provides an interface to the currently enabled network using a MetaMask-compatible provider object",
   "keywords": [
     "Ethereum",
@@ -57,10 +57,10 @@
     "@metamask/controller-utils": "^13.0.0",
     "@metamask/keyring-api": "^24.3.0",
     "@metamask/messenger": "^3.0.0",
-    "@metamask/multichain-network-controller": "^4.1.0",
-    "@metamask/network-controller": "^37.1.1",
+    "@metamask/multichain-network-controller": "^4.1.1",
+    "@metamask/network-controller": "^38.0.0",
     "@metamask/slip44": "^4.5.0",
-    "@metamask/transaction-controller": "^73.1.1",
+    "@metamask/transaction-controller": "^73.1.2",
     "@metamask/utils": "^12.0.1",
     "reselect": "^5.3.0"
   },

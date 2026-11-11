@@ -14,10 +14,12 @@ import {
   unknown as unknownStruct,
 } from '@metamask/superstruct';
 
+import { ProfileIdentityStruct } from './social-types.js';
 import type {
   AuthorComment,
   FeedItem,
   FeedActorSummary,
+  ProfileIdentity,
   Trade,
 } from './social-types.js';
 import {
@@ -70,6 +72,7 @@ const RawHydratedPositionStruct = structType({
     profile: structType({
       id: string(),
       metadata: record(string(), unknownStruct()),
+      ...ProfileIdentityStruct.schema,
     }),
     followerCount: optional(nullable(number())),
   }),
@@ -121,17 +124,31 @@ const addNullableNumbers = (
   right: number | null,
 ): number | null => (left === null || right === null ? null : left + right);
 
+const PROFILE_IDENTITY_KEYS = Object.keys(
+  ProfileIdentityStruct.schema,
+) as (keyof ProfileIdentity)[];
+
+// Copies only the identity fields the socket payload sent, as the REST
+// payload omits the ones a profile has no value for.
+const toIdentity = (profile: ProfileIdentity): ProfileIdentity =>
+  Object.fromEntries(
+    PROFILE_IDENTITY_KEYS.flatMap((key) =>
+      profile[key] === undefined ? [] : [[key, profile[key]]],
+    ),
+  );
+
 const toActor = (actor: {
   address: string;
   name: string;
   images: { raw: string | null; sm: string | null };
-  profile: { id: string; metadata: Record<string, unknown> };
+  profile: ProfileIdentity & { id: string; metadata: Record<string, unknown> };
   followerCount?: number | null;
 }): FeedActorSummary => ({
   profileId: actor.profile.id,
   address: actor.address,
   name: actor.name,
   imageUrl: actor.images.sm ?? actor.images.raw,
+  ...toIdentity(actor.profile),
   winRate30d: readNullableNumber(actor.profile.metadata.winRate30d),
   pnl30d: readNullableNumber(actor.profile.metadata.pnl30d),
   volumeUsd30d: readNullableNumber(actor.profile.metadata.volumeUsd30d),

@@ -1828,6 +1828,50 @@ export type SubscribeTwapOrdersParams = {
   accountId?: CaipAccountId; // Optional: defaults to selected account
 };
 
+/**
+ * USD amount the venue lets the account commit to a new order on one market,
+ * per side. It is the venue's own figure (Hyperliquid: `activeAssetData`
+ * `availableToTrade`), so it reflects the market's open position, its
+ * unrealized PnL, resting orders and leverage. It differs from the
+ * account-wide `AccountState.spendableBalance` whenever those apply.
+ */
+export type PerpsAvailableToTrade = Readonly<{
+  /** Provider that reported the value. */
+  providerId: PerpsProviderType;
+  /** Market the value applies to, as subscribed. */
+  symbol: string;
+  /** Available to open or increase a long (buy), as a decimal USD string. */
+  long: string;
+  /** Available to open or increase a short (sell), as a decimal USD string. */
+  short: string;
+}>;
+
+/**
+ * Subscription to one market's available to trade.
+ *
+ * The callback receives venue values only. Until the first one arrives the
+ * value is unknown and clients should render a placeholder. A provider that
+ * cannot read the value from its venue never invokes the callback, so the
+ * value stays unknown: no provider computes an estimate.
+ */
+export type SubscribeAvailableToTradeParams = {
+  /** Provider-specific market identifier, including any routing prefix. */
+  symbol: string;
+  /** Explicit provider route; defaults to the active/default provider. */
+  providerId?: PerpsProviderType;
+  /** Optional: defaults to the selected account. */
+  accountId?: CaipAccountId;
+  /** Receives each venue update for the market. */
+  callback: (availableToTrade: PerpsAvailableToTrade) => void;
+  /**
+   * Receives a failure to open the stream, or one that stops it after it
+   * opened (for example a rejected resubscription). The value is unknown again.
+   * Not terminal: keep the subscription, since the stream reopens when the
+   * WebSocket transport is replaced.
+   */
+  onError?: (error: Error) => void;
+};
+
 export type SubscribeAccountParams = {
   callback: (account: AccountState | null) => void;
   accountId?: CaipAccountId; // Optional: defaults to selected account
@@ -1935,9 +1979,9 @@ export type PositionModifyPreviewSource = Pick<
 /**
  * Proposed order plus the live position it would modify.
  *
- * Isolated-margin previews apply `leverage` to the *whole* resulting
- * position, matching `updateLeverage` before placement. Cross-margin
- * positions are not projected.
+ * Isolated-margin previews model `updateLeverage` before placement: the venue
+ * keeps the existing margin and the order margins its own size at
+ * `leverage`. Cross-margin positions are not projected.
  */
 export type PositionModifyPreviewParams = {
   position: PositionModifyPreviewSource;
@@ -1953,8 +1997,10 @@ export type PositionModifyPreviewParams = {
    */
   price: string;
   /**
-   * Isolated leverage the provider will set on the asset before placing.
-   * Applied to the entire resulting position, not only the added size.
+   * Isolated leverage the provider will set on the asset before placing. The
+   * order is margined at this leverage and the existing margin is kept. Below
+   * the leverage the existing margin can cover, the venue rejects the change
+   * and the resulting margin and liquidation price are unavailable.
    */
   leverage: number;
   reduceOnly?: boolean;
@@ -1995,8 +2041,10 @@ export type PositionModifyPreviewOpen = {
     size: number;
     entryPrice: number;
     /**
-     * Isolated leverage from mark notional / remaining margin, matching
-     * HyperLiquid's displayed leverage rather than entry notional / margin.
+     * Effective isolated leverage, mark notional / resulting margin. Below the
+     * selected leverage when margin kept from before a leverage rise exceeds
+     * the new initial margin; the selected leverage when margin is
+     * unavailable.
      */
     leverage: number;
     margin: PositionPreviewValue;
@@ -2499,6 +2547,37 @@ export type UpdatePositionTPSLParams = {
   position?: Position;
 };
 
+/** One side of a position's protection: take profit or stop loss. */
+export type PositionTPSLLeg = 'tp' | 'sl';
+
+export type ReplacePositionTPSLLegParams = {
+  /** Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA'). */
+  symbol: string;
+  /** The leg to replace. The other leg is left as it is. */
+  leg: PositionTPSLLeg;
+  /** New trigger price for the leg. */
+  triggerPrice: string;
+  /**
+   * Price the leg fills at once triggered. Omit to execute at market when the
+   * trigger fires.
+   */
+  limitPrice?: string;
+  /**
+   * Max slippage in basis points for a market leg (no `limitPrice`). Omit to
+   * use the saved `maxSlippageBps` preference, else the 10% TP/SL default.
+   */
+  maxSlippageBps?: number;
+  /**
+   * Optional mutation precondition, checked against authoritative position data
+   * before setup and again before protection writes. Size is signed base units.
+   */
+  expectedPosition?: { size: string; entryPrice: string };
+  /** Optional tracking data for MetaMetrics events. */
+  trackingData?: TPSLTrackingData;
+  /** Multi-provider: optional provider override for routing. */
+  providerId?: PerpsProviderType;
+};
+
 export type Order = {
   orderId: string; // Order ID
   symbol: string; // Asset symbol (e.g., 'ETH', 'BTC')
@@ -2643,6 +2722,15 @@ export type PerpsProvider = {
   closePosition(params: ClosePositionParams): Promise<OrderResult>;
   closePositions?(params: ClosePositionsParams): Promise<ClosePositionsResult>; // Optional: batch close for protocols that support it
   updatePositionTPSL(params: UpdatePositionTPSLParams): Promise<OrderResult>;
+  /**
+   * Replace one TP/SL leg of a position and leave the other leg untouched. The
+   * new leg protects the whole position. A provider that cannot do this from
+   * its venue rejects with `TPSL_LEG_REPLACE_UNSUPPORTED` before any write;
+   * callers treat a provider without this method the same way.
+   */
+  replacePositionTPSLLeg?(
+    params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult>;
   updateMargin(params: UpdateMarginParams): Promise<MarginResult>;
   // Durable-settlement surfacing (optional: providers with durable local
   // settlement state — Lighter). Read-only listings plus selective,
@@ -2797,6 +2885,14 @@ export type PerpsProvider = {
   subscribeToOICaps(params: SubscribeOICapsParams): () => void;
   subscribeToCandles(params: SubscribeCandlesParams): () => void;
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void;
+  /**
+   * Stream one market's per-side available to trade as the venue reports it.
+   * Optional: a provider whose venue has no per-market value omits it, and the
+   * value stays unknown (`undefined`) for clients. Never computed locally.
+   */
+  subscribeToAvailableToTrade?(
+    params: SubscribeAvailableToTradeParams,
+  ): () => void;
 
   // Live data configuration
   setLiveDataConfig(config: Partial<LiveDataConfig>): void;
