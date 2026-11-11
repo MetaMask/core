@@ -87,16 +87,14 @@ type MaintainedFileGroup = {
 
 /**
  * Generate a Markdown summary of which codeowners own the files changed on a
- * branch. The summary is what the Post Codeownership Summary workflow posts on
- * pull requests.
+ * branch. The summary is what the "Post codeownership summary" workflow posts
+ * on pull requests.
  *
- * Ownership comes from the CODEOWNERS file at the base ref, as GitHub uses for
- * a pull request. Files are grouped by the exact set of owners whose approval
- * is needed. Some owners only help maintain certain files, such as Core
- * Platform with package changelogs and manifests in this repository, and are
- * marked as such in CODEOWNERS; their approval isn't needed when the files
- * have other owners, so the files they co-own are listed again in a separate,
- * informational section.
+ * Ownership comes from the `CODEOWNERS` file at the base ref, as GitHub uses for
+ * a pull request. Some files (e.g. manifests, changelogs, etc.) are co-owned by
+ * a specific team (in this repo, it's Core Platform), and these are listed in
+ * their own section. These files are marked by a special `# maintenance-owner:
+ * <team>` comment in `CODEOWNERS`.
  *
  * @param options - The options.
  * @param options.repositoryDirectoryPath - A directory within the Git
@@ -135,7 +133,7 @@ export async function generateCodeownershipSummary({
 }
 
 /**
- * Read the CODEOWNERS file at a ref, from the first place GitHub looks for it.
+ * Read the CODEOWNERS file at the given ref.
  *
  * @param options - The options.
  * @param options.repositoryDirectoryPath - A directory within the Git
@@ -172,14 +170,16 @@ async function readCodeownersFile({
 }
 
 /**
- * Parse the rules in a CODEOWNERS file.
+ * Parse the rules in a `CODEOWNERS` file.
  *
- * Each rule is a pattern followed by owners, optionally followed by an inline
- * comment. An inline comment of the form `# maintenance-owner: <owners>` marks
- * owners that only help maintain the matching files.
+ * Each rule is a pattern followed by owners. A rule may end in an an inline
+ * comment of the form `# maintenance-owner: <owners>`, which marks co-owners
+ * that only help maintain the matching files (for this repo, it's Core
+ * Platform). A rule is encapsulated in the same data structure we use elsewhere
+ * for generating `CODEOWNERS`.
  *
- * @param content - The contents of the CODEOWNERS file.
- * @returns The rules, in the order they appear, with later rules winning.
+ * @param content - The contents of the `CODEOWNERS` file.
+ * @returns The rules, in the order they appear in `CODEOWNERS`.
  */
 function parseCodeowners(content: string): CodeownersRule[] {
   return content.split('\n').flatMap((line) => {
@@ -208,6 +208,43 @@ function parseCodeowners(content: string): CodeownersRule[] {
 function parseMaintenanceOwners(comment: string): string[] {
   const match = /^#\s*maintenance-owner:\s*(.*)$/u.exec(comment);
   return (match?.[1] ?? '').split(/\s+/u).filter((owner) => owner !== '');
+}
+
+/**
+ * List the files changed on the head ref since it diverged from the base ref.
+ * In the context of the "Post codeownership summary" workflow, this effectively
+ * lists the files changed on a PR branch.
+ *
+ * @param options - The options.
+ * @param options.repositoryDirectoryPath - A directory within the Git
+ * repository to inspect.
+ * @param options.baseRef - The branch being merged into.
+ * @param options.headRef - The branch being merged.
+ * @returns Repository-relative paths of the changed files. A renamed file is
+ * listed under both its old and new paths, since both paths may have owners.
+ */
+async function listChangedFilePaths({
+  repositoryDirectoryPath,
+  baseRef,
+  headRef,
+}: {
+  repositoryDirectoryPath: string;
+  baseRef: string;
+  headRef: string;
+}): Promise<string[]> {
+  const { stdout } = await execa(
+    'git',
+    [
+      'diff',
+      '--name-only',
+      '-z',
+      '--no-renames',
+      // Compute the merge base automatically, so we don't need to do it in the workflow.
+      `${baseRef}...${headRef}`,
+    ],
+    { cwd: repositoryDirectoryPath, stripFinalNewline: false },
+  );
+  return stdout.split('\0').filter((filePath) => filePath !== '');
 }
 
 /**
@@ -338,43 +375,6 @@ function createPatternMatcher(pattern: string): (filePath: string) => boolean {
   // to parse CODEOWNERS patterns, so it's not *completely* out of the norm.)
   const matcher = ignore({ ignorecase: false }).add(pattern);
   return (filePath) => matcher.ignores(filePath);
-}
-
-/**
- * List the files changed on the head ref since it diverged from the base ref,
- * as GitHub does for a pull request.
- *
- * @param options - The options.
- * @param options.repositoryDirectoryPath - A directory within the Git
- * repository to inspect.
- * @param options.baseRef - The branch being merged into.
- * @param options.headRef - The branch being merged.
- * @returns Repository-relative paths of the changed files. A renamed file is
- * listed under both its old and new paths, since both paths may have owners.
- */
-async function listChangedFilePaths({
-  repositoryDirectoryPath,
-  baseRef,
-  headRef,
-}: {
-  repositoryDirectoryPath: string;
-  baseRef: string;
-  headRef: string;
-}): Promise<string[]> {
-  const { stdout } = await execa(
-    'git',
-    [
-      'diff',
-      '--name-only',
-      '-z',
-      '--no-renames',
-      // Use three dots so Git computes the merge base automatically and uses it
-      // for comparison. This obviates the need to compute this in the workflow.
-      `${baseRef}...${headRef}`,
-    ],
-    { cwd: repositoryDirectoryPath, stripFinalNewline: false },
-  );
-  return stdout.split('\0').filter((filePath) => filePath !== '');
 }
 
 /**
