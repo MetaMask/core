@@ -1,6 +1,8 @@
 import { execa } from 'execa';
 import ignore from 'ignore';
 
+import type { CodeownersRule } from '../manage-codeowners/types.ts';
+
 /**
  * Leaves room below GitHub's comment size limit for the workflow's comment
  * marker and truncation notices.
@@ -17,26 +19,6 @@ const CODEOWNERS_PATHS = [
 ];
 
 /**
- * A rule in a CODEOWNERS file.
- */
-type CodeownersRule = {
-  /**
-   * The pattern that files must match for the rule to apply.
-   */
-  pattern: string;
-  /**
-   * The owners of matching files.
-   */
-  owners: string[];
-  /**
-   * Owners listed in an inline `# maintenance-owner:` comment. These help
-   * maintain the matching files, but their approval isn't needed when the
-   * files have other owners.
-   */
-  maintenanceOwners: string[];
-};
-
-/**
  * A changed file and whose approval it needs, based on the last CODEOWNERS
  * rule that matches it, which GitHub uses.
  */
@@ -46,9 +28,10 @@ type MatchedFile = {
    */
   filePath: string;
   /**
-   * Sorted, unique owners; any one can approve the file.
+   * Sorted, unique owners whose approval is needed; any one can approve the
+   * file.
    */
-  requiredOwners: string[];
+  primaryOwners: string[];
   /**
    * Sorted, unique owners that also own the file but whose approval isn't
    * needed.
@@ -124,7 +107,7 @@ export async function generateCodeownershipSummary({
     changedFilePaths,
     codeownerRules,
   );
-  const codeownershipGroups = groupFilesByOwners(matchedFiles);
+  const codeownershipGroups = groupFilesByPrimaryOwners(matchedFiles);
   const maintainedFileGroups = groupFilesByMaintenanceOwners(matchedFiles);
 
   return codeownershipGroups.length > 0
@@ -192,8 +175,20 @@ function parseCodeowners(content: string): CodeownersRule[] {
     const owners = commentIndex === -1 ? tokens : tokens.slice(0, commentIndex);
     const comment =
       commentIndex === -1 ? '' : tokens.slice(commentIndex).join(' ');
+    // Only owners on the rule itself own the matching files, so ignore any
+    // others the comment lists
+    const maintenanceOwners = parseMaintenanceOwners(comment).filter((owner) =>
+      owners.includes(owner),
+    );
+    const primaryOwners = owners.filter(
+      (owner) => !maintenanceOwners.includes(owner),
+    );
     return [
-      { pattern, owners, maintenanceOwners: parseMaintenanceOwners(comment) },
+      {
+        pattern,
+        primaryOwners,
+        ...(maintenanceOwners.length > 0 ? { maintenanceOwners } : {}),
+      },
     ];
   });
 }
@@ -274,54 +269,52 @@ function matchFilesToCodeownerRules(
       matches(filePath),
     );
     return codeownerMatcher
-      ? [{ filePath, ...splitOwners(codeownerMatcher.codeownerRule) }]
+      ? [{ filePath, ...resolveOwners(codeownerMatcher.codeownerRule) }]
       : [];
   });
 }
 
 /**
- * Separate a rule's owners into those whose approval is needed and those that
- * only help maintain the matching files.
+ * Work out whose approval is needed for the files that a rule matches.
  *
- * Maintenance owners are only set apart when the rule has other owners who can
- * approve changes; otherwise, their approval is needed after all.
+ * Maintenance owners are only set apart when the rule has primary owners who
+ * can approve changes; otherwise, their approval is needed after all.
  *
  * @param codeownerRule - The rule.
- * @returns The required and maintenance owners, each sorted and unique.
+ * @returns The primary and maintenance owners, each sorted and unique.
  */
-function splitOwners(
+function resolveOwners(
   codeownerRule: CodeownersRule,
-): Pick<MatchedFile, 'requiredOwners' | 'maintenanceOwners'> {
-  const owners = [...new Set(codeownerRule.owners)].sort();
-  const maintenanceOwners = owners.filter((owner) =>
-    codeownerRule.maintenanceOwners.includes(owner),
-  );
-  const requiredOwners = owners.filter(
-    (owner) => !maintenanceOwners.includes(owner),
-  );
+): Pick<MatchedFile, 'primaryOwners' | 'maintenanceOwners'> {
+  const primaryOwners = [...new Set(codeownerRule.primaryOwners)].sort();
+  const maintenanceOwners = [
+    ...new Set(codeownerRule.maintenanceOwners ?? []),
+  ].sort();
 
-  if (requiredOwners.length === 0) {
-    return { requiredOwners: owners, maintenanceOwners: [] };
+  if (primaryOwners.length === 0) {
+    return { primaryOwners: maintenanceOwners, maintenanceOwners: [] };
   }
-  return { requiredOwners, maintenanceOwners };
+  return { primaryOwners, maintenanceOwners };
 }
 
 /**
- * Group changed files by the owners whose approval is needed for them.
+ * Group changed files by the primary owners whose approval is needed for them.
  *
  * @param matchedFiles - Changed files and their owners.
  * @returns Groups of changed files ordered by their owners.
  */
-function groupFilesByOwners(matchedFiles: MatchedFile[]): CodeownershipGroup[] {
+function groupFilesByPrimaryOwners(
+  matchedFiles: MatchedFile[],
+): CodeownershipGroup[] {
   const groups = new Map<string, CodeownershipGroup>();
-  for (const { filePath, requiredOwners } of matchedFiles) {
-    if (requiredOwners.length === 0) {
+  for (const { filePath, primaryOwners } of matchedFiles) {
+    if (primaryOwners.length === 0) {
       continue;
     }
-    const key = JSON.stringify(requiredOwners);
+    const key = JSON.stringify(primaryOwners);
     let group = groups.get(key);
     if (!group) {
-      group = { owners: requiredOwners, filePaths: [] };
+      group = { owners: primaryOwners, filePaths: [] };
       groups.set(key, group);
     }
     group.filePaths.push(filePath);

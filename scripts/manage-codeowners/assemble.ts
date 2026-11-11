@@ -75,16 +75,13 @@ function buildPackageRules(
   const owners = [...packageInfo.teams].sort();
 
   const rules: CodeownersRule[] = [
-    { pattern: `/packages/${packageDirectoryName}`, owners },
+    { pattern: `/packages/${packageDirectoryName}`, primaryOwners: owners },
   ];
 
   if (packageDirectoryName === 'wallet') {
     rules.push(...initializationRules);
   }
 
-  const releaseOwners = [
-    ...new Set([...packageInfo.teams, CORE_PLATFORM_TEAM]),
-  ].sort();
   const isOwnedByCorePlatform = packageInfo.teams.includes(CORE_PLATFORM_TEAM);
   const workspacePath = `/packages/${packageDirectoryName}`;
   rules.push(
@@ -96,7 +93,7 @@ function buildPackageRules(
       'vitest.config.*',
     ].map((fileName) => ({
       pattern: `${workspacePath}/${fileName}`,
-      owners: releaseOwners,
+      primaryOwners: owners,
       ...(isOwnedByCorePlatform
         ? {}
         : { maintenanceOwners: [CORE_PLATFORM_TEAM] }),
@@ -129,7 +126,7 @@ function buildInitializationRules(
 
       return {
         pattern: `/packages/wallet/src/initialization/instances/${packageInfo.initializationPath}/`,
-        owners: [...packageInfo.teams].sort(),
+        primaryOwners: [...packageInfo.teams].sort(),
       };
     });
 }

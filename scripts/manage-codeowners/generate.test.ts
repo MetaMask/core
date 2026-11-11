@@ -15,10 +15,10 @@ describe('generateCodeownersFileContent', () => {
         wallet: { teams: ['@MetaMask/core-platform'] },
       },
       overrides: [
-        { pattern: '/.github/', owners: ['@MetaMask/core-platform'] },
+        { pattern: '/.github/', primaryOwners: ['@MetaMask/core-platform'] },
         {
           pattern: '/packages/b-controller/src/special',
-          owners: ['@MetaMask/a-team', '@MetaMask/core-platform'],
+          primaryOwners: ['@MetaMask/a-team', '@MetaMask/core-platform'],
         },
       ],
     };

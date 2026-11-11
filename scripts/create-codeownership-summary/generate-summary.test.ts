@@ -229,6 +229,25 @@ describe('generateCodeownershipSummary', () => {
     expect(summary).not.toContain('Files co-owned by');
   });
 
+  it("ignores maintenance owners that aren't among a rule's owners", async () => {
+    mockGitRepository({
+      filesAtBaseRef: {
+        '.github/CODEOWNERS':
+          'a.md @MetaMask/team-a # maintenance-owner: @MetaMask/maintainers\n',
+      },
+      changedFilePaths: ['a.md'],
+    });
+
+    const summary = await generateCodeownershipSummary({
+      repositoryDirectoryPath: '/path/to/repository',
+      baseRef: 'main',
+      headRef: 'HEAD',
+    });
+
+    expect(summary).toContain('**@MetaMask/team-a** (1 file)');
+    expect(summary).not.toContain('maintainers');
+  });
+
   it('lists the files co-owned by each maintenance owner separately', async () => {
     mockGitRepository({
       filesAtBaseRef: {

@@ -30,7 +30,7 @@ export function renderCodeownersSection(
         .map(
           (rule) =>
             rule.pattern.padEnd(patternLengthWithPadding) +
-            rule.owners.join(' ') +
+            listOwners(rule).join(' ') +
             renderMaintenanceOwnersComment(rule),
         )
         .join('\n'),
@@ -72,6 +72,18 @@ function renderHeading(
   }
 
   return `${'#'.repeat(headingLevel)} ${section.title}`;
+}
+
+/**
+ * Lists everyone who owns the files that a rule matches, as GitHub sees it.
+ *
+ * @param rule - The rule.
+ * @returns The rule's primary and maintenance owners, sorted and unique.
+ */
+function listOwners(rule: CodeownersRule): string[] {
+  return [
+    ...new Set([...rule.primaryOwners, ...(rule.maintenanceOwners ?? [])]),
+  ].sort();
 }
 
 /**

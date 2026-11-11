@@ -8,13 +8,15 @@ export type CodeownersRule = {
   pattern: string;
 
   /**
-   * The GitHub owners assigned to the pattern.
+   * The GitHub owners responsible for the matched files, whose approval is
+   * expected when the files change.
    */
-  owners: string[];
+  primaryOwners: string[];
 
   /**
-   * Owners that are included only to help maintain the matched files, and
-   * whose approval isn't expected.
+   * Additional owners that are included only to help maintain the matched
+   * files, and whose approval isn't expected. In CODEOWNERS, they are listed
+   * alongside the primary owners.
    *
    * Core Platform co-owns certain files in every package, such as changelogs
    * and manifests, so that it can maintain them across the monorepo. These
