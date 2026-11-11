@@ -5758,13 +5758,13 @@
       "count": 5
     },
     "typescript/no-unsafe-call": {
-      "count": 30
+      "count": 31
     },
     "typescript/no-unsafe-member-access": {
       "count": 8
     },
     "typescript/no-unsafe-return": {
-      "count": 21
+      "count": 22
     },
     "vitest/no-conditional-in-test": {
       "count": 24
@@ -5825,13 +5825,13 @@
       "count": 1
     },
     "typescript/no-unsafe-argument": {
-      "count": 71
+      "count": 72
     },
     "typescript/no-unsafe-call": {
-      "count": 67
+      "count": 68
     },
     "typescript/no-unsafe-member-access": {
-      "count": 67
+      "count": 68
     }
   },
   "packages/transaction-pay-controller/src/utils/token.ts": {

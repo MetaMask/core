@@ -22,9 +22,9 @@ const SAFE_EXEC_TRANSACTION_INTERFACE = new Interface([
 
 const REQUEST_MOCK: QuoteRequest = {
   from: '0x1234567890123456789012345678901234567891',
+  sourceAccountId: 'eip155:1:0x1234567890123456789012345678901234567891',
+  sourceAssetId: 'eip155:1/erc20:0xabc',
   sourceBalanceRaw: '10000000000000000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0xabc',
   sourceTokenAmount: '1000000000000000000',
   targetAmountMinimum: '123',
   targetChainId: '0x2',

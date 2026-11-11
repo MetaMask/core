@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
 import {
+  getCaipAccountId,
   getEvmAccountAddress,
   getEvmAccountOverride,
   getAssetAccount,
@@ -261,6 +262,14 @@ describe('Account Utils', () => {
           from: FROM_MOCK,
         }),
       ).toThrow('Asset account not found');
+    });
+  });
+
+  describe('getCaipAccountId', () => {
+    it('returns the CAIP-10 account ID on the asset chain', () => {
+      expect(getCaipAccountId(SOL_ASSET_ID_MOCK, SOLANA_ADDRESS_MOCK)).toBe(
+        `${SOLANA_CHAIN_ID_MOCK}:${SOLANA_ADDRESS_MOCK}`,
+      );
     });
   });
 });

@@ -146,9 +146,9 @@ function buildQuote({
     } as ServerQuote,
     request: {
       from: FROM_MOCK,
+      sourceAccountId: `eip155:1:${FROM_MOCK}`,
+      sourceAssetId: 'eip155:1/erc20:0xtoken',
       sourceBalanceRaw: '1000',
-      sourceChainId: CHAIN_ID_MOCK,
-      sourceTokenAddress: '0xtoken',
       sourceTokenAmount: '100',
       targetAmountMinimum: '100',
       targetChainId: '0x2',

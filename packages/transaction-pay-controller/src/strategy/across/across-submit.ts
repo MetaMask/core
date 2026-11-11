@@ -31,6 +31,7 @@ import {
   resolveGasPayment,
 } from '../../utils/gas-payment.js';
 import { getNetworkClientId } from '../../utils/provider.js';
+import { getEvmQuoteSource } from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
@@ -133,7 +134,8 @@ async function submitTransactions(
 ): Promise<Hex | undefined> {
   const { swapTx } = quote.original.quote;
   const { gasLimits: quoteGasLimits, is7702 } = quote.original.metamask;
-  const { from, sourceTokenAddress } = quote.request;
+  const { from } = quote.request;
+  const { tokenAddress: sourceTokenAddress } = getEvmQuoteSource(quote.request);
   const chainId = toHex(swapTx.chainId);
 
   // Across has no relayer-paid delegation flow and is never sponsored, so the

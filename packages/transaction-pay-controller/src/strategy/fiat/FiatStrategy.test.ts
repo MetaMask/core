@@ -28,6 +28,56 @@ describe('FiatStrategy', () => {
     getFiatQuotesMock.mockResolvedValue([QUOTE_MOCK]);
   });
 
+  describe('supports', () => {
+    it('returns true for requests with an EVM source asset', () => {
+      expect(
+        new FiatStrategy().supports({
+          accountSupports7702: false,
+          from: '0x1',
+          messenger: MESSENGER_MOCK,
+          requests: [
+            {
+              from: '0x1',
+              sourceAccountId: 'eip155:1:0x1',
+              sourceAssetId: 'eip155:1/slip44:60',
+              sourceBalanceRaw: '1',
+              sourceTokenAmount: '1',
+              targetAmountMinimum: '1',
+              targetChainId: '0x2',
+              targetTokenAddress: '0x2',
+            },
+          ],
+          transaction: {} as TransactionMeta,
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false for requests with a non-EVM source asset', () => {
+      expect(
+        new FiatStrategy().supports({
+          accountSupports7702: false,
+          from: '0x1',
+          messenger: MESSENGER_MOCK,
+          requests: [
+            {
+              from: '0x1',
+              sourceAccountId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+              sourceAssetId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+              sourceBalanceRaw: '1',
+              sourceTokenAmount: '1',
+              targetAmountMinimum: '1',
+              targetChainId: '0x2',
+              targetTokenAddress: '0x2',
+            },
+          ],
+          transaction: {} as TransactionMeta,
+        }),
+      ).toBe(false);
+    });
+  });
+
   describe('getQuotes', () => {
     it('delegates to getFiatQuotes', async () => {
       const request = {

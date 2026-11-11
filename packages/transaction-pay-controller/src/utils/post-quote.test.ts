@@ -9,9 +9,8 @@ const TOKEN_MOCK = '0x3333333333333333333333333333333333333333' as Hex;
 
 const REQUEST_MOCK = {
   from: FROM_MOCK,
+  sourceAssetId: `eip155:137/erc20:${TOKEN_MOCK}`,
   sourceBalanceRaw: '1000',
-  sourceChainId: '0x89',
-  sourceTokenAddress: TOKEN_MOCK,
   sourceTokenAmount: '1000',
 } as unknown as QuoteRequest;
 
@@ -69,7 +68,9 @@ describe('post-quote', () => {
     ])('requotes when the source is %s', async (_title, sourceTokenAddress) => {
       const quote = buildQuote({
         isSourceGasFeeToken: false,
-        request: { sourceTokenAddress: sourceTokenAddress as Hex },
+        request: {
+          sourceAssetId: `eip155:137/erc20:${sourceTokenAddress as Hex}`,
+        },
       });
       const requote = vi.fn().mockResolvedValue(quote);
 

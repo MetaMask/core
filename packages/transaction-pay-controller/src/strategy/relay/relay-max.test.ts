@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import { mockModuleExcept } from '../../../tests/mock-module-except.js';
 import { TransactionPayStrategy } from '../../index.js';
 import type {
   Amount,
@@ -24,17 +25,25 @@ import {
 import { getRelayMaxGasStationQuote } from './relay-max.js';
 import type { RelayQuote } from './types.js';
 
-vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), [
+    'buildCaipAssetType',
+    'getEvmQuoteSource',
+  ]),
+);
 vi.mock(import('../../utils/gas.js'));
 
 const TRANSACTION_META_MOCK = { txParams: {} } as TransactionMeta;
 const FROM_MOCK = '0x1234567890123456789012345678901234567891' as Hex;
 
+const SOURCE_CHAIN_ID_MOCK = '0x1' as Hex;
+const SOURCE_TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
+
 const BASE_REQUEST: QuoteRequest = {
   from: FROM_MOCK,
+  sourceAccountId: `eip155:1:${FROM_MOCK}`,
+  sourceAssetId: 'eip155:1/erc20:0xabc',
   sourceBalanceRaw: '10000000000000000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0xabc',
   sourceTokenAmount: '1000',
   targetAmountMinimum: '123',
   targetChainId: '0x2',
@@ -59,7 +68,7 @@ const MATCHING_GAS_FEE_TOKEN: GasFeeToken = {
   rateWei: '0x1',
   recipient: FROM_MOCK,
   symbol: 'USDC',
-  tokenAddress: BASE_REQUEST.sourceTokenAddress,
+  tokenAddress: SOURCE_TOKEN_ADDRESS_MOCK,
 };
 
 const NON_MATCHING_GAS_FEE_TOKEN: GasFeeToken = {
@@ -187,7 +196,7 @@ describe('relay-max', () => {
       ...getDefaultRemoteFeatureFlagControllerState(),
       remoteFeatureFlags: {
         confirmations_eip_7702: {
-          supportedChains: [BASE_REQUEST.sourceChainId],
+          supportedChains: [SOURCE_CHAIN_ID_MOCK],
         },
       },
     });

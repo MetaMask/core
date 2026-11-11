@@ -20,7 +20,7 @@ See [required-tokens.ts](/packages/transaction-pay-controller/src/utils/required
 
 The payment token is the source ERC-20 or native token which will provide the funds for the transaction on the target chain.
 
-A payment token is identified by its CAIP-19 asset type, as keyed in `AssetsController` state, for both EVM tokens and non-EVM tokens such as Solana SOL or an SPL token. For EVM tokens, the Hex chain ID and token address used by the EVM strategies are derived from the asset type. `accountOverride` is the ID of an `InternalAccount`. A non-EVM token is held by the override account when it supports the asset chain, otherwise by the account in the same account group as the override account, or as the transaction account, that supports the asset chain. Non-EVM token metadata, balances, and prices are read from `AssetsController` state. A non-EVM payment token does not produce quote requests yet.
+A payment token is identified by its CAIP-19 asset type, as keyed in `AssetsController` state, for both EVM tokens and non-EVM tokens such as Solana SOL or an SPL token. For EVM tokens, the Hex chain ID and token address used by the EVM strategies are derived from the asset type. `accountOverride` is the ID of an `InternalAccount`. A non-EVM token is held by the override account when it supports the asset chain, otherwise by the account in the same account group as the override account, or as the transaction account, that supports the asset chain. Non-EVM token metadata, balances, and prices are read from `AssetsController` state.
 
 This can be selected by the user via the transaction confirmation in the client, or automatically selected based on the highest balance and chain.
 
@@ -32,6 +32,8 @@ Each `PayStrategy` dictates how the `quotes` are retrieved, which detail the ass
 
 `TransactionPayController` provides an ordered strategy list via internal `getStrategies` callback configuration.
 The quote flow iterates strategies in order, applies `supports(...)` compatibility checks when present, and falls back to the next compatible strategy if quote retrieval fails or returns no quotes.
+
+Every payment token produces quote requests the same way, with one `QuoteRequest` shape for every protocol. Each request identifies its source by the CAIP-19 `sourceAssetId` and the CAIP-10 `sourceAccountId` of the account holding the source token, EVM included. Shared quote code does not branch on the source protocol. Strategies opt in to a source protocol through `supports(...)`; every strategy currently supports `eip155` sources only, so a non-EVM payment token gets no quotes yet. EVM code that needs a Hex chain ID or token address derives them from `sourceAssetId` with `getEvmQuoteSource`. Post-quote flows with a non-EVM destination token produce no quote requests.
 
 ### Bridge
 

@@ -43,7 +43,13 @@ import type {
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import type { CaipAssetType, Hex, Json } from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipAssetType,
+  CaipChainId,
+  Hex,
+  Json,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type {
@@ -580,7 +586,14 @@ export type FiatRates = {
   usdRate: string;
 };
 
-/** Request for a quote to retrieve a required token. */
+/**
+ * Request for a quote to retrieve a required token.
+ *
+ * The source is identified by its CAIP-19 asset type and CAIP-10 account for
+ * every protocol. Strategies support or reject a request based on the
+ * protocol of `sourceAssetId`, and EVM strategies derive the Hex chain ID and
+ * token address from it.
+ */
 export type QuoteRequest = {
   /**
    * Selected account receiving post-quote output.
@@ -628,14 +641,17 @@ export type QuoteRequest = {
   /** Whether to skip processTransactions in relay-quotes. Defaults to `isPostQuote`. */
   skipProcessTransactions?: boolean;
 
+  /** CAIP-10 account ID of the account holding the source token. */
+  sourceAccountId: CaipAccountId;
+
+  /**
+   * CAIP-19 asset type of the source token. The protocol of its chain selects
+   * the strategy execution path.
+   */
+  sourceAssetId: CaipAssetType;
+
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;
-
-  /** Chain ID of the source token. */
-  sourceChainId: Hex;
-
-  /** Address of the source token. */
-  sourceTokenAddress: Hex;
 
   /** Amount of the required token in atomic format without factoring token decimals. */
   sourceTokenAmount: string;
@@ -747,7 +763,10 @@ export type PayStrategyGetQuotesRequest = {
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
 
-  /** Quote requests for required tokens. */
+  /**
+   * Quote requests for required tokens. Strategies support or reject the
+   * requests based on the protocol of their `sourceAssetId`.
+   */
   requests: QuoteRequest[];
 
   /**
@@ -762,7 +781,7 @@ export type PayStrategyGetQuotesRequest = {
 };
 
 /** Request to submit quotes for a transaction. */
-export type PayStrategyExecuteRequest<OriginalRequest> = {
+export type PayStrategyExecuteRequest<OriginalQuote> = {
   /** Whether the account supports EIP-7702 authorization signing. */
   accountSupports7702: boolean;
 
@@ -773,7 +792,7 @@ export type PayStrategyExecuteRequest<OriginalRequest> = {
   messenger: TransactionPayControllerMessenger;
 
   /** Quotes to be submitted. */
-  quotes: TransactionPayQuote<OriginalRequest>[];
+  quotes: TransactionPayQuote<OriginalQuote>[];
 
   /** Metadata of the original target transaction. */
   transaction: TransactionMeta;
@@ -808,8 +827,8 @@ export type PayStrategyCheckQuoteSupportRequest<OriginalQuote> = {
 
 /** Request to get refresh interval for a specific strategy. */
 export type PayStrategyGetRefreshIntervalRequest = {
-  /** Chain ID of the source or payment token. */
-  chainId: Hex;
+  /** CAIP-2 chain ID of the source asset. */
+  chainId: CaipChainId;
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;

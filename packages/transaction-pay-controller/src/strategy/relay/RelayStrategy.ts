@@ -9,15 +9,21 @@ import {
   getMaxBalanceRefreshInterval,
   getPayStrategiesConfig,
 } from '../../utils/feature-flags.js';
+import { isEvmQuoteRequest } from '../../utils/token.js';
 import { getTransaction } from '../../utils/transaction.js';
 import { getRelayQuotes } from './relay-quotes.js';
 import { submitRelayQuotes } from './relay-submit.js';
 import type { RelayQuote } from './types.js';
 
+/**
+ * Pay strategy that quotes and submits through Relay. Only supports requests
+ * with an EVM source asset.
+ */
 export class RelayStrategy implements PayStrategy<RelayQuote> {
   supports(request: PayStrategyGetQuotesRequest): boolean {
     const config = getPayStrategiesConfig(request.messenger);
-    return config.relay.enabled;
+
+    return config.relay.enabled && request.requests.every(isEvmQuoteRequest);
   }
 
   async getQuotes(

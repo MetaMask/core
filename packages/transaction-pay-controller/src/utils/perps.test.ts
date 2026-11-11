@@ -29,9 +29,9 @@ const BRIDGE_APPROVE_DATA =
 
 const baseRequest: QuoteRequest = {
   from: '0x97e298b35d580c080f4a59f1f0fabd09b5add715',
+  sourceAccountId: 'eip155:1:0x97e298b35d580c080f4a59f1f0fabd09b5add715',
+  sourceAssetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000001',
   sourceBalanceRaw: '0',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0x0000000000000000000000000000000000000001',
   sourceTokenAmount: '1000000',
   targetAmountMinimum: '1000000',
   targetChainId: CHAIN_ID_ARBITRUM,
@@ -230,7 +230,7 @@ describe('utils/perps', () => {
       const withdrawRequest: QuoteRequest = {
         ...baseRequest,
         isHyperliquidSource: true,
-        sourceChainId: CHAIN_ID_ARBITRUM,
+        sourceAssetId: `eip155:42161/erc20:${ARBITRUM_USDC_ADDRESS}`,
         sourceTokenAmount: '1000000',
       };
 
@@ -241,8 +241,8 @@ describe('utils/perps', () => {
 
       expect(result).toStrictEqual({
         ...withdrawRequest,
-        sourceChainId: CHAIN_ID_HYPERCORE,
-        sourceTokenAddress: HYPERCORE_ADDRESS_MOCK,
+        sourceAccountId: `eip155:1337:${withdrawRequest.from}`,
+        sourceAssetId: `eip155:1337/erc20:${HYPERCORE_ADDRESS_MOCK}`,
         sourceTokenAmount: '100000000',
       });
     });

@@ -15,6 +15,7 @@ import type {
   TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types.js';
+import { getCaipAccountId } from '../../utils/account.js';
 import { getDirectMoneyMusdEnabled } from '../../utils/feature-flags.js';
 import {
   buildCaipAssetType,
@@ -267,15 +268,20 @@ function buildRelayRequestFromAmountFiat({
     return undefined;
   }
 
+  const sourceAssetId = buildCaipAssetType(
+    fiatAsset.chainId,
+    fiatAsset.address,
+  );
+
   return {
     from: walletAddress,
     // Force EXACT_INPUT mode: source amount is pre-calculated from the fiat
     // amount, so the relay should treat it as a fixed input rather than
     // computing it from the target.
     isPostQuote: true,
+    sourceAccountId: getCaipAccountId(sourceAssetId, walletAddress),
+    sourceAssetId,
     sourceBalanceRaw: sourceAmountRaw,
-    sourceChainId: fiatAsset.chainId,
-    sourceTokenAddress: fiatAsset.address,
     sourceTokenAmount: sourceAmountRaw,
     targetAmountMinimum: requiredToken.amountRaw,
     targetChainId: requiredToken.chainId,

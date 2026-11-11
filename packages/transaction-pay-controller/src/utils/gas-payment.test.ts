@@ -67,9 +67,9 @@ const TRANSACTION_MOCK = {
 };
 
 const SPONSORED_ROUTE_REQUEST_MOCK = {
-  sourceChainId: REQUEST_MOCK.sourceChainId,
+  sourceAssetId: `eip155:1/erc20:${REQUEST_MOCK.sourceTokenAddress}`,
   targetChainId: REQUEST_MOCK.sourceChainId,
-};
+} as const;
 
 describe('gas-payment', () => {
   const calculateGasFeeTokenCostMock = vi.mocked(calculateGasFeeTokenCost);
@@ -364,14 +364,19 @@ describe('gas-payment', () => {
       });
     });
 
-    it.each(['sourceChainId', 'targetChainId'] as const)(
-      'does not sponsor when %s differs from the transaction chain',
-      (chainIdKey) => {
-        expect(
-          resolve({
-            request: { ...SPONSORED_ROUTE_REQUEST_MOCK, [chainIdKey]: '0x2' },
-          }),
-        ).toStrictEqual({
+    it.each([
+      [
+        'source',
+        {
+          ...SPONSORED_ROUTE_REQUEST_MOCK,
+          sourceAssetId: `eip155:2/erc20:${REQUEST_MOCK.sourceTokenAddress}`,
+        },
+      ],
+      ['target', { ...SPONSORED_ROUTE_REQUEST_MOCK, targetChainId: '0x2' }],
+    ] as const)(
+      'does not sponsor when the %s chain differs from the transaction chain',
+      (_title, request) => {
+        expect(resolve({ request })).toStrictEqual({
           isGasFeeSponsored: false,
           mode: GasPaymentMode.Native,
         });

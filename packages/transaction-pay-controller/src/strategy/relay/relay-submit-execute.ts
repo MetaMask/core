@@ -15,6 +15,7 @@ import type {
 } from '../../types.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import { getNetworkClientId } from '../../utils/provider.js';
+import { getEvmQuoteSource } from '../../utils/token.js';
 import { FALLBACK_HASH } from './constants.js';
 import { submitRelayExecute } from './relay-api.js';
 import type { RelayExecuteRequest, RelayQuote } from './types.js';
@@ -172,7 +173,8 @@ export async function getRelayExecuteRequest({
   requestId: string;
   transaction: TransactionMeta;
 }): Promise<Omit<RelayExecuteRequest, 'metamask'>> {
-  const { from, sourceChainId } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
 
   const nestedTransactions = allParams.map((param) => ({

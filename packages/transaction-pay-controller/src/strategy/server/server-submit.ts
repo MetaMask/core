@@ -39,6 +39,7 @@ import {
 import { getNetworkClientId } from '../../utils/provider.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
 import {
+  getEvmQuoteSource,
   getLiveTokenBalanceOrUndefined,
   normalizeTokenAddress,
   TokenAddressTarget,
@@ -174,7 +175,7 @@ export function getServerGasPayment(
   return resolveGasPayment({
     isDelegated: quote.original.gasless,
     isSourceGasFeeToken: quote.fees.isSourceGasFeeToken,
-    sourceTokenAddress: quote.request.sourceTokenAddress,
+    sourceTokenAddress: getEvmQuoteSource(quote.request).tokenAddress,
     sponsorship: {
       accountSupports7702: accountSupports7702(messenger, quote.request.from),
       request: quote.request,
@@ -199,7 +200,8 @@ export async function getServerExecuteDelegation(
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): ReturnType<GetDelegationTransactionCallback> {
-  const { from, sourceChainId } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
 
   const nestedTransactions = params.map((param) => ({
@@ -861,7 +863,9 @@ async function validateSourceBalance(
   quote: TransactionPayQuote<ServerQuote>,
   messenger: TransactionPayControllerMessenger,
 ): Promise<void> {
-  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId, tokenAddress: sourceTokenAddress } =
+    getEvmQuoteSource(quote.request);
 
   const normalizedSourceTokenAddress = normalizeTokenAddress(
     sourceTokenAddress,
@@ -913,7 +917,7 @@ async function submitViaServerExecute(
   messenger: TransactionPayControllerMessenger,
   transaction: TransactionMeta,
 ): Promise<void> {
-  const { sourceChainId } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
 
   const delegation = await getServerExecuteDelegation(
     quote,
@@ -959,7 +963,8 @@ async function submitViaTransactionController(
   transaction: TransactionMeta,
   gasPayment: GasPayment,
 ): Promise<void> {
-  const { from, sourceChainId } = quote.request;
+  const { from } = quote.request;
+  const { chainId: sourceChainId } = getEvmQuoteSource(quote.request);
   const { gasLimits, is7702 } = quote.original.client;
   const { excludeNativeTokenForFee, gasFeeToken } = gasPayment;
 

@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - An EVM account overrides the EVM account as before. The account holding a non-EVM payment token is the override account when it supports the payment token chain, otherwise the account in the same account group as the override account, or as the transaction account, that supports that chain.
   - Fiat payments throw if the account override is not an EVM account.
 - **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getAccountContext` and `AccountTreeController:getAccountGroupObject` actions ([#10272](https://github.com/MetaMask/core/pull/10272))
+- **BREAKING:** The `request` of a `TransactionPayQuote` identifies its source by CAIP identifiers for every protocol ([#10272](https://github.com/MetaMask/core/pull/10272))
+  - Remove `sourceChainId` and `sourceTokenAddress`. Add the CAIP-19 `sourceAssetId` and the CAIP-10 `sourceAccountId` of the account holding the source token, and derive an EVM chain ID and token address from `sourceAssetId` where needed.
+  - Quote requests are built the same way for every payment token. Post-quote flows with a non-EVM destination token produce no quote requests.
+  - `AcrossStrategy`, `RelayStrategy`, `ServerStrategy` and `FiatStrategy` only support requests with an `eip155` source asset.
+  - `PayStrategyGetRefreshIntervalRequest.chainId` is the CAIP-2 chain ID of the source asset.
 - Add dependency on `@metamask/account-tree-controller` `^11.2.0` ([#10272](https://github.com/MetaMask/core/pull/10272))
 - Always request non-atomic quotes when the transaction's `from` keyring requires MFA ([#11389](https://github.com/MetaMask/core/pull/11389))
   - An atomic quote embeds the target calls, which needs a fresh delegation signature per quote. On an MFA keyring every refresh of an open amount screen would cost the user a confirmation.

@@ -24,9 +24,9 @@ const QUOTE_MOCK = {
 
 const QUOTE_REQUEST_MOCK = {
   from: '0x1234567890123456789012345678901234567890',
+  sourceAccountId: 'eip155:1:0x1234567890123456789012345678901234567890',
+  sourceAssetId: 'eip155:1/erc20:0x0000000000000000000000000000000000000001',
   sourceBalanceRaw: '1000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0x0000000000000000000000000000000000000001',
   sourceTokenAmount: '1000',
   targetAmountMinimum: '900',
   targetChainId: '0xa4b1',
@@ -83,6 +83,23 @@ describe('ServerStrategy', () => {
       } as ReturnType<typeof getPayStrategiesConfig>);
 
       expect(new ServerStrategy().supports(SUPPORTS_REQUEST_MOCK)).toBe(false);
+    });
+
+    it('returns false when a request has a non-EVM source asset', () => {
+      expect(
+        new ServerStrategy().supports({
+          ...SUPPORTS_REQUEST_MOCK,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              sourceAccountId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:7Ec4QeG8wF3RnTjHDrTuYP8hVV7WYuPFyM4hZUodkG6Z',
+              sourceAssetId:
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501',
+            },
+          ],
+        }),
+      ).toBe(false);
     });
 
     it('returns false when a request uses an unsupported capability', () => {

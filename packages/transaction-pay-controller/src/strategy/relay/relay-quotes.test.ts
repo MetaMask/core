@@ -38,6 +38,7 @@ import {
 } from '../../utils/feature-flags.js';
 import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas.js';
 import {
+  buildCaipAssetType,
   getNativeToken,
   getTokenBalance,
   getTokenFiatRate,
@@ -48,7 +49,11 @@ import { validateRelayQuotes } from './relay-validation.js';
 import type { RelayQuote, RelayTransactionStep } from './types.js';
 
 vi.mock(import('../../utils/token.js'), async (importOriginal) =>
-  mockModuleExcept(await importOriginal(), ['normalizeTokenAddress']),
+  mockModuleExcept(await importOriginal(), [
+    'buildCaipAssetType',
+    'getEvmQuoteSource',
+    'normalizeTokenAddress',
+  ]),
 );
 vi.mock(import('../../utils/gas.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -86,11 +91,14 @@ const NESTED_TRANSACTION_DATA_MOCK = '0xdef' as Hex;
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const CHAIN_ID_LINEA = '0xe708' as Hex;
 
+const SOURCE_CHAIN_ID_MOCK = '0x1' as Hex;
+const SOURCE_TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
+
 const QUOTE_REQUEST_MOCK: QuoteRequest = {
   from: FROM_MOCK,
+  sourceAccountId: `eip155:1:${FROM_MOCK}`,
+  sourceAssetId: 'eip155:1/erc20:0xabc',
   sourceBalanceRaw: '10000000000000000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0xabc',
   sourceTokenAmount: '1000000000000000000',
   targetAmountMinimum: '123',
   targetChainId: '0x2',
@@ -371,7 +379,7 @@ describe('Relay Quotes Utils', () => {
           destinationChainId: 2,
           destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
           originChainId: 1,
-          originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+          originCurrency: SOURCE_TOKEN_ADDRESS_MOCK,
           recipient: QUOTE_REQUEST_MOCK.from,
           tradeType: 'EXACT_INPUT',
           user: QUOTE_REQUEST_MOCK.from,
@@ -700,7 +708,7 @@ describe('Relay Quotes Utils', () => {
         destinationChainId: 2,
         destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
         originChainId: 1,
-        originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+        originCurrency: SOURCE_TOKEN_ADDRESS_MOCK,
         recipient: QUOTE_REQUEST_MOCK.from,
         slippageTolerance: '50',
         tradeType: 'EXACT_INPUT',
@@ -1835,7 +1843,7 @@ describe('Relay Quotes Utils', () => {
         const safeAddress = '0x5afe000000000000000000000000000000000001' as Hex;
         const withdrawCall = {
           data: '0xa9059cbb' as Hex,
-          to: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+          to: SOURCE_TOKEN_ADDRESS_MOCK,
         };
 
         successfulFetchMock.mockResolvedValue({
@@ -2318,8 +2326,10 @@ describe('Relay Quotes Utils', () => {
           {
             ...QUOTE_REQUEST_MOCK,
             sourceBalanceRaw: QUOTE_REQUEST_MOCK.sourceTokenAmount,
-            sourceChainId: '0x89',
-            sourceTokenAddress: '0x0000000000000000000000000000000000001010',
+            sourceAssetId: buildCaipAssetType(
+              '0x89',
+              '0x0000000000000000000000000000000000001010',
+            ),
             targetAmountMinimum: '0',
             isPostQuote: true,
           },
@@ -2370,8 +2380,10 @@ describe('Relay Quotes Utils', () => {
           {
             ...QUOTE_REQUEST_MOCK,
             sourceBalanceRaw: QUOTE_REQUEST_MOCK.sourceTokenAmount,
-            sourceChainId: '0x89',
-            sourceTokenAddress: '0x0000000000000000000000000000000000000000',
+            sourceAssetId: buildCaipAssetType(
+              '0x89',
+              '0x0000000000000000000000000000000000000000',
+            ),
             targetAmountMinimum: '0',
             isPostQuote: true,
           },
@@ -2776,12 +2788,12 @@ describe('Relay Quotes Utils', () => {
           requests: [
             {
               ...QUOTE_REQUEST_MOCK,
-              targetChainId: QUOTE_REQUEST_MOCK.sourceChainId,
+              targetChainId: SOURCE_CHAIN_ID_MOCK,
             },
           ],
           transaction: {
             ...TRANSACTION_META_MOCK,
-            chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+            chainId: SOURCE_CHAIN_ID_MOCK,
             isGasFeeSponsored: true,
           },
         });
@@ -2818,7 +2830,7 @@ describe('Relay Quotes Utils', () => {
             requests: [
               {
                 ...QUOTE_REQUEST_MOCK,
-                targetChainId: QUOTE_REQUEST_MOCK.sourceChainId,
+                targetChainId: SOURCE_CHAIN_ID_MOCK,
               },
             ],
             transaction: {
@@ -2826,7 +2838,7 @@ describe('Relay Quotes Utils', () => {
               txParams: {
                 from: '0x1234567890123456789012345678901234567892',
               },
-              chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+              chainId: SOURCE_CHAIN_ID_MOCK,
               isGasFeeSponsored: true,
             },
           });
@@ -2862,12 +2874,12 @@ describe('Relay Quotes Utils', () => {
           requests: [
             {
               ...QUOTE_REQUEST_MOCK,
-              targetChainId: QUOTE_REQUEST_MOCK.sourceChainId,
+              targetChainId: SOURCE_CHAIN_ID_MOCK,
             },
           ],
           transaction: {
             ...TRANSACTION_META_MOCK,
-            chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+            chainId: SOURCE_CHAIN_ID_MOCK,
           },
         });
 
@@ -3224,7 +3236,7 @@ describe('Relay Quotes Utils', () => {
           ...getDefaultRemoteFeatureFlagControllerState(),
           remoteFeatureFlags: {
             confirmations_pay: {
-              relayDisabledGasStationChains: [QUOTE_REQUEST_MOCK.sourceChainId],
+              relayDisabledGasStationChains: [SOURCE_CHAIN_ID_MOCK],
             },
           },
         });
@@ -3256,7 +3268,10 @@ describe('Relay Quotes Utils', () => {
       it('not using gas fee token if insufficient native balance and chain does not support EIP-7702', async () => {
         const lineaQuoteRequest: QuoteRequest = {
           ...QUOTE_REQUEST_MOCK,
-          sourceChainId: CHAIN_ID_LINEA,
+          sourceAssetId: buildCaipAssetType(
+            CHAIN_ID_LINEA,
+            SOURCE_TOKEN_ADDRESS_MOCK,
+          ),
         };
 
         successfulFetchMock.mockResolvedValue({
@@ -4026,7 +4041,7 @@ describe('Relay Quotes Utils', () => {
             amountFormatted: subsidizedAmountUsd,
             amountUsd: subsidizedAmountUsd,
             currency: {
-              address: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+              address: SOURCE_TOKEN_ADDRESS_MOCK,
               chainId: 1,
               decimals: 6,
             },
@@ -4041,8 +4056,8 @@ describe('Relay Quotes Utils', () => {
           amount: amountIn,
           destinationChainId: Number(QUOTE_REQUEST_MOCK.targetChainId),
           destinationCurrency: QUOTE_REQUEST_MOCK.targetTokenAddress,
-          originChainId: Number(QUOTE_REQUEST_MOCK.sourceChainId),
-          originCurrency: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+          originChainId: Number(SOURCE_CHAIN_ID_MOCK),
+          originCurrency: SOURCE_TOKEN_ADDRESS_MOCK,
           recipient: FROM_MOCK,
           tradeType,
           user: FROM_MOCK,
@@ -4367,7 +4382,7 @@ describe('Relay Quotes Utils', () => {
         }) => {
           vi.mocked(getTokenInfo).mockImplementation((_messenger, address) => ({
             decimals:
-              address === QUOTE_REQUEST_MOCK.sourceTokenAddress
+              address === SOURCE_TOKEN_ADDRESS_MOCK
                 ? sourceDecimals
                 : targetDecimals,
             symbol: 'USDC',
@@ -4440,7 +4455,7 @@ describe('Relay Quotes Utils', () => {
         'rejects atomic max when %s token decimals are unavailable',
         async (missingToken) => {
           vi.mocked(getTokenInfo).mockImplementation((_messenger, address) =>
-            (address === QUOTE_REQUEST_MOCK.sourceTokenAddress) ===
+            (address === SOURCE_TOKEN_ADDRESS_MOCK) ===
             (missingToken === 'source')
               ? undefined
               : { decimals: 6, symbol: 'USDC' },
@@ -4706,7 +4721,10 @@ describe('Relay Quotes Utils', () => {
       it('promotes a native max quote above the spend cap, leaving balance enforcement to validation', async () => {
         const nativeRequest = {
           ...MONEY_ACCOUNT_MAX_REQUEST,
-          sourceTokenAddress: NATIVE_TOKEN_ADDRESS,
+          sourceAssetId: buildCaipAssetType(
+            SOURCE_CHAIN_ID_MOCK,
+            NATIVE_TOKEN_ADDRESS,
+          ),
         };
         mockRelayResponses(
           buildRelayQuote(),
@@ -4994,8 +5012,10 @@ describe('Relay Quotes Utils', () => {
         ...QUOTE_REQUEST_MOCK,
         isHyperliquidSource: true,
         isPostQuote: true,
-        sourceChainId: CHAIN_ID_ARBITRUM,
-        sourceTokenAddress: ARBITRUM_USDC_ADDRESS,
+        sourceAssetId: buildCaipAssetType(
+          CHAIN_ID_ARBITRUM,
+          ARBITRUM_USDC_ADDRESS,
+        ),
         sourceTokenAmount: '100000000',
       };
 
@@ -5454,8 +5474,10 @@ describe('Relay Quotes Utils', () => {
 
       const polygonToHyperliquidRequest: QuoteRequest = {
         ...QUOTE_REQUEST_MOCK,
-        sourceChainId: CHAIN_ID_POLYGON,
-        sourceTokenAddress: '0x0000000000000000000000000000000000001010',
+        sourceAssetId: buildCaipAssetType(
+          CHAIN_ID_POLYGON,
+          '0x0000000000000000000000000000000000001010',
+        ),
       };
 
       successfulFetchMock.mockResolvedValue({
@@ -6044,9 +6066,9 @@ describe('Relay Quotes Utils', () => {
       from: FROM_MOCK,
       isHyperliquidSource: true,
       isPostQuote: true,
+      sourceAccountId: `eip155:1337:${FROM_MOCK}`,
+      sourceAssetId: 'eip155:1337/erc20:0x00000000000000000000000000000000',
       sourceBalanceRaw: '4800000',
-      sourceChainId: CHAIN_ID_HYPERCORE,
-      sourceTokenAddress: '0x00000000000000000000000000000000',
       // $4.80 at 6 decimals; normalizeRequest shifts to 8 decimals.
       sourceTokenAmount: '4800000',
       targetAmountMinimum: '0',

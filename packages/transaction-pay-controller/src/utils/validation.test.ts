@@ -2,6 +2,7 @@ import type { Hex } from '@metamask/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getMessengerMock } from '../../tests/messenger-mock.js';
+import { mockModuleExcept } from '../../tests/mock-module-except.js';
 import type { TransactionPayQuote } from '../types.js';
 import {
   simulateQuoteTransactions,
@@ -20,7 +21,12 @@ vi.mock(import('./simulation.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   simulateQuoteTransactions: vi.fn(),
 }));
-vi.mock(import('./token.js'));
+vi.mock(import('./token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), [
+    'buildCaipAssetType',
+    'getEvmQuoteSource',
+  ]),
+);
 
 const CHAIN_ID_MOCK = '0x38' as Hex;
 const FROM_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
@@ -39,9 +45,9 @@ function buildQuote(
     original: {},
     request: {
       from: FROM_MOCK,
+      sourceAccountId: `eip155:56:${FROM_MOCK}`,
+      sourceAssetId: `eip155:56/erc20:${TOKEN_ADDRESS_MOCK}`,
       sourceBalanceRaw: '1000',
-      sourceChainId: CHAIN_ID_MOCK,
-      sourceTokenAddress: TOKEN_ADDRESS_MOCK,
       sourceTokenAmount: sourceAmountRaw,
       targetAmountMinimum: '0',
       targetChainId: '0x1',
@@ -311,7 +317,10 @@ describe('validateQuoteExecution', () => {
       expect(
         await validateQuoteExecution({
           messenger: messengerMock.messenger,
-          quote: buildQuote({ sourceTokenAddress: nativeAddress }, '50'),
+          quote: buildQuote(
+            { sourceAssetId: `eip155:56/erc20:${nativeAddress}` },
+            '50',
+          ),
           simulation: buildSimulation({
             transactions: [
               {

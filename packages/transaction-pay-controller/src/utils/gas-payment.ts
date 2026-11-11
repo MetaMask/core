@@ -15,7 +15,7 @@ import type {
 } from '../types.js';
 import { getFeatureFlags, isEIP7702Chain } from './feature-flags.js';
 import { calculateGasFeeTokenCost } from './gas.js';
-import { getNativeToken, getTokenBalance } from './token.js';
+import { getEvmQuoteSource, getNativeToken, getTokenBalance } from './token.js';
 
 const log = createModuleLogger(projectLogger, 'gas-payment');
 
@@ -153,7 +153,7 @@ type GasStationCostRequest = {
    */
   nativeGasCostRaw?: string;
 
-  request: Pick<QuoteRequest, 'from' | 'sourceChainId' | 'sourceTokenAddress'>;
+  request: EvmGasPaymentSource & { sourceTokenAddress: Hex };
 
   /** Combined gas estimate across every origin-chain call. */
   totalGasEstimate: number;
@@ -172,9 +172,18 @@ type SponsorshipRequest = {
   /** Whether the paying account can sign EIP-7702 authorizations. */
   accountSupports7702: boolean | undefined;
 
-  request: Pick<QuoteRequest, 'sourceChainId' | 'targetChainId'>;
+  request: Pick<QuoteRequest, 'sourceAssetId' | 'targetChainId'>;
 
   transaction: Pick<TransactionMeta, 'chainId' | 'isGasFeeSponsored'>;
+};
+
+/** EVM account and chain paying origin gas, derived from a quote request. */
+type EvmGasPaymentSource = {
+  /** Address of the account paying origin gas. */
+  from: Hex;
+
+  /** Chain ID of the source token. */
+  sourceChainId: Hex;
 };
 
 /**
@@ -199,7 +208,7 @@ export function shouldUseGasStation({
 }: {
   messenger: TransactionPayControllerMessenger;
   nativeGasCostRaw: string | undefined;
-  request: Pick<QuoteRequest, 'from' | 'sourceChainId'>;
+  request: EvmGasPaymentSource;
 }): boolean {
   const { isSufficient, nativeBalanceRaw } = checkNativeBalance({
     messenger,
@@ -241,7 +250,7 @@ export function shouldUseGasStation({
  */
 function canUseGasStation(
   messenger: TransactionPayControllerMessenger,
-  sourceChainId: QuoteRequest['sourceChainId'],
+  sourceChainId: Hex,
 ): boolean {
   const { relayDisabledGasStationChains } = getFeatureFlags(messenger);
 
@@ -587,7 +596,7 @@ function checkNativeBalance({
 }: {
   messenger: TransactionPayControllerMessenger;
   nativeGasCostRaw: string | undefined;
-  request: Pick<QuoteRequest, 'from' | 'sourceChainId'>;
+  request: EvmGasPaymentSource;
 }): { isSufficient: boolean; nativeBalanceRaw: string } {
   const { from, sourceChainId } = request;
 
@@ -635,7 +644,7 @@ function isSponsoredRoute(
 
   return (
     isGasFeeSponsored &&
-    request.sourceChainId === transaction.chainId &&
+    getEvmQuoteSource(request).chainId === transaction.chainId &&
     request.targetChainId === transaction.chainId &&
     Boolean(accountSupports7702)
   );

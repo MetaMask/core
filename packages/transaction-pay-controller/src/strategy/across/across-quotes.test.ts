@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import { mockModuleExcept } from '../../../tests/mock-module-except.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -30,7 +31,12 @@ import { ACROSS_HYPERCORE_USDC_PERPS_ADDRESS } from './perps.js';
 import * as acrossTransactions from './transactions.js';
 import type { AcrossSwapApprovalResponse } from './types.js';
 
-vi.mock(import('../../utils/token.js'));
+vi.mock(import('../../utils/token.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), [
+    'buildCaipAssetType',
+    'getEvmQuoteSource',
+  ]),
+);
 vi.mock(import('../../utils/gas.js'), async (importOriginal) => ({
   ...(await importOriginal()),
   calculateGasCost: vi.fn(),
@@ -62,11 +68,14 @@ const PREDICT_WITHDRAW_TRANSACTION_MOCK = {
   nestedTransactions: [{ type: TransactionType.predictWithdraw }],
 } as TransactionMeta;
 
+const SOURCE_CHAIN_ID_MOCK = '0x1' as Hex;
+const SOURCE_TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
+
 const QUOTE_REQUEST_MOCK: QuoteRequest = {
   from: FROM_MOCK,
+  sourceAccountId: `eip155:1:${FROM_MOCK}`,
+  sourceAssetId: 'eip155:1/erc20:0xabc',
   sourceBalanceRaw: '10000000000000000000',
-  sourceChainId: '0x1',
-  sourceTokenAddress: '0xabc',
   sourceTokenAmount: '1000000000000000000',
   targetAmountMinimum: '123',
   targetChainId: '0x2',
@@ -201,7 +210,7 @@ describe('Across Quotes', () => {
     rateWei: '0x1',
     recipient: FROM_MOCK,
     symbol: 'ETH',
-    tokenAddress: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+    tokenAddress: SOURCE_TOKEN_ADDRESS_MOCK,
   };
 
   beforeEach(() => {
@@ -689,7 +698,7 @@ describe('Across Quotes', () => {
           rateWei: '0x1',
           recipient: FROM_MOCK,
           symbol: 'ETH',
-          tokenAddress: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+          tokenAddress: SOURCE_TOKEN_ADDRESS_MOCK,
         },
       ]);
 
@@ -1286,7 +1295,7 @@ describe('Across Quotes', () => {
 
       expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
       expect(estimateGasBatchMock).toHaveBeenCalledWith({
-        chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+        chainId: SOURCE_CHAIN_ID_MOCK,
         from: FROM_MOCK,
         transactions: expect.any(Array),
       });
@@ -1334,7 +1343,7 @@ describe('Across Quotes', () => {
           rateWei: '0x1',
           recipient: FROM_MOCK,
           symbol: 'ETH',
-          tokenAddress: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+          tokenAddress: SOURCE_TOKEN_ADDRESS_MOCK,
         },
       ]);
 
@@ -2368,7 +2377,7 @@ describe('Across Quotes', () => {
       });
 
       expect(getGasFeeTokensMock).toHaveBeenCalledWith({
-        chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+        chainId: SOURCE_CHAIN_ID_MOCK,
         data: QUOTE_MOCK.swapTx.data,
         from: FROM_MOCK,
         to: QUOTE_MOCK.swapTx.to,
@@ -2424,7 +2433,7 @@ describe('Across Quotes', () => {
                 apiBase: 'https://test.across.to/api',
               },
             },
-            relayDisabledGasStationChains: [QUOTE_REQUEST_MOCK.sourceChainId],
+            relayDisabledGasStationChains: [SOURCE_CHAIN_ID_MOCK],
           },
         },
       });

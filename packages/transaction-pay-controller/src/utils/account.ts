@@ -3,8 +3,9 @@ import {
   KnownCaipNamespace,
   parseCaipAssetType,
   parseCaipChainId,
+  toCaipAccountId,
 } from '@metamask/utils';
-import type { CaipAssetType, Hex } from '@metamask/utils';
+import type { CaipAccountId, CaipAssetType, Hex } from '@metamask/utils';
 
 import {
   KEYRING_TYPES_REQUIRING_MFA,
@@ -123,6 +124,22 @@ export function getAssetAccount(
   }
 
   return account;
+}
+
+/**
+ * Get the CAIP-10 account ID of an address on the chain of a CAIP-19 asset.
+ *
+ * @param assetId - CAIP-19 asset type.
+ * @param address - Address of the account holding the asset.
+ * @returns The CAIP-10 account ID.
+ */
+export function getCaipAccountId(
+  assetId: CaipAssetType,
+  address: string,
+): CaipAccountId {
+  const { chain } = parseCaipAssetType(assetId);
+
+  return toCaipAccountId(chain.namespace, chain.reference, address);
 }
 
 /**

@@ -25,7 +25,10 @@ import {
   sweepPolymarketDepositWallet,
 } from '../../utils/polymarket/withdraw.js';
 import { submitSecondLeg } from '../../utils/second-leg.js';
-import { getLiveTokenBalanceOrUndefined } from '../../utils/token.js';
+import {
+  buildCaipAssetType,
+  getLiveTokenBalanceOrUndefined,
+} from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
@@ -66,6 +69,8 @@ const ORIGINAL_TRANSACTION_ID_MOCK = 'original-transaction-id';
 const ORIGINAL_FROM_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
 const QUOTE_FROM_MOCK = '0x2222222222222222222222222222222222222222' as Hex;
 const SOURCE_CHAIN_ID_MOCK = '0x89' as Hex;
+const SOURCE_TOKEN_ADDRESS_MOCK =
+  '0x5555555555555555555555555555555555555555' as Hex;
 const TARGET_HASH_MOCK = '0xtarget' as Hex;
 const SOURCE_HASH_MOCK = '0xsource' as Hex;
 
@@ -135,9 +140,9 @@ const QUOTE_MOCK = {
   original: ORIGINAL_QUOTE_MOCK,
   request: {
     from: QUOTE_FROM_MOCK,
+    sourceAccountId: `eip155:137:${QUOTE_FROM_MOCK}`,
+    sourceAssetId: `eip155:137/erc20:${SOURCE_TOKEN_ADDRESS_MOCK}`,
     sourceBalanceRaw: '10000000',
-    sourceChainId: SOURCE_CHAIN_ID_MOCK,
-    sourceTokenAddress: '0x5555555555555555555555555555555555555555',
     sourceTokenAmount: '1230000',
     targetAmountMinimum: '1000000',
     targetChainId: '0x1',
@@ -875,7 +880,7 @@ describe('submitServerQuotes', () => {
         expect.anything(),
         expect.objectContaining({
           excludeNativeTokenForFee: true,
-          gasFeeToken: reqWithGasFeeToken.quotes[0].request.sourceTokenAddress,
+          gasFeeToken: SOURCE_TOKEN_ADDRESS_MOCK,
         }),
       );
     });
@@ -902,7 +907,7 @@ describe('submitServerQuotes', () => {
       expect(addTxBatchMock).toHaveBeenCalledWith(
         expect.objectContaining({
           excludeNativeTokenForFee: true,
-          gasFeeToken: reqWithGasFeeToken.quotes[0].request.sourceTokenAddress,
+          gasFeeToken: SOURCE_TOKEN_ADDRESS_MOCK,
         }),
       );
     });
@@ -915,7 +920,10 @@ describe('submitServerQuotes', () => {
 
       // Sponsorship only applies when the quote never leaves the parent
       // transaction's chain.
-      sponsoredRequest.quotes[0].request.sourceChainId = chainId;
+      sponsoredRequest.quotes[0].request.sourceAssetId = buildCaipAssetType(
+        chainId,
+        SOURCE_TOKEN_ADDRESS_MOCK,
+      );
       sponsoredRequest.quotes[0].request.targetChainId = chainId;
       sponsoredRequest.transaction.isGasFeeSponsored = true;
 
@@ -992,7 +1000,10 @@ describe('submitServerQuotes', () => {
 
     it('does not sponsor a cross-chain route even when the parent is sponsored', async () => {
       const crossChainRequest = buildSponsoredRequest();
-      crossChainRequest.quotes[0].request.sourceChainId = '0x89';
+      crossChainRequest.quotes[0].request.sourceAssetId = buildCaipAssetType(
+        '0x89',
+        SOURCE_TOKEN_ADDRESS_MOCK,
+      );
 
       await submitServerQuotes(crossChainRequest);
 

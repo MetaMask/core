@@ -7,13 +7,17 @@ import { buildNoOpQuote } from './no-op-quote.js';
 
 const FROM_MOCK = '0xabc' as Hex;
 
-const PAYMENT_TOKEN_MOCK = {
-  address: '0x123' as Hex,
+const PAYMENT_TOKEN_MOCK: EvmPaymentToken = {
+  address: '0x123',
+  assetId: 'eip155:137/erc20:0x123',
+  balanceFiat: '0',
+  balanceHuman: '0',
   balanceRaw: '2000000',
-  chainId: '0x89' as Hex,
+  balanceUsd: '0',
+  chainId: '0x89',
   decimals: 6,
   symbol: 'pUSD',
-} as EvmPaymentToken;
+};
 
 describe('No-Op Quote Utils', () => {
   describe('buildNoOpQuote', () => {
@@ -52,9 +56,9 @@ describe('No-Op Quote Utils', () => {
 
       expect(quote.request).toStrictEqual({
         from: FROM_MOCK,
+        sourceAccountId: `eip155:137:${FROM_MOCK}`,
+        sourceAssetId: PAYMENT_TOKEN_MOCK.assetId,
         sourceBalanceRaw: PAYMENT_TOKEN_MOCK.balanceRaw,
-        sourceChainId: PAYMENT_TOKEN_MOCK.chainId,
-        sourceTokenAddress: PAYMENT_TOKEN_MOCK.address,
         sourceTokenAmount: '0',
         targetAmountMinimum: '0',
         targetChainId: PAYMENT_TOKEN_MOCK.chainId,
