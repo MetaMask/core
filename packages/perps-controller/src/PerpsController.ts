@@ -51,6 +51,7 @@ import type { PerpsControllerMethodActions } from './PerpsController-method-acti
 import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
+import { resolveTradeConfigProviderKey } from './routing/resolveTradeConfigProviderKey.js';
 import { AccountService } from './services/AccountService.js';
 import { isMainAccountSignerReady } from './services/accountSigner.js';
 import { AgentBindings } from './services/agentSigner.js';
@@ -7816,18 +7817,7 @@ export class PerpsController extends BaseController<
   #resolveTradeConfigProviderKey(
     providerId?: PerpsProviderType,
   ): PerpsProviderType | null {
-    if (providerId !== undefined) {
-      return providerId === 'hyperliquid' || providerId === 'lighter'
-        ? providerId
-        : null;
-    }
-    const { activeProvider, defaultProvider, effectiveProvider } = this.state;
-    const stateKey =
-      effectiveProvider ??
-      (activeProvider === 'aggregated' ? defaultProvider : activeProvider);
-    return stateKey === 'hyperliquid' || stateKey === 'lighter'
-      ? stateKey
-      : 'hyperliquid';
+    return resolveTradeConfigProviderKey(this.state, providerId);
   }
 
   /**

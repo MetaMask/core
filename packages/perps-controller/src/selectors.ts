@@ -16,6 +16,7 @@ import type {
   ProLayoutPreferences,
 } from './constants/perpsConfig.js';
 import type { PerpsControllerState } from './PerpsController.js';
+import { resolveTradeConfigProviderKey } from './routing/resolveTradeConfigProviderKey.js';
 import type {
   MarginMode,
   OrderDirection,
@@ -24,34 +25,6 @@ import type {
   PerpsSelectedPaymentToken,
   SortDirection,
 } from './types/index.js';
-
-/**
- * Resolve the venue key trade configurations are stored under.
- *
- * An explicit `providerId` always wins. Otherwise use the live effective
- * venue, including temporary fallbacks. Before or during initialization, use
- * the selected direct venue or, in aggregated mode, the saved default venue.
- *
- * @param state - PerpsController state.
- * @param providerId - Explicit venue, when supplied.
- * @returns The provider id trade configurations are keyed by.
- */
-const resolveTradeConfigProviderKey = (
-  state: PerpsControllerState | undefined,
-  providerId?: PerpsProviderType,
-): string => {
-  if (providerId) {
-    return providerId;
-  }
-  if (state?.effectiveProvider) {
-    return state.effectiveProvider;
-  }
-  const activeProvider = state?.activeProvider;
-  if (activeProvider === 'aggregated') {
-    return state?.defaultProvider ?? 'hyperliquid';
-  }
-  return activeProvider ?? 'hyperliquid';
-};
 
 /**
  * Select whether the user is a first-time perps user
@@ -161,10 +134,14 @@ export const selectTradeConfiguration = createSelector(
       state: PerpsControllerState,
       _coin: string,
       providerId?: PerpsProviderType,
-    ): string => resolveTradeConfigProviderKey(state, providerId),
+    ): PerpsProviderType | null =>
+      resolveTradeConfigProviderKey(state, providerId),
     (_state: PerpsControllerState, coin: string): string => coin,
   ],
   (isTestnet, configs, provider, coin): { leverage?: number } | undefined => {
+    if (provider === null) {
+      return undefined;
+    }
     const network = isTestnet ? 'testnet' : 'mainnet';
     const config = configs?.[network]?.[provider]?.[coin];
 
@@ -218,7 +195,8 @@ const selectRawPendingTradeConfiguration = createSelector(
       state: PerpsControllerState,
       _coin: string,
       providerId?: PerpsProviderType,
-    ): string => resolveTradeConfigProviderKey(state, providerId),
+    ): PerpsProviderType | null =>
+      resolveTradeConfigProviderKey(state, providerId),
     (_state: PerpsControllerState, coin: string): string => coin,
   ],
   (
@@ -227,6 +205,9 @@ const selectRawPendingTradeConfiguration = createSelector(
     provider,
     coin,
   ): { timestamp: number; config: PendingTradeConfiguration } | undefined => {
+    if (provider === null) {
+      return undefined;
+    }
     const network = isTestnet ? 'testnet' : 'mainnet';
     const config = configs?.[network]?.[provider]?.[coin]?.pendingConfig;
 
@@ -409,10 +390,14 @@ export const selectOrderBookGrouping = createSelector(
       state: PerpsControllerState,
       _coin: string,
       providerId?: PerpsProviderType,
-    ): string => resolveTradeConfigProviderKey(state, providerId),
+    ): PerpsProviderType | null =>
+      resolveTradeConfigProviderKey(state, providerId),
     (_state: PerpsControllerState, coin: string): string => coin,
   ],
   (isTestnet, configs, provider, coin): number | undefined => {
+    if (provider === null) {
+      return undefined;
+    }
     const network = isTestnet ? 'testnet' : 'mainnet';
     return configs?.[network]?.[provider]?.[coin]?.orderBookGrouping;
   },
@@ -440,10 +425,14 @@ export const selectMarginMode = createSelector(
       state: PerpsControllerState,
       _coin: string,
       providerId?: PerpsProviderType,
-    ): string => resolveTradeConfigProviderKey(state, providerId),
+    ): PerpsProviderType | null =>
+      resolveTradeConfigProviderKey(state, providerId),
     (_state: PerpsControllerState, coin: string): string => coin,
   ],
   (isTestnet, configs, provider, coin): MarginMode | undefined => {
+    if (provider === null) {
+      return undefined;
+    }
     const network = isTestnet ? 'testnet' : 'mainnet';
     return configs?.[network]?.[provider]?.[coin]?.marginMode;
   },

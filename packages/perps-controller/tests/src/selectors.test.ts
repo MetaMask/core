@@ -25,6 +25,18 @@ import {
 } from '../../src/selectors.js';
 
 describe('PerpsController selectors', () => {
+  it('returns no configuration when selector state has not been hydrated', () => {
+    for (const selector of [
+      selectTradeConfiguration,
+      selectPendingTradeConfiguration,
+      selectOrderBookGrouping,
+      selectMarginMode,
+    ]) {
+      // @ts-expect-error Selector state may be absent at runtime before hydration.
+      expect(selector(undefined, 'BTC')).toBeUndefined();
+    }
+  });
+
   describe('selectIsFirstTimeUser', () => {
     it('returns true when state is undefined', () => {
       expect(selectIsFirstTimeUser(undefined)).toBe(true);

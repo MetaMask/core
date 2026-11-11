@@ -1589,6 +1589,66 @@ describe('PerpsController default provider', () => {
   });
 
   describe('trade configurations are keyed per provider and symbol (AC3)', () => {
+    it.each(['', 'unknown', '__proto__', 'constructor', null, false, 42])(
+      'rejects invalid explicit routes consistently in methods and selectors (%j)',
+      (invalidProvider) => {
+        controller.saveTradeConfiguration('BTC', 10, 'hyperliquid');
+        controller.saveOrderBookGrouping('BTC', 10, 'hyperliquid');
+        controller.saveMarginMode('BTC', 'cross', 'hyperliquid');
+        controller.savePendingTradeConfiguration(
+          'BTC',
+          { amount: '100' },
+          'hyperliquid',
+        );
+        controller.testUpdate((state) => {
+          state.tradeConfigurations.mainnet.unknown = {
+            BTC: {
+              leverage: 999,
+              orderBookGrouping: 999,
+              marginMode: 'isolated',
+              pendingConfig: { amount: '999', timestamp: Date.now() },
+            },
+          };
+        });
+        // @ts-expect-error Exercise invalid arguments from JavaScript callers.
+        const providerId: PerpsProviderType = invalidProvider;
+        expect(
+          controller.getTradeConfiguration('BTC', providerId),
+        ).toBeUndefined();
+        expect(
+          selectTradeConfiguration(controller.state, 'BTC', providerId),
+        ).toBeUndefined();
+        expect(
+          controller.getOrderBookGrouping('BTC', providerId),
+        ).toBeUndefined();
+        expect(
+          selectOrderBookGrouping(controller.state, 'BTC', providerId),
+        ).toBeUndefined();
+        expect(controller.getMarginMode('BTC', providerId)).toBeUndefined();
+        expect(
+          selectMarginMode(controller.state, 'BTC', providerId),
+        ).toBeUndefined();
+        expect(
+          controller.getPendingTradeConfiguration('BTC', providerId),
+        ).toBeUndefined();
+        expect(
+          selectPendingTradeConfiguration(controller.state, 'BTC', providerId),
+        ).toBeUndefined();
+
+        const configurations = controller.state.tradeConfigurations;
+        controller.saveTradeConfiguration('BTC', 20, providerId);
+        controller.saveOrderBookGrouping('BTC', 20, providerId);
+        controller.saveMarginMode('BTC', 'isolated', providerId);
+        controller.savePendingTradeConfiguration(
+          'BTC',
+          { amount: '200' },
+          providerId,
+        );
+        controller.clearPendingTradeConfiguration('BTC', providerId);
+        expect(controller.state.tradeConfigurations).toBe(configurations);
+      },
+    );
+
     it('stores and reads leverage per provider', () => {
       controller.saveTradeConfiguration('BTC', 10);
       controller.saveTradeConfiguration('BTC', 5, 'lighter');
