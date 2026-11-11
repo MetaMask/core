@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
 ### Added
 
 - Add `upgradeSuccessorAccount` method to upgrade an address as the successor of an existing Money Account, which links it to the Money Account on CHOMP, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
@@ -17,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `UpgradeConfig` now requires `allowedCalldataEnforcer` and `allowedTargetsEnforcer` ([#11369](https://github.com/MetaMask/core/pull/11369))
 - **BREAKING:** `MoneyAccountUpgradeControllerMessenger` must now allow the `ChompApiService:getDerivedIdentityByAddress` and `ChompApiService:createIntentsV2` actions ([#11369](https://github.com/MetaMask/core/pull/11369))
+- Bump `@metamask/chomp-api-service` from `^7.0.0` to `^7.1.0` ([#11369](https://github.com/MetaMask/core/pull/11369))
 
 ### Fixed
 
@@ -274,7 +277,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@6.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@6.0.1...@metamask/money-account-upgrade-controller@7.0.0
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@6.0.0...@metamask/money-account-upgrade-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.1.0...@metamask/money-account-upgrade-controller@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@5.0.0...@metamask/money-account-upgrade-controller@5.1.0
