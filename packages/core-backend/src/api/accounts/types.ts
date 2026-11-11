@@ -267,7 +267,7 @@ export type V4MultiAccountTransactionsResponse = {
   data: V1TransactionByHashResponse[];
 };
 
-/** Transaction header on a v5 transaction record. */
+/** Transaction header on a v5 multi-account transactions row. */
 export type V5Transaction = {
   id: string;
   /** CAIP-2 chain ID. */
@@ -297,7 +297,7 @@ export type V5TransactionValueTransfer = {
   assetClass: string;
   from: string;
   to: string;
-  /** CAIP-19 asset type. */
+  /** CAIP-19 asset ID. */
   assetId: CaipAssetType;
   amount?: string;
   decimal?: number;
@@ -309,13 +309,13 @@ export type V5TransactionValueTransfer = {
 /** Non-transfer operation on a v5 transaction, such as a Stellar trustline update. */
 export type V5TransactionMiscOperation = {
   type?: string;
-  /** CAIP-19 asset type. */
+  /** CAIP-19 asset ID. */
   assetId?: CaipAssetType;
 };
 
 /** Fee asset on a v5 transaction. */
 export type V5TransactionFeeAsset = {
-  /** CAIP-19 asset type. */
+  /** CAIP-19 asset ID. */
   assetId: CaipAssetType;
   amount: string;
   decimals: number;
@@ -342,11 +342,7 @@ export type V5TransactionLog = {
   logIndex: number;
 };
 
-/**
- * One account's view of a transaction.
- * Shared by `GET /v5/multiaccount/transactions` and
- * `GET /v5/accounts/{accountId}/transactions/{txId}`.
- */
+/** One account's view of a transaction from `GET /v5/multiaccount/transactions`. */
 export type V5TransactionRecord = {
   /** CAIP-10 account ID this row was fetched for. */
   accountId: CaipAccountId;
@@ -392,7 +388,7 @@ export type V5MultiAccountTransactionsResponse = {
 export type V5MultiAccountTransactionsQueryOptions = {
   /** CAIP-2 chain IDs. */
   networks?: CaipChainId[];
-  /** CAIP-19 asset types. */
+  /** CAIP-19 asset IDs. */
   assetIds?: CaipAssetType[];
   /** Start timestamp (epoch seconds). */
   startTimestamp?: number;

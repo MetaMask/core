@@ -5,7 +5,7 @@
  * - Supported networks
  * - Active networks
  * - Balances (v2, v4, v5, v6)
- * - Transactions (v1, v4, v5, including v5 transaction by id)
+ * - Transactions (v1, v4, v5)
  * - Relationships
  * - NFTs
  * - Token discovery
