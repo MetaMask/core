@@ -2212,6 +2212,204 @@ describe('NftController', () => {
       });
     });
 
+    describe('when tokenURI is a data URL', () => {
+      const metadataJson = JSON.stringify({
+        name: 'Data NFT',
+        description: 'Fully on-chain ✓',
+        image: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
+      });
+      const base64Json = btoa(
+        String.fromCharCode(...new TextEncoder().encode(metadataJson)),
+      );
+      const decodedMetadata = {
+        name: 'Data NFT',
+        description: 'Fully on-chain ✓',
+        image: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
+      };
+      const fallbackMetadata = {
+        name: null,
+        description: null,
+        image: null,
+      };
+
+      /**
+       * Asserts that `fetch` was never called with a `data:` URL. The NFT API
+       * request is expected; the tokenURI must never reach `fetch`.
+       *
+       * @param fetchSpy - A spy on `globalThis.fetch`.
+       */
+      const expectNoDataUrlFetch = (fetchSpy: Mock): void => {
+        const requestedUrls = fetchSpy.mock.calls.map(([input]) =>
+          input instanceof Request ? input.url : String(input),
+        );
+        expect(requestedUrls).not.toContainEqual(
+          expect.stringMatching(/^data:/iu),
+        );
+      };
+
+      it.each([
+        ['base64 JSON', `data:application/json;base64,${base64Json}`],
+        [
+          'base64 JSON with a charset parameter',
+          `data:application/json;charset=utf-8;base64,${base64Json}`,
+        ],
+        [
+          'percent-encoded JSON',
+          `data:application/json,${encodeURIComponent(metadataJson)}`,
+        ],
+        [
+          'percent-encoded JSON with a charset parameter',
+          `data:application/json;charset=utf-8,${encodeURIComponent(metadataJson)}`,
+        ],
+        [
+          'plain (not percent-encoded) JSON',
+          `data:application/json;utf8,${metadataJson}`,
+        ],
+        [
+          'JSON with an upper-case media type',
+          `DATA:Application/JSON;Base64,${base64Json}`,
+        ],
+      ])(
+        'decodes %s inline without fetching',
+        async (_description, tokenURI) => {
+          const fetchSpy = vi.spyOn(globalThis, 'fetch') as unknown as Mock;
+          const { nftController } = setupController({
+            getERC721TokenURI: vi.fn().mockResolvedValue(tokenURI),
+            defaultSelectedAccount: OWNER_ACCOUNT,
+          });
+
+          await nftController.addNft(
+            ERC721_KUDOSADDRESS,
+            ERC721_KUDOS_TOKEN_ID,
+            'mainnet',
+          );
+
+          expectNoDataUrlFetch(fetchSpy);
+          expect(
+            nftController.state.allNfts[OWNER_ACCOUNT.address][
+              ChainId.mainnet
+            ][0],
+          ).toStrictEqual({
+            address: ERC721_KUDOSADDRESS,
+            chainId: convertHexToDecimal(ChainId.mainnet),
+            ...decodedMetadata,
+            tokenId: ERC721_KUDOS_TOKEN_ID,
+            standard: ERC721,
+            favorite: false,
+            isCurrentlyOwned: true,
+            source: Source.Custom,
+            tokenURI,
+          });
+        },
+      );
+
+      it('drops non-string metadata fields from a JSON data URL', async () => {
+        const tokenURI = `data:application/json,${encodeURIComponent(
+          JSON.stringify({
+            name: { evil: true },
+            description: 42,
+            image: ['https://example.com/a.png'],
+          }),
+        )}`;
+        const { nftController } = setupController({
+          getERC721TokenURI: vi.fn().mockResolvedValue(tokenURI),
+          defaultSelectedAccount: OWNER_ACCOUNT,
+        });
+
+        await nftController.addNft(
+          ERC721_KUDOSADDRESS,
+          ERC721_KUDOS_TOKEN_ID,
+          'mainnet',
+        );
+
+        expect(
+          nftController.state.allNfts[OWNER_ACCOUNT.address][
+            ChainId.mainnet
+          ][0],
+        ).toMatchObject({ ...fallbackMetadata, tokenURI });
+      });
+
+      it('decodes a JSON data URL returned by an ERC-1155 uri without fetching', async () => {
+        const tokenURI = `data:application/json;base64,${base64Json}`;
+        const fetchSpy = vi.spyOn(globalThis, 'fetch') as unknown as Mock;
+        const { nftController } = setupController({
+          getERC721TokenURI: vi
+            .fn()
+            .mockRejectedValue(new Error('Not an ERC721 contract')),
+          getERC1155TokenURI: vi.fn().mockResolvedValue(tokenURI),
+          defaultSelectedAccount: OWNER_ACCOUNT,
+        });
+
+        await nftController.addNft(
+          ERC1155_NFT_ADDRESS,
+          ERC1155_NFT_ID,
+          'mainnet',
+        );
+
+        expectNoDataUrlFetch(fetchSpy);
+        expect(
+          nftController.state.allNfts[OWNER_ACCOUNT.address][
+            ChainId.mainnet
+          ][0],
+        ).toMatchObject({
+          ...decodedMetadata,
+          standard: ERC1155,
+          tokenURI,
+        });
+      });
+
+      it.each([
+        ['malformed base64', 'data:application/json;base64,!!!not-base64!!!'],
+        [
+          'base64 that does not decode to JSON',
+          `data:application/json;base64,${btoa('not json')}`,
+        ],
+        ['malformed JSON', 'data:application/json,{"name":'],
+        ['JSON that is not an object', 'data:application/json,"a string"'],
+        ['a JSON array', 'data:application/json,[1,2]'],
+        ['JSON null', 'data:application/json,null'],
+        ['a data URL without a comma', 'data:application/json;base64'],
+        ['a text/plain payload that is not JSON', 'data:text/plain,hello'],
+        [
+          'a non-JSON media type that is base64-encoded',
+          `data:text/html;base64,${btoa('<p>hi</p>')}`,
+        ],
+        ['an audio media type', 'data:audio/mpeg;base64,SUQz'],
+      ])(
+        'falls back to null metadata without fetching for %s',
+        async (_description, tokenURI) => {
+          const fetchSpy = vi.spyOn(globalThis, 'fetch') as unknown as Mock;
+          const { nftController } = setupController({
+            getERC721TokenURI: vi.fn().mockResolvedValue(tokenURI),
+            defaultSelectedAccount: OWNER_ACCOUNT,
+          });
+
+          await nftController.addNft(
+            ERC721_KUDOSADDRESS,
+            ERC721_KUDOS_TOKEN_ID,
+            'mainnet',
+          );
+
+          expectNoDataUrlFetch(fetchSpy);
+          expect(
+            nftController.state.allNfts[OWNER_ACCOUNT.address][
+              ChainId.mainnet
+            ][0],
+          ).toStrictEqual({
+            address: ERC721_KUDOSADDRESS,
+            chainId: convertHexToDecimal(ChainId.mainnet),
+            ...fallbackMetadata,
+            tokenId: ERC721_KUDOS_TOKEN_ID,
+            standard: ERC721,
+            favorite: false,
+            isCurrentlyOwned: true,
+            source: Source.Custom,
+            tokenURI,
+          });
+        },
+      );
+    });
+
     it('should add NFT by provider type', async () => {
       const tokenURI = 'https://url/';
       const mockGetERC721TokenURI = vi.fn().mockResolvedValue(tokenURI);

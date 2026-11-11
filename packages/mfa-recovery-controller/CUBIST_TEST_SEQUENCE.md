@@ -71,22 +71,30 @@ sequenceDiagram
   Auth-->>C: JWT bound to requestHash
   C->>Cubist: isAvailable
 
-  opt updates only (not register)
+  opt updateIdentifiers adding SIWE identifiers
+    C->>Cubist: getIdentifiers(JWT)
+    Cubist-->>C: enrolled identifiers, version
+  end
+  opt updates, or SIWE identifiers not yet enrolled
     Note over C,Cubist: Proof of possession for requestHash (see below)
   end
 
   Note over C: Encrypt the secret to the Cubist wrap key
-  C->>Cubist: applyMutation(mutation, JWT, { token, proof } or null, payload, approvedIdentifiers)
+  C->>Cubist: applyMutation(mutation, JWT, [{ token, proof }, ...], payload, approvedIdentifiers)
   Cubist-->>C: signed receipt
   Note over C: Verify the receipt with the pinned receipt key
   C-->>Mobile: done
 ```
 
-| Operation              | Identifier proof        | Payload              |
-| ---------------------- | ----------------------- | -------------------- |
-| `register`             | none                    | identifiers + secret |
-| `updateRecoverySecret` | the identifier argument | secret               |
-| `updateIdentifiers`    | the identifier argument | identifiers          |
+| Operation              | Identifier proofs                                      | Payload              |
+| ---------------------- | ------------------------------------------------------ | -------------------- |
+| `register`             | each SIWE identifier                                   | identifiers + secret |
+| `updateRecoverySecret` | the identifier argument                                | secret               |
+| `updateIdentifiers`    | the identifier argument + each SIWE identifier it adds | identifiers          |
+
+Auth does not vouch for SIWE wallets, so `approvedIdentifiers` need not
+include them; each new wallet proves control instead. In step 1 the primary
+account signs a SIWE proof for `register`.
 
 If an escrow refuses the mutation (`MutationRejectedError`) and every replica
 does the same, the controller clears the pending mutation. A transport failure
@@ -95,18 +103,21 @@ to finish that write.
 
 ## Proof of possession
 
-Updates and reads prove control of a registered identifier:
+Updates and reads prove control of a registered identifier; mutations also prove
+each SIWE identifier the escrow has not enrolled:
 
-1. The controller generates an Ed25519 proof key and requests an identifier token
-   binding `hash([proofPublicKey, requestHash])`: the SIWE nonce or WebAuthn challenge.
-2. The proof key signs `hash([token, challenge.id, requestHash])` for each escrow.
-   The controller sends the approval and `{ kind: 'key-bound', token, proof }`
-   with `applyMutation` or `getSecret`.
-3. The escrow C2F verifies the provider assertion, registered identifier, request
-   binding, challenge, and proof signature.
+1. The controller generates an Ed25519 proof key per identifier and requests an
+   identifier token binding `hash([proofPublicKey, requestHash])`: the SIWE nonce
+   or WebAuthn challenge.
+2. Each escrow issues one challenge, keyed to the approval's profile. Every proof
+   key signs `hash([token, challenge.id, requestHash])` for that challenge. The
+   controller sends the approval and the `{ kind: 'key-bound', token, proof }`
+   list with `applyMutation`, or the single proof with `getSecret`.
+3. The escrow C2F verifies the provider assertions, identifiers, request
+   binding, challenge, and proof signatures, then consumes the challenge once.
 
-The proof private key never leaves the controller/caller; read sessions keep it
-in memory. `register` sends `null` instead of an identifier proof. Implementation:
+The proof private keys never leave the controller/caller; read sessions keep
+theirs in memory. A `register` without SIWE identifiers sends no proofs. Implementation:
 `requestKeyBoundIdentifierToken` and `authorizeEscrowsWithToken` in `src/identifier-auth.ts`.
 
 ## Read: `authenticateIdentifier`, `getRecoverySecret`

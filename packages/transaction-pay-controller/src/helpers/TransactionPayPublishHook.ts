@@ -10,7 +10,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types.js';
-import { accountSupports7702 } from '../utils/7702.js';
+import { accountSupports7702 } from '../utils/account.js';
 import { prefixError } from '../utils/error-prefix.js';
 import { getStrategyByName } from '../utils/strategy.js';
 import { isEvmQuoteRequest, isNonEvmPaymentToken } from '../utils/token.js';

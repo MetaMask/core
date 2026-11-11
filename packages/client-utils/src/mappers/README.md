@@ -36,6 +36,8 @@ Ultimately, the goal is for the MetaMask API to provide both EVM and non-EVM dat
 ```mermaid
 flowchart LR
   api["EVM transactions<br/>V1TransactionByHashResponse"] --> apiMapper["mapApiTransaction"]
+  apiV5["Transactions<br/>V5TransactionRecord"] --> apiV5Mapper["mapV5ApiTransaction"]
+  apiV5Mapper --> items
   nonEvm["Non-EVM transactions<br/>@metamask/keyring-api"] --> nonEvmMapper["mapKeyringTransaction"]
   local["Local state<br/>(TransactionController)"] --> localMapper["mapLocalTransaction"]
 
@@ -69,6 +71,19 @@ Notes:
 - Native tokens and network fees include slip44 `assetId` when a symbol is available (for example from an indexed native value transfer)
 - When no symbol is available, mappers still set `assetType: 'native'` but omit `assetId` — clients should resolve icons from chain metadata
 - Fungible `TokenAmount.amount` values are raw base units and are **omitted** when decimals are unknown (Accounts API enrichment missing). Pass optional `getKnownTokenDecimals(chainId, contractAddress)` to recover decimals/symbol from on-device token state. NFT amounts are counts and are never fail-closed.
+
+#### V5 records: `mapV5ApiTransaction`
+
+Input: `V5TransactionRecord` from `@metamask/core-backend` (`GET /v5/multiaccount/transactions`)
+
+Both mappers adapt their input into one internal shape (`helpers/indexed-transaction.ts`) and share the same classification, so the same transaction maps to the same `ActivityItem` from either endpoint. Differences in the input:
+
+- The subject account comes from the record's CAIP-10 `accountId`, so there is no `subjectAddress` option
+- `assetClass` + the CAIP-19 `assetId` namespace replace `transferType` (`eip155Internal` → `internal`, `slip44` → `normal`, `erc20`/`erc721`/`erc1155` as-is). EVM token addresses are read from the `assetId` reference
+- Network fees come from the record's `fee` instead of `gasUsed × effectiveGasPrice`
+- `tx.status` maps `confirmed` → `success`, `failed` → `failed`, anything else → `pending`
+- Request with `includeTxMetadata: true`; without it the API omits `transactionCategory` and most items map to `contractInteraction`
+- Non-EVM records keep the API `assetId` on token amounts
 
 ---
 

@@ -86,6 +86,7 @@ import {
   parseLighterStrictDecimal,
   toLighterInteger,
 } from '../constants/lighterConfig.js';
+import { createTpslLegReplaceUnsupportedError } from '../errors.js';
 import type { PerpsControllerMessenger } from '../PerpsController.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
 import { hasErrorInCauseChain } from '../services/causeChain.js';
@@ -201,6 +202,7 @@ import type {
   ToggleTestnetResult,
   UpdateMarginParams,
   UpdatePositionTPSLParams,
+  ReplacePositionTPSLLegParams,
   UserHistoryItem,
   WithdrawParams,
   WithdrawResult,
@@ -14379,6 +14381,20 @@ export class LighterProvider implements PerpsProvider {
     params: UpdatePositionTPSLParams,
   ): Promise<OrderResult> {
     return this.#updatePositionTPSL(params);
+  }
+
+  /**
+   * Lighter settles position protection as one journaled TP/SL pair, so it
+   * cannot replace a single leg without rewriting the other. Refuse before any
+   * read or write rather than sweeping the sibling.
+   *
+   * @param _params - The requested leg replacement.
+   * @throws PerpsControllerError with `TPSL_LEG_REPLACE_UNSUPPORTED`.
+   */
+  async replacePositionTPSLLeg(
+    _params: ReplacePositionTPSLLegParams,
+  ): Promise<OrderResult> {
+    throw createTpslLegReplaceUnsupportedError();
   }
 
   /**

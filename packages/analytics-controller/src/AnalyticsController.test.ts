@@ -6450,7 +6450,7 @@ describe('AnalyticsController', () => {
     });
 
     describe('canonical schema', () => {
-      it('emits Error Occurred with source and error_message only', async () => {
+      it('emits Error Occurred with source and error_message only by default', async () => {
         const { controller, platformAdapter } = await setupTrackingController();
 
         controller.trackErrorAsAnalytics(new Error('boom'), {
@@ -6466,6 +6466,46 @@ describe('AnalyticsController', () => {
         expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
           source,
           error_message: 'boom',
+        });
+      });
+
+      it('merges caller properties into the event payload', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(
+          new Error('boom'),
+          { source },
+          {
+            anonymous: true,
+          },
+        );
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
+          anonymous: true,
+          source,
+          error_message: 'boom',
+        });
+      });
+
+      it('keeps sanitized source and error_message over caller properties', async () => {
+        const { controller, platformAdapter } = await setupTrackingController();
+
+        controller.trackErrorAsAnalytics(
+          new Error('real message'),
+          { source },
+          {
+            source: 'spoofed-source',
+            error_message: 'spoofed message',
+            anonymous: true,
+          },
+        );
+
+        expect(platformAdapter.track).toHaveBeenCalledTimes(1);
+        expect(platformAdapter.track.mock.calls[0]?.[1]).toStrictEqual({
+          anonymous: true,
+          source,
+          error_message: 'real message',
         });
       });
     });

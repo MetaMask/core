@@ -199,9 +199,14 @@ export {
 } from './selectors/balance.js';
 
 export {
+  getAccountBackgroundLoadingStatus,
+  getAccountGroupBackgroundLoadingStatus,
   getAccountGroupLoadingStatus,
   getAccountLoadingStatus,
+  getIsAssetsBackgroundLoadingForSelectedAccountGroup,
   getIsAssetsLoadingForSelectedAccountGroup,
+  isAccountBackgroundLoading,
+  isAccountGroupBackgroundLoading,
   isAccountGroupLoading,
   isAccountLoading,
 } from './selectors/loading.js';

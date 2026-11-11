@@ -624,7 +624,8 @@ export function normalizeTokenAddress(
  * @param assetsInfo - Asset metadata keyed by CAIP-19 ID.
  * @param accountId - ID of the `InternalAccount` holding the asset.
  * @param assetId - CAIP-19 asset type as keyed in state.
- * @returns Raw balance as a decimal string, or `'0'` if no balance is stored.
+ * @returns Raw balance as a decimal string, or `'0'` if no balance or asset
+ * metadata is stored.
  */
 function getRawBalance(
   assetsBalance: AssetsControllerState['assetsBalance'],
@@ -633,12 +634,11 @@ function getRawBalance(
   assetId: CaipAssetType,
 ): string {
   const amount = assetsBalance[accountId]?.[assetId]?.amount;
+  const decimals = assetsInfo[assetId]?.decimals;
 
-  if (amount === undefined) {
+  if (amount === undefined || decimals === undefined) {
     return '0';
   }
-
-  const { decimals } = assetsInfo[assetId];
 
   return new BigNumber(amount)
     .shiftedBy(Number(decimals))

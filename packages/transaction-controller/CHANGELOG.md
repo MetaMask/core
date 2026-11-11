@@ -18,9 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `targetChainId`, `targetTokenAddress` and `followUpFailureReason` to the external Solana execution checkpoint, so recovery can run and report the non-atomic follow-up without quote state.
   - At startup, an `approved` or `signed` transaction whose external Solana execution checkpoint has left the `ready` phase is moved to `submitted` with `isExternalPublish` instead of being failed, so recovery can still confirm or fail it.
 
+## [73.1.2]
+
 ### Changed
 
 - Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/gas-fee-controller` from `^27.1.0` to `^27.1.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
 
 ## [73.1.1]
 
@@ -2908,7 +2913,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.2...HEAD
+[73.1.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.1...@metamask/transaction-controller@73.1.2
 [73.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.1.0...@metamask/transaction-controller@73.1.1
 [73.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@73.0.0...@metamask/transaction-controller@73.1.0
 [73.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@72.3.0...@metamask/transaction-controller@73.0.0
