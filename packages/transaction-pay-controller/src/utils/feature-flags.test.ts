@@ -42,6 +42,7 @@ import {
   isRelayExecuteEnabled,
   isAtomicMaxEnabled,
   isRelayValidationEnabled,
+  isServerGaslessEnabled,
   isServerValidationEnabled,
   getFeatureFlags,
   getGasBuffer,
@@ -597,6 +598,46 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(isRelayExecuteEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('isServerGaslessEnabled', () => {
+    it('returns true when no feature flags are set', () => {
+      expect(isServerGaslessEnabled(messenger)).toBe(true);
+    });
+
+    it('returns true when gaslessEnabled is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                gaslessEnabled: true,
+              },
+            },
+          },
+        },
+      });
+
+      expect(isServerGaslessEnabled(messenger)).toBe(true);
+    });
+
+    it('returns false when gaslessEnabled is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            payStrategies: {
+              server: {
+                gaslessEnabled: false,
+              },
+            },
+          },
+        },
+      });
+
+      expect(isServerGaslessEnabled(messenger)).toBe(false);
     });
   });
 

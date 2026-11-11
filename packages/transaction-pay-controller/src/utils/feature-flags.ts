@@ -223,6 +223,7 @@ type FeatureFlagsExtendedRaw = {
       enabled?: boolean;
       enabledTransactionTypes?: string[];
       baseUrl?: string;
+      gaslessEnabled?: boolean;
       pollingInterval?: number;
       pollingTimeout?: number;
       validationEnabled?: ServerValidationEnabledConfig;
@@ -745,6 +746,27 @@ export function isRelayValidationEnabled(
     featureFlags.payStrategies?.relay?.validationEnabled,
     transaction,
   );
+}
+
+/**
+ * Whether the server strategy may request gasless quotes.
+ *
+ * Acts as a kill switch, configured via the `payStrategies.server.gaslessEnabled`
+ * flag. Enabled by default.
+ *
+ * @param messenger - Controller messenger.
+ * @returns True if gasless server quotes are enabled.
+ */
+export function isServerGaslessEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  return featureFlags.payStrategies?.server?.gaslessEnabled ?? true;
 }
 
 /**
