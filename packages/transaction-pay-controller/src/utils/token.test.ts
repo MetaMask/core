@@ -23,10 +23,12 @@ import {
   getAssetInfo,
   getEvmAsset,
   getEvmPaymentToken,
+  getEvmQuoteSource,
   getTokenBalance,
   getTokenInfo,
   getTokenFiatRate,
   getNativeToken,
+  isEvmQuoteRequest,
   isNonEvmPaymentToken,
   isSameToken,
   getLiveTokenBalance,
@@ -1670,6 +1672,36 @@ describe('Token Utils', () => {
     });
   });
 
+  describe('isEvmQuoteRequest', () => {
+    it('returns true for an EVM source asset', () => {
+      expect(isEvmQuoteRequest({ sourceAssetId: 'eip155:1/slip44:60' })).toBe(
+        true,
+      );
+    });
+
+    it('returns false for a non-EVM source asset', () => {
+      expect(isEvmQuoteRequest({ sourceAssetId: SOLANA_ASSET_ID_MOCK })).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('getEvmQuoteSource', () => {
+    it('derives the chain ID and token address of an EVM source asset', () => {
+      expect(
+        getEvmQuoteSource({
+          sourceAssetId: `eip155:59144/erc20:${TOKEN_ADDRESS_MOCK}`,
+        }),
+      ).toStrictEqual({ chainId: '0xe708', tokenAddress: TOKEN_ADDRESS_MOCK });
+    });
+
+    it('throws for a non-EVM source asset', () => {
+      expect(() =>
+        getEvmQuoteSource({ sourceAssetId: SOLANA_ASSET_ID_MOCK }),
+      ).toThrow(`Unsupported non-EVM source asset: ${SOLANA_ASSET_ID_MOCK}`);
+    });
+  });
+
   describe('getEvmPaymentToken', () => {
     it('adds the derived chain ID and address to an EVM payment token', () => {
       expect(getEvmPaymentToken(EVM_PAYMENT_TOKEN_MOCK)).toStrictEqual({
@@ -1718,6 +1750,25 @@ describe('Token Utils', () => {
     it('returns zero if the account has no balance for the asset', () => {
       getAssetsControllerStateMock.mockReturnValue({
         assetsBalance: {},
+        assetsInfo: {},
+      });
+
+      expect(
+        getAssetBalance(
+          messenger,
+          SOLANA_WALLET_ACCOUNT_ID_MOCK,
+          SOLANA_ASSET_ID_MOCK,
+        ),
+      ).toBe('0');
+    });
+
+    it('returns zero if the asset metadata is missing', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [SOLANA_WALLET_ACCOUNT_ID_MOCK]: {
+            [SOLANA_ASSET_ID_MOCK]: { amount: '1.5' },
+          },
+        },
         assetsInfo: {},
       });
 

@@ -7,6 +7,7 @@ import type {
   FiatValue,
   TransactionPayQuote,
 } from '../types.js';
+import { getCaipAccountId } from './account.js';
 
 function zeroFiat(): FiatValue {
   return { fiat: '0', usd: '0' };
@@ -50,9 +51,9 @@ export function buildNoOpQuote(
     original: null,
     request: {
       from,
+      sourceAccountId: getCaipAccountId(paymentToken.assetId, from),
+      sourceAssetId: paymentToken.assetId,
       sourceBalanceRaw: paymentToken.balanceRaw,
-      sourceChainId: paymentToken.chainId,
-      sourceTokenAddress: paymentToken.address,
       sourceTokenAmount: '0',
       targetAmountMinimum: '0',
       targetChainId: paymentToken.chainId,

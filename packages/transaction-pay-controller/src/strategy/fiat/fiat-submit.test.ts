@@ -83,9 +83,9 @@ const RAMPS_QUOTE_MOCK: RampsQuote = {
 
 const BASE_QUOTE_REQUEST_MOCK: QuoteRequest = {
   from: WALLET_ADDRESS_MOCK,
+  sourceAccountId: `eip155:137:${WALLET_ADDRESS_MOCK}`,
+  sourceAssetId: 'eip155:137/slip44:966',
   sourceBalanceRaw: '1000000000000000000',
-  sourceChainId: '0x89',
-  sourceTokenAddress: '0x0000000000000000000000000000000000001010',
   sourceTokenAmount: '1000000000000000000',
   targetAmountMinimum: '12000000',
   targetChainId: '0x89',
@@ -1132,9 +1132,9 @@ describe('submitFiatQuotes', () => {
     const MUSD_QUOTE_REQUEST: QuoteRequest = {
       from: WALLET_ADDRESS_MOCK,
       isDirectMusdMoneyAccount: true,
+      sourceAccountId: `eip155:143:${WALLET_ADDRESS_MOCK}`,
+      sourceAssetId: `eip155:143/erc20:${MUSD_MONAD_FIAT_ASSET.address}`,
       sourceBalanceRaw: '10000000',
-      sourceChainId: MUSD_MONAD_FIAT_ASSET.chainId,
-      sourceTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
       sourceTokenAmount: '10000000',
       targetAmountMinimum: '10000000',
       targetChainId: MUSD_MONAD_FIAT_ASSET.chainId,

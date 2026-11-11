@@ -2,7 +2,7 @@ import { TransactionStatus } from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import { createModuleLogger, parseCaipAssetType } from '@metamask/utils';
 
 import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
 import { projectLogger } from '../logger.js';
@@ -23,6 +23,7 @@ import type {
 import {
   accountSupports7702,
   getAssetAccount,
+  getCaipAccountId,
   getEvmAccountAddress,
   getEvmAccountOverride,
   withNonAtomicRequests,
@@ -37,6 +38,7 @@ import {
   getStrategyByName,
 } from './strategy.js';
 import {
+  buildCaipAssetType,
   computeTokenAmounts,
   getAssetBalance,
   getAssetFiatRate,
@@ -173,6 +175,7 @@ export async function updateQuotes(
       paymentOverride,
       paymentToken,
       refundTo,
+      sourceAddress: sourceAccount?.address ?? from,
       sourceAmounts: latestSourceAmounts,
       tokens,
       transactionId,
@@ -399,7 +402,7 @@ export async function refreshQuotes(
 
     const refreshInterval =
       (await strategy.getRefreshInterval?.({
-        chainId: quotes[0].request.sourceChainId,
+        chainId: parseCaipAssetType(quotes[0].request.sourceAssetId).chainId,
         messenger,
         transactionId,
       })) ?? DEFAULT_REFRESH_INTERVAL;
@@ -482,8 +485,11 @@ function getSourceAmounts(
 /**
  * Build quote requests required to retrieve quotes using an EVM payment token.
  *
- * Returns no requests for a non-EVM payment token, which no strategy quotes
- * yet.
+ * Requests are built the same way for every payment token, identifying the
+ * source by its CAIP-19 asset type and the CAIP-10 account holding it.
+ * Strategies support or reject them based on the protocol of the source
+ * asset. Post-quote flows with a non-EVM destination token are not supported
+ * and return no requests.
  *
  * @param request - Request parameters.
  * @param request.accountOverride - Optional account receiving post-quote output.
@@ -496,6 +502,7 @@ function getSourceAmounts(
  * @param request.paymentOverride - Optional payment override type for the transaction.
  * @param request.paymentToken - Payment token (source for standard flows, destination for post-quote).
  * @param request.refundTo - Optional address to receive refunds if the Relay transaction fails.
+ * @param request.sourceAddress - Address of the account holding the payment token.
  * @param request.sourceAmounts - Source amounts for the transaction.
  * @param request.tokens - Required tokens for the transaction.
  * @param request.transactionId - ID of the transaction.
@@ -512,6 +519,7 @@ function buildQuoteRequests({
   paymentOverride,
   paymentToken,
   refundTo,
+  sourceAddress,
   sourceAmounts,
   tokens,
   transactionId,
@@ -526,17 +534,22 @@ function buildQuoteRequests({
   paymentOverride?: PaymentOverride;
   paymentToken: TransactionPaymentToken | undefined;
   refundTo?: Hex;
+  sourceAddress: string;
   sourceAmounts: TransactionPaySourceAmount[] | undefined;
   tokens: TransactionPayRequiredToken[];
   transactionId: string;
 }): QuoteRequest[] {
-  const evmPaymentToken = getEvmPaymentToken(paymentToken);
-
-  if (!evmPaymentToken) {
+  if (!paymentToken) {
     return [];
   }
 
   if (isPostQuote) {
+    const evmPaymentToken = getEvmPaymentToken(paymentToken);
+
+    if (!evmPaymentToken) {
+      return [];
+    }
+
     return buildPostQuoteRequests({
       accountOverride,
       atomic,
@@ -552,6 +565,8 @@ function buildQuoteRequests({
     });
   }
 
+  const sourceAccountId = getCaipAccountId(paymentToken.assetId, sourceAddress);
+
   // Standard flow: source = paymentToken, target = required tokens
   const requests = (sourceAmounts ?? []).map((sourceAmount) => {
     const token = tokens.find(
@@ -564,9 +579,9 @@ function buildQuoteRequests({
       isMaxAmount,
       paymentOverride,
       refundTo,
-      sourceBalanceRaw: evmPaymentToken.balanceRaw,
-      sourceChainId: evmPaymentToken.chainId,
-      sourceTokenAddress: evmPaymentToken.address,
+      sourceAccountId,
+      sourceAssetId: paymentToken.assetId,
+      sourceBalanceRaw: paymentToken.balanceRaw,
       sourceTokenAmount: sourceAmount.sourceAmountRaw,
       targetAmountMinimum: token.allowUnderMinimum ? '0' : token.amountRaw,
       targetChainId: token.chainId,
@@ -644,6 +659,11 @@ function buildPostQuoteRequests({
     return [];
   }
 
+  const sourceAssetId = buildCaipAssetType(
+    sourceAmount.sourceChainId,
+    sourceAmount.sourceTokenAddress,
+  );
+
   const request: QuoteRequest = {
     accountOverride,
     atomic,
@@ -654,9 +674,9 @@ function buildPostQuoteRequests({
     isPostQuote: true,
     paymentOverride,
     refundTo,
+    sourceAccountId: getCaipAccountId(sourceAssetId, from),
+    sourceAssetId,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
-    sourceChainId: sourceAmount.sourceChainId,
-    sourceTokenAddress: sourceAmount.sourceTokenAddress,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
     targetAmountMinimum: '0',
     targetChainId: destinationToken.chainId,
