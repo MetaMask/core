@@ -2,6 +2,7 @@ import type {
   PerpsActiveProviderMode,
   PerpsProviderType,
 } from '../types/index.js';
+import { isPerpsProviderType } from './isPerpsProviderType.js';
 
 type TradeConfigRoutingState = Readonly<{
   activeProvider: PerpsActiveProviderMode;
@@ -27,9 +28,7 @@ export function resolveTradeConfigProviderKey(
   providerId?: PerpsProviderType,
 ): PerpsProviderType | null {
   if (providerId !== undefined) {
-    return providerId === 'hyperliquid' || providerId === 'lighter'
-      ? providerId
-      : null;
+    return isPerpsProviderType(providerId) ? providerId : null;
   }
 
   const stateKey =
@@ -37,7 +36,5 @@ export function resolveTradeConfigProviderKey(
     (state?.activeProvider === 'aggregated'
       ? state.defaultProvider
       : state?.activeProvider);
-  return stateKey === 'hyperliquid' || stateKey === 'lighter'
-    ? stateKey
-    : 'hyperliquid';
+  return isPerpsProviderType(stateKey) ? stateKey : 'hyperliquid';
 }

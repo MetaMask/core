@@ -51,6 +51,7 @@ import type { PerpsControllerMethodActions } from './PerpsController-method-acti
 import { PERPS_ERROR_CODES } from './perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from './providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from './providers/HyperLiquidProvider.js';
+import { isPerpsProviderType } from './routing/isPerpsProviderType.js';
 import { resolveTradeConfigProviderKey } from './routing/resolveTradeConfigProviderKey.js';
 import { AccountService } from './services/AccountService.js';
 import { isMainAccountSignerReady } from './services/accountSigner.js';
@@ -2171,7 +2172,7 @@ export class PerpsController extends BaseController<
 
   /**
    * Re-key persisted trade configurations from `{ network: { symbol: config } }`
-   * to `{ network: { provider: { symbol: config } } }` (TAT-4394).
+   * to `{ network: { provider: { symbol: config } } }`.
    *
    * Entries saved by older versions were written under whichever venue was
    * active, so they move under that venue's key: `activeProvider` when it is a
@@ -2191,10 +2192,10 @@ export class PerpsController extends BaseController<
     // against the closed set of venues: an unexpected value (including
     // `__proto__`) must never become a record key.
     let destinationProvider: PerpsProviderType = 'hyperliquid';
-    if (activeProvider === 'hyperliquid' || activeProvider === 'lighter') {
+    if (isPerpsProviderType(activeProvider)) {
       destinationProvider = activeProvider;
-    } else if (defaultProvider === 'lighter') {
-      destinationProvider = 'lighter';
+    } else if (isPerpsProviderType(defaultProvider)) {
+      destinationProvider = defaultProvider;
     }
 
     this.update((state) => {
@@ -2226,7 +2227,7 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Whether the multi-provider (aggregated) mode flag is on (TAT-4394).
+   * Whether the multi-provider (aggregated) mode flag is on.
    *
    * Version-gated like `perpsLighterProviderEnabled`: enabled only when the
    * flag is on and the app version meets its minimum.
@@ -2260,7 +2261,7 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Migrate a persisted direct `activeProvider` to aggregated mode (TAT-4394).
+   * Migrate a persisted direct `activeProvider` to aggregated mode.
    *
    * When the multi-provider flag is on and the persisted mode is a direct
    * venue, the venue becomes the persisted `defaultProvider` only on the first
@@ -2280,8 +2281,9 @@ export class PerpsController extends BaseController<
         // even if they predate this marker or the flag is not loaded yet.
         state.hasMigratedToMultiProvider = true;
         if (enabled === false) {
-          state.activeProvider =
-            state.defaultProvider === 'lighter' ? 'lighter' : 'hyperliquid';
+          state.activeProvider = isPerpsProviderType(state.defaultProvider)
+            ? state.defaultProvider
+            : 'hyperliquid';
           state.effectiveProvider = null;
           state.accountState = null;
         }
@@ -2297,7 +2299,7 @@ export class PerpsController extends BaseController<
       return;
     }
     const { activeProvider } = this.state;
-    if (activeProvider !== 'hyperliquid' && activeProvider !== 'lighter') {
+    if (!isPerpsProviderType(activeProvider)) {
       return;
     }
 
@@ -2980,9 +2982,11 @@ export class PerpsController extends BaseController<
       // backs default-routed reads. Fall back to HyperLiquid in memory when
       // the saved default is not registered (for example Lighter failed to
       // load), but preserve the preference for a later successful initialization.
-      const defaultProvider = this.providers.has(this.state.defaultProvider)
-        ? this.state.defaultProvider
-        : 'hyperliquid';
+      const defaultProvider =
+        isPerpsProviderType(this.state.defaultProvider) &&
+        this.providers.has(this.state.defaultProvider)
+          ? this.state.defaultProvider
+          : 'hyperliquid';
       this.activeProviderInstance = new AggregatedPerpsProvider({
         providers: this.providers,
         defaultProvider,
@@ -3025,8 +3029,9 @@ export class PerpsController extends BaseController<
         ? this.activeProviderInstance.getWriteProviderId()
         : this.state.activeProvider;
     this.update((state) => {
-      state.effectiveProvider =
-        effectiveProvider === 'lighter' ? 'lighter' : 'hyperliquid';
+      state.effectiveProvider = isPerpsProviderType(effectiveProvider)
+        ? effectiveProvider
+        : 'hyperliquid';
     });
   }
 
@@ -3575,11 +3580,10 @@ export class PerpsController extends BaseController<
   /**
    * Structured refusal for an aggregated-mode write that does not name a venue.
    *
-   * In aggregated mode both venues are live at once, so a write without a
-   * `providerId` has no unambiguous destination and is refused with
-   * `PROVIDER_ROUTE_REQUIRED` instead of silently falling back to the default
-   * provider. Direct single-provider modes are unaffected: their writes
-   * already have exactly one destination.
+   * When multiple venues are registered, a write without a `providerId` has
+   * no unambiguous destination and is refused with `PROVIDER_ROUTE_REQUIRED`.
+   * Direct modes and aggregated wrappers with one registered venue already
+   * have exactly one destination, so their writes need no explicit route.
    *
    * Call it once before any expensive work (using the current state) and again
    * after the provider is resolved: a cold start can migrate direct state to
@@ -3597,10 +3601,16 @@ export class PerpsController extends BaseController<
     if (providerId !== undefined) {
       return undefined;
     }
-    const isAggregated = provider
-      ? provider.protocolId === 'aggregated'
-      : this.state.activeProvider === 'aggregated';
-    if (!isAggregated) {
+    // Before initialization the actual membership is unknown. Defer to the
+    // check after provider resolution rather than refusing a one-venue fallback.
+    const resolvedProvider = provider ?? this.getActiveProviderOrNull();
+    if (resolvedProvider?.protocolId !== 'aggregated') {
+      return undefined;
+    }
+    if (
+      resolvedProvider instanceof AggregatedPerpsProvider &&
+      resolvedProvider.getProviderIds().length <= 1
+    ) {
       return undefined;
     }
     return { success: false, error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED };
@@ -6835,7 +6845,7 @@ export class PerpsController extends BaseController<
   setDefaultProvider(providerId: PerpsProviderType): SetDefaultProviderResult {
     // Runtime hardening for JS callers: the value reaches persisted state and
     // the provider registry, so it must be a known direct venue.
-    if (providerId !== 'hyperliquid' && providerId !== 'lighter') {
+    if (!isPerpsProviderType(providerId)) {
       return {
         success: false,
         defaultProvider: this.state.defaultProvider,
@@ -8058,27 +8068,6 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Resolve the venue key trade configurations are stored under.
-   *
-   * An explicit `providerId` wins, otherwise use the live effective venue.
-   * Before or during initialization, use the selected direct or saved default
-   * venue until a live provider is assigned.
-   * Both are validated against the closed set of venues before use: the key
-   * reaches persisted state, so an unexpected value (including `__proto__`
-   * from a JS caller or tampered persisted state) must never become a record
-   * key (CodeQL prototype-polluting assignment).
-   *
-   * @param providerId - Explicit venue, when supplied.
-   * @returns The validated provider key, or null when an explicit venue is not
-   * a known direct provider.
-   */
-  #resolveTradeConfigProviderKey(
-    providerId?: PerpsProviderType,
-  ): PerpsProviderType | null {
-    return resolveTradeConfigProviderKey(this.state, providerId);
-  }
-
-  /**
    * Get saved trade configuration for a market on a venue
    *
    * @param symbol - The trading pair symbol.
@@ -8092,7 +8081,7 @@ export class PerpsController extends BaseController<
     providerId?: PerpsProviderType,
   ): { leverage?: number } | undefined {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
-    const provider = this.#resolveTradeConfigProviderKey(providerId);
+    const provider = resolveTradeConfigProviderKey(this.state, providerId);
     if (provider === null || isUnsafeRecordKey(symbol)) {
       return undefined;
     }
@@ -8129,7 +8118,7 @@ export class PerpsController extends BaseController<
     providerId?: PerpsProviderType,
   ): void {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
-    const provider = this.#resolveTradeConfigProviderKey(providerId);
+    const provider = resolveTradeConfigProviderKey(this.state, providerId);
     if (provider === null || isUnsafeRecordKey(symbol)) {
       return;
     }
@@ -8195,7 +8184,7 @@ export class PerpsController extends BaseController<
     providerId?: PerpsProviderType,
   ): void {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
-    const provider = this.#resolveTradeConfigProviderKey(providerId);
+    const provider = resolveTradeConfigProviderKey(this.state, providerId);
     if (provider === null || isUnsafeRecordKey(symbol)) {
       return;
     }
@@ -8258,7 +8247,7 @@ export class PerpsController extends BaseController<
       }
     | undefined {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
-    const provider = this.#resolveTradeConfigProviderKey(providerId);
+    const provider = resolveTradeConfigProviderKey(this.state, providerId);
     if (provider === null || isUnsafeRecordKey(symbol)) {
       return undefined;
     }
@@ -8321,7 +8310,7 @@ export class PerpsController extends BaseController<
     providerId?: PerpsProviderType,
   ): void {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
-    const provider = this.#resolveTradeConfigProviderKey(providerId);
+    const provider = resolveTradeConfigProviderKey(this.state, providerId);
     if (provider === null || isUnsafeRecordKey(symbol)) {
       return;
     }
@@ -8642,7 +8631,7 @@ export class PerpsController extends BaseController<
     providerId?: PerpsProviderType,
   ): number | undefined {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
-    const provider = this.#resolveTradeConfigProviderKey(providerId);
+    const provider = resolveTradeConfigProviderKey(this.state, providerId);
     if (provider === null || isUnsafeRecordKey(symbol)) {
       return undefined;
     }
@@ -8677,7 +8666,7 @@ export class PerpsController extends BaseController<
     providerId?: PerpsProviderType,
   ): void {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
-    const provider = this.#resolveTradeConfigProviderKey(providerId);
+    const provider = resolveTradeConfigProviderKey(this.state, providerId);
     if (provider === null || isUnsafeRecordKey(symbol)) {
       return;
     }
@@ -8721,7 +8710,7 @@ export class PerpsController extends BaseController<
     providerId?: PerpsProviderType,
   ): MarginMode | undefined {
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
-    const provider = this.#resolveTradeConfigProviderKey(providerId);
+    const provider = resolveTradeConfigProviderKey(this.state, providerId);
     if (provider === null || isUnsafeRecordKey(symbol)) {
       return undefined;
     }
@@ -8749,7 +8738,7 @@ export class PerpsController extends BaseController<
     }
 
     const network = this.state.isTestnet ? 'testnet' : 'mainnet';
-    const provider = this.#resolveTradeConfigProviderKey(providerId);
+    const provider = resolveTradeConfigProviderKey(this.state, providerId);
     if (provider === null || isUnsafeRecordKey(symbol)) {
       return;
     }

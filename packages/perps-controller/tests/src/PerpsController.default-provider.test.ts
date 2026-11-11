@@ -1,14 +1,14 @@
 /* eslint-disable */
 /**
- * PerpsController default-provider tests (TAT-4394).
+ * PerpsController default-provider tests.
  *
  * Covers the save-default-provider scope:
- * - AC1: changing the default provider does not re-initialize or reconnect
- * - AC2: aggregated-mode writes without a venue are refused and never reach a
+ * - changing the default provider does not re-initialize or reconnect
+ * - multi-venue aggregated writes without a venue are refused and never reach a
  *   provider
- * - AC3: leverage and margin mode are stored and read per provider and symbol,
+ * - leverage and margin mode are stored and read per provider and symbol,
  *   and legacy state migrates
- * - AC4: no behaviour change for clients that don't use aggregated mode
+ * - no behaviour change for clients that don't use aggregated mode
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -523,7 +523,7 @@ describe('PerpsController default provider', () => {
       expect(selectOrderBookGrouping(controller.state, 'BTC')).toBe(10);
     });
 
-    it('updates the aggregated default without re-initializing or reconnecting (AC1)', () => {
+    it('updates the aggregated default without re-initializing or reconnecting', () => {
       setupAggregatedMode('hyperliquid');
       const constructorCallsBefore = (HyperLiquidProvider as Mock).mock.calls
         .length;
@@ -1082,7 +1082,7 @@ describe('PerpsController default provider', () => {
         'flipPosition',
       ],
     ])(
-      'refuses %s without a providerId and never reaches a provider (AC2)',
+      'requires a venue for %s only while multiple providers are registered',
       async (_name, invoke, serviceMethod) => {
         const result = await invoke();
 
@@ -1096,6 +1096,17 @@ describe('PerpsController default provider', () => {
         ).not.toHaveBeenCalled();
         expect(mockProvider.placeOrder).not.toHaveBeenCalled();
         expect((lighterProvider as any).placeOrder).not.toHaveBeenCalled();
+
+        // The aggregator's membership, not the controller registry or saved
+        // default, determines whether an implicit write is ambiguous.
+        aggregatedProvider.removeProvider('lighter');
+        const service = (mockTradingServiceInstance as any)[serviceMethod];
+        service.mockResolvedValue({ success: true });
+
+        await expect(invoke()).resolves.toEqual({ success: true });
+
+        expect(service).toHaveBeenCalledTimes(1);
+        expect(service.mock.calls[0][0].provider).toBe(aggregatedProvider);
       },
     );
 
@@ -1115,7 +1126,59 @@ describe('PerpsController default provider', () => {
     });
   });
 
-  describe('direct-mode writes are unchanged (AC4)', () => {
+  describe('one-venue aggregated fallback', () => {
+    it.each([false, true])(
+      'allows unrouted orders and closes with only HyperLiquid registered (Lighter load fails: %s)',
+      async (loadFails) => {
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(true);
+        createController({ activeProvider: 'hyperliquid' }, loadFails);
+        if (loadFails) {
+          loadLighterProvider.mockRejectedValue(
+            new Error('Lighter unavailable'),
+          );
+        }
+        await controller.init();
+        const provider =
+          controller.getActiveProviderOrNull() as AggregatedPerpsProvider;
+        expect(controller.state.activeProvider).toBe('aggregated');
+        expect(provider.getProviderIds()).toEqual(['hyperliquid']);
+        mockTradingServiceInstance.closePosition.mockResolvedValue({
+          success: true,
+        });
+
+        await expect(
+          controller.placeOrder({
+            symbol: 'BTC',
+            isBuy: true,
+            size: '1',
+            orderType: 'market',
+          }),
+        ).resolves.toEqual({ success: true });
+        await expect(
+          controller.closePosition({ symbol: 'BTC' }),
+        ).resolves.toEqual({ success: true });
+
+        expect(mockTradingServiceInstance.placeOrder).toHaveBeenCalledTimes(1);
+        expect(mockTradingServiceInstance.closePosition).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(
+          mockTradingServiceInstance.placeOrder.mock.calls[0][0].provider,
+        ).toBe(provider);
+        expect(
+          mockTradingServiceInstance.closePosition.mock.calls[0][0].provider,
+        ).toBe(provider);
+      },
+    );
+  });
+
+  describe('direct-mode writes are unchanged', () => {
     it('still routes writes without a providerId to the active direct provider', async () => {
       controller.testMarkInitialized();
       controller.testSetProviders(
@@ -2382,56 +2445,66 @@ describe('PerpsController default provider', () => {
       },
     );
 
-    it('refuses an unrouted write queued across the cold-start migration to aggregated', async () => {
-      // Flag off at construction: the persisted mode stays direct.
-      remoteFeatureFlags.perpsMultiProviderModeEnabled = undefined;
-      createController({ activeProvider: 'hyperliquid' });
-      expect(controller.state.activeProvider).toBe('hyperliquid');
+    it.each([false, true])(
+      'checks the actual venues for an unrouted write queued across migration (Lighter enabled: %s)',
+      async (withLighter) => {
+        // Flag off at construction: the persisted mode stays direct.
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = undefined;
+        createController({ activeProvider: 'hyperliquid' }, withLighter);
+        expect(controller.state.activeProvider).toBe('hyperliquid');
 
-      // The flag arrives before initialization settles.
-      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
-        enabled: true,
-        minimumVersion: '1.0.0',
-      };
-      vi.mocked(
-        mockInfrastructure.featureFlags.validateVersionGated,
-      ).mockReturnValue(true);
+        // The flag arrives before initialization settles.
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(true);
 
-      const pendingInitialization = createDeferred<void>();
-      vi.mocked(mockWait).mockImplementationOnce(
-        () => pendingInitialization.promise,
-      );
+        const pendingInitialization = createDeferred<void>();
+        vi.mocked(mockWait).mockImplementationOnce(
+          () => pendingInitialization.promise,
+        );
 
-      const initPromise = controller.init();
-      await Promise.resolve();
-      await Promise.resolve();
-      expect(controller.state.initializationState).toBe(
-        InitializationState.Initializing,
-      );
+        const initPromise = controller.init();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(controller.state.initializationState).toBe(
+          InitializationState.Initializing,
+        );
 
-      // Submitted while the mode is still direct, then carried across the
-      // migration the initialization performs.
-      const writePromise = controller.placeOrder({
-        symbol: 'BTC',
-        isBuy: true,
-        size: '1',
-        orderType: 'market',
-      });
+        // Submitted while the mode is still direct, then carried across the
+        // migration the initialization performs.
+        const writePromise = controller.placeOrder({
+          symbol: 'BTC',
+          isBuy: true,
+          size: '1',
+          orderType: 'market',
+        });
 
-      pendingInitialization.resolve();
-      await initPromise;
-      expect(controller.state.activeProvider).toBe('aggregated');
+        pendingInitialization.resolve();
+        await initPromise;
+        expect(controller.state.activeProvider).toBe('aggregated');
 
-      await expect(writePromise).resolves.toStrictEqual({
-        success: false,
-        error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
-      });
-      expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
-      expect(mockProvider.placeOrder).not.toHaveBeenCalled();
-    });
+        if (withLighter) {
+          await expect(writePromise).resolves.toStrictEqual({
+            success: false,
+            error: PERPS_ERROR_CODES.PROVIDER_ROUTE_REQUIRED,
+          });
+          expect(mockTradingServiceInstance.placeOrder).not.toHaveBeenCalled();
+          expect(mockProvider.placeOrder).not.toHaveBeenCalled();
+        } else {
+          await expect(writePromise).resolves.toStrictEqual({ success: true });
+          expect(mockTradingServiceInstance.placeOrder).toHaveBeenCalledTimes(
+            1,
+          );
+        }
+      },
+    );
   });
 
-  describe('trade configurations are keyed per provider and symbol (AC3)', () => {
+  describe('trade configurations are keyed per provider and symbol', () => {
     it.each(['', 'unknown', '__proto__', 'constructor', null, false, 42])(
       'rejects invalid explicit routes consistently in methods and selectors (%j)',
       (invalidProvider) => {
@@ -2565,7 +2638,7 @@ describe('PerpsController default provider', () => {
     });
   });
 
-  describe('record-key hardening (CodeQL prototype pollution)', () => {
+  describe('record-key hardening', () => {
     it('never writes a trade configuration under an unsafe symbol key', () => {
       controller.saveTradeConfiguration('__proto__', 10);
       controller.saveMarginMode('constructor', 'cross');
@@ -2687,7 +2760,7 @@ describe('PerpsController default provider', () => {
       expect(controller.state.tradeConfigurations).toBe(tradeConfigurations);
     });
 
-    it('migrates a persisted direct provider to aggregated mode when the multi-provider flag is on (TAT-4394)', () => {
+    it('migrates a persisted direct provider to aggregated mode when the multi-provider flag is on', () => {
       remoteFeatureFlags.perpsMultiProviderModeEnabled = {
         enabled: true,
         minimumVersion: '1.0.0',
