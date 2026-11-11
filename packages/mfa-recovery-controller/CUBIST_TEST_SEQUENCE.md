@@ -24,27 +24,24 @@ never calls these services itself.
 sequenceDiagram
   autonumber
   participant Mobile as Mobile client
-  participant Auth as authProvider
+  participant Auth as AuthenticationController
   participant Id as identifierAuthProvider
   participant C as MfaRecoveryController
   participant Cubist as Cubist escrow
 
   Note over Mobile: SIWE sign-in with the primary account → accessToken
-  Mobile->>Auth: new StubAuthProvider(accessToken, apiKey)
-  Mobile->>Auth: getAccessToken()
-  Auth-->>Mobile: dev JWT (POST /token)
+  Mobile->>Auth: getBearerToken()
+  Auth-->>Mobile: profile bearer token
   Note over Mobile: Recovery Registration API exchanges that token → OIDC idToken
   Mobile->>Cubist: createOidcSession(orgId, idToken, scopes)
   Cubist-->>Mobile: CubeSigner session
   Note over Mobile: new CubistEscrowProvider(session, wrap key, receipt key)
   Mobile->>Id: new TestIdentifierAuthProvider(address, signPersonalMessage)
-  Mobile->>C: new MfaRecoveryController(authProvider, identifierAuthProvider, [escrow])
+  Mobile->>C: new MfaRecoveryController({ messenger, identifierAuthProvider, escrows: [escrow], encryptor })
 ```
 
-- `authProvider` (`StubAuthProvider` in mobile) takes the profile ID from the
-  access token and mints request-bound JWTs from the MPC service's
-  development-only `POST /token` endpoint. That route is not mounted in
-  production builds.
+- `AuthenticationController` serves the `refreshCanonicalProfileId` and
+  `requestMfaApproval` messenger actions, which the controller calls directly.
 - `identifierAuthProvider` (`TestIdentifierAuthProvider` in mobile) signs SIWE
   proofs with the primary account and passkey proofs with a software passkey.
 
@@ -59,15 +56,15 @@ sequenceDiagram
   autonumber
   participant Mobile as Mobile client
   participant C as MfaRecoveryController
-  participant Auth as authProvider
+  participant Auth as AuthenticationController
   participant Id as identifierAuthProvider
   participant Cubist as Cubist escrow
 
   Mobile->>C: register / updateRecoverySecret / updateIdentifiers
-  C->>Auth: getAuthenticatedProfileId()
+  C->>Auth: refreshCanonicalProfileId()
   Auth-->>C: profileId
   Note over C: Build the mutation (version epoch → epoch + 1)<br/>and its requestHash
-  C->>Auth: authorizeRecoveryRequest(requestHash, requireTwoFactor: true, ...)
+  C->>Auth: requestMfaApproval(requestHash, requireVerification: true, includeIdentifiers: true, ...)
   Auth-->>C: JWT bound to requestHash
   C->>Cubist: isAvailable
 
@@ -127,7 +124,7 @@ sequenceDiagram
   autonumber
   participant Mobile as Mobile client
   participant C as MfaRecoveryController
-  participant Auth as authProvider
+  participant Auth as AuthenticationController
   participant Id as identifierAuthProvider
   participant Cubist as Cubist escrow
 
@@ -139,7 +136,7 @@ sequenceDiagram
   Mobile->>C: getRecoverySecret(session)
   Note over C: Recompute requestHash, must equal token.requestHash
   C->>Cubist: isAvailable
-  C->>Auth: authorizeRecoveryRequest(requestHash, requireTwoFactor: true, ...)
+  C->>Auth: requestMfaApproval(requestHash, requireVerification: true, includeIdentifiers: true, ...)
   Auth-->>C: request-bound AAL2 approval
   Note over C,Cubist: Proof of possession, part 2: challenge + signature
   C->>Cubist: getSecret(approval, { token, proof }, requestId, pkE)

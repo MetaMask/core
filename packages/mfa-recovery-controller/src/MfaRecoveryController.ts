@@ -4,8 +4,14 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { EncryptionResultConstraint } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  AuthenticationControllerRefreshCanonicalProfileIdAction,
+  AuthenticationControllerRequestMfaApprovalAction,
+} from '@metamask/profile-sync-controller/auth';
 import { bytesToHex, hexToBytes, isHexAddress } from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 
 import { decodeAuthControllerToken } from './auth-controller-token.js';
 import {
@@ -45,6 +51,8 @@ import {
 } from './pending-operation-validation.js';
 import { getRecoveryPhase } from './state-machine.js';
 import type {
+  DefaultEncryptionKey,
+  DefaultEncryptionResult,
   GetIdentifiersResponse,
   Identifier,
   IdentifierAuthorization,
@@ -58,7 +66,7 @@ import type {
   PendingRegisterPayload,
   PendingUpdateIdentifiersPayload,
   PendingUpdateRecoverySecretPayload,
-  RecoveryAuthProvider,
+  RecoveryApproval,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
   RecoveryIdentifiers,
@@ -114,7 +122,9 @@ export type MfaRecoveryControllerActions =
   | MfaRecoveryControllerGetStateAction
   | MfaRecoveryControllerMethodActions;
 
-type AllowedActions = never;
+type AllowedActions =
+  | AuthenticationControllerRefreshCanonicalProfileIdAction
+  | AuthenticationControllerRequestMfaApprovalAction;
 
 export type MfaRecoveryControllerStateChangedEvent =
   ControllerStateChangedEvent<
@@ -133,7 +143,11 @@ export type MfaRecoveryControllerMessenger = Messenger<
   MfaRecoveryControllerEvents | AllowedEvents
 >;
 
-export type MfaRecoveryControllerOptions = {
+export type MfaRecoveryControllerOptions<
+  EncryptionKey = DefaultEncryptionKey,
+  EncryptionResult extends EncryptionResultConstraint<unknown> =
+    DefaultEncryptionResult,
+> = {
   /**
    * The messenger suited for this controller.
    */
@@ -144,11 +158,6 @@ export type MfaRecoveryControllerOptions = {
    * properties will be filled in with defaults.
    */
   state?: Partial<MfaRecoveryControllerState>;
-
-  /**
-   * Authenticates the MetaMask profile and issues request-bound attestations.
-   */
-  authProvider: RecoveryAuthProvider;
 
   /**
    * Obtains key-bound identifier tokens from an IdP.
@@ -162,9 +171,18 @@ export type MfaRecoveryControllerOptions = {
   escrows: RecoveryEscrowProvider[];
 
   /**
-   * Encrypts pending mutation state using wallet secure storage.
+   * Imports the key returned by `getPendingOperationKey` and encrypts pending
+   * mutation state with it. Pass the same instance given to KeyringController.
    */
-  pendingOperationEncryptor: PendingOperationEncryptor;
+  encryptor: PendingOperationEncryptor<EncryptionKey, EncryptionResult>;
+
+  /**
+   * Returns the serialized key that encrypts `pendingOperation`, or `null` if
+   * none exists. The key must be importable by `encryptor` and kept in
+   * host-owned secret storage, independent of controller state and the vault.
+   * The controller never creates or persists it.
+   */
+  getPendingOperationKey: () => Promise<string | null>;
 
   /**
    * Clock used for AuthController token expiry checks. Unix seconds.
@@ -196,32 +214,42 @@ type MutateParams = {
 /**
  * Coordinates MFA recovery secret replication across independent escrows.
  */
-export class MfaRecoveryController extends BaseController<
+export class MfaRecoveryController<
+  EncryptionKey = DefaultEncryptionKey,
+  EncryptionResult extends EncryptionResultConstraint<unknown> =
+    DefaultEncryptionResult,
+> extends BaseController<
   typeof CONTROLLER_NAME,
   MfaRecoveryControllerState,
   MfaRecoveryControllerMessenger
 > {
-  readonly #authProvider: RecoveryAuthProvider;
-
   readonly #identifierAuthProvider: RecoveryIdentifierAuthProvider;
 
   readonly #escrows: RecoveryEscrowProvider[];
 
-  readonly #encryptor: PendingOperationEncryptor;
+  readonly #encryptor: PendingOperationEncryptor<
+    EncryptionKey,
+    EncryptionResult
+  >;
+
+  readonly #getPendingOperationKey: () => Promise<string | null>;
 
   readonly #now: () => number;
+
+  // Shared by concurrent callers so the key is fetched and imported once.
+  #encryptionKey: Promise<EncryptionKey> | null = null;
 
   #lock: Promise<void> = Promise.resolve();
 
   constructor({
     messenger,
     state,
-    authProvider,
     identifierAuthProvider,
     escrows,
-    pendingOperationEncryptor,
+    encryptor,
+    getPendingOperationKey,
     now = unixNow,
-  }: MfaRecoveryControllerOptions) {
+  }: MfaRecoveryControllerOptions<EncryptionKey, EncryptionResult>) {
     if (escrows.length === 0) {
       throw new MfaRecoveryError(
         'At least one escrow is required',
@@ -243,10 +271,10 @@ export class MfaRecoveryController extends BaseController<
       },
     });
 
-    this.#authProvider = authProvider;
     this.#identifierAuthProvider = identifierAuthProvider;
     this.#escrows = [...escrows];
-    this.#encryptor = pendingOperationEncryptor;
+    this.#encryptor = encryptor;
+    this.#getPendingOperationKey = getPendingOperationKey;
     this.#now = now;
 
     this.messenger.registerMethodActionHandlers(
@@ -389,7 +417,7 @@ export class MfaRecoveryController extends BaseController<
           'no_available_escrow',
         );
       }
-      const { approval } = await this.#authProvider.authorizeRecoveryRequest({
+      const { approval } = await this.#authorizeRecoveryRequest({
         requestHash,
         audiences: available.map((escrow) => escrow.authAudience),
         requireTwoFactor: true,
@@ -537,11 +565,10 @@ export class MfaRecoveryController extends BaseController<
     authIdentifiers: Identifier[];
     results: PromiseSettledResult<GetIdentifiersResponse>[];
   }> {
-    const { approval, identifiers } =
-      await this.#authProvider.authorizeRecoveryRequest({
-        requestHash: await hash({ operation: 'getIdentifiers' }),
-        audiences: escrows.map((escrow) => escrow.authAudience),
-      });
+    const { approval, identifiers } = await this.#authorizeRecoveryRequest({
+      requestHash: await hash({ operation: 'getIdentifiers' }),
+      audiences: escrows.map((escrow) => escrow.authAudience),
+    });
     const results = await Promise.allSettled(
       escrows.map(async (escrow) => await escrow.getIdentifiers(approval)),
     );
@@ -560,7 +587,9 @@ export class MfaRecoveryController extends BaseController<
 
       await this.#assertEscrowsAvailable(this.#escrows);
 
-      const profileId = await this.#authProvider.getAuthenticatedProfileId();
+      const profileId = await this.messenger.call(
+        'AuthenticationController:refreshCanonicalProfileId',
+      );
       const audiences = this.#escrows.map((escrow) => escrow.id);
       const currentVersion = this.#resolveCurrentRecoveryVersion(epoch);
       const payloadHash = await hash(payload);
@@ -601,13 +630,34 @@ export class MfaRecoveryController extends BaseController<
   ): Promise<
     Pick<WritingPendingOperation, 'authControllerToken' | 'approvedIdentifiers'>
   > {
-    const { approval, identifiers } =
-      await this.#authProvider.authorizeRecoveryRequest({
-        requestHash: mutation.requestHash,
-        audiences: this.#escrows.map((escrow) => escrow.authAudience),
-        requireTwoFactor: true,
-      });
+    const { approval, identifiers } = await this.#authorizeRecoveryRequest({
+      requestHash: mutation.requestHash,
+      audiences: this.#escrows.map((escrow) => escrow.authAudience),
+      requireTwoFactor: true,
+    });
     return { authControllerToken: approval, approvedIdentifiers: identifiers };
+  }
+
+  async #authorizeRecoveryRequest({
+    requestHash,
+    audiences,
+    requireTwoFactor,
+  }: {
+    requestHash: string;
+    audiences: string[];
+    requireTwoFactor?: boolean;
+  }): Promise<RecoveryApproval> {
+    const { approval, identifiers } = await this.messenger.call(
+      'AuthenticationController:requestMfaApproval',
+      {
+        requestHash,
+        audiences,
+        requireVerification: requireTwoFactor === true,
+        includeIdentifiers: true,
+        reason: { operation: 'mfa_recovery' },
+      },
+    );
+    return { approval, identifiers: identifiers ?? [] };
   }
 
   async #repairPendingMutation(): Promise<void> {
@@ -952,19 +1002,55 @@ export class MfaRecoveryController extends BaseController<
     if (pendingOperation === null) {
       return null;
     }
-    const pending = (await this.#encryptor.decrypt(
-      pendingOperation,
-    )) as unknown;
+    const pending = await this.#decryptPending(pendingOperation);
     await this.#assertPending(pending);
     return pending as PendingOperation;
   }
 
   async #persistPending(operation: PendingOperation): Promise<void> {
     await this.#assertPending(operation);
-    const encrypted = await this.#encryptor.encrypt(operation);
+    const encrypted = await this.#encryptPending(operation);
     this.update((state) => {
       state.pendingOperation = encrypted;
     });
+  }
+
+  async #getEncryptionKey(): Promise<EncryptionKey> {
+    if (!this.#encryptionKey) {
+      const key = this.#loadEncryptionKey();
+      this.#encryptionKey = key;
+      key.catch(() => {
+        this.#encryptionKey = null;
+      });
+    }
+    return await this.#encryptionKey;
+  }
+
+  async #loadEncryptionKey(): Promise<EncryptionKey> {
+    const serialized = await this.#getPendingOperationKey();
+    if (!serialized) {
+      throw new MfaRecoveryError(
+        'Pending operation encryption key is unavailable',
+        'missing_encryption_key',
+      );
+    }
+    return await this.#encryptor.importKey(serialized);
+  }
+
+  async #encryptPending(operation: PendingOperation): Promise<string> {
+    const key = await this.#getEncryptionKey();
+    return JSON.stringify(
+      await this.#encryptor.encryptWithKey(key, operation as Json),
+    );
+  }
+
+  // Unvalidated; callers assert the result with #assertPending.
+  async #decryptPending(ciphertext: string): Promise<unknown> {
+    const key = await this.#getEncryptionKey();
+    return await this.#encryptor.decryptWithKey(
+      key,
+      JSON.parse(ciphertext) as EncryptionResult,
+    );
   }
 
   async #assertPending(pending: unknown): Promise<void> {
