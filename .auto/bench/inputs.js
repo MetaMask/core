@@ -251,7 +251,20 @@ function buildSweepInputs() {
     request: buildRequest(4, 5),
     response: buildResponse(largeShape, 0x5eed6, 6, 40, 60),
   };
-  return [small, large];
+  // Same scale as `large` but with a partial chain scope (3 of 5 chains),
+  // so sweep results separate scale effects from chain-filter effects.
+  const largePartialShape = buildStateShape(8, 80, 260, 0x5eed7);
+  const largePartial = {
+    name: 'large_partial',
+    state: {
+      assetsBalance: largePartialShape.assetsBalance,
+      assetsInfo: largePartialShape.assetsInfo,
+      assetPreferences: largePartialShape.assetPreferences,
+    },
+    request: buildRequest(4, 3),
+    response: buildResponse(largePartialShape, 0x5eed8, 6, 40, 60),
+  };
+  return [small, large, largePartial];
 }
 
 /** Edge cases that must stay byte-for-byte identical between impls. */

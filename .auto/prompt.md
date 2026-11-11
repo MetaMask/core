@@ -31,14 +31,16 @@ predicate evaluations.
 
 ## How to Run
 
-- `./.auto/measure.sh` — rebuilds `.auto/bench/bundle.js` from the LIVE
-  production source via esbuild (never a stale copy), runs it under Hermes
-  3×, enforces `SELF_CHECK=OK` and a numeric `primary_ms` in every run, and
-  prints median `METRIC` lines. The bundle contains both the immutable
-  original (`.auto/bench/original/`, SHA-pinned) and the live candidate, and
-  the driver refuses to report metrics unless their outputs match exactly on
-  every input, including empty inputs, odd/invalid IDs, hidden/staking
-  preferences, and metadata completeness edges.
+- `./.auto/measure.sh` — assembles `.auto/bench/bundle.js` from the LIVE
+  production source on every invocation (in-process TypeScript transpile +
+  verbatim vendored dependencies; esbuild deadlocks in this sandbox, so the
+  builder uses no subprocesses), runs it under Hermes 3×, enforces
+  `SELF_CHECK=OK` and a numeric `primary_ms` in every run, and prints median
+  `METRIC` lines. The bundle contains both the immutable original
+  (`.auto/bench/original/`, SHA-pinned) and the live candidate, and the driver
+  refuses to report metrics unless their outputs match exactly on every input,
+  including empty inputs, odd/invalid IDs, hidden/staking preferences, and
+  metadata completeness edges.
 - `./.auto/checks.sh` — runs the real package test file
   (`yarn workspace @metamask/assets-controller run test run
   src/utils/getAssetIdsForMetadataFetch.test.ts`). Do not weaken it.
@@ -102,3 +104,6 @@ parity and production semantics must come from the real dependencies.
 
 ## Parent diagnostic (09:34)
 The DIRECT native esbuild binary hangs on a trivial standalone `print(42)` bundle too (Python subprocess 10sec timeout), although --version works. This is NOT your import graph. Stop bisecting imports. Try alternative TypeScript transpileModule + manual dependency concatenation, or mark blocked/no win. Do not spend whole session on esbuild. Need commit specialized harness BEFORE measuring, then bounded loop or honest blocked outcome, push branch even no win.
+
+## Parent review checkpoint
+Production prefix guard looks sound. IMPORTANT log.jsonl currently manually authored (log-entry.mjs), confidence null initially; user explicitly requires /autoresearch with init_experiment/run_experiment/log_experiment. Please actually invoke these installed extension tools if available before finalizing; do not present manually computed logs as extension results. If extension tools unavailable, document the deviation and calculate reproducible confidence from repeated control data (>=2x), not varied candidate experiments. Need run full 25 experiments or 3h bound, checks, scaling and push.

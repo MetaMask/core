@@ -129,8 +129,14 @@ if (parityFailures.length > 0) {
   const mainPair = measurePair(candidateImpl, originalImpl, inputSet.main);
   const small = inputSet.sweep[0];
   const large = inputSet.sweep[1];
+  const largePartial = inputSet.sweep[2];
   const smallPair = measurePair(candidateImpl, originalImpl, small);
   const largePair = measurePair(candidateImpl, originalImpl, large);
+  const largePartialPair = measurePair(
+    candidateImpl,
+    originalImpl,
+    largePartial,
+  );
 
   print(`METRIC primary_ms=${round(mainPair.a)}`);
   print(`METRIC baseline_ms=${round(mainPair.b)}`);
@@ -138,6 +144,10 @@ if (parityFailures.length > 0) {
   print(`METRIC small_baseline_ms=${round(smallPair.b)}`);
   print(`METRIC large_ms=${round(largePair.a)}`);
   print(`METRIC large_baseline_ms=${round(largePair.b)}`);
+  print(`METRIC large_partial_ms=${round(largePartialPair.a)}`);
+  print(
+    `METRIC large_partial_baseline_ms=${round(largePartialPair.b)}`,
+  );
   print(`METRIC occurrences=${inputSet.stats.occurrences}`);
   print(`METRIC uniques=${inputSet.stats.uniques}`);
   print('SELF_CHECK=OK');

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Speed up `getAssetIdsForMetadataFetch` by skipping CAIP-19 parsing for asset IDs that cannot be staking-contract assets or belong to chains outside the request's chain filter, and by lowercasing each asset ID once per occurrence instead of up to three times ([#0](https://github.com/MetaMask/core/pull/0))
+
 ## [20.3.1]
 
 ### Changed
