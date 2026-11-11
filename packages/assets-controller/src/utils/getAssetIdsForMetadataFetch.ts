@@ -68,7 +68,7 @@ export function getAssetIdsForMetadataFetch({
   const chainFilterPrefixes = chainFilter
     ? Array.from(chainFilter, (chainId) => `${chainId}/`)
     : undefined;
-  const knownMetadataIds = new Set<string>();
+  let knownMetadataIds: Set<string> | undefined;
   const assetIdsNeedingMetadata = new Set<string>();
   const balanceHealAssetIds = new Set<string>();
   const stateBalanceIds = new Set<string>();
@@ -87,18 +87,20 @@ export function getAssetIdsForMetadataFetch({
     if (hiddenAssetIds.has(lowerAssetId)) {
       return false;
     }
-    if (
-      hasMetadataUsedByClients(responseMetadata?.[assetId as Caip19AssetId])
-    ) {
+    const responseEntry = responseMetadata?.[assetId as Caip19AssetId];
+    if (responseEntry !== undefined && hasMetadataUsedByClients(responseEntry)) {
       return false;
     }
-    if (hasMetadataUsedByClients(stateMetadata[assetId as Caip19AssetId])) {
+    const stateEntry = stateMetadata[assetId as Caip19AssetId];
+    if (stateEntry !== undefined && hasMetadataUsedByClients(stateEntry)) {
       return false;
     }
-    if (!stakingAssetIdPrefixes.some((prefix) => assetId.startsWith(prefix))) {
-      return true;
+    for (const prefix of stakingAssetIdPrefixes) {
+      if (assetId.startsWith(prefix)) {
+        return !isStakingContractAssetId(assetId);
+      }
     }
-    return !isStakingContractAssetId(assetId);
+    return true;
   };
 
   const inRequestChains = (assetId: string): boolean => {
@@ -122,10 +124,6 @@ export function getAssetIdsForMetadataFetch({
       return false;
     }
   };
-
-  for (const assetId of Object.keys(stateMetadata)) {
-    knownMetadataIds.add(assetId.toLowerCase());
-  }
 
   const stateBalances = state.assetsBalance ?? {};
   for (const accountId of Object.keys(stateBalances)) {
@@ -152,11 +150,20 @@ export function getAssetIdsForMetadataFetch({
         continue;
       }
       assetIdsNeedingMetadata.add(assetId);
-      if (
-        stateBalanceIds.has(lowerAssetId) ||
-        knownMetadataIds.has(lowerAssetId)
-      ) {
+      if (stateBalanceIds.has(lowerAssetId)) {
         balanceHealAssetIds.add(lowerAssetId);
+      } else {
+        // Built on first use: calls with no (or fully state-known) response
+        // balances never pay for the state-metadata lowercase pass.
+        if (knownMetadataIds === undefined) {
+          knownMetadataIds = new Set<string>();
+          for (const metadataId of Object.keys(stateMetadata)) {
+            knownMetadataIds.add(metadataId.toLowerCase());
+          }
+        }
+        if (knownMetadataIds.has(lowerAssetId)) {
+          balanceHealAssetIds.add(lowerAssetId);
+        }
       }
     }
   }
@@ -246,9 +253,11 @@ function buildChainFilter(
 function collectHiddenAssetIdKeys(
   assetPreferences: AssetsControllerState['assetPreferences'] | undefined,
 ): Set<string> {
-  return new Set(
-    Object.entries(assetPreferences ?? {})
-      .filter(([, preferences]) => preferences.hidden)
-      .map(([assetId]) => assetId.toLowerCase()),
-  );
+  const hiddenAssetIds = new Set<string>();
+  for (const [assetId, preferences] of Object.entries(assetPreferences ?? {})) {
+    if (preferences.hidden) {
+      hiddenAssetIds.add(assetId.toLowerCase());
+    }
+  }
+  return hiddenAssetIds;
 }
