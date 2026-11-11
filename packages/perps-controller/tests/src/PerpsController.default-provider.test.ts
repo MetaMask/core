@@ -35,6 +35,7 @@ import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
 import type {
+  AccountState,
   PerpsProvider,
   PerpsProviderType,
 } from '../../src/types/index.js';
@@ -547,6 +548,65 @@ describe('PerpsController default provider', () => {
         error: PERPS_ERROR_CODES.PROVIDER_NOT_AVAILABLE,
       });
       expect(controller.state.defaultProvider).toBe('hyperliquid');
+    });
+  });
+
+  describe('account-state venue guard', () => {
+    // The mocked MarketDataService does not write controller state, so this
+    // block swaps in the real service for the write path under test.
+    afterEach(() => {
+      mockMarketDataServiceInstance.getAccountState
+        .mockReset()
+        .mockResolvedValue({
+          spendableBalance: '10000',
+          withdrawableBalance: '10000',
+          totalBalance: '10000',
+          marginUsed: '0',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+        });
+    });
+
+    it('does not let an old venue balance overwrite the new venue snapshot', async () => {
+      setupAggregatedMode('hyperliquid');
+      const { MarketDataService: RealMarketDataService } =
+        await vi.importActual<
+          typeof import('../../src/services/MarketDataService.js')
+        >('../../src/services/MarketDataService.js');
+      const realMarketDataService = new RealMarketDataService(
+        mockInfrastructure as never,
+      );
+      mockMarketDataServiceInstance.getAccountState.mockImplementation(
+        (options: never) => realMarketDataService.getAccountState(options),
+      );
+
+      const accountState = (totalBalance: string): AccountState => ({
+        spendableBalance: totalBalance,
+        withdrawableBalance: totalBalance,
+        totalBalance,
+        marginUsed: '0',
+        unrealizedPnl: '0',
+        returnOnEquity: '0',
+      });
+      const pendingHyperLiquid = createDeferred<AccountState>();
+      mockProvider.getAccountState.mockReturnValueOnce(
+        pendingHyperLiquid.promise,
+      );
+      (lighterProvider as any).getAccountState.mockResolvedValue(
+        accountState('200'),
+      );
+
+      const oldRequest = controller.getAccountState();
+      controller.setDefaultProvider('lighter');
+
+      // The new venue answers first and becomes the current snapshot.
+      await controller.getAccountState();
+      expect(controller.state.accountState?.totalBalance).toBe('200');
+
+      // The stale HyperLiquid response must not restore the old balance.
+      pendingHyperLiquid.resolve(accountState('100'));
+      await oldRequest;
+      expect(controller.state.accountState?.totalBalance).toBe('200');
     });
   });
 

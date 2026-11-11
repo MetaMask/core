@@ -1,5 +1,6 @@
 import type { PerpsControllerState } from '../PerpsController.js';
 import type {
+  AccountState,
   Order,
   PerpsFeeResolution,
   PerpsGlobalSnapshotRequest,
@@ -75,6 +76,17 @@ export type ServiceContext = {
     request: PerpsGlobalSnapshotRequest;
     isCurrent: () => boolean;
     isMarketAllowed: (symbol: string) => boolean;
+  };
+
+  /**
+   * Guards a REST account-state write against the venue that currently backs
+   * account reads. A response that resolves after the default venue changed
+   * must not overwrite the new venue's snapshot, so `isCurrent` compares the
+   * response's captured `providerId` with the current account-data context.
+   * Omitted for callers that do not route account reads by venue.
+   */
+  accountDataContext?: {
+    isCurrent: (accountState: AccountState) => boolean;
   };
 
   /**

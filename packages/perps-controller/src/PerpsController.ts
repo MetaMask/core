@@ -5083,7 +5083,16 @@ export class PerpsController extends BaseController<
     return this.#marketDataService.getAccountState({
       provider,
       params,
-      context: this.#createServiceContext('getAccountState'),
+      context: this.#createServiceContext('getAccountState', {
+        accountDataContext: {
+          // The response carries the venue that served it. Discard it when the
+          // default venue moved while the request was pending so an older
+          // balance cannot overwrite the new venue's snapshot.
+          isCurrent: (accountState) =>
+            accountState.providerId === undefined ||
+            accountState.providerId === this.state.defaultProvider,
+        },
+      }),
     });
   }
 
