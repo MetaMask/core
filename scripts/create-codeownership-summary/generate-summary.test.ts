@@ -51,7 +51,7 @@ describe('generateCodeownershipSummary', () => {
       [
         '## Codeownership summary',
         '',
-        '### 🛑 Files requiring codeowner review',
+        '## 🛑 Files requiring codeowner review',
         '',
         "To merge this PR, you'll need to get approvals from the following owner groups.",
         '**For files with multiple owners, approval from one owner is sufficient.**',
@@ -65,7 +65,7 @@ describe('generateCodeownershipSummary', () => {
         '',
         '- `packages/shared-controller/package.json`',
         '',
-        '<details><summary><h3>ℹ️ Files co-owned by Core Platform (expand for more)</h3></summary>',
+        '<details><summary><h2>ℹ️ Files co-owned by Core Platform (expand for more)</h2></summary>',
         '',
         '> [!NOTE]',
         '> For convenience in maintaining this repo, the Core Platform team co-owns',
@@ -147,7 +147,7 @@ describe('generateCodeownershipSummary', () => {
 
     expect(summary).toContain('**@MetaMask/core-platform** (2 files)');
     expect(summary).toContain(
-      '<h3>ℹ️ Files co-owned by Core Platform (expand for more)</h3>',
+      '<h2>ℹ️ Files co-owned by Core Platform (expand for more)</h2>',
     );
   });
 

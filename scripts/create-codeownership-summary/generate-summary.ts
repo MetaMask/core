@@ -252,7 +252,7 @@ function renderSummary({
 }): string {
   let summary = `## Codeownership summary
 
-### 🛑 Files requiring codeowner review
+## 🛑 Files requiring codeowner review
 
 ${renderApprovalInstructions(codeownershipGroups)}
 `;
@@ -310,7 +310,7 @@ ${renderFileList(group.filePaths)}`;
  */
 function renderCorePlatformCoOwnedFiles(filePaths: string[]): string {
   return `
-<details><summary><h3>ℹ️ Files co-owned by Core Platform (expand for more)</h3></summary>
+<details><summary><h2>ℹ️ Files co-owned by Core Platform (expand for more)</h2></summary>
 
 > [!NOTE]
 > For convenience in maintaining this repo, the Core Platform team co-owns
