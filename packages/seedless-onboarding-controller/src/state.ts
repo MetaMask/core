@@ -139,6 +139,12 @@ export const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControl
       includeInDebugSnapshot: false,
       usedInUi: false,
     },
+    isPasswordResetPending: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: true,
+      usedInUi: false,
+    },
     encryptedSeedlessEncryptionKey: {
       includeInStateLogs: false,
       persist: true,

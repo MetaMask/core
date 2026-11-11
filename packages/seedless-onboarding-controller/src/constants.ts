@@ -70,5 +70,7 @@ export enum SeedlessOnboardingControllerErrorMessage {
   EnvelopeControlRecordNotFound = `${controllerName} - No control record matches the live password key`,
   EnvelopeMigrationRequiresDataTypes = `${controllerName} - Envelope migration requires the data type migration`,
   RecoveryEnvelopeNotFound = `${controllerName} - No vault keys are sealed for the Recovery Secret`,
+  RecoveryRequired = `${controllerName} - Recover with the Recovery Secret before setting the local password`,
+  PasswordResetPending = `${controllerName} - The password must be reset with the vault keys before it can be synced or changed`,
   PasswordResetRequiresRecovery = `${controllerName} - The password can only be reset with the vault keys after a recovery with the Recovery Secret`,
 }

@@ -232,6 +232,13 @@ export type SeedlessOnboardingControllerState =
       pendingEnvelopeMigration?: string;
 
       /**
+       * Set by `setLocalPassword` and cleared by `resetPasswordWithVaultKeys`
+       * or by restoring the vault with the global password. While set, the
+       * password can't be synced or changed.
+       */
+      isPasswordResetPending?: boolean;
+
+      /**
        * Whether the user is authenticated with social login and TOPRF service.
        */
       isSeedlessOnboardingUserAuthenticated: boolean;
