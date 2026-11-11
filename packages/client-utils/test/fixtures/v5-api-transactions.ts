@@ -3,6 +3,7 @@ import type {
   V5TransactionRecord,
   V5TransactionValueTransfer,
 } from '@metamask/core-backend';
+import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
 import { getFees } from '../../src/mappers/helpers/transactions.js';
 
@@ -17,17 +18,17 @@ function toV5ValueTransfer(
   chainId: string,
 ): V5TransactionValueTransfer | undefined {
   const { transferType, contractAddress } = transfer;
-  let assetId: string;
+  let assetId: CaipAssetType;
   let assetClass = 'ft';
 
   if (contractTokenTransferTypes.has(transferType)) {
     if (!contractAddress) {
       return undefined;
     }
-    assetId = `${chainId}/${transferType}:${contractAddress}`;
+    assetId = `${chainId}/${transferType}:${contractAddress}` as CaipAssetType;
     assetClass = transferType === 'erc20' ? 'ft' : 'nft';
   } else if (transferType === 'normal' || transferType === 'internal') {
-    assetId = `${chainId}/slip44:60`;
+    assetId = `${chainId}/slip44:60` as CaipAssetType;
     if (transferType === 'internal') {
       assetClass = 'eip155Internal';
     }
@@ -56,7 +57,7 @@ export function toV5TransactionRecord(
   transaction: V1TransactionByHashResponse,
   subjectAddress: string,
 ): V5TransactionRecord | undefined {
-  const chainId = `eip155:${transaction.chainId}`;
+  const chainId = `eip155:${transaction.chainId}` as CaipChainId;
   const valueTransfers = (transaction.valueTransfers ?? []).map((transfer) =>
     toV5ValueTransfer(transfer, chainId),
   );
@@ -91,7 +92,7 @@ export function toV5TransactionRecord(
         ? {
             payer: `${chainId}:${transaction.from}`,
             asset: {
-              assetId: fee.assetId,
+              assetId: fee.assetId as CaipAssetType,
               amount: fee.amount,
               decimals: fee.decimals ?? 18,
               symbol: fee.symbol,

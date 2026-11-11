@@ -3,6 +3,12 @@
  * API: accounts.api.cx.metamask.io
  */
 
+import type {
+  CaipAccountId,
+  CaipAssetType,
+  CaipChainId,
+} from '@metamask/utils';
+
 import type { PageInfo } from '../shared-types.js';
 
 // ============================================================================
@@ -261,11 +267,11 @@ export type V4MultiAccountTransactionsResponse = {
   data: V1TransactionByHashResponse[];
 };
 
-/** Transaction header on a v5 multi-account transactions row. */
+/** Transaction header on a v5 transaction record. */
 export type V5Transaction = {
   id: string;
   /** CAIP-2 chain ID. */
-  chainId: string;
+  chainId: CaipChainId;
   status: string;
   /** Unix timestamp in milliseconds. */
   timestamp: number;
@@ -291,8 +297,8 @@ export type V5TransactionValueTransfer = {
   assetClass: string;
   from: string;
   to: string;
-  /** CAIP-19 asset ID. */
-  assetId: string;
+  /** CAIP-19 asset type. */
+  assetId: CaipAssetType;
   amount?: string;
   decimal?: number;
   symbol?: string;
@@ -303,14 +309,14 @@ export type V5TransactionValueTransfer = {
 /** Non-transfer operation on a v5 transaction, such as a Stellar trustline update. */
 export type V5TransactionMiscOperation = {
   type?: string;
-  /** CAIP-19 asset ID. */
-  assetId?: string;
+  /** CAIP-19 asset type. */
+  assetId?: CaipAssetType;
 };
 
 /** Fee asset on a v5 transaction. */
 export type V5TransactionFeeAsset = {
-  /** CAIP-19 asset ID. */
-  assetId: string;
+  /** CAIP-19 asset type. */
+  assetId: CaipAssetType;
   amount: string;
   decimals: number;
   symbol?: string;
@@ -319,7 +325,7 @@ export type V5TransactionFeeAsset = {
 /** Fee paid for a v5 transaction. `null` when the chain does not report one. */
 export type V5TransactionFee = {
   /** CAIP-10 account ID of the fee payer. */
-  payer: string;
+  payer: CaipAccountId;
   asset: V5TransactionFeeAsset;
   unitsConsumed?: number;
   unitPrice?: string;
@@ -336,10 +342,14 @@ export type V5TransactionLog = {
   logIndex: number;
 };
 
-/** One account's view of a transaction from `GET /v5/multiaccount/transactions`. */
+/**
+ * One account's view of a transaction.
+ * Shared by `GET /v5/multiaccount/transactions` and
+ * `GET /v5/accounts/{accountId}/transactions/{txId}`.
+ */
 export type V5TransactionRecord = {
   /** CAIP-10 account ID this row was fetched for. */
-  accountId: string;
+  accountId: CaipAccountId;
   tx: V5Transaction;
   valueTransfers: V5TransactionValueTransfer[];
   /** Present when `includeMiscOperations` is true. */
@@ -347,6 +357,23 @@ export type V5TransactionRecord = {
   /** Present when `includeLogs` is true. */
   logs?: V5TransactionLog[];
   fee: V5TransactionFee | null;
+};
+
+/** Response of `GET /v5/accounts/{accountId}/transactions/{txId}`. */
+export type V5TransactionByIdResponse = {
+  data: V5TransactionRecord;
+};
+
+/** Query options for `GET /v5/accounts/{accountId}/transactions/{txId}`. */
+export type V5TransactionByIdQueryOptions = {
+  /** Whether to include transaction metadata (`readable`, category). */
+  includeTxMetadata?: boolean;
+  /** Whether to include logs. */
+  includeLogs?: boolean;
+  /** Whether to include miscellaneous operations (CAS-backed chains). */
+  includeMiscOperations?: boolean;
+  /** Language for the transaction category. Defaults to `en`. */
+  lang?: string;
 };
 
 /** V5 multi-account transactions response (`GetMultiAccountNetworkTransactionsV5Dto`). */
@@ -358,15 +385,15 @@ export type V5MultiAccountTransactionsResponse = {
     endCursor?: string;
   };
   /** CAIP-10 account IDs that could not be processed for this request. */
-  unprocessedAccounts: string[];
+  unprocessedAccounts: CaipAccountId[];
 };
 
 /** Query filters for `GET /v5/multiaccount/transactions`. */
 export type V5MultiAccountTransactionsQueryOptions = {
   /** CAIP-2 chain IDs. */
-  networks?: string[];
-  /** CAIP-19 asset IDs. */
-  assetIds?: string[];
+  networks?: CaipChainId[];
+  /** CAIP-19 asset types. */
+  assetIds?: CaipAssetType[];
   /** Start timestamp (epoch seconds). */
   startTimestamp?: number;
   /** End timestamp (epoch seconds). */

@@ -5,12 +5,13 @@
  * - Supported networks
  * - Active networks
  * - Balances (v2, v4, v5, v6)
- * - Transactions (v1, v4, v5)
+ * - Transactions (v1, v4, v5, including v5 transaction by id)
  * - Relationships
  * - NFTs
  * - Token discovery
  */
 
+import type { CaipAccountId } from '@metamask/utils';
 import type {
   FetchInfiniteQueryOptions,
   FetchQueryOptions,
@@ -34,6 +35,8 @@ import type {
   V4MultiAccountTransactionsResponse,
   V5MultiAccountTransactionsQueryOptions,
   V5MultiAccountTransactionsResponse,
+  V5TransactionByIdQueryOptions,
+  V5TransactionByIdResponse,
   V1AccountRelationshipResult,
   V2NftsResponse,
   V2TokensResponse,
@@ -676,6 +679,9 @@ export class AccountsApiClient extends BaseApiClient {
   /**
    * Returns the TanStack Query options object for v1 transaction by hash.
    *
+   * @deprecated Fetch the transaction with {@link getV5TransactionByIdQueryOptions}.
+   * `GET /v1/networks/{chainId}/transactions/{txHash}` is replaced by
+   * `GET /v5/accounts/{accountId}/transactions/{txId}`.
    * @param chainId - The chain ID.
    * @param txHash - The transaction hash.
    * @param queryOptions - Query filter options.
@@ -727,6 +733,9 @@ export class AccountsApiClient extends BaseApiClient {
   /**
    * Get a specific transaction by hash (v1 endpoint).
    *
+   * @deprecated Fetch the transaction with {@link fetchV5TransactionById}.
+   * `GET /v1/networks/{chainId}/transactions/{txHash}` is replaced by
+   * `GET /v5/accounts/{accountId}/transactions/{txId}`.
    * @param chainId - The chain ID.
    * @param txHash - The transaction hash.
    * @param queryOptions - Query filter options.
@@ -1088,7 +1097,7 @@ export class AccountsApiClient extends BaseApiClient {
    * @returns Query options object compatible with fetchQuery/useQuery.
    */
   getV5MultiAccountTransactionsQueryOptions(
-    accountIds: string[],
+    accountIds: CaipAccountId[],
     queryOptions?: V5MultiAccountTransactionsQueryOptions,
     options?: FetchOptions,
   ): FetchQueryOptions<V5MultiAccountTransactionsResponse> {
@@ -1152,7 +1161,7 @@ export class AccountsApiClient extends BaseApiClient {
    */
   getV5MultiAccountTransactionsInfiniteQueryOptions(
     params: Omit<V5MultiAccountTransactionsQueryOptions, 'after' | 'before'> & {
-      accountIds: string[];
+      accountIds: CaipAccountId[];
     },
     options?: FetchOptions,
   ): FetchInfiniteQueryOptions<
@@ -1236,13 +1245,82 @@ export class AccountsApiClient extends BaseApiClient {
    * @returns The multi-account transactions response.
    */
   async fetchV5MultiAccountTransactions(
-    accountIds: string[],
+    accountIds: CaipAccountId[],
     queryOptions?: V5MultiAccountTransactionsQueryOptions,
     options?: FetchOptions,
   ): Promise<V5MultiAccountTransactionsResponse> {
     return this.queryClient.fetchQuery(
       this.getV5MultiAccountTransactionsQueryOptions(
         accountIds,
+        queryOptions,
+        options,
+      ),
+    );
+  }
+
+  /**
+   * Returns the TanStack Query options object for a single v5 transaction.
+   * Covers EVM and CAS-backed accounts (Solana, Bitcoin, Tron, Stellar).
+   * The record matches one row of `GET /v5/multiaccount/transactions`.
+   *
+   * @param accountId - CAIP-10 account ID.
+   * @param txId - Transaction id (hash on EVM, chain-native id otherwise).
+   * @param queryOptions - Query options.
+   * @param options - Fetch options including cache settings.
+   * @returns Query options object compatible with fetchQuery/useQuery.
+   */
+  getV5TransactionByIdQueryOptions(
+    accountId: CaipAccountId,
+    txId: string,
+    queryOptions?: V5TransactionByIdQueryOptions,
+    options?: FetchOptions,
+  ): FetchQueryOptions<V5TransactionByIdResponse> {
+    return {
+      queryKey: [
+        'accounts',
+        'transactions',
+        'v5ById',
+        { accountId, txId, options: queryOptions },
+      ],
+      queryFn: ({ signal }: QueryFunctionContext) =>
+        this.fetch<V5TransactionByIdResponse>(
+          this.apiUrls.ACCOUNTS,
+          `/v5/accounts/${accountId}/transactions/${txId}`,
+          {
+            signal,
+            params: {
+              includeTxMetadata: queryOptions?.includeTxMetadata,
+              includeLogs: queryOptions?.includeLogs,
+              includeMiscOperations: queryOptions?.includeMiscOperations,
+              lang: queryOptions?.lang,
+            },
+          },
+        ),
+      ...getQueryOptionsOverrides(options),
+      staleTime: options?.staleTime ?? STALE_TIMES.TRANSACTIONS,
+      gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
+    };
+  }
+
+  /**
+   * Get one transaction for an account (v5 endpoint).
+   *
+   * @param accountId - CAIP-10 account ID.
+   * @param txId - Transaction id (hash on EVM, chain-native id otherwise).
+   * @param queryOptions - Query options.
+   * @param options - Fetch options including cache settings.
+   * @returns The transaction record for that account.
+   */
+  async fetchV5TransactionById(
+    accountId: CaipAccountId,
+    txId: string,
+    queryOptions?: V5TransactionByIdQueryOptions,
+    options?: FetchOptions,
+  ): Promise<V5TransactionByIdResponse> {
+    return this.queryClient.fetchQuery(
+      this.getV5TransactionByIdQueryOptions(
+        accountId,
+        txId,
         queryOptions,
         options,
       ),

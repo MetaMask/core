@@ -4,11 +4,7 @@ import type {
   V5TransactionRecord,
   V5TransactionValueTransfer,
 } from '@metamask/core-backend';
-import type {
-  CaipAccountId,
-  CaipAssetType,
-  CaipChainId,
-} from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import {
   KnownCaipNamespace,
   parseCaipAccountId,
@@ -101,9 +97,7 @@ function fromV5ValueTransfer({
   symbol,
   name,
 }: V5TransactionValueTransfer): IndexedValueTransfer {
-  const { chain, assetNamespace, assetReference } = parseCaipAssetType(
-    assetId as CaipAssetType,
-  );
+  const { chain, assetNamespace, assetReference } = parseCaipAssetType(assetId);
   const isEvm = chain.namespace === KnownCaipNamespace.Eip155;
   const isContractToken =
     isEvm && evmContractTokenNamespaces.has(assetNamespace);
@@ -159,11 +153,10 @@ export function fromV5TransactionRecord(record: V5TransactionRecord): {
   const { tx, valueTransfers, fee } = record;
 
   return {
-    subjectAddress: parseCaipAccountId(record.accountId as CaipAccountId)
-      .address,
+    subjectAddress: parseCaipAccountId(record.accountId).address,
     transaction: {
       hash: tx.id,
-      chainId: tx.chainId as CaipChainId,
+      chainId: tx.chainId,
       status: fromV5Status(tx.status),
       timestamp: tx.timestamp,
       from: tx.from,

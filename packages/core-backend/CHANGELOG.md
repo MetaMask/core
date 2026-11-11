@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AccountsApiClient.fetchV5TransactionById` and `getV5TransactionByIdQueryOptions` for Accounts API `GET /v5/accounts/{accountId}/transactions/{txId}`
+  - The response `data` is a `V5TransactionRecord`, the same row shape as `GET /v5/multiaccount/transactions`
+
 ### Changed
 
+- **BREAKING:** V5 transaction types now use CAIP identifiers from `@metamask/utils` instead of `string`
+  - `V5TransactionRecord.accountId`, fee `payer`, `unprocessedAccounts`, and the `accountIds` arguments of the v5 transaction fetch methods are `CaipAccountId`
+  - `V5Transaction.chainId` and the `networks` filter are `CaipChainId`
+  - Value-transfer, fee, and misc-operation `assetId` fields, and the `assetIds` filter, are `CaipAssetType`
 - Bump `uuid` from `^14.0.1` to `^14.0.2` ([#11305](https://github.com/MetaMask/core/pull/11305))
+
+### Deprecated
+
+- Deprecate `AccountsApiClient.fetchV1TransactionByHash` and `getV1TransactionByHashQueryOptions`
+  - Fetch one transaction with `fetchV5TransactionById` (`GET /v5/accounts/{accountId}/transactions/{txId}`) instead of `GET /v1/networks/{chainId}/transactions/{txHash}`
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
 
 ## [14.0.0]
