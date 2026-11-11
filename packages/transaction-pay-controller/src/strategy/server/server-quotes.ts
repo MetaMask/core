@@ -18,7 +18,11 @@ import type {
   TransactionPayQuote,
 } from '../../types.js';
 import { getFiatValueFromUsd } from '../../utils/amounts.js';
-import { getSlippage, isEIP7702Chain } from '../../utils/feature-flags.js';
+import {
+  getSlippage,
+  isEIP7702Chain,
+  isServerGaslessEnabled,
+} from '../../utils/feature-flags.js';
 import {
   GasPaymentMode,
   resolveGasPayment,
@@ -280,6 +284,7 @@ async function buildServerQuoteRequest(
   // Deposit wallet withdraws are broadcast by the Polymarket relayer rather
   // than as a gasless EIP-7702 batch, so the provider must not quote gasless.
   const supportsGasless =
+    isServerGaslessEnabled(messenger) &&
     !isHypercoreSource &&
     !isPolymarketDepositWallet &&
     accountSupports7702 &&
