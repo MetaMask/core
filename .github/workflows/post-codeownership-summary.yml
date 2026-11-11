@@ -61,6 +61,11 @@ jobs:
       # GitHub uses the base branch to apply ownership rules to a pull request,
       # so in order to be accurate, the summary should use the same logic that
       # generated those rules.
+      #
+      # Because of `filter: blob:none` above, Git may need to download the base
+      # branch's copy of this file on demand. That works even though
+      # `persist-credentials` is false, because this repository is public, and
+      # fetching from a public repository doesn't require credentials.
       - name: Use the base branch's ownership rules
         run: git checkout "$BASE_SHA" -- codeowners.ts
         env:
