@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [23.1.0]
 
-### Uncategorized
-
-- Release/1412.0.0 ([#11419](https://github.com/MetaMask/core/pull/11419))
-
 ### Added
 
 - Add display formatters for the perps values Mobile, Extension and Terminal still format locally. Each takes the same `formatters` and `sign` options and renders the shared placeholder for a missing value ([#11415](https://github.com/MetaMask/core/pull/11415))
