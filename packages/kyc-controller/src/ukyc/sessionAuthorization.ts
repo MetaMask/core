@@ -7,7 +7,7 @@ import type {
   EncryptionSchema,
   KycService,
 } from '../KycService.js';
-import type { KycFlowVendor, KycSessionStatus } from '../types.js';
+import type { OnboardingVendor, KycSessionStatus } from '../types.js';
 import { deriveClientMaterial } from './deriveClientMaterial.js';
 import type { UkycClientMaterial } from './deriveClientMaterial.js';
 import { assertAttestedServerPublicKey } from './jwtChain.js';
@@ -59,7 +59,7 @@ export type UkycSessionDeps = Pick<
  */
 export async function createAuthorizedSession(params: {
   deps: UkycSessionDeps;
-  vendor: KycFlowVendor;
+  vendor: OnboardingVendor;
   residenceCountry: string;
   aal2Token: string;
   email?: string;
@@ -208,7 +208,7 @@ async function verifyWrappingKeys(
   } catch (error) {
     throw wrapError(
       error,
-      'KycFlowController: Unable to fetch JWKS needed to verify wrapping keys.',
+      'VendorOnboardingController: Unable to fetch JWKS needed to verify wrapping keys.',
     );
   }
 
@@ -218,7 +218,7 @@ async function verifyWrappingKeys(
   } catch (error) {
     throw wrapError(
       error,
-      'KycFlowController: Failed to verify the wrapping keys.',
+      'VendorOnboardingController: Failed to verify the wrapping keys.',
     );
   }
 }

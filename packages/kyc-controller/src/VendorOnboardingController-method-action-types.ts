@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { KycFlowController } from './KycFlowController.js';
+import type { VendorOnboardingController } from './VendorOnboardingController.js';
 
 /**
  * Asks kyc-api for the vendor's current step and saves it. Call it when a
@@ -13,9 +13,9 @@ import type { KycFlowController } from './KycFlowController.js';
  * @param params.vendor - The vendor.
  * @returns The step.
  */
-export type KycFlowControllerRefreshStepAction = {
-  type: `KycFlowController:refreshStep`;
-  handler: KycFlowController['refreshStep'];
+export type VendorOnboardingControllerRefreshStepAction = {
+  type: `VendorOnboardingController:refreshStep`;
+  handler: VendorOnboardingController['refreshStep'];
 };
 
 /**
@@ -30,9 +30,9 @@ export type KycFlowControllerRefreshStepAction = {
  * fetched for.
  * @returns The next step.
  */
-export type KycFlowControllerAcceptTermsAction = {
-  type: `KycFlowController:acceptTerms`;
-  handler: KycFlowController['acceptTerms'];
+export type VendorOnboardingControllerAcceptTermsAction = {
+  type: `VendorOnboardingController:acceptTerms`;
+  handler: VendorOnboardingController['acceptTerms'];
 };
 
 /**
@@ -44,9 +44,9 @@ export type KycFlowControllerAcceptTermsAction = {
  * @param params.email - The email the vendor sends its code to.
  * @returns The next step.
  */
-export type KycFlowControllerStartAccountLinkAction = {
-  type: `KycFlowController:startAccountLink`;
-  handler: KycFlowController['startAccountLink'];
+export type VendorOnboardingControllerStartAccountLinkAction = {
+  type: `VendorOnboardingController:startAccountLink`;
+  handler: VendorOnboardingController['startAccountLink'];
 };
 
 /**
@@ -60,9 +60,9 @@ export type KycFlowControllerStartAccountLinkAction = {
  * MFA method is not kept: the screen asks for the code and calls this
  * again.
  */
-export type KycFlowControllerVerifyAccountLinkAction = {
-  type: `KycFlowController:verifyAccountLink`;
-  handler: KycFlowController['verifyAccountLink'];
+export type VendorOnboardingControllerVerifyAccountLinkAction = {
+  type: `VendorOnboardingController:verifyAccountLink`;
+  handler: VendorOnboardingController['verifyAccountLink'];
 };
 
 /**
@@ -87,9 +87,9 @@ export type KycFlowControllerVerifyAccountLinkAction = {
  * vendors whose session kyc-api opens through the relay (Kalshi).
  * @returns The next step.
  */
-export type KycFlowControllerStartSessionAction = {
-  type: `KycFlowController:startSession`;
-  handler: KycFlowController['startSession'];
+export type VendorOnboardingControllerStartSessionAction = {
+  type: `VendorOnboardingController:startSession`;
+  handler: VendorOnboardingController['startSession'];
 };
 
 /**
@@ -101,9 +101,9 @@ export type KycFlowControllerStartSessionAction = {
  * @param params.vendor - The vendor.
  * @returns The documents and the reusability consent.
  */
-export type KycFlowControllerFetchSessionDisclaimersAction = {
-  type: `KycFlowController:fetchSessionDisclaimers`;
-  handler: KycFlowController['fetchSessionDisclaimers'];
+export type VendorOnboardingControllerFetchSessionDisclaimersAction = {
+  type: `VendorOnboardingController:fetchSessionDisclaimers`;
+  handler: VendorOnboardingController['fetchSessionDisclaimers'];
 };
 
 /**
@@ -113,16 +113,16 @@ export type KycFlowControllerFetchSessionDisclaimersAction = {
  * @param params - The parameters.
  * @param params.vendor - The vendor.
  * @param params.idOS - Accepted idOS documents (`key` and `version` from
- * {@link KycFlowController.fetchSessionDisclaimers}).
+ * {@link VendorOnboardingController.fetchSessionDisclaimers}).
  * @param params.kycProvider - Accepted identity provider documents.
  * @param params.credentialReusabilityConsentGiven - Whether the user lets
  * idOS reuse their existing credentials. The screen asks for it, so it is
  * an argument and never a default.
  * @returns The next step.
  */
-export type KycFlowControllerAcceptSessionDisclaimersAction = {
-  type: `KycFlowController:acceptSessionDisclaimers`;
-  handler: KycFlowController['acceptSessionDisclaimers'];
+export type VendorOnboardingControllerAcceptSessionDisclaimersAction = {
+  type: `VendorOnboardingController:acceptSessionDisclaimers`;
+  handler: VendorOnboardingController['acceptSessionDisclaimers'];
 };
 
 /**
@@ -132,8 +132,8 @@ export type KycFlowControllerAcceptSessionDisclaimersAction = {
  * the phone.
  *
  * The session must already have its authorizations (see
- * {@link KycFlowController.startSession}) and its consents (see
- * {@link KycFlowController.acceptSessionDisclaimers}).
+ * {@link VendorOnboardingController.startSession}) and its consents (see
+ * {@link VendorOnboardingController.acceptSessionDisclaimers}).
  *
  * @param params - The parameters.
  * @param params.vendor - The vendor.
@@ -141,9 +141,9 @@ export type KycFlowControllerAcceptSessionDisclaimersAction = {
  * @param params.debug - Enables SDK debug logging.
  * @returns How the flow ended.
  */
-export type KycFlowControllerLaunchProviderFlowAction = {
-  type: `KycFlowController:launchProviderFlow`;
-  handler: KycFlowController['launchProviderFlow'];
+export type VendorOnboardingControllerLaunchProviderFlowAction = {
+  type: `VendorOnboardingController:launchProviderFlow`;
+  handler: VendorOnboardingController['launchProviderFlow'];
 };
 
 /**
@@ -154,9 +154,9 @@ export type KycFlowControllerLaunchProviderFlowAction = {
  * @param params.phoneNumber - The phone number in E.164 format.
  * @returns The next step.
  */
-export type KycFlowControllerSubmitPhoneAction = {
-  type: `KycFlowController:submitPhone`;
-  handler: KycFlowController['submitPhone'];
+export type VendorOnboardingControllerSubmitPhoneAction = {
+  type: `VendorOnboardingController:submitPhone`;
+  handler: VendorOnboardingController['submitPhone'];
 };
 
 /**
@@ -167,9 +167,9 @@ export type KycFlowControllerSubmitPhoneAction = {
  * @param params.code - The code from the user.
  * @returns The next step.
  */
-export type KycFlowControllerSubmitPhoneCodeAction = {
-  type: `KycFlowController:submitPhoneCode`;
-  handler: KycFlowController['submitPhoneCode'];
+export type VendorOnboardingControllerSubmitPhoneCodeAction = {
+  type: `VendorOnboardingController:submitPhoneCode`;
+  handler: VendorOnboardingController['submitPhoneCode'];
 };
 
 /**
@@ -180,9 +180,9 @@ export type KycFlowControllerSubmitPhoneCodeAction = {
  * @param params.code - The code from the user.
  * @returns The next step.
  */
-export type KycFlowControllerSubmitEmailCodeAction = {
-  type: `KycFlowController:submitEmailCode`;
-  handler: KycFlowController['submitEmailCode'];
+export type VendorOnboardingControllerSubmitEmailCodeAction = {
+  type: `VendorOnboardingController:submitEmailCode`;
+  handler: VendorOnboardingController['submitEmailCode'];
 };
 
 /**
@@ -192,9 +192,9 @@ export type KycFlowControllerSubmitEmailCodeAction = {
  * @param params.vendor - The vendor.
  * @returns The next step.
  */
-export type KycFlowControllerResendEmailCodeAction = {
-  type: `KycFlowController:resendEmailCode`;
-  handler: KycFlowController['resendEmailCode'];
+export type VendorOnboardingControllerResendEmailCodeAction = {
+  type: `VendorOnboardingController:resendEmailCode`;
+  handler: VendorOnboardingController['resendEmailCode'];
 };
 
 /**
@@ -205,9 +205,9 @@ export type KycFlowControllerResendEmailCodeAction = {
  * @param params.vendor - The vendor.
  * @returns The next step.
  */
-export type KycFlowControllerMarkProviderSubmittedAction = {
-  type: `KycFlowController:markProviderSubmitted`;
-  handler: KycFlowController['markProviderSubmitted'];
+export type VendorOnboardingControllerMarkProviderSubmittedAction = {
+  type: `VendorOnboardingController:markProviderSubmitted`;
+  handler: VendorOnboardingController['markProviderSubmitted'];
 };
 
 /**
@@ -217,26 +217,26 @@ export type KycFlowControllerMarkProviderSubmittedAction = {
  * @param params - The parameters.
  * @param params.vendor - The vendor to forget. Omit to forget all.
  */
-export type KycFlowControllerResetAction = {
-  type: `KycFlowController:reset`;
-  handler: KycFlowController['reset'];
+export type VendorOnboardingControllerResetAction = {
+  type: `VendorOnboardingController:reset`;
+  handler: VendorOnboardingController['reset'];
 };
 
 /**
- * Union of all KycFlowController action types.
+ * Union of all VendorOnboardingController action types.
  */
-export type KycFlowControllerMethodActions =
-  | KycFlowControllerRefreshStepAction
-  | KycFlowControllerAcceptTermsAction
-  | KycFlowControllerStartAccountLinkAction
-  | KycFlowControllerVerifyAccountLinkAction
-  | KycFlowControllerStartSessionAction
-  | KycFlowControllerFetchSessionDisclaimersAction
-  | KycFlowControllerAcceptSessionDisclaimersAction
-  | KycFlowControllerLaunchProviderFlowAction
-  | KycFlowControllerSubmitPhoneAction
-  | KycFlowControllerSubmitPhoneCodeAction
-  | KycFlowControllerSubmitEmailCodeAction
-  | KycFlowControllerResendEmailCodeAction
-  | KycFlowControllerMarkProviderSubmittedAction
-  | KycFlowControllerResetAction;
+export type VendorOnboardingControllerMethodActions =
+  | VendorOnboardingControllerRefreshStepAction
+  | VendorOnboardingControllerAcceptTermsAction
+  | VendorOnboardingControllerStartAccountLinkAction
+  | VendorOnboardingControllerVerifyAccountLinkAction
+  | VendorOnboardingControllerStartSessionAction
+  | VendorOnboardingControllerFetchSessionDisclaimersAction
+  | VendorOnboardingControllerAcceptSessionDisclaimersAction
+  | VendorOnboardingControllerLaunchProviderFlowAction
+  | VendorOnboardingControllerSubmitPhoneAction
+  | VendorOnboardingControllerSubmitPhoneCodeAction
+  | VendorOnboardingControllerSubmitEmailCodeAction
+  | VendorOnboardingControllerResendEmailCodeAction
+  | VendorOnboardingControllerMarkProviderSubmittedAction
+  | VendorOnboardingControllerResetAction;

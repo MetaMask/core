@@ -10,7 +10,6 @@ import type {
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller/user-storage';
 
-import type { KycFlowControllerMethodActions } from './KycFlowController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type { KycOnboardingStep } from './KycService.js';
 import {
@@ -21,7 +20,7 @@ import type { KycSumSubLauncher } from './providers/sumsub.js';
 import { needsCapabilityAuthorizationRefresh } from './types.js';
 import type {
   KycConsentRecord,
-  KycFlowVendor,
+  OnboardingVendor,
   KycSessionDisclaimers,
   KycStep,
 } from './types.js';
@@ -30,14 +29,15 @@ import {
   refreshSessionAuthorizations,
 } from './ukyc/sessionAuthorization.js';
 import type { UkycSessionDeps } from './ukyc/sessionAuthorization.js';
+import type { VendorOnboardingControllerMethodActions } from './VendorOnboardingController-method-action-types.js';
 
 // === GENERAL ===
 
 /**
- * The name of the {@link KycFlowController}, used to namespace the
+ * The name of the {@link VendorOnboardingController}, used to namespace the
  * controller's actions and events.
  */
-export const flowControllerName = 'KycFlowController';
+export const vendorOnboardingControllerName = 'VendorOnboardingController';
 
 // === STATE ===
 
@@ -46,7 +46,7 @@ export const flowControllerName = 'KycFlowController';
  * so nothing here can disagree with it: the step is a copy for the first
  * paint, and the session id is only a handle.
  */
-export type KycFlowVendorState = {
+export type OnboardingVendorState = {
   /** The last step kyc-api answered with. */
   step: KycStep;
   /** The vendor's UKYC session id, once one exists. */
@@ -54,27 +54,27 @@ export type KycFlowVendorState = {
 };
 
 /**
- * State of the {@link KycFlowController}.
+ * State of the {@link VendorOnboardingController}.
  */
-export type KycFlowControllerState = {
-  vendors: Partial<Record<KycFlowVendor, KycFlowVendorState>>;
+export type VendorOnboardingControllerState = {
+  vendors: Partial<Record<OnboardingVendor, OnboardingVendorState>>;
 };
 
-const kycFlowControllerMetadata = {
+const vendorOnboardingControllerMetadata = {
   vendors: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
     usedInUi: true,
   },
-} satisfies StateMetadata<KycFlowControllerState>;
+} satisfies StateMetadata<VendorOnboardingControllerState>;
 
 /**
- * Gets the default {@link KycFlowController} state.
+ * Gets the default {@link VendorOnboardingController} state.
  *
  * @returns The default state.
  */
-export function getDefaultKycFlowControllerState(): KycFlowControllerState {
+export function getDefaultVendorOnboardingControllerState(): VendorOnboardingControllerState {
   return { vendors: {} };
 }
 
@@ -125,36 +125,38 @@ const MESSENGER_EXPOSED_METHODS = [
   'reset',
 ] as const;
 
-export type KycFlowControllerGetStateAction = ControllerGetStateAction<
-  typeof flowControllerName,
-  KycFlowControllerState
+export type VendorOnboardingControllerGetStateAction = ControllerGetStateAction<
+  typeof vendorOnboardingControllerName,
+  VendorOnboardingControllerState
 >;
 
-export type KycFlowControllerActions =
-  | KycFlowControllerGetStateAction
-  | KycFlowControllerMethodActions;
+export type VendorOnboardingControllerActions =
+  | VendorOnboardingControllerGetStateAction
+  | VendorOnboardingControllerMethodActions;
 
 type AllowedActions =
   | KycServiceMethodActions
   | UserStorageControllerPerformGetStorageAction
   | UserStorageControllerPerformSetStorageAction;
 
-export type KycFlowControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof flowControllerName,
-  KycFlowControllerState
->;
+export type VendorOnboardingControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof vendorOnboardingControllerName,
+    VendorOnboardingControllerState
+  >;
 
-export type KycFlowControllerEvents = KycFlowControllerStateChangeEvent;
+export type VendorOnboardingControllerEvents =
+  VendorOnboardingControllerStateChangeEvent;
 
 type AllowedEvents = never;
 
 /**
- * The messenger of the {@link KycFlowController}.
+ * The messenger of the {@link VendorOnboardingController}.
  */
-export type KycFlowControllerMessenger = Messenger<
-  typeof flowControllerName,
-  KycFlowControllerActions | AllowedActions,
-  KycFlowControllerEvents | AllowedEvents
+export type VendorOnboardingControllerMessenger = Messenger<
+  typeof vendorOnboardingControllerName,
+  VendorOnboardingControllerActions | AllowedActions,
+  VendorOnboardingControllerEvents | AllowedEvents
 >;
 
 /**
@@ -162,19 +164,21 @@ export type KycFlowControllerMessenger = Messenger<
  * it and kyc-api was told. `abandoned` means they closed it first, so the
  * screen should offer to try again. `failed` means it could not run.
  */
-export type KycFlowProviderOutcome = 'submitted' | 'abandoned' | 'failed';
+export type OnboardingProviderOutcome = 'submitted' | 'abandoned' | 'failed';
 
 /**
- * Options for constructing a {@link KycFlowController}.
+ * Options for constructing a {@link VendorOnboardingController}.
  */
-export type KycFlowControllerOptions = {
-  messenger: KycFlowControllerMessenger;
-  state?: Partial<KycFlowControllerState>;
+export type VendorOnboardingControllerOptions = {
+  messenger: VendorOnboardingControllerMessenger;
+  state?: Partial<VendorOnboardingControllerState>;
   /**
    * The device-signed account link calls, by vendor. Only needed for vendors
    * that link an account (Kalshi).
    */
-  accountLinkAdapters?: Partial<Record<KycFlowVendor, KycAccountLinkAdapter>>;
+  accountLinkAdapters?: Partial<
+    Record<OnboardingVendor, KycAccountLinkAdapter>
+  >;
   /**
    * Platform adapter that presents the SumSub SDK. Injected by each client so
    * the controller stays platform-agnostic. Without it, `launchProviderFlow`
@@ -186,7 +190,7 @@ export type KycFlowControllerOptions = {
 // === CONTROLLER DEFINITION ===
 
 /**
- * `KycFlowController` follows the step kyc-api decides for a vendor. Each
+ * `VendorOnboardingController` follows the step kyc-api decides for a vendor. Each
  * action goes to kyc-api and saves the step it answers with, so the client
  * never works out where the user is. It keeps only the step and the session
  * id per vendor: no terms, consents or account link state.
@@ -194,13 +198,13 @@ export type KycFlowControllerOptions = {
  * It shares {@link KycService} with `KycController` and does not touch
  * `KycController` state, so a vendor can move to it on its own.
  */
-export class KycFlowController extends BaseController<
-  typeof flowControllerName,
-  KycFlowControllerState,
-  KycFlowControllerMessenger
+export class VendorOnboardingController extends BaseController<
+  typeof vendorOnboardingControllerName,
+  VendorOnboardingControllerState,
+  VendorOnboardingControllerMessenger
 > {
   readonly #accountLinkAdapters: Partial<
-    Record<KycFlowVendor, KycAccountLinkAdapter>
+    Record<OnboardingVendor, KycAccountLinkAdapter>
   >;
 
   readonly #sumsubLauncher?: KycSumSubLauncher;
@@ -209,10 +213,10 @@ export class KycFlowController extends BaseController<
    * The newest step request per vendor. An answer that arrives after a newer
    * request started is ignored, so a slow response cannot undo a later one.
    */
-  readonly #stepRequests: Partial<Record<KycFlowVendor, number>> = {};
+  readonly #stepRequests: Partial<Record<OnboardingVendor, number>> = {};
 
   /**
-   * Constructs a new {@link KycFlowController}.
+   * Constructs a new {@link VendorOnboardingController}.
    *
    * @param options - The constructor options.
    * @param options.messenger - The messenger suited for this controller.
@@ -226,12 +230,12 @@ export class KycFlowController extends BaseController<
     state,
     accountLinkAdapters,
     sumsubLauncher,
-  }: KycFlowControllerOptions) {
+  }: VendorOnboardingControllerOptions) {
     super({
       messenger,
-      metadata: kycFlowControllerMetadata,
-      name: flowControllerName,
-      state: { ...getDefaultKycFlowControllerState(), ...state },
+      metadata: vendorOnboardingControllerMetadata,
+      name: vendorOnboardingControllerName,
+      state: { ...getDefaultVendorOnboardingControllerState(), ...state },
     });
 
     this.#accountLinkAdapters = accountLinkAdapters ?? {};
@@ -251,7 +255,11 @@ export class KycFlowController extends BaseController<
    * @param params.vendor - The vendor.
    * @returns The step.
    */
-  async refreshStep({ vendor }: { vendor: KycFlowVendor }): Promise<KycStep> {
+  async refreshStep({
+    vendor,
+  }: {
+    vendor: OnboardingVendor;
+  }): Promise<KycStep> {
     const request = (this.#stepRequests[vendor] ?? 0) + 1;
     this.#stepRequests[vendor] = request;
     const step = await this.messenger.call('KycService:getStep', vendor);
@@ -275,7 +283,7 @@ export class KycFlowController extends BaseController<
    * @returns The next step.
    */
   async acceptTerms(params: {
-    vendor: KycFlowVendor;
+    vendor: OnboardingVendor;
     disclaimerIds: string[];
     country?: string;
   }): Promise<KycStep> {
@@ -298,7 +306,7 @@ export class KycFlowController extends BaseController<
    * @returns The next step.
    */
   async startAccountLink(params: {
-    vendor: KycFlowVendor;
+    vendor: OnboardingVendor;
     email: string;
   }): Promise<KycStep> {
     await this.#requireAdapter(params.vendor).startLink({
@@ -319,7 +327,7 @@ export class KycFlowController extends BaseController<
    * again.
    */
   async verifyAccountLink(params: {
-    vendor: KycFlowVendor;
+    vendor: OnboardingVendor;
     code: string;
   }): Promise<{ step: KycStep; mfaMethod?: KycAccountLinkMfaMethod }> {
     const { mfaMethod } = await this.#requireAdapter(params.vendor).verifyLink({
@@ -352,7 +360,7 @@ export class KycFlowController extends BaseController<
    * @returns The next step.
    */
   async startSession(params: {
-    vendor: KycFlowVendor;
+    vendor: OnboardingVendor;
     aal2Token?: string;
     email?: string;
   }): Promise<KycStep> {
@@ -375,7 +383,7 @@ export class KycFlowController extends BaseController<
 
     if (!params.aal2Token) {
       throw new Error(
-        'KycFlowController.startSession: aal2Token is required to create a KYC session.',
+        'VendorOnboardingController.startSession: aal2Token is required to create a KYC session.',
       );
     }
     const residenceCountry = await this.messenger.call(
@@ -404,7 +412,7 @@ export class KycFlowController extends BaseController<
   async fetchSessionDisclaimers({
     vendor,
   }: {
-    vendor: KycFlowVendor;
+    vendor: OnboardingVendor;
   }): Promise<KycSessionDisclaimers> {
     const sessionId = await this.#getSessionId(vendor);
     return this.messenger.call(
@@ -422,7 +430,7 @@ export class KycFlowController extends BaseController<
    * @param params - The parameters.
    * @param params.vendor - The vendor.
    * @param params.idOS - Accepted idOS documents (`key` and `version` from
-   * {@link KycFlowController.fetchSessionDisclaimers}).
+   * {@link VendorOnboardingController.fetchSessionDisclaimers}).
    * @param params.kycProvider - Accepted identity provider documents.
    * @param params.credentialReusabilityConsentGiven - Whether the user lets
    * idOS reuse their existing credentials. The screen asks for it, so it is
@@ -430,7 +438,7 @@ export class KycFlowController extends BaseController<
    * @returns The next step.
    */
   async acceptSessionDisclaimers(params: {
-    vendor: KycFlowVendor;
+    vendor: OnboardingVendor;
     idOS: KycConsentRecord[];
     kycProvider: KycConsentRecord[];
     credentialReusabilityConsentGiven: boolean;
@@ -453,8 +461,8 @@ export class KycFlowController extends BaseController<
    * the phone.
    *
    * The session must already have its authorizations (see
-   * {@link KycFlowController.startSession}) and its consents (see
-   * {@link KycFlowController.acceptSessionDisclaimers}).
+   * {@link VendorOnboardingController.startSession}) and its consents (see
+   * {@link VendorOnboardingController.acceptSessionDisclaimers}).
    *
    * @param params - The parameters.
    * @param params.vendor - The vendor.
@@ -463,10 +471,10 @@ export class KycFlowController extends BaseController<
    * @returns How the flow ended.
    */
   async launchProviderFlow(params: {
-    vendor: KycFlowVendor;
+    vendor: OnboardingVendor;
     locale?: string;
     debug?: boolean;
-  }): Promise<KycFlowProviderOutcome> {
+  }): Promise<OnboardingProviderOutcome> {
     const launcher = this.#sumsubLauncher;
     if (!launcher?.isAvailable()) {
       return 'failed';
@@ -526,7 +534,7 @@ export class KycFlowController extends BaseController<
    * @returns The next step.
    */
   async submitPhone(params: {
-    vendor: KycFlowVendor;
+    vendor: OnboardingVendor;
     phoneNumber: string;
   }): Promise<KycStep> {
     return this.#runOnboardingStep(params.vendor, 'phone/send-otp', {
@@ -543,7 +551,7 @@ export class KycFlowController extends BaseController<
    * @returns The next step.
    */
   async submitPhoneCode(params: {
-    vendor: KycFlowVendor;
+    vendor: OnboardingVendor;
     code: string;
   }): Promise<KycStep> {
     return this.#runOnboardingStep(params.vendor, 'phone/verify-otp', {
@@ -560,7 +568,7 @@ export class KycFlowController extends BaseController<
    * @returns The next step.
    */
   async submitEmailCode(params: {
-    vendor: KycFlowVendor;
+    vendor: OnboardingVendor;
     code: string;
   }): Promise<KycStep> {
     return this.#runOnboardingStep(params.vendor, 'email/verify-otp', {
@@ -575,7 +583,9 @@ export class KycFlowController extends BaseController<
    * @param params.vendor - The vendor.
    * @returns The next step.
    */
-  async resendEmailCode(params: { vendor: KycFlowVendor }): Promise<KycStep> {
+  async resendEmailCode(params: {
+    vendor: OnboardingVendor;
+  }): Promise<KycStep> {
     return this.#runOnboardingStep(params.vendor, 'email/resend-otp');
   }
 
@@ -590,7 +600,7 @@ export class KycFlowController extends BaseController<
   async markProviderSubmitted({
     vendor,
   }: {
-    vendor: KycFlowVendor;
+    vendor: OnboardingVendor;
   }): Promise<KycStep> {
     const sessionId = await this.#getSessionId(vendor);
     const step = await this.messenger.call('KycService:markProviderSubmitted', {
@@ -607,7 +617,7 @@ export class KycFlowController extends BaseController<
    * @param params - The parameters.
    * @param params.vendor - The vendor to forget. Omit to forget all.
    */
-  reset({ vendor }: { vendor?: KycFlowVendor } = {}): void {
+  reset({ vendor }: { vendor?: OnboardingVendor } = {}): void {
     this.update((state) => {
       if (vendor) {
         delete state.vendors[vendor];
@@ -653,7 +663,7 @@ export class KycFlowController extends BaseController<
   }
 
   async #runOnboardingStep(
-    vendor: KycFlowVendor,
+    vendor: OnboardingVendor,
     step: KycOnboardingStep,
     body?: Record<string, string>,
   ): Promise<KycStep> {
@@ -673,7 +683,7 @@ export class KycFlowController extends BaseController<
    * @param vendor - The vendor.
    * @returns The session id.
    */
-  async #getSessionId(vendor: KycFlowVendor): Promise<string> {
+  async #getSessionId(vendor: OnboardingVendor): Promise<string> {
     const saved = this.state.vendors[vendor]?.sessionId;
     if (saved) {
       return saved;
@@ -683,27 +693,32 @@ export class KycFlowController extends BaseController<
       vendor,
     );
     if (!status) {
-      throw new Error(`KycFlowController: no ${vendor} session to continue.`);
+      throw new Error(
+        `VendorOnboardingController: no ${vendor} session to continue.`,
+      );
     }
     this.#write(vendor, { sessionId: status.id });
     return status.id;
   }
 
-  #requireAdapter(vendor: KycFlowVendor): KycAccountLinkAdapter {
+  #requireAdapter(vendor: OnboardingVendor): KycAccountLinkAdapter {
     const adapter = this.#accountLinkAdapters[vendor];
     if (!adapter) {
       throw new Error(
-        `KycFlowController: no account link adapter for ${vendor}.`,
+        `VendorOnboardingController: no account link adapter for ${vendor}.`,
       );
     }
     return adapter;
   }
 
-  #writeStep(vendor: KycFlowVendor, step: KycStep): void {
+  #writeStep(vendor: OnboardingVendor, step: KycStep): void {
     this.#write(vendor, { step });
   }
 
-  #write(vendor: KycFlowVendor, patch: Partial<KycFlowVendorState>): void {
+  #write(
+    vendor: OnboardingVendor,
+    patch: Partial<OnboardingVendorState>,
+  ): void {
     this.update((state) => {
       const entry = state.vendors[vendor] ?? {
         step: 'vendor_terms' as KycStep,
