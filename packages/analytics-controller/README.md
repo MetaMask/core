@@ -117,7 +117,7 @@ This feature is disabled by default. When disabled, every fragment method is a l
 
 ## Error events
 
-`trackErrorAsAnalytics` reports a caught error as an `Error Occurred` event. The properties are `source` and `error_message`. The message is whitespace-normalized and capped at 500 characters. Stack traces are not included.
+`trackErrorAsAnalytics` reports a caught error as an `Error Occurred` event. The properties always include `source` and `error_message`. The message is whitespace-normalized and capped at 500 characters. Stack traces are not included. Callers may pass an optional `properties` argument.
 
 `source` must uniquely identify the error case (for example `swap-quote-fetch`). Do not reuse one value for every error in a file or package.
 
@@ -130,9 +130,11 @@ Volume is bounded per controller instance:
 - `sessionCap` defaults to `50`. A caller can only lower that ceiling.
 
 ```ts
-controller.trackErrorAsAnalytics(error, {
-  source: 'swap-quote-fetch',
-});
+controller.trackErrorAsAnalytics(
+  error,
+  { source: 'swap-quote-fetch' },
+  { anonymous: true },
+);
 ```
 
 ## Lifecycle Hooks

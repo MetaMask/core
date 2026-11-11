@@ -10,6 +10,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { accountRequiresMfa } from '../../utils/account.js';
 import { prefixError } from '../../utils/error-prefix.js';
 import { isAtomicMaxEnabled } from '../../utils/feature-flags.js';
 import {
@@ -117,6 +118,14 @@ export async function getRelayMaxQuote(
   );
 
   if (!isSubsidizedRelayQuote(quote.original)) {
+    return quote;
+  }
+
+  // A request whose signing keyring requires MFA arrives here already cleared
+  // to `atomic: false` by `updateQuotes`. Promotion ignores that hint and sets
+  // `atomic: true` regardless, which would embed the target calls again and
+  // reintroduce the per-quote delegation signature.
+  if (accountRequiresMfa(messenger, transaction.txParams.from)) {
     return quote;
   }
 

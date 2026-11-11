@@ -1761,6 +1761,25 @@ describe('Token Utils', () => {
         ),
       ).toBe('0');
     });
+
+    it('returns zero if the asset metadata is missing', () => {
+      getAssetsControllerStateMock.mockReturnValue({
+        assetsBalance: {
+          [SOLANA_WALLET_ACCOUNT_ID_MOCK]: {
+            [SOLANA_ASSET_ID_MOCK]: { amount: '1.5' },
+          },
+        },
+        assetsInfo: {},
+      });
+
+      expect(
+        getAssetBalance(
+          messenger,
+          SOLANA_WALLET_ACCOUNT_ID_MOCK,
+          SOLANA_ASSET_ID_MOCK,
+        ),
+      ).toBe('0');
+    });
   });
 
   describe('getAssetInfo', () => {

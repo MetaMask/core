@@ -68,7 +68,21 @@ export type MfaRecoveryControllerGetRecoverySecretAction = {
 };
 
 /**
- * Completes a persisted pending mutation, if any.
+ * Reads the enrolled identifiers from available escrows at the highest
+ * consistent version, with Auth's current identifiers. Needs no recent MFA,
+ * so a new device can build an {@link updateIdentifiers} call from it.
+ *
+ * @returns Enrolled identifiers, `epoch`, and Auth's identifiers.
+ */
+export type MfaRecoveryControllerGetIdentifiersAction = {
+  type: `MfaRecoveryController:getIdentifiers`;
+  handler: MfaRecoveryController['getIdentifiers'];
+};
+
+/**
+ * Completes a persisted pending mutation, if any. Clears a `writing` one,
+ * throwing `MutationRejectedError`, once its approval has expired and no
+ * escrow applied it.
  */
 export type MfaRecoveryControllerResumeAction = {
   type: `MfaRecoveryController:resume`;
@@ -76,7 +90,9 @@ export type MfaRecoveryControllerResumeAction = {
 };
 
 /**
- * Drops `authorizing` pending. `writing` must be finished with {@link resume}.
+ * Drops `authorizing` pending. Drops `writing` pending only once its approval
+ * has expired and no escrow applied it; otherwise finish it with
+ * {@link resume}.
  */
 export type MfaRecoveryControllerAbortAction = {
   type: `MfaRecoveryController:abort`;
@@ -100,6 +116,7 @@ export type MfaRecoveryControllerMethodActions =
   | MfaRecoveryControllerUpdateIdentifiersAction
   | MfaRecoveryControllerAuthenticateIdentifierAction
   | MfaRecoveryControllerGetRecoverySecretAction
+  | MfaRecoveryControllerGetIdentifiersAction
   | MfaRecoveryControllerResumeAction
   | MfaRecoveryControllerAbortAction
   | MfaRecoveryControllerGetPhaseAction;

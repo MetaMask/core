@@ -1,3 +1,4 @@
+import type { KeyringTypes } from '@metamask/keyring-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
@@ -13,6 +14,29 @@ export const DEFAULT_QUOTE_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 export const PERPS_DEPOSIT_TYPES: TransactionType[] = [
   TransactionType.perpsDeposit,
   TransactionType.perpsDepositAndOrder,
+];
+
+/**
+ * Keyring types that support EIP-7702 authorization signing.
+ * Hardware wallets, snap keyrings, and custody keyrings are excluded.
+ */
+export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
+  'HD Key Tree',
+  'Simple Key Pair',
+  'Money Keyring',
+];
+
+/**
+ * Keyring types whose signing requires multi-factor authentication.
+ *
+ * The MPC keyring splits its key across factors, so every signature it
+ * produces costs the user an MFA confirmation. Quote flows that would
+ * otherwise sign once per quote must avoid doing so for these accounts.
+ *
+ * The SRP-derived `Money Keyring` signs locally and is deliberately absent.
+ */
+export const KEYRING_TYPES_REQUIRING_MFA: `${KeyringTypes}`[] = [
+  'MPC Money Keyring',
 ];
 
 export const CHAIN_ID_ARBITRUM = '0xa4b1' as Hex;

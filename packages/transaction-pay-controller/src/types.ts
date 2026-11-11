@@ -15,7 +15,6 @@ import type {
   KeyringControllerGetStateAction,
   KeyringControllerSignTypedMessageAction,
   KeyringControllerUnlockEvent,
-  KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
@@ -290,16 +289,6 @@ export type TransactionPayControllerMessenger = Messenger<
   TransactionPayControllerActions | AllowedActions,
   TransactionPayControllerEvents | AllowedEvents
 >;
-
-/**
- * Keyring types that support EIP-7702 authorization signing.
- * Hardware wallets, snap keyrings, and custody keyrings are excluded.
- */
-export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
-  'HD Key Tree',
-  'Simple Key Pair',
-  'Money Keyring',
-];
 
 /** Derived lifecycle outcome of a Solana Pay execution. */
 export type SolanaPayOutcome =

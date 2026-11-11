@@ -67,7 +67,11 @@ matches the hash computed over its hex-encoded form.
 
 Public surface (all exposed as messenger actions): `register`,
 `updateRecoverySecret`, `updateIdentifiers`, `authenticateIdentifier`,
-`getRecoverySecret`, `resume`, `abort`, `getPhase`.
+`getRecoverySecret`, `getIdentifiers`, `resume`, `abort`, `getPhase`.
+
+`getIdentifiers` takes an AAL1 approval and returns the enrolled identifiers
+at the highest consistent escrow version as `epoch`, plus Auth's identifiers.
+A new device builds the `updateIdentifiers` set and `expectedEpoch` from it.
 
 ## State machine
 
@@ -88,7 +92,9 @@ stateDiagram-v2
 
 Rules:
 
-- **`abort()`** drops `authorizing` only. `writing` must `resume()`
+- **`abort()`** drops `authorizing`, or `writing` once its approval has expired
+  and every escrow is still below `newVersion`; `resume()` then does the same
+  and throws `MutationRejectedError`. Otherwise `writing` must `resume()`
   (`abort_not_allowed`).
 - `writing` is persisted before the **first escrow apply**, after the
   AuthController token is issued, every target escrow has accepted identifier
@@ -114,8 +120,8 @@ Anything that fails is rejected rather than acted on:
   an identifier.
 - `writing` only: the approval binds `sub` to `profileId` and `ext.request_hash`
   to `requestHash`, with `aal >= 2`. `register` / `updateIdentifiers` also need
-  `identifiers_hash` to match `approvedIdentifiers`, and every payload
-  identifier to equal one of them exactly. This runs before `writing` is
+  `identifiers_hash` to match `approvedIdentifiers`, and every non-SIWE
+  payload identifier to equal one of them exactly. This runs before `writing` is
   persisted: an escrow rejection is not a `Deny`, so a mismatch found there
   would leave an unabortable write. Receipts must be well-formed with at most
   one per escrow.
@@ -143,9 +149,12 @@ sequenceDiagram
   M->>M: skip escrows with a stored receipt, re-verify stored receipts
   M->>E: isAvailable (remaining escrows)
   M->>M: reuse token, or re-issue it if exp <= now()
-  alt not register
-    M->>I: getKeyBoundIdentifierToken
-    M->>E: generateChallenge + PoP per remaining escrow (all required)
+  opt updateIdentifiers with SIWE identifiers
+    M->>E: getIdentifiers (enrolled set at expectedVersion)
+  end
+  opt update identifier, or SIWE identifiers not yet enrolled
+    M->>I: getKeyBoundIdentifierToken per identifier
+    M->>E: generateChallenge + PoPs per remaining escrow (all required)
   end
   M->>M: wrap secret per escrow, persist writing
   par write every remaining replica
@@ -174,8 +183,12 @@ Auth approvals:
 - The approval's `identifiers` are persisted with its token as
   `approvedIdentifiers` and refreshed with it. `register` and
   `updateIdentifiers` send them to every escrow, which checks them against
-  `identifiers_hash` and rejects payload identifiers outside them. Hashing
-  sorts object keys, not arrays.
+  `identifiers_hash` and rejects non-SIWE payload identifiers outside them.
+  Hashing sorts object keys, not arrays.
+- Auth does not vouch for SIWE wallets. Each SIWE identifier an escrow has not
+  enrolled needs its own proof in `identifierAuthorizations`; updates add one
+  proof for the `identifier` argument. Escrows past `expectedVersion` replay
+  their receipt, so they get no SIWE proofs.
 - Missing or stale MFA rejects with `AuthenticationController`'s
   `StepUpRequiredError`.
 - Escrows verify signatures. The controller decodes claims only for pending-state
@@ -207,8 +220,8 @@ Versioning:
 
 `resume()` is the same write path without creating a new mutation:
 authorizing pending gets a fresh token then replicates; writing pending
-retries only escrows that do not already have a stored receipt. Updates
-re-run identifier auth (a new key-bound token and PoP) for those escrows on
+retries only escrows that do not already have a stored receipt. Updates and
+mutations adding SIWE wallets re-run identifier auth (a new key-bound token and PoP) for those escrows on
 every attempt, so the identifier provider must be able to authenticate again.
 
 ## Cubist integration
@@ -222,8 +235,10 @@ before `register`.
 
 `CubistEscrowProvider` sends every command with `policyInvoke` on the C2F
 (default `cubist_secret_escrow`, version `latest`) as `{ cmd, ...fields }`:
-`ping` (`isAvailable`), `generateChallenge`, `getSecret`, and
-`applyMutation`. Escrow JSON is parsed from C2F stdout. A policy `Deny` on
+`ping` (`isAvailable`), `generateChallenge`, `getIdentifiers`, `getSecret`,
+and `applyMutation`. `generateChallenge` and `getIdentifiers` take the
+operation's `authControllerToken`; the escrow keys the challenge to its
+profile. Escrow JSON is parsed from C2F stdout. A policy `Deny` on
 `applyMutation` becomes `MutationRejectedError`; any other failure is
 `escrow_request_failed` / `escrow_response_invalid`. `verifyReceipt` checks
 the mutation id, request hash, escrow id, `version === newVersion`,
@@ -295,13 +310,13 @@ the highest one. The next mutation still requires `resume()` first.
 flowchart TD
   Start[identifier + requestHash] --> Mode{trusted type?}
   Mode -->|passkey / social / siwe| KB[fresh proof key, IdP key-bound token]
-  KB --> Chal[each escrow generateChallenge]
-  Chal --> PoP[sign PoP over hash of token + challengeId + requestHash]
+  KB --> Chal[each escrow generateChallenge, one per escrow]
+  Chal --> PoP[each proof key signs hash of token + challengeId + requestHash]
   Mode -->|emailOtp / smsOtp| Todo[TODO MFA-605 / MFA-606 / MFA-568]
   Mode -->|anything else| Reject[unknown_identifier_type]
 ```
 
 On **mutation**, every remaining target escrow must authorize or the write
 does not start (`identifier_auth_failed`). On **read**, escrows whose
-challenge fails are skipped. `register` sends no identifier authorization
-(`null`).
+challenge fails are skipped. A `register` without SIWE identifiers sends no
+identifier authorizations (`[]`).

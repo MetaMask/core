@@ -21,6 +21,15 @@ const mockProfileSummary = {
   imageUrl: 'https://example.com/avatar.png',
 };
 
+const mockProfileIdentity = {
+  displayName: 'Alice',
+  bio: 'gm',
+  createdAt: '2025-11-02T10:00:00.000Z',
+  updatedAt: '2026-10-30T08:30:00.000Z',
+  connectedToX: true,
+  tradingPrivacy: 'public',
+};
+
 const mockSocialHandles = {
   twitter: '@traderalice',
   farcaster: 'traderalice.eth',
@@ -177,6 +186,24 @@ describe('SocialService', () => {
       expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard`, {
         headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
       });
+    });
+
+    it('accepts and returns the Profile API identity on each trader', async () => {
+      const withIdentity = {
+        traders: [
+          { ...mockLeaderboardResponse.traders[0], ...mockProfileIdentity },
+        ],
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withIdentity),
+      });
+      const service = createService();
+
+      const result = await service.fetchLeaderboard();
+
+      expect(result).toStrictEqual(withIdentity);
     });
 
     it('appends sort, chains, and limit query params', async () => {
@@ -600,6 +627,47 @@ describe('SocialService', () => {
           }),
       });
 
+      const service = createService();
+
+      await expect(
+        service.fetchTraderProfile({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_TRADER_PROFILE_INVALID_RESPONSE,
+      );
+    });
+
+    it('accepts and returns the Profile API identity', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockProfileResponse,
+            profile: { ...mockProfileResponse.profile, ...mockProfileIdentity },
+          }),
+      });
+      const service = createService();
+
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.profile).toMatchObject(mockProfileIdentity);
+    });
+
+    it('throws when the trading privacy is unknown', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockProfileResponse,
+            profile: {
+              ...mockProfileResponse.profile,
+              tradingPrivacy: 'friends',
+            },
+          }),
+      });
       const service = createService();
 
       await expect(
@@ -1084,6 +1152,23 @@ describe('SocialService', () => {
       );
     });
 
+    it('accepts and returns the Profile API identity on each follower', async () => {
+      const withIdentity = {
+        followers: [{ ...mockProfileSummary, ...mockProfileIdentity }],
+        count: 1,
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withIdentity),
+      });
+      const service = createService();
+
+      const result = await service.fetchFollowers({ addressOrId: '0x1234' });
+
+      expect(result).toStrictEqual(withIdentity);
+    });
+
     it('appends mutuals=true when mutuals option is set', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -1532,6 +1617,7 @@ describe('SocialService', () => {
         items: [
           {
             ...mockFeedItem,
+            feedItemId: '0b6c3d4e-5f60-4a7b-8c9d-0e1f2a3b4c5d',
             eventId: 'social.v1.feed.all.position-1.2',
             revision: 2,
             occurredAt: '2026-01-02T03:04:05.000Z',
@@ -1568,6 +1654,42 @@ describe('SocialService', () => {
       expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/feed?scope=trending`, {
         headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
       });
+    });
+
+    it('fetches the following_v1 scope with projection metadata and cursors', async () => {
+      const followingResponse = {
+        items: [
+          {
+            ...mockFeedItem,
+            feedItemId: '0b6c3d4e-5f60-4a7b-8c9d-0e1f2a3b4c5d',
+            eventId: 'social.v1.feed.all.position-1.1',
+            revision: 1,
+            occurredAt: '2026-01-02T03:04:05.000Z',
+          },
+        ],
+        pagination: {
+          olderCursor:
+            'eyJvY2N1cnJlZEF0IjoiMjAyNi0wMS0wMlQwMzowNDowNS4wMDBaIn0=',
+          newerCursor: null,
+        },
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(followingResponse),
+      });
+      const service = createService();
+
+      const result = await service.fetchFeed({
+        scope: 'following_v1',
+        olderThan: 'older-cursor',
+      });
+
+      expect(result).toStrictEqual(followingResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `${V1_URL}/feed?scope=following_v1&olderThan=older-cursor`,
+        { headers: { Authorization: `Bearer ${MOCK_TOKEN}` } },
+      );
     });
 
     it('validates a perp feed item', async () => {
@@ -1616,6 +1738,23 @@ describe('SocialService', () => {
 
       const service = createService();
       const result = await service.fetchFeed();
+
+      expect(result.items).toStrictEqual([mockFeedItem]);
+    });
+
+    it('drops a feed item whose feedItemId is not a string', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [{ ...mockFeedItem, feedItemId: 1 }, mockFeedItem],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed({ scope: 'all' });
 
       expect(result.items).toStrictEqual([mockFeedItem]);
     });
@@ -3385,6 +3524,74 @@ describe('SocialService', () => {
       );
 
       expect(result).toStrictEqual(mockBannedStatus);
+    });
+  });
+
+  describe('fetchQuoteTokens', () => {
+    const mockQuoteTokens = {
+      natives: [
+        'eip155:8453/erc20:0x4200000000000000000000000000000000000006',
+        'eip155:8453/slip44:60',
+      ],
+      stablecoins: [
+        'eip155:8453/erc20:0x833589fcd6ed6b6e08f4c7c32d4f71b54bda02913',
+      ],
+    };
+
+    it('fetches quote tokens from /tokens/quote-tokens', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockQuoteTokens),
+      });
+
+      const service = createService();
+      const result = await service.fetchQuoteTokens();
+
+      expect(result).toStrictEqual(mockQuoteTokens);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/tokens/quote-tokens`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(service.fetchQuoteTokens()).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_QUOTE_TOKENS_FAILED}: 500`,
+      );
+    });
+
+    it('throws when response schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ...mockQuoteTokens, natives: [1] }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchQuoteTokens()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_QUOTE_TOKENS_INVALID_RESPONSE,
+      );
+    });
+
+    it('is callable via messenger action', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockQuoteTokens),
+      });
+
+      const messenger = createMessenger();
+      // eslint-disable-next-line no-new
+      new SocialService({ messenger, baseUrl: BASE_URL });
+
+      const result = await messenger.call('SocialService:fetchQuoteTokens');
+
+      expect(result).toStrictEqual(mockQuoteTokens);
     });
   });
 
