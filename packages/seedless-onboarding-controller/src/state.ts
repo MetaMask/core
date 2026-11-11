@@ -100,6 +100,12 @@ export const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControl
       includeInDebugSnapshot: false,
       usedInUi: false,
     },
+    pendingRevokeToken: {
+      includeInStateLogs: false,
+      persist: true,
+      includeInDebugSnapshot: false,
+      usedInUi: false,
+    },
     pendingToBeRevokedTokens: {
       includeInStateLogs: false,
       persist: true,

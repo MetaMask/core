@@ -150,6 +150,11 @@ export type SeedlessOnboardingControllerState =
       revokeToken?: string;
 
       /**
+       * The rotated revoke token persisted until it can be written to the vault.
+       */
+      pendingRevokeToken?: string;
+
+      /**
        * The refresh token and revoke token to be revoked.
        * This is persisted in state to revoke old refresh token when possible.
        */
@@ -219,6 +224,8 @@ export type RefreshJWTToken = (params: {
   idTokens: string[];
   accessToken: string;
   metadataAccessToken: string;
+  refreshToken?: string;
+  revokeToken?: string;
 }>;
 
 export type RevokeRefreshToken = (params: {

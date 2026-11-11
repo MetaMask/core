@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `refreshToken` and `revokeToken` results to `RefreshJWTToken` and a persisted `pendingRevokeToken` state field for deferred vault writes ([#11344](https://github.com/MetaMask/core/pull/11344))
 - Add support for Node.js 26 ([#10981](https://github.com/MetaMask/core/pull/10981))
 
 ### Changed
 
+- Persist refresh and revoke tokens rotated by the auth service, including while locked, without renewing or queuing the consumed pair for revocation ([#11344](https://github.com/MetaMask/core/pull/11344))
 - Replace JS AES implementation with `@metamask/cryptography` ([#10659](https://github.com/MetaMask/core/pull/10659))
 - Bump `@metamask/keyring-controller` from `^28.1.0` to `^28.2.0` ([#10851](https://github.com/MetaMask/core/pull/10851))
 - Bump `@metamask/base-controller` from `^10.0.0` to `^10.1.0` ([#10864](https://github.com/MetaMask/core/pull/10864))

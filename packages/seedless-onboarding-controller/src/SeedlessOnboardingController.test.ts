@@ -7216,6 +7216,321 @@ describe('SeedlessOnboardingController', () => {
         vaultEncryptionSalt = mockVault.vaultEncryptionSalt;
       });
 
+      it.each([true, false])(
+        'should persist server-rotated tokens when unlocked is %s',
+        async (unlocked) => {
+          await withController(
+            {
+              state: getMockInitialControllerState({
+                withMockAuthenticatedUser: true,
+                vault: encryptedMockVault,
+              }),
+            },
+            async ({
+              controller,
+              toprfClient,
+              mockRefreshJWTToken,
+              mockRenewRefreshToken,
+              encryptor,
+            }) => {
+              // eslint-disable-next-line vitest/no-conditional-in-test -- Exercise the same refresh contract in both wallet states.
+              if (unlocked) {
+                await controller.submitPassword(MOCK_PASSWORD);
+              }
+              vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+                nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+                isNewUser: false,
+              });
+              mockRefreshJWTToken.mockResolvedValue({
+                idTokens: ['newIdToken'],
+                accessToken,
+                metadataAccessToken: 'new-metadata-access-token',
+                refreshToken: 'rotated-refresh-token',
+                revokeToken: 'rotated-revoke-token',
+              });
+              const pendingTokens = controller.state.pendingToBeRevokedTokens;
+
+              await controller.refreshAuthTokens();
+
+              expect(controller.state.refreshToken).toBe(
+                'rotated-refresh-token',
+              );
+              expect(mockRenewRefreshToken).not.toHaveBeenCalled();
+              expect(controller.state.pendingToBeRevokedTokens).toStrictEqual(
+                pendingTokens,
+              );
+              const expectedPendingTokens = new Map([
+                [true, undefined],
+                [false, 'rotated-revoke-token'],
+              ]);
+              expect(controller.state.pendingRevokeToken).toBe(
+                expectedPendingTokens.get(unlocked),
+              );
+              // eslint-disable-next-line vitest/no-conditional-in-test -- Only locked refreshes defer the vault write.
+              if (!unlocked) {
+                await controller.submitPassword(MOCK_PASSWORD);
+              }
+              expect(controller.state.pendingRevokeToken).toBeUndefined();
+              expect(controller.state.revokeToken).toBe('rotated-revoke-token');
+              const vault = await encryptor.decrypt(
+                MOCK_PASSWORD,
+                controller.state.vault as string,
+              );
+              expect(JSON.parse(vault as string)).toMatchObject({
+                revokeToken: 'rotated-revoke-token',
+              });
+
+              await controller.rotateRefreshToken();
+
+              expect(mockRenewRefreshToken).toHaveBeenCalledWith({
+                connection: controller.state.authConnection,
+                revokeToken: 'rotated-revoke-token',
+              });
+              expect(controller.state.pendingToBeRevokedTokens).toStrictEqual(
+                pendingTokens,
+              );
+            },
+          );
+        },
+      );
+
+      it.each(['clearState', 'authenticate'])(
+        'should restore legacy rotation queuing after %s',
+        async (resetMethod) => {
+          await withController(
+            {
+              state: getMockInitialControllerState({
+                withMockAuthenticatedUser: true,
+                vault: encryptedMockVault,
+              }),
+            },
+            async ({ controller, toprfClient, mockRefreshJWTToken }) => {
+              await controller.submitPassword(MOCK_PASSWORD);
+              vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+                nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+                isNewUser: false,
+              });
+              mockRefreshJWTToken.mockResolvedValue({
+                idTokens: ['newIdToken'],
+                accessToken,
+                metadataAccessToken,
+                refreshToken: 'rotated-refresh-token',
+                revokeToken: 'rotated-revoke-token',
+              });
+              await controller.refreshAuthTokens();
+
+              // eslint-disable-next-line vitest/no-conditional-in-test -- Both session reset entry points must restore legacy behavior.
+              if (resetMethod === 'clearState') {
+                const authenticatedState = controller.state;
+                controller.clearState();
+                // @ts-expect-error Restore authenticated state without invoking authenticate to isolate clearState.
+                controller.update(() => authenticatedState);
+              } else {
+                await controller.authenticate({
+                  authConnection,
+                  authConnectionId,
+                  userId,
+                  idTokens: ['freshIdToken'],
+                  accessToken,
+                  metadataAccessToken,
+                  refreshToken: 'fresh-refresh-token',
+                  revokeToken: 'fresh-revoke-token',
+                });
+              }
+              await controller.rotateRefreshToken();
+
+              expect(controller.state.pendingToBeRevokedTokens).toHaveLength(1);
+            },
+          );
+        },
+      );
+
+      it('should retain the rotated pair when the vault write fails and reconcile cached data on unlock', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: encryptedMockVault,
+            }),
+          },
+          async ({
+            controller,
+            encryptor,
+            toprfClient,
+            mockRefreshJWTToken,
+          }) => {
+            await controller.submitPassword(MOCK_PASSWORD);
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+            mockRefreshJWTToken.mockResolvedValue({
+              idTokens: ['newIdToken'],
+              accessToken,
+              metadataAccessToken: 'new-metadata-access-token',
+              refreshToken: 'rotated-refresh-token',
+              revokeToken: 'rotated-revoke-token',
+            });
+            vi.spyOn(encryptor, 'encryptWithKey').mockRejectedValueOnce(
+              new Error('Vault write failed'),
+            );
+
+            await expect(controller.refreshAuthTokens()).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+            );
+            expect(controller.state.refreshToken).toBe('rotated-refresh-token');
+            expect(controller.state.pendingRevokeToken).toBe(
+              'rotated-revoke-token',
+            );
+
+            await controller.submitPassword(MOCK_PASSWORD);
+
+            expect(controller.state.revokeToken).toBe('rotated-revoke-token');
+            expect(controller.state.pendingRevokeToken).toBeUndefined();
+            const vault = await encryptor.decrypt(
+              MOCK_PASSWORD,
+              controller.state.vault as string,
+            );
+            expect(JSON.parse(vault as string)).toMatchObject({
+              revokeToken: 'rotated-revoke-token',
+            });
+          },
+        );
+      });
+
+      it('should renew with the pending successor after an unlocked refresh fails', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+              vault: encryptedMockVault,
+            }),
+          },
+          async ({
+            controller,
+            toprfClient,
+            mockRefreshJWTToken,
+            mockRenewRefreshToken,
+          }) => {
+            await controller.submitPassword(MOCK_PASSWORD);
+            mockRefreshJWTToken.mockResolvedValue({
+              idTokens: ['newIdToken'],
+              accessToken,
+              metadataAccessToken,
+              refreshToken: 'rotated-refresh-token',
+              revokeToken: 'rotated-revoke-token',
+            });
+            vi.spyOn(toprfClient, 'authenticate').mockRejectedValue(
+              new Error('TOPRF unavailable'),
+            );
+            await expect(controller.refreshAuthTokens()).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+            );
+
+            await controller.rotateRefreshToken();
+
+            expect(mockRenewRefreshToken).toHaveBeenCalledWith({
+              connection: authConnection,
+              revokeToken: 'rotated-revoke-token',
+            });
+            expect(controller.state.pendingRevokeToken).toBeUndefined();
+            await controller.submitPassword(MOCK_PASSWORD);
+            expect(controller.state.revokeToken).toBe('newRevokeToken');
+            expect(controller.state.refreshToken).toBe('newRefreshToken');
+          },
+        );
+      });
+
+      it('should preserve rotated tokens when re-authentication fails', async () => {
+        await withController(
+          {
+            state: getMockInitialControllerState({
+              withMockAuthenticatedUser: true,
+            }),
+          },
+          async ({ controller, toprfClient, mockRefreshJWTToken }) => {
+            mockRefreshJWTToken.mockResolvedValue({
+              idTokens: ['newIdToken'],
+              accessToken,
+              metadataAccessToken: 'new-metadata-access-token',
+              refreshToken: 'rotated-refresh-token',
+              revokeToken: 'rotated-revoke-token',
+            });
+            vi.spyOn(toprfClient, 'authenticate').mockRejectedValue(
+              new Error('TOPRF unavailable'),
+            );
+
+            await expect(controller.refreshAuthTokens()).rejects.toThrow(
+              SeedlessOnboardingControllerErrorMessage.AuthenticationError,
+            );
+            expect(controller.state.refreshToken).toBe('rotated-refresh-token');
+            expect(controller.state.pendingRevokeToken).toBe(
+              'rotated-revoke-token',
+            );
+          },
+        );
+      });
+
+      it('should discard the pending revoke token after fresh authentication', async () => {
+        await withController(
+          {
+            state: {
+              ...getMockInitialControllerState({
+                withMockAuthenticatedUser: true,
+              }),
+              pendingRevokeToken: 'previous-session-revoke-token',
+            },
+          },
+          async ({ controller, toprfClient }) => {
+            vi.spyOn(toprfClient, 'authenticate').mockResolvedValue({
+              nodeAuthTokens: MOCK_NODE_AUTH_TOKENS,
+              isNewUser: false,
+            });
+
+            await controller.authenticate({
+              authConnection,
+              authConnectionId,
+              userId,
+              idTokens: ['newIdToken'],
+              accessToken,
+              metadataAccessToken,
+              refreshToken: 'fresh-refresh-token',
+              revokeToken: 'fresh-revoke-token',
+            });
+
+            expect(controller.state.pendingRevokeToken).toBeUndefined();
+            expect(controller.state.revokeToken).toBe('fresh-revoke-token');
+          },
+        );
+      });
+
+      it('should reconcile a persisted pending revoke token after restart', async () => {
+        await withController(
+          {
+            state: {
+              ...getMockInitialControllerState({
+                withMockAuthenticatedUser: true,
+                vault: encryptedMockVault,
+              }),
+              pendingRevokeToken: 'persisted-revoke-token',
+            },
+          },
+          async ({ controller, encryptor }) => {
+            await controller.submitPassword(MOCK_PASSWORD);
+
+            expect(controller.state.revokeToken).toBe('persisted-revoke-token');
+            expect(controller.state.pendingRevokeToken).toBeUndefined();
+            const vault = await encryptor.decrypt(
+              MOCK_PASSWORD,
+              controller.state.vault as string,
+            );
+            expect(JSON.parse(vault as string)).toMatchObject({
+              revokeToken: 'persisted-revoke-token',
+            });
+          },
+        );
+      });
+
       it('should successfully refresh node auth tokens', async () => {
         await withController(
           {

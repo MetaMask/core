@@ -157,6 +157,8 @@ export class SeedlessOnboardingController<
    */
   #pendingRefreshPromise: Promise<void> | undefined;
 
+  #serverRotatesRefreshTokens = false;
+
   readonly toprfClient: ToprfSecureBackup;
 
   readonly #refreshJWTToken: RefreshJWTToken;
@@ -342,6 +344,7 @@ export class SeedlessOnboardingController<
           state.socialLoginEmail = socialLoginEmail;
           state.metadataAccessToken = metadataAccessToken;
           state.refreshToken = refreshToken;
+          delete state.pendingRevokeToken;
           if (revokeToken) {
             // Temporarily store revoke token & access token in state for later vault creation
             state.revokeToken = revokeToken;
@@ -354,6 +357,7 @@ export class SeedlessOnboardingController<
           state.isSeedlessOnboardingUserAuthenticated = true;
         });
 
+        this.#serverRotatesRefreshTokens = false;
         return authenticationResult;
       } catch (error) {
         log('Error authenticating user', error);
@@ -827,8 +831,11 @@ export class SeedlessOnboardingController<
         accessTokenFromDecryptedVault,
       );
 
-      // update the state and vault with the latest access token `ONLY` if it's different from the current access token in the state.
-      if (latestAccessToken !== accessTokenFromDecryptedVault) {
+      // Persist newer access tokens and any revoke token received while locked.
+      if (
+        latestAccessToken !== accessTokenFromDecryptedVault ||
+        this.state.pendingRevokeToken
+      ) {
         const updatedVaultData = {
           ...deserializedVaultData,
           accessToken: latestAccessToken,
@@ -1161,6 +1168,7 @@ export class SeedlessOnboardingController<
     this.update(() => {
       return defaultState;
     });
+    this.#serverRotatesRefreshTokens = false;
   }
 
   /**
@@ -1560,11 +1568,22 @@ export class SeedlessOnboardingController<
   }): Promise<DeserializedVaultData> {
     return this.#withVaultLock(async () => {
       if (this.#cachedDecryptedVaultData) {
+        if (this.state.pendingRevokeToken) {
+          this.#cachedDecryptedVaultData = {
+            ...this.#cachedDecryptedVaultData,
+            revokeToken: this.state.pendingRevokeToken,
+          };
+          this.update((state) => {
+            state.revokeToken = state.pendingRevokeToken;
+          });
+        }
         return this.#cachedDecryptedVaultData;
       }
 
       const { vaultData, vaultEncryptionKey, vaultEncryptionSalt } =
         await this.#decryptAndParseVaultData(params);
+      vaultData.revokeToken =
+        this.state.pendingRevokeToken ?? vaultData.revokeToken;
 
       this.update((state) => {
         state.vaultEncryptionKey = vaultEncryptionKey;
@@ -1840,6 +1859,10 @@ export class SeedlessOnboardingController<
         state.vaultEncryptionSalt = updatedState.vaultEncryptionSalt;
         state.encryptedSeedlessEncryptionKey =
           updatedState.encryptedSeedlessEncryptionKey;
+        if (state.pendingRevokeToken === vaultData.revokeToken) {
+          state.revokeToken = vaultData.revokeToken;
+          delete state.pendingRevokeToken;
+        }
       });
 
       // cache the vault data to avoid decrypting the vault data multiple times
@@ -1874,7 +1897,8 @@ export class SeedlessOnboardingController<
   async #getAccessTokenAndRevokeToken(
     password: string,
   ): Promise<{ accessToken: string; revokeToken: string }> {
-    let { accessToken, revokeToken } = this.state;
+    let { accessToken } = this.state;
+    let revokeToken = this.state.pendingRevokeToken ?? this.state.revokeToken;
     // `accessToken` and `revokeToken` are both available in the state, `ONLY` when the wallet (vault) is unlocked
     // or during the period between the social authentication and the vault creation during the onboarding flow.
     if (accessToken && revokeToken) {
@@ -2095,6 +2119,16 @@ export class SeedlessOnboardingController<
 
     try {
       const { idTokens, accessToken, metadataAccessToken } = res;
+      const serverRotated = Boolean(res.refreshToken && res.revokeToken);
+      if (res.refreshToken && res.revokeToken) {
+        // The server consumed the old token; retain the successor before any fallible work.
+        this.update((state) => {
+          state.refreshToken = res.refreshToken;
+          state.pendingRevokeToken = res.revokeToken;
+        });
+        this.#serverRotatesRefreshTokens = true;
+      }
+
       // Re-authenticate with the refreshed id tokens to update node auth
       // tokens, accessToken, and metadataAccessToken in state.
       await this.#reAuthenticate({
@@ -2108,6 +2142,9 @@ export class SeedlessOnboardingController<
         const updatedVaultData = {
           ...this.#cachedDecryptedVaultData,
           accessToken,
+          revokeToken:
+            this.state.pendingRevokeToken ??
+            this.#cachedDecryptedVaultData.revokeToken,
         };
         const pwEncKey = this.#cachedDecryptedVaultData.toprfPwEncryptionKey;
 
@@ -2115,6 +2152,13 @@ export class SeedlessOnboardingController<
           vaultData: updatedVaultData,
           pwEncKey,
         });
+
+        if (serverRotated) {
+          this.update((state) => {
+            state.revokeToken = updatedVaultData.revokeToken;
+          });
+          return;
+        }
 
         // Proactively rotate the refresh token now that we have vault access.
         await this.rotateRefreshToken().catch((error) => {
@@ -2149,9 +2193,8 @@ export class SeedlessOnboardingController<
    * service (`idTokens`, `accessToken`, `metadataAccessToken`) and reads all
    * other auth-connection details from the existing controller state.
    *
-   * `refreshToken` and `revokeToken` are intentionally absent — token-refresh
-   * paths must not touch `state.refreshToken` directly; that field is managed
-   * exclusively by `rotateRefreshToken`.
+   * `refreshToken` and `revokeToken` are persisted separately by the refresh
+   * caller, or by `rotateRefreshToken` when the server does not rotate on refresh.
    *
    * @param params - Tokens issued by the JWT-refresh service.
    * @param params.idTokens - New node id tokens.
@@ -2231,7 +2274,8 @@ export class SeedlessOnboardingController<
       );
     }
     const { refreshToken } = this.state;
-    const { toprfPwEncryptionKey: pwEncKey, revokeToken } = vaultData;
+    const { toprfPwEncryptionKey: pwEncKey } = vaultData;
+    const revokeToken = this.state.pendingRevokeToken ?? vaultData.revokeToken;
     const { newRevokeToken, newRefreshToken } = await this.#renewRefreshToken({
       connection: this.state.authConnection,
       revokeToken,
@@ -2251,13 +2295,18 @@ export class SeedlessOnboardingController<
       this.update((state) => {
         state.revokeToken = newRevokeToken;
         state.refreshToken = newRefreshToken;
+        if (state.pendingRevokeToken === revokeToken) {
+          delete state.pendingRevokeToken;
+        }
       });
 
-      // add the old refresh token to the list to be revoked later when possible
-      this.#addRefreshTokenToRevokeList({
-        refreshToken,
-        revokeToken,
-      });
+      // shortcut: in-memory flag resets on restart; remove queuing once server rotation is deployed everywhere.
+      if (!this.#serverRotatesRefreshTokens) {
+        this.#addRefreshTokenToRevokeList({
+          refreshToken,
+          revokeToken,
+        });
+      }
     }
   }
 
