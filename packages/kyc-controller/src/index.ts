@@ -40,39 +40,39 @@ export type {
 } from './KycController-method-action-types.js';
 
 export {
-  KycFlowController,
-  flowControllerName,
-  getDefaultKycFlowControllerState,
-} from './KycFlowController.js';
+  VendorOnboardingController,
+  vendorOnboardingControllerName,
+  getDefaultVendorOnboardingControllerState,
+} from './VendorOnboardingController.js';
 export type {
   KycAccountLinkAdapter,
   KycAccountLinkMfaMethod,
-  KycFlowControllerActions,
-  KycFlowControllerEvents,
-  KycFlowProviderOutcome,
-  KycFlowControllerGetStateAction,
-  KycFlowControllerMessenger,
-  KycFlowControllerOptions,
-  KycFlowControllerState,
-  KycFlowControllerStateChangeEvent,
-  KycFlowVendorState,
-} from './KycFlowController.js';
+  VendorOnboardingControllerActions,
+  VendorOnboardingControllerEvents,
+  OnboardingProviderOutcome,
+  VendorOnboardingControllerGetStateAction,
+  VendorOnboardingControllerMessenger,
+  VendorOnboardingControllerOptions,
+  VendorOnboardingControllerState,
+  VendorOnboardingControllerStateChangeEvent,
+  OnboardingVendorState,
+} from './VendorOnboardingController.js';
 export type {
-  KycFlowControllerAcceptSessionDisclaimersAction,
-  KycFlowControllerAcceptTermsAction,
-  KycFlowControllerFetchSessionDisclaimersAction,
-  KycFlowControllerLaunchProviderFlowAction,
-  KycFlowControllerMarkProviderSubmittedAction,
-  KycFlowControllerRefreshStepAction,
-  KycFlowControllerResendEmailCodeAction,
-  KycFlowControllerResetAction,
-  KycFlowControllerStartAccountLinkAction,
-  KycFlowControllerStartSessionAction,
-  KycFlowControllerSubmitEmailCodeAction,
-  KycFlowControllerSubmitPhoneAction,
-  KycFlowControllerSubmitPhoneCodeAction,
-  KycFlowControllerVerifyAccountLinkAction,
-} from './KycFlowController-method-action-types.js';
+  VendorOnboardingControllerAcceptSessionDisclaimersAction,
+  VendorOnboardingControllerAcceptTermsAction,
+  VendorOnboardingControllerFetchSessionDisclaimersAction,
+  VendorOnboardingControllerLaunchProviderFlowAction,
+  VendorOnboardingControllerMarkProviderSubmittedAction,
+  VendorOnboardingControllerRefreshStepAction,
+  VendorOnboardingControllerResendEmailCodeAction,
+  VendorOnboardingControllerResetAction,
+  VendorOnboardingControllerStartAccountLinkAction,
+  VendorOnboardingControllerStartSessionAction,
+  VendorOnboardingControllerSubmitEmailCodeAction,
+  VendorOnboardingControllerSubmitPhoneAction,
+  VendorOnboardingControllerSubmitPhoneCodeAction,
+  VendorOnboardingControllerVerifyAccountLinkAction,
+} from './VendorOnboardingController-method-action-types.js';
 
 export { KYC_ANALYTICS_STATUSES, getKycAnalyticsStatus } from './analytics.js';
 export type {
@@ -166,7 +166,7 @@ export type {
   KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
-  KycFlowVendor,
+  OnboardingVendor,
   KycPhase,
   KycProduct,
   KycProviderDisclaimersAccepted,

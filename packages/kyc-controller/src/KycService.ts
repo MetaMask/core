@@ -31,7 +31,7 @@ import type {
   KycDataShare,
   KycDisclaimer,
   KycDisclaimersCatalog,
-  KycFlowVendor,
+  OnboardingVendor,
   KycSessionDisclaimers,
   KycSessionStatus,
   KycStep,
@@ -374,7 +374,7 @@ export type CreateUkycSessionParams = {
    * existing Check/Auth flow. Pass a non-MoonPay vendor (e.g. `iron`) for
    * the consents path (no MoonPay metadata required).
    */
-  vendor?: KycVendor | KycFlowVendor;
+  vendor?: KycVendor | OnboardingVendor;
   /**
    * Vendor-specific metadata. Required for MoonPay (`moonPayAccessToken` /
    * `moonPayUserId`); optional / omitted for other vendors.
@@ -601,7 +601,7 @@ export class KycService extends BaseDataService<
     vendor = 'moonpay',
     country,
   }: {
-    vendor?: KycVendor | KycFlowVendor;
+    vendor?: KycVendor | OnboardingVendor;
     country: string;
   }): Promise<KycDisclaimer[]> {
     const url = new URL(`/vendors/${vendor}/disclaimers`, this.#baseUrl);
@@ -1110,7 +1110,7 @@ export class KycService extends BaseDataService<
    * @returns The session status, or `null` when no latest session exists.
    */
   async getSessionStatusForVendor(
-    vendor: KycVendor | KycFlowVendor,
+    vendor: KycVendor | OnboardingVendor,
   ): Promise<KycSessionStatus | null> {
     const url = new URL(
       `/sessions/latest/status/${encodeURIComponent(vendor)}`,
@@ -1138,7 +1138,7 @@ export class KycService extends BaseDataService<
    * @param vendor - The vendor to get the step for.
    * @returns The step.
    */
-  async getStep(vendor: KycFlowVendor): Promise<KycStep> {
+  async getStep(vendor: OnboardingVendor): Promise<KycStep> {
     const url = new URL(
       `/vendors/${encodeURIComponent(vendor)}/step`,
       this.#baseUrl,
@@ -1165,7 +1165,7 @@ export class KycService extends BaseDataService<
    * @returns The next step.
    */
   async acceptVendorTerms(params: {
-    vendor: KycFlowVendor;
+    vendor: OnboardingVendor;
     disclaimerIds: string[];
     country?: string;
   }): Promise<KycStep> {

@@ -380,10 +380,10 @@ export type KycSessionDisclaimers = {
 };
 
 /**
- * Vendors that onboard through {@link KycFlowController}. Separate from
+ * Vendors that onboard through {@link VendorOnboardingController}. Separate from
  * {@link KycVendor}, which the older `KycController` flow uses.
  */
-export type KycFlowVendor = 'iron' | 'kalshi';
+export type OnboardingVendor = 'iron' | 'kalshi';
 
 /**
  * The steps kyc-api can send for a vendor. The client maps each step to a

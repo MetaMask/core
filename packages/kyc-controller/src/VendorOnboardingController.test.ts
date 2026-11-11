@@ -7,19 +7,19 @@ import type {
 import { describe, expect, it, vi } from 'vitest';
 import type { MockedFunction } from 'vitest';
 
-import {
-  getDefaultKycFlowControllerState,
-  KycFlowController,
-} from './KycFlowController.js';
-import type {
-  KycAccountLinkAdapter,
-  KycFlowControllerMessenger,
-  KycFlowControllerOptions,
-} from './KycFlowController.js';
 import type { KycSumSubLaunchParams } from './providers/sumsub.js';
 import type { KycSessionStatus, KycStep } from './types.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
+import {
+  getDefaultVendorOnboardingControllerState,
+  VendorOnboardingController,
+} from './VendorOnboardingController.js';
+import type {
+  KycAccountLinkAdapter,
+  VendorOnboardingControllerMessenger,
+  VendorOnboardingControllerOptions,
+} from './VendorOnboardingController.js';
 
 vi.mock(import('./ukyc/jwtChain.js'), async (importOriginal) => ({
   ...(await importOriginal()),
@@ -53,8 +53,8 @@ const UKYC_SESSION = {
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
-  MessengerActions<KycFlowControllerMessenger>,
-  MessengerEvents<KycFlowControllerMessenger>
+  MessengerActions<VendorOnboardingControllerMessenger>,
+  MessengerEvents<VendorOnboardingControllerMessenger>
 >;
 
 const SESSION_STATUS: KycSessionStatus = {
@@ -66,12 +66,12 @@ const SESSION_STATUS: KycSessionStatus = {
   vendorStatus: 'new',
 };
 
-describe('KycFlowController', () => {
+describe('VendorOnboardingController', () => {
   describe('constructor', () => {
     it('starts with no vendors', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual(
-          getDefaultKycFlowControllerState(),
+          getDefaultVendorOnboardingControllerState(),
         );
       });
     });
@@ -748,7 +748,9 @@ describe('KycFlowController', () => {
       },
     } satisfies WithControllerOptions['options'];
 
-    type Launcher = NonNullable<KycFlowControllerOptions['sumsubLauncher']>;
+    type Launcher = NonNullable<
+      VendorOnboardingControllerOptions['sumsubLauncher']
+    >;
     const getLauncher = (
       launch: ReturnType<typeof vi.fn> = vi
         .fn()
@@ -972,7 +974,7 @@ describe('KycFlowController', () => {
         iron: { step: 'approved', sessionId: 'sid-iron' },
         kalshi: { step: 'kyc_pending', sessionId: 'sid-kalshi' },
       },
-    } satisfies KycFlowControllerOptions['state'];
+    } satisfies VendorOnboardingControllerOptions['state'];
 
     it('forgets one vendor and keeps the other', async () => {
       await withController({ options: { state } }, ({ controller }) => {
@@ -998,9 +1000,12 @@ describe('KycFlowController', () => {
       await withController(async ({ rootMessenger, handlers }) => {
         handlers.getStep.mockResolvedValue('vendor_terms');
 
-        const step = await rootMessenger.call('KycFlowController:refreshStep', {
-          vendor: 'iron',
-        });
+        const step = await rootMessenger.call(
+          'VendorOnboardingController:refreshStep',
+          {
+            vendor: 'iron',
+          },
+        );
 
         expect(step).toBe('vendor_terms');
       });
@@ -1028,11 +1033,11 @@ type ServiceHandlers = {
 };
 
 type WithControllerOptions = {
-  options?: Partial<KycFlowControllerOptions>;
+  options?: Partial<VendorOnboardingControllerOptions>;
 };
 
 type WithControllerCallback<ReturnValue> = (payload: {
-  controller: KycFlowController;
+  controller: VendorOnboardingController;
   rootMessenger: RootMessenger;
   handlers: ServiceHandlers;
 }) => Promise<ReturnValue> | ReturnValue;
@@ -1054,8 +1059,8 @@ function withController<ReturnValue>(
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
-  const messenger: KycFlowControllerMessenger = new Messenger({
-    namespace: 'KycFlowController',
+  const messenger: VendorOnboardingControllerMessenger = new Messenger({
+    namespace: 'VendorOnboardingController',
     parent: rootMessenger,
   });
   rootMessenger.delegate({
@@ -1174,7 +1179,7 @@ function withController<ReturnValue>(
   mockWrapEncryptionKey.mockReset();
   mockWrapEncryptionKey.mockReturnValue({ data: 'enc', nonce: 'nonce' });
 
-  const controller = new KycFlowController({ messenger, ...options });
+  const controller = new VendorOnboardingController({ messenger, ...options });
   return testFunction({ controller, rootMessenger, handlers });
 }
 
