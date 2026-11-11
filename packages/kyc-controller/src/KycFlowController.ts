@@ -14,7 +14,12 @@ import type { KycFlowControllerMethodActions } from './KycFlowController-method-
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type { KycOnboardingStep } from './KycService.js';
 import { needsCapabilityAuthorizationRefresh } from './types.js';
-import type { KycFlowVendor, KycStep } from './types.js';
+import type {
+  KycConsentRecord,
+  KycFlowVendor,
+  KycSessionDisclaimers,
+  KycStep,
+} from './types.js';
 import {
   createAuthorizedSession,
   refreshSessionAuthorizations,
@@ -104,6 +109,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'startAccountLink',
   'verifyAccountLink',
   'startSession',
+  'fetchSessionDisclaimers',
+  'acceptSessionDisclaimers',
   'submitPhone',
   'submitPhoneCode',
   'submitEmailCode',
@@ -359,6 +366,60 @@ export class KycFlowController extends BaseController<
     });
     this.#write(vendor, { sessionId: session.id });
     return this.refreshStep({ vendor });
+  }
+
+  /**
+   * Fetches the idOS and identity provider (SumSub) documents the user
+   * consents to once the vendor session exists, with which ones are already
+   * consented. Nothing is saved on the phone.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The vendor.
+   * @returns The documents and the reusability consent.
+   */
+  async fetchSessionDisclaimers({
+    vendor,
+  }: {
+    vendor: KycFlowVendor;
+  }): Promise<KycSessionDisclaimers> {
+    const sessionId = await this.#getSessionId(vendor);
+    return this.messenger.call(
+      'KycService:fetchSessionDisclaimersBySessionId',
+      {
+        sessionId,
+      },
+    );
+  }
+
+  /**
+   * Records the user's idOS and identity provider consents with kyc-api right
+   * away, then reads the next step. Nothing is kept on the phone.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The vendor.
+   * @param params.idOS - Accepted idOS documents (`key` and `version` from
+   * {@link KycFlowController.fetchSessionDisclaimers}).
+   * @param params.kycProvider - Accepted identity provider documents.
+   * @param params.credentialReusabilityConsentGiven - Whether the user lets
+   * idOS reuse their existing credentials. The screen asks for it, so it is
+   * an argument and never a default.
+   * @returns The next step.
+   */
+  async acceptSessionDisclaimers(params: {
+    vendor: KycFlowVendor;
+    idOS: KycConsentRecord[];
+    kycProvider: KycConsentRecord[];
+    credentialReusabilityConsentGiven: boolean;
+  }): Promise<KycStep> {
+    const sessionId = await this.#getSessionId(params.vendor);
+    await this.messenger.call('KycService:submitSessionDisclaimers', {
+      sessionId,
+      idOS: params.idOS,
+      kycProvider: params.kycProvider,
+      credentialReusabilityConsentGiven:
+        params.credentialReusabilityConsentGiven,
+    });
+    return this.refreshStep({ vendor: params.vendor });
   }
 
   /**

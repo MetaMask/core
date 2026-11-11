@@ -610,6 +610,134 @@ describe('KycFlowController', () => {
     });
   });
 
+  describe('session disclaimers', () => {
+    const SESSION_DISCLAIMERS = {
+      idOS: [
+        {
+          key: 'idos-tos',
+          version: '1',
+          title: 'idOS ToS',
+          url: 'https://idos.example/tos',
+          consented: false,
+        },
+      ],
+      kycProvider: [],
+      credentialReusabilityConsentGiven: false,
+    };
+    const saved = {
+      options: {
+        state: {
+          vendors: {
+            kalshi: { step: 'identity_verification', sessionId: 'sid-1' },
+          },
+        },
+      },
+    } satisfies WithControllerOptions;
+
+    it('fetches the documents for the saved session without saving them', async () => {
+      await withController(saved, async ({ controller, handlers }) => {
+        handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
+          SESSION_DISCLAIMERS,
+        );
+
+        const result = await controller.fetchSessionDisclaimers({
+          vendor: 'kalshi',
+        });
+
+        expect(result).toStrictEqual(SESSION_DISCLAIMERS);
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).toHaveBeenCalledWith({ sessionId: 'sid-1' });
+        expect(controller.state.vendors.kalshi).toStrictEqual({
+          step: 'identity_verification',
+          sessionId: 'sid-1',
+        });
+      });
+    });
+
+    it('asks kyc-api for the session when the phone has none', async () => {
+      await withController(async ({ controller, handlers }) => {
+        handlers.getSessionStatusForVendor.mockResolvedValue(SESSION_STATUS);
+        handlers.fetchSessionDisclaimersBySessionId.mockResolvedValue(
+          SESSION_DISCLAIMERS,
+        );
+
+        await controller.fetchSessionDisclaimers({ vendor: 'kalshi' });
+
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).toHaveBeenCalledWith({ sessionId: 'sid-1' });
+      });
+    });
+
+    it('throws when there is no session to fetch documents for', async () => {
+      await withController(async ({ controller, handlers }) => {
+        await expect(
+          controller.fetchSessionDisclaimers({ vendor: 'kalshi' }),
+        ).rejects.toThrow('no kalshi session to continue');
+        expect(
+          handlers.fetchSessionDisclaimersBySessionId,
+        ).not.toHaveBeenCalled();
+      });
+    });
+
+    it('records the consents with kyc-api, then reads the step', async () => {
+      await withController(saved, async ({ controller, handlers }) => {
+        handlers.getStep.mockResolvedValue('kyc_pending');
+
+        const step = await controller.acceptSessionDisclaimers({
+          vendor: 'kalshi',
+          idOS: [{ key: 'idos-tos', version: '1' }],
+          kycProvider: [{ key: 'sumsub-tos', version: '1' }],
+          credentialReusabilityConsentGiven: true,
+        });
+
+        expect(step).toBe('kyc_pending');
+        expect(handlers.submitSessionDisclaimers).toHaveBeenCalledWith({
+          sessionId: 'sid-1',
+          idOS: [{ key: 'idos-tos', version: '1' }],
+          kycProvider: [{ key: 'sumsub-tos', version: '1' }],
+          credentialReusabilityConsentGiven: true,
+        });
+        expect(controller.state.vendors.kalshi?.step).toBe('kyc_pending');
+      });
+    });
+
+    it('passes on a refusal to share credentials', async () => {
+      await withController(saved, async ({ controller, handlers }) => {
+        await controller.acceptSessionDisclaimers({
+          vendor: 'kalshi',
+          idOS: [],
+          kycProvider: [],
+          credentialReusabilityConsentGiven: false,
+        });
+
+        expect(handlers.submitSessionDisclaimers).toHaveBeenCalledWith(
+          expect.objectContaining({ credentialReusabilityConsentGiven: false }),
+        );
+      });
+    });
+
+    it('does not read the step when kyc-api rejects the consents', async () => {
+      await withController(saved, async ({ controller, handlers }) => {
+        handlers.submitSessionDisclaimers.mockRejectedValue(
+          new Error('conflict'),
+        );
+
+        await expect(
+          controller.acceptSessionDisclaimers({
+            vendor: 'kalshi',
+            idOS: [],
+            kycProvider: [],
+            credentialReusabilityConsentGiven: false,
+          }),
+        ).rejects.toThrow('conflict');
+
+        expect(handlers.getStep).not.toHaveBeenCalled();
+      });
+    });
+  });
+
   describe('markProviderSubmitted', () => {
     it('tells kyc-api and saves the next step', async () => {
       await withController(
@@ -687,6 +815,8 @@ type ServiceHandlers = {
   markProviderSubmitted: ReturnType<typeof vi.fn>;
   postOnboardingStep: ReturnType<typeof vi.fn>;
   getSessionStatusForVendor: ReturnType<typeof vi.fn>;
+  fetchSessionDisclaimersBySessionId: ReturnType<typeof vi.fn>;
+  submitSessionDisclaimers: ReturnType<typeof vi.fn>;
   getGeoCountry: ReturnType<typeof vi.fn>;
   createUkycSession: ReturnType<typeof vi.fn>;
   resetWrappingKeys: ReturnType<typeof vi.fn>;
@@ -735,6 +865,8 @@ function withController<ReturnValue>(
       'KycService:markProviderSubmitted',
       'KycService:postOnboardingStep',
       'KycService:getSessionStatusForVendor',
+      'KycService:fetchSessionDisclaimersBySessionId',
+      'KycService:submitSessionDisclaimers',
       'KycService:getGeoCountry',
       'KycService:createUkycSession',
       'KycService:resetWrappingKeys',
@@ -754,6 +886,16 @@ function withController<ReturnValue>(
     markProviderSubmitted: vi.fn().mockResolvedValue('kyc_pending'),
     postOnboardingStep: vi.fn().mockResolvedValue(SESSION_STATUS),
     getSessionStatusForVendor: vi.fn().mockResolvedValue(null),
+    fetchSessionDisclaimersBySessionId: vi.fn().mockResolvedValue({
+      idOS: [],
+      kycProvider: [],
+      credentialReusabilityConsentGiven: false,
+    }),
+    submitSessionDisclaimers: vi.fn().mockResolvedValue({
+      idOS: [],
+      kycProvider: [],
+      credentialReusabilityConsentGiven: true,
+    }),
     getGeoCountry: vi.fn().mockResolvedValue('USA'),
     createUkycSession: vi.fn().mockResolvedValue(UKYC_SESSION),
     resetWrappingKeys: vi.fn().mockResolvedValue(UKYC_SESSION),
@@ -779,6 +921,14 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:getSessionStatusForVendor',
     handlers.getSessionStatusForVendor,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:fetchSessionDisclaimersBySessionId',
+    handlers.fetchSessionDisclaimersBySessionId,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:submitSessionDisclaimers',
+    handlers.submitSessionDisclaimers,
   );
   rootMessenger.registerActionHandler(
     'KycService:getGeoCountry',

@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `KycFlowController`, which follows the onboarding step kyc-api decides for a vendor ([#11441](https://github.com/MetaMask/core/pull/11441))
   - State is `vendors[vendor] = { step, sessionId }`. Terms, consents and account link state stay on the server
-  - Actions: `refreshStep`, `acceptTerms`, `startAccountLink`, `verifyAccountLink`, `startSession`, `submitPhone`, `submitPhoneCode`, `submitEmailCode`, `resendEmailCode`, `markProviderSubmitted` and `reset`
+  - Actions: `refreshStep`, `acceptTerms`, `startAccountLink`, `verifyAccountLink`, `startSession`, `fetchSessionDisclaimers`, `acceptSessionDisclaimers`, `submitPhone`, `submitPhoneCode`, `submitEmailCode`, `resendEmailCode`, `markProviderSubmitted` and `reset`
   - The device-signed account link calls are supplied by the client through the `accountLinkAdapters` option
+  - `acceptSessionDisclaimers` records the idOS and identity provider consents with kyc-api at once. `credentialReusabilityConsentGiven` is an argument, never stored or defaulted
   - `startSession` opens the vendor's UKYC session, or picks up the one kyc-api already has, and sends the wrapped encryption key and capability token. It does not create a vendor customer
   - It shares `KycService` with `KycController` and does not touch `KycController` state
 - Add `KycService.getStep`, `acceptVendorTerms`, `markProviderSubmitted` and `postOnboardingStep`, with the matching `KycService:*` messenger actions ([#11441](https://github.com/MetaMask/core/pull/11441))

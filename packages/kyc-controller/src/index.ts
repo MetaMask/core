@@ -57,7 +57,9 @@ export type {
   KycFlowVendorState,
 } from './KycFlowController.js';
 export type {
+  KycFlowControllerAcceptSessionDisclaimersAction,
   KycFlowControllerAcceptTermsAction,
+  KycFlowControllerFetchSessionDisclaimersAction,
   KycFlowControllerMarkProviderSubmittedAction,
   KycFlowControllerRefreshStepAction,
   KycFlowControllerResendEmailCodeAction,
