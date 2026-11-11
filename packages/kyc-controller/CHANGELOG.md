@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `KycFlowController`, which follows the onboarding step kyc-api decides for a vendor ([#11440](https://github.com/MetaMask/core/pull/11440))
+  - State is `vendors[vendor] = { step, sessionId }`. Terms, consents and account link state stay on the server
+  - Actions: `refreshStep`, `acceptTerms`, `startAccountLink`, `verifyAccountLink`, `submitPhone`, `submitPhoneCode`, `submitEmailCode`, `resendEmailCode`, `markProviderSubmitted` and `reset`
+  - The device-signed account link calls are supplied by the client through the `accountLinkAdapters` option
+  - It shares `KycService` with `KycController` and does not touch `KycController` state
+- Add `KycService.getStep`, `acceptVendorTerms`, `markProviderSubmitted` and `postOnboardingStep`, with the matching `KycService:*` messenger actions ([#11440](https://github.com/MetaMask/core/pull/11440))
+- Add the `KYC_STEPS` list, the `KycStep` and `KycFlowVendor` types, and `toKycStep`, which turns a step the client does not know into `error` ([#11440](https://github.com/MetaMask/core/pull/11440))
+
 ### Changed
 
 - **BREAKING:** `generateKeyPair`, `decryptCredentials`, `deriveClientMaterial`, `signStorageAccessToken` and `mintUkycTestToken` are now async ([#10798](https://github.com/MetaMask/core/pull/10798))
+- `KycService.fetchVendorDisclaimers` and `getSessionStatusForVendor` accept the `kalshi` vendor ([#11440](https://github.com/MetaMask/core/pull/11440))
 - Replace the JS cryptography with `@metamask/cryptography` ([#10798](https://github.com/MetaMask/core/pull/10798))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.2` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419), [#11474](https://github.com/MetaMask/core/pull/11474))
 - Bump `@metamask/utils` from `^12.0.1` to `^12.0.2` ([#11474](https://github.com/MetaMask/core/pull/11474))
