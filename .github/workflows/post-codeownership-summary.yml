@@ -120,26 +120,26 @@ jobs:
                 comment.body?.startsWith(marker),
             );
 
-            if (!summary) {
-              if (existingComment) {
-                await github.rest.issues.deleteComment({
+            if (summary && existingComment) {
+              if (existingComment.body !== body) {
+                await github.rest.issues.updateComment({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   comment_id: existingComment.id,
+                  body,
                 });
               }
-            } else if (!existingComment) {
+            } else if (summary) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
                 body,
               });
-            } else if (existingComment.body !== body) {
-              await github.rest.issues.updateComment({
+            } else if (existingComment) {
+              await github.rest.issues.deleteComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: existingComment.id,
-                body,
               });
             }
