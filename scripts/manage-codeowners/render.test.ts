@@ -54,7 +54,7 @@ describe('renderCodeownersSection', () => {
     expect(renderCodeownersSection(section, 3)).toBe(
       '### example\n' +
         '/packages/example                 @MetaMask/team\n' +
-        '/packages/example/CHANGELOG.md    @MetaMask/core-platform @MetaMask/team # maintenance-owner: @MetaMask/core-platform',
+        '/packages/example/CHANGELOG.md    @MetaMask/core-platform @MetaMask/team    # maintenance-owner: @MetaMask/core-platform',
     );
   });
 

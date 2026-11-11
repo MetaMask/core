@@ -9,7 +9,8 @@ import type { CodeownersRule, CodeownersSection } from './types.ts';
  * CODEOWNERS file). A package/overrides section is a series of rules, where
  * each rule has a glob pattern followed by the teams or users that own the
  * files or directories which match that pattern. For each rule, there will be
- * four spaces between the pattern and owners.
+ * four spaces between the pattern and owners, and between the owners and any
+ * maintenance owner comment.
  *
  * @param section - The section to render.
  * @param headingLevel - The Markdown heading level to use.
@@ -93,13 +94,13 @@ function assembleOwners(rule: CodeownersRule): string[] {
  * codeownership summary" workflow).
  *
  * @param rule - The rule whose comment should be rendered.
- * @returns The comment, preceded by a space, or an empty string if the rule
- * has no maintenance owners.
+ * @returns The comment, preceded by four spaces, or an empty string if the
+ * rule has no maintenance owners.
  */
 function renderMaintenanceOwnersComment(rule: CodeownersRule): string {
   if (rule.maintenanceOwners === undefined) {
     return '';
   }
 
-  return ` # maintenance-owner: ${rule.maintenanceOwners.join(' ')}`;
+  return `    # maintenance-owner: ${rule.maintenanceOwners.join(' ')}`;
 }
