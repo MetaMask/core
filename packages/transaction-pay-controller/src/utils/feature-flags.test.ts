@@ -16,6 +16,7 @@ import {
   DEFAULT_FALLBACK_GAS_ESTIMATE,
   DEFAULT_FALLBACK_GAS_MAX,
   DEFAULT_GAS_BUFFER,
+  DEFAULT_GAS_STATION_COST_BUFFER,
   DEFAULT_SERVER_BASE_URL,
   DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD,
   DEFAULT_RELAY_QUOTE_URL,
@@ -46,6 +47,7 @@ import {
   isServerValidationEnabled,
   getFeatureFlags,
   getGasBuffer,
+  getGasStationCostBuffer,
   getHyperliquidActivationFeeConfig,
   DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
   getMaxBalanceRefreshInterval,
@@ -178,6 +180,42 @@ describe('Feature Flags Utils', () => {
       });
     });
   });
+  describe('getGasStationCostBuffer', () => {
+    it('returns default when not set', () => {
+      expect(getGasStationCostBuffer(messenger)).toBe(
+        DEFAULT_GAS_STATION_COST_BUFFER,
+      );
+    });
+
+    it('returns value from feature flags', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            gasStationCostBuffer: 1.05,
+          },
+        },
+      });
+
+      expect(getGasStationCostBuffer(messenger)).toBe(1.05);
+    });
+
+    it('returns default when value is below 1', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_extended: {
+            gasStationCostBuffer: 0.9,
+          },
+        },
+      });
+
+      expect(getGasStationCostBuffer(messenger)).toBe(
+        DEFAULT_GAS_STATION_COST_BUFFER,
+      );
+    });
+  });
+
   describe('getGasBuffer', () => {
     it('returns default gas buffer when none are set', () => {
       const gasBuffer = getGasBuffer(messenger, CHAIN_ID_MOCK);

@@ -42,6 +42,7 @@ export const DEFAULT_ORDER_POLL_INTERVAL_MS = 1000;
 export const DEFAULT_ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 export const DEFAULT_GAS_BUFFER = 1.0;
+export const DEFAULT_GAS_STATION_COST_BUFFER = 1.0;
 export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_EXECUTE_URL = RELAY_EXECUTE_URL;
@@ -212,6 +213,7 @@ export type ServerValidationEnabledConfig = {
 
 type FeatureFlagsExtendedRaw = {
   excludeChainIdsFromInfura?: Hex[];
+  gasStationCostBuffer?: number;
   maxBalanceRefreshInterval?: MaxBalanceRefreshIntervalConfig;
   payStrategies?: {
     relay?: {
@@ -980,6 +982,29 @@ export function getGasBuffer(
     featureFlags.gasBuffer?.default ??
     DEFAULT_GAS_BUFFER
   );
+}
+
+/**
+ * Get the multiplier applied to the estimated gas station cost when reserving
+ * source token for gas in a max-amount quote.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Gas station cost buffer multiplier.
+ */
+export function getGasStationCostBuffer(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  const buffer = featureFlags.gasStationCostBuffer;
+
+  return typeof buffer === 'number' && buffer >= 1
+    ? buffer
+    : DEFAULT_GAS_STATION_COST_BUFFER;
 }
 
 /**
