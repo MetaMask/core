@@ -30,7 +30,7 @@ export function renderCodeownersSection(
         .map(
           (rule) =>
             rule.pattern.padEnd(patternLengthWithPadding) +
-            listOwners(rule).join(' ') +
+            assembleOwners(rule).join(' ') +
             renderMaintenanceOwnersComment(rule),
         )
         .join('\n'),
@@ -75,20 +75,22 @@ function renderHeading(
 }
 
 /**
- * Lists everyone who owns the files that a rule matches, as GitHub sees it.
+ * Assembles the owners that will be used to construct a rule line.
  *
  * @param rule - The rule.
  * @returns The rule's primary and maintenance owners, sorted and unique.
  */
-function listOwners(rule: CodeownersRule): string[] {
+function assembleOwners(rule: CodeownersRule): string[] {
   return [
     ...new Set([...rule.primaryOwners, ...(rule.maintenanceOwners ?? [])]),
   ].sort();
 }
 
 /**
- * Renders the inline comment that notes a rule's maintenance owners, which
- * GitHub ignores but tools reading CODEOWNERS can use.
+ * Builds a comment which documents the "maintenance owners" for the files
+ * a rule represents. This is not used by GitHub (it's a comment, after all),
+ * but rather other processes which read CODEOWNERS (e.g. the "Post
+ * codeownership summary" workflow).
  *
  * @param rule - The rule whose comment should be rendered.
  * @returns The comment, preceded by a space, or an empty string if the rule
