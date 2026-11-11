@@ -141,10 +141,16 @@ export class ChaseOrderSuspensionError extends Error {
  * before a default change does not keep feeding the previous venue's data.
  */
 type DefaultRoutedSubscription = {
-  /** Re-open the stream on the current default, returning its cleanup. */
-  reopen: () => () => void;
+  /** Opens the stream on the given provider, returning its cleanup. */
+  open: (provider: PerpsProvider) => () => void;
   /** Cleanup for the stream currently open. */
   unsubscribe: () => void;
+  /** Invalidate a consumer's cached value before the stream moves. */
+  onInvalidate?: () => void;
+  /** Venue the stream is currently open on; undefined when not open. */
+  providerId: PerpsProviderType | undefined;
+  /** True when the last open attempt threw. */
+  failed: boolean;
 };
 
 /**
@@ -282,17 +288,22 @@ export class AggregatedPerpsProvider implements PerpsProvider {
         `[AggregatedPerpsProvider] Default provider '${providerId}' not available`,
       );
     }
-    if (providerId === this.#defaultProvider) {
-      return;
+    const changed = providerId !== this.#defaultProvider;
+    if (changed) {
+      this.#defaultProvider = providerId;
+      this.#router.setDefaultProvider(providerId);
     }
-    this.#defaultProvider = providerId;
-    this.#router.setDefaultProvider(providerId);
+
+    // Runs even when the default is unchanged so a stream that failed to
+    // re-open earlier is retried instead of staying detached.
     this.#rerouteDefaultSubscriptions();
 
-    this.#deps.debugLogger.log(
-      '[AggregatedPerpsProvider] Default provider changed',
-      { defaultProvider: providerId },
-    );
+    if (changed) {
+      this.#deps.debugLogger.log(
+        '[AggregatedPerpsProvider] Default provider changed',
+        { defaultProvider: providerId },
+      );
+    }
   }
 
   /**
@@ -301,17 +312,26 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    * The returned cleanup detaches the stream from whichever venue it is
    * currently open on, so it stays valid across a default change.
    *
-   * @param subscribe - Opens the stream on a given provider.
+   * @param options - Stream options.
+   * @param options.open - Opens the stream on a given provider.
+   * @param options.onInvalidate - Invalidates a consumer's cached value before
+   * the stream moves (for example, emits an unavailable account snapshot).
    * @returns A cleanup function that closes the stream.
    */
-  #trackDefaultRoutedSubscription(
-    subscribe: (provider: PerpsProvider) => () => void,
-  ): () => void {
+  #trackDefaultRoutedSubscription(options: {
+    open: (provider: PerpsProvider) => () => void;
+    onInvalidate?: () => void;
+  }): () => void {
     const subscription: DefaultRoutedSubscription = {
-      reopen: () => subscribe(this.#getDefaultProvider()),
+      open: options.open,
+      onInvalidate: options.onInvalidate,
       unsubscribe: () => undefined,
+      providerId: this.#defaultProvider,
+      failed: false,
     };
-    subscription.unsubscribe = subscription.reopen();
+    // Initial open failures propagate to the caller, matching the previous
+    // contract for these subscribe methods.
+    subscription.unsubscribe = options.open(this.#getDefaultProvider());
     this.#defaultRoutedSubscriptions.add(subscription);
 
     return () => {
@@ -332,10 +352,75 @@ export class AggregatedPerpsProvider implements PerpsProvider {
     if (this.#defaultRoutedSubscriptions.size === 0) {
       return;
     }
+    const target = this.#defaultProvider;
     for (const subscription of this.#defaultRoutedSubscriptions) {
-      subscription.unsubscribe();
-      subscription.unsubscribe = subscription.reopen();
+      if (!subscription.failed && subscription.providerId === target) {
+        continue;
+      }
+      this.#rerouteSubscription(subscription);
     }
+  }
+
+  /**
+   * Re-open one stream on the current default, isolating its failure from the
+   * other subscriptions. A stream that throws is marked failed and retried on
+   * the next `setDefaultProvider` call.
+   *
+   * @param subscription - The stream to move.
+   */
+  #rerouteSubscription(subscription: DefaultRoutedSubscription): void {
+    const providerId = this.#defaultProvider;
+    subscription.unsubscribe();
+    subscription.unsubscribe = (): void => undefined;
+    subscription.providerId = undefined;
+
+    if (subscription.onInvalidate) {
+      try {
+        subscription.onInvalidate();
+      } catch (caughtError) {
+        this.#logSubscriptionRerouteError(
+          caughtError,
+          'onInvalidate',
+          providerId,
+        );
+      }
+    }
+
+    try {
+      subscription.unsubscribe = subscription.open(this.#getDefaultProvider());
+      subscription.providerId = providerId;
+      subscription.failed = false;
+    } catch (caughtError) {
+      subscription.failed = true;
+      this.#logSubscriptionRerouteError(caughtError, 'open', providerId);
+    }
+  }
+
+  /**
+   * Report a default-routed subscription that could not be moved.
+   *
+   * @param caughtError - The thrown error.
+   * @param method - Which step failed.
+   * @param providerId - The venue the stream was moving to.
+   */
+  #logSubscriptionRerouteError(
+    caughtError: unknown,
+    method: string,
+    providerId: PerpsProviderType,
+  ): void {
+    this.#deps.logger.error(
+      ensureError(caughtError, 'AggregatedPerpsProvider.rerouteSubscription'),
+      {
+        tags: {
+          feature: PERPS_CONSTANTS.FeatureName,
+          provider: providerId,
+        },
+        context: {
+          name: 'AggregatedPerpsProvider',
+          data: { method: `subscription.${method}`, providerId },
+        },
+      },
+    );
   }
 
   /**
@@ -1340,53 +1425,55 @@ export class AggregatedPerpsProvider implements PerpsProvider {
    * native TWAP push channel.
    */
   subscribeToTwapOrders(params: SubscribeTwapOrdersParams): () => void {
-    return this.#trackDefaultRoutedSubscription((provider) => {
-      if (!provider.subscribeToTwapOrders) {
-        return () => {
-          // No-op: default provider exposes no native TWAP push channel
-        };
-      }
-      return provider.subscribeToTwapOrders({
-        ...params,
-        // Stamp the same way getTwapOrders does, so swapping a poll for this
-        // subscription does not silently drop providerId from every schedule.
-        // Read the current default so a re-route re-stamps the venue.
-        callback: (twapOrders, isSnapshot) =>
-          params.callback(
-            twapOrders.map((order) => ({
-              ...order,
-              providerId: this.#defaultProvider,
-            })),
-            isSnapshot,
-          ),
-      });
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => {
+        if (!provider.subscribeToTwapOrders) {
+          return () => {
+            // No-op: default provider exposes no native TWAP push channel
+          };
+        }
+        return provider.subscribeToTwapOrders({
+          ...params,
+          // Stamp the same way getTwapOrders does, so swapping a poll for this
+          // subscription does not silently drop providerId from every schedule.
+          // Read the current default so a re-route re-stamps the venue.
+          callback: (twapOrders, isSnapshot) =>
+            params.callback(
+              twapOrders.map((order) => ({
+                ...order,
+                providerId: this.#defaultProvider,
+              })),
+              isSnapshot,
+            ),
+        });
+      },
     });
   }
 
   subscribeToAccount(params: SubscribeAccountParams): () => void {
     // Account, candles, order book and OI caps have no per-venue route of
     // their own, so they follow the routing default and move with it.
-    return this.#trackDefaultRoutedSubscription((provider) =>
-      provider.subscribeToAccount(params),
-    );
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => provider.subscribeToAccount(params),
+    });
   }
 
   subscribeToOICaps(params: SubscribeOICapsParams): () => void {
-    return this.#trackDefaultRoutedSubscription((provider) =>
-      provider.subscribeToOICaps(params),
-    );
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => provider.subscribeToOICaps(params),
+    });
   }
 
   subscribeToCandles(params: SubscribeCandlesParams): () => void {
-    return this.#trackDefaultRoutedSubscription((provider) =>
-      provider.subscribeToCandles(params),
-    );
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => provider.subscribeToCandles(params),
+    });
   }
 
   subscribeToOrderBook(params: SubscribeOrderBookParams): () => void {
-    return this.#trackDefaultRoutedSubscription((provider) =>
-      provider.subscribeToOrderBook(params),
-    );
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => provider.subscribeToOrderBook(params),
+    });
   }
 
   /**

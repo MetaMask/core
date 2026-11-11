@@ -2696,6 +2696,37 @@ describe('AggregatedPerpsProvider', () => {
       expect(lighterCleanup).toHaveBeenCalledTimes(1);
     });
 
+    it('continues rerouting after one subscription throws and retries it later', () => {
+      mockHLProvider.subscribeToAccount.mockReturnValue(vi.fn());
+      mockLighterProvider.subscribeToAccount.mockReturnValue(vi.fn());
+      mockHLProvider.subscribeToCandles.mockReturnValue(vi.fn());
+      const candleCleanup = vi.fn();
+      mockLighterProvider.subscribeToCandles
+        .mockImplementationOnce(() => {
+          throw new Error('CLIENT_NOT_INITIALIZED');
+        })
+        .mockReturnValueOnce(candleCleanup);
+
+      aggregatedProvider.subscribeToAccount({ callback: vi.fn() });
+      aggregatedProvider.subscribeToCandles({
+        symbol: 'BTC',
+        interval: CandlePeriod.OneHour,
+        callback: vi.fn(),
+      });
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      // The account stream still moved even though candles threw, and the
+      // failure was reported rather than aborting the loop.
+      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+      expect(mockInfrastructure.logger.error).toHaveBeenCalledTimes(1);
+
+      // A later call retries only the failed candles stream.
+      aggregatedProvider.setDefaultProvider('lighter');
+      expect(mockLighterProvider.subscribeToCandles).toHaveBeenCalledTimes(2);
+      expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
+    });
+
     it('is a no-op when the default does not change', () => {
       const hlCleanup = vi.fn();
       mockHLProvider.subscribeToAccount.mockReturnValue(hlCleanup);
