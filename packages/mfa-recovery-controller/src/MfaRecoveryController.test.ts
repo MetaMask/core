@@ -21,7 +21,11 @@ import {
   hash,
   unixNow,
 } from './crypto.js';
-import { IncompleteMutationError, MutationRejectedError } from './errors.js';
+import {
+  IncompleteMutationError,
+  MfaRecoveryError,
+  MutationRejectedError,
+} from './errors.js';
 import type {
   MfaRecoveryControllerMessenger,
   MfaRecoveryControllerOptions,
@@ -462,16 +466,16 @@ describe('MfaRecoveryController', () => {
       });
     });
 
-    it('continues reading when an escrow availability check fails', async () => {
+    it('propagates an availability error instead of skipping the escrow', async () => {
       await withController(async ({ controller, escrowA }) => {
         await controller.register(SECRET, IDENTIFIERS);
-        vi.spyOn(escrowA, 'isAvailable').mockRejectedValue(
-          new Error('health check failed'),
+        const error = new MfaRecoveryError(
+          'Feature disabled',
+          'feature_disabled',
         );
+        vi.spyOn(escrowA, 'isAvailable').mockRejectedValue(error);
 
-        const recovered = await recover(controller, PASSKEY);
-
-        expect(bytesToHex(recovered.recoverySecret)).toBe(bytesToHex(SECRET));
+        await expect(recover(controller, PASSKEY)).rejects.toBe(error);
       });
     });
 
@@ -586,6 +590,22 @@ describe('MfaRecoveryController', () => {
           controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
         ).rejects.toThrow('All configured escrows are required for mutation');
         expect(auth).not.toHaveBeenCalled();
+        expect(await controller.getPhase()).toBe('idle');
+      });
+    });
+
+    it('propagates an availability error instead of reporting the escrow unavailable', async () => {
+      await withController(async ({ controller, escrowB }) => {
+        await controller.register(SECRET, IDENTIFIERS);
+        const error = new MfaRecoveryError(
+          'Registration failed',
+          'registration_request_failed',
+        );
+        vi.spyOn(escrowB, 'isAvailable').mockRejectedValue(error);
+
+        await expect(
+          controller.updateRecoverySecret(PASSKEY, SECRET_2, REGISTERED_EPOCH),
+        ).rejects.toBe(error);
         expect(await controller.getPhase()).toBe('idle');
       });
     });

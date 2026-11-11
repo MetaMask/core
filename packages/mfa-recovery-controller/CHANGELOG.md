@@ -31,4 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^12.0.0` to `^12.0.1` ([#11107](https://github.com/MetaMask/core/pull/11107))
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
 
+### Fixed
+
+- Propagate errors thrown by `RecoveryEscrowProvider.isAvailable`, such as `feature_disabled` or a failed registration, instead of treating them as an unavailable escrow
+
 [Unreleased]: https://github.com/MetaMask/core/
