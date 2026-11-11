@@ -75,10 +75,12 @@ jobs:
         # Write the output to a file, not GITHUB_OUTPUT, to ensure that GitHub
         # doesn't get confused when it attempts to parse the multiline output string.
         run: |
-          if ! yarn create-codeownership-summary --base-ref "$BASE_SHA" --head-ref HEAD > "$RUNNER_TEMP/codeownership-summary.md"; then
+          if yarn create-codeownership-summary --base-ref "$BASE_SHA" --head-ref HEAD > "$RUNNER_TEMP/codeownership-summary.md"; then
+            exit 0
+          else
             exitcode=$?
             cat "$RUNNER_TEMP/codeownership-summary.md"
-            exit $exitcode
+            exit "$exitcode"
           fi
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
