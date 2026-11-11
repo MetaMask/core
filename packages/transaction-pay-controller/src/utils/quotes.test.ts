@@ -1,3 +1,4 @@
+import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
@@ -48,7 +49,12 @@ import { getTransaction, updateTransaction } from './transaction.js';
 import { QuoteError } from './validation.js';
 
 vi.mock(import('./source-amounts.js'));
-vi.mock(import('./account.js'));
+vi.mock(import('./account.js'), async (importOriginal) =>
+  mockModuleExcept(await importOriginal(), [
+    'accountRequiresMfa',
+    'accountSupports7702',
+  ]),
+);
 vi.mock(import('./strategy.js'));
 vi.mock(import('./transaction.js'));
 vi.mock(import('./totals.js'));
@@ -2192,6 +2198,150 @@ describe('Quotes Utils', () => {
 
         expect(updateSourceAmountsMock).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('atomic execution', () => {
+    // The destructure above widens the mocks to `any`. Re-type the keyring
+    // mock so these assertions do not add `no-unsafe-call` violations.
+    const keyringStateMock = getKeyringControllerStateMock as MockedFunction<
+      KeyringControllerGetStateAction['handler']
+    >;
+
+    /**
+     * Make `KeyringController:getState` report the transaction's `from` as
+     * held by a keyring of the given type.
+     *
+     * @param type - Keyring type holding the account.
+     */
+    function mockSigningKeyringType(type: string): void {
+      keyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type,
+            accounts: [TRANSACTION_META_MOCK.txParams.from],
+            metadata: { id: 'keyring-id', name: type },
+          },
+        ],
+      });
+    }
+
+    it.each([
+      ['an explicit hint', true],
+      ['no hint', undefined],
+    ])(
+      'clears atomic when the signing keyring requires MFA given %s',
+      async (_title, atomic) => {
+        mockSigningKeyringType('MPC Money Keyring');
+
+        await run({
+          transactionData: { ...cloneDeep(TRANSACTION_DATA_MOCK), atomic },
+        });
+
+        expect(getQuotesMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            requests: [expect.objectContaining({ atomic: false })],
+          }),
+        );
+      },
+    );
+
+    it('clears atomic for post-quote requests when the signing keyring requires MFA', async () => {
+      mockSigningKeyringType('MPC Money Keyring');
+
+      await run({
+        transactionData: {
+          ...cloneDeep(TRANSACTION_DATA_MOCK),
+          atomic: true,
+          isPostQuote: true,
+          paymentToken: {
+            ...(TRANSACTION_DATA_MOCK.paymentToken as TransactionPaymentToken),
+            assetId: 'eip155:1/erc20:0xdef',
+          },
+          sourceAmounts: [
+            {
+              sourceAmountHuman: '1',
+              sourceAmountRaw: '1000',
+              sourceBalanceRaw: '2000',
+              sourceChainId: '0x1',
+              sourceTokenAddress: '0x456',
+              targetTokenAddress: '0xdef',
+            },
+          ],
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({ atomic: false, isPostQuote: true }),
+          ],
+        }),
+      );
+    });
+
+    it('keeps the atomic hint when the signing keyring does not require MFA', async () => {
+      // The SRP-derived Money Keyring signs locally, so atomic stays allowed.
+      mockSigningKeyringType('Money Keyring');
+
+      await run({
+        transactionData: {
+          ...cloneDeep(TRANSACTION_DATA_MOCK),
+          atomic: true,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [expect.objectContaining({ atomic: true })],
+        }),
+      );
+    });
+
+    it('reads the keyring of the transaction account, not the account override', async () => {
+      // An atomic quote's delegation is signed by `txParams.from`, so an
+      // `accountOverride` on a local keyring must not re-enable atomic.
+      const accountOverride = 'override-account-id';
+      const accountOverrideAddress =
+        '0xde1e9a70r0000000000000000000000000000001' as Hex;
+
+      getEvmAccountAddressMock.mockReturnValue(accountOverrideAddress);
+
+      keyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'MPC Money Keyring',
+            accounts: [TRANSACTION_META_MOCK.txParams.from],
+            metadata: { id: 'mpc-money-keyring', name: 'MPC Money Keyring' },
+          },
+          {
+            type: 'HD Key Tree',
+            accounts: [accountOverrideAddress],
+            metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+          },
+        ],
+      });
+
+      await run({
+        transactionData: {
+          ...cloneDeep(TRANSACTION_DATA_MOCK),
+          accountOverride,
+          atomic: true,
+        },
+      });
+
+      expect(getQuotesMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          requests: [
+            expect.objectContaining({
+              atomic: false,
+              from: accountOverrideAddress,
+            }),
+          ],
+        }),
+      );
     });
   });
 

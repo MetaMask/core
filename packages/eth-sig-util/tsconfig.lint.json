@@ -7,6 +7,9 @@
   "references": [
     {
       "path": "../utils/tsconfig.lint.json"
+    },
+    {
+      "path": "../cryptography/tsconfig.lint.json"
     }
   ]
 }

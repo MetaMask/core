@@ -82,7 +82,9 @@ describe('derivation', () => {
 
       // validate addresses
       keys.forEach(({ privateKeyBytes }, index) => {
-        const address = privateKeyToEthAddress(privateKeyBytes as Uint8Array);
+        const address = privateKeyToEthAddress(
+          privateKeyBytes as Uint8Array<ArrayBuffer>,
+        );
         expect(bytesToHex(address)).toStrictEqual(expectedAddresses[index]);
       });
     });
@@ -112,7 +114,9 @@ describe('derivation', () => {
 
       // validate addresses
       keys.forEach(({ privateKeyBytes }, index) => {
-        const address = privateKeyToEthAddress(privateKeyBytes as Uint8Array);
+        const address = privateKeyToEthAddress(
+          privateKeyBytes as Uint8Array<ArrayBuffer>,
+        );
         expect(bytesToHex(address)).toStrictEqual(expectedAddresses[index]);
       });
     });
@@ -144,7 +148,9 @@ describe('derivation', () => {
 
       // validate addresses
       keys.forEach(({ privateKeyBytes }, index) => {
-        const address = privateKeyToEthAddress(privateKeyBytes as Uint8Array);
+        const address = privateKeyToEthAddress(
+          privateKeyBytes as Uint8Array<ArrayBuffer>,
+        );
         expect(bytesToHex(address)).toStrictEqual(expectedAddresses[index]);
       });
     });

@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add quote simulation to `ServerStrategy`, gated by the `confirmations_pay_extended.payStrategies.server.validationEnabled` feature flag ([#11198](https://github.com/MetaMask/core/pull/11198))
 - Support non-EVM payment tokens, such as Solana SOL and SPL tokens ([#10272](https://github.com/MetaMask/core/pull/10272))
   - `updatePaymentToken` accepts a non-EVM `assetId`, reading its metadata, balance, and price from `AssetsController` state.
   - The non-EVM source account defaults to the account in the same account group as the transaction account that supports the asset chain, or is selected explicitly by `accountOverride`.
@@ -24,7 +23,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fiat payments throw if the account override is not an EVM account.
 - **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getAccountContext` and `AccountTreeController:getAccountGroupObject` actions ([#10272](https://github.com/MetaMask/core/pull/10272))
 - Add dependency on `@metamask/account-tree-controller` `^11.2.0` ([#10272](https://github.com/MetaMask/core/pull/10272))
-- Bump `@metamask/assets-controller` from `^20.2.2` to `^20.3.0` ([#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385))
+- Always request non-atomic quotes when the transaction's `from` keyring requires MFA ([#11389](https://github.com/MetaMask/core/pull/11389))
+  - An atomic quote embeds the target calls, which needs a fresh delegation signature per quote. On an MFA keyring every refresh of an open amount screen would cost the user a confirmation.
+  - The keyring is read from `transaction.txParams.from`, the account that signs the delegation, rather than the quote request's payer account.
+  - Resolved when building quote requests, so it applies to every strategy and to both the max and non-max quote paths.
+
+## [31.1.0]
+
+### Added
+
+- Add quote simulation to `ServerStrategy`, gated by the `confirmations_pay_extended.payStrategies.server.validationEnabled` feature flag ([#11198](https://github.com/MetaMask/core/pull/11198))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^20.2.2` to `^20.3.1` ([#11326](https://github.com/MetaMask/core/pull/11326), [#11385](https://github.com/MetaMask/core/pull/11385), [#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/gas-fee-controller` from `^27.1.0` to `^27.1.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^73.1.1` to `^73.1.2` ([#11390](https://github.com/MetaMask/core/pull/11390))
 
 ## [31.0.0]
 
@@ -1854,7 +1870,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.1.0...HEAD
+[31.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@31.0.0...@metamask/transaction-pay-controller@31.1.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.3...@metamask/transaction-pay-controller@31.0.0
 [30.4.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.2...@metamask/transaction-pay-controller@30.4.3
 [30.4.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@30.4.1...@metamask/transaction-pay-controller@30.4.2

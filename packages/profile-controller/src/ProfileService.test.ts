@@ -104,6 +104,30 @@ describe('ProfileService', () => {
   });
 
   describe('getProfile', () => {
+    it.each([true, false])(
+      'accepts verified=%s in the API response',
+      async (verified) => {
+        mockFetch.mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: async () => ({ ...mockProfileResponse, verified }),
+        });
+        const result = await createService().getProfile('profile-123');
+        expect(result).toStrictEqual({ ...mockProfileResponse, verified });
+      },
+    );
+
+    it('rejects a non-boolean verified field', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ ...mockProfileResponse, verified: 'true' }),
+      });
+      await expect(createService().getProfile('profile-123')).rejects.toThrow(
+        /verified/u,
+      );
+    });
+
     it('fetches profile from correct endpoint', async () => {
       mockFetch.mockResolvedValue({
         ok: true,

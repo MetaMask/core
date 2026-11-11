@@ -844,10 +844,7 @@
       "count": 2
     },
     "typescript/no-unsafe-assignment": {
-      "count": 7
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 3
+      "count": 4
     },
     "typescript/prefer-nullish-coalescing": {
       "count": 6
@@ -930,16 +927,13 @@
   },
   "packages/assets-controllers/src/Standards/NftStandards/ERC1155/ERC1155Standard.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 6
+      "count": 5
     },
     "typescript/no-unsafe-assignment": {
-      "count": 4
+      "count": 1
     },
     "typescript/no-unsafe-call": {
-      "count": 7
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
+      "count": 6
     },
     "typescript/no-unsafe-return": {
       "count": 4
@@ -961,16 +955,10 @@
       "count": 4
     },
     "typescript/no-unsafe-argument": {
-      "count": 7
-    },
-    "typescript/no-unsafe-assignment": {
-      "count": 3
+      "count": 6
     },
     "typescript/no-unsafe-call": {
-      "count": 7
-    },
-    "typescript/no-unsafe-member-access": {
-      "count": 2
+      "count": 6
     },
     "typescript/no-unsafe-return": {
       "count": 6
@@ -1322,12 +1310,17 @@
       "count": 1
     }
   },
+  "packages/authenticated-user-storage/src/authenticated-user-storage.test.ts": {
+    "vitest/no-conditional-in-test": {
+      "count": 1
+    }
+  },
   "packages/authenticated-user-storage/src/authenticated-user-storage.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 5
+      "count": 6
     },
     "typescript/no-unsafe-return": {
-      "count": 5
+      "count": 6
     }
   },
   "packages/base-data-service/src/BaseDataService.ts": {
@@ -1683,16 +1676,16 @@
       "count": 3
     },
     "typescript/no-unsafe-call": {
-      "count": 1
+      "count": 2
     },
     "typescript/no-unsafe-member-access": {
-      "count": 6
+      "count": 7
     },
     "typescript/no-unsafe-return": {
-      "count": 3
+      "count": 5
     },
     "vitest/no-conditional-in-test": {
-      "count": 19
+      "count": 18
     }
   },
   "packages/bridge-status-controller/src/bridge-status-controller.ts": {
@@ -1753,14 +1746,14 @@
       "count": 8
     }
   },
-  "packages/bridge-status-controller/src/utils/metrics.test.ts": {
-    "no-unused-vars": {
-      "count": 1
-    }
-  },
   "packages/bridge-status-controller/src/utils/snaps.test.ts": {
     "vitest/no-conditional-in-test": {
       "count": 3
+    }
+  },
+  "packages/bridge-status-controller/src/utils/swap-received-amount.test.ts": {
+    "typescript/explicit-function-return-type": {
+      "count": 1
     }
   },
   "packages/bridge-status-controller/src/utils/swap-received-amount.ts": {
@@ -2277,11 +2270,6 @@
       "count": 7
     }
   },
-  "packages/eth-sig-util/src/sign-eip7702-authorization.ts": {
-    "no-undef": {
-      "count": 3
-    }
-  },
   "packages/eth-sig-util/src/sign-typed-data.test.ts": {
     "id-denylist": {
       "count": 2
@@ -2362,9 +2350,6 @@
       "count": 3
     },
     "no-param-reassign": {
-      "count": 1
-    },
-    "no-undef": {
       "count": 1
     },
     "typescript/no-explicit-any": {
@@ -2751,7 +2736,7 @@
   },
   "packages/key-tree/tests/reference-implementations.test.ts": {
     "vitest/no-conditional-in-test": {
-      "count": 4
+      "count": 2
     }
   },
   "packages/keyring-controller/src/KeyringController.test.ts": {
@@ -6184,7 +6169,7 @@
       "count": 6
     },
     "typescript/no-unsafe-return": {
-      "count": 3
+      "count": 1
     }
   },
   "scripts/lint-teams-json.ts": {

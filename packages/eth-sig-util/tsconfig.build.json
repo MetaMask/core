@@ -6,6 +6,9 @@
   },
   "references": [
     {
+      "path": "../cryptography/tsconfig.build.json"
+    },
+    {
       "path": "../utils/tsconfig.build.json"
     }
   ],

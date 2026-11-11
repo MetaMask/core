@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Sync custom-token changes to Authenticated User Storage: adding or hiding a custom asset now mirrors it to the user's AUS user-assets blob (fire-and-forget; failures are reported via the messenger's `captureException` and never roll back local state), and removing or unhiding strips the asset from the corresponding AUS list ([#10336](https://github.com/MetaMask/core/pull/10336))
+- Add `assetsBackgroundLoadingStatus` to `AssetsControllerState`, a transient per-account status of the background (Snap + RPC) fetch that runs after the initial balance has resolved ([#11412](https://github.com/MetaMask/core/pull/11412))
+  - Unlike `assetsLoadingStatus`, which only tracks an account's first load, it is set to `'loading'` on every forced fetch that has slow-pipeline chains and settles to `'loaded'` once every overlapping background fetch for the account has finished, whether it succeeded or failed.
+- Add `getAccountBackgroundLoadingStatus`, `isAccountBackgroundLoading`, `getAccountGroupBackgroundLoadingStatus`, `isAccountGroupBackgroundLoading` and `getIsAssetsBackgroundLoadingForSelectedAccountGroup` selectors ([#11412](https://github.com/MetaMask/core/pull/11412))
+- Log `assetsLoadingStatus` and `assetsBackgroundLoadingStatus` transitions, and accounts skipped because their first load already settled, under the `metamask:assets-controller:trackAssetsLoading` debug namespace ([#11412](https://github.com/MetaMask/core/pull/11412))
+
+## [20.3.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^40.1.0` to `^40.2.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/assets-controllers` from `^113.3.0` to `^113.3.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-controller` from `^37.1.1` to `^38.0.0` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/network-enablement-controller` from `^7.1.0` to `^7.1.1` ([#11390](https://github.com/MetaMask/core/pull/11390))
+- Bump `@metamask/transaction-controller` from `^73.1.1` to `^73.1.2` ([#11390](https://github.com/MetaMask/core/pull/11390))
+
 ## [20.3.0]
 
 ### Added
@@ -1270,7 +1288,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.1...HEAD
+[20.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.3.0...@metamask/assets-controller@20.3.1
 [20.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.3...@metamask/assets-controller@20.3.0
 [20.2.3]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.2...@metamask/assets-controller@20.2.3
 [20.2.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@20.2.1...@metamask/assets-controller@20.2.2

@@ -1,4 +1,5 @@
-import { bufferToHex, privateToAddress } from '@ethereumjs/util';
+import { privateToAddress } from '@ethereumjs/util';
+import { bytesToHex, hexToBytes } from '@metamask/utils';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -8,12 +9,11 @@ import {
   hashEIP7702Authorization,
 } from './sign-eip7702-authorization.js';
 
-const TEST_PRIVATE_KEY = Buffer.from(
-  '4af1bceebf7f3634ec3cff8a2c38e51178d5d4ce585c52d6043e5e2cc3418bb0',
-  'hex',
+const TEST_PRIVATE_KEY = hexToBytes(
+  '0x4af1bceebf7f3634ec3cff8a2c38e51178d5d4ce585c52d6043e5e2cc3418bb0',
 );
 
-const TEST_ADDRESS = bufferToHex(privateToAddress(TEST_PRIVATE_KEY));
+const TEST_ADDRESS = bytesToHex(privateToAddress(TEST_PRIVATE_KEY));
 
 const TEST_AUTHORIZATION: EIP7702Authorization = [
   8545,
@@ -21,9 +21,8 @@ const TEST_AUTHORIZATION: EIP7702Authorization = [
   1,
 ];
 
-const EXPECTED_AUTHORIZATION_HASH = Buffer.from(
-  'b847dee5b33802280f3279d57574e1eb6bf5d628d7f63049e3cb20bad211056c',
-  'hex',
+const EXPECTED_AUTHORIZATION_HASH = hexToBytes(
+  '0xb847dee5b33802280f3279d57574e1eb6bf5d628d7f63049e3cb20bad211056c',
 );
 
 const EXPECTED_SIGNATURE =
@@ -118,6 +117,42 @@ describe('signAuthorization', () => {
         'Invalid chainId: must be a non-negative number less than 2^256',
       );
     });
+
+    it.each([NaN, 1.5, Infinity, Number.MAX_SAFE_INTEGER + 1])(
+      'should throw if chainId is %s',
+      (chainId) => {
+        expect(() =>
+          signEIP7702Authorization({
+            privateKey: TEST_PRIVATE_KEY,
+            authorization: [
+              chainId,
+              TEST_AUTHORIZATION[1],
+              TEST_AUTHORIZATION[2],
+            ],
+          }),
+        ).toThrow(
+          'Invalid chainId: must be a non-negative number less than 2^256',
+        );
+      },
+    );
+
+    it.each([NaN, 1.5, Infinity, Number.MAX_SAFE_INTEGER + 1])(
+      'should throw if nonce is %s',
+      (nonce) => {
+        expect(() =>
+          signEIP7702Authorization({
+            privateKey: TEST_PRIVATE_KEY,
+            authorization: [
+              TEST_AUTHORIZATION[0],
+              TEST_AUTHORIZATION[1],
+              nonce,
+            ],
+          }),
+        ).toThrow(
+          'Invalid nonce: must be a non-negative number less than 2^64',
+        );
+      },
+    );
 
     it('should throw if chainId is negative', () => {
       expect(() =>
