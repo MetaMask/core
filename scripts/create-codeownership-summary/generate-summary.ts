@@ -423,44 +423,27 @@ function renderSummary({
 function renderApprovalRequiredSection(
   primaryOwnershipGroups: CodeownershipGroup[],
 ): string[] {
+  const hasGroupWithMultipleOwners = primaryOwnershipGroups.some(
+    ({ owners }) => owners.length > 1,
+  );
+  const instructions = hasGroupWithMultipleOwners
+    ? `To merge this PR, you'll need to get approvals from the following owner groups.
+**For files with multiple owners, approval from one owner is sufficient.**`
+    : "To merge this PR, you'll need to get approvals from the following owners.";
+
   return [
     `## 🛑 Files requiring codeowner review
 
-${renderApprovalInstructions(primaryOwnershipGroups)}
+${instructions}
 `,
-    ...primaryOwnershipGroups.map(renderCodeownershipGroup),
+    ...primaryOwnershipGroups.map(({ owners, filePaths }) => {
+      const ownerList = owners.map((owner) => `**${owner}**`).join(' _or_ ');
+      return `
+${ownerList} (${describeNumberOfFiles(filePaths)})
+
+${renderFileList(filePaths)}`;
+    }),
   ];
-}
-
-/**
- * Explain whose approvals are needed to merge.
- *
- * @param primaryOwnershipGroups - Changed files grouped by the owners whose
- * approval is required.
- * @returns The explanation, in Markdown.
- */
-function renderApprovalInstructions(
-  primaryOwnershipGroups: CodeownershipGroup[],
-): string {
-  if (primaryOwnershipGroups.some(({ owners }) => owners.length > 1)) {
-    return `To merge this PR, you'll need to get approvals from the following owner groups.
-**For files with multiple owners, approval from one owner is sufficient.**`;
-  }
-  return "To merge this PR, you'll need to get approvals from the following owners.";
-}
-
-/**
- * Render a group of files, headered by the owners.
- *
- * @param group - Owners and their changed files.
- * @returns A Markdown section.
- */
-function renderCodeownershipGroup(group: CodeownershipGroup): string {
-  const owners = group.owners.map((owner) => `**${owner}**`).join(' _or_ ');
-  return `
-${owners} (${describeNumberOfFiles(group.filePaths)})
-
-${renderFileList(group.filePaths)}`;
 }
 
 /**
