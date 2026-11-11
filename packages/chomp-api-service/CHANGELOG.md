@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.0]
+
 ### Added
 
 - Add `createIntentsV2` method for `POST /v2/intent`, which accepts the Money Account migration intent types, and the `ChompMigrationIntentType`, `SendIntentV2Params` and `SendIntentV2Response` types, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
@@ -150,7 +152,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `ChompApiService` ([#8413](https://github.com/MetaMask/core/pull/8413))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@7.0.0...@metamask/chomp-api-service@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@6.0.1...@metamask/chomp-api-service@7.0.0
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@6.0.0...@metamask/chomp-api-service@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@5.0.0...@metamask/chomp-api-service@6.0.0
