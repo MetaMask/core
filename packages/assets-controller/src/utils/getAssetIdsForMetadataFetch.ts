@@ -95,7 +95,7 @@ export function getAssetIdsForMetadataFetch({
     if (hasMetadataUsedByClients(stateMetadata[assetId as Caip19AssetId])) {
       return false;
     }
-    if (!stakingAssetIdPrefixes.some((p) => assetId.startsWith(p))) {
+    if (!stakingAssetIdPrefixes.some((prefix) => assetId.startsWith(prefix))) {
       return true;
     }
     return !isStakingContractAssetId(assetId);
