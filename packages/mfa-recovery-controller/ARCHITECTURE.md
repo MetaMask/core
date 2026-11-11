@@ -239,11 +239,8 @@ before `register`.
 and `applyMutation`. `generateChallenge` and `getIdentifiers` take the
 operation's `authControllerToken`; the escrow keys the challenge to its
 profile. Escrow JSON is parsed from C2F stdout. A policy `Deny` on
-`applyMutation` becomes `MutationRejectedError`; an expired or revoked
-CubeSigner session is `session_expired`; any other failure is
-`escrow_request_failed` / `escrow_response_invalid`. `isAvailable` resolves
-`false` for a failed `ping`, but rethrows `getClient` errors and
-`session_expired`. `verifyReceipt` checks
+`applyMutation` becomes `MutationRejectedError`; any other failure is
+`escrow_request_failed` / `escrow_response_invalid`. `verifyReceipt` checks
 the mutation id, request hash, escrow id, `version === newVersion`,
 `receiptKeyId` (SHA-256 of the pinned receipt key), and the Ed25519 signature
 locally.

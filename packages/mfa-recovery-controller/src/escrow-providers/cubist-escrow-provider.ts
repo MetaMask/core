@@ -3,7 +3,6 @@ import type {
   InvokePolicyResponse,
   Version,
 } from '@cubist-labs/cubesigner-sdk';
-import { ErrResponse } from '@cubist-labs/cubesigner-sdk';
 import {
   array,
   integer,
@@ -57,7 +56,7 @@ export type CubistEscrowProviderOptions = {
   /**
    * Returns the authenticated CubeSigner client used to invoke the escrow C2F.
    * Called for every command, so the caller owns session caching and refresh.
-   * Its errors are propagated unchanged.
+   * Commands propagate its errors unchanged; `isAvailable` resolves `false`.
    */
   getClient: () => Promise<CubeSignerClient>;
   /**
@@ -111,23 +110,13 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   }
 
   /**
-   * Errors from `getClient` and expired sessions are rethrown so a missing or
-   * expired session is not reported as an unavailable escrow.
-   *
    * @returns Whether a ping of the escrow C2F is allowed and reports ok.
    */
   async isAvailable(): Promise<boolean> {
-    const client = await this.#getClient();
     try {
-      await this.#invokeWith(client, 'ping', {}, parsePing);
+      await this.#invoke('ping', {}, parsePing);
       return true;
-    } catch (error) {
-      if (
-        error instanceof MfaRecoveryError &&
-        error.code === 'session_expired'
-      ) {
-        throw error;
-      }
+    } catch {
       return false;
     }
   }
@@ -257,22 +246,7 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     parse: (value: unknown) => Result,
     denyIsRejection = false,
   ): Promise<Result> {
-    return await this.#invokeWith(
-      await this.#getClient(),
-      cmd,
-      body,
-      parse,
-      denyIsRejection,
-    );
-  }
-
-  async #invokeWith<Result>(
-    client: CubeSignerClient,
-    cmd: string,
-    body: Record<string, unknown>,
-    parse: (value: unknown) => Result,
-    denyIsRejection = false,
-  ): Promise<Result> {
+    const client = await this.#getClient();
     let invocation: InvokePolicyResponse;
     try {
       invocation = await client.apiClient.policyInvoke(
@@ -281,13 +255,6 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
         { request: toWire({ cmd, ...body }) },
       );
     } catch (error) {
-      if (
-        error instanceof ErrResponse &&
-        (error.isSessionExpiredError() ||
-          error.operation === 'signerSessionRefresh')
-      ) {
-        throw new MfaRecoveryError(error.message, 'session_expired');
-      }
       throw new MfaRecoveryError(
         error instanceof Error ? error.message : 'Escrow request failed',
         'escrow_request_failed',
