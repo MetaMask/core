@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `UpgradeConfig` now requires `allowedCalldataEnforcer` and `allowedTargetsEnforcer` ([#11369](https://github.com/MetaMask/core/pull/11369))
 - **BREAKING:** `MoneyAccountUpgradeControllerMessenger` must now allow the `ChompApiService:getDerivedIdentityByAddress` and `ChompApiService:createIntentsV2` actions ([#11369](https://github.com/MetaMask/core/pull/11369))
-- Bump `@metamask/chomp-api-service` from `^7.0.0` to `^7.1.0` ([#11369](https://github.com/MetaMask/core/pull/11369))
+- Bump `@metamask/chomp-api-service` from `^7.0.0` to `^7.1.0` ([#11437](https://github.com/MetaMask/core/pull/11437))
 
 ### Fixed
 

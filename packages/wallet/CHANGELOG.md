@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/analytics-controller` from `^4.2.0` to `^4.3.0` ([#11391](https://github.com/MetaMask/core/pull/11391))
-- Bump `@metamask/subscription-controller` from `^15.2.0` to `^15.2.1` ([#11369](https://github.com/MetaMask/core/pull/11369))
+- Bump `@metamask/subscription-controller` from `^15.2.0` to `^15.2.1` ([#11437](https://github.com/MetaMask/core/pull/11437))
 
 ## [21.0.1]
 
