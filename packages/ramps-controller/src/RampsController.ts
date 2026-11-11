@@ -444,14 +444,9 @@ export type VbaOnboardingSnapshot = {
   /** Overall KYC session outcome used to decide whether autoramp setup can run. */
   kycStatus: VbaKycStatus;
   /**
-   * idOS `currentStep` from the KYC session this read already loaded, or
-   * `null` when that session has no step.
-   *
-   * Known values match `@metamask/kyc-controller`: `processing`,
-   * `emailOtpCollection`, `phoneOtpCollection`, `capabilityAuthorization`,
-   * `kyc`, `approved`, and `rejected`. `kyc` means document verification is
-   * still with the applicant. `processing` means the applicant has submitted
-   * and the vendor is working. Any other string is copied as sent.
+   * The idOS `currentStep` as sent. See `KYC_CURRENT_STEPS` in
+   * `@metamask/kyc-controller`. `'kyc'` means not yet submitted,
+   * `'processing'` means submitted, and `null` means the session has no step.
    */
   kycCurrentStep: string | null;
   autorampStatus: VbaAutorampStatus;

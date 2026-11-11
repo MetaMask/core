@@ -11197,6 +11197,16 @@ describe('RampsController', () => {
         overrides: { session: sessionWithStatus('pending') },
         expected: factsSnapshot({ kycCurrentStep: null }),
       },
+      {
+        name: 'kycCurrentStep unchanged when the session step is unknown',
+        overrides: {
+          session: {
+            ...sessionWithStatus('pending'),
+            currentStep: 'unexpected-step',
+          },
+        },
+        expected: factsSnapshot({ kycCurrentStep: 'unexpected-step' }),
+      },
     ])('returns $name', async ({ overrides, expected }) => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger, overrides);
@@ -11279,7 +11289,7 @@ describe('RampsController', () => {
     it('copies kycCurrentStep from the refreshed session when refreshKyc succeeds', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         registerKycHandlers(rootMessenger, {
-          session: sessionWithStatus('pending'),
+          session: { ...sessionWithStatus('pending'), currentStep: 'kyc' },
           fetchedSession: {
             ...sessionWithStatus('pending'),
             currentStep: 'processing',
@@ -11295,10 +11305,26 @@ describe('RampsController', () => {
       });
     });
 
+    it('sets kycCurrentStep to null when the refreshed session omits currentStep', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger, {
+          session: { ...sessionWithStatus('pending'), currentStep: 'kyc' },
+          fetchedSession: sessionWithStatus('pending'),
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+            refreshKyc: true,
+          }),
+        ).toStrictEqual(factsSnapshot({ kycCurrentStep: null }));
+      });
+    });
+
     it('keeps the persisted session when the one-shot KYC GET fails', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const handlers = registerKycHandlers(rootMessenger, {
-          session: sessionWithStatus('pending'),
+          session: { ...sessionWithStatus('pending'), currentStep: 'kyc' },
         });
         handlers.fetchSessionStatusOnce.mockRejectedValue(
           new Error('session status unavailable'),
@@ -11309,7 +11335,9 @@ describe('RampsController', () => {
             walletAddress: '0xabc',
             refreshKyc: true,
           }),
-        ).toStrictEqual(factsSnapshot({ kycStatus: 'pending' }));
+        ).toStrictEqual(
+          factsSnapshot({ kycStatus: 'pending', kycCurrentStep: 'kyc' }),
+        );
 
         expect(handlers.fetchSessionStatusOnce).toHaveBeenCalledTimes(1);
         expect(handlers.signPersonalMessage).not.toHaveBeenCalled();
