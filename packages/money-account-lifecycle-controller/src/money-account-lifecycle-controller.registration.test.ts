@@ -1,4 +1,5 @@
 import type { DerivedIdentitiesResponse } from '@metamask/chomp-api-service';
+import type { MoneyAccountRegistrationStatus } from '@metamask/money-account-upgrade-controller';
 import { createDeferredPromise } from '@metamask/utils';
 import { describe, it, expect } from 'vitest';
 
@@ -13,7 +14,6 @@ import {
   getLifecycle,
   withController,
 } from '../tests/helpers.js';
-import type { RegistrationStatus } from './money-account-upgrade-controller-registration-status.js';
 
 describe('MoneyAccountLifecycleController', () => {
   describe('address registration', () => {
@@ -72,7 +72,7 @@ describe('MoneyAccountLifecycleController', () => {
     it('discards a lookup response that arrives after a newer lookup for the same address', async () => {
       await withController(async ({ controller, mocks, init }) => {
         const { promise, resolve } =
-          createDeferredPromise<RegistrationStatus>();
+          createDeferredPromise<MoneyAccountRegistrationStatus>();
         mocks.getRegistrationStatus
           .mockReturnValueOnce(promise)
           .mockResolvedValueOnce({ isRegistered: true });

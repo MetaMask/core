@@ -1866,10 +1866,10 @@
   },
   "packages/chomp-api-service/src/chomp-api-service.ts": {
     "typescript/no-unsafe-assignment": {
-      "count": 12
+      "count": 14
     },
     "typescript/no-unsafe-return": {
-      "count": 12
+      "count": 14
     }
   },
   "packages/claims-controller/src/ClaimsService.test.ts": {
