@@ -5,11 +5,21 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  UserStorageControllerPerformGetStorageAction,
+  UserStorageControllerPerformSetStorageAction,
+} from '@metamask/profile-sync-controller/user-storage';
 
 import type { KycFlowControllerMethodActions } from './KycFlowController-method-action-types.js';
 import type { KycServiceMethodActions } from './KycService-method-action-types.js';
 import type { KycOnboardingStep } from './KycService.js';
+import { needsCapabilityAuthorizationRefresh } from './types.js';
 import type { KycFlowVendor, KycStep } from './types.js';
+import {
+  createAuthorizedSession,
+  refreshSessionAuthorizations,
+} from './ukyc/sessionAuthorization.js';
+import type { UkycSessionDeps } from './ukyc/sessionAuthorization.js';
 
 // === GENERAL ===
 
@@ -93,6 +103,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'acceptTerms',
   'startAccountLink',
   'verifyAccountLink',
+  'startSession',
   'submitPhone',
   'submitPhoneCode',
   'submitEmailCode',
@@ -110,7 +121,10 @@ export type KycFlowControllerActions =
   | KycFlowControllerGetStateAction
   | KycFlowControllerMethodActions;
 
-type AllowedActions = KycServiceMethodActions;
+type AllowedActions =
+  | KycServiceMethodActions
+  | UserStorageControllerPerformGetStorageAction
+  | UserStorageControllerPerformSetStorageAction;
 
 export type KycFlowControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof flowControllerName,
@@ -285,6 +299,69 @@ export class KycFlowController extends BaseController<
   }
 
   /**
+   * Opens the vendor's UKYC session, or picks up the one kyc-api already has,
+   * then reads the next step. Call it from the step that asks for MFA
+   * (`confirm_identity`), with the token MFA returned.
+   *
+   * A new session creates the user's `local_user_secret` when it is missing,
+   * then wraps the encryption key and a capability token for idOS. An existing
+   * session only gets fresh authorizations if its status says they are
+   * `new` or `expired`, so a reinstall or a second device carries on where the
+   * user left off.
+   *
+   * This does not create a vendor customer. A vendor that needs one before
+   * its session (Iron) adds that when it moves to this controller.
+   *
+   * @param params - The parameters.
+   * @param params.vendor - The vendor.
+   * @param params.aal2Token - AAL2 token from MFA. Required only when a new
+   * session has to be created. Omit it to pick up an existing session.
+   * @param params.email - Email the vendor registers the user with, for
+   * vendors whose session kyc-api opens through the relay (Kalshi).
+   * @returns The next step.
+   */
+  async startSession(params: {
+    vendor: KycFlowVendor;
+    aal2Token?: string;
+    email?: string;
+  }): Promise<KycStep> {
+    const { vendor } = params;
+    const existing = await this.messenger.call(
+      'KycService:getSessionStatusForVendor',
+      vendor,
+    );
+
+    if (existing) {
+      this.#write(vendor, { sessionId: existing.id });
+      if (needsCapabilityAuthorizationRefresh(existing)) {
+        await refreshSessionAuthorizations({
+          deps: this.#getSessionDeps(),
+          sessionId: existing.id,
+        });
+      }
+      return this.refreshStep({ vendor });
+    }
+
+    if (!params.aal2Token) {
+      throw new Error(
+        'KycFlowController.startSession: aal2Token is required to create a KYC session.',
+      );
+    }
+    const residenceCountry = await this.messenger.call(
+      'KycService:getGeoCountry',
+    );
+    const session = await createAuthorizedSession({
+      deps: this.#getSessionDeps(),
+      vendor,
+      residenceCountry,
+      aal2Token: params.aal2Token,
+      ...(params.email ? { email: params.email } : {}),
+    });
+    this.#write(vendor, { sessionId: session.id });
+    return this.refreshStep({ vendor });
+  }
+
+  /**
    * Sends the vendor's SMS code to the phone number.
    *
    * @param params - The parameters.
@@ -382,6 +459,41 @@ export class KycFlowController extends BaseController<
         state.vendors = {};
       }
     });
+  }
+
+  /**
+   * The calls session authorization makes, on this controller's messenger.
+   *
+   * @returns The calls.
+   */
+  #getSessionDeps(): UkycSessionDeps {
+    return {
+      createUkycSession: async (params) =>
+        this.messenger.call('KycService:createUkycSession', params),
+      resetWrappingKeys: async (params) =>
+        this.messenger.call('KycService:resetWrappingKeys', params),
+      setAuthorizations: async (params) =>
+        this.messenger.call('KycService:setAuthorizations', params),
+      fetchIdosEnclaveJwks: async () =>
+        this.messenger.call('KycService:fetchIdosEnclaveJwks'),
+      fetchIdosRelayJwks: async () =>
+        this.messenger.call('KycService:fetchIdosRelayJwks'),
+      localUserSecretStore: {
+        get: async (path, entropySourceId) =>
+          this.messenger.call(
+            'UserStorageController:performGetStorage',
+            path as `${string}.${string}`,
+            entropySourceId,
+          ),
+        set: async (path, value, entropySourceId) =>
+          this.messenger.call(
+            'UserStorageController:performSetStorage',
+            path as `${string}.${string}`,
+            value,
+            entropySourceId,
+          ),
+      },
+    };
   }
 
   async #runOnboardingStep(

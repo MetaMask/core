@@ -66,6 +66,33 @@ export type KycFlowControllerVerifyAccountLinkAction = {
 };
 
 /**
+ * Opens the vendor's UKYC session, or picks up the one kyc-api already has,
+ * then reads the next step. Call it from the step that asks for MFA
+ * (`confirm_identity`), with the token MFA returned.
+ *
+ * A new session creates the user's `local_user_secret` when it is missing,
+ * then wraps the encryption key and a capability token for idOS. An existing
+ * session only gets fresh authorizations if its status says they are
+ * `new` or `expired`, so a reinstall or a second device carries on where the
+ * user left off.
+ *
+ * This does not create a vendor customer. A vendor that needs one before
+ * its session (Iron) adds that when it moves to this controller.
+ *
+ * @param params - The parameters.
+ * @param params.vendor - The vendor.
+ * @param params.aal2Token - AAL2 token from MFA. Required only when a new
+ * session has to be created. Omit it to pick up an existing session.
+ * @param params.email - Email the vendor registers the user with, for
+ * vendors whose session kyc-api opens through the relay (Kalshi).
+ * @returns The next step.
+ */
+export type KycFlowControllerStartSessionAction = {
+  type: `KycFlowController:startSession`;
+  handler: KycFlowController['startSession'];
+};
+
+/**
  * Sends the vendor's SMS code to the phone number.
  *
  * @param params - The parameters.
@@ -149,6 +176,7 @@ export type KycFlowControllerMethodActions =
   | KycFlowControllerAcceptTermsAction
   | KycFlowControllerStartAccountLinkAction
   | KycFlowControllerVerifyAccountLinkAction
+  | KycFlowControllerStartSessionAction
   | KycFlowControllerSubmitPhoneAction
   | KycFlowControllerSubmitPhoneCodeAction
   | KycFlowControllerSubmitEmailCodeAction

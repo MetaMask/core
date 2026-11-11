@@ -63,6 +63,7 @@ export type {
   KycFlowControllerResendEmailCodeAction,
   KycFlowControllerResetAction,
   KycFlowControllerStartAccountLinkAction,
+  KycFlowControllerStartSessionAction,
   KycFlowControllerSubmitEmailCodeAction,
   KycFlowControllerSubmitPhoneAction,
   KycFlowControllerSubmitPhoneCodeAction,

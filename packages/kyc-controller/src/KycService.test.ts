@@ -376,6 +376,52 @@ describe('KycService', () => {
       ).toStrictEqual(response);
     });
 
+    it('sends the email when provided', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions', {
+          vendorId: 'kalshi',
+          vendorUserId: 'mockedId',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendorMetadata: {},
+          email: 'a@b.co',
+        })
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+          email: 'a@b.co',
+        }),
+      ).toStrictEqual(response);
+    });
+
+    it('leaves the email out when none is given', async () => {
+      nock(MOCK_API_URL)
+        .post('/sessions', {
+          vendorId: 'kalshi',
+          vendorUserId: 'mockedId',
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendorMetadata: {},
+        })
+        .reply(200, response);
+      const { service } = getService();
+
+      expect(
+        await service.createUkycSession({
+          sessionClientPublicKey: SESSION_CLIENT_PUBLIC_KEY,
+          residenceCountry: RESIDENCE_COUNTRY,
+          vendor: 'kalshi',
+          aal2Token: AAL2_TOKEN,
+        }),
+      ).toStrictEqual(response);
+    });
+
     it('sends the partner identity token when provided', async () => {
       nock(MOCK_API_URL)
         .post(

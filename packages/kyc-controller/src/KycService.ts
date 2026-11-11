@@ -374,7 +374,7 @@ export type CreateUkycSessionParams = {
    * existing Check/Auth flow. Pass a non-MoonPay vendor (e.g. `iron`) for
    * the consents path (no MoonPay metadata required).
    */
-  vendor?: KycVendor;
+  vendor?: KycVendor | KycFlowVendor;
   /**
    * Vendor-specific metadata. Required for MoonPay (`moonPayAccessToken` /
    * `moonPayUserId`); optional / omitted for other vendors.
@@ -392,6 +392,12 @@ export type CreateUkycSessionParams = {
    * vendor audience. Omitted from the request body when not provided.
    */
   partnerIdentityToken?: string;
+  /**
+   * Email the vendor registers the user with, for vendors kyc-api opens
+   * sessions for through the relay (Kalshi). Omitted from the request body
+   * when not provided.
+   */
+  email?: string;
 };
 
 /**
@@ -898,6 +904,7 @@ export class KycService extends BaseDataService<
           ...(params.partnerIdentityToken && {
             partnerIdentityToken: params.partnerIdentityToken,
           }),
+          ...(params.email && { email: params.email }),
         }),
       },
       { bearerToken: params.aal2Token },
