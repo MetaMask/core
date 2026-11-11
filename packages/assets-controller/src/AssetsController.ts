@@ -136,7 +136,11 @@ import {
   executeAssetsPipeline,
 } from './pipeline/index.js';
 import { syncAusUserAssets } from './syncAusUserAssets.js';
-import { trackAssetsLoading } from './trackAssetsLoading.js';
+import {
+  trackAssetsLoading,
+  trackBackgroundAssetsLoading,
+} from './trackAssetsLoading.js';
+import type { AssetsLoadingStateUpdater } from './trackAssetsLoading.js';
 import type {
   AccountId,
   AssetsControllerState,
@@ -501,6 +505,12 @@ const stateMetadata: StateMetadata<AssetsControllerState> = {
     usedInUi: true,
   },
   assetsLoadingStatus: {
+    persist: false,
+    includeInStateLogs: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  assetsBackgroundLoadingStatus: {
     persist: false,
     includeInStateLogs: true,
     includeInDebugSnapshot: true,
@@ -1963,33 +1973,38 @@ export class AssetsController extends BaseController<
       : [this.#rpcDataSource];
     const slowRequest = { ...request, chainIds };
 
-    withTrace({
-      name: TRACE_BACKGROUND_FETCH,
-      trace: pipelineTrace,
-      data: {
-        chain_count: chainIds.length,
-        account_count: accounts.length,
-      },
-      fn: async (parentContext) => {
-        const { response } = await this.#executeMiddlewares({
-          sources: [
-            createParallelBalanceMiddleware(slowSources),
-            ...(isBasicFunctionality
-              ? [
-                  createParallelMiddleware([
-                    this.#tokenDataSource,
-                    this.#priceDataSource,
-                  ]),
-                ]
-              : []),
-          ],
-          request: slowRequest,
-          parentContext,
+    trackBackgroundAssetsLoading(
+      this as unknown as AssetsLoadingStateUpdater,
+      accounts,
+      () =>
+        withTrace({
+          name: TRACE_BACKGROUND_FETCH,
           trace: pipelineTrace,
-        });
-        await this.#updateState(response);
-      },
-    }).catch((error: unknown) => log('Background pipeline failed', { error }));
+          data: {
+            chain_count: chainIds.length,
+            account_count: accounts.length,
+          },
+          fn: async (parentContext) => {
+            const { response } = await this.#executeMiddlewares({
+              sources: [
+                createParallelBalanceMiddleware(slowSources),
+                ...(isBasicFunctionality
+                  ? [
+                      createParallelMiddleware([
+                        this.#tokenDataSource,
+                        this.#priceDataSource,
+                      ]),
+                    ]
+                  : []),
+              ],
+              request: slowRequest,
+              parentContext,
+              trace: pipelineTrace,
+            });
+            await this.#updateState(response);
+          },
+        }),
+    ).catch((error: unknown) => log('Background pipeline failed', { error }));
   }
 
   #emitFastFetchTraces({

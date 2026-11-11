@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.1.0]
+
+### Added
+
+- Add display formatters for the perps values Mobile, Extension and Terminal still format locally. Each takes the same `formatters` and `sign` options and renders the shared placeholder for a missing value ([#11415](https://github.com/MetaMask/core/pull/11415))
+  - `formatFeeBps(rate, options)` formats a fee rate in basis points: `formatFeeBps(0.00045)` returns `4.5 bps`
+  - `formatLiquidationDistance(entryPrice, liquidationPrice, options)` formats the distance to the liquidation price: `formatLiquidationDistance(100, 70)` returns `30.00%`, and a missing or non-positive price returns `--%`
+  - `formatPerpsCompact(value, { field })` abbreviates with `K`, `M`, `B` or `T` for the field shown: `volume` (`$1.23M`, `$123K`, `$999.50`), `orderBookUsd` (`$2.1K`, and `PRICE_RANGES_UNIVERSAL` below 1,000) and `orderBookSize` (`604.9K`, and `formatPositionSize` with `szDecimals` below 1,000). A volume that rounds up to 1,000 at its scale moves to the next one (`999999` returns `$1.00M`)
+  - `getPerpsOrderBookPriceFormat(grouping, { midPrice, szDecimals })` and `formatPerpsOrderBookPrice(price, format, options)` render every order book price with the decimals of the selected grouping, capped at `MaxPriceDecimals` minus `szDecimals`, abbreviated (`$87K`) when that is not longer
+  - `formatPerpsUsdInput(input, options)` masks a USD amount input to 2 decimals and 9 digits with the locale's separators, and returns the canonical `value` and the `display`. Typed text reads the locale's decimal separator, so in `de` `1.2345` returns `{ value: '12345', display: '12.345' }`; pass `source: 'value'` for a stored canonical amount: `formatPerpsUsdInput('1234567.5', { formatters: createFormatters({ locale: 'de' }), source: 'value' })` returns `{ value: '1234567.5', display: '1.234.567,5' }`
+  - Types `PerpsCompactField`, `PerpsCompactFormatOptions`, `PerpsOrderBookLadderOptions`, `PerpsOrderBookPriceFormat`, `PerpsOrderBookPriceFormatOptions`, `PerpsPercentageFormatOptions`, `PerpsUsdInput` and `PerpsUsdInputFormatOptions`
+- Add a `symbol` option to `formatPerpsFiat` and `formatPerpsOrderBookPrice`: `false` omits the currency symbol for chart labels, e.g. `formatPerpsFiat(2480.37, { ranges: PRICE_RANGES_UNIVERSAL, symbol: false })` returns `2,480.4` ([#11415](https://github.com/MetaMask/core/pull/11415))
+- Add a `stripTrailingZeros` option to `formatPercentage`, for TWAP progress: `formatPercentage(25, { decimals: PERPS_DISPLAY_PRECISION.TwapProgressPercent, stripTrailingZeros: true, sign: 'never' })` returns `25%` ([#11415](https://github.com/MetaMask/core/pull/11415))
+  - It takes a percentage: Mobile's `formatTwapProgressPercent` takes basis points and clamps to 0–100%, so callers divide by 100 and clamp before switching
+- Add `PERPS_DISPLAY_PRECISION` values for these displays, following Mobile: `FeeBps` 2, `LiquidationDistancePercent` 2, `TwapProgressPercent` 2, `UsdInput` 2, `UsdInputMaxDigits` 9, `VolumeCompact` 2, `VolumeCompactThousands` 0, `OrderBookCompact` 1 and `OrderBookAbbreviatedPriceMax` 3 ([#11415](https://github.com/MetaMask/core/pull/11415))
+
 ## [23.0.0]
 
 ### Added
@@ -1442,7 +1458,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@23.1.0...HEAD
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@23.0.0...@metamask/perps-controller@23.1.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.3.0...@metamask/perps-controller@23.0.0
 [22.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.2.0...@metamask/perps-controller@22.3.0
 [22.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@22.1.2...@metamask/perps-controller@22.2.0

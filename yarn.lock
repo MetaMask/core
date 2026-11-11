@@ -6454,8 +6454,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/eth-sig-util@workspace:packages/eth-sig-util"
   dependencies:
-    "@ethereumjs/rlp": "npm:^4.0.1"
-    "@ethereumjs/util": "npm:^8.1.0"
+    "@ethereumjs/rlp": "npm:^5.0.2"
+    "@ethereumjs/util": "npm:^9.1.0"
     "@metamask/abi-utils": "npm:^3.0.0"
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/cryptography": "npm:^1.1.2"
@@ -7911,7 +7911,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/perps-controller@npm:^23.0.0, @metamask/perps-controller@workspace:packages/perps-controller":
+"@metamask/perps-controller@npm:^23.1.0, @metamask/perps-controller@workspace:packages/perps-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/perps-controller@workspace:packages/perps-controller"
   dependencies:
@@ -8900,7 +8900,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^13.0.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/network-controller": "npm:^38.0.0"
-    "@metamask/perps-controller": "npm:^23.0.0"
+    "@metamask/perps-controller": "npm:^23.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^7.0.0"
     "@metamask/rpc-errors": "npm:^7.0.3"
     "@metamask/superstruct": "npm:^3.4.1"

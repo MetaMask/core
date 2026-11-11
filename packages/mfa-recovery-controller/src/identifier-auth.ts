@@ -1,3 +1,5 @@
+import { isObject } from '@metamask/utils';
+
 import { generateSigningKey, hash, sign } from './crypto.js';
 import { MfaRecoveryError } from './errors.js';
 import { isFulfilledResult } from './escrow-utils.js';
@@ -17,6 +19,11 @@ import type {
 export const MIN_IDENTIFIERS = 2;
 
 /**
+ * Maximum identifier count escrows accept.
+ */
+export const MAX_IDENTIFIERS = 16;
+
+/**
  * Distinct identifier identities (`type` + `namespace` + `value`).
  *
  * @param identifiers - Identifier list.
@@ -25,9 +32,32 @@ export const MIN_IDENTIFIERS = 2;
 export function countDistinctIdentifiers(identifiers: Identifier[]): number {
   return new Set(
     identifiers.map(
-      ({ type, namespace, value }) => `${type}\0${namespace}\0${value}`,
+      ({ type, namespace, value }) =>
+        `${type}\0${namespace}\0${type === 'siwe' ? value.toLowerCase() : value}`,
     ),
   ).size;
+}
+
+/**
+ * @param identifier - SIWE identifier.
+ * @returns The verifier's `domain:chainId`, which escrows use as the namespace.
+ */
+export function getSiweNamespace(identifier: Identifier): string | undefined {
+  const { verifier } = identifier;
+  if (!isObject(verifier)) {
+    return undefined;
+  }
+  const { domain, chainId } = verifier;
+  if (
+    typeof domain !== 'string' ||
+    !/^[^/ ]+$/u.test(domain) ||
+    typeof chainId !== 'number' ||
+    !Number.isSafeInteger(chainId) ||
+    chainId < 0
+  ) {
+    return undefined;
+  }
+  return `${domain}:${chainId}`;
 }
 
 /**
@@ -45,7 +75,7 @@ export const IDENTIFIER_AUTH_MODES: Record<string, IdentifierAuthMode> = {
 
 export type AuthorizedEscrow = {
   escrow: RecoveryEscrowProvider;
-  authorization: IdentifierAuthorization;
+  authorizations: IdentifierAuthorization[];
 };
 
 /**
@@ -77,25 +107,25 @@ export async function requestKeyBoundIdentifierToken({
 }
 
 /**
- * Presents a key-bound credential to each escrow that provides a challenge.
+ * Presents key-bound credentials to each escrow that provides a challenge. All
+ * of an escrow's proofs share its one challenge.
  *
  * @param params - Escrow authorization parameters.
  * @param params.escrows - Escrows to authorize.
- * @param params.credential - Key-bound identifier credential.
+ * @param params.credentials - Key-bound identifier credentials.
  * @param params.authControllerToken - Approval each escrow keys its challenge
  * to.
  * @returns Successful escrow authorizations.
  */
 export async function authorizeEscrowsWithToken({
   escrows,
-  credential,
+  credentials,
   authControllerToken,
 }: {
   escrows: RecoveryEscrowProvider[];
-  credential: KeyBoundCredential;
+  credentials: KeyBoundCredential[];
   authControllerToken: AuthControllerToken;
 }): Promise<AuthorizedEscrow[]> {
-  const { token, proofPrivateKey } = credential;
   const challengeResults = await Promise.allSettled(
     escrows.map((escrow) => escrow.generateChallenge(authControllerToken)),
   );
@@ -105,21 +135,23 @@ export async function authorizeEscrowsWithToken({
       : [],
   );
   const authorizationResults = await Promise.allSettled(
-    challenges.map(async ({ escrow, challenge }) => {
-      const message = await hash([token, challenge.id, token.requestHash]);
-      return {
-        escrow,
-        authorization: {
-          kind: 'key-bound' as const,
-          token,
-          proof: {
-            challengeId: challenge.id,
-            requestHash: token.requestHash,
-            signature: await sign(proofPrivateKey, message),
-          },
-        },
-      };
-    }),
+    challenges.map(async ({ escrow, challenge }) => ({
+      escrow,
+      authorizations: await Promise.all(
+        credentials.map(async ({ token, proofPrivateKey }) => {
+          const message = await hash([token, challenge.id, token.requestHash]);
+          return {
+            kind: 'key-bound' as const,
+            token,
+            proof: {
+              challengeId: challenge.id,
+              requestHash: token.requestHash,
+              signature: await sign(proofPrivateKey, message),
+            },
+          };
+        }),
+      ),
+    })),
   );
   return authorizationResults
     .filter(isFulfilledResult)
