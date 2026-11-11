@@ -54,9 +54,11 @@ const DEFAULT_VERSION: Version = 'latest';
  */
 export type CubistEscrowProviderOptions = {
   /**
-   * Authenticated CubeSigner client used to invoke the escrow C2F.
+   * Returns the authenticated CubeSigner client used to invoke the escrow C2F.
+   * Called for every command, so the caller owns session caching and refresh.
+   * Commands propagate its errors unchanged; `isAvailable` resolves `false`.
    */
-  client: CubeSignerClient;
+  getClient: () => Promise<CubeSignerClient>;
   /**
    * Must match the escrow's AUTH_CONTROLLER_AUDIENCE configuration.
    */
@@ -88,20 +90,21 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
 
   readonly #receiptPublicKey: Uint8Array;
 
-  readonly #client: CubeSignerClient;
+  readonly #getClient: () => Promise<CubeSignerClient>;
 
   readonly #functionId: string;
 
   readonly #version: Version;
 
   /**
-   * @param options - CubeSigner client, pinned keys, and optional C2F id/version.
+   * @param options - CubeSigner client getter, pinned keys, and optional C2F
+   * id/version.
    */
   constructor(options: CubistEscrowProviderOptions) {
     this.authAudience = options.authAudience;
     this.wrapPublicKey = options.wrapPublicKey;
     this.#receiptPublicKey = options.receiptPublicKey;
-    this.#client = options.client;
+    this.#getClient = options.getClient;
     this.#functionId = options.functionId ?? DEFAULT_FUNCTION_ID;
     this.#version = options.version ?? DEFAULT_VERSION;
   }
@@ -243,9 +246,10 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     parse: (value: unknown) => Result,
     denyIsRejection = false,
   ): Promise<Result> {
+    const client = await this.#getClient();
     let invocation: InvokePolicyResponse;
     try {
-      invocation = await this.#client.apiClient.policyInvoke(
+      invocation = await client.apiClient.policyInvoke(
         this.#functionId,
         this.#version,
         { request: toWire({ cmd, ...body }) },
