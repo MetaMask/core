@@ -3,6 +3,7 @@ import type {
   InvokePolicyResponse,
   Version,
 } from '@cubist-labs/cubesigner-sdk';
+import { ErrResponse } from '@cubist-labs/cubesigner-sdk';
 import {
   array,
   integer,
@@ -110,8 +111,8 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
   }
 
   /**
-   * Errors from `getClient` are rethrown so the cause of a missing session is
-   * not reported as an unavailable escrow.
+   * Errors from `getClient` and expired sessions are rethrown so a missing or
+   * expired session is not reported as an unavailable escrow.
    *
    * @returns Whether a ping of the escrow C2F is allowed and reports ok.
    */
@@ -120,7 +121,13 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
     try {
       await this.#invokeWith(client, 'ping', {}, parsePing);
       return true;
-    } catch {
+    } catch (error) {
+      if (
+        error instanceof MfaRecoveryError &&
+        error.code === 'session_expired'
+      ) {
+        throw error;
+      }
       return false;
     }
   }
@@ -274,6 +281,13 @@ export class CubistEscrowProvider implements RecoveryEscrowProvider {
         { request: toWire({ cmd, ...body }) },
       );
     } catch (error) {
+      if (
+        error instanceof ErrResponse &&
+        (error.isSessionExpiredError() ||
+          error.operation === 'signerSessionRefresh')
+      ) {
+        throw new MfaRecoveryError(error.message, 'session_expired');
+      }
       throw new MfaRecoveryError(
         error instanceof Error ? error.message : 'Escrow request failed',
         'escrow_request_failed',
