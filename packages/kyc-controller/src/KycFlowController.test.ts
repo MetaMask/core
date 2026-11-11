@@ -16,6 +16,7 @@ import type {
   KycFlowControllerMessenger,
   KycFlowControllerOptions,
 } from './KycFlowController.js';
+import type { KycSumSubLaunchParams } from './providers/sumsub.js';
 import type { KycSessionStatus, KycStep } from './types.js';
 import { assertAttestedServerPublicKey } from './ukyc/jwtChain.js';
 import { wrapEncryptionKey } from './ukyc/wrapEncryptionKey.js';
@@ -738,6 +739,204 @@ describe('KycFlowController', () => {
     });
   });
 
+  describe('launchProviderFlow', () => {
+    const saved = {
+      state: {
+        vendors: {
+          kalshi: { step: 'identity_verification', sessionId: 'sid-1' },
+        },
+      },
+    } satisfies WithControllerOptions['options'];
+
+    type Launcher = NonNullable<KycFlowControllerOptions['sumsubLauncher']>;
+    const getLauncher = (
+      launch: ReturnType<typeof vi.fn> = vi
+        .fn()
+        .mockResolvedValue({ status: 'Pending' }),
+      isAvailable = true,
+    ): Launcher & { launch: ReturnType<typeof vi.fn> } => ({
+      isAvailable: () => isAvailable,
+      launch,
+    });
+
+    it('launches SumSub for the session, then tells kyc-api it was submitted', async () => {
+      const launcher = getLauncher();
+      await withController(
+        { options: { ...saved, sumsubLauncher: launcher } },
+        async ({ controller, handlers }) => {
+          handlers.createJourney.mockResolvedValue({
+            applicantAccessToken: 'token-1',
+          });
+          handlers.markProviderSubmitted.mockResolvedValue('kyc_pending');
+
+          const outcome = await controller.launchProviderFlow({
+            vendor: 'kalshi',
+            locale: 'fr',
+          });
+
+          expect(outcome).toBe('submitted');
+          expect(handlers.createJourney).toHaveBeenCalledWith('sid-1');
+          expect(launcher.launch).toHaveBeenCalledWith(
+            expect.objectContaining({
+              applicantAccessToken: 'token-1',
+              locale: 'fr',
+              debug: false,
+            }),
+          );
+          expect(handlers.markProviderSubmitted).toHaveBeenCalledWith({
+            sessionId: 'sid-1',
+          });
+          expect(controller.state.vendors.kalshi?.step).toBe('kyc_pending');
+        },
+      );
+    });
+
+    it('counts a completion the SDK only reports through its callback', async () => {
+      const launcher = getLauncher(
+        vi
+          .fn()
+          .mockImplementation(
+            async ({ onStatusChange }: KycSumSubLaunchParams) => {
+              onStatusChange?.('Incomplete', 'Pending');
+              return {};
+            },
+          ),
+      );
+      await withController(
+        { options: { ...saved, sumsubLauncher: launcher } },
+        async ({ controller }) => {
+          expect(
+            await controller.launchProviderFlow({ vendor: 'kalshi' }),
+          ).toBe('submitted');
+        },
+      );
+    });
+
+    it('gets a fresh access token when SumSub asks for one', async () => {
+      const launcher = getLauncher(
+        vi
+          .fn()
+          .mockImplementation(
+            async ({ onTokenExpiration }: KycSumSubLaunchParams) => {
+              expect(await onTokenExpiration()).toBe('token-2');
+              return { status: 'Pending' };
+            },
+          ),
+      );
+      await withController(
+        { options: { ...saved, sumsubLauncher: launcher } },
+        async ({ controller, handlers }) => {
+          handlers.createJourney
+            .mockResolvedValueOnce({ applicantAccessToken: 'token-1' })
+            .mockResolvedValueOnce({ applicantAccessToken: 'token-2' });
+
+          await controller.launchProviderFlow({ vendor: 'kalshi' });
+
+          expect(handlers.createJourney).toHaveBeenCalledTimes(2);
+        },
+      );
+    });
+
+    it.each(['Incomplete', 'Initial', 'Ready'])(
+      'reports abandoned, and tells kyc-api nothing, when the user leaves at %s',
+      async (status) => {
+        const launcher = getLauncher(vi.fn().mockResolvedValue({ status }));
+        await withController(
+          { options: { ...saved, sumsubLauncher: launcher } },
+          async ({ controller, handlers }) => {
+            expect(
+              await controller.launchProviderFlow({ vendor: 'kalshi' }),
+            ).toBe('abandoned');
+            expect(handlers.markProviderSubmitted).not.toHaveBeenCalled();
+          },
+        );
+      },
+    );
+
+    it('reports failed when SumSub says it could not run', async () => {
+      const launcher = getLauncher(
+        vi.fn().mockResolvedValue({ status: 'Failed' }),
+      );
+      await withController(
+        { options: { ...saved, sumsubLauncher: launcher } },
+        async ({ controller, handlers }) => {
+          expect(
+            await controller.launchProviderFlow({ vendor: 'kalshi' }),
+          ).toBe('failed');
+          expect(handlers.markProviderSubmitted).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('reports failed when the SDK is not available', async () => {
+      const launcher = getLauncher(undefined, false);
+      await withController(
+        { options: { ...saved, sumsubLauncher: launcher } },
+        async ({ controller, handlers }) => {
+          expect(
+            await controller.launchProviderFlow({ vendor: 'kalshi' }),
+          ).toBe('failed');
+          expect(launcher.launch).not.toHaveBeenCalled();
+          expect(handlers.createJourney).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('reports failed when no launcher was given', async () => {
+      await withController(
+        { options: saved },
+        async ({ controller, handlers }) => {
+          expect(
+            await controller.launchProviderFlow({ vendor: 'kalshi' }),
+          ).toBe('failed');
+          expect(handlers.createJourney).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('reports failed when the access token cannot be fetched', async () => {
+      const launcher = getLauncher();
+      await withController(
+        { options: { ...saved, sumsubLauncher: launcher } },
+        async ({ controller, handlers }) => {
+          handlers.createJourney.mockRejectedValue(new Error('down'));
+
+          expect(
+            await controller.launchProviderFlow({ vendor: 'kalshi' }),
+          ).toBe('failed');
+          expect(launcher.launch).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('reports failed when there is no session to verify', async () => {
+      const launcher = getLauncher();
+      await withController(
+        { options: { sumsubLauncher: launcher } },
+        async ({ controller }) => {
+          expect(
+            await controller.launchProviderFlow({ vendor: 'kalshi' }),
+          ).toBe('failed');
+          expect(launcher.launch).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('reports failed when kyc-api cannot be told', async () => {
+      const launcher = getLauncher();
+      await withController(
+        { options: { ...saved, sumsubLauncher: launcher } },
+        async ({ controller, handlers }) => {
+          handlers.markProviderSubmitted.mockRejectedValue(new Error('down'));
+
+          expect(
+            await controller.launchProviderFlow({ vendor: 'kalshi' }),
+          ).toBe('failed');
+        },
+      );
+    });
+  });
+
   describe('markProviderSubmitted', () => {
     it('tells kyc-api and saves the next step', async () => {
       await withController(
@@ -815,6 +1014,7 @@ type ServiceHandlers = {
   markProviderSubmitted: ReturnType<typeof vi.fn>;
   postOnboardingStep: ReturnType<typeof vi.fn>;
   getSessionStatusForVendor: ReturnType<typeof vi.fn>;
+  createJourney: ReturnType<typeof vi.fn>;
   fetchSessionDisclaimersBySessionId: ReturnType<typeof vi.fn>;
   submitSessionDisclaimers: ReturnType<typeof vi.fn>;
   getGeoCountry: ReturnType<typeof vi.fn>;
@@ -865,6 +1065,7 @@ function withController<ReturnValue>(
       'KycService:markProviderSubmitted',
       'KycService:postOnboardingStep',
       'KycService:getSessionStatusForVendor',
+      'KycService:createJourney',
       'KycService:fetchSessionDisclaimersBySessionId',
       'KycService:submitSessionDisclaimers',
       'KycService:getGeoCountry',
@@ -886,6 +1087,9 @@ function withController<ReturnValue>(
     markProviderSubmitted: vi.fn().mockResolvedValue('kyc_pending'),
     postOnboardingStep: vi.fn().mockResolvedValue(SESSION_STATUS),
     getSessionStatusForVendor: vi.fn().mockResolvedValue(null),
+    createJourney: vi
+      .fn()
+      .mockResolvedValue({ status: 'ok', applicantAccessToken: 'aat' }),
     fetchSessionDisclaimersBySessionId: vi.fn().mockResolvedValue({
       idOS: [],
       kycProvider: [],
@@ -921,6 +1125,10 @@ function withController<ReturnValue>(
   rootMessenger.registerActionHandler(
     'KycService:getSessionStatusForVendor',
     handlers.getSessionStatusForVendor,
+  );
+  rootMessenger.registerActionHandler(
+    'KycService:createJourney',
+    handlers.createJourney,
   );
   rootMessenger.registerActionHandler(
     'KycService:fetchSessionDisclaimersBySessionId',
