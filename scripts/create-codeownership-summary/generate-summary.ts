@@ -166,9 +166,13 @@ async function readCodeownersFile({
  */
 function parseCodeowners(content: string): CodeownersRule[] {
   return content.split('\n').flatMap((line) => {
-    const commentIndex = line.indexOf('#');
-    const rule = commentIndex === -1 ? line : line.slice(0, commentIndex);
-    const comment = commentIndex === -1 ? '' : line.slice(commentIndex);
+    // Note: This means that a `#` in the middle of a word would start a comment.
+    // This is strange, but matches what other projects like `hmarr/codeowners` do.
+    const commentStartIndex = line.indexOf('#');
+    const rule =
+      commentStartIndex === -1 ? line : line.slice(0, commentStartIndex);
+    const comment =
+      commentStartIndex === -1 ? '' : line.slice(commentStartIndex);
     const [pattern, ...owners] = rule.trim().split(/\s+/u);
     if (pattern === undefined || pattern === '') {
       return [];
