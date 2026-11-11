@@ -2691,6 +2691,58 @@ describe('AggregatedPerpsProvider', () => {
   });
 
   describe('setDefaultProvider re-routes default-routed streams', () => {
+    it.each(['during unsubscribe', 'after rerouting'])(
+      'retains the source venue for TWAP updates delivered %s',
+      (deliveryTiming) => {
+        const oldOrders = [{ orderId: 'hl-twap' } as TwapOrder];
+        const newOrders = [{ orderId: 'lighter-twap' } as TwapOrder];
+        const subscribeHL =
+          vi.fn<NonNullable<PerpsProvider['subscribeToTwapOrders']>>();
+        const hlCleanup = vi.fn(() => {
+          if (deliveryTiming === 'during unsubscribe') {
+            subscribeHL.mock.calls[0][0].callback(oldOrders, false);
+          }
+        });
+        subscribeHL.mockReturnValue(hlCleanup);
+        const lighterCleanup = vi.fn();
+        const subscribeLighter = vi
+          .fn<NonNullable<PerpsProvider['subscribeToTwapOrders']>>()
+          .mockImplementation(({ callback }) => {
+            callback(newOrders, true);
+            return lighterCleanup;
+          });
+        mockHLProvider.subscribeToTwapOrders = subscribeHL;
+        mockLighterProvider.subscribeToTwapOrders = subscribeLighter;
+        const callback = vi.fn();
+        const cleanup = aggregatedProvider.subscribeToTwapOrders({ callback });
+
+        aggregatedProvider.setDefaultProvider('lighter');
+        if (deliveryTiming === 'after rerouting') {
+          subscribeHL.mock.calls[0][0].callback(oldOrders, false);
+        }
+
+        const oldUpdate = [
+          [{ ...oldOrders[0], providerId: 'hyperliquid' }],
+          false,
+        ];
+        const newUpdate = [[{ ...newOrders[0], providerId: 'lighter' }], true];
+        expect(callback.mock.calls).toStrictEqual(
+          deliveryTiming === 'during unsubscribe'
+            ? [oldUpdate, [[], true], newUpdate]
+            : [[[], true], newUpdate, oldUpdate],
+        );
+        expect(hlCleanup).toHaveBeenCalledTimes(1);
+        expect(lighterCleanup).not.toHaveBeenCalled();
+
+        cleanup();
+        cleanup();
+        expect(hlCleanup).toHaveBeenCalledTimes(1);
+        expect(lighterCleanup).toHaveBeenCalledTimes(1);
+        aggregatedProvider.setDefaultProvider('hyperliquid');
+        expect(subscribeHL).toHaveBeenCalledTimes(1);
+      },
+    );
+
     it('clears the previous TWAP snapshot when moving to a venue without a TWAP stream', () => {
       const unsubscribe = vi.fn();
       const subscribeToTwapOrders = vi

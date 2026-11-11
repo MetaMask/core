@@ -1435,16 +1435,18 @@ export class AggregatedPerpsProvider implements PerpsProvider {
             // No-op: default provider exposes no native TWAP push channel
           };
         }
+        // Capture each stream's route so late batches from the old venue keep
+        // their source identity during teardown or after a default change.
+        const providerId = this.#defaultProvider;
         return provider.subscribeToTwapOrders({
           ...params,
           // Stamp the same way getTwapOrders does, so swapping a poll for this
           // subscription does not silently drop providerId from every schedule.
-          // Read the current default so a re-route re-stamps the venue.
           callback: (twapOrders, isSnapshot) =>
             params.callback(
               twapOrders.map((order) => ({
                 ...order,
-                providerId: this.#defaultProvider,
+                providerId,
               })),
               isSnapshot,
             ),
