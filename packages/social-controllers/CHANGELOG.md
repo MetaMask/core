@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - social-api returns the all-feed items of the profiles the user follows, without the user's own: one item per position trade plus one per author comment, ordered by `occurredAt`, each with `feedItemId`, `eventId`, `revision` and `occurredAt`.
   - Its cursors are the all-feed cursors, so they cannot be passed to `following`, and vice versa.
   - `following` is unchanged.
-- Keep the prices social-api adds to realtime feed items ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Keep the prices social-api adds to realtime feed items ([#11442](https://github.com/MetaMask/core/pull/11442))
   - `parseRealtimeFeedItem` and `normalizeRealtimeFeedItem` now copy `currentValueUSD`, `positionValueUSD`, `pnlValueUsd` and `pnlPercent` from a hydrated socket payload onto the `FeedItem`, so a realtime item can show a value before the client's live price loads.
   - A field the payload omits stays absent, and an explicit `null` stays `null`.
 
