@@ -5,6 +5,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type { QueryClientConfig } from '@tanstack/query-core';
 import nock from 'nock';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Mock } from 'vitest';
@@ -310,6 +311,7 @@ function createService(
     trace,
     getBearerToken,
     signPersonalMessage,
+    queryClientConfig,
   }: {
     trace?: MoneyAccountApiDataServiceTraceCallback;
     getBearerToken?: () => Promise<string>;
@@ -317,6 +319,7 @@ function createService(
       data: string;
       from: string;
     }) => Promise<string>;
+    queryClientConfig?: QueryClientConfig;
   } = {},
 ): {
   service: MoneyAccountApiDataService;
@@ -349,6 +352,7 @@ function createService(
     messenger,
     env,
     trace,
+    queryClientConfig,
   });
   return { service, rootMessenger, messenger };
 }
@@ -1359,6 +1363,37 @@ describe('MoneyAccountApiDataService', () => {
       await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
       expect(scope.isDone()).toBe(true);
       service.destroy();
+    });
+
+    it('keeps a complete batch cached past the default gc time', async () => {
+      vi.useFakeTimers({ toNotFake: ['nextTick', 'setImmediate'] });
+
+      try {
+        const { service } = createService(Env.DEV, {
+          queryClientConfig: {
+            defaultOptions: { queries: { gcTime: 300_000 } },
+          },
+        });
+        const scope = nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+          .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
+          .query({ tx_hashes: MOCK_TX_HASH })
+          .twice()
+          .reply(200, MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+        const options = { txHashes: [MOCK_TX_HASH] };
+
+        await service.fetchVaultShareValuations(MOCK_ADDRESS, options);
+        await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+        const cached = await service.fetchVaultShareValuations(
+          MOCK_ADDRESS,
+          options,
+        );
+
+        expect(cached).toStrictEqual(MOCK_VAULT_SHARE_VALUATIONS_RESPONSE);
+        expect(scope.isDone()).toBe(false);
+        service.destroy();
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('refetches a partial batch after 30 seconds', async () => {

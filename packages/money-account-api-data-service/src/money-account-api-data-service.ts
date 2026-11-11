@@ -693,6 +693,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
         query.state.data?.results.every((result) => result.found)
           ? VAULT_SHARE_VALUATIONS_COMPLETE_STALE_TIME_MS
           : VAULT_SHARE_VALUATIONS_PARTIAL_STALE_TIME_MS,
+      gcTime: VAULT_SHARE_VALUATIONS_COMPLETE_STALE_TIME_MS,
       queryFn: async () => {
         return this.#traceNetworkRequest(
           {
