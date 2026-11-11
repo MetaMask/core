@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/profile-sync-controller` from `^36.0.0` to `^36.1.1` ([#11396](https://github.com/MetaMask/core/pull/11396), [#11419](https://github.com/MetaMask/core/pull/11419))
 
+### Fixed
+
+- Stop passing `data:` NFT token URIs to `fetch`, which crashed clients whose `fetch` cannot decode `data:` URLs (e.g. MetaMask Mobile) ([#11308](https://github.com/MetaMask/core/pull/11308))
+  - `NftController` now decodes JSON `data:` token URIs (`data:application/json`, base64 or percent-encoded, with optional parameters such as `;charset=utf-8`) inline when adding or refreshing NFTs, and falls back to empty metadata for malformed or non-JSON `data:` token URIs
+  - `ERC721Standard.getDetails` and `ERC1155Standard.getDetails` decode JSON `data:` token URIs inline instead of fetching them
+
 ## [113.3.1]
 
 ### Changed
@@ -30,12 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/abi-utils` from `^2.0.4` to `^3.0.0` ([#11356](https://github.com/MetaMask/core/pull/11356))
-
-### Fixed
-
-- Stop passing `data:` NFT token URIs to `fetch`, which crashed clients whose `fetch` cannot decode `data:` URLs (e.g. MetaMask Mobile) ([#11308](https://github.com/MetaMask/core/pull/11308))
-  - `NftController` now decodes JSON `data:` token URIs (`data:application/json`, base64 or percent-encoded, with optional parameters such as `;charset=utf-8`) inline when adding or refreshing NFTs, and falls back to empty metadata for malformed or non-JSON `data:` token URIs
-  - `ERC721Standard.getDetails` and `ERC1155Standard.getDetails` decode JSON `data:` token URIs inline instead of fetching them
 
 ## [113.2.0]
 
