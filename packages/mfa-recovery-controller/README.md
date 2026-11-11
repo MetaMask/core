@@ -3,7 +3,8 @@
 Coordinates MFA recovery through injected auth and escrow providers.
 
 Pending mutations are encrypted in controller state. `resume()` completes them;
-`abort()` is allowed only before writing. See [Architecture](ARCHITECTURE.md).
+`abort()` is allowed before writing, or once the write approval has expired and
+no escrow applied the mutation. See [Architecture](ARCHITECTURE.md).
 
 ## Auth API Integration
 
@@ -16,10 +17,12 @@ Without a recent MFA verification, approvals reject with `StepUpRequiredError`:
 verify, then call `resume()` or retry the read.
 
 `register` and `updateIdentifiers` send the approval's `identifiers` to each
-escrow as `approvedIdentifiers`; the escrow rejects payload identifiers outside
-that list. Build payload identifiers from those entries unchanged (verifier
-included): the controller rejects any other identifier before writing, and the
-mutation can then be aborted. Set `CubistEscrowProviderOptions.authAudience` to the escrow's
+escrow as `approvedIdentifiers`; the escrow rejects non-SIWE payload
+identifiers outside that list. Build those from Auth's entries unchanged
+(verifier included): the controller rejects any other before writing, and the
+mutation can then be aborted. Each SIWE wallet a mutation adds is proven
+through `identifierAuthProvider` instead, including at `register`. Set
+`CubistEscrowProviderOptions.authAudience` to the escrow's
 `AUTH_CONTROLLER_AUDIENCE`.
 
 Before `updateIdentifiers`, call `getIdentifiers()` (AAL1) for the enrolled
