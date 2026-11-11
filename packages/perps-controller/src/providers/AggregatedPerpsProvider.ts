@@ -1653,14 +1653,19 @@ export class AggregatedPerpsProvider implements PerpsProvider {
       reconnectionAttempt: number,
     ) => void,
   ): () => void {
-    const provider = this.#getDefaultProvider();
-    if (provider.subscribeToConnectionState) {
-      return provider.subscribeToConnectionState(listener);
-    }
-    listener(WebSocketConnectionState.Disconnected, 0);
-    return () => {
-      /* noop */
-    };
+    return this.#trackDefaultRoutedSubscription({
+      open: (provider) => {
+        if (provider.subscribeToConnectionState) {
+          // Providers deliver their current state immediately on subscribe, so
+          // a re-route notifies the listener of the new venue's state.
+          return provider.subscribeToConnectionState(listener);
+        }
+        listener(WebSocketConnectionState.Disconnected, 0);
+        return () => {
+          /* noop */
+        };
+      },
+    });
   }
 
   async reconnect(): Promise<void> {

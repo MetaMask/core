@@ -2743,6 +2743,51 @@ describe('AggregatedPerpsProvider', () => {
       expect(mockLighterProvider.subscribeToAccount).toHaveBeenCalledTimes(1);
     });
 
+    it('moves a connection-state listener to the new venue and detaches the old one', () => {
+      const hlCleanup = vi.fn();
+      const lighterCleanup = vi.fn();
+      const hlSubscribe = vi.fn().mockImplementation((subscriber) => {
+        subscriber(WebSocketConnectionState.Connected, 0);
+        return hlCleanup;
+      });
+      const lighterSubscribe = vi.fn().mockImplementation((subscriber) => {
+        subscriber(WebSocketConnectionState.Connecting, 2);
+        return lighterCleanup;
+      });
+      (
+        mockHLProvider as MockPerpsProvider & {
+          subscribeToConnectionState: Mock;
+        }
+      ).subscribeToConnectionState = hlSubscribe;
+      (
+        mockLighterProvider as MockPerpsProvider & {
+          subscribeToConnectionState: Mock;
+        }
+      ).subscribeToConnectionState = lighterSubscribe;
+      const listener = vi.fn();
+
+      const cleanup = aggregatedProvider.subscribeToConnectionState(listener);
+      expect(hlSubscribe).toHaveBeenCalledWith(listener);
+      expect(listener).toHaveBeenLastCalledWith(
+        WebSocketConnectionState.Connected,
+        0,
+      );
+
+      aggregatedProvider.setDefaultProvider('lighter');
+
+      // The old venue is detached, so its later transitions do not reach the
+      // listener, and the new venue's current state is delivered.
+      expect(hlCleanup).toHaveBeenCalledTimes(1);
+      expect(lighterSubscribe).toHaveBeenCalledWith(listener);
+      expect(listener).toHaveBeenLastCalledWith(
+        WebSocketConnectionState.Connecting,
+        2,
+      );
+
+      cleanup();
+      expect(lighterCleanup).toHaveBeenCalledTimes(1);
+    });
+
     it('is a no-op when the default does not change', () => {
       const hlCleanup = vi.fn();
       mockHLProvider.subscribeToAccount.mockReturnValue(hlCleanup);
@@ -2803,7 +2848,15 @@ describe('AggregatedPerpsProvider', () => {
       const cleanup = aggregatedProvider.subscribeToConnectionState(listener);
 
       // Assert
-      expect(cleanup).toBe(unsubscribe);
+      expect(
+        (
+          mockHLProvider as MockPerpsProvider & {
+            subscribeToConnectionState: Mock;
+          }
+        ).subscribeToConnectionState,
+      ).toHaveBeenCalledWith(listener);
+      cleanup();
+      expect(unsubscribe).toHaveBeenCalledTimes(1);
     });
 
     it('calls listener with Disconnected when provider lacks subscribeToConnectionState', () => {
