@@ -395,12 +395,18 @@ export type PerpsControllerState = {
   // Active provider
   activeProvider: PerpsActiveProviderMode;
   /**
-   * Default venue for aggregated-mode routing: the venue a write reaches when
-   * it does not name one, and the venue whose data backs default-routed reads.
+   * Preferred default venue for aggregated-mode routing. The live
+   * `effectiveProvider` may differ temporarily when this venue is unavailable.
    * Separate from `activeProvider`, which selects the provider *mode*
    * (direct single venue vs `aggregated`). Persisted.
    */
   defaultProvider: PerpsProviderType;
+  /**
+   * Live venue for implicit reads, streams and trade configurations, including
+   * an in-memory fallback when the saved default is unavailable. Null before
+   * provider assignment and after disconnect. Not persisted.
+   */
+  effectiveProvider: PerpsProviderType | null;
   /**
    * Whether `setDefaultProvider` explicitly saved a venue, even if it matched
    * the initial fallback. Persisted so migration can distinguish user intent
@@ -612,6 +618,7 @@ export type PerpsControllerState = {
 export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
   activeProvider: 'hyperliquid',
   defaultProvider: 'hyperliquid',
+  effectiveProvider: null,
   hasExplicitDefaultProviderSelection: false,
   hasExplicitProviderSelection: false,
   isTestnet: false, // Default to mainnet
@@ -703,6 +710,12 @@ const metadata: StateMetadata<PerpsControllerState> = {
   defaultProvider: {
     includeInStateLogs: true,
     persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  effectiveProvider: {
+    includeInStateLogs: true,
+    persist: false,
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
@@ -1337,7 +1350,12 @@ export class PerpsController extends BaseController<
       name: 'PerpsController',
       metadata,
       messenger,
-      state: { ...getDefaultPerpsControllerState(), ...state },
+      state: {
+        ...getDefaultPerpsControllerState(),
+        ...state,
+        // A live routing decision must never be restored from a snapshot.
+        effectiveProvider: null,
+      },
     });
 
     this.#eligibilityCheckDeferred = deferEligibilityCheck;
@@ -2895,6 +2913,15 @@ export class PerpsController extends BaseController<
         `PerpsController: Using direct provider (${this.activeProviderInstance === hyperLiquidProvider ? 'hyperliquid' : activeProvider})`,
       );
     }
+
+    const effectiveProvider =
+      this.activeProviderInstance instanceof AggregatedPerpsProvider
+        ? this.activeProviderInstance.getWriteProviderId()
+        : this.state.activeProvider;
+    this.update((state) => {
+      state.effectiveProvider =
+        effectiveProvider === 'lighter' ? 'lighter' : 'hyperliquid';
+    });
   }
 
   /**
@@ -6711,6 +6738,9 @@ export class PerpsController extends BaseController<
     this.update((state) => {
       state.defaultProvider = providerId;
       state.hasExplicitDefaultProviderSelection = true;
+      if (aggregatedProvider) {
+        state.effectiveProvider = providerId;
+      }
       // The cached snapshot came from the previous default venue's stream, so
       // drop it until the new venue delivers matching data.
       if (defaultChanged && aggregatedProvider) {
@@ -7537,6 +7567,9 @@ export class PerpsController extends BaseController<
 
     // Clear stale reference so standalone reads don't route through old provider
     this.activeProviderInstance = null;
+    this.update((state) => {
+      state.effectiveProvider = null;
+    });
 
     // Cleanup cached standalone provider (if any) — awaited to prevent races
     await this.#cleanupStandaloneProvider();
@@ -7754,8 +7787,8 @@ export class PerpsController extends BaseController<
   /**
    * Resolve the venue key trade configurations are stored under.
    *
-   * An explicit `providerId` wins, and the state-derived fallback is the
-   * active direct venue, or the persisted default venue in aggregated mode.
+   * An explicit `providerId` wins, otherwise use the live effective venue.
+   * Before initialization, use the active direct or saved default venue.
    * Both are validated against the closed set of venues before use: the key
    * reaches persisted state, so an unexpected value (including `__proto__`
    * from a JS caller or tampered persisted state) must never become a record
@@ -7773,9 +7806,10 @@ export class PerpsController extends BaseController<
         ? providerId
         : null;
     }
-    const { activeProvider, defaultProvider } = this.state;
+    const { activeProvider, defaultProvider, effectiveProvider } = this.state;
     const stateKey =
-      activeProvider === 'aggregated' ? defaultProvider : activeProvider;
+      effectiveProvider ??
+      (activeProvider === 'aggregated' ? defaultProvider : activeProvider);
     return stateKey === 'hyperliquid' || stateKey === 'lighter'
       ? stateKey
       : 'hyperliquid';
@@ -7786,8 +7820,8 @@ export class PerpsController extends BaseController<
    *
    * @param symbol - The trading pair symbol.
    * @param providerId - Optional venue the configuration was saved for.
-   * Defaults to the active provider, or the default provider in aggregated
-   * mode.
+   * Defaults to the live effective venue, or the active/saved default venue
+   * before initialization.
    * @returns The resulting string value.
    */
   getTradeConfiguration(
@@ -7823,8 +7857,8 @@ export class PerpsController extends BaseController<
    * @param symbol - Market symbol
    * @param leverage - Leverage value
    * @param providerId - Optional venue to key the configuration under.
-   * Defaults to the active provider, or the default provider in aggregated
-   * mode.
+   * Defaults to the live effective venue, or the active/saved default venue
+   * before initialization.
    */
   saveTradeConfiguration(
     symbol: string,
@@ -7878,8 +7912,8 @@ export class PerpsController extends BaseController<
    * @param config.direction - Long or short.
    * @param config.selectedPaymentToken - The selected payment token.
    * @param providerId - Optional venue to key the configuration under.
-   * Defaults to the active provider, or the default provider in aggregated
-   * mode.
+   * Defaults to the live effective venue, or the active/saved default venue
+   * before initialization.
    */
   savePendingTradeConfiguration(
     symbol: string,
@@ -7940,8 +7974,8 @@ export class PerpsController extends BaseController<
    *
    * @param symbol - Market symbol
    * @param providerId - Optional venue the configuration was saved for.
-   * Defaults to the active provider, or the default provider in aggregated
-   * mode.
+   * Defaults to the live effective venue, or the active/saved default venue
+   * before initialization.
    * @returns Pending trade configuration or undefined
    */
   getPendingTradeConfiguration(
@@ -8016,8 +8050,8 @@ export class PerpsController extends BaseController<
    *
    * @param symbol - Market symbol
    * @param providerId - Optional venue the configuration was saved for.
-   * Defaults to the active provider, or the default provider in aggregated
-   * mode.
+   * Defaults to the live effective venue, or the active/saved default venue
+   * before initialization.
    */
   clearPendingTradeConfiguration(
     symbol: string,
@@ -8337,7 +8371,7 @@ export class PerpsController extends BaseController<
    *
    * @param symbol - Market symbol
    * @param providerId - Optional venue the grouping was saved for. Defaults to
-   * the active provider, or the default provider in aggregated mode.
+   * the live effective venue (active/saved default before initialization).
    * @returns The saved grouping value or undefined if not set
    */
   getOrderBookGrouping(
@@ -8372,7 +8406,7 @@ export class PerpsController extends BaseController<
    * @param symbol - Market symbol
    * @param grouping - Price grouping value
    * @param providerId - Optional venue to key the grouping under. Defaults to
-   * the active provider, or the default provider in aggregated mode.
+   * the live effective venue (active/saved default before initialization).
    */
   saveOrderBookGrouping(
     symbol: string,
@@ -8416,7 +8450,7 @@ export class PerpsController extends BaseController<
    *
    * @param symbol - Market symbol
    * @param providerId - Optional venue the mode was saved for. Defaults to the
-   * active provider, or the default provider in aggregated mode.
+   * live effective venue (active/saved default before initialization).
    * @returns The saved margin mode or undefined if not set
    */
   getMarginMode(
@@ -8440,7 +8474,7 @@ export class PerpsController extends BaseController<
    * @param symbol - Market symbol
    * @param marginMode - Margin mode to persist
    * @param providerId - Optional venue to key the mode under. Defaults to the
-   * active provider, or the default provider in aggregated mode.
+   * live effective venue (active/saved default before initialization).
    */
   saveMarginMode(
     symbol: string,

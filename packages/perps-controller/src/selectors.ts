@@ -28,8 +28,9 @@ import type {
 /**
  * Resolve the venue key trade configurations are stored under.
  *
- * An explicit `providerId` always wins. Otherwise the active direct venue is
- * used, and in aggregated mode the persisted default venue.
+ * An explicit `providerId` always wins. Otherwise use the live effective
+ * venue, including temporary fallbacks. Before initialization, use the active
+ * direct venue or, in aggregated mode, the saved default venue.
  *
  * @param state - PerpsController state.
  * @param providerId - Explicit venue, when supplied.
@@ -41,6 +42,9 @@ const resolveTradeConfigProviderKey = (
 ): string => {
   if (providerId) {
     return providerId;
+  }
+  if (state?.effectiveProvider) {
+    return state.effectiveProvider;
   }
   const activeProvider = state?.activeProvider;
   if (activeProvider === 'aggregated') {
@@ -141,7 +145,7 @@ export const selectRecentlyViewedMarkets = (
  * @param state - The perps controller state.
  * @param coin - The market coin symbol.
  * @param providerId - Optional venue the configuration was saved for. Defaults
- * to the active provider, or the default provider in aggregated mode.
+ * to the live effective venue (active/saved default before initialization).
  * @returns The trade configuration for the specified market, or undefined.
  */
 
@@ -250,7 +254,7 @@ const selectRawPendingTradeConfiguration = createSelector(
  * @param state - The perps controller state.
  * @param coin - The market coin symbol.
  * @param providerId - Optional venue the configuration was saved for. Defaults
- * to the active provider, or the default provider in aggregated mode.
+ * to the live effective venue (active/saved default before initialization).
  * @returns The pending trade configuration, or undefined if expired or not found.
  */
 export const selectPendingTradeConfiguration = (
@@ -385,10 +389,11 @@ export const selectPerpsMode = (state: PerpsControllerState): PerpsMode =>
 /**
  * Select order book grouping for a specific market on the current network.
  *
- * Usage: selectOrderBookGrouping(state, coin)
+ * Usage: selectOrderBookGrouping(state, coin, providerId?)
  *
  * @param state - The perps controller state.
  * @param coin - The market coin symbol.
+ * @param providerId - Optional explicit venue; otherwise uses the effective venue.
  * @returns The order book grouping value, or undefined.
  */
 
@@ -416,10 +421,11 @@ export const selectOrderBookGrouping = createSelector(
 /**
  * Select the saved margin mode for a specific market on the current network.
  *
- * Usage: selectMarginMode(state, coin)
+ * Usage: selectMarginMode(state, coin, providerId?)
  *
  * @param state - The perps controller state.
  * @param coin - The market coin symbol.
+ * @param providerId - Optional explicit venue; otherwise uses the effective venue.
  * @returns The saved margin mode, or undefined.
  */
 export const selectMarginMode = createSelector(

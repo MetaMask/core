@@ -34,6 +34,12 @@ import type { PerpsControllerState } from '../../src/PerpsController.js';
 import { PERPS_ERROR_CODES } from '../../src/perpsErrorCodes.js';
 import { AggregatedPerpsProvider } from '../../src/providers/AggregatedPerpsProvider.js';
 import { HyperLiquidProvider } from '../../src/providers/HyperLiquidProvider.js';
+import {
+  selectTradeConfiguration,
+  selectPendingTradeConfiguration,
+  selectOrderBookGrouping,
+  selectMarginMode,
+} from '../../src/selectors.js';
 import type {
   AccountState,
   PerpsProvider,
@@ -460,6 +466,57 @@ describe('PerpsController default provider', () => {
       ).toBe(true);
     });
 
+    it('does not restore an effective venue from a snapshot before providers are assigned', () => {
+      createController({
+        activeProvider: 'aggregated',
+        defaultProvider: 'lighter',
+        effectiveProvider: 'hyperliquid',
+      });
+
+      expect(controller.state.effectiveProvider).toBeNull();
+      expect(controller.metadata.effectiveProvider.persist).toBe(false);
+      controller.saveOrderBookGrouping('BTC', 1, 'lighter');
+      expect(controller.getOrderBookGrouping('BTC')).toBe(1);
+      expect(selectOrderBookGrouping(controller.state, 'BTC')).toBe(1);
+    });
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'keeps the effective direct %s venue when only the saved default changes',
+      async (activeProvider) => {
+        createController({ activeProvider }, true);
+        await controller.init();
+        controller.saveOrderBookGrouping('BTC', 10, 'hyperliquid');
+        controller.saveOrderBookGrouping('BTC', 1, 'lighter');
+
+        controller.setDefaultProvider(
+          activeProvider === 'lighter' ? 'hyperliquid' : 'lighter',
+        );
+
+        expect(controller.state.effectiveProvider).toBe(activeProvider);
+        const grouping = activeProvider === 'lighter' ? 1 : 10;
+        expect(controller.getOrderBookGrouping('BTC')).toBe(grouping);
+        expect(selectOrderBookGrouping(controller.state, 'BTC')).toBe(grouping);
+      },
+    );
+
+    it('publishes the effective default for configuration selectors when the live route changes', () => {
+      setupAggregatedMode('hyperliquid');
+      controller.saveOrderBookGrouping('BTC', 10, 'hyperliquid');
+      controller.saveOrderBookGrouping('BTC', 1, 'lighter');
+
+      controller.setDefaultProvider('lighter');
+
+      expect(controller.state.effectiveProvider).toBe('lighter');
+      expect(controller.getOrderBookGrouping('BTC')).toBe(1);
+      expect(selectOrderBookGrouping(controller.state, 'BTC')).toBe(1);
+
+      controller.setDefaultProvider('hyperliquid');
+
+      expect(controller.state.effectiveProvider).toBe('hyperliquid');
+      expect(controller.getOrderBookGrouping('BTC')).toBe(10);
+      expect(selectOrderBookGrouping(controller.state, 'BTC')).toBe(10);
+    });
+
     it('updates the aggregated default without re-initializing or reconnecting (AC1)', () => {
       setupAggregatedMode('hyperliquid');
       const constructorCallsBefore = (HyperLiquidProvider as Mock).mock.calls
@@ -598,6 +655,148 @@ describe('PerpsController default provider', () => {
   });
 
   describe('unavailable saved default', () => {
+    it.each([false, true])(
+      'uses the live venue for implicit configuration reads, writes and selectors through fallback and recovery (testnet: %s)',
+      async (isTestnet) => {
+        createController(
+          {
+            activeProvider: 'aggregated',
+            defaultProvider: 'lighter',
+            isTestnet,
+          },
+          true,
+        );
+        for (const [providerId, leverage, grouping, marginMode, amount] of [
+          ['hyperliquid', 10, 10, 'cross', '100'],
+          ['lighter', 20, 1, 'isolated', '200'],
+        ] as const) {
+          controller.saveTradeConfiguration('BTC', leverage, providerId);
+          controller.saveOrderBookGrouping('BTC', grouping, providerId);
+          controller.saveMarginMode('BTC', marginMode, providerId);
+          controller.savePendingTradeConfiguration(
+            'BTC',
+            { amount },
+            providerId,
+          );
+        }
+        loadLighterProvider.mockRejectedValueOnce(
+          new Error('Temporary chunk load failure'),
+        );
+        await controller.init();
+
+        expect(controller.getTradeConfiguration('BTC')).toStrictEqual({
+          leverage: 10,
+        });
+        expect(controller.getOrderBookGrouping('BTC')).toBe(10);
+        expect(controller.getMarginMode('BTC')).toBe('cross');
+        expect(controller.getPendingTradeConfiguration('BTC')).toStrictEqual({
+          amount: '100',
+        });
+        expect(selectTradeConfiguration(controller.state, 'BTC')).toStrictEqual(
+          { leverage: 10 },
+        );
+        expect(selectOrderBookGrouping(controller.state, 'BTC')).toBe(10);
+        expect(selectMarginMode(controller.state, 'BTC')).toBe('cross');
+        expect(
+          selectPendingTradeConfiguration(controller.state, 'BTC'),
+        ).toStrictEqual({ amount: '100' });
+        expect(
+          selectTradeConfiguration(controller.state, 'BTC', 'lighter'),
+        ).toStrictEqual({ leverage: 20 });
+        expect(
+          selectOrderBookGrouping(controller.state, 'BTC', 'lighter'),
+        ).toBe(1);
+        expect(selectMarginMode(controller.state, 'BTC', 'lighter')).toBe(
+          'isolated',
+        );
+        expect(
+          selectPendingTradeConfiguration(controller.state, 'BTC', 'lighter'),
+        ).toStrictEqual({ amount: '200' });
+        expect(controller.state.effectiveProvider).toBe('hyperliquid');
+        expect(controller.state.defaultProvider).toBe('lighter');
+
+        controller.saveTradeConfiguration('BTC', 11);
+        controller.saveOrderBookGrouping('BTC', 11);
+        controller.saveMarginMode('BTC', 'isolated');
+        controller.savePendingTradeConfiguration('BTC', { amount: '110' });
+        expect(
+          controller.getTradeConfiguration('BTC', 'hyperliquid'),
+        ).toStrictEqual({ leverage: 11 });
+        expect(controller.getOrderBookGrouping('BTC', 'hyperliquid')).toBe(11);
+        expect(controller.getMarginMode('BTC', 'hyperliquid')).toBe('isolated');
+        expect(
+          controller.getPendingTradeConfiguration('BTC', 'hyperliquid'),
+        ).toStrictEqual({ amount: '110' });
+        expect(
+          controller.getTradeConfiguration('BTC', 'lighter'),
+        ).toStrictEqual({ leverage: 20 });
+        expect(controller.getOrderBookGrouping('BTC', 'lighter')).toBe(1);
+        expect(controller.getMarginMode('BTC', 'lighter')).toBe('isolated');
+        expect(
+          controller.getPendingTradeConfiguration('BTC', 'lighter'),
+        ).toStrictEqual({ amount: '200' });
+        controller.clearPendingTradeConfiguration('BTC');
+        expect(
+          controller.getPendingTradeConfiguration('BTC', 'hyperliquid'),
+        ).toBeUndefined();
+        expect(
+          controller.getPendingTradeConfiguration('BTC', 'lighter'),
+        ).toStrictEqual({ amount: '200' });
+        controller.savePendingTradeConfiguration('BTC', { amount: '111' });
+
+        await controller.disconnect();
+        expect(controller.state.effectiveProvider).toBeNull();
+        await controller.init();
+
+        expect(controller.state.effectiveProvider).toBe('lighter');
+        expect(controller.state.defaultProvider).toBe('lighter');
+        expect(controller.getTradeConfiguration('BTC')).toStrictEqual({
+          leverage: 20,
+        });
+        expect(controller.getOrderBookGrouping('BTC')).toBe(1);
+        expect(controller.getMarginMode('BTC')).toBe('isolated');
+        expect(controller.getPendingTradeConfiguration('BTC')).toStrictEqual({
+          amount: '200',
+        });
+        expect(selectTradeConfiguration(controller.state, 'BTC')).toStrictEqual(
+          { leverage: 20 },
+        );
+        expect(selectOrderBookGrouping(controller.state, 'BTC')).toBe(1);
+        expect(selectMarginMode(controller.state, 'BTC')).toBe('isolated');
+        expect(
+          selectPendingTradeConfiguration(controller.state, 'BTC'),
+        ).toStrictEqual({ amount: '200' });
+        expect(
+          selectTradeConfiguration(controller.state, 'BTC', 'hyperliquid'),
+        ).toStrictEqual({ leverage: 11 });
+
+        controller.saveTradeConfiguration('BTC', 21);
+        controller.saveOrderBookGrouping('BTC', 2);
+        controller.saveMarginMode('BTC', 'cross');
+        controller.savePendingTradeConfiguration('BTC', { amount: '210' });
+        expect(
+          controller.getTradeConfiguration('BTC', 'lighter'),
+        ).toStrictEqual({ leverage: 21 });
+        expect(controller.getOrderBookGrouping('BTC', 'lighter')).toBe(2);
+        expect(controller.getMarginMode('BTC', 'lighter')).toBe('cross');
+        expect(
+          controller.getPendingTradeConfiguration('BTC', 'lighter'),
+        ).toStrictEqual({ amount: '210' });
+        expect(
+          controller.getTradeConfiguration('BTC', 'hyperliquid'),
+        ).toStrictEqual({ leverage: 11 });
+        expect(controller.getOrderBookGrouping('BTC', 'hyperliquid')).toBe(11);
+        expect(controller.getMarginMode('BTC', 'hyperliquid')).toBe('isolated');
+        controller.clearPendingTradeConfiguration('BTC');
+        expect(
+          controller.getPendingTradeConfiguration('BTC', 'lighter'),
+        ).toBeUndefined();
+        expect(
+          controller.getPendingTradeConfiguration('BTC', 'hyperliquid'),
+        ).toStrictEqual({ amount: '111' });
+      },
+    );
+
     it('preserves the preference through a temporary Lighter load failure and restores its route on reinitialization', async () => {
       createController(
         { activeProvider: 'aggregated', defaultProvider: 'lighter' },

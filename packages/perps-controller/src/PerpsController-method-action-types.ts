@@ -1308,8 +1308,8 @@ export type PerpsControllerClearPendingTransactionRequestsAction = {
  *
  * @param symbol - The trading pair symbol.
  * @param providerId - Optional venue the configuration was saved for.
- * Defaults to the active provider, or the default provider in aggregated
- * mode.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  * @returns The resulting string value.
  */
 export type PerpsControllerGetTradeConfigurationAction = {
@@ -1323,8 +1323,8 @@ export type PerpsControllerGetTradeConfigurationAction = {
  * @param symbol - Market symbol
  * @param leverage - Leverage value
  * @param providerId - Optional venue to key the configuration under.
- * Defaults to the active provider, or the default provider in aggregated
- * mode.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  */
 export type PerpsControllerSaveTradeConfigurationAction = {
   type: `PerpsController:saveTradeConfiguration`;
@@ -1347,8 +1347,8 @@ export type PerpsControllerSaveTradeConfigurationAction = {
  * @param config.direction - Long or short.
  * @param config.selectedPaymentToken - The selected payment token.
  * @param providerId - Optional venue to key the configuration under.
- * Defaults to the active provider, or the default provider in aggregated
- * mode.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  */
 export type PerpsControllerSavePendingTradeConfigurationAction = {
   type: `PerpsController:savePendingTradeConfiguration`;
@@ -1361,8 +1361,8 @@ export type PerpsControllerSavePendingTradeConfigurationAction = {
  *
  * @param symbol - Market symbol
  * @param providerId - Optional venue the configuration was saved for.
- * Defaults to the active provider, or the default provider in aggregated
- * mode.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  * @returns Pending trade configuration or undefined
  */
 export type PerpsControllerGetPendingTradeConfigurationAction = {
@@ -1375,8 +1375,8 @@ export type PerpsControllerGetPendingTradeConfigurationAction = {
  *
  * @param symbol - Market symbol
  * @param providerId - Optional venue the configuration was saved for.
- * Defaults to the active provider, or the default provider in aggregated
- * mode.
+ * Defaults to the live effective venue, or the active/saved default venue
+ * before initialization.
  */
 export type PerpsControllerClearPendingTradeConfigurationAction = {
   type: `PerpsController:clearPendingTradeConfiguration`;
@@ -1544,7 +1544,7 @@ export type PerpsControllerResetSelectedPaymentTokenAction = {
  *
  * @param symbol - Market symbol
  * @param providerId - Optional venue the grouping was saved for. Defaults to
- * the active provider, or the default provider in aggregated mode.
+ * the live effective venue (active/saved default before initialization).
  * @returns The saved grouping value or undefined if not set
  */
 export type PerpsControllerGetOrderBookGroupingAction = {
@@ -1558,7 +1558,7 @@ export type PerpsControllerGetOrderBookGroupingAction = {
  * @param symbol - Market symbol
  * @param grouping - Price grouping value
  * @param providerId - Optional venue to key the grouping under. Defaults to
- * the active provider, or the default provider in aggregated mode.
+ * the live effective venue (active/saved default before initialization).
  */
 export type PerpsControllerSaveOrderBookGroupingAction = {
   type: `PerpsController:saveOrderBookGrouping`;
@@ -1571,7 +1571,7 @@ export type PerpsControllerSaveOrderBookGroupingAction = {
  *
  * @param symbol - Market symbol
  * @param providerId - Optional venue the mode was saved for. Defaults to the
- * active provider, or the default provider in aggregated mode.
+ * live effective venue (active/saved default before initialization).
  * @returns The saved margin mode or undefined if not set
  */
 export type PerpsControllerGetMarginModeAction = {
@@ -1586,7 +1586,7 @@ export type PerpsControllerGetMarginModeAction = {
  * @param symbol - Market symbol
  * @param marginMode - Margin mode to persist
  * @param providerId - Optional venue to key the mode under. Defaults to the
- * active provider, or the default provider in aggregated mode.
+ * live effective venue (active/saved default before initialization).
  */
 export type PerpsControllerSaveMarginModeAction = {
   type: `PerpsController:saveMarginMode`;
