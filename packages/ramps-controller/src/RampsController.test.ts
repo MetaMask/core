@@ -10951,6 +10951,7 @@ describe('RampsController', () => {
       kycStatus: string;
       vendorStatus: string;
       externalUserId: string;
+      currentStep?: string;
     };
 
     type KycHandlers = {
@@ -11096,6 +11097,7 @@ describe('RampsController', () => {
       sessionDisclaimersComplete: false,
       providerFlowStatus: 'not_started',
       kycStatus: 'none',
+      kycCurrentStep: null,
       autorampStatus: 'not_ready',
     });
 
@@ -11107,6 +11109,7 @@ describe('RampsController', () => {
       sessionDisclaimersComplete: true,
       providerFlowStatus: 'not_started',
       kycStatus: 'pending',
+      kycCurrentStep: null,
       autorampStatus: 'not_ready',
       ...overrides,
     });
@@ -11171,6 +11174,28 @@ describe('RampsController', () => {
           kycStatus: 'pending',
           providerFlowStatus: 'submitted',
         }),
+      },
+      {
+        name: 'kycCurrentStep kyc when the session step is kyc',
+        overrides: {
+          session: { ...sessionWithStatus('pending'), currentStep: 'kyc' },
+        },
+        expected: factsSnapshot({ kycCurrentStep: 'kyc' }),
+      },
+      {
+        name: 'kycCurrentStep processing when the session step is processing',
+        overrides: {
+          session: {
+            ...sessionWithStatus('pending'),
+            currentStep: 'processing',
+          },
+        },
+        expected: factsSnapshot({ kycCurrentStep: 'processing' }),
+      },
+      {
+        name: 'kycCurrentStep null when the session omits currentStep',
+        overrides: { session: sessionWithStatus('pending') },
+        expected: factsSnapshot({ kycCurrentStep: null }),
       },
     ])('returns $name', async ({ overrides, expected }) => {
       await withController(async ({ controller, rootMessenger }) => {
@@ -11248,6 +11273,25 @@ describe('RampsController', () => {
         expect(handlers.getAutoramps).not.toHaveBeenCalled();
         expect(registerWallet).not.toHaveBeenCalled();
         expect(createAutoramp).not.toHaveBeenCalled();
+      });
+    });
+
+    it('copies kycCurrentStep from the refreshed session when refreshKyc succeeds', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        registerKycHandlers(rootMessenger, {
+          session: sessionWithStatus('pending'),
+          fetchedSession: {
+            ...sessionWithStatus('pending'),
+            currentStep: 'processing',
+          },
+        });
+
+        expect(
+          await controller.hydrateVbaOnboarding({
+            walletAddress: '0xabc',
+            refreshKyc: true,
+          }),
+        ).toStrictEqual(factsSnapshot({ kycCurrentStep: 'processing' }));
       });
     });
 

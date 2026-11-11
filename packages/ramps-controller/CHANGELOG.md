@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Add required `kycCurrentStep: string | null` to `VbaOnboardingSnapshot` ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - `hydrateVbaOnboarding` copies the KYC session `currentStep` it already reads. `kyc` means document verification is still with the applicant. `processing` means the applicant has submitted and the vendor is working. Any other string is copied as sent. `null` means the session did not include a step, including when no session is stored.
+  - Hosts that construct a `VbaOnboardingSnapshot` must set `kycCurrentStep` (`null` when the step is unknown). `kycStatus`, `providerFlowStatus`, and the other snapshot fields are unchanged. No new messenger action is required.
 - Add `TransakServiceInvalidateQueriesAction`, `TransakServiceCacheUpdatedEvent` and `TransakServiceGranularCacheUpdatedEvent` types, and include them in `TransakServiceActions` and `TransakServiceEvents` ([#11216](https://github.com/MetaMask/core/pull/11216))
 - Add `RampsServiceInvalidateQueriesAction`, `RampsServiceCacheUpdatedEvent` and `RampsServiceGranularCacheUpdatedEvent`, also included in `RampsServiceActions` and `RampsServiceEvents` ([#11214](https://github.com/MetaMask/core/pull/11214))
 - Add `NeoBankServiceInvalidateQueriesAction`, `NeoBankServiceCacheUpdatedEvent` and `NeoBankServiceGranularCacheUpdatedEvent`, also included in `NeoBankServiceActions` and `NeoBankServiceEvents` ([#10882](https://github.com/MetaMask/core/pull/10882))

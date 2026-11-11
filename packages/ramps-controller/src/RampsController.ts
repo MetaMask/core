@@ -291,6 +291,8 @@ type KycControllerSessionStatus = {
   vendorStatus: string;
   /** Canonical id of the profile that owns the session (set at creation). */
   externalUserId: string;
+  /** idOS `currentStep`, when the session status includes one. */
+  currentStep?: string;
 };
 
 /**
@@ -441,6 +443,17 @@ export type VbaOnboardingSnapshot = {
   providerFlowStatus: VbaProviderFlowStatus;
   /** Overall KYC session outcome used to decide whether autoramp setup can run. */
   kycStatus: VbaKycStatus;
+  /**
+   * idOS `currentStep` from the KYC session this read already loaded, or
+   * `null` when that session has no step.
+   *
+   * Known values match `@metamask/kyc-controller`: `processing`,
+   * `emailOtpCollection`, `phoneOtpCollection`, `capabilityAuthorization`,
+   * `kyc`, `approved`, and `rejected`. `kyc` means document verification is
+   * still with the applicant. `processing` means the applicant has submitted
+   * and the vendor is working. Any other string is copied as sent.
+   */
+  kycCurrentStep: string | null;
   autorampStatus: VbaAutorampStatus;
 };
 
@@ -450,6 +463,7 @@ const EMPTY_VBA_ONBOARDING_SNAPSHOT: VbaOnboardingSnapshot = {
   sessionDisclaimersComplete: false,
   providerFlowStatus: 'not_started',
   kycStatus: 'none',
+  kycCurrentStep: null,
   autorampStatus: 'not_ready',
 };
 
@@ -4371,6 +4385,7 @@ export class RampsController extends BaseController<
       sessionDisclaimersComplete,
       providerFlowStatus,
       kycStatus: resolveVbaKycStatus(session, providerFlowStatus),
+      kycCurrentStep: session.currentStep ?? null,
       autorampStatus: 'not_ready',
     };
 
