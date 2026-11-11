@@ -416,6 +416,12 @@ export type PerpsControllerState = {
    */
   hasExplicitDefaultProviderSelection: boolean;
   /**
+   * Whether aggregated mode has established the default venue. Persisted so
+   * re-enabling multi-provider mode after a rollback does not infer a new
+   * default from a temporary direct-provider fallback. Not a user selection.
+   */
+  hasMigratedToMultiProvider: boolean;
+  /**
    * Whether the user explicitly chose a direct `activeProvider`. Set by
    * `switchProvider` so ordinary initialization (network toggle, disconnect/
    * init, cold start) does not reinterpret the choice as unmigrated legacy
@@ -622,6 +628,7 @@ export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
   defaultProvider: 'hyperliquid',
   effectiveProvider: null,
   hasExplicitDefaultProviderSelection: false,
+  hasMigratedToMultiProvider: false,
   hasExplicitProviderSelection: false,
   isTestnet: false, // Default to mainnet
   initializationState: InitializationState.Uninitialized,
@@ -722,6 +729,12 @@ const metadata: StateMetadata<PerpsControllerState> = {
     usedInUi: true,
   },
   hasExplicitDefaultProviderSelection: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
+  hasMigratedToMultiProvider: {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: false,
@@ -2238,10 +2251,10 @@ export class PerpsController extends BaseController<
    * Migrate a persisted direct `activeProvider` to aggregated mode (TAT-4394).
    *
    * When the multi-provider flag is on and the persisted mode is a direct
-   * venue, the venue becomes the persisted `defaultProvider` unless the user
-   * explicitly saved one. The mode becomes `aggregated`, so both venues'
-   * positions and balances are read at the same time and each order goes to
-   * the venue the user picks. Idempotent;
+   * venue, the venue becomes the persisted `defaultProvider` only on the first
+   * migration and unless the user explicitly saved one. The mode becomes
+   * `aggregated`, so both venues' positions and balances are read at the same
+   * time and each order goes to the venue the user picks. Idempotent;
    * runs at construction (flags may not be loaded yet, in which case it also
    * runs from `#performInitialization` before the active provider is assigned).
    * An explicitly disabled flag restores direct mode using the saved default,
@@ -2249,18 +2262,21 @@ export class PerpsController extends BaseController<
    */
   #migrateActiveProviderForMultiProviderIfNeeded(): void {
     const enabled = this.#getMultiProviderModeEnabled();
-    if (enabled === undefined) {
-      return;
-    }
-    if (!enabled) {
-      if (this.state.activeProvider === 'aggregated') {
-        this.update((state) => {
+    if (this.state.activeProvider === 'aggregated') {
+      this.update((state) => {
+        // Existing aggregated snapshots already have an established default,
+        // even if they predate this marker or the flag is not loaded yet.
+        state.hasMigratedToMultiProvider = true;
+        if (enabled === false) {
           state.activeProvider =
             state.defaultProvider === 'lighter' ? 'lighter' : 'hyperliquid';
           state.effectiveProvider = null;
           state.accountState = null;
-        });
-      }
+        }
+      });
+      return;
+    }
+    if (enabled !== true) {
       return;
     }
     // An explicit selection is a user choice, not unmigrated legacy state, so
@@ -2274,9 +2290,13 @@ export class PerpsController extends BaseController<
     }
 
     this.update((state) => {
-      if (!state.hasExplicitDefaultProviderSelection) {
+      if (
+        !state.hasExplicitDefaultProviderSelection &&
+        !state.hasMigratedToMultiProvider
+      ) {
         state.defaultProvider = activeProvider;
       }
+      state.hasMigratedToMultiProvider = true;
       state.activeProvider = 'aggregated';
     });
 

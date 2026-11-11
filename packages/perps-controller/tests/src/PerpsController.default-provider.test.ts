@@ -1430,6 +1430,100 @@ describe('PerpsController default provider', () => {
   });
 
   describe('multi-provider kill switch', () => {
+    it.each([false, true])(
+      'preserves an automatically inferred default after rollback fallback and flag re-enablement (restart: %s)',
+      async (restart) => {
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(true);
+        createController({ activeProvider: 'lighter' }, true);
+        await controller.init();
+        expect(controller.state.activeProvider).toBe('aggregated');
+        expect(controller.state.defaultProvider).toBe('lighter');
+        expect(controller.state.hasExplicitDefaultProviderSelection).toBe(
+          false,
+        );
+
+        await controller.disconnect();
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: false,
+          minimumVersion: '1.0.0',
+        };
+        loadLighterProvider.mockRejectedValueOnce(
+          new Error('Temporary chunk load failure'),
+        );
+        await controller.init();
+        expect(controller.state.activeProvider).toBe('hyperliquid');
+        expect(controller.state.effectiveProvider).toBe('hyperliquid');
+        expect(controller.state.defaultProvider).toBe('lighter');
+        expect(controller.state.hasExplicitProviderSelection).toBe(false);
+
+        await controller.disconnect();
+        if (restart) {
+          const persisted = JSON.parse(JSON.stringify(controller.state));
+          createController(persisted, true);
+        }
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        await controller.init();
+
+        expect(controller.state.activeProvider).toBe('aggregated');
+        expect(controller.state.defaultProvider).toBe('lighter');
+        expect(controller.state.effectiveProvider).toBe('lighter');
+        expect(
+          (
+            controller.getActiveProviderOrNull() as AggregatedPerpsProvider
+          ).getWriteProviderId(),
+        ).toBe('lighter');
+        expect(controller.state.hasExplicitDefaultProviderSelection).toBe(
+          false,
+        );
+        expect(controller.state.hasExplicitProviderSelection).toBe(false);
+        expect(controller.state.hasMigratedToMultiProvider).toBe(true);
+        expect(controller.metadata.hasMigratedToMultiProvider.persist).toBe(
+          true,
+        );
+      },
+    );
+
+    it('records an existing aggregated snapshot before a disabled flag falls back to a different direct venue', async () => {
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: false,
+        minimumVersion: '1.0.0',
+      };
+      createController(
+        { activeProvider: 'aggregated', defaultProvider: 'lighter' },
+        true,
+      );
+      loadLighterProvider.mockRejectedValueOnce(
+        new Error('Temporary chunk load failure'),
+      );
+      await controller.init();
+      expect(controller.state.activeProvider).toBe('hyperliquid');
+      const persisted = JSON.parse(JSON.stringify(controller.state));
+      await controller.disconnect();
+      remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+        enabled: true,
+        minimumVersion: '1.0.0',
+      };
+      vi.mocked(
+        mockInfrastructure.featureFlags.validateVersionGated,
+      ).mockReturnValue(true);
+
+      createController(persisted, true);
+      await controller.init();
+
+      expect(controller.state.defaultProvider).toBe('lighter');
+      expect(controller.state.effectiveProvider).toBe('lighter');
+      expect(controller.state.hasExplicitDefaultProviderSelection).toBe(false);
+    });
+
     it.each(['hyperliquid', 'lighter'] as const)(
       'restores direct %s mode from a migrated snapshot after the flag is disabled',
       async (activeProvider) => {
