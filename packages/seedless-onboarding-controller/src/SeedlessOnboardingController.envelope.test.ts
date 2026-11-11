@@ -1883,7 +1883,7 @@ describe('SeedlessOnboardingController', () => {
         });
       });
 
-      it('clears a pending password reset once the vault is restored with the global password', async () => {
+      it('keeps a pending password reset when the vault is restored with the global password', async () => {
         const store = await createMigratedAccount();
 
         await withNewDeviceController(async (args) => {
@@ -1894,19 +1894,19 @@ describe('SeedlessOnboardingController', () => {
             recoverySecret: RECOVERY_SECRET_HEX,
           });
           await recover(args);
-          expect(controller.state.isPasswordResetPending).toBe(true);
 
           await controller.fetchAllSecretData(NEW_PASSWORD);
 
-          expect(controller.state.isPasswordResetPending).toBeUndefined();
-          await baseMessenger.call(
-            'SeedlessOnboardingController:changePassword',
-            'changed-password',
-            NEW_PASSWORD,
+          expect(controller.state.isLocalPassword).toBe(true);
+          await expect(
+            baseMessenger.call(
+              'SeedlessOnboardingController:changePassword',
+              'changed-password',
+              NEW_PASSWORD,
+            ),
+          ).rejects.toThrow(
+            SeedlessOnboardingControllerErrorMessage.PasswordResetPending,
           );
-          expect(
-            await controller.verifyVaultPassword('changed-password'),
-          ).toBeUndefined();
         });
       });
 
@@ -2209,7 +2209,7 @@ describe('SeedlessOnboardingController', () => {
             v: 1,
             vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
           });
-          expect(controller.state.isPasswordResetPending).toBe(true);
+          expect(controller.state.isLocalPassword).toBe(true);
           expect(
             await controller.verifyVaultPassword(RECOVERED_PASSWORD),
           ).toBeUndefined();
@@ -2447,7 +2447,7 @@ describe('SeedlessOnboardingController', () => {
             vaultAuthPubKey: authPubKeyOf(MOCK_PASSWORD),
             passwordAuthPubKey: authPubKeyOf(RECOVERED_PASSWORD),
           });
-          expect(controller.state.isPasswordResetPending).toBeUndefined();
+          expect(controller.state.isLocalPassword).toBeUndefined();
           expect(
             await controller.checkIsPasswordOutdated({ skipCache: true }),
           ).toBe(false);

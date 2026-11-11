@@ -384,7 +384,7 @@ export type SeedlessOnboardingControllerRecoverWithRecoverySecretAction = {
  * {@link recoverWithRecoverySecret}.
  *
  * `password` only encrypts the local vault and counts as outdated. This
- * sets `isPasswordResetPending`, which blocks {@link syncLatestGlobalPassword}
+ * sets `isLocalPassword`, which blocks {@link syncLatestGlobalPassword}
  * and {@link changePassword} until {@link resetPasswordWithVaultKeys} sets a
  * new global password.
  *
@@ -410,7 +410,7 @@ export type SeedlessOnboardingControllerSetLocalPasswordAction = {
  * password, which is the state the vault is left in after
  * {@link setLocalPassword}, and with a valid aal2 session from
  * {@link authenticateForRecovery}. A successful reset clears
- * `isPasswordResetPending`; after that, use {@link changePassword} instead.
+ * `isLocalPassword`; after that, use {@link changePassword} instead.
  *
  * The password OPRF key swap is signed with the auth key stored in the
  * vault's control record, so the old password is not needed. The vault

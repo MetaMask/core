@@ -25,13 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `setLocalPassword` and the `SeedlessOnboardingController:setLocalPassword` messenger action, which create the local vault under `password` with the vault keys recovered by `recoverWithRecoverySecret` ([#11220](https://github.com/MetaMask/core/pull/11220))
   - Throws `RecoveryRequired` without a prior `recoverWithRecoverySecret`, and `Aal2Required` without a valid aal2 session. The recovered vault keys are dropped once the vault is created.
   - Discards any pending `pendingEnvelopeMigration` checkpoint, since the local vault it belongs to is replaced.
-  - The local password counts as outdated. It sets `isPasswordResetPending`, which makes `syncLatestGlobalPassword` and `changePassword` throw `PasswordResetPending` until `resetPasswordWithVaultKeys` sets a new global password.
+  - The local password counts as outdated. It sets `isLocalPassword`, which makes `syncLatestGlobalPassword` and `changePassword` throw `PasswordResetPending` until `resetPasswordWithVaultKeys` sets a new global password.
 - Add `resetPasswordWithVaultKeys` and the `SeedlessOnboardingController:resetPasswordWithVaultKeys` messenger action, which set a new global password on an unlocked, envelope-managed vault without the old password after `setLocalPassword` ([#11220](https://github.com/MetaMask/core/pull/11220))
-  - Only allowed while `EnvelopeState.passwordAuthPubKey` is unset and with a valid aal2 session from `authenticateForRecovery`; otherwise it throws `PasswordResetRequiresRecovery` or `Aal2Required`. A successful reset clears `isPasswordResetPending`; after that, use `changePassword`.
+  - Only allowed while `EnvelopeState.passwordAuthPubKey` is unset and with a valid aal2 session from `authenticateForRecovery`; otherwise it throws `PasswordResetRequiresRecovery` or `Aal2Required`. A successful reset clears `isLocalPassword`; after that, use `changePassword`.
   - The password OPRF key swap is signed with the auth key stored in the vault's control record. The vault keys and secret data are not changed, and the local vault is re-encrypted under `newPassword`.
 - Add persisted `envelope` state and the `EnvelopeState` type, set once the vault is envelope-managed, and persisted, encrypted `pendingEnvelopeMigration` state for the migration checkpoint ([#11220](https://github.com/MetaMask/core/pull/11220))
   - `EnvelopeState.passwordAuthPubKey` is unset after `setLocalPassword`, until the password is reset.
-- Add persisted `isPasswordResetPending` state, set by `setLocalPassword` and cleared by `resetPasswordWithVaultKeys` or by restoring the vault with the global password through `fetchAllSecretData` ([#11220](https://github.com/MetaMask/core/pull/11220))
+- Add persisted `isLocalPassword` state, set by `setLocalPassword` and cleared only by `resetPasswordWithVaultKeys` ([#11220](https://github.com/MetaMask/core/pull/11220))
 - Add `Aal2Required`, `RecoveryKeyShareConflict`, `InvalidEnvelope`, `EnvelopeControlRecordNotFound`, `EnvelopeMigrationRequiresDataTypes`, `RecoveryEnvelopeNotFound`, `RecoveryRequired`, `PasswordResetPending`, and `PasswordResetRequiresRecovery` error messages ([#11220](https://github.com/MetaMask/core/pull/11220))
 
 ### Changed

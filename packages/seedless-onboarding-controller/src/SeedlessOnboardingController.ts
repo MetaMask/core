@@ -768,10 +768,6 @@ export class SeedlessOnboardingController<
             rawToprfPwEncryptionKey: pwEncKey as Uint8Array<ArrayBuffer>,
             rawToprfAuthKeyPair: authKeyPair,
           });
-          // the new vault is under the global password, so it is in sync
-          this.update((state) => {
-            delete state.isPasswordResetPending;
-          });
           if (envelope) {
             this.#setEnvelopeState(
               envelope.vaultKeySet,
@@ -805,7 +801,7 @@ export class SeedlessOnboardingController<
   ): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
-      this.#assertNoPasswordResetPending();
+      this.#assertIsNotLocalPassword();
       // verify the old password of the encrypted vault
       await this.verifyVaultPassword(oldPassword, {
         skipLock: true, // skip lock since we already have the lock
@@ -1145,7 +1141,7 @@ export class SeedlessOnboardingController<
   }): Promise<void> {
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
-      this.#assertNoPasswordResetPending();
+      this.#assertIsNotLocalPassword();
       const doSyncPassword = async (): Promise<void> => {
         // update vault with latest globalPassword
         const { envelopeKeys, encKey, pwEncKey, authKeyPair } =
@@ -2735,7 +2731,7 @@ export class SeedlessOnboardingController<
    * {@link recoverWithRecoverySecret}.
    *
    * `password` only encrypts the local vault and counts as outdated. This
-   * sets `isPasswordResetPending`, which blocks {@link syncLatestGlobalPassword}
+   * sets `isLocalPassword`, which blocks {@link syncLatestGlobalPassword}
    * and {@link changePassword} until {@link resetPasswordWithVaultKeys} sets a
    * new global password.
    *
@@ -2770,7 +2766,7 @@ export class SeedlessOnboardingController<
         // `migrateToEnvelope` would never clear it once `envelope` is set
         this.update((state) => {
           delete state.pendingEnvelopeMigration;
-          state.isPasswordResetPending = true;
+          state.isLocalPassword = true;
         });
         this.#setEnvelopeState(vaultKeySet);
         this.#resetPasswordOutdatedCache();
@@ -2787,7 +2783,7 @@ export class SeedlessOnboardingController<
    * password, which is the state the vault is left in after
    * {@link setLocalPassword}, and with a valid aal2 session from
    * {@link authenticateForRecovery}. A successful reset clears
-   * `isPasswordResetPending`; after that, use {@link changePassword} instead.
+   * `isLocalPassword`; after that, use {@link changePassword} instead.
    *
    * The password OPRF key swap is signed with the auth key stored in the
    * vault's control record, so the old password is not needed. The vault
@@ -2839,7 +2835,7 @@ export class SeedlessOnboardingController<
           newPassword,
         });
         this.update((state) => {
-          delete state.isPasswordResetPending;
+          delete state.isLocalPassword;
         });
         this.#resetPasswordOutdatedCache();
 
@@ -3264,8 +3260,8 @@ export class SeedlessOnboardingController<
    * @throws `PasswordResetPending` after {@link setLocalPassword}, until
    * {@link resetPasswordWithVaultKeys} succeeds.
    */
-  #assertNoPasswordResetPending(): void {
-    if (this.state.isPasswordResetPending) {
+  #assertIsNotLocalPassword(): void {
+    if (this.state.isLocalPassword) {
       throw new SeedlessOnboardingError(
         SeedlessOnboardingControllerErrorMessage.PasswordResetPending,
       );
