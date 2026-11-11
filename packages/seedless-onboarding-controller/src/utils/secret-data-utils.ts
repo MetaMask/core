@@ -156,6 +156,25 @@ export function getDataTypeMigrationUpdates(
 }
 
 /**
+ * Find the local backup metadata entry for secret data.
+ *
+ * @param currentBackupsMetadata - Existing backup metadata in controller state.
+ * @param data - The secret data to find.
+ * @param type - The type of the secret data.
+ * @returns The matching backup metadata, if present.
+ */
+export function findSocialBackupMetadata(
+  currentBackupsMetadata: SocialBackupsMetadata[],
+  data: Uint8Array,
+  type: SecretType = SecretType.Mnemonic,
+): SocialBackupsMetadata | undefined {
+  const backupHash = keccak256AndHexify(data);
+  return currentBackupsMetadata.find(
+    (backup) => backup.hash === backupHash && backup.type === type,
+  );
+}
+
+/**
  * Find new local backup metadata entries without mutating the current state.
  *
  * @param currentBackupsMetadata - Existing backup metadata in controller state.
