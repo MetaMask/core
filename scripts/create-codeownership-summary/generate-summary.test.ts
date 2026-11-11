@@ -418,6 +418,8 @@ describe('generateCodeownershipSummary', () => {
     });
 
     expect(summary.length).toBeLessThan(65_536);
+    expect(summary).toContain('## 🛑 Files requiring codeowner review');
+    expect(summary).toContain('**@MetaMask/team-0** (1 file)');
     expect(summary).toContain(
       'Remaining file groups omitted because this summary reached the comment size limit. Run `yarn create-codeownership-summary` to see the full summary.',
     );

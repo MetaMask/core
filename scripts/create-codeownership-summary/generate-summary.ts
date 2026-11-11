@@ -107,11 +107,12 @@ export async function generateCodeownershipSummary({
     changedFilePaths,
     codeownerRules,
   );
-  const codeownershipGroups = groupFilesByPrimaryOwners(matchedFiles);
-  const maintainedFileGroups = groupFilesByMaintenanceOwners(matchedFiles);
+  const primaryOwnershipGroups = groupFilesByPrimaryOwners(matchedFiles);
+  const maintenanceOwnershipGroups =
+    groupFilesByMaintenanceOwners(matchedFiles);
 
-  return codeownershipGroups.length > 0
-    ? renderSummary({ codeownershipGroups, maintainedFileGroups })
+  return primaryOwnershipGroups.length > 0
+    ? renderSummary({ primaryOwnershipGroups, maintenanceOwnershipGroups })
     : '';
 }
 
@@ -380,25 +381,23 @@ function createPatternMatcher(pattern: string): (filePath: string) => boolean {
  * owner, whose approval is not required.
  *
  * @param options - The options.
- * @param options.codeownershipGroups - Mutually exclusive ownership groups.
- * @param options.maintainedFileGroups - Changed files co-owned by each
+ * @param options.primaryOwnershipGroups - Changed files grouped by the owners
+ * whose approval is required.
+ * @param options.maintenanceOwnershipGroups - Changed files co-owned by each
  * maintenance owner.
  * @returns A Markdown summary short enough to post as a GitHub comment.
  */
 function renderSummary({
-  codeownershipGroups,
-  maintainedFileGroups,
+  primaryOwnershipGroups,
+  maintenanceOwnershipGroups,
 }: {
-  codeownershipGroups: CodeownershipGroup[];
-  maintainedFileGroups: MaintainedFileGroup[];
+  primaryOwnershipGroups: CodeownershipGroup[];
+  maintenanceOwnershipGroups: MaintainedFileGroup[];
 }): string {
-  let summary = `## 🛑 Files requiring codeowner review
-
-${renderApprovalInstructions(codeownershipGroups)}
-`;
+  let summary = '';
   const sections = [
-    ...codeownershipGroups.map(renderCodeownershipGroup),
-    ...maintainedFileGroups.map(renderMaintainedFileGroup),
+    ...renderApprovalRequiredSection(primaryOwnershipGroups),
+    ...maintenanceOwnershipGroups.map(renderApprovalOptionalSection),
   ];
 
   for (const section of sections) {
@@ -413,15 +412,37 @@ ${renderApprovalInstructions(codeownershipGroups)}
 }
 
 /**
+ * Render the files whose owners must approve the PR, grouped by those owners.
+ *
+ * @param primaryOwnershipGroups - Changed files grouped by the owners whose
+ * approval is required.
+ * @returns The parts of the Markdown section: its heading and instructions,
+ * then each group. They're kept apart so that a summary that's too long for a
+ * comment can be cut off between groups, rather than losing the whole section.
+ */
+function renderApprovalRequiredSection(
+  primaryOwnershipGroups: CodeownershipGroup[],
+): string[] {
+  return [
+    `## 🛑 Files requiring codeowner review
+
+${renderApprovalInstructions(primaryOwnershipGroups)}
+`,
+    ...primaryOwnershipGroups.map(renderCodeownershipGroup),
+  ];
+}
+
+/**
  * Explain whose approvals are needed to merge.
  *
- * @param codeownershipGroups - Mutually exclusive ownership groups.
+ * @param primaryOwnershipGroups - Changed files grouped by the owners whose
+ * approval is required.
  * @returns The explanation, in Markdown.
  */
 function renderApprovalInstructions(
-  codeownershipGroups: CodeownershipGroup[],
+  primaryOwnershipGroups: CodeownershipGroup[],
 ): string {
-  if (codeownershipGroups.some(({ owners }) => owners.length > 1)) {
+  if (primaryOwnershipGroups.some(({ owners }) => owners.length > 1)) {
     return `To merge this PR, you'll need to get approvals from the following owner groups.
 **For files with multiple owners, approval from one owner is sufficient.**`;
   }
@@ -455,7 +476,7 @@ ${renderFileList(group.filePaths)}`;
  * co-owns.
  * @returns A collapsible Markdown section.
  */
-function renderMaintainedFileGroup({
+function renderApprovalOptionalSection({
   maintenanceOwner,
   filePaths,
 }: MaintainedFileGroup): string {
