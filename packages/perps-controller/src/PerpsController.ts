@@ -1284,6 +1284,10 @@ export class PerpsController extends BaseController<
 
   #userDiskWrite: Promise<void> = Promise.resolve();
 
+  // Distinguish a persisted/user-saved default from the initial fallback so
+  // delayed multi-provider migration only infers a venue for legacy state.
+  #hasSavedDefaultProvider: boolean;
+
   // Store options for dependency injection (allows core package to inject platform-specific services)
   readonly #options: PerpsControllerOptions;
 
@@ -1327,6 +1331,7 @@ export class PerpsController extends BaseController<
       state: { ...getDefaultPerpsControllerState(), ...state },
     });
 
+    this.#hasSavedDefaultProvider = state.defaultProvider !== undefined;
     this.#eligibilityCheckDeferred = deferEligibilityCheck;
 
     // Store options for dependency injection
@@ -2201,9 +2206,10 @@ export class PerpsController extends BaseController<
    * Migrate a persisted direct `activeProvider` to aggregated mode (TAT-4394).
    *
    * When the multi-provider flag is on and the persisted mode is a direct
-   * venue, the venue becomes the persisted `defaultProvider` and the mode
-   * becomes `aggregated`, so both venues' positions and balances are read at
-   * the same time and each order goes to the venue the user picks. Idempotent;
+   * venue, the venue becomes the persisted `defaultProvider` only if no default
+   * has already been saved. The mode becomes `aggregated`, so both venues'
+   * positions and balances are read at the same time and each order goes to
+   * the venue the user picks. Idempotent;
    * runs at construction (flags may not be loaded yet, in which case it also
    * runs from `#performInitialization` before the active provider is assigned).
    */
@@ -2222,13 +2228,19 @@ export class PerpsController extends BaseController<
     }
 
     this.update((state) => {
-      state.defaultProvider = activeProvider;
+      if (!this.#hasSavedDefaultProvider) {
+        state.defaultProvider = activeProvider;
+      }
       state.activeProvider = 'aggregated';
     });
+    this.#hasSavedDefaultProvider = true;
 
     this.#debugLog(
       'PerpsController: Migrated direct provider to aggregated mode',
-      { previousProvider: activeProvider, defaultProvider: activeProvider },
+      {
+        previousProvider: activeProvider,
+        defaultProvider: this.state.defaultProvider,
+      },
     );
   }
 
@@ -5091,12 +5103,15 @@ export class PerpsController extends BaseController<
       params,
       context: this.#createServiceContext('getAccountState', {
         accountDataContext: {
-          // The response carries the venue that served it. Discard it when the
-          // default venue moved while the request was pending so an older
-          // balance cannot overwrite the new venue's snapshot.
+          // The response must match the current account venue: the active
+          // direct provider, or the default venue in aggregated mode. Read
+          // the route when the response arrives to reject stale balances.
           isCurrent: (accountState) =>
             accountState.providerId === undefined ||
-            accountState.providerId === this.state.defaultProvider,
+            accountState.providerId ===
+              (this.state.activeProvider === 'aggregated'
+                ? this.state.defaultProvider
+                : this.state.activeProvider),
         },
       }),
     });
@@ -6654,8 +6669,9 @@ export class PerpsController extends BaseController<
    *
    * Persists the choice and, when the active provider is the aggregated
    * wrapper, updates its routing default in place. Unlike `switchProvider`
-   * this never re-initializes the controller and never reconnects a stream:
-   * both venues stay connected and per-venue writes are unaffected.
+   * this never re-initializes the controller or reconnects provider transports:
+   * default-routed streams move, but both venues stay connected and per-venue
+   * writes are unaffected.
    *
    * @param providerId - The provider to use as the aggregated default.
    * @returns The result with the new default provider.
@@ -6686,6 +6702,7 @@ export class PerpsController extends BaseController<
         ? this.activeProviderInstance
         : null;
     const defaultChanged = this.state.defaultProvider !== providerId;
+    this.#hasSavedDefaultProvider = true;
 
     this.update((state) => {
       state.defaultProvider = providerId;

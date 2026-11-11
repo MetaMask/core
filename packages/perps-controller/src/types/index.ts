@@ -1916,7 +1916,9 @@ export type SubscribeAvailableToTradeParams = {
   callback: (availableToTrade: PerpsAvailableToTrade) => void;
   /**
    * Receives a failure to open the stream, or one that stops it after it
-   * opened (for example a rejected resubscription). The value is unknown again.
+   * opened (for example a rejected resubscription). Also invalidates the old
+   * venue's value when a default-routed subscription changes providers.
+   * The value is unknown again.
    * Not terminal: keep the subscription, since the stream reopens when the
    * WebSocket transport is replaced.
    */

@@ -1491,7 +1491,23 @@ export class AggregatedPerpsProvider implements PerpsProvider {
   subscribeToAvailableToTrade(
     params: SubscribeAvailableToTradeParams,
   ): () => void {
-    const providerId = params.providerId ?? this.#defaultProvider;
+    if (params.providerId === undefined) {
+      return this.#trackDefaultRoutedSubscription({
+        open: (provider) =>
+          provider.subscribeToAvailableToTrade?.({
+            ...params,
+            providerId: this.#defaultProvider,
+          }) ?? (() => undefined),
+        // As with a stopped stream, the old venue's value is now unknown.
+        // Notify before opening the new stream, which may emit immediately.
+        onInvalidate: () =>
+          params.onError?.(
+            new Error('Available-to-trade provider changed; value is unknown'),
+          ),
+      });
+    }
+
+    const { providerId } = params;
     // Read the map directly: #getProviderOrDefault throws when the route is
     // unavailable, and this method's contract is a no-op cleanup.
     const provider = this.#providers.get(providerId);

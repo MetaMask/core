@@ -291,7 +291,10 @@ describe('PerpsController default provider', () => {
     controller.testSetActiveProvider(aggregatedProvider);
   };
 
-  const createController = (state: Partial<PerpsControllerState> = {}) => {
+  const createController = (
+    state: Partial<PerpsControllerState> = {},
+    withLighter = false,
+  ) => {
     const mockCall = vi.fn().mockImplementation((action: string) => {
       if (action === 'RemoteFeatureFlagController:getState') {
         return { remoteFeatureFlags };
@@ -321,7 +324,21 @@ describe('PerpsController default provider', () => {
     mockMessenger = createMockMessenger({ call: mockCall });
     controller = new TestablePerpsController({
       messenger: mockMessenger,
-      state: { ...getDefaultPerpsControllerState(), ...state },
+      state,
+      clientConfig: withLighter
+        ? {
+            providerCredentials: {
+              lighter: {
+                enabled: true,
+                loadProvider: async () => ({
+                  LighterProvider: function () {
+                    return lighterProvider;
+                  } as any,
+                }),
+              },
+            },
+          }
+        : {},
       infrastructure: mockInfrastructure,
     });
   };
@@ -566,6 +583,50 @@ describe('PerpsController default provider', () => {
           returnOnEquity: '0',
         });
     });
+
+    it.each([false, true])(
+      'commits direct Lighter responses with a HyperLiquid default (explicit selection: %s)',
+      async (hasExplicitProviderSelection) => {
+        if (hasExplicitProviderSelection) {
+          remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+            enabled: true,
+            minimumVersion: '1.0.0',
+          };
+          vi.mocked(
+            mockInfrastructure.featureFlags.validateVersionGated,
+          ).mockReturnValue(true);
+        }
+        createController({
+          activeProvider: 'lighter',
+          hasExplicitProviderSelection,
+        });
+        controller.testMarkInitialized();
+        controller.testSetActiveProvider(lighterProvider);
+        const { MarketDataService: RealMarketDataService } =
+          await vi.importActual<
+            typeof import('../../src/services/MarketDataService.js')
+          >('../../src/services/MarketDataService.js');
+        const service = new RealMarketDataService(mockInfrastructure as never);
+        mockMarketDataServiceInstance.getAccountState.mockImplementation(
+          (options: never) => service.getAccountState(options),
+        );
+        const account: AccountState = {
+          providerId: 'lighter',
+          spendableBalance: '200',
+          withdrawableBalance: '200',
+          totalBalance: '200',
+          marginUsed: '0',
+          unrealizedPnl: '0',
+          returnOnEquity: '0',
+        };
+        (lighterProvider.getAccountState as Mock).mockResolvedValue(account);
+
+        await controller.getAccountState();
+
+        expect(controller.state.defaultProvider).toBe('hyperliquid');
+        expect(controller.state.accountState).toStrictEqual(account);
+      },
+    );
 
     it('does not let an old venue balance overwrite the new venue snapshot', async () => {
       setupAggregatedMode('hyperliquid');
@@ -827,6 +888,40 @@ describe('PerpsController default provider', () => {
   });
 
   describe('multi-provider flag arriving after construction', () => {
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'preserves a %s default saved before the flag arrives and initialization',
+      async (defaultProvider) => {
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = undefined;
+        createController(
+          {
+            activeProvider:
+              defaultProvider === 'lighter' ? 'hyperliquid' : 'lighter',
+          },
+          true,
+        );
+        expect(controller.setDefaultProvider(defaultProvider).success).toBe(
+          true,
+        );
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(true);
+
+        await controller.init();
+
+        expect(controller.state.activeProvider).toBe('aggregated');
+        expect(controller.state.defaultProvider).toBe(defaultProvider);
+        expect(
+          (
+            controller.getActiveProviderOrNull() as AggregatedPerpsProvider
+          ).getWriteProviderId(),
+        ).toBe(defaultProvider);
+      },
+    );
+
     it('refuses an unrouted write queued across the cold-start migration to aggregated', async () => {
       // Flag off at construction: the persisted mode stays direct.
       remoteFeatureFlags.perpsMultiProviderModeEnabled = undefined;
@@ -1096,6 +1191,27 @@ describe('PerpsController default provider', () => {
         lighter: { BTC: { leverage: 10 } },
       });
     });
+
+    it.each(['hyperliquid', 'lighter'] as const)(
+      'preserves an existing saved %s default during migration',
+      (defaultProvider) => {
+        remoteFeatureFlags.perpsMultiProviderModeEnabled = {
+          enabled: true,
+          minimumVersion: '1.0.0',
+        };
+        vi.mocked(
+          mockInfrastructure.featureFlags.validateVersionGated,
+        ).mockReturnValue(true);
+        createController({
+          activeProvider:
+            defaultProvider === 'lighter' ? 'hyperliquid' : 'lighter',
+          defaultProvider,
+        });
+
+        expect(controller.state.activeProvider).toBe('aggregated');
+        expect(controller.state.defaultProvider).toBe(defaultProvider);
+      },
+    );
 
     it('keeps a persisted direct provider when the multi-provider flag is off', () => {
       remoteFeatureFlags.perpsMultiProviderModeEnabled = undefined;

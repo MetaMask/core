@@ -2541,7 +2541,91 @@ describe('AggregatedPerpsProvider', () => {
         expect(mockHLProvider.subscribeToAvailableToTrade).toHaveBeenCalledWith(
           { symbol: 'BTC', providerId: 'hyperliquid', callback },
         );
-        expect(cleanup).toBe(unsubscribe);
+        cleanup();
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+      });
+
+      it('opens a supported stream when the default moves from Lighter to HyperLiquid', () => {
+        const unsubscribe = vi.fn();
+        mockHLProvider.subscribeToAvailableToTrade = vi
+          .fn()
+          .mockReturnValue(unsubscribe);
+        aggregatedProvider.setDefaultProvider('lighter');
+        const callback = vi.fn();
+        const onError = vi.fn();
+        const cleanup = aggregatedProvider.subscribeToAvailableToTrade({
+          symbol: 'BTC',
+          callback,
+          onError,
+        });
+        expect(
+          mockHLProvider.subscribeToAvailableToTrade,
+        ).not.toHaveBeenCalled();
+
+        aggregatedProvider.setDefaultProvider('hyperliquid');
+
+        expect(onError).toHaveBeenCalledWith(expect.any(Error));
+        expect(mockHLProvider.subscribeToAvailableToTrade).toHaveBeenCalledWith(
+          {
+            symbol: 'BTC',
+            providerId: 'hyperliquid',
+            callback,
+            onError,
+          },
+        );
+        cleanup();
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+        aggregatedProvider.setDefaultProvider('lighter');
+        expect(onError).toHaveBeenCalledTimes(1);
+      });
+
+      it('closes and invalidates the HyperLiquid stream when the default moves to Lighter', () => {
+        const unsubscribe = vi.fn();
+        mockHLProvider.subscribeToAvailableToTrade = vi
+          .fn()
+          .mockReturnValue(unsubscribe);
+        const callback = vi.fn();
+        const onError = vi.fn();
+        const cleanup = aggregatedProvider.subscribeToAvailableToTrade({
+          symbol: 'BTC',
+          callback,
+          onError,
+        });
+
+        aggregatedProvider.setDefaultProvider('lighter');
+
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+        expect(onError).toHaveBeenCalledWith(expect.any(Error));
+        expect(unsubscribe.mock.invocationCallOrder[0]).toBeLessThan(
+          onError.mock.invocationCallOrder[0],
+        );
+        expect(callback).not.toHaveBeenCalled();
+        cleanup();
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+      });
+
+      it('keeps explicitly routed streams on their venue when the default changes', () => {
+        const unsubscribe = vi.fn();
+        mockHLProvider.subscribeToAvailableToTrade = vi
+          .fn()
+          .mockReturnValue(unsubscribe);
+        const onError = vi.fn();
+        const cleanup = aggregatedProvider.subscribeToAvailableToTrade({
+          symbol: 'BTC',
+          providerId: 'hyperliquid',
+          callback: vi.fn(),
+          onError,
+        });
+
+        aggregatedProvider.setDefaultProvider('lighter');
+
+        expect(unsubscribe).not.toHaveBeenCalled();
+        expect(onError).not.toHaveBeenCalled();
+        expect(
+          mockHLProvider.subscribeToAvailableToTrade,
+        ).toHaveBeenCalledTimes(1);
+        cleanup();
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
       });
 
       it('routes to the explicit provider', () => {
