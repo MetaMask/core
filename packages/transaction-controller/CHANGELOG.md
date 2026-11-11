@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the phase-aware external Solana execution checkpoint `metamaskPay.solanaExecution` and its `MetamaskPaySolanaExecution` types, without changing legacy EVM Pay fields ([#10273](https://github.com/MetaMask/core/pull/10273))
+- Add externally handled publish results and lifecycle finalization for hashless non-EVM parent transactions ([#10273](https://github.com/MetaMask/core/pull/10273))
+  - The `hooks.publish` constructor option may now return any `PublishHookResult`, including an empty result for the default EVM fallback or an externally handled outcome.
+  - Add the `confirmTransaction` method and messenger action to confirm a submitted externally published transaction.
+  - `PendingTransactionTracker` skips externally published transactions until their `isIntentComplete` flag is set.
+  - Add `lastValidBlockHeight` to the external Solana execution checkpoint, so recovery can detect an expired source transaction.
+  - Add `targetChainId`, `targetTokenAddress` and `followUpFailureReason` to the external Solana execution checkpoint, so recovery can run and report the non-atomic follow-up without quote state.
+  - At startup, an `approved` or `signed` transaction whose external Solana execution checkpoint has left the `ready` phase is moved to `submitted` with `isExternalPublish` instead of being failed, so recovery can still confirm or fail it.
+
 ## [73.1.2]
 
 ### Changed

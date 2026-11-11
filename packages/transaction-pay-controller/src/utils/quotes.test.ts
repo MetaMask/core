@@ -1862,7 +1862,7 @@ describe('Quotes Utils', () => {
       getAssetFiatRateMock.mockReturnValue({ fiatRate: '85', usdRate: '100' });
     });
 
-    it('builds quote requests with the CAIP source asset and account', async () => {
+    it('builds quote requests identified by the CAIP source asset and account', async () => {
       await run({ transactionData: NON_EVM_TRANSACTION_DATA });
 
       expect(getQuotesMock).toHaveBeenCalledWith({
@@ -1981,6 +1981,23 @@ describe('Quotes Utils', () => {
       );
 
       expect(transactionDataMock.quotes).toStrictEqual([QUOTE_MOCK]);
+    });
+
+    it('keeps the durable execution checkpoint', async () => {
+      await run({ transactionData: NON_EVM_TRANSACTION_DATA });
+
+      const solanaExecution = {
+        phase: 'attempting',
+      } as NonNullable<TransactionMeta['metamaskPay']>['solanaExecution'];
+      const transactionMetaMock = {
+        metamaskPay: { solanaExecution },
+      } as TransactionMeta;
+
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock.metamaskPay?.solanaExecution).toBe(
+        solanaExecution,
+      );
     });
 
     it('does not build a no-op quote when no conversion is required', async () => {

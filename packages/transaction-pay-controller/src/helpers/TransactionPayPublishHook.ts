@@ -13,6 +13,7 @@ import type {
 import { accountSupports7702 } from '../utils/account.js';
 import { prefixError } from '../utils/error-prefix.js';
 import { getStrategyByName } from '../utils/strategy.js';
+import { isEvmQuoteRequest, isNonEvmPaymentToken } from '../utils/token.js';
 import { updateTransaction } from '../utils/transaction.js';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
@@ -65,11 +66,21 @@ export class TransactionPayPublishHook {
     );
 
     const transactionData = controllerState.transactionData?.[transactionId];
-
     // No-op quotes mark direct routes and cannot be executed by any strategy.
     const quotes = (
       (transactionData?.quotes as TransactionPayQuote<unknown>[]) ?? []
     ).filter((quote) => quote.strategy !== TransactionPayStrategy.None);
+
+    // The strategy reacts to the protocol of the source asset at execution.
+    const isNonEvm = Boolean(
+      transactionData?.paymentToken &&
+      isNonEvmPaymentToken(transactionData.paymentToken),
+    );
+    // Quotes are only replaced once new quotes load, so stale quotes for a
+    // previous payment token must never reach the wrong execution path.
+    if (quotes.some((quote) => isEvmQuoteRequest(quote.request) === isNonEvm)) {
+      throw new Error('Quote does not match payment token');
+    }
 
     const isFiatSelected = Boolean(
       transactionData?.fiatPayment?.selectedPaymentMethodId,
@@ -78,6 +89,11 @@ export class TransactionPayPublishHook {
     if (!quotes.length) {
       if (isFiatSelected) {
         throw new Error('Fiat: Missing quote');
+      }
+
+      // A non-EVM payment token must never fall back to EVM publication.
+      if (isNonEvm) {
+        throw new Error('Missing non-EVM quote');
       }
 
       log('Skipping as no executable quotes found', { transactionId });

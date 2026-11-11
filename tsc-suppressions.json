@@ -1048,7 +1048,7 @@
   },
   "packages/transaction-controller/src/utils/batch.test.ts": {
     "TS2345": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/transaction-controller/src/utils/gas.test.ts": {

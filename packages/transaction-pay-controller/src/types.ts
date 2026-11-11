@@ -9,6 +9,7 @@ import type {
 } from '@metamask/assets-controller';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
+import type { ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction } from '@metamask/config-registry-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerGetStateAction,
@@ -26,16 +27,25 @@ import type {
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SentinelApiServiceActions } from '@metamask/sentinel-api-service';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type {
   AuthorizationList,
+  ExternallyHandledPublishOutcome,
   TransactionControllerAddTransactionBatchAction,
+  TransactionControllerConfirmTransactionAction,
   TransactionControllerEstimateGasAction,
   TransactionControllerEstimateGasBatchAction,
+  TransactionControllerFailTransactionAction,
   TransactionControllerUnapprovedTransactionAddedEvent,
 } from '@metamask/transaction-controller';
 import type {
   BatchTransaction,
   BatchTransactionParams,
+  MetamaskPaySolanaExecution,
+  MetamaskPaySolanaFollowUpStatus,
+  MetamaskPaySolanaNotificationStatus,
+  MetamaskPaySolanaRelayStatus,
+  MetamaskPaySolanaSourceStatus,
   TransactionControllerAddTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
@@ -65,6 +75,7 @@ export type AllowedActions =
   | AccountTreeControllerGetAccountGroupObjectAction
   | AccountsControllerGetStateAction
   | AssetsControllerGetStateAction
+  | ConfigRegistryControllerGetNetworkConfigByCaip2ChainIdAction
   | GetGasFeeState
   | KeyringControllerGetStateAction
   | KeyringControllerSignTypedMessageAction
@@ -75,10 +86,13 @@ export type AllowedActions =
   | RampsControllerGetQuoteWithFeesAction
   | RemoteFeatureFlagControllerGetStateAction
   | SentinelApiServiceActions
+  | SnapControllerHandleRequestAction
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
+  | TransactionControllerConfirmTransactionAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
+  | TransactionControllerFailTransactionAction
   | TransactionControllerGetGasFeeTokensAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction;
@@ -269,6 +283,38 @@ export type TransactionPayControllerMessenger = Messenger<
   TransactionPayControllerEvents | AllowedEvents
 >;
 
+/** Derived lifecycle outcome of a Solana Pay execution. */
+export type SolanaPayOutcome =
+  | 'ready'
+  | 'attempting'
+  | 'submitted'
+  | 'user-rejected'
+  | 'not-submitted'
+  | 'unknown'
+  | 'source-failed'
+  | 'relay-failed'
+  | 'refunded'
+  | 'follow-up-failed'
+  | 'succeeded';
+
+/** Observed status of a Solana Pay execution, derived from its checkpoint. */
+export type SolanaPayStatus = {
+  outcome: SolanaPayOutcome;
+  phase: MetamaskPaySolanaExecution['phase'];
+  requestId: string;
+  sourceStatus: MetamaskPaySolanaSourceStatus;
+  relayStatus: MetamaskPaySolanaRelayStatus;
+  notificationStatus: MetamaskPaySolanaNotificationStatus;
+  followUpStatus: MetamaskPaySolanaFollowUpStatus;
+  sourceTransactionId?: string;
+  targetTransactionId?: string;
+  followUpTransactionId?: string;
+  sourceFailureReason?: string;
+  relayFailureReason?: string;
+  followUpFailureReason?: string;
+  submissionOutcome?: ExternallyHandledPublishOutcome;
+};
+
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
   /**
@@ -289,6 +335,12 @@ export type TransactionPayControllerOptions = {
 
   /** Optional fiat execution configuration. */
   fiatOptions?: TransactionPayFiatOptions;
+
+  /**
+   * Infura project ID substituted for the `{infuraProjectId}` placeholder in
+   * RPC URLs from `ConfigRegistryController`, such as the Solana RPC URL.
+   */
+  infuraProjectId?: string;
 
   /**
    * Optional callback invoked during quote execution when `paymentOverride` is defined.
@@ -837,10 +889,30 @@ export type PayStrategyGetRefreshIntervalRequest = {
   transactionId: string;
 };
 
+/** Result of executing quotes for a transaction. */
+export type PayStrategyExecuteResult =
+  | {
+      /** Hash of the final transaction, if available. */
+      transactionHash?: Hex;
+    }
+  | {
+      /** Whether publication is owned by the strategy rather than local EVM RPC. */
+      externallyHandled: true;
+
+      /** Outcome of the external publication. */
+      outcome: ExternallyHandledPublishOutcome;
+
+      /** Reason the external transaction was not submitted, if known. */
+      error?: string;
+
+      transactionHash?: never;
+    };
+
 /** Strategy used to obtain required tokens for a transaction. */
 export type PayStrategy<OriginalQuote> = {
   /**
-   * Check if the strategy supports the given request.
+   * Check if the strategy supports the given request, including the protocol
+   * of the source asset of each quote request.
    * Defaults to true if not implemented.
    */
   supports?: (
@@ -878,9 +950,9 @@ export type PayStrategy<OriginalQuote> = {
   ) => Promise<number | undefined>;
 
   /** Execute or submit the quotes to obtain required tokens. */
-  execute: (request: PayStrategyExecuteRequest<OriginalQuote>) => Promise<{
-    transactionHash?: Hex;
-  }>;
+  execute: (
+    request: PayStrategyExecuteRequest<OriginalQuote>,
+  ) => Promise<PayStrategyExecuteResult>;
 };
 
 /** Single fiat value in alternate currencies. */

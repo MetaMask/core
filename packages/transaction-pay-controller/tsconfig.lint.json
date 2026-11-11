@@ -46,6 +46,9 @@
     },
     {
       "path": "../account-tree-controller/tsconfig.lint.json"
+    },
+    {
+      "path": "../config-registry-controller/tsconfig.lint.json"
     }
   ]
 }

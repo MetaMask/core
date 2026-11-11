@@ -76,13 +76,10 @@ export class ExtraTransactionsPublishHook {
     const signedTransaction = signedTx as Hex;
     const resultPromise = createDeferredPromise<PublishHookResult>();
 
-    const onPublish = ({
-      newSignature,
-      transactionHash,
-    }: {
-      newSignature?: Hex;
-      transactionHash?: string;
-    }): void => {
+    const onPublish = (
+      result: PublishHookResult & { newSignature?: Hex },
+    ): void => {
+      const { newSignature } = result;
       if (newSignature) {
         const latestTransactionMeta = this.#getTransaction(transactionId);
 
@@ -98,7 +95,7 @@ export class ExtraTransactionsPublishHook {
         return;
       }
 
-      resultPromise.resolve({ transactionHash });
+      resultPromise.resolve(result);
     };
 
     const firstParams: BatchTransactionParams = {

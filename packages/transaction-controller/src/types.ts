@@ -4,7 +4,7 @@ import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { Hex, Json } from '@metamask/utils';
+import type { CaipChainId, Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
 import type { TransactionControllerMessenger } from './TransactionController.js';
@@ -276,6 +276,9 @@ export type TransactionMeta = {
    * No signing will be performed in the client and the `nonce` will be `undefined`.
    */
   isExternalSign?: boolean;
+
+  /** Whether publication and confirmation are owned by an external handler. */
+  isExternalPublish?: boolean;
 
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
@@ -1835,13 +1838,12 @@ export type TransactionBatchSingleRequest = {
     id: string;
 
     /** Optional callback to be invoked once the transaction is published. */
-    onPublish?: (request: {
-      /** Updated signature for the transaction, if applicable. */
-      newSignature?: Hex;
-
-      /** Hash of the transaction on the network. */
-      transactionHash?: string;
-    }) => void;
+    onPublish?: (
+      request: PublishHookResult & {
+        /** Updated signature for the transaction, if applicable. */
+        newSignature?: Hex;
+      },
+    ) => void;
 
     /** Signed transaction data. */
     signedTransaction: Hex;
@@ -2005,15 +2007,25 @@ export type UpdateCustodialTransactionRequest = {
   type?: TransactionEnvelopeType;
 };
 
-/**
- * Data returned from custom logic to publish a transaction.
- */
-export type PublishHookResult = {
-  /**
-   * The hash of the transaction on the network.
-   */
-  transactionHash?: string;
-};
+/** Outcome of a transaction published by an external non-EVM handler. */
+export type ExternallyHandledPublishOutcome =
+  | 'submitted'
+  | 'user-rejected'
+  | 'not-submitted'
+  | 'ambiguous';
+
+/** Data returned from custom logic to publish a transaction. */
+export type PublishHookResult =
+  | {
+      externallyHandled?: false;
+      transactionHash?: string;
+    }
+  | {
+      externallyHandled: true;
+      outcome: ExternallyHandledPublishOutcome;
+      error?: string;
+      transactionHash?: never;
+    };
 
 /**
  * Custom logic to publish a transaction.
@@ -2057,10 +2069,7 @@ export type PublishBatchHookRequest = {
 export type PublishBatchHookResult =
   | {
       /** Result data for each transaction in the batch. */
-      results: {
-        /** Hash of the transaction on the network. */
-        transactionHash: Hex;
-      }[];
+      results: PublishHookResult[];
     }
   | undefined;
 
@@ -2201,6 +2210,88 @@ export type AssetsFiatValues = {
   sending?: string;
 };
 
+export type MetamaskPaySolanaSourceStatus =
+  | 'not-observed'
+  | 'pending'
+  | 'confirmed'
+  | 'failed'
+  | 'unknown';
+
+export type MetamaskPaySolanaRelayStatus =
+  | 'not-observed'
+  | 'pending'
+  | 'success'
+  | 'failure'
+  | 'refund'
+  | 'unknown';
+
+export type MetamaskPaySolanaNotificationStatus =
+  | 'not-ready'
+  | 'not-attempted'
+  | 'pending'
+  | 'success'
+  | 'failure';
+
+export type MetamaskPaySolanaFollowUpStatus =
+  | 'not-required'
+  | 'not-started'
+  | 'attempting'
+  | 'submitted'
+  | 'pending'
+  | 'confirmed'
+  | 'failed'
+  | 'unknown';
+
+type MetamaskPaySolanaExecutionBase = {
+  /** Wallet-local InternalAccount.id used by Snap requests. */
+  sourceWalletAccountId: string;
+
+  /** CAIP-2 chain of the source asset. */
+  sourceChainId: CaipChainId;
+
+  /** Immutable atomic source amount for this executable request. */
+  sourceAmountRaw: string;
+
+  /** Relay request correlation available once an executable quote exists. */
+  requestId: string;
+
+  /** Chain of the token Relay delivers to the target transaction account. */
+  targetChainId: Hex;
+
+  /** Token Relay delivers to the target transaction account. */
+  targetTokenAddress: Hex;
+
+  sourceStatus: MetamaskPaySolanaSourceStatus;
+  relayStatus: MetamaskPaySolanaRelayStatus;
+  notificationStatus: MetamaskPaySolanaNotificationStatus;
+  followUpStatus: MetamaskPaySolanaFollowUpStatus;
+  atomicProductActionRequired: boolean;
+  atomicProductActionIncluded: boolean;
+  requiresNonAtomicFollowUp: boolean;
+  targetTransactionId?: string;
+  followUpTransactionId?: string;
+  sourceFailureReason?: string;
+  relayFailureReason?: string;
+  followUpFailureReason?: string;
+
+  /** Last block height at which the signed source transaction can land. */
+  lastValidBlockHeight?: number;
+};
+
+/** Minimal durable checkpoint for one external Solana source execution. */
+export type MetamaskPaySolanaExecution =
+  | (MetamaskPaySolanaExecutionBase & {
+      phase: 'ready' | 'attempting' | 'user-rejected' | 'not-submitted';
+    })
+  | (MetamaskPaySolanaExecutionBase & {
+      phase: 'submitted';
+      sourceTransactionId: string;
+    })
+  | (MetamaskPaySolanaExecutionBase & {
+      phase: 'unknown';
+      sourceTransactionId?: string;
+    });
+
 /** Metadata specific to the MetaMask Pay feature. */
 export type MetamaskPayMetadata = {
   /** Total fee from any bridge transactions, in fiat currency. */
@@ -2222,6 +2313,9 @@ export type MetamaskPayMetadata = {
    * When true, the token represents the destination rather than source.
    */
   isPostQuote?: boolean;
+
+  /** Durable external Solana execution checkpoint. */
+  solanaExecution?: MetamaskPaySolanaExecution;
 
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;

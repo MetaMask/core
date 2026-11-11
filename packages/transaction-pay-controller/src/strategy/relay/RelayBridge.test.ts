@@ -13,7 +13,8 @@ vi.mock(import('./relay-submit.js'));
 
 const QUOTE_MOCK = {
   estimatedDuration: 5,
-} as TransactionPayQuote<RelayQuote>;
+  request: { sourceAssetId: 'eip155:1/slip44:60' },
+} as unknown as TransactionPayQuote<RelayQuote>;
 
 describe('RelayStrategy', () => {
   const getBridgeQuotesMock = vi.mocked(getRelayQuotes);

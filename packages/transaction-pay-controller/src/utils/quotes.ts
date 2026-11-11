@@ -4,7 +4,11 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger, parseCaipAssetType } from '@metamask/utils';
 
-import { PaymentOverride, TransactionPayStrategy } from '../constants.js';
+import {
+  DEFAULT_QUOTE_REFRESH_INTERVAL,
+  PaymentOverride,
+  TransactionPayStrategy,
+} from '../constants.js';
 import { projectLogger } from '../logger.js';
 import type {
   EvmPaymentToken,
@@ -50,8 +54,6 @@ import {
 import { calculateTotals } from './totals.js';
 import { getTransaction, updateTransaction } from './transaction.js';
 import { isQuoteError } from './validation.js';
-
-const DEFAULT_REFRESH_INTERVAL = 30 * 1000; // 30 Seconds
 
 const log = createModuleLogger(projectLogger, 'quotes');
 
@@ -384,6 +386,9 @@ function syncTransaction({
         bridgeFeeFiat: totals.fees.provider.usd,
         chainId: evmPaymentToken?.chainId,
         isPostQuote,
+        ...(tx.metamaskPay?.solanaExecution && {
+          solanaExecution: tx.metamaskPay.solanaExecution,
+        }),
         networkFeeFiat: totals.fees.sourceNetwork.estimate.usd,
         strategy,
         targetFiat: totals.targetAmount.usd,
@@ -435,7 +440,7 @@ export async function refreshQuotes(
         chainId: parseCaipAssetType(quotes[0].request.sourceAssetId).chainId,
         messenger,
         transactionId,
-      })) ?? DEFAULT_REFRESH_INTERVAL;
+      })) ?? DEFAULT_QUOTE_REFRESH_INTERVAL;
 
     const isExpired = Date.now() - (quotesLastUpdated ?? 0) > refreshInterval;
 
@@ -514,6 +519,12 @@ function getSourceAmounts(
 
 /**
  * Build quote requests required to retrieve quotes using an EVM payment token.
+ *
+ * Requests are built the same way for every payment token, identifying the
+ * source by its CAIP-19 asset type and the CAIP-10 account holding it.
+ * Strategies support or reject them based on the protocol of the source
+ * asset. Post-quote flows with a non-EVM destination token are not supported
+ * and return no requests.
  *
  * Requests are built the same way for every payment token, identifying the
  * source by its CAIP-19 asset type and the CAIP-10 account holding it.

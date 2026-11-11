@@ -38,7 +38,11 @@ import {
 import { FALLBACK_HASH, RELAY_STATUS_URL } from './constants.js';
 import * as hyperliquidWithdraw from './hyperliquid-withdraw.js';
 import { submitViaRelayExecute } from './relay-submit-execute.js';
-import { getRelaySubmitCalls, submitRelayQuotes } from './relay-submit.js';
+import {
+  getRelaySubmitCalls,
+  submitRelayQuotes,
+  waitForRelayCompletion,
+} from './relay-submit.js';
 import type { RelayQuote, RelayTransactionStep } from './types.js';
 
 vi.mock(import('../../utils/second-leg.js'), async (importOriginal) => ({
@@ -2013,6 +2017,62 @@ describe('Relay Submit Utils', () => {
         await submitRelayQuotes(request);
         expect(submitViaRelayExecuteMock).toHaveBeenCalledTimes(1);
       });
+    });
+  });
+
+  describe('waitForRelayCompletion', () => {
+    const pendingResponse = {
+      ok: true,
+      json: async (): Promise<unknown> => ({
+        inTxHashes: [],
+        status: 'waiting',
+      }),
+    };
+
+    it('stops with source-failed once the unindexed source failed', async () => {
+      const isSourceFailed = vi
+        .fn()
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
+      successfulFetchMock.mockResolvedValue(pendingResponse);
+
+      const completion = await waitForRelayCompletion(
+        ORIGINAL_QUOTE_MOCK,
+        messenger,
+        { isSourceFailed, tolerateFailure: true },
+      );
+
+      expect(completion).toStrictEqual({ status: 'source-failed' });
+      expect(isSourceFailed).toHaveBeenCalledTimes(2);
+      expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('stops checking the source once Relay indexes it', async () => {
+      const isSourceFailed = vi.fn().mockResolvedValue(true);
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            inTxHashes: [SOURCE_HASH_MOCK],
+            status: 'pending',
+          }),
+        })
+        .mockResolvedValue({
+          ok: true,
+          json: async () => STATUS_RESPONSE_MOCK,
+        });
+
+      const completion = await waitForRelayCompletion(
+        ORIGINAL_QUOTE_MOCK,
+        messenger,
+        { isSourceFailed, tolerateFailure: true },
+      );
+
+      expect(completion).toStrictEqual({
+        status: 'success',
+        targetHash: TRANSACTION_HASH_MOCK,
+      });
+      expect(isSourceFailed).not.toHaveBeenCalled();
     });
   });
 

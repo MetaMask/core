@@ -5407,8 +5407,11 @@
     }
   },
   "packages/transaction-pay-controller/src/TransactionPayController.test.ts": {
+    "typescript/no-unsafe-call": {
+      "count": 6
+    },
     "typescript/no-unsafe-member-access": {
-      "count": 2
+      "count": 13
     }
   },
   "packages/transaction-pay-controller/src/actions/update-fiat-payment.test.ts": {
@@ -5427,14 +5430,11 @@
     }
   },
   "packages/transaction-pay-controller/src/helpers/TransactionPayPublishHook.test.ts": {
-    "no-unused-vars": {
-      "count": 1
-    },
     "typescript/no-unsafe-call": {
-      "count": 12
+      "count": 16
     },
     "typescript/no-unsafe-member-access": {
-      "count": 13
+      "count": 17
     },
     "typescript/no-unsafe-return": {
       "count": 1
@@ -5577,6 +5577,14 @@
       "count": 1
     }
   },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-solana-quotes.test.ts": {
+    "typescript/no-unsafe-call": {
+      "count": 5
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 5
+    }
+  },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit-execute.test.ts": {
     "typescript/no-unsafe-argument": {
       "count": 14
@@ -5588,9 +5596,17 @@
       "count": 10
     }
   },
+  "packages/transaction-pay-controller/src/strategy/relay/relay-submit-non-evm.test.ts": {
+    "typescript/no-unsafe-call": {
+      "count": 14
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 14
+    }
+  },
   "packages/transaction-pay-controller/src/strategy/relay/relay-submit.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 1
+      "count": 3
     },
     "typescript/no-unsafe-call": {
       "count": 17
@@ -5608,6 +5624,28 @@
     },
     "typescript/no-unsafe-member-access": {
       "count": 6
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/solana-pay.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 20
+    },
+    "typescript/no-unsafe-call": {
+      "count": 5
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 5
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/relay/solana-transaction.test.ts": {
+    "typescript/no-unsafe-argument": {
+      "count": 4
+    },
+    "typescript/no-unsafe-call": {
+      "count": 13
+    },
+    "typescript/no-unsafe-member-access": {
+      "count": 13
     }
   },
   "packages/transaction-pay-controller/src/strategy/server/server-quotes.test.ts": {
@@ -5661,13 +5699,13 @@
   },
   "packages/transaction-pay-controller/src/utils/feature-flags.test.ts": {
     "typescript/no-unsafe-argument": {
-      "count": 146
+      "count": 148
     },
     "typescript/no-unsafe-call": {
-      "count": 111
+      "count": 112
     },
     "typescript/no-unsafe-member-access": {
-      "count": 111
+      "count": 112
     }
   },
   "packages/transaction-pay-controller/src/utils/gas-payment.test.ts": {

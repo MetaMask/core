@@ -12,6 +12,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support non-EVM payment tokens, such as Solana SOL and SPL tokens ([#10272](https://github.com/MetaMask/core/pull/10272))
   - `updatePaymentToken` accepts a non-EVM `assetId`, reading its metadata, balance, and price from `AssetsController` state.
   - The non-EVM source account defaults to the account in the same account group as the transaction account that supports the asset chain, or is selected explicitly by `accountOverride`.
+- Quote and submit Solana payment tokens through `RelayStrategy` ([#10273](https://github.com/MetaMask/core/pull/10273))
+  - `RelayStrategy` supports every source protocol, and executes a non-EVM source through the account Snap instead of the `TransactionController`. `TransactionData.quotes` can contain quotes for a non-EVM source.
+  - `RelayStrategy` quotes non-EVM requests through the same Relay quote URL as EVM sources (`relayQuoteUrl`, the MetaMask Relay proxy). New quotes require the `payStrategies.relay.solana.enabled` feature flag.
+  - Core compiles the unsigned Solana transaction from the Relay instructions. It reads the blockhash and lookup tables from the `ConfigRegistryController` Solana RPC URL. Instructions with empty data are supported.
+  - When Relay rejects a Solana quote with the `SOLANA_TX_TOO_LARGE` error code, Core retries once with `maxRouteLength: 4`. Core makes the same one-time retry when the transaction it compiles from a quote exceeds the Solana size limit. The native SOL Max re-quote keeps the route length of the first quote. Relay API errors now keep the response body `errorCode` as an `errorCode` property on the thrown error.
+  - The source network fee comes from the account Snap `computeFee` request, summing every returned fee entry (base and priority). Whether the Snap's `base` fee already includes the priority fee still needs to be confirmed; until then the sum is the conservative choice. Affordability includes the fee and the rent reserve, and a shortfall is reported as an `insufficient-source-balance` quote error. Its detail rows show the missing source amount with the source asset decimals and symbol, and leave out missing amounts that are zero. Native SOL max amounts withhold the fee and rent. If the re-quoted Max transaction has a higher fee, Core re-quotes once more with that fee withheld.
+  - Snap requests use the `InternalAccount` resolved from the CAIP-10 `sourceAccountId` of the quote request.
+  - Submission persists a `metamaskPay.solanaExecution` checkpoint and then makes exactly one Snap `signAndSendTransaction` request. It then notifies Relay, waits for completion, persists the Relay completion (status, target hash and confirmed source) on the checkpoint, reconciles it and returns an externally handled publish result.
+  - Submission rejects a quote whose `quotesLastUpdated` is older than the quote refresh interval plus a 10 second grace period, before persisting the checkpoint or calling the Snap.
+  - While Relay has not indexed the submitted source transaction, Core reads its status once per poll with the Solana RPC `getSignatureStatuses` method, plus `getBlockHeight` when the status is null. A status error, or a null status after the finalized block height passes the `lastValidBlockHeight` persisted on the checkpoint at submit time, records `sourceStatus: 'failed'`. The publish hook then stops waiting for Relay and fails the transaction. `reconcileSolanaPay` performs the same read.
+  - The publish hook throws `Missing non-EVM quote` when a non-EVM payment token has no executable quote, so it never falls back to EVM publication.
+  - The publish hook throws `Quote does not match payment token` when the protocol of a quote's `sourceAssetId` does not match the selected payment token, so stale quotes from a previous payment token never reach the wrong execution path.
+  - Add `PayStrategyExecuteResult`, `SolanaPayOutcome` and `SolanaPayStatus` types.
+- Add `reconcileSolanaPay` and `recoverSolanaPayStatus` methods and messenger actions ([#10273](https://github.com/MetaMask/core/pull/10273))
+  - They observe Relay status for persisted Solana executions and finalize the target transaction, and never sign again.
+  - Once Relay has delivered the funds and the source is confirmed, `reconcileSolanaPay` runs the non-atomic Money Account second leg once, from the target transaction account (`txParams.from`, where Relay delivers the funds). The `attempting` follow-up checkpoint is persisted before the second leg starts. The publish hook and recovery both use this path, so the second leg still runs after a polling timeout or restart. It never signs the Solana source again.
+  - A follow-up observed in `attempting` (interrupted by a restart) is reported with the `unknown` outcome instead of `submitted`.
+  - `recoverSolanaPayStatus` observes each non-terminal execution once and independently, and returns without polling. Clients call it again, for example on foreground or startup.
+  - Add the `TransactionPayControllerReconcileSolanaPayAction` and `TransactionPayControllerRecoverSolanaPayStatusAction` types.
+- Add `infuraProjectId` option to `TransactionPayControllerOptions`, and the `getInfuraProjectId` method and `TransactionPayController:getInfuraProjectId` messenger action ([#10273](https://github.com/MetaMask/core/pull/10273))
+  - Clients must pass their Infura project ID to quote and submit Solana payment tokens. Core replaces the `{infuraProjectId}` placeholder in the `ConfigRegistryController` Solana RPC URL with it, and throws if the URL has the placeholder and no project ID is configured.
+  - Add the `TransactionPayControllerGetInfuraProjectIdAction` type.
 
 ### Changed
 
@@ -22,12 +44,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - An EVM account overrides the EVM account as before. The account holding a non-EVM payment token is the override account when it supports the payment token chain, otherwise the account in the same account group as the override account, or as the transaction account, that supports that chain.
   - Fiat payments throw if the account override is not an EVM account.
 - **BREAKING:** `TransactionPayControllerMessenger` requires the `AccountTreeController:getAccountContext` and `AccountTreeController:getAccountGroupObject` actions ([#10272](https://github.com/MetaMask/core/pull/10272))
+- **BREAKING:** `TransactionPayControllerMessenger` requires the `SnapController:handleRequest`, `ConfigRegistryController:getNetworkConfigByCaip2ChainId`, `TransactionController:confirmTransaction` and `TransactionController:failTransaction` actions ([#10273](https://github.com/MetaMask/core/pull/10273))
 - **BREAKING:** The `request` of a `TransactionPayQuote` identifies its source by CAIP identifiers for every protocol ([#10272](https://github.com/MetaMask/core/pull/10272))
   - Remove `sourceChainId` and `sourceTokenAddress`. Add the CAIP-19 `sourceAssetId` and the CAIP-10 `sourceAccountId` of the account holding the source token, and derive an EVM chain ID and token address from `sourceAssetId` where needed.
   - Quote requests are built the same way for every payment token. Post-quote flows with a non-EVM destination token produce no quote requests.
-  - `AcrossStrategy`, `RelayStrategy`, `ServerStrategy` and `FiatStrategy` only support requests with an `eip155` source asset.
+  - `AcrossStrategy`, `ServerStrategy` and `FiatStrategy` only support requests with an `eip155` source asset.
   - `PayStrategyGetRefreshIntervalRequest.chainId` is the CAIP-2 chain ID of the source asset.
 - Add dependency on `@metamask/account-tree-controller` `^11.2.0` ([#10272](https://github.com/MetaMask/core/pull/10272))
+- Add dependencies on `@metamask/config-registry-controller` `^5.0.0`, `@metamask/rpc-errors` `^7.0.3`, `@metamask/snaps-controllers` `^19.0.1`, `@metamask/snaps-sdk` `^11.0.0`, `@metamask/snaps-utils` `^12.1.2`, `@solana/addresses` `^2.3.0`, `@solana/instructions` `^2.3.0`, `@solana/rpc-types` `^2.3.0`, `@solana/transaction-messages` `^2.3.0`, `@solana/transactions` `^2.3.0` and `uuid` `^14.0.2` ([#10273](https://github.com/MetaMask/core/pull/10273))
 - Always request non-atomic quotes when the transaction's `from` keyring requires MFA ([#11389](https://github.com/MetaMask/core/pull/11389))
   - An atomic quote embeds the target calls, which needs a fresh delegation signature per quote. On an MFA keyring every refresh of an open amount screen would cost the user a confirmation.
   - The keyring is read from `transaction.txParams.from`, the account that signs the delegation, rather than the quote request's payer account.
