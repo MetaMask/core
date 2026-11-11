@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `fetchVaultShareValuations`, which reads `GET /v1/positions/:address/vault-share-valuations` for up to 50 transaction hashes and is exposed as the `MoneyAccountApiDataService:fetchVaultShareValuations` action. Export `VaultShareValuationsResponse`, `VaultShareValuation`, `VaultShareValuationResult`, `VaultShareValuationsOptions`, `VAULT_SHARE_VALUATIONS_MAX_TX_HASHES`, and `MoneyAccountApiDataServiceFetchVaultShareValuationsAction` ([#11433](https://github.com/MetaMask/core/pull/11433))
-  - Unused valuation fields accept `null` and `source` is a plain string, so new source values do not require a client release.
+  - Unused valuation fields accept `null`, and `type` and `source` are plain strings, so new values do not require a client release.
 
 ## [2.3.1]
 

@@ -174,7 +174,7 @@ export type VaultShareValuation = {
   vault_key: string;
   asset_symbol: string | null;
   asset_decimals: number;
-  type: CashFlowType;
+  type: string;
   log_index: number | null;
   block_number: number | null;
   timestamp: string | null;

@@ -1460,7 +1460,7 @@ describe('MoneyAccountApiDataService', () => {
       service.destroy();
     });
 
-    it('accepts null unused fields and new source values', async () => {
+    it('accepts null unused fields and new type and source values', async () => {
       const { service } = createService(Env.DEV);
       const responseWithNulls = {
         ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE,
@@ -1472,6 +1472,7 @@ describe('MoneyAccountApiDataService', () => {
                 ...MOCK_VAULT_SHARE_VALUATIONS_RESPONSE.results[0]
                   .valuations[0],
                 asset_symbol: null,
+                type: 'future_type',
                 log_index: null,
                 block_number: null,
                 timestamp: null,

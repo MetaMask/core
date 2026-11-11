@@ -160,7 +160,7 @@ const VaultShareValuationStruct = type({
   vault_key: string(),
   asset_symbol: nullable(string()),
   asset_decimals: number(),
-  type: enums(['deposit', 'withdraw', 'transfer_in', 'transfer_out']),
+  type: string(),
   log_index: nullable(number()),
   block_number: nullable(number()),
   timestamp: nullable(string()),
