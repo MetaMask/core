@@ -184,6 +184,7 @@ export async function createRootConfig(
     test: {
       watch: false,
       projects,
+      slowTestThreshold: 10_000,
       coverage: {
         provider: 'v8',
         include,
