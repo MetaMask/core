@@ -297,6 +297,7 @@ describe('ProfileService', () => {
           },
           message: 'Username "alice" is already taken.',
           requestId: 'req_01HX',
+          traceId: 'trace_01HX',
           retryable: false,
           details: [
             {
@@ -326,6 +327,7 @@ describe('ProfileService', () => {
       });
       expect(error.retryable).toBe(false);
       expect(error.requestId).toBe('req_01HX');
+      expect(error.traceId).toBe('trace_01HX');
       expect(error.details).toStrictEqual([
         {
           field: 'username',
@@ -462,6 +464,105 @@ describe('ProfileService', () => {
       expect(error.details).toBeUndefined();
       expect(error.retryable).toBeUndefined();
       expect(error.requestId).toBeUndefined();
+    });
+
+    it.each([
+      ['a non-object body', 'not an envelope'],
+      ['a null body', null],
+    ])('returns no envelope for %s', async (_label: string, body: unknown) => {
+      mockFetch.mockResolvedValue(errorResponse(400, body));
+
+      const service = createService();
+      const error = (await service
+        .getProfile('profile-123')
+        .catch((caught: unknown) => caught)) as ProfileServiceError;
+
+      expect(error.code).toBeUndefined();
+      expect(error.message).toBe(
+        `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: 400`,
+      );
+    });
+
+    it('keeps the valid fields when a sibling envelope field is malformed', async () => {
+      mockFetch.mockResolvedValue(
+        errorResponse(409, {
+          code: 'USERNAME_TAKEN',
+          // `http_status`, `category` and `retryable` are missing.
+          code_info: { id: 'USERNAME_TAKEN' },
+          message: 'Username "alice" is already taken.',
+          requestId: 'req_01HX',
+          details: 'not-an-array',
+        }),
+      );
+
+      const service = createService();
+      const error = (await service
+        .getProfile('profile-123')
+        .catch((caught: unknown) => caught)) as ProfileServiceError;
+
+      expect(error.code).toBe('USERNAME_TAKEN');
+      expect(error.code_info).toBeUndefined();
+      expect(error.details).toBeUndefined();
+      expect(error.requestId).toBe('req_01HX');
+      expect(error.message).toBe(
+        `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: 409: Username "alice" is already taken.`,
+      );
+    });
+
+    it('drops only the scalar fields whose type is wrong', async () => {
+      mockFetch.mockResolvedValue(
+        errorResponse(400, {
+          code: 42,
+          message: 'Profile update rejected',
+          retryable: 'yes',
+        }),
+      );
+
+      const service = createService();
+      const error = (await service
+        .getProfile('profile-123')
+        .catch((caught: unknown) => caught)) as ProfileServiceError;
+
+      expect(error.code).toBeUndefined();
+      expect(error.retryable).toBeUndefined();
+      expect(error.message).toBe(
+        `${ProfileServiceErrorMessage.GET_PROFILE_FAILED}: 400: Profile update rejected`,
+      );
+    });
+
+    it('keeps the well-formed details when other entries are malformed', async () => {
+      mockFetch.mockResolvedValue(
+        errorResponse(400, {
+          code: 'VALIDATION_FAILED',
+          message: ['bio must be a string'],
+          details: [
+            {
+              field: 'bio',
+              code: 'FIELD_INVALID_TYPE',
+              message: 'bio must be a string',
+            },
+            { code: 42, message: 'broken code' },
+            { code: 'FIELD_INVALID_TYPE', message: 42 },
+            { code: 'DEPRECATED_FIELD', message: 'no field or meta' },
+            null,
+            'not-a-detail',
+          ],
+        }),
+      );
+
+      const service = createService();
+      const error = (await service
+        .getProfile('profile-123')
+        .catch((caught: unknown) => caught)) as ProfileServiceError;
+
+      expect(error.details).toStrictEqual([
+        {
+          field: 'bio',
+          code: 'FIELD_INVALID_TYPE',
+          message: 'bio must be a string',
+        },
+        { code: 'DEPRECATED_FIELD', message: 'no field or meta' },
+      ]);
     });
   });
 
