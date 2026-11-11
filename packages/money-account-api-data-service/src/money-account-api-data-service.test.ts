@@ -1,3 +1,4 @@
+import type { TraceContext } from '@metamask/controller-utils';
 import { DEFAULT_MAX_RETRIES, HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -1611,7 +1612,15 @@ describe('MoneyAccountApiDataService', () => {
     });
 
     it('emits a trace for fetchVaultShareValuations on cache miss', async () => {
-      const { service } = createService(Env.DEV, { trace: mockTrace });
+      const traceRequests: MoneyAccountApiDataServiceTraceRequest[] = [];
+      const trace: MoneyAccountApiDataServiceTraceCallback = async <Result>(
+        request: MoneyAccountApiDataServiceTraceRequest,
+        fn?: (context?: TraceContext) => Result,
+      ): Promise<Result> => {
+        traceRequests.push(request);
+        return await Promise.resolve(fn?.() as Result);
+      };
+      const { service } = createService(Env.DEV, { trace });
 
       nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
         .get(`/v1/positions/${MOCK_ADDRESS}/vault-share-valuations`)
@@ -1622,13 +1631,10 @@ describe('MoneyAccountApiDataService', () => {
         txHashes: [MOCK_TX_HASH],
       });
 
-      expect(mockTrace).toHaveBeenCalledTimes(1);
-      const [request] = mockTrace.mock.calls[0] as [
-        MoneyAccountApiDataServiceTraceRequest,
-        unknown,
-      ];
-      expect(request.name).toBe(TRACES.VAULT_SHARE_VALUATIONS_API);
-      expect(request.data).toStrictEqual(
+      expect(traceRequests).toHaveLength(1);
+      const [request] = traceRequests;
+      expect(request?.name).toBe(TRACES.VAULT_SHARE_VALUATIONS_API);
+      expect(request?.data).toStrictEqual(
         expect.objectContaining({
           operation: 'fetchVaultShareValuations',
           success: true,
