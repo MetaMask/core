@@ -39,20 +39,21 @@ needs: `authenticateIdentifier` returns both, and mutation writes
 (`updateRecoverySecret` / `updateIdentifiers`) use only the token and never
 send `seedlessAuthData` to escrows.
 
-`seedlessAuthData` on the result is **optional**: passkey / SIWE logins omit
-it. The caller decides whether it needs it. For seedless social password
-unlock, check that it is present (including `revokeToken`):
+`seedlessAuthData` on the returned `IdentifierSession` is **optional**:
+passkey / SIWE logins omit it. The caller decides whether it needs it. For
+seedless social password unlock, check that it is present (including
+`revokeToken`):
 
 ```typescript
-const { session, seedlessAuthData } =
-  await mfaRecoveryController.authenticateIdentifier(identifier);
-if (!seedlessAuthData?.revokeToken) {
+const session = await mfaRecoveryController.authenticateIdentifier(identifier);
+if (!session.seedlessAuthData?.revokeToken) {
   throw new Error('Social login did not return seedless auth data');
 }
 
+const { seedlessAuthData, ...recoverySession } = session;
 await seedlessOnboardingController.authenticate(seedlessAuthData);
 // Prompt for the password, evaluate TOPRF, and decrypt the vault.
-// Keep `session` only if a later getRecoverySecret is needed; drop seedlessAuthData.
+// Keep recoverySession only if a later getRecoverySecret is needed.
 ```
 
 `seedlessAuthData` is the `SeedlessAuthData` type from
@@ -61,8 +62,9 @@ await seedlessOnboardingController.authenticate(seedlessAuthData);
 it is checked with `parseSeedlessAuthData` from that package (required fields
 present, unknown fields stripped) and its `authConnection` is checked against
 the social identifier's issuer namespace using `AUTH_CONNECTION_BY_NAMESPACE`
-(provider match only). Pass only `session` to `getRecoverySecret(session)`
-later — do not keep auth-server tokens on the session object.
+(provider match only). Prefer dropping `seedlessAuthData` before holding the
+session for `getRecoverySecret(session)`; escrow authorization uses only the
+key-bound credential fields.
 
 The seedless auth data comes only from the AAL1 social login and is never sent
 to recovery escrows. `getRecoverySecret` separately requests its AAL2

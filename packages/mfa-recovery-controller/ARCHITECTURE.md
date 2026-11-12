@@ -266,7 +266,7 @@ sequenceDiagram
   M->>M: generate requestId, proof key, and ephemeral pkE
   M->>M: requestHash = hash(getRecoverySecret, requestId, pkE)
   M->>I: getKeyBoundIdentifierLogin
-  M-->>C: session and seedlessAuthData if returned
+  M-->>C: IdentifierSession with seedlessAuthData if returned
   C->>M: getRecoverySecret(session)
   M->>M: recompute and validate requestHash
   M->>E: isAvailable (failures skipped)
@@ -291,9 +291,10 @@ sequenceDiagram
 ```
 
 `IdentifierSession` contains the key-bound token, its proof private key, the
-`requestId`, and the ephemeral `pkE` key pair needed for the read. The
-controller does not persist or store the session; callers must keep it in
-memory and must not log it.
+`requestId`, and the ephemeral `pkE` key pair needed for the read. For seedless
+social logins it may also include `seedlessAuthData`; callers should drop that
+before holding the session for a later read. The controller does not persist or
+store the session; callers must keep it in memory and must not log it.
 
 A replica whose `wrapKeyId` does not match its configured `wrapPublicKey`, or
 whose ciphertext fails to unwrap, counts as a failed read. Among successful

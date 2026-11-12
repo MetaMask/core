@@ -32,36 +32,6 @@ export type SocialBackupsMetadata = {
   keyringId?: string;
 };
 
-/**
- * Auth-server tokens and social login details passed to
- * {@link SeedlessOnboardingController.authenticate}, except `skipLock`.
- */
-export type SeedlessAuthData = {
-  /**
-   * ID token(s) verified by the TOPRF nodes.
-   */
-  idTokens: string[];
-  accessToken: string;
-  metadataAccessToken: string;
-  refreshToken: string;
-  /**
-   * Needed to unlock an existing vault. Callers that need it should check it
-   * is present.
-   */
-  revokeToken?: string;
-  /**
-   * Social login provider.
-   */
-  authConnection: AuthConnection;
-  authConnectionId: string;
-  groupedAuthConnectionId?: string;
-  /**
-   * User email or id from the social login.
-   */
-  userId: string;
-  socialLoginEmail?: string;
-};
-
 export type AuthenticatedUserDetails = {
   /**
    * Type of social login provider.
@@ -99,6 +69,32 @@ export type AuthenticatedUserDetails = {
    * The refresh token used to refresh expired nodeAuthTokens.
    */
   refreshToken: string;
+};
+
+/**
+ * Auth-server tokens and social login details passed to
+ * {@link SeedlessOnboardingController.authenticate}, except `skipLock`.
+ *
+ * Extends {@link AuthenticatedUserDetails} without `nodeAuthTokens` (those are
+ * produced by authenticate) and with optional `socialLoginEmail` (not always
+ * returned by the IdP).
+ */
+export type SeedlessAuthData = Omit<
+  AuthenticatedUserDetails,
+  'nodeAuthTokens' | 'socialLoginEmail'
+> & {
+  /**
+   * ID token(s) verified by the TOPRF nodes.
+   */
+  idTokens: string[];
+  accessToken: string;
+  metadataAccessToken: string;
+  /**
+   * Needed to unlock an existing vault. Callers that need it should check it
+   * is present.
+   */
+  revokeToken?: string;
+  socialLoginEmail?: string;
 };
 
 export type SRPBackedUpUserDetails = {

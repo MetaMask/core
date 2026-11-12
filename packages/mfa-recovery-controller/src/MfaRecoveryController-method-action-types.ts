@@ -44,14 +44,14 @@ export type MfaRecoveryControllerUpdateIdentifiersAction = {
 
 /**
  * Authenticates an identifier with a single login. Returns an ephemeral
- * `session` for {@link getRecoverySecret} and, for seedless social logins,
- * `seedlessAuthData` for `SeedlessOnboardingController.authenticate`.
- * Callers decide whether they need `seedlessAuthData` (and its
- * `revokeToken`), drop it after seedless authenticate, and keep only
- * `session` for recovery reads.
+ * {@link IdentifierSession} for {@link getRecoverySecret}. For seedless
+ * social logins, the session also carries `seedlessAuthData` for
+ * `SeedlessOnboardingController.authenticate`. Callers decide whether they
+ * need `seedlessAuthData` (and its `revokeToken`), drop it after seedless
+ * authenticate, and keep the key-bound session fields for recovery reads.
  *
  * @param identifier - Identifier to authenticate.
- * @returns Session for recovery reads, plus seedless auth data when the
+ * @returns Session for recovery reads, with seedless auth data when the
  * login returned it.
  */
 export type MfaRecoveryControllerAuthenticateIdentifierAction = {

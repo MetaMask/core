@@ -327,7 +327,7 @@ describe('MfaRecoveryController', () => {
 
     it('binds the returned token to the read request', async () => {
       await withController(async ({ controller }) => {
-        const { session } = await controller.authenticateIdentifier(PASSKEY);
+        const session = await controller.authenticateIdentifier(PASSKEY);
 
         expect(session.token.requestHash).toBe(
           await hash({
@@ -357,7 +357,7 @@ describe('MfaRecoveryController', () => {
       },
     ])('rejects a tampered $name', async ({ update }) => {
       await withController(async ({ controller }) => {
-        const { session } = await controller.authenticateIdentifier(PASSKEY);
+        const session = await controller.authenticateIdentifier(PASSKEY);
 
         await expect(
           controller.getRecoverySecret(update(session)),
@@ -375,7 +375,7 @@ describe('MfaRecoveryController', () => {
           'getKeyBoundIdentifierLogin',
         );
 
-        const { session } = await controller.authenticateIdentifier(PASSKEY);
+        const session = await controller.authenticateIdentifier(PASSKEY);
         expect(login).toHaveBeenCalledTimes(1);
 
         await controller.getRecoverySecret(session);
@@ -386,7 +386,7 @@ describe('MfaRecoveryController', () => {
     it('allows a session to be reused for another read', async () => {
       await withController(async ({ controller }) => {
         await controller.register(SECRET, IDENTIFIERS);
-        const { session } = await controller.authenticateIdentifier(PASSKEY);
+        const session = await controller.authenticateIdentifier(PASSKEY);
 
         const first = await controller.getRecoverySecret(session);
         expect(first).toStrictEqual(
@@ -410,7 +410,7 @@ describe('MfaRecoveryController', () => {
 
         expect(login).toHaveBeenCalledTimes(1);
         expect(result).not.toHaveProperty('seedlessAuthData');
-        expect(result.session.token.identifier).toStrictEqual(SOCIAL);
+        expect(result.token.identifier).toStrictEqual(SOCIAL);
       });
     });
 
@@ -492,12 +492,12 @@ describe('MfaRecoveryController', () => {
               'getKeyBoundIdentifierLogin',
             );
 
-            const { session, seedlessAuthData } =
-              await controller.authenticateIdentifier(SOCIAL);
+            const session = await controller.authenticateIdentifier(SOCIAL);
 
             expect(login).toHaveBeenCalledTimes(1);
-            expect(seedlessAuthData).toStrictEqual(STUB_SEEDLESS_AUTH_DATA);
-            expect(session).not.toHaveProperty('seedlessAuthData');
+            expect(session.seedlessAuthData).toStrictEqual(
+              STUB_SEEDLESS_AUTH_DATA,
+            );
             expect(session.token.identifier).toStrictEqual(SOCIAL);
             expect(session.token.providerAssertion).toMatchObject({
               providerIdToken: 'provider-id-token',
@@ -530,7 +530,7 @@ describe('MfaRecoveryController', () => {
             expect(result.seedlessAuthData).toStrictEqual(
               STUB_SEEDLESS_AUTH_DATA,
             );
-            expect(result.session).not.toHaveProperty('seedlessAuthData');
+            expect(result.token).toBeDefined();
           },
         );
       });
@@ -546,7 +546,7 @@ describe('MfaRecoveryController', () => {
               'getKeyBoundIdentifierLogin',
             );
 
-            const { session } = await controller.authenticateIdentifier(SOCIAL);
+            const session = await controller.authenticateIdentifier(SOCIAL);
             const recovered = await controller.getRecoverySecret(session);
 
             expect(bytesToHex(recovered.recoverySecret)).toBe(
@@ -565,8 +565,7 @@ describe('MfaRecoveryController', () => {
             await controller.register(SECRET, IDENTIFIERS);
             const getSecret = vi.spyOn(escrowA, 'getSecret');
 
-            const { session, seedlessAuthData } =
-              await controller.authenticateIdentifier(SOCIAL);
+            const session = await controller.authenticateIdentifier(SOCIAL);
             await controller.getRecoverySecret(session);
 
             const sent = JSON.stringify(getSecret.mock.calls[0]);
@@ -579,11 +578,10 @@ describe('MfaRecoveryController', () => {
             ]) {
               expect(sent).not.toContain(token);
             }
-            expect(seedlessAuthData).toBeDefined();
+            expect(session.seedlessAuthData).toBeDefined();
             expect(getSecret.mock.calls[0][1].token).not.toHaveProperty(
               'seedlessAuthData',
             );
-            expect(session).not.toHaveProperty('seedlessAuthData');
           },
         );
       });
@@ -614,10 +612,11 @@ describe('MfaRecoveryController', () => {
         await withController(
           { identifierAuthProvider },
           async ({ controller }) => {
-            const { seedlessAuthData } =
-              await controller.authenticateIdentifier(SOCIAL);
+            const session = await controller.authenticateIdentifier(SOCIAL);
 
-            expect(seedlessAuthData).toStrictEqual(STUB_SEEDLESS_AUTH_DATA);
+            expect(session.seedlessAuthData).toStrictEqual(
+              STUB_SEEDLESS_AUTH_DATA,
+            );
           },
         );
       });
@@ -633,10 +632,9 @@ describe('MfaRecoveryController', () => {
         await withController(
           { identifierAuthProvider },
           async ({ controller }) => {
-            const { seedlessAuthData } =
-              await controller.authenticateIdentifier(SOCIAL);
+            const session = await controller.authenticateIdentifier(SOCIAL);
 
-            expect(seedlessAuthData).toStrictEqual(required);
+            expect(session.seedlessAuthData).toStrictEqual(required);
           },
         );
       });
@@ -649,10 +647,9 @@ describe('MfaRecoveryController', () => {
         await withController(
           { identifierAuthProvider },
           async ({ controller }) => {
-            const { seedlessAuthData } =
-              await controller.authenticateIdentifier(SOCIAL);
+            const session = await controller.authenticateIdentifier(SOCIAL);
 
-            expect(seedlessAuthData).toStrictEqual(withoutRevoke);
+            expect(session.seedlessAuthData).toStrictEqual(withoutRevoke);
           },
         );
       });
@@ -699,10 +696,12 @@ describe('MfaRecoveryController', () => {
         await withController(
           { identifierAuthProvider },
           async ({ controller }) => {
-            const { session, seedlessAuthData } =
+            const session =
               await controller.authenticateIdentifier(socialWithoutSubject);
 
-            expect(seedlessAuthData).toStrictEqual(STUB_SEEDLESS_AUTH_DATA);
+            expect(session.seedlessAuthData).toStrictEqual(
+              STUB_SEEDLESS_AUTH_DATA,
+            );
             expect(session.token.identifier).toStrictEqual({
               ...socialWithoutSubject,
               value: providerSubject,
@@ -745,9 +744,7 @@ describe('MfaRecoveryController', () => {
             await controller.register(SECRET, IDENTIFIERS);
 
             const result = await controller.authenticateIdentifier(PASSKEY);
-            const recovered = await controller.getRecoverySecret(
-              result.session,
-            );
+            const recovered = await controller.getRecoverySecret(result);
 
             expect(result).not.toHaveProperty('seedlessAuthData');
             expect(bytesToHex(recovered.recoverySecret)).toBe(
@@ -1058,7 +1055,7 @@ describe('MfaRecoveryController', () => {
         await controller.register(SECRET, IDENTIFIERS);
         const authorize = vi.spyOn(authProvider, 'authorizeRecoveryRequest');
         const generateChallenge = vi.spyOn(escrowA, 'generateChallenge');
-        const { session } = await controller.authenticateIdentifier(PASSKEY);
+        const session = await controller.authenticateIdentifier(PASSKEY);
         await controller.getRecoverySecret(session);
         expect(authorize).toHaveBeenCalledExactlyOnceWith({
           requestHash: session.token.requestHash,
@@ -2801,7 +2798,7 @@ async function recover(
   controller: MfaRecoveryController,
   identifier: Identifier,
 ): Promise<RecoveredSecret> {
-  const { session } = await controller.authenticateIdentifier(identifier);
+  const session = await controller.authenticateIdentifier(identifier);
   return await controller.getRecoverySecret(session);
 }
 

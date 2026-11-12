@@ -126,13 +126,17 @@ export type KeyBoundIdentifierLogin = {
 };
 
 /**
- * Result of first-factor identifier authentication, consumed by
- * `getRecoverySecret`.
+ * Result of first-factor identifier authentication from
+ * `authenticateIdentifier`, and the input to `getRecoverySecret`.
  *
  * `proofPrivateKey` signs escrow challenges. `ephemeralPrivateKey` is the
  * private half of `pkE` and decrypts the recovery secret. Keep both in
- * memory only. Does not carry seedless auth-server tokens — those are
- * returned beside the session from {@link AuthenticateIdentifierResult}.
+ * memory only.
+ *
+ * `seedlessAuthData` is present when the same login also completed a seedless
+ * auth-server exchange. Use it for `SeedlessOnboardingController.authenticate`,
+ * then drop it before holding the session for a later `getRecoverySecret`.
+ * Escrow paths use only the key-bound credential fields.
  */
 export type IdentifierSession = KeyBoundCredential & {
   requestId: string;
@@ -144,16 +148,6 @@ export type IdentifierSession = KeyBoundCredential & {
    * Raw 32-byte X25519 public key, the client's one-time read key.
    */
   pkE: Uint8Array;
-};
-
-/**
- * Result of `authenticateIdentifier`. `seedlessAuthData` is present when the
- * login also completed a seedless auth-server exchange. Callers that need it
- * use it for `SeedlessOnboardingController.authenticate` and then drop it;
- * keep only `session` for a later `getRecoverySecret`.
- */
-export type AuthenticateIdentifierResult = {
-  session: IdentifierSession;
   seedlessAuthData?: SeedlessAuthData;
 };
 

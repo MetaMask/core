@@ -42,7 +42,6 @@ export {
 } from './identifier-auth.js';
 export type {
   AuthControllerToken,
-  AuthenticateIdentifierResult,
   EncryptedPendingOperation,
   GetIdentifiersResponse,
   Identifier,

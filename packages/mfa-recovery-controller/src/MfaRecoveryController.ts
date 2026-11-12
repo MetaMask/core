@@ -46,7 +46,6 @@ import {
 } from './pending-operation-validation.js';
 import { getRecoveryPhase } from './state-machine.js';
 import type {
-  AuthenticateIdentifierResult,
   GetIdentifiersResponse,
   Identifier,
   IdentifierAuthorization,
@@ -329,19 +328,19 @@ export class MfaRecoveryController extends BaseController<
 
   /**
    * Authenticates an identifier with a single login. Returns an ephemeral
-   * `session` for {@link getRecoverySecret} and, for seedless social logins,
-   * `seedlessAuthData` for `SeedlessOnboardingController.authenticate`.
-   * Callers decide whether they need `seedlessAuthData` (and its
-   * `revokeToken`), drop it after seedless authenticate, and keep only
-   * `session` for recovery reads.
+   * {@link IdentifierSession} for {@link getRecoverySecret}. For seedless
+   * social logins, the session also carries `seedlessAuthData` for
+   * `SeedlessOnboardingController.authenticate`. Callers decide whether they
+   * need `seedlessAuthData` (and its `revokeToken`), drop it after seedless
+   * authenticate, and keep the key-bound session fields for recovery reads.
    *
    * @param identifier - Identifier to authenticate.
-   * @returns Session for recovery reads, plus seedless auth data when the
+   * @returns Session for recovery reads, with seedless auth data when the
    * login returned it.
    */
   async authenticateIdentifier(
     identifier: Identifier,
-  ): Promise<AuthenticateIdentifierResult> {
+  ): Promise<IdentifierSession> {
     this.#assertValidIdentifiers([identifier]);
     const requestId = randomId();
     const ephemeral = await generateWrapKey();
@@ -356,21 +355,20 @@ export class MfaRecoveryController extends BaseController<
       requestHash,
       identifierAuthProvider: this.#identifierAuthProvider,
     });
-    const session: IdentifierSession = {
+    return {
       ...credential,
       requestId,
       ephemeralPrivateKey: ephemeral.privateKey,
       pkE,
+      ...(seedlessAuthData === undefined
+        ? {}
+        : {
+            seedlessAuthData: validateSeedlessAuthData(
+              seedlessAuthData,
+              identifier,
+            ),
+          }),
     };
-    return seedlessAuthData === undefined
-      ? { session }
-      : {
-          session,
-          seedlessAuthData: validateSeedlessAuthData(
-            seedlessAuthData,
-            identifier,
-          ),
-        };
   }
 
   /**
@@ -413,7 +411,12 @@ export class MfaRecoveryController extends BaseController<
       });
       const authorizedEscrows = await authorizeEscrowsWithToken({
         escrows: available,
-        credentials: [session],
+        credentials: [
+          {
+            token: session.token,
+            proofPrivateKey: session.proofPrivateKey,
+          },
+        ],
         authControllerToken: approval,
       });
       const results = await Promise.allSettled(
