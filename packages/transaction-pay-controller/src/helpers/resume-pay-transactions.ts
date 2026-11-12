@@ -1,3 +1,4 @@
+import { TransactionStatus } from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 
 import type { TransactionPayStrategy } from '../constants.js';
@@ -16,9 +17,12 @@ const log = createModuleLogger(projectLogger, 'resume-pay-transactions');
  * Steps:
  * 0. Sync pre-check: if no resumable tx exists, return immediately.
  * 1. Await wallet unlock AND waitForClientReady (if provided).
- * 2. Re-read state; for each resumable tx sequentially:
- *    a. Set metamaskPay.resumeAttemptedAt before calling resume.
- *    b. Call strategy.resume(). On success → finalizeResumedTransaction.
+ * 2. For each candidate captured at Step 0, sequentially:
+ *    a. Re-read the current tx from TC state by id and skip it if it is
+ *       missing or no longer in `approved`/`signed` (i.e. it moved to a
+ *       final state while gates were pending).
+ *    b. Set metamaskPay.resumeAttemptedAt before calling resume.
+ *    c. Call strategy.resume(). On success → finalizeResumedTransaction.
  *       On failure → failTransaction.
  *
  * @param messenger - The Pay controller messenger.
@@ -29,7 +33,6 @@ export async function resumePayTransactions(
   messenger: TransactionPayControllerMessenger,
   waitForClientReady?: () => Promise<void>,
 ): Promise<void> {
-  // Step 0: sync pre-check — avoid any subscriptions if nothing to do.
   const remoteFeatureFlags = getRemoteFeatureFlags(messenger);
 
   const { transactions } = messenger.call('TransactionController:getState');
@@ -44,33 +47,38 @@ export async function resumePayTransactions(
 
   log('Resumable transactions found', { count: candidates.length });
 
-  // Step 1: await both gates.
   await Promise.all([
     waitForKeyringUnlock(messenger),
     waitForClientReady?.() ?? Promise.resolve(),
   ]);
 
-  // Step 2: re-read (state may have changed while waiting).
-  const freshFlags = getRemoteFeatureFlags(messenger);
-
-  const { transactions: freshTransactions } = messenger.call(
-    'TransactionController:getState',
-  );
-  const freshCandidates = freshTransactions.filter((tx) =>
-    isPayTransactionResumable(tx, freshFlags),
-  );
-
-  for (const transaction of freshCandidates) {
+  for (const transaction of candidates) {
     const { id } = transaction;
 
     try {
+      const { transactions: currentTransactions } = messenger.call(
+        'TransactionController:getState',
+      );
+      const currentTransaction = currentTransactions.find((tx) => tx.id === id);
+
+      if (
+        !currentTransaction ||
+        (currentTransaction.status !== TransactionStatus.approved &&
+          currentTransaction.status !== TransactionStatus.signed)
+      ) {
+        log('Skipping transaction no longer eligible for resume', {
+          id,
+          status: currentTransaction?.status,
+        });
+        continue;
+      }
+
       const strategyName = transaction.metamaskPay?.strategy;
 
       if (!strategyName) {
         throw new Error('Missing Pay strategy');
       }
 
-      // Set the once-only guard BEFORE awaiting resume.
       updateTransaction(
         { transactionId: id, messenger, note: 'Set resumeAttemptedAt' },
         (tx) => {

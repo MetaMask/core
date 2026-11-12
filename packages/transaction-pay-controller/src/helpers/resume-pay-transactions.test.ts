@@ -196,6 +196,60 @@ describe('resumePayTransactions', () => {
     );
   });
 
+  it('skips a transaction whose status moved to a final state while gates were pending', async () => {
+    const transaction = getTransactionMock('tx-1');
+    const { call, messenger, state } = getMessengerMock({
+      transactions: [transaction],
+    });
+
+    const resume = vi.fn();
+    getStrategyByNameMock.mockReturnValue({
+      canResume: vi.fn().mockReturnValue(true),
+      execute: vi.fn(),
+      getQuotes: vi.fn(),
+      resume,
+    });
+
+    let resolveClientReady: (() => void) | undefined;
+    const waitForClientReady = (): Promise<void> =>
+      new Promise<void>((resolve) => {
+        resolveClientReady = resolve;
+      });
+
+    const promise = resumePayTransactions(messenger, waitForClientReady);
+
+    // Simulate the status moving to a final state while the gates were pending.
+    state.transactions[0] = {
+      ...state.transactions[0],
+      status: TransactionStatus.submitted,
+    };
+
+    resolveClientReady?.();
+    await promise;
+
+    expect(resume).not.toHaveBeenCalled();
+    expect(messenger.call).not.toHaveBeenCalledWith(
+      'TransactionController:updateTransaction',
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(messenger.call).not.toHaveBeenCalledWith(
+      'TransactionController:finalizeResumedTransaction',
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(messenger.call).not.toHaveBeenCalledWith(
+      'TransactionController:failTransaction',
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(call).not.toHaveBeenCalledWith(
+      'TransactionController:updateTransaction',
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
   it('processes candidates sequentially', async () => {
     const first = getTransactionMock('tx-1');
     const second = getTransactionMock('tx-2');
