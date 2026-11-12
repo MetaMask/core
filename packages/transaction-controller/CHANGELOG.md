@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Detect Permit2 `approve(address token, address spender, uint160 amount, uint48 expiration)` transactions as `tokenMethodApprove` instead of `contractInteraction` ([#11416](https://github.com/MetaMask/core/pull/11416))
+  - This applies wherever the type is detected from the transaction data, including nested batch transactions without an explicit `type`.
+  - `txParams.to` is the Permit2 contract rather than the token. Consumers that read the token from `txParams.to`, or decode `tokenMethodApprove` data as ERC-20 `approve(spender, amount)`, must read the token, spender, amount and expiration from the Permit2 calldata instead.
 - Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
 
 ## [73.1.2]
