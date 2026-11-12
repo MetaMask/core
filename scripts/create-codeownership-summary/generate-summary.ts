@@ -4,6 +4,15 @@ import ignore from 'ignore';
 import type { CodeownersRule } from '../manage-codeowners/types.ts';
 
 /**
+ * Shown at the top of a summary whose file lists had to be shortened to fit
+ * within a maximum length, telling readers how to see every file.
+ */
+const SHORTENED_SUMMARY_WARNING = `> [!WARNING]
+> This PR seems large! Some changed files needed to be omitted to post the summary below. Run \`yarn create-codeownership-summary\` on this branch to see the full output.
+
+`;
+
+/**
  * A changed file and whose approval it needs, based on the last CODEOWNERS
  * rule that matches it, which GitHub uses.
  */
@@ -369,7 +378,8 @@ function createPatternMatcher(pattern: string): (filePath: string) => boolean {
  * maintenance owner.
  * @param options.maxLength - If given, the most characters the summary may
  * have. If every file doesn't fit, each file list is shortened to the same
- * number of files, the most that fit.
+ * number of files, the most that fit, and a warning at the top explains how to
+ * see every file.
  * @returns The Markdown summary.
  */
 function renderSummary({
@@ -417,9 +427,12 @@ function renderSummary({
         ({ filePaths }) => filePaths.length,
       ),
     ),
-    maxTotalLength: maxLength,
+    maxTotalLength: maxLength - SHORTENED_SUMMARY_WARNING.length,
   });
-  return renderSummaryWithMaxFilesPerList(maxFilesPerList);
+  return (
+    SHORTENED_SUMMARY_WARNING +
+    renderSummaryWithMaxFilesPerList(maxFilesPerList)
+  );
 }
 
 /**
@@ -545,7 +558,7 @@ function describeNumberOfFiles(numberOfFiles: number): string {
 
 /**
  * Render file paths as a sorted Markdown list. If there are too many to show,
- * the list ends with a note of how many were left out and how to see them.
+ * the list ends with a note of how many were left out.
  *
  * @param filePaths - Repository-relative paths.
  * @param maxFiles - The most files to list.
@@ -564,5 +577,5 @@ function renderFileList(filePaths: string[], maxFiles: number): string {
 
   const numberOfOmittedFiles = filePaths.length - listedFilePaths.length;
   const omittedFiles = `${numberOfOmittedFiles} more ${numberOfOmittedFiles === 1 ? 'file' : 'files'}`;
-  return `${list}- ... + <abbr title="This comment is too long to list all files. Run \`yarn create-codeownership-summary\` on this branch to see the full list."><em>${omittedFiles}</em></abbr> ...\n`;
+  return `${list}- ... _(${omittedFiles})_ ...\n`;
 }

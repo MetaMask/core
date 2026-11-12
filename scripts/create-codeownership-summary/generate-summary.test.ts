@@ -402,6 +402,9 @@ describe('generateCodeownershipSummary', () => {
       ],
     });
     const expectedSummary = outdent`
+      > [!WARNING]
+      > This PR seems large! Some changed files needed to be omitted to post the summary below. Run \`yarn create-codeownership-summary\` on this branch to see the full output.
+
       ## 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
@@ -410,7 +413,7 @@ describe('generateCodeownershipSummary', () => {
       <summary><strong>@MetaMask/team-a</strong> (30 files)</summary>
 
       - \`a/01.ts\`
-      - ... + <abbr title="This comment is too long to list all files. Run \`yarn create-codeownership-summary\` on this branch to see the full list."><em>29 more files</em></abbr> ...
+      - ... _(29 more files)_ ...
       </details>
 
       <details>
@@ -428,7 +431,7 @@ describe('generateCodeownershipSummary', () => {
       > informational.**
 
       - \`a/01.ts\`
-      - ... + <abbr title="This comment is too long to list all files. Run \`yarn create-codeownership-summary\` on this branch to see the full list."><em>29 more files</em></abbr> ...
+      - ... _(29 more files)_ ...
       </details>
 
     `;
@@ -453,6 +456,9 @@ describe('generateCodeownershipSummary', () => {
       ],
     });
     const expectedSummary = outdent`
+      > [!WARNING]
+      > This PR seems large! Some changed files needed to be omitted to post the summary below. Run \`yarn create-codeownership-summary\` on this branch to see the full output.
+
       ## 🛑 Files requiring codeowner review
 
       To merge this PR, you'll need to get approvals from the following owners.
@@ -461,7 +467,7 @@ describe('generateCodeownershipSummary', () => {
       <summary><strong>@MetaMask/team-a</strong> (2 files)</summary>
 
       - \`${longDirectoryPath}1.ts\`
-      - ... + <abbr title="This comment is too long to list all files. Run \`yarn create-codeownership-summary\` on this branch to see the full list."><em>1 more file</em></abbr> ...
+      - ... _(1 more file)_ ...
       </details>
 
     `;

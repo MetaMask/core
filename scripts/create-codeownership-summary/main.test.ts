@@ -250,7 +250,7 @@ describe('main', () => {
       });
 
       expect(output.stdout.length).toBeLessThanOrEqual(60_000);
-      expect(output.stdout).toContain('more files</em></abbr>');
+      expect(output.stdout).toContain('more files)_ ...');
     });
   });
 
