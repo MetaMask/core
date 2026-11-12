@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `formatCrossMarginRatio` so Mobile and Extension can render a 0..1 cross margin ratio as an unsigned percentage with at most one decimal
+- Add `formatCrossMarginRatio` so Mobile and Extension can render a 0..1 cross margin ratio as an unsigned percentage with at most one decimal ([#11456](https://github.com/MetaMask/core/pull/11456))
   - `formatCrossMarginRatio(0.174)` returns `17.4%`, `formatCrossMarginRatio(0.63)` returns `63%` and `formatCrossMarginRatio(0)` returns `0%`. A negative ratio keeps its minus: `formatCrossMarginRatio(-0.174)` returns `-17.4%`. A missing ratio returns `--%`
   - Pass `createFormatters({ locale })` as `formatters` for the locale's separators: `formatCrossMarginRatio(0.174, { formatters: createFormatters({ locale: 'de' }) })` returns `17,4%`
   - `PERPS_DISPLAY_PRECISION.CrossMarginRatioPercent` is 1, the most decimals shown
