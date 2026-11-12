@@ -5333,7 +5333,7 @@ __metadata:
     "@metamask/client-controller": "npm:^2.0.0"
     "@metamask/config-registry-controller": "npm:^6.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/core-backend": "npm:^14.0.0"
+    "@metamask/core-backend": "npm:^14.1.0"
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/keyring-api": "npm:^24.3.0"
     "@metamask/keyring-controller": "npm:^28.2.0"
@@ -5386,7 +5386,7 @@ __metadata:
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/contract-metadata": "npm:^2.5.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/core-backend": "npm:^14.0.0"
+    "@metamask/core-backend": "npm:^14.1.0"
     "@metamask/eth-block-tracker": "npm:^16.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/eth-query": "npm:^4.0.0"
@@ -5820,7 +5820,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/contract-metadata": "npm:^2.5.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/core-backend": "npm:^14.0.0"
+    "@metamask/core-backend": "npm:^14.1.0"
     "@metamask/keyring-api": "npm:^24.3.0"
     "@metamask/slip44": "npm:^4.5.0"
     "@metamask/transaction-controller": "npm:^73.1.2"
@@ -6001,7 +6001,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/core-backend@npm:^14.0.0, @metamask/core-backend@workspace:packages/core-backend":
+"@metamask/core-backend@npm:^14.1.0, @metamask/core-backend@workspace:packages/core-backend":
   version: 0.0.0-use.local
   resolution: "@metamask/core-backend@workspace:packages/core-backend"
   dependencies:
@@ -7520,7 +7520,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^40.2.0"
     "@metamask/auto-changelog": "npm:^7.1.0"
     "@metamask/base-controller": "npm:^10.1.0"
-    "@metamask/core-backend": "npm:^14.0.0"
+    "@metamask/core-backend": "npm:^14.1.0"
     "@metamask/keyring-api": "npm:^24.3.0"
     "@metamask/keyring-controller": "npm:^28.2.0"
     "@metamask/keyring-internal-api": "npm:^12.1.2"
@@ -8656,7 +8656,7 @@ __metadata:
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/base-data-service": "npm:^2.1.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/core-backend": "npm:^14.0.0"
+    "@metamask/core-backend": "npm:^14.1.0"
     "@metamask/messenger": "npm:^3.0.0"
     "@metamask/profile-sync-controller": "npm:^36.1.1"
     "@metamask/superstruct": "npm:^3.4.1"
@@ -8822,7 +8822,7 @@ __metadata:
     "@metamask/base-controller": "npm:^10.1.0"
     "@metamask/connectivity-controller": "npm:^1.0.0"
     "@metamask/controller-utils": "npm:^13.0.0"
-    "@metamask/core-backend": "npm:^14.0.0"
+    "@metamask/core-backend": "npm:^14.1.0"
     "@metamask/eth-block-tracker": "npm:^16.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^7.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
