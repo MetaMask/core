@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: add `allow-scripts` script to child workspaces so Yarn doesn't fail ([#11324](https://github.com/MetaMask/core/pull/11324))
+
 ### Added
 
 - Add `AccountsApiClient.fetchV5TransactionById` and `getV5TransactionByIdQueryOptions` for Accounts API `GET /v5/accounts/{accountId}/transactions/{txId}` ([#11444](https://github.com/MetaMask/core/pull/11444))
