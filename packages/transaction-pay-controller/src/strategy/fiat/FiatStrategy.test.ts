@@ -2,13 +2,18 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { TransactionPayControllerMessenger } from '../../index.js';
-import type { TransactionPayQuote } from '../../types.js';
+import type {
+  PayStrategyResumeRequest,
+  TransactionPayQuote,
+} from '../../types.js';
 import { getFiatQuotes } from './fiat-quotes.js';
+import { resumeFiatDirectMusd } from './fiat-resume.js';
 import { submitFiatQuotes } from './fiat-submit.js';
 import { FiatStrategy } from './FiatStrategy.js';
 import type { FiatQuote } from './types.js';
 
 vi.mock(import('./fiat-quotes.js'));
+vi.mock(import('./fiat-resume.js'));
 vi.mock(import('./fiat-submit.js'));
 
 const QUOTE_MOCK = {
@@ -21,6 +26,7 @@ const MESSENGER_MOCK = {
 
 describe('FiatStrategy', () => {
   const getFiatQuotesMock = vi.mocked(getFiatQuotes);
+  const resumeFiatDirectMusdMock = vi.mocked(resumeFiatDirectMusd);
   const submitFiatQuotesMock = vi.mocked(submitFiatQuotes);
 
   beforeEach(() => {
@@ -107,6 +113,77 @@ describe('FiatStrategy', () => {
       ).rejects.toThrow(
         'Fiat: Post-Ramp: Direct mUSD: Second leg: Vault: Missing transaction hash',
       );
+    });
+  });
+
+  describe('canResume', () => {
+    it('returns true when fiat order metadata is complete', () => {
+      expect(
+        new FiatStrategy().canResume({
+          metamaskPay: {
+            fiat: { orderId: 'order-1', provider: 'transak' },
+          },
+        } as TransactionMeta),
+      ).toBe(true);
+    });
+
+    it('returns false when fiat order metadata is missing', () => {
+      expect(new FiatStrategy().canResume({} as TransactionMeta)).toBe(false);
+      expect(
+        new FiatStrategy().canResume({
+          metamaskPay: { fiat: { orderId: 'order-1' } },
+        } as TransactionMeta),
+      ).toBe(false);
+      expect(
+        new FiatStrategy().canResume({
+          metamaskPay: { fiat: { provider: 'transak' } },
+        } as TransactionMeta),
+      ).toBe(false);
+    });
+  });
+
+  describe('resume', () => {
+    it('delegates to resumeFiatDirectMusd', async () => {
+      resumeFiatDirectMusdMock.mockResolvedValue({ transactionHash: '0x1234' });
+      const request = {
+        messenger: MESSENGER_MOCK,
+        transaction: { id: 'tx-1' } as TransactionMeta,
+      } satisfies PayStrategyResumeRequest;
+
+      expect(await new FiatStrategy().resume(request)).toStrictEqual({
+        transactionHash: '0x1234',
+      });
+
+      expect(resumeFiatDirectMusdMock).toHaveBeenCalledWith(request);
+    });
+
+    it('throws if fiat resume returns no transaction hash', async () => {
+      resumeFiatDirectMusdMock.mockResolvedValue({
+        transactionHash: undefined,
+      });
+
+      await expect(
+        new FiatStrategy().resume({
+          messenger: MESSENGER_MOCK,
+          transaction: { id: 'tx-1' } as TransactionMeta,
+        }),
+      ).rejects.toThrow('Fiat: Missing transaction hash after fiat resume');
+    });
+
+    it('prefixes resume errors with the Fiat prefix without replacing the Error object', async () => {
+      const error = new Error('resume failed');
+      resumeFiatDirectMusdMock.mockRejectedValue(error);
+
+      const thrown = await new FiatStrategy()
+        .resume({
+          messenger: MESSENGER_MOCK,
+          transaction: { id: 'tx-1' } as TransactionMeta,
+        })
+        .catch((caught: unknown) => caught);
+
+      expect(thrown).toBe(error);
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toBe('Fiat: resume failed');
     });
   });
 });
