@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Accept full RPC provider objects (not just URL strings) in `rpcProviders.fallbacks`, so a single chain using the new object form (e.g. Pharos Mainnet) no longer fails validation for the entire networks config response ([#11436](https://github.com/MetaMask/core/pull/11436))
 - **BREAKING:** Change `FetchConfigResult` and `FetchEventsConfigResult` to use `null` instead of omitted properties ([#11134](https://github.com/MetaMask/core/pull/11134))
   - `etag` is now `string | null`, and is `null` when the response has no `ETag` header. Previously it was `undefined`.
   - `data` is now `null` when the server returns 304 and the service has no cached data. Previously it was omitted.

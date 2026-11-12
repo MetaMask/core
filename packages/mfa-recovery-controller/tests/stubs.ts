@@ -42,6 +42,7 @@ import type {
   RecoveryAuthProvider,
   RecoveryEscrowProvider,
   RecoveryIdentifierAuthProvider,
+  RecoveryLockProvider,
   GetRecoverySecretResponse,
   RegisterPayload,
   SeedlessAuthData,
@@ -133,6 +134,27 @@ export class StubAuthProvider implements RecoveryAuthProvider {
       }),
       identifiers: this.identifiers,
     };
+  }
+}
+
+/**
+ * In-memory per-profile lease, like the registration service's.
+ */
+export class StubRecoveryLockProvider implements RecoveryLockProvider {
+  lockId: string | null = null;
+
+  async acquire(lockId: string): Promise<void> {
+    if (this.lockId !== null && this.lockId !== lockId) {
+      throw new MfaRecoveryError('Lock conflict', 'recovery_lock_conflict');
+    }
+    this.lockId = lockId;
+  }
+
+  async release(lockId: string): Promise<void> {
+    if (this.lockId !== null && this.lockId !== lockId) {
+      throw new MfaRecoveryError('Lock conflict', 'recovery_lock_conflict');
+    }
+    this.lockId = null;
   }
 }
 

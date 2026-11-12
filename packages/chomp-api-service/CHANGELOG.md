@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.1.0]
+
+### Added
+
+- Add `createIntentsV2` method for `POST /v2/intent`, which accepts the Money Account migration intent types, and the `ChompMigrationIntentType`, `SendIntentV2Params` and `SendIntentV2Response` types, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
+- Add optional `vaultMigrationHelperAddress` to `ServiceDetailsChain` ([#11369](https://github.com/MetaMask/core/pull/11369))
+- Add `startFundsTransfer` method for `POST /v1/money-account/identities/address/:address/funds-transfer`, which starts moving the funds of a migrating Money Account to its successor, and the `FundsTransferStart` type, also exposed through the messenger ([#11369](https://github.com/MetaMask/core/pull/11369))
+
+### Changed
+
+- `getDerivedIdentities` and `getDerivedIdentityByAddress` now omit migration steps they don't know instead of throwing ([#11369](https://github.com/MetaMask/core/pull/11369))
+
 ## [7.0.0]
 
 ### Added
@@ -140,7 +152,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `ChompApiService` ([#8413](https://github.com/MetaMask/core/pull/8413))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@7.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@7.1.0...HEAD
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@7.0.0...@metamask/chomp-api-service@7.1.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@6.0.1...@metamask/chomp-api-service@7.0.0
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@6.0.0...@metamask/chomp-api-service@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@5.0.0...@metamask/chomp-api-service@6.0.0

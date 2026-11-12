@@ -55,6 +55,16 @@ describe('SocialRealtimeService', () => {
     },
   };
 
+  let subscriptionCount = 0;
+
+  const mockSubscription = (unsubscribe: Mock): WebSocketSubscription => {
+    subscriptionCount += 1;
+    return {
+      subscriptionId: `sub-${subscriptionCount}`,
+      unsubscribe,
+    } as unknown as WebSocketSubscription;
+  };
+
   const createService = (
     enabled = true,
     scopes: ('all' | 'trending')[] = ['trending'],
@@ -75,7 +85,7 @@ describe('SocialRealtimeService', () => {
           return [];
         }
 
-        return Promise.resolve({ unsubscribe });
+        return Promise.resolve(mockSubscription(unsubscribe));
       },
     );
     const messenger = {
@@ -313,6 +323,64 @@ describe('SocialRealtimeService', () => {
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the active subscription when the scopes do not change', async () => {
+    const { call, service, unsubscribe } = createService(true, [
+      'all',
+      'trending',
+    ]);
+    const listener = vi.fn();
+    service.addListener(listener);
+
+    await service.setActive(true);
+    await service.setScopes(['trending', 'all']);
+    getFeedCallback(call)({
+      channel: SOCIAL_FEED_CHANNELS.all,
+      data: event,
+    });
+
+    expect(
+      call.mock.calls.filter(
+        ([action]) => action === 'BackendWebSocketService:subscribe',
+      ),
+    ).toHaveLength(1);
+    expect(unsubscribe).not.toHaveBeenCalled();
+    expect(listener).toHaveBeenCalledWith(event, 'all');
+  });
+
+  it('keeps a replacement that reuses the existing subscription id', async () => {
+    const { call, service, unsubscribe } = createService(true, ['all']);
+    const listener = vi.fn();
+    service.addListener(listener);
+    call.mockResolvedValue({ subscriptionId: 'sub-1', unsubscribe });
+
+    const activation = service.setActive(true);
+    await Promise.resolve();
+    await Promise.resolve();
+    const scopeUpdate = service.setScopes(['all']);
+    await activation;
+    await scopeUpdate;
+    const subscribeCalls = call.mock.calls.filter(
+      ([action]) => action === 'BackendWebSocketService:subscribe',
+    );
+    const [, [, replacementOptions]] = subscribeCalls as [
+      unknown,
+      [
+        string,
+        {
+          callback: (notification: { channel: string; data: unknown }) => void;
+        },
+      ],
+    ];
+    replacementOptions.callback({
+      channel: SOCIAL_FEED_CHANNELS.all,
+      data: event,
+    });
+
+    expect(subscribeCalls).toHaveLength(2);
+    expect(unsubscribe).not.toHaveBeenCalled();
+    expect(listener).toHaveBeenCalledWith(event, 'all');
+  });
+
   it('forwards overlapping events once during scope replacement', async () => {
     const { call, service } = createService(true, ['trending']);
     const listener = vi.fn();
@@ -368,10 +436,11 @@ describe('SocialRealtimeService', () => {
 
       if (action === 'BackendWebSocketService:subscribe') {
         subscribeCount += 1;
-        return Promise.resolve({
-          unsubscribe:
+        return Promise.resolve(
+          mockSubscription(
             subscribeCount === 1 ? existingUnsubscribe : replacementUnsubscribe,
-        });
+          ),
+        );
       }
 
       return Promise.resolve();
@@ -430,12 +499,13 @@ describe('SocialRealtimeService', () => {
 
       if (action === 'BackendWebSocketService:subscribe') {
         subscribeCount += 1;
-        return Promise.resolve({
-          unsubscribe:
+        return Promise.resolve(
+          mockSubscription(
             subscribeCount === 1
               ? existingUnsubscribe
               : vi.fn().mockResolvedValue(undefined),
-        });
+          ),
+        );
       }
 
       return Promise.resolve();
@@ -477,7 +547,7 @@ describe('SocialRealtimeService', () => {
       if (action === 'BackendWebSocketService:subscribe') {
         subscribeCount += 1;
         return subscribeCount === 1
-          ? Promise.resolve({ unsubscribe: existingUnsubscribe })
+          ? Promise.resolve(mockSubscription(existingUnsubscribe))
           : replacementPromise;
       }
 
@@ -489,9 +559,7 @@ describe('SocialRealtimeService', () => {
     await Promise.resolve();
     await Promise.resolve();
     await service.setActive(false);
-    resolveReplacement({
-      unsubscribe: replacementUnsubscribe,
-    } as unknown as WebSocketSubscription);
+    resolveReplacement(mockSubscription(replacementUnsubscribe));
 
     await expect(scopeUpdate).rejects.toThrow('Unsubscribe failed');
     expect(replacementUnsubscribe).toHaveBeenCalledTimes(1);
@@ -522,7 +590,7 @@ describe('SocialRealtimeService', () => {
       if (action === 'BackendWebSocketService:subscribe') {
         subscribeCount += 1;
         return subscribeCount === 1
-          ? Promise.resolve({ unsubscribe: existingUnsubscribe })
+          ? Promise.resolve(mockSubscription(existingUnsubscribe))
           : replacementPromise;
       }
 
@@ -566,10 +634,11 @@ describe('SocialRealtimeService', () => {
 
       if (action === 'BackendWebSocketService:subscribe') {
         subscribeCount += 1;
-        return Promise.resolve({
-          unsubscribe:
+        return Promise.resolve(
+          mockSubscription(
             subscribeCount === 1 ? existingUnsubscribe : replacementUnsubscribe,
-        });
+          ),
+        );
       }
 
       return Promise.resolve();
@@ -616,7 +685,7 @@ describe('SocialRealtimeService', () => {
       if (action === 'BackendWebSocketService:subscribe') {
         subscribeCount += 1;
         return subscribeCount === 1
-          ? Promise.resolve({ unsubscribe: vi.fn() })
+          ? Promise.resolve(mockSubscription(vi.fn()))
           : replacementPromise;
       }
 
@@ -654,10 +723,11 @@ describe('SocialRealtimeService', () => {
 
       if (action === 'BackendWebSocketService:subscribe') {
         subscribeCount += 1;
-        return Promise.resolve({
-          unsubscribe:
+        return Promise.resolve(
+          mockSubscription(
             subscribeCount === 1 ? existingUnsubscribe : replacementUnsubscribe,
-        });
+          ),
+        );
       }
 
       return Promise.resolve();
@@ -692,7 +762,7 @@ describe('SocialRealtimeService', () => {
         if (subscribeCount === 2) {
           return Promise.reject(error);
         }
-        return Promise.resolve({ unsubscribe: existingUnsubscribe });
+        return Promise.resolve(mockSubscription(existingUnsubscribe));
       }
 
       return Promise.resolve();
@@ -729,7 +799,7 @@ describe('SocialRealtimeService', () => {
     await Promise.resolve();
     await Promise.resolve();
     const scopeUpdate = service.setScopes(['all']);
-    resolveSubscription({ unsubscribe } as unknown as WebSocketSubscription);
+    resolveSubscription(mockSubscription(unsubscribe));
 
     await activation;
     await scopeUpdate;
@@ -768,7 +838,7 @@ describe('SocialRealtimeService', () => {
         if (subscribeCount === 2) {
           return firstReplacement;
         }
-        return Promise.resolve({ unsubscribe });
+        return Promise.resolve(mockSubscription(unsubscribe));
       }
 
       return Promise.resolve();
@@ -844,7 +914,7 @@ describe('SocialRealtimeService', () => {
         return [existingSubscription];
       }
 
-      return Promise.resolve({ unsubscribe });
+      return Promise.resolve(mockSubscription(unsubscribe));
     });
 
     service.addListener(listener);
@@ -881,7 +951,7 @@ describe('SocialRealtimeService', () => {
         return [];
       }
 
-      return Promise.resolve({ unsubscribe });
+      return Promise.resolve(mockSubscription(unsubscribe));
     });
 
     await service.setActive(true);
@@ -926,7 +996,7 @@ describe('SocialRealtimeService', () => {
         return false;
       }
 
-      return Promise.resolve({ unsubscribe });
+      return Promise.resolve(mockSubscription(unsubscribe));
     });
 
     await service.setActive(true);
@@ -985,7 +1055,7 @@ describe('SocialRealtimeService', () => {
     await Promise.resolve();
     await Promise.resolve();
     await service.setActive(false);
-    resolveSubscription({ unsubscribe } as unknown as WebSocketSubscription);
+    resolveSubscription(mockSubscription(unsubscribe));
     await activation;
 
     expect(unsubscribe).toHaveBeenCalledTimes(1);
@@ -1025,7 +1095,7 @@ describe('SocialRealtimeService', () => {
     await Promise.resolve();
     await Promise.resolve();
     await service.setActive(false);
-    resolveSubscription({ unsubscribe } as unknown as WebSocketSubscription);
+    resolveSubscription(mockSubscription(unsubscribe));
     await Promise.resolve();
 
     const reactivation = service.setActive(true);
@@ -1048,7 +1118,7 @@ describe('SocialRealtimeService', () => {
         return Promise.reject(error);
       }
 
-      return Promise.resolve({ unsubscribe: vi.fn() });
+      return Promise.resolve(mockSubscription(vi.fn()));
     });
 
     await expect(service.setActive(true)).rejects.toBe(error);
@@ -1112,7 +1182,7 @@ describe('SocialRealtimeService', () => {
       if (action === 'BackendWebSocketService:connect') {
         return Promise.reject(new Error('WebSocket unavailable'));
       }
-      return Promise.resolve({ unsubscribe: vi.fn() });
+      return Promise.resolve(mockSubscription(vi.fn()));
     });
 
     connectionStateHandler()?.({ state: WebSocketState.DISCONNECTED });
