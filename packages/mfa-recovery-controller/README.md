@@ -6,6 +6,21 @@ Pending mutations are encrypted in controller state with a key returned by the `
 `abort()` is allowed before writing, or once the write approval has expired and
 no escrow applied the mutation. See [Architecture](ARCHITECTURE.md).
 
+## Recovery Lock
+
+Configure `RecoveryRegistrationLockProvider` with the registration service URL,
+`fetch`, and a messenger that can call
+`AuthenticationController:getBearerToken` and
+`AuthenticationController:refreshCanonicalProfileId`.
+
+Call `acquireLock()` before reading identifiers, hold it while changing Auth
+identifiers and mutating, then call `releaseLock()`. Call `acquireLock()` again
+after long user interaction to extend the lease.
+
+The controller acquires the 6-minute lease before every 5-minute approval, and
+escrows reject expired approvals. So once another operation can take the lease,
+this operation's approvals are dead.
+
 ## Auth API Integration
 
 The controller's messenger must delegate `AuthenticationController:refreshCanonicalProfileId` and `AuthenticationController:requestMfaApproval`. It resolves the current canonical profile id for each mutation and requests approvals from `/api/v2/mfa/approvals`. Writes and reads require a

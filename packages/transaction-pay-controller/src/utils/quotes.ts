@@ -19,7 +19,7 @@ import type {
   TransactionPaymentToken,
   UpdateTransactionDataCallback,
 } from '../types.js';
-import { accountSupports7702 } from './7702.js';
+import { accountRequiresMfa, accountSupports7702 } from './account.js';
 import { buildNoOpQuote } from './no-op-quote.js';
 import { updateSourceAmounts } from './source-amounts.js';
 import {
@@ -87,7 +87,7 @@ export async function updateQuotes(
 
   const {
     accountOverride,
-    atomic,
+    atomic: requestedAtomic,
     fiatPayment,
     isHyperliquidSource,
     isMaxAmount,
@@ -102,6 +102,7 @@ export async function updateQuotes(
   } = transactionData;
 
   const from = getFrom(transaction, transactionData);
+  const atomic = resolveAtomic(transaction, messenger, requestedAtomic);
 
   const controller = abortPreviousAndCreateController(transactionId);
   const { signal } = controller;
@@ -244,6 +245,35 @@ function getFrom(
   }
 
   return transactionData.accountOverride ?? transactionFrom;
+}
+
+/**
+ * Resolve whether quotes may execute the target transaction atomically.
+ *
+ * An atomic quote embeds the target calls, which needs a fresh delegation
+ * signed by the account they execute from — `transaction.txParams.from`, not
+ * the quote sender, which `accountOverride` may point at the funding EOA.
+ * When that keyring requires MFA each quote refresh costs the user a
+ * confirmation, so atomic execution is never acceptable for those accounts.
+ *
+ * Resolved here rather than in a strategy so it applies to every strategy and
+ * to both the max and non-max quote paths.
+ *
+ * @param transaction - Transaction metadata.
+ * @param messenger - Messenger used to resolve the signing account's keyring.
+ * @param requestedAtomic - Atomic hint supplied by the client.
+ * @returns The atomic hint to send with quote requests.
+ */
+function resolveAtomic(
+  transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+  requestedAtomic: boolean | undefined,
+): boolean | undefined {
+  if (accountRequiresMfa(messenger, transaction.txParams.from)) {
+    return false;
+  }
+
+  return requestedAtomic;
 }
 
 /**

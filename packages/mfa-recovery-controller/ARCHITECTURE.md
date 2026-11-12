@@ -32,8 +32,10 @@ flowchart LR
 | Piece                    | Role                                                                                                           |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------- |
 | `pendingOperation`       | Persisted encrypted `authorizing` / `writing` blob, or `null`                                                  |
+| `lockId`                 | Persisted lease ID, reused on retry and restart, or `null`                                                     |
 | `getPendingOperationKey` | Host callback returning the serialized key for `pendingOperation`, or `null`; the key is never stored in state |
 | `escrows[]`              | Build-time replica set; non-empty, unique `id`s; mutations require **all**                                     |
+| `lockProvider`           | Per-profile lease, acquired before every approval                                                              |
 | `identifierAuthProvider` | Key-bound IdP assertion (passkey / OIDC / SIWE)                                                                |
 | `encryptor`              | `PendingOperationEncryptor`; imports the host key and encrypts / decrypts the pending blob with it             |
 | `now`                    | Clock (Unix seconds) for AuthController token expiry; defaults to `unixNow`                                    |
@@ -66,7 +68,9 @@ matches the hash computed over its hex-encoded form.
 
 Public surface (all exposed as messenger actions): `register`,
 `updateRecoverySecret`, `updateIdentifiers`, `authenticateIdentifier`,
-`getRecoverySecret`, `getIdentifiers`, `resume`, `abort`, `getPhase`.
+`getRecoverySecret`, `getIdentifiers`, `resume`, `abort`, `getPhase`,
+`acquireLock`, `releaseLock` (see
+[Recovery Lock](README.md#recovery-lock)).
 
 `getIdentifiers` takes an AAL1 approval and returns the enrolled identifiers
 at the highest consistent escrow version as `epoch`, plus Auth's identifiers.

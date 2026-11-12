@@ -628,7 +628,19 @@ describe('relay-max', () => {
     expect(result).toBe(phase1Quote);
   });
 
-  it('returns phase-1 quote when phase-2 gas limits differ from phase-1', async () => {
+  it('returns phase-2 quote when phase-2 gas limit and cost increase within the buffer', async () => {
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      remoteFeatureFlags: {
+        confirmations_eip_7702: {
+          supportedChains: [BASE_REQUEST.sourceChainId],
+        },
+        confirmations_pay_extended: {
+          gasStationCostBuffer: 1.02,
+        },
+      },
+    });
+
     const phase1Quote = makeQuote({
       sourceAmountRaw: '100000',
       gasLimits: [21000],
@@ -641,8 +653,8 @@ describe('relay-max', () => {
     const phase2Quote = makeQuote({
       isSourceGasFeeToken: true,
       gasLimits: [22000],
-      sourceAmountRaw: '99900',
-      sourceNetworkGasRaw: '100',
+      sourceAmountRaw: '99898',
+      sourceNetworkGasRaw: '102',
     });
     const getSingleQuote = vi
       .fn()
@@ -658,7 +670,52 @@ describe('relay-max', () => {
     );
 
     expect(getSingleQuote).toHaveBeenCalledTimes(3);
-    expect(result).toBe(phase1Quote);
+    expect(result).toBe(phase2Quote);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
+  });
+
+  it('reserves the gas station cost buffer from feature flags', async () => {
+    getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+      ...getDefaultRemoteFeatureFlagControllerState(),
+      remoteFeatureFlags: {
+        confirmations_eip_7702: {
+          supportedChains: [BASE_REQUEST.sourceChainId],
+        },
+        confirmations_pay_extended: {
+          gasStationCostBuffer: 1.5,
+        },
+      },
+    });
+
+    const phase1Quote = makeQuote({ sourceAmountRaw: '100000' });
+    const probeQuote = makeQuote({
+      isSourceGasFeeToken: true,
+      sourceAmountRaw: '25000',
+      sourceNetworkGasRaw: '100',
+    });
+    const phase2Quote = makeQuote({
+      isSourceGasFeeToken: true,
+      sourceAmountRaw: '99850',
+      sourceNetworkGasRaw: '100',
+    });
+    const getSingleQuote = vi
+      .fn()
+      .mockResolvedValueOnce(phase1Quote)
+      .mockResolvedValueOnce(probeQuote)
+      .mockResolvedValueOnce(phase2Quote);
+
+    const request = { ...BASE_REQUEST, sourceTokenAmount: '100000' };
+    await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ sourceTokenAmount: '99850' }),
+      expect.any(Object),
+    );
   });
 
   it('returns phase-2 quote when phase-2 gas limits differ but total gas is lower', async () => {
@@ -695,7 +752,7 @@ describe('relay-max', () => {
     expect(result.original.metamask.isMaxGasStation).toBe(true);
   });
 
-  it('returns phase-1 quote when phase-2 gas limits are missing', async () => {
+  it('returns phase-2 quote when phase-2 gas limits are missing', async () => {
     const phase1Quote = makeQuote({
       sourceAmountRaw: '100000',
       gasLimits: [21000],
@@ -726,7 +783,8 @@ describe('relay-max', () => {
     );
 
     expect(getSingleQuote).toHaveBeenCalledTimes(3);
-    expect(result).toBe(phase1Quote);
+    expect(result).toBe(phase2Quote);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
   });
 
   it('returns phase-2 quote when phase-1 gas limits are missing', async () => {
@@ -765,7 +823,7 @@ describe('relay-max', () => {
     expect(result.original.metamask.isMaxGasStation).toBe(true);
   });
 
-  it('returns phase-1 quote when phase-2 gas limit array length differs', async () => {
+  it('returns phase-2 quote when phase-2 gas limit array length differs', async () => {
     const phase1Quote = makeQuote({
       sourceAmountRaw: '100000',
       gasLimits: [21000, 30000],
@@ -795,7 +853,8 @@ describe('relay-max', () => {
     );
 
     expect(getSingleQuote).toHaveBeenCalledTimes(3);
-    expect(result).toBe(phase1Quote);
+    expect(result).toBe(phase2Quote);
+    expect(result.original.metamask.isMaxGasStation).toBe(true);
   });
 
   it('returns phase-1 quote when adjusted amount is not affordable after validation', async () => {

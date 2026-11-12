@@ -155,6 +155,37 @@ export const VaultRateResponseStruct = type({
   indexer_lag_seconds: number(),
 });
 
+const VaultShareValuationStruct = type({
+  vault_address: string(),
+  vault_key: string(),
+  asset_symbol: nullable(string()),
+  asset_decimals: number(),
+  type: string(),
+  log_index: nullable(number()),
+  block_number: nullable(number()),
+  timestamp: nullable(string()),
+  shares_wei: nullable(string()),
+  assets_wei: string(),
+  rate: nullable(string()),
+  source: string(),
+});
+
+const VaultShareValuationResultStruct = type({
+  tx_hash: string(),
+  found: boolean(),
+  valuations: array(VaultShareValuationStruct),
+});
+
+export const VaultShareValuationsResponseStruct = type({
+  address: string(),
+  chain_id: number(),
+  results: array(VaultShareValuationResultStruct),
+  as_of_block: number(),
+  as_of_timestamp: string(),
+  data_freshness: DataFreshnessStruct,
+  indexer_lag_seconds: number(),
+});
+
 export const VbaSiweChallengeResponseStruct = type({
   nonce: string(),
   message: string(),

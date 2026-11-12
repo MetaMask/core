@@ -20,6 +20,7 @@ import {
   getFeatureFlags,
   getSlippage,
   isEIP7702Chain,
+  isServerGaslessEnabled,
 } from '../../utils/feature-flags.js';
 import { resolveGasStationCost } from '../../utils/gas-payment.js';
 import { calculateGasCost, getGasFee } from '../../utils/gas.js';
@@ -39,6 +40,7 @@ vi.mock(import('../../utils/feature-flags.js'), async (importOriginal) => ({
   getFeatureFlags: vi.fn(),
   getSlippage: vi.fn(),
   isEIP7702Chain: vi.fn(),
+  isServerGaslessEnabled: vi.fn(),
 }));
 vi.mock(import('./server-api.js'));
 vi.mock(import('./server-validation.js'));
@@ -201,6 +203,7 @@ describe('server-quotes', () => {
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
     getSlippageMock.mockReturnValue(0.005);
     isEIP7702ChainMock.mockReturnValue(false);
+    vi.mocked(isServerGaslessEnabled).mockReturnValue(true);
     vi.mocked(getFeatureFlags).mockReturnValue({
       relayFallbackGas: '0x5208',
     } as never);
@@ -523,6 +526,26 @@ describe('server-quotes', () => {
     expect(fetchServerQuoteMock).toHaveBeenCalledWith(
       messenger,
       expect.objectContaining({ supportsGasless: true }),
+      undefined,
+    );
+  });
+
+  it('leaves supportsGasless false when the gasless flag is disabled', async () => {
+    isEIP7702ChainMock.mockReturnValue(true);
+    vi.mocked(isServerGaslessEnabled).mockReturnValue(false);
+
+    await getServerQuotes({
+      accountSupports7702: true,
+      from: FROM_MOCK,
+      messenger,
+      requests: [QUOTE_REQUEST_MOCK],
+      transaction: TRANSACTION_META_MOCK,
+    });
+
+    expect(isServerGaslessEnabled).toHaveBeenCalledWith(messenger);
+    expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ supportsGasless: false }),
       undefined,
     );
   });
