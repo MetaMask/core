@@ -33,7 +33,6 @@ import {
   getRelayOriginGasOverhead,
   getSlippage,
   getStablecoins,
-  isAtomicMaxEnabled,
   isEIP7702Chain,
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags.js';
@@ -43,6 +42,12 @@ import {
   resolveGasStationCost,
 } from '../../utils/gas-payment.js';
 import { calculateGasCost } from '../../utils/gas.js';
+import {
+  getMaxQuotes,
+  isAtomicMaxQuote,
+  isAtomicMaxSupported,
+} from '../../utils/max-quote.js';
+import type { MaxQuoteDetails } from '../../utils/max-quote.js';
 import {
   normalizePerpsDepositRequest,
   normalizePerpsWithdrawRequest,
@@ -68,11 +73,7 @@ import { TOKEN_TRANSFER_FOUR_BYTE } from './constants.js';
 import { hasRelayDepositStep } from './deposit-step.js';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation.js';
 import { fetchRelayQuote } from './relay-api.js';
-import {
-  getRelayMaxQuote,
-  isSubsidizedAtomicMaxQuote,
-  throwAtomicPromotionFailed,
-} from './relay-max.js';
+import { isSubsidizedRelayQuote } from './relay-submit-execute.js';
 import { validateRelayQuotes } from './relay-validation.js';
 import type {
   RelayQuote,
@@ -134,31 +135,16 @@ export async function getRelayQuotes(
       ),
     );
 
-    const atomicMaxQuotes = quotes.filter(isSubsidizedAtomicMaxQuote);
-    const otherQuotes = quotes.filter(
-      (quote) => !isSubsidizedAtomicMaxQuote(quote),
-    );
+    // Atomic max quotes are validated as part of the max flow.
+    const quotesToValidate = quotes.filter((quote) => !isAtomicMaxQuote(quote));
 
-    if (otherQuotes.length > 0) {
+    if (quotesToValidate.length > 0) {
       await validateRelayQuotes({
         messenger: request.messenger,
-        quotes: otherQuotes,
+        quotes: quotesToValidate,
         signal: request.signal,
         transaction: request.transaction,
       });
-    }
-
-    if (atomicMaxQuotes.length > 0) {
-      try {
-        await validateRelayQuotes({
-          messenger: request.messenger,
-          quotes: atomicMaxQuotes,
-          signal: request.signal,
-          transaction: request.transaction,
-        });
-      } catch (error) {
-        throwAtomicPromotionFailed(error);
-      }
     }
 
     return quotes;
@@ -178,7 +164,25 @@ async function getQuoteWithMaxAmountHandling(
     return getQuoteWithPostQuoteGasHandling(request, fullRequest);
   }
 
-  return getRelayMaxQuote(request, fullRequest, getSingleQuote);
+  const [maxQuote] = await getMaxQuotes({
+    fullRequest,
+    getQuoteDetails: getRelayMaxQuoteDetails,
+    getQuotes: async (maxRequest, transaction) => [
+      await getSingleQuote(maxRequest, { ...fullRequest, transaction }),
+    ],
+    request,
+    requote: (_quote, maxRequest, transaction) =>
+      getSingleQuote(maxRequest, { ...fullRequest, transaction }),
+    validateAtomicQuote: (quote) =>
+      validateRelayQuotes({
+        messenger: fullRequest.messenger,
+        quotes: [quote],
+        signal: fullRequest.signal,
+        transaction: fullRequest.transaction,
+      }),
+  });
+
+  return maxQuote;
 }
 
 /**
@@ -427,8 +431,7 @@ async function processTransactions(
   // below use EXACT_OUTPUT rather than the usual max EXACT_INPUT quote.
   if (
     isMaxAmount &&
-    (request.isPostQuote === true ||
-      !isAtomicMaxEnabled(messenger, transaction))
+    !isAtomicMaxSupported({ messenger, request, transaction })
   ) {
     throw new Error('Max amount quotes do not support included transactions');
   }
@@ -958,4 +961,29 @@ function isStablecoin(
       tokenAddress.toLowerCase() as Hex,
     ),
   );
+}
+
+function getRelayMaxQuoteDetails({
+  original,
+}: TransactionPayQuote<RelayQuote>): MaxQuoteDetails {
+  const firstTransactionStep = original.steps.find(
+    (step): step is RelayTransactionStep => step.kind === 'transaction',
+  );
+  const firstStepData = firstTransactionStep?.items[0]?.data;
+
+  return {
+    gasLimits: original.metamask.gasLimits,
+    gasStationTransactions: firstStepData
+      ? {
+          firstStepData,
+          totalItemCount: original.steps.reduce(
+            (count, step) => count + step.items.length,
+            0,
+          ),
+        }
+      : undefined,
+    isGasless: original.metamask.isExecute === true,
+    isSubsidized: isSubsidizedRelayQuote(original),
+    targetAmountRaw: original.details.currencyOut.amount,
+  };
 }
