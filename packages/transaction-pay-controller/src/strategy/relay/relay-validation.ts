@@ -11,11 +11,11 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { isMpcMoneyAccountPayer } from '../../utils/account.js';
 import {
   getEIP7702UpgradeContractAddress,
   isRelayValidationEnabled,
 } from '../../utils/feature-flags.js';
-import { isMpcMoneyAccountPayer } from '../../utils/account.js';
 import {
   buildPolymarketDepositWalletSimulation,
   isPredictWithdraw,

@@ -6,12 +6,12 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types.js';
+import { isMpcMoneyAccountPayer } from '../../utils/account.js';
 import {
   getEIP7702UpgradeContractAddress,
   isServerValidationEnabled,
 } from '../../utils/feature-flags.js';
 import { GasPaymentMode } from '../../utils/gas-payment.js';
-import { isMpcMoneyAccountPayer } from '../../utils/account.js';
 import {
   buildPolymarketDepositWalletSimulation,
   isPredictWithdraw,
