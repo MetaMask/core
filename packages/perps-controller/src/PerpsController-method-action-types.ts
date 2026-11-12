@@ -1064,6 +1064,49 @@ export type PerpsControllerSubscribeToAvailableToTradeAction = {
 };
 
 /**
+ * Read a market's most recent public trades (every user's trades, not only
+ * the account's fills), newest first, from the active provider.
+ *
+ * Every trade has the same shape on every provider and carries its
+ * `providerId`. If the active provider changes before the venue answers,
+ * this resolves to an empty list, so a previous provider's trades never
+ * reach a client that already moved on.
+ *
+ * @param params - Market, optional limit (default 50) and provider route.
+ * @returns The trades, newest first.
+ * @throws When no provider is initialized, the route conflicts with the
+ * active provider (`PROVIDER_NOT_FOUND`), the provider has no public trade
+ * feed, or the venue request fails.
+ */
+export type PerpsControllerGetPublicTradesAction = {
+  type: `PerpsController:getPublicTrades`;
+  handler: PerpsController['getPublicTrades'];
+};
+
+/**
+ * Stream a market's public trades (every user's trades) from the active
+ * provider, like the other market-data subscriptions.
+ *
+ * The callback receives each batch the venue pushes, newest first; the
+ * first batch is the venue's recent trades, so dedupe later batches on
+ * `id`. Nothing is delivered after the returned cleanup runs, after the
+ * provider that opened the stream stops being the active one (provider
+ * switch, testnet toggle, reinitialization), or for any other symbol.
+ * Subscribe again once the new provider is active.
+ *
+ * When no provider is active, the route conflicts with the active
+ * provider, or the provider has no public trade feed, this returns a no-op
+ * cleanup and never calls back.
+ *
+ * @param params - Market, optional route, callback and error handler.
+ * @returns A cleanup function to remove the subscription.
+ */
+export type PerpsControllerSubscribeToPublicTradesAction = {
+  type: `PerpsController:subscribeToPublicTrades`;
+  handler: PerpsController['subscribeToPublicTrades'];
+};
+
+/**
  * Subscribe to live candle updates
  *
  * @param params - The operation parameters.
@@ -1761,6 +1804,8 @@ export type PerpsControllerMethodActions =
   | PerpsControllerSubscribeToAccountAction
   | PerpsControllerSubscribeToOrderBookAction
   | PerpsControllerSubscribeToAvailableToTradeAction
+  | PerpsControllerGetPublicTradesAction
+  | PerpsControllerSubscribeToPublicTradesAction
   | PerpsControllerSubscribeToCandlesAction
   | PerpsControllerSubscribeToOICapsAction
   | PerpsControllerSetLiveDataConfigAction

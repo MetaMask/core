@@ -1004,6 +1004,123 @@ describe('HyperLiquidClientService', () => {
     });
   });
 
+  describe('public trades', () => {
+    const sdkTrade = {
+      coin: 'BTC',
+      side: 'B',
+      px: '50000',
+      sz: '0.1',
+      time: 1700000000000,
+      hash: '0xabc',
+      tid: 7,
+      users: ['0x1', '0x2'],
+    };
+
+    beforeEach(async () => {
+      await service.initialize(mockWallet);
+      vi.clearAllMocks();
+    });
+
+    it('reads recent trades for the coin over HTTP', async () => {
+      (mockInfoClientHttp as any).recentTrades = vi
+        .fn()
+        .mockResolvedValue([sdkTrade]);
+
+      const trades = await service.fetchRecentTrades('BTC');
+
+      expect((mockInfoClientHttp as any).recentTrades).toHaveBeenCalledWith({
+        coin: 'BTC',
+      });
+      expect(trades).toStrictEqual([sdkTrade]);
+    });
+
+    it('throws when the service is not initialized', () => {
+      const uninitializedService = new HyperLiquidClientService(mockDeps);
+
+      expect(() =>
+        uninitializedService.subscribeToTrades({
+          symbol: 'BTC',
+          callback: vi.fn(),
+        }),
+      ).toThrow('CLIENT_NOT_INITIALIZED');
+    });
+
+    it('throws when the subscription client is unavailable', async () => {
+      const serviceWithNoSubClient = new HyperLiquidClientService(mockDeps);
+      await serviceWithNoSubClient.initialize(mockWallet);
+      vi.spyOn(serviceWithNoSubClient, 'getSubscriptionClient').mockReturnValue(
+        undefined,
+      );
+
+      expect(() =>
+        serviceWithNoSubClient.subscribeToTrades({
+          symbol: 'BTC',
+          callback: vi.fn(),
+        }),
+      ).toThrow('SUBSCRIPTION_CLIENT_NOT_AVAILABLE');
+    });
+
+    it('forwards each batch until cleanup, then closes the subscription once', async () => {
+      const mockUnsubscribe = vi.fn().mockResolvedValue(undefined);
+      let listener: ((trades: unknown[]) => void) | undefined;
+      (mockSubscriptionClient as any).trades = vi.fn(
+        (_params: unknown, onTrades: (trades: unknown[]) => void) => {
+          listener = onTrades;
+          return Promise.resolve({ unsubscribe: mockUnsubscribe });
+        },
+      );
+      const callback = vi.fn();
+
+      const unsubscribe = service.subscribeToTrades({
+        symbol: 'BTC',
+        callback,
+      });
+      listener?.([sdkTrade]);
+      unsubscribe();
+      unsubscribe();
+      listener?.([sdkTrade]);
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect((mockSubscriptionClient as any).trades).toHaveBeenCalledWith(
+        { coin: 'BTC' },
+        expect.any(Function),
+      );
+      expect(callback.mock.calls).toStrictEqual([[[sdkTrade]]]);
+      expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a failure to open the subscription to onError', async () => {
+      (mockSubscriptionClient as any).trades = vi
+        .fn()
+        .mockRejectedValue(new Error('subscribe refused'));
+      const onError = vi.fn();
+
+      service.subscribeToTrades({ symbol: 'BTC', callback: vi.fn(), onError });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'subscribe refused' }),
+      );
+    });
+
+    it('does not report an open failure after cleanup', async () => {
+      (mockSubscriptionClient as any).trades = vi
+        .fn()
+        .mockRejectedValue(new Error('subscribe refused'));
+      const onError = vi.fn();
+
+      const unsubscribe = service.subscribeToTrades({
+        symbol: 'BTC',
+        callback: vi.fn(),
+        onError,
+      });
+      unsubscribe();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(onError).not.toHaveBeenCalled();
+    });
+  });
+
   describe('subscribeToCandles', () => {
     beforeEach(async () => {
       await service.initialize(mockWallet);

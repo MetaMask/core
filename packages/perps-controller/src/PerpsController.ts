@@ -109,6 +109,7 @@ import type {
   GetMarginModeLockParams,
   GetScalePriceLadderParams,
   GetOrderFillsParams,
+  GetPublicTradesParams,
   GetOrdersParams,
   GetPositionsParams,
   PerpsProvider,
@@ -141,6 +142,7 @@ import type {
   ResolveRecoveryProtectionParams,
   PerpsRecoveryProtectionResult,
   Position,
+  PublicTrade,
   SubscribeAccountParams,
   SubscribeCandlesParams,
   SubscribeOICapsParams,
@@ -151,6 +153,7 @@ import type {
   SubscribeTwapOrdersParams,
   SubscribePositionsParams,
   SubscribePricesParams,
+  SubscribePublicTradesParams,
   ReadyToTradeResult,
   SwitchProviderResult,
   SetDefaultProviderResult,
@@ -1023,6 +1026,11 @@ type UserSnapshotContext = {
   isCurrent: () => boolean;
 };
 
+/**
+ * Number of public trades `getPublicTrades` returns when no limit is given.
+ */
+const PUBLIC_TRADES_DEFAULT_LIMIT = 50;
+
 const MESSENGER_EXPOSED_METHODS = [
   'approveSubscriptionBuilderFee',
   'calculateFees',
@@ -1079,6 +1087,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPendingManualRecoveries',
   'getPendingTradeConfiguration',
   'getPositions',
+  'getPublicTrades',
   'getSelectedOrderType',
   'getRecoveredDispatches',
   'getAttachedOrderGroups',
@@ -1144,6 +1153,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'subscribeToOrders',
   'subscribeToPositions',
   'subscribeToPrices',
+  'subscribeToPublicTrades',
   'subscribeToTwapOrders',
   'suspendChaseOrders',
   'switchProvider',
@@ -7484,6 +7494,125 @@ export class PerpsController extends BaseController<
         ensureError(error, 'PerpsController.subscribeToAvailableToTrade'),
         this.#getErrorContext(
           'subscribeToAvailableToTrade',
+          { symbol: params.symbol, providerId: params.providerId },
+          CONNECTION_ERROR_TAGS,
+        ),
+      );
+      return noop;
+    }
+  }
+
+  /**
+   * Read a market's most recent public trades (every user's trades, not only
+   * the account's fills), newest first, from the active provider.
+   *
+   * Every trade has the same shape on every provider and carries its
+   * `providerId`. If the active provider changes before the venue answers,
+   * this resolves to an empty list, so a previous provider's trades never
+   * reach a client that already moved on.
+   *
+   * @param params - Market, optional limit (default 50) and provider route.
+   * @returns The trades, newest first.
+   * @throws When no provider is initialized, the route conflicts with the
+   * active provider (`PROVIDER_NOT_FOUND`), the provider has no public trade
+   * feed, or the venue request fails.
+   */
+  async getPublicTrades(params: GetPublicTradesParams): Promise<PublicTrade[]> {
+    const provider = this.getActiveProvider();
+    if (this.#hasConflictingProviderRoute(params.providerId, provider)) {
+      throw new Error(PERPS_ERROR_CODES.PROVIDER_NOT_FOUND);
+    }
+    if (!provider.getPublicTrades) {
+      throw new Error('Public trades not supported by provider');
+    }
+    try {
+      const trades = await provider.getPublicTrades({
+        ...params,
+        limit: params.limit ?? PUBLIC_TRADES_DEFAULT_LIMIT,
+      });
+      if (this.getActiveProviderOrNull() !== provider) {
+        return [];
+      }
+      return trades.filter((trade) => trade.symbol === params.symbol);
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.getPublicTrades'),
+        this.#getErrorContext(
+          'getPublicTrades',
+          { symbol: params.symbol, providerId: params.providerId },
+          CONNECTION_ERROR_TAGS,
+        ),
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Stream a market's public trades (every user's trades) from the active
+   * provider, like the other market-data subscriptions.
+   *
+   * The callback receives each batch the venue pushes, newest first; the
+   * first batch is the venue's recent trades, so dedupe later batches on
+   * `id`. Nothing is delivered after the returned cleanup runs, after the
+   * provider that opened the stream stops being the active one (provider
+   * switch, testnet toggle, reinitialization), or for any other symbol.
+   * Subscribe again once the new provider is active.
+   *
+   * When no provider is active, the route conflicts with the active
+   * provider, or the provider has no public trade feed, this returns a no-op
+   * cleanup and never calls back.
+   *
+   * @param params - Market, optional route, callback and error handler.
+   * @returns A cleanup function to remove the subscription.
+   */
+  subscribeToPublicTrades(params: SubscribePublicTradesParams): () => void {
+    const noop = (): void => {
+      // No-op: no public trade feed for this route
+    };
+    const provider = this.getActiveProviderOrNull();
+    if (
+      !provider?.subscribeToPublicTrades ||
+      this.#hasConflictingProviderRoute(params.providerId, provider)
+    ) {
+      return noop;
+    }
+    let isActive = true;
+    const isCurrent = (): boolean =>
+      isActive && this.getActiveProviderOrNull() === provider;
+    const { onError } = params;
+    try {
+      const unsubscribe = provider.subscribeToPublicTrades({
+        ...params,
+        callback: (trades) => {
+          if (!isCurrent()) {
+            return;
+          }
+          const matching = trades.filter(
+            (trade) => trade.symbol === params.symbol,
+          );
+          if (matching.length > 0) {
+            params.callback(matching);
+          }
+        },
+        ...(onError
+          ? {
+              onError: (error: Error): void => {
+                if (isCurrent()) {
+                  onError(error);
+                }
+              },
+            }
+          : {}),
+      });
+      return () => {
+        isActive = false;
+        unsubscribe();
+      };
+    } catch (error) {
+      this.#logError(
+        ensureError(error, 'PerpsController.subscribeToPublicTrades'),
+        this.#getErrorContext(
+          'subscribeToPublicTrades',
           { symbol: params.symbol, providerId: params.providerId },
           CONNECTION_ERROR_TAGS,
         ),

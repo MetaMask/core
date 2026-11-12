@@ -37,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Direct single-provider modes and aggregated wrappers with one registered venue, including HyperLiquid-only fallback when Lighter is unavailable, accept writes without an explicit route: they already have exactly one destination
   - A write queued across a cold-start migration to aggregated mode is checked against the provider it actually reaches
   - `PROVIDER_ROUTE_REQUIRED` widens the exported `PerpsErrorCode` union. Clients that key an exhaustive `Record<PerpsErrorCode, …>` must add an entry when they upgrade
+- Add `PerpsController.getPublicTrades` and `PerpsController.subscribeToPublicTrades` (messenger actions `PerpsController:getPublicTrades` and `PerpsController:subscribeToPublicTrades`) to read and stream a market's public trades, every user's trades rather than only the account's fills, on the active provider
+  - `getPublicTrades({ symbol, limit?, providerId? })` resolves to the most recent trades, newest first (default 50; Hyperliquid returns its last 10 and Lighter at most 100). It resolves to `[]` when the active provider changes before the venue answers
+  - `subscribeToPublicTrades({ symbol, callback, onError?, providerId? })` returns a cleanup function, like `subscribeToOrderBook` and `subscribeToCandles`. The callback receives each batch the venue pushes, newest first, starting with the venue's recent trades (Hyperliquid 30, Lighter 50), so dedupe on `id`. Nothing is delivered after cleanup, after the provider that opened the stream stops being the active one, or for another symbol
+  - Hyperliquid and Lighter implement both on testnet and mainnet with the same `PublicTrade` shape: `{ id, symbol, price, size, side, timestamp, txHash?, providerId }`, where `side` is the aggressor's (`buy` or `sell`). `AggregatedPerpsProvider` routes to `providerId`, else the default provider
+  - New optional `PerpsProvider.getPublicTrades` and `PerpsProvider.subscribeToPublicTrades` members, and types `PublicTrade`, `GetPublicTradesParams`, `SubscribePublicTradesParams`, `PerpsControllerGetPublicTradesAction` and `PerpsControllerSubscribeToPublicTradesAction`
 
 ### Changed
 
