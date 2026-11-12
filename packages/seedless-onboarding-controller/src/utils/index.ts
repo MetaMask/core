@@ -20,6 +20,7 @@ export {
   getInvalidPrimarySecretDataTypeErrorData,
   getSecretTypeFromDataType,
   isAuthTokenError,
+  isCouldNotDeriveEncryptionKeyError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
   parseVaultData,

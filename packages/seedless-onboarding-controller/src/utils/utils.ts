@@ -252,6 +252,20 @@ export function isMaxKeyChainLengthError(error: unknown): boolean {
 }
 
 /**
+ * Check whether an error indicates that the TOPRF evaluation didn't match the
+ * stored key, i.e. the input was wrong for the share.
+ *
+ * @param error - The error to check.
+ * @returns Whether the error is a could not derive encryption key error.
+ */
+export function isCouldNotDeriveEncryptionKeyError(error: unknown): boolean {
+  return (
+    error instanceof TOPRFError &&
+    error.code === TOPRFErrorCode.CouldNotDeriveEncryptionKey
+  );
+}
+
+/**
  * Derive SecretType from EncAccountDataType.
  *
  * This function maps the server-side data type classification to the

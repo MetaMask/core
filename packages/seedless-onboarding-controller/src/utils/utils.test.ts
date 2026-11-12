@@ -21,6 +21,7 @@ import {
   getInvalidPrimarySecretDataTypeErrorData,
   getSecretTypeFromDataType,
   isAuthTokenError,
+  isCouldNotDeriveEncryptionKeyError,
   isMaxKeyChainLengthError,
   isTokenNearExpiry,
   parseVaultData,
@@ -370,6 +371,25 @@ describe('utils', () => {
       expect(isMaxKeyChainLengthError(new Error('not a TOPRF error'))).toBe(
         false,
       );
+    });
+
+    it('identifies could not derive encryption key errors', () => {
+      expect(
+        isCouldNotDeriveEncryptionKeyError(
+          new TOPRFError(
+            TOPRFErrorCode.CouldNotDeriveEncryptionKey,
+            'could not derive',
+          ),
+        ),
+      ).toBe(true);
+      expect(
+        isCouldNotDeriveEncryptionKeyError(
+          new TOPRFError(TOPRFErrorCode.AuthTokenExpired, 'expired'),
+        ),
+      ).toBe(false);
+      expect(
+        isCouldNotDeriveEncryptionKeyError(new Error('not a TOPRF error')),
+      ).toBe(false);
     });
   });
 });
