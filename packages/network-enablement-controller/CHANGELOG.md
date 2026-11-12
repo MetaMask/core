@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0`
-- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1`
+- Bump `@metamask/config-registry-controller` from `^5.0.0` to `^6.0.0` ([#11447](https://github.com/MetaMask/core/pull/11447))
+- Bump `@metamask/network-controller` from `^38.0.0` to `^38.0.1` ([#11447](https://github.com/MetaMask/core/pull/11447))
 
 ## [7.1.1]
 
