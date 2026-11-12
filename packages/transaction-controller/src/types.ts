@@ -2232,6 +2232,13 @@ export type MetamaskPayMetadata = {
   /** Pay strategy used to fund the transaction (e.g. "relay", "fiat"). */
   strategy?: string;
 
+  /**
+   * Timestamp (ms since epoch) set by the pay controller when it starts
+   * resuming this transaction after a restart. Used as a once-only guard —
+   * TC does not read this field.
+   */
+  resumeAttemptedAt?: number;
+
   /** Total amount of target token provided in fiat currency. */
   targetFiat?: string;
 

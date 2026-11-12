@@ -168,6 +168,19 @@ export type TransactionControllerFailTransactionAction = {
 };
 
 /**
+ * Marks a pending resumed transaction as submitted, using the same
+ * event path as a normal publish. Only valid when the transaction is
+ * in `approved` or `signed` status; throws otherwise.
+ *
+ * @param transactionId - ID of the transaction to finalise.
+ * @param transactionHash - On-chain hash returned by the resuming controller.
+ */
+export type TransactionControllerFinalizeResumedTransactionAction = {
+  type: `TransactionController:finalizeResumedTransaction`;
+  handler: TransactionController['finalizeResumedTransaction'];
+};
+
+/**
  * Update the security alert response for a transaction.
  *
  * @param transactionId - ID of the transaction.
@@ -470,6 +483,7 @@ export type TransactionControllerMethodActions =
   | TransactionControllerUpdateTransactionAction
   | TransactionControllerUpdateTransactionMetadataAction
   | TransactionControllerFailTransactionAction
+  | TransactionControllerFinalizeResumedTransactionAction
   | TransactionControllerUpdateSecurityAlertResponseAction
   | TransactionControllerWipeTransactionsAction
   | TransactionControllerConfirmExternalTransactionAction

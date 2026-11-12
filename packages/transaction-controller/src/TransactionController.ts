@@ -430,6 +430,14 @@ export type TransactionControllerOptions = {
      */
     beforeSign?: BeforeSignHook;
 
+    /**
+     * Called synchronously during construction for each incomplete
+     * (approved/signed) transaction found in persisted state.
+     * Return true to leave the transaction pending so another controller
+     * can finish it; return false (default) to fail it as today.
+     */
+    isResumable?: (transactionMeta: TransactionMeta) => boolean;
+
     /** Alternate logic to publish a transaction. */
     publish?: (
       transactionMeta: TransactionMeta,
@@ -701,6 +709,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'estimateGasBuffered',
   'estimateGasFee',
   'failTransaction',
+  'finalizeResumedTransaction',
   'getGasFeeTokens',
   'getLayer1GasFee',
   'getNonceLock',
@@ -767,6 +776,8 @@ export class TransactionController extends BaseController<
   ) => Promise<boolean>;
 
   readonly #isFirstTimeInteractionEnabled: () => boolean;
+
+  readonly #isResumable: (transactionMeta: TransactionMeta) => boolean;
 
   readonly #isSimulationEnabled: (transactionMeta?: TransactionMeta) => boolean;
 
@@ -864,6 +875,7 @@ export class TransactionController extends BaseController<
       ((): Promise<boolean> => Promise.resolve(false));
     this.#isFirstTimeInteractionEnabled =
       isFirstTimeInteractionEnabled ?? ((): boolean => true);
+    this.#isResumable = hooks?.isResumable ?? ((): boolean => false);
     this.#isSimulationEnabled = isSimulationEnabled ?? ((): boolean => true);
     this.#isTransactionTrusted = isTransactionTrusted ?? ((): boolean => false);
     this.#isSwapsDisabled = disableSwaps ?? false;
@@ -1688,6 +1700,32 @@ export class TransactionController extends BaseController<
   failTransaction(transactionId: string, error: Error): void {
     const transactionMeta = this.#getTransactionOrThrow(transactionId);
     this.#failTransaction(transactionMeta, error);
+  }
+
+  /**
+   * Marks a pending resumed transaction as submitted, using the same
+   * event path as a normal publish. Only valid when the transaction is
+   * in `approved` or `signed` status; throws otherwise.
+   *
+   * @param transactionId - ID of the transaction to finalise.
+   * @param transactionHash - On-chain hash returned by the resuming controller.
+   */
+  finalizeResumedTransaction(
+    transactionId: string,
+    transactionHash: string,
+  ): void {
+    const transactionMeta = this.#getTransactionOrThrow(transactionId);
+
+    if (
+      transactionMeta.status !== TransactionStatus.approved &&
+      transactionMeta.status !== TransactionStatus.signed
+    ) {
+      throw new Error(
+        `Cannot finalize resumed transaction ${transactionId}: status is ${transactionMeta.status}`,
+      );
+    }
+
+    this.#finalizePublish(transactionId, transactionHash);
   }
 
   /**
@@ -2906,6 +2944,18 @@ export class TransactionController extends BaseController<
       const requiredTransactionIds =
         transactionMeta.requiredTransactionIds ?? [];
 
+      let shouldResume = false;
+
+      try {
+        shouldResume = this.#isResumable(transactionMeta);
+      } catch (error) {
+        log('isResumable hook threw', error);
+      }
+
+      if (shouldResume) {
+        continue;
+      }
+
       const allRequiredConfirmed =
         requiredTransactionIds.length > 0 &&
         requiredTransactionIds.every((id) => {
@@ -3222,32 +3272,9 @@ export class TransactionController extends BaseController<
       );
 
       // eslint-disable-next-line require-atomic-updates
-      transactionMeta = this.#updateTransactionInternal(
-        {
-          transactionId,
-        },
-        (draftTxMeta) => {
-          draftTxMeta.hash = hash;
-          draftTxMeta.status = TransactionStatus.submitted;
-          draftTxMeta.submittedTime ??= new Date().getTime();
-          if (shouldUpdatePreTxBalance) {
-            draftTxMeta.preTxBalance = preTxBalance;
-            log('Updated pre-transaction balance', preTxBalance);
-          }
-        },
-      );
-
-      this.messenger.publish(`${controllerName}:transactionSubmitted`, {
-        transactionMeta,
+      this.#finalizePublish(transactionId, hash, {
+        preTxBalance: shouldUpdatePreTxBalance ? preTxBalance : undefined,
       });
-
-      this.messenger.publish(
-        `${controllerName}:transactionFinished`,
-        transactionMeta,
-      );
-      this.#internalEvents.emit(`${transactionId}:finished`, transactionMeta);
-
-      this.#onTransactionStatusChange(transactionMeta);
       return ApprovalState.Approved;
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -3258,6 +3285,35 @@ export class TransactionController extends BaseController<
       clearApprovingTransactionId?.();
       clearNonceLock?.();
     }
+  }
+
+  #finalizePublish(
+    transactionId: string,
+    hash: string | undefined,
+    { preTxBalance }: { preTxBalance?: string } = {},
+  ): void {
+    const transactionMeta = this.#updateTransactionInternal(
+      { transactionId },
+      (draftTxMeta) => {
+        draftTxMeta.hash = hash;
+        draftTxMeta.status = TransactionStatus.submitted;
+        draftTxMeta.submittedTime ??= new Date().getTime();
+        if (preTxBalance !== undefined) {
+          draftTxMeta.preTxBalance = preTxBalance;
+          log('Updated pre-transaction balance', preTxBalance);
+        }
+      },
+    );
+
+    this.messenger.publish(`${controllerName}:transactionSubmitted`, {
+      transactionMeta,
+    });
+    this.messenger.publish(
+      `${controllerName}:transactionFinished`,
+      transactionMeta,
+    );
+    this.#internalEvents.emit(`${transactionId}:finished`, transactionMeta);
+    this.#onTransactionStatusChange(transactionMeta);
   }
 
   async #publishTransaction(

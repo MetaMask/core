@@ -146,6 +146,9 @@ const DATA_MOCK = '0x12345678';
 const VALUE_MOCK = '0xabcd';
 const ORIGIN_MOCK = 'test.com';
 const GAS_FEE_TOKEN_ADDRESS_MOCK = '0x20c0000000000000000000000000000000000000';
+const { projectLoggerMock } = vi.hoisted(() => ({
+  projectLoggerMock: Object.assign(vi.fn(), { extend: vi.fn(() => vi.fn()) }),
+}));
 
 vi.mock('./api/accounts-api');
 vi.mock('./gas-flows/DefaultGasFeeFlow');
@@ -157,6 +160,11 @@ vi.mock('./helpers/MethodDataHelper');
 vi.mock('./helpers/MultichainTrackingHelper');
 vi.mock('./helpers/PendingTransactionTracker');
 vi.mock('./hooks/ExtraTransactionsPublishHook');
+vi.mock('./logger.js', () => ({
+  createModuleLogger: vi.fn(() => vi.fn()),
+  incomingTransactionsLogger: vi.fn(),
+  projectLogger: projectLoggerMock,
+}));
 vi.mock('./utils/batch');
 vi.mock('./utils/feature-flags');
 vi.mock('./utils/first-time-interaction');
@@ -1256,6 +1264,156 @@ describe('TransactionController', () => {
       expect(incompleteTransaction?.status).toBe(TransactionStatus.failed);
       expect(incompleteTransaction?.error?.message).toBe(
         'Transaction incomplete at startup',
+      );
+    });
+
+    it('fails approved and signed transactions when isResumable is not provided', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+        {
+          id: '456',
+          chainId: toHex(5),
+          status: TransactionStatus.signed,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: { transactions: mockedTransactions } as any,
+        },
+      });
+
+      await flushPromises();
+
+      expect(
+        controller.state.transactions.map((transaction) => [
+          transaction.id,
+          transaction.status,
+          transaction.error?.message,
+        ]),
+      ).toStrictEqual(
+        expect.arrayContaining([
+          [
+            '123',
+            TransactionStatus.failed,
+            'Transaction incomplete at startup',
+          ],
+          [
+            '456',
+            TransactionStatus.failed,
+            'Transaction incomplete at startup',
+          ],
+        ]),
+      );
+    });
+
+    it('does not fail resumable transactions or their required transactions', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          requiredTransactionIds: ['222'],
+          ...mockTransactionMeta,
+        },
+        {
+          id: '222',
+          chainId: toHex(5),
+          status: TransactionStatus.submitted,
+          ...mockTransactionMeta,
+        },
+      ];
+      const isResumable = vi.fn().mockReturnValue(true);
+
+      const { controller } = setupController({
+        options: {
+          hooks: { isResumable },
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: { transactions: mockedTransactions } as any,
+        },
+      });
+
+      await flushPromises();
+
+      expect(isResumable).toHaveBeenCalledTimes(1);
+      expect(isResumable).toHaveBeenCalledWith(
+        expect.objectContaining({ id: '123' }),
+      );
+      expect(
+        controller.state.transactions.map((transaction) => [
+          transaction.id,
+          transaction.status,
+        ]),
+      ).toStrictEqual([
+        ['222', TransactionStatus.submitted],
+        ['123', TransactionStatus.approved],
+      ]);
+    });
+
+    it('fails incomplete transactions when isResumable throws', async () => {
+      const mockTransactionMeta = {
+        from: ACCOUNT_MOCK,
+        txParams: {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+        },
+      };
+      const mockedTransactions = [
+        {
+          id: '123',
+          chainId: toHex(5),
+          status: TransactionStatus.approved,
+          ...mockTransactionMeta,
+        },
+      ];
+
+      const { controller } = setupController({
+        options: {
+          hooks: {
+            isResumable: () => {
+              throw new Error('Cannot resume');
+            },
+          },
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          state: { transactions: mockedTransactions } as any,
+        },
+      });
+
+      await flushPromises();
+
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.failed,
+      );
+      expect(controller.state.transactions[0].error?.message).toBe(
+        'Transaction incomplete at startup',
+      );
+      expect(projectLoggerMock).toHaveBeenCalledWith(
+        'isResumable hook threw',
+        expect.any(Error),
       );
     });
 
@@ -6669,6 +6827,114 @@ describe('TransactionController', () => {
       expect(() =>
         controller.failTransaction('missing-id', new Error('Test failure')),
       ).toThrow('No transaction found with id missing-id');
+    });
+  });
+
+  describe('finalizeResumedTransaction', () => {
+    const approvedTransactionMock = {
+      ...TRANSACTION_META_MOCK,
+      hash: undefined,
+      status: TransactionStatus.approved as const,
+    } as unknown as TransactionMeta;
+
+    it('marks an approved transaction as submitted with the provided hash', () => {
+      const submittedListener = vi.fn();
+      const finishedListener = vi.fn();
+      const { controller, messenger } = setupController({
+        options: {
+          hooks: { isResumable: () => true },
+          state: {
+            transactions: [approvedTransactionMock],
+          },
+        },
+      });
+      messenger.subscribe(
+        'TransactionController:transactionSubmitted',
+        submittedListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionFinished',
+        finishedListener,
+      );
+
+      controller.finalizeResumedTransaction(approvedTransactionMock.id, '0x1');
+
+      expect(controller.state.transactions[0]).toMatchObject({
+        hash: '0x1',
+        status: TransactionStatus.submitted,
+        submittedTime: expect.any(Number),
+      });
+      expect(submittedListener).toHaveBeenCalledTimes(1);
+      expect(submittedListener).toHaveBeenCalledWith({
+        transactionMeta: expect.objectContaining({
+          hash: '0x1',
+          status: TransactionStatus.submitted,
+        }),
+      });
+      expect(finishedListener).toHaveBeenCalledTimes(1);
+      expect(finishedListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          hash: '0x1',
+          status: TransactionStatus.submitted,
+        }),
+      );
+    });
+
+    it('marks a signed transaction as submitted with the provided hash', () => {
+      const signedTransactionMock = {
+        ...TRANSACTION_META_MOCK,
+        hash: undefined,
+        status: TransactionStatus.signed as const,
+      } as unknown as TransactionMeta;
+      const { controller } = setupController({
+        options: {
+          hooks: { isResumable: () => true },
+          state: {
+            transactions: [signedTransactionMock],
+          },
+        },
+      });
+
+      controller.finalizeResumedTransaction(signedTransactionMock.id, '0x1');
+
+      expect(controller.state.transactions[0]).toMatchObject({
+        hash: '0x1',
+        status: TransactionStatus.submitted,
+      });
+    });
+
+    it.each([TransactionStatus.submitted, TransactionStatus.confirmed])(
+      'throws without changing state when transaction status is %s',
+      (status) => {
+        const transactionMock = {
+          ...TRANSACTION_META_MOCK,
+          hash: '0x2',
+          status,
+        } as unknown as TransactionMeta;
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [transactionMock],
+            },
+          },
+        });
+
+        expect(() =>
+          controller.finalizeResumedTransaction(transactionMock.id, '0x1'),
+        ).toThrow(
+          `Cannot finalize resumed transaction ${transactionMock.id}: status is ${status}`,
+        );
+        expect(controller.state.transactions[0]).toStrictEqual(transactionMock);
+      },
+    );
+
+    it('throws if the transaction does not exist', () => {
+      const { controller } = setupController();
+
+      expect(() =>
+        controller.finalizeResumedTransaction('missing-id', '0x1'),
+      ).toThrow('No transaction found with id missing-id');
+      expect(controller.state.transactions).toStrictEqual([]);
     });
   });
 
