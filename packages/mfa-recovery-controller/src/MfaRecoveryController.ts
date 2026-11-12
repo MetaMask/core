@@ -1065,7 +1065,21 @@ export class MfaRecoveryController extends BaseController<
     this.update((state) => {
       state.lockId = lockId;
     });
-    await this.#lockProvider.acquire(lockId);
+    try {
+      await this.#lockProvider.acquire(lockId);
+    } catch (error) {
+      // A conflict means another ID holds the lease. Other failures may have
+      // acquired it, so keep the ID for a retry.
+      if (
+        error instanceof MfaRecoveryError &&
+        error.code === 'recovery_lock_conflict'
+      ) {
+        this.update((state) => {
+          state.lockId = null;
+        });
+      }
+      throw error;
+    }
   }
 
   async #withLock<ReturnValue>(

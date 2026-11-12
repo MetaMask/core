@@ -22,7 +22,11 @@ import {
   hash,
   unixNow,
 } from './crypto.js';
-import { IncompleteMutationError, MutationRejectedError } from './errors.js';
+import {
+  IncompleteMutationError,
+  MfaRecoveryError,
+  MutationRejectedError,
+} from './errors.js';
 import type {
   MfaRecoveryControllerMessenger,
   MfaRecoveryControllerOptions,
@@ -223,6 +227,33 @@ describe('MfaRecoveryController', () => {
           expect(authorize).not.toHaveBeenCalled();
         },
       );
+    });
+
+    it('drops the lock ID when another operation holds the lease', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        lockProvider.lockId = 'other-operation';
+        await expect(
+          controller.register(SECRET, IDENTIFIERS),
+        ).rejects.toMatchObject({ code: 'recovery_lock_conflict' });
+        expect(controller.state.lockId).toBeNull();
+
+        lockProvider.lockId = null;
+        await controller.resume();
+        expect(await controller.getPhase()).toBe('idle');
+        expect(controller.state.lockId).toBe(lockProvider.lockId);
+      });
+    });
+
+    it('keeps the lock ID when acquiring fails otherwise', async () => {
+      await withController(async ({ controller, lockProvider }) => {
+        vi.spyOn(lockProvider, 'acquire').mockRejectedValueOnce(
+          new MfaRecoveryError('Unavailable', 'recovery_lock_unavailable'),
+        );
+        await expect(controller.acquireLock()).rejects.toMatchObject({
+          code: 'recovery_lock_unavailable',
+        });
+        expect(controller.state.lockId).toStrictEqual(expect.any(String));
+      });
     });
 
     it('reuses the persisted lock ID and releases it', async () => {
